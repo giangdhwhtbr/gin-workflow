@@ -1,0 +1,8 @@
+# Ignore generated/compiled plugin assets
+dist/
+
+# OS/Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
