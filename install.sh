@@ -170,22 +170,22 @@ EOF
 
 template_hooks_for_antigravity() {
   local dest="$1"
-  local root_var="$2"
-  # Antigravity expects hooks.json as map[string]JSONHookSpec: an object keyed by
-  # event name where each value is a SINGLE flat spec object (not the array-of-
-  # {matcher,hooks:[...]} shape Claude Code uses).
+  local default_root="$2"
+  # Use ${PLUGIN_ROOT} if set at runtime (non-standard install), otherwise fall
+  # back to the absolute path baked in at install time. This makes the env var
+  # an optional override rather than a hard requirement.
   cat <<EOF > "$dest"
 {
   "PreToolUse": {
     "matcher": "Bash|run_command",
     "type": "command",
-    "command": "${root_var}/scripts/safety-check.sh",
+    "command": "\${PLUGIN_ROOT:-${default_root}}/scripts/safety-check.sh",
     "timeout": 30
   },
   "PostToolUse": {
     "matcher": "write_to_file|replace_file_content",
     "type": "command",
-    "command": "${root_var}/scripts/post-edit.sh"
+    "command": "\${PLUGIN_ROOT:-${default_root}}/scripts/post-edit.sh"
   }
 }
 EOF
@@ -340,7 +340,13 @@ install_plugin() {
   fi
   if matches_platform "antigravity"; then
     echo "Configuring Antigravity plugin structure for $p_name..."
-    install_platform "antigravity" "$p_name" "$dist_dir/antigravity" "\${PLUGIN_ROOT}" "$dist_dir/antigravity/plugin.json" "true"
+    # Compute the default install path agy uses: ~/.gemini/config/plugins/<name>.
+    # This is baked into hooks.json so the hook runner doesn't need PLUGIN_ROOT
+    # set in its environment. PLUGIN_ROOT still works as a runtime override for
+    # non-standard install locations.
+    local agy_install_path
+    agy_install_path="${HOME}/.gemini/config/plugins/${p_name}"
+    install_platform "antigravity" "$p_name" "$dist_dir/antigravity" "$agy_install_path" "$dist_dir/antigravity/plugin.json" "true"
   fi
   if matches_platform "codex"; then
     echo "Configuring Codex plugin structure for $p_name..."

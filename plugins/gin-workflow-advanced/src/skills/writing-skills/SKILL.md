@@ -11,7 +11,7 @@ This is the meta-skill for authoring new `SKILL.md` files in the `gin-workflow` 
 
 Every `SKILL.md` begins with YAML frontmatter containing exactly two required fields:
 
-- `name` — the kebab-case skill identifier. Must match the skill's directory name (e.g. `writing-skills` lives at `agent-plugin/src/skills/writing-skills/SKILL.md`).
+- `name` — the kebab-case skill identifier. Must match the skill's directory name (e.g. `writing-skills` lives at `<skill-name>/SKILL.md` within the installed plugin's `skills/` directory).
 - `description` — a single sentence describing what the skill teaches. Used by the catalog/browser to summarize the skill; keep it specific and action-oriented ("How to …", "Guidance on …").
 
 Do not add other frontmatter fields unless an existing skill already uses them and you are matching that convention. Keep the frontmatter minimal.
@@ -59,7 +59,7 @@ Skills should reference siblings rather than duplicate them. This keeps guidance
 - Link to a sibling skill by relative path: `[writing-plans](file://../writing-plans/SKILL.md)`.
 - Link to a reference doc beside the current skill: `[plan-schema.md](file://plan-schema.md)`.
 - If you find yourself restating another skill's rules, stop and link to it instead.
-- New skills should fit the existing catalog: check `agent-plugin/src/skills/` before naming a new skill to avoid overlapping scope with an existing one.
+- New skills should fit the existing catalog: check the plugin's `skills/` directory before naming a new skill to avoid overlapping scope with an existing one.
 
 ## Authoring Checklist
 

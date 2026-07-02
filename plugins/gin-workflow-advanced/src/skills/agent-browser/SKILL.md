@@ -9,9 +9,9 @@ This skill teaches how to discover the agents and tools available in the current
 
 ## Browsing Available Agents
 
-The set of available agents is declared under `agent-plugin/src/agents/`. Each agent is a Markdown file with frontmatter (`name`, `description`, `tools`) and a short guidelines body. To browse them:
+The set of available agents is declared in the plugin's installed `agents/` directory. Each agent is a Markdown file with frontmatter (`name`, `description`, `tools`) and a short guidelines body. To browse them:
 
-1. List the agents directory (`agent-plugin/src/agents/`) to see the registered specialists.
+1. List the plugin's `agents/` directory to see the registered specialists.
 2. Read each agent's frontmatter `description` for a one-line summary of its purpose and scope.
 3. Read the `tools` frontmatter field to understand which capabilities the agent is granted (e.g. `search_web`, `run_command`, `view_file`, `grep_search`, `list_dir`).
 
@@ -46,10 +46,10 @@ Prefer a specialist when:
 
 ## Browsing Tools
 
-Beyond agents, this plugin ships skills (under `agent-plugin/src/skills/`) and commands. To discover what is available:
+Beyond agents, this plugin ships skills (in the plugin's installed `skills/` directory) and commands. To discover what is available:
 
-1. List `agent-plugin/src/skills/` for the skill catalog; each subdirectory's `SKILL.md` frontmatter `description` summarizes the skill.
-2. Cross-reference sibling skills rather than duplicating their guidance — e.g. when planning, point at [writing-plans](file://../writing-plans/SKILL.md) instead of restating its schema.
+1. List the plugin's `skills/` directory for the skill catalog; each subdirectory's `SKILL.md` frontmatter `description` summarizes the skill.
+2. Cross-reference sibling skills rather than duplicating their guidance — e.g. when planning, point at the `writing-plans` skill (from the `gin-workflow` core plugin) instead of restating its schema.
 
 ## Selection Rules
 
