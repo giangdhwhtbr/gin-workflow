@@ -1,15 +1,17 @@
-# Gin Workflow (`gin-workflow`)
+# Gin Workflow (`gin-workflow`) & Gin Workflow Advanced (`gin-workflow-advanced`)
 
-A plan-driven developer workflow plugin designed for **Claude Code**, **Antigravity CLI**, and **Codex CLI**. 
+A plan-driven developer workflow suite designed for **Claude Code**, **Antigravity CLI**, and **Codex CLI**. 
 
-`gin-workflow` structures development by putting planning first. It decomposes large goals into structured plans, breaks those plans into tracked work items, and executes them concurrently using parallel subagents with optional Git worktree isolation and structured integration workflows.
+The suite is split into two plugins:
+1. **`gin-workflow` (Core)**: Handles the plan-driven execution lifecycle (plan → orchestrate → execute → verify → ship).
+2. **`gin-workflow-advanced`**: Adds supplementary productivity skills (brainstorming, debugging, TDD, code review integration, etc.).
 
 ---
 
 ## Key Features & Architecture
 
-### 1. Commands & Workflows
-The plugin provides a powerful set of slash commands to manage your development lifecycle:
+### 1. Core Workflow Commands (`gin-workflow`)
+The core plugin provides a set of slash commands to manage your development lifecycle:
 
 | Command | Description |
 | :--- | :--- |
@@ -21,130 +23,66 @@ The plugin provides a powerful set of slash commands to manage your development 
 | `/progress` | Report detailed execution status of all active subagents and tasks. |
 | `/beads-status` | Display status of tracked work items (beads) and execution tracks. |
 | `/map-codebase` | Build a structural mapping of the codebase to discover modules, interfaces, and dependencies. |
-| `/debug` | Run a systematic debugging workflow (reproduce, isolate, fix, verify) using the `systematic-debugging` skill. |
-| `/discuss` | Support interactive design discussion or problem exploration. |
 | `/quick` | Execute lightweight, fast-turnaround tasks that do not warrant a plan. |
 | `/new-project` | Scaffold a new project, component structure, or boilerplate code. |
 
----
+### 2. Advanced Skills (`gin-workflow-advanced`)
+Surfaces additional agent instructions and flows as skills:
 
-### 2. Core Orchestration Model
-The `/orchestrate` command is the main execution engine. It coordinates plan execution via:
-- **Plan-Driven Execution**: Reads the implementation plan as the source of truth.
-- **Tracked Work Items (Beads)**: Breaks the plan into discrete tasks or "beads" representing bounded implementation units.
-- **Parallel Subagents**: Runs multiple subagents in parallel to execute separate tracks concurrently.
-- **Git Worktree Isolation**: Spawns isolated Git worktrees (`--worktree`) for each active execution track to prevent branch pollution and merge conflicts.
-- **Integration Branch Management**: Consolidates finished track outputs onto a shared integration branch.
-
-**Supported options for `/orchestrate`:**
-- `--plan <path>`: Path to a specific plan markdown file (defaults to the latest file in `.planning/plans/`).
-- `--worktree` / `--no-worktree`: Enable/disable Git worktree isolation (defaults to `--worktree`).
-- `--max-tracks <N>`: Maximum parallel execution tracks (default: `4`).
-- `--integration-branch <name>`: Integration branch to merge changes into.
-- `--inject-agents-md`: Inject agent instructions pre-flight.
-
----
-
-### 3. Specialist Agents
-`gin-workflow` leverages dedicated specialist agents defined under `agents/` to divide and conquer tasks:
-
-*   **`agent-researcher`**: Investigate requirements, API references, library behaviors, or implementation options.
-*   **`code-reviewer`**: Reviews modifications for bugs, code style compliance, and performance/security risks.
-*   **`codebase-mapper`**: Analyzes codebase architecture and maps file relationships.
-
----
-
-### 4. Lifecycle Hooks
-The plugin hooks into tool execution to automate checks and post-execution behaviors (`hooks/hooks.json`):
-*   **`PreToolUse`**: Matches shell executions (`Bash`/`run_command`) to run `safety-check.sh`, avoiding unsafe operations.
-*   **`PostToolUse`**: Matches write/edit actions to execute `post-edit.sh` for auto-formatting, linting, or state synchronization.
+*   **`brainstorming`**: Explores design alternatives, pros/cons, and options non-destructively before planning.
+*   **`systematic-debugging`**: Reproduce, isolate, hypothesize root cause, minimal fix, and verify.
+*   **`test-driven-development`**: Standard Red-Green-Refactor development loop.
+*   **`requesting-code-review` / `receiving-code-review`**: Integration workflow for triggering and applying code reviews.
+*   **`subagent-driven-development`**: Rules for context-splitting, tasks delegate to subagents.
+*   **`using-claude-draft`**: Defer tool side-effects until plans or diffs are approved.
+*   **`agent-browser`**: Browse and select specialist subagents.
+*   **`writing-skills`**: Framework instructions for writing new SKILL.md modules.
 
 ---
 
 ## Installation
 
-### Prerequisites
-Make sure you have `bash` and `python3` (used for manifest building) available on your system.
+### Remote Installation (Direct from GitHub)
 
-### Running the Installer
-Use the provided `install.sh` script to install, link, or uninstall the plugin.
-
-#### 1. Global Installation
-To install the plugin for all compatible CLI platforms:
+#### 1. Claude Code
+Claude Code supports remote installation via marketplaces. Register the repository as a marketplace, then install either or both plugins:
 ```bash
-./install.sh --platform all
+# Register this repository as a marketplace
+claude plugin marketplace add giangdhwhtbr/gin-workflow
+
+# Install the plugins
+claude plugin install gin-workflow@gin-workflow-marketplace
+claude plugin install gin-workflow-advanced@gin-workflow-marketplace
 ```
 
-You can target specific platforms using `--platform <claude | antigravity | codex | both | all>` (default: `all`):
+#### 2. Antigravity CLI
+Antigravity does not natively support Git-based installation yet. Use the remote-install script to clone, build, and register the plugins automatically:
 ```bash
-# Install only for Antigravity
-./install.sh --platform antigravity
-
-# Install only for Claude Code
-./install.sh --platform claude
+# Install both plugins globally
+curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform antigravity --plugin all
 ```
-
-During installation, the script compiles files to the `dist/` directory and registers the plugin:
-*   **Antigravity CLI**: Automatically registered by running `agy plugin install dist/antigravity`.
-*   **Codex CLI**: Automatically registered by running `codex plugin install dist/codex`.
-*   **Claude Code**: Registered interactively by running:
-    ```bash
-    claude --plugin-dir "/absolute/path/to/dist/claude-code"
-    ```
-
-#### 2. Local Project-Level Installation
-To install the plugin configurations locally to a specific project directory:
-```bash
-./install.sh --project /path/to/your/project
-```
-This scaffolds local configurations inside the target directory:
-- `.claude/` for Claude Code project configurations and hooks.
-- `.agents/` for Antigravity project configurations.
-- `.codex/` for Codex project configurations.
-
-#### 3. Installer Options
-- `--link`: Creates symbolic links from your development tree instead of copying files. Use this for active development.
-- `--uninstall`: Cleans up the compiled `dist` files.
-- `--dry-run`: Preview where files would be copied/installed without actually modifying the filesystem.
 
 ---
 
-## Workflow Guide: Step-by-Step
+## Local Development & Compilation
 
-A typical plan-driven development workflow using `gin-workflow`:
+### Running the Installer Locally
+Use `install.sh` to compile plugins into the `plugins/<plugin-name>/dist/` directory and install them.
 
-1.  **Analyze & Map**:
-    Identify codebase structures and dependency layouts.
-    ```
-    /map-codebase
-    ```
-2.  **Plan**:
-    Design your implementation plan. The system prompts you to resolve ambiguities and saves the result to `.planning/plans/<timestamp>-<description>.md`.
-    ```
-    /plan
-    ```
-3.  **Orchestrate**:
-    Decompose the plan and kick off parallel subagents to execute implementation tasks.
-    ```
-    /orchestrate --max-tracks 3
-    ```
-4.  **Monitor**:
-    Track execution states (pending, active, blocked, complete, failed) of each track.
-    ```
-    /progress
-    ```
-5.  **Verify**:
-    Verify that tests pass and the changes meet the objective requirements.
-    ```
-    /verify
-    ```
-6.  **Review**:
-    Invoke the `code-reviewer` agent to verify compliance and catch remaining issues.
-7.  **Ship**:
-    Finalize changes, merge the integration branch, and clean up temporary worktrees.
-    ```
-    /ship
-    ```
+```bash
+# Build and register both plugins locally
+./install.sh --platform all --plugin all
+
+# Install only the core plugin to Antigravity
+./install.sh --platform antigravity --plugin core
+```
+
+#### Options:
+- `--platform <claude | antigravity | codex | both | all>` (default: `all`)
+- `--plugin <core | advanced | all>` (default: `all`)
+- `--link`: Creates symbolic links from your development tree instead of copying files. Use this for active development.
+- `--uninstall`: Cleans up the compiled `dist` files.
+- `--dry-run`: Preview changes without copying files.
 
 ---
 
@@ -152,15 +90,22 @@ A typical plan-driven development workflow using `gin-workflow`:
 
 ```
 gin-workflow/
-├── dist/                # Target compilation output for CLI registrations
-├── install.sh           # Core plugin installation script
-├── plugin.meta.json     # Manifest metadata definition
-├── Plan.md              # Original development plan for gin-workflow
-├── README.md            # Plugin documentation (this file)
-└── src/                 # Original source files
-    ├── agents/          # Specialist agent definitions (researcher, reviewer, mapper)
-    ├── commands/        # Commands exposed to the CLI platforms (plan, orchestrate, etc.)
-    ├── hooks/           # Pre-tool and post-tool lifecycle hooks configuration
-    ├── scripts/         # Automated helper scripts (safety checking, branch merging, etc.)
-    └── skills/          # Reusable prompt instructions and workflows (TDD, worktrees, orchestration)
+├── .claude-plugin/
+│   └── marketplace.json     # Claude Code marketplace index
+├── plugins/
+│   ├── gin-workflow/         # Core Plugin
+│   │   ├── plugin.meta.json  # Metadata
+│   │   └── src/
+│   │       ├── agents/       # core agents (researcher, reviewer, mapper)
+│   │       ├── commands/     # core commands
+│   │       ├── hooks/        # Pre/Post tool hooks
+│   │       ├── scripts/      # helper scripts
+│   │       └── skills/       # core skills
+│   └── gin-workflow-advanced/ # Advanced Plugin
+│       ├── plugin.meta.json
+│       └── src/
+│           └── skills/       # advanced skills (brainstorming, debug, etc.)
+├── install.sh                # Main build and install script
+├── remote-install.sh         # Helper for curl-pipe installation
+└── README.md                 # Documentation
 ```

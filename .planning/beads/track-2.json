@@ -1,0 +1,11 @@
+{
+  "id": "track-2",
+  "title": "Restore PROJECT_DIR validation and normalization",
+  "status": "complete",
+  "dependencies": [],
+  "files": ["install.sh"],
+  "acceptance_criteria": "install_plugin() validates $PROJECT_DIR exists, resolves to absolute path. Invalid --project paths exit with clear error.",
+  "complexity": "low",
+  "worker_agent": "done",
+  "error": null
+}

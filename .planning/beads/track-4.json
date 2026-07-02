@@ -1,0 +1,11 @@
+{
+  "id": "track-4",
+  "title": "Harden Python inline scripts against special chars in paths",
+  "status": "complete",
+  "dependencies": [],
+  "files": ["install.sh"],
+  "acceptance_criteria": "Three python3 -c blocks now use heredoc with sys.argv params. Plugin names with special chars don't cause SyntaxError.",
+  "complexity": "low",
+  "worker_agent": "done",
+  "error": null
+}

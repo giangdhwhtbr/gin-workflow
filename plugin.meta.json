@@ -1,7 +1,0 @@
-{
-  "name": "gin-workflow",
-  "version": "1.0.0",
-  "description": "Plan-driven developer workflow with parallel orchestration, tracked work items, and integration branch management.",
-  "author": { "name": "gin" },
-  "repository": "https://github.com/giangdhwhtbr/gindo-infra"
-}

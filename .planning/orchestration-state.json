@@ -1,0 +1,10 @@
+{
+  "plan": "2026-07-02-fix-code-review-findings.md",
+  "target_branch": "fix/code-review-install-sh",
+  "max_tracks": 3,
+  "active_workers": [],
+  "status": "complete",
+  "created_at": "2026-07-02T09:39:00Z",
+  "updated_at": "2026-07-02T09:39:00Z",
+  "completed_at": "2026-07-02T09:39:00Z"
+}
