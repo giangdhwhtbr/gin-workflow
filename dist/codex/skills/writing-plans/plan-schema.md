@@ -1,0 +1,27 @@
+# Plan: {title}
+
+## Objective
+{What success looks like}
+
+## Scope
+- In scope: ...
+- Out of scope: ...
+
+## Tasks
+### Track 1: {name}
+- **Dependencies**: none | Track N
+- **Files**: list of files to modify
+- **Acceptance criteria**: ...
+- **Estimated complexity**: low | medium | high
+
+### Track 2: {name}
+...
+
+## Integration
+- **Branch**: {integration-branch-name}
+- **Merge strategy**: sequential | parallel-then-merge
+
+## Validation
+- [ ] All tests pass
+- [ ] Type checks clean
+- [ ] Manual verification steps

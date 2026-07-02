@@ -1,8 +1,14 @@
 # Ignore generated/compiled plugin assets
-dist/
+plugins/*/dist/
 
 # OS/Editor files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/

@@ -1,0 +1,11 @@
+{
+  "id": "track-1",
+  "title": "Fix mktemp exit code masking (SC2155)",
+  "status": "complete",
+  "dependencies": [],
+  "files": ["install.sh"],
+  "acceptance_criteria": "Split `local tmp_file=$(mktemp)` into separate declaration and assignment so `set -e` catches mktemp failures. shellcheck shows no SC2155 warnings.",
+  "complexity": "low",
+  "worker_agent": "done",
+  "error": null
+}
