@@ -19,7 +19,7 @@ Do not request a review for trivial changes (typo fixes, comment-only edits, fro
 
 ## How to Dispatch the Code-Reviewer Agent
 
-Invoke the existing `code-reviewer` agent (see `agent-plugin/src/agents/code-reviewer.md`) as a subagent. Provide it with the following context — it cannot infer missing context:
+Invoke the existing `code-reviewer` agent (defined in this plugin's `agents/code-reviewer.md`) as a subagent. Provide it with the following context — it cannot infer missing context:
 
 1. **The diff**: The exact diff to review, scoped to the change under review. For a branch, diff against the merge base (`git diff <merge-base>...HEAD`), not the working tree.
 2. **The plan**: The plan file path or a summary of the plan being implemented, so the reviewer can judge whether the change matches intent — not just whether the code runs.

@@ -1,14 +1,16 @@
 ---
 name: plan
-description: Create or refine an implementation plan before coding.
+description: Write a project-committed implementation plan to `.planning/plans/` for use by `/orchestrate`. Distinct from the native session-local planning mode.
 ---
 
-# /plan Command
+# /gin-workflow:plan Command
 
-Create or refine a structured plan in `.planning/plans/` according to the [plan-schema.md](file://../skills/writing-plans/plan-schema.md) format.
+Writes a durable, git-tracked plan to `.planning/plans/` using the `writing-plans` skill.
+This is **not** the same as the native Antigravity session planning mode — it produces a
+persistent file that `/gin-workflow:orchestrate` reads to create beads and parallel workers.
 
 ## Instructions
 
-1. Use the `writing-plans` skill to draft a plan.
+1. Use the `writing-plans` skill to draft a plan per [plan-schema.md](file://../skills/writing-plans/plan-schema.md).
 2. Ask the user for details if objectives, scope, or tasks are ambiguous.
 3. Save the resulting plan to `.planning/plans/<timestamp>-<description>.md`.
