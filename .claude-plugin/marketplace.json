@@ -6,8 +6,7 @@
       "name": "gin-workflow",
       "description": "Core plan-driven workflow: plan, orchestrate, execute, verify, and ship.",
       "source": {
-        "source": "git-subdir",
-        "url": "git@github.com:giangdhwhtbr/gin-workflow.git",
+        "source": "directory",
         "path": "plugins/gin-workflow/dist/claude-code"
       }
     },
@@ -15,8 +14,7 @@
       "name": "gin-workflow-advanced",
       "description": "Advanced skills: brainstorming, debugging, TDD, code review, and more.",
       "source": {
-        "source": "git-subdir",
-        "url": "git@github.com:giangdhwhtbr/gin-workflow.git",
+        "source": "directory",
         "path": "plugins/gin-workflow-advanced/dist/claude-code"
       }
     }

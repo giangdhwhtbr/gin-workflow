@@ -1,48 +1,124 @@
 ---
 name: requesting-code-review
-description: How and when to dispatch the code-reviewer specialist agent to review a change, and the structured output to expect.
+description: Use this skill to dispatch a code reviewer (subagent or the bundled code-reviewer agent) to evaluate completed work against its plan and quality standards before issues compound. Required after each task in subagent-driven execution and before merging significant changes.
 ---
 
-# Requesting Code Review Skill
+# Requesting code review
 
-This skill defines when to request a code review, what context to provide to the reviewer, and the structured findings you should get back. It works with the existing `code-reviewer` agent definition and is the quality gate called before finishing a development branch.
+Send the work to a reviewer with exactly the context they need — and only that context. The reviewer should not inherit your session's history; they should receive the diff, the plan or requirements, and a clear ask. This keeps the review focused on the code rather than your reasoning, and frees your own context for the next step.
 
-## When to Request a Review
+The bundled `code-reviewer` agent at `agents/code-reviewer.md` is the default reviewer. If your platform supports the Task tool, dispatch `code-reviewer` directly. Otherwise, use the prompt template at `code-reviewer.md` next to this file with a general-purpose subagent.
 
-Dispatch the code-reviewer agent at these points:
+## When to request a review
 
-1. **Before resolving a plan**: Once implementation is complete and verification (verification-before-completion) has passed, request a review of the full diff against the plan's acceptance criteria.
-2. **After a non-trivial change**: Any change that touches shared modules, introduces new control flow, or alters data handling deserves a review even if it is not yet complete.
-3. **On request**: When the orchestrator or user explicitly asks for a review of a branch or diff.
+| Situation | Required? |
+|-----------|-----------|
+| After each task in `:subagent-driven-development` | Yes |
+| After a major feature is complete | Yes |
+| Before merging to the main branch | Yes |
+| When stuck and a fresh perspective would help | Optional |
+| Before starting a refactor (baseline check) | Optional |
+| After fixing a complex bug | Optional |
 
-Do not request a review for trivial changes (typo fixes, comment-only edits, frontmatter updates) where the verification-before-completion gate already covers correctness.
+## How to dispatch
 
-## How to Dispatch the Code-Reviewer Agent
+### 1. Capture the git range
 
-Invoke the existing `code-reviewer` agent (defined in this plugin's `agents/code-reviewer.md`) as a subagent. Provide it with the following context — it cannot infer missing context:
+```bash
+BASE_SHA=$(git rev-parse HEAD~1)   # or origin/main, or the commit before your task started
+HEAD_SHA=$(git rev-parse HEAD)
+```
 
-1. **The diff**: The exact diff to review, scoped to the change under review. For a branch, diff against the merge base (`git diff <merge-base>...HEAD`), not the working tree.
-2. **The plan**: The plan file path or a summary of the plan being implemented, so the reviewer can judge whether the change matches intent — not just whether the code runs.
-3. **Acceptance criteria**: The specific acceptance criteria from the plan. The reviewer confirms each criterion is met by the diff, not just that the code is well-formed.
-4. **In-scope files**: The list of files the track declared as in scope, so the reviewer can flag out-of-scope edits.
-5. **Known constraints**: Any non-obvious constraints the reviewer should respect (performance budgets, compatibility targets, conventions to follow). State these explicitly; do not assume the reviewer shares the plan's context.
+### 2. Decide which reviewer to use
 
-## Invocation
+- **`code-reviewer` agent (bundled)** — preferred when your platform supports Task dispatch with `subagent_type: code-reviewer`. The agent already knows the review protocol; you just supply the parameters.
+- **General-purpose subagent with the prompt template** — when the bundled agent isn't available. Use the template at `code-reviewer.md` next to this file and substitute the placeholders.
 
-On Claude Code, spawn the `code-reviewer` agent via the Agent tool with the above context embedded in the prompt. On Antigravity CLI, use `invoke_subagent` with the same prompt. See the dispatching-parallel-agents skill for the mechanics of spawning a subagent; the review is typically a single subagent, not a parallel fan-out.
+### 3. Provide exactly four parameters
 
-## Expected Structured Output
+| Placeholder | Meaning |
+|-------------|---------|
+| `DESCRIPTION` | One- or two-sentence summary of what you built |
+| `PLAN_OR_REQUIREMENTS` | Path to the plan file or task text the work was supposed to fulfill |
+| `BASE_SHA` | Commit SHA before the work started |
+| `HEAD_SHA` | Commit SHA at the end of the work |
 
-The code-reviewer agent returns findings as a ranked list. Each finding contains:
+The reviewer reads the diff between `BASE_SHA` and `HEAD_SHA` directly; do not paste the diff into the prompt.
 
-- **Severity**: ranked most-severe first (e.g. `critical` / `high` / `medium` / `low`, or the agent's own severity scale). The most actionable and dangerous findings come first.
-- **Summary**: A one-sentence statement of the defect.
-- **Failure scenario**: A concrete input or state that triggers the wrong output or crash — not a vague concern. If no concrete scenario exists, the finding should be downranked or omitted.
-- **Location**: The file and line(s) the finding anchors to.
-- **Verdict** (when a verify pass ran): `CONFIRMED` (the failure reproduces) or `PLAUSIBLE` (the finding stands on inspection but was not reproduced).
+### 4. Act on the response
 
-If no findings survive verification, the reviewer returns an empty list. Treat an empty list as a green light, not as a skipped check.
+The reviewer returns Strengths, Issues categorized by severity (Critical / Important / Minor), Recommendations, and an Assessment.
 
-## After the Review
+- **Critical** — fix before doing anything else.
+- **Important** — fix before proceeding to the next task or merging.
+- **Minor** — note them; fix if time permits.
+- **Recommendations** — advisory; consider but don't block.
 
-Hand the returned findings to the receiving-code-review skill for triage. Do not attempt to fix findings inline during the review dispatch — collect the full list first, then triage as a separate step. Once findings are resolved and re-verified, proceed to finishing-a-development-branch.
+If the reviewer is wrong, push back with technical reasoning. See `:receiving-code-review` for the discipline of evaluating feedback.
+
+## Worked example
+
+Just finished Task 2 ("Add verification function"). Now request a review before continuing.
+
+```
+BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
+HEAD_SHA=$(git rev-parse HEAD)
+
+[Dispatch code-reviewer agent with:]
+  DESCRIPTION: Added verifyIndex() and repairIndex() with four issue types.
+  PLAN_OR_REQUIREMENTS: Task 2 from .planning/plans/2026-05-06-deployment.md
+  BASE_SHA: a7981ec
+  HEAD_SHA: 3df7661
+
+[Reviewer returns:]
+  Strengths: clean separation, real (non-mock) tests
+  Issues:
+    Important — missing progress indicators for long operations
+    Minor — magic number 100 for the reporting interval
+  Assessment: ready after the Important issue is addressed.
+
+[Apply the Important fix; re-run tests; proceed to Task 3.]
+```
+
+## Workflow integration
+
+| Caller | Cadence |
+|--------|---------|
+| `:subagent-driven-development` | After each task; the spec reviewer runs first, then this skill runs the code-quality reviewer |
+| `:executing-plans` | After each task or at natural checkpoints |
+| `/ship` | Before opening a PR or merging |
+| ad hoc | Whenever you want a second opinion |
+
+## Things to avoid
+
+- **Skipping review because "the change is small".** Small changes hide in plain sight; a reviewer often catches what familiarity makes invisible.
+- **Ignoring Critical or Important issues.** The categories exist for a reason. Pushing back is fine; ignoring isn't.
+- **Arguing with the reviewer reflexively.** Read the issue, check the code, decide. If the reviewer is wrong, push back with the specific evidence (test output, file/line that contradicts the claim).
+- **Asking for review after the change is already merged.** Review's value is highest before integration.
+
+## When to push back on review feedback
+
+Push back when:
+
+- The suggestion would break existing functionality (and you can show the test or behavior that proves it).
+- The reviewer is missing context you have (e.g., a constraint that's documented elsewhere).
+- The suggestion violates YAGNI (the feature isn't actually used).
+- The reviewer's preference is plausible but not better — taste, not correctness.
+
+How to push back, in this order:
+
+1. State the reviewer's concern in your own words to confirm you understood it.
+2. Provide the specific evidence (file/line, test output, doc reference).
+3. Propose what you'll do instead, or ask the reviewer to confirm before you change.
+
+If the disagreement is about architecture, escalate to the user rather than arguing it out with the reviewer.
+
+## Where this skill sits
+
+| Aspect | Detail |
+|--------|--------|
+| Direct skill call | `:requesting-code-review` |
+| Default reviewer | `code-reviewer` agent at `agents/code-reviewer.md` |
+| Prompt template | `code-reviewer.md` next to this file (used when the agent isn't available) |
+| Used by | `:subagent-driven-development` (per-task quality review), `:executing-plans` (checkpoint review), `/ship` (pre-merge review) |
+| Hands off to | `:receiving-code-review` for evaluating the reviewer's output |

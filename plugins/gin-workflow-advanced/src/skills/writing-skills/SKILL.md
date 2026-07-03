@@ -1,71 +1,290 @@
 ---
 name: writing-skills
-description: Meta-skill for authoring new SKILL.md files — frontmatter contract, prose style, when to split into a reference doc, naming, and composability.
+description: Use this skill when authoring a new skill, editing an existing skill, or verifying that a skill actually changes agent behavior. Treats skill authoring as TDD for documentation — write a failing pressure scenario first, then write the skill that makes the agent comply.
 ---
 
-# Writing Skills Skill
+# Writing skills for this plugin
 
-This is the meta-skill for authoring new `SKILL.md` files in the `gin-workflow` plugin. It defines the contract every skill follows so the catalog stays consistent, composable, and easy to browse.
+A skill is a reference document that helps a future agent recognize and apply a proven technique. The same discipline that produces good code produces good skills: write the failing test first (a scenario where the agent does the wrong thing), watch it fail, write the minimum skill that makes the agent comply, and refactor to close the loopholes that turn up under pressure.
 
-## Frontmatter Contract
+**Required background:** read `:test-driven-development` first if you haven't. This skill is the same RED → GREEN → REFACTOR loop, applied to documentation rather than code.
 
-Every `SKILL.md` begins with YAML frontmatter containing exactly two required fields:
+## What counts as a skill
 
-- `name` — the kebab-case skill identifier. Must match the skill's directory name (e.g. `writing-skills` lives at `<skill-name>/SKILL.md` within the installed plugin's `skills/` directory).
-- `description` — a single sentence describing what the skill teaches. Used by the catalog/browser to summarize the skill; keep it specific and action-oriented ("How to …", "Guidance on …").
+A skill is:
 
-Do not add other frontmatter fields unless an existing skill already uses them and you are matching that convention. Keep the frontmatter minimal.
+- A reusable technique, pattern, or reference that future agents can find and apply.
+- Backed by evidence that it changes behavior — not "I think this is a good idea".
 
-## Heading Convention
+A skill is NOT:
 
-- First line after frontmatter is a single H1: `# <Name> Skill` (e.g. `# Writing Skills Skill`). The name is Title Case, matching the skill's display name.
-- The H1 is followed by one short prose paragraph introducing what the skill is for.
-- Use H2 (`##`) for major sections and H3 (`###`) only when a section genuinely needs sub-sections.
+- A narrative about how you solved one specific problem.
+- A duplicate of conventions that belong in `CLAUDE.md` or `AGENTS.md` (project-specific).
+- Something a regex or a validator could enforce mechanically.
 
-## Prose Style
+## When to create a skill
 
-Skills are guidance, not executable code. Match the voice of existing skills:
+Write a skill when:
 
-- Short, directive sentences. Imperative mood for rules ("Browse agents before assuming none fit.").
-- Use numbered lists for ordered procedures (steps the reader follows in sequence).
-- Use bullet lists for unordered guidance or enumerations.
-- Lead with the rule, then explain the why only if it is not obvious. Avoid filler.
-- Prefer concrete examples over abstraction ("Save plans in `.planning/plans/`", not "Save plans in an appropriate location").
+- The technique wasn't obvious to you the first time and you'd want to find it again.
+- It applies broadly, not just to this project.
+- A future agent on a different task would benefit.
 
-Look at [bead-worker](file://../bead-worker/SKILL.md) and [writing-plans](file://../writing-plans/SKILL.md) as reference styles before authoring.
+Don't write a skill when:
 
-## When to Split Into a Reference Doc
+- The technique is one-off.
+- It's already well-documented elsewhere (point to that doc instead).
+- It's a project-specific convention (put it in `CLAUDE.md`).
+- It's mechanical enough to enforce with tooling — automate it instead.
 
-Keep `SKILL.md` focused on guidance — the rules and workflow. Extract reference material into a sibling Markdown file when:
+## TDD mapping for skills
 
-- The content is a schema or template that the skill references but is too large or structured to inline (the model for this is [plan-schema.md](file://../writing-plans/plan-schema.md) sitting beside [writing-plans](file://../writing-plans/SKILL.md)).
-- The same structure is reused across multiple skills and centralizing it avoids drift.
-- The reference would dominate the skill file and bury the guidance.
+| TDD concept | Skill authoring equivalent |
+|-------------|----------------------------|
+| Test case | Pressure scenario tested against a subagent |
+| Production code | The SKILL.md file |
+| RED — test fails | Agent violates the rule without the skill present |
+| GREEN — test passes | Agent complies with the skill present |
+| Refactor | Close loopholes the agent finds; tighten phrasing |
+| Write the test first | Run the baseline scenario *before* writing the skill |
+| Watch it fail | Capture exact rationalizations the agent uses, verbatim |
+| Minimum code | Write only enough skill to address those specific violations |
+| Watch it pass | Verify compliance with the same scenario |
+| Refactor cycle | New rationalization surfaces → plug it → re-verify |
 
-When you split, reference the sibling doc from the skill with a relative link (e.g. `See [plan-schema.md](file://plan-schema.md)`), and keep the `SKILL.md` as the entry point — the reference doc is supporting material, not a skill on its own.
+The same loop. Different artifact.
 
-Do not split for short examples or one-off lists; inlining keeps the skill self-contained and readable in one pass.
+## The core rule
 
-## Naming Conventions
+**No skill without a failing pressure scenario first.**
 
-- Skill directory and `name` frontmatter: kebab-case, verb or gerund form describing the activity (`writing-plans`, `agent-browser`, `using-claude-draft`, `bead-worker`).
-- Filename inside the directory is always `SKILL.md` (uppercase). Reference docs use lowercase descriptive names (`plan-schema.md`).
-- Name should describe what the skill does, not the feature it relates to — `writing-skills` (what) over `skills-meta` (topic).
+If you wrote the skill before testing it, you wrote the skill you *think* is needed, not the skill that actually changes behavior. Delete it and run the baseline scenario first. This applies to new skills *and* to edits of existing ones.
 
-## Composability
+## Skill types
 
-Skills should reference siblings rather than duplicate them. This keeps guidance DRY and the catalog browsable:
+| Type | Description | Example |
+|------|-------------|---------|
+| **Technique** | A concrete method with steps to follow | `condition-based-waiting`, `root-cause-tracing` |
+| **Pattern** | A way of thinking about a class of problems | thinking in interfaces, decomposing by responsibility |
+| **Reference** | API docs, syntax guides, tool documentation | language-specific guides, framework references |
+| **Discipline** | Rule-enforcing skills that resist rationalization | `:test-driven-development`, `:verification-before-completion` |
 
-- Link to a sibling skill by relative path: `[writing-plans](file://../writing-plans/SKILL.md)`.
-- Link to a reference doc beside the current skill: `[plan-schema.md](file://plan-schema.md)`.
-- If you find yourself restating another skill's rules, stop and link to it instead.
-- New skills should fit the existing catalog: check the plugin's `skills/` directory before naming a new skill to avoid overlapping scope with an existing one.
+Different types need different testing approaches — see `testing-skills-with-subagents.md`.
 
-## Authoring Checklist
+## Directory structure
 
-1. Frontmatter has `name` (matches directory) and `description` (one sentence).
-2. First heading is `# <Name> Skill`.
-3. One intro paragraph, then sections with directive prose.
-4. Reference material too large to inline is split into a sibling doc and linked.
-5. Sibling skills are cross-referenced by relative link rather than restated.
-6. Directory and `name` match; filename is `SKILL.md`.
+```
+skills/
+  skill-name/
+    SKILL.md              # required main file
+    supporting-file.md    # optional reference docs
+    prompt-template.md    # optional load-bearing prompt template
+```
+
+Names use letters, numbers, and hyphens only — no parentheses, no special characters.
+
+**When to add supporting files:**
+
+- **Heavy reference (100+ lines)** — API docs, comprehensive technique guides.
+- **Reusable prompt templates** — when the skill dispatches a subagent, give it a separate file.
+
+**Keep inline in SKILL.md:**
+
+- Principles, concepts, the workflow itself.
+- Code patterns under ~50 lines.
+- Anything that benefits from being read together.
+
+## SKILL.md structure
+
+Every SKILL.md begins with YAML frontmatter and follows a similar shape:
+
+```markdown
+---
+name: skill-name-with-hyphens
+description: Use when [specific triggering conditions and symptoms — keep it about WHEN, not WHAT]
+---
+
+# Skill title
+
+Two- or three-paragraph orientation: what this skill is, what it produces.
+
+## The core rule (for discipline skills) or Overview (for techniques)
+
+The single most important sentence the skill enforces, plus the reasoning.
+
+## When to use / when to apply
+
+Symptoms, situations, edge cases. Use a small flowchart only if a decision is genuinely non-obvious.
+
+## The process / step-by-step
+
+Numbered steps. Concrete actions. Code where it helps.
+
+## Common mistakes / rationalizations
+
+Table form. The mistake on the left, the fix on the right.
+
+## Where this skill sits
+
+Table connecting this skill to its caller, its callees, and its artifacts.
+```
+
+## The description field — the most load-bearing line
+
+Claude reads the `description` to decide whether to load this skill for the current task. A bad description means the skill is invisible.
+
+**Cardinal rule for description:** describe **WHEN to use the skill**, not WHAT it does. A description that summarizes the workflow becomes a shortcut Claude takes *instead of* reading the skill — it'll follow the description's summary and skip the skill body.
+
+| Bad | Good |
+|-----|------|
+| `description: Helps with TDD` (vague) | `description: Use when implementing any feature or bugfix, before writing implementation code` |
+| `description: Use for TDD - write test first, watch it fail, minimal code, refactor` (summarizes the workflow) | `description: Use when implementing any feature or bugfix, before writing implementation code` |
+| `description: I help you with async tests` (first person) | `description: Use when tests have race conditions, timing dependencies, or pass/fail inconsistently` |
+
+Other rules:
+
+- Third person. The description is injected into a system prompt; first or second person reads strangely there.
+- Start with "Use when…" to focus on triggers.
+- Cover concrete symptoms, not abstract concepts ("race conditions, timing dependencies" rather than "async issues").
+- Keep under ~500 characters when possible (frontmatter has a hard 1024-char ceiling).
+
+## Keyword coverage
+
+The description and skill body should contain words the agent might search for:
+
+- Error messages: "ENOTEMPTY", "race condition", "Hook timed out".
+- Symptoms: "flaky", "hanging", "pollution", "context drift".
+- Synonyms: "timeout / hang / freeze", "cleanup / teardown / afterEach".
+- Tools: actual command names, library names, file types.
+
+A skill named `condition-based-waiting` is more discoverable than one named `async-test-helpers` — name by what you're doing, in active voice (gerunds work well: `creating-skills`, `debugging-with-logs`, `testing-skills`).
+
+## Token budget
+
+Skills are loaded into context when activated. Be terse:
+
+- SKILL.md body: ideally under 500 lines, hard limit ~600.
+- Frequently-loaded skills (entry points): aim for 200 lines or fewer.
+- Move heavy reference content to a separate file in the same directory; link from SKILL.md.
+
+Verification:
+
+```bash
+wc -l skills/<name>/SKILL.md
+```
+
+## Cross-references between skills
+
+Link to other skills using the `:<name>` form, with a marker for required vs. advisory:
+
+- `**Required upstream:** :writing-plans` — the caller must have produced the plan before invoking this skill.
+- `**See also:** :test-driven-development` — relevant context but not strictly required.
+
+Avoid `@`-prefixed force-loads (they consume context immediately, every time the calling skill is loaded).
+
+## Flowcharts
+
+Use a flowchart when:
+
+- A decision point is genuinely non-obvious and could go either way.
+- A loop has multiple exits and the agent might stop too early.
+
+Don't use a flowchart for:
+
+- Linear instructions — use numbered lists.
+- Reference material — use tables.
+- Code examples — use markdown code blocks.
+
+When you do use one, make node labels semantic ("verify that the test fails for the right reason") rather than mechanical ("step1, helper2"). See `:test-driven-development` for examples of useful flowcharts.
+
+## Code examples
+
+One excellent example beats many mediocre ones. The example should be:
+
+- Complete and runnable.
+- Commented for *why*, not what.
+- Drawn from a real scenario, not a toy.
+- Easy to adapt — not a fill-in-the-blank template.
+
+Pick the language closest to where the technique is most often needed (TypeScript / JavaScript for testing techniques, shell or Python for system debugging, etc.). Don't dilute the example by re-implementing it in five languages.
+
+## Closing rationalization loopholes (discipline skills)
+
+Discipline skills exist because agents under pressure rationalize their way around rules. A bare statement of the rule isn't enough; the skill has to anticipate and explicitly forbid the workarounds.
+
+Pattern:
+
+```markdown
+**The rule:** delete code written before the test.
+
+**No exceptions:**
+- Don't keep the code as "reference".
+- Don't "adapt" it while writing the test.
+- Don't read it again to see what it did.
+- Delete means delete.
+```
+
+The bullets aren't redundant — they cut off specific rationalizations agents reach for. See `persuasion-principles.md` for why this works (Cialdini / Meincke research on authority, commitment, scarcity).
+
+A typical discipline skill ends with two reinforcement sections:
+
+- **Common rationalizations** table — excuse on the left, reality on the right.
+- **Red flags** list — phrases the agent might be thinking that signal the rule is about to be violated.
+
+Both are populated from real testing. See `testing-skills-with-subagents.md` for the loop.
+
+## Anti-patterns to avoid
+
+- **Narrative example.** "On 2025-10-03 we hit this empty-projectDir bug…" — too specific, not reusable. Distill the principle.
+- **Multi-language dilution.** Three half-quality translations beat zero, but one strong example beats three mediocre ones.
+- **Code embedded in flowchart nodes.** Hard to read, can't copy-paste. Use a code block alongside the flowchart.
+- **Generic node labels.** `helper1, step3, pattern2` carries no meaning. Use semantic names.
+- **Repeating cross-referenced content.** If `:test-driven-development` already covers the red-green-refactor cycle, link to it instead of restating it.
+- **Pretending nothing was tested.** A skill that claims an effect should describe how that effect was verified.
+
+## Skill creation checklist
+
+**RED phase — write a failing test:**
+
+- [ ] Construct pressure scenarios with three or more combined pressures (for discipline skills).
+- [ ] Run the scenarios *without* the skill.
+- [ ] Document the agent's choices and rationalizations verbatim.
+- [ ] Identify the patterns in those rationalizations.
+
+**GREEN phase — write the minimum skill:**
+
+- [ ] Frontmatter with `name` (hyphens only) and `description` (third person, "Use when…", under 500 chars).
+- [ ] Description describes WHEN, not WHAT.
+- [ ] Keyword coverage in the body (errors, symptoms, tools).
+- [ ] Overview / core rule in the first 50 lines.
+- [ ] Address each baseline rationalization from RED.
+- [ ] One excellent example, not three mediocre ones.
+- [ ] Run the scenarios *with* the skill — confirm compliance.
+
+**REFACTOR phase — close loopholes:**
+
+- [ ] Identify any new rationalizations from compliance testing.
+- [ ] Add explicit counters in the body.
+- [ ] Build the rationalizations table.
+- [ ] Build the red-flags list.
+- [ ] Re-test until no new rationalizations appear.
+
+**Quality checks:**
+
+- [ ] Body under ~500 lines (heavy content moved to supporting files).
+- [ ] Flowchart only where a decision is non-obvious.
+- [ ] "Where this skill sits" table at the end.
+- [ ] No narrative storytelling.
+- [ ] Cross-references use `:<name>`, no `@` force-loads.
+- [ ] Supporting files only for tools or heavy reference content.
+
+## Where this skill sits
+
+| Aspect | Detail |
+|--------|--------|
+| Direct skill call | `:writing-skills` |
+| Required background | `:test-driven-development` |
+| Reads | the existing skill (when editing); the source of evidence (when authoring new) |
+| Writes | SKILL.md and any supporting files |
+| Supporting docs in this directory | `testing-skills-with-subagents.md`, `anthropic-best-practices.md`, `persuasion-principles.md` |
+| Deferred to v0.2.0 | the graphviz conventions and `render-graphs.js` helper script (B3 bucket; not bundled in this release) |

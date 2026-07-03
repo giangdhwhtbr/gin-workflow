@@ -1,60 +1,153 @@
 ---
 name: using-claude-draft
-description: Draft-mode workflow — defer tool side-effects until the user approves the plan or diff, then execute.
+description: Use this at the start of any conversation in a project that has the claude-draft plugin installed. Enumerates the plugin's skills, commands, agents, and `.planning/` artifact contract so future invocations resolve to the right skill instead of improvising.
 ---
 
-# Using Draft Skill
+# Using the claude-draft plugin
 
-This skill describes the approval-gated execution mode commonly called "draft mode": collect the work to be done into a reviewable plan or diff, defer all tool side-effects until the user approves, then execute the approved changes.
+This is the orientation skill. It tells you what's in the plugin and how the pieces connect, so when a task arrives you can pick the right skill or command without re-reading every file.
 
-## Core Idea
+If a skill applies to the current task — even with low confidence — invoke it. Skills exist to prevent predictable failure modes; reasoning your way around them gives up that protection.
 
-In draft mode the assistant performs read-only investigation and produces a concrete proposal — a plan, a diff, or an ordered change list — without mutating the filesystem, running shell commands that change state, or otherwise taking side-effecting actions. The user reviews the proposal, requests adjustments or approves it, and only then does execution proceed.
+## Core principle
 
-This keeps potentially-destructive changes auditable and reversible up to the moment of approval, and it separates "what should happen" from "make it happen."
+User instructions take priority over plugin skills. Plugin skills take priority over default behavior. If the user's `CLAUDE.md`, `AGENTS.md`, or direct instruction contradicts a skill, follow the user. The plugin is a default; the user is the source of truth.
 
-## What Counts as a Side Effect
+## How to invoke a skill
 
-Treat any action that changes state outside the conversation as a side effect to defer:
+In Claude Code, use the `Skill` tool. Loading the skill brings its full content into context — read it and follow it. Don't read SKILL.md files with `Read`; use the proper Skill invocation so the plugin tracks state correctly.
 
-- File writes, edits, and deletions.
-- Shell commands that mutate state (installs, builds, migrations, deploys, `git commit`/`push`, service restarts).
-- Any tool call whose effect survives the session.
+If a relevant skill exists, invoke it **before** any other action — including reading files, running commands, or asking clarifying questions. The skill itself often tells you how to gather information and what to ask.
 
-Read-only actions are always allowed during drafting: reading files, searching, listing, running queries, and any command whose only output is information.
+## Plugin map
 
-## Workflow
+### Commands (10) — thin orchestrators
 
-1. **Draft**: Gather context with read-only tools. Produce a concrete proposal — for larger work, a plan following [writing-plans](file://../writing-plans/SKILL.md); for edits, a diff or an ordered list of changes with exact strings/paths.
-2. **Review**: Present the proposal to the user. Do not take side-effecting actions while awaiting feedback.
-3. **Revise** (as needed): Update the proposal in place based on feedback; still no side effects.
-4. **Approve**: The user accepts the proposal.
-5. **Execute**: Apply the approved changes — perform the writes, run the commands — and report what happened.
+```
+/new-project    Initialize .planning/ in a fresh repo
+/discuss        Brainstorm a design for new work
+/plan           Turn an approved design into a task-by-task plan
+/execute        Run the plan with subagents (or inline)
+/ship           Merge / open PR / clean up after the work is done
+/verify         Run the verification commands relevant to a change
+/debug          Systematic-debug a failing test or production bug
+/quick          Bypass for trivial fixes (≤2 files, ≤30 minutes)
+/progress       Read .planning/STATE.md and suggest the next step
+/map-codebase   Map an existing codebase into .planning/codebase/
+```
 
-## Platform Behavior Notes
+Each command is 5–15 lines of frontmatter plus 20–50 lines of orchestration. Commands read `.planning/STATE.md`, dispatch to a skill or agent, and update state. They never carry workflow content; that lives in skills.
 
-Draft mode is a workflow convention, not a single shared primitive. Behavior differs across platforms; flag platform-specific assumptions inline when describing the mode to users.
+### Skills (15) — full content
 
-- On **Claude Code**, draft mode is typically entered via plan mode (`ExitPlanMode` is the gate that transitions from drafting to execution). Verify the current harness's exact entry/exit mechanism before relying on it.
-- On **Antigravity**, the equivalent approval-gated mode may differ — confirm Antigravity's specific UI/command for deferring tool side-effects before assuming parity. Where a behavior below is Claude-specific, it is flagged inline.
+| Skill | When to invoke |
+|-------|----------------|
+| `:brainstorming` | Before writing any code; turns ideas into a design spec |
+| `:writing-plans` | After a spec exists; turns it into bite-sized tasks |
+| `:executing-plans` | Inline plan execution (no subagents) |
+| `:subagent-driven-development` | Plan execution with one fresh subagent per task and two-stage review (preferred when subagents are available) |
+| `:test-driven-development` | Any feature, bug fix, or behavior change — write the test first |
+| `:systematic-debugging` | Any bug, failing test, or unexpected behavior — six-phase loop |
+| `:verification-before-completion` | Before any "this is done" claim — run the proof |
+| `:requesting-code-review` | After a task or before merge |
+| `:receiving-code-review` | When review feedback arrives — verify before implementing |
+| `:dispatching-parallel-agents` | Two or more independent problems that can run in parallel |
+| `:using-git-worktrees` | Before executing implementation work — set up an isolated workspace |
+| `:finishing-a-development-branch` | After implementation; verify suite, present merge / PR / keep / discard |
+| `:writing-skills` | Authoring or editing a skill — TDD for documentation |
+| `:setup` | Initialize the `.planning/` directory in a fresh project |
+| `:using-claude-draft` | This skill — invoke first in any conversation |
 
-## Rules
+### Agents (3) — subagent specialists
 
-1. While drafting, do not call side-effecting tools. If a tool is ambiguous, treat it as side-effecting and defer it.
-2. The proposal must be concrete enough to execute without further decisions: exact paths, exact replacement strings, exact commands. Vague proposals extend the loop and defeat the purpose.
-3. Keep revisions in the proposal — do not partially execute, then revise. The state-changing phase begins only after explicit approval.
-4. After approval, execute the approved set faithfully. If execution reveals the proposal was wrong, stop and re-draft rather than silently expanding scope.
-5. If the task is purely informational (no changes intended), skip draft mode — there is nothing to gate.
+| Agent | Role |
+|-------|------|
+| `agent-researcher` | Researches stack, libraries, patterns, pitfalls for a topic. Spawned by `/plan` after a spec exists. Produces `.planning/research/<topic>-RESEARCH.md`. |
+| `code-reviewer` | Reviews completed work against its plan and quality standards. Auto-dispatched per task by `:subagent-driven-development`. |
+| `codebase-mapper` | Maps an existing codebase into `.planning/codebase/{STACK,ARCHITECTURE,...}.md`. Dispatched by `/map-codebase`, typically four mappers in parallel. |
 
-## When to Use Draft Mode
+### `.planning/` directory — single artifact home
 
-- Multi-file edits or any change that is hard to undo after the fact.
-- Changes to running infrastructure, config, or anything covered by repo rules (e.g. "do not modify the running server").
-- When the user explicitly asks to plan first, review first, or see a diff before acting.
-- On Claude Code, when plan mode is active — the harness enforces the gate. (Verify the Antigravity equivalent before assuming the same enforcement.)
+```
+.planning/
+├── STATE.md                            # current step + topic pointer
+├── specs/YYYY-MM-DD-<topic>-design.md  # output of :brainstorming
+├── plans/YYYY-MM-DD-<feature>.md       # output of :writing-plans
+├── research/<topic>-RESEARCH.md        # output of agent-researcher
+└── codebase/{STACK,ARCHITECTURE,...}.md  # output of codebase-mapper
+```
 
-## When to Skip Draft Mode
+`.gitignore` covers `.planning/` by default. Teams who want to commit specs and plans can opt in by removing the entry.
 
-- Single-step, low-risk edits the user directly requested with full context.
-- Pure read-only investigation (no side effects to defer in the first place).
-- When the user has already approved a plan authored via [writing-plans](file://../writing-plans/SKILL.md) and asked for direct execution.
+## Skill priority when multiple apply
+
+When more than one skill seems relevant, this is the priority order:
+
+1. **Process skills first** — `:brainstorming` (for new work) or `:systematic-debugging` (for bugs). These determine *how* to approach the task.
+2. **Implementation skills second** — `:writing-plans`, `:test-driven-development`, etc. These guide execution.
+
+Examples:
+
+- "Let's build feature X" → `:brainstorming` first, then on through `:writing-plans` → `:executing-plans` or `:subagent-driven-development`.
+- "This test is failing" → `:systematic-debugging` first, which itself hands off to `:test-driven-development` for the regression test.
+- "Implement task 3 from the plan" → directly to `:test-driven-development` or `:executing-plans` (the plan already passed through brainstorming).
+
+## Skill flexibility
+
+Some skills are **rigid** — TDD discipline, verification gates, the debugging six-phase loop. Follow these to the letter. Adapting them away is the failure mode they exist to prevent.
+
+Others are **flexible** — patterns and techniques that adapt to context. The skill itself tells you which kind it is. Default to rigid for anything labeled "discipline" or that references an explicit "core rule".
+
+## Red flags — these thoughts mean you're rationalizing
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a quick question" | Questions are tasks. Check skills first. |
+| "I need more context before invoking a skill" | The skill check comes *before* clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you how to explore. Check first. |
+| "I can check git/files quickly" | Files lack the conversation context. Check skills first. |
+| "This doesn't need a formal skill" | If a skill exists for this, use it. |
+| "I remember this skill" | Skills change. Read the current version. |
+| "The skill is overkill for this case" | Simple cases become complex. The skill's overhead is small. |
+| "Let me just do this one thing first" | Check before acting, every time. |
+| "This feels productive" | Activity isn't progress. Skills prevent the productive-feeling waste. |
+| "I know what TDD/debug/etc means" | Knowing the concept isn't using the skill. Invoke it. |
+
+When you catch any of these, stop and invoke the relevant skill.
+
+## Common workflow chains
+
+**New feature, end to end:**
+
+```
+/discuss → :brainstorming → :writing-plans → :using-git-worktrees
+        → :subagent-driven-development → :finishing-a-development-branch
+                                       (per task: :test-driven-development +
+                                        :verification-before-completion +
+                                        :requesting-code-review)
+```
+
+**Bug fix:**
+
+```
+/debug → :systematic-debugging (six phases)
+       → Phase 5 hands to :test-driven-development for the regression test
+       → :verification-before-completion → :finishing-a-development-branch
+```
+
+**External PR feedback:**
+
+```
+:receiving-code-review → fix → :test-driven-development (if behavior changed)
+                              → :verification-before-completion → push
+```
+
+**Codebase orientation in an unfamiliar repo:**
+
+```
+/map-codebase → codebase-mapper agents (parallel) → .planning/codebase/*.md
+```
+
+## Where this skill sits
+
+This is the entry point. It has no upstream — it's invoked first in a session. Its downstream is "every other skill in the plugin", chosen based on the task. Its job is to make sure the right skill *is* chosen, instead of the agent improvising.

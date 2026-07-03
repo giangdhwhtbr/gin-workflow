@@ -1,24 +1,62 @@
 ---
 name: beads-status
-description: Guidance for reporting execution status of tracked work items (beads) and tracks.
+description: |
+  Read-only snapshot of the beads backlog (ready, blocked, alerts) plus
+  the HumanOverseer inbox. Run any time during or after orchestration
+  to check progress without mutating state.
+argument-hint: "[--tui]"
 ---
 
-# Beads Status Skill
+# Beads Status (read-only)
 
-This skill renders a per-track status summary of the currently tracked work items. It reads state exclusively from the `bd` CLI — never parse `.planning/beads/` JSON files by hand.
+Snapshot of beads backlog and HumanOverseer mail. No mutations.
 
-## Execution Rules
+## Steps
 
-1. **Gather state from the `bd` CLI** — run, in order, until you have enough context:
-   - `bd list` — enumerate all known beads/tracks and their current status.
-   - `bd ready` — list beads whose dependencies are satisfied and that are ready to start.
-   - `bd status` — overall queue/progress summary (counts by state).
-   - `bd show <id>` — for any specific track the user asks about, to get its full metadata (description, dependencies, assigned worker, acceptance criteria).
-2. **Do not read `.planning/beads/` JSON directly.** The `bd` CLI is the source of truth; manual file parsing can drift out of sync with it. If `bd` is unavailable or errors, report that to the user rather than falling back to file parsing.
-3. **Render a per-track summary** grouped by state:
-   - **Pending** — not yet started (open, dependencies may be unresolved).
-   - **Active** — in progress (`in_progress` / claimed by a worker).
-   - **Complete** — closed/finished successfully.
-   - **Failed** — closed but not passing acceptance, or marked blocked/failed.
-   For each track show its id/title, current status, and (if relevant) the assigned worker or blocking dependency.
-4. **Keep it read-only.** This skill only reports; it never mutates bead state. To change status, use the `bead-worker` or `executing-plans` skills.
+1. **Export beads to JSONL**:
+   ```bash
+   bd export -o .beads/issues.jsonl
+   ```
+   (Required before bv reads — exports DB → JSONL.)
+
+2. **Backlog summary**:
+   ```bash
+   bv --robot-triage 2>/dev/null
+   ```
+   Pretty-print key sections from the resulting JSON: `quick_ref`, `recommendations`, top-priority items.
+
+3. **Alerts**:
+   ```bash
+   bv --robot-alerts 2>/dev/null
+   ```
+   Forward critical/warning entries from `.alerts[]` to the user.
+
+4. **HumanOverseer inbox**:
+   ```
+   mcp__mcp-agent-mail__fetch_inbox(
+     project_key,
+     agent_name="HumanOverseer",
+     unread_only=true,
+     include_bodies=true,
+     limit=20
+   )
+   ```
+   Print recent messages. `project_key = git rev-parse --show-toplevel` from current repo root.
+
+5. **Optional TUI**: if user passed `--tui` in `$ARGUMENTS`, run `exec bv` (foreground TUI). Otherwise return.
+
+## Output format
+
+Concatenate the four JSON sections under headers:
+
+- `## Backlog`
+- `## Alerts`
+- `## Inbox`
+- `## TUI` (only if `--tui` was passed)
+
+Mark stale items in red if terminal supports color (`tput setaf 1`).
+
+## Notes
+
+- This skill is read-only; never calls `bd update`, `bd close`, or `send_message`.
+- If `mcp__mcp-agent-mail__*` tools are not available in this session, skip step 4 with a one-line warning ("MCP unavailable; skipping inbox").
