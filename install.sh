@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh - Installs gin-workflow core/advanced to Claude Code, Antigravity, and Codex CLI.
+# install.sh - Installs gin-workflow to Claude Code, Antigravity, and Codex CLI.
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ LINK=false
 PROJECT_DIR=""
 UNINSTALL=false
 DRY_RUN=false
-TARGET_PLUGIN="all"  # core, advanced, all
+TARGET_PLUGIN="gin-workflow"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -22,7 +22,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --plugin)
       if [ -z "${2:-}" ]; then
-        echo "Error: --plugin requires a value (core|advanced|all)" >&2
+        echo "Error: --plugin requires a value (gin-workflow|all)" >&2
         exit 1
       fi
       TARGET_PLUGIN="$2"
@@ -58,16 +58,20 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Validate TARGET_PLUGIN
 case "$TARGET_PLUGIN" in
-  core|advanced|all) ;;
+  gin-workflow|all)
+    TARGET_PLUGIN="gin-workflow"
+    ;;
+  core|advanced)
+    echo "Warning: --plugin $TARGET_PLUGIN is deprecated; using gin-workflow." >&2
+    TARGET_PLUGIN="gin-workflow"
+    ;;
   *)
-    echo "Error: --plugin must be 'core', 'advanced', or 'all' (got '$TARGET_PLUGIN')" >&2
+    echo "Error: --plugin must be 'gin-workflow' or 'all' (got '$TARGET_PLUGIN')" >&2
     exit 1
     ;;
 esac
 
-# Validate and normalize PROJECT_DIR
 if [ -n "$PROJECT_DIR" ]; then
   if [ ! -d "$PROJECT_DIR" ]; then
     echo "Error: --project directory '$PROJECT_DIR' does not exist" >&2
@@ -83,7 +87,6 @@ if [ "$UNINSTALL" = true ]; then
   exit 0
 fi
 
-# Detect platforms
 HAS_CLAUDE=false
 HAS_AGY=false
 HAS_CODEX=false
@@ -97,13 +100,11 @@ if command -v codex &> /dev/null; then
   HAS_CODEX=true
 fi
 
-# Helper: check if PLATFORM matches a target
 matches_platform() {
   local target="$1"
   [ "$PLATFORM" = "$target" ] || [ "$PLATFORM" = "both" ] || [ "$PLATFORM" = "all" ]
 }
 
-# Helper: generate plugin manifest JSON (shared across all three platforms)
 generate_manifest() {
   local p_dir="$1"
   local output_path="$2"
@@ -122,16 +123,10 @@ with open(out_path, 'w') as f:
 PYEOF
 }
 
-# Helper functions for templating
 template_agents_for_claude() {
   local src="$1"
   local dest="$2"
-  sed -e 's/"view_file"/"Read"/g' \
-      -e 's/"grep_search"/"Grep"/g' \
-      -e 's/"list_dir"/"Glob"/g' \
-      -e 's/"search_web"/"WebSearch"/g' \
-      -e 's/"run_command"/"Bash"/g' \
-      "$src" > "$dest"
+  sed -e 's/"view_file"/"Read"/g'               -e 's/"grep_search"/"Grep"/g'               -e 's/"list_dir"/"Glob"/g'               -e 's/"search_web"/"WebSearch"/g'               -e 's/"run_command"/"Bash"/g'               "$src" > "$dest"
 }
 
 template_hooks_for_claude() {
@@ -171,9 +166,6 @@ EOF
 template_hooks_for_antigravity() {
   local dest="$1"
   local default_root="$2"
-  # Use ${PLUGIN_ROOT} if set at runtime (non-standard install), otherwise fall
-  # back to the absolute path baked in at install time. This makes the env var
-  # an optional override rather than a hard requirement.
   cat <<EOF > "$dest"
 {
   "PreToolUse": {
@@ -223,13 +215,12 @@ template_hooks_for_codex() {
 EOF
 }
 
-# Prepare directories helper
 copy_src() {
   local plugin_src_dir="$1"
   local target="$2"
-  
+
   mkdir -p "$target/commands" "$target/skills" "$target/agents" "$target/scripts"
-  
+
   if [ -d "$plugin_src_dir/commands" ] && [ "$(ls -A "$plugin_src_dir/commands" 2>/dev/null)" ]; then
     if [ "$LINK" = true ]; then
       cp -rsf "$plugin_src_dir/commands/." "$target/commands/"
@@ -237,7 +228,7 @@ copy_src() {
       cp -rf "$plugin_src_dir/commands/." "$target/commands/"
     fi
   fi
-  
+
   if [ -d "$plugin_src_dir/skills" ] && [ "$(ls -A "$plugin_src_dir/skills" 2>/dev/null)" ]; then
     if [ "$LINK" = true ]; then
       cp -rsf "$plugin_src_dir/skills/." "$target/skills/"
@@ -263,7 +254,6 @@ copy_src() {
   fi
 }
 
-# Helper: install a single platform's files into a target directory
 install_platform() {
   local platform="$1"
   local p_name="$2"
@@ -276,9 +266,9 @@ install_platform() {
   if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ]; then
     mkdir -p "$target_dir/hooks"
     case "$platform" in
-      claude)    template_hooks_for_claude       "$target_dir/hooks/hooks.json" "$hooks_root" ;;
+      claude)    template_hooks_for_claude "$target_dir/hooks/hooks.json" "$hooks_root" ;;
       antigravity) template_hooks_for_antigravity "$target_dir/hooks/hooks.json" "$hooks_root" ;;
-      codex)     template_hooks_for_codex         "$target_dir/hooks/hooks.json" "$hooks_root" ;;
+      codex)     template_hooks_for_codex "$target_dir/hooks/hooks.json" "$hooks_root" ;;
     esac
   fi
   if [ "$platform" = "claude" ]; then
@@ -308,7 +298,6 @@ install_plugin() {
   echo "Processing plugin: $p_name"
   echo "=========================================="
 
-  # Project-level install
   if [ -n "$PROJECT_DIR" ]; then
     if [ "$DRY_RUN" = true ]; then
       echo "(dry-run) would install project-level configs for $p_name to $PROJECT_DIR"
@@ -328,7 +317,6 @@ install_plugin() {
     return
   fi
 
-  # Global distribution build
   local dist_dir="$p_dir/dist"
   mkdir -p "$dist_dir/claude-code/.claude-plugin"
   mkdir -p "$dist_dir/antigravity"
@@ -340,10 +328,6 @@ install_plugin() {
   fi
   if matches_platform "antigravity"; then
     echo "Configuring Antigravity plugin structure for $p_name..."
-    # Compute the default install path agy uses: ~/.gemini/config/plugins/<name>.
-    # This is baked into hooks.json so the hook runner doesn't need PLUGIN_ROOT
-    # set in its environment. PLUGIN_ROOT still works as a runtime override for
-    # non-standard install locations.
     local agy_install_path
     agy_install_path="${HOME}/.gemini/config/plugins/${p_name}"
     install_platform "antigravity" "$p_name" "$dist_dir/antigravity" "$agy_install_path" "$dist_dir/antigravity/plugin.json" "true"
@@ -358,10 +342,9 @@ install_plugin() {
     return
   fi
 
-  # CLI Registrations
   if matches_platform "claude" && [ "$HAS_CLAUDE" = true ]; then
     echo "To register $p_name with Claude Code, run:"
-    echo "  claude --plugin-dir \"$SCRIPT_DIR/$dist_dir/claude-code\""
+    echo "  claude --plugin-dir "$SCRIPT_DIR/$dist_dir/claude-code""
   fi
   if matches_platform "antigravity" && [ "$HAS_AGY" = true ]; then
     echo "Registering $p_name with Antigravity..."
@@ -373,13 +356,6 @@ install_plugin() {
   fi
 }
 
-# Run the installation
-if [ "$TARGET_PLUGIN" = "core" ] || [ "$TARGET_PLUGIN" = "all" ]; then
-  install_plugin "gin-workflow"
-fi
-
-if [ "$TARGET_PLUGIN" = "advanced" ] || [ "$TARGET_PLUGIN" = "all" ]; then
-  install_plugin "gin-workflow-advanced"
-fi
+install_plugin "$TARGET_PLUGIN"
 
 echo "Install processes completed successfully!"
