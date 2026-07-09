@@ -10,5 +10,7 @@ Verify the implementation correctness of the changes against the plan.
 ## Instructions
 
 1. Use the `verification-before-completion` skill.
-2. Execute compile/test commands and format the test results.
-3. Highlight any failing verifications.
+2. Follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md) for the canonical verification and handoff sequence.
+3. Execute the relevant validation commands for the changed files and task type.
+4. Format the validation results clearly, including anything intentionally not run.
+5. Highlight any failing verifications.
