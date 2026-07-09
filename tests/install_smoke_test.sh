@@ -39,6 +39,30 @@ assert_not_contains() {
   fi
 }
 
+assert_codex_hooks_schema() {
+  local path="$1"
+  python3 - "$path" <<'PYEOF'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    data = json.load(f)
+
+top_level_keys = set(data)
+if not top_level_keys <= {"description", "hooks"}:
+    raise SystemExit(f"unexpected top-level keys: {sorted(top_level_keys)}")
+
+hooks = data.get("hooks")
+if not isinstance(hooks, dict):
+    raise SystemExit("hooks must be an object")
+
+for event_name in ("PreToolUse", "PostToolUse"):
+    if event_name not in hooks:
+        raise SystemExit(f"missing hooks.{event_name}")
+PYEOF
+}
+
 rm -rf plugins/gin-workflow/dist
 rm -rf plugins/gin-workflow-advanced/dist
 
@@ -71,5 +95,6 @@ assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"n
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": \{"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
+assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-workflow/src\""
 assert_not_contains ".claude-plugin/marketplace.json" "gin-workflow-advanced"
