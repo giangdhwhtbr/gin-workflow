@@ -62,3 +62,14 @@ assert_not_exists "plugins/gin-workflow-advanced"
 
 assert_contains "plugins/gin-workflow/dist/claude-code/commands/plan.md" "compares implementation approaches"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md" "Propose 2-3 approaches"
+
+./install.sh --platform codex --dry-run >"$output_file"
+
+assert_exists "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json"
+assert_exists "plugins/gin-workflow/dist/codex/hooks/hooks.json"
+assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"name\": \"gin-workflow\""
+assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
+assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": \{"
+assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
+assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-workflow/src\""
+assert_not_contains ".claude-plugin/marketplace.json" "gin-workflow-advanced"
