@@ -24,8 +24,11 @@ State ownership is defined in [docs/orchestration-state-model.md](file://../../.
    - Dispatch workers for these beads (up to the limit specified by `--max-tracks`).
    - Mark a bead active via `bd update <issue-id> --status in_progress` (or `bd update <issue-id> --claim` to atomically assign + set in_progress).
 5. **Integration**:
-   - When a worker finishes a bead successfully, close it via `bd close <issue-id>` (equivalently `bd update <issue-id> --status closed`).
-   - If worktree isolation is active, perform safety checks and merge the worktree branch into the integration branch.
+   - When a worker finishes successfully, treat the bead as ready for integration and close-out review, not ready for immediate closure.
+   - If worktree isolation is active, perform safety checks and merge the worktree branch into the integration branch before final closure.
+   - Follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md) before running `bd close <issue-id>`.
+   - Close the bead only after integration work is complete when in scope, verification evidence exists, Beads outcome notes are recorded, `git status` has been reviewed, follow-up work is captured, and handoff evidence is complete.
+   - If integration or verification fails, or the handoff is incomplete, leave the bead active or mark it blocked with notes instead of closing it.
 6. **Runtime Metadata**:
    - Any local cache for active workers, branch names, or worktree paths must be disposable and reconstructible.
    - Beads remains the source of truth for status, ownership, readiness, dependencies, blockers, and closure.
