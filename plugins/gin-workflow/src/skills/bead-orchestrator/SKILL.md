@@ -1,18 +1,19 @@
 ---
 name: bead-orchestrator
-description: Parses plans, manages the track execution state, dispatches workers, and tracks status via local beads files.
+description: Parses plans, manages dependency-aware execution, dispatches workers, and tracks durable status via Beads.
 ---
 
 # Bead Orchestrator Skill
 
-This skill governs the central coordination of development plans. It manages dependency-aware execution of tasks using file-based beads.
+This skill governs the central coordination of development plans. It manages dependency-aware execution of tasks using Beads as the durable workflow state.
 
 ## Core Flow
 
 1. **Plan Discovery**: Locate the latest plan under `.planning/plans/` or the path passed via `--plan`.
 2. **Beads Initialization**:
    - Parse the plan markdown file.
-   - For each track defined under the `## Tasks` section, create a bead using `bd create` (e.g., `bd create "Track Title" -t task`). `bd create` prints the new issue's ID (e.g. `bd-7`) — capture it and record the mapping from the plan's `<track-id>` to this bd issue ID in `.planning/orchestration-state.json`, since later commands take the bd issue ID, not the plan track-id.
+   - For each track defined under the `## Tasks` section, create a bead using `bd create` (e.g., `bd create "Track Title" -t task`).
+   - Capture any mapping between a plan track-id and a bead id in a way that is disposable and reproducible from the plan plus Beads. Do not treat a local runtime file as the authoritative execution state.
    - Use `bd dep add <issue-id> <depends-on-id>` to configure dependencies between tracks if specified in the plan (both IDs are the bd issue IDs returned by `bd create`).
 3. **Agent Injection (optional)**:
    - If `--inject-agents-md` is specified, copy the specialist agent definitions from the plugin's `agents/` directory (such as `agent-researcher.md`, `code-reviewer.md`, `codebase-mapper.md`) into the project's local agent directory (e.g. `.claude/agents/` for Claude Code or `.agents/agents/` for Antigravity) before dispatching any workers.
@@ -23,5 +24,6 @@ This skill governs the central coordination of development plans. It manages dep
 5. **Integration**:
    - When a worker finishes a bead successfully, close it via `bd close <issue-id>` (equivalently `bd update <issue-id> --status closed`).
    - If worktree isolation is active, perform safety checks and merge the worktree branch into the integration branch.
-6. **State File**:
-   - Maintain a master execution state at `.planning/orchestration-state.json` containing the overall progress, target branch, and list of active workers.
+6. **Runtime Metadata**:
+   - Any local cache for active workers, branch names, or worktree paths must be disposable and reconstructible.
+   - Beads remains the source of truth for status, ownership, dependencies, and closure.
