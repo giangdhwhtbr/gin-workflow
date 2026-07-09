@@ -10,12 +10,12 @@ Findings are ranked **most-severe first**. Each has a concrete failure scenario 
 
 A follow-up pass checked the working-tree changes (uncommitted, vs. `b7de0f8`) against the 19 findings below. Status legend: ✅ Resolved · 🟡 Partial (residual noted) · ❌ Unresolved · ➕ New.
 
-A second fix pass then addressed the new issues (N1–N3) and the actionable residuals (#5, #9). Those are marked ✅(fixed) below with a verification note; only the two Antigravity residuals requiring external verification (#2, #19) remain open.
+A second fix pass then addressed the new issues (N1–N3) and the actionable residuals (#5, #9). Those are marked ✅(fixed) below with a verification note. The Antigravity residuals (#2, #19) are now resolved based on local `agy` validation plus direct endpoint verification performed on 2026-07-09.
 
 | # | Status | Note |
 |---|---|---|
 | 1 | ✅ | `safety-check.sh` now reads stdin JSON via `jq` (`.tool_input.command`, `.cwd`), guards missing `jq`, falls back to positional args. Safety gate fires on Claude Code. |
-| 2 | 🟡 | Claude build templates `${CLAUDE_PLUGIN_ROOT}` (correct, verified). **Open residual:** Antigravity build still emits `${PLUGIN_ROOT}` — that var is unverified for Antigravity; needs `agy inspect` / Antigravity plugin docs to confirm. |
+| 2 | ✅ | Claude build templates `${CLAUDE_PLUGIN_ROOT}` (correct, verified). Antigravity no longer depends on `${PLUGIN_ROOT}` being guaranteed: the generated hook file uses `${PLUGIN_ROOT:-<installed-plugin-path>}` and `agy plugin validate plugins/gin-workflow/dist/antigravity` passes. The verified mechanism is the install-path fallback, not the env var by itself. |
 | 3 | ✅ | `set -euo pipefail` added; both branches validated via `git rev-parse --verify`; checkout guarded. |
 | 4 | ✅ | `TRACK_ID` restricted to `^[A-Za-z0-9._-]+$`; `TARGET_DIR` anchored to `git rev-parse --show-toplevel`; `realpath -m` containment check rejects `..` escape. |
 | 5 | ✅(fixed) | Regex now also catches quoted `rm -rf "$HOME"`, `rm -rf "$VAR"`, `rm -rf ~/*`, `rm -rf ~/...`, `rm -rf $HOME/...` via an added `quoted_re` clause. Verified: all destructive sample forms exit 2; safe `rm -rf /tmp/safe` and `ls` exit 0. |
@@ -32,7 +32,7 @@ A second fix pass then addressed the new issues (N1–N3) and the actionable res
 | 16 | ✅ | Root-level `dist/antigravity/hooks.json` duplicate removed; only `hooks/hooks.json` written. |
 | 17 | ✅ | `agent-plugin/dist/` added to `.gitignore`; committed `dist/**` deleted (51 files staged for removal). |
 | 18 | ✅ | Value-taking opts validate `${2:-}` and `shift 2`; copies use `src/<dir>/.` form (handles empty dirs). |
-| 19 | 🟡 | Claude `$schema` removed. **Open residual:** Antigravity `$schema` (`https://antigravity.google/schemas/v1/plugin.json`) kept and labeled "canonical" in a comment without verification — confirm the URL is real or drop it. |
+| 19 | ✅ | Antigravity `$schema` is verified. `curl -I https://antigravity.google/schemas/v1/plugin.json` returns `200`, and the endpoint serves a JSON schema titled `Antigravity Plugin Manifest`. Keeping the `$schema` is now evidence-backed. |
 
 ### ➕ New issues from the fix pass — all resolved
 
@@ -45,9 +45,12 @@ The `--project` block exits before the global `DRY_RUN` check; now an explicit d
 **➕ N3 (⚪ Low) — `safety-check.sh` failed open on malformed hook JSON.** ✅(fixed)
 `jq` parse failure is now caught explicitly (`COMMAND=$(… ‖ jq …) ‖ { echo …; exit 2; }`) and blocks (exit 2) instead of leaving `COMMAND` empty and allowing. **Verified:** piping `not json at all` into `safety-check.sh` exits 2 with "failed to parse PreToolUse hook payload as JSON".
 
-### Residuals still open (require external verification)
-- **#2 (Antigravity `${PLUGIN_ROOT}`)** — confirm the correct Antigravity hook env var via `agy inspect` / Antigravity plugin docs; do not assume `PLUGIN_ROOT`. Cannot be verified from this repo alone.
-- **#19 (Antigravity `$schema`)** — confirm `https://antigravity.google/schemas/v1/plugin.json` is real or drop it; the "canonical" comment asserts verification that was not performed.
+### Residuals still open
+
+None from the Antigravity verification pass on 2026-07-09. The remaining safe guidance is:
+
+- treat the installed plugin path fallback as the verified Antigravity hook-path mechanism
+- do not claim `${PLUGIN_ROOT}` alone is guaranteed unless primary Antigravity docs later confirm it explicitly
 
 ---
 
