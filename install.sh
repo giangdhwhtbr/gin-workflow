@@ -117,6 +117,8 @@ manifest = dict(name=meta['name'], version=meta['version'],
                 description=meta['description'], author=meta['author'],
                 repository=meta['repository'])
 if inc_schema == 'true':
+    # Verified on 2026-07-09: this endpoint resolves and returns the
+    # Antigravity plugin manifest JSON schema.
     manifest['$schema'] = 'https://antigravity.google/schemas/v1/plugin.json'
 with open(out_path, 'w') as f:
     json.dump(manifest, f, indent=2)
