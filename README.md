@@ -81,6 +81,16 @@ Antigravity does not natively support Git-based installation yet. Use the remote
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform antigravity
 ```
 
+#### 3. Codex CLI
+Codex installs plugins from marketplaces. Register this repository as a marketplace, then add `gin-workflow`:
+```bash
+# Register this repository as a marketplace
+codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
+
+# Install the plugin
+codex plugin add gin-workflow@gin-workflow-marketplace
+```
+
 ---
 
 ## Local Development & Compilation
@@ -94,6 +104,9 @@ Use `install.sh` to compile the plugin into `plugins/gin-workflow/dist/` and ins
 
 # Install to Antigravity
 ./install.sh --platform antigravity
+
+# Install to Codex
+./install.sh --platform codex
 ```
 
 #### Options:

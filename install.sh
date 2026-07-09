@@ -190,29 +190,32 @@ template_hooks_for_codex() {
   local root_var="$2"
   cat <<EOF > "$dest"
 {
-  "PreToolUse": [
-    {
-      "matcher": "Bash|run_command",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "${root_var}/scripts/safety-check.sh",
-          "timeout": 30
-        }
-      ]
-    }
-  ],
-  "PostToolUse": [
-    {
-      "matcher": "write_to_file|replace_file_content",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "${root_var}/scripts/post-edit.sh"
-        }
-      ]
-    }
-  ]
+  "description": "Gin workflow safety and post-edit hooks for Codex.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${root_var}/scripts/safety-check.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${root_var}/scripts/post-edit.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
 EOF
 }
@@ -322,7 +325,7 @@ install_plugin() {
   local dist_dir="$p_dir/dist"
   mkdir -p "$dist_dir/claude-code/.claude-plugin"
   mkdir -p "$dist_dir/antigravity"
-  mkdir -p "$dist_dir/codex"
+  mkdir -p "$dist_dir/codex/.codex-plugin"
 
   if matches_platform "claude"; then
     echo "Configuring Claude Code plugin structure for $p_name..."
@@ -336,7 +339,7 @@ install_plugin() {
   fi
   if matches_platform "codex"; then
     echo "Configuring Codex plugin structure for $p_name..."
-    install_platform "codex" "$p_name" "$dist_dir/codex" "\${PLUGIN_ROOT}" "$dist_dir/codex/plugin.json" "false"
+    install_platform "codex" "$p_name" "$dist_dir/codex" "\${PLUGIN_ROOT}" "$dist_dir/codex/.codex-plugin/plugin.json" "false"
   fi
 
   if [ "$DRY_RUN" = true ]; then
@@ -354,7 +357,8 @@ install_plugin() {
   fi
   if matches_platform "codex" && [ "$HAS_CODEX" = true ]; then
     echo "Registering $p_name with Codex..."
-    codex plugin install "$SCRIPT_DIR/$dist_dir/codex"
+    codex plugin marketplace add "$SCRIPT_DIR"
+    codex plugin add "$p_name@gin-workflow-marketplace"
   fi
 }
 
