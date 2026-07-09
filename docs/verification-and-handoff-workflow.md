@@ -27,10 +27,10 @@ It applies to:
 The required sequence is:
 
 1. Run relevant quality gates
-2. Update Beads with outcome or blocker state
+2. Record Beads notes, blockers, and follow-up work
 3. Run `git status`
 4. Prepare handoff summary
-5. Close the bead only if acceptance criteria are complete
+5. Close the bead only if acceptance criteria and handoff evidence are complete
 
 ## Step 1: Run Relevant Quality Gates
 
@@ -51,16 +51,17 @@ Rules:
 - if validation is intentionally not run, say so explicitly in the handoff
 - if validation fails, do not claim the task is complete
 
-## Step 2: Update Beads
+## Step 2: Record Beads Notes, Blockers, And Follow-Up Work
 
-Before ending the session, ensure Beads reflects the durable state of the task.
+Before ending the session, ensure Beads reflects the durable state of the task without closing it early.
 
 Required behavior:
 
 - update notes with what changed and what was verified
 - record blockers if work cannot complete
 - create follow-up beads for remaining durable work
-- close the bead only after verification and handoff evidence are complete
+
+Do not run `bd close` in this step. Final closure belongs to Step 5, after verification, `git status`, and the handoff summary are complete.
 
 Source of truth:
 
@@ -92,13 +93,14 @@ Required handoff contents:
 - what validation was run
 - what validation was not run
 - any blocked items or residual risks
-- the bead status
+- the bead status at handoff time
 - proposed next commands when useful
 
 Recommended phrasing:
 
 - changed files
 - validation
+- beads status
 - remaining risks
 - next commands
 
@@ -109,6 +111,8 @@ Close the bead only when:
 - the acceptance criteria are satisfied
 - relevant verification is complete
 - follow-up work has been captured separately
+- Beads notes reflect the outcome
+- `git status` has been reviewed
 - the handoff is complete
 
 If any of those are false:

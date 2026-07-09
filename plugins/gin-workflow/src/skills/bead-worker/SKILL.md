@@ -21,5 +21,8 @@ This skill guides a specialized subagent or local worker executing a single bead
    - Run the relevant unit tests or checks to verify the change meets the acceptance criteria.
    - If tests fail, iterate and fix issues locally.
 4. **Completion**:
-   - Write a summary of changes, diff metrics, and test outputs.
-   - Transition the status of the bead using the `bd` CLI (e.g. `bd update <track-id> --status closed` or `bd close <track-id>`).
+   - Follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md) before treating the bead as complete.
+   - Write Beads outcome notes plus a handoff summary that covers changes, validation, and any follow-up work.
+   - Run `git status` before closure and include the changed-file state in the handoff.
+   - Close the bead only after acceptance criteria, validation, Beads notes, `git status`, and handoff evidence are complete.
+   - If validation fails or the handoff is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.
