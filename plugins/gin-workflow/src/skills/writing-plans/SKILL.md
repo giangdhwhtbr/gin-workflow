@@ -1,25 +1,36 @@
 ---
 name: writing-plans
-description: Guidance on how to analyze requirements, compare approaches, and write execution-ready plans before coding.
+description: Extends superpowers:writing-plans with Gin Workflow plan schema, Beads-ready tracks, and model guidance metadata.
 ---
 
 # Writing Plans Skill
 
-This skill defines how to turn a request into a clear, high-quality, execution-ready plan for the `gin-workflow` plugin.
+This skill extends `superpowers:writing-plans` for the `gin-workflow` plugin.
+
+## Base Skill
+
+When `superpowers:writing-plans` is available, use it first as the base planning contract. Then apply the Gin Workflow overlay below.
+
+If `superpowers:writing-plans` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+
+## Gin Workflow Overlay
+
+Gin Workflow keeps the Superpowers planning standard, with these plugin-specific overrides:
+
+1. Save plans in `.planning/plans/`, not `docs/superpowers/plans/`.
+2. Follow the format defined in [plan-schema.md](file://plan-schema.md) when writing or modifying a plan.
+3. Break work into Beads-ready tracks with explicit dependencies.
+4. Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`.
+5. Treat `standard_impl` as the implicit default when no model class is specified.
+6. Default `plan` work to `standard_impl`; escalate planning to `high_reasoning` only when the planning step still has major unresolved tradeoffs, sequencing risk, or unclear execution boundaries.
 
 ## Execution Rules
 
 1. Inspect the relevant codebase context before drafting the plan.
 2. Clarify ambiguous objectives, constraints, non-goals, and success criteria before locking the plan.
 3. Propose 2-3 approaches with tradeoffs, recommend one, and only then finalize the plan.
-4. Always follow the format defined in [plan-schema.md](file://plan-schema.md) when writing or modifying a plan.
-5. Save plans in the `.planning/plans/` directory with a timestamped or semantic filename (e.g. `.planning/plans/2026-06-28-init-auth.md`).
-6. Ensure tasks are broken down into discrete tracks that can run independently or specify dependencies explicitly.
-7. Define clear, testable acceptance criteria for each track.
-8. Document verification steps in the `Validation` section.
-9. Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`.
-10. Treat `standard_impl` as the implicit default when no model class is specified.
-11. Default `plan` work to `standard_impl`; escalate planning to `high_reasoning` only when the planning step still has major unresolved tradeoffs, sequencing risk, or unclear execution boundaries.
+4. Apply the Superpowers task-quality rules for file mapping, right-sized tasks, concrete steps, and self-review.
+5. Apply the Gin Workflow overlay for plan location, schema, Beads-ready track structure, validation, and model guidance.
 
 ## Planning Standard
 
