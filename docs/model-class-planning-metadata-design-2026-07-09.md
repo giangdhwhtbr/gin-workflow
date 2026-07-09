@@ -123,6 +123,8 @@ Individual tracks may override the default when needed:
 - Beads does not own model guidance
 - runtime executors may read this metadata later, but they do not define it
 
+This separation is intentional so workflow state still lives in Beads while model preference remains a planning concern.
+
 ## Recommended follow-up implementation
 
 1. extend `plan-schema.md` with a `Model Guidance` section

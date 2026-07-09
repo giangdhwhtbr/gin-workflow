@@ -1,7 +1,7 @@
 # Gin Workflow (`gin-workflow`)
 
 A single plan-driven workflow plugin for **Claude Code**, **Antigravity CLI**, and **Codex CLI**.
-It covers requirement analysis, durable planning, Beads-backed orchestration, verification,
+It covers requirement analysis, durable planning, Beads-backed task state and orchestration, verification,
 technical documentation, and completion handoff.
 
 ---
@@ -38,6 +38,8 @@ The plugin keeps the core workflow skills plus a short list of high-value suppor
 - `systematic-debugging`
 - `requesting-code-review`
 - `receiving-code-review`
+
+Beads is the durable source of truth for task status, ownership, dependencies, and closure. Plan files under `.planning/plans/` define approved decomposition, scope, and model-guidance metadata, while worktrees and any runtime orchestration metadata are implementation details rather than authoritative workflow state.
 
 ---
 

@@ -17,6 +17,9 @@ This skill defines how to turn a request into a clear, high-quality, execution-r
 6. Ensure tasks are broken down into discrete tracks that can run independently or specify dependencies explicitly.
 7. Define clear, testable acceptance criteria for each track.
 8. Document verification steps in the `Validation` section.
+9. Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`.
+10. Treat `standard_impl` as the implicit default when no model class is specified.
+11. Default `plan` work to `standard_impl`; escalate planning to `high_reasoning` only when the planning step still has major unresolved tradeoffs, sequencing risk, or unclear execution boundaries.
 
 ## Planning Standard
 
@@ -26,3 +29,4 @@ Every plan should answer these questions before the task list begins:
 2. What constraints or risks materially affect implementation?
 3. Which approach was selected, and why was it chosen over alternatives?
 4. How will the user know the work is complete?
+5. Which model class guidance, if any, needs to be recorded for phases or tracks?

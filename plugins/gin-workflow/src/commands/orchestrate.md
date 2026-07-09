@@ -5,7 +5,7 @@ description: Execute a plan through parallel tracked work items using subagents.
 
 # /orchestrate Command
 
-Orchestrate the execution of a development plan using parallel subagents and file-based task tracking.
+Orchestrate the execution of a development plan using Beads-backed tracked work items and optional parallel subagents.
 
 ## Usage
 
@@ -24,4 +24,6 @@ Orchestrate the execution of a development plan using parallel subagents and fil
 ## Instructions
 
 1. Use the `bead-orchestrator` skill to coordinate and manage execution.
-2. Maintain orchestration status under `.planning/orchestration-state.json`.
+2. Treat Beads as the durable source of truth for track status, ownership, dependencies, and closure.
+3. Use `.planning/plans/` as the approved plan/spec input for decomposition and scope.
+4. If temporary runtime metadata is needed for active workers or worktrees, keep it disposable and reconstructible from Beads plus the approved plan.
