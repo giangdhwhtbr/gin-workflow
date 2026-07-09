@@ -7,6 +7,8 @@ description: Execute a plan through parallel tracked work items using subagents.
 
 Orchestrate the execution of a development plan using Beads-backed tracked work items and optional parallel subagents.
 
+State ownership is defined in [docs/orchestration-state-model.md](file://../../../../docs/orchestration-state-model.md).
+
 ## Usage
 
 ```bash
@@ -24,6 +26,7 @@ Orchestrate the execution of a development plan using Beads-backed tracked work 
 ## Instructions
 
 1. Use the `bead-orchestrator` skill to coordinate and manage execution.
-2. Treat Beads as the durable source of truth for track status, ownership, dependencies, and closure.
-3. Use `.planning/plans/` as the approved plan/spec input for decomposition and scope.
-4. If temporary runtime metadata is needed for active workers or worktrees, keep it disposable and reconstructible from Beads plus the approved plan.
+2. Treat Beads as the durable source of truth for track status, ownership, dependencies, readiness, blockers, and closure.
+3. Use `.planning/plans/` as the approved plan/spec input for decomposition, scope, and validation intent.
+4. Mirror plan dependencies into Beads with `bd dep add` so Beads, not local runtime files, determines readiness.
+5. If temporary runtime metadata is needed for active workers or worktrees, keep it disposable and reconstructible from Beads plus the approved plan.

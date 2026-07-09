@@ -12,6 +12,8 @@ The lifecycle exists to make one thing unambiguous:
 
 If any command, skill, or helper document conflicts with this document, this lifecycle spec wins.
 
+State ownership within this lifecycle is defined in `docs/orchestration-state-model.md`.
+
 ## Lifecycle
 
 The required lifecycle is:
@@ -230,6 +232,8 @@ Exit criteria:
 - temporary isolation details only
 
 They must be reconstructible or disposable. They are not authoritative workflow state.
+
+See `docs/orchestration-state-model.md` for the detailed ownership rules and reporting expectations.
 
 ## Required Commands By Phase
 

@@ -9,6 +9,7 @@ Analyze the request, relevant codebase context, and tradeoffs before writing a d
 git-tracked plan to `.planning/plans/` using the `writing-plans` skill. This command
 compares implementation approaches before it commits to a plan, then produces the
 persistent file that `/gin-workflow:orchestrate` reads to create beads and parallel workers.
+The plan is durable input, not the source of truth for runtime status transitions.
 
 ## Instructions
 
