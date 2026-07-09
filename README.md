@@ -1,8 +1,12 @@
 # Gin Workflow (`gin-workflow`)
 
-A single plan-driven workflow plugin for **Claude Code**, **Antigravity CLI**, and **Codex CLI**.
-It covers requirement analysis, durable planning, Beads-backed task state and orchestration, verification,
-technical documentation, and completion handoff.
+`gin-workflow` is a workflow plugin for **Claude Code**, **Antigravity CLI**, and **Codex CLI** that combines durable planning with Beads-backed execution tracking.
+
+It is built around a simple ownership model:
+
+- Beads owns durable task state, dependencies, and closure.
+- Plan files under `.planning/plans/` own approved decomposition and scope.
+- Worktrees, branches, and any runtime orchestration metadata are disposable implementation details.
 
 ---
 
@@ -13,12 +17,12 @@ The plugin provides a focused set of workflow commands:
 | Command | Description |
 | :--- | :--- |
 | `/plan` | Analyze requirements, compare approaches, clarify scope, and write a durable implementation plan to `.planning/plans/`. |
-| `/orchestrate` | Execute a plan by decomposing it into tracked work items (beads) and running them in parallel via subagents. |
+| `/orchestrate` | Execute a plan by decomposing it into tracked work items in Beads and running them in parallel via subagents. |
 | `/execute` | Run implementation work directly from a plan or a specified task list using the `executing-plans` skill. |
 | `/verify` | Validate implementation correctness by running test/compile suites using the `verification-before-completion` skill. |
 | `/ship` | Complete development work, merge track outputs into the integration branch, and clean up active worktrees. |
-| `/progress` | Report detailed execution status of all active subagents and tasks. |
-| `/beads-status` | Display status of tracked work items (beads) and execution tracks. |
+| `/progress` | Report execution progress from Beads, with optional runtime context such as workers or worktrees. |
+| `/beads-status` | Display strict Beads-first status for tracked work items and dependencies. |
 | `/tech-doc` | Scan the codebase and write a human-readable technical document covering stack, architecture, structure, conventions, and risks. |
 
 ## Skills
@@ -39,7 +43,20 @@ The plugin keeps the core workflow skills plus a short list of high-value suppor
 - `requesting-code-review`
 - `receiving-code-review`
 
-Beads is the durable source of truth for task status, ownership, dependencies, and closure. Plan files under `.planning/plans/` define approved decomposition, scope, and model-guidance metadata, while worktrees and any runtime orchestration metadata are implementation details rather than authoritative workflow state.
+## Workflow Model
+
+The plugin’s canonical workflow is:
+
+1. Plan in `.planning/plans/`
+2. Orchestrate or execute against that plan
+3. Track durable progress in Beads
+4. Verify and hand off before closure
+
+For the detailed workflow contracts:
+
+- Agent lifecycle: [docs/agent-task-lifecycle.md](docs/agent-task-lifecycle.md)
+- Orchestration state ownership: [docs/orchestration-state-model.md](docs/orchestration-state-model.md)
+- Verification and handoff: [docs/verification-and-handoff-workflow.md](docs/verification-and-handoff-workflow.md)
 
 ---
 

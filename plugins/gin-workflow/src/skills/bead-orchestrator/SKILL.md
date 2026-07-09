@@ -7,6 +7,8 @@ description: Parses plans, manages dependency-aware execution, dispatches worker
 
 This skill governs the central coordination of development plans. It manages dependency-aware execution of tasks using Beads as the durable workflow state.
 
+State ownership is defined in [docs/orchestration-state-model.md](file://../../../../docs/orchestration-state-model.md).
+
 ## Core Flow
 
 1. **Plan Discovery**: Locate the latest plan under `.planning/plans/` or the path passed via `--plan`.
@@ -26,4 +28,4 @@ This skill governs the central coordination of development plans. It manages dep
    - If worktree isolation is active, perform safety checks and merge the worktree branch into the integration branch.
 6. **Runtime Metadata**:
    - Any local cache for active workers, branch names, or worktree paths must be disposable and reconstructible.
-   - Beads remains the source of truth for status, ownership, dependencies, and closure.
+   - Beads remains the source of truth for status, ownership, readiness, dependencies, blockers, and closure.
