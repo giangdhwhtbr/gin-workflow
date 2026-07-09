@@ -86,6 +86,7 @@ assert_not_exists "plugins/gin-workflow-advanced"
 
 assert_contains "plugins/gin-workflow/dist/claude-code/commands/plan.md" "compares implementation approaches"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md" "Propose 2-3 approaches"
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md' 'extends `superpowers:writing-plans`'
 
 ./install.sh --platform codex --dry-run >"$output_file"
 
