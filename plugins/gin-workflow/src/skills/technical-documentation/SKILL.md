@@ -7,7 +7,7 @@ description: Scan a codebase and write human-readable technical documentation as
 
 This skill generates durable technical documentation for humans and downstream agents. It is intended for onboarding, architecture review, planning, research, and maintenance work, not just a raw file listing.
 
-By default, write a mapper-style split documentation set under `.planning/codebase/`. This structure follows the same coverage model as `draft-codebase-mapper.md`: each major documentation concern gets its own file so planners, researchers, implementers, and reviewers can load only the context they need.
+By default, write a mapper-style split documentation set under `.planning/codebase/`. Each major documentation concern gets its own file so planners, researchers, implementers, and reviewers can load only the context they need.
 
 ## Core Flow
 

@@ -1,6 +1,6 @@
 ---
 name: verification-before-completion
-description: Extends superpowers:verification-before-completion with the canonical docs/verification-and-handoff-workflow.md checklist.
+description: Extends superpowers:verification-before-completion with the canonical bundled verification-and-handoff workflow checklist.
 ---
 
 # Verification Before Completion Skill
@@ -17,7 +17,7 @@ If `superpowers:verification-before-completion` is unavailable, continue with th
 
 Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
-1. Follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md) as the canonical close-out checklist.
+1. Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) as the canonical close-out checklist.
 2. **Compilation/Build**: Confirm the application builds without errors when a build is relevant.
 3. **Type Checking**: Run static type checks when they apply.
 4. **Unit Tests**: Run relevant unit/integration tests to ensure no regressions.

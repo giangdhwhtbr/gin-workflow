@@ -7,7 +7,7 @@ description: Parses plans, manages dependency-aware execution, dispatches worker
 
 This skill governs the central coordination of development plans. It manages dependency-aware execution of tasks using Beads as the durable workflow state.
 
-State ownership is defined in [docs/orchestration-state-model.md](file://../../../../docs/orchestration-state-model.md).
+State ownership is defined in [orchestration-state-model.md](file://../../references/orchestration-state-model.md).
 
 ## Core Flow
 
@@ -26,7 +26,7 @@ State ownership is defined in [docs/orchestration-state-model.md](file://../../.
 5. **Integration**:
    - When a worker finishes successfully, treat the bead as ready for integration and close-out review, not ready for immediate closure.
    - If worktree isolation is active, perform safety checks and merge the worktree branch into the integration branch before final closure.
-   - Follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md) before running `bd close <issue-id>`.
+   - Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) before running `bd close <issue-id>`.
    - Close the bead only after integration work is complete when in scope, verification evidence exists, Beads outcome notes are recorded, `git status` has been reviewed, follow-up work is captured, and handoff evidence is complete.
    - If integration or verification fails, or the handoff is incomplete, leave the bead active or mark it blocked with notes instead of closing it.
 6. **Runtime Metadata**:
