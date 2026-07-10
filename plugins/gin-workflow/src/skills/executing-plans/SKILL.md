@@ -21,6 +21,6 @@ Gin Workflow keeps the Superpowers standards, with these plugin-specific overrid
 2. Treat the plan files under `.planning/plans/` as approved scope and validation intent, not as the status ledger.
 3. Keep changes minimal and focused strictly on the files in scope.
 4. Perform local validation/testing immediately after implementing a track's changes.
-5. Before treating a track as complete or running `bd close`, follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md). Validation success alone is not enough without Beads outcome notes, `git status`, and explicit handoff evidence.
+5. Before treating a track as complete or running `bd close`, follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md). Validation success alone is not enough without Beads outcome notes, `git status`, and explicit handoff evidence.
 6. Do not proceed to the next track if the current track has failing tests, does not meet the acceptance criteria, or still lacks required close-out evidence.
 7. If validation fails or close-out evidence is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.

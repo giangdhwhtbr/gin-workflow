@@ -7,7 +7,7 @@ description: Execute a plan through parallel tracked work items using subagents.
 
 Orchestrate the execution of a development plan using Beads-backed tracked work items and optional parallel subagents.
 
-State ownership is defined in [docs/orchestration-state-model.md](file://../../../../docs/orchestration-state-model.md).
+State ownership is defined in [orchestration-state-model.md](file://../references/orchestration-state-model.md).
 
 ## Usage
 

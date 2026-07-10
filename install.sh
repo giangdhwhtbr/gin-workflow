@@ -224,7 +224,7 @@ copy_src() {
   local plugin_src_dir="$1"
   local target="$2"
 
-  mkdir -p "$target/commands" "$target/skills" "$target/agents" "$target/scripts"
+  mkdir -p "$target/commands" "$target/skills" "$target/agents" "$target/scripts" "$target/references"
 
   if [ -d "$plugin_src_dir/commands" ] && [ "$(ls -A "$plugin_src_dir/commands" 2>/dev/null)" ]; then
     if [ "$LINK" = true ]; then
@@ -255,6 +255,14 @@ copy_src() {
       cp -rsf "$plugin_src_dir/scripts/." "$target/scripts/"
     else
       cp -rf "$plugin_src_dir/scripts/." "$target/scripts/"
+    fi
+  fi
+
+  if [ -d "$plugin_src_dir/references" ] && [ "$(ls -A "$plugin_src_dir/references" 2>/dev/null)" ]; then
+    if [ "$LINK" = true ]; then
+      cp -rsf "$plugin_src_dir/references/." "$target/references/"
+    else
+      cp -rf "$plugin_src_dir/references/." "$target/references/"
     fi
   fi
 }

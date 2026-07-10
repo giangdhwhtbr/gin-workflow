@@ -5,7 +5,7 @@ description: Guidance for reporting execution status of tracked work items (bead
 
 # Beads Status Skill
 
-This skill renders a per-track status summary of the currently tracked work items. It reads state exclusively from the `bd` CLI and follows [docs/orchestration-state-model.md](file://../../../../docs/orchestration-state-model.md) — never parse local planning or runtime JSON files by hand.
+This skill renders a per-track status summary of the currently tracked work items. It reads state exclusively from the `bd` CLI and follows [orchestration-state-model.md](file://../../references/orchestration-state-model.md) — never parse local planning or runtime JSON files by hand.
 
 ## Execution Rules
 

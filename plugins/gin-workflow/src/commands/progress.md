@@ -7,7 +7,7 @@ description: Report execution status for all active beads.
 
 Show the current status of tracked work items and any active execution context.
 
-This command should follow [docs/orchestration-state-model.md](file://../../../../docs/orchestration-state-model.md) and treat any runtime metadata as supplemental only.
+This command should follow [orchestration-state-model.md](file://../references/orchestration-state-model.md) and treat any runtime metadata as supplemental only.
 
 ## Instructions
 

@@ -82,6 +82,8 @@ assert_exists "plugins/gin-workflow/dist/claude-code/agents/docs-writer.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/systematic-debugging/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/receiving-code-review/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/references/verification-and-handoff-workflow.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/references/orchestration-state-model.md"
 
 assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/quick.md"
 assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/new-project.md"
@@ -99,6 +101,9 @@ assert_contains 'plugins/gin-workflow/dist/claude-code/skills/receiving-code-rev
 assert_contains 'plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md' 'extends `superpowers:requesting-code-review`'
 assert_contains 'plugins/gin-workflow/dist/claude-code/skills/finishing-a-development-branch/SKILL.md' 'extends `superpowers:finishing-a-development-branch`'
 assert_contains 'plugins/gin-workflow/dist/claude-code/skills/using-git-worktrees/SKILL.md' 'extends `superpowers:using-git-worktrees`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verification-before-completion/SKILL.md' 'file://../../references/verification-and-handoff-workflow.md'
+assert_contains 'plugins/gin-workflow/dist/claude-code/commands/verify.md' 'file://../references/verification-and-handoff-workflow.md'
+assert_contains 'plugins/gin-workflow/dist/claude-code/commands/orchestrate.md' 'file://../references/orchestration-state-model.md'
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/technical-documentation/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/technical-documentation/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/technical-documentation/SKILL.md" "codegraph"
@@ -111,11 +116,15 @@ assert_exists "plugins/gin-workflow/dist/codex/agents/solution-architect.md"
 assert_exists "plugins/gin-workflow/dist/codex/agents/full-stack-developer.md"
 assert_exists "plugins/gin-workflow/dist/codex/agents/qa-agent.md"
 assert_exists "plugins/gin-workflow/dist/codex/agents/docs-writer.md"
+assert_exists "plugins/gin-workflow/dist/codex/references/verification-and-handoff-workflow.md"
+assert_exists "plugins/gin-workflow/dist/codex/references/orchestration-state-model.md"
 assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"name\": \"gin-workflow\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
+assert_contains "plugins/gin-workflow/dist/codex/skills/verification-before-completion/SKILL.md" "file://../../references/verification-and-handoff-workflow.md"
+assert_contains "plugins/gin-workflow/dist/codex/commands/orchestrate.md" "file://../references/orchestration-state-model.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/technical-documentation/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/technical-documentation/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/technical-documentation/SKILL.md" "codegraph"
