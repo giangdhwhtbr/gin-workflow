@@ -1,13 +1,21 @@
 ---
 name: finishing-a-development-branch
-description: Best practices for merging work, cleaning up worktrees, and preparing the branch for final deployment/shipping.
+description: Extends superpowers:finishing-a-development-branch with teardown safety and docs/verification-and-handoff-workflow.md integration.
 ---
 
 # Finishing a Development Branch Skill
 
-This skill explains how to cleanly finalize a branch, clean up temporary resources, and merge changes.
+This skill extends `superpowers:finishing-a-development-branch` for the `gin-workflow` plugin.
 
-## Cleanup & Shippable State
+## Base Skill
+
+When `superpowers:finishing-a-development-branch` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+
+If `superpowers:finishing-a-development-branch` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+
+## Gin Workflow Overlay
+
+Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
 1. Follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md) before treating work as shippable.
 2. **Review Diff**: Generate and inspect a clean diff of changes against the baseline branch when branch integration is in scope.

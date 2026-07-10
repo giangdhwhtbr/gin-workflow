@@ -24,7 +24,7 @@ assert_not_exists() {
 assert_contains() {
   local path="$1"
   local pattern="$2"
-  if ! rg -q "$pattern" "$path"; then
+  if ! grep -F -q "$pattern" "$path"; then
     echo "Expected '$path' to contain pattern: $pattern" >&2
     exit 1
   fi
@@ -33,7 +33,7 @@ assert_contains() {
 assert_not_contains() {
   local path="$1"
   local pattern="$2"
-  if rg -q "$pattern" "$path"; then
+  if grep -F -q "$pattern" "$path"; then
     echo "Expected '$path' to not contain pattern: $pattern" >&2
     exit 1
   fi
@@ -75,6 +75,10 @@ assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_not_contains "$output_file" "gin-workflow-advanced"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/commands/tech-doc.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/agents/full-stack-developer.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/agents/qa-agent.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/agents/docs-writer.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/systematic-debugging/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/receiving-code-review/SKILL.md"
@@ -87,15 +91,33 @@ assert_not_exists "plugins/gin-workflow-advanced"
 assert_contains "plugins/gin-workflow/dist/claude-code/commands/plan.md" "compares implementation approaches"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md" "Propose 2-3 approaches"
 assert_contains 'plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md' 'extends `superpowers:writing-plans`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/executing-plans/SKILL.md' 'extends `superpowers:executing-plans`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verification-before-completion/SKILL.md' 'extends `superpowers:verification-before-completion`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/systematic-debugging/SKILL.md' 'extends `superpowers:systematic-debugging`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/dispatching-parallel-agents/SKILL.md' 'extends `superpowers:dispatching-parallel-agents`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/receiving-code-review/SKILL.md' 'extends `superpowers:receiving-code-review`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md' 'extends `superpowers:requesting-code-review`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/finishing-a-development-branch/SKILL.md' 'extends `superpowers:finishing-a-development-branch`'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/using-git-worktrees/SKILL.md' 'extends `superpowers:using-git-worktrees`'
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/technical-documentation/SKILL.md" "single combined document"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/technical-documentation/SKILL.md" "ARCHITECTURE.md"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/technical-documentation/SKILL.md" "codegraph"
 
 ./install.sh --platform codex --dry-run >"$output_file"
 
 assert_exists "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json"
 assert_exists "plugins/gin-workflow/dist/codex/hooks/hooks.json"
+assert_exists "plugins/gin-workflow/dist/codex/agents/solution-architect.md"
+assert_exists "plugins/gin-workflow/dist/codex/agents/full-stack-developer.md"
+assert_exists "plugins/gin-workflow/dist/codex/agents/qa-agent.md"
+assert_exists "plugins/gin-workflow/dist/codex/agents/docs-writer.md"
 assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"name\": \"gin-workflow\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
-assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": \{"
+assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
+assert_contains "plugins/gin-workflow/dist/codex/skills/technical-documentation/SKILL.md" "single combined document"
+assert_contains "plugins/gin-workflow/dist/codex/skills/technical-documentation/SKILL.md" "ARCHITECTURE.md"
+assert_contains "plugins/gin-workflow/dist/codex/skills/technical-documentation/SKILL.md" "codegraph"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-workflow/src\""
 assert_not_contains ".claude-plugin/marketplace.json" "gin-workflow-advanced"

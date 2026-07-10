@@ -1,13 +1,21 @@
 ---
 name: dispatching-parallel-agents
-description: Guidelines for parallel subagent coordination and routing tasks based on platform capabilities.
+description: Extends superpowers:dispatching-parallel-agents with platform detection (Antigravity vs Claude Code) and concurrency control.
 ---
 
 # Dispatching Parallel Agents Skill
 
-This skill governs how tasks are assigned to parallel workers across platforms (Claude Code vs. Antigravity CLI).
+This skill extends `superpowers:dispatching-parallel-agents` for the `gin-workflow` plugin.
 
-## Execution Rules
+## Base Skill
+
+When `superpowers:dispatching-parallel-agents` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+
+If `superpowers:dispatching-parallel-agents` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+
+## Gin Workflow Overlay
+
+Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
 1. **Platform Detection**:
    - On **Antigravity CLI**, use the `invoke_subagent` tool with a customized prompt containing the bead's JSON config.

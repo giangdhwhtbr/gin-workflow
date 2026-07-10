@@ -1,13 +1,21 @@
 ---
 name: verification-before-completion
-description: Steps and checks required to verify implementation correctness before resolving a plan.
+description: Extends superpowers:verification-before-completion with the canonical docs/verification-and-handoff-workflow.md checklist.
 ---
 
 # Verification Before Completion Skill
 
-This skill ensures that all changes are thoroughly verified and verified against target behaviors before completion.
+This skill extends `superpowers:verification-before-completion` for the `gin-workflow` plugin.
 
-## Verification Checklist
+## Base Skill
+
+When `superpowers:verification-before-completion` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+
+If `superpowers:verification-before-completion` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+
+## Gin Workflow Overlay
+
+Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
 1. Follow [docs/verification-and-handoff-workflow.md](file://../../../../docs/verification-and-handoff-workflow.md) as the canonical close-out checklist.
 2. **Compilation/Build**: Confirm the application builds without errors when a build is relevant.
