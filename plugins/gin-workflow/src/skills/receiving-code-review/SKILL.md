@@ -1,32 +1,31 @@
 ---
 name: receiving-code-review
-description: How to triage code-review findings into apply / refute / defer dispositions, re-verify after fixing, and never silently dismiss a finding.
+description: Extends superpowers:receiving-code-review with disposition tracking (Apply, Refute, Defer) and no-silent-dismissal rules.
 ---
 
 # Receiving Code Review Skill
 
-This skill defines how to handle the structured findings returned by a code review (see requesting-code-review). Every finding must receive an explicit disposition — none may be silently dropped.
+This skill extends `superpowers:receiving-code-review` for the `gin-workflow` plugin.
 
-## Triage Each Finding
+## Base Skill
 
-Walk the returned findings in severity order (most-severe first). For each finding, choose exactly one disposition:
+When `superpowers:receiving-code-review` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
 
-1. **Apply** — The finding is valid and the fix is in scope. Make the change in the working tree now. Record what you changed so it can be re-verified.
-2. **Refute** — The finding is wrong. You must state the reason: cite the behavior the code actually has, a constraint the reviewer missed, or a failure scenario that does not reproduce. A bare "won't fix" or "not an issue" is not a valid refutation. The reason must be specific enough that another reviewer could agree or disagree with it.
-3. **Defer** — The finding is valid but out of scope for this track, or the fix is risky enough to warrant its own piece of work. File a follow-up bead (see the bead-worker skill) capturing the finding, its failure scenario, and the suggested fix. Deferring is not the same as dismissing — the finding is recorded as work, not lost.
+If `superpowers:receiving-code-review` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
 
-## No Silent Dismissal
+## Gin Workflow Overlay
 
-Each finding gets one of the three dispositions above and a recorded reason. There is no fourth "ignore" option. If you cannot decide, default to **Apply** for high-severity findings (fix now) and **Defer** for low-severity ones (file the bead). Never leave a finding without a disposition — an undispositioned finding is a silent dismissal.
+Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
-## Re-Verify After Applying Fixes
-
-After applying any fixes:
-
-1. Re-run the verification-before-completion checks (build, type checks, unit tests) to confirm the fixes did not introduce a regression.
-2. If the change is substantial, request another code-review pass focused on the fixes (requesting-code-review). A single follow-up review of just the diff of fixes is enough — do not re-review the entire change.
-3. Re-verify findings you refuted only if a fix touched the same code; otherwise the refutation stands.
-
-## Completing the Review Cycle
-
-Once every finding has a disposition and all **Apply** fixes have been re-verified, the review cycle is complete. Record the disposition table (finding → disposition → reason / bead id) in the track summary so the orchestrator can audit it. Then proceed to finishing-a-development-branch.
+1. **Triage Each Finding**:
+   Walk the returned findings in severity order (most-severe first). For each finding, choose exactly one disposition:
+   - **Apply** — The finding is valid and the fix is in scope. Make the change in the working tree now. Record what you changed so it can be re-verified.
+   - **Refute** — The finding is wrong. State the specific reason citing codebase behavior or constraints. A bare "won't fix" is invalid.
+   - **Defer** — The finding is valid but out of scope or risky. File a follow-up bead capturing the finding, its failure scenario, and the suggested fix.
+2. **No Silent Dismissal**:
+   Every finding must have an explicit disposition and reason. If undecided, default to **Apply** for high-severity issues and **Defer** for low-severity issues. Never silently dismiss.
+3. **Re-Verify After Applying Fixes**:
+   - Re-run `verification-before-completion` checks.
+   - For substantial changes, request another code-review pass focused strictly on the diff of fixes.
+4. **Completing the Review Cycle**:
+   Record the disposition table (finding → disposition → reason / bead id) in the track summary/outcome notes.

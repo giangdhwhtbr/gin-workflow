@@ -1,13 +1,21 @@
 ---
 name: using-git-worktrees
-description: Guidelines for managing Git worktrees safely to isolate parallel track development.
+description: Extends superpowers:using-git-worktrees with directory layout constraints (.planning/worktrees/) and PreToolUse safety-check hook.
 ---
 
 # Using Git Worktrees Skill
 
-This skill explains how to isolate concurrent worker tracks using Git worktrees.
+This skill extends `superpowers:using-git-worktrees` for the `gin-workflow` plugin.
 
-## Execution Rules
+## Base Skill
+
+When `superpowers:using-git-worktrees` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+
+If `superpowers:using-git-worktrees` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+
+## Gin Workflow Overlay
+
+Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
 1. **Safety First**:
    - Only execute worktree creation and teardown commands via approved scripts (`worktree-create.sh`, `worktree-cleanup.sh`).
