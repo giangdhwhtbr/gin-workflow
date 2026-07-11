@@ -3,5 +3,5 @@
   "version": "1.0.0",
   "description": "Plan-driven workflow with requirement analysis, technical documentation, orchestration, verification, and ship flows.",
   "author": { "name": "gin" },
-  "repository": "https://github.com/giangdhwhtbr/gin-workflow"
+  "repository": "/home/gin/gin-workflow"
 }
