@@ -1,21 +1,17 @@
 ---
 name: progress
-description: Report execution status for all active beads.
+description: Report the status of tracked work items, active execution context, and next-task recommendations.
 ---
 
 # /progress Command
 
-Show the current status of tracked work items and any active execution context.
-
-This command should follow [orchestration-state-model.md](file://../references/orchestration-state-model.md) and treat any runtime metadata as supplemental only.
+Show the current status of tracked work items (beads), any active execution context, and recommended next tasks.
 
 ## Instructions
 
-1. Run `bd list` and `bd ready` to retrieve the latest status of all tasks.
-2. Treat Beads as the authoritative source for task state, readiness, and dependency status.
-3. If temporary worker or worktree metadata exists, present it only as supplemental runtime context and label it as derived runtime metadata.
-4. Format the progress as a clear table or graph, e.g.:
-   - **Complete**: Track 1, Track 2
-   - **Active**: Track 3 (Subagent: worker-3)
-   - **Pending**: Track 4
-5. Report blocked work explicitly and identify the blocking dependency when known from Beads.
+1. Use the `progress` skill (see [progress/SKILL.md](file://../skills/progress/SKILL.md)) to gather, format, and render status and recommendations.
+2. The skill reads state exclusively from the `bd` CLI — do not parse local planning or runtime JSON manually.
+3. Present a per-track summary (Pending / Active / Complete / Failed) so the user can see at a glance where work stands.
+4. Include a "Next Task Recommendations" section showing the next logical tasks to execute, utilizing hierarchical dependency-aware logic.
+5. Treat Beads as the authoritative source for task state, readiness, and dependency status.
+6. Present any temporary worker or worktree metadata only as supplemental runtime context and label it as derived runtime metadata.

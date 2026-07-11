@@ -1,15 +1,17 @@
 ---
 name: execute
-description: Run implementation work directly from an existing plan or task.
+description: Implement approved work from the plan through Beads-backed worker execution.
 ---
 
 # /execute Command
 
-Execute a development task or plan directly.
+Execute approved work from an existing plan through Beads-backed worker execution.
 
 ## Instructions
 
 1. Use the `executing-plans` skill to guide the implementation.
-2. Select a target plan from `.planning/plans/` or follow a specified task list.
-3. Treat the plan as scope input only; update durable progress in Beads as work advances.
-4. Verify each step as you complete it.
+2. Select a target plan from `.planning/plans/` or follow a specified task list derived from the approved plan.
+3. Treat the plan as scope and validation input while Beads tracks durable execution progress.
+4. Execute work through `bead-worker` behavior for each implementation track.
+5. If implementation discovers requirement ambiguity, missing information, or blockers that need product clarification, return to `/discuss` instead of making assumptions.
+6. Verify each step as you complete it.

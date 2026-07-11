@@ -1,9 +1,9 @@
 ---
-name: technical-documentation
+name: tech-doc
 description: Scan a codebase and write human-readable technical documentation as concrete mapper-style split files covering stack, integrations, architecture, structure, conventions, testing, concerns, and subsystem overview.
 ---
 
-# Technical Documentation Skill
+# Tech Doc Skill
 
 This skill generates durable technical documentation for humans and downstream agents. It is intended for onboarding, architecture review, planning, research, and maintenance work, not just a raw file listing.
 
@@ -49,7 +49,7 @@ Write these files for a full-repository scan:
 5. `.planning/codebase/STRUCTURE.md`
    - Directory layout, module responsibilities, key file locations, naming conventions, generated assets, and where to add new code.
 6. `.planning/codebase/CONVENTIONS.md`
-   - Formatting, linting, import organization, naming, error handling, logging, comments, module design, and workflow conventions visible in the repository.
+   - Formatting, linting, import organization, naming, error handling, logging, comments, and workflow conventions visible in the repository.
 7. `.planning/codebase/TESTING.md`
    - Test frameworks, run commands, file organization, fixture/mocking patterns, test types, coverage expectations, and common async/error testing patterns.
 8. `.planning/codebase/CONCERNS.md`
@@ -104,6 +104,5 @@ These files are durable evidence inputs for planning and implementation. They ar
 - Reference concrete files when making claims, including line numbers when available.
 - Separate verified facts from inference, assumptions, and uncertainty.
 - Do not present guessed behavior, stale-looking references, or index-only findings as verified facts.
-- State whether codegraph or another repository index was used.
 - Highlight the top risks instead of burying them in long prose.
 - Keep each file focused on its canonical topic. Link to sibling files instead of duplicating long sections.

@@ -9,7 +9,7 @@ Generate technical documentation for the current project, or for a scoped direct
 
 ## Instructions
 
-1. Use the `technical-documentation` skill.
+1. Use the `tech-doc` skill.
 2. Confirm the target path only when the user request, Beads task, approved plan, or handoff context does not already authorize it.
 3. Default to split documentation under `.planning/codebase/` for full-repository scans.
 4. For scoped scans, default to `.planning/codebase/<scope-slug>/` and use the same canonical filenames.
