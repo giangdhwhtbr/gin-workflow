@@ -5,7 +5,7 @@
   "author": {
     "name": "gin"
   },
-  "repository": "https://github.com/giangdhwhtbr/gin-workflow",
+  "repository": "/home/gin/gin-workflow",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json"
 }
