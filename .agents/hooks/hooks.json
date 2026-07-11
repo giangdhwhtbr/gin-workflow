@@ -1,0 +1,13 @@
+{
+  "PreToolUse": {
+    "matcher": "Bash|run_command",
+    "type": "command",
+    "command": "${PLUGIN_ROOT:-/home/gin/gin-workflow/.agents}/scripts/safety-check.sh",
+    "timeout": 30
+  },
+  "PostToolUse": {
+    "matcher": "write_to_file|replace_file_content",
+    "type": "command",
+    "command": "${PLUGIN_ROOT:-/home/gin/gin-workflow/.agents}/scripts/post-edit.sh"
+  }
+}
