@@ -10,25 +10,26 @@ It is built around a simple ownership model:
 
 ---
 
-## Commands
+## Primary Skills
 
-The plugin provides a focused set of workflow commands:
+The plugin is skill-first across all supported platforms. These skills are the primary user-facing workflow entry points:
 
-| Command | Description |
+| Skill | Description |
 | :--- | :--- |
-| `/plan` | Analyze requirements, compare approaches, clarify scope, and write a durable implementation plan to `.planning/plans/`. |
-| `/orchestrate` | Execute a plan by decomposing it into tracked work items in Beads and running them in parallel via subagents. |
-| `/execute` | Run implementation work directly from a plan or a specified task list using the `executing-plans` skill. |
-| `/verify` | Validate implementation correctness by running test/compile suites using the `verification-before-completion` skill. |
-| `/ship` | Complete development work, merge track outputs into the integration branch, and clean up active worktrees. |
-| `/progress` | Report execution progress from Beads, with optional runtime context such as workers or worktrees. |
-| `/beads-status` | Display strict Beads-first status for tracked work items and dependencies. |
-| `/tech-doc` | Scan the codebase and write a human-readable technical document covering stack, architecture, structure, conventions, and risks. |
+| `discuss` | Start requirement discovery and discussion before any plan or beads are created. |
+| `plan` | After you confirm the understanding, create a durable implementation plan in `.planning/plans/`. |
+| `orchestrate` | After plan approval, automatically create and wire Beads tasks from the plan for execution. |
+| `execute` | Run implementation from the approved plan using Beads-backed worker execution and progress updates. |
+| `verify` | Validate the implementation against the approved requirement, plan, and acceptance criteria. |
+| `ship` | Prepare the verified implementation for delivery and perform the final completion workflow. |
+| `progress` | Display strict Beads-first status, active execution context, and recommended next tasks. |
+| `tech-doc` | Scan the codebase and write a human-readable technical document covering stack, architecture, structure, conventions, and risks. |
 
-## Skills
+## Support Skills
 
-The plugin keeps the core workflow skills plus a short list of high-value support skills:
+The plugin also provides lower-level and support skills used internally or for advanced workflows:
 
+- `discovering-work`
 - `writing-plans`
 - `bead-orchestrator`
 - `bead-worker`
@@ -37,8 +38,6 @@ The plugin keeps the core workflow skills plus a short list of high-value suppor
 - `finishing-a-development-branch`
 - `dispatching-parallel-agents`
 - `using-git-worktrees`
-- `beads-status`
-- `technical-documentation`
 - `systematic-debugging`
 - `requesting-code-review`
 - `receiving-code-review`
@@ -47,10 +46,26 @@ The plugin keeps the core workflow skills plus a short list of high-value suppor
 
 The plugin’s canonical workflow is:
 
-1. Plan in `.planning/plans/`
-2. Orchestrate or execute against that plan
-3. Track durable progress in Beads
-4. Verify and hand off before closure
+1. Start with `discuss` to explore the requirement, clarify ambiguity, and align on understanding
+2. Wait for explicit user confirmation that the summarized understanding is correct
+3. Use `plan` to create the approved implementation plan
+4. Use `orchestrate` to automatically create and connect Beads tasks from that plan
+5. Use `execute` to implement the work through Beads-backed worker execution
+6. Use `verify` to confirm the result against the original requirement and acceptance criteria
+7. Use `ship` to complete the delivery workflow once verification passes
+
+
+## Optional Commands
+
+Some hosts also surface plugin commands. Where available, these are optional aliases for the primary skills above:
+
+- `/discuss`
+- `/plan`
+- `/orchestrate`
+- `/execute`
+- `/verify`
+- `/ship`
+- `/progress`, `/tech-doc`
 
 For the detailed workflow contracts:
 

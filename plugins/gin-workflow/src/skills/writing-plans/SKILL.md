@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Extends superpowers:writing-plans with Gin Workflow plan schema, Beads-ready tracks, and model guidance metadata.
+description: Extends superpowers:writing-plans with Gin Workflow plan schema, confirmation gating, Beads-ready tracks, and model guidance metadata.
 ---
 
 # Writing Plans Skill
@@ -17,19 +17,20 @@ If `superpowers:writing-plans` is unavailable, continue with this skill's self-c
 
 Gin Workflow keeps the Superpowers planning standard, with these plugin-specific overrides:
 
-1. Save plans in `.planning/plans/`, not `docs/superpowers/plans/`.
-2. Follow the format defined in [plan-schema.md](file://plan-schema.md) when writing or modifying a plan.
-3. Break work into Beads-ready tracks with explicit dependencies.
-4. Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`.
-5. Treat `standard_impl` as the implicit default when no model class is specified.
-6. Default `plan` work to `standard_impl`; escalate planning to `high_reasoning` only when the planning step still has major unresolved tradeoffs, sequencing risk, or unclear execution boundaries.
+1. Use this skill only after the requirement discovery phase has ended with explicit user confirmation of the summarized understanding.
+2. Save plans in `.planning/plans/`, not `docs/superpowers/plans/`.
+3. Follow the format defined in [plan-schema.md](file://plan-schema.md) when writing or modifying a plan.
+4. Break work into Beads-ready tracks with explicit dependencies.
+5. Include goals and scope, technical approach, required changes, implementation steps, testing strategy, and risks or mitigations.
+6. Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`.
+7. Treat `standard_impl` as the implicit default when no model class is specified.
 
 ## Execution Rules
 
-1. Inspect the relevant codebase context before drafting the plan.
-2. Clarify ambiguous objectives, constraints, non-goals, and success criteria before locking the plan.
-3. Propose 2-3 approaches with tradeoffs, recommend one, and only then finalize the plan.
-4. Apply the Superpowers task-quality rules for file mapping, right-sized tasks, concrete steps, and self-review.
+1. Confirm that discovery ended with explicit user approval of the summarized understanding.
+2. If objectives, constraints, non-goals, or success criteria are still unclear, stop and return to discovery.
+3. Convert the confirmed requirement into a plan with concrete file mapping, right-sized tasks, explicit validation, and realistic sequencing.
+4. Structure the plan so it can be turned directly into Beads tasks during orchestration.
 5. Apply the Gin Workflow overlay for plan location, schema, Beads-ready track structure, validation, and model guidance.
 
 ## Planning Standard
@@ -38,6 +39,7 @@ Every plan should answer these questions before the task list begins:
 
 1. What problem is being solved, and what is out of scope?
 2. What constraints or risks materially affect implementation?
-3. Which approach was selected, and why was it chosen over alternatives?
-4. How will the user know the work is complete?
-5. Which model class guidance, if any, needs to be recorded for phases or tracks?
+3. Which approach was selected, and why was it chosen?
+4. What files, systems, or behaviors must change?
+5. How will the user know the work is complete?
+6. Which model class guidance, if any, needs to be recorded for phases or tracks?

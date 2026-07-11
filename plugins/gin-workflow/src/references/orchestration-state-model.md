@@ -75,29 +75,16 @@ Plan order can guide creation, but readiness comes from Beads after dependencies
 
 ### `/progress`
 
-`/progress` is the broad execution summary.
+`/progress` is the consolidated, Beads-first execution and status summary.
 
 It should report:
 
-- active beads
-- ready beads
-- blocked beads
-- recently completed beads when relevant
-- optional runtime context such as worker names or worktree paths
+- bead status grouped by workflow state (Pending, Active, Complete, Failed)
+- dependency-driven readiness and blocking relationships
+- next-task recommendations (using hierarchical dependency-aware logic)
+- optional/supplemental runtime context such as worker names or worktree paths (must be labeled as derived runtime metadata)
 
-If runtime context is shown, it must be labeled as supplemental.
-
-### `/beads-status`
-
-`/beads-status` is the strict Beads-first status surface.
-
-It should report:
-
-- bead status grouped by workflow state
-- dependency-driven readiness
-- blocking relationships
-
-It should not depend on local runtime caches.
+It must read state exclusively from the `bd` CLI and must not depend on local planning runtime JSON files.
 
 ## Operational Rules
 
