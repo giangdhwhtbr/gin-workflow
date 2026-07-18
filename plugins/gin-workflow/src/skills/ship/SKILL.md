@@ -18,5 +18,6 @@ Use it only after implementation and verification are complete.
 
 1. Follow the repository verification and handoff workflow before treating the work as complete.
 2. Ensure the implementation is complete, tested, and ready for delivery.
-3. Perform any required Beads close-out internally as part of the final delivery workflow.
-4. Do not commit or push unless explicitly authorized by the active instructions or the user.
+3. Before final delivery, use `telegram-notify` to send a `ship_ready` notification (two-way). If the user replies "ship", proceed. If "hold: reason", pause. On timeout, save state and exit gracefully.
+4. Run the `knowledge-reconciliation` skill to update Obsidian user story status and MOC indexes before performing any required Beads close-out internally.
+5. Do not commit or push unless explicitly authorized by the active instructions or the user.

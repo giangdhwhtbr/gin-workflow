@@ -16,12 +16,15 @@ This skill guides a specialized subagent or local worker executing a single bead
    - Treat any worker-local branch or worktree metadata as supplemental only; it does not replace the bead status.
 2. **Implementation**:
    - Limit file edits strictly to the in-scope files read from the plan in step 1.
-   - If changes outside these files are needed, stop and notify the orchestrator.
+   - Use the `knowledge-capture` skill to record any notable codebase discoveries, environment workarounds, or architectural decisions in the Obsidian vault.
+   - If changes outside these files are needed, use `telegram-notify` to send a `work_blocked` notification before stopping and notifying the orchestrator.
 3. **Verification & Testing**:
    - Run the relevant unit tests or checks to verify the change meets the acceptance criteria.
    - If tests fail, iterate and fix issues locally.
 4. **Completion**:
    - Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) before treating the bead as complete.
+   - Use the `knowledge-reconciliation` skill to update story status, link commit history, and regenerate MOC indexes in Obsidian.
+   - Use `telegram-notify` to send a `task_completed` notification after verification passes.
    - Write Beads outcome notes plus a handoff summary that covers changes, validation, and any follow-up work.
    - Run `git status` before closure and include the changed-file state in the handoff.
    - Close the bead only after acceptance criteria, validation, Beads notes, `git status`, and handoff evidence are complete.

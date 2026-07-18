@@ -75,6 +75,51 @@ For the detailed workflow contracts:
 
 ---
 
+## Telegram Integration (Optional)
+
+Agents can send notifications and receive replies via a private Telegram bot during workflow lifecycle events. This is fully opt-in — when not configured, all skills behave exactly as before.
+
+### Setup
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram.
+2. Send any message to your bot to start a private conversation.
+3. Get your chat ID (send a message to the bot, then check `https://api.telegram.org/bot<TOKEN>/getUpdates`).
+4. Set environment variables:
+   ```bash
+   export TELEGRAM_BOT_TOKEN="your-bot-token"
+   export TELEGRAM_CHAT_ID="your-chat-id"
+   ```
+
+### Notification Events
+
+| Event | Mode | Trigger |
+|---|---|---|
+| 📋 Plan ready | Two-way | After plan is written, before approval |
+| ✅ Task completed | One-way | After a bead passes verification |
+| 🚫 Work blocked | One-way | When a worker hits out-of-scope changes or ambiguity |
+| ✅/❌ Verification result | One-way | After quality gates run |
+| 🚀 Ship ready | Two-way | Before final delivery |
+| 🎉 All work complete | One-way | After all beads are closed |
+
+**Two-way** events send a message and wait up to 10 minutes for your reply. **One-way** events are fire-and-forget.
+
+### Timeout and Resume
+
+When the agent waits for your reply and you don't respond within 10 minutes:
+- The agent saves its state and exits gracefully.
+- The Telegram message remains in your chat with the session ID.
+- Resume later using your platform's resume command:
+  - `agy resume <session-id>`
+  - `claude --resume <session-id>`
+  - `codex resume <session-id>`
+
+### Dependencies
+
+- `curl` (required) — for Telegram Bot API calls.
+- `jq` (recommended) — for JSON parsing during two-way polling. Falls back to send-only if unavailable.
+
+---
+
 ## Installation
 
 ### Remote Installation (Direct from GitHub)
