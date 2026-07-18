@@ -19,6 +19,6 @@ Use it to execute approved work from a plan through Beads-backed worker behavior
 
 1. Select a target plan or approved task list derived from the plan.
 2. Treat the plan as scope and validation input while Beads tracks durable execution progress.
-3. Implement each bead according to scope and run local validation as work progresses.
-4. If implementation reveals ambiguity, missing information, or blockers that require product clarification, return to `discuss` instead of making assumptions.
+3. Implement each bead according to scope, run local validation as work progresses, and use the `knowledge-capture` skill to record notable codebase discoveries and decisions.
+4. If implementation reveals ambiguity, missing information, or blockers that require product clarification, use `telegram-notify` to send a `work_blocked` notification, then return to `discuss` instead of making assumptions.
 5. After implementation is complete, transition to `verify`.
