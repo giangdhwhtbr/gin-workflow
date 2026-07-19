@@ -1,0 +1,322 @@
+import re
+from typing import Dict, Any, List, Optional
+from review_ledger.schema import EventActions
+from review_ledger.events import LedgerEvent, WorkflowIntegrityError
+
+class FindingProjection:
+    def __init__(self, finding_id: str, severity: str, status: str = "open"):
+        self.finding_id: str = finding_id
+        self.severity: str = severity
+        self.status: str = status
+        self.clarification_count: int = 0
+        self.deferral_reason: Optional[str] = None
+        self.follow_up_bead_id: Optional[str] = None
+        self.follow_up_bead_title: Optional[str] = None
+        self.decision: Optional[str] = None
+        self.waived_reason: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "finding_id": self.finding_id,
+            "severity": self.severity,
+            "status": self.status,
+            "clarification_count": self.clarification_count,
+            "deferral_reason": self.deferral_reason,
+            "follow_up_bead_id": self.follow_up_bead_id,
+            "follow_up_bead_title": self.follow_up_bead_title,
+            "decision": self.decision,
+            "waived_reason": self.waived_reason
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "FindingProjection":
+        f = cls(d["finding_id"], d["severity"], d["status"])
+        f.clarification_count = d.get("clarification_count", 0)
+        f.deferral_reason = d.get("deferral_reason")
+        f.follow_up_bead_id = d.get("follow_up_bead_id")
+        f.follow_up_bead_title = d.get("follow_up_bead_title")
+        f.decision = d.get("decision")
+        f.waived_reason = d.get("waived_reason")
+        return f
+
+class LeaseProjection:
+    def __init__(self, lease_id: str, actor_role: str, actor_id: str, acquired_at: str, expires_at: str, current_ledger_revision: int):
+        self.lease_id: str = lease_id
+        self.actor_role: str = actor_role
+        self.actor_id: str = actor_id
+        self.acquired_at: str = acquired_at
+        self.expires_at: str = expires_at
+        self.current_ledger_revision: int = current_ledger_revision
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "lease_id": self.lease_id,
+            "actor_role": self.actor_role,
+            "actor_id": self.actor_id,
+            "acquired_at": self.acquired_at,
+            "expires_at": self.expires_at,
+            "current_ledger_revision": self.current_ledger_revision
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "LeaseProjection":
+        return cls(
+            d["lease_id"],
+            d["actor_role"],
+            d["actor_id"],
+            d["acquired_at"],
+            d["expires_at"],
+            d["current_ledger_revision"]
+        )
+
+class ApprovalProjection:
+    def __init__(self, approved_repositories: List[Dict[str, Any]], source_scope_hash: str, terminal_findings: List[str], event_id: str):
+        self.approved_repositories: List[Dict[str, Any]] = approved_repositories
+        self.source_scope_hash: str = source_scope_hash
+        self.terminal_findings: List[str] = terminal_findings
+        self.event_id: str = event_id
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "approved_repositories": self.approved_repositories,
+            "source_scope_hash": self.source_scope_hash,
+            "terminal_findings": self.terminal_findings,
+            "event_id": self.event_id
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "ApprovalProjection":
+        return cls(
+            d["approved_repositories"],
+            d["source_scope_hash"],
+            d["terminal_findings"],
+            d["event_id"]
+        )
+
+class ReviewProjection:
+    def __init__(self):
+        self.review_state: str = "implementation-in-progress"
+        self.findings: Dict[str, FindingProjection] = {}
+        self.active_lease: Optional[LeaseProjection] = None
+        self.active_approval: Optional[ApprovalProjection] = None
+        self.repositories: List[Dict[str, Any]] = []
+        self.source_scope: Dict[str, Any] = {}
+        self.ledger_revision: int = 0
+        self.next_finding_number: int = 1
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "review_state": self.review_state,
+            "findings": {fid: f.to_dict() for fid, f in self.findings.items()},
+            "active_lease": self.active_lease.to_dict() if self.active_lease else None,
+            "active_approval": self.active_approval.to_dict() if self.active_approval else None,
+            "repositories": self.repositories,
+            "source_scope": self.source_scope,
+            "ledger_revision": self.ledger_revision,
+            "next_finding_number": self.next_finding_number
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "ReviewProjection":
+        p = cls()
+        p.review_state = d.get("review_state", "implementation-in-progress")
+        p.findings = {fid: FindingProjection.from_dict(f) for fid, f in d.get("findings", {}).items()}
+        
+        lease_d = d.get("active_lease")
+        p.active_lease = LeaseProjection.from_dict(lease_d) if lease_d else None
+        
+        approval_d = d.get("active_approval")
+        p.active_approval = ApprovalProjection.from_dict(approval_d) if approval_d else None
+        
+        p.repositories = d.get("repositories", [])
+        p.source_scope = d.get("source_scope", {})
+        p.ledger_revision = d.get("ledger_revision", 0)
+        p.next_finding_number = d.get("next_finding_number", 1)
+        return p
+
+    def apply_event(self, event: LedgerEvent):
+        """Updates the projection by applying a single event."""
+        self.ledger_revision += 1
+        
+        action = event.action
+        payload = event.payload
+
+        if action == EventActions.LEDGER_CREATED:
+            self.review_state = payload.get("review_state", "implementation-in-progress")
+            self.repositories = payload.get("repositories", [])
+            self.source_scope = payload.get("source_scope", {})
+
+        elif action == EventActions.REVIEW_SCOPE_ESTABLISHED:
+            self.source_scope = payload.get("source_scope", {})
+
+        elif action == EventActions.REVIEW_SCOPE_CHANGE_REQUESTED:
+            self.source_scope = payload.get("source_scope", {})
+            self.active_approval = None # Scope change invalidates approval
+
+        elif action == EventActions.LEASE_ACQUIRED:
+            self.active_lease = LeaseProjection(
+                lease_id=payload["lease_id"],
+                actor_role=payload["actor_role"],
+                actor_id=payload["actor_id"],
+                acquired_at=payload["acquired_at"],
+                expires_at=payload["expires_at"],
+                current_ledger_revision=self.ledger_revision
+            )
+
+        elif action == EventActions.LEASE_RENEWED:
+            if self.active_lease:
+                self.active_lease.expires_at = payload["expires_at"]
+                self.active_lease.current_ledger_revision = self.ledger_revision
+
+        elif action in (EventActions.LEASE_RELEASED, EventActions.LEASE_BROKEN):
+            self.active_lease = None
+
+        elif action == EventActions.SOURCE_CHECKPOINT_CREATED:
+            # Checkpoint payload has repositories
+            if "repositories" in payload:
+                self.repositories = payload["repositories"]
+
+
+        elif action == "implementation-complete":
+            self.review_state = "implementation-complete"
+
+        elif action == "review-requested":
+            self.review_state = "review-requested"
+
+        elif action == "changes-requested":
+            self.review_state = "changes-requested"
+
+        elif action == "implementation-in-progress":
+            self.review_state = "implementation-in-progress"
+
+        elif action == EventActions.REVIEW_STARTED:
+            self.review_state = "review-in-progress"
+
+        elif action == EventActions.FINDING_CREATED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                raise WorkflowIntegrityError(f"Duplicate finding ID: {fid}")
+            self.findings[fid] = FindingProjection(
+                finding_id=fid,
+                severity=payload["severity"],
+                status="open"
+            )
+            # Derive next finding number from highest parsed finding ID seen
+            match = re.search(r'(\d+)$', fid)
+            if match:
+                num = int(match.group(1))
+                if num >= self.next_finding_number:
+                    self.next_finding_number = num + 1
+
+        elif action == EventActions.FINDING_FIXED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "fixed-awaiting-verification"
+
+        elif action == EventActions.FINDING_DISPUTED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "disputed"
+
+        elif action == EventActions.CLARIFICATION_REQUESTED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "clarification-requested"
+
+        elif action == EventActions.CLARIFICATION_PROVIDED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "clarification-provided"
+                self.findings[fid].clarification_count += 1
+
+        elif action == EventActions.DEFERRAL_PROPOSED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "deferral-proposed"
+                self.findings[fid].deferral_reason = payload.get("reason")
+                self.findings[fid].follow_up_bead_id = payload.get("follow_up_bead_id")
+                self.findings[fid].follow_up_bead_title = payload.get("follow_up_bead_title")
+
+        elif action == EventActions.DEFERRAL_APPROVED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "deferred-verified"
+
+        elif action == EventActions.FINDING_VERIFIED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "verified"
+
+        elif action == EventActions.FINDING_WITHDRAWN:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "withdrawn"
+
+        elif action == EventActions.FINDING_ACCEPTED_AS_IS:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "accepted-as-is"
+
+        elif action == EventActions.HUMAN_DECISION_REQUIRED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "human-decision-required"
+
+        elif action == EventActions.HUMAN_DECISION_RECORDED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "human-decision-recorded"
+                self.findings[fid].decision = payload.get("decision")
+
+        elif action == EventActions.FINDING_WAIVED:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "human-waived"
+                self.findings[fid].waived_reason = payload.get("reason")
+
+        elif action == EventActions.REVIEW_APPROVED:
+            self.review_state = "review-approved"
+            self.active_approval = ApprovalProjection(
+                approved_repositories=payload["approved_repositories"],
+                source_scope_hash=payload["source_scope_hash"],
+                terminal_findings=payload["terminal_findings"],
+                event_id=event.event_id
+            )
+
+        elif action == EventActions.REVIEW_APPROVAL_INVALIDATED:
+            self.review_state = "implementation-in-progress"
+            self.active_approval = None
+
+        elif action == EventActions.VERIFICATION_STARTED:
+            self.review_state = "verification-in-progress"
+
+        elif action == EventActions.VERIFICATION_PASSED:
+            self.review_state = "ready-to-ship"
+
+        elif action == EventActions.VERIFICATION_FAILED:
+            # Spec says verification failed returns to implementation-in-progress (invalidating active approval)
+            self.review_state = "implementation-in-progress"
+            self.active_approval = None
+
+        elif action == EventActions.TRANSITION_COMPLETED:
+            self.review_state = payload["to"]
+
+        elif action == EventActions.SHIPPING_STARTED:
+            self.review_state = "ready-to-ship" # Or intermediate if defined
+
+        elif action == EventActions.SHIPPING_FAILED:
+            self.review_state = "shipping-failed"
+
+        elif action == EventActions.SHIPPING_COMPLETED:
+            self.review_state = "closed"
+
+        elif action == EventActions.RECOVERY_PERFORMED:
+            if "review_state" in payload:
+                self.review_state = payload["review_state"]
+
+    @classmethod
+    def replay(cls, events: List[LedgerEvent]) -> "ReviewProjection":
+        p = cls()
+        for e in events:
+            p.apply_event(e)
+        return p

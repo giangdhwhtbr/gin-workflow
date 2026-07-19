@@ -24,8 +24,9 @@ The required lifecycle is:
 2. Plan Creation
 3. Beads Orchestration
 4. Implementation
-5. Verification
-6. Ship
+5. Code Review
+6. Verification
+7. Ship
 
 Not every task needs every optional mechanism, but every task must pass through these phase boundaries in order.
 
@@ -191,5 +192,6 @@ They must be reconstructible or disposable. They are not authoritative workflow 
 | Plan Creation | `plan` | `/plan` |
 | Beads Orchestration | `orchestrate` | `/orchestrate` |
 | Implementation | `execute` | `/execute` |
+| Code Review | `cross-agent-code-review` / `receiving-code-review` | `/review` |
 | Verification | `verify` | `/verify` |
 | Ship | `ship` | `/ship` |

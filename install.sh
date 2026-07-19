@@ -125,6 +125,32 @@ with open(out_path, 'w') as f:
 PYEOF
 }
 
+enable_claude_plugin() {
+  local p_name="$1"
+  local settings_path="${HOME}/.claude/settings.json"
+  echo "Ensuring plugin $p_name is enabled in Claude Code settings..."
+  python3 - "$settings_path" "${p_name}@skills-dir" <<'PYEOF'
+import json, os, sys
+settings_path, plugin_key = sys.argv[1], sys.argv[2]
+data = {}
+if os.path.exists(settings_path):
+    try:
+        with open(settings_path, 'r') as f:
+            data = json.load(f)
+    except Exception:
+        pass
+
+if 'enabledPlugins' not in data:
+    data['enabledPlugins'] = {}
+
+data['enabledPlugins'][plugin_key] = True
+
+os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+with open(settings_path, 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+}
+
 template_agents_for_claude() {
   local src="$1"
   local dest="$2"
@@ -352,12 +378,25 @@ install_plugin() {
 
   if [ "$DRY_RUN" = true ]; then
     echo "(dry-run) registration skipped for $p_name"
+    if matches_platform "claude"; then
+      local claude_install_dir="${HOME}/.claude/skills/${p_name}"
+      echo "(dry-run) would install global Claude Code plugin to $claude_install_dir"
+    fi
     return
   fi
 
   if matches_platform "claude" && [ "$HAS_CLAUDE" = true ]; then
-    echo "To register $p_name with Claude Code, run:"
-    echo "  claude --plugin-dir "$SCRIPT_DIR/$dist_dir/claude-code""
+    local claude_install_dir="${HOME}/.claude/skills/${p_name}"
+    echo "Installing $p_name globally to Claude Code skills directory: $claude_install_dir"
+    rm -rf "$claude_install_dir"
+    mkdir -p "$(dirname "$claude_install_dir")"
+    if [ "$LINK" = true ]; then
+      ln -sf "$SCRIPT_DIR/$dist_dir/claude-code" "$claude_install_dir"
+    else
+      cp -rf "$dist_dir/claude-code" "$claude_install_dir"
+    fi
+    enable_claude_plugin "$p_name"
+    echo "Successfully installed and enabled $p_name globally in Claude Code!"
   fi
   if matches_platform "antigravity" && [ "$HAS_AGY" = true ]; then
     echo "Registering $p_name with Antigravity..."
