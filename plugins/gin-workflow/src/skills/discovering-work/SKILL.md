@@ -24,6 +24,8 @@ Gin Workflow keeps the Superpowers brainstorming standard, with these plugin-spe
 5. Do not create, claim, or orchestrate Beads tasks in this skill.
 6. The output of this phase is a summarized understanding that must be explicitly confirmed by the user.
 7. Only after user confirmation should the workflow transition to `writing-plans` or `/plan`.
+8. If a design/spec doc is produced per the base skill's checklist, save it to `.planning/specs/YYYY-MM-DD-<topic>-design.md`, not `docs/superpowers/specs/...`.
+9. Do not auto-commit that design doc. Committing follows the repo's normal explicit-authorization rule, not the base skill's default. See `docs/superpowers-integration-policy.md` for the general rule.
 
 ## Execution Rules
 
