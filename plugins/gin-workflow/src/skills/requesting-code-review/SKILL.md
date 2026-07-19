@@ -18,17 +18,13 @@ If `superpowers:requesting-code-review` is unavailable, continue with this skill
 Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
 1. **When to Request a Review**:
-   Dispatch the `code-reviewer` agent before resolving a plan, after substantial non-trivial changes, or on user request.
-2. **Context Delivery**:
-   Invoke the `code-reviewer` subagent (defined in `agents/code-reviewer.md`) and provide:
-   - **The diff** — `git diff <merge-base>...HEAD`.
-   - **The plan** — plan path/summary.
-   - **Acceptance criteria** — specific criteria to check.
-   - **In-scope files** — files declared in plan.
-   - **Known constraints** — any specific codebase constraints.
-3. **Execution**:
-   Use `invoke_subagent` (on Antigravity CLI) or the Agent tool (on Claude Code) as described in `dispatching-parallel-agents`.
-4. **Expected Structured Output**:
-   The `code-reviewer` agent returns ranked findings containing: Severity, Summary, Failure scenario, Location, and Verdict.
-5. **Post-Review Process**:
-   Pass findings to the `receiving-code-review` skill.
+   Request a review after completing implementation passes or when substantial changes are ready.
+2. **Initialization and Checkpoint**:
+   - Initialize the review ledger: `python3 review-ledger.py init --bead-id <bead-id> --repo-id <repo-id> --review-ref bead/<bead-id> --base-sha <base-sha> --reviewed-sha <head-sha> --actor-id <actor-id>`.
+   - Create a Git checkpoint and commit in-scope changes: `python3 review-ledger.py checkpoint --bead-id <bead-id> --repo-id <repo-id> --commit-msg "checkpoint: ready for review" --actor-id <actor-id>`.
+3. **Execution and Push**:
+   - Push the review branch: `git push origin bead/<bead-id>`.
+   - Update Bead status to `review-requested` by submitting the transaction to the ledger and updating Beads:
+     `python3 review-ledger.py transition-requested --bead-id <bead-id> --to review-requested` / `bd update <bead-id> --status open` (or appropriate state).
+4. **Post-Review Process**:
+   - When reviewer finishes, route findings via the `receiving-code-review` skill.

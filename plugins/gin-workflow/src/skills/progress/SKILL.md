@@ -20,7 +20,7 @@ This skill renders a per-track status summary and next-task recommendations of t
    - **Active** — in progress (`in_progress` / claimed by a worker).
    - **Complete** — closed/finished successfully.
    - **Failed** — closed but not passing acceptance, or marked blocked/failed.
-   For each track show its id/title, current status, and (if relevant) the assigned worker or blocking dependency.
+   For each track show its id/title, current status, and (if relevant) the assigned worker or blocking dependency. Enrich active reviews with finding status: run `python3 review-ledger.py status --bead-id <id>` (if ledger exists) to report the count of unresolved findings and pending human questions.
 4. **Output Next-Task Recommendations**:
    Analyze the gathered Bead states to provide a "Next Task Recommendations" section:
    - **Check Active Tasks & Dependencies first**: Look for any tasks in `in_progress` status.

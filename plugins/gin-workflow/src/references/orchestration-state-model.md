@@ -44,6 +44,15 @@ Plan files under `.planning/plans/` own:
 
 Plan files are durable project artifacts, but they are not the source of truth for runtime status transitions.
 
+### Review ledger owns findings and approval evidence
+
+Review ledger under `.planning/<bead-id>/review.json` owns:
+- findings history and triage statuses (disputed, deferred, fixed)
+- lease status and concurrency control
+- active approval snapshot and verification evidence
+
+It is the authoritative log for audit history.
+
 ### Runtime metadata is local and disposable
 
 Local orchestration metadata may exist for convenience, such as:
@@ -120,6 +129,9 @@ Examples of unacceptable derived state:
 | Which worktree path belongs to a track? | Derived runtime metadata |
 | Which branch was used for a worker? | Derived runtime metadata |
 | Is the task complete? | Beads |
+| What findings exist and what are their statuses? | Review Ledger |
+| Is there an active lease and who holds it? | Review Ledger |
+| What is the approved source tree snapshot? | Review Ledger |
 
 ## Relationship To Other Docs
 

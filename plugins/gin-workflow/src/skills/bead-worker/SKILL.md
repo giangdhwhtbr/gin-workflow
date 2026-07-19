@@ -21,11 +21,15 @@ This skill guides a specialized subagent or local worker executing a single bead
 3. **Verification & Testing**:
    - Run the relevant unit tests or checks to verify the change meets the acceptance criteria.
    - If tests fail, iterate and fix issues locally.
-4. **Completion**:
+4. **Review & Triage**:
+   - If the bead is in `changes-requested` state, the worker must route its flow through the `receiving-code-review` skill to resolve all findings.
+   - Halt execution if the ledger enters `blocked-human` state or if a `WorkflowIntegrityError` is encountered, and notify the orchestrator or user.
+5. **Completion**:
+   - Prior to closure, validate that the review is approved: `python3 review-ledger.py status --bead-id <track-id>`. Ensure "Unresolved Findings: 0" and "State: review-approved".
    - Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) before treating the bead as complete.
    - Use the `knowledge-reconciliation` skill to update story status, link commit history, and regenerate MOC indexes in Obsidian.
    - Use `telegram-notify` to send a `task_completed` notification after verification passes.
    - Write Beads outcome notes plus a handoff summary that covers changes, validation, and any follow-up work.
    - Run `git status` before closure and include the changed-file state in the handoff.
-   - Close the bead only after acceptance criteria, validation, Beads notes, `git status`, and handoff evidence are complete.
-   - If validation fails or the handoff is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.
+   - Close the bead only after acceptance criteria, validation, Beads notes, `git status`, review approval, and handoff evidence are complete.
+   - If validation fails, there are unresolved findings, or the handoff is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.

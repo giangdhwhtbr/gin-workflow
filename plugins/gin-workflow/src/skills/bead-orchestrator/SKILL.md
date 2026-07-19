@@ -26,9 +26,10 @@ State ownership is defined in [orchestration-state-model.md](file://../../refere
    - Dispatch workers for ready beads up to the configured parallelism limit.
    - Mark active work internally through the `bd` CLI when ownership or in-progress state must be recorded.
 5. **Integration And Close-out**:
-   - When a worker finishes successfully, treat the bead as ready for integration and close-out review, not immediate closure.
-   - Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) and run the `knowledge-reconciliation` skill to reconcile the Obsidian Second Brain indexes and story files before final closure.
-   - Close beads only after verification evidence, Beads notes, `git status`, follow-up capture, and handoff evidence are complete.
+   - When a worker finishes successfully, treat the bead as ready for integration and close-out review.
+   - Dispatch the code-reviewer agent using `python3 review-ledger.py start-review --bead-id <bead-id>` to run findings checks.
+   - Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) and run the `knowledge-reconciliation` skill to reconcile Obsidian.
+   - Close beads only after verification evidence (replaying ledger, confirming active approval event, tree hash matching, review.md check), Beads notes, `git status`, follow-up capture, and handoff evidence are complete.
    - When all beads are closed, use `telegram-notify` to send an `all_work_complete` notification.
 6. **Runtime Metadata**:
    - Any local cache for active workers, branch names, or worktree paths must be disposable and reconstructible.

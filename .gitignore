@@ -7,6 +7,10 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Python generated files
+__pycache__/
+*.pyc
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db

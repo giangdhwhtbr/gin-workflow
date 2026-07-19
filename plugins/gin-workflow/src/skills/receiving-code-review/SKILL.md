@@ -18,14 +18,16 @@ If `superpowers:receiving-code-review` is unavailable, continue with this skill'
 Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
 
 1. **Triage Each Finding**:
-   Walk the returned findings in severity order (most-severe first). For each finding, choose exactly one disposition:
-   - **Apply** — The finding is valid and the fix is in scope. Make the change in the working tree now. Record what you changed so it can be re-verified.
-   - **Refute** — The finding is wrong. State the specific reason citing codebase behavior or constraints. A bare "won't fix" is invalid.
-   - **Defer** — The finding is valid but out of scope or risky. File a follow-up bead capturing the finding, its failure scenario, and the suggested fix.
+   Load unresolved findings using `python3 review-ledger.py status --bead-id <bead-id>`. Walk each finding in severity order and choose a disposition:
+   - **Apply (Fix)** — If valid and in scope, make changes in the working tree, then mark fixed: `python3 review-ledger.py fix-finding --bead-id <bead-id> --finding-id <finding-id> --actor-id <actor-id>`.
+   - **Refute (Dispute)** — If wrong, run: `python3 review-ledger.py dispute-finding --bead-id <bead-id> --finding-id <finding-id> --reason "<reason>" --actor-id <actor-id>`.
+   - **Defer** — If valid but out of scope, link a follow-up bead: `python3 review-ledger.py propose-deferral --bead-id <bead-id> --finding-id <finding-id> --reason "<reason>" --follow-up-bead-id <f-bead-id> --follow-up-bead-title "<title>" --actor-id <actor-id>`.
+   - **Clarify** — If clarification is requested, run: `python3 review-ledger.py provide-clarification --bead-id <bead-id> --finding-id <finding-id> --clarification "<text>" --actor-id <actor-id>`.
 2. **No Silent Dismissal**:
-   Every finding must have an explicit disposition and reason. If undecided, default to **Apply** for high-severity issues and **Defer** for low-severity issues. Never silently dismiss.
-3. **Re-Verify After Applying Fixes**:
-   - Re-run `verification-before-completion` checks.
-   - For substantial changes, request another code-review pass focused strictly on the diff of fixes.
-4. **Completing the Review Cycle**:
-   Record the disposition table (finding → disposition → reason / bead id) in the track summary/outcome notes.
+   Every finding must receive an explicit status transaction in the review ledger. If undecided, default to **Apply** for critical issues and **Defer** for suggestions.
+3. **Re-Verify and Checkpoint**:
+   - Re-run local quality gates.
+   - Stage and commit fixes: `python3 review-ledger.py checkpoint --bead-id <bead-id> --repo-id <repo-id> --commit-msg "feat: fix findings" --actor-id <actor-id>`.
+   - Push branch and request re-review.
+4. **Completing the Cycle**:
+   The review cycle continues until all findings have terminal statuses (`verified`, `withdrawn`, `accepted-as-is`, `deferred-verified`, `human-waived`) and reviewer approves.
