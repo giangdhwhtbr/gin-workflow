@@ -9,6 +9,7 @@ This repository separates responsibilities intentionally:
 - `docs/agent-task-lifecycle.md` is the canonical lifecycle spec.
 - `docs/orchestration-state-model.md` is the canonical orchestration-state ownership model.
 - `docs/verification-and-handoff-workflow.md` is the canonical close-out checklist.
+- `docs/superpowers-integration-policy.md`: rule for using superpowers:* skills as reasoning guidance only.
 - Plugin command and skill files under `plugins/gin-workflow/src/` contain the actionable execution rules.
 
 ## Required Defaults
