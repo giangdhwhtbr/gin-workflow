@@ -9,6 +9,7 @@ PROJECT_DIR=""
 UNINSTALL=false
 DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
+LAUNCHER_VERSION="2.1"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -324,6 +325,39 @@ install_platform() {
   fi
 }
 
+install_launcher() {
+  local source_dir="$SCRIPT_DIR/plugins/gin-workflow/src/scripts"
+  local install_dir="${HOME}/.local/lib/gin-workflow/${LAUNCHER_VERSION}"
+  local launcher_target="${install_dir}/gin-workflow"
+  local launcher_link="${HOME}/.local/bin/gin-workflow"
+
+  if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
+    if [ ! -L "$launcher_link" ] || [ "$(readlink "$launcher_link")" != "$launcher_target" ]; then
+      echo "Error: refusing to replace a different launcher at $launcher_link" >&2
+      return 1
+    fi
+  fi
+
+  if [ "$DRY_RUN" = true ]; then
+    echo "(dry-run) would install gin-workflow launcher version $LAUNCHER_VERSION to $launcher_target"
+    echo "(dry-run) would link gin-workflow launcher on PATH at $launcher_link"
+    return
+  fi
+
+  mkdir -p "$install_dir/workflow_core" "$(dirname "$launcher_link")"
+  cp -f "$source_dir/gin-workflow" "$launcher_target"
+  cp -rf "$source_dir/workflow_core/." "$install_dir/workflow_core/"
+  chmod 755 "$launcher_target"
+  if [ ! -L "$launcher_link" ]; then
+    ln -s "$launcher_target" "$launcher_link"
+  fi
+  echo "Installed gin-workflow launcher version $LAUNCHER_VERSION to $launcher_link"
+  case ":${PATH}:" in
+    *":${HOME}/.local/bin:"*) ;;
+    *) echo "Warning: ${HOME}/.local/bin is not on PATH." >&2 ;;
+  esac
+}
+
 install_plugin() {
   local p_name="$1"
   local p_dir="plugins/$p_name"
@@ -408,6 +442,8 @@ install_plugin() {
     codex plugin add "$p_name@gin-workflow-marketplace"
   fi
 }
+
+install_launcher
 
 install_plugin "$TARGET_PLUGIN"
 
