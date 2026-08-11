@@ -22,3 +22,5 @@ Perform exactly one orchestration stage.
 4. Send isolation disablement or current-branch execution through the approval manager and evidence manager before any workspace call.
 5. Keep plan tracks and validation intent required. Leave symbols, tests, and project knowledge discoverable on demand through the context manifest.
 6. Return `orchestration_ready` state without invoking execution.
+
+Use the resolved effective configuration as the sole lifecycle configuration input. Read [state ownership](../../references/orchestration-state-model.md) and [provider contracts](../../references/capability-provider-contracts.md); lifecycle guidance does not reproduce provider command syntax.
