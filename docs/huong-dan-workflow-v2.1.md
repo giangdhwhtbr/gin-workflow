@@ -25,19 +25,25 @@ Thực hiện các giai đoạn theo thứ tự sau:
 Có thể dùng `workflow` để hệ thống tự chọn đúng giai đoạn kế tiếp. Các lệnh
 chỉ là alias tùy host; các skill nêu trên là giao diện chính.
 
-## Khởi tạo repository
+## Thiết lập repository một lần
 
-Cài plugin chỉ cung cấp CLI và skill, không tự sửa repository. Chạy setup một
-cách tường minh:
+Cài plugin chỉ cung cấp CLI và skill, không tự sửa repository. Chạy `/setup`
+một lần trước phiên `discuss` đầu tiên. Setup phát hiện harness, thu thập cấu
+hình portable, hiển thị dry-run, xin phê duyệt rồi tạo cấu hình ban đầu trong
+một thao tác atomic. Setup không phải là một giai đoạn của lifecycle.
+
+Có thể gọi CLI tương đương:
 
 ```bash
-gin-workflow setup init --repository /duong-dan/repository
+gin-workflow setup init --repository /duong-dan/repository \
+  --harness codex --set policy.mode=guarded --approve
 gin-workflow setup status --repository /duong-dan/repository
 ```
 
-`init` có tính idempotent. Khi cần thay đổi cấu hình, dùng `configure` với
-phê duyệt rõ ràng; các lệnh đọc như `status`, `diff` và `doctor` không ghi
-thay đổi.
+`init` có tính idempotent. Workflow bình thường chỉ đọc effective config đã
+tạo và không tự chạy lại setup. Nếu effective config chưa tồn tại, lifecycle
+dừng và yêu cầu chạy `/setup` một lần. Sau đó chỉ gọi lại setup khi chủ động
+bảo trì, ví dụ `status`, `doctor`, `configure`, `update` hoặc `rollback`.
 
 Setup tạo:
 

@@ -1,26 +1,41 @@
 ---
 name: setup
-description: Own setup interaction and approval while delegating deterministic work to the CLI.
+description: Use when a repository needs first-time gin-workflow configuration or explicitly requested setup maintenance.
 ---
 
 # Setup Skill
 
-Coordinate one setup action.
+Coordinate one setup session outside the lifecycle.
 
-## Required inputs
+## Initial setup inputs
 
-- resolved `EffectiveConfig`
-- `ArtifactRegistry`
-- `ContextManifest(stage="setup")`
-- native-harness `ApprovalDecision`
+- repository target
+- native harness context, when detected
+- user-selected portable settings
 
-## Execution
+Do not require `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest`, or a
+durable approval record before initial setup. They are unavailable until
+bootstrap completes.
 
-1. Ask questions in the native harness and select one documented setup subcommand.
-2. Present dry-run output before user-authored configuration changes, upgrades, rollback, or data movement.
-3. Use the approval manager and evidence manager for protected mutations. Pass approval to the CLI only after the matching decision is durably recorded.
-4. Delegate deterministic work to one of: `detect`, `init`, `configure`, `refresh`, `update`, `doctor`, `status`, `diff`, `rollback`, `export-bundle`, or `verify-bundle`.
-5. Keep repository target and selected action required. Make related symbols, tests, and project knowledge discoverable on demand.
-6. Report structured CLI results without chaining into a lifecycle stage.
+## First-time execution
+
+1. Detect the repository and harness, then collect the desired portable settings.
+2. Run `init --dry-run` with the selected harness and `--set` assignments.
+3. Present the complete proposed write and obtain explicit native-harness approval.
+4. Run one approved `init` with the same harness and assignments. The CLI validates the complete configuration before any write.
+5. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
+
+One `/setup` invocation completes initial repository setup and configuration.
+Repeated identical `init` calls are idempotent, but lifecycle stages never call
+setup automatically.
+
+## Explicit maintenance
+
+On an initialized repository, select only the maintenance action the user
+requested: `detect`, `configure`, `refresh`, `update`, `doctor`, `status`,
+`diff`, `rollback`, `export-bundle`, or `verify-bundle`. Present dry-run output
+before user-authored configuration changes, upgrades, rollback, or data
+movement. After bootstrap, protected mutations use the approval and evidence
+capabilities.
 
 The CLI must not prompt, choose policy, or manufacture approval. Optional notifications use the configured notification capability.

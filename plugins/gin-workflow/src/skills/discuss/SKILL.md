@@ -14,6 +14,11 @@ Perform exactly one requirement-discovery stage and return its transition eviden
 - `ContextManifest(stage="discuss")`
 - native-harness `ApprovalDecision`
 
+The caller must obtain `EffectiveConfig` through
+`load_effective_config(repository)`. If setup is required, stop and instruct
+the user to run `/setup` once. Never run setup or resolve raw configuration
+from this lifecycle skill.
+
 Reject unbounded parent context. Use the context manager to keep the requirement and relevant repository facts required while leaving related symbols, tests, and project knowledge discoverable on demand.
 
 ## Execution

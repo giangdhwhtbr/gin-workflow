@@ -14,6 +14,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.events import WorkflowEventStore  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
+from workflow_core.configuration import load_effective_config  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
 from workflow_core.router import route_next_stage  # noqa: E402
 from workflow_core.worker_scheduler import WorkerScheduler, select_execution_strategy  # noqa: E402
@@ -112,7 +113,9 @@ class WorkflowEndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
 
-            first = self.run_setup(repository, "init", "--harness", "codex")
+            first = self.run_setup(
+                repository, "init", "--harness", "codex", "--approve"
+            )
             first_snapshot = {
                 path.relative_to(repository): path.read_bytes()
                 for path in repository.rglob("*")
@@ -154,14 +157,12 @@ class WorkflowEndToEndTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             effective_path = workflow / "generated/effective-config.yaml"
             provenance_path = workflow / "generated/config-provenance.yaml"
-            import yaml
-
             effective_text = effective_path.read_text(encoding="utf-8")
             serialized_artifacts = effective_text + provenance_path.read_text(encoding="utf-8")
             self.assertNotIn(SECRET_VALUE, serialized_artifacts)
             self.assertIn("secret_ref:env:FAKE_PROVIDER_TOKEN", effective_text)
 
-            effective = EffectiveConfig(yaml.safe_load(effective_text), repository)
+            effective = load_effective_config(repository)
             registry = ProviderRegistry.from_effective_config(effective)
             self.assertIsInstance(registry.task_tracking, FakeTaskTrackingProvider)
             self.assertIsInstance(registry.evidence, FakeEvidenceProvider)

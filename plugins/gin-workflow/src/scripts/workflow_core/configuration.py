@@ -23,9 +23,14 @@ class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
+SUPPORTED_WORKFLOW_VERSION = "2.1"
+SUPPORTED_SETUP_CLI_VERSION = "2.1"
+
+
 BUILT_IN_DEFAULTS: dict[str, Any] = {
     "schema_version": SUPPORTED_SCHEMA_VERSION,
-    "workflow_version": "2.1",
+    "workflow_version": SUPPORTED_WORKFLOW_VERSION,
+    "setup_cli_version": SUPPORTED_SETUP_CLI_VERSION,
     "artifacts": {
         "plans": ".planning/plans",
         "beads": ".beads",
@@ -167,7 +172,34 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
             f"unsupported schema_version {config.get('schema_version')!r}; "
             f"expected {SUPPORTED_SCHEMA_VERSION!r}"
         )
+    for field, supported in (
+        ("workflow_version", SUPPORTED_WORKFLOW_VERSION),
+        ("setup_cli_version", SUPPORTED_SETUP_CLI_VERSION),
+    ):
+        if field in config and str(config[field]) != supported:
+            raise ConfigValidationError(
+                f"unsupported {field} {config[field]!r}; expected {supported!r}"
+            )
     _validate_portable(config)
+
+
+def load_effective_config(repository: Path) -> EffectiveConfig:
+    """Load the generated lifecycle configuration after one-time setup."""
+    root = Path(repository).resolve()
+    path = root / ".agent-workflow/generated/effective-config.yaml"
+    if not path.is_file():
+        raise ConfigValidationError(
+            "gin-workflow repository setup is required; run "
+            "`gin-workflow setup init --repository <path>` once before lifecycle work"
+        )
+    config = _read_yaml(path, missing_ok=False)
+    validate_portable_config(config)
+    for field in ("workflow_version", "setup_cli_version"):
+        if field not in config:
+            raise ConfigValidationError(
+                f"missing required lifecycle version channel: {field}"
+            )
+    return EffectiveConfig(config, root)
 
 
 def _read_yaml(path: Path, *, missing_ok: bool) -> dict[str, Any]:

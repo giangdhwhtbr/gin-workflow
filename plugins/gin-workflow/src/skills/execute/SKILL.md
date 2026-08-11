@@ -14,6 +14,11 @@ Perform exactly one implementation work unit.
 - `ContextManifest(stage="execute")`
 - native-harness `ApprovalDecision`
 
+The caller must obtain `EffectiveConfig` through
+`load_effective_config(repository)`. If setup is required, stop and instruct
+the user to run `/setup` once. Never run setup or resolve raw configuration
+from this lifecycle skill.
+
 ## Execution
 
 1. Require `orchestration_ready` evidence and read one ready durable work unit through the task-tracking capability.

@@ -11,6 +11,7 @@ from .artifacts import ArtifactResolutionError, build_artifact_registry, resolve
 from .configuration import (
     BUILT_IN_DEFAULTS,
     ConfigValidationError,
+    load_effective_config,
     resolve_effective_config,
     validate_portable_config,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "append_workflow_event",
     "build_artifact_registry",
     "create_context_manifest",
+    "load_effective_config",
     "require_approval",
     "resolve_artifact",
     "resolve_effective_config",

@@ -9,7 +9,7 @@ Route one planning action to the `plan` skill only after requirement confirmatio
 
 ## Wrapper boundary
 
-Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="plan")`, and the native-harness `ApprovalDecision`. Resolve the plan destination from `ArtifactRegistry["plans"]`; do not hard-code a repository path or concrete provider.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="plan")` and receive the native-harness `ApprovalDecision`. Resolve the plan destination from `ArtifactRegistry["plans"]`; do not hard-code a repository path or concrete provider.
 
 ## Instructions
 

@@ -16,7 +16,13 @@ If any command, skill, or helper document conflicts with this document, this lif
 
 State ownership within this lifecycle is defined in `docs/orchestration-state-model.md`.
 
-Before any lifecycle stage, repository setup resolves `.agent-workflow/generated/effective-config.yaml`. That generated file is the sole lifecycle configuration input. Human-authored configuration remains setup input; plans, Beads, and runtime evidence retain the distinct ownership described below.
+Repository setup is a one-time prerequisite outside this lifecycle. It creates
+`.agent-workflow/generated/effective-config.yaml`, the sole lifecycle
+configuration input. Each lifecycle entry point loads that existing generated
+file; it never invokes setup automatically. If the file is absent, stop and
+instruct the user to run `setup` once. Human-authored configuration remains
+setup input; plans, Beads, and runtime evidence retain the distinct ownership
+described below.
 
 ## Lifecycle
 
