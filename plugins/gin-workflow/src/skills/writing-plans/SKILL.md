@@ -24,6 +24,7 @@ Gin Workflow keeps the Superpowers planning standard, with these plugin-specific
 5. Include goals and scope, technical approach, required changes, implementation steps, testing strategy, and risks or mitigations.
 6. Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`.
 7. Treat `standard_impl` as the implicit default when no model class is specified.
+8. Declare `execution_strategy` exactly as specified in [plan-schema.md](file://plan-schema.md). Strategy selection and later changes follow the canonical [agent task lifecycle reference](../../references/agent-task-lifecycle.md).
 
 ## Execution Rules
 

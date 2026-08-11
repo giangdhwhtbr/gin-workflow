@@ -40,6 +40,21 @@
 - In scope: ...
 - Out of scope: ...
 
+## Execution Strategy
+
+```yaml
+execution_strategy:
+  mode: direct
+  workers:
+    mode: sequential
+  rationale: Concrete reason for the selected mode
+```
+
+- Valid pairings are only `direct` with `workers.mode: sequential`, and `worker` with `workers.mode: parallel`.
+- Use `direct` / `sequential` for sequential work, explicitly one-agent work, work with three or fewer tasks, or work without a qualifying worker condition.
+- Use `worker` / `parallel` only for more than three independent parallel tasks, long-running work, specialized work, or an independent review.
+- `workers.mode` declares scheduling behavior only. It never contains provider model names, commands, credentials, or implementation methodology.
+
 ## Tasks
 ### Track 1: {name}
 - **Dependencies**: none | Track N

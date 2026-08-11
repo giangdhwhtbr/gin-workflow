@@ -21,3 +21,5 @@ This skill extends `superpowers:dispatching-parallel-agents` for the `gin-workfl
 3. Enforce the effective-config concurrency limit and dependency readiness from the task-tracking capability.
 4. Execution-strategy changes and production-impacting parallel work require approval-manager authorization and durable audit evidence before dispatch.
 5. Record dispatch identity and normalized outcomes through the evidence capability. Worker metadata remains disposable, not authoritative task state.
+
+Follow [context and evidence policy](../../references/context-and-evidence-policy.md) and [provider contracts](../../references/capability-provider-contracts.md). The configured capability, rather than a named harness or provider command, selects dispatch behavior.

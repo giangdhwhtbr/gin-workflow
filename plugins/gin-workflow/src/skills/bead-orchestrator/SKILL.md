@@ -24,3 +24,5 @@ Coordinate one approved plan without binding lifecycle behavior to a concrete ta
 6. Keep review, verification, handoff, and closure as later lifecycle actions. Optional notifications remain provider-backed.
 
 Durable status, ownership, readiness, dependencies, blockers, and closure come only from the task-tracking capability. Workspace and worker metadata are supplemental.
+
+The generated effective configuration is the sole lifecycle configuration input. See [state ownership](../../references/orchestration-state-model.md) and [provider contracts](../../references/capability-provider-contracts.md).
