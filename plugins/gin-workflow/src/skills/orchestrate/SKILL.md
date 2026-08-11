@@ -1,22 +1,24 @@
 ---
 name: orchestrate
-description: After plan approval, automatically create and wire Beads tasks from the plan for execution.
+description: Convert one approved plan into provider-backed durable execution state.
 ---
 
 # Orchestrate Skill
 
-This is the primary user-facing orchestration skill for `gin-workflow`.
+Perform exactly one orchestration stage.
 
-Use it after the plan is approved to translate the plan into durable Beads execution state. The agent should create tasks, define dependencies, and prepare execution without requiring the user to run manual `bd` commands.
+## Required inputs
 
-## Delegation
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="orchestrate")`
+- native-harness `ApprovalDecision`
 
-- Use `bead-orchestrator` as the underlying orchestration contract.
-- Treat `/orchestrate` as an optional command alias only on hosts that surface plugin commands.
+## Execution
 
-## Usage Standard
-
-1. Treat the approved plan as the source for task creation, dependency mapping, scope, and validation intent.
-2. Automatically create and connect the necessary Beads tasks from the plan.
-3. Keep Beads as the durable source of truth for execution status, readiness, blockers, and closure.
-4. Prepare the work so execution can begin with `execute`.
+1. Require evidence that `plan_approved` is true and resolve the plan through the artifact registry.
+2. Apply the `bead-orchestrator` methodology using only task-tracking capabilities for durable identity, dependency, readiness, ownership, and status.
+3. Use the workspace capability for isolation metadata; it is never authoritative task state.
+4. Send isolation disablement or current-branch execution through the approval manager and evidence manager before any workspace call.
+5. Keep plan tracks and validation intent required. Leave symbols, tests, and project knowledge discoverable on demand through the context manifest.
+6. Return `orchestration_ready` state without invoking execution.

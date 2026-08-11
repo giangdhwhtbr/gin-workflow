@@ -1,35 +1,26 @@
 ---
 name: bead-worker
-description: Handles execution, implementation, validation, and reporting for a single assigned bead (task track).
+description: Implement and validate one provider-backed durable work unit.
 ---
 
 # Bead Worker Skill
 
-This skill guides a specialized subagent or local worker executing a single bead.
+Execute one assigned work unit inside its approved plan scope.
 
-## Execution Rules
+## Required inputs
 
-1. **Bead Startup**:
-   - Read the assigned bead's metadata from `bd show <track-id> --json` (status, dependencies, description, acceptance criteria).
-   - Read the bead's in-scope files from the plan file under `.planning/plans/` — match the track by its title/id and use the `Files:` / file list declared there. (`bd` issues have no `files` field, so the authoritative file scope comes from the plan, not `bd show`.)
-   - Update its state via the `bd` CLI (e.g. `bd update <track-id> --status in_progress`, or `bd update <track-id> --claim`) and set the `worker_agent` identifier if applicable.
-   - Treat any worker-local branch or worktree metadata as supplemental only; it does not replace the bead status.
-2. **Implementation**:
-   - Limit file edits strictly to the in-scope files read from the plan in step 1.
-   - Use the `knowledge-capture` skill to record any notable codebase discoveries, environment workarounds, or architectural decisions in the Obsidian vault.
-   - If changes outside these files are needed, use `telegram-notify` to send a `work_blocked` notification before stopping and notifying the orchestrator.
-3. **Verification & Testing**:
-   - Run the relevant unit tests or checks to verify the change meets the acceptance criteria.
-   - If tests fail, iterate and fix issues locally.
-4. **Review & Triage**:
-   - If the bead is in `changes-requested` state, the worker must route its flow through the `receiving-code-review` skill to resolve all findings.
-   - Halt execution if the ledger enters `blocked-human` state or if a `WorkflowIntegrityError` is encountered, and notify the orchestrator or user.
-5. **Completion**:
-   - Prior to closure, validate that the review is approved: `python3 review-ledger.py status --bead-id <track-id>`. Ensure "Unresolved Findings: 0" and "State: review-approved".
-   - Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) before treating the bead as complete.
-   - Use the `knowledge-reconciliation` skill to update story status, link commit history, and regenerate MOC indexes in Obsidian.
-   - Use `telegram-notify` to send a `task_completed` notification after verification passes.
-   - Write Beads outcome notes plus a handoff summary that covers changes, validation, and any follow-up work.
-   - Run `git status` before closure and include the changed-file state in the handoff.
-   - Close the bead only after acceptance criteria, validation, Beads notes, `git status`, review approval, and handoff evidence are complete.
-   - If validation fails, there are unresolved findings, or the handoff is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="execute")`
+- native-harness `ApprovalDecision`
+
+## Execution rules
+
+1. Read task identity, status, dependencies, description, and acceptance criteria through `task.read`; claim or update it through `task.update`.
+2. Resolve its file scope and validation intent from the approved plan in the artifact registry. Durable task state never supplies file scope.
+3. Keep that work unit and scope required; discover related symbols, tests, and project knowledge on demand.
+4. Implement only in-scope changes and run relevant local validation. Record notable discoveries through the knowledge capability and results through the evidence capability.
+5. Route review findings through `receiving-code-review` and read terminal review state through the review capability.
+6. Follow the canonical verification and handoff workflow. Write outcome notes and final state through task-tracking capabilities only after validation, review, repository status, follow-up capture, and handoff evidence are complete.
+
+Scope or execution-strategy changes and production-impacting parallel work require native-harness approval plus a durable audit event. Notifications are optional and provider-backed.

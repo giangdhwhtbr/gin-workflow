@@ -1,28 +1,21 @@
 ---
 name: orchestrate
-description: After plan approval, automatically create and wire Beads tasks from the plan for execution.
+description: Convert one approved plan into provider-backed durable execution state.
 ---
 
 # /orchestrate Command
 
-After the plan is approved, use this command to translate the plan into durable Beads
-execution state. The agent should create the required tasks, break down work into actionable
-beads, define dependencies, and prepare execution without requiring the user to run manual
-`bd` commands.
+Route one orchestration action to the `orchestrate` skill. State ownership follows [orchestration-state-model.md](file://../references/orchestration-state-model.md).
 
-State ownership is defined in [orchestration-state-model.md](file://../references/orchestration-state-model.md).
+## Wrapper boundary
 
-## Usage
-
-```bash
-/orchestrate [--plan <path>] [--worktree|--no-worktree] [--max-tracks <N>] [--integration-branch <name>] [--inject-agents-md]
-```
+Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="orchestrate")`, and the native-harness `ApprovalDecision`. All durable task operations use the configured task-tracking capability; workspace preparation uses the configured workspace capability.
 
 ## Instructions
 
-1. Use the `bead-orchestrator` skill to coordinate and manage execution.
-2. Treat the approved plan as the input for task creation, dependency mapping, scope, and validation intent.
-3. Automatically create and connect the necessary Beads tasks from the plan.
-4. Keep Beads as the durable source of truth for track status, ownership, dependencies, readiness, blockers, and closure.
-5. Prepare the work so execution can begin with `bead-worker` or `/execute`.
-6. Do not require the user to manually run `bd create`, `bd dep add`, or claim commands as part of normal workflow.
+1. Require an approved plan resolved from the artifact registry.
+2. Use the `bead-orchestrator` methodology through task create/read/update capabilities.
+3. Mirror plan tracks and dependencies into durable task state and verify readiness through that provider.
+4. Use workspace isolation by default. Disabling isolation or selecting current-branch execution requires approval-manager authorization and a durable audit event.
+5. Keep required context to plan decomposition and validation intent; related symbols, tests, and project knowledge stay discoverable on demand.
+6. Return `orchestration_ready` state. Do not begin execution.

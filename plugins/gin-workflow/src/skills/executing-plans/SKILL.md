@@ -1,26 +1,25 @@
 ---
 name: executing-plans
-description: Extends superpowers:executing-plans with Beads-backed status tracking, scoped file constraints, and explicit close-out checks.
+description: Extend plan execution with provider-backed status, scoped changes, and close-out evidence.
 ---
 
 # Executing Plans Skill
 
-This skill extends `superpowers:executing-plans` for the `gin-workflow` plugin.
+This skill extends `superpowers:executing-plans` for the `gin-workflow` plugin. Use that skill as methodology guidance, then apply this provider-neutral overlay.
 
-## Base Skill
+## Required inputs
 
-When `superpowers:executing-plans` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="execute")`
+- native-harness `ApprovalDecision`
 
-If `superpowers:executing-plans` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+## Gin Workflow overlay
 
-## Gin Workflow Overlay
-
-Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
-
-1. Update the bead status using the standard `bd` CLI commands (e.g. `bd update <id> --status in_progress` to start or `bd update <id> --claim` when ownership needs to be established) rather than simple checkbox edits in plans.
-2. Treat the plan files under `.planning/plans/` as approved scope and validation intent, not as the status ledger.
-3. Keep changes minimal and focused strictly on the files in scope.
-4. Perform local validation/testing immediately after implementing a track's changes.
-5. Before treating a track as complete or running `bd close`, follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md). Validation success alone is not enough without Beads outcome notes, `git status`, and explicit handoff evidence.
-6. Do not proceed to the next track if the current track has failing tests, does not meet the acceptance criteria, or still lacks required close-out evidence.
-7. If validation fails or close-out evidence is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.
+1. Read and update durable ownership/status through task-tracking capabilities, never plan checkboxes.
+2. Resolve approved scope and validation intent from the plan artifact.
+3. Keep changes minimal and strictly in scope; discover related symbols, tests, and project knowledge on demand.
+4. Validate immediately after each work unit and record the evidence.
+5. Follow the canonical verification and handoff workflow before task closure. Validation alone is insufficient without outcome notes, repository status, and handoff evidence.
+6. Do not proceed while tests fail, acceptance criteria remain unmet, review is nonterminal, or close-out evidence is incomplete.
+7. Use the task-tracking capability to keep incomplete work active or blocked with durable notes.

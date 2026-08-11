@@ -1,17 +1,20 @@
 ---
 name: execute
-description: Implement approved work from the plan through Beads-backed worker execution.
+description: Execute one approved work unit through configured capabilities.
 ---
 
 # /execute Command
 
-Execute approved work from an existing plan through Beads-backed worker execution.
+Route one implementation action to the `execute` skill. One invocation handles one ready work unit and never includes verification or shipping.
+
+## Wrapper boundary
+
+Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="execute")`, and the native-harness `ApprovalDecision`. Worker dispatch, task tracking, workspace isolation, knowledge capture, and notifications are capability calls selected from effective configuration.
 
 ## Instructions
 
-1. Use the `executing-plans` skill to guide the implementation.
-2. Select a target plan from `.planning/plans/` or follow a specified task list derived from the approved plan.
-3. Treat the plan as scope and validation input while Beads tracks durable execution progress.
-4. Execute work through `bead-worker` behavior for each implementation track.
-5. If implementation discovers requirement ambiguity, missing information, or blockers that need product clarification, return to `/discuss` instead of making assumptions.
-6. Verify each step as you complete it.
+1. Require `orchestration_ready` evidence and select one ready unit from the task-tracking capability.
+2. Use the `executing-plans` methodology and the worker-dispatch capability within the plan-declared file scope.
+3. Keep only the selected work unit, dependencies, file scope, and validation intent required. Discover related symbols, tests, and project knowledge on demand.
+4. Execution strategy or scope changes and production-impacting parallel work require approval-manager authorization plus a durable audit event.
+5. Record validation and outcomes through the evidence capability and return `implementation_complete` state.
