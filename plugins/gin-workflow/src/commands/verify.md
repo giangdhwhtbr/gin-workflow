@@ -9,7 +9,7 @@ Route one verification action to the `verify` skill and follow [verification-and
 
 ## Wrapper boundary
 
-Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="verify")`, and the native-harness `ApprovalDecision`. Review, evidence, knowledge, and notification operations use configured capabilities only.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="verify")` and receive the native-harness `ApprovalDecision`. Review, evidence, knowledge, and notification operations use configured capabilities only.
 
 ## Instructions
 

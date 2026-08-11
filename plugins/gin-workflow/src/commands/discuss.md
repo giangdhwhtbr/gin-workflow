@@ -9,7 +9,7 @@ Route one requirement-discovery action to the `discuss` skill. Stop after that a
 
 ## Wrapper boundary
 
-Before delegation, receive the resolved `EffectiveConfig`, its `ArtifactRegistry`, a `ContextManifest` whose stage is `discuss`, and the native-harness `ApprovalDecision`. Do not read raw configuration or call a concrete adapter.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create a `ContextManifest` whose stage is `discuss` and receive the native-harness `ApprovalDecision`. Do not read raw configuration or call a concrete adapter.
 
 The manifest requires only the user's requirement and directly relevant repository context. Related symbols, tests, and project knowledge remain discoverable on demand through their configured capabilities.
 

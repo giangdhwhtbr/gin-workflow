@@ -13,9 +13,49 @@ from workflow_core.configuration import (  # noqa: E402
     ConfigValidationError,
     resolve_effective_config,
 )
+from workflow_core import configuration  # noqa: E402
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_lifecycle_loader_requires_one_time_setup_and_reads_generated_config(self):
+        loader = getattr(configuration, "load_effective_config", None)
+        self.assertIsNotNone(loader, "lifecycle generated-config loader is missing")
+
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            with self.assertRaisesRegex(
+                ConfigValidationError,
+                r"run .*gin-workflow setup init.*once",
+            ):
+                loader(repository)
+
+            resolve_effective_config(
+                repository,
+                repository_config={
+                    "schema_version": "2.1",
+                    "policy": {"mode": "configured-once"},
+                },
+            )
+
+            loaded = loader(repository)
+
+            self.assertEqual("configured-once", loaded["policy"]["mode"])
+            self.assertEqual(repository.resolve(), loaded.repository_root)
+
+    def test_lifecycle_loader_rejects_generated_config_missing_version_channels(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            resolve_effective_config(
+                repository,
+                built_in_defaults={"schema_version": "2.1"},
+            )
+
+            with self.assertRaisesRegex(
+                ConfigValidationError,
+                r"missing required lifecycle version channel: workflow_version",
+            ):
+                configuration.load_effective_config(repository)
+
     def test_provenance_escapes_dotted_key_components_without_collision(self):
         with tempfile.TemporaryDirectory() as directory:
             result = resolve_effective_config(
@@ -115,6 +155,8 @@ class ConfigurationTests(unittest.TestCase):
     def test_rejects_nonportable_values_and_unknown_schema_versions(self):
         invalid_configs = (
             {"schema_version": "99"},
+            {"schema_version": "2.1", "workflow_version": "9.9"},
+            {"schema_version": "2.1", "setup_cli_version": "9.9"},
             {"schema_version": "2.1", "worker": {"model": "gpt-5.6"}},
             {"schema_version": "2.1", "notifications": {"api_key": "sk-literal"}},
             {"schema_version": "2.1", "provider": {"command": ["bd", "ready"]}},

@@ -6,7 +6,7 @@ import difflib
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .atomic import atomic_write_text
+from .atomic import atomic_write_many, atomic_write_text
 from .bundles import export_bundle, verify_bundle
 from .configuration import require_yaml, resolve_effective_config, validate_portable_config
 from .migrations import CURRENT_VERSION, apply_migration, propose_migration, rollback_migration
@@ -71,31 +71,87 @@ def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[st
     }
 
 
-def initialize(repository: Path, *, dry_run: bool = False, harness: str | None = None, **_: Any) -> dict[str, Any]:
+def initialize(
+    repository: Path,
+    *,
+    dry_run: bool = False,
+    harness: str | None = None,
+    assignments: Iterable[str] = (),
+    approve: bool = False,
+    **_: Any,
+) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
     workflow = root / ".agent-workflow"
     config_path = workflow / "config.yaml"
     if config_path.exists():
+        generated = workflow / "generated/effective-config.yaml"
+        provenance = workflow / "generated/config-provenance.yaml"
+        missing_directories = [
+            workflow / relative
+            for relative in ("backups", "references", "runtime/evidence")
+            if not (workflow / relative).is_dir()
+        ]
+        if not generated.is_file() or not provenance.is_file() or missing_directories:
+            actions = ["repair incomplete one-time setup"]
+            if dry_run:
+                return {
+                    "status": "would_repair",
+                    "repository": str(root),
+                    "actions": actions,
+                }
+            if not approve:
+                raise SetupError(
+                    "setup repair requires explicit --approve before writing repository configuration",
+                    status="approval_required",
+                )
+            resolve_effective_config(root)
+            for path in missing_directories:
+                path.mkdir(parents=True, exist_ok=True)
+            return {
+                "status": "repaired",
+                "repository": str(root),
+                "actions": actions,
+            }
         return {"status": "already_initialized", "repository": str(root), "actions": []}
+
+    changes = list(assignments)
+    if not dry_run and not approve:
+        raise SetupError(
+            "initial setup requires explicit --approve before writing repository configuration",
+            status="approval_required",
+        )
 
     config: dict[str, Any] = _minimal_config()
     if harness:
         config["harness"] = harness
+    for assignment in changes:
+        path, value = _parse_assignment(assignment)
+        _set_nested(config, path, value)
     validate_portable_config(config)
-    resolve_effective_config(root, repository_config=config, write=False)
+    resolved = resolve_effective_config(root, repository_config=config, write=False)
     config_text = _yaml_text(config)
     if dry_run:
         return {
             "status": "would_initialize",
             "repository": str(root),
             "actions": list(INIT_ACTIONS),
+            "configuration": config,
         }
 
-    atomic_write_text(config_path, config_text)
+    atomic_write_many(
+        {
+            config_path: config_text.encode("utf-8"),
+            resolved.effective_config_path: _yaml_text(
+                resolved.config.to_dict()
+            ).encode("utf-8"),
+            resolved.provenance_path: _yaml_text(
+                resolved.provenance.to_dict()
+            ).encode("utf-8"),
+        }
+    )
     for relative in ("backups", "references", "runtime/evidence"):
         (workflow / relative).mkdir(parents=True, exist_ok=True)
-    resolve_effective_config(root)
     return {"status": "initialized", "repository": str(root), "actions": list(INIT_ACTIONS)}
 
 

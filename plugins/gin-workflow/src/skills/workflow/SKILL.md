@@ -14,6 +14,11 @@ Evaluate state and invoke one wrapper only.
 - `ContextManifest(stage="workflow")`
 - native-harness `ApprovalDecision`
 
+The caller must obtain `EffectiveConfig` through
+`load_effective_config(repository)`. If setup is required, stop and instruct
+the user to run `/setup` once. Never run setup or resolve raw configuration
+from this lifecycle skill.
+
 ## Routing contract
 
 Build state from configured task-tracking, evidence, review, and workspace capabilities. The router consumes these completion gates in order: `requirement_confirmed`, `plan_approved`, `orchestration_ready`, `implementation_complete`, `verification_passed`, and `shipped`. Blocked state routes to `progress`.

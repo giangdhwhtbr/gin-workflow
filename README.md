@@ -17,7 +17,7 @@ The plugin is skill-first across all supported platforms. These skills are the p
 | Skill | Description |
 | :--- | :--- |
 | `discuss` | Start requirement discovery and discussion before any plan or beads are created. |
-| `setup` | Initialize, inspect, or explicitly update repository workflow configuration. |
+| `setup` | Run one-time repository initialization and configuration, or explicitly request later maintenance. |
 | `workflow` | Route to exactly one valid next lifecycle stage. |
 | `plan` | After you confirm the understanding, create a durable implementation plan in `.planning/plans/`. |
 | `orchestrate` | After plan approval, automatically create and wire Beads tasks from the plan for execution. |
@@ -44,20 +44,34 @@ The plugin also provides lower-level and support skills used internally or for a
 - `requesting-code-review`
 - `receiving-code-review`
 
+## One-Time Repository Setup
+
+Run `setup` once for a repository before its first `discuss`. The initial
+setup session detects the harness, collects portable settings, previews the
+write, and creates both the human-authored configuration and generated
+effective configuration. Setup is a repository prerequisite, not a lifecycle
+stage.
+
+Normal lifecycle invocations load the existing
+`.agent-workflow/generated/effective-config.yaml`. They never run setup
+automatically. If that file is absent, the lifecycle stops with an instruction
+to run `setup` once. Later `setup` invocations occur only when explicitly
+requested for status, diagnosis, reconfiguration, migration, rollback, or
+bundle maintenance.
+
 ## Workflow Model
 
 The plugin’s canonical workflow is:
 
 1. Start with `discuss` to explore the requirement, clarify ambiguity, and align on understanding
-2. Run `setup` for repository initialization before lifecycle work; it resolves `.agent-workflow/generated/effective-config.yaml`, the sole lifecycle configuration input
-3. Wait for explicit user confirmation that the summarized understanding is correct
-4. Use `plan` to create the approved implementation plan
-5. Use `orchestrate` to automatically create and connect Beads tasks from that plan
-6. Use `execute` to implement the work through Beads-backed worker execution
-7. Use `verify` to confirm the result against the original requirement and acceptance criteria
-8. Use `ship` to complete the delivery workflow once verification passes
+2. Wait for explicit user confirmation that the summarized understanding is correct
+3. Use `plan` to create the approved implementation plan
+4. Use `orchestrate` to automatically create and connect Beads tasks from that plan
+5. Use `execute` to implement the work through Beads-backed worker execution
+6. Use `verify` to confirm the result against the original requirement and acceptance criteria
+7. Use `ship` to complete the delivery workflow once verification passes
 
-`workflow` may be used instead of choosing a stage manually; it routes one next stage only. Plugin installation makes the skills and CLI available; it does not initialize any repository or write `.agent-workflow/`. Repository initialization is an explicit `setup` action.
+`workflow` may be used instead of choosing a stage manually; it routes one next stage only. It does not add, remove, or reorder lifecycle stages. Plugin installation makes the skills and CLI available; it does not initialize any repository or write `.agent-workflow/`.
 
 
 ## Optional Commands

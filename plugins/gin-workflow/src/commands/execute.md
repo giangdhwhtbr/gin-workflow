@@ -9,7 +9,7 @@ Route one implementation action to the `execute` skill. One invocation handles o
 
 ## Wrapper boundary
 
-Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="execute")`, and the native-harness `ApprovalDecision`. Worker dispatch, task tracking, workspace isolation, knowledge capture, and notifications are capability calls selected from effective configuration.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="execute")` and receive the native-harness `ApprovalDecision`. Worker dispatch, task tracking, workspace isolation, knowledge capture, and notifications are capability calls selected from effective configuration.
 
 ## Instructions
 

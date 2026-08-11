@@ -9,7 +9,7 @@ Route one orchestration action to the `orchestrate` skill. State ownership follo
 
 ## Wrapper boundary
 
-Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="orchestrate")`, and the native-harness `ApprovalDecision`. All durable task operations use the configured task-tracking capability; workspace preparation uses the configured workspace capability.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="orchestrate")` and receive the native-harness `ApprovalDecision`. All durable task operations use the configured task-tracking capability; workspace preparation uses the configured workspace capability.
 
 ## Instructions
 

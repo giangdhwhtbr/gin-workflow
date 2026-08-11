@@ -9,7 +9,7 @@ Route one delivery action to the `ship` skill.
 
 ## Wrapper boundary
 
-Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="ship")`, and the native-harness `ApprovalDecision`. Task closure, workspace cleanup, review, evidence, knowledge, and notifications use their configured capabilities.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="ship")` and receive the native-harness `ApprovalDecision`. Task closure, workspace cleanup, review, evidence, knowledge, and notifications use their configured capabilities.
 
 ## Instructions
 

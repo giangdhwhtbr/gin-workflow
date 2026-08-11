@@ -14,6 +14,11 @@ Perform exactly one orchestration stage.
 - `ContextManifest(stage="orchestrate")`
 - native-harness `ApprovalDecision`
 
+The caller must obtain `EffectiveConfig` through
+`load_effective_config(repository)`. If setup is required, stop and instruct
+the user to run `/setup` once. Never run setup or resolve raw configuration
+from this lifecycle skill.
+
 ## Execution
 
 1. Require evidence that `plan_approved` is true and resolve the plan through the artifact registry.

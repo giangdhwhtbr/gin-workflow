@@ -9,7 +9,7 @@ Use the `workflow` skill to inspect state, evaluate guards, and select one next 
 
 ## Wrapper boundary
 
-Before routing, receive resolved `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="workflow")`, and the native-harness `ApprovalDecision`. Use `route_next_stage(state, config)` and preserve its decision and evidence.
+Before routing, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from `/workflow`. Then create `ContextManifest(stage="workflow")` and receive the native-harness `ApprovalDecision`. Use `route_next_stage(state, config)` and preserve its decision and evidence.
 
 After routing, construct a new `ContextManifest` whose stage exactly matches the selected target, sanitize it through the context manager, and pass `EffectiveConfig`, `ArtifactRegistry`, that target-stage manifest, and `ApprovalDecision` to the selected wrapper.
 
