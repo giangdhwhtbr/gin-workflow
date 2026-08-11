@@ -1,31 +1,22 @@
 ---
 name: discuss
-description: Start requirement discovery and discussion before planning or task creation.
+description: Clarify a requirement before planning or durable task creation.
 ---
 
 # /discuss Command
 
-Start the requirement discovery and discussion phase for `gin-workflow`.
+Route one requirement-discovery action to the `discuss` skill. Stop after that action; a later `/workflow` invocation chooses the next stage.
 
-Use this command when you have a new requirement and want the agent to explore it deeply,
-ask clarifying questions, identify risks and constraints, challenge assumptions, suggest
-alternatives, and continue the discussion until the requirement is fully understood.
+## Wrapper boundary
 
-This command should use the `discovering-work` skill.
+Before delegation, receive the resolved `EffectiveConfig`, its `ArtifactRegistry`, a `ContextManifest` whose stage is `discuss`, and the native-harness `ApprovalDecision`. Do not read raw configuration or call a concrete adapter.
 
-## Usage
-
-```bash
-/discuss [topic or requirement]
-```
+The manifest requires only the user's requirement and directly relevant repository context. Related symbols, tests, and project knowledge remain discoverable on demand through their configured capabilities.
 
 ## Instructions
 
-1. Use the `discovering-work` skill as the primary workflow for this command.
-2. Explore the relevant project context before proposing solutions.
-3. Ask clarifying questions and continue discussion until the requirement is fully understood.
-4. Identify ambiguity, missing information, edge cases, risks, dependencies, and constraints.
-5. Suggest improvements, alternatives, and stronger approaches when appropriate.
-6. Summarize the final understanding and wait for explicit user confirmation.
-7. Do not create plans or Beads tasks during this phase.
-8. After user confirmation, transition to `/plan`.
+1. Use the `discovering-work` methodology skill.
+2. Resolve ambiguity, edge cases, dependencies, constraints, and acceptance intent.
+3. Summarize the understanding and obtain native-harness confirmation.
+4. Record the confirmation through the evidence capability.
+5. Do not create a plan or durable execution tasks in this stage.

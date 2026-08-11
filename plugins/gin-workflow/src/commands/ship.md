@@ -1,17 +1,21 @@
 ---
 name: ship
-description: Prepare the verified implementation for delivery and complete the final workflow steps.
+description: Perform one approved delivery action after verification.
 ---
 
 # /ship Command
 
-Prepare the verified implementation for delivery and complete the final workflow steps.
+Route one delivery action to the `ship` skill.
+
+## Wrapper boundary
+
+Before delegation, receive `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest(stage="ship")`, and the native-harness `ApprovalDecision`. Task closure, workspace cleanup, review, evidence, knowledge, and notifications use their configured capabilities.
 
 ## Instructions
 
-1. Use the `finishing-a-development-branch` skill.
-2. Follow [verification-and-handoff-workflow.md](file://../references/verification-and-handoff-workflow.md) before treating the task as complete.
-3. Ensure the implementation is complete, tested, and ready for delivery.
-4. Run branch integration only when it is actually in scope and current instructions authorize it.
-5. Treat worktrees as implementation artifacts only; Beads remains the source of truth for whether work is still active or complete.
-6. Perform any required Beads close-out internally as part of the final delivery workflow rather than expecting manual `bd` commands from the user.
+1. Require `verification_passed` evidence and a terminal review state.
+2. Apply the `finishing-a-development-branch` methodology and canonical handoff checklist.
+3. Revalidate required approval and reviewed tree identity before any authorized integration action.
+4. Obtain native-harness approval for commit, push, upgrade, data movement, or other protected delivery actions and persist the audit event.
+5. Keep verification, review, approval, and handoff evidence required; related symbols, tests, and project knowledge remain discoverable on demand.
+6. Return `shipped` state after durable close-out. Do not start another lifecycle action.

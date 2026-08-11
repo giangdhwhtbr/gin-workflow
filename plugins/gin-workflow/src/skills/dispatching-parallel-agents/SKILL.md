@@ -1,26 +1,23 @@
 ---
 name: dispatching-parallel-agents
-description: Extends superpowers:dispatching-parallel-agents with platform detection (Antigravity vs Claude Code) and concurrency control.
+description: Extend parallel dispatch with provider selection, bounded context, approval, and concurrency controls.
 ---
 
 # Dispatching Parallel Agents Skill
 
 This skill extends `superpowers:dispatching-parallel-agents` for the `gin-workflow` plugin.
 
-## Base Skill
+## Required inputs
 
-When `superpowers:dispatching-parallel-agents` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="execute")`
+- native-harness `ApprovalDecision`
 
-If `superpowers:dispatching-parallel-agents` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+## Gin Workflow overlay
 
-## Gin Workflow Overlay
-
-Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
-
-1. **Platform Detection**:
-   - On **Antigravity CLI**, use the `invoke_subagent` tool with a customized prompt containing the bead's JSON config.
-   - On **Claude Code**, spawn parallel runs or background sub-processes if supported, or route tasks via subagent commands.
-2. **Context Minimization**:
-   - Provide each subagent only with the details of the specific bead it needs to execute. Do not overload subagent memory with unrelated plans or files.
-3. **Resource Control**:
-   - Adhere strictly to the `--max-tracks` concurrency limit to avoid API rate-limiting or CPU exhaustion.
+1. Select worker dispatch only through the configured worker capability; do not branch on harness names or invoke harness-specific tools directly.
+2. Give each worker only its selected durable task, dependencies, approved file scope, validation intent, and on-demand discovery references.
+3. Enforce the effective-config concurrency limit and dependency readiness from the task-tracking capability.
+4. Execution-strategy changes and production-impacting parallel work require approval-manager authorization and durable audit evidence before dispatch.
+5. Record dispatch identity and normalized outcomes through the evidence capability. Worker metadata remains disposable, not authoritative task state.

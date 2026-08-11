@@ -1,33 +1,25 @@
 ---
 name: context-retrieval
-description: Fetch relevant stories, module indexes, and recent decisions from the Obsidian vault at session start.
+description: Fetch relevant project knowledge through the configured knowledge capability.
 ---
 
 # Context Retrieval Skill
 
-Use this skill at the beginning of any agent session, specifically during the **Requirement Discovery / Discussion** phase. 
+Use this skill during requirement discovery to discover bounded project knowledge without binding the lifecycle to a concrete knowledge adapter.
 
-This skill guides the agent to query the Obsidian Second Brain via the `obsidian` MCP server to establish the codebase context, business logic, and past decisions before formulating a plan.
+## Required inputs
 
-## Purpose
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- stage-specific `ContextManifest`
+- native-harness `ApprovalDecision`
 
-To prevent context fragmentation and ensure the agent inherits all tribal knowledge, design choices, and bug documentation registered in the Second Brain from past executions.
+## Execution
 
-## Execution Steps
+1. Extract project names, module names, story identifiers, and technical terms from required context.
+2. Use `knowledge.search` for the story, module/project index, related decisions, and relevant lessons.
+3. Add only references and concise relevant facts to the manifest. Do not inject full notes, parent transcripts, private reasoning, unrelated history, or secrets.
+4. Keep related symbols and tests discoverable through their configured capabilities rather than eagerly loading them.
+5. Compare retrieved facts with the codebase and return contradictions to `discuss` as explicit questions.
 
-1. **Identify Key Terms**:
-   Extract project names, module names, user story codes (e.g. `US_RM23`), and important technical terms from the user request or the claimed Beads task.
-
-2. **Query the Obsidian Vault**:
-   Use the `obsidian` MCP tools to search the vault:
-   - Call `search_notes` with the story code (e.g. `US_RM23`) to find the main User Story note.
-   - Call `search_notes` with the module name (e.g. `Returns Management`) or project name to locate the relevant MOC (Map of Content) index under `/indexes/`.
-   - Call `search_notes` with technical keywords to find related decisions or lessons-learned notes.
-
-3. **Read and Inject Content**:
-   - Read the main story note using `read_note` to retrieve acceptance criteria, examples, and designs.
-   - Read the corresponding project/module indexes to identify dependencies and related stories.
-   - Inject the verbatim text of these notes into your local context, explicitly separating the Obsidian-retrieved details from the transient user request.
-
-4. **Identify Gaps**:
-   Compare the retrieved context with the codebase. If they conflict, make it a discussion point with the user.
+If the provider is unavailable, record that evidence and continue with repository context; do not call a concrete fallback adapter.
