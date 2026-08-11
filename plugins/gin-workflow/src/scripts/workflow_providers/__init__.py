@@ -1,0 +1,87 @@
+"""Lifecycle provider contracts, registry, fakes, and contained adapters."""
+
+from .contracts import (
+    EvidenceCategory,
+    EvidenceCompleteness,
+    EvidenceProvider,
+    EvidenceQuery,
+    EvidenceRecord,
+    KnowledgeProposal,
+    KnowledgeProposalRecord,
+    KnowledgeProvider,
+    KnowledgeRecord,
+    NotificationProvider,
+    NotificationReceipt,
+    NotificationRequest,
+    OperationStatus,
+    ProviderHealth,
+    ProviderMetadata,
+    ProviderResult,
+    ReviewProvider,
+    ReviewRequest,
+    ReviewStatus,
+    TaskCreateRequest,
+    TaskRecord,
+    TaskTrackingProvider,
+    WorkspaceProvider,
+    WorkspaceRecord,
+    WorkspaceRequest,
+)
+from .evidence import FileEvidenceProvider
+from .fakes import (
+    FakeEvidenceProvider,
+    FakeKnowledgeProvider,
+    FakeNotificationProvider,
+    FakeReviewProvider,
+    FakeTaskTrackingProvider,
+    FakeWorkspaceProvider,
+)
+from .knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider
+from .notifications import TelegramNotificationProvider
+from .registry import ProviderRegistry, RegistryError
+from .review import ReviewLedgerProvider
+from .task_tracking import BeadsTaskTrackingProvider
+from .workspace import WorktreeWorkspaceProvider
+
+__all__ = [
+    "BeadsTaskTrackingProvider",
+    "EvidenceCategory",
+    "EvidenceCompleteness",
+    "EvidenceProvider",
+    "EvidenceQuery",
+    "EvidenceRecord",
+    "FakeEvidenceProvider",
+    "FakeKnowledgeProvider",
+    "FakeNotificationProvider",
+    "FakeReviewProvider",
+    "FakeTaskTrackingProvider",
+    "FakeWorkspaceProvider",
+    "FileEvidenceProvider",
+    "KnowledgeProposal",
+    "KnowledgeProposalRecord",
+    "KnowledgeProvider",
+    "KnowledgeRecord",
+    "NotificationProvider",
+    "NotificationReceipt",
+    "NotificationRequest",
+    "ObsidianKnowledgeProvider",
+    "OperationStatus",
+    "ProviderHealth",
+    "ProviderMetadata",
+    "ProviderRegistry",
+    "ProviderResult",
+    "RegistryError",
+    "RepositoryKnowledgeProvider",
+    "ReviewLedgerProvider",
+    "ReviewProvider",
+    "ReviewRequest",
+    "ReviewStatus",
+    "TaskCreateRequest",
+    "TaskRecord",
+    "TaskTrackingProvider",
+    "TelegramNotificationProvider",
+    "WorkspaceProvider",
+    "WorkspaceRecord",
+    "WorkspaceRequest",
+    "WorktreeWorkspaceProvider",
+]
