@@ -63,6 +63,50 @@ for event_name in ("PreToolUse", "PostToolUse"):
 PYEOF
 }
 
+assert_workflow_v21_layout() {
+  local root="$1"
+  local relative
+  local required=(
+    "commands/setup.md"
+    "commands/workflow.md"
+    "skills/setup/SKILL.md"
+    "skills/workflow/SKILL.md"
+    "skills/context-manager/SKILL.md"
+    "skills/approval-manager/SKILL.md"
+    "skills/evidence-manager/SKILL.md"
+    "skills/worker-dispatch/SKILL.md"
+    "skills/worker-dispatch/references/worker-lifecycle.md"
+    "skills/worker-dispatch/references/delegation-policy.md"
+    "skills/worker-dispatch/references/result-contract.md"
+    "references/setup-system.md"
+    "references/capability-provider-contracts.md"
+    "references/context-and-evidence-policy.md"
+    "scripts/gin-workflow"
+    "scripts/workflow_core/configuration.py"
+    "scripts/workflow_core/setup_service.py"
+    "scripts/workflow_core/router.py"
+    "scripts/workflow_core/worker_scheduler.py"
+    "scripts/workflow_providers/__init__.py"
+    "scripts/workflow_providers/contracts.py"
+    "scripts/workflow_providers/registry.py"
+    "scripts/workflow_providers/task_tracking.py"
+    "scripts/workflow_providers/knowledge.py"
+    "scripts/workflow_providers/workspace.py"
+    "scripts/workflow_providers/review.py"
+    "scripts/workflow_providers/evidence.py"
+    "scripts/workflow_providers/notifications.py"
+    "scripts/workflow_providers/fakes.py"
+    "scripts/workflow_providers/worker_dispatch.py"
+    "scripts/workflow_providers/claude_worker.py"
+    "scripts/workflow_providers/codex_worker.py"
+    "scripts/workflow_providers/antigravity_worker.py"
+    "scripts/workflow_providers/sequential_worker.py"
+  )
+  for relative in "${required[@]}"; do
+    assert_exists "$root/$relative"
+  done
+}
+
 rm -rf plugins/gin-workflow/dist
 rm -rf plugins/gin-workflow-advanced/dist
 
@@ -91,6 +135,7 @@ assert_exists "plugins/gin-workflow/dist/claude-code/commands/review.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/verification-and-handoff-workflow.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/orchestration-state-model.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/scripts/gin-workflow"
+assert_workflow_v21_layout "plugins/gin-workflow/dist/claude-code"
 
 assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/quick.md"
 assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/new-project.md"
@@ -137,8 +182,15 @@ assert_contains "plugins/gin-workflow/dist/codex/commands/orchestrate.md" "file:
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "codegraph"
+assert_workflow_v21_layout "plugins/gin-workflow/dist/codex"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-workflow/src\""
 assert_not_contains ".claude-plugin/marketplace.json" "gin-workflow-advanced"
+
+./install.sh --platform antigravity --dry-run >"$output_file"
+
+assert_exists "plugins/gin-workflow/dist/antigravity/plugin.json"
+assert_exists "plugins/gin-workflow/dist/antigravity/hooks/hooks.json"
+assert_workflow_v21_layout "plugins/gin-workflow/dist/antigravity"
 
 # Test actual installation with a mocked HOME
 echo "Running mock HOME global installation test..."
