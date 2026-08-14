@@ -61,10 +61,15 @@ class WorkerRequest:
     retry_identity: str
     provider_role: str
     reasoning: str
+    route_affinity: tuple[str, str] | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "constraints", tuple(self.constraints))
         object.__setattr__(self, "expected_output", tuple(self.expected_output))
+        if self.route_affinity is not None:
+            if len(self.route_affinity) != 2 or not all(self.route_affinity):
+                raise ValueError("route_affinity requires provider and model")
+            object.__setattr__(self, "route_affinity", tuple(self.route_affinity))
         if not all(
             (
                 self.objective,
@@ -224,6 +229,7 @@ class _AdapterRecord:
     receipt: WorkerReceipt
     result: WorkerResult | None = None
     completed: threading.Event = field(default_factory=threading.Event)
+    cancel_requested: threading.Event = field(default_factory=threading.Event)
 
 
 class SynchronousWorkerAdapter:
@@ -237,9 +243,13 @@ class SynchronousWorkerAdapter:
         *,
         available: bool = True,
         payload_factory: Callable[[WorkerRequest], Mapping[str, Any]] | None = None,
+        cancellable_runner: Callable[
+            [Mapping[str, Any], threading.Event], Mapping[str, Any] | WorkerResult
+        ] | None = None,
     ) -> None:
         self._runner = runner
-        self._available = bool(available and runner is not None)
+        self._cancellable_runner = cancellable_runner
+        self._available = bool(available and (runner is not None or cancellable_runner is not None))
         self._payload_factory = payload_factory or (lambda request: request.to_payload())
         self._records: dict[str, _AdapterRecord] = {}
         self._retries: dict[tuple[str, str, str], str] = {}
@@ -300,7 +310,11 @@ class SynchronousWorkerAdapter:
             record = self._records[worker_id]
             request = record.request
         try:
-            raw_result = self._runner(dict(self._payload_factory(request)))
+            payload = dict(self._payload_factory(request))
+            if self._cancellable_runner is not None:
+                raw_result = self._cancellable_runner(payload, record.cancel_requested)
+            else:
+                raw_result = self._runner(payload)
             result = normalize_worker_result(raw_result, request)
         except WorkerResultContractError as error:
             result = failed_worker_result(request, "invalid_result_contract", str(error))
@@ -308,7 +322,12 @@ class SynchronousWorkerAdapter:
             kind = getattr(error, "kind", None)
             kind_value = getattr(kind, "value", None)
             blocker = f"provider_failure:{kind_value}" if kind_value else "worker_exception"
-            result = failed_worker_result(request, blocker, str(error))
+            if kind_value == "cancelled":
+                result = WorkerResult(
+                    "cancelled", request.task_id, str(error), (), (), (), (), (blocker,)
+                )
+            else:
+                result = failed_worker_result(request, blocker, str(error))
         state = {
             "completed": WorkerState.COMPLETED,
             "failed": WorkerState.FAILED,
@@ -316,8 +335,6 @@ class SynchronousWorkerAdapter:
         }[result.status]
         completed_receipt = WorkerReceipt(worker_id, state, request.task_id)
         with self._lock:
-            if record.receipt.state is WorkerState.CANCELLED:
-                return
             record.result = result
             record.receipt = completed_receipt
             record.completed.set()
@@ -356,7 +373,10 @@ class SynchronousWorkerAdapter:
             if record.receipt.state in TERMINAL_WORKER_STATES:
                 return False
             if record.receipt.state is WorkerState.STARTED:
-                return False
+                if self._cancellable_runner is None:
+                    return False
+                record.cancel_requested.set()
+                return True
             record.result = WorkerResult(
                 "cancelled", record.request.task_id, "cancelled", (), (), (), (), ("cancelled",)
             )

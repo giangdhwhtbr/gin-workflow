@@ -30,6 +30,7 @@ from workflow_providers.contracts import (  # noqa: E402
     ReviewFinding,
     ReviewStatus,
     TaskCreateRequest,
+    WorkspaceRequest,
 )
 from workflow_providers.fakes import (  # noqa: E402
     FakeEvidenceProvider,
@@ -100,20 +101,48 @@ class WorkflowEndToEndTests(unittest.TestCase):
         class FakeNativeRunner:
             def __init__(self):
                 self.routes = []
+                self.review_runs = 0
 
-            def run(self, invocation):
+            def run(self, invocation, *, cancel_event=None):
                 model = invocation.argv[invocation.argv.index("--model") + 1]
                 provider = {"claude": "claude", "codex": "codex", "agy": "antigravity"}[invocation.argv[0]]
                 self.routes.append((provider, model))
                 if provider == "claude" and model == "opus":
                     raise NativeCliError(FailureKind.QUOTA, "classified quota")
                 payload = json.loads(invocation.stdin.decode("utf-8").splitlines()[-1])
-                return NativeCliOutput((completed_result(payload),))
+                normalized = completed_result(payload)
+                if payload["objective"].startswith("Review approved implementation scope"):
+                    self.review_runs += 1
+                    normalized["changed_files"] = []
+                    normalized["evidence"] = (
+                        [{
+                            "kind": "review_decision",
+                            "decision": "changes_requested",
+                        }, {
+                            "kind": "review_finding",
+                            "finding_id": "F-001",
+                            "severity": "IMPORTANT",
+                            "status": "open",
+                            "location": "src/frontend.py:1",
+                            "expected_behavior": "handle empty state",
+                            "evidence": "fake-native review",
+                        }]
+                        if self.review_runs == 1
+                        else [
+                            {"kind": "review_decision", "decision": "approved"},
+                            {
+                                "kind": "review_finding", "finding_id": "F-001",
+                                "severity": "IMPORTANT", "status": "verified",
+                                "location": "src/frontend.py:1",
+                                "expected_behavior": "handle empty state",
+                                "evidence": "fake-native re-review passed",
+                            },
+                        ]
+                    )
+                return NativeCliOutput((normalized,))
 
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
-            workspace = repository / "workspace"
-            workspace.mkdir()
             yaml = __import__("yaml")
             portable = yaml.safe_load(
                 (ROOT / "plugins/gin-workflow/src/examples/config.full.yaml").read_text(encoding="utf-8")
@@ -144,6 +173,13 @@ class WorkflowEndToEndTests(unittest.TestCase):
 
             def routed(task_id, role, reasoning, retry):
                 item = worker_request(task_id)
+                created = registry.workspace.create(
+                    WorkspaceRequest(
+                        item.isolation_policy["workspace_id"],
+                        item.isolation_policy["branch"],
+                    ),
+                    idempotency_key=f"{task_id}:workspace",
+                )
                 return replace(
                     item,
                     provider_role=role,
@@ -151,7 +187,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
                     retry_identity=retry,
                     isolation_policy={
                         **item.isolation_policy,
-                        "workspace_path": str(workspace),
+                        "workspace_path": str(created.value.path),
                     },
                 )
 
@@ -165,12 +201,17 @@ class WorkflowEndToEndTests(unittest.TestCase):
             frontend_receipt = router.dispatch(frontend)
             self.assertEqual("completed", router.collect_result(frontend_receipt.worker_id).status)
 
-            coordinator = ReviewCoordinator(registry.review, require_independent=True, max_cycles=3)
+            coordinator = ReviewCoordinator(
+                registry.review,
+                require_independent=True,
+                max_cycles=3,
+                worker_dispatcher=router,
+            )
             cycle = coordinator.request_review(
                 task_id="frontend",
                 cycle_number=1,
-                provider_role="frontend",
-                reasoning="medium",
+                provider_role="review",
+                reasoning="high",
                 implementation_route=(frontend_receipt.provider_name, frontend_receipt.model_alias),
                 reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
                 context=ReviewContext(
@@ -181,14 +222,50 @@ class WorkflowEndToEndTests(unittest.TestCase):
                     evidence=({"kind": "test", "reference": "ui-test"},),
                 ),
             )
-            finding = ReviewFinding(
-                "F-001", "IMPORTANT", "open", "src/frontend.py:1", "handle empty state", "review"
+            review_execution = coordinator.dispatch_review(
+                cycle,
+                replace(
+                    frontend,
+                    provider_role="review",
+                    reasoning="high",
+                    retry_identity="frontend:review:1",
+                ),
             )
+            self.assertEqual("changes_requested", review_execution.status)
+            finding = review_execution.findings[0]
             revision = coordinator.route_revision(cycle, (finding,))
             revision_receipt = router.dispatch(
-                replace(frontend, retry_identity=revision.revision_identity)
+                replace(
+                    frontend,
+                    retry_identity=revision.revision_identity,
+                    route_affinity=(revision.provider, revision.model),
+                )
             )
             self.assertEqual("completed", router.collect_result(revision_receipt.worker_id).status)
+            coordinator.complete_revision(cycle, revision)
+
+            second_cycle = coordinator.request_review(
+                task_id="frontend",
+                cycle_number=2,
+                provider_role="review",
+                reasoning="high",
+                implementation_route=(
+                    revision_receipt.provider_name,
+                    revision_receipt.model_alias,
+                ),
+                reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
+                context=cycle.context,
+            )
+            approved_review = coordinator.dispatch_review(
+                second_cycle,
+                replace(
+                    frontend,
+                    provider_role="review",
+                    reasoning="high",
+                    retry_identity="frontend:review:2",
+                ),
+            )
+            self.assertEqual("approved", approved_review.status)
 
             created = registry.task_tracking.create_task(
                 TaskCreateRequest("frontend", status="in_progress"),
@@ -213,7 +290,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 )
             complete = registry.evidence.completeness("frontend").value
             approved = coordinator.completion_decision(
-                ReviewStatus("frontend", "review-approved", 1, (), (replace(finding, status="verified"),)),
+                ReviewStatus("frontend", "review-approved", 2, (), (replace(finding, status="verified"),)),
                 acceptance_evidence_complete=complete.complete,
             )
             if approved.status == "ready_to_close":
@@ -225,7 +302,12 @@ class WorkflowEndToEndTests(unittest.TestCase):
             self.assertEqual(("antigravity", "gemini-flash"), (frontend_receipt.provider_name, frontend_receipt.model_alias))
             self.assertEqual(CircuitState.OPEN, router.breakers.state("claude", "opus").state)
             self.assertEqual(("codex", "reasoning"), cycle.reviewer_route)
+            self.assertEqual(("codex", "reasoning"), (
+                review_execution.receipt.provider_name,
+                review_execution.receipt.model_alias,
+            ))
             self.assertEqual(("antigravity", "gemini-flash"), (revision.provider, revision.model))
+            self.assertEqual(2, runner.review_runs)
             self.assertTrue(complete.complete)
             self.assertEqual("closed", registry.task_tracking.read_task(task_id).value.status)
             self.assertNotIn(SECRET_VALUE, events.path.read_text(encoding="utf-8"))

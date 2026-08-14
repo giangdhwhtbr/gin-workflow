@@ -22,6 +22,7 @@ from .contracts import (
     ProviderBase,
     ProviderResult,
     ReviewRequest,
+    ReviewOutcomeRequest,
     ReviewStatus,
     TaskCreateRequest,
     TaskRecord,
@@ -174,7 +175,7 @@ class FakeWorkspaceProvider(ProviderBase):
 class FakeReviewProvider(ProviderBase):
     provider_name = "fake"
     provider_type = "review"
-    capabilities = frozenset({"review.request", "review.status"})
+    capabilities = frozenset({"review.request", "review.outcome", "review.status"})
 
     def __init__(self, *, available: bool = True) -> None:
         super().__init__(available=available)
@@ -191,11 +192,92 @@ class FakeReviewProvider(ProviderBase):
         self.reviews[request.task_id] = status
         return self._remember("request", idempotency_key, request, ProviderResult.success(status))
 
+    def begin_revision(
+        self, task_id: str, *, actor_id: str, lease_id: str, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]:
+        current = self.reviews.get(task_id)
+        if current is None or not actor_id or not idempotency_key:
+            return ProviderResult.invalid("known review and revision identity are required")
+        status = ReviewStatus(
+            task_id, "implementation-in-progress", current.total_findings,
+            current.unresolved_findings, current.findings,
+        )
+        self.reviews[task_id] = status
+        return ProviderResult.success(status)
+
+    def complete_revision(
+        self, task_id: str, finding_ids: tuple[str, ...], *,
+        actor_id: str, lease_id: str, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]:
+        current = self.reviews.get(task_id)
+        if current is None or not actor_id or not idempotency_key:
+            return ProviderResult.invalid("known review and revision identity are required")
+        selected = set(finding_ids)
+        findings = tuple(
+            replace(finding, status="fixed-awaiting-verification")
+            if finding.finding_id in selected else finding
+            for finding in current.findings
+        )
+        status = ReviewStatus(
+            task_id, "review-requested", len(findings),
+            tuple(f.finding_id for f in findings if f.status != "verified"), findings,
+        )
+        self.reviews[task_id] = status
+        return ProviderResult.success(status)
+
+    def complete_revision(
+        self, task_id: str, finding_ids: tuple[str, ...], *,
+        actor_id: str, lease_id: str, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]:
+        current = self.reviews.get(task_id)
+        if current is None or not actor_id or not idempotency_key:
+            return ProviderResult.invalid("known review and revision identity are required")
+        selected = set(finding_ids)
+        findings = tuple(
+            replace(finding, status="fixed-awaiting-verification")
+            if finding.finding_id in selected else finding
+            for finding in current.findings
+        )
+        status = ReviewStatus(
+            task_id, "review-requested", len(findings),
+            tuple(f.finding_id for f in findings if f.status != "verified"), findings,
+        )
+        self.reviews[task_id] = status
+        return ProviderResult.success(status)
+
     def status(self, task_id: str) -> ProviderResult[ReviewStatus]:
         if guarded := self._guard():
             return guarded
         status = self.reviews.get(task_id)
         return ProviderResult.success(status) if status else ProviderResult.invalid(f"unknown review: {task_id}")
+
+    def record_outcome(
+        self, request: ReviewOutcomeRequest, *, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]:
+        if guarded := self._guard():
+            return guarded
+        if replay := self._replay("record_outcome", idempotency_key, request):
+            return replay
+        if (
+            request.task_id not in self.reviews
+            or request.decision not in {"approved", "changes_requested"}
+            or not request.actor_id
+            or not idempotency_key
+        ):
+            return ProviderResult.invalid("valid review outcome fields are required")
+        unresolved = tuple(
+            finding.finding_id
+            for finding in request.findings
+            if finding.status not in {"verified", "withdrawn", "accepted-as-is", "deferred-verified", "human-waived"}
+        )
+        state = "review-approved" if request.decision == "approved" else "changes-requested"
+        status = ReviewStatus(
+            request.task_id, state, len(request.findings), unresolved, request.findings
+        )
+        self.reviews[request.task_id] = status
+        return self._remember(
+            "record_outcome", idempotency_key, request, ProviderResult.success(status)
+        )
 
 
 class FakeEvidenceProvider(ProviderBase):

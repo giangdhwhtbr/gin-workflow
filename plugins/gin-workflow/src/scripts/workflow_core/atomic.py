@@ -38,6 +38,9 @@ def atomic_write_many(files: Mapping[Path, bytes], *, mode: int = 0o600) -> None
     unchanged. Each final destination is then replaced atomically.
     """
     staged: list[tuple[Path, Path]] = []
+    backups: dict[Path, Path | None] = {}
+    replaced: list[Path] = []
+    preserve_backups = False
     try:
         for raw_path, content in files.items():
             path = Path(raw_path)
@@ -57,12 +60,66 @@ def atomic_write_many(files: Mapping[Path, bytes], *, mode: int = 0o600) -> None
                 raise
             staged.append((temporary, path))
 
+        for _, path in staged:
+            if path.is_symlink():
+                raise OSError(f"refusing to replace symbolic link: {path}")
+            if not path.exists():
+                backups[path] = None
+                continue
+            descriptor, backup_name = tempfile.mkstemp(
+                prefix=f".{path.name}.", suffix=".rollback", dir=path.parent
+            )
+            backup = Path(backup_name)
+            try:
+                os.fchmod(descriptor, path.stat().st_mode & 0o777)
+                with path.open("rb") as source, os.fdopen(descriptor, "wb") as destination:
+                    while chunk := source.read(1024 * 1024):
+                        destination.write(chunk)
+                    destination.flush()
+                    os.fsync(destination.fileno())
+            except BaseException:
+                backup.unlink(missing_ok=True)
+                raise
+            backups[path] = backup
+
         touched_directories: set[Path] = set()
-        for temporary, path in staged:
-            os.replace(temporary, path)
-            touched_directories.add(path.parent)
-        for directory in touched_directories:
-            _fsync_directory(directory)
+        try:
+            for temporary, path in staged:
+                os.replace(temporary, path)
+                replaced.append(path)
+                touched_directories.add(path.parent)
+            for directory in touched_directories:
+                _fsync_directory(directory)
+        except BaseException:
+            rollback_error = None
+            for path in reversed(replaced):
+                backup = backups[path]
+                try:
+                    if backup is None:
+                        path.unlink(missing_ok=True)
+                    else:
+                        os.replace(backup, path)
+                except BaseException as error:
+                    rollback_error = rollback_error or error
+            for directory in touched_directories:
+                try:
+                    _fsync_directory(directory)
+                except BaseException as error:
+                    rollback_error = rollback_error or error
+            if rollback_error is not None:
+                preserve_backups = True
+                recovery = ", ".join(
+                    str(backup)
+                    for backup in backups.values()
+                    if backup is not None and backup.exists()
+                )
+                raise RuntimeError(
+                    f"atomic write failed and rollback was incomplete; recovery backups: {recovery}"
+                ) from rollback_error
+            raise
     finally:
         for temporary, _ in staged:
             temporary.unlink(missing_ok=True)
+        for backup in backups.values():
+            if backup is not None and not preserve_backups:
+                backup.unlink(missing_ok=True)

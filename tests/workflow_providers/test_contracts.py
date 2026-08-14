@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import json
 import subprocess
 
@@ -19,6 +20,7 @@ from workflow_providers.contracts import (  # noqa: E402
     ProviderHealth,
     ReviewRequest,
     ReviewFinding,
+    ReviewOutcomeRequest,
     TaskCreateRequest,
     WorkspaceRequest,
 )
@@ -38,6 +40,45 @@ from workflow_providers.fakes import (  # noqa: E402
 
 
 class ProviderContractTests(unittest.TestCase):
+    def test_review_outcome_batch_failure_is_atomic_and_retryable(self):
+        from review_ledger import cli as ledger_cli
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger_cli.mutate_ledger(
+                "atomic-review", "ledger-created", {"repositories": []},
+                "worker", "worker-1", base_dir=str(root),
+            )
+            ledger_cli.mutate_ledger(
+                "atomic-review", "implementation-complete", {},
+                "worker", "worker-1", base_dir=str(root),
+            )
+            reviews = ReviewLedgerProvider(root)
+            reviews.request(
+                ReviewRequest("atomic-review", "worker-1"),
+                idempotency_key="request",
+            )
+            outcome = ReviewOutcomeRequest(
+                "atomic-review", "reviewer-1", "changes_requested",
+                (ReviewFinding("F-1", "IMPORTANT", "open"),),
+            )
+            real_mutate = ledger_cli.mutate_ledger
+
+            def fail_terminal(bead_id, action, *args, **kwargs):
+                if action == "changes-requested":
+                    raise OSError("terminal write failed")
+                return real_mutate(bead_id, action, *args, **kwargs)
+
+            with mock.patch.object(ledger_cli, "mutate_ledger", side_effect=fail_terminal):
+                failed = reviews.record_outcome(outcome, idempotency_key="outcome")
+
+            unchanged = reviews.status("atomic-review").value
+            retried = reviews.record_outcome(outcome, idempotency_key="outcome")
+            self.assertIs(OperationStatus.INVALID, failed.status)
+            self.assertEqual("review-requested", unchanged.state)
+            self.assertEqual((), unchanged.findings)
+            self.assertEqual("changes-requested", retried.value.state)
+
     def test_task_provider_normalizes_success_invalid_unavailable_and_idempotency(self):
         provider = FakeTaskTrackingProvider()
 
@@ -456,33 +497,89 @@ class ProviderContractTests(unittest.TestCase):
                 "worker-1",
                 base_dir=str(root),
             )
-            reviews = ReviewLedgerProvider(root)
-            self.assertIs(
-                OperationStatus.INVALID,
-                reviews.request(ReviewRequest("", ""), idempotency_key="bad").status,
-            )
-            first = reviews.request(ReviewRequest("task-1", "worker-1"), idempotency_key="request")
-            replayed = reviews.request(ReviewRequest("task-1", "worker-1"), idempotency_key="request")
             mutate_ledger(
                 "task-1",
-                "finding-created",
+                "implementation-complete",
+                {},
+                "worker",
+                "worker-1",
+                base_dir=str(root),
+            )
+            mutate_ledger(
+                "task-1",
+                "lease-acquired",
                 {
-                    "finding_id": "F-001",
-                    "severity": "IMPORTANT",
-                    "location": "src/api.py:12",
-                    "expected_behavior": "validate input",
-                    "evidence": "unit test",
+                    "lease_id": "lease-1",
+                    "actor_role": "reviewer",
+                    "actor_id": "reviewer-1",
+                    "acquired_at": "2026-08-14T00:00:00Z",
+                    "expires_at": "2999-08-14T00:00:00Z",
                 },
                 "reviewer",
                 "reviewer-1",
                 base_dir=str(root),
             )
+            reviews = ReviewLedgerProvider(root)
+            self.assertIs(
+                OperationStatus.INVALID,
+                reviews.request(ReviewRequest("", ""), idempotency_key="bad").status,
+            )
+            first = reviews.request(
+                ReviewRequest("task-1", "worker-1", "lease-1"),
+                idempotency_key="request",
+            )
+            replayed = reviews.request(
+                ReviewRequest("task-1", "worker-1", "lease-1"),
+                idempotency_key="request",
+            )
+            outcome = reviews.record_outcome(
+                ReviewOutcomeRequest(
+                    "task-1",
+                    "reviewer-1",
+                    "changes_requested",
+                    (
+                        ReviewFinding(
+                            "F-001", "IMPORTANT", "open", "src/api.py:12",
+                            "validate input", "unit test",
+                        ),
+                    ),
+                    "lease-1",
+                ),
+                idempotency_key="outcome",
+            )
+            self.assertIs(OperationStatus.SUCCESS, outcome.status, outcome.message)
             finding = reviews.status("task-1").value.findings[0]
             self.assertEqual("review-requested", first.value.state)
             self.assertTrue(replayed.idempotent)
+            self.assertEqual("changes-requested", outcome.value.state)
             self.assertIsInstance(finding, ReviewFinding)
             self.assertEqual("src/api.py:12", finding.location)
             self.assertEqual("validate input", finding.expected_behavior)
+            revision = reviews.begin_revision(
+                "task-1", actor_id="worker-1", lease_id="lease-1",
+                idempotency_key="revision",
+            )
+            second_request = reviews.complete_revision(
+                "task-1", ("F-001",), actor_id="worker-1", lease_id="lease-1",
+                idempotency_key="complete-revision",
+            )
+            approved = reviews.record_outcome(
+                ReviewOutcomeRequest(
+                    "task-1", "reviewer-1", "approved",
+                    (
+                        ReviewFinding(
+                            "F-001", "IMPORTANT", "verified", "src/api.py:12",
+                            "validate input", "unit test passed",
+                        ),
+                    ),
+                    "lease-1",
+                ),
+                idempotency_key="outcome-2",
+            )
+            self.assertEqual("implementation-in-progress", revision.value.state)
+            self.assertEqual("review-requested", second_request.value.state)
+            self.assertIs(OperationStatus.SUCCESS, approved.status, approved.message)
+            self.assertEqual("review-approved", approved.value.state)
             self.assertIs(OperationStatus.UNAVAILABLE, ReviewLedgerProvider(root).status("missing").status)
 
             corrupt = root / ".planning/corrupt/review.json"

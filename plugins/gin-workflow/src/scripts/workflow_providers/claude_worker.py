@@ -64,11 +64,22 @@ class ClaudeWorkerAdapter(SynchronousWorkerAdapter):
         executable: str | None = None,
         model: str | None = None,
         workspace: Path | None = None,
+        timeout_seconds: float = 900,
     ) -> None:
+        cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
-            def native_dispatch(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+            def cancellable_dispatch(payload: Mapping[str, Any], cancel_event) -> Mapping[str, Any]:
                 invocation = build_claude_invocation(
-                    str(executable), str(model), Path(workspace), worker_prompt(payload)
+                    str(executable),
+                    str(model),
+                    Path(workspace),
+                    worker_prompt(payload),
+                    timeout_seconds=timeout_seconds,
                 )
-                return direct_worker_result(native_runner.run(invocation))
-        super().__init__(native_dispatch, available=native_dispatch is not None, payload_factory=_payload)
+                return direct_worker_result(native_runner.run(invocation, cancel_event=cancel_event))
+        super().__init__(
+            native_dispatch,
+            available=native_dispatch is not None or cancellable_dispatch is not None,
+            payload_factory=_payload,
+            cancellable_runner=cancellable_dispatch,
+        )

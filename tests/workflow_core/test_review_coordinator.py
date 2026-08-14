@@ -7,6 +7,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.assignments import RouteCandidate  # noqa: E402
+from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_core.review_coordinator import (  # noqa: E402
     ReviewContext,
     ReviewCoordinationError,
@@ -14,6 +15,8 @@ from workflow_core.review_coordinator import (  # noqa: E402
 )
 from workflow_providers.contracts import ReviewFinding, ReviewStatus  # noqa: E402
 from workflow_providers.fakes import FakeReviewProvider  # noqa: E402
+from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
+from workflow_providers.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerRequest  # noqa: E402
 
 
 class ReviewCoordinatorTests(unittest.TestCase):
@@ -99,7 +102,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
             fallback_candidates=(RouteCandidate("codex", "reasoning", True),),
         )
         fallback = ReviewCoordinator(
-            FakeReviewProvider(),
+            base.review_provider,
             route_available=lambda provider, model: provider != "claude",
         ).route_revision(
             cycle,
@@ -127,6 +130,126 @@ class ReviewCoordinatorTests(unittest.TestCase):
         self.assertEqual("human_decision_required", limited.status)
         self.assertEqual("review_pending", pending.status)
         self.assertEqual("ready_to_close", ready.status)
+
+    def test_review_cycle_dispatches_bounded_worker_and_derives_structured_findings(self):
+        captured = []
+        adapter = SequentialWorkerAdapter(
+            lambda payload: {
+                "status": "completed",
+                "task_id": payload["task_id"],
+                "summary": "reviewed",
+                "changed_files": [],
+                "commits": [],
+                "tests": [],
+                "evidence": [{
+                    "kind": "review_decision",
+                    "decision": "changes_requested",
+                }, {
+                    "kind": "review_finding",
+                    "finding_id": "F-9",
+                    "severity": "IMPORTANT",
+                    "status": "open",
+                    "location": "src/api.py:12",
+                    "expected_behavior": "validate input",
+                    "evidence": "missing regression test",
+                }],
+                "blockers": [],
+            }
+        )
+
+        class Dispatcher:
+            def dispatch(self, request):
+                captured.append(request)
+                return adapter.dispatch(request)
+
+            def collect_result(self, worker_id, timeout=None):
+                return adapter.collect_result(worker_id, timeout)
+
+        coordinator = ReviewCoordinator(
+            FakeReviewProvider(), worker_dispatcher=Dispatcher()
+        )
+        cycle = coordinator.request_review(
+            task_id="api",
+            cycle_number=1,
+            provider_role="review",
+            reasoning="high",
+            implementation_route=("claude", "opus"),
+            reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
+            context=self.context(),
+        )
+        template = WorkerRequest(
+            "placeholder", (), create_context_manifest("review", ContextRequest()),
+            {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+            REQUIRED_RESULT_FIELDS, "api", "wf", "review-1", "review", "high",
+        )
+
+        execution = coordinator.dispatch_review(cycle, template)
+
+        self.assertEqual("changes_requested", execution.status)
+        self.assertEqual(("F-9",), tuple(item.finding_id for item in execution.findings))
+        self.assertEqual(
+            "changes-requested",
+            coordinator.review_provider.status("api").value.state,
+        )
+        self.assertEqual(("codex", "reasoning"), captured[0].route_affinity)
+        bounded = captured[0].generated_manifest.to_dict()["categories"]["required"]
+        self.assertEqual(self.context().to_dict(), bounded[0]["review_context"])
+
+    def test_review_result_rejects_implicit_approval_edits_and_blockers(self):
+        invalid_results = (
+            {
+                "status": "completed", "task_id": "api", "summary": "ambiguous",
+                "changed_files": [], "commits": [], "tests": [], "evidence": [], "blockers": [],
+            },
+            {
+                "status": "completed", "task_id": "api", "summary": "edited",
+                "changed_files": ["src/api.py"], "commits": [], "tests": [],
+                "evidence": [{"kind": "review_decision", "decision": "approved"}], "blockers": [],
+            },
+            {
+                "status": "completed", "task_id": "api", "summary": "blocked",
+                "changed_files": [], "commits": [], "tests": [],
+                "evidence": [{"kind": "review_decision", "decision": "approved"}],
+                "blockers": ["uncertain"],
+            },
+            {
+                "status": "completed", "task_id": "api", "summary": "malformed",
+                "changed_files": [], "commits": [], "tests": [],
+                "evidence": [
+                    {"kind": "review_decision", "decision": "changes_requested"},
+                    {"kind": "review_finding", "finding_id": "F-bad", "status": "open"},
+                ],
+                "blockers": [],
+            },
+        )
+        for index, raw in enumerate(invalid_results):
+            with self.subTest(index=index):
+                adapter = SequentialWorkerAdapter(lambda payload, raw=raw: raw)
+
+                class Dispatcher:
+                    def dispatch(self, request):
+                        return adapter.dispatch(request)
+
+                    def collect_result(self, worker_id, timeout=None):
+                        return adapter.collect_result(worker_id, timeout)
+
+                provider = FakeReviewProvider()
+                coordinator = ReviewCoordinator(provider, worker_dispatcher=Dispatcher())
+                cycle = coordinator.request_review(
+                    task_id="api", cycle_number=1, provider_role="review", reasoning="high",
+                    implementation_route=("claude", "opus"),
+                    reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
+                    context=self.context(),
+                )
+                template = WorkerRequest(
+                    "placeholder", (), create_context_manifest("review", ContextRequest()),
+                    {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+                    REQUIRED_RESULT_FIELDS, "api", "wf", f"invalid-{index}", "review", "high",
+                )
+
+                with self.assertRaises(ReviewCoordinationError):
+                    coordinator.dispatch_review(cycle, template)
+                self.assertEqual("review-requested", provider.status("api").value.state)
 
 
 if __name__ == "__main__":

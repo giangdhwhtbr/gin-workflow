@@ -211,6 +211,17 @@ class CircuitBreakerStore:
             self._save()
             return CircuitDecision(True, CircuitState.HALF_OPEN, "half_open_probe")
 
+    def release_probe(self, provider: str, model: str) -> CircuitRecord:
+        """Release a neutral/cancelled half-open attempt without changing health."""
+        with self._lock:
+            key = (provider, model)
+            record = self._record(provider, model)
+            if record.state is CircuitState.HALF_OPEN and record.probes:
+                record = replace(record, probes=record.probes - 1)
+                self._records[key] = record
+                self._save()
+            return record
+
     def record_failure(
         self,
         provider: str,
