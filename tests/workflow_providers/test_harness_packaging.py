@@ -8,7 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 
-REQUIRED_V21_ARTIFACTS = (
+REQUIRED_V22_ARTIFACTS = (
     "commands/setup.md",
     "commands/workflow.md",
     "skills/setup/SKILL.md",
@@ -32,6 +32,9 @@ REQUIRED_V21_ARTIFACTS = (
     "scripts/workflow_core/setup_service.py",
     "scripts/workflow_core/router.py",
     "scripts/workflow_core/worker_scheduler.py",
+    "scripts/workflow_core/provider_config.py",
+    "scripts/workflow_core/assignments.py",
+    "scripts/workflow_core/review_coordinator.py",
     "scripts/workflow_providers/__init__.py",
     "scripts/workflow_providers/contracts.py",
     "scripts/workflow_providers/registry.py",
@@ -47,6 +50,11 @@ REQUIRED_V21_ARTIFACTS = (
     "scripts/workflow_providers/codex_worker.py",
     "scripts/workflow_providers/antigravity_worker.py",
     "scripts/workflow_providers/sequential_worker.py",
+    "scripts/workflow_providers/circuit_breaker.py",
+    "scripts/workflow_providers/native_cli.py",
+    "scripts/workflow_providers/routed_worker.py",
+    "examples/config.full.yaml",
+    "examples/providers.local.example.yaml",
 )
 
 
@@ -77,7 +85,7 @@ class HarnessPackagingTests(unittest.TestCase):
         for harness in ("claude-code", "codex", "antigravity"):
             with self.subTest(harness=harness):
                 root = self.dist / harness
-                missing = [relative for relative in REQUIRED_V21_ARTIFACTS if not (root / relative).is_file()]
+                missing = [relative for relative in REQUIRED_V22_ARTIFACTS if not (root / relative).is_file()]
                 self.assertEqual([], missing)
 
     def test_each_harness_has_its_manifest_and_hooks_in_the_expected_location(self):

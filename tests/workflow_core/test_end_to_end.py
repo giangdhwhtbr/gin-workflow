@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -13,9 +14,12 @@ LAUNCHER = SCRIPTS / "gin-workflow"
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.events import WorkflowEventStore  # noqa: E402
+from workflow_core.assignments import RouteCandidate  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_core.configuration import load_effective_config  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
+from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
+from workflow_core.review_coordinator import ReviewContext, ReviewCoordinator  # noqa: E402
 from workflow_core.router import route_next_stage  # noqa: E402
 from workflow_core.worker_scheduler import WorkerScheduler, select_execution_strategy  # noqa: E402
 from workflow_providers.claude_worker import ClaudeWorkerAdapter  # noqa: E402
@@ -23,6 +27,8 @@ from workflow_providers.contracts import (  # noqa: E402
     EvidenceCategory,
     EvidenceRecord,
     OperationStatus,
+    ReviewFinding,
+    ReviewStatus,
     TaskCreateRequest,
 )
 from workflow_providers.fakes import (  # noqa: E402
@@ -31,6 +37,8 @@ from workflow_providers.fakes import (  # noqa: E402
     FakeWorkspaceProvider,
 )
 from workflow_providers.registry import ProviderRegistry  # noqa: E402
+from workflow_providers.circuit_breaker import CircuitState, FailureKind  # noqa: E402
+from workflow_providers.native_cli import NativeCliError, NativeCliOutput  # noqa: E402
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
@@ -88,6 +96,140 @@ def worker_request(task_id):
 
 
 class WorkflowEndToEndTests(unittest.TestCase):
+    def test_cross_harness_quota_fallback_review_revision_and_closure_gate(self):
+        class FakeNativeRunner:
+            def __init__(self):
+                self.routes = []
+
+            def run(self, invocation):
+                model = invocation.argv[invocation.argv.index("--model") + 1]
+                provider = {"claude": "claude", "codex": "codex", "agy": "antigravity"}[invocation.argv[0]]
+                self.routes.append((provider, model))
+                if provider == "claude" and model == "opus":
+                    raise NativeCliError(FailureKind.QUOTA, "classified quota")
+                payload = json.loads(invocation.stdin.decode("utf-8").splitlines()[-1])
+                return NativeCliOutput((completed_result(payload),))
+
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workspace = repository / "workspace"
+            workspace.mkdir()
+            yaml = __import__("yaml")
+            portable = yaml.safe_load(
+                (ROOT / "plugins/gin-workflow/src/examples/config.full.yaml").read_text(encoding="utf-8")
+            )
+            portable["providers"] = {
+                "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                "review": "fake", "evidence": "fake", "notifications": "fake",
+            }
+            effective = EffectiveConfig(portable, repository)
+            local_raw = yaml.safe_load(
+                (ROOT / "plugins/gin-workflow/src/examples/providers.local.example.yaml").read_text(encoding="utf-8")
+            )["providers"]
+            local = {
+                name: ProviderModelConfig(name, entry["executable"], entry["models"])
+                for name, entry in local_raw.items()
+            }
+            runner = FakeNativeRunner()
+            events = WorkflowEventStore(repository / ".agent-workflow/runtime/events.jsonl")
+            registry = ProviderRegistry.from_effective_config(
+                effective,
+                provider_local=local,
+                native_runner=runner,
+                worker_health={name: (lambda _candidate: True) for name in local},
+                event_store=events,
+            )
+            router = registry.worker
+            self.assertIsNotNone(router)
+
+            def routed(task_id, role, reasoning, retry):
+                item = worker_request(task_id)
+                return replace(
+                    item,
+                    provider_role=role,
+                    reasoning=reasoning,
+                    retry_identity=retry,
+                    isolation_policy={
+                        **item.isolation_policy,
+                        "workspace_path": str(workspace),
+                    },
+                )
+
+            backend = routed("backend", "backend", "high", "backend:first")
+            first = router.dispatch(backend)
+            self.assertEqual("failed", router.collect_result(first.worker_id).status)
+            retry = router.dispatch(replace(backend, retry_identity="backend:quota-fallback"))
+            self.assertEqual("completed", router.collect_result(retry.worker_id).status)
+
+            frontend = routed("frontend", "frontend", "medium", "frontend:first")
+            frontend_receipt = router.dispatch(frontend)
+            self.assertEqual("completed", router.collect_result(frontend_receipt.worker_id).status)
+
+            coordinator = ReviewCoordinator(registry.review, require_independent=True, max_cycles=3)
+            cycle = coordinator.request_review(
+                task_id="frontend",
+                cycle_number=1,
+                provider_role="frontend",
+                reasoning="medium",
+                implementation_route=(frontend_receipt.provider_name, frontend_receipt.model_alias),
+                reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
+                context=ReviewContext(
+                    approved_scope=("src/frontend.py",),
+                    diff="bounded diff",
+                    acceptance_criteria=("renders",),
+                    tests=({"command": "ui-test", "outcome": "passed"},),
+                    evidence=({"kind": "test", "reference": "ui-test"},),
+                ),
+            )
+            finding = ReviewFinding(
+                "F-001", "IMPORTANT", "open", "src/frontend.py:1", "handle empty state", "review"
+            )
+            revision = coordinator.route_revision(cycle, (finding,))
+            revision_receipt = router.dispatch(
+                replace(frontend, retry_identity=revision.revision_identity)
+            )
+            self.assertEqual("completed", router.collect_result(revision_receipt.worker_id).status)
+
+            created = registry.task_tracking.create_task(
+                TaskCreateRequest("frontend", status="in_progress"),
+                idempotency_key="frontend:create",
+            )
+            task_id = created.value.task_id
+            pending = coordinator.completion_decision(
+                ReviewStatus("frontend", "changes-requested", 1, ("F-001",), (finding,)),
+                acceptance_evidence_complete=False,
+            )
+            self.assertEqual("review_pending", pending.status)
+            self.assertNotEqual("closed", registry.task_tracking.read_task(task_id).value.status)
+
+            for evidence_id, category, outcome in (
+                ("tests", EvidenceCategory.TESTS, "passed"),
+                ("review", EvidenceCategory.REVIEWS, "approved"),
+                ("repo", EvidenceCategory.REPOSITORY, "recorded"),
+            ):
+                registry.evidence.record(
+                    EvidenceRecord(evidence_id, "frontend", category, outcome, evidence_id),
+                    idempotency_key=evidence_id,
+                )
+            complete = registry.evidence.completeness("frontend").value
+            approved = coordinator.completion_decision(
+                ReviewStatus("frontend", "review-approved", 1, (), (replace(finding, status="verified"),)),
+                acceptance_evidence_complete=complete.complete,
+            )
+            if approved.status == "ready_to_close":
+                registry.task_tracking.update_task(
+                    task_id, {"status": "closed"}, idempotency_key="frontend:close"
+                )
+
+            self.assertEqual(("codex", "reasoning", True), (retry.provider_name, retry.model_alias, retry.fallback_used))
+            self.assertEqual(("antigravity", "gemini-flash"), (frontend_receipt.provider_name, frontend_receipt.model_alias))
+            self.assertEqual(CircuitState.OPEN, router.breakers.state("claude", "opus").state)
+            self.assertEqual(("codex", "reasoning"), cycle.reviewer_route)
+            self.assertEqual(("antigravity", "gemini-flash"), (revision.provider, revision.model))
+            self.assertTrue(complete.complete)
+            self.assertEqual("closed", registry.task_tracking.read_task(task_id).value.status)
+            self.assertNotIn(SECRET_VALUE, events.path.read_text(encoding="utf-8"))
+
     def run_setup(self, repository, *arguments):
         environment = os.environ.copy()
         environment["FAKE_PROVIDER_TOKEN"] = SECRET_VALUE

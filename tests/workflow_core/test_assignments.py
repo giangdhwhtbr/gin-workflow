@@ -111,6 +111,19 @@ class AssignmentTests(unittest.TestCase):
             with self.assertRaises((AttributeError, TypeError)):
                 manifest.candidates[0].provider = "changed"
 
+            other_request = AssignmentRequest("ui", "backend", "medium", "codex")
+            other = AssignmentManifest(
+                "wf-1",
+                other_request,
+                resolve_assignment(other_request, effective(repository), local()),
+            )
+            write_assignment_manifest(repository, other)
+            loaded = __import__("yaml").safe_load(first.read_text(encoding="utf-8"))
+            self.assertEqual(
+                ["api-auth", "ui"],
+                [assignment["task_id"] for assignment in loaded["assignments"]],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
