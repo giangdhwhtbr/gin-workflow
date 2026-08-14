@@ -167,6 +167,24 @@ class CircuitBreakerStore:
         with self._lock:
             return self._record(provider, model)
 
+    def can_attempt(self, provider: str, model: str) -> CircuitDecision:
+        """Preview availability without claiming a half-open probe."""
+        with self._lock:
+            record = self._record(provider, model)
+            if record.state is CircuitState.CLOSED:
+                return CircuitDecision(True, record.state, "closed")
+            if record.state is CircuitState.HALF_OPEN:
+                allowed = record.probes < self.half_open_max_probes
+                return CircuitDecision(
+                    allowed,
+                    record.state,
+                    "half_open_ready" if allowed else "half_open_probe_limit",
+                )
+            opened_at = self._clock() if record.opened_at is None else record.opened_at
+            if self._clock() - float(opened_at) >= self.cooldown_seconds:
+                return CircuitDecision(True, CircuitState.HALF_OPEN, "cooldown_elapsed")
+            return CircuitDecision(False, CircuitState.OPEN, record.reason or "cooldown")
+
     def acquire(self, provider: str, model: str) -> CircuitDecision:
         with self._lock:
             key = (provider, model)

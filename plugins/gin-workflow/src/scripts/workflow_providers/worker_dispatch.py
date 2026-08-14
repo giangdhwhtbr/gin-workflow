@@ -305,7 +305,10 @@ class SynchronousWorkerAdapter:
         except WorkerResultContractError as error:
             result = failed_worker_result(request, "invalid_result_contract", str(error))
         except Exception as error:  # Native boundaries return normalized failures.
-            result = failed_worker_result(request, "worker_exception", str(error))
+            kind = getattr(error, "kind", None)
+            kind_value = getattr(kind, "value", None)
+            blocker = f"provider_failure:{kind_value}" if kind_value else "worker_exception"
+            result = failed_worker_result(request, blocker, str(error))
         state = {
             "completed": WorkerState.COMPLETED,
             "failed": WorkerState.FAILED,

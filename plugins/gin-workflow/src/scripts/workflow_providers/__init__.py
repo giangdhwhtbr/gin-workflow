@@ -40,6 +40,7 @@ from .knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider
 from .notifications import TelegramNotificationProvider
 from .registry import ProviderRegistry, RegistryError
 from .review import ReviewLedgerProvider
+from .routed_worker import RoutedWorkerDispatcher, RoutedWorkerReceipt
 from .task_tracking import BeadsTaskTrackingProvider
 from .workspace import WorktreeWorkspaceProvider
 
@@ -76,6 +77,8 @@ __all__ = [
     "ReviewProvider",
     "ReviewRequest",
     "ReviewStatus",
+    "RoutedWorkerDispatcher",
+    "RoutedWorkerReceipt",
     "TaskCreateRequest",
     "TaskRecord",
     "TaskTrackingProvider",

@@ -8,6 +8,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.models import EffectiveConfig  # noqa: E402
+from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
 from workflow_providers.evidence import FileEvidenceProvider  # noqa: E402
 from workflow_providers.fakes import (  # noqa: E402
     FakeEvidenceProvider,
@@ -20,12 +21,43 @@ from workflow_providers.fakes import (  # noqa: E402
 from workflow_providers.knowledge import RepositoryKnowledgeProvider  # noqa: E402
 from workflow_providers.notifications import TelegramNotificationProvider  # noqa: E402
 from workflow_providers.registry import ProviderRegistry, RegistryError  # noqa: E402
+from workflow_providers.routed_worker import RoutedWorkerDispatcher  # noqa: E402
 from workflow_providers.review import ReviewLedgerProvider  # noqa: E402
 from workflow_providers.task_tracking import BeadsTaskTrackingProvider  # noqa: E402
 from workflow_providers.workspace import WorktreeWorkspaceProvider  # noqa: E402
 
 
 class ProviderRegistryTests(unittest.TestCase):
+    def test_routed_worker_requires_explicit_machine_local_provider_injection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = EffectiveConfig(
+                {
+                    "schema_version": "2.2",
+                    "harness": "codex",
+                    "providers": {
+                        "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                    },
+                    "routing": {
+                        "roles": {"backend": {"preferred": ["claude"], "fallback": ["main_harness"]}},
+                        "concurrency": {"claude": 1, "codex": 1},
+                        "queue": {"max_wait_seconds": 0},
+                        "circuit_breaker": {"failure_threshold": 1, "cooldown_seconds": 10, "half_open_max_probes": 1},
+                    },
+                },
+                Path(directory),
+            )
+            local = {
+                "claude": ProviderModelConfig("claude", "claude", {"low": "haiku", "medium": "sonnet", "high": "opus"}),
+                "codex": ProviderModelConfig("codex", "codex", {"low": "mini", "medium": "coding", "high": "reasoning"}),
+            }
+
+            without_local = ProviderRegistry.from_effective_config(config)
+            with_local = ProviderRegistry.from_effective_config(config, provider_local=local)
+
+            self.assertIsNone(without_local.worker)
+            self.assertIsInstance(with_local.worker, RoutedWorkerDispatcher)
+
     def test_builds_every_selected_fake_from_effective_config(self):
         with tempfile.TemporaryDirectory() as directory:
             config = EffectiveConfig(
