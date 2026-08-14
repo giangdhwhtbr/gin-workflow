@@ -17,6 +17,47 @@ from workflow_core import configuration  # noqa: E402
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_v2_2_accepts_provider_neutral_routing_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                result = resolve_effective_config(
+                    Path(directory),
+                    repository_config={
+                    "schema_version": "2.2",
+                    "workflow_version": "2.2",
+                    "setup_cli_version": "2.2",
+                    "harness": "codex",
+                    "routing": {
+                        "roles": {
+                            "backend": {
+                                "preferred": ["claude"],
+                                "fallback": ["main_harness"],
+                            }
+                        },
+                        "concurrency": {"claude": 2, "codex": 1},
+                        "queue": {"max_wait_seconds": 120},
+                        "worker": {"timeout_seconds": 900, "max_retries": 1},
+                        "circuit_breaker": {
+                            "failure_threshold": 1,
+                            "cooldown_seconds": 900,
+                            "half_open_max_probes": 1,
+                        },
+                        "review": {
+                            "role": "backend",
+                            "require_independent": True,
+                            "allow_self_review_fallback": False,
+                            "max_cycles": 3,
+                        },
+                    },
+                    },
+                    write=False,
+                )
+            except ConfigValidationError as error:
+                self.fail(f"v2.2 routing policy should validate: {error}")
+
+        self.assertEqual("2.2", result.config["schema_version"])
+        self.assertEqual(("claude",), result.config["routing"]["roles"]["backend"]["preferred"])
+
     def test_lifecycle_loader_requires_one_time_setup_and_reads_generated_config(self):
         loader = getattr(configuration, "load_effective_config", None)
         self.assertIsNotNone(loader, "lifecycle generated-config loader is missing")
@@ -32,7 +73,7 @@ class ConfigurationTests(unittest.TestCase):
             resolve_effective_config(
                 repository,
                 repository_config={
-                    "schema_version": "2.1",
+                    "schema_version": "2.2",
                     "policy": {"mode": "configured-once"},
                 },
             )
@@ -47,7 +88,7 @@ class ConfigurationTests(unittest.TestCase):
             repository = Path(directory)
             resolve_effective_config(
                 repository,
-                built_in_defaults={"schema_version": "2.1"},
+                built_in_defaults={"schema_version": "2.2"},
             )
 
             with self.assertRaisesRegex(
@@ -60,7 +101,7 @@ class ConfigurationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             result = resolve_effective_config(
                 Path(directory),
-                built_in_defaults={"schema_version": "2.1"},
+                built_in_defaults={"schema_version": "2.2"},
                 repository_config={
                     "a.b": "top-level",
                     "a": {"b": "nested"},
@@ -80,7 +121,7 @@ class ConfigurationTests(unittest.TestCase):
             result = resolve_effective_config(
                 repository,
                 built_in_defaults={
-                    "schema_version": "2.1",
+                    "schema_version": "2.2",
                     "policy": {"mode": "builtin", "keep": True},
                 },
                 user_profile={"policy": {"mode": "user", "user": True}},
@@ -112,7 +153,7 @@ class ConfigurationTests(unittest.TestCase):
             result = resolve_effective_config(
                 repository,
                 repository_config={
-                    "schema_version": "2.1",
+                    "schema_version": "2.2",
                     "notifications": {
                         "credential": {"secret_ref": "env:WORKFLOW_TEST_TOKEN"}
                     },
@@ -134,7 +175,7 @@ class ConfigurationTests(unittest.TestCase):
             repository = Path(directory)
             first = resolve_effective_config(
                 repository,
-                repository_config={"schema_version": "2.1", "policy": {"mode": "safe"}},
+                repository_config={"schema_version": "2.2", "policy": {"mode": "safe"}},
             )
             effective_before = first.effective_config_path.read_bytes()
             provenance_before = first.provenance_path.read_bytes()
@@ -143,7 +184,7 @@ class ConfigurationTests(unittest.TestCase):
                 resolve_effective_config(
                     repository,
                     repository_config={
-                        "schema_version": "2.1",
+                        "schema_version": "2.2",
                         "policy": {"mode": "unsafe"},
                         "provider_command": "curl https://example.invalid",
                     },
@@ -155,12 +196,19 @@ class ConfigurationTests(unittest.TestCase):
     def test_rejects_nonportable_values_and_unknown_schema_versions(self):
         invalid_configs = (
             {"schema_version": "99"},
-            {"schema_version": "2.1", "workflow_version": "9.9"},
-            {"schema_version": "2.1", "setup_cli_version": "9.9"},
-            {"schema_version": "2.1", "worker": {"model": "gpt-5.6"}},
-            {"schema_version": "2.1", "notifications": {"api_key": "sk-literal"}},
-            {"schema_version": "2.1", "provider": {"command": ["bd", "ready"]}},
-            {"schema_version": "2.1", "secret_ref": "not a valid reference"},
+            {"schema_version": "2.2", "workflow_version": "9.9"},
+            {"schema_version": "2.2", "setup_cli_version": "9.9"},
+            {"schema_version": "2.2", "worker": {"model": "gpt-5.6"}},
+            {"schema_version": "2.2", "notifications": {"api_key": "sk-literal"}},
+            {"schema_version": "2.2", "provider": {"command": ["bd", "ready"]}},
+            {"schema_version": "2.2", "secret_ref": "not a valid reference"},
+            {
+                "schema_version": "2.2",
+                "routing": {
+                    "roles": {"backend": {"preferred": ["unknown-provider"]}},
+                    "concurrency": {"claude": 1},
+                },
+            },
         )
 
         for config in invalid_configs:

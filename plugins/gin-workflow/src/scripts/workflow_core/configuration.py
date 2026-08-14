@@ -23,8 +23,8 @@ class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.1"
-SUPPORTED_SETUP_CLI_VERSION = "2.1"
+SUPPORTED_WORKFLOW_VERSION = "2.2"
+SUPPORTED_SETUP_CLI_VERSION = "2.2"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {
@@ -180,6 +180,27 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
             raise ConfigValidationError(
                 f"unsupported {field} {config[field]!r}; expected {supported!r}"
             )
+    routing = config.get("routing", {})
+    if isinstance(routing, Mapping):
+        concurrency = routing.get("concurrency", {})
+        known_providers = set(concurrency) if isinstance(concurrency, Mapping) else set()
+        harness = config.get("harness")
+        if isinstance(harness, str) and harness:
+            known_providers.add(harness)
+        roles = routing.get("roles", {})
+        if isinstance(roles, Mapping):
+            for role_name, role in roles.items():
+                if not isinstance(role, Mapping):
+                    continue
+                for provider in (*role.get("preferred", ()), *role.get("fallback", ())):
+                    if provider != "main_harness" and provider not in known_providers:
+                        raise ConfigValidationError(
+                            f"unknown routing provider {provider!r} in role {role_name!r}"
+                        )
+        review = routing.get("review", {})
+        if isinstance(review, Mapping) and review.get("role") not in (None, ""):
+            if not isinstance(roles, Mapping) or review["role"] not in roles:
+                raise ConfigValidationError(f"unknown review role: {review['role']!r}")
     _validate_portable(config)
 
 

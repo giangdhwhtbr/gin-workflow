@@ -12,7 +12,7 @@ from .atomic import atomic_write_many, atomic_write_bytes
 from .configuration import require_yaml, validate_portable_config
 
 
-CURRENT_VERSION = "2.1"
+CURRENT_VERSION = "2.2"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -42,7 +42,34 @@ def _migrate_2_0_to_2_1(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
-_MIGRATIONS = {("2.0", "2.1"): _migrate_2_0_to_2_1}
+def _migrate_2_1_to_2_2(config: dict[str, Any]) -> dict[str, Any]:
+    migrated = dict(config)
+    migrated["schema_version"] = "2.2"
+    migrated["workflow_version"] = "2.2"
+    migrated["setup_cli_version"] = "2.2"
+    return migrated
+
+
+_MIGRATIONS = {
+    ("2.0", "2.1"): _migrate_2_0_to_2_1,
+    ("2.1", "2.2"): _migrate_2_1_to_2_2,
+}
+
+
+def migrate_config(config: Mapping[str, Any], target_version: str) -> dict[str, Any]:
+    source_version = str(config.get("schema_version", ""))
+    if source_version == target_version:
+        migrated = dict(config)
+    else:
+        try:
+            migration = _MIGRATIONS[(source_version, target_version)]
+        except KeyError as error:
+            raise MigrationError(
+                f"no migration is registered from {source_version!r} to {target_version!r}"
+            ) from error
+        migrated = migration(dict(config))
+    validate_portable_config(migrated)
+    return migrated
 
 
 def propose_migration(repository: Path, *, target_version: str = CURRENT_VERSION) -> dict[str, Any]:
@@ -73,6 +100,8 @@ def apply_migration(
     *,
     target_version: str = CURRENT_VERSION,
     dry_run: bool = False,
+    prepared_config: Mapping[str, Any] | None = None,
+    additional_writes: Mapping[Path, bytes] | None = None,
 ) -> dict[str, Any]:
     root = Path(repository).resolve()
     workflow = root / ".agent-workflow"
@@ -83,8 +112,11 @@ def apply_migration(
     if proposal["status"] == "up_to_date" or dry_run:
         return proposal
 
-    migrated = _MIGRATIONS[(source_version, target_version)](config)
-    validate_portable_config(migrated)
+    migrated = (
+        migrate_config(prepared_config, target_version)
+        if prepared_config is not None
+        else migrate_config(config, target_version)
+    )
     yaml = require_yaml()
     migrated_bytes = yaml.safe_dump(
         migrated,
@@ -109,7 +141,7 @@ def apply_migration(
             ).encode("utf-8"),
         }
     )
-    atomic_write_bytes(config_path, migrated_bytes)
+    atomic_write_many({config_path: migrated_bytes, **dict(additional_writes or {})})
     return {**proposal, "status": "migrated", "backup": str(backup)}
 
 

@@ -53,6 +53,30 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
             self.assertEqual(generated_before, (workflow / "generated/effective-config.yaml").read_bytes())
 
+    def test_init_dry_run_previews_machine_local_provider_assignments_without_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+
+            result = self.run_cli(
+                repository,
+                "init",
+                "--dry-run",
+                "--provider-set",
+                "providers.claude.executable=claude",
+                "--provider-set",
+                "providers.claude.models.low=haiku",
+                "--provider-set",
+                "providers.claude.models.medium=sonnet",
+                "--provider-set",
+                "providers.claude.models.high=opus",
+                "--non-interactive",
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
+            self.assertFalse((repository / ".agent-workflow").exists())
+
     def test_init_applies_approved_configuration_atomically_in_one_call(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
@@ -98,9 +122,9 @@ class SetupCliTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             (workflow / "config.yaml").write_text(
-                "schema_version: '2.1'\n"
-                "workflow_version: '2.1'\n"
-                "setup_cli_version: '2.1'\n",
+                "schema_version: '2.2'\n"
+                "workflow_version: '2.2'\n"
+                "setup_cli_version: '2.2'\n",
                 encoding="utf-8",
             )
 
@@ -205,9 +229,9 @@ class SetupCliTests(unittest.TestCase):
                 {
                     "harness": "codex",
                     "policy": {"mode": "guarded"},
-                    "schema_version": "2.1",
-                    "setup_cli_version": "2.1",
-                    "workflow_version": "2.1",
+                    "schema_version": "2.2",
+                    "setup_cli_version": "2.2",
+                    "workflow_version": "2.2",
                 },
                 payload["configuration"],
             )
@@ -247,6 +271,69 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("configured", json.loads(approved.stdout)["status"])
             self.assertIn("mode: guarded", config.read_text(encoding="utf-8"))
 
+    def test_configure_previews_then_writes_machine_local_provider_config(self):
+        assignments = (
+            "--provider-set", "providers.claude.executable=claude",
+            "--provider-set", "providers.claude.models.low=haiku",
+            "--provider-set", "providers.claude.models.medium=sonnet",
+            "--provider-set", "providers.claude.models.high=opus",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+
+            preview = self.run_cli(repository, "configure", "--dry-run", *assignments)
+
+            self.assertEqual(0, preview.returncode, preview.stderr)
+            payload = json.loads(preview.stdout)
+            self.assertEqual("would_configure", payload["status"])
+            self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
+            self.assertFalse((repository / ".agent-workflow/providers.local.yaml").exists())
+
+            applied = self.run_cli(repository, "configure", "--approve", *assignments)
+
+            self.assertEqual(0, applied.returncode, applied.stderr)
+            local = (repository / ".agent-workflow/providers.local.yaml").read_text(encoding="utf-8")
+            self.assertIn("high: opus", local)
+            self.assertEqual("providers.local.yaml\n", (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
+
+    def test_update_previews_then_applies_v2_2_routing_and_local_provider_config(self):
+        arguments = (
+            "--set", "routing.concurrency.claude=1",
+            "--set", "routing.roles.backend.preferred=[claude]",
+            "--provider-set", "providers.claude.executable=claude",
+            "--provider-set", "providers.claude.models.low=haiku",
+            "--provider-set", "providers.claude.models.medium=sonnet",
+            "--provider-set", "providers.claude.models.high=opus",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            (workflow / "config.yaml").write_text(
+                "schema_version: '2.1'\nworkflow_version: '2.1'\nsetup_cli_version: '2.1'\nharness: codex\n",
+                encoding="utf-8",
+            )
+
+            preview = self.run_cli(repository, "update", "--dry-run", *arguments)
+
+            self.assertEqual(0, preview.returncode, preview.stderr)
+            payload = json.loads(preview.stdout)
+            self.assertEqual("migration_available", payload["status"])
+            self.assertIn("configuration", payload)
+            self.assertIn("provider_configuration", payload)
+            self.assertEqual("2.2", payload["configuration"]["schema_version"])
+            self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
+            self.assertFalse((workflow / "providers.local.yaml").exists())
+
+            applied = self.run_cli(repository, "update", "--approve", *arguments)
+
+            self.assertEqual(0, applied.returncode, applied.stderr)
+            self.assertEqual("migrated", json.loads(applied.stdout)["status"])
+            self.assertIn("routing:", (workflow / "config.yaml").read_text(encoding="utf-8"))
+            self.assertIn("high: opus", (workflow / "providers.local.yaml").read_text(encoding="utf-8"))
+
     def test_read_only_commands_do_not_change_repository(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
@@ -279,7 +366,7 @@ class SetupCliTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             config = workflow / "config.yaml"
-            malformed = b"schema_version: '2.1'\npolicy: [\n"
+            malformed = b"schema_version: '2.2'\npolicy: [\n"
             config.write_bytes(malformed)
 
             result = self.run_cli(

@@ -6,10 +6,17 @@ import difflib
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .atomic import atomic_write_many, atomic_write_text
+from .atomic import atomic_write_many
 from .bundles import export_bundle, verify_bundle
 from .configuration import require_yaml, resolve_effective_config, validate_portable_config
-from .migrations import CURRENT_VERSION, apply_migration, propose_migration, rollback_migration
+from .migrations import (
+    CURRENT_VERSION,
+    apply_migration,
+    migrate_config,
+    propose_migration,
+    rollback_migration,
+)
+from .provider_config import validate_provider_local_config
 from .schemas import require_jsonschema
 
 
@@ -77,6 +84,7 @@ def initialize(
     dry_run: bool = False,
     harness: str | None = None,
     assignments: Iterable[str] = (),
+    provider_assignments: Iterable[str] = (),
     approve: bool = False,
     **_: Any,
 ) -> dict[str, Any]:
@@ -116,6 +124,7 @@ def initialize(
         return {"status": "already_initialized", "repository": str(root), "actions": []}
 
     changes = list(assignments)
+    provider_changes = list(provider_assignments)
     if not dry_run and not approve:
         raise SetupError(
             "initial setup requires explicit --approve before writing repository configuration",
@@ -129,30 +138,52 @@ def initialize(
         path, value = _parse_assignment(assignment)
         _set_nested(config, path, value)
     validate_portable_config(config)
+    provider_config: dict[str, Any] | None = None
+    if provider_changes:
+        provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
+        for assignment in provider_changes:
+            path, value = _parse_assignment(assignment)
+            _set_nested(provider_config, path, value)
+        validate_provider_local_config(provider_config)
     resolved = resolve_effective_config(root, repository_config=config, write=False)
     config_text = _yaml_text(config)
     if dry_run:
-        return {
+        payload = {
             "status": "would_initialize",
             "repository": str(root),
             "actions": list(INIT_ACTIONS),
             "configuration": config,
         }
+        if provider_config is not None:
+            payload["provider_configuration"] = provider_config
+            payload["actions"].extend(
+                [
+                    "create .agent-workflow/providers.local.yaml",
+                    "create .agent-workflow/.gitignore",
+                ]
+            )
+        return payload
 
-    atomic_write_many(
-        {
-            config_path: config_text.encode("utf-8"),
-            resolved.effective_config_path: _yaml_text(
-                resolved.config.to_dict()
-            ).encode("utf-8"),
-            resolved.provenance_path: _yaml_text(
-                resolved.provenance.to_dict()
-            ).encode("utf-8"),
-        }
-    )
+    writes = {
+        config_path: config_text.encode("utf-8"),
+        resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
+        resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
+    }
+    if provider_config is not None:
+        writes[workflow / "providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
+        writes[workflow / ".gitignore"] = b"providers.local.yaml\n"
+    atomic_write_many(writes)
     for relative in ("backups", "references", "runtime/evidence"):
         (workflow / relative).mkdir(parents=True, exist_ok=True)
-    return {"status": "initialized", "repository": str(root), "actions": list(INIT_ACTIONS)}
+    actions = list(INIT_ACTIONS)
+    if provider_config is not None:
+        actions.extend(
+            [
+                "create .agent-workflow/providers.local.yaml",
+                "create .agent-workflow/.gitignore",
+            ]
+        )
+    return {"status": "initialized", "repository": str(root), "actions": actions}
 
 
 def _parse_assignment(assignment: str) -> tuple[list[str], Any]:
@@ -187,6 +218,7 @@ def configure(
     repository: Path,
     *,
     assignments: Iterable[str] = (),
+    provider_assignments: Iterable[str] = (),
     approve: bool = False,
     dry_run: bool = False,
     harness: str | None = None,
@@ -206,26 +238,61 @@ def configure(
         raise SetupError("repository configuration must contain a YAML mapping")
     config = {str(key): value for key, value in loaded.items()}
     changes = list(assignments)
+    provider_changes = list(provider_assignments)
     for assignment in changes:
         path, value = _parse_assignment(assignment)
         _set_nested(config, path, value)
     if harness:
         config["harness"] = harness
         changes.append(f"harness={harness}")
-    if not changes:
+    if not changes and not provider_changes:
         return {"status": "no_changes", "repository": str(root), "actions": []}
     validate_portable_config(config)
-    resolve_effective_config(root, repository_config=config, write=False)
+    resolved = resolve_effective_config(root, repository_config=config, write=False)
+    provider_config: dict[str, Any] | None = None
+    if provider_changes:
+        provider_path = root / ".agent-workflow/providers.local.yaml"
+        if provider_path.is_file():
+            try:
+                current_provider = yaml.safe_load(provider_path.read_text(encoding="utf-8"))
+            except (UnicodeDecodeError, yaml.YAMLError) as error:
+                raise SetupError(f"invalid provider local configuration: {error}") from error
+            if not isinstance(current_provider, Mapping):
+                raise SetupError("provider local configuration must contain a YAML mapping")
+            provider_config = {str(key): value for key, value in current_provider.items()}
+        else:
+            provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
+        for assignment in provider_changes:
+            path, value = _parse_assignment(assignment)
+            _set_nested(provider_config, path, value)
+        validate_provider_local_config(provider_config)
     actions = ["update .agent-workflow/config.yaml", "refresh generated configuration"]
+    if provider_config is not None:
+        actions.extend(
+            [
+                "update .agent-workflow/providers.local.yaml",
+                "update .agent-workflow/.gitignore",
+            ]
+        )
     if dry_run:
-        return {"status": "would_configure", "repository": str(root), "actions": actions}
+        payload = {"status": "would_configure", "repository": str(root), "actions": actions}
+        if provider_config is not None:
+            payload["provider_configuration"] = provider_config
+        return payload
     if not approve:
         raise SetupError(
             "configure requires explicit --approve before changing user-authored configuration",
             status="approval_required",
         )
-    atomic_write_text(config_path, _yaml_text(config))
-    resolve_effective_config(root)
+    writes = {
+        config_path: _yaml_text(config).encode("utf-8"),
+        resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
+        resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
+    }
+    if provider_config is not None:
+        writes[root / ".agent-workflow/providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
+        writes[root / ".agent-workflow/.gitignore"] = b"providers.local.yaml\n"
+    atomic_write_many(writes)
     return {"status": "configured", "repository": str(root), "actions": actions}
 
 
@@ -315,12 +382,61 @@ def update(
     target_version: str = CURRENT_VERSION,
     approve: bool = False,
     dry_run: bool = False,
+    assignments: Iterable[str] = (),
+    provider_assignments: Iterable[str] = (),
     **_: Any,
 ) -> dict[str, Any]:
     _dependencies()
+    root = Path(repository).resolve()
+    config_path = root / ".agent-workflow/config.yaml"
+    yaml = require_yaml()
+    try:
+        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as error:
+        raise SetupError(f"invalid repository configuration: {error}") from error
+    if not isinstance(loaded, Mapping):
+        raise SetupError("repository configuration must contain a YAML mapping")
+    migrated = migrate_config({str(key): value for key, value in loaded.items()}, target_version)
+    for assignment in assignments:
+        path, value = _parse_assignment(assignment)
+        _set_nested(migrated, path, value)
+    validate_portable_config(migrated)
+
+    provider_config: dict[str, Any] | None = None
+    provider_changes = list(provider_assignments)
+    if provider_changes:
+        provider_path = root / ".agent-workflow/providers.local.yaml"
+        if provider_path.is_file():
+            try:
+                current = yaml.safe_load(provider_path.read_text(encoding="utf-8"))
+            except (UnicodeDecodeError, yaml.YAMLError) as error:
+                raise SetupError(f"invalid provider local configuration: {error}") from error
+            if not isinstance(current, Mapping):
+                raise SetupError("provider local configuration must contain a YAML mapping")
+            provider_config = {str(key): value for key, value in current.items()}
+        else:
+            provider_config = {"schema_version": target_version, "providers": {}}
+        for assignment in provider_changes:
+            path, value = _parse_assignment(assignment)
+            _set_nested(provider_config, path, value)
+        validate_provider_local_config(provider_config)
+
+    proposal = propose_migration(root, target_version=target_version)
+    payload = {**proposal, "configuration": migrated}
+    if provider_config is not None:
+        payload["provider_configuration"] = provider_config
     if dry_run or not approve:
-        return propose_migration(repository, target_version=target_version)
-    return apply_migration(repository, target_version=target_version)
+        return payload
+    additional_writes: dict[Path, bytes] = {}
+    if provider_config is not None:
+        additional_writes[root / ".agent-workflow/providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
+        additional_writes[root / ".agent-workflow/.gitignore"] = b"providers.local.yaml\n"
+    return apply_migration(
+        root,
+        target_version=target_version,
+        prepared_config=migrated,
+        additional_writes=additional_writes,
+    )
 
 
 def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **_: Any) -> dict[str, Any]:

@@ -73,7 +73,7 @@ class ConfigProvenance(Mapping[str, str]):
     """Immutable mapping from resolved leaf field to its winning source."""
 
     sources: Mapping[str, str]
-    schema_version: str = "2.1"
+    schema_version: str = "2.2"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sources", freeze(self.sources))
