@@ -59,7 +59,8 @@ class WorkerRequest:
     task_id: str
     workflow_id: str
     retry_identity: str
-    model_tier: str
+    provider_role: str
+    reasoning: str
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "constraints", tuple(self.constraints))
@@ -70,10 +71,13 @@ class WorkerRequest:
                 self.task_id,
                 self.workflow_id,
                 self.retry_identity,
-                self.model_tier,
+                self.provider_role,
+                self.reasoning,
             )
         ):
             raise ValueError("worker request identity and objective fields are required")
+        if self.reasoning not in {"low", "medium", "high"}:
+            raise ValueError("worker request reasoning must be low, medium, or high")
         if not isinstance(self.generated_manifest, ContextManifest):
             raise TypeError("generated_manifest must be a ContextManifest")
         if len(self.manifest_json().encode("utf-8")) > MAX_MANIFEST_BYTES:
@@ -81,6 +85,14 @@ class WorkerRequest:
 
     def manifest_json(self) -> str:
         return self.generated_manifest.to_json()
+
+    @property
+    def model_tier(self) -> str:
+        return {
+            "low": "cheap_simple",
+            "medium": "standard_impl",
+            "high": "high_reasoning",
+        }[self.reasoning]
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -92,7 +104,8 @@ class WorkerRequest:
             "task_id": self.task_id,
             "workflow_id": self.workflow_id,
             "retry_identity": self.retry_identity,
-            "model_tier": self.model_tier,
+            "provider_role": self.provider_role,
+            "reasoning": self.reasoning,
         }
 
 

@@ -38,7 +38,7 @@ def valid_result(task_id="task-1", *, summary="implemented"):
     }
 
 
-def request(task_id="task-1", *, required=()):
+def request(task_id="task-1", *, required=(), provider_role="backend", reasoning="high"):
     manifest = create_context_manifest(
         "execute",
         ContextRequest(
@@ -58,7 +58,8 @@ def request(task_id="task-1", *, required=()):
         task_id=task_id,
         workflow_id="wf-1",
         retry_identity=f"wf-1:{task_id}",
-        model_tier="high_reasoning",
+        provider_role=provider_role,
+        reasoning=reasoning,
     )
 
 
@@ -69,6 +70,11 @@ class WorkerDispatchTests(unittest.TestCase):
         self.assertEqual("execute", payload["generated_manifest"]["stage"])
         self.assertNotIn("parent_context", repr(payload))
         self.assertNotIn("provider_model", repr(payload))
+        self.assertNotIn("provider", payload)
+        self.assertNotIn("model", payload)
+        self.assertEqual("backend", payload["provider_role"])
+        self.assertEqual("high", payload["reasoning"])
+        self.assertEqual("high_reasoning", request().model_tier)
         self.assertNotIn("sk-secret123", repr(payload))
         self.assertLessEqual(len(request().manifest_json().encode("utf-8")), 65536)
 

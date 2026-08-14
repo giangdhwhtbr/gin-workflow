@@ -43,7 +43,8 @@ def worker_request(index):
         task_id=task_id,
         workflow_id="wf-1",
         retry_identity=f"wf-1:{task_id}",
-        model_tier="standard_impl",
+        provider_role="backend",
+        reasoning="medium",
     )
 
 
