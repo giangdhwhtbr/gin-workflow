@@ -15,24 +15,42 @@ from workflow_core.migrations import (  # noqa: E402
 
 
 class MigrationTests(unittest.TestCase):
+    def test_migrates_2_1_to_2_2_without_inventing_routes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            config = workflow / "config.yaml"
+            config.write_text(
+                "schema_version: '2.1'\nworkflow_version: '2.1'\nsetup_cli_version: '2.1'\nharness: codex\n",
+                encoding="utf-8",
+            )
+
+            result = apply_migration(repository, target_version="2.2")
+
+            self.assertEqual("migrated", result["status"])
+            migrated = config.read_text(encoding="utf-8")
+            self.assertIn("schema_version: '2.2'", migrated)
+            self.assertNotIn("routing:", migrated)
+
     def test_update_backs_up_then_migrates_and_explicit_rollback_restores(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             config = workflow / "config.yaml"
-            original = b"schema_version: '2.0'\nworkflow_version: '2.0'\npolicy:\n  safe: true\n"
+            original = b"schema_version: '2.1'\nworkflow_version: '2.1'\nsetup_cli_version: '2.1'\nharness: codex\n"
             config.write_bytes(original)
 
-            result = apply_migration(repository, target_version="2.1")
+            result = apply_migration(repository, target_version="2.2")
 
             self.assertEqual("migrated", result["status"])
-            self.assertEqual("2.0", result["from_version"])
-            self.assertEqual("2.1", result["to_version"])
+            self.assertEqual("2.1", result["from_version"])
+            self.assertEqual("2.2", result["to_version"])
             backup = Path(result["backup"])
             self.assertTrue(backup.is_relative_to(workflow / "backups"))
             self.assertEqual(original, (backup / "config.yaml").read_bytes())
-            self.assertIn("schema_version: '2.1'", config.read_text(encoding="utf-8"))
+            self.assertIn("schema_version: '2.2'", config.read_text(encoding="utf-8"))
 
             restored = rollback_migration(repository, backup)
 
@@ -63,10 +81,10 @@ class MigrationTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             config = workflow / "config.yaml"
-            original = b"schema_version: '2.0'\n"
+            original = b"schema_version: '2.1'\nworkflow_version: '2.1'\nsetup_cli_version: '2.1'\nharness: codex\n"
             config.write_bytes(original)
 
-            result = apply_migration(repository, target_version="2.1", dry_run=True)
+            result = apply_migration(repository, target_version="2.2", dry_run=True)
 
             self.assertEqual("migration_available", result["status"])
             self.assertEqual(original, config.read_bytes())

@@ -1,4 +1,4 @@
-"""Portable, provider-neutral workflow core for gin-workflow v2.1."""
+"""Portable, provider-neutral workflow core for gin-workflow v2.2."""
 
 from .approvals import (
     ApprovalAction,

@@ -7,7 +7,7 @@ from typing import Any, Mapping
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.1"
+SUPPORTED_SCHEMA_VERSION = "2.2"
 
 CONFIG_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -30,6 +30,70 @@ CONFIG_SCHEMA: dict[str, Any] = {
         },
         "capabilities": {"type": "object"},
         "policy": {"type": "object"},
+        "routing": {
+            "type": "object",
+            "properties": {
+                "roles": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "required": ["preferred"],
+                        "properties": {
+                            "preferred": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {"type": "string", "minLength": 1},
+                            },
+                            "fallback": {
+                                "type": "array",
+                                "items": {"type": "string", "minLength": 1},
+                            },
+                            "require_independent": {"type": "boolean"},
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+                "concurrency": {
+                    "type": "object",
+                    "additionalProperties": {"type": "integer", "minimum": 1},
+                },
+                "queue": {
+                    "type": "object",
+                    "properties": {
+                        "max_wait_seconds": {"type": "number", "minimum": 0},
+                    },
+                    "additionalProperties": False,
+                },
+                "worker": {
+                    "type": "object",
+                    "properties": {
+                        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+                        "max_retries": {"type": "integer", "minimum": 0},
+                    },
+                    "additionalProperties": False,
+                },
+                "circuit_breaker": {
+                    "type": "object",
+                    "properties": {
+                        "failure_threshold": {"type": "integer", "minimum": 1},
+                        "cooldown_seconds": {"type": "number", "minimum": 0},
+                        "half_open_max_probes": {"type": "integer", "minimum": 1},
+                    },
+                    "additionalProperties": False,
+                },
+                "review": {
+                    "type": "object",
+                    "properties": {
+                        "role": {"type": "string", "minLength": 1},
+                        "require_independent": {"type": "boolean"},
+                        "allow_self_review_fallback": {"type": "boolean"},
+                        "max_cycles": {"type": "integer", "minimum": 1},
+                    },
+                    "additionalProperties": False,
+                },
+            },
+            "additionalProperties": False,
+        },
     },
     "additionalProperties": True,
 }

@@ -110,7 +110,7 @@ def _sanitize(value: object) -> object:
 class ContextManifest:
     stage: str
     categories: Mapping[str, tuple[Any, ...]]
-    schema_version: str = "2.1"
+    schema_version: str = "2.2"
 
     def __post_init__(self) -> None:
         if not self.stage:
