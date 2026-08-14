@@ -29,7 +29,8 @@ def request(*, task_id="task-1", workflow_id="wf-1", retry_identity="retry-1"):
         task_id=task_id,
         workflow_id=workflow_id,
         retry_identity=retry_identity,
-        model_tier="standard_impl",
+        provider_role="backend",
+        reasoning="medium",
     )
 
 

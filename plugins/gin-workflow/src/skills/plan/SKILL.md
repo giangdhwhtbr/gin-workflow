@@ -26,5 +26,6 @@ The manifest requires the confirmed requirement and accepted decisions only. Use
 1. Require evidence that `requirement_confirmed` is true.
 2. Apply the `writing-plans` methodology and write the plan under `ArtifactRegistry["plans"]`.
 3. Include approved scope, concrete file ownership, dependency-aware tracks, validation, risks, and abstract model-class guidance.
-4. Obtain native-harness approval of the plan and record it through the evidence capability.
-5. Return state showing whether `plan_approved` is true. Do not invoke orchestration.
+4. Assign every implementation or review track a portable provider role and reasoning tier. Do not select a concrete provider or model.
+5. Obtain native-harness approval of the plan and record it through the evidence capability.
+6. Return state showing whether `plan_approved` is true. Do not invoke orchestration.
