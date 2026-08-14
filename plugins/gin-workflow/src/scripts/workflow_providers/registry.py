@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from workflow_core.models import EffectiveConfig
+from workflow_core.assignments import AssignmentRequest, resolve_assignment
+from workflow_core.events import WorkflowEventStore
+from workflow_core.provider_config import ProviderModelConfig
 
 from .contracts import (
     EvidenceProvider,
@@ -32,6 +35,15 @@ from .notifications import TelegramNotificationProvider
 from .review import ReviewLedgerProvider
 from .task_tracking import BeadsTaskTrackingProvider
 from .workspace import WorktreeWorkspaceProvider
+from .antigravity_worker import (
+    AntigravityWorkerAdapter,
+    antigravity_health,
+)
+from .circuit_breaker import CircuitBreakerStore
+from .claude_worker import ClaudeWorkerAdapter, claude_health
+from .codex_worker import CodexWorkerAdapter, codex_health
+from .native_cli import NativeCliRunner
+from .routed_worker import RoutedWorkerDispatcher
 
 
 class RegistryError(ValueError):
@@ -76,9 +88,18 @@ class ProviderRegistry:
     review: ReviewProvider
     evidence: EvidenceProvider
     notifications: NotificationProvider
+    worker: RoutedWorkerDispatcher | None = None
 
     @classmethod
-    def from_effective_config(cls, config: EffectiveConfig) -> "ProviderRegistry":
+    def from_effective_config(
+        cls,
+        config: EffectiveConfig,
+        *,
+        provider_local: Mapping[str, ProviderModelConfig] | None = None,
+        native_runner: NativeCliRunner | None = None,
+        worker_health: Mapping[str, Any] | None = None,
+        event_store: WorkflowEventStore | None = None,
+    ) -> "ProviderRegistry":
         if not isinstance(config, EffectiveConfig):
             raise TypeError("ProviderRegistry requires EffectiveConfig")
         root = config.repository_root
@@ -154,7 +175,104 @@ class ProviderRegistry:
         else:
             raise RegistryError(f"unknown notifications provider: {notification_name}")
 
-        return cls(task_tracking, knowledge, workspace, review, evidence, notifications)
+        worker = None
+        if provider_local is not None:
+            routing = config.get("routing", {})
+            if not isinstance(routing, Mapping):
+                raise RegistryError("routing must be a mapping")
+            concurrency = routing.get("concurrency", {})
+            if not isinstance(concurrency, Mapping) or not concurrency:
+                raise RegistryError("routing.concurrency is required for routed workers")
+            queue = routing.get("queue", {})
+            breaker_policy = routing.get("circuit_breaker", {})
+            worker_policy = routing.get("worker", {})
+            if not all(isinstance(value, Mapping) for value in (queue, breaker_policy, worker_policy)):
+                raise RegistryError("routing queue, worker, and circuit_breaker must be mappings")
+            runtime_root = _path(
+                root,
+                artifacts.get("runtime"),
+                ".agent-workflow/runtime",
+            )
+            breakers = CircuitBreakerStore(
+                runtime_root / "circuit-breakers.json",
+                failure_threshold=int(breaker_policy.get("failure_threshold", 1)),
+                cooldown_seconds=float(breaker_policy.get("cooldown_seconds", 900)),
+                half_open_max_probes=int(breaker_policy.get("half_open_max_probes", 1)),
+            )
+            events = event_store or WorkflowEventStore(runtime_root / "events.jsonl")
+            runner = native_runner or NativeCliRunner()
+            timeout_seconds = float(worker_policy.get("timeout_seconds", 900))
+            health_overrides = dict(worker_health or {})
+            health_cache: dict[str, Any] = {}
+
+            def resolver(request):
+                assignment = AssignmentRequest(
+                    request.task_id,
+                    request.provider_role,
+                    request.reasoning,
+                    str(config.get("harness", "")),
+                )
+                return resolve_assignment(assignment, config, provider_local)
+
+            def workspace_for(request) -> Path:
+                value = request.isolation_policy.get("workspace_path")
+                if not value:
+                    raise RegistryError("routed native worker requires isolation_policy.workspace_path")
+                candidate = Path(str(value)).resolve()
+                if not candidate.is_dir():
+                    raise RegistryError(f"isolated workspace does not exist: {candidate}")
+                return candidate
+
+            def factory(candidate, request):
+                local = provider_local[candidate.provider]
+                workspace_path = workspace_for(request)
+                options = {
+                    "native_runner": runner,
+                    "executable": local.executable,
+                    "model": candidate.model,
+                    "workspace": workspace_path,
+                }
+                if candidate.provider == "claude":
+                    return ClaudeWorkerAdapter(**options)
+                if candidate.provider == "codex":
+                    return CodexWorkerAdapter(**options)
+                if candidate.provider == "antigravity":
+                    return AntigravityWorkerAdapter(**options)
+                raise RegistryError(f"unsupported native worker provider: {candidate.provider}")
+
+            health_builders = {
+                "claude": claude_health,
+                "codex": codex_health,
+                "antigravity": antigravity_health,
+            }
+
+            def health_for(provider: str):
+                override = health_overrides.get(provider)
+                if override is not None:
+                    return override
+
+                def check(_candidate):
+                    if provider not in health_cache:
+                        local = provider_local.get(provider)
+                        builder = health_builders.get(provider)
+                        if local is None or builder is None:
+                            return False
+                        health_cache[provider] = builder(local.executable)
+                    return health_cache[provider]
+
+                return check
+
+            worker = RoutedWorkerDispatcher(
+                resolver,
+                factory,
+                breakers,
+                events,
+                concurrency={str(name): int(limit) for name, limit in concurrency.items()},
+                max_wait_seconds=float(queue.get("max_wait_seconds", 120)),
+                health={str(name): health_for(str(name)) for name in concurrency},
+            )
+
+        return cls(task_tracking, knowledge, workspace, review, evidence, notifications, worker)
 
     @classmethod
     def from_config(cls, config: EffectiveConfig) -> "ProviderRegistry":
@@ -173,6 +291,10 @@ class ProviderRegistry:
         }
 
     def get(self, provider_type: str):
+        if provider_type == "worker":
+            if self.worker is None:
+                raise RegistryError("worker provider requires explicit local provider configuration")
+            return self.worker
         if provider_type not in self.metadata:
             raise RegistryError(f"unknown provider type: {provider_type}")
         return getattr(self, provider_type)

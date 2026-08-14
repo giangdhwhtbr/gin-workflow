@@ -9,7 +9,6 @@ from typing import Any, Iterable
 
 from workflow_providers.contracts import OperationStatus, WorkspaceRequest
 from workflow_providers.worker_dispatch import (
-    WorkerDispatcher,
     WorkerRequest,
     WorkerResult,
     failed_worker_result,
@@ -83,7 +82,7 @@ class WorkerScheduler:
 
     def __init__(
         self,
-        dispatcher: WorkerDispatcher,
+        dispatcher: Any,
         *,
         task_tracking: Any,
         workspace: Any,
