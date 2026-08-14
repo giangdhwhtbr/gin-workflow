@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 import re
 from types import MappingProxyType
+from typing import Iterator
 
 from .atomic import atomic_write_text
 from .configuration import require_yaml
@@ -117,6 +119,19 @@ def resolve_assignment(
 _SAFE_WORKFLOW_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 
 
+@contextmanager
+def _manifest_lock(path: Path) -> Iterator[None]:
+    import fcntl
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def write_assignment_manifest(repository: Path, manifest: AssignmentManifest) -> Path:
     """Atomically write a deterministic, disposable assignment preview."""
     if not _SAFE_WORKFLOW_ID.fullmatch(manifest.workflow_id):
@@ -127,6 +142,27 @@ def write_assignment_manifest(repository: Path, manifest: AssignmentManifest) ->
         / f"{manifest.workflow_id}.yaml"
     )
     yaml = require_yaml()
-    content = yaml.safe_dump(manifest.to_dict(), sort_keys=False, allow_unicode=True)
-    atomic_write_text(path, content)
+    lock_path = path.with_name(f".{path.name}.lock")
+    with _manifest_lock(lock_path):
+        assignments: dict[str, Mapping[str, object]] = {}
+        if path.is_file():
+            try:
+                current = yaml.safe_load(path.read_text(encoding="utf-8"))
+            except (UnicodeDecodeError, yaml.YAMLError) as error:
+                raise AssignmentResolutionError(
+                    f"invalid existing assignment manifest: {error}"
+                ) from error
+            if not isinstance(current, Mapping):
+                raise AssignmentResolutionError("existing assignment manifest must be a mapping")
+            for assignment in current.get("assignments", ()):
+                if not isinstance(assignment, Mapping) or not assignment.get("task_id"):
+                    raise AssignmentResolutionError("existing assignment entry is invalid")
+                assignments[str(assignment["task_id"])] = assignment
+        assignments[manifest.request.task_id] = manifest.to_dict()
+        payload = {
+            "workflow_id": manifest.workflow_id,
+            "assignments": [assignments[task_id] for task_id in sorted(assignments)],
+        }
+        content = yaml.safe_dump(payload, sort_keys=False, allow_unicode=True)
+        atomic_write_text(path, content)
     return path
