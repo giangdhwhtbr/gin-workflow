@@ -26,8 +26,11 @@ Gin Workflow keeps the Superpowers standards, with these plugin-specific overrid
 2. **No Silent Dismissal**:
    Every finding must receive an explicit status transaction in the review ledger. If undecided, default to **Apply** for critical issues and **Defer** for suggestions.
 3. **Re-Verify and Checkpoint**:
+   - Route the revision to the original provider/model route while it remains healthy.
+   - If that route is open or unavailable, use only a same-role, same-reasoning fallback; never lower the approved reasoning tier silently.
    - Re-run local quality gates.
    - Stage and commit fixes: `python3 review-ledger.py checkpoint --bead-id <bead-id> --repo-id <repo-id> --commit-msg "feat: fix findings" --actor-id <actor-id>`.
    - Push branch and request re-review.
 4. **Completing the Cycle**:
    The review cycle continues until all findings have terminal statuses (`verified`, `withdrawn`, `accepted-as-is`, `deferred-verified`, `human-waived`) and reviewer approves.
+   The implementation bead must not close until review is approved, every finding is terminal, and acceptance evidence is complete. When the configured maximum cycle count is reached with unresolved findings, require a human decision.
