@@ -18,6 +18,7 @@ from workflow_providers.contracts import (  # noqa: E402
     OperationStatus,
     ProviderHealth,
     ReviewRequest,
+    ReviewFinding,
     TaskCreateRequest,
     WorkspaceRequest,
 )
@@ -462,8 +463,26 @@ class ProviderContractTests(unittest.TestCase):
             )
             first = reviews.request(ReviewRequest("task-1", "worker-1"), idempotency_key="request")
             replayed = reviews.request(ReviewRequest("task-1", "worker-1"), idempotency_key="request")
+            mutate_ledger(
+                "task-1",
+                "finding-created",
+                {
+                    "finding_id": "F-001",
+                    "severity": "IMPORTANT",
+                    "location": "src/api.py:12",
+                    "expected_behavior": "validate input",
+                    "evidence": "unit test",
+                },
+                "reviewer",
+                "reviewer-1",
+                base_dir=str(root),
+            )
+            finding = reviews.status("task-1").value.findings[0]
             self.assertEqual("review-requested", first.value.state)
             self.assertTrue(replayed.idempotent)
+            self.assertIsInstance(finding, ReviewFinding)
+            self.assertEqual("src/api.py:12", finding.location)
+            self.assertEqual("validate input", finding.expected_behavior)
             self.assertIs(OperationStatus.UNAVAILABLE, ReviewLedgerProvider(root).status("missing").status)
 
             corrupt = root / ".planning/corrupt/review.json"

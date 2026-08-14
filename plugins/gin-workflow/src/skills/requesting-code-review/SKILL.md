@@ -22,3 +22,5 @@ This skill extends `superpowers:requesting-code-review` for the `gin-workflow` p
 4. The review manifest contains only the reviewed tree/diff, confirmed requirement, acceptance criteria, and test evidence. It excludes private reasoning, self-assessment, persuasive summaries, unrelated history, and secrets.
 5. Record structured findings, reviewer identity, terminal state, and repository identity through the evidence capability.
 6. Route returned findings through `receiving-code-review`; never manufacture approval or close work from notification delivery.
+7. Record the implementation's original provider/model route as runtime affinity metadata. Do not copy concrete aliases into the portable plan or durable task fields.
+8. A completed implementation result starts review; it is not evidence that the task may close.

@@ -159,11 +159,22 @@ class ReviewRequest:
 
 
 @dataclass(frozen=True)
+class ReviewFinding:
+    finding_id: str
+    severity: str
+    status: str
+    location: str = ""
+    expected_behavior: str = ""
+    evidence: str = ""
+
+
+@dataclass(frozen=True)
 class ReviewStatus:
     task_id: str
     state: str
     total_findings: int = 0
     unresolved_findings: tuple[str, ...] = ()
+    findings: tuple[ReviewFinding, ...] = ()
 
 
 class EvidenceCategory(str, Enum):

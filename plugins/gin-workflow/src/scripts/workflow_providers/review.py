@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .contracts import ProviderBase, ProviderResult, ReviewRequest, ReviewStatus
+from .contracts import ProviderBase, ProviderResult, ReviewFinding, ReviewRequest, ReviewStatus
 
 
 class ReviewLedgerProvider(ProviderBase):
@@ -30,7 +30,24 @@ class ReviewLedgerProvider(ProviderBase):
             for finding_id, finding in projection.findings.items()
             if finding.status not in TERMINAL_FINDING_STATUSES
         )
-        return ReviewStatus(task_id, projection.review_state, len(projection.findings), unresolved)
+        findings = tuple(
+            ReviewFinding(
+                finding_id,
+                finding.severity,
+                finding.status,
+                getattr(finding, "location", ""),
+                getattr(finding, "expected_behavior", ""),
+                getattr(finding, "evidence", ""),
+            )
+            for finding_id, finding in sorted(projection.findings.items())
+        )
+        return ReviewStatus(
+            task_id,
+            projection.review_state,
+            len(projection.findings),
+            unresolved,
+            findings,
+        )
 
     def status(self, task_id: str) -> ProviderResult[ReviewStatus]:
         if guarded := self._guard():

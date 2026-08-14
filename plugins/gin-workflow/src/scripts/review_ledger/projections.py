@@ -4,7 +4,7 @@ from review_ledger.schema import EventActions
 from review_ledger.events import LedgerEvent, WorkflowIntegrityError
 
 class FindingProjection:
-    def __init__(self, finding_id: str, severity: str, status: str = "open"):
+    def __init__(self, finding_id: str, severity: str, status: str = "open", location: str = "", expected_behavior: str = "", evidence: str = ""):
         self.finding_id: str = finding_id
         self.severity: str = severity
         self.status: str = status
@@ -14,6 +14,9 @@ class FindingProjection:
         self.follow_up_bead_title: Optional[str] = None
         self.decision: Optional[str] = None
         self.waived_reason: Optional[str] = None
+        self.location: str = location
+        self.expected_behavior: str = expected_behavior
+        self.evidence: str = evidence
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -25,12 +28,22 @@ class FindingProjection:
             "follow_up_bead_id": self.follow_up_bead_id,
             "follow_up_bead_title": self.follow_up_bead_title,
             "decision": self.decision,
-            "waived_reason": self.waived_reason
+            "waived_reason": self.waived_reason,
+            "location": self.location,
+            "expected_behavior": self.expected_behavior,
+            "evidence": self.evidence
         }
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "FindingProjection":
-        f = cls(d["finding_id"], d["severity"], d["status"])
+        f = cls(
+            d["finding_id"],
+            d["severity"],
+            d["status"],
+            d.get("location", ""),
+            d.get("expected_behavior", ""),
+            d.get("evidence", ""),
+        )
         f.clarification_count = d.get("clarification_count", 0)
         f.deferral_reason = d.get("deferral_reason")
         f.follow_up_bead_id = d.get("follow_up_bead_id")
@@ -199,7 +212,10 @@ class ReviewProjection:
             self.findings[fid] = FindingProjection(
                 finding_id=fid,
                 severity=payload["severity"],
-                status="open"
+                status="open",
+                location=payload.get("location", ""),
+                expected_behavior=payload.get("expected_behavior", ""),
+                evidence=payload.get("evidence", ""),
             )
             # Derive next finding number from highest parsed finding ID seen
             match = re.search(r'(\d+)$', fid)
