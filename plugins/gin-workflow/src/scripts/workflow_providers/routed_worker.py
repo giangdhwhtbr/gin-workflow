@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 import threading
+import time
 from typing import Any
 
 from workflow_core.assignments import RouteCandidate
@@ -75,6 +76,7 @@ class RoutedWorkerDispatcher:
         }
         self._records: dict[str, _RouteRecord] = {}
         self._identities: dict[tuple[str, str, str], str] = {}
+        self._pending: dict[tuple[str, str, str], threading.Event] = {}
         self._lock = threading.RLock()
 
     @staticmethod
@@ -126,10 +128,11 @@ class RoutedWorkerDispatcher:
         receipt = RoutedWorkerReceipt(
             worker_id, WorkerState.FAILED, request.task_id, "", "", False
         )
-        self._records[worker_id] = _RouteRecord(
-            request, receipt, result=failed_worker_result(request, blocker)
-        )
-        self._identities[worker_request_identity(request)] = worker_id
+        with self._lock:
+            self._records[worker_id] = _RouteRecord(
+                request, receipt, result=failed_worker_result(request, blocker)
+            )
+            self._identities[worker_request_identity(request)] = worker_id
         self._emit(request, "failed", worker_id=worker_id, reason=blocker)
         return receipt
 
@@ -139,11 +142,49 @@ class RoutedWorkerDispatcher:
             previous = self._identities.get(identity)
             if previous is not None:
                 return self._records[previous].receipt
-            self._emit(request, "requested")
-            if not self._context_available(request):
-                return self._blocked(request, "context_unavailable")
+            pending = self._pending.get(identity)
+            owner = pending is None
+            if owner:
+                pending = threading.Event()
+                self._pending[identity] = pending
+        assert pending is not None
+        if not owner:
+            pending.wait()
+            with self._lock:
+                return self._records[self._identities[identity]].receipt
+        try:
+            return self._dispatch_new(request, identity)
+        finally:
+            with self._lock:
+                self._pending.pop(identity, None)
+                pending.set()
 
-            for candidate in self.resolver(request):
+    def _dispatch_new(
+        self,
+        request: WorkerRequest,
+        identity: tuple[str, str, str],
+    ) -> RoutedWorkerReceipt:
+        self._emit(request, "requested")
+        if not self._context_available(request):
+            return self._blocked(request, "context_unavailable")
+
+        routes = tuple(self.resolver(request))
+        if request.route_affinity is not None:
+            affinity = request.route_affinity
+            selected = next(
+                (
+                    candidate
+                    for candidate in routes
+                    if (candidate.provider, candidate.model) == affinity
+                ),
+                None,
+            )
+            if selected is None:
+                return self._blocked(request, "route_affinity_invalid")
+            routes = (selected,) + tuple(candidate for candidate in routes if candidate != selected)
+        deadline = time.monotonic() + self.max_wait_seconds
+
+        for candidate in routes:
                 health_check = self.health.get(candidate.provider)
                 if health_check is not None:
                     health = health_check(candidate)
@@ -173,7 +214,8 @@ class RoutedWorkerDispatcher:
                         request, "unavailable", candidate=candidate, reason="capacity_unconfigured"
                     )
                     continue
-                if not capacity.acquire(timeout=self.max_wait_seconds):
+                remaining = max(0.0, deadline - time.monotonic())
+                if not capacity.acquire(timeout=remaining):
                     self._emit(
                         request, "unavailable", candidate=candidate, reason="capacity_timeout"
                     )
@@ -227,16 +269,9 @@ class RoutedWorkerDispatcher:
                     candidate.fallback,
                 )
                 record = _RouteRecord(request, receipt, candidate, adapter, capacity)
-                self._records[receipt.worker_id] = record
-                self._identities[identity] = receipt.worker_id
-                self._emit(
-                    request,
-                    "assigned",
-                    candidate=candidate,
-                    worker_id=receipt.worker_id,
-                    reason="fallback_selected" if candidate.fallback else "preferred_selected",
-                )
-
+                with self._lock:
+                    self._records[receipt.worker_id] = record
+                    self._identities[identity] = receipt.worker_id
                 def on_started(started: WorkerReceipt) -> None:
                     record.receipt = RoutedWorkerReceipt(
                         started.worker_id,
@@ -246,9 +281,38 @@ class RoutedWorkerDispatcher:
                         candidate.model,
                         candidate.fallback,
                     )
-                    self._emit(request, "started", candidate=candidate, worker_id=started.worker_id)
-
-                if adapter.start(receipt.worker_id, on_started=on_started):
+                try:
+                    started = adapter.start(receipt.worker_id, on_started=on_started)
+                except Exception:
+                    started = False
+                if not started:
+                    try:
+                        adapter.cancel(receipt.worker_id)
+                    except Exception:
+                        pass
+                    self._release(record)
+                    self.breakers.release_probe(candidate.provider, candidate.model)
+                    with self._lock:
+                        self._records.pop(receipt.worker_id, None)
+                        self._identities.pop(identity, None)
+                    self._emit(
+                        request,
+                        "unavailable",
+                        candidate=candidate,
+                        reason="adapter_start_failed",
+                    )
+                    continue
+                self._emit(
+                    request,
+                    "assigned",
+                    candidate=candidate,
+                    worker_id=receipt.worker_id,
+                    reason="fallback_selected" if candidate.fallback else "preferred_selected",
+                )
+                self._emit(
+                    request, "started", candidate=candidate, worker_id=receipt.worker_id
+                )
+                if started:
                     self._emit(request, "context_loaded", candidate=candidate, worker_id=receipt.worker_id)
                     self._emit(request, "progress_updated", candidate=candidate, worker_id=receipt.worker_id)
                     threading.Thread(
@@ -258,7 +322,7 @@ class RoutedWorkerDispatcher:
                         daemon=True,
                     ).start()
                 return record.receipt
-            return self._blocked(request, "worker_routes_unavailable")
+        return self._blocked(request, "worker_routes_unavailable")
 
     def _release(self, record: _RouteRecord) -> None:
         if not record.released and record.capacity is not None:
@@ -282,15 +346,19 @@ class RoutedWorkerDispatcher:
                 None,
             )
             if provider_failure is not None:
-                self.breakers.record_failure(
-                    candidate.provider,
-                    candidate.model,
-                    FailureKind(provider_failure),
-                    workflow_id=record.request.workflow_id,
-                    task_id=record.request.task_id,
-                )
-            elif "invalid_result_contract" in result.blockers:
-                pass
+                failure_kind = FailureKind(provider_failure)
+                if failure_kind is FailureKind.CANCELLED:
+                    self.breakers.release_probe(candidate.provider, candidate.model)
+                else:
+                    self.breakers.record_failure(
+                        candidate.provider,
+                        candidate.model,
+                        failure_kind,
+                        workflow_id=record.request.workflow_id,
+                        task_id=record.request.task_id,
+                    )
+            elif "invalid_result_contract" in result.blockers or result.status == "cancelled":
+                self.breakers.release_probe(candidate.provider, candidate.model)
             else:
                 self.breakers.record_success(
                     candidate.provider,

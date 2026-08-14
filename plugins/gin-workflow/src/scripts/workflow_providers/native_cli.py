@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import threading
 import time
@@ -190,6 +191,7 @@ class NativeCliRunner:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 shell=False,
+                start_new_session=os.name == "posix",
             )
         except FileNotFoundError as error:
             raise NativeCliError(FailureKind.SERVICE, "native CLI executable unavailable") from error
@@ -198,15 +200,48 @@ class NativeCliRunner:
 
         deadline = time.monotonic() + invocation.timeout_seconds
         pending_input: bytes | None = invocation.stdin
+
+        def terminate_tree() -> None:
+            try:
+                if os.name == "posix":
+                    os.killpg(process.pid, signal.SIGTERM)
+                else:
+                    process.terminate()
+            except ProcessLookupError:
+                pass
+            try:
+                process.communicate(timeout=0.2)
+            except subprocess.TimeoutExpired:
+                pass
+            group_alive = False
+            if os.name == "posix":
+                try:
+                    os.killpg(process.pid, 0)
+                    group_alive = True
+                except ProcessLookupError:
+                    pass
+            if group_alive or (os.name != "posix" and process.poll() is None):
+                try:
+                    if os.name == "posix":
+                        os.killpg(process.pid, signal.SIGKILL)
+                    else:
+                        process.kill()
+                except ProcessLookupError:
+                    pass
+            try:
+                process.communicate(timeout=0.5)
+            except subprocess.TimeoutExpired as error:
+                raise NativeCliError(
+                    FailureKind.CRASH, "native CLI process group did not terminate"
+                ) from error
+
         while True:
             if cancel_event is not None and cancel_event.is_set():
-                process.kill()
-                process.communicate()
+                terminate_tree()
                 raise NativeCliError(FailureKind.CANCELLED, "native CLI invocation cancelled")
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                process.kill()
-                process.communicate()
+                terminate_tree()
                 raise NativeCliError(FailureKind.TIMEOUT, "native CLI invocation timed out")
             try:
                 stdout, stderr = process.communicate(

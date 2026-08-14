@@ -1,6 +1,9 @@
 from pathlib import Path
+import os
 import sys
+import tempfile
 import threading
+import time
 import unittest
 
 
@@ -11,7 +14,7 @@ from workflow_core.manifests import ContextRequest, create_context_manifest  # n
 from workflow_providers.antigravity_worker import AntigravityWorkerAdapter  # noqa: E402
 from workflow_providers.claude_worker import ClaudeWorkerAdapter  # noqa: E402
 from workflow_providers.codex_worker import CodexWorkerAdapter  # noqa: E402
-from workflow_providers.native_cli import NativeCliOutput  # noqa: E402
+from workflow_providers.native_cli import NativeCliOutput, NativeCliRunner  # noqa: E402
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
@@ -54,7 +57,7 @@ class WorkerAdapterTests(unittest.TestCase):
             def __init__(self):
                 self.invocations = []
 
-            def run(self, invocation):
+            def run(self, invocation, *, cancel_event=None):
                 self.invocations.append(invocation)
                 return NativeCliOutput((result(),))
 
@@ -70,11 +73,63 @@ class WorkerAdapterTests(unittest.TestCase):
                     executable=executable,
                     model=model,
                     workspace=Path.cwd(),
+                    timeout_seconds=17,
                 )
                 receipt = adapter.dispatch(request())
                 self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
                 argv = runner.invocations[0].argv
                 self.assertEqual(model, argv[argv.index("--model") + 1])
+                self.assertEqual(17, runner.invocations[0].timeout_seconds)
+
+    def test_started_native_worker_can_be_cancelled_and_process_is_terminated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            executable = root / "sleeping-claude"
+            executable.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json, os, subprocess, sys, time\n"
+                "open('native.pid', 'w').write(str(os.getpid()))\n"
+                "child = subprocess.Popen([sys.executable, '-c', "
+                "'import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(5)'], "
+                "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+                "open('child.pid', 'w').write(str(child.pid))\n"
+                "time.sleep(5)\n"
+                "print(json.dumps({'status':'completed','task_id':'task-1','summary':'late',"
+                "'changed_files':[],'commits':[],'tests':[],'evidence':[],'blockers':[]}))\n",
+                encoding="utf-8",
+            )
+            executable.chmod(0o755)
+            adapter = ClaudeWorkerAdapter(
+                native_runner=NativeCliRunner(),
+                executable=str(executable),
+                model="sonnet",
+                workspace=root,
+                timeout_seconds=10,
+            )
+
+            receipt = adapter.dispatch(request())
+            deadline = time.monotonic() + 1
+            while not (root / "native.pid").exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+
+            self.assertTrue(adapter.cancel(receipt.worker_id))
+            cancelled = adapter.collect_result(receipt.worker_id, timeout=1)
+            self.assertEqual("cancelled", cancelled.status)
+            self.assertEqual(("provider_failure:cancelled",), cancelled.blockers)
+            pid = int((root / "native.pid").read_text(encoding="utf-8"))
+            child_pid = int((root / "child.pid").read_text(encoding="utf-8"))
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
+            child_stat = Path(f"/proc/{child_pid}/stat")
+            deadline = time.monotonic() + 1
+            while child_stat.exists() and time.monotonic() < deadline:
+                if child_stat.read_text(encoding="utf-8").split()[2] == "Z":
+                    break
+                time.sleep(0.01)
+            self.assertTrue(
+                not child_stat.exists()
+                or child_stat.read_text(encoding="utf-8").split()[2] == "Z"
+            )
 
     def test_native_adapters_detect_missing_harness_support(self):
         for adapter_type in (

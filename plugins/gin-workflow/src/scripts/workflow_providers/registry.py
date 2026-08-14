@@ -20,6 +20,7 @@ from .contracts import (
     ReviewProvider,
     TaskTrackingProvider,
     WorkspaceProvider,
+    OperationStatus,
 )
 from .evidence import FileEvidenceProvider
 from .fakes import (
@@ -89,6 +90,9 @@ class ProviderRegistry:
     evidence: EvidenceProvider
     notifications: NotificationProvider
     worker: RoutedWorkerDispatcher | None = None
+    worker_timeout_seconds: float = 600.0
+    worker_max_retries: int = 0
+    worker_max_parallel: int = 1
 
     @classmethod
     def from_effective_config(
@@ -176,6 +180,9 @@ class ProviderRegistry:
             raise RegistryError(f"unknown notifications provider: {notification_name}")
 
         worker = None
+        configured_timeout = 600.0
+        configured_retries = 0
+        configured_parallel = 1
         if provider_local is not None:
             routing = config.get("routing", {})
             if not isinstance(routing, Mapping):
@@ -202,6 +209,9 @@ class ProviderRegistry:
             events = event_store or WorkflowEventStore(runtime_root / "events.jsonl")
             runner = native_runner or NativeCliRunner()
             timeout_seconds = float(worker_policy.get("timeout_seconds", 900))
+            configured_timeout = timeout_seconds
+            configured_retries = int(worker_policy.get("max_retries", 0))
+            configured_parallel = sum(int(limit) for limit in concurrency.values())
             health_overrides = dict(worker_health or {})
             health_cache: dict[str, Any] = {}
 
@@ -215,13 +225,30 @@ class ProviderRegistry:
                 return resolve_assignment(assignment, config, provider_local)
 
             def workspace_for(request) -> Path:
-                value = request.isolation_policy.get("workspace_path")
-                if not value:
-                    raise RegistryError("routed native worker requires isolation_policy.workspace_path")
-                candidate = Path(str(value)).resolve()
-                if not candidate.is_dir():
-                    raise RegistryError(f"isolated workspace does not exist: {candidate}")
-                return candidate
+                workspace_id = str(request.isolation_policy.get("workspace_id", ""))
+                isolated = workspace.isolate(workspace_id)
+                if (
+                    isolated.status is not OperationStatus.SUCCESS
+                    or isolated.value is None
+                    or not isolated.value.isolated
+                ):
+                    raise RegistryError(f"unknown isolated workspace: {workspace_id}")
+                record = isolated.value
+                if str(request.isolation_policy.get("branch", "")) != record.branch:
+                    raise RegistryError("isolated workspace branch does not match authoritative record")
+                authoritative = record.path
+                resolved = authoritative.resolve()
+                supported_root = worktree_root.resolve()
+                if (
+                    authoritative.is_symlink()
+                    or not resolved.is_dir()
+                    or not resolved.is_relative_to(supported_root)
+                ):
+                    raise RegistryError("authoritative workspace violates worktree root safety")
+                supplied = request.isolation_policy.get("workspace_path")
+                if supplied and Path(str(supplied)).resolve() != resolved:
+                    raise RegistryError("workspace_path does not match authoritative workspace")
+                return resolved
 
             def factory(candidate, request):
                 local = provider_local[candidate.provider]
@@ -231,6 +258,7 @@ class ProviderRegistry:
                     "executable": local.executable,
                     "model": candidate.model,
                     "workspace": workspace_path,
+                    "timeout_seconds": timeout_seconds,
                 }
                 if candidate.provider == "claude":
                     return ClaudeWorkerAdapter(**options)
@@ -272,7 +300,18 @@ class ProviderRegistry:
                 health={str(name): health_for(str(name)) for name in concurrency},
             )
 
-        return cls(task_tracking, knowledge, workspace, review, evidence, notifications, worker)
+        return cls(
+            task_tracking,
+            knowledge,
+            workspace,
+            review,
+            evidence,
+            notifications,
+            worker,
+            configured_timeout,
+            configured_retries,
+            configured_parallel,
+        )
 
     @classmethod
     def from_config(cls, config: EffectiveConfig) -> "ProviderRegistry":
@@ -298,3 +337,17 @@ class ProviderRegistry:
         if provider_type not in self.metadata:
             raise RegistryError(f"unknown provider type: {provider_type}")
         return getattr(self, provider_type)
+
+    def build_worker_scheduler(self):
+        if self.worker is None:
+            raise RegistryError("worker provider requires explicit local provider configuration")
+        from workflow_core.worker_scheduler import WorkerScheduler
+
+        return WorkerScheduler(
+            self.worker,
+            task_tracking=self.task_tracking,
+            workspace=self.workspace,
+            max_parallel_workers=self.worker_max_parallel,
+            max_retries=self.worker_max_retries,
+            worker_timeout_seconds=self.worker_timeout_seconds,
+        )

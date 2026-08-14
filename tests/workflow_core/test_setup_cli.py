@@ -298,6 +298,28 @@ class SetupCliTests(unittest.TestCase):
             self.assertIn("high: opus", local)
             self.assertEqual("providers.local.yaml\n", (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
 
+    def test_provider_configuration_preserves_existing_workflow_gitignore_entries(self):
+        assignments = (
+            "--provider-set", "providers.claude.executable=claude",
+            "--provider-set", "providers.claude.models.low=haiku",
+            "--provider-set", "providers.claude.models.medium=sonnet",
+            "--provider-set", "providers.claude.models.high=opus",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+            ignored = repository / ".agent-workflow/.gitignore"
+            ignored.write_text("runtime/private.log\n# user rule\n", encoding="utf-8")
+
+            applied = self.run_cli(repository, "configure", "--approve", *assignments)
+
+            self.assertEqual(0, applied.returncode, applied.stderr)
+            self.assertEqual(
+                "runtime/private.log\n# user rule\nproviders.local.yaml\n",
+                ignored.read_text(encoding="utf-8"),
+            )
+
     def test_update_previews_then_applies_v2_2_routing_and_local_provider_config(self):
         arguments = (
             "--set", "routing.concurrency.claude=1",
@@ -333,6 +355,11 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("migrated", json.loads(applied.stdout)["status"])
             self.assertIn("routing:", (workflow / "config.yaml").read_text(encoding="utf-8"))
             self.assertIn("high: opus", (workflow / "providers.local.yaml").read_text(encoding="utf-8"))
+            effective = (workflow / "generated/effective-config.yaml").read_text(encoding="utf-8")
+            provenance = (workflow / "generated/config-provenance.yaml").read_text(encoding="utf-8")
+            self.assertIn("schema_version: '2.2'", effective)
+            self.assertIn("routing:", effective)
+            self.assertIn("schema_version: '2.2'", provenance)
 
     def test_read_only_commands_do_not_change_repository(self):
         with tempfile.TemporaryDirectory() as directory:

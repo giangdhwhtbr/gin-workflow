@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 import tempfile
 import threading
+import time
 import unittest
 
 
@@ -18,7 +19,7 @@ from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa
 from workflow_providers.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerRequest, WorkerState  # noqa: E402
 
 
-def request(task_id="task-1"):
+def request(task_id="task-1", *, route_affinity=None):
     return WorkerRequest(
         objective="Implement task",
         constraints=("bounded",),
@@ -30,6 +31,7 @@ def request(task_id="task-1"):
         retry_identity=f"retry-{task_id}",
         provider_role="backend",
         reasoning="high",
+        route_affinity=route_affinity,
     )
 
 
@@ -163,6 +165,173 @@ class RoutedWorkerTests(unittest.TestCase):
             self.assertEqual("failed", failed.status)
             self.assertEqual(CircuitState.OPEN, breaker.state("claude", "opus").state)
             self.assertEqual(CircuitState.CLOSED, breaker.state("claude", "sonnet").state)
+
+    def test_invalid_half_open_result_releases_probe_without_counting_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            breaker = CircuitBreakerStore(
+                root / "breakers.json",
+                failure_threshold=1,
+                cooldown_seconds=0,
+                half_open_max_probes=1,
+            )
+            breaker.record_failure("claude", "opus", FailureKind.QUOTA)
+            router = RoutedWorkerDispatcher(
+                lambda _item: (RouteCandidate("claude", "opus", False),),
+                lambda _candidate, _item: SequentialWorkerAdapter(lambda _payload: {}),
+                breaker,
+                WorkflowEventStore(root / "events.jsonl"),
+                concurrency={"claude": 1},
+                max_wait_seconds=0,
+            )
+
+            receipt = router.dispatch(request())
+            failed = router.collect_result(receipt.worker_id)
+
+            self.assertEqual(("invalid_result_contract",), failed.blockers)
+            self.assertEqual(0, breaker.state("claude", "opus").probes)
+            self.assertTrue(breaker.can_attempt("claude", "opus").allowed)
+
+    def test_route_affinity_is_revalidated_and_selected_before_preferred_route(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (
+                RouteCandidate("claude", "opus", False),
+                RouteCandidate("codex", "reasoning", True),
+            )
+            router, _, _ = self.build(
+                directory,
+                routes=routes,
+                runners={
+                    "claude": lambda payload: result(payload["task_id"]),
+                    "codex": lambda payload: result(payload["task_id"]),
+                },
+            )
+
+            receipt = router.dispatch(
+                request(route_affinity=("codex", "reasoning"))
+            )
+
+            self.assertEqual(("codex", "reasoning"), (receipt.provider_name, receipt.model_alias))
+            router.collect_result(receipt.worker_id)
+
+    def test_invalid_route_affinity_is_blocked_without_dispatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            called = []
+            router, _, _ = self.build(
+                directory,
+                routes=(RouteCandidate("claude", "opus", False),),
+                runners={"claude": lambda payload: called.append(payload) or result(payload["task_id"])},
+            )
+
+            receipt = router.dispatch(request(route_affinity=("codex", "reasoning")))
+
+            self.assertEqual(("route_affinity_invalid",), router.collect_result(receipt.worker_id).blockers)
+            self.assertEqual([], called)
+
+    def test_capacity_wait_uses_one_deadline_across_all_candidates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = tuple(
+                RouteCandidate(provider, "model", index > 0)
+                for index, provider in enumerate(("claude", "codex", "antigravity"))
+            )
+            router, _, _ = self.build(
+                directory,
+                routes=routes,
+                runners={provider: lambda payload: result(payload["task_id"]) for provider in ("claude", "codex", "antigravity")},
+                wait=0.08,
+            )
+            for capacity in router._capacity.values():
+                self.assertTrue(capacity.acquire(timeout=0))
+
+            started = time.monotonic()
+            receipt = router.dispatch(request())
+            elapsed = time.monotonic() - started
+
+            self.assertEqual(("worker_routes_unavailable",), router.collect_result(receipt.worker_id).blockers)
+            self.assertLess(elapsed, 0.14)
+            for capacity in router._capacity.values():
+                capacity.release()
+
+    def test_capacity_wait_does_not_block_unrelated_provider_dispatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes_by_task = {
+                "waiting": (RouteCandidate("claude", "opus", False),),
+                "fast": (RouteCandidate("codex", "reasoning", False),),
+            }
+            breaker = CircuitBreakerStore(Path(directory) / "breakers.json", failure_threshold=1)
+            router = RoutedWorkerDispatcher(
+                lambda item: routes_by_task[item.task_id],
+                lambda candidate, item: SequentialWorkerAdapter(
+                    lambda payload: result(payload["task_id"])
+                ),
+                breaker,
+                WorkflowEventStore(Path(directory) / "events.jsonl"),
+                concurrency={"claude": 1, "codex": 1},
+                max_wait_seconds=0.2,
+            )
+            self.assertTrue(router._capacity["claude"].acquire(timeout=0))
+            waiting_receipts = []
+            waiting = threading.Thread(
+                target=lambda: waiting_receipts.append(router.dispatch(request("waiting")))
+            )
+            waiting.start()
+            time.sleep(0.02)
+
+            started = time.monotonic()
+            fast = router.dispatch(request("fast"))
+            elapsed = time.monotonic() - started
+
+            self.assertEqual("codex", fast.provider_name)
+            self.assertLess(elapsed, 0.08)
+            router.collect_result(fast.worker_id)
+            router._capacity["claude"].release()
+            waiting.join(timeout=1)
+            self.assertFalse(waiting.is_alive())
+            router.collect_result(waiting_receipts[0].worker_id)
+
+    def test_adapter_start_failure_releases_route_and_uses_fallback(self):
+        class CannotStart(SequentialWorkerAdapter):
+            def __init__(self, behavior):
+                super().__init__(lambda payload: result(payload["task_id"]))
+                self.behavior = behavior
+
+            def start(self, worker_id, *, on_started=None):
+                if self.behavior == "raise":
+                    raise RuntimeError("thread start failed")
+                return False
+
+        for behavior in ("false", "raise"):
+            with self.subTest(behavior=behavior), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                breaker = CircuitBreakerStore(
+                    root / "breakers.json",
+                    failure_threshold=1,
+                    cooldown_seconds=0,
+                )
+                breaker.record_failure("claude", "opus", FailureKind.QUOTA)
+                router = RoutedWorkerDispatcher(
+                    lambda item: (
+                        RouteCandidate("claude", "opus", False),
+                        RouteCandidate("codex", "reasoning", True),
+                    ),
+                    lambda candidate, item: (
+                        CannotStart(behavior)
+                        if candidate.provider == "claude"
+                        else SequentialWorkerAdapter(
+                            lambda payload: result(payload["task_id"])
+                        )
+                    ),
+                    breaker,
+                    WorkflowEventStore(root / "events.jsonl"),
+                    concurrency={"claude": 1, "codex": 1},
+                    max_wait_seconds=0,
+                )
+
+                receipt = router.dispatch(request())
+
+                self.assertEqual("codex", receipt.provider_name)
+                self.assertEqual("completed", router.collect_result(receipt.worker_id).status)
+                self.assertEqual(0, breaker.state("claude", "opus").probes)
 
 
 if __name__ == "__main__":

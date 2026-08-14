@@ -27,6 +27,12 @@ checking circuit state, native CLI health, and provider concurrency. The actual
 provider/model alias and fallback reason are runtime evidence, not Beads or plan
 data.
 
+Runtime callers should construct scheduling through
+`ProviderRegistry.build_worker_scheduler()`. This carries
+`routing.worker.timeout_seconds`, `routing.worker.max_retries`, and the summed
+provider concurrency into the scheduler instead of maintaining a second set of
+defaults.
+
 ## Two configuration layers
 
 `plugins/gin-workflow/src/examples/config.full.yaml` is the full portable
@@ -65,6 +71,13 @@ is independent, its provider must differ from the implementation provider
 unless explicit self-review fallback is enabled. Unresolved findings return to
 the original implementation route, or a same-role/same-reasoning fallback, for
 at most the configured review cycles.
+
+Review workers return one explicit `review_decision` evidence record
+(`approved` or `changes_requested`) plus structured `review_finding`
+records when changes are required. A review result cannot edit files, create
+commits, approve with blockers, or rely on an empty generic worker result as
+implicit approval. The coordinator persists the decision and findings through
+the configured review provider before exposing a terminal review status.
 
 ## Setup and maintenance
 

@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
+import os
 import sys
 import tempfile
 import threading
@@ -18,6 +19,8 @@ from workflow_core.worker_scheduler import (  # noqa: E402
     select_execution_strategy,
 )
 from workflow_providers.fakes import FakeTaskTrackingProvider, FakeWorkspaceProvider  # noqa: E402
+from workflow_providers.claude_worker import ClaudeWorkerAdapter  # noqa: E402
+from workflow_providers.native_cli import NativeCliRunner  # noqa: E402
 from workflow_providers.contracts import TaskCreateRequest  # noqa: E402
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import (  # noqa: E402
@@ -353,6 +356,51 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertEqual(1, len(calls))
             self.assertEqual((), outcome.completed)
             self.assertEqual(("timeout",), outcome.failed[0].blockers)
+
+    def test_scheduler_timeout_cancels_started_native_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            worktrees = root / "worktrees"
+            executable = root / "sleeping-claude"
+            executable.write_text(
+                "#!/usr/bin/env python3\n"
+                "import os, time\n"
+                "open('native.pid', 'w').write(str(os.getpid()))\n"
+                "time.sleep(5)\n",
+                encoding="utf-8",
+            )
+            executable.chmod(0o755)
+            tasks = FakeTaskTrackingProvider()
+            item = worker_request(1)
+            tasks.create_task(TaskCreateRequest(item.task_id), idempotency_key="create")
+            adapter = ClaudeWorkerAdapter(
+                native_runner=NativeCliRunner(),
+                executable=str(executable),
+                model="sonnet",
+                workspace=worktrees / "ws-task-1",
+                timeout_seconds=10,
+            )
+            scheduler = WorkerScheduler(
+                WorkerDispatcher(adapter, WorkflowEventStore(root / "events.jsonl")),
+                task_tracking=tasks,
+                workspace=FakeWorkspaceProvider(worktrees),
+                max_parallel_workers=1,
+                worker_timeout_seconds=0.05,
+            )
+
+            outcome = scheduler.schedule((item,))
+
+            self.assertEqual(("timeout",), outcome.failed[0].blockers)
+            pid = int((worktrees / "ws-task-1/native.pid").read_text(encoding="utf-8"))
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.01)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
 
     def test_concurrent_scheduler_calls_cannot_claim_same_task_twice(self):
         gate = threading.Barrier(2)

@@ -156,6 +156,7 @@ class WorkspaceRecord:
 class ReviewRequest:
     task_id: str
     actor_id: str
+    lease_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -175,6 +176,18 @@ class ReviewStatus:
     total_findings: int = 0
     unresolved_findings: tuple[str, ...] = ()
     findings: tuple[ReviewFinding, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReviewOutcomeRequest:
+    task_id: str
+    actor_id: str
+    decision: str
+    findings: tuple[ReviewFinding, ...] = ()
+    lease_id: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "findings", tuple(self.findings))
 
 
 class EvidenceCategory(str, Enum):
@@ -343,6 +356,35 @@ class ReviewProvider(Protocol):
     metadata: ProviderMetadata
 
     def request(self, request: ReviewRequest, *, idempotency_key: str) -> ProviderResult[ReviewStatus]: ...
+    def record_outcome(
+        self, request: ReviewOutcomeRequest, *, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]: ...
+    def begin_revision(
+        self,
+        task_id: str,
+        *,
+        actor_id: str,
+        lease_id: str,
+        idempotency_key: str,
+    ) -> ProviderResult[ReviewStatus]: ...
+    def complete_revision(
+        self,
+        task_id: str,
+        finding_ids: tuple[str, ...],
+        *,
+        actor_id: str,
+        lease_id: str,
+        idempotency_key: str,
+    ) -> ProviderResult[ReviewStatus]: ...
+    def complete_revision(
+        self,
+        task_id: str,
+        finding_ids: tuple[str, ...],
+        *,
+        actor_id: str,
+        lease_id: str,
+        idempotency_key: str,
+    ) -> ProviderResult[ReviewStatus]: ...
     def status(self, task_id: str) -> ProviderResult[ReviewStatus]: ...
 
 

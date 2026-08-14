@@ -61,6 +61,14 @@ def _yaml_text(value: Mapping[str, Any]) -> str:
     )
 
 
+def _merged_provider_gitignore(path: Path) -> bytes:
+    existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    lines = existing.splitlines()
+    if "providers.local.yaml" not in lines:
+        lines.append("providers.local.yaml")
+    return (("\n".join(lines) + "\n") if lines else "providers.local.yaml\n").encode("utf-8")
+
+
 def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[str, Any]:
     root = Path(repository).resolve()
     detected = []
@@ -171,7 +179,7 @@ def initialize(
     }
     if provider_config is not None:
         writes[workflow / "providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
-        writes[workflow / ".gitignore"] = b"providers.local.yaml\n"
+        writes[workflow / ".gitignore"] = _merged_provider_gitignore(workflow / ".gitignore")
     atomic_write_many(writes)
     for relative in ("backups", "references", "runtime/evidence"):
         (workflow / relative).mkdir(parents=True, exist_ok=True)
@@ -291,7 +299,8 @@ def configure(
     }
     if provider_config is not None:
         writes[root / ".agent-workflow/providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
-        writes[root / ".agent-workflow/.gitignore"] = b"providers.local.yaml\n"
+        ignore_path = root / ".agent-workflow/.gitignore"
+        writes[ignore_path] = _merged_provider_gitignore(ignore_path)
     atomic_write_many(writes)
     return {"status": "configured", "repository": str(root), "actions": actions}
 
@@ -401,6 +410,7 @@ def update(
         path, value = _parse_assignment(assignment)
         _set_nested(migrated, path, value)
     validate_portable_config(migrated)
+    resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
     provider_config: dict[str, Any] | None = None
     provider_changes = list(provider_assignments)
@@ -427,10 +437,14 @@ def update(
         payload["provider_configuration"] = provider_config
     if dry_run or not approve:
         return payload
-    additional_writes: dict[Path, bytes] = {}
+    additional_writes: dict[Path, bytes] = {
+        resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
+        resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
+    }
     if provider_config is not None:
         additional_writes[root / ".agent-workflow/providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
-        additional_writes[root / ".agent-workflow/.gitignore"] = b"providers.local.yaml\n"
+        ignore_path = root / ".agent-workflow/.gitignore"
+        additional_writes[ignore_path] = _merged_provider_gitignore(ignore_path)
     return apply_migration(
         root,
         target_version=target_version,

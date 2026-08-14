@@ -8,7 +8,9 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.models import EffectiveConfig  # noqa: E402
+from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
+from workflow_providers.contracts import WorkspaceRequest  # noqa: E402
 from workflow_providers.evidence import FileEvidenceProvider  # noqa: E402
 from workflow_providers.fakes import (  # noqa: E402
     FakeEvidenceProvider,
@@ -25,9 +27,37 @@ from workflow_providers.routed_worker import RoutedWorkerDispatcher  # noqa: E40
 from workflow_providers.review import ReviewLedgerProvider  # noqa: E402
 from workflow_providers.task_tracking import BeadsTaskTrackingProvider  # noqa: E402
 from workflow_providers.workspace import WorktreeWorkspaceProvider  # noqa: E402
+from workflow_providers.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerRequest  # noqa: E402
 
 
 class ProviderRegistryTests(unittest.TestCase):
+    def routed_config(self, root):
+        return EffectiveConfig(
+            {
+                "schema_version": "2.2",
+                "harness": "codex",
+                "providers": {
+                    "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                    "review": "fake", "evidence": "fake", "notifications": "fake",
+                },
+                "routing": {
+                    "roles": {"backend": {"preferred": ["claude"], "fallback": []}},
+                    "concurrency": {"claude": 2},
+                    "queue": {"max_wait_seconds": 0},
+                    "worker": {"timeout_seconds": 17, "max_retries": 3},
+                    "circuit_breaker": {"failure_threshold": 1, "cooldown_seconds": 10, "half_open_max_probes": 1},
+                },
+            },
+            Path(root),
+        )
+
+    def local(self):
+        return {
+            "claude": ProviderModelConfig(
+                "claude", "claude", {"low": "haiku", "medium": "sonnet", "high": "opus"}
+            )
+        }
+
     def test_routed_worker_requires_explicit_machine_local_provider_injection(self):
         with tempfile.TemporaryDirectory() as directory:
             config = EffectiveConfig(
@@ -149,6 +179,58 @@ class ProviderRegistryTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RegistryError, "task_tracking.*not-real"):
             ProviderRegistry.from_config(config)
+
+    def test_worker_uses_authoritative_workspace_record_and_rejects_path_mismatch(self):
+        class Runner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                raise AssertionError("must not execute outside authoritative workspace")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = Runner()
+            registry = ProviderRegistry.from_effective_config(
+                self.routed_config(root),
+                provider_local=self.local(),
+                native_runner=runner,
+                worker_health={"claude": lambda candidate: True},
+            )
+            registry.workspace.create(
+                WorkspaceRequest("ws-api", "task/api"), idempotency_key="create"
+            )
+            request = WorkerRequest(
+                "Implement", (), create_context_manifest("execute", ContextRequest()),
+                {
+                    "mode": "isolated",
+                    "workspace_id": "ws-api",
+                    "branch": "task/api",
+                    "workspace_path": str(root),
+                },
+                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+            )
+
+            receipt = registry.worker.dispatch(request)
+            result = registry.worker.collect_result(receipt.worker_id)
+
+            self.assertEqual(("worker_routes_unavailable",), result.blockers)
+            self.assertEqual([], runner.invocations)
+
+    def test_registry_builds_scheduler_from_configured_worker_runtime_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = ProviderRegistry.from_effective_config(
+                self.routed_config(directory),
+                provider_local=self.local(),
+                worker_health={"claude": lambda candidate: True},
+            )
+
+            scheduler = registry.build_worker_scheduler()
+
+            self.assertEqual(17, scheduler.worker_timeout_seconds)
+            self.assertEqual(3, scheduler.max_retries)
+            self.assertEqual(2, scheduler.max_parallel_workers)
 
 
 if __name__ == "__main__":
