@@ -1,0 +1,49 @@
+schema_version: "2.2"
+workflow_version: "2.2"
+setup_cli_version: "2.2"
+harness: codex
+
+artifacts:
+  plans: .planning/plans
+  beads: .beads
+  worktrees: .planning/worktrees
+  knowledge: .planning/knowledge
+  evidence: .agent-workflow/runtime/evidence
+  runtime: .agent-workflow/runtime
+
+routing:
+  roles:
+    backend:
+      preferred: [claude]
+      fallback: [main_harness]
+    frontend:
+      preferred: [antigravity]
+      fallback: [claude, main_harness]
+    review:
+      preferred: [main_harness]
+      fallback: [claude]
+      require_independent: true
+    docs:
+      preferred: [antigravity]
+      fallback: [main_harness]
+    general:
+      preferred: [main_harness]
+      fallback: [claude, antigravity]
+  concurrency:
+    claude: 2
+    antigravity: 2
+    codex: 1
+  queue:
+    max_wait_seconds: 120
+  worker:
+    timeout_seconds: 900
+    max_retries: 1
+  circuit_breaker:
+    failure_threshold: 1
+    cooldown_seconds: 900
+    half_open_max_probes: 1
+  review:
+    role: review
+    require_independent: true
+    allow_self_review_fallback: false
+    max_cycles: 3

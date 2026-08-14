@@ -19,11 +19,29 @@ bootstrap completes.
 
 ## First-time execution
 
-1. Detect the repository and harness, then collect the desired portable settings.
-2. Run `init --dry-run` with the selected harness and `--set` assignments.
-3. Present the complete proposed write and obtain explicit native-harness approval.
-4. Run one approved `init` with the same harness and assignments. The CLI validates the complete configuration before any write.
-5. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
+1. Detect the repository and harness, then run the questionnaire below. Ask exactly one question group at a time and wait for its answer before continuing.
+2. Convert portable answers to repeatable `--set` assignments and executable/model answers to repeatable `--provider-set` assignments.
+3. Run `init --dry-run` with the selected harness and every assignment.
+4. Present both `configuration` and `provider_configuration`, the exact files/actions, and any validation error. Do not write on dry-run.
+5. Obtain explicit native-harness approval for the complete two-layer proposal.
+6. Run one approved `init` with the same harness and same assignments. The CLI validates both complete layers before any atomic write.
+7. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
+
+## Routed worker questionnaire
+
+Do not infer required answers or combine groups into one large prompt.
+
+1. **Main harness** — Which harness opened and will coordinate this workflow: Claude, Codex, or Antigravity?
+2. **Enabled native providers** — Which installed, already-authenticated native CLIs may execute work, and what executable name/path identifies each?
+3. **Preferred provider roles** — For each user-defined role such as backend, frontend, review, docs, or general, what is the ordered preferred provider list?
+4. **Reasoning-to-model mappings** — For every enabled provider, which local model alias maps to `low`, `medium`, and `high`?
+5. **Ordered fallbacks** — Which providers, including optional `main_harness`, may handle each role when preferred capacity is unavailable?
+6. **Provider concurrency** — What maximum concurrent worker count applies to each provider?
+7. **Queue and worker limits** — What are queue wait seconds, worker timeout seconds, and maximum retries?
+8. **Circuit breaker** — What failure threshold, cooldown seconds, and half-open probe limit should apply?
+9. **Independent review** — Which review role is used, must review differ from implementation, may self-review be a fallback, and what is the maximum cycle count?
+
+Use `plugins/gin-workflow/src/examples/config.full.yaml` and `providers.local.example.yaml` as a reference, never as silently accepted answers. Credentials remain owned by each native CLI login and are never questionnaire values.
 
 One `/setup` invocation completes initial repository setup and configuration.
 Repeated identical `init` calls are idempotent, but lifecycle stages never call
