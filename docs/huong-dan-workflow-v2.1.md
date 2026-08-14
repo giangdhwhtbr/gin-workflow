@@ -1,7 +1,7 @@
-# Hướng dẫn Gin Workflow v2.1
+# Hướng dẫn Gin Workflow v2.2
 
 `gin-workflow` là plugin điều phối quy trình làm việc cho Claude Code,
-Antigravity CLI và Codex CLI. Phiên bản 2.1 tách rõ cấu hình, kế hoạch,
+Antigravity CLI và Codex CLI. Phiên bản 2.2 tách rõ cấu hình, kế hoạch,
 trạng thái công việc và bằng chứng kiểm tra để quá trình từ yêu cầu đến bàn
 giao có thể kiểm chứng và khôi phục.
 
@@ -54,11 +54,11 @@ Lifecycle chỉ đọc `effective-config.yaml`. File portable chỉ chứa lựa
 capability, artifact, policy, model tier logic và `secret_ref`; không ghi
 provider command, model provider hay credential dạng plain text.
 
-Ba kênh phiên bản phải tương thích với bản 2.1:
+Ba kênh phiên bản phải tương thích với bản 2.2:
 
-- `schema_version: "2.1"`
-- `workflow_version: "2.1"`
-- `setup_cli_version: "2.1"`
+- `schema_version: "2.2"`
+- `workflow_version: "2.2"`
+- `setup_cli_version: "2.2"`
 
 ## Trạng thái và quyền sở hữu dữ liệu
 
@@ -87,6 +87,28 @@ Capability provider (task tracking, knowledge, workspace, review, evidence và
 notification) được chọn trong effective config. Provider chỉ thực hiện đúng
 hợp đồng capability; không tự điều phối lifecycle hay thay đổi Beads ngoài
 quyền được cấp.
+
+## Điều phối Claude, Codex và Antigravity
+
+Plan gán mỗi track bằng `provider_role` và mức suy luận `low`, `medium` hoặc
+`high`; plan không ghi tên model cụ thể. Khi orchestrate, workflow đọc role từ
+`.agent-workflow/config.yaml`, rồi tra model tương ứng trong file local đã
+gitignore `.agent-workflow/providers.local.yaml`. Ví dụ role `backend` có thể
+ưu tiên Claude, role `frontend` ưu tiên Antigravity, còn role `review` ưu tiên
+`main_harness` là Codex đang mở dự án.
+
+Nếu Claude/Opus hết quota, circuit breaker chỉ mở cho đúng cặp Claude/Opus.
+Router thử fallback của cùng mức `high`, ví dụ Codex/model reasoning; không tự
+hạ xuống model `medium`. Nếu CLI không chứng minh được khả năng chọn model rõ
+ràng, provider được xem là unavailable thay vì dùng model mặc định. Khi mọi
+route đều lỗi hoặc hết capacity, task giữ trạng thái mở với blocker
+`worker_routes_unavailable`.
+
+`/setup` hỏi lần lượt chín nhóm: main harness, provider được bật, role ưu tiên,
+mapping model low/medium/high, fallback, concurrency, queue/timeout/retry,
+circuit breaker và review độc lập. Dry-run phải hiển thị cả config portable lẫn
+config provider local trước khi xin duyệt. Xem cấu hình đầy đủ và giải thích chi
+tiết tại [provider-routing.md](provider-routing.md).
 
 ## Kiểm tra và bàn giao
 

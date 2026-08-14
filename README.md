@@ -94,6 +94,7 @@ For the detailed workflow contracts:
 - Setup, versions, and migration: [docs/setup-system.md](docs/setup-system.md)
 - Capability boundaries: [docs/capability-provider-contracts.md](docs/capability-provider-contracts.md)
 - Context and evidence: [docs/context-and-evidence-policy.md](docs/context-and-evidence-policy.md)
+- Native provider routing and model aliases: [docs/provider-routing.md](docs/provider-routing.md)
 - Verification and handoff: [docs/verification-and-handoff-workflow.md](docs/verification-and-handoff-workflow.md)
 
 ---
