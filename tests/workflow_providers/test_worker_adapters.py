@@ -11,6 +11,7 @@ from workflow_core.manifests import ContextRequest, create_context_manifest  # n
 from workflow_providers.antigravity_worker import AntigravityWorkerAdapter  # noqa: E402
 from workflow_providers.claude_worker import ClaudeWorkerAdapter  # noqa: E402
 from workflow_providers.codex_worker import CodexWorkerAdapter  # noqa: E402
+from workflow_providers.native_cli import NativeCliOutput  # noqa: E402
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
@@ -48,6 +49,33 @@ def result():
 
 
 class WorkerAdapterTests(unittest.TestCase):
+    def test_native_adapters_build_model_specific_invocations_and_normalize_output(self):
+        class FakeRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation):
+                self.invocations.append(invocation)
+                return NativeCliOutput((result(),))
+
+        for adapter_type, executable, model in (
+            (ClaudeWorkerAdapter, "claude", "sonnet"),
+            (CodexWorkerAdapter, "codex", "coding"),
+            (AntigravityWorkerAdapter, "agy", "flash"),
+        ):
+            runner = FakeRunner()
+            with self.subTest(adapter=adapter_type.__name__):
+                adapter = adapter_type(
+                    native_runner=runner,
+                    executable=executable,
+                    model=model,
+                    workspace=Path.cwd(),
+                )
+                receipt = adapter.dispatch(request())
+                self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
+                argv = runner.invocations[0].argv
+                self.assertEqual(model, argv[argv.index("--model") + 1])
+
     def test_native_adapters_detect_missing_harness_support(self):
         for adapter_type in (
             ClaudeWorkerAdapter,
