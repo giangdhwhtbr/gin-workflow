@@ -225,6 +225,50 @@ if [ "$launcher_version" != "gin-workflow 2.2" ]; then
   exit 1
 fi
 
+UPGRADE_HOME="$MOCK_HOME/upgrade-home"
+mkdir -p "$UPGRADE_HOME/.local/lib/gin-workflow/2.1" "$UPGRADE_HOME/.local/bin"
+printf '%s\n' '#!/usr/bin/env python3' > "$UPGRADE_HOME/.local/lib/gin-workflow/2.1/gin-workflow"
+ln -s "$UPGRADE_HOME/.local/lib/gin-workflow/2.1/gin-workflow" "$UPGRADE_HOME/.local/bin/gin-workflow"
+
+HOME="$UPGRADE_HOME" ./install.sh --platform claude >/dev/null
+
+expected_target="$UPGRADE_HOME/.local/lib/gin-workflow/2.2/gin-workflow"
+actual_target="$(readlink "$UPGRADE_HOME/.local/bin/gin-workflow")"
+if [ "$actual_target" != "$expected_target" ]; then
+  echo "Expected managed launcher upgrade to target $expected_target, got $actual_target" >&2
+  exit 1
+fi
+
+FOREIGN_LINK_HOME="$MOCK_HOME/foreign-link-home"
+mkdir -p "$FOREIGN_LINK_HOME/.local/bin"
+foreign_target="$FOREIGN_LINK_HOME/not-gin-workflow"
+printf '%s\n' 'foreign launcher' > "$foreign_target"
+ln -s "$foreign_target" "$FOREIGN_LINK_HOME/.local/bin/gin-workflow"
+if HOME="$FOREIGN_LINK_HOME" ./install.sh --platform claude >"$output_file" 2>&1; then
+  echo "Expected foreign launcher link collision to fail installation" >&2
+  exit 1
+fi
+assert_contains "$output_file" "refusing to replace a different launcher"
+if [ "$(readlink "$FOREIGN_LINK_HOME/.local/bin/gin-workflow")" != "$foreign_target" ]; then
+  echo "Foreign launcher link was modified" >&2
+  exit 1
+fi
+
+MALFORMED_LINK_HOME="$MOCK_HOME/malformed-link-home"
+malformed_target="$MALFORMED_LINK_HOME/.local/lib/gin-workflow/2.1/nested/gin-workflow"
+mkdir -p "$MALFORMED_LINK_HOME/.local/bin" "$(dirname "$malformed_target")"
+printf '%s\n' 'malformed managed launcher' > "$malformed_target"
+ln -s "$malformed_target" "$MALFORMED_LINK_HOME/.local/bin/gin-workflow"
+if HOME="$MALFORMED_LINK_HOME" ./install.sh --platform claude >"$output_file" 2>&1; then
+  echo "Expected malformed managed launcher link to fail installation" >&2
+  exit 1
+fi
+assert_contains "$output_file" "refusing to replace a different launcher"
+if [ "$(readlink "$MALFORMED_LINK_HOME/.local/bin/gin-workflow")" != "$malformed_target" ]; then
+  echo "Malformed managed launcher link was modified" >&2
+  exit 1
+fi
+
 COLLISION_HOME="$(mktemp -d)"
 trap 'rm -rf "$MOCK_HOME" "$COLLISION_HOME"; rm -f "$output_file"' EXIT
 mkdir -p "$COLLISION_HOME/.local/bin"

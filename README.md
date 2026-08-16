@@ -140,6 +140,8 @@ codex plugin add gin-workflow@gin-workflow-marketplace
 
 ## Local Development & Compilation
 
+### Linux and macOS
+
 ### Running the Installer Locally
 Use `install.sh` to compile the plugin into `plugins/gin-workflow/dist/` and install it.
 
@@ -161,6 +163,32 @@ Use `install.sh` to compile the plugin into `plugins/gin-workflow/dist/` and ins
 - `--uninstall`: Cleans up the compiled `dist` files.
 - `--dry-run`: Preview changes without copying files.
 
+### Windows (PowerShell 7)
+
+Native Windows installation requires [PowerShell 7](https://learn.microsoft.com/powershell/) and Python 3 available as `python` on `PATH`.
+
+```powershell
+# Build and register all detected harness plugins
+pwsh -NoProfile -File .\install.ps1 -Platform all
+
+# Install Codex files into one project
+pwsh -NoProfile -File .\install.ps1 -Platform codex -Project C:\path\to\repository
+
+# Preview launcher and registration changes
+pwsh -NoProfile -File .\install.ps1 -Platform all -DryRun
+```
+
+PowerShell parameters:
+
+- `-Platform <claude | antigravity | codex | both | all>` (default: `all`)
+- `-Plugin <gin-workflow | all>` (default: `gin-workflow`)
+- `-Link`: Creates symbolic links for active development. Windows may require Developer Mode or elevated privileges.
+- `-Project <path>`: Installs harness files into one repository instead of registering globally.
+- `-Uninstall`: Cleans generated repository `dist` directories.
+- `-DryRun`: Previews user-level writes and registration while still rebuilding repository-local `dist` output.
+
+The versioned launcher is installed beneath `$HOME\.local\lib\gin-workflow`, with a command shim at `$HOME\.local\bin\gin-workflow.cmd`. The installer warns when `$HOME\.local\bin` is not on `PATH`; it does not change the persistent user environment automatically.
+
 ---
 
 ## Repository Structure
@@ -179,6 +207,7 @@ gin-workflow/
 │           ├── scripts/      # helper scripts
 │           └── skills/       # workflow and retained support skills
 ├── install.sh                # Main build and install script
+├── install.ps1               # Native build and installer for PowerShell 7
 ├── remote-install.sh         # Helper for curl-pipe installation
 └── README.md                 # Documentation
 ```
