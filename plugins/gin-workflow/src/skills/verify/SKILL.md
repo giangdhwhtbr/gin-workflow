@@ -1,24 +1,29 @@
 ---
 name: verify
-description: Validate the implementation against the approved requirement, plan, and acceptance criteria.
+description: Validate implementation against approved requirements and evidence.
 ---
 
 # Verify Skill
 
-This is the primary user-facing verification skill for `gin-workflow`.
+Perform exactly one verification stage.
 
-Use it after implementation to confirm that the result satisfies the original requirement, the approved plan, and the acceptance criteria.
+## Required inputs
 
-## Delegation
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="verify")`
+- native-harness `ApprovalDecision`
 
-- Use `verification-before-completion` as the underlying verification contract.
-- Treat `/verify` as an optional command alias only on hosts that surface plugin commands.
+The caller must obtain `EffectiveConfig` through
+`load_effective_config(repository)`. If setup is required, stop and instruct
+the user to run `/setup` once. Never run setup or resolve raw configuration
+from this lifecycle skill.
 
-## Usage Standard
+## Execution
 
-1. Run the relevant tests, checks, or manual validation steps.
-2. Verify the result against the original requirement, not just the code diff. If any contradiction between the codebase and Obsidian story/decision documentation is identified, fail verification, mark the task as blocked in Beads, and send a Telegram notification.
-3. Record failures honestly and fix them before claiming completion.
-4. Identify any issues, gaps, or residual risks. Use the `knowledge-capture` skill to log any long-term bugs, workarounds, or risks in the Obsidian vault.
-5. After running quality gates, use `telegram-notify` to send a `verification_result` notification with the pass/fail summary.
-6. After verification passes, transition to `ship`.
+1. Require evidence that `implementation_complete` is true.
+2. Apply `verification-before-completion` and the canonical handoff workflow.
+3. Validate against the confirmed requirement, approved plan, acceptance criteria, and review evidence rather than only the diff.
+4. Use bounded required context and discover related symbols, tests, and project knowledge on demand.
+5. Record every run, omitted check, failure, risk, and provider availability through the evidence capability. Optional notifications use the configured notification provider.
+6. Return `verification_passed` state. Do not invoke shipping.

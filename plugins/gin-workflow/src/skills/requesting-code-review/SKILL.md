@@ -1,30 +1,26 @@
 ---
 name: requesting-code-review
-description: Extends superpowers:requesting-code-review with code-reviewer subagent integration, expected structured findings, and completion rules.
+description: Request provider-backed review with structured findings and durable evidence.
 ---
 
 # Requesting Code Review Skill
 
 This skill extends `superpowers:requesting-code-review` for the `gin-workflow` plugin.
 
-## Base Skill
+## Required inputs
 
-When `superpowers:requesting-code-review` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="review")`
+- native-harness `ApprovalDecision`
 
-If `superpowers:requesting-code-review` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
+## Gin Workflow overlay
 
-## Gin Workflow Overlay
-
-Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
-
-1. **When to Request a Review**:
-   Request a review after completing implementation passes or when substantial changes are ready.
-2. **Initialization and Checkpoint**:
-   - Initialize the review ledger: `python3 review-ledger.py init --bead-id <bead-id> --repo-id <repo-id> --review-ref bead/<bead-id> --base-sha <base-sha> --reviewed-sha <head-sha> --actor-id <actor-id>`.
-   - Create a Git checkpoint and commit in-scope changes: `python3 review-ledger.py checkpoint --bead-id <bead-id> --repo-id <repo-id> --commit-msg "checkpoint: ready for review" --actor-id <actor-id>`.
-3. **Execution and Push**:
-   - Push the review branch: `git push origin bead/<bead-id>`.
-   - Update Bead status to `review-requested` by submitting the transaction to the ledger and updating Beads:
-     `python3 review-ledger.py transition-requested --bead-id <bead-id> --to review-requested` / `bd update <bead-id> --status open` (or appropriate state).
-4. **Post-Review Process**:
-   - When reviewer finishes, route findings via the `receiving-code-review` skill.
+1. Request review after an implementation pass has local validation evidence.
+2. Initialize review state and capture repository identity through the review capability.
+3. Dispatch an independent reviewer through the worker capability and update durable status through the task-tracking capability.
+4. The review manifest contains only the reviewed tree/diff, confirmed requirement, acceptance criteria, and test evidence. It excludes private reasoning, self-assessment, persuasive summaries, unrelated history, and secrets.
+5. Record structured findings, reviewer identity, terminal state, and repository identity through the evidence capability.
+6. Route returned findings through `receiving-code-review`; never manufacture approval or close work from notification delivery.
+7. Record the implementation's original provider/model route as runtime affinity metadata. Do not copy concrete aliases into the portable plan or durable task fields.
+8. A completed implementation result starts review; it is not evidence that the task may close.

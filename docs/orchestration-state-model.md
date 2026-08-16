@@ -14,6 +14,8 @@ The workflow must distinguish clearly between:
 
 The system is correct only when each category has one owner.
 
+`.agent-workflow/generated/effective-config.yaml` is the sole lifecycle configuration input. It resolves setup inputs and selects logical capabilities; it does not own task state, approved plan content, or runtime outcomes.
+
 ## Canonical Ownership
 
 ### Beads owns durable execution state
@@ -30,7 +32,7 @@ Beads is the source of truth for:
 - durable follow-up work
 - final completion state
 
-This means an agent answering "what is active, blocked, ready, or complete?" must start from `bd`, not from local files.
+This means an agent answering "what is active, blocked, ready, or complete?" starts with the task-tracking capability, not local runtime files.
 
 ### Plan files own approved decomposition
 
@@ -65,9 +67,9 @@ It must never become the authoritative answer for whether work is pending, activ
 
 When a plan is decomposed into multiple tracks:
 
-1. Create one bead per durable track.
-2. Mirror plan dependencies into Beads with `bd dep add <issue> <depends-on>`.
-3. Use Beads dependency state to decide readiness and blocking.
+1. Create one durable task per durable track through the task-tracking capability.
+2. Mirror plan dependencies through that capability.
+3. Use durable task dependency state to decide readiness and blocking.
 
 Plan order can guide creation, but readiness comes from Beads after dependencies are recorded.
 
@@ -84,13 +86,13 @@ It should report:
 - next-task recommendations (using hierarchical dependency-aware logic)
 - optional/supplemental runtime context such as worker names or worktree paths (must be labeled as derived runtime metadata)
 
-It must read state exclusively from the `bd` CLI and must not depend on local planning runtime JSON files.
+It must read durable state through the task-tracking capability and must not depend on local planning runtime JSON files.
 
 ## Operational Rules
 
 - Never describe `.planning/orchestration-state.json` as the durable task-state source.
 - Never use plan checkboxes or worktree existence as proof of execution progress.
-- Never allow a local runtime file to replace `bd show`, `bd list`, `bd ready`, or `bd close`.
+- Never allow a local runtime file to replace the task-tracking capability.
 - If local runtime metadata becomes stale, repair or discard it; do not treat it as canonical.
 
 ## Acceptable Derived State
@@ -105,7 +107,7 @@ Examples of acceptable derived or session-local state:
 Examples of unacceptable derived state:
 
 - a local file marked "track complete" while the bead is still open
-- a progress command that trusts a runtime cache over `bd`
+- a progress command that trusts a runtime cache over the task-tracking capability
 - a cleanup step that infers task closure from worktree deletion
 
 ## Decision Table
@@ -120,6 +122,10 @@ Examples of unacceptable derived state:
 | Which worktree path belongs to a track? | Derived runtime metadata |
 | Which branch was used for a worker? | Derived runtime metadata |
 | Is the task complete? | Beads |
+
+## Effective Configuration And Evidence
+
+The effective configuration selects artifact names and capability providers only. Artifact resolution never moves or infers plans, Beads data, worktrees, knowledge stores, review ledgers, or evidence. Runtime manifests, events, worker results, and evidence indexes are supplemental records: they may support verification and audit, but never replace durable task state or approved plan scope. See [setup-system.md](setup-system.md), [capability-provider-contracts.md](capability-provider-contracts.md), and [context-and-evidence-policy.md](context-and-evidence-policy.md).
 
 ## Relationship To Other Docs
 

@@ -1,25 +1,30 @@
 ---
 name: discuss
-description: Start requirement discovery and discussion before planning or task creation.
+description: Clarify a requirement before planning or durable task creation.
 ---
 
 # Discuss Skill
 
-This is the primary user-facing entry point for new requirements in `gin-workflow`.
+Perform exactly one requirement-discovery stage and return its transition evidence.
 
-Use this skill to explore a requirement deeply, ask clarifying questions, identify risks and constraints, challenge assumptions, and align on understanding before any plan or Beads task is created.
+## Required inputs
 
-## Delegation
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="discuss")`
+- native-harness `ApprovalDecision`
 
-- Use `discovering-work` as the underlying workflow contract.
-- Treat `/discuss` as an optional command alias only on hosts that surface plugin commands.
+The caller must obtain `EffectiveConfig` through
+`load_effective_config(repository)`. If setup is required, stop and instruct
+the user to run `/setup` once. Never run setup or resolve raw configuration
+from this lifecycle skill.
 
-## Usage Standard
+Reject unbounded parent context. Use the context manager to keep the requirement and relevant repository facts required while leaving related symbols, tests, and project knowledge discoverable on demand.
 
-1. Explore the relevant project context.
-2. Ask clarifying questions until the requirement is fully understood.
-3. Identify ambiguity, missing information, edge cases, risks, dependencies, and constraints.
-4. Suggest improvements, alternatives, and stronger approaches when appropriate.
-5. Summarize the final understanding and wait for explicit user confirmation.
-6. Do not create plans or Beads tasks during this phase.
-7. After user confirmation, transition to `plan`.
+## Execution
+
+1. Apply the `discovering-work` methodology.
+2. Clarify ambiguity, constraints, alternatives, risks, and acceptance criteria.
+3. Ask for explicit confirmation in the native harness.
+4. Use the evidence capability to record the confirmed requirement and decision.
+5. Return state showing whether `requirement_confirmed` is true. Do not invoke another lifecycle stage.

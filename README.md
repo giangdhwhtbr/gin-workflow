@@ -17,6 +17,8 @@ The plugin is skill-first across all supported platforms. These skills are the p
 | Skill | Description |
 | :--- | :--- |
 | `discuss` | Start requirement discovery and discussion before any plan or beads are created. |
+| `setup` | Run one-time repository initialization and configuration, or explicitly request later maintenance. |
+| `workflow` | Route to exactly one valid next lifecycle stage. |
 | `plan` | After you confirm the understanding, create a durable implementation plan in `.planning/plans/`. |
 | `orchestrate` | After plan approval, automatically create and wire Beads tasks from the plan for execution. |
 | `execute` | Run implementation from the approved plan using Beads-backed worker execution and progress updates. |
@@ -42,6 +44,21 @@ The plugin also provides lower-level and support skills used internally or for a
 - `requesting-code-review`
 - `receiving-code-review`
 
+## One-Time Repository Setup
+
+Run `setup` once for a repository before its first `discuss`. The initial
+setup session detects the harness, collects portable settings, previews the
+write, and creates both the human-authored configuration and generated
+effective configuration. Setup is a repository prerequisite, not a lifecycle
+stage.
+
+Normal lifecycle invocations load the existing
+`.agent-workflow/generated/effective-config.yaml`. They never run setup
+automatically. If that file is absent, the lifecycle stops with an instruction
+to run `setup` once. Later `setup` invocations occur only when explicitly
+requested for status, diagnosis, reconfiguration, migration, rollback, or
+bundle maintenance.
+
 ## Workflow Model
 
 The plugin’s canonical workflow is:
@@ -54,12 +71,15 @@ The plugin’s canonical workflow is:
 6. Use `verify` to confirm the result against the original requirement and acceptance criteria
 7. Use `ship` to complete the delivery workflow once verification passes
 
+`workflow` may be used instead of choosing a stage manually; it routes one next stage only. It does not add, remove, or reorder lifecycle stages. Plugin installation makes the skills and CLI available; it does not initialize any repository or write `.agent-workflow/`.
+
 
 ## Optional Commands
 
 Some hosts also surface plugin commands. Where available, these are optional aliases for the primary skills above:
 
 - `/discuss`
+- `/setup`, `/workflow`
 - `/plan`
 - `/orchestrate`
 - `/execute`
@@ -71,52 +91,17 @@ For the detailed workflow contracts:
 
 - Agent lifecycle: [docs/agent-task-lifecycle.md](docs/agent-task-lifecycle.md)
 - Orchestration state ownership: [docs/orchestration-state-model.md](docs/orchestration-state-model.md)
+- Setup, versions, and migration: [docs/setup-system.md](docs/setup-system.md)
+- Capability boundaries: [docs/capability-provider-contracts.md](docs/capability-provider-contracts.md)
+- Context and evidence: [docs/context-and-evidence-policy.md](docs/context-and-evidence-policy.md)
+- Native provider routing and model aliases: [docs/provider-routing.md](docs/provider-routing.md)
 - Verification and handoff: [docs/verification-and-handoff-workflow.md](docs/verification-and-handoff-workflow.md)
 
 ---
 
-## Telegram Integration (Optional)
+## Notifications (Optional)
 
-Agents can send notifications and receive replies via a private Telegram bot during workflow lifecycle events. This is fully opt-in — when not configured, all skills behave exactly as before.
-
-### Setup
-
-1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram.
-2. Send any message to your bot to start a private conversation.
-3. Get your chat ID (send a message to the bot, then check `https://api.telegram.org/bot<TOKEN>/getUpdates`).
-4. Set environment variables:
-   ```bash
-   export TELEGRAM_BOT_TOKEN="your-bot-token"
-   export TELEGRAM_CHAT_ID="your-chat-id"
-   ```
-
-### Notification Events
-
-| Event | Mode | Trigger |
-|---|---|---|
-| 📋 Plan ready | Two-way | After plan is written, before approval |
-| ✅ Task completed | One-way | After a bead passes verification |
-| 🚫 Work blocked | One-way | When a worker hits out-of-scope changes or ambiguity |
-| ✅/❌ Verification result | One-way | After quality gates run |
-| 🚀 Ship ready | Two-way | Before final delivery |
-| 🎉 All work complete | One-way | After all beads are closed |
-
-**Two-way** events send a message and wait up to 10 minutes for your reply. **One-way** events are fire-and-forget.
-
-### Timeout and Resume
-
-When the agent waits for your reply and you don't respond within 10 minutes:
-- The agent saves its state and exits gracefully.
-- The Telegram message remains in your chat with the session ID.
-- Resume later using your platform's resume command:
-  - `agy resume <session-id>`
-  - `claude --resume <session-id>`
-  - `codex resume <session-id>`
-
-### Dependencies
-
-- `curl` (required) — for Telegram Bot API calls.
-- `jq` (recommended) — for JSON parsing during two-way polling. Falls back to send-only if unavailable.
+Notifications are optional and provider-backed. Existing Telegram support may be selected through configuration, but lifecycle guidance neither requires it nor exposes provider-specific commands or credential instructions. See [capability provider contracts](docs/capability-provider-contracts.md).
 
 ---
 

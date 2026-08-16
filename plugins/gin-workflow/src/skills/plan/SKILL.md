@@ -1,25 +1,31 @@
 ---
 name: plan
-description: After requirement confirmation, create a durable implementation plan.
+description: Turn a confirmed requirement into a durable implementation plan.
 ---
 
 # Plan Skill
 
-This is the primary user-facing planning skill for `gin-workflow`.
+Perform exactly one planning stage.
 
-Use it only after the requirement discovery phase has ended with an explicit user confirmation of the summarized understanding.
+## Required inputs
 
-## Delegation
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="plan")`
+- native-harness `ApprovalDecision`
 
-- Use `writing-plans` as the underlying planning contract.
-- Treat `/plan` as an optional command alias only on hosts that surface plugin commands.
+The caller must obtain `EffectiveConfig` through
+`load_effective_config(repository)`. If setup is required, stop and instruct
+the user to run `/setup` once. Never run setup or resolve raw configuration
+from this lifecycle skill.
 
-## Usage Standard
+The manifest requires the confirmed requirement and accepted decisions only. Use the context and knowledge capabilities to discover related symbols, tests, and project knowledge on demand.
 
-1. Confirm that the user explicitly approved the summarized understanding.
-2. If understanding is not yet confirmed, return to `discuss`.
-3. Run the `context-retrieval` skill to query Obsidian and retrieve related user stories, decisions, and indexes before writing the plan.
-4. Turn the confirmed understanding into a durable implementation plan in `.planning/plans/`.
-5. Include goals and scope, technical approach, required changes, implementation steps, testing strategy, and risks or mitigations.
-6. After writing the plan, use `telegram-notify` to send a `plan_ready` notification (two-way). If the user replies via Telegram, use their response as approval or revision feedback. On timeout, save state and exit gracefully.
-7. After the plan is approved, transition to `orchestrate`.
+## Execution
+
+1. Require evidence that `requirement_confirmed` is true.
+2. Apply the `writing-plans` methodology and write the plan under `ArtifactRegistry["plans"]`.
+3. Include approved scope, concrete file ownership, dependency-aware tracks, validation, risks, and abstract model-class guidance.
+4. Assign every implementation or review track a portable provider role and reasoning tier. Do not select a concrete provider or model.
+5. Obtain native-harness approval of the plan and record it through the evidence capability.
+6. Return state showing whether `plan_approved` is true. Do not invoke orchestration.

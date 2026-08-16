@@ -24,6 +24,9 @@ Gin Workflow keeps the Superpowers planning standard, with these plugin-specific
 5. Include goals and scope, technical approach, required changes, implementation steps, testing strategy, and risks or mitigations.
 6. Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`.
 7. Treat `standard_impl` as the implicit default when no model class is specified.
+8. Declare `execution_strategy` exactly as specified in [plan-schema.md](file://plan-schema.md). Strategy selection and later changes follow the canonical [agent task lifecycle reference](../../references/agent-task-lifecycle.md).
+9. Give every implementation or review track a `provider_role` and `reasoning` value using the low/medium/high guidance in the schema.
+10. Do not name a concrete provider or model in a portable plan. Machine-local routing resolves those aliases after approval.
 
 ## Execution Rules
 
@@ -42,4 +45,4 @@ Every plan should answer these questions before the task list begins:
 3. Which approach was selected, and why was it chosen?
 4. What files, systems, or behaviors must change?
 5. How will the user know the work is complete?
-6. Which model class guidance, if any, needs to be recorded for phases or tracks?
+6. Which provider role and reasoning tier does each implementation or review track require?

@@ -1,24 +1,24 @@
 ---
 name: finishing-a-development-branch
-description: Extends superpowers:finishing-a-development-branch with teardown safety and bundled verification-and-handoff workflow integration.
+description: Extend delivery with provider-backed integration, cleanup, and handoff safety.
 ---
 
 # Finishing a Development Branch Skill
 
 This skill extends `superpowers:finishing-a-development-branch` for the `gin-workflow` plugin.
 
-## Base Skill
+## Required inputs
 
-When `superpowers:finishing-a-development-branch` is available, use it first as the base contract. Then apply the Gin Workflow overlay below.
+- resolved `EffectiveConfig`
+- `ArtifactRegistry`
+- `ContextManifest(stage="ship")`
+- native-harness `ApprovalDecision`
 
-If `superpowers:finishing-a-development-branch` is unavailable, continue with this skill's self-contained rules and say that the Superpowers base skill could not be loaded.
-
-## Gin Workflow Overlay
-
-Gin Workflow keeps the Superpowers standards, with these plugin-specific overrides:
+## Gin Workflow overlay
 
 1. Follow [verification-and-handoff-workflow.md](file://../../references/verification-and-handoff-workflow.md) before treating work as shippable.
-2. **Review Diff**: Generate and inspect a clean diff of changes against the baseline branch when branch integration is in scope.
-3. **Merge**: Merge the integration/development branch into the target deployment branch using the `merge-integration.sh "<track-branch>" "<integration-branch>"` script only when the active instructions authorize that workflow.
-4. **Teardown**: Discover active track worktrees from the known execution context and `.planning/worktrees/`, then remove them using the `worktree-cleanup.sh "<track-id>"` script. Treat this discovery data as local cleanup metadata, not durable workflow state.
-5. **Lifecycle Rule**: Branch and worktree cleanup do not replace Beads-based verification, handoff, or closure; they are implementation cleanup steps only.
+2. Generate and inspect repository identity/diff evidence against the approved baseline when integration is in scope.
+3. Use configured repository/workspace capabilities for authorized integration and cleanup; never invoke adapter scripts directly.
+4. Revalidate native-harness approval and persist durable audit evidence immediately before commit, push, merge, data movement, or protected cleanup.
+5. Discover cleanup targets from bounded execution context and workspace-provider records. Reject wildcards and unresolved paths.
+6. Use task-tracking capabilities for durable handoff and closure. Branch or workspace cleanup never proves task completion.

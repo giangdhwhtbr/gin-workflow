@@ -8,26 +8,20 @@ This repository separates responsibilities intentionally:
 - `AGENTS.md` and `CLAUDE.md` define only repo operating policy and entry-point pointers.
 - `docs/agent-task-lifecycle.md` is the canonical lifecycle spec.
 - `docs/orchestration-state-model.md` is the canonical orchestration-state ownership model.
+- `docs/setup-system.md` is the canonical setup, versioning, and migration policy.
+- `docs/capability-provider-contracts.md` defines lifecycle capability boundaries.
+- `docs/context-and-evidence-policy.md` defines worker context, result, review, and evidence policy.
 - `docs/verification-and-handoff-workflow.md` is the canonical close-out checklist.
+- `docs/superpowers-integration-policy.md`: rule for using superpowers:* skills as reasoning guidance only.
 - Plugin command and skill files under `plugins/gin-workflow/src/` contain the actionable execution rules.
 
 ## Required Defaults
 
-- Use Beads via `bd` for durable task tracking.
+- Use the task-tracking capability for durable task tracking; Beads remains its durable state owner in this repository.
 - Do not create markdown TODO lists or ad hoc memory files.
 - Use `bd remember` for durable project memory when needed.
 - Do not commit or push unless the user or active instructions explicitly authorize it.
 - Before ending work, follow `docs/verification-and-handoff-workflow.md`.
-
-## Quick Reference
-
-```bash
-bd prime
-bd ready
-bd show <id>
-bd update <id> --claim
-bd close <id>
-```
 
 ## Non-Interactive Shell Commands
 

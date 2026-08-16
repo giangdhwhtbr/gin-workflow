@@ -5,6 +5,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+TEST_HOME="$(mktemp -d)"
+export HOME="$TEST_HOME"
+
 assert_exists() {
   local path="$1"
   if [ ! -e "$path" ]; then
@@ -63,6 +66,58 @@ for event_name in ("PreToolUse", "PostToolUse"):
 PYEOF
 }
 
+assert_workflow_v22_layout() {
+  local root="$1"
+  local relative
+  local required=(
+    "commands/setup.md"
+    "commands/workflow.md"
+    "skills/setup/SKILL.md"
+    "skills/workflow/SKILL.md"
+    "skills/context-manager/SKILL.md"
+    "skills/approval-manager/SKILL.md"
+    "skills/evidence-manager/SKILL.md"
+    "skills/worker-dispatch/SKILL.md"
+    "skills/worker-dispatch/references/worker-lifecycle.md"
+    "skills/worker-dispatch/references/delegation-policy.md"
+    "skills/worker-dispatch/references/result-contract.md"
+    "references/setup-system.md"
+    "references/capability-provider-contracts.md"
+    "references/context-and-evidence-policy.md"
+    "scripts/gin-workflow"
+    "scripts/workflow_core/configuration.py"
+    "scripts/workflow_core/setup_service.py"
+    "scripts/workflow_core/router.py"
+    "scripts/workflow_core/worker_scheduler.py"
+    "scripts/workflow_core/provider_config.py"
+    "scripts/workflow_core/assignments.py"
+    "scripts/workflow_core/review_coordinator.py"
+    "scripts/workflow_providers/__init__.py"
+    "scripts/workflow_providers/contracts.py"
+    "scripts/workflow_providers/registry.py"
+    "scripts/workflow_providers/task_tracking.py"
+    "scripts/workflow_providers/knowledge.py"
+    "scripts/workflow_providers/workspace.py"
+    "scripts/workflow_providers/review.py"
+    "scripts/workflow_providers/evidence.py"
+    "scripts/workflow_providers/notifications.py"
+    "scripts/workflow_providers/fakes.py"
+    "scripts/workflow_providers/worker_dispatch.py"
+    "scripts/workflow_providers/claude_worker.py"
+    "scripts/workflow_providers/codex_worker.py"
+    "scripts/workflow_providers/antigravity_worker.py"
+    "scripts/workflow_providers/sequential_worker.py"
+    "scripts/workflow_providers/circuit_breaker.py"
+    "scripts/workflow_providers/native_cli.py"
+    "scripts/workflow_providers/routed_worker.py"
+    "examples/config.full.yaml"
+    "examples/providers.local.example.yaml"
+  )
+  for relative in "${required[@]}"; do
+    assert_exists "$root/$relative"
+  done
+}
+
 rm -rf plugins/gin-workflow/dist
 rm -rf plugins/gin-workflow-advanced/dist
 
@@ -74,6 +129,8 @@ trap 'rm -f "$output_file"' EXIT
 assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_not_contains "$output_file" "gin-workflow-advanced"
 assert_contains "$output_file" "would install global Claude Code plugin to"
+assert_contains "$output_file" "would install gin-workflow launcher version 2.2 to"
+assert_contains "$output_file" "would link gin-workflow launcher on PATH at"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/commands/tech-doc.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
@@ -88,6 +145,8 @@ assert_exists "plugins/gin-workflow/dist/claude-code/skills/cross-agent-code-rev
 assert_exists "plugins/gin-workflow/dist/claude-code/commands/review.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/verification-and-handoff-workflow.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/orchestration-state-model.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/scripts/gin-workflow"
+assert_workflow_v22_layout "plugins/gin-workflow/dist/claude-code"
 
 assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/quick.md"
 assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/new-project.md"
@@ -134,8 +193,15 @@ assert_contains "plugins/gin-workflow/dist/codex/commands/orchestrate.md" "file:
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "codegraph"
+assert_workflow_v22_layout "plugins/gin-workflow/dist/codex"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-workflow/src\""
 assert_not_contains ".claude-plugin/marketplace.json" "gin-workflow-advanced"
+
+./install.sh --platform antigravity --dry-run >"$output_file"
+
+assert_exists "plugins/gin-workflow/dist/antigravity/plugin.json"
+assert_exists "plugins/gin-workflow/dist/antigravity/hooks/hooks.json"
+assert_workflow_v22_layout "plugins/gin-workflow/dist/antigravity"
 
 # Test actual installation with a mocked HOME
 echo "Running mock HOME global installation test..."
@@ -150,3 +216,23 @@ HOME="$MOCK_HOME" ./install.sh --platform claude >/dev/null
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/commands/tech-doc.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/bead-worker.md"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-workflow@skills-dir": true'
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.2/gin-workflow"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.2/workflow_core/cli.py"
+assert_exists "$MOCK_HOME/.local/bin/gin-workflow"
+launcher_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" --version)"
+if [ "$launcher_version" != "gin-workflow 2.2" ]; then
+  echo "Unexpected launcher version: $launcher_version" >&2
+  exit 1
+fi
+
+COLLISION_HOME="$(mktemp -d)"
+trap 'rm -rf "$MOCK_HOME" "$COLLISION_HOME"; rm -f "$output_file"' EXIT
+mkdir -p "$COLLISION_HOME/.local/bin"
+echo 'different launcher' > "$COLLISION_HOME/.local/bin/gin-workflow"
+if HOME="$COLLISION_HOME" ./install.sh --platform claude >"$output_file" 2>&1; then
+  echo "Expected launcher collision to fail installation" >&2
+  exit 1
+fi
+assert_contains "$output_file" "refusing to replace a different launcher"
+assert_contains "$COLLISION_HOME/.local/bin/gin-workflow" "different launcher"
+rmdir "$TEST_HOME"

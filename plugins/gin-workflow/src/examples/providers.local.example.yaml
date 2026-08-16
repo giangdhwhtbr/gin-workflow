@@ -1,0 +1,20 @@
+schema_version: "2.2"
+providers:
+  claude:
+    executable: claude
+    models:
+      low: haiku
+      medium: sonnet
+      high: opus
+  antigravity:
+    executable: agy
+    models:
+      low: gemini-flash
+      medium: gemini-flash
+      high: gemini-pro
+  codex:
+    executable: codex
+    models:
+      low: fast
+      medium: standard
+      high: reasoning
