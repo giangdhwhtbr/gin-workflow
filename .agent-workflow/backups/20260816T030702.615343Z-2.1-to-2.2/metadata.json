@@ -1,0 +1,6 @@
+{
+  "backup_schema_version": "1",
+  "config_sha256": "08ffcaf336e56a9cfe556b9d7012dec0d1bcc9017cbe569cfdeba2f35c4beb4c",
+  "from_version": "2.1",
+  "to_version": "2.2"
+}

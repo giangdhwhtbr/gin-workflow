@@ -1,0 +1,4 @@
+harness: codex
+schema_version: '2.1'
+setup_cli_version: '2.1'
+workflow_version: '2.1'

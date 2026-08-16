@@ -1,0 +1,51 @@
+harness: codex
+routing:
+  circuit_breaker:
+    cooldown_seconds: 900
+    failure_threshold: 1
+    half_open_max_probes: 1
+  concurrency:
+    antigravity: 2
+    claude: 2
+    codex: 1
+  queue:
+    max_wait_seconds: 120
+  review:
+    allow_self_review_fallback: false
+    max_cycles: 3
+    require_independent: true
+    role: review
+  roles:
+    backend:
+      fallback:
+      - codex
+      preferred:
+      - claude
+    docs:
+      fallback:
+      - codex
+      - claude
+      preferred:
+      - antigravity
+    frontend:
+      fallback:
+      - codex
+      - claude
+      preferred:
+      - antigravity
+    general:
+      fallback:
+      - claude
+      preferred:
+      - codex
+    review:
+      fallback:
+      - claude
+      preferred:
+      - codex
+  worker:
+    max_retries: 1
+    timeout_seconds: 900
+schema_version: '2.2'
+setup_cli_version: '2.2'
+workflow_version: '2.2'
