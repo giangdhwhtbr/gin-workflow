@@ -333,14 +333,35 @@ install_platform() {
   fi
 }
 
+is_managed_launcher_link() {
+  local launcher_link="$1"
+  local managed_root="$2"
+  local target version
+
+  [ -L "$launcher_link" ] || return 1
+  target="$(readlink "$launcher_link")"
+  case "$target" in
+    "$managed_root"/*/gin-workflow) ;;
+    *) return 1 ;;
+  esac
+
+  version="${target#"$managed_root"/}"
+  version="${version%/gin-workflow}"
+  [ -n "$version" ] &&
+    [ "$version" != "." ] &&
+    [ "$version" != ".." ] &&
+    [ "${version#*/}" = "$version" ]
+}
+
 install_launcher() {
   local source_dir="$SCRIPT_DIR/plugins/gin-workflow/src/scripts"
   local install_dir="${HOME}/.local/lib/gin-workflow/${LAUNCHER_VERSION}"
   local launcher_target="${install_dir}/gin-workflow"
   local launcher_link="${HOME}/.local/bin/gin-workflow"
+  local managed_root="${HOME}/.local/lib/gin-workflow"
 
   if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
-    if [ ! -L "$launcher_link" ] || [ "$(readlink "$launcher_link")" != "$launcher_target" ]; then
+    if [ ! -L "$launcher_link" ] || { [ "$(readlink "$launcher_link")" != "$launcher_target" ] && ! is_managed_launcher_link "$launcher_link" "$managed_root"; }; then
       echo "Error: refusing to replace a different launcher at $launcher_link" >&2
       return 1
     fi
@@ -356,9 +377,7 @@ install_launcher() {
   cp -f "$source_dir/gin-workflow" "$launcher_target"
   cp -rf "$source_dir/workflow_core/." "$install_dir/workflow_core/"
   chmod 755 "$launcher_target"
-  if [ ! -L "$launcher_link" ]; then
-    ln -s "$launcher_target" "$launcher_link"
-  fi
+  ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed gin-workflow launcher version $LAUNCHER_VERSION to $launcher_link"
   case ":${PATH}:" in
     *":${HOME}/.local/bin:"*) ;;
