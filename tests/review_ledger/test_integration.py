@@ -65,7 +65,8 @@ class TestIntegration(unittest.TestCase):
             f.write("print('second pass')")
             
         _, proj = load_ledger(bead_id, base_dir=self.test_dir)
-        new_sha = create_source_checkpoint(self.test_dir, proj.source_scope, bead_id, "feat: update main")
+        new_checkpoint = create_source_checkpoint(self.test_dir, proj.source_scope, bead_id, commit_msg="feat: update main")
+        new_sha = new_checkpoint.checkpoint_sha
         
         # Record checkpoint in ledger
         checkpoint_payload = {"repositories": proj.repositories}
@@ -90,7 +91,8 @@ class TestIntegration(unittest.TestCase):
             f.write("print('fixed pass')")
             
         # Checkpoint the fix
-        fix_sha = create_source_checkpoint(self.test_dir, proj.source_scope, bead_id, "fix: resolve F-001")
+        fix_checkpoint = create_source_checkpoint(self.test_dir, proj.source_scope, bead_id, commit_msg="fix: resolve F-001")
+        fix_sha = fix_checkpoint.checkpoint_sha
         checkpoint_payload["repositories"][0]["reviewed_source_sha"] = fix_sha
         mutate_ledger(bead_id, "source-checkpoint-created", checkpoint_payload, "worker", "worker-1", base_dir=self.test_dir)
         

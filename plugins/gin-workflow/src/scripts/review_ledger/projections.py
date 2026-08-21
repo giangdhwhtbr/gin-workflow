@@ -3,6 +3,26 @@ from typing import Dict, Any, List, Optional
 from review_ledger.schema import EventActions
 from review_ledger.events import LedgerEvent, WorkflowIntegrityError
 
+SOURCE_IDENTITY_FIELDS = (
+    "repository_path",
+    "checkpoint_ref",
+    "checkpoint_sha",
+    "source_scope_hash",
+    "source_tree_hash",
+)
+
+
+def normalize_repository(repository: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(repository)
+    if "checkpoint_ref" not in normalized and normalized.get("review_ref"):
+        normalized["checkpoint_ref"] = normalized["review_ref"]
+    if "checkpoint_sha" not in normalized and normalized.get("reviewed_source_sha"):
+        normalized["checkpoint_sha"] = normalized["reviewed_source_sha"]
+    complete = all(normalized.get(field) for field in SOURCE_IDENTITY_FIELDS)
+    normalized["source_identity_status"] = "complete" if complete else "missing"
+    return normalized
+
+
 class FindingProjection:
     def __init__(self, finding_id: str, severity: str, status: str = "open", location: str = "", expected_behavior: str = "", evidence: str = ""):
         self.finding_id: str = finding_id
@@ -156,7 +176,7 @@ class ReviewProjection:
 
         if action == EventActions.LEDGER_CREATED:
             self.review_state = payload.get("review_state", "implementation-in-progress")
-            self.repositories = payload.get("repositories", [])
+            self.repositories = [normalize_repository(item) for item in payload.get("repositories", [])]
             self.source_scope = payload.get("source_scope", {})
 
         elif action == EventActions.REVIEW_SCOPE_ESTABLISHED:
@@ -187,7 +207,7 @@ class ReviewProjection:
         elif action == EventActions.SOURCE_CHECKPOINT_CREATED:
             # Checkpoint payload has repositories
             if "repositories" in payload:
-                self.repositories = payload["repositories"]
+                self.repositories = [normalize_repository(item) for item in payload["repositories"]]
 
 
         elif action == "implementation-complete":

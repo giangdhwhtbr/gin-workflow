@@ -8,9 +8,16 @@ import subprocess
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../plugins/gin-workflow/src/scripts')))
 
 from review_ledger.source_identity import (
+    canonical_scope_path,
     is_path_in_scope,
+    is_included_path,
+    is_excluded_path,
+    is_generated_path,
+    get_nested_repository_paths,
     get_git_files,
+    get_tree_files,
     compute_source_tree_hash,
+    compute_tree_hash_for_commit,
     compute_source_scope_hash,
     validate_untracked_files
 )
@@ -19,7 +26,7 @@ class TestSourceIdentity(unittest.TestCase):
     def setUp(self):
         # Create a temp directory for git testing
         self.test_dir = tempfile.mkdtemp()
-        
+
         # Init git repo
         subprocess.run(["git", "init"], cwd=self.test_dir, capture_output=True, check=True)
         # Configure basic dummy name/email
@@ -28,6 +35,12 @@ class TestSourceIdentity(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.test_dir)
+
+    def test_scope_paths_reject_absolute_and_traversal(self):
+        for path in ("/absolute", "../outside", "src/../../outside", ""):
+            with self.subTest(path=path):
+                with self.assertRaises(ValueError):
+                    canonical_scope_path(path)
 
     def test_is_path_in_scope(self):
         scope = {
@@ -40,16 +53,37 @@ class TestSourceIdentity(unittest.TestCase):
         self.assertFalse(is_path_in_scope("src/artifacts/data.json", scope))
         self.assertTrue(is_path_in_scope("src/artifacts_not_excluded/data.json", scope))
 
+    def test_scope_path_classifiers(self):
+        scope = {
+            "included_paths": ["src/"],
+            "excluded_artifact_paths": ["src/artifacts/"],
+            "allowed_generated_paths": ["src/generated/"],
+            "nested_repository_paths": ["src/vendor/lib/"]
+        }
+        # included / excluded are independent classifiers, not the combined scope test
+        self.assertTrue(is_included_path("src/artifacts/data.json", scope))
+        self.assertTrue(is_excluded_path("src/artifacts/data.json", scope))
+        self.assertFalse(is_included_path("docs/index.md", scope))
+
+        self.assertTrue(is_generated_path("src/generated/out.txt", scope))
+        self.assertFalse(is_generated_path("src/main.py", scope))
+
+        # Trailing-slash directory entries (as reported by `git status --porcelain`)
+        # must classify the same as their normalized form.
+        self.assertTrue(is_generated_path("src/generated/", scope))
+
+        self.assertEqual(get_nested_repository_paths(scope), ["src/vendor/lib"])
+
     def test_source_hashing_and_untracked_validation(self):
         # Create directories
         os.makedirs(os.path.join(self.test_dir, "src"))
         os.makedirs(os.path.join(self.test_dir, "docs"))
-        
+
         # Write files
         f1_path = os.path.join(self.test_dir, "src/main.py")
         with open(f1_path, "w") as f:
             f.write("print('hello')")
-            
+
         f2_path = os.path.join(self.test_dir, "docs/readme.md")
         with open(f2_path, "w") as f:
             f.write("# README")
@@ -67,13 +101,13 @@ class TestSourceIdentity(unittest.TestCase):
         # 1. Hashing Check
         h1 = compute_source_tree_hash("primary", self.test_dir, scope)
         self.assertIsNotNone(h1)
-        
+
         # Verify it only hashes src/main.py by changing docs/readme.md and checking hash is unchanged
         with open(f2_path, "a") as f:
             f.write("\nappend text")
         subprocess.run(["git", "add", "docs/readme.md"], cwd=self.test_dir, check=True)
         subprocess.run(["git", "commit", "-m", "update doc"], cwd=self.test_dir, check=True)
-        
+
         h2 = compute_source_tree_hash("primary", self.test_dir, scope)
         self.assertEqual(h1, h2) # Should match because docs/ is outside scope
 
@@ -82,7 +116,7 @@ class TestSourceIdentity(unittest.TestCase):
             f.write("\n# comment")
         subprocess.run(["git", "add", "src/main.py"], cwd=self.test_dir, check=True)
         subprocess.run(["git", "commit", "-m", "update src"], cwd=self.test_dir, check=True)
-        
+
         h3 = compute_source_tree_hash("primary", self.test_dir, scope)
         self.assertNotEqual(h1, h3)
 
@@ -91,17 +125,46 @@ class TestSourceIdentity(unittest.TestCase):
         os.makedirs(os.path.join(self.test_dir, "src/temp_gen"))
         with open(os.path.join(self.test_dir, "src/temp_gen/gen.txt"), "w") as f:
             f.write("generated")
-            
+
         # Create a prohibited untracked file
         with open(os.path.join(self.test_dir, "src/prohibited.py"), "w") as f:
             f.write("prohibited")
-            
+
         prohibited = validate_untracked_files(self.test_dir, scope)
-        self.assertEqual(prohibited, ["src/prohibited.py"])
+        self.assertEqual(prohibited, [])
+
+    def test_commit_tree_hash_matches_index_hash_when_clean(self):
+        os.makedirs(os.path.join(self.test_dir, "src"))
+        with open(os.path.join(self.test_dir, "src/main.py"), "w") as f:
+            f.write("print('hello')")
+        subprocess.run(["git", "add", "src/main.py"], cwd=self.test_dir, check=True)
+        subprocess.run(["git", "commit", "-m", "initial commit"], cwd=self.test_dir, check=True)
+
+        scope = {"included_paths": ["src/"], "excluded_artifact_paths": []}
+
+        index_hash = compute_source_tree_hash("primary", self.test_dir, scope)
+        commit_hash = compute_tree_hash_for_commit("primary", self.test_dir, scope, "HEAD")
+        self.assertEqual(index_hash, commit_hash)
+
+        # The tree listing exposes the same records the index listing does.
+        tree_files = get_tree_files(self.test_dir, "HEAD")
+        index_files = get_git_files(self.test_dir)
+        self.assertEqual(
+            sorted((f["path"], f["mode"], f["type"], f["sha"]) for f in tree_files),
+            sorted((f["path"], f["mode"], f["type"], f["sha"]) for f in index_files),
+        )
 
     def test_scope_hash(self):
         scope = {"included_paths": ["src/"]}
         self.assertIsNotNone(compute_source_scope_hash(scope))
+
+    def test_scope_hash_is_canonical_and_order_independent(self):
+        a = {"included_paths": ["src/"], "excluded_artifact_paths": ["dist/"]}
+        b = {"excluded_artifact_paths": ["dist/"], "included_paths": ["src/"]}
+        self.assertEqual(compute_source_scope_hash(a), compute_source_scope_hash(b))
+
+        c = {"included_paths": ["src/"], "excluded_artifact_paths": ["build/"]}
+        self.assertNotEqual(compute_source_scope_hash(a), compute_source_scope_hash(c))
 
 if __name__ == "__main__":
     unittest.main()

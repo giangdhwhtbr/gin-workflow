@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import subprocess
 from datetime import datetime, timezone
 from typing import Dict, Any, Tuple, Optional, List
 
@@ -10,6 +11,8 @@ from review_ledger.finding_fsm import validate_finding_transition
 from review_ledger.bead_fsm import validate_bead_transition
 from review_ledger.lease import validate_lease_for_write, format_utc_timestamp
 from review_ledger.renderer import render_review_markdown
+from review_ledger.git_adapter import SourceCheckpoint, create_source_checkpoint
+from review_ledger.source_identity import canonicalize_scope
 
 def dict_raise_on_duplicates(ordered_pairs):
     d = {}
@@ -34,6 +37,67 @@ def get_ledger_paths(bead_id: str, base_dir: Optional[str] = None) -> Tuple[str,
         os.path.join(dir_path, "review.json"),
         os.path.join(dir_path, "review.md")
     )
+
+def initialize_ledger(
+    *,
+    bead_id: str,
+    repository_id: str,
+    role: str,
+    repo_path: str,
+    review_ref: str,
+    base_ref: str,
+    scope: Dict[str, Any],
+    actor_role: str,
+    actor_id: str,
+    base_dir: Optional[str] = None,
+) -> SourceCheckpoint:
+    """Checkpoint the declared source and initialize a complete replay identity."""
+    canonical_scope = canonicalize_scope(scope)
+    checkpoint = create_source_checkpoint(
+        repo_path,
+        canonical_scope,
+        bead_id,
+        base_ref=base_ref,
+        review_ref=review_ref,
+        repository_id=repository_id,
+    )
+    resolved_base = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{base_ref}^{{commit}}"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    ledger_root = os.path.abspath(base_dir or os.getcwd())
+    resolved_repo = os.path.abspath(repo_path)
+    repository_path = os.path.relpath(resolved_repo, ledger_root).replace(os.sep, "/")
+    payload = {
+        "repositories": [{
+            "repository_id": repository_id,
+            "role": role,
+            "repository_path": repository_path,
+            "review_ref": checkpoint.checkpoint_ref,
+            "checkpoint_ref": checkpoint.checkpoint_ref,
+            "review_base_sha": resolved_base,
+            "reviewed_source_sha": checkpoint.checkpoint_sha,
+            "checkpoint_sha": checkpoint.checkpoint_sha,
+            "source_scope_hash": checkpoint.source_scope_hash,
+            "source_tree_hash": checkpoint.source_tree_hash,
+            "reviewed_source_tree_hash": checkpoint.source_tree_hash,
+            "source_identity_status": "complete",
+        }],
+        "source_scope": canonical_scope,
+    }
+    mutate_ledger(
+        bead_id,
+        "ledger-created",
+        payload,
+        actor_role,
+        actor_id,
+        base_dir=base_dir,
+    )
+    return checkpoint
+
 
 def load_ledger(bead_id: str, base_dir: Optional[str] = None) -> Tuple[EventLog, ReviewProjection]:
     """Loads and validates a review ledger, replaying the event log to verify invariants."""
