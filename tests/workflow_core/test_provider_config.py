@@ -23,7 +23,7 @@ class ProviderLocalConfigTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             (workflow / "providers.local.yaml").write_text(
-                "schema_version: '2.2'\n"
+                "schema_version: '2.3'\n"
                 "providers:\n"
                 "  claude:\n"
                 "    executable: claude\n"
@@ -44,7 +44,7 @@ class ProviderLocalConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(module.ProviderLocalConfigError, "missing model tier: high"):
             module.validate_provider_local_config(
                 {
-                    "schema_version": "2.2",
+                    "schema_version": "2.3",
                     "providers": {
                         "claude": {
                             "executable": "claude",
@@ -59,7 +59,7 @@ class ProviderLocalConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(module.ProviderLocalConfigError, "unsupported provider fields"):
             module.validate_provider_local_config(
                 {
-                    "schema_version": "2.2",
+                    "schema_version": "2.3",
                     "providers": {
                         "claude": {
                             "executable": "claude",

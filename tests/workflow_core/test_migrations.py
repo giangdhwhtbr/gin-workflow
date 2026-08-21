@@ -15,6 +15,64 @@ from workflow_core.migrations import (  # noqa: E402
 
 
 class MigrationTests(unittest.TestCase):
+    def test_unknown_same_version_fails_closed_without_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            config = workflow / "config.yaml"
+            original = "schema_version: '9.9'\nworkflow_version: '9.9'\nsetup_cli_version: '9.9'\n"
+            config.write_text(original, encoding="utf-8")
+
+            with self.assertRaisesRegex(MigrationError, "unsupported migration target"):
+                apply_migration(repository, target_version="9.9")
+
+            self.assertEqual(original, config.read_text(encoding="utf-8"))
+            self.assertFalse((workflow / "backups").exists())
+
+    def test_migrates_2_2_to_2_3_with_validated_backup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / '.agent-workflow'
+            workflow.mkdir()
+            config = workflow / 'config.yaml'
+            original = b"""schema_version: '2.2'
+workflow_version: '2.2'
+setup_cli_version: '2.2'
+harness: codex
+"""
+            config.write_bytes(original)
+
+            result = apply_migration(repository, target_version='2.3')
+
+            self.assertEqual('migrated', result['status'])
+            self.assertEqual('2.2', result['from_version'])
+            self.assertEqual('2.3', result['to_version'])
+            backup = Path(result['backup'])
+            self.assertEqual(original, (backup / 'config.yaml').read_bytes())
+            migrated = config.read_text(encoding='utf-8')
+            self.assertIn("schema_version: '2.3'", migrated)
+            self.assertIn("workflow_version: '2.3'", migrated)
+            self.assertIn("setup_cli_version: '2.3'", migrated)
+
+    def test_2_2_to_2_3_dry_run_leaves_repository_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / '.agent-workflow'
+            workflow.mkdir()
+            config = workflow / 'config.yaml'
+            original = b"""schema_version: '2.2'
+workflow_version: '2.2'
+setup_cli_version: '2.2'
+"""
+            config.write_bytes(original)
+
+            result = apply_migration(repository, target_version='2.3', dry_run=True)
+
+            self.assertEqual('migration_available', result['status'])
+            self.assertEqual(original, config.read_bytes())
+            self.assertFalse((workflow / 'backups').exists())
+
     def test_migrates_2_1_to_2_2_without_inventing_routes(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

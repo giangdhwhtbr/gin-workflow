@@ -15,6 +15,18 @@ from workflow_core import setup_service  # noqa: E402
 
 
 class SetupCliTests(unittest.TestCase):
+    def test_reports_current_setup_cli_version(self):
+        result = subprocess.run(
+            [sys.executable, str(LAUNCHER), "--version"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("gin-workflow 2.3", result.stdout.strip())
+
     def run_cli(self, repository: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(LAUNCHER), "setup", *arguments, "--repository", str(repository), "--format", "json"],
@@ -122,9 +134,9 @@ class SetupCliTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             (workflow / "config.yaml").write_text(
-                "schema_version: '2.2'\n"
-                "workflow_version: '2.2'\n"
-                "setup_cli_version: '2.2'\n",
+                "schema_version: '2.3'\n"
+                "workflow_version: '2.3'\n"
+                "setup_cli_version: '2.3'\n",
                 encoding="utf-8",
             )
 
@@ -229,9 +241,9 @@ class SetupCliTests(unittest.TestCase):
                 {
                     "harness": "codex",
                     "policy": {"mode": "guarded"},
-                    "schema_version": "2.2",
-                    "setup_cli_version": "2.2",
-                    "workflow_version": "2.2",
+                    "schema_version": "2.3",
+                    "setup_cli_version": "2.3",
+                    "workflow_version": "2.3",
                 },
                 payload["configuration"],
             )
@@ -320,7 +332,7 @@ class SetupCliTests(unittest.TestCase):
                 ignored.read_text(encoding="utf-8"),
             )
 
-    def test_update_previews_then_applies_v2_2_routing_and_local_provider_config(self):
+    def test_update_previews_then_applies_v2_3_routing_and_local_provider_config(self):
         arguments = (
             "--set", "routing.concurrency.claude=1",
             "--set", "routing.roles.backend.preferred=[claude]",
@@ -334,7 +346,7 @@ class SetupCliTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             (workflow / "config.yaml").write_text(
-                "schema_version: '2.1'\nworkflow_version: '2.1'\nsetup_cli_version: '2.1'\nharness: codex\n",
+                "schema_version: '2.2'\nworkflow_version: '2.2'\nsetup_cli_version: '2.2'\nharness: codex\n",
                 encoding="utf-8",
             )
 
@@ -345,7 +357,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("migration_available", payload["status"])
             self.assertIn("configuration", payload)
             self.assertIn("provider_configuration", payload)
-            self.assertEqual("2.2", payload["configuration"]["schema_version"])
+            self.assertEqual("2.3", payload["configuration"]["schema_version"])
             self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
             self.assertFalse((workflow / "providers.local.yaml").exists())
 
@@ -357,9 +369,9 @@ class SetupCliTests(unittest.TestCase):
             self.assertIn("high: opus", (workflow / "providers.local.yaml").read_text(encoding="utf-8"))
             effective = (workflow / "generated/effective-config.yaml").read_text(encoding="utf-8")
             provenance = (workflow / "generated/config-provenance.yaml").read_text(encoding="utf-8")
-            self.assertIn("schema_version: '2.2'", effective)
+            self.assertIn("schema_version: '2.3'", effective)
             self.assertIn("routing:", effective)
-            self.assertIn("schema_version: '2.2'", provenance)
+            self.assertIn("schema_version: '2.3'", provenance)
 
     def test_read_only_commands_do_not_change_repository(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -393,7 +405,7 @@ class SetupCliTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             config = workflow / "config.yaml"
-            malformed = b"schema_version: '2.2'\npolicy: [\n"
+            malformed = b"schema_version: '2.3'\npolicy: [\n"
             config.write_bytes(malformed)
 
             result = self.run_cli(

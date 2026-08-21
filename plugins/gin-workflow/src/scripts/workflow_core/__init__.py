@@ -1,4 +1,4 @@
-"""Portable, provider-neutral workflow core for gin-workflow v2.2."""
+"""Portable, provider-neutral workflow core for gin-workflow v2.3."""
 
 from .approvals import (
     ApprovalAction,
@@ -23,6 +23,7 @@ from .events import (
     append_workflow_event,
 )
 from .manifests import ContextManifest, ContextRequest, create_context_manifest
+from .identity import AcceptanceIdentity, RepositorySnapshot
 from .models import (
     ArtifactRegistry,
     ConfigProvenance,
@@ -33,6 +34,7 @@ from .models import (
 )
 
 __all__ = [
+    "AcceptanceIdentity",
     "ApprovalAction",
     "ApprovalDecision",
     "ApprovalRequest",
@@ -49,6 +51,7 @@ __all__ = [
     "EventPersistenceError",
     "EventStore",
     "ResolvedConfig",
+    "RepositorySnapshot",
     "WorkflowCoreError",
     "WorkflowEvent",
     "WorkflowEventStore",

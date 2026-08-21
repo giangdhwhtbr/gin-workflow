@@ -23,8 +23,8 @@ class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.2"
-SUPPORTED_SETUP_CLI_VERSION = "2.2"
+SUPPORTED_WORKFLOW_VERSION = "2.3"
+SUPPORTED_SETUP_CLI_VERSION = "2.3"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {

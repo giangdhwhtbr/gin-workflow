@@ -12,7 +12,7 @@ from .atomic import atomic_write_many, atomic_write_bytes
 from .configuration import require_yaml, validate_portable_config
 
 
-CURRENT_VERSION = "2.2"
+CURRENT_VERSION = "2.3"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -50,13 +50,31 @@ def _migrate_2_1_to_2_2(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_2_2_to_2_3(config: dict[str, Any]) -> dict[str, Any]:
+    migrated = dict(config)
+    migrated["schema_version"] = "2.3"
+    migrated["workflow_version"] = "2.3"
+    migrated["setup_cli_version"] = "2.3"
+    return migrated
+
+
 _MIGRATIONS = {
     ("2.0", "2.1"): _migrate_2_0_to_2_1,
     ("2.1", "2.2"): _migrate_2_1_to_2_2,
+    ("2.2", "2.3"): _migrate_2_2_to_2_3,
 }
 
 
+_MIGRATION_TARGET_VERSIONS = frozenset(target for _, target in _MIGRATIONS)
+
+
+def _require_migration_target(target_version: str) -> None:
+    if target_version not in _MIGRATION_TARGET_VERSIONS:
+        raise MigrationError(f"unsupported migration target: {target_version!r}")
+
+
 def migrate_config(config: Mapping[str, Any], target_version: str) -> dict[str, Any]:
+    _require_migration_target(target_version)
     source_version = str(config.get("schema_version", ""))
     if source_version == target_version:
         migrated = dict(config)
@@ -68,11 +86,21 @@ def migrate_config(config: Mapping[str, Any], target_version: str) -> dict[str, 
                 f"no migration is registered from {source_version!r} to {target_version!r}"
             ) from error
         migrated = migration(dict(config))
-    validate_portable_config(migrated)
+    for field_name in ("schema_version", "workflow_version", "setup_cli_version"):
+        if str(migrated.get(field_name, "")) != target_version:
+            raise MigrationError(f"migration did not produce {field_name}={target_version!r}")
+    validation_candidate = dict(migrated)
+    validation_candidate.update(
+        schema_version=CURRENT_VERSION,
+        workflow_version=CURRENT_VERSION,
+        setup_cli_version=CURRENT_VERSION,
+    )
+    validate_portable_config(validation_candidate)
     return migrated
 
 
 def propose_migration(repository: Path, *, target_version: str = CURRENT_VERSION) -> dict[str, Any]:
+    _require_migration_target(target_version)
     root = Path(repository).resolve()
     _, config = _read_config(root / ".agent-workflow/config.yaml")
     source_version = str(config.get("schema_version", ""))
