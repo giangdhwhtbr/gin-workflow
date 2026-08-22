@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 from typing import Any, Generic, Mapping, Protocol, TypeVar, runtime_checkable
 
+from workflow_core.identity import AcceptanceIdentity
+
 
 T = TypeVar("T")
 
@@ -170,12 +172,22 @@ class ReviewFinding:
 
 
 @dataclass(frozen=True)
+class ReviewLease:
+    lease_id: str
+    actor_id: str
+    expires_at: str
+    ledger_revision: int
+
+
+@dataclass(frozen=True)
 class ReviewStatus:
     task_id: str
     state: str
     total_findings: int = 0
     unresolved_findings: tuple[str, ...] = ()
     findings: tuple[ReviewFinding, ...] = ()
+    lease: ReviewLease | None = None
+    ledger_revision: int = 0
 
 
 @dataclass(frozen=True)
@@ -185,6 +197,8 @@ class ReviewOutcomeRequest:
     decision: str
     findings: tuple[ReviewFinding, ...] = ()
     lease_id: str = ""
+    acceptance_identity: AcceptanceIdentity | None = None
+    expected_ledger_revision: int | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "findings", tuple(self.findings))

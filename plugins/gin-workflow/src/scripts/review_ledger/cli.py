@@ -2,17 +2,55 @@ import json
 import os
 import sys
 import subprocess
-from datetime import datetime, timezone
+import tempfile
+import uuid
+import time
+from contextlib import contextmanager
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Tuple, Optional, List
 
 from review_ledger.events import LedgerEvent, EventLog, WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection, FindingProjection
 from review_ledger.finding_fsm import validate_finding_transition
 from review_ledger.bead_fsm import validate_bead_transition
-from review_ledger.lease import validate_lease_for_write, format_utc_timestamp
+from review_ledger.lease import (LeaseError, is_lease_active, validate_lease_for_write, format_utc_timestamp)
 from review_ledger.renderer import render_review_markdown
 from review_ledger.git_adapter import SourceCheckpoint, create_source_checkpoint
 from review_ledger.source_identity import canonicalize_scope
+from workflow_core.atomic import atomic_write_many
+
+try:
+    import fcntl as _fcntl
+except ImportError:  # Windows
+    _fcntl = None
+    import msvcrt as _msvcrt
+
+
+def _lock_stream(stream) -> None:
+    if _fcntl is not None:
+        _fcntl.flock(stream.fileno(), _fcntl.LOCK_EX)
+        return
+    stream.seek(0)
+    if not stream.read(1):
+        stream.write(bytes((0,)))
+        stream.flush()
+    while True:
+        try:
+            stream.seek(0)
+            _msvcrt.locking(stream.fileno(), _msvcrt.LK_NBLCK, 1)
+            return
+        except OSError:
+            time.sleep(0.05)
+
+
+def _unlock_stream(stream) -> None:
+    stream.seek(0)
+    if _fcntl is not None:
+        _fcntl.flock(stream.fileno(), _fcntl.LOCK_UN)
+    else:
+        _msvcrt.locking(stream.fileno(), _msvcrt.LK_UNLCK, 1)
+
 
 def dict_raise_on_duplicates(ordered_pairs):
     d = {}
@@ -37,6 +75,20 @@ def get_ledger_paths(bead_id: str, base_dir: Optional[str] = None) -> Tuple[str,
         os.path.join(dir_path, "review.json"),
         os.path.join(dir_path, "review.md")
     )
+
+@contextmanager
+def ledger_lock(bead_id: str, base_dir: Optional[str] = None):
+    json_path, _ = get_ledger_paths(bead_id, base_dir)
+    directory = os.path.dirname(json_path)
+    os.makedirs(directory, exist_ok=True)
+    lock_path = os.path.join(directory, ".review.lock")
+    with open(lock_path, "a+b") as stream:
+        _lock_stream(stream)
+        try:
+            yield
+        finally:
+            _unlock_stream(stream)
+
 
 def initialize_ledger(
     *,
@@ -155,16 +207,14 @@ def save_ledger(
         "events": log.to_list()
     }
     
-    # Save review.json
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-        
-    # Render and save review.md
-    md_content = render_review_markdown(proj, log)
-    with open(md_path, "w", encoding="utf-8") as f:
-        f.write(md_content)
+    json_content = json.dumps(data, indent=2).encode("utf-8")
+    md_content = render_review_markdown(proj, log).encode("utf-8")
+    atomic_write_many({
+        Path(json_path): json_content,
+        Path(md_path): md_content,
+    })
 
-def mutate_ledger(
+def _mutate_ledger_unlocked(
     bead_id: str,
     action: str,
     payload: Dict[str, Any],
@@ -290,3 +340,157 @@ def mutate_ledger(
 
     save_ledger(bead_id, log, proj, base_dir)
     return log, proj
+
+
+def mutate_ledger(
+    bead_id: str,
+    action: str,
+    payload: Dict[str, Any],
+    actor_role: str,
+    actor_id: str,
+    base_dir: Optional[str] = None,
+    lease_id: Optional[str] = None,
+    bypass_lease: bool = False,
+) -> Tuple[EventLog, ReviewProjection]:
+    """Apply one ledger mutation while holding the stable cross-process lock."""
+    with ledger_lock(bead_id, base_dir):
+        return _mutate_ledger_unlocked(
+            bead_id, action, payload, actor_role, actor_id,
+            base_dir=base_dir, lease_id=lease_id, bypass_lease=bypass_lease,
+        )
+
+
+def mutate_ledger_batch(
+    bead_id: str,
+    operations: List[Tuple[str, Dict[str, Any], str, str]],
+    *,
+    base_dir: Optional[str] = None,
+    lease_id: Optional[str] = None,
+    _already_locked: bool = False,
+) -> Tuple[EventLog, ReviewProjection]:
+    """Validate a mutation batch off-disk and replace JSON/Markdown together."""
+    def apply_batch():
+        real_json, real_md = get_ledger_paths(bead_id, base_dir)
+        with tempfile.TemporaryDirectory() as directory:
+            temp_json, temp_md = get_ledger_paths(bead_id, directory)
+            os.makedirs(os.path.dirname(temp_json), exist_ok=True)
+            if os.path.exists(real_json):
+                Path(temp_json).write_bytes(Path(real_json).read_bytes())
+            if os.path.exists(real_md):
+                Path(temp_md).write_bytes(Path(real_md).read_bytes())
+            result = None
+            for index, (action, payload, actor_role, actor_id) in enumerate(operations):
+                result = _mutate_ledger_unlocked(
+                    bead_id, action, payload, actor_role, actor_id,
+                    base_dir=directory,
+                    lease_id=lease_id,
+                    bypass_lease=index > 0,
+                )
+            if result is None:
+                raise ValueError("ledger mutation batch cannot be empty")
+            atomic_write_many({
+                Path(real_json): Path(temp_json).read_bytes(),
+                Path(real_md): Path(temp_md).read_bytes(),
+            })
+            return result
+
+    if _already_locked:
+        return apply_batch()
+    with ledger_lock(bead_id, base_dir):
+        return apply_batch()
+
+
+def mutate_ledger_transaction(
+    bead_id: str,
+    operation_builder,
+    *,
+    base_dir: Optional[str] = None,
+    lease_id: Optional[str] = None,
+) -> Tuple[EventLog, ReviewProjection]:
+    """Build and commit a batch against one locked, freshly replayed revision."""
+    with ledger_lock(bead_id, base_dir):
+        _, projection = load_ledger(bead_id, base_dir)
+        built = operation_builder(projection)
+        effective_lease_id = lease_id
+        if isinstance(built, tuple):
+            operations, effective_lease_id = built
+        else:
+            operations = built
+        return mutate_ledger_batch(
+            bead_id,
+            operations,
+            base_dir=base_dir,
+            lease_id=effective_lease_id,
+            _already_locked=True,
+        )
+
+
+def build_start_review_operations(
+    projection: ReviewProjection,
+    actor_id: str,
+    *,
+    requested_lease_id: Optional[str] = None,
+    ttl_seconds: int = 600,
+    actor_role: str = "reviewer",
+    now: Optional[datetime] = None,
+) -> Tuple[List[Tuple[str, Dict[str, Any], str, str]], str]:
+    """Return lease and state events for an atomic review start."""
+    if not actor_id.strip():
+        raise ValueError("actor_id is required")
+    if ttl_seconds <= 0:
+        raise ValueError("ttl_seconds must be positive")
+    current_time = now or datetime.now(timezone.utc)
+    expires_at = format_utc_timestamp(current_time + timedelta(seconds=ttl_seconds))
+    active = projection.active_lease
+    if active and is_lease_active(active, current_time):
+        if active.actor_id != actor_id:
+            raise LeaseError(
+                f"Review lease is owned by {active.actor_id} until {active.expires_at}."
+            )
+        if requested_lease_id and requested_lease_id != active.lease_id:
+            raise LeaseError("Requested lease ID does not match the reviewer's active lease.")
+        operations = [
+            ("lease-renewed", {"expires_at": expires_at}, actor_role, actor_id)
+        ]
+        if projection.review_state == "review-requested":
+            operations.append(("review-started", {}, actor_role, actor_id))
+        return operations, active.lease_id
+
+    lease_id = requested_lease_id or uuid.uuid4().hex
+    operations = []
+    if active:
+        operations.append((
+            "lease-broken",
+            {"lease_id": active.lease_id, "reason": "expired", "replaced_by": lease_id},
+            actor_role,
+            actor_id,
+        ))
+    operations.append(("lease-acquired", {
+        "lease_id": lease_id,
+        "actor_role": actor_role,
+        "actor_id": actor_id,
+        "acquired_at": format_utc_timestamp(current_time),
+        "expires_at": expires_at,
+    }, actor_role, actor_id))
+    if projection.review_state == "review-requested":
+        operations.append(("review-started", {}, actor_role, actor_id))
+    return operations, lease_id
+
+
+def start_review(
+    bead_id: str,
+    actor_id: str,
+    *,
+    requested_lease_id: Optional[str] = None,
+    ttl_seconds: int = 600,
+    actor_role: str = "reviewer",
+    base_dir: Optional[str] = None,
+) -> Tuple[EventLog, ReviewProjection]:
+    """Atomically acquire or renew review ownership and start the review."""
+    def build(projection):
+        return build_start_review_operations(
+            projection, actor_id, requested_lease_id=requested_lease_id,
+            ttl_seconds=ttl_seconds, actor_role=actor_role,
+        )
+
+    return mutate_ledger_transaction(bead_id, build, base_dir=base_dir)

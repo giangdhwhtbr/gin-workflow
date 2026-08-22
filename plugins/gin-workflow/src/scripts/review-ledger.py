@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 # Add the parent directory of review_ledger to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from review_ledger.cli import initialize_ledger, mutate_ledger, load_ledger, get_ledger_paths, render_review_markdown
+from review_ledger.cli import initialize_ledger, mutate_ledger, start_review, load_ledger, get_ledger_paths, render_review_markdown
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
 from review_ledger.git_adapter import create_source_checkpoint, push_review_ref, fetch_review_ref
@@ -49,6 +49,7 @@ def parse_args():
     p_start.add_argument("--actor-role", default="reviewer")
     p_start.add_argument("--actor-id", required=True)
     p_start.add_argument("--lease-id")
+    p_start.add_argument("--ttl-seconds", type=int, default=600)
 
     # Add Finding
     p_add = subparsers.add_parser("add-finding", help="Add a new review finding.")
@@ -271,8 +272,14 @@ def main():
             print(f"Created source checkpoint: {checkpoint.checkpoint_sha}")
 
         elif args.command == "start-review":
-            mutate_ledger(args.bead_id, "review-started", {}, args.actor_role, args.actor_id, lease_id=args.lease_id)
-            print("Review phase started.")
+            _, projection = start_review(
+                args.bead_id,
+                args.actor_id,
+                requested_lease_id=args.lease_id,
+                ttl_seconds=args.ttl_seconds,
+                actor_role=args.actor_role,
+            )
+            print(f"Review phase started with lease {projection.active_lease.lease_id}.")
 
         elif args.command == "add-finding":
             payload = {"finding_id": args.finding_id, "severity": args.severity}

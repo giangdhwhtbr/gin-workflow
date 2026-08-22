@@ -10,6 +10,7 @@ import subprocess
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_providers.contracts import (  # noqa: E402
     EvidenceCategory,
     EvidenceQuery,
@@ -62,19 +63,26 @@ class ProviderContractTests(unittest.TestCase):
                 "atomic-review", "reviewer-1", "changes_requested",
                 (ReviewFinding("F-1", "IMPORTANT", "open"),),
             )
-            real_mutate = ledger_cli.mutate_ledger
+            json_path = root / ".planning/atomic-review/review.json"
+            markdown_path = root / ".planning/atomic-review/review.md"
+            before = (json_path.read_bytes(), markdown_path.read_bytes())
+            real_mutate = ledger_cli._mutate_ledger_unlocked
 
             def fail_terminal(bead_id, action, *args, **kwargs):
                 if action == "changes-requested":
                     raise OSError("terminal write failed")
                 return real_mutate(bead_id, action, *args, **kwargs)
 
-            with mock.patch.object(ledger_cli, "mutate_ledger", side_effect=fail_terminal):
+            with mock.patch.object(
+                ledger_cli, "_mutate_ledger_unlocked", side_effect=fail_terminal
+            ):
                 failed = reviews.record_outcome(outcome, idempotency_key="outcome")
 
+            after = (json_path.read_bytes(), markdown_path.read_bytes())
             unchanged = reviews.status("atomic-review").value
             retried = reviews.record_outcome(outcome, idempotency_key="outcome")
             self.assertIs(OperationStatus.INVALID, failed.status)
+            self.assertEqual(before, after)
             self.assertEqual("review-requested", unchanged.state)
             self.assertEqual((), unchanged.findings)
             self.assertEqual("changes-requested", retried.value.state)
@@ -578,8 +586,8 @@ class ProviderContractTests(unittest.TestCase):
             )
             self.assertEqual("implementation-in-progress", revision.value.state)
             self.assertEqual("review-requested", second_request.value.state)
-            self.assertIs(OperationStatus.SUCCESS, approved.status, approved.message)
-            self.assertEqual("review-approved", approved.value.state)
+            self.assertIs(OperationStatus.INVALID, approved.status)
+            self.assertIn("acceptance_identity", approved.message)
             self.assertIs(OperationStatus.UNAVAILABLE, ReviewLedgerProvider(root).status("missing").status)
 
             corrupt = root / ".planning/corrupt/review.json"
@@ -589,6 +597,198 @@ class ProviderContractTests(unittest.TestCase):
                 OperationStatus.UNAVAILABLE,
                 ReviewLedgerProvider(root).status("corrupt").status,
             )
+
+
+
+    def test_approved_state_retry_fails_closed_without_persisted_identity(self):
+        from review_ledger.cli import mutate_ledger
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            task_id = "legacy-approved"
+            mutate_ledger(task_id, "ledger-created", {"repositories": []}, "worker", "w", base_dir=str(root))
+            mutate_ledger(task_id, "implementation-complete", {}, "worker", "w", base_dir=str(root))
+            mutate_ledger(task_id, "review-requested", {}, "worker", "w", base_dir=str(root))
+            mutate_ledger(task_id, "review-started", {}, "reviewer", "r", base_dir=str(root))
+            mutate_ledger(
+                task_id,
+                "review-approved",
+                {
+                    "approved_repositories": [],
+                    "source_scope_hash": "",
+                    "terminal_findings": [],
+                },
+                "reviewer",
+                "r",
+                base_dir=str(root),
+            )
+
+            result = ReviewLedgerProvider(root).record_outcome(
+                ReviewOutcomeRequest(task_id, "r", "approved"),
+                idempotency_key="retry",
+            )
+
+            self.assertIs(OperationStatus.INVALID, result.status)
+            self.assertIn("persisted acceptance identity", result.message)
+
+    def test_review_approval_replays_complete_git_identity_and_persists_provenance(self):
+        from review_ledger.cli import (
+            initialize_ledger,
+            load_ledger,
+            mutate_ledger,
+            start_review,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            (root / "src").mkdir()
+            (root / "src/app.py").write_text("value = 1\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.py"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "initial"], cwd=root, check=True, capture_output=True)
+            initialize_ledger(
+                bead_id="identity-review",
+                repository_id="repo",
+                role="primary",
+                repo_path=str(root),
+                review_ref="refs/gin/review/identity-review",
+                base_ref="HEAD",
+                scope={
+                    "included_paths": ["src"],
+                    "excluded_artifact_paths": [],
+                    "allowed_generated_paths": [],
+                    "nested_repository_paths": [],
+                },
+                actor_role="worker",
+                actor_id="worker-1",
+                base_dir=str(root),
+            )
+            reviews = ReviewLedgerProvider(root)
+            requested = reviews.request(
+                ReviewRequest("identity-review", "worker-1"),
+                idempotency_key="request",
+            )
+            start_review(
+                "identity-review",
+                "reviewer-1",
+                requested_lease_id="identity-lease",
+                base_dir=str(root),
+            )
+            mutate_ledger(
+                "identity-review",
+                "finding-created",
+                {"finding_id": "F-existing", "severity": "MINOR"},
+                "reviewer",
+                "reviewer-1",
+                base_dir=str(root),
+                lease_id="identity-lease",
+            )
+            mutate_ledger(
+                "identity-review",
+                "finding-fixed",
+                {"finding_id": "F-existing"},
+                "worker",
+                "worker-1",
+                base_dir=str(root),
+                lease_id="identity-lease",
+            )
+            mutate_ledger(
+                "identity-review",
+                "finding-verified",
+                {"finding_id": "F-existing"},
+                "reviewer",
+                "reviewer-1",
+                base_dir=str(root),
+                lease_id="identity-lease",
+            )
+            requested = reviews.status("identity-review")
+            _, projection = load_ledger("identity-review", str(root))
+            repository = projection.repositories[0]
+            identity = AcceptanceIdentity(
+                "workflow-1",
+                "attempt-1",
+                "identity-review",
+                (RepositorySnapshot(
+                    repository["repository_id"],
+                    repository["source_scope_hash"],
+                    repository["source_tree_hash"],
+                    repository["checkpoint_sha"],
+                    repository["checkpoint_ref"],
+                ),),
+            )
+            approved = reviews.record_outcome(
+                ReviewOutcomeRequest(
+                    "identity-review",
+                    "reviewer-1",
+                    "approved",
+                    (),
+                    "",
+                    identity,
+                    requested.value.ledger_revision,
+                ),
+                idempotency_key="approve",
+            )
+
+            self.assertIs(OperationStatus.SUCCESS, approved.status, approved.message)
+            log, final = load_ledger("identity-review", str(root))
+            payload = log.events[-1].payload
+            self.assertEqual("review-approved", final.review_state)
+            self.assertTrue(payload["source_scope_hash"])
+            self.assertEqual(["F-existing"], payload["terminal_findings"])
+            self.assertEqual("workflow-1", payload["workflow_id"])
+            self.assertEqual("attempt-1", payload["attempt_id"])
+            self.assertEqual("reviewer-1", payload["reviewer_id"])
+            self.assertTrue(payload["review_event_id"].startswith("EV-"))
+            self.assertEqual(
+                payload["review_event_id"],
+                f"EV-{payload['review_start_revision']:06d}",
+            )
+            self.assertEqual(
+                identity.repositories[0].source_tree_hash,
+                payload["approved_repositories"][0]["source_tree_hash"],
+            )
+            replayed = ReviewLedgerProvider(root).record_outcome(
+                ReviewOutcomeRequest(
+                    "identity-review", "reviewer-1", "approved", (), "",
+                    identity, requested.value.ledger_revision,
+                ),
+                idempotency_key="replay-from-new-provider",
+            )
+            mismatched = ReviewLedgerProvider(root).record_outcome(
+                ReviewOutcomeRequest(
+                    "identity-review", "reviewer-1", "approved", (), "",
+                    identity, requested.value.ledger_revision - 1,
+                ),
+                idempotency_key="mismatched-revision",
+            )
+            self.assertIs(OperationStatus.SUCCESS, replayed.status, replayed.message)
+            self.assertTrue(replayed.idempotent)
+            self.assertIs(OperationStatus.INVALID, mismatched.status)
+
+            (root / "src/app.py").write_text("value = 2\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.py"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "move review ref"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "update-ref", repository["checkpoint_ref"], "HEAD"],
+                cwd=root,
+                check=True,
+            )
+            moved_ref = ReviewLedgerProvider(root).record_outcome(
+                ReviewOutcomeRequest(
+                    "identity-review", "reviewer-1", "approved", (), "",
+                    identity, requested.value.ledger_revision,
+                ),
+                idempotency_key="moved-ref",
+            )
+            self.assertIs(OperationStatus.INVALID, moved_ref.status)
+            self.assertIn("checkpoint ref", moved_ref.message)
 
 if __name__ == "__main__":
     unittest.main()
