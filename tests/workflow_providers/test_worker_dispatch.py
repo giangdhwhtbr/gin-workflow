@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 import sys
 import tempfile
@@ -11,6 +12,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.events import WorkflowEventStore  # noqa: E402
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import (  # noqa: E402
@@ -32,13 +34,48 @@ def valid_result(task_id="task-1", *, summary="implemented"):
         "summary": summary,
         "changed_files": ["src/example.py"],
         "commits": [],
-        "tests": [{"command": "python3 -m unittest", "outcome": "passed"}],
+        "tests": [],
         "evidence": [{"kind": "test", "reference": "unit"}],
         "blockers": [],
     }
 
 
-def request(task_id="task-1", *, required=(), provider_role="backend", reasoning="high"):
+def acceptance_identity(task_id="task-1", *, attempt_id="attempt-1", tree="tree-1"):
+    return AcceptanceIdentity(
+        workflow_id="wf-1",
+        attempt_id=attempt_id,
+        task_id=task_id,
+        repositories=(
+            RepositorySnapshot(
+                "primary", "scope-1", tree, "commit-1", "refs/gin/review/primary"
+            ),
+        ),
+    )
+
+
+def provenance_record(task_id="task-1", **overrides):
+    record = {
+        "argv": ["python3", "-m", "unittest"],
+        "exit_code": 0,
+        "started_at": "2026-08-20T10:00:00Z",
+        "finished_at": "2026-08-20T10:01:00Z",
+        "workspace_id": f"ws-{task_id}",
+        "repository_id": "primary",
+        "attempt_id": "attempt-1",
+        "source_tree_hash": "tree-1",
+    }
+    record.update(overrides)
+    return record
+
+
+def request(
+    task_id="task-1",
+    *,
+    required=(),
+    provider_role="backend",
+    reasoning="high",
+    acceptance_identity=None,
+):
     manifest = create_context_manifest(
         "execute",
         ContextRequest(
@@ -60,10 +97,191 @@ def request(task_id="task-1", *, required=(), provider_role="backend", reasoning
         retry_identity=f"wf-1:{task_id}",
         provider_role=provider_role,
         reasoning=reasoning,
+        acceptance_identity=acceptance_identity,
     )
 
 
+class WorkerTestProvenanceTests(unittest.TestCase):
+    def test_schema_1_test_records_remain_readable_but_are_not_auditable(self):
+        payload = valid_result()
+        payload["tests"] = [
+            {"command": "python3 -m unittest", "outcome": "passed"}
+        ]
+
+        result = normalize_worker_result(payload, request())
+
+        self.assertEqual("1.0", result.schema_version)
+        self.assertEqual(
+            {"command": "python3 -m unittest", "outcome": "passed"},
+            result.tests[0].to_dict(),
+        )
+        self.assertFalse(result.tests[0].auditable)
+
+    def test_invalid_test_semantics_and_provenance_fail_normalization(self):
+        cases = (
+            ("argv must be a list of strings", {"argv": "python3 -m unittest"}),
+            ("argv must be a list of strings", {"argv": ["python3", 1]}),
+            ("argv must not be empty", {"argv": []}),
+            ("exit_code must be an integer", {"exit_code": "0"}),
+            ("exit_code must be an integer", {"exit_code": True}),
+            ("exit_code must be between", {"exit_code": 999}),
+            ("invalid test timestamp", {"started_at": "not-a-time"}),
+            (
+                "must be UTC",
+                {
+                    "started_at": "2026-08-20T10:00:00+01:00",
+                    "finished_at": "2026-08-20T10:01:00+01:00",
+                },
+            ),
+            ("finished_at precedes started_at", {"finished_at": "2026-08-20T09:00:00Z"}),
+            ("workspace_id must be a portable identifier", {"workspace_id": "/tmp/ws-task-1"}),
+            ("unsupported test fields", {"duration_seconds": 60}),
+            ("repository_id is required", {"repository_id": ""}),
+            ("attempt_id is required", {"attempt_id": ""}),
+            ("source_tree_hash is required", {"source_tree_hash": ""}),
+        )
+        for message, override in cases:
+            with self.subTest(message=message):
+                payload = valid_result()
+                payload["schema_version"] = "2.3"
+                payload["acceptance_identity"] = acceptance_identity().to_dict()
+                payload["tests"] = [provenance_record(**override)]
+                with self.assertRaisesRegex(WorkerResultContractError, message):
+                    normalize_worker_result(
+                        payload,
+                        request(acceptance_identity=acceptance_identity()),
+                    )
+
+    def test_argv_is_structured_and_secret_values_are_redacted(self):
+        payload = valid_result()
+        payload["schema_version"] = "2.3"
+        payload["acceptance_identity"] = acceptance_identity().to_dict()
+        payload["tests"] = [
+            provenance_record(argv=["pytest", "--token", "sensitive-value", "-q"])
+        ]
+
+        result = normalize_worker_result(
+            payload,
+            request(acceptance_identity=acceptance_identity()),
+        )
+
+        self.assertEqual(("pytest", "--token", "[REDACTED]", "-q"), result.tests[0].argv)
+        self.assertNotIn("sensitive-value", repr(result.tests[0].to_dict()))
+        self.assertTrue(result.tests[0].auditable)
+        self.assertTrue(result.tests[0].passed)
+
+    def test_identity_bound_request_requires_matching_complete_provenance(self):
+        bound = request(acceptance_identity=acceptance_identity())
+        accepted = valid_result()
+        accepted["schema_version"] = "2.3"
+        accepted["acceptance_identity"] = acceptance_identity().to_dict()
+        accepted["tests"] = [provenance_record()]
+
+        normalized = normalize_worker_result(accepted, bound)
+
+        self.assertEqual(provenance_record(), normalized.tests[0].to_dict())
+
+        missing_identity = valid_result()
+        missing_identity["schema_version"] = "2.3"
+        missing_identity["tests"] = [provenance_record()]
+        with self.assertRaisesRegex(
+            WorkerResultContractError, "result acceptance_identity is required"
+        ):
+            normalize_worker_result(missing_identity, bound)
+
+        rejected = (
+            (
+                "acceptance identity mismatch: attempt_id",
+                {"result_identity": acceptance_identity(attempt_id="attempt-2").to_dict()},
+            ),
+            (
+                "test attempt does not match request",
+                {"attempt_id": "attempt-2"},
+            ),
+            ("workspace does not match", {"workspace_id": "ws-elsewhere"}),
+            ("repository does not match request", {"repository_id": "secondary"}),
+            ("source tree does not match request", {"source_tree_hash": "tree-2"}),
+        )
+        for message, override in rejected:
+            with self.subTest(message=message):
+                override = dict(override)
+                payload = valid_result()
+                payload["schema_version"] = "2.3"
+                payload["acceptance_identity"] = override.pop(
+                    "result_identity", acceptance_identity().to_dict()
+                )
+                payload["tests"] = [provenance_record(**override)]
+                with self.assertRaisesRegex(WorkerResultContractError, message):
+                    normalize_worker_result(payload, bound)
+
+    def test_request_payload_propagates_portable_acceptance_identity(self):
+        payload = request(acceptance_identity=acceptance_identity()).to_payload()
+
+        self.assertEqual(acceptance_identity().to_dict(), payload["acceptance_identity"])
+        self.assertEqual("2.3", payload["schema_version"])
+        self.assertNotIn("workspace_path", repr(payload["acceptance_identity"]))
+        self.assertNotIn("provider", payload)
+        self.assertNotIn("sk-secret123", repr(payload))
+
+    def test_request_rejects_acceptance_identity_from_another_task(self):
+        with self.assertRaisesRegex(ValueError, "acceptance identity must match"):
+            request(acceptance_identity=acceptance_identity("other-task"))
+
+    def test_identity_bound_request_requires_portable_expected_workspace(self):
+        item = request(acceptance_identity=acceptance_identity())
+
+        for isolation_policy in ({"mode": "isolated"}, {"workspace_id": "/tmp/task-1"}):
+            with self.subTest(isolation_policy=isolation_policy):
+                with self.assertRaisesRegex(ValueError, "portable workspace_id"):
+                    replace(item, isolation_policy=isolation_policy)
+
+
 class WorkerDispatchTests(unittest.TestCase):
+    @staticmethod
+    def _bound_result(payload):
+        result = valid_result(payload["task_id"])
+        result["schema_version"] = "2.3"
+        result["acceptance_identity"] = payload["acceptance_identity"]
+        return result
+
+    def test_acceptance_identity_partitions_replay_workers_and_events(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            dispatcher = WorkerDispatcher(
+                SequentialWorkerAdapter(self._bound_result),
+                store,
+            )
+            tree_1 = request(acceptance_identity=acceptance_identity(tree="tree-1"))
+            tree_2 = replace(
+                tree_1,
+                acceptance_identity=acceptance_identity(tree="tree-2"),
+            )
+
+            receipt_1 = dispatcher.dispatch(tree_1)
+            result_1 = dispatcher.collect_result(receipt_1.worker_id)
+            receipt_2 = dispatcher.dispatch(tree_2)
+            result_2 = dispatcher.collect_result(receipt_2.worker_id)
+
+            self.assertNotEqual(receipt_1.worker_id, receipt_2.worker_id)
+            self.assertEqual("tree-1", result_1.acceptance_identity.repositories[0].source_tree_hash)
+            self.assertEqual("tree-2", result_2.acceptance_identity.repositories[0].source_tree_hash)
+            event_types = [event.event_type for event in store.read_all()]
+            self.assertEqual(2, event_types.count("worker.requested"))
+            self.assertEqual(2, event_types.count("worker.completed"))
+
+    def test_replay_rejects_a_different_request_with_the_same_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            dispatcher = WorkerDispatcher(
+                SequentialWorkerAdapter(lambda payload: valid_result(payload["task_id"])),
+                store,
+            )
+            original = request()
+            dispatcher.dispatch(original)
+
+            with self.assertRaisesRegex(ValueError, "replay request mismatch"):
+                dispatcher.dispatch(replace(original, objective="A different objective"))
+
     def test_request_payload_is_bounded_and_excludes_parent_and_provider_details(self):
         payload = request().to_payload()
 
@@ -220,7 +438,7 @@ class WorkerDispatchTests(unittest.TestCase):
                 allow_start.wait(timeout=2)
                 return super().start(worker_id, on_started=on_started)
 
-        item = request()
+        item = request(acceptance_identity=acceptance_identity())
         adapter = PausingStartAdapter(
             lambda payload: calls.append(payload) or valid_result(payload["task_id"])
         )
@@ -236,12 +454,32 @@ class WorkerDispatchTests(unittest.TestCase):
                 receipt = pending.result(timeout=1)
 
             self.assertEqual(WorkerState.CANCELLED, receipt.state)
-            self.assertEqual("cancelled", dispatcher.collect_result(worker_id).status)
+            result = dispatcher.collect_result(worker_id)
+            self.assertEqual("cancelled", result.status)
+            self.assertEqual(item.acceptance_identity, result.acceptance_identity)
+            self.assertEqual("2.3", result.schema_version)
             self.assertEqual([], calls)
             self.assertEqual(
                 ["worker.requested", "worker.assigned", "worker.cancelled"],
                 [event.event_type for event in store.read_all()],
             )
+
+    def test_native_cancelled_exception_preserves_acceptance_identity(self):
+        class CancelKind:
+            value = "cancelled"
+
+        class NativeCancelled(Exception):
+            kind = CancelKind()
+
+        item = request(acceptance_identity=acceptance_identity())
+        adapter = SequentialWorkerAdapter(lambda payload: (_ for _ in ()).throw(NativeCancelled()))
+
+        receipt = adapter.dispatch(item)
+        result = adapter.collect_result(receipt.worker_id)
+
+        self.assertEqual("cancelled", result.status)
+        self.assertEqual(item.acceptance_identity, result.acceptance_identity)
+        self.assertEqual("2.3", result.schema_version)
 
     def test_context_unavailable_fails_without_invoking_worker(self):
         calls = []

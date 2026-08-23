@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 import sys
 import tempfile
@@ -11,6 +12,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.assignments import RouteCandidate  # noqa: E402
 from workflow_core.events import WorkflowEventStore  # noqa: E402
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_providers.circuit_breaker import CircuitBreakerStore, CircuitState, FailureKind  # noqa: E402
 from workflow_providers.native_cli import NativeCliError  # noqa: E402
@@ -19,7 +21,25 @@ from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa
 from workflow_providers.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerRequest, WorkerState  # noqa: E402
 
 
-def request(task_id="task-1", *, route_affinity=None):
+class NoopEventStore:
+    def append(self, _event):
+        return True
+
+
+def acceptance_identity(*, tree="tree-1"):
+    return AcceptanceIdentity(
+        workflow_id="wf-1",
+        attempt_id="attempt-1",
+        task_id="task-1",
+        repositories=(
+            RepositorySnapshot(
+                "primary", "scope-1", tree, "checkpoint-1", "refs/gin/review/task-1"
+            ),
+        ),
+    )
+
+
+def request(task_id="task-1", *, route_affinity=None, acceptance_identity=None):
     return WorkerRequest(
         objective="Implement task",
         constraints=("bounded",),
@@ -32,6 +52,7 @@ def request(task_id="task-1", *, route_affinity=None):
         provider_role="backend",
         reasoning="high",
         route_affinity=route_affinity,
+        acceptance_identity=acceptance_identity,
     )
 
 
@@ -49,6 +70,51 @@ def result(task_id):
 
 
 class RoutedWorkerTests(unittest.TestCase):
+    def test_routed_replay_rejects_changed_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, _ = self.build(
+                directory,
+                routes=routes,
+                runners={"claude": lambda payload: result(payload["task_id"])},
+            )
+            original = request()
+            receipt = router.dispatch(original)
+
+            with self.assertRaisesRegex(ValueError, "replay request mismatch"):
+                router.dispatch(replace(original, objective="Different objective"))
+            router.collect_result(receipt.worker_id)
+
+    def test_routed_events_are_partitioned_by_acceptance_identity(self):
+        def bound_result(payload):
+            normalized = result(payload["task_id"])
+            normalized["schema_version"] = "2.3"
+            normalized["acceptance_identity"] = payload["acceptance_identity"]
+            return normalized
+
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, events = self.build(
+                directory,
+                routes=routes,
+                runners={"claude": bound_result},
+            )
+            tree_1 = request(acceptance_identity=acceptance_identity(tree="tree-1"))
+            tree_2 = replace(
+                tree_1,
+                acceptance_identity=acceptance_identity(tree="tree-2"),
+            )
+
+            first = router.dispatch(tree_1)
+            router.collect_result(first.worker_id)
+            second = router.dispatch(tree_2)
+            router.collect_result(second.worker_id)
+
+            self.assertNotEqual(first.worker_id, second.worker_id)
+            event_types = [event.event_type for event in events.read_all()]
+            self.assertEqual(2, event_types.count("worker.requested"))
+            self.assertEqual(2, event_types.count("worker.completed"))
+
     def test_worker_dispatch_skill_requires_route_revalidation_and_same_tier_fallback(self):
         skill = (
             SCRIPTS.parent / "skills/worker-dispatch/SKILL.md"
@@ -240,6 +306,7 @@ class RoutedWorkerTests(unittest.TestCase):
                 runners={provider: lambda payload: result(payload["task_id"]) for provider in ("claude", "codex", "antigravity")},
                 wait=0.08,
             )
+            router.event_store = NoopEventStore()
             for capacity in router._capacity.values():
                 self.assertTrue(capacity.acquire(timeout=0))
 

@@ -5,11 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
+import json
+import re
 import threading
 from typing import Any, Callable, Mapping
 
 from workflow_core.events import WorkflowEvent, WorkflowEventStore
+from workflow_core.identity import AcceptanceIdentity
 from workflow_core.manifests import ContextManifest
+
+from .contracts import parse_timestamp
 
 
 MAX_MANIFEST_BYTES = 65_536
@@ -49,6 +54,186 @@ class WorkerResultContractError(ValueError):
     """Raised when a native worker returns an unsafe or incomplete result."""
 
 
+def _invalid_result(message: str) -> WorkerResultContractError:
+    return WorkerResultContractError(f"invalid_result_contract: {message}")
+
+
+TEST_RESULT_FIELDS = frozenset(
+    {
+        "argv",
+        "exit_code",
+        "started_at",
+        "finished_at",
+        "workspace_id",
+        "repository_id",
+        "attempt_id",
+        "source_tree_hash",
+    }
+)
+_PORTABLE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+_SECRET_FLAGS = frozenset(
+    {
+        "--api-key",
+        "--credential",
+        "--password",
+        "--private-key",
+        "--secret",
+        "--token",
+    }
+)
+_SECRET_VALUE = re.compile(
+    r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bsk-[A-Za-z0-9_-]{6,}|"
+    r"\bgh[pousr]_[A-Za-z0-9]{6,}|\bxox[baprs]-)",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_argv(value: object) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)) or any(
+        not isinstance(item, str) for item in value
+    ):
+        raise _invalid_result("test argv must be a list of strings")
+    if not value:
+        raise _invalid_result("test argv must not be empty")
+    sanitized: list[str] = []
+    redact_next = False
+    for item in value:
+        normalized = item.casefold().replace("_", "-")
+        if redact_next or _SECRET_VALUE.search(item):
+            sanitized.append("[REDACTED]")
+            redact_next = False
+            continue
+        name, separator, _candidate = normalized.partition("=")
+        if name in _SECRET_FLAGS:
+            if separator:
+                sanitized.append(f"{item.split('=', 1)[0]}=[REDACTED]")
+            else:
+                sanitized.append(item)
+                redact_next = True
+            continue
+        sanitized.append(item)
+    return tuple(sanitized)
+
+
+def _require_portable_id(field_name: str, value: object) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise _invalid_result(f"test {field_name} is required")
+    if field_name == "workspace_id" and not _PORTABLE_ID.fullmatch(value):
+        raise _invalid_result("test workspace_id must be a portable identifier")
+    return value
+
+
+@dataclass(frozen=True)
+class WorkerTestResult:
+    """One auditable test run bound to a workspace, attempt, repository, and tree."""
+
+    argv: tuple[str, ...]
+    exit_code: int
+    started_at: str
+    finished_at: str
+    workspace_id: str
+    repository_id: str
+    attempt_id: str
+    source_tree_hash: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "argv", _sanitize_argv(self.argv))
+        if isinstance(self.exit_code, bool) or not isinstance(self.exit_code, int):
+            raise _invalid_result("test exit_code must be an integer")
+        if not 0 <= self.exit_code <= 255:
+            raise _invalid_result("test exit_code must be between 0 and 255")
+        try:
+            started = parse_timestamp(self.started_at)
+            finished = parse_timestamp(self.finished_at)
+        except (TypeError, ValueError) as error:
+            raise _invalid_result(f"invalid test timestamp: {error}") from error
+        if (
+            started.utcoffset() is None
+            or finished.utcoffset() is None
+            or started.utcoffset().total_seconds() != 0
+            or finished.utcoffset().total_seconds() != 0
+        ):
+            raise _invalid_result("test timestamps must be UTC")
+        if finished < started:
+            raise _invalid_result("test finished_at precedes started_at")
+        for field_name in (
+            "workspace_id",
+            "repository_id",
+            "attempt_id",
+            "source_tree_hash",
+        ):
+            _require_portable_id(field_name, getattr(self, field_name))
+
+    @property
+    def auditable(self) -> bool:
+        return True
+
+    @property
+    def passed(self) -> bool:
+        return self.exit_code == 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "argv": list(self.argv),
+            "exit_code": self.exit_code,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "workspace_id": self.workspace_id,
+            "repository_id": self.repository_id,
+            "attempt_id": self.attempt_id,
+            "source_tree_hash": self.source_tree_hash,
+        }
+
+    @classmethod
+    def from_mapping(cls, value: object) -> "WorkerTestResult":
+        if isinstance(value, WorkerTestResult):
+            return value
+        if not isinstance(value, Mapping):
+            raise _invalid_result("tests must be a list of objects")
+        if unknown := set(value) - TEST_RESULT_FIELDS:
+            raise _invalid_result(f"unsupported test fields: {', '.join(sorted(unknown))}")
+        missing = TEST_RESULT_FIELDS.difference(value)
+        if missing:
+            raise _invalid_result(
+                f"test records are missing fields: {', '.join(sorted(missing))}"
+            )
+        return cls(
+            argv=value["argv"],
+            exit_code=value["exit_code"],
+            started_at=value["started_at"],
+            finished_at=value["finished_at"],
+            workspace_id=value["workspace_id"],
+            repository_id=value["repository_id"],
+            attempt_id=value["attempt_id"],
+            source_tree_hash=value["source_tree_hash"],
+        )
+
+
+@dataclass(frozen=True)
+class _LegacyWorkerTestResult:
+    """Readable schema-1 record that can never satisfy current evidence gates."""
+
+    command: str
+    outcome: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.command, str) or not self.command.strip():
+            raise _invalid_result("legacy test command is required")
+        if not isinstance(self.outcome, str) or not self.outcome.strip():
+            raise _invalid_result("legacy test outcome is required")
+
+    @property
+    def auditable(self) -> bool:
+        return False
+
+    @property
+    def passed(self) -> bool:
+        return False
+
+    def to_dict(self) -> dict[str, str]:
+        return {"command": self.command, "outcome": self.outcome}
+
+
 @dataclass(frozen=True)
 class WorkerRequest:
     objective: str
@@ -62,6 +247,7 @@ class WorkerRequest:
     provider_role: str
     reasoning: str
     route_affinity: tuple[str, str] | None = None
+    acceptance_identity: AcceptanceIdentity | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "constraints", tuple(self.constraints))
@@ -85,6 +271,19 @@ class WorkerRequest:
             raise ValueError("worker request reasoning must be low, medium, or high")
         if not isinstance(self.generated_manifest, ContextManifest):
             raise TypeError("generated_manifest must be a ContextManifest")
+        if self.acceptance_identity is not None:
+            if not isinstance(self.acceptance_identity, AcceptanceIdentity):
+                raise TypeError("acceptance_identity must be an AcceptanceIdentity")
+            if (
+                self.acceptance_identity.workflow_id != self.workflow_id
+                or self.acceptance_identity.task_id != self.task_id
+            ):
+                raise ValueError("acceptance identity must match the request workflow and task")
+            workspace_id = self.isolation_policy.get("workspace_id")
+            if not isinstance(workspace_id, str) or not _PORTABLE_ID.fullmatch(workspace_id):
+                raise ValueError(
+                    "identity-bound worker request requires a portable workspace_id"
+                )
         if len(self.manifest_json().encode("utf-8")) > MAX_MANIFEST_BYTES:
             raise ValueError("generated manifest exceeds 65536 bytes")
 
@@ -100,7 +299,8 @@ class WorkerRequest:
         }[self.reasoning]
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload = {
+            "schema_version": "2.3",
             "objective": self.objective,
             "constraints": list(self.constraints),
             "generated_manifest": self.generated_manifest.to_dict(),
@@ -112,6 +312,9 @@ class WorkerRequest:
             "provider_role": self.provider_role,
             "reasoning": self.reasoning,
         }
+        if self.acceptance_identity is not None:
+            payload["acceptance_identity"] = self.acceptance_identity.to_dict()
+        return payload
 
 
 @dataclass(frozen=True)
@@ -121,10 +324,12 @@ class WorkerResult:
     summary: str
     changed_files: tuple[str, ...]
     commits: tuple[str, ...]
-    tests: tuple[Mapping[str, Any], ...]
+    tests: tuple[WorkerTestResult | _LegacyWorkerTestResult, ...]
     evidence: tuple[Mapping[str, Any], ...]
     blockers: tuple[str, ...]
     knowledge_candidates: tuple[Mapping[str, Any], ...] = ()
+    acceptance_identity: AcceptanceIdentity | None = None
+    schema_version: str = "2.3"
 
 
 @dataclass(frozen=True)
@@ -133,10 +338,6 @@ class WorkerReceipt:
     state: WorkerState
     task_id: str
     fallback_used: bool = False
-
-
-def _invalid_result(message: str) -> WorkerResultContractError:
-    return WorkerResultContractError(f"invalid_result_contract: {message}")
 
 
 def _string_tuple(value: object, field_name: str) -> tuple[str, ...]:
@@ -151,12 +352,60 @@ def _mapping_tuple(value: object, field_name: str) -> tuple[Mapping[str, Any], .
     return tuple(dict(item) for item in value)
 
 
+def _test_results(
+    value: object, request: WorkerRequest
+) -> tuple[WorkerTestResult | _LegacyWorkerTestResult, ...]:
+    """Validate reported runs against the request's workspace and attempt identity."""
+    if not isinstance(value, (list, tuple)):
+        raise _invalid_result("tests must be a list of objects")
+    expected_workspace = str(request.isolation_policy.get("workspace_id") or "")
+    results = []
+    for item in value:
+        if isinstance(item, (WorkerTestResult, _LegacyWorkerTestResult)):
+            normalized = item
+        elif (
+            request.acceptance_identity is None
+            and isinstance(item, Mapping)
+            and set(item) == {"command", "outcome"}
+        ):
+            normalized = _LegacyWorkerTestResult(
+                command=item["command"],
+                outcome=item["outcome"],
+            )
+        else:
+            normalized = WorkerTestResult.from_mapping(item)
+        results.append(normalized)
+    for item in results:
+        if isinstance(item, _LegacyWorkerTestResult):
+            continue
+        if expected_workspace and item.workspace_id != expected_workspace:
+            raise _invalid_result("test workspace does not match the isolated workspace")
+        if request.acceptance_identity is None:
+            continue
+        if item.attempt_id != request.acceptance_identity.attempt_id:
+            raise _invalid_result("test attempt does not match request")
+        repository = next(
+            (
+                snapshot
+                for snapshot in request.acceptance_identity.repositories
+                if snapshot.repository_id == item.repository_id
+            ),
+            None,
+        )
+        if repository is None:
+            raise _invalid_result("test repository does not match request")
+        if item.source_tree_hash != repository.source_tree_hash:
+            raise _invalid_result("test source tree does not match request")
+    return tuple(results)
+
+
 def normalize_worker_result(
     value: Mapping[str, Any] | WorkerResult, request: WorkerRequest
 ) -> WorkerResult:
     """Validate and freeze a provider result at the workflow boundary."""
     if isinstance(value, WorkerResult):
         value = {
+            "schema_version": value.schema_version,
             "status": value.status,
             "task_id": value.task_id,
             "summary": value.summary,
@@ -166,6 +415,11 @@ def normalize_worker_result(
             "evidence": value.evidence,
             "blockers": value.blockers,
             "knowledge_candidates": value.knowledge_candidates,
+            "acceptance_identity": (
+                None
+                if value.acceptance_identity is None
+                else value.acceptance_identity.to_dict()
+            ),
         }
     if not isinstance(value, Mapping):
         raise _invalid_result("result must be an object")
@@ -182,6 +436,25 @@ def normalize_worker_result(
         raise _invalid_result("task_id does not match request")
     if not isinstance(value["summary"], str):
         raise _invalid_result("summary must be a string")
+    raw_identity = value.get("acceptance_identity")
+    result_identity = None
+    if raw_identity is not None:
+        if isinstance(raw_identity, AcceptanceIdentity):
+            result_identity = raw_identity
+        else:
+            try:
+                result_identity = AcceptanceIdentity.from_mapping(raw_identity)
+            except (TypeError, ValueError) as error:
+                raise _invalid_result(f"invalid result acceptance_identity: {error}") from error
+    if request.acceptance_identity is not None:
+        if value.get("schema_version") != "2.3":
+            raise _invalid_result("identity-bound result schema_version must be 2.3")
+        if result_identity is None:
+            raise _invalid_result("result acceptance_identity is required")
+        try:
+            request.acceptance_identity.require_exact_match(result_identity)
+        except (TypeError, ValueError) as error:
+            raise _invalid_result(str(error)) from error
     knowledge = value.get("knowledge_candidates", ())
     return WorkerResult(
         status=value["status"],
@@ -189,10 +462,12 @@ def normalize_worker_result(
         summary=value["summary"],
         changed_files=_string_tuple(value["changed_files"], "changed_files"),
         commits=_string_tuple(value["commits"], "commits"),
-        tests=_mapping_tuple(value["tests"], "tests"),
+        tests=_test_results(value["tests"], request),
         evidence=_mapping_tuple(value["evidence"], "evidence"),
         blockers=_string_tuple(value["blockers"], "blockers"),
         knowledge_candidates=_mapping_tuple(knowledge, "knowledge_candidates"),
+        acceptance_identity=result_identity,
+        schema_version=str(value.get("schema_version", "1.0")),
     )
 
 
@@ -206,21 +481,62 @@ def failed_worker_result(request: WorkerRequest, blocker: str, summary: str = ""
         tests=(),
         evidence=(),
         blockers=(blocker,),
+        acceptance_identity=request.acceptance_identity,
     )
 
 
+def cancelled_worker_result(
+    request: WorkerRequest,
+    blocker: str = "cancelled",
+    summary: str = "cancelled",
+) -> WorkerResult:
+    """Create cancellation through the same identity-bound result contract."""
+    return normalize_worker_result(
+        WorkerResult(
+            status="cancelled",
+            task_id=request.task_id,
+            summary=summary,
+            changed_files=(),
+            commits=(),
+            tests=(),
+            evidence=(),
+            blockers=(blocker,),
+            acceptance_identity=request.acceptance_identity,
+            schema_version="2.3" if request.acceptance_identity is not None else "1.0",
+        ),
+        request,
+    )
+
+
+def worker_acceptance_key(request: WorkerRequest) -> str:
+    """Return a deterministic replay key with an explicit legacy marker."""
+    if request.acceptance_identity is None:
+        return "legacy"
+    serialized = json.dumps(
+        request.acceptance_identity.to_dict(),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return f"identity-{hashlib.sha256(serialized.encode('utf-8')).hexdigest()}"
+
+
 def worker_id_for(provider_name: str, request: WorkerRequest) -> str:
+    replay_identity = worker_request_identity(request)[2]
     digest = hashlib.sha256(
         (
             f"{provider_name}\0{request.workflow_id}\0{request.task_id}"
-            f"\0{request.retry_identity}"
+            f"\0{replay_identity}"
         ).encode("utf-8")
     ).hexdigest()[:24]
     return f"worker-{digest}"
 
 
 def worker_request_identity(request: WorkerRequest) -> tuple[str, str, str]:
-    return request.workflow_id, request.task_id, request.retry_identity
+    return (
+        request.workflow_id,
+        request.task_id,
+        f"{request.retry_identity}\0{worker_acceptance_key(request)}",
+    )
 
 
 @dataclass
@@ -261,7 +577,10 @@ class SynchronousWorkerAdapter:
         with self._lock:
             previous_id = self._retries.get(identity)
             if previous_id is not None:
-                return self._records[previous_id].receipt
+                previous = self._records[previous_id]
+                if previous.request != request:
+                    raise ValueError("worker replay request mismatch")
+                return previous.receipt
             worker_id = worker_id_for(self.provider_name, request)
             state = WorkerState.ASSIGNED if self._available else WorkerState.UNAVAILABLE
             receipt = WorkerReceipt(worker_id, state, request.task_id)
@@ -323,9 +642,7 @@ class SynchronousWorkerAdapter:
             kind_value = getattr(kind, "value", None)
             blocker = f"provider_failure:{kind_value}" if kind_value else "worker_exception"
             if kind_value == "cancelled":
-                result = WorkerResult(
-                    "cancelled", request.task_id, str(error), (), (), (), (), (blocker,)
-                )
+                result = cancelled_worker_result(request, blocker, str(error))
             else:
                 result = failed_worker_result(request, blocker, str(error))
         state = {
@@ -377,9 +694,7 @@ class SynchronousWorkerAdapter:
                     return False
                 record.cancel_requested.set()
                 return True
-            record.result = WorkerResult(
-                "cancelled", record.request.task_id, "cancelled", (), (), (), (), ("cancelled",)
-            )
+            record.result = cancelled_worker_result(record.request)
             record.receipt = WorkerReceipt(worker_id, WorkerState.CANCELLED, record.request.task_id)
             record.completed.set()
             return True
@@ -415,7 +730,11 @@ class WorkerDispatcher:
         worker_id: str = "",
         payload: Mapping[str, Any] | None = None,
     ) -> None:
-        body = {"retry_identity": request.retry_identity}
+        acceptance_key = worker_acceptance_key(request)
+        body = {
+            "retry_identity": request.retry_identity,
+            "acceptance_identity_key": acceptance_key,
+        }
         if worker_id:
             body["worker_id"] = worker_id
         body.update(payload or {})
@@ -427,7 +746,7 @@ class WorkerDispatcher:
                 payload=body,
                 idempotency_key=(
                     f"{request.workflow_id}:{request.task_id}:"
-                    f"{request.retry_identity}:{event_name}"
+                    f"{request.retry_identity}:{acceptance_key}:{event_name}"
                 ),
             )
         )
@@ -454,6 +773,8 @@ class WorkerDispatcher:
             existing_id = self._identities.get(identity)
             if existing_id is not None:
                 existing_record = self._records[existing_id]
+                if existing_record.request != request:
+                    raise ValueError("worker replay request mismatch")
                 existing_record.dispatch_ready.wait()
                 return existing_record.receipt
             if not self._context_available(request):
@@ -660,9 +981,7 @@ class WorkerDispatcher:
             adapter_receipt = record.adapter.status(worker_id)
             if adapter_receipt.state is not WorkerState.CANCELLED:
                 return False
-            record.result = WorkerResult(
-                "cancelled", record.request.task_id, "cancelled", (), (), (), (), ("cancelled",)
-            )
+            record.result = cancelled_worker_result(record.request)
             record.receipt = WorkerReceipt(
                 worker_id, WorkerState.CANCELLED, record.request.task_id, record.receipt.fallback_used
             )

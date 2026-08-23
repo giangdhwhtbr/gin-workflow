@@ -19,6 +19,7 @@ from .worker_dispatch import (
     WorkerResult,
     WorkerState,
     failed_worker_result,
+    worker_acceptance_key,
     worker_id_for,
     worker_request_identity,
 )
@@ -95,7 +96,11 @@ class RoutedWorkerDispatcher:
         worker_id: str = "",
         reason: str = "",
     ) -> None:
-        payload: dict[str, Any] = {"retry_identity": request.retry_identity}
+        acceptance_key = worker_acceptance_key(request)
+        payload: dict[str, Any] = {
+            "retry_identity": request.retry_identity,
+            "acceptance_identity_key": acceptance_key,
+        }
         route_key = "none"
         if candidate is not None:
             payload.update(
@@ -118,6 +123,7 @@ class RoutedWorkerDispatcher:
                 payload=payload,
                 idempotency_key=(
                     f"{request.workflow_id}:{request.task_id}:{request.retry_identity}:"
+                    f"{acceptance_key}:"
                     f"route:{name}:{route_key}"
                 ),
             )
@@ -141,7 +147,10 @@ class RoutedWorkerDispatcher:
         with self._lock:
             previous = self._identities.get(identity)
             if previous is not None:
-                return self._records[previous].receipt
+                record = self._records[previous]
+                if record.request != request:
+                    raise ValueError("worker replay request mismatch")
+                return record.receipt
             pending = self._pending.get(identity)
             owner = pending is None
             if owner:
@@ -151,7 +160,10 @@ class RoutedWorkerDispatcher:
         if not owner:
             pending.wait()
             with self._lock:
-                return self._records[self._identities[identity]].receipt
+                record = self._records[self._identities[identity]]
+                if record.request != request:
+                    raise ValueError("worker replay request mismatch")
+                return record.receipt
         try:
             return self._dispatch_new(request, identity)
         finally:

@@ -15,6 +15,7 @@ from workflow_providers.contracts import (
 )
 
 from .assignments import RouteCandidate
+from .identity import AcceptanceIdentity
 from .manifests import ContextRequest, create_context_manifest
 from .models import freeze, thaw
 from workflow_providers.worker_dispatch import WorkerRequest, WorkerResult
@@ -61,6 +62,8 @@ class ReviewCycle:
     context: ReviewContext
     lease_id: str = ""
     status: str = "review_requested"
+    acceptance_identity: AcceptanceIdentity | None = None
+    expected_ledger_revision: int | None = None
 
     @property
     def reviewer_route(self) -> tuple[str, str]:
@@ -129,6 +132,8 @@ class ReviewCoordinator:
         reviewer_candidates: tuple[RouteCandidate, ...],
         context: ReviewContext,
         lease_id: str = "",
+        acceptance_identity: AcceptanceIdentity | None = None,
+        expected_ledger_revision: int | None = None,
     ) -> ReviewCycle:
         if cycle_number < 1 or cycle_number > self.max_cycles:
             raise ReviewCoordinationError("review cycle exceeds configured maximum")
@@ -162,6 +167,8 @@ class ReviewCoordinator:
             selected.model,
             context,
             lease_id,
+            acceptance_identity=acceptance_identity,
+            expected_ledger_revision=expected_ledger_revision,
         )
 
     def dispatch_review(
@@ -175,14 +182,20 @@ class ReviewCoordinator:
             "review",
             ContextRequest(required=({"review_context": cycle.context.to_dict()},)),
         )
-        bounded_request = replace(
-            request,
-            objective=f"Review approved implementation scope for {cycle.task_id}",
-            generated_manifest=bounded_manifest,
-            provider_role=cycle.provider_role,
-            reasoning=cycle.reasoning,
-            route_affinity=cycle.reviewer_route,
-        )
+        try:
+            bounded_request = replace(
+                request,
+                objective=f"Review approved implementation scope for {cycle.task_id}",
+                generated_manifest=bounded_manifest,
+                provider_role=cycle.provider_role,
+                reasoning=cycle.reasoning,
+                route_affinity=cycle.reviewer_route,
+                acceptance_identity=cycle.acceptance_identity,
+            )
+        except (TypeError, ValueError) as error:
+            raise ReviewCoordinationError(
+                f"review acceptance identity is inconsistent: {error}"
+            ) from error
         receipt = self.worker_dispatcher.dispatch(bounded_request)
         result = self.worker_dispatcher.collect_result(receipt.worker_id)
         if result.status != "completed":
@@ -236,6 +249,8 @@ class ReviewCoordinator:
                 decision,
                 tuple(findings),
                 cycle.lease_id,
+                cycle.acceptance_identity,
+                cycle.expected_ledger_revision,
             ),
             idempotency_key=(
                 f"{cycle.task_id}:review:{cycle.cycle_number}:outcome:"

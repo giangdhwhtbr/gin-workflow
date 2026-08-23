@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 import sys
 import tempfile
@@ -9,9 +10,15 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.models import EffectiveConfig  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
-from workflow_providers.contracts import WorkspaceRequest  # noqa: E402
-from workflow_providers.evidence import FileEvidenceProvider  # noqa: E402
+from workflow_providers.contracts import (  # noqa: E402
+    EvidenceCategory,
+    EvidenceRecord,
+    OperationStatus,
+    WorkspaceRequest,
+)
+from workflow_providers.evidence import CompositeEvidenceAuthority, FileEvidenceProvider  # noqa: E402
 from workflow_providers.fakes import (  # noqa: E402
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
@@ -31,6 +38,177 @@ from workflow_providers.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerReq
 
 
 class ProviderRegistryTests(unittest.TestCase):
+    @staticmethod
+    def evidence_config(root):
+        return EffectiveConfig(
+            {
+                "schema_version": "2.3",
+                "providers": {
+                    "task_tracking": "fake",
+                    "knowledge": "fake",
+                    "workspace": "fake",
+                    "review": "fake",
+                    "evidence": "fake",
+                    "notifications": "fake",
+                },
+            },
+            Path(root),
+        )
+
+    @staticmethod
+    def composite_authority():
+        identity = AcceptanceIdentity(
+            workflow_id="wf-1",
+            attempt_id="attempt-1",
+            task_id="task-1",
+            repositories=(
+                RepositorySnapshot(
+                    "primary",
+                    "scope-1",
+                    "tree-1",
+                    "checkpoint-1",
+                    "refs/gin/review/task-1",
+                ),
+            ),
+        ).to_dict()
+        test_results = [
+            {
+                "argv": ["python3", "-m", "unittest"],
+                "exit_code": 0,
+                "started_at": "2026-08-20T09:58:00Z",
+                "finished_at": "2026-08-20T09:59:00Z",
+                "workspace_id": "ws-task-1",
+                "repository_id": "primary",
+                "attempt_id": "attempt-1",
+                "source_tree_hash": "tree-1",
+            }
+        ]
+        worker_store = {
+            "worker-1": {
+                "task_id": "task-1",
+                "worker_id": "worker-1",
+                "status": "completed",
+                "schema_version": "2.3",
+                "request_acceptance_identity": identity,
+                "result_acceptance_identity": identity,
+                "request_workspace_id": "ws-task-1",
+                "tests": test_results,
+                "recorded_at": "2026-08-20T10:00:00Z",
+            }
+        }
+        checkpoint_store = {
+            "checkpoint-event-1": {
+                "task_id": "task-1",
+                "checkpoint_event_id": "checkpoint-event-1",
+                "acceptance_identity": identity,
+                "repositories": identity["repositories"],
+                "recorded_at": "2026-08-20T10:01:00Z",
+            }
+        }
+        review_store = {
+            "review-event-1": {
+                "task_id": "task-1",
+                "review_event_id": "review-event-1",
+                "ledger_revision": 7,
+                "acceptance_identity": identity,
+                "status": "approved",
+                "terminal": True,
+                "recorded_at": "2026-08-20T10:01:30Z",
+                "verification_event_id": "verification-event-1",
+            }
+        }
+        verification_store = {
+            "verification-event-1": {
+                "task_id": "task-1",
+                "verification_event_id": "verification-event-1",
+                "review_event_id": "review-event-1",
+                "acceptance_identity": identity,
+                "status": "passed",
+                "recorded_at": "2026-08-20T10:02:00Z",
+            }
+        }
+        return CompositeEvidenceAuthority(
+            worker_resolver=worker_store.get,
+            checkpoint_resolver=checkpoint_store.get,
+            review_resolver=review_store.get,
+            verification_resolver=verification_store.get,
+        )
+
+    def test_schema_23_registry_requires_authoritative_evidence_sources(self):
+        class EchoAuthority:
+            def resolve(self, _category, _reference):
+                return {}
+
+        with tempfile.TemporaryDirectory() as directory:
+            for authority in (None, EchoAuthority()):
+                with self.subTest(authority=authority):
+                    with self.assertRaisesRegex(RegistryError, "CompositeEvidenceAuthority"):
+                        ProviderRegistry.from_effective_config(
+                            self.evidence_config(directory),
+                            evidence_authority=authority,
+                        )
+
+    def test_registry_wires_independent_composite_authority_and_rejects_forgery(self):
+        authority = self.composite_authority()
+        with tempfile.TemporaryDirectory() as directory:
+            registry = ProviderRegistry.from_config(
+                self.evidence_config(directory),
+                evidence_authority=authority,
+            )
+            references = (
+                ("test", EvidenceCategory.TESTS, "worker-1"),
+                ("repo", EvidenceCategory.REPOSITORY, "checkpoint-event-1"),
+                ("review", EvidenceCategory.REVIEWS, "review-event-1"),
+            )
+            records = []
+            for evidence_id, category, reference in references:
+                canonical = authority.resolve(category, reference)
+                records.append(
+                    EvidenceRecord(
+                        evidence_id=evidence_id,
+                        task_id=canonical["task_id"],
+                        category=category,
+                        outcome=canonical["outcome"],
+                        reference=reference,
+                        details=canonical["details"],
+                        acceptance_identity=AcceptanceIdentity.from_mapping(
+                            canonical["acceptance_identity"]
+                        ),
+                        recorded_at=canonical["recorded_at"],
+                    )
+                )
+            for record in records:
+                self.assertIs(
+                    OperationStatus.SUCCESS,
+                    registry.evidence.record(
+                        record,
+                        idempotency_key=record.evidence_id,
+                    ).status,
+                )
+            complete = registry.evidence.completeness(
+                "task-1",
+                records[0].acceptance_identity,
+            )
+            forged = replace(
+                records[0],
+                evidence_id="forged",
+                details={
+                    **records[0].details,
+                    "tests": [
+                        {
+                            **records[0].details["tests"][0],
+                            "workspace_id": "ws-forged",
+                        }
+                    ],
+                },
+            )
+
+            rejected = registry.evidence.record(forged, idempotency_key="forged")
+
+            self.assertTrue(complete.value.complete)
+            self.assertIs(OperationStatus.INVALID, rejected.status)
+            self.assertIn("authoritative", rejected.message)
+
     def routed_config(self, root):
         return EffectiveConfig(
             {

@@ -8,11 +8,13 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .contracts import (
-    EvidenceCategory,
+    EvidenceAuthority,
     EvidenceCompleteness,
     EvidenceQuery,
     EvidenceRecord,
-    evidence_outcome_succeeds,
+    evaluate_evidence_completeness,
+    validate_evidence_details,
+    validate_authoritative_evidence,
     KnowledgeProposal,
     KnowledgeProposalRecord,
     KnowledgeRecord,
@@ -32,6 +34,7 @@ from .contracts import (
     WorkspaceRecord,
     WorkspaceRequest,
 )
+from workflow_core.identity import AcceptanceIdentity
 
 
 def _proposal_record(proposal: KnowledgeProposal) -> KnowledgeProposalRecord:
@@ -285,43 +288,83 @@ class FakeEvidenceProvider(ProviderBase):
     provider_type = "evidence"
     capabilities = frozenset({"evidence.record", "evidence.query", "evidence.completeness"})
 
-    def __init__(self, *, available: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        available: bool = True,
+        authority: EvidenceAuthority | None = None,
+    ) -> None:
         super().__init__(available=available)
         self.records: list[EvidenceRecord] = []
+        self.authority = authority
 
     def record(self, evidence: EvidenceRecord, *, idempotency_key: str) -> ProviderResult[EvidenceRecord]:
         if guarded := self._guard():
             return guarded
-        if replay := self._replay("record", idempotency_key, evidence):
-            return replay
         if not evidence.evidence_id or not evidence.task_id or not evidence.outcome or not evidence.reference or not idempotency_key:
             return ProviderResult.invalid("complete evidence and idempotency_key are required")
+        if error := validate_evidence_details(evidence):
+            return ProviderResult.invalid(error)
+        if error := validate_authoritative_evidence(evidence, self.authority):
+            return ProviderResult.invalid(error)
+        if replay := self._replay("record", idempotency_key, evidence):
+            existing = next(
+                (item for item in self.records if item.evidence_id == evidence.evidence_id),
+                None,
+            )
+            if existing != evidence:
+                return ProviderResult.invalid(
+                    "idempotent evidence replay does not match the stored record"
+                )
+            if error := validate_evidence_details(existing):
+                return ProviderResult.unavailable(f"stored evidence is invalid: {error}")
+            if error := validate_authoritative_evidence(existing, self.authority):
+                return ProviderResult.unavailable(
+                    f"stored evidence is not authoritative: {error}"
+                )
+            return replay
         self.records.append(evidence)
         return self._remember("record", idempotency_key, evidence, ProviderResult.success(evidence))
 
     def query(self, query: EvidenceQuery) -> ProviderResult[tuple[EvidenceRecord, ...]]:
         if guarded := self._guard():
             return guarded
+        for record in self.records:
+            if error := validate_evidence_details(record):
+                return ProviderResult.unavailable(f"stored evidence is invalid: {error}")
+            if error := validate_authoritative_evidence(record, self.authority):
+                return ProviderResult.unavailable(
+                    f"stored evidence is not authoritative: {error}"
+                )
         found = tuple(
             item for item in self.records
             if (query.task_id is None or item.task_id == query.task_id)
             and (query.category is None or item.category is query.category)
+            and (
+                query.acceptance_identity is None
+                or item.acceptance_identity == query.acceptance_identity
+            )
         )
         return ProviderResult.success(found)
 
-    def completeness(self, task_id: str) -> ProviderResult[EvidenceCompleteness]:
+    def completeness(
+        self,
+        task_id: str,
+        acceptance_identity: AcceptanceIdentity | None = None,
+    ) -> ProviderResult[EvidenceCompleteness]:
         if not task_id:
             return ProviderResult.invalid("task_id is required")
         queried = self.query(EvidenceQuery(task_id=task_id))
         if queried.status is not OperationStatus.SUCCESS:
             return ProviderResult(queried.status, message=queried.message)
-        present = {
-            record.category.value
-            for record in queried.value or ()
-            if evidence_outcome_succeeds(record.category, record.outcome)
-        }
-        missing = tuple(category.value for category in EvidenceCategory if category.value not in present)
-        return ProviderResult.success(EvidenceCompleteness(task_id, not missing, missing, queried.value or ()))
+        return ProviderResult.success(
+            evaluate_evidence_completeness(
+                task_id,
+                queried.value or (),
+                acceptance_identity=acceptance_identity,
+                authority=self.authority,
+            )
+        )
 
 
 class FakeNotificationProvider(ProviderBase):

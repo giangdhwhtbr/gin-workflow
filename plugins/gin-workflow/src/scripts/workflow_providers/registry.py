@@ -13,6 +13,7 @@ from workflow_core.events import WorkflowEventStore
 from workflow_core.provider_config import ProviderModelConfig
 
 from .contracts import (
+    EvidenceAuthority,
     EvidenceProvider,
     KnowledgeProvider,
     NotificationProvider,
@@ -22,7 +23,7 @@ from .contracts import (
     WorkspaceProvider,
     OperationStatus,
 )
-from .evidence import FileEvidenceProvider
+from .evidence import CompositeEvidenceAuthority, FileEvidenceProvider
 from .fakes import (
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
@@ -103,6 +104,7 @@ class ProviderRegistry:
         native_runner: NativeCliRunner | None = None,
         worker_health: Mapping[str, Any] | None = None,
         event_store: WorkflowEventStore | None = None,
+        evidence_authority: EvidenceAuthority | None = None,
     ) -> "ProviderRegistry":
         if not isinstance(config, EffectiveConfig):
             raise TypeError("ProviderRegistry requires EffectiveConfig")
@@ -165,10 +167,20 @@ class ProviderRegistry:
             evidence_options.get("index") or artifacts.get("evidence"),
             ".agent-workflow/runtime/evidence",
         )
+        if str(config.get("schema_version", "")) == "2.3" and not isinstance(
+            evidence_authority,
+            CompositeEvidenceAuthority,
+        ):
+            raise RegistryError(
+                "schema 2.3 evidence authority must be a CompositeEvidenceAuthority"
+            )
         if evidence_name == "filesystem":
-            evidence: EvidenceProvider = FileEvidenceProvider(evidence_path)
+            evidence: EvidenceProvider = FileEvidenceProvider(
+                evidence_path,
+                authority=evidence_authority,
+            )
         elif evidence_name == "fake":
-            evidence = FakeEvidenceProvider()
+            evidence = FakeEvidenceProvider(authority=evidence_authority)
         else:
             raise RegistryError(f"unknown evidence provider: {evidence_name}")
 
@@ -314,9 +326,17 @@ class ProviderRegistry:
         )
 
     @classmethod
-    def from_config(cls, config: EffectiveConfig) -> "ProviderRegistry":
+    def from_config(
+        cls,
+        config: EffectiveConfig,
+        *,
+        evidence_authority: EvidenceAuthority | None = None,
+    ) -> "ProviderRegistry":
         """Compatibility alias for the explicit EffectiveConfig constructor."""
-        return cls.from_effective_config(config)
+        return cls.from_effective_config(
+            config,
+            evidence_authority=evidence_authority,
+        )
 
     @property
     def metadata(self) -> Mapping[str, ProviderMetadata]:
