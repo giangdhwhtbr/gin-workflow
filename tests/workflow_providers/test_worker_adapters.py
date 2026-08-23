@@ -52,6 +52,30 @@ def result():
 
 
 class WorkerAdapterTests(unittest.TestCase):
+    def test_antigravity_provider_default_omits_explicit_model_argument(self):
+        class FakeRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput((result(),))
+
+        runner = FakeRunner()
+        adapter = AntigravityWorkerAdapter(
+            native_runner=runner,
+            executable="agy",
+            model="provider_default",
+            workspace=Path.cwd(),
+        )
+
+        receipt = adapter.dispatch(request())
+
+        self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
+        self.assertEqual(
+            ("agy", "--print", "--sandbox"), runner.invocations[0].argv
+        )
+
     def test_native_adapters_build_model_specific_invocations_and_normalize_output(self):
         class FakeRunner:
             def __init__(self):

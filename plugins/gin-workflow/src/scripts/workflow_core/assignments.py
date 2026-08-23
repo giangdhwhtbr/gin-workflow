@@ -8,16 +8,23 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 from types import MappingProxyType
-from typing import Iterator
+from typing import Any, Iterator, Sequence
 
 from .atomic import atomic_write_text
 from .configuration import require_yaml
 from .models import EffectiveConfig
-from .provider_config import ProviderModelConfig, REASONING_TIERS
+from .provider_config import PROVIDER_DEFAULT, ProviderModelConfig, REASONING_TIERS
 
 
 class AssignmentResolutionError(ValueError):
     """Raised when approved plan guidance cannot resolve to configured routes."""
+
+
+@dataclass(frozen=True)
+class AssignmentValidationError:
+    task_id: str
+    field: str
+    message: str
 
 
 @dataclass(frozen=True)
@@ -26,6 +33,7 @@ class AssignmentRequest:
     provider_role: str
     reasoning: str
     main_harness: str
+    workflow_id: str = ""
 
     def __post_init__(self) -> None:
         for field_name in ("task_id", "provider_role", "main_harness"):
@@ -43,6 +51,16 @@ class RouteCandidate:
     model: str
     fallback: bool
 
+    def __post_init__(self) -> None:
+        if self.model == PROVIDER_DEFAULT and self.provider != "antigravity":
+            raise AssignmentResolutionError(
+                "provider_default is only supported for antigravity"
+            )
+
+    @property
+    def selection_mode(self) -> str:
+        return "provider_default" if self.model == PROVIDER_DEFAULT else "explicit"
+
 
 @dataclass(frozen=True)
 class AssignmentManifest:
@@ -59,18 +77,60 @@ class AssignmentManifest:
 
     def to_dict(self) -> dict[str, object]:
         primary, *fallbacks = self.candidates
+        def route_payload(candidate: RouteCandidate) -> dict[str, str]:
+            payload = {
+                "provider": candidate.provider,
+                "selection_mode": candidate.selection_mode,
+            }
+            if candidate.selection_mode == "explicit":
+                payload["model"] = candidate.model
+            return payload
+
         return {
             "task_id": self.request.task_id,
             "requested": {
                 "provider_role": self.request.provider_role,
                 "reasoning": self.request.reasoning,
             },
-            "resolved": {"provider": primary.provider, "model": primary.model},
-            "fallback": [
-                {"provider": candidate.provider, "model": candidate.model}
-                for candidate in fallbacks
-            ],
+            "resolved": route_payload(primary),
+            "fallback": [route_payload(candidate) for candidate in fallbacks],
         }
+
+
+def _task_value(task: Mapping[str, Any] | AssignmentRequest, field: str) -> str:
+    value = getattr(task, field) if isinstance(task, AssignmentRequest) else task.get(field, "")
+    return str(value).strip()
+
+
+def validate_plan_assignments(
+    tasks: Sequence[Mapping[str, Any] | AssignmentRequest],
+    config: EffectiveConfig,
+) -> tuple[AssignmentValidationError, ...]:
+    """Return every portable role/tier error without consulting machine-local state."""
+    routing = config.get("routing", {})
+    roles = routing.get("roles", {}) if isinstance(routing, Mapping) else {}
+    if not isinstance(roles, Mapping):
+        roles = {}
+    errors: list[AssignmentValidationError] = []
+    for index, task in enumerate(tasks):
+        if not isinstance(task, (Mapping, AssignmentRequest)):
+            raise TypeError("plan assignment tasks must be mappings or AssignmentRequest values")
+        task_id = _task_value(task, "task_id") or f"task-{index + 1}"
+        role = _task_value(task, "provider_role")
+        reasoning = _task_value(task, "reasoning")
+        if role not in roles:
+            errors.append(
+                AssignmentValidationError(task_id, "provider_role", f"unknown provider role: {role}")
+            )
+        if reasoning not in REASONING_TIERS:
+            errors.append(
+                AssignmentValidationError(
+                    task_id,
+                    "reasoning",
+                    f"reasoning must be one of: {', '.join(REASONING_TIERS)}",
+                )
+            )
+    return tuple(errors)
 
 
 def resolve_assignment(
@@ -102,18 +162,58 @@ def resolve_assignment(
         raise AssignmentResolutionError(f"provider role has no candidates: {request.provider_role}")
 
     candidates: list[RouteCandidate] = []
+    errors: list[str] = []
     for provider, is_fallback in ordered:
         provider_config = local.get(provider)
         if provider_config is None:
-            raise AssignmentResolutionError(f"missing local provider mapping: {provider}")
+            errors.append(f"missing local provider mapping: {provider}")
+            continue
         try:
             model = provider_config.models[request.reasoning]
-        except KeyError as error:
-            raise AssignmentResolutionError(
+        except KeyError:
+            errors.append(
                 f"missing {request.reasoning} reasoning model for provider: {provider}"
-            ) from error
+            )
+            continue
+        if model == PROVIDER_DEFAULT and provider != "antigravity":
+            errors.append("provider_default is only supported for antigravity")
+            continue
         candidates.append(RouteCandidate(provider, str(model), is_fallback))
+    if errors:
+        raise AssignmentResolutionError("; ".join(errors))
     return tuple(candidates)
+
+
+def resolve_all_assignments(
+    requests: Sequence[AssignmentRequest],
+    config: EffectiveConfig,
+    local: Mapping[str, ProviderModelConfig],
+) -> tuple[AssignmentManifest, ...]:
+    """Resolve a complete workflow batch without performing durable writes."""
+    errors = validate_plan_assignments(requests, config)
+    if errors:
+        raise AssignmentResolutionError(
+            "; ".join(f"{error.task_id}.{error.field}: {error.message}" for error in errors)
+        )
+    manifests: list[AssignmentManifest] = []
+    resolution_errors: list[str] = []
+    for request in requests:
+        if not request.workflow_id.strip():
+            resolution_errors.append(
+                f"workflow_id is required for batch assignment: {request.task_id}"
+            )
+            continue
+        try:
+            candidates = resolve_assignment(request, config, local)
+        except AssignmentResolutionError as error:
+            resolution_errors.append(f"{request.task_id}: {error}")
+        else:
+            manifests.append(
+                AssignmentManifest(request.workflow_id, request, candidates)
+            )
+    if resolution_errors:
+        raise AssignmentResolutionError("; ".join(resolution_errors))
+    return tuple(manifests)
 
 
 _SAFE_WORKFLOW_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")

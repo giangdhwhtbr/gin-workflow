@@ -29,6 +29,7 @@ from workflow_providers.fakes import (  # noqa: E402
 )
 from workflow_providers.knowledge import RepositoryKnowledgeProvider  # noqa: E402
 from workflow_providers.notifications import TelegramNotificationProvider  # noqa: E402
+from workflow_providers.native_cli import NativeCliOutput, NativeHealth  # noqa: E402
 from workflow_providers.registry import ProviderRegistry, RegistryError  # noqa: E402
 from workflow_providers.routed_worker import RoutedWorkerDispatcher  # noqa: E402
 from workflow_providers.review import ReviewLedgerProvider  # noqa: E402
@@ -50,6 +51,35 @@ class ProviderRegistryTests(unittest.TestCase):
                     "review": "fake",
                     "evidence": "fake",
                     "notifications": "fake",
+                },
+            },
+            Path(root),
+        )
+
+    def antigravity_config(self, root):
+        return EffectiveConfig(
+            {
+                "schema_version": "2.3",
+                "harness": "codex",
+                "providers": {
+                    "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                    "review": "fake", "evidence": "fake", "notifications": "fake",
+                },
+                "routing": {
+                    "roles": {
+                        "backend": {
+                            "preferred": ["antigravity"],
+                            "fallback": ["codex"],
+                        }
+                    },
+                    "concurrency": {"antigravity": 1, "codex": 1},
+                    "queue": {"max_wait_seconds": 0},
+                    "worker": {"timeout_seconds": 17, "max_retries": 0},
+                    "circuit_breaker": {
+                        "failure_threshold": 1,
+                        "cooldown_seconds": 10,
+                        "half_open_max_probes": 1,
+                    },
                 },
             },
             Path(root),
@@ -208,7 +238,6 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertTrue(complete.value.complete)
             self.assertIs(OperationStatus.INVALID, rejected.status)
             self.assertIn("authoritative", rejected.message)
-
     def routed_config(self, root):
         return EffectiveConfig(
             {
@@ -265,6 +294,95 @@ class ProviderRegistryTests(unittest.TestCase):
 
             self.assertIsNone(without_local.worker)
             self.assertIsInstance(with_local.worker, RoutedWorkerDispatcher)
+
+    def test_registry_routes_provider_default_without_model_and_rejects_explicit_mode(self):
+        class Runner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput(({
+                    "status": "completed",
+                    "task_id": "api",
+                    "summary": "done",
+                    "changed_files": [],
+                    "commits": [],
+                    "tests": [],
+                    "evidence": [],
+                    "blockers": [],
+                },))
+
+        for antigravity_model, expected_provider in (
+            ("provider_default", "antigravity"),
+            ("gemini-pro", "codex"),
+        ):
+            with self.subTest(model=antigravity_model), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                runner = Runner()
+                local = {
+                    "antigravity": ProviderModelConfig(
+                        "antigravity", "agy", {
+                            "low": antigravity_model,
+                            "medium": antigravity_model,
+                            "high": antigravity_model,
+                        }
+                    ),
+                    "codex": ProviderModelConfig(
+                        "codex", "codex", {
+                            "low": "mini", "medium": "coding", "high": "reasoning"
+                        }
+                    ),
+                }
+                registry = ProviderRegistry.from_effective_config(
+                    self.antigravity_config(root),
+                    provider_local=local,
+                    evidence_authority=self.composite_authority(),
+                    native_runner=runner,
+                    worker_health={
+                        "antigravity": lambda candidate: NativeHealth(
+                            True, "explicit_model_selection_unverified", False
+                        ),
+                        "codex": lambda candidate: True,
+                    },
+                )
+                registry.workspace.create(
+                    WorkspaceRequest("ws-api", "task/api"), idempotency_key="create"
+                )
+                worker_request = WorkerRequest(
+                    "Implement", (), create_context_manifest("execute", ContextRequest()),
+                    {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                )
+
+                receipt = registry.worker.dispatch(worker_request)
+                normalized = registry.worker.collect_result(receipt.worker_id)
+
+                self.assertEqual("completed", normalized.status)
+                self.assertEqual(expected_provider, receipt.provider_name)
+                if expected_provider == "antigravity":
+                    self.assertEqual(("agy", "--print", "--sandbox"), runner.invocations[0].argv)
+                else:
+                    self.assertEqual(("codex", "exec"), runner.invocations[0].argv[:2])
+
+    def test_registry_rejects_provider_default_for_non_antigravity_injection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            local = {
+                "codex": ProviderModelConfig(
+                    "codex", "codex", {
+                        "low": "provider_default",
+                        "medium": "provider_default",
+                        "high": "provider_default",
+                    }
+                )
+            }
+
+            with self.assertRaisesRegex(
+                RegistryError, "provider_default is only supported for antigravity"
+            ):
+                ProviderRegistry.from_effective_config(
+                    self.routed_config(directory), provider_local=local
+                )
 
     def test_builds_every_selected_fake_from_effective_config(self):
         with tempfile.TemporaryDirectory() as directory:

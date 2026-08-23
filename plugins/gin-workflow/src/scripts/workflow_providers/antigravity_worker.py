@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any, Callable, Mapping
+
+from workflow_core.provider_config import PROVIDER_DEFAULT
 
 from .native_cli import (
     NativeCliInvocation,
@@ -24,8 +27,12 @@ def build_antigravity_invocation(
     *,
     timeout_seconds: float = 900,
 ) -> NativeCliInvocation:
+    argv = [executable, "--print"]
+    if model != PROVIDER_DEFAULT:
+        argv.extend(("--model", model))
+    argv.append("--sandbox")
     return NativeCliInvocation(
-        (executable, "--print", "--model", model, "--sandbox"),
+        tuple(argv),
         workspace,
         prompt.encode("utf-8"),
         timeout_seconds,
@@ -36,9 +43,12 @@ def antigravity_health(executable: str, *, help_text: str | None = None) -> Nati
     help_text = probe_help(executable, "--help") if help_text is None else help_text
     if help_text is None:
         return NativeHealth(False, "executable_or_help_unavailable", False)
-    supported = "--model" in help_text
+    options = frozenset(re.findall(r"--[A-Za-z0-9][A-Za-z0-9-]*", help_text))
+    supported = "--model" in options
+    if "--print" not in options or "--sandbox" not in options:
+        return NativeHealth(False, "required_flags_unverified", supported)
     return NativeHealth(
-        supported,
+        True,
         "ready" if supported else "explicit_model_selection_unverified",
         supported,
     )

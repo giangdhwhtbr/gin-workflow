@@ -13,6 +13,7 @@ from .schemas import SUPPORTED_SCHEMA_VERSION
 
 
 REASONING_TIERS = ("low", "medium", "high")
+PROVIDER_DEFAULT = "provider_default"
 
 
 class ProviderLocalConfigError(ValueError):
@@ -24,6 +25,13 @@ class ProviderModelConfig:
     provider: str
     executable: str
     models: Mapping[str, str]
+
+    def selection_mode(self, tier: str) -> str:
+        try:
+            model = self.models[tier]
+        except KeyError as error:
+            raise ProviderLocalConfigError(f"missing model tier: {tier}") from error
+        return "provider_default" if model == PROVIDER_DEFAULT else "explicit"
 
 
 def validate_provider_local_config(value: Mapping[str, Any]) -> None:
@@ -62,6 +70,10 @@ def validate_provider_local_config(value: Mapping[str, Any]) -> None:
             model = models[tier]
             if not isinstance(model, str) or not model.strip():
                 raise ProviderLocalConfigError(f"model tier {tier} must be a non-empty string")
+            if model == PROVIDER_DEFAULT and name != "antigravity":
+                raise ProviderLocalConfigError(
+                    "provider_default is only supported for antigravity"
+                )
         unknown_tiers = set(models) - set(REASONING_TIERS)
         if unknown_tiers:
             raise ProviderLocalConfigError(

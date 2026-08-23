@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any, Callable, Mapping
 
 from .native_cli import (
@@ -32,10 +33,8 @@ def build_codex_invocation(
             model,
             "--json",
             "--ephemeral",
-            "--sandbox",
-            "workspace-write",
             "--approve-for-me",
-            "-C",
+            "--cd",
             str(Path(workspace).resolve()),
             "-",
         ),
@@ -49,8 +48,17 @@ def codex_health(executable: str, *, help_text: str | None = None) -> NativeHeal
     help_text = probe_help(executable, "exec", "--help") if help_text is None else help_text
     if help_text is None:
         return NativeHealth(False, "executable_or_help_unavailable", False)
-    supported = all(flag in help_text for flag in ("--model", "--json", "--ephemeral"))
-    return NativeHealth(supported, "ready" if supported else "required_flags_unverified", supported)
+    options = frozenset(re.findall(r"--[A-Za-z0-9][A-Za-z0-9-]*", help_text))
+    model_selection = "--model" in options
+    supported = all(
+        flag in options
+        for flag in ("--model", "--json", "--ephemeral", "--approve-for-me", "--cd")
+    )
+    return NativeHealth(
+        supported,
+        "ready" if supported else "required_flags_unverified",
+        model_selection,
+    )
 
 
 def _payload(request: WorkerRequest) -> Mapping[str, Any]:

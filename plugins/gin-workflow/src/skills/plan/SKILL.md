@@ -27,5 +27,6 @@ The manifest requires the confirmed requirement and accepted decisions only. Use
 2. Apply the `writing-plans` methodology and write the plan under `ArtifactRegistry["plans"]`.
 3. Include approved scope, concrete file ownership, dependency-aware tracks, validation, risks, and abstract model-class guidance.
 4. Assign every implementation or review track a portable provider role and reasoning tier. Do not select a concrete provider or model.
-5. Obtain native-harness approval of the plan and record it through the evidence capability.
-6. Return state showing whether `plan_approved` is true. Do not invoke orchestration.
+5. Call `validate_plan_assignments(tasks, config)` for the complete plan. Report every task-specific diagnostic in task order and reject the plan when any error is returned.
+6. Obtain native-harness approval only after aggregate assignment validation succeeds, and record it through the evidence capability.
+7. Return state showing whether `plan_approved` is true. Do not invoke orchestration.

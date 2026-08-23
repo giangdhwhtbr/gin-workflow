@@ -15,7 +15,7 @@ from workflow_core.events import WorkflowEventStore  # noqa: E402
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_providers.circuit_breaker import CircuitBreakerStore, CircuitState, FailureKind  # noqa: E402
-from workflow_providers.native_cli import NativeCliError  # noqa: E402
+from workflow_providers.native_cli import NativeCliError, NativeHealth  # noqa: E402
 from workflow_providers.routed_worker import RoutedWorkerDispatcher  # noqa: E402
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerRequest, WorkerState  # noqa: E402
@@ -114,6 +114,109 @@ class RoutedWorkerTests(unittest.TestCase):
             event_types = [event.event_type for event in events.read_all()]
             self.assertEqual(2, event_types.count("worker.requested"))
             self.assertEqual(2, event_types.count("worker.completed"))
+    def test_provider_default_route_records_degraded_capability_without_claiming_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("antigravity", "provider_default", False),)
+            router, _, events = self.build(
+                directory,
+                routes=routes,
+                runners={"antigravity": lambda payload: result(payload["task_id"])},
+                health={
+                    "antigravity": lambda candidate: NativeHealth(
+                        True, "explicit_model_selection_unverified", False
+                    )
+                },
+            )
+
+            receipt = router.dispatch(request())
+            normalized = router.collect_result(receipt.worker_id)
+
+            self.assertEqual("completed", normalized.status)
+            self.assertEqual("provider_default", receipt.model_alias)
+            assigned = next(
+                event for event in events.read_all() if event.event_type == "worker.assigned"
+            )
+            self.assertEqual("provider_default", assigned.payload["selection_mode"])
+            self.assertFalse(assigned.payload["explicit_model_selection"])
+            self.assertNotIn("model", assigned.payload)
+            completed = next(
+                event for event in events.read_all() if event.event_type == "worker.completed"
+            )
+            self.assertFalse(completed.payload["explicit_model_selection"])
+            self.assertNotIn("model", completed.payload)
+            for event in events.read_all():
+                self.assertEqual("high", event.payload["requested_tier"])
+
+    def test_explicit_antigravity_route_without_capability_uses_same_tier_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (
+                RouteCandidate("antigravity", "gemini-pro", False),
+                RouteCandidate("codex", "reasoning", True),
+            )
+            router, breaker, events = self.build(
+                directory,
+                routes=routes,
+                runners={
+                    "antigravity": lambda payload: result(payload["task_id"]),
+                    "codex": lambda payload: result(payload["task_id"]),
+                },
+                health={
+                    "antigravity": lambda candidate: NativeHealth(
+                        True, "explicit_model_selection_unverified", False
+                    ),
+                    "codex": lambda candidate: True,
+                },
+            )
+
+            receipt = router.dispatch(request())
+            normalized = router.collect_result(receipt.worker_id)
+
+            self.assertEqual("completed", normalized.status)
+            self.assertEqual(("codex", "reasoning", True), (
+                receipt.provider_name, receipt.model_alias, receipt.fallback_used
+            ))
+            unavailable = next(
+                event for event in events.read_all()
+                if event.event_type == "worker.unavailable"
+            )
+            self.assertEqual(
+                "explicit_model_selection_unsupported", unavailable.payload["reason"]
+            )
+            self.assertEqual(
+                CircuitState.CLOSED,
+                breaker.state("antigravity", "gemini-pro").state,
+            )
+
+    def test_explicit_antigravity_route_requires_positive_capability_evidence(self):
+        for health in (None, {"antigravity": lambda candidate: True}):
+            with self.subTest(health=health), tempfile.TemporaryDirectory() as directory:
+                routes = (
+                    RouteCandidate("antigravity", "gemini-pro", False),
+                    RouteCandidate("codex", "reasoning", True),
+                )
+                router, _, events = self.build(
+                    directory,
+                    routes=routes,
+                    runners={
+                        "antigravity": lambda payload: result(payload["task_id"]),
+                        "codex": lambda payload: result(payload["task_id"]),
+                    },
+                    health=health,
+                )
+
+                receipt = router.dispatch(request())
+                normalized = router.collect_result(receipt.worker_id)
+
+                self.assertEqual("completed", normalized.status)
+                self.assertEqual("codex", receipt.provider_name)
+                unavailable = next(
+                    event for event in events.read_all()
+                    if event.event_type == "worker.unavailable"
+                )
+                self.assertEqual(
+                    "explicit_model_selection_unverified",
+                    unavailable.payload["reason"],
+                )
 
     def test_worker_dispatch_skill_requires_route_revalidation_and_same_tier_fallback(self):
         skill = (

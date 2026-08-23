@@ -10,7 +10,7 @@ from typing import Any
 from workflow_core.models import EffectiveConfig
 from workflow_core.assignments import AssignmentRequest, resolve_assignment
 from workflow_core.events import WorkflowEventStore
-from workflow_core.provider_config import ProviderModelConfig
+from workflow_core.provider_config import PROVIDER_DEFAULT, ProviderModelConfig
 
 from .contracts import (
     EvidenceAuthority,
@@ -196,6 +196,13 @@ class ProviderRegistry:
         configured_retries = 0
         configured_parallel = 1
         if provider_local is not None:
+            for provider_name, local_config in provider_local.items():
+                if provider_name != "antigravity" and any(
+                    model == PROVIDER_DEFAULT for model in local_config.models.values()
+                ):
+                    raise RegistryError(
+                        "provider_default is only supported for antigravity"
+                    )
             routing = config.get("routing", {})
             if not isinstance(routing, Mapping):
                 raise RegistryError("routing must be a mapping")

@@ -54,6 +54,10 @@ class NativeHealth:
     reason: str
     supports_model_selection: bool
 
+    @property
+    def explicit_model_selection(self) -> bool:
+        return self.supports_model_selection
+
 
 class NativeCliError(RuntimeError):
     def __init__(self, kind: FailureKind, message: str) -> None:

@@ -42,6 +42,7 @@ class _RouteRecord:
     candidate: RouteCandidate | None = None
     adapter: Any = None
     capacity: threading.BoundedSemaphore | None = None
+    explicit_model_selection: bool | None = None
     result: WorkerResult | None = None
     released: bool = False
     finish_lock: threading.Lock = field(default_factory=threading.Lock)
@@ -95,22 +96,28 @@ class RoutedWorkerDispatcher:
         candidate: RouteCandidate | None = None,
         worker_id: str = "",
         reason: str = "",
+        explicit_model_selection: bool | None = None,
     ) -> None:
         acceptance_key = worker_acceptance_key(request)
         payload: dict[str, Any] = {
             "retry_identity": request.retry_identity,
             "acceptance_identity_key": acceptance_key,
+            "requested_tier": request.reasoning,
         }
         route_key = "none"
         if candidate is not None:
             payload.update(
                 {
                     "provider": candidate.provider,
-                    "model": candidate.model,
+                    "selection_mode": candidate.selection_mode,
                     "fallback_used": candidate.fallback,
                 }
             )
-            route_key = f"{candidate.provider}:{candidate.model}"
+            if candidate.selection_mode == "explicit":
+                payload["model"] = candidate.model
+            route_key = f"{candidate.provider}:{candidate.selection_mode}:{candidate.model}"
+        if explicit_model_selection is not None:
+            payload["explicit_model_selection"] = explicit_model_selection
         if worker_id:
             payload["worker_id"] = worker_id
         if reason:
@@ -197,6 +204,7 @@ class RoutedWorkerDispatcher:
         deadline = time.monotonic() + self.max_wait_seconds
 
         for candidate in routes:
+                explicit_model_selection: bool | None = None
                 health_check = self.health.get(candidate.provider)
                 if health_check is not None:
                     health = health_check(candidate)
@@ -211,6 +219,27 @@ class RoutedWorkerDispatcher:
                         )
                         self._emit(request, "unavailable", candidate=candidate, reason="unhealthy")
                         continue
+                    explicit_model_selection = getattr(
+                        health, "explicit_model_selection", None
+                    )
+                if (
+                    candidate.provider == "antigravity"
+                    and candidate.selection_mode == "explicit"
+                    and explicit_model_selection is not True
+                ):
+                    reason = (
+                        "explicit_model_selection_unsupported"
+                        if explicit_model_selection is False
+                        else "explicit_model_selection_unverified"
+                    )
+                    self._emit(
+                        request,
+                        "unavailable",
+                        candidate=candidate,
+                        reason=reason,
+                        explicit_model_selection=explicit_model_selection,
+                    )
+                    continue
                 preflight = self.breakers.can_attempt(candidate.provider, candidate.model)
                 if not preflight.allowed:
                     self._emit(
@@ -280,7 +309,14 @@ class RoutedWorkerDispatcher:
                     candidate.model,
                     candidate.fallback,
                 )
-                record = _RouteRecord(request, receipt, candidate, adapter, capacity)
+                record = _RouteRecord(
+                    request,
+                    receipt,
+                    candidate,
+                    adapter,
+                    capacity,
+                    explicit_model_selection,
+                )
                 with self._lock:
                     self._records[receipt.worker_id] = record
                     self._identities[identity] = receipt.worker_id
@@ -320,13 +356,30 @@ class RoutedWorkerDispatcher:
                     candidate=candidate,
                     worker_id=receipt.worker_id,
                     reason="fallback_selected" if candidate.fallback else "preferred_selected",
+                    explicit_model_selection=explicit_model_selection,
                 )
                 self._emit(
-                    request, "started", candidate=candidate, worker_id=receipt.worker_id
+                    request,
+                    "started",
+                    candidate=candidate,
+                    worker_id=receipt.worker_id,
+                    explicit_model_selection=explicit_model_selection,
                 )
                 if started:
-                    self._emit(request, "context_loaded", candidate=candidate, worker_id=receipt.worker_id)
-                    self._emit(request, "progress_updated", candidate=candidate, worker_id=receipt.worker_id)
+                    self._emit(
+                        request,
+                        "context_loaded",
+                        candidate=candidate,
+                        worker_id=receipt.worker_id,
+                        explicit_model_selection=explicit_model_selection,
+                    )
+                    self._emit(
+                        request,
+                        "progress_updated",
+                        candidate=candidate,
+                        worker_id=receipt.worker_id,
+                        explicit_model_selection=explicit_model_selection,
+                    )
                     threading.Thread(
                         target=self.collect_result,
                         args=(receipt.worker_id,),
@@ -398,6 +451,7 @@ class RoutedWorkerDispatcher:
                 result.status,
                 candidate=candidate,
                 worker_id=worker_id,
+                explicit_model_selection=record.explicit_model_selection,
             )
             return result
 
