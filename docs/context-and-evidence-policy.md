@@ -19,3 +19,24 @@ The evidence capability maintains the configured evidence index, linking tests, 
 ## Secrets
 
 Configuration and manifests use secret references such as `secret_ref:NAME` or `${secret_ref:NAME}` only. Secret values are never resolved into effective configuration, manifests, events, worker results, evidence indexes, bundles, or logs.
+
+## Acceptance identity and authoritative evidence
+
+The acceptance identity is the join key for a workflow attempt:
+`workflow_id`, `attempt_id`, `task_id`, and sorted repository snapshots. A snapshot
+contains `repository_id`, non-empty `source_scope_hash`, `source_tree_hash`,
+`checkpoint_sha`, and `checkpoint_ref`. Worker requests and results must carry
+the same identity; a result from another task, attempt, repository, scope, or
+checkpoint cannot satisfy acceptance.
+
+The evidence authority resolves four independent sources: completed schema-2.3
+worker tests, Git checkpoint records, terminal approved review plus passed
+verification, and the configured evidence index. It checks source references and
+identity coherence before recording or evaluating completeness. The filesystem
+index is atomic and idempotent, but it is not allowed to promote an unverified
+record. Empty hashes, missing references, stale approvals, and cross-attempt
+records are invalid.
+
+Review evidence is not a worker self-assertion: it must identify a terminal ledger
+approval and its verification event. Runtime evidence supports audit and
+verification; Beads still owns task status and the approved plan still owns scope.

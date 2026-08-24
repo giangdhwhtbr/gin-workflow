@@ -169,3 +169,17 @@ Next commands:
 - `docs/agent-task-lifecycle.md` defines the phase model
 - this document defines the concrete close-out checklist for the `Verify`, `Handoff`, and `Close` phases
 - `verification-before-completion` and `finishing-a-development-branch` should defer to this workflow rather than redefine it independently
+
+## Integrity checks before closure
+
+For acceptance-sensitive work, the handoff names the workflow/attempt/task
+identity and the repository snapshot evidence used by tests, review, and
+verification. Checkpoint evidence must include non-empty scope/tree hashes and a
+checkpoint ref; review evidence must be terminal approval followed by passed
+verification. The evidence capability rejects stale, cross-attempt, or
+non-authoritative records.
+
+Durable task mutation is capability-owned. Run the relevant `progress` or
+`workflow` route and task-tracking preflight before mutation; do not infer closure
+from a deleted worktree, a plan checkbox, a cache file, or an empty hash. Protected
+data movement requires its matching approval and audit event.

@@ -68,10 +68,21 @@ The plugin’s canonical workflow is:
 3. Use `plan` to create the approved implementation plan
 4. Use `orchestrate` to automatically create and connect Beads tasks from that plan
 5. Use `execute` to implement the work through Beads-backed worker execution
-6. Use `verify` to confirm the result against the original requirement and acceptance criteria
-7. Use `ship` to complete the delivery workflow once verification passes
+6. Coordinate Code Review through the review capability; this is provider-backed activity between execution and verification, not a router stage
+7. Use `verify` to confirm the result against the original requirement, acceptance criteria, and terminal review evidence
+8. Use `ship` to complete the delivery workflow once verification passes
 
-`workflow` may be used instead of choosing a stage manually; it routes one next stage only. It does not add, remove, or reorder lifecycle stages. Plugin installation makes the skills and CLI available; it does not initialize any repository or write `.agent-workflow/`.
+`workflow` may be used instead of choosing a stage manually; it routes one next implemented stage only. Code Review is coordinated separately and does not become a `workflow` route or a new router gate. Plugin installation makes the skills and CLI available; it does not initialize any repository or write `.agent-workflow/`.
+
+### Common Use Cases
+
+| Need | Guide | Durable starting point |
+| :--- | :--- | :--- |
+| New multi-track change | [Large task](docs/use-cases/large-task.md) | `discuss` → confirmed requirement |
+| Continue existing work | [Resume in progress](docs/use-cases/resume-in-progress.md) | `progress` / `workflow` and Beads |
+| Small bounded defect | [Quick debug](docs/use-cases/quick-debug.md) | bounded diagnosis and approved plan |
+
+The guides describe prerequisites, state/evidence gates, failure handling, and safe recovery.
 
 
 ## Optional Commands

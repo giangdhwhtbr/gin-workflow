@@ -46,6 +46,12 @@ Plan files under `.planning/plans/` own:
 
 Plan files are durable project artifacts, but they are not the source of truth for runtime status transitions.
 
+### Review ledger owns findings and approval evidence
+
+The review ledger owns findings history and triage status, lease/concurrency state,
+active approval snapshots, and review verification evidence. It is the authoritative
+audit log for review history; it does not own Beads task status or approved plan scope.
+
 ### Runtime metadata is local and disposable
 
 Local orchestration metadata may exist for convenience, such as:
@@ -125,7 +131,7 @@ Examples of unacceptable derived state:
 
 ## Effective Configuration And Evidence
 
-The effective configuration selects artifact names and capability providers only. Artifact resolution never moves or infers plans, Beads data, worktrees, knowledge stores, review ledgers, or evidence. Runtime manifests, events, worker results, and evidence indexes are supplemental records: they may support verification and audit, but never replace durable task state or approved plan scope. See [setup-system.md](setup-system.md), [capability-provider-contracts.md](capability-provider-contracts.md), and [context-and-evidence-policy.md](context-and-evidence-policy.md).
+The effective configuration selects artifact names and capability providers only. Artifact resolution never moves or infers plans, Beads data, worktrees, knowledge stores, review ledgers, or evidence. Runtime manifests, events, worker results, and evidence indexes are supplemental records: they may support verification and audit, but never replace durable task state or approved plan scope. Acceptance identity and repository snapshots join those records without changing ownership. See [setup-system.md](setup-system.md), [capability-provider-contracts.md](capability-provider-contracts.md), and [context-and-evidence-policy.md](context-and-evidence-policy.md).
 
 ## Relationship To Other Docs
 

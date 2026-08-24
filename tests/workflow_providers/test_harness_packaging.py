@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -9,7 +10,33 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 
-REQUIRED_V22_ARTIFACTS = (
+CANONICAL_REFERENCE_PAIRS = (
+    "agent-task-lifecycle.md",
+    "orchestration-state-model.md",
+    "setup-system.md",
+    "capability-provider-contracts.md",
+    "context-and-evidence-policy.md",
+    "verification-and-handoff-workflow.md",
+    "provider-routing.md",
+)
+
+USE_CASE_PAGES = (
+    "README.md",
+    "large-task.md",
+    "resume-in-progress.md",
+    "quick-debug.md",
+)
+
+REQUIRED_USE_CASE_SECTIONS = (
+    "Prerequisites",
+    "Flow",
+    "State and evidence gates",
+    "Realistic example",
+    "Common failures",
+    "Safe recovery",
+)
+
+REQUIRED_ARTIFACTS = (
     "commands/setup.md",
     "commands/workflow.md",
     "skills/setup/SKILL.md",
@@ -27,6 +54,7 @@ REQUIRED_V22_ARTIFACTS = (
     "references/agent-task-lifecycle.md",
     "references/orchestration-state-model.md",
     "references/verification-and-handoff-workflow.md",
+    "references/provider-routing.md",
     "scripts/gin-workflow",
     "scripts/workflow_core/__init__.py",
     "scripts/workflow_core/configuration.py",
@@ -86,7 +114,7 @@ class HarnessPackagingTests(unittest.TestCase):
         for harness in ("claude-code", "codex", "antigravity"):
             with self.subTest(harness=harness):
                 root = self.dist / harness
-                missing = [relative for relative in REQUIRED_V22_ARTIFACTS if not (root / relative).is_file()]
+                missing = [relative for relative in REQUIRED_ARTIFACTS if not (root / relative).is_file()]
                 self.assertEqual([], missing)
 
     def test_each_harness_has_its_manifest_and_hooks_in_the_expected_location(self):
@@ -177,6 +205,83 @@ class HarnessPackagingTests(unittest.TestCase):
                     text=True,
                 )
                 self.assertEqual("", result.stdout)
+
+    def test_canonical_references_are_packaged_without_drift(self):
+        references = ROOT / "plugins/gin-workflow/src/references"
+        for relative in CANONICAL_REFERENCE_PAIRS:
+            canonical = ROOT / "docs" / relative
+            packaged = references / relative
+            with self.subTest(relative=relative):
+                self.assertTrue(canonical.is_file())
+                self.assertTrue(packaged.is_file())
+                self.assertEqual(canonical.read_bytes(), packaged.read_bytes())
+
+    def test_use_case_pages_have_required_sections_and_readme_links(self):
+        use_cases = ROOT / "docs/use-cases"
+        for relative in USE_CASE_PAGES:
+            content = (use_cases / relative).read_text(encoding="utf-8")
+            with self.subTest(relative=relative):
+                for section in REQUIRED_USE_CASE_SECTIONS:
+                    self.assertRegex(content, re.compile(rf"^## {re.escape(section)}\s*$", re.MULTILINE))
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for relative in ("large-task.md", "resume-in-progress.md", "quick-debug.md"):
+            self.assertIn(f"docs/use-cases/{relative}", readme)
+
+    def test_t8_lifecycle_review_is_separate_from_router_stages(self):
+        lifecycle = (ROOT / "docs/agent-task-lifecycle.md").read_text(encoding="utf-8")
+        resume = (ROOT / "docs/use-cases/resume-in-progress.md").read_text(encoding="utf-8")
+        self.assertIn("separately coordinated provider-backed activity", lifecycle)
+        self.assertIn("not a router lifecycle stage", lifecycle)
+        self.assertIn("review_approved", lifecycle)
+        self.assertNotIn("`workflow` routes review", resume)
+        self.assertIn("review capability before workflow", resume)
+        self.assertIn("router mechanically selects `verify` after", resume)
+        self.assertIn("regardless of review state", resume)
+        self.assertIn("The verify wrapper and evidence checks", resume)
+        self.assertIn("fail closed without terminal review approval", resume)
+        flow = resume[resume.index("## Flow") : resume.index("## State and evidence gates")]
+        self.assertLess(flow.index("$gin-workflow:progress"), flow.index("Inspect that durable state"))
+        self.assertLess(flow.index("Inspect that durable state"), flow.index("review capability and"))
+        self.assertLess(flow.index("review capability and"), flow.index("$gin-workflow:workflow"))
+        self.assertLess(flow.index("$gin-workflow:workflow"), flow.index("$gin-workflow:verify"))
+        self.assertNotIn("Only then can `workflow` route `verify`", resume)
+
+    def test_t8_quick_debug_orchestrates_before_execute(self):
+        content = (ROOT / "docs/use-cases/quick-debug.md").read_text(encoding="utf-8")
+        self.assertIn("$gin-workflow:orchestrate", content)
+        self.assertIn("orchestration_ready", content)
+        self.assertLess(content.index("$gin-workflow:orchestrate"), content.index("$gin-workflow:execute"))
+        self.assertIn("creates the Bead", content)
+
+    def test_t8_provider_routing_documents_portable_and_local_boundaries(self):
+        content = (ROOT / "docs/provider-routing.md").read_text(encoding="utf-8")
+        self.assertIn("provider aliases plus routing/concurrency policy", content)
+        self.assertIn("machine-local provider/authentication", content)
+        self.assertIn("concrete model aliases", content)
+        self.assertIn("secret values", content)
+        self.assertIn("provider_default", content)
+
+    def test_scoped_markdown_links_are_repo_relative_and_resolve(self):
+        roots = [ROOT / "README.md", ROOT / "docs", ROOT / "plugins/gin-workflow/src/references"]
+        link_pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+        for root in roots:
+            paths = [root] if root.is_file() else sorted(root.rglob("*.md"))
+            for path in paths:
+                for target in link_pattern.findall(path.read_text(encoding="utf-8")):
+                    if target.startswith(("http://", "https://", "mailto:", "#")):
+                        continue
+                    target_path = target.split("#", 1)[0]
+                    if not target_path:
+                        continue
+                    with self.subTest(path=path.relative_to(ROOT), target=target):
+                        self.assertFalse(Path(target_path).is_absolute(), f"absolute Markdown link is not allowed: {target}")
+                        resolved = (path.parent / target_path).resolve()
+                        self.assertTrue(
+                            resolved == ROOT or ROOT in resolved.parents,
+                            f"Markdown link escapes repository root: {target}",
+                        )
+                        self.assertTrue(resolved.is_file(), f"missing Markdown link target: {target}")
 
 
 if __name__ == "__main__":
