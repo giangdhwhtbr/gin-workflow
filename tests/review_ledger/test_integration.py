@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import json
 from pathlib import Path
-import multiprocessing
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../plugins/gin-workflow/src/scripts')))
 
@@ -14,15 +13,6 @@ from review_ledger.cli import mutate_ledger, load_ledger, start_review
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.git_adapter import create_source_checkpoint, push_review_ref
 from review_ledger.projections import ReviewProjection
-
-def _start_review_process(base_dir, queue, actor_id):
-    try:
-        _, projection = start_review(
-            "concurrent-review", actor_id, base_dir=base_dir, ttl_seconds=600
-        )
-        queue.put(("ok", projection.active_lease.actor_id))
-    except Exception as error:
-        queue.put(("error", type(error).__name__))
 
 class TestIntegration(unittest.TestCase):
     def setUp(self):
@@ -142,19 +132,36 @@ class TestIntegration(unittest.TestCase):
         mutate_ledger(bead_id, "ledger-created", {"repositories": []}, "worker", "worker-1", base_dir=self.test_dir)
         mutate_ledger(bead_id, "implementation-complete", {}, "worker", "worker-1", base_dir=self.test_dir)
         mutate_ledger(bead_id, "review-requested", {}, "worker", "worker-1", base_dir=self.test_dir)
-        context = multiprocessing.get_context("spawn")
-        queue = context.Queue()
+        script = (
+            "import json,sys\n"
+            "from review_ledger.cli import start_review\n"
+            "try:\n"
+            " _, projection = start_review('concurrent-review', sys.argv[2], "
+            "base_dir=sys.argv[1], ttl_seconds=600)\n"
+            " print(json.dumps(['ok', projection.active_lease.actor_id]))\n"
+            "except Exception as error:\n"
+            " print(json.dumps(['error', type(error).__name__]))\n"
+        )
+        environment = os.environ.copy()
+        scripts = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "../../plugins/gin-workflow/src/scripts")
+        )
+        environment["PYTHONPATH"] = os.pathsep.join(
+            part for part in (scripts, environment.get("PYTHONPATH", "")) if part
+        )
         processes = [
-            context.Process(target=_start_review_process, args=(self.test_dir, queue, actor_id))
+            subprocess.Popen(
+                [sys.executable, "-c", script, self.test_dir, actor_id],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=environment,
+            )
             for actor_id in ("reviewer-a", "reviewer-b")
         ]
-        for process in processes:
-            process.start()
-        for process in processes:
-            process.join(10)
-            self.assertEqual(0, process.exitcode)
-
-        results = [queue.get(timeout=2) for _ in processes]
+        completed = [process.communicate(timeout=10) for process in processes]
+        self.assertTrue(all(process.returncode == 0 for process in processes), completed)
+        results = [json.loads(stdout) for stdout, _stderr in completed]
         self.assertEqual(1, sum(result[0] == "ok" for result in results))
         log, projection = load_ledger(bead_id, base_dir=self.test_dir)
         self.assertEqual("review-in-progress", projection.review_state)

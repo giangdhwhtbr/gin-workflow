@@ -18,11 +18,11 @@ class BundleTests(unittest.TestCase):
         generated = workflow / "generated"
         generated.mkdir(parents=True)
         (generated / "effective-config.yaml").write_text(
-            "schema_version: '2.2'\nworkflow_version: '2.2'\nsetup_cli_version: '2.2'\nreferences:\n  - docs/reference.md\n  - .agent-workflow/providers.local.yaml\n  - .agent-workflow/runtime/secret.txt\n  - docs/archive.zip\n",
+            "schema_version: '2.3'\nworkflow_version: '2.3'\nsetup_cli_version: '2.3'\nreferences:\n  - docs/reference.md\n  - .agent-workflow/providers.local.yaml\n  - .agent-workflow/runtime/secret.txt\n  - docs/archive.zip\n",
             encoding="utf-8",
         )
         (generated / "config-provenance.yaml").write_text(
-            "schema_version: '2.2'\nfields: {}\n",
+            "schema_version: '2.3'\nfields: {}\n",
             encoding="utf-8",
         )
         (root / "docs").mkdir()
