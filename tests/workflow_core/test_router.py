@@ -177,6 +177,45 @@ class WorkflowRouterTests(unittest.TestCase):
         self.assertIn("approval:current_branch_execution=approved", result.evidence)
         self.assertIn("audit:current_branch_execution=recorded", result.evidence)
 
+    def test_data_move_authorization_round_trips_list_bearing_details(self):
+        now = datetime.now(timezone.utc)
+        request = ApprovalRequest(
+            "approval-data-move",
+            ApprovalAction.DATA_MOVE,
+            "wf-1",
+            "sync task data",
+            details={"mode": "flush", "paths": [".beads/issues.jsonl"]},
+        )
+        decision = ApprovalDecision(
+            request.request_id,
+            ApprovalStatus.APPROVED,
+            "user-1",
+            decided_at=iso(now - timedelta(seconds=2)),
+        )
+        event = WorkflowEvent.create(
+            event_type="approval.recorded",
+            workflow_id="wf-1",
+            actor="user-1",
+            timestamp=iso(now - timedelta(seconds=1)),
+            payload={"request": request.to_dict(), "decision": decision.to_dict()},
+        )
+        store = self.new_store()
+        store.append(event)
+        state = {
+            "workflow_id": "wf-1",
+            "requirement_confirmed": True,
+            "plan_approved": True,
+            "guarded_actions": (ApprovalAction.DATA_MOVE.value,),
+            "approval_requests": {ApprovalAction.DATA_MOVE.value: request},
+            "approval_decisions": {ApprovalAction.DATA_MOVE.value: decision},
+            "audit_event_store": store,
+        }
+
+        result = self.route(state)
+
+        self.assertIn("approval:data_move=approved", result.evidence)
+        self.assertIn("audit:data_move=recorded", result.evidence)
+
     def test_in_memory_event_candidate_cannot_authorize_protected_action(self):
         request, decision, event = self.authorization()
         empty_store = self.new_store()

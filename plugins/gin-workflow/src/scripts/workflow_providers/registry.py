@@ -113,7 +113,7 @@ class ProviderRegistry:
         if not isinstance(artifacts, Mapping):
             raise RegistryError("artifacts must be a mapping")
 
-        task_name, _ = _entry(config, "task_tracking")
+        task_name, task_options = _entry(config, "task_tracking")
         knowledge_name, _ = _entry(config, "knowledge")
         workspace_name, workspace_options = _entry(config, "workspace")
         review_name, _ = _entry(config, "review")
@@ -121,7 +121,13 @@ class ProviderRegistry:
         notification_name, _ = _entry(config, "notifications")
 
         if task_name == "beads":
-            task_tracking: TaskTrackingProvider = BeadsTaskTrackingProvider(root)
+            try:
+                task_tracking: TaskTrackingProvider = BeadsTaskTrackingProvider(
+                    root,
+                    executable=str(task_options.get("executable", "bd")),
+                )
+            except ValueError as error:
+                raise RegistryError(str(error)) from error
         elif task_name == "fake":
             task_tracking = FakeTaskTrackingProvider()
         else:

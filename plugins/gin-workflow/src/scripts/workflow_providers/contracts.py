@@ -80,7 +80,14 @@ def validate_task_attributes(attributes: Mapping[str, Any]) -> str | None:
 
 
 def normalize_task_changes(changes: Mapping[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
-    allowed = {"title", "description", "status", "attributes"} | SUPPORTED_TASK_ATTRIBUTES
+    allowed = {
+        "title",
+        "description",
+        "status",
+        "attributes",
+        "notes",
+        "acceptance_criteria",
+    } | SUPPORTED_TASK_ATTRIBUTES
     if unknown := set(changes) - allowed:
         return None, f"unsupported task fields: {', '.join(sorted(unknown))}"
     normalized = {key: value for key, value in changes.items() if key != "attributes"}
@@ -98,7 +105,23 @@ def normalize_task_changes(changes: Mapping[str, Any]) -> tuple[dict[str, Any] |
     if "status" in normalized:
         if error := validate_task_status(normalized["status"]):
             return None, error
+    for field_name in ("notes", "acceptance_criteria"):
+        if field_name in normalized:
+            value = normalized[field_name]
+            if not isinstance(value, (list, tuple)) or any(
+                not isinstance(item, str) or not item.strip() for item in value
+            ):
+                return None, f"{field_name} must be a collection of non-empty strings"
+            normalized[field_name] = tuple(value)
     return normalized, None
+
+
+def _task_strings(value: object, field_name: str) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)) or any(
+        not isinstance(item, str) or not item.strip() for item in value
+    ):
+        raise ValueError(f"{field_name} must be a collection of non-empty strings")
+    return tuple(value)
 
 
 @dataclass(frozen=True)
@@ -107,6 +130,16 @@ class TaskCreateRequest:
     description: str = ""
     status: str = "open"
     attributes: Mapping[str, Any] = field(default_factory=dict)
+    notes: tuple[str, ...] = ()
+    acceptance_criteria: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "notes", _task_strings(self.notes, "notes"))
+        object.__setattr__(
+            self,
+            "acceptance_criteria",
+            _task_strings(self.acceptance_criteria, "acceptance_criteria"),
+        )
 
 
 @dataclass(frozen=True)
@@ -116,6 +149,80 @@ class TaskRecord:
     description: str = ""
     status: str = "open"
     attributes: Mapping[str, Any] = field(default_factory=dict)
+    notes: tuple[str, ...] = ()
+    acceptance_criteria: tuple[str, ...] = ()
+    acceptance_evidence: tuple[str, ...] = ()
+    dependencies: tuple[str, ...] = ()
+    closure_reason: str = ""
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "notes",
+            "acceptance_criteria",
+            "acceptance_evidence",
+            "dependencies",
+        ):
+            object.__setattr__(self, field_name, _task_strings(getattr(self, field_name), field_name))
+
+
+@dataclass(frozen=True)
+class TaskClosureRequest:
+    task_id: str
+    closure_reason: str
+    acceptance_evidence: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "acceptance_evidence",
+            _task_strings(self.acceptance_evidence, "acceptance_evidence"),
+        )
+
+
+@dataclass(frozen=True)
+class TaskDependencyRecord:
+    task_id: str
+    depends_on_task_id: str
+    dependency_type: str = "blocks"
+
+
+@dataclass(frozen=True)
+class TaskReadiness:
+    task_id: str
+    ready: bool
+    blockers: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "blockers", _task_strings(self.blockers, "blockers"))
+
+
+@dataclass(frozen=True)
+class TaskPreflight:
+    backend: str
+    version: str
+    capabilities: frozenset[str]
+    healthy: bool
+    drift: str = ""
+
+
+@dataclass(frozen=True)
+class TaskSyncRequest:
+    mode: str
+    dry_run: bool = True
+    workflow_id: str = ""
+
+
+@dataclass(frozen=True)
+class TaskSyncResult:
+    backend: str
+    mode: str
+    dry_run: bool
+    command: tuple[str, ...]
+    affected: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "command", tuple(self.command))
+        object.__setattr__(self, "affected", _task_strings(self.affected, "affected"))
 
 
 @dataclass(frozen=True)
@@ -730,6 +837,11 @@ class TaskTrackingProvider(Protocol):
     def create_task(self, request: TaskCreateRequest, *, idempotency_key: str) -> ProviderResult[TaskRecord]: ...
     def read_task(self, task_id: str) -> ProviderResult[TaskRecord]: ...
     def update_task(self, task_id: str, changes: Mapping[str, Any], *, idempotency_key: str) -> ProviderResult[TaskRecord]: ...
+    def close_task(self, request: TaskClosureRequest, *, idempotency_key: str) -> ProviderResult[TaskRecord]: ...
+    def add_dependency(self, dependency: TaskDependencyRecord, *, idempotency_key: str) -> ProviderResult[TaskDependencyRecord]: ...
+    def readiness(self, task_id: str) -> ProviderResult[TaskReadiness]: ...
+    def preflight(self) -> ProviderResult[TaskPreflight]: ...
+    def sync(self, request: TaskSyncRequest, *, idempotency_key: str, **approval: Any) -> ProviderResult[TaskSyncResult]: ...
 
 
 @runtime_checkable

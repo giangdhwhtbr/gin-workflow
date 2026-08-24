@@ -26,8 +26,14 @@ from .contracts import (
     ReviewRequest,
     ReviewOutcomeRequest,
     ReviewStatus,
+    TaskClosureRequest,
     TaskCreateRequest,
+    TaskDependencyRecord,
+    TaskPreflight,
+    TaskReadiness,
     TaskRecord,
+    TaskSyncRequest,
+    TaskSyncResult,
     normalize_task_changes,
     validate_task_attributes,
     validate_task_status,
@@ -35,6 +41,7 @@ from .contracts import (
     WorkspaceRequest,
 )
 from workflow_core.identity import AcceptanceIdentity
+from workflow_core.approvals import ApprovalAction
 
 
 def _proposal_record(proposal: KnowledgeProposal) -> KnowledgeProposalRecord:
@@ -47,7 +54,18 @@ def _proposal_record(proposal: KnowledgeProposal) -> KnowledgeProposalRecord:
 class FakeTaskTrackingProvider(ProviderBase):
     provider_name = "fake"
     provider_type = "task_tracking"
-    capabilities = frozenset({"task.create", "task.read", "task.update"})
+    capabilities = frozenset(
+        {
+            "task.create",
+            "task.read",
+            "task.update",
+            "task.close",
+            "task.dependency",
+            "task.readiness",
+            "task.preflight",
+            "task.sync",
+        }
+    )
 
     def __init__(self, *, available: bool = True) -> None:
         super().__init__(available=available)
@@ -65,7 +83,15 @@ class FakeTaskTrackingProvider(ProviderBase):
         if error := validate_task_attributes(request.attributes):
             return ProviderResult.invalid(error)
         task_id = f"task-{len(self.tasks) + 1}"
-        record = TaskRecord(task_id, request.title, request.description, request.status, request.attributes)
+        record = TaskRecord(
+            task_id,
+            request.title,
+            request.description,
+            request.status,
+            request.attributes,
+            request.notes,
+            request.acceptance_criteria,
+        )
         self.tasks[task_id] = record
         return self._remember("create_task", idempotency_key, request, ProviderResult.success(record))
 
@@ -98,6 +124,114 @@ class FakeTaskTrackingProvider(ProviderBase):
         updated = replace(current, attributes=attributes, **replacements)
         self.tasks[task_id] = updated
         return self._remember("update_task", idempotency_key, (task_id, changes), ProviderResult.success(updated))
+
+    def close_task(
+        self, request: TaskClosureRequest, *, idempotency_key: str
+    ) -> ProviderResult[TaskRecord]:
+        if guarded := self._guard():
+            return guarded
+        if replay := self._replay("close_task", idempotency_key, request):
+            return replay
+        current = self.tasks.get(request.task_id)
+        if current is None or not request.closure_reason.strip() or not request.acceptance_evidence:
+            return ProviderResult.invalid(
+                "known task_id, closure_reason, acceptance_evidence, and idempotency_key are required"
+            )
+        if not idempotency_key:
+            return ProviderResult.invalid("idempotency_key is required")
+        updated = replace(
+            current,
+            status="closed",
+            closure_reason=request.closure_reason,
+            acceptance_evidence=request.acceptance_evidence,
+        )
+        self.tasks[request.task_id] = updated
+        return self._remember(
+            "close_task", idempotency_key, request, ProviderResult.success(updated)
+        )
+
+    def add_dependency(
+        self, dependency: TaskDependencyRecord, *, idempotency_key: str
+    ) -> ProviderResult[TaskDependencyRecord]:
+        if guarded := self._guard():
+            return guarded
+        if replay := self._replay("add_dependency", idempotency_key, dependency):
+            return replay
+        task = self.tasks.get(dependency.task_id)
+        if (
+            task is None
+            or dependency.depends_on_task_id not in self.tasks
+            or dependency.task_id == dependency.depends_on_task_id
+            or dependency.dependency_type != "blocks"
+            or not idempotency_key
+        ):
+            return ProviderResult.invalid("valid blocking dependency and idempotency_key are required")
+        dependencies = tuple(sorted(set(task.dependencies) | {dependency.depends_on_task_id}))
+        self.tasks[dependency.task_id] = replace(task, dependencies=dependencies)
+        return self._remember(
+            "add_dependency", idempotency_key, dependency, ProviderResult.success(dependency)
+        )
+
+    def readiness(self, task_id: str) -> ProviderResult[TaskReadiness]:
+        if guarded := self._guard():
+            return guarded
+        task = self.tasks.get(task_id)
+        if task is None:
+            return ProviderResult.invalid(f"unknown task: {task_id}")
+        blockers = tuple(
+            dependency
+            for dependency in task.dependencies
+            if self.tasks[dependency].status != "closed"
+        )
+        return ProviderResult.success(TaskReadiness(task_id, not blockers, blockers))
+
+    def preflight(self) -> ProviderResult[TaskPreflight]:
+        if guarded := self._guard():
+            return guarded
+        return ProviderResult.success(
+            TaskPreflight("fake", "fake-1", self.capabilities, True)
+        )
+
+    def sync(
+        self,
+        request: TaskSyncRequest,
+        *,
+        idempotency_key: str,
+        approval_request=None,
+        approval_decision=None,
+        audit_event_store=None,
+    ) -> ProviderResult[TaskSyncResult]:
+        if guarded := self._guard():
+            return guarded
+        if replay := self._replay("sync", idempotency_key, request):
+            return replay
+        if request.mode not in {"flush", "pull", "merge"} or not idempotency_key:
+            return ProviderResult.invalid("supported sync mode and idempotency_key are required")
+        result = TaskSyncResult("fake", request.mode, request.dry_run, ("fake", "sync", request.mode))
+        if request.dry_run:
+            return self._remember("sync", idempotency_key, request, ProviderResult.success(result))
+        approval_details = getattr(approval_request, "details", None)
+        if (
+            not isinstance(approval_details, Mapping)
+            or approval_details.get("mode") != request.mode
+            or approval_details.get("backend") != "fake"
+        ):
+            return ProviderResult.invalid(
+                "data_move approval must match sync mode and backend"
+            )
+        try:
+            from workflow_core.router import authorize_protected_action
+
+            authorize_protected_action(
+                ApprovalAction.DATA_MOVE,
+                request.workflow_id,
+                approval_request,
+                approval_decision,
+                audit_event_store,
+            )
+        except (PermissionError, TypeError, ValueError) as error:
+            return ProviderResult.invalid(str(error))
+        return self._remember("sync", idempotency_key, request, ProviderResult.success(result))
 
 
 class FakeKnowledgeProvider(ProviderBase):

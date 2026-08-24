@@ -38,6 +38,7 @@ from workflow_providers.fakes import (  # noqa: E402
     FakeTaskTrackingProvider,
     FakeWorkspaceProvider,
 )
+from tests.workflow_providers.test_task_tracking_compatibility import CliFixture  # noqa: E402
 
 
 class ProviderContractTests(unittest.TestCase):
@@ -126,20 +127,9 @@ class ProviderContractTests(unittest.TestCase):
         self.assertEqual("changed", read.value.description)
 
     def test_task_providers_map_supported_fields_and_reject_unknown_attributes(self):
-        calls = []
-
-        def runner(argv, cwd):
-            calls.append(tuple(argv))
-            payload = {
-                "id": "task-1",
-                "title": "Task",
-                "status": "in_progress",
-                "priority": "P1",
-                "assignee": "worker-1",
-            }
-            return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
-
-        real = BeadsTaskTrackingProvider(Path.cwd(), runner=runner)
+        fixture = CliFixture()
+        calls = fixture.calls
+        real = BeadsTaskTrackingProvider(Path.cwd(), runner=fixture)
         request = TaskCreateRequest(
             "Task",
             status="in_progress",
@@ -161,14 +151,20 @@ class ProviderContractTests(unittest.TestCase):
         )
 
         self.assertIs(OperationStatus.SUCCESS, created.status)
-        self.assertIn(("--status", "in_progress"), tuple(zip(calls[0], calls[0][1:])))
-        self.assertIn(("--priority", "P1"), tuple(zip(calls[0], calls[0][1:])))
-        self.assertIn(("--assignee", "worker-1"), tuple(zip(calls[0], calls[0][1:])))
+        create_call = next(
+            call for call in calls if len(call) > 1 and call[1] == "create" and "--help" not in call
+        )
+        self.assertIn(("--status", "in_progress"), tuple(zip(create_call, create_call[1:])))
+        self.assertIn(("--priority", "P1"), tuple(zip(create_call, create_call[1:])))
+        self.assertIn(("--assignee", "worker-1"), tuple(zip(create_call, create_call[1:])))
         self.assertIs(OperationStatus.INVALID, invalid.status)
         self.assertIs(OperationStatus.INVALID, invalid_status.status)
-        self.assertIn(("--priority", "P0"), tuple(zip(calls[1], calls[1][1:])))
+        update_call = next(
+            call for call in calls if len(call) > 1 and call[1] == "update" and "--help" not in call
+        )
+        self.assertIn(("--priority", "P0"), tuple(zip(update_call, update_call[1:])))
         self.assertIs(OperationStatus.SUCCESS, updated.status)
-        self.assertEqual(2, len(calls))
+        self.assertEqual(2, len([call for call in calls if "--help" not in call and call[1] in {"create", "update"}]))
 
         fake = FakeTaskTrackingProvider()
         fake_created = fake.create_task(request, idempotency_key="create")
@@ -324,7 +320,10 @@ class ProviderContractTests(unittest.TestCase):
         provider = FakeTaskTrackingProvider()
         self.assertIs(ProviderHealth.AVAILABLE, provider.metadata.health)
         self.assertEqual(
-            {"task.create", "task.read", "task.update"},
+            {
+                "task.create", "task.read", "task.update", "task.close",
+                "task.dependency", "task.readiness", "task.preflight", "task.sync",
+            },
             set(provider.metadata.capabilities),
         )
 
@@ -333,29 +332,23 @@ class ProviderContractTests(unittest.TestCase):
 
 
     def test_subprocess_adapters_normalize_success_invalid_unavailable_and_replay(self):
-        task_calls = []
-
-        def task_runner(argv, cwd):
-            task_calls.append(tuple(argv))
-            status = "closed" if len(argv) > 1 and argv[1] == "update" else "open"
-            payload = {"id": "task-7", "title": "Portable providers", "status": status}
-            return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
-
-        tasks = BeadsTaskTrackingProvider(Path.cwd(), runner=task_runner)
+        fixture = CliFixture()
+        task_calls = fixture.calls
+        tasks = BeadsTaskTrackingProvider(Path.cwd(), runner=fixture)
         self.assertIs(
             OperationStatus.INVALID,
             tasks.create_task(TaskCreateRequest(title=""), idempotency_key="bad").status,
         )
         created = tasks.create_task(TaskCreateRequest("Portable providers"), idempotency_key="create")
         replayed = tasks.create_task(TaskCreateRequest("Portable providers"), idempotency_key="create")
-        self.assertEqual("task-7", created.value.task_id)
+        self.assertEqual("task-1", created.value.task_id)
         self.assertTrue(replayed.idempotent)
-        self.assertEqual(1, len(task_calls))
+        self.assertEqual(1, len([call for call in task_calls if call[1] == "create" and "--help" not in call]))
         updated = tasks.update_task(
             "task-7", {"status": "closed"}, idempotency_key="create"
         )
         self.assertEqual("closed", updated.value.status)
-        self.assertEqual(2, len(task_calls))
+        self.assertEqual(1, len([call for call in task_calls if call[1] == "update" and "--help" not in call]))
         offline_tasks = BeadsTaskTrackingProvider(
             Path.cwd(),
             runner=lambda argv, cwd: subprocess.CompletedProcess(argv, 1, "", "offline"),

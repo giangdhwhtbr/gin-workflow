@@ -14,7 +14,7 @@ from .approvals import (
     require_approval,
 )
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
-from .models import EffectiveConfig
+from .models import EffectiveConfig, thaw
 
 
 LIFECYCLE_STAGES = (
@@ -43,6 +43,7 @@ _GUARDED_ACTIONS = frozenset(
         ApprovalAction.SCOPE_CHANGE,
         ApprovalAction.EXECUTION_STRATEGY_CHANGE,
         ApprovalAction.PRODUCTION_PARALLEL_WORK,
+        ApprovalAction.DATA_MOVE,
     }
 )
 _APPROVAL_FRESHNESS = timedelta(minutes=5)
@@ -141,10 +142,11 @@ def _audit_status(
         if not isinstance(event.payload, Mapping):
             saw_invalid = True
             continue
-        if event.payload.get("request") != request.to_dict():
+        payload = thaw(event.payload)
+        if payload.get("request") != request.to_dict():
             saw_mismatch = True
             continue
-        if event.payload.get("decision") != decision.to_dict():
+        if payload.get("decision") != decision.to_dict():
             saw_mismatch = True
             continue
 
@@ -164,6 +166,50 @@ def _audit_status(
     if saw_mismatch:
         return "mismatched"
     return "missing"
+
+
+def authorize_protected_action(
+    action: ApprovalAction,
+    workflow_id: str,
+    request: ApprovalRequest,
+    decision: ApprovalDecision,
+    store: WorkflowEventStore,
+    *,
+    now: datetime | None = None,
+) -> None:
+    """Fail closed unless a protected action has fresh, persisted authorization."""
+    action = ApprovalAction(action)
+    if action not in _GUARDED_ACTIONS:
+        raise ValueError(f"unsupported guarded action: {action.value}")
+    if not workflow_id:
+        raise ValueError("workflow_id is required for guarded actions")
+    if not isinstance(request, ApprovalRequest):
+        raise TypeError("approval_request must be an ApprovalRequest")
+    if not isinstance(decision, ApprovalDecision):
+        raise TypeError("approval_decision must be an ApprovalDecision")
+    if not isinstance(store, WorkflowEventStore):
+        raise TypeError("audit_event_store must be a WorkflowEventStore")
+    if request.action is not action:
+        raise PermissionError("approval request action mismatch")
+    if request.workflow_id != workflow_id:
+        raise PermissionError("approval request workflow mismatch")
+    require_approval(decision, request)
+    checked_at = now or datetime.now(timezone.utc)
+    decision_time = _parse_utc(decision.decided_at)
+    if decision_time is None:
+        raise PermissionError("approval decision timestamp is invalid")
+    if not _is_fresh(decision_time, checked_at):
+        raise PermissionError("approval decision is stale")
+    audit_status = _audit_status(
+        store,
+        workflow_id=workflow_id,
+        request=request,
+        decision=decision,
+        decision_time=decision_time,
+        now=checked_at,
+    )
+    if audit_status != "recorded":
+        raise PermissionError(f"approval audit is {audit_status}")
 
 
 def _guard_evidence(
