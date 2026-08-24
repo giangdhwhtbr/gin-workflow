@@ -7,6 +7,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.assignments import RouteCandidate  # noqa: E402
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_core.review_coordinator import (  # noqa: E402
     ReviewContext,
@@ -20,6 +21,22 @@ from workflow_providers.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerReq
 
 
 class ReviewCoordinatorTests(unittest.TestCase):
+    def identity(self):
+        return AcceptanceIdentity(
+            "wf",
+            "attempt-review-1",
+            "api",
+            (
+                RepositorySnapshot(
+                    "primary",
+                    "scope-1",
+                    "tree-1",
+                    "checkpoint-1",
+                    "refs/gin/review/api",
+                ),
+            ),
+        )
+
     def test_review_skills_require_independence_affinity_and_terminal_gate(self):
         plugin = SCRIPTS.parent / "skills"
         cross_agent = (plugin / "cross-agent-code-review/SKILL.md").read_text(encoding="utf-8")
@@ -194,6 +211,73 @@ class ReviewCoordinatorTests(unittest.TestCase):
         self.assertEqual(("codex", "reasoning"), captured[0].route_affinity)
         bounded = captured[0].generated_manifest.to_dict()["categories"]["required"]
         self.assertEqual(self.context().to_dict(), bounded[0]["review_context"])
+
+    def test_review_dispatch_and_outcome_preserve_acceptance_identity_and_revision(self):
+        captured_requests = []
+        captured_outcomes = []
+        identity = self.identity()
+
+        class CapturingReviewProvider(FakeReviewProvider):
+            def record_outcome(self, request, *, idempotency_key):
+                captured_outcomes.append(request)
+                return super().record_outcome(request, idempotency_key=idempotency_key)
+
+        adapter = SequentialWorkerAdapter(
+            lambda payload: {
+                "schema_version": "2.3",
+                "status": "completed",
+                "task_id": payload["task_id"],
+                "summary": "approved",
+                "changed_files": [],
+                "commits": [],
+                "tests": [],
+                "evidence": [{"kind": "review_decision", "decision": "approved"}],
+                "blockers": [],
+                "acceptance_identity": payload["acceptance_identity"],
+            }
+        )
+
+        class Dispatcher:
+            def dispatch(self, request):
+                captured_requests.append(request)
+                return adapter.dispatch(request)
+
+            def collect_result(self, worker_id, timeout=None):
+                return adapter.collect_result(worker_id, timeout)
+
+        coordinator = ReviewCoordinator(
+            CapturingReviewProvider(), worker_dispatcher=Dispatcher()
+        )
+        cycle = coordinator.request_review(
+            task_id="api",
+            cycle_number=1,
+            provider_role="review",
+            reasoning="high",
+            implementation_route=("claude", "opus"),
+            reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
+            context=self.context(),
+            acceptance_identity=identity,
+            expected_ledger_revision=12,
+        )
+        template = WorkerRequest(
+            "placeholder",
+            (),
+            create_context_manifest("review", ContextRequest()),
+            {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+            REQUIRED_RESULT_FIELDS,
+            "api",
+            "wf",
+            "review-identity-1",
+            "review",
+            "high",
+        )
+
+        execution = coordinator.dispatch_review(cycle, template)
+
+        self.assertEqual("approved", execution.status)
+        self.assertEqual(identity, captured_requests[0].acceptance_identity)
+        self.assertEqual(identity, captured_outcomes[0].acceptance_identity)
+        self.assertEqual(12, captured_outcomes[0].expected_ledger_revision)
 
     def test_review_result_rejects_implicit_approval_edits_and_blockers(self):
         invalid_results = (

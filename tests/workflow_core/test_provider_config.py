@@ -23,7 +23,7 @@ class ProviderLocalConfigTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             (workflow / "providers.local.yaml").write_text(
-                "schema_version: '2.2'\n"
+                "schema_version: '2.3'\n"
                 "providers:\n"
                 "  claude:\n"
                 "    executable: claude\n"
@@ -44,7 +44,7 @@ class ProviderLocalConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(module.ProviderLocalConfigError, "missing model tier: high"):
             module.validate_provider_local_config(
                 {
-                    "schema_version": "2.2",
+                    "schema_version": "2.3",
                     "providers": {
                         "claude": {
                             "executable": "claude",
@@ -59,12 +59,59 @@ class ProviderLocalConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(module.ProviderLocalConfigError, "unsupported provider fields"):
             module.validate_provider_local_config(
                 {
-                    "schema_version": "2.2",
+                    "schema_version": "2.3",
                     "providers": {
                         "claude": {
                             "executable": "claude",
                             "models": {"low": "haiku", "medium": "sonnet", "high": "opus"},
                             "api_key": "sk-local-secret",
+                        }
+                    },
+                }
+            )
+
+    def test_provider_default_is_an_explicit_machine_local_selection_mode(self):
+        module = self.provider_config()
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            (workflow / "providers.local.yaml").write_text(
+                "schema_version: '2.3'\n"
+                "providers:\n"
+                "  antigravity:\n"
+                "    executable: agy\n"
+                "    models:\n"
+                "      low: provider_default\n"
+                "      medium: provider_default\n"
+                "      high: gemini-pro\n",
+                encoding="utf-8",
+            )
+
+            providers = module.load_provider_local_config(repository)
+
+        antigravity = providers["antigravity"]
+        self.assertEqual("provider_default", antigravity.models["medium"])
+        self.assertEqual("provider_default", antigravity.selection_mode("medium"))
+        self.assertEqual("explicit", antigravity.selection_mode("high"))
+
+    def test_provider_default_is_rejected_for_non_antigravity_providers(self):
+        module = self.provider_config()
+        with self.assertRaisesRegex(
+            module.ProviderLocalConfigError,
+            "provider_default is only supported for antigravity",
+        ):
+            module.validate_provider_local_config(
+                {
+                    "schema_version": "2.3",
+                    "providers": {
+                        "codex": {
+                            "executable": "codex",
+                            "models": {
+                                "low": "provider_default",
+                                "medium": "provider_default",
+                                "high": "provider_default",
+                            },
                         }
                     },
                 }

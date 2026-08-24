@@ -3,6 +3,26 @@ from typing import Dict, Any, List, Optional
 from review_ledger.schema import EventActions
 from review_ledger.events import LedgerEvent, WorkflowIntegrityError
 
+SOURCE_IDENTITY_FIELDS = (
+    "repository_path",
+    "checkpoint_ref",
+    "checkpoint_sha",
+    "source_scope_hash",
+    "source_tree_hash",
+)
+
+
+def normalize_repository(repository: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(repository)
+    if "checkpoint_ref" not in normalized and normalized.get("review_ref"):
+        normalized["checkpoint_ref"] = normalized["review_ref"]
+    if "checkpoint_sha" not in normalized and normalized.get("reviewed_source_sha"):
+        normalized["checkpoint_sha"] = normalized["reviewed_source_sha"]
+    complete = all(normalized.get(field) for field in SOURCE_IDENTITY_FIELDS)
+    normalized["source_identity_status"] = "complete" if complete else "missing"
+    return normalized
+
+
 class FindingProjection:
     def __init__(self, finding_id: str, severity: str, status: str = "open", location: str = "", expected_behavior: str = "", evidence: str = ""):
         self.finding_id: str = finding_id
@@ -83,18 +103,45 @@ class LeaseProjection:
         )
 
 class ApprovalProjection:
-    def __init__(self, approved_repositories: List[Dict[str, Any]], source_scope_hash: str, terminal_findings: List[str], event_id: str):
-        self.approved_repositories: List[Dict[str, Any]] = approved_repositories
-        self.source_scope_hash: str = source_scope_hash
-        self.terminal_findings: List[str] = terminal_findings
-        self.event_id: str = event_id
+    def __init__(
+        self,
+        approved_repositories: List[Dict[str, Any]],
+        source_scope_hash: str,
+        terminal_findings: List[str],
+        event_id: str,
+        workflow_id: str = "",
+        attempt_id: str = "",
+        task_id: str = "",
+        reviewer_id: str = "",
+        review_event_id: str = "",
+        expected_ledger_revision: Optional[int] = None,
+        review_start_revision: Optional[int] = None,
+    ):
+        self.approved_repositories = approved_repositories
+        self.source_scope_hash = source_scope_hash
+        self.terminal_findings = terminal_findings
+        self.event_id = event_id
+        self.workflow_id = workflow_id
+        self.attempt_id = attempt_id
+        self.task_id = task_id
+        self.reviewer_id = reviewer_id
+        self.review_event_id = review_event_id
+        self.expected_ledger_revision = expected_ledger_revision
+        self.review_start_revision = review_start_revision
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "approved_repositories": self.approved_repositories,
             "source_scope_hash": self.source_scope_hash,
             "terminal_findings": self.terminal_findings,
-            "event_id": self.event_id
+            "event_id": self.event_id,
+            "workflow_id": self.workflow_id,
+            "attempt_id": self.attempt_id,
+            "task_id": self.task_id,
+            "reviewer_id": self.reviewer_id,
+            "review_event_id": self.review_event_id,
+            "expected_ledger_revision": self.expected_ledger_revision,
+            "review_start_revision": self.review_start_revision,
         }
 
     @classmethod
@@ -103,7 +150,14 @@ class ApprovalProjection:
             d["approved_repositories"],
             d["source_scope_hash"],
             d["terminal_findings"],
-            d["event_id"]
+            d["event_id"],
+            d.get("workflow_id", ""),
+            d.get("attempt_id", ""),
+            d.get("task_id", ""),
+            d.get("reviewer_id", ""),
+            d.get("review_event_id", ""),
+            d.get("expected_ledger_revision"),
+            d.get("review_start_revision"),
         )
 
 class ReviewProjection:
@@ -116,6 +170,8 @@ class ReviewProjection:
         self.source_scope: Dict[str, Any] = {}
         self.ledger_revision: int = 0
         self.next_finding_number: int = 1
+        self.review_event_id: str = ""
+        self.review_event_revision: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -126,7 +182,9 @@ class ReviewProjection:
             "repositories": self.repositories,
             "source_scope": self.source_scope,
             "ledger_revision": self.ledger_revision,
-            "next_finding_number": self.next_finding_number
+            "next_finding_number": self.next_finding_number,
+            "review_event_id": self.review_event_id,
+            "review_event_revision": self.review_event_revision,
         }
 
     @classmethod
@@ -145,6 +203,8 @@ class ReviewProjection:
         p.source_scope = d.get("source_scope", {})
         p.ledger_revision = d.get("ledger_revision", 0)
         p.next_finding_number = d.get("next_finding_number", 1)
+        p.review_event_id = d.get("review_event_id", "")
+        p.review_event_revision = d.get("review_event_revision")
         return p
 
     def apply_event(self, event: LedgerEvent):
@@ -156,7 +216,7 @@ class ReviewProjection:
 
         if action == EventActions.LEDGER_CREATED:
             self.review_state = payload.get("review_state", "implementation-in-progress")
-            self.repositories = payload.get("repositories", [])
+            self.repositories = [normalize_repository(item) for item in payload.get("repositories", [])]
             self.source_scope = payload.get("source_scope", {})
 
         elif action == EventActions.REVIEW_SCOPE_ESTABLISHED:
@@ -187,7 +247,7 @@ class ReviewProjection:
         elif action == EventActions.SOURCE_CHECKPOINT_CREATED:
             # Checkpoint payload has repositories
             if "repositories" in payload:
-                self.repositories = payload["repositories"]
+                self.repositories = [normalize_repository(item) for item in payload["repositories"]]
 
 
         elif action == "implementation-complete":
@@ -204,6 +264,8 @@ class ReviewProjection:
 
         elif action == EventActions.REVIEW_STARTED:
             self.review_state = "review-in-progress"
+            self.review_event_id = event.event_id
+            self.review_event_revision = self.ledger_revision
 
         elif action == EventActions.FINDING_CREATED:
             fid = payload["finding_id"]
@@ -296,7 +358,14 @@ class ReviewProjection:
                 approved_repositories=payload["approved_repositories"],
                 source_scope_hash=payload["source_scope_hash"],
                 terminal_findings=payload["terminal_findings"],
-                event_id=event.event_id
+                event_id=event.event_id,
+                workflow_id=payload.get("workflow_id", ""),
+                attempt_id=payload.get("attempt_id", ""),
+                task_id=payload.get("task_id", ""),
+                reviewer_id=payload.get("reviewer_id", ""),
+                review_event_id=payload.get("review_event_id", ""),
+                expected_ledger_revision=payload.get("expected_ledger_revision"),
+                review_start_revision=payload.get("review_start_revision"),
             )
 
         elif action == EventActions.REVIEW_APPROVAL_INVALIDATED:
@@ -329,6 +398,9 @@ class ReviewProjection:
         elif action == EventActions.RECOVERY_PERFORMED:
             if "review_state" in payload:
                 self.review_state = payload["review_state"]
+
+        if self.active_lease is not None:
+            self.active_lease.current_ledger_revision = self.ledger_revision
 
     @classmethod
     def replay(cls, events: List[LedgerEvent]) -> "ReviewProjection":

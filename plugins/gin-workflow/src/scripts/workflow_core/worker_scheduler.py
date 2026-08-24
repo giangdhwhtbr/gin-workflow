@@ -172,8 +172,8 @@ class WorkerScheduler:
             return failed_worker_result(request, "preparation_failed", str(error))
         result: WorkerResult | None = None
         for attempt in range(self.max_retries + 1):
-            attempted_request = request if attempt == 0 else replace(
-                request, retry_identity=f"{request.retry_identity}:retry:{attempt}"
+            attempted_request = request if attempt == 0 else self._retry_request(
+                request, attempt
             )
             result, retry_safe = self._attempt_with_deadline(attempted_request)
             if result.status == "completed":
@@ -182,6 +182,19 @@ class WorkerScheduler:
                 return result
         assert result is not None
         return result
+
+    @staticmethod
+    def _retry_request(request: WorkerRequest, attempt: int) -> WorkerRequest:
+        identity = request.acceptance_identity
+        if identity is not None:
+            identity = replace(
+                identity, attempt_id=f"{identity.attempt_id}:retry:{attempt}"
+            )
+        return replace(
+            request,
+            retry_identity=f"{request.retry_identity}:retry:{attempt}",
+            acceptance_identity=identity,
+        )
 
     def _attempt_with_deadline(
         self, request: WorkerRequest

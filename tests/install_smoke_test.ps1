@@ -62,7 +62,7 @@ try {
     Assert-Exists $Installer
 
     $dryRunOutput = Invoke-Installer @{ Platform = 'codex'; DryRun = $true }
-    Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.2'
+    Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.3'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin-workflow.cmd'))) 'Dry-run wrote the launcher shim'
 
@@ -73,7 +73,7 @@ try {
     Assert-Exists (Join-Path $project '.agents/commands/setup.md')
     Assert-Exists (Join-Path $project '.codex/commands/setup.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.2/workflow_core/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.3/workflow_core/cli.py')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'
@@ -109,7 +109,7 @@ try {
 
     if ($IsWindows) {
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
-        Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.2') "Unexpected launcher version: $version"
+        Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.3') "Unexpected launcher version: $version"
     }
 
     $managedRoot = Join-Path $TestHome '.local/lib/gin-workflow'
@@ -123,7 +123,7 @@ try {
 
     Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null
     $upgradedShim = [IO.File]::ReadAllText($shim)
-    Assert-Contains $upgradedShim (Join-Path $managedRoot '2.2/gin-workflow')
+    Assert-Contains $upgradedShim (Join-Path $managedRoot '2.3/gin-workflow')
     Assert-Exists $oldLauncher
 
     Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null

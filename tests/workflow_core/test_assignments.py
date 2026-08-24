@@ -11,7 +11,10 @@ from workflow_core.assignments import (  # noqa: E402
     AssignmentManifest,
     AssignmentRequest,
     AssignmentResolutionError,
+    RouteCandidate,
+    resolve_all_assignments,
     resolve_assignment,
+    validate_plan_assignments,
     write_assignment_manifest,
 )
 from workflow_core.models import EffectiveConfig  # noqa: E402
@@ -64,7 +67,119 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("complex architecture, security, migration, or concurrency", schema)
         self.assertIn("Do not name a concrete provider or model", writing)
         self.assertIn("provider role and reasoning", planning)
-        self.assertIn("write_assignment_manifest", orchestrate)
+        self.assertIn("validate_plan_assignments", planning)
+        self.assertLess(
+            orchestrate.index("resolve_all_assignments"),
+            orchestrate.index("task-tracking capability"),
+        )
+
+    def test_plan_validation_reports_every_role_and_tier_error_in_task_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            errors = validate_plan_assignments(
+                (
+                    {"task_id": "first", "provider_role": "frontend", "reasoning": "extreme"},
+                    {"task_id": "second", "provider_role": "backend", "reasoning": "unknown"},
+                    {"task_id": "third", "provider_role": "devops", "reasoning": "high"},
+                ),
+                effective(Path(directory)),
+            )
+
+        self.assertEqual(
+            (
+                ("first", "provider_role", "unknown provider role: frontend"),
+                ("first", "reasoning", "reasoning must be one of: low, medium, high"),
+                ("second", "reasoning", "reasoning must be one of: low, medium, high"),
+                ("third", "provider_role", "unknown provider role: devops"),
+            ),
+            tuple((error.task_id, error.field, error.message) for error in errors),
+        )
+
+    def test_batch_resolution_fails_before_any_manifest_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            requests = (
+                AssignmentRequest("first", "backend", "high", "codex", "wf-batch"),
+                AssignmentRequest("second", "backend", "high", "missing", "wf-batch"),
+            )
+
+            with self.assertRaisesRegex(
+                AssignmentResolutionError, "missing local provider mapping: missing"
+            ):
+                resolve_all_assignments(requests, effective(repository), local())
+
+            self.assertFalse(
+                (repository / ".agent-workflow/runtime/assignments").exists()
+            )
+
+    def test_batch_resolution_reports_all_machine_local_errors_in_task_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            requests = (
+                AssignmentRequest("first", "backend", "high", "missing-a", "wf-batch"),
+                AssignmentRequest("second", "backend", "high", "missing-b", "wf-batch"),
+            )
+            only_claude = {"claude": local()["claude"]}
+
+            with self.assertRaises(AssignmentResolutionError) as caught:
+                resolve_all_assignments(
+                    requests, effective(repository), only_claude
+                )
+
+        message = str(caught.exception)
+        self.assertLess(message.index("first"), message.index("second"))
+        self.assertIn("missing local provider mapping: missing-a", message)
+        self.assertIn("missing local provider mapping: missing-b", message)
+        self.assertIn("missing local provider mapping: codex", message)
+
+    def test_public_assignment_boundaries_reject_non_antigravity_provider_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            codex_default = {
+                **local(),
+                "codex": ProviderModelConfig(
+                    "codex", "codex", {
+                        "low": "provider_default",
+                        "medium": "provider_default",
+                        "high": "provider_default",
+                    }
+                ),
+            }
+            request = AssignmentRequest(
+                "api", "backend", "high", "codex", "wf-batch"
+            )
+
+            with self.assertRaisesRegex(
+                AssignmentResolutionError,
+                "provider_default is only supported for antigravity",
+            ):
+                resolve_assignment(request, effective(repository), codex_default)
+            with self.assertRaisesRegex(
+                AssignmentResolutionError,
+                "provider_default is only supported for antigravity",
+            ):
+                resolve_all_assignments(
+                    (request,), effective(repository), codex_default
+                )
+            with self.assertRaisesRegex(
+                AssignmentResolutionError,
+                "provider_default is only supported for antigravity",
+            ):
+                RouteCandidate("codex", "provider_default", False)
+
+    def test_batch_resolution_returns_manifests_only_after_every_route_resolves(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            requests = (
+                AssignmentRequest("first", "backend", "high", "codex", "wf-batch"),
+                AssignmentRequest("second", "backend", "medium", "codex", "wf-batch"),
+            )
+
+            manifests = resolve_all_assignments(
+                requests, effective(repository), local()
+            )
+
+        self.assertEqual(("first", "second"), tuple(item.request.task_id for item in manifests))
+        self.assertEqual(("wf-batch", "wf-batch"), tuple(item.workflow_id for item in manifests))
 
     def test_resolver_expands_main_harness_deduplicates_and_preserves_same_tier(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -123,6 +238,19 @@ class AssignmentTests(unittest.TestCase):
                 ["api-auth", "ui"],
                 [assignment["task_id"] for assignment in loaded["assignments"]],
             )
+
+    def test_provider_default_manifest_records_selection_mode_without_claiming_model(self):
+        request = AssignmentRequest("api", "backend", "high", "codex")
+        payload = AssignmentManifest(
+            "wf-default",
+            request,
+            (RouteCandidate("antigravity", "provider_default", False),),
+        ).to_dict()
+
+        self.assertEqual(
+            {"provider": "antigravity", "selection_mode": "provider_default"},
+            payload["resolved"],
+        )
 
 
 if __name__ == "__main__":

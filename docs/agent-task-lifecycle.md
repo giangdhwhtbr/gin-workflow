@@ -129,7 +129,30 @@ Exit criteria:
 
 - Implementation is complete enough for verification, or blockers are recorded clearly and routed back to discussion when needed.
 
-### 5. Verification
+### 5. Code Review
+
+Goal:
+Obtain an independent, terminal review decision over the approved scope before verification.
+
+Required actions:
+
+- Coordinate review through the configured review capability after implementation is complete.
+- Review the bounded checkpoint, acceptance criteria, tests, and evidence with an active lease.
+- Record structured findings and resolve or explicitly disposition them.
+- Require terminal approval evidence before verification can treat review as complete.
+
+Code Review is a separately coordinated provider-backed activity between
+Implementation and Verification. It is not a router lifecycle stage and does not
+add a `review_approved` router gate; the router continues to expose only its
+implemented stages (`discuss`, `plan`, `orchestrate`, `execute`, `verify`, `ship`,
+and `progress`).
+
+Exit criteria:
+
+- A terminal review approval and its verification evidence are persisted, or
+  findings/blockers remain active and verification cannot pass.
+
+### 6. Verification
 
 Goal:
 Demonstrate that the implementation satisfies the original requirement, approved plan, and acceptance criteria.
@@ -145,7 +168,7 @@ Exit criteria:
 
 - Verification passed, or the work remains active or blocked with failures documented.
 
-### 6. Ship
+### 7. Ship
 
 Goal:
 Complete the delivery workflow once implementation and verification are complete.
@@ -205,3 +228,19 @@ Worker result, event, context, review, knowledge, evidence, and secret-reference
 | Code Review | `cross-agent-code-review` / `receiving-code-review` | `/review` |
 | Verification | `verify` | `/verify` |
 | Ship | `ship` | `/ship` |
+
+## Gates and evidence
+
+Each router stage has a durable gate: requirement confirmation precedes planning;
+plan approval precedes orchestration; orchestration readiness precedes execution;
+implementation completion precedes the separately coordinated Code Review and
+Verification activities; and verification passes before ship. The router evaluates
+one implemented next stage only and holds at `progress` when the task is blocked,
+a capability is disabled, or a protected action lacks fresh persisted approval and
+audit evidence. Code Review approval is represented by terminal review/evidence
+records consumed by Verification, not by a new router gate.
+
+Identity-bound worker, checkpoint, review, and verification evidence supports the
+gates but never replaces Beads status or plan-owned scope. A lease conflict,
+identity mismatch, unavailable provider, or evidence-integrity failure is a hold
+with a diagnostic and safe next action, not permission to bypass the gate.

@@ -15,7 +15,7 @@ from .models import DependencyUnavailableError
 from .setup_service import COMMANDS, SetupError
 
 
-CLI_VERSION = "2.2"
+CLI_VERSION = "2.3"
 
 
 def _parser() -> argparse.ArgumentParser:

@@ -30,6 +30,7 @@ class ContextManifestTests(unittest.TestCase):
 
     def test_manifest_schema_requires_every_context_category(self):
         manifest = create_context_manifest("verify", {"required": []})
+        self.assertEqual("2.3", manifest.to_dict()["schema_version"])
         schemas.validate_context_manifest(manifest.to_dict())
         invalid = manifest.to_dict()
         del invalid["categories"]["reference"]

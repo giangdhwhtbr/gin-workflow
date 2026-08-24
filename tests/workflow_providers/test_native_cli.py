@@ -15,7 +15,7 @@ from workflow_providers.antigravity_worker import (  # noqa: E402
     build_antigravity_invocation,
 )
 from workflow_providers.claude_worker import build_claude_invocation  # noqa: E402
-from workflow_providers.codex_worker import build_codex_invocation  # noqa: E402
+from workflow_providers.codex_worker import build_codex_invocation, codex_health  # noqa: E402
 from workflow_providers.native_cli import (  # noqa: E402
     FailureKind,
     NativeCliError,
@@ -37,10 +37,34 @@ class NativeCliTests(unittest.TestCase):
             claude.argv,
         )
         self.assertEqual(("codex", "exec"), codex.argv[:2])
-        self.assertIn("workspace-write", codex.argv)
         self.assertIn("--approve-for-me", codex.argv)
+        self.assertNotIn("--sandbox", codex.argv)
+        self.assertNotIn("workspace-write", codex.argv)
+        self.assertIn("--cd", codex.argv)
+        self.assertNotIn("-C", codex.argv)
         self.assertEqual(("agy", "--print", "--model", "flash", "--sandbox"), agy.argv)
         self.assertFalse(claude.shell or codex.shell or agy.shell)
+
+    def test_codex_health_requires_exact_safe_noninteractive_flags(self):
+        required = (
+            "usage: codex exec --model MODEL --json --ephemeral "
+            "--approve-for-me --cd DIR"
+        )
+        missing_approval = "usage: codex exec --model MODEL --json --ephemeral --cd DIR"
+        prefixed = (
+            "usage: codex exec --model-cache --json-lines --ephemeral-mode "
+            "--approve-for-members"
+        )
+
+        ready = codex_health("codex", help_text=required)
+        unavailable = codex_health("codex", help_text=missing_approval)
+        prefix_only = codex_health("codex", help_text=prefixed)
+
+        self.assertTrue(ready.available)
+        self.assertEqual("ready", ready.reason)
+        self.assertFalse(unavailable.available)
+        self.assertEqual("required_flags_unverified", unavailable.reason)
+        self.assertFalse(prefix_only.available)
 
     def test_runner_bounds_stdin_sanitizes_environment_and_parses_jsonl(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -97,14 +121,30 @@ class NativeCliTests(unittest.TestCase):
                 runner.run(NativeCliInvocation((sys.executable, str(malformed)), root, b"", 1))
             self.assertEqual(FailureKind.INVALID_RESULT, invalid.exception.kind)
 
-    def test_antigravity_health_requires_verified_explicit_model_capability(self):
-        unavailable = antigravity_health("agy", help_text="usage: agy --print --sandbox")
+    def test_antigravity_health_degrades_to_provider_default_without_model_flag(self):
+        degraded = antigravity_health("agy", help_text="usage: agy --print --sandbox")
         available = antigravity_health("agy", help_text="usage: agy --print --model MODEL --sandbox")
 
-        self.assertFalse(unavailable.available)
-        self.assertEqual("explicit_model_selection_unverified", unavailable.reason)
+        self.assertTrue(degraded.available)
+        self.assertEqual("explicit_model_selection_unverified", degraded.reason)
+        self.assertFalse(degraded.explicit_model_selection)
         self.assertTrue(available.available)
+        self.assertTrue(available.explicit_model_selection)
         self.assertFalse(antigravity_health("/definitely/missing-agy").available)
+
+        missing_runtime_flag = antigravity_health(
+            "agy", help_text="usage: agy --print --model MODEL"
+        )
+        self.assertFalse(missing_runtime_flag.available)
+        self.assertEqual("required_flags_unverified", missing_runtime_flag.reason)
+
+        prefix_only = antigravity_health(
+            "agy",
+            help_text="usage: agy --printable --model-cache --sandboxed",
+        )
+        self.assertFalse(prefix_only.available)
+        self.assertFalse(prefix_only.explicit_model_selection)
+        self.assertEqual("required_flags_unverified", prefix_only.reason)
 
 
 if __name__ == "__main__":

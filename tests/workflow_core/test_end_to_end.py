@@ -14,7 +14,12 @@ LAUNCHER = SCRIPTS / "gin-workflow"
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.events import WorkflowEventStore  # noqa: E402
-from workflow_core.assignments import RouteCandidate  # noqa: E402
+from workflow_core.assignments import (  # noqa: E402
+    AssignmentRequest,
+    RouteCandidate,
+    validate_plan_assignments,
+)
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_core.configuration import load_effective_config  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
@@ -27,11 +32,15 @@ from workflow_providers.contracts import (  # noqa: E402
     EvidenceCategory,
     EvidenceRecord,
     OperationStatus,
+    ReviewOutcomeRequest,
+    ReviewRequest,
+    TaskClosureRequest,
     ReviewFinding,
     ReviewStatus,
     TaskCreateRequest,
     WorkspaceRequest,
 )
+from workflow_providers.evidence import CompositeEvidenceAuthority  # noqa: E402
 from workflow_providers.fakes import (  # noqa: E402
     FakeEvidenceProvider,
     FakeTaskTrackingProvider,
@@ -39,12 +48,23 @@ from workflow_providers.fakes import (  # noqa: E402
 )
 from workflow_providers.registry import ProviderRegistry  # noqa: E402
 from workflow_providers.circuit_breaker import CircuitState, FailureKind  # noqa: E402
-from workflow_providers.native_cli import NativeCliError, NativeCliOutput  # noqa: E402
+from workflow_providers.native_cli import (  # noqa: E402
+    NativeCliError,
+    NativeCliOutput,
+    NativeHealth,
+)
+from workflow_providers.review import ReviewLedgerProvider  # noqa: E402
+from workflow_providers.task_tracking import BeadsTaskTrackingProvider  # noqa: E402
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
     WorkerDispatcher,
     WorkerRequest,
+    WorkerResultContractError,
+    normalize_worker_result,
+)
+from tests.workflow_providers.test_task_tracking_compatibility import (  # noqa: E402
+    CliFixture,
 )
 
 
@@ -52,7 +72,7 @@ SECRET_VALUE = "sk-track7-private-value"
 
 
 def completed_result(payload, *, status="completed", blocker=None):
-    return {
+    result = {
         "status": status,
         "task_id": payload["task_id"],
         "summary": "completed by deterministic fake" if status == "completed" else "failed",
@@ -66,6 +86,128 @@ def completed_result(payload, *, status="completed", blocker=None):
         else [],
         "blockers": [blocker] if blocker else [],
     }
+    identity = payload.get("acceptance_identity")
+    if identity is not None and status == "completed":
+        repository = identity["repositories"][0]
+        result.update(
+            {
+                "schema_version": "2.3",
+                "acceptance_identity": identity,
+                "tests": [
+                    {
+                        "argv": ["python3", "-m", "unittest"],
+                        "exit_code": 0,
+                        "started_at": "2026-08-20T09:58:00Z",
+                        "finished_at": "2026-08-20T09:59:00Z",
+                        "workspace_id": payload["isolation_policy"]["workspace_id"],
+                        "repository_id": repository["repository_id"],
+                        "attempt_id": identity["attempt_id"],
+                        "source_tree_hash": repository["source_tree_hash"],
+                    }
+                ],
+            }
+        )
+    return result
+
+
+def evidence_fixture(task_id="frontend"):
+    identity = AcceptanceIdentity(
+        "wf-e2e",
+        "attempt-1",
+        task_id,
+        (
+            RepositorySnapshot(
+                "primary",
+                "scope-e2e",
+                "tree-e2e",
+                "checkpoint-e2e",
+                f"refs/gin/review/{task_id}",
+            ),
+        ),
+    )
+    raw_identity = identity.to_dict()
+    worker_store = {
+        "worker-e2e": {
+            "task_id": task_id,
+            "worker_id": "worker-e2e",
+            "status": "completed",
+            "schema_version": "2.3",
+            "request_acceptance_identity": raw_identity,
+            "result_acceptance_identity": raw_identity,
+            "request_workspace_id": f"ws-{task_id}",
+            "tests": [
+                {
+                    "argv": ["python3", "-m", "unittest"],
+                    "exit_code": 0,
+                    "started_at": "2026-08-20T09:58:00Z",
+                    "finished_at": "2026-08-20T09:59:00Z",
+                    "workspace_id": f"ws-{task_id}",
+                    "repository_id": "primary",
+                    "attempt_id": "attempt-1",
+                    "source_tree_hash": "tree-e2e",
+                }
+            ],
+            "recorded_at": "2026-08-20T10:00:00Z",
+        }
+    }
+    checkpoint_store = {
+        "checkpoint-event-e2e": {
+            "task_id": task_id,
+            "checkpoint_event_id": "checkpoint-event-e2e",
+            "acceptance_identity": raw_identity,
+            "repositories": raw_identity["repositories"],
+            "recorded_at": "2026-08-20T10:01:00Z",
+        }
+    }
+    review_store = {
+        "review-event-e2e": {
+            "task_id": task_id,
+            "review_event_id": "review-event-e2e",
+            "ledger_revision": 7,
+            "acceptance_identity": raw_identity,
+            "status": "approved",
+            "terminal": True,
+            "recorded_at": "2026-08-20T10:01:30Z",
+            "verification_event_id": "verification-event-e2e",
+        }
+    }
+    verification_store = {
+        "verification-event-e2e": {
+            "task_id": task_id,
+            "verification_event_id": "verification-event-e2e",
+            "review_event_id": "review-event-e2e",
+            "acceptance_identity": raw_identity,
+            "status": "passed",
+            "recorded_at": "2026-08-20T10:02:00Z",
+        }
+    }
+    authority = CompositeEvidenceAuthority(
+        worker_resolver=worker_store.get,
+        checkpoint_resolver=checkpoint_store.get,
+        review_resolver=review_store.get,
+        verification_resolver=verification_store.get,
+    )
+    return identity, authority, (
+        ("tests", EvidenceCategory.TESTS, "worker-e2e"),
+        ("repo", EvidenceCategory.REPOSITORY, "checkpoint-event-e2e"),
+        ("review", EvidenceCategory.REVIEWS, "review-event-e2e"),
+    )
+
+
+def record_from_authority(authority, evidence_id, category, reference):
+    canonical = authority.resolve(category, reference)
+    return EvidenceRecord(
+        evidence_id=evidence_id,
+        task_id=canonical["task_id"],
+        category=category,
+        outcome=canonical["outcome"],
+        reference=reference,
+        details=canonical["details"],
+        acceptance_identity=AcceptanceIdentity.from_mapping(
+            canonical["acceptance_identity"]
+        ),
+        recorded_at=canonical["recorded_at"],
+    )
 
 
 def worker_request(task_id):
@@ -161,12 +303,19 @@ class WorkflowEndToEndTests(unittest.TestCase):
             }
             runner = FakeNativeRunner()
             events = WorkflowEventStore(repository / ".agent-workflow/runtime/events.jsonl")
+            identity, authority, evidence_references = evidence_fixture("frontend")
             registry = ProviderRegistry.from_effective_config(
                 effective,
                 provider_local=local,
                 native_runner=runner,
-                worker_health={name: (lambda _candidate: True) for name in local},
+                worker_health={
+                    **{name: (lambda _candidate: True) for name in local},
+                    "antigravity": lambda _candidate: NativeHealth(
+                        True, "ready", True
+                    ),
+                },
                 event_store=events,
+                evidence_authority=authority,
             )
             router = registry.worker
             self.assertIsNotNone(router)
@@ -279,16 +428,14 @@ class WorkflowEndToEndTests(unittest.TestCase):
             self.assertEqual("review_pending", pending.status)
             self.assertNotEqual("closed", registry.task_tracking.read_task(task_id).value.status)
 
-            for evidence_id, category, outcome in (
-                ("tests", EvidenceCategory.TESTS, "passed"),
-                ("review", EvidenceCategory.REVIEWS, "approved"),
-                ("repo", EvidenceCategory.REPOSITORY, "recorded"),
-            ):
+            for evidence_id, category, reference in evidence_references:
                 registry.evidence.record(
-                    EvidenceRecord(evidence_id, "frontend", category, outcome, evidence_id),
+                    record_from_authority(
+                        authority, evidence_id, category, reference
+                    ),
                     idempotency_key=evidence_id,
                 )
-            complete = registry.evidence.completeness("frontend").value
+            complete = registry.evidence.completeness("frontend", identity).value
             approved = coordinator.completion_decision(
                 ReviewStatus("frontend", "review-approved", 2, (), (replace(finding, status="verified"),)),
                 acceptance_evidence_complete=complete.complete,
@@ -311,6 +458,526 @@ class WorkflowEndToEndTests(unittest.TestCase):
             self.assertTrue(complete.complete)
             self.assertEqual("closed", registry.task_tracking.read_task(task_id).value.status)
             self.assertNotIn(SECRET_VALUE, events.path.read_text(encoding="utf-8"))
+
+    def test_acceptance_identity_survives_checkpoint_review_evidence_and_task_closure(self):
+        from review_ledger.cli import (
+            initialize_ledger,
+            load_ledger,
+            mutate_ledger,
+            start_review,
+        )
+
+        class IdentityNativeRunner:
+            def run(self, invocation, *, cancel_event=None):
+                payload = json.loads(invocation.stdin.decode("utf-8").splitlines()[-1])
+                return NativeCliOutput((completed_result(payload),))
+
+        task_id = "integrity-e2e"
+        workflow_id = "wf-integrity-e2e"
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            subprocess.run(
+                ["git", "init"], cwd=repository, check=True, capture_output=True
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test"], cwd=repository, check=True
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=repository,
+                check=True,
+            )
+            (repository / "src").mkdir()
+            (repository / "src/app.py").write_text("value = 1\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.py"], cwd=repository, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "base"],
+                cwd=repository,
+                check=True,
+                capture_output=True,
+            )
+            (repository / "src/app.py").write_text("value = 2\n", encoding="utf-8")
+            (repository / "src/new.py").write_text("new = True\n", encoding="utf-8")
+            head_before = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repository,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            index_before = subprocess.run(
+                ["git", "diff", "--cached", "--binary"],
+                cwd=repository,
+                check=True,
+                capture_output=True,
+            ).stdout
+            source_status_before = subprocess.run(
+                ["git", "status", "--porcelain=v1", "--", "src"],
+                cwd=repository,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+
+            scope = {
+                "included_paths": ["src"],
+                "excluded_artifact_paths": [],
+                "allowed_generated_paths": [],
+                "nested_repository_paths": [],
+            }
+            checkpoint = initialize_ledger(
+                bead_id=task_id,
+                repository_id="primary",
+                role="primary",
+                repo_path=str(repository),
+                review_ref=f"refs/gin/review/{task_id}",
+                base_ref="HEAD",
+                scope=scope,
+                actor_role="worker",
+                actor_id="worker-e2e",
+                base_dir=str(repository),
+            )
+            self.assertEqual(
+                head_before,
+                subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=repository,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout.strip(),
+            )
+            self.assertEqual(
+                index_before,
+                subprocess.run(
+                    ["git", "diff", "--cached", "--binary"],
+                    cwd=repository,
+                    check=True,
+                    capture_output=True,
+                ).stdout,
+            )
+            self.assertEqual(
+                source_status_before,
+                subprocess.run(
+                    ["git", "status", "--porcelain=v1", "--", "src"],
+                    cwd=repository,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout,
+            )
+            _, initial_projection = load_ledger(task_id, str(repository))
+            stored_repository = initial_projection.repositories[0]
+            identity = AcceptanceIdentity(
+                workflow_id,
+                "attempt-1",
+                task_id,
+                (
+                    RepositorySnapshot(
+                        "primary",
+                        checkpoint.source_scope_hash,
+                        checkpoint.source_tree_hash,
+                        checkpoint.checkpoint_sha,
+                        checkpoint.checkpoint_ref,
+                    ),
+                ),
+            )
+
+            portable = EffectiveConfig(
+                {
+                    "schema_version": "2.3",
+                    "harness": "codex",
+                    "providers": {
+                        "task_tracking": "fake",
+                        "knowledge": "fake",
+                        "workspace": "fake",
+                        "review": "review-ledger",
+                        "evidence": "fake",
+                        "notifications": "fake",
+                    },
+                    "routing": {
+                        "roles": {
+                            "backend": {"preferred": ["codex"], "fallback": []}
+                        },
+                        "concurrency": {"codex": 1},
+                        "queue": {"max_wait_seconds": 0},
+                        "worker": {"timeout_seconds": 30, "max_retries": 0},
+                        "circuit_breaker": {
+                            "failure_threshold": 1,
+                            "cooldown_seconds": 10,
+                            "half_open_max_probes": 1,
+                        },
+                    },
+                },
+                repository,
+            )
+            plan_request = AssignmentRequest(
+                task_id, "backend", "high", "codex", workflow_id
+            )
+            self.assertEqual((), validate_plan_assignments((plan_request,), portable))
+
+            task_cli = CliFixture("bd")
+            task_cli.task["id"] = task_id
+            task_cli.task["status"] = "in_progress"
+            task_cli.readiness_payload = [{"id": task_id}]
+            tasks = BeadsTaskTrackingProvider(repository, runner=task_cli)
+            self.assertTrue(tasks.preflight().value.healthy)
+            created_task = tasks.create_task(
+                TaskCreateRequest(
+                    task_id,
+                    status="in_progress",
+                    notes=("identity-bound implementation",),
+                    acceptance_criteria=("all authoritative evidence is complete",),
+                ),
+                idempotency_key="create-e2e",
+            )
+            self.assertIs(OperationStatus.SUCCESS, created_task.status)
+            self.assertTrue(tasks.readiness(task_id).value.ready)
+
+            worker_store = {}
+            checkpoint_store = {}
+            review_store = {}
+            verification_store = {}
+            authority = CompositeEvidenceAuthority(
+                worker_resolver=worker_store.get,
+                checkpoint_resolver=checkpoint_store.get,
+                review_resolver=review_store.get,
+                verification_resolver=verification_store.get,
+            )
+            registry = ProviderRegistry.from_effective_config(
+                portable,
+                provider_local={
+                    "codex": ProviderModelConfig(
+                        "codex", "codex", {"high": "reasoning"}
+                    )
+                },
+                native_runner=IdentityNativeRunner(),
+                worker_health={
+                    "codex": lambda _candidate: NativeHealth(True, "ready", True)
+                },
+                event_store=WorkflowEventStore(
+                    repository / ".agent-workflow/runtime/events.jsonl"
+                ),
+                evidence_authority=authority,
+            )
+            workspace = registry.workspace.create(
+                WorkspaceRequest(f"ws-{task_id}", f"worker/{task_id}"),
+                idempotency_key="workspace-e2e",
+            ).value
+            request = replace(
+                worker_request(task_id),
+                workflow_id=workflow_id,
+                retry_identity=f"{workflow_id}:{task_id}:attempt-1",
+                acceptance_identity=identity,
+                reasoning="high",
+                isolation_policy={
+                    "mode": "isolated",
+                    "workspace_id": f"ws-{task_id}",
+                    "branch": f"worker/{task_id}",
+                    "workspace_path": str(workspace.path),
+                },
+            )
+            receipt = registry.worker.dispatch(request)
+            result = registry.worker.collect_result(receipt.worker_id)
+            self.assertEqual(identity, result.acceptance_identity)
+            self.assertEqual(("completed", "2.3"), (result.status, result.schema_version), result)
+            self.assertTrue(all(test.passed and test.auditable for test in result.tests))
+            worker_store[receipt.worker_id] = {
+                "task_id": task_id,
+                "worker_id": receipt.worker_id,
+                "status": result.status,
+                "schema_version": result.schema_version,
+                "request_acceptance_identity": identity.to_dict(),
+                "result_acceptance_identity": result.acceptance_identity.to_dict(),
+                "request_workspace_id": request.isolation_policy["workspace_id"],
+                "tests": [test.to_dict() for test in result.tests],
+                "recorded_at": "2026-08-20T10:00:00Z",
+            }
+
+            requested = registry.review.request(
+                ReviewRequest(task_id, "worker-e2e"), idempotency_key="review-request"
+            )
+            self.assertIs(OperationStatus.SUCCESS, requested.status)
+            _, leased = start_review(
+                task_id,
+                "reviewer-e2e",
+                requested_lease_id="lease-e2e",
+                base_dir=str(repository),
+            )
+            self.assertEqual("lease-e2e", leased.active_lease.lease_id)
+            review_status = registry.review.status(task_id).value
+            approved = registry.review.record_outcome(
+                ReviewOutcomeRequest(
+                    task_id=task_id,
+                    actor_id="reviewer-e2e",
+                    decision="approved",
+                    lease_id="lease-e2e",
+                    acceptance_identity=identity,
+                    expected_ledger_revision=review_status.ledger_revision,
+                ),
+                idempotency_key="review-approved",
+            )
+            self.assertIs(OperationStatus.SUCCESS, approved.status, approved.message)
+            log, approved_projection = load_ledger(task_id, str(repository))
+            approval_event = log.events[-1]
+            self.assertEqual("review-approved", approval_event.action)
+            approved_repository = approval_event.payload["approved_repositories"][0]
+            self.assertEqual(
+                identity.to_dict()["repositories"][0],
+                {
+                    field: approved_repository[field]
+                    for field in (
+                        "repository_id",
+                        "source_scope_hash",
+                        "source_tree_hash",
+                        "checkpoint_sha",
+                        "checkpoint_ref",
+                    )
+                },
+            )
+
+            mutate_ledger(
+                task_id,
+                "verification-started",
+                {},
+                "verifier",
+                "verifier-e2e",
+                base_dir=str(repository),
+                lease_id="lease-e2e",
+            )
+            log, _ = mutate_ledger(
+                task_id,
+                "verification-passed",
+                {},
+                "verifier",
+                "verifier-e2e",
+                base_dir=str(repository),
+                lease_id="lease-e2e",
+            )
+            verification_event = log.events[-1]
+            checkpoint_event = log.events[0]
+            review_reference = approved_projection.review_event_id
+            checkpoint_store[checkpoint_event.event_id] = {
+                "task_id": task_id,
+                "checkpoint_event_id": checkpoint_event.event_id,
+                "acceptance_identity": identity.to_dict(),
+                "repositories": identity.to_dict()["repositories"],
+                "recorded_at": checkpoint_event.timestamp,
+            }
+            review_store[review_reference] = {
+                "task_id": task_id,
+                "review_event_id": review_reference,
+                "ledger_revision": approved_projection.ledger_revision,
+                "acceptance_identity": identity.to_dict(),
+                "status": "approved",
+                "terminal": True,
+                "recorded_at": approval_event.timestamp,
+                "verification_event_id": verification_event.event_id,
+            }
+            verification_store[verification_event.event_id] = {
+                "task_id": task_id,
+                "verification_event_id": verification_event.event_id,
+                "review_event_id": review_reference,
+                "acceptance_identity": identity.to_dict(),
+                "status": "passed",
+                "recorded_at": verification_event.timestamp,
+            }
+            evidence_references = (
+                ("tests-e2e", EvidenceCategory.TESTS, receipt.worker_id),
+                ("repository-e2e", EvidenceCategory.REPOSITORY, checkpoint_event.event_id),
+                ("review-e2e", EvidenceCategory.REVIEWS, review_reference),
+            )
+            for evidence_id, category, reference in evidence_references:
+                recorded = registry.evidence.record(
+                    record_from_authority(authority, evidence_id, category, reference),
+                    idempotency_key=evidence_id,
+                )
+                self.assertIs(OperationStatus.SUCCESS, recorded.status, recorded.message)
+            complete = registry.evidence.completeness(task_id, identity).value
+            self.assertTrue(complete.complete, complete.diagnostics)
+
+            closed = tasks.close_task(
+                TaskClosureRequest(
+                    task_id,
+                    "authoritative acceptance complete",
+                    tuple(record.evidence_id for record in complete.evidence),
+                ),
+                idempotency_key="close-e2e",
+            )
+            self.assertIs(OperationStatus.SUCCESS, closed.status, closed.message)
+            self.assertEqual("closed", closed.value.status)
+            self.assertEqual(
+                tuple(record.evidence_id for record in complete.evidence),
+                closed.value.acceptance_evidence,
+            )
+            self.assertEqual(
+                stored_repository["checkpoint_ref"], identity.repositories[0].checkpoint_ref
+            )
+
+    def test_single_field_adversarial_variants_fail_closed(self):
+        from review_ledger.cli import initialize_ledger, load_ledger, mutate_ledger, start_review
+
+        task_id = "adversarial"
+        identity, authority, references = evidence_fixture(task_id)
+        canonical = {
+            category: record_from_authority(authority, evidence_id, category, reference)
+            for evidence_id, category, reference in references
+        }
+        repository = identity.repositories[0]
+        identity_variants = (
+            AcceptanceIdentity(
+                identity.workflow_id,
+                identity.attempt_id,
+                identity.task_id,
+                (replace(repository, source_scope_hash="scope-other"),),
+            ),
+            AcceptanceIdentity(
+                identity.workflow_id,
+                identity.attempt_id,
+                identity.task_id,
+                (replace(repository, source_tree_hash="tree-other"),),
+            ),
+            AcceptanceIdentity(
+                identity.workflow_id,
+                identity.attempt_id,
+                identity.task_id,
+                (replace(repository, checkpoint_ref="refs/gin/review/other"),),
+            ),
+            AcceptanceIdentity(
+                identity.workflow_id,
+                "attempt-other",
+                identity.task_id,
+                identity.repositories,
+            ),
+            AcceptanceIdentity(
+                identity.workflow_id,
+                identity.attempt_id,
+                "task-other",
+                identity.repositories,
+            ),
+        )
+        evidence_variants = [
+            replace(canonical[EvidenceCategory.REPOSITORY], acceptance_identity=variant)
+            for variant in identity_variants
+        ]
+        review_record = canonical[EvidenceCategory.REVIEWS]
+        evidence_variants.extend(
+            (
+                replace(review_record, reference="review-event-other"),
+                replace(review_record, recorded_at="2026-08-20T09:00:00Z"),
+                replace(
+                    canonical[EvidenceCategory.TESTS],
+                    details={
+                        **canonical[EvidenceCategory.TESTS].details,
+                        "tests": [
+                            {
+                                **canonical[EvidenceCategory.TESTS].details["tests"][0],
+                                "exit_code": 1,
+                            }
+                        ],
+                    },
+                ),
+            )
+        )
+        for index, variant in enumerate(evidence_variants):
+            with self.subTest(boundary="evidence", index=index):
+                provider = FakeEvidenceProvider(authority=authority)
+                rejected = provider.record(variant, idempotency_key=f"variant-{index}")
+                self.assertIs(OperationStatus.INVALID, rejected.status)
+                self.assertFalse(provider.completeness(task_id, identity).value.complete)
+
+        request = replace(
+            worker_request(task_id),
+            acceptance_identity=identity,
+            isolation_policy={"mode": "isolated", "workspace_id": f"ws-{task_id}"},
+        )
+        accepted_payload = completed_result(request.to_payload())
+        worker_variants = (
+            {
+                **accepted_payload,
+                "tests": [
+                    {**accepted_payload["tests"][0], "workspace_id": "ws-other"}
+                ],
+            },
+        )
+        for payload in worker_variants:
+            with self.subTest(boundary="worker", tests=payload["tests"]):
+                with self.assertRaises(WorkerResultContractError):
+                    normalize_worker_result(payload, request)
+
+        unhealthy_cli = CliFixture("bd", drift="database/jsonl mismatch")
+        unhealthy_tasks = BeadsTaskTrackingProvider(Path.cwd(), runner=unhealthy_cli)
+        unavailable = unhealthy_tasks.create_task(
+            TaskCreateRequest("must-not-mutate"), idempotency_key="unhealthy"
+        )
+        self.assertIs(OperationStatus.UNAVAILABLE, unavailable.status)
+        self.assertFalse(
+            any(
+                len(call) > 1 and call[1] == "create" and "--help" not in call
+                for call in unhealthy_cli.calls
+            )
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            repository_root = Path(directory)
+            subprocess.run(
+                ["git", "init"], cwd=repository_root, check=True, capture_output=True
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test"],
+                cwd=repository_root,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=repository_root,
+                check=True,
+            )
+            (repository_root / "src").mkdir()
+            (repository_root / "src/app.py").write_text("ok = True\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.py"], cwd=repository_root, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "base"],
+                cwd=repository_root,
+                check=True,
+                capture_output=True,
+            )
+            initialize_ledger(
+                bead_id="lease-adversarial",
+                repository_id="primary",
+                role="primary",
+                repo_path=str(repository_root),
+                review_ref="refs/gin/review/lease-adversarial",
+                base_ref="HEAD",
+                scope={"included_paths": ["src"]},
+                actor_role="worker",
+                actor_id="worker",
+                base_dir=str(repository_root),
+            )
+            reviews = ReviewLedgerProvider(repository_root)
+            reviews.request(
+                ReviewRequest("lease-adversarial", "worker"),
+                idempotency_key="request",
+            )
+            start_review(
+                "lease-adversarial",
+                "reviewer",
+                requested_lease_id="lease-valid",
+                base_dir=str(repository_root),
+            )
+            _, before = load_ledger("lease-adversarial", str(repository_root))
+            with self.assertRaisesRegex(Exception, "lease"):
+                mutate_ledger(
+                    "lease-adversarial",
+                    "finding-created",
+                    {"finding_id": "F-001", "severity": "IMPORTANT"},
+                    "reviewer",
+                    "reviewer",
+                    base_dir=str(repository_root),
+                    lease_id="lease-other",
+                )
+            _, after = load_ledger("lease-adversarial", str(repository_root))
+            self.assertEqual(before.ledger_revision, after.ledger_revision)
 
     def run_setup(self, repository, *arguments):
         environment = os.environ.copy()
@@ -388,7 +1055,10 @@ class WorkflowEndToEndTests(unittest.TestCase):
             self.assertIn("secret_ref:env:FAKE_PROVIDER_TOKEN", effective_text)
 
             effective = load_effective_config(repository)
-            registry = ProviderRegistry.from_effective_config(effective)
+            _, authority, _ = evidence_fixture("setup-task")
+            registry = ProviderRegistry.from_effective_config(
+                effective, evidence_authority=authority
+            )
             self.assertIsInstance(registry.task_tracking, FakeTaskTrackingProvider)
             self.assertIsInstance(registry.evidence, FakeEvidenceProvider)
 
@@ -489,49 +1159,33 @@ class WorkflowEndToEndTests(unittest.TestCase):
             )
 
     def test_verification_evidence_gates_shipping_until_every_category_succeeds(self):
-        provider = FakeEvidenceProvider()
+        identity, authority, references = evidence_fixture("track-7")
+        provider = FakeEvidenceProvider(authority=authority)
         state = {
             "requirement_confirmed": True,
             "plan_approved": True,
             "orchestration_ready": True,
             "implementation_complete": True,
         }
-        config = EffectiveConfig({"schema_version": "2.1"}, Path.cwd())
-        fixtures = (
-            ("tests-failed", EvidenceCategory.TESTS, "failed"),
-            ("review-approved", EvidenceCategory.REVIEWS, "approved"),
-            ("repository-recorded", EvidenceCategory.REPOSITORY, "recorded"),
-        )
-        for evidence_id, category, outcome in fixtures:
+        config = EffectiveConfig({"schema_version": "2.3"}, Path.cwd())
+        for evidence_id, category, reference in references[1:]:
             recorded = provider.record(
-                EvidenceRecord(
-                    evidence_id=evidence_id,
-                    task_id="track-7",
-                    category=category,
-                    outcome=outcome,
-                    reference=evidence_id,
-                ),
+                record_from_authority(authority, evidence_id, category, reference),
                 idempotency_key=evidence_id,
             )
             self.assertIs(OperationStatus.SUCCESS, recorded.status)
 
-        incomplete = provider.completeness("track-7").value
+        incomplete = provider.completeness("track-7", identity).value
         verify = route_next_stage({**state, "verification_passed": incomplete.complete}, config)
         self.assertFalse(incomplete.complete)
         self.assertEqual(("tests",), incomplete.missing_categories)
         self.assertEqual("verify", verify.stage)
 
-        provider.record(
-            EvidenceRecord(
-                evidence_id="tests-passed",
-                task_id="track-7",
-                category=EvidenceCategory.TESTS,
-                outcome="passed",
-                reference="python3 -m unittest discover -s tests -p test_*.py -v",
-            ),
-            idempotency_key="tests-passed",
+        tests_record = record_from_authority(
+            authority, "tests-passed", EvidenceCategory.TESTS, "worker-e2e"
         )
-        complete = provider.completeness("track-7").value
+        provider.record(tests_record, idempotency_key="tests-passed")
+        complete = provider.completeness("track-7", identity).value
         ship = route_next_stage({**state, "verification_passed": complete.complete}, config)
 
         self.assertTrue(complete.complete)

@@ -14,7 +14,7 @@ The workflow must distinguish clearly between:
 
 The system is correct only when each category has one owner.
 
-The generated effective configuration is the sole lifecycle configuration input. It selects capabilities and artifacts; it does not replace Beads durable state, plan-owned scope, or runtime evidence.
+`.agent-workflow/generated/effective-config.yaml` is the sole lifecycle configuration input. It resolves setup inputs and selects logical capabilities; it does not own task state, approved plan content, or runtime outcomes.
 
 ## Canonical Ownership
 
@@ -48,12 +48,9 @@ Plan files are durable project artifacts, but they are not the source of truth f
 
 ### Review ledger owns findings and approval evidence
 
-Review ledger under `.planning/<bead-id>/review.json` owns:
-- findings history and triage statuses (disputed, deferred, fixed)
-- lease status and concurrency control
-- active approval snapshot and verification evidence
-
-It is the authoritative log for audit history.
+The review ledger owns findings history and triage status, lease/concurrency state,
+active approval snapshots, and review verification evidence. It is the authoritative
+audit log for review history; it does not own Beads task status or approved plan scope.
 
 ### Runtime metadata is local and disposable
 
@@ -131,16 +128,13 @@ Examples of unacceptable derived state:
 | Which worktree path belongs to a track? | Derived runtime metadata |
 | Which branch was used for a worker? | Derived runtime metadata |
 | Is the task complete? | Beads |
-| What findings exist and what are their statuses? | Review Ledger |
-| Is there an active lease and who holds it? | Review Ledger |
-| What is the approved source tree snapshot? | Review Ledger |
 
 ## Effective Configuration And Evidence
 
-The effective configuration selects artifact names and capability providers only. Artifact resolution never moves or infers plans, Beads data, worktrees, knowledge stores, review ledgers, or evidence. Runtime manifests, events, worker results, and evidence indexes are supplemental records: they may support verification and audit, but never replace durable task state or approved plan scope. See [setup system](setup-system.md), [provider contracts](capability-provider-contracts.md), and [context and evidence policy](context-and-evidence-policy.md).
+The effective configuration selects artifact names and capability providers only. Artifact resolution never moves or infers plans, Beads data, worktrees, knowledge stores, review ledgers, or evidence. Runtime manifests, events, worker results, and evidence indexes are supplemental records: they may support verification and audit, but never replace durable task state or approved plan scope. Acceptance identity and repository snapshots join those records without changing ownership. See [setup-system.md](setup-system.md), [capability-provider-contracts.md](capability-provider-contracts.md), and [context-and-evidence-policy.md](context-and-evidence-policy.md).
 
 ## Relationship To Other Docs
 
-- [agent task lifecycle](agent-task-lifecycle.md) defines phase boundaries.
+- `docs/agent-task-lifecycle.md` defines phase boundaries.
 - This document defines state ownership inside those phases.
-- `verification-and-handoff-workflow.md` defines how verification, handoff, and closure update the durable state correctly.
+- `docs/verification-and-handoff-workflow.md` defines how verification, handoff, and closure update the durable state correctly.

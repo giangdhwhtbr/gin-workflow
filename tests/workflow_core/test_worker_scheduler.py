@@ -13,6 +13,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.events import WorkflowEventStore  # noqa: E402
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_core.worker_scheduler import (  # noqa: E402
     WorkerScheduler,
@@ -31,7 +32,7 @@ from workflow_providers.worker_dispatch import (  # noqa: E402
 )
 
 
-def worker_request(index):
+def worker_request(index, *, acceptance_identity=None):
     task_id = f"task-{index}"
     return WorkerRequest(
         objective=f"Implement {task_id}",
@@ -48,6 +49,24 @@ def worker_request(index):
         retry_identity=f"wf-1:{task_id}",
         provider_role="backend",
         reasoning="medium",
+        acceptance_identity=acceptance_identity,
+    )
+
+
+def request_identity(task_id="task-1", attempt_id="attempt-1"):
+    return AcceptanceIdentity(
+        "wf-1",
+        attempt_id,
+        task_id,
+        (
+            RepositorySnapshot(
+                "primary",
+                "scope-1",
+                "tree-1",
+                "checkpoint-1",
+                f"refs/gin/review/{task_id}",
+            ),
+        ),
     )
 
 
@@ -174,6 +193,47 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertEqual({"task-1": 1, "task-2": 2}, attempts)
             self.assertEqual(2, len(outcome.completed))
             self.assertEqual((), outcome.failed)
+
+    def test_retry_uses_a_new_acceptance_attempt_identity(self):
+        observed_attempts = []
+
+        def retry_once(payload):
+            observed_attempts.append(payload["acceptance_identity"]["attempt_id"])
+            result = completed(payload)
+            result.update(
+                schema_version="2.3",
+                acceptance_identity=payload["acceptance_identity"],
+            )
+            if len(observed_attempts) == 1:
+                result.update(status="failed", summary="retry", blockers=["temporary"])
+            return result
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tasks = FakeTaskTrackingProvider()
+            item = worker_request(
+                1,
+                acceptance_identity=request_identity(),
+            )
+            tasks.create_task(TaskCreateRequest(item.task_id), idempotency_key="create")
+            scheduler = WorkerScheduler(
+                WorkerDispatcher(
+                    SequentialWorkerAdapter(retry_once),
+                    WorkflowEventStore(root / "events.jsonl"),
+                ),
+                task_tracking=tasks,
+                workspace=FakeWorkspaceProvider(root / "worktrees"),
+                max_parallel_workers=1,
+                max_retries=1,
+            )
+
+            outcome = scheduler.schedule((item,))
+
+            self.assertEqual(["attempt-1", "attempt-1:retry:1"], observed_attempts)
+            self.assertEqual(
+                "attempt-1:retry:1",
+                outcome.completed[0].acceptance_identity.attempt_id,
+            )
 
     def test_partial_preparation_failure_preserves_completed_results(self):
         class PartiallyFailingWorkspace(FakeWorkspaceProvider):
@@ -385,7 +445,7 @@ class WorkerSchedulerTests(unittest.TestCase):
                 task_tracking=tasks,
                 workspace=FakeWorkspaceProvider(worktrees),
                 max_parallel_workers=1,
-                worker_timeout_seconds=0.05,
+                worker_timeout_seconds=0.2,
             )
 
             outcome = scheduler.schedule((item,))

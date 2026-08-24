@@ -52,6 +52,30 @@ def result():
 
 
 class WorkerAdapterTests(unittest.TestCase):
+    def test_antigravity_provider_default_omits_explicit_model_argument(self):
+        class FakeRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput((result(),))
+
+        runner = FakeRunner()
+        adapter = AntigravityWorkerAdapter(
+            native_runner=runner,
+            executable="agy",
+            model="provider_default",
+            workspace=Path.cwd(),
+        )
+
+        receipt = adapter.dispatch(request())
+
+        self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
+        self.assertEqual(
+            ("agy", "--print", "--sandbox"), runner.invocations[0].argv
+        )
+
     def test_native_adapters_build_model_specific_invocations_and_normalize_output(self):
         class FakeRunner:
             def __init__(self):
@@ -121,15 +145,18 @@ class WorkerAdapterTests(unittest.TestCase):
             with self.assertRaises(ProcessLookupError):
                 os.kill(pid, 0)
             child_stat = Path(f"/proc/{child_pid}/stat")
+            def process_state():
+                try:
+                    return child_stat.read_text(encoding="utf-8").split()[2]
+                except FileNotFoundError:
+                    return None
+
             deadline = time.monotonic() + 1
             while child_stat.exists() and time.monotonic() < deadline:
-                if child_stat.read_text(encoding="utf-8").split()[2] == "Z":
+                if process_state() in (None, "Z"):
                     break
                 time.sleep(0.01)
-            self.assertTrue(
-                not child_stat.exists()
-                or child_stat.read_text(encoding="utf-8").split()[2] == "Z"
-            )
+            self.assertIn(process_state(), (None, "Z"))
 
     def test_native_adapters_detect_missing_harness_support(self):
         for adapter_type in (

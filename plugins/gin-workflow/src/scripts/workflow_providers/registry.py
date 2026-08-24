@@ -10,9 +10,10 @@ from typing import Any
 from workflow_core.models import EffectiveConfig
 from workflow_core.assignments import AssignmentRequest, resolve_assignment
 from workflow_core.events import WorkflowEventStore
-from workflow_core.provider_config import ProviderModelConfig
+from workflow_core.provider_config import PROVIDER_DEFAULT, ProviderModelConfig
 
 from .contracts import (
+    EvidenceAuthority,
     EvidenceProvider,
     KnowledgeProvider,
     NotificationProvider,
@@ -22,7 +23,7 @@ from .contracts import (
     WorkspaceProvider,
     OperationStatus,
 )
-from .evidence import FileEvidenceProvider
+from .evidence import CompositeEvidenceAuthority, FileEvidenceProvider
 from .fakes import (
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
@@ -103,6 +104,7 @@ class ProviderRegistry:
         native_runner: NativeCliRunner | None = None,
         worker_health: Mapping[str, Any] | None = None,
         event_store: WorkflowEventStore | None = None,
+        evidence_authority: EvidenceAuthority | None = None,
     ) -> "ProviderRegistry":
         if not isinstance(config, EffectiveConfig):
             raise TypeError("ProviderRegistry requires EffectiveConfig")
@@ -111,7 +113,7 @@ class ProviderRegistry:
         if not isinstance(artifacts, Mapping):
             raise RegistryError("artifacts must be a mapping")
 
-        task_name, _ = _entry(config, "task_tracking")
+        task_name, task_options = _entry(config, "task_tracking")
         knowledge_name, _ = _entry(config, "knowledge")
         workspace_name, workspace_options = _entry(config, "workspace")
         review_name, _ = _entry(config, "review")
@@ -119,7 +121,13 @@ class ProviderRegistry:
         notification_name, _ = _entry(config, "notifications")
 
         if task_name == "beads":
-            task_tracking: TaskTrackingProvider = BeadsTaskTrackingProvider(root)
+            try:
+                task_tracking: TaskTrackingProvider = BeadsTaskTrackingProvider(
+                    root,
+                    executable=str(task_options.get("executable", "bd")),
+                )
+            except ValueError as error:
+                raise RegistryError(str(error)) from error
         elif task_name == "fake":
             task_tracking = FakeTaskTrackingProvider()
         else:
@@ -165,10 +173,20 @@ class ProviderRegistry:
             evidence_options.get("index") or artifacts.get("evidence"),
             ".agent-workflow/runtime/evidence",
         )
+        if str(config.get("schema_version", "")) == "2.3" and not isinstance(
+            evidence_authority,
+            CompositeEvidenceAuthority,
+        ):
+            raise RegistryError(
+                "schema 2.3 evidence authority must be a CompositeEvidenceAuthority"
+            )
         if evidence_name == "filesystem":
-            evidence: EvidenceProvider = FileEvidenceProvider(evidence_path)
+            evidence: EvidenceProvider = FileEvidenceProvider(
+                evidence_path,
+                authority=evidence_authority,
+            )
         elif evidence_name == "fake":
-            evidence = FakeEvidenceProvider()
+            evidence = FakeEvidenceProvider(authority=evidence_authority)
         else:
             raise RegistryError(f"unknown evidence provider: {evidence_name}")
 
@@ -184,6 +202,13 @@ class ProviderRegistry:
         configured_retries = 0
         configured_parallel = 1
         if provider_local is not None:
+            for provider_name, local_config in provider_local.items():
+                if provider_name != "antigravity" and any(
+                    model == PROVIDER_DEFAULT for model in local_config.models.values()
+                ):
+                    raise RegistryError(
+                        "provider_default is only supported for antigravity"
+                    )
             routing = config.get("routing", {})
             if not isinstance(routing, Mapping):
                 raise RegistryError("routing must be a mapping")
@@ -314,9 +339,17 @@ class ProviderRegistry:
         )
 
     @classmethod
-    def from_config(cls, config: EffectiveConfig) -> "ProviderRegistry":
+    def from_config(
+        cls,
+        config: EffectiveConfig,
+        *,
+        evidence_authority: EvidenceAuthority | None = None,
+    ) -> "ProviderRegistry":
         """Compatibility alias for the explicit EffectiveConfig constructor."""
-        return cls.from_effective_config(config)
+        return cls.from_effective_config(
+            config,
+            evidence_authority=evidence_authority,
+        )
 
     @property
     def metadata(self) -> Mapping[str, ProviderMetadata]:

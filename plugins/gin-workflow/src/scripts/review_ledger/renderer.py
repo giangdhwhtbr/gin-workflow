@@ -52,8 +52,18 @@ def render_review_markdown(projection: ReviewProjection, event_log: EventLog) ->
             lines.append(f"- **Review Ref:** `{repo.get('review_ref')}`")
             lines.append(f"- **Base SHA:** `{repo.get('review_base_sha')}`")
             lines.append(f"- **Reviewed SHA:** `{repo.get('reviewed_source_sha')}`")
-            if "reviewed_source_tree_hash" in repo:
-                lines.append(f"- **Tree Hash:** `{repo.get('reviewed_source_tree_hash')}`")
+            lines.append(f"- **Source Identity:** `{repo.get('source_identity_status', 'missing')}`")
+            if repo.get("repository_path"):
+                lines.append(f"- **Repository Path:** `{repo.get('repository_path')}`")
+            if repo.get("checkpoint_ref"):
+                lines.append(f"- **Checkpoint Ref:** `{repo.get('checkpoint_ref')}`")
+            if repo.get("checkpoint_sha"):
+                lines.append(f"- **Checkpoint SHA:** `{repo.get('checkpoint_sha')}`")
+            if repo.get("source_scope_hash"):
+                lines.append(f"- **Scope Hash:** `{repo.get('source_scope_hash')}`")
+            tree_hash = repo.get("source_tree_hash") or repo.get("reviewed_source_tree_hash")
+            if tree_hash:
+                lines.append(f"- **Tree Hash:** `{tree_hash}`")
     else:
         lines.append("*No repositories registered.*")
     lines.append("")

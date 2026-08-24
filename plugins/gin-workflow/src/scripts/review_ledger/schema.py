@@ -48,3 +48,19 @@ class EventActions:
         SHIPPING_STARTED, SHIPPING_FAILED, SHIPPING_COMPLETED,
         RECOVERY_PERFORMED
     }
+
+
+SOURCE_IDENTITY_FIELDS = (
+    "repository_path",
+    "checkpoint_ref",
+    "checkpoint_sha",
+    "source_scope_hash",
+    "source_tree_hash",
+)
+
+
+def has_complete_source_identity(repository):
+    return all(
+        isinstance(repository.get(field), str) and bool(repository[field].strip())
+        for field in SOURCE_IDENTITY_FIELDS
+    )

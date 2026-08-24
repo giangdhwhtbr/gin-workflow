@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 # Add the parent directory of review_ledger to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from review_ledger.cli import mutate_ledger, load_ledger, get_ledger_paths, render_review_markdown
+from review_ledger.cli import initialize_ledger, mutate_ledger, start_review, load_ledger, get_ledger_paths, render_review_markdown
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
 from review_ledger.git_adapter import create_source_checkpoint, push_review_ref, fetch_review_ref
@@ -22,10 +22,15 @@ def parse_args():
     p_init = subparsers.add_parser("init", help="Initialize a new ledger.")
     p_init.add_argument("--bead-id", required=True)
     p_init.add_argument("--repo-id", required=True)
+    p_init.add_argument("--repo-path", default=".")
+    p_init.add_argument("--include", dest="included_paths", action="append", default=[])
+    p_init.add_argument("--exclude", dest="excluded_paths", action="append", default=[])
+    p_init.add_argument("--generated", dest="generated_paths", action="append", default=[])
+    p_init.add_argument("--nested-repository", dest="nested_paths", action="append", default=[])
     p_init.add_argument("--role", default="primary")
     p_init.add_argument("--review-ref", required=True)
-    p_init.add_argument("--base-sha", required=True)
-    p_init.add_argument("--reviewed-sha", required=True)
+    p_init.add_argument("--base-sha", default="HEAD")
+    p_init.add_argument("--reviewed-sha", help=argparse.SUPPRESS)
     p_init.add_argument("--actor-role", default="worker")
     p_init.add_argument("--actor-id", required=True)
 
@@ -44,6 +49,7 @@ def parse_args():
     p_start.add_argument("--actor-role", default="reviewer")
     p_start.add_argument("--actor-id", required=True)
     p_start.add_argument("--lease-id")
+    p_start.add_argument("--ttl-seconds", type=int, default=600)
 
     # Add Finding
     p_add = subparsers.add_parser("add-finding", help="Add a new review finding.")
@@ -193,43 +199,87 @@ def main():
     
     try:
         if args.command == "init":
-            payload = {
-                "repositories": [{
-                    "repository_id": args.repo_id,
-                    "role": args.role,
-                    "review_ref": args.review_ref,
-                    "review_base_sha": args.base_sha,
-                    "reviewed_source_sha": args.reviewed_sha
-                }]
+            scope = {
+                "included_paths": args.included_paths,
+                "excluded_artifact_paths": args.excluded_paths,
+                "allowed_generated_paths": args.generated_paths,
+                "nested_repository_paths": args.nested_paths,
             }
-            mutate_ledger(args.bead_id, "ledger-created", payload, args.actor_role, args.actor_id)
-            print(f"Initialized review ledger for bead {args.bead_id}")
+            checkpoint = initialize_ledger(
+                bead_id=args.bead_id,
+                repository_id=args.repo_id,
+                role=args.role,
+                repo_path=args.repo_path,
+                review_ref=args.review_ref,
+                base_ref=args.base_sha,
+                scope=scope,
+                actor_role=args.actor_role,
+                actor_id=args.actor_id,
+            )
+            print(
+                f"Initialized review ledger for bead {args.bead_id} "
+                f"at {checkpoint.checkpoint_sha}"
+            )
 
         elif args.command == "checkpoint":
-            # Load current scope
             _, proj = load_ledger(args.bead_id)
-            # Create Git checkpoint
-            new_sha = create_source_checkpoint(os.getcwd(), proj.source_scope, args.bead_id, args.commit_msg)
-            
-            # Record in ledger
-            payload = {"repositories": proj.repositories}
-            found = False
-            for repo in payload["repositories"]:
-                if repo["repository_id"] == args.repo_id:
-                    repo["reviewed_source_sha"] = new_sha
-                    found = True
-            if not found:
-                raise ValueError(f"Repository '{args.repo_id}' not found in ledger.")
-                    
-            mutate_ledger(
-                args.bead_id, "source-checkpoint-created", payload,
-                args.actor_role, args.actor_id, lease_id=args.lease_id
+            repository = next(
+                (
+                    item
+                    for item in proj.repositories
+                    if item["repository_id"] == args.repo_id
+                ),
+                None,
             )
-            print(f"Created source checkpoint: {new_sha}")
+            if repository is None:
+                raise ValueError(f"Repository '{args.repo_id}' not found in ledger.")
+            repository_path = os.path.abspath(
+                os.path.join(os.getcwd(), repository.get("repository_path", "."))
+            )
+            checkpoint = create_source_checkpoint(
+                repository_path,
+                proj.source_scope,
+                args.bead_id,
+                base_ref=repository["review_base_sha"],
+                review_ref=repository.get("checkpoint_ref")
+                or repository.get("review_ref"),
+                repository_id=args.repo_id,
+                commit_msg=args.commit_msg,
+            )
+            repositories = [dict(item) for item in proj.repositories]
+            for item in repositories:
+                if item["repository_id"] == args.repo_id:
+                    item.update(
+                        {
+                            "review_ref": checkpoint.checkpoint_ref,
+                            "checkpoint_ref": checkpoint.checkpoint_ref,
+                            "reviewed_source_sha": checkpoint.checkpoint_sha,
+                            "checkpoint_sha": checkpoint.checkpoint_sha,
+                            "source_scope_hash": checkpoint.source_scope_hash,
+                            "source_tree_hash": checkpoint.source_tree_hash,
+                            "reviewed_source_tree_hash": checkpoint.source_tree_hash,
+                            "source_identity_status": "complete",
+                        }
+                    )
+            mutate_ledger(
+                args.bead_id,
+                "source-checkpoint-created",
+                {"repositories": repositories},
+                args.actor_role,
+                args.actor_id,
+                lease_id=args.lease_id,
+            )
+            print(f"Created source checkpoint: {checkpoint.checkpoint_sha}")
 
         elif args.command == "start-review":
-            mutate_ledger(args.bead_id, "review-started", {}, args.actor_role, args.actor_id, lease_id=args.lease_id)
-            print("Review phase started.")
+            _, projection = start_review(
+                args.bead_id,
+                args.actor_id,
+                requested_lease_id=args.lease_id,
+                ttl_seconds=args.ttl_seconds,
+                actor_role=args.actor_role,
+            )
+            print(f"Review phase started with lease {projection.active_lease.lease_id}.")
 
         elif args.command == "add-finding":
             payload = {"finding_id": args.finding_id, "severity": args.severity}
