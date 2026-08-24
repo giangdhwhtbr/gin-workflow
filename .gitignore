@@ -1,5 +1,9 @@
 # Ignore generated/compiled plugin assets
 plugins/*/dist/
+# Harness project installations are generated from plugin source.
+/.codex/
+/.claude/
+/.agents/
 
 # OS/Editor files
 .DS_Store

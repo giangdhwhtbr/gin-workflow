@@ -1,6 +1,6 @@
-schema_version: "2.2"
-workflow_version: "2.2"
-setup_cli_version: "2.2"
+schema_version: "2.3"
+workflow_version: "2.3"
+setup_cli_version: "2.3"
 harness: codex
 
 artifacts:

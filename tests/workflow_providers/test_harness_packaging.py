@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import shutil
@@ -98,6 +99,84 @@ class HarnessPackagingTests(unittest.TestCase):
             with self.subTest(harness=harness):
                 root = self.dist / harness
                 self.assertTrue(all((root / relative).is_file() for relative in relatives))
+
+    def test_plugin_metadata_and_harness_manifests_publish_version_1_1_0(self):
+        manifests = (
+            ROOT / "plugins/gin-workflow/plugin.meta.json",
+            ROOT / "plugins/gin-workflow/src/.claude-plugin/plugin.json",
+            ROOT / "plugins/gin-workflow/src/.codex-plugin/plugin.json",
+            self.dist / "claude-code/.claude-plugin/plugin.json",
+            self.dist / "codex/.codex-plugin/plugin.json",
+            self.dist / "antigravity/plugin.json",
+        )
+        for manifest in manifests:
+            with self.subTest(manifest=manifest.relative_to(ROOT)):
+                with manifest.open(encoding="utf-8") as file:
+                    self.assertEqual("1.1.0", json.load(file)["version"])
+
+    def test_repository_ignores_installations_and_generated_workflow_output(self):
+        ignored = (
+            ".codex/plugin.json",
+            ".claude/plugin.json",
+            ".agents/plugin.json",
+            ".agent-workflow/generated/plan.json",
+            ".agent-workflow/runtime/evidence.json",
+            ".agent-workflow/backups/config.yaml",
+            ".agent-workflow/providers.local.yaml",
+            "plugins/gin-workflow/dist/codex/plugin.json",
+        )
+        tracked = (
+            "plugins/gin-workflow/src/commands/setup.md",
+            ".claude-plugin/marketplace.json",
+            ".agent-workflow/config.yaml",
+            "docs/setup-system.md",
+            "install.sh",
+            "install.ps1",
+        )
+
+        for relative in ignored:
+            with self.subTest(relative=relative):
+                result = subprocess.run(
+                    ["git", "check-ignore", "--no-index", "-q", relative],
+                    cwd=ROOT,
+                    check=False,
+                )
+                self.assertEqual(0, result.returncode)
+
+        for relative in tracked:
+            with self.subTest(relative=relative):
+                result = subprocess.run(
+                    ["git", "check-ignore", "--no-index", "-q", relative],
+                    cwd=ROOT,
+                    check=False,
+                )
+                self.assertEqual(1, result.returncode)
+                tracked_result = subprocess.run(
+                    ["git", "ls-files", "--error-unmatch", relative],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                )
+                self.assertEqual(0, tracked_result.returncode)
+
+        untracked_roots = (
+            ".codex",
+            ".claude",
+            ".agents",
+            ".agent-workflow/generated",
+            ".agent-workflow/runtime",
+            ".agent-workflow/backups",
+        )
+        for root in untracked_roots:
+            with self.subTest(root=root):
+                result = subprocess.run(
+                    ["git", "ls-files", "--", root],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual("", result.stdout)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,5 @@
+# Portable repository configuration belongs in config.yaml.
+providers.local.yaml
+generated/
+runtime/
+backups/
