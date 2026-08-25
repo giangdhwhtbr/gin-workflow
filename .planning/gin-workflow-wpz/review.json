@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "review_state": "implementation-in-progress",
+  "repositories": [
+    {
+      "repository_id": "primary",
+      "role": "primary",
+      "repository_path": ".planning/worktrees/gin-workflow-wpz",
+      "review_ref": "refs/gin/review/gin-workflow-wpz",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-wpz",
+      "review_base_sha": "47fa4baa301d3e92e526c25873aa375945c1fb88",
+      "reviewed_source_sha": "098e024cc8570f2309d6ce7ad2fc0840e07078c4",
+      "checkpoint_sha": "098e024cc8570f2309d6ce7ad2fc0840e07078c4",
+      "source_scope_hash": "3ec9840790e2c9326232413e130267816bebc941a39aab6b3f795a9a48df6be9",
+      "source_tree_hash": "06c098e623f68db6214461f28d409e79505a8bdef2a437936f762222a46fa90d",
+      "reviewed_source_tree_hash": "06c098e623f68db6214461f28d409e79505a8bdef2a437936f762222a46fa90d",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "plugins/gin-workflow/src/scripts/review-ledger.py",
+      "plugins/gin-workflow/src/scripts/review_ledger/cli.py",
+      "plugins/gin-workflow/src/scripts/review_ledger/projections.py",
+      "plugins/gin-workflow/src/scripts/workflow_providers/contracts.py",
+      "plugins/gin-workflow/src/scripts/workflow_providers/review.py",
+      "tests/review_ledger/test_integration.py",
+      "tests/workflow_providers/test_contracts.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 1,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-08-22T00:01:18.112903Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "codex-t3"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "primary",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/gin-workflow-wpz",
+            "review_ref": "refs/gin/review/gin-workflow-wpz",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-wpz",
+            "review_base_sha": "47fa4baa301d3e92e526c25873aa375945c1fb88",
+            "reviewed_source_sha": "098e024cc8570f2309d6ce7ad2fc0840e07078c4",
+            "checkpoint_sha": "098e024cc8570f2309d6ce7ad2fc0840e07078c4",
+            "source_scope_hash": "3ec9840790e2c9326232413e130267816bebc941a39aab6b3f795a9a48df6be9",
+            "source_tree_hash": "06c098e623f68db6214461f28d409e79505a8bdef2a437936f762222a46fa90d",
+            "reviewed_source_tree_hash": "06c098e623f68db6214461f28d409e79505a8bdef2a437936f762222a46fa90d",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "plugins/gin-workflow/src/scripts/review-ledger.py",
+            "plugins/gin-workflow/src/scripts/review_ledger/cli.py",
+            "plugins/gin-workflow/src/scripts/review_ledger/projections.py",
+            "plugins/gin-workflow/src/scripts/workflow_providers/contracts.py",
+            "plugins/gin-workflow/src/scripts/workflow_providers/review.py",
+            "tests/review_ledger/test_integration.py",
+            "tests/workflow_providers/test_contracts.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "1693afbb2f03f2af67c66560c7d321abe0453328cbd81fa7abab13529ceb89da"
+    }
+  ]
+}
