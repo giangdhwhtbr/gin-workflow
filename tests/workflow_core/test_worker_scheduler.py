@@ -27,7 +27,10 @@ from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa
 from workflow_providers.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
     WorkerDispatcher,
+    WorkerReceipt,
     WorkerRequest,
+    WorkerState,
+    cancelled_worker_result,
     worker_id_for,
 )
 
@@ -415,6 +418,93 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertLess(elapsed, 0.15)
             self.assertEqual(1, len(calls))
             self.assertEqual((), outcome.completed)
+            self.assertEqual(("timeout",), outcome.failed[0].blockers)
+
+    def test_timeout_cancels_worker_when_dispatch_returns_receipt_during_cleanup(self):
+        dispatch_entered = threading.Event()
+        release_receipt = threading.Event()
+        terminal = threading.Event()
+        cancel_calls = []
+        item = worker_request(1)
+
+        class LateReceiptDispatcher:
+            def dispatch(self, request):
+                dispatch_entered.set()
+                release_receipt.wait(timeout=1)
+                return WorkerReceipt("late-worker", WorkerState.STARTED, request.task_id)
+
+            def collect_result(self, worker_id, timeout=None):
+                terminal.wait(timeout=1)
+                return cancelled_worker_result(item)
+
+            def cancel(self, worker_id):
+                cancel_calls.append(worker_id)
+                terminal.set()
+                return True
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tasks = FakeTaskTrackingProvider()
+            tasks.create_task(TaskCreateRequest(item.task_id), idempotency_key="create")
+            scheduler = WorkerScheduler(
+                LateReceiptDispatcher(),
+                task_tracking=tasks,
+                workspace=FakeWorkspaceProvider(root / "worktrees"),
+                max_parallel_workers=1,
+                worker_timeout_seconds=0.05,
+            )
+
+            timer = threading.Timer(0.075, release_receipt.set)
+            timer.start()
+            try:
+                outcome = scheduler.schedule((item,))
+            finally:
+                release_receipt.set()
+                terminal.set()
+                timer.cancel()
+
+            self.assertTrue(dispatch_entered.is_set())
+            self.assertEqual(["late-worker"], cancel_calls)
+            self.assertEqual(("timeout",), outcome.failed[0].blockers)
+
+    def test_timeout_does_not_retry_until_accepted_cancellation_is_quiescent(self):
+        terminal = threading.Event()
+        dispatch_calls = []
+        item = worker_request(1)
+
+        class AcceptedButNonTerminalDispatcher:
+            def dispatch(self, request):
+                dispatch_calls.append(request.retry_identity)
+                return WorkerReceipt(
+                    f"worker-{len(dispatch_calls)}", WorkerState.STARTED, request.task_id
+                )
+
+            def collect_result(self, worker_id, timeout=None):
+                terminal.wait(timeout=1)
+                return cancelled_worker_result(item)
+
+            def cancel(self, worker_id, timeout=None):
+                return True
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tasks = FakeTaskTrackingProvider()
+            tasks.create_task(TaskCreateRequest(item.task_id), idempotency_key="create")
+            scheduler = WorkerScheduler(
+                AcceptedButNonTerminalDispatcher(),
+                task_tracking=tasks,
+                workspace=FakeWorkspaceProvider(root / "worktrees"),
+                max_parallel_workers=1,
+                max_retries=1,
+                worker_timeout_seconds=0.03,
+            )
+
+            try:
+                outcome = scheduler.schedule((item,))
+            finally:
+                terminal.set()
+
+            self.assertEqual([item.retry_identity], dispatch_calls)
             self.assertEqual(("timeout",), outcome.failed[0].blockers)
 
     def test_scheduler_timeout_cancels_started_native_process(self):

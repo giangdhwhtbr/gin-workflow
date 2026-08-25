@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
+import inspect
 import threading
 from typing import Any, Iterable
 
@@ -200,6 +201,7 @@ class WorkerScheduler:
         self, request: WorkerRequest
     ) -> tuple[WorkerResult, bool]:
         done = threading.Event()
+        receipt_ready = threading.Event()
         state_lock = threading.Lock()
         state: dict[str, Any] = {}
 
@@ -208,6 +210,7 @@ class WorkerScheduler:
                 receipt = self.dispatcher.dispatch(request)
                 with state_lock:
                     state["receipt"] = receipt
+                receipt_ready.set()
                 result = self.dispatcher.collect_result(receipt.worker_id)
                 retry_safe = True
             except Exception as error:
@@ -217,6 +220,7 @@ class WorkerScheduler:
                 state["result"] = result
                 state["retry_safe"] = retry_safe
             done.set()
+            receipt_ready.set()
 
         threading.Thread(
             target=execute_attempt,
@@ -237,12 +241,28 @@ class WorkerScheduler:
                 return state["result"], state["retry_safe"]
             receipt = state.get("receipt")
         if receipt is None:
-            return timeout_result, False
+            receipt_ready.wait(timeout=self.worker_timeout_seconds)
+            with state_lock:
+                if done.is_set():
+                    return state["result"], state["retry_safe"]
+                receipt = state.get("receipt")
+            if receipt is None:
+                return timeout_result, False
 
         try:
-            if self.dispatcher.cancel(receipt.worker_id):
-                done.wait(timeout=self.worker_timeout_seconds)
-                return timeout_result, True
+            cancel = self.dispatcher.cancel
+            parameters = inspect.signature(cancel).parameters.values()
+            supports_timeout = "timeout" in inspect.signature(cancel).parameters or any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters
+            )
+            accepted = (
+                cancel(receipt.worker_id, timeout=self.worker_timeout_seconds)
+                if supports_timeout
+                else cancel(receipt.worker_id)
+            )
+            if accepted:
+                quiescent = done.wait(timeout=self.worker_timeout_seconds)
+                return timeout_result, quiescent
         except Exception:
             return timeout_result, False
 

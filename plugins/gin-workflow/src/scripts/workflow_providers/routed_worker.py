@@ -13,12 +13,16 @@ from workflow_core.events import WorkflowEvent, WorkflowEventStore
 
 from .circuit_breaker import CircuitBreakerStore, FailureKind
 from .worker_dispatch import (
+    DEFAULT_CANCELLATION_TIMEOUT_SECONDS,
     TERMINAL_WORKER_STATES,
     WorkerReceipt,
     WorkerRequest,
     WorkerResult,
     WorkerState,
+    cancelled_worker_result,
+    collect_adapter_result,
     failed_worker_result,
+    request_adapter_cancellation,
     worker_acceptance_key,
     worker_id_for,
     worker_request_identity,
@@ -45,7 +49,13 @@ class _RouteRecord:
     explicit_model_selection: bool | None = None
     result: WorkerResult | None = None
     released: bool = False
-    finish_lock: threading.Lock = field(default_factory=threading.Lock)
+    finish_lock: threading.Condition = field(default_factory=threading.Condition)
+    cancel_in_progress: bool = False
+    cancellation_decided: bool = False
+    cancellation_accepted: bool = False
+    cancellation_error: BaseException | None = None
+    cancellation_abandoned: bool = False
+    forced_result: WorkerResult | None = None
 
 
 class RoutedWorkerDispatcher:
@@ -394,12 +404,20 @@ class RoutedWorkerDispatcher:
             record.capacity.release()
             record.released = True
 
-    def collect_result(self, worker_id: str, timeout: float | None = None) -> WorkerResult:
-        record = self._records[worker_id]
+    def _commit_result(self, record: _RouteRecord, result: WorkerResult) -> WorkerResult:
         with record.finish_lock:
+            while (
+                record.cancel_in_progress
+                and not record.cancellation_abandoned
+                and record.result is None
+            ):
+                record.finish_lock.wait()
             if record.result is not None:
                 return record.result
-            result = record.adapter.collect_result(worker_id, timeout=timeout)
+            if record.forced_result is not None:
+                result = record.forced_result
+            elif record.cancellation_accepted:
+                result = cancelled_worker_result(record.request)
             candidate = record.candidate
             assert candidate is not None
             provider_failure = next(
@@ -437,7 +455,7 @@ class RoutedWorkerDispatcher:
                 "cancelled": WorkerState.CANCELLED,
             }[result.status]
             record.receipt = RoutedWorkerReceipt(
-                worker_id,
+                record.receipt.worker_id,
                 state,
                 record.request.task_id,
                 candidate.provider,
@@ -450,10 +468,17 @@ class RoutedWorkerDispatcher:
                 record.request,
                 result.status,
                 candidate=candidate,
-                worker_id=worker_id,
+                worker_id=record.receipt.worker_id,
                 explicit_model_selection=record.explicit_model_selection,
             )
             return result
+
+    def collect_result(self, worker_id: str, timeout: float | None = None) -> WorkerResult:
+        record = self._records[worker_id]
+        if record.result is not None:
+            return record.result
+        result = collect_adapter_result(record.adapter, worker_id, timeout)
+        return self._commit_result(record, result)
 
     def status(self, worker_id: str) -> RoutedWorkerReceipt:
         record = self._records[worker_id]
@@ -461,21 +486,51 @@ class RoutedWorkerDispatcher:
             receipt = record.adapter.status(worker_id)
             candidate = record.candidate
             assert candidate is not None
-            record.receipt = RoutedWorkerReceipt(
-                worker_id,
-                receipt.state,
-                receipt.task_id,
-                candidate.provider,
-                candidate.model,
-                candidate.fallback,
-            )
+            with record.finish_lock:
+                if record.result is not None or record.receipt.state in TERMINAL_WORKER_STATES:
+                    return record.receipt
+                record.receipt = RoutedWorkerReceipt(
+                    worker_id,
+                    receipt.state,
+                    receipt.task_id,
+                    candidate.provider,
+                    candidate.model,
+                    candidate.fallback,
+                )
         return record.receipt
 
-    def cancel(self, worker_id: str) -> bool:
+    def cancel(
+        self,
+        worker_id: str,
+        timeout: float | None = DEFAULT_CANCELLATION_TIMEOUT_SECONDS,
+    ) -> bool:
+        if timeout is not None and timeout < 0:
+            raise ValueError("cancellation timeout cannot be negative")
         record = self._records[worker_id]
         if record.adapter is None:
             return False
-        cancelled = bool(record.adapter.cancel(worker_id))
-        if cancelled:
-            self.collect_result(worker_id)
-        return cancelled
+        started_at = time.monotonic()
+        decision_timeout_result = cancelled_worker_result(
+            record.request,
+            "cancellation_decision_timeout",
+            "provider cancellation decision exceeded its deadline",
+        )
+        try:
+            accepted = request_adapter_cancellation(
+                record, worker_id, timeout, decision_timeout_result
+            )
+        except TimeoutError:
+            self._commit_result(record, decision_timeout_result)
+            raise
+        if not accepted:
+            return False
+        remaining = (
+            None
+            if timeout is None
+            else max(0.0, timeout - (time.monotonic() - started_at))
+        )
+        try:
+            self.collect_result(worker_id, timeout=remaining)
+        except TimeoutError:
+            self._commit_result(record, cancelled_worker_result(record.request))
+        return True

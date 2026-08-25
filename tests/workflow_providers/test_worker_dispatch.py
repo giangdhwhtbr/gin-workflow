@@ -17,6 +17,7 @@ from workflow_core.manifests import ContextRequest, create_context_manifest  # n
 from workflow_providers.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from workflow_providers.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
+    SynchronousWorkerAdapter,
     WorkerDispatcher,
     WorkerRequest,
     WorkerResult,
@@ -462,6 +463,375 @@ class WorkerDispatchTests(unittest.TestCase):
             self.assertEqual(
                 ["worker.requested", "worker.assigned", "worker.cancelled"],
                 [event.event_type for event in store.read_all()],
+            )
+
+    def test_cancel_waits_for_accepted_adapter_to_reach_terminal_state(self):
+        runner_started = threading.Event()
+        cancellation_seen = threading.Event()
+        release_terminal = threading.Event()
+
+        def cancellable_runner(payload, cancel_event):
+            runner_started.set()
+            self.assertTrue(cancel_event.wait(timeout=1))
+            cancellation_seen.set()
+            release_terminal.wait(timeout=2)
+            return {
+                **valid_result(payload["task_id"]),
+                "status": "cancelled",
+                "summary": "cancelled",
+                "blockers": ["provider_failure:cancelled"],
+            }
+
+        adapter = SynchronousWorkerAdapter(None, cancellable_runner=cancellable_runner)
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            dispatcher = WorkerDispatcher(adapter, store)
+            receipt = dispatcher.dispatch(request())
+            self.assertTrue(runner_started.wait(timeout=1))
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                pending = executor.submit(dispatcher.cancel, receipt.worker_id)
+                self.assertTrue(cancellation_seen.wait(timeout=1))
+                returned_before_terminal = pending.done()
+                release_terminal.set()
+                cancelled = pending.result(timeout=1)
+
+            self.assertFalse(returned_before_terminal)
+            self.assertTrue(cancelled)
+            self.assertEqual("cancelled", dispatcher.collect_result(receipt.worker_id).status)
+            self.assertEqual(
+                ["worker.cancelled"],
+                [
+                    event.event_type
+                    for event in store.read_all()
+                    if event.event_type == "worker.cancelled"
+                ],
+            )
+
+    def test_cancel_deadline_seals_non_cooperative_runner_as_cancelled(self):
+        runner_started = threading.Event()
+        cancellation_seen = threading.Event()
+        release_terminal = threading.Event()
+
+        def non_cooperative_runner(payload, cancel_event):
+            runner_started.set()
+            self.assertTrue(cancel_event.wait(timeout=1))
+            cancellation_seen.set()
+            release_terminal.wait(timeout=1)
+            return valid_result(payload["task_id"])
+
+        adapter = SynchronousWorkerAdapter(None, cancellable_runner=non_cooperative_runner)
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            dispatcher = WorkerDispatcher(adapter, store)
+            receipt = dispatcher.dispatch(request())
+            self.assertTrue(runner_started.wait(timeout=1))
+
+            started_at = time.monotonic()
+            try:
+                accepted = dispatcher.cancel(receipt.worker_id, timeout=0.05)
+                elapsed = time.monotonic() - started_at
+                self.assertTrue(cancellation_seen.is_set())
+                self.assertTrue(accepted)
+                self.assertLess(elapsed, 0.15)
+                self.assertEqual("cancelled", dispatcher.collect_result(receipt.worker_id).status)
+            finally:
+                release_terminal.set()
+
+            deadline = time.monotonic() + 1
+            while adapter.status(receipt.worker_id).state is WorkerState.STARTED:
+                self.assertLess(time.monotonic(), deadline)
+                time.sleep(0.01)
+            self.assertEqual("cancelled", dispatcher.collect_result(receipt.worker_id).status)
+            self.assertEqual(
+                ["worker.cancelled"],
+                [
+                    event.event_type
+                    for event in store.read_all()
+                    if event.event_type in {"worker.completed", "worker.cancelled"}
+                ],
+            )
+
+    def test_accepted_cancel_cannot_be_masked_by_completed_runner_result(self):
+        runner_started = threading.Event()
+
+        def completes_after_cancel(payload, cancel_event):
+            runner_started.set()
+            self.assertTrue(cancel_event.wait(timeout=1))
+            return valid_result(payload["task_id"])
+
+        adapter = SynchronousWorkerAdapter(None, cancellable_runner=completes_after_cancel)
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            dispatcher = WorkerDispatcher(adapter, store)
+            receipt = dispatcher.dispatch(request())
+            self.assertTrue(runner_started.wait(timeout=1))
+
+            self.assertTrue(dispatcher.cancel(receipt.worker_id, timeout=0.2))
+            self.assertEqual("cancelled", dispatcher.collect_result(receipt.worker_id).status)
+            self.assertEqual(
+                ["worker.cancelled"],
+                [
+                    event.event_type
+                    for event in store.read_all()
+                    if event.event_type in {"worker.completed", "worker.cancelled"}
+                ],
+            )
+
+    def test_cancel_does_not_deadlock_with_started_callback(self):
+        adapter_lock_held = threading.Event()
+        cancel_entered = threading.Event()
+        allow_callback = threading.Event()
+
+        class CallbackWindowAdapter(SynchronousWorkerAdapter):
+            def start(self, worker_id, on_started=None):
+                with self._lock:
+                    adapter_lock_held.set()
+                    allow_callback.wait(timeout=1)
+                    return super().start(worker_id, on_started=on_started)
+
+            def cancel(self, worker_id):
+                cancel_entered.set()
+                return super().cancel(worker_id)
+
+        adapter = CallbackWindowAdapter(
+            None,
+            cancellable_runner=lambda payload, cancel_event: {
+                **valid_result(payload["task_id"]),
+                "status": "cancelled",
+                "summary": "cancelled",
+                "blockers": ["cancelled"],
+            },
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            dispatcher = WorkerDispatcher(
+                adapter, WorkflowEventStore(Path(directory) / "events.jsonl")
+            )
+            item = request()
+            worker_id = worker_id_for("worker", item)
+            dispatch_thread = threading.Thread(
+                target=dispatcher.dispatch, args=(item,), daemon=True
+            )
+            cancel_thread = threading.Thread(
+                target=dispatcher.cancel, args=(worker_id,), daemon=True
+            )
+            dispatch_thread.start()
+            self.assertTrue(adapter_lock_held.wait(timeout=1))
+            cancel_thread.start()
+            self.assertTrue(cancel_entered.wait(timeout=1))
+            allow_callback.set()
+            dispatch_thread.join(timeout=0.5)
+            cancel_thread.join(timeout=0.5)
+
+            self.assertFalse(dispatch_thread.is_alive())
+            self.assertFalse(cancel_thread.is_alive())
+
+    def test_internal_type_error_cannot_bypass_cancel_deadline(self):
+        release_terminal = threading.Event()
+
+        class InternalTypeErrorAdapter(SynchronousWorkerAdapter):
+            def collect_result(self, worker_id, timeout=None):
+                if timeout is not None:
+                    raise TypeError("provider decode failure")
+                release_terminal.wait(timeout=1)
+                return super().collect_result(worker_id, timeout=0)
+
+        adapter = InternalTypeErrorAdapter(
+            None,
+            cancellable_runner=lambda payload, cancel_event: (
+                release_terminal.wait(timeout=1) or valid_result(payload["task_id"])
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            dispatcher = WorkerDispatcher(
+                adapter, WorkflowEventStore(Path(directory) / "events.jsonl")
+            )
+            receipt = dispatcher.dispatch(request())
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                pending = executor.submit(dispatcher.cancel, receipt.worker_id, 0.02)
+                finished_within_deadline = False
+                try:
+                    accepted = pending.result(timeout=0.15)
+                    finished_within_deadline = True
+                finally:
+                    release_terminal.set()
+                self.assertTrue(pending.result(timeout=1))
+
+            self.assertTrue(finished_within_deadline)
+            self.assertTrue(accepted)
+            self.assertEqual("cancelled", dispatcher.collect_result(receipt.worker_id).status)
+
+    def test_status_cannot_overwrite_canonical_cancelled_receipt(self):
+        status_captured = threading.Event()
+        release_status = threading.Event()
+        release_terminal = threading.Event()
+
+        class PausingStatusAdapter(SynchronousWorkerAdapter):
+            def status(self, worker_id):
+                snapshot = super().status(worker_id)
+                status_captured.set()
+                release_status.wait(timeout=1)
+                return snapshot
+
+        adapter = PausingStatusAdapter(
+            None,
+            cancellable_runner=lambda payload, cancel_event: (
+                release_terminal.wait(timeout=1) or valid_result(payload["task_id"])
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            dispatcher = WorkerDispatcher(
+                adapter, WorkflowEventStore(Path(directory) / "events.jsonl")
+            )
+            receipt = dispatcher.dispatch(request())
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                pending_status = executor.submit(dispatcher.status, receipt.worker_id)
+                self.assertTrue(status_captured.wait(timeout=1))
+                self.assertTrue(dispatcher.cancel(receipt.worker_id, timeout=0.02))
+                release_status.set()
+                observed = pending_status.result(timeout=1)
+            release_terminal.set()
+
+            self.assertEqual(WorkerState.CANCELLED, observed.state)
+            self.assertEqual(WorkerState.CANCELLED, dispatcher.status(receipt.worker_id).state)
+            self.assertEqual("cancelled", dispatcher.collect_result(receipt.worker_id).status)
+
+    def test_provider_cancel_call_is_bounded_by_deadline(self):
+        cancel_entered = threading.Event()
+        release_cancel = threading.Event()
+
+        class BlockingCancelAdapter(SynchronousWorkerAdapter):
+            def cancel(self, worker_id):
+                cancel_entered.set()
+                release_cancel.wait(timeout=1)
+                return super().cancel(worker_id)
+
+        adapter = BlockingCancelAdapter(
+            None,
+            cancellable_runner=lambda payload, cancel_event: valid_result(payload["task_id"]),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            dispatcher = WorkerDispatcher(
+                adapter, WorkflowEventStore(Path(directory) / "events.jsonl")
+            )
+            receipt = dispatcher.dispatch(request())
+
+            def invoke_cancel():
+                try:
+                    dispatcher.cancel(receipt.worker_id, timeout=0.02)
+                except TimeoutError:
+                    return "timeout"
+                return "returned"
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                pending = executor.submit(invoke_cancel)
+                self.assertTrue(cancel_entered.wait(timeout=1))
+                completed_within_deadline = False
+                try:
+                    outcome = pending.result(timeout=0.15)
+                    completed_within_deadline = True
+                finally:
+                    release_cancel.set()
+                pending.result(timeout=1)
+
+            self.assertTrue(completed_within_deadline)
+            self.assertEqual("timeout", outcome)
+
+    def test_concurrent_cancel_calls_provider_once(self):
+        cancel_entered = threading.Event()
+        release_cancel = threading.Event()
+        release_terminal = threading.Event()
+        cancel_calls = 0
+        cancel_lock = threading.Lock()
+
+        class CountingCancelAdapter(SynchronousWorkerAdapter):
+            def cancel(self, worker_id):
+                nonlocal cancel_calls
+                with cancel_lock:
+                    cancel_calls += 1
+                cancel_entered.set()
+                release_cancel.wait(timeout=1)
+                return super().cancel(worker_id)
+
+        adapter = CountingCancelAdapter(
+            None,
+            cancellable_runner=lambda payload, cancel_event: (
+                release_terminal.wait(timeout=1) or valid_result(payload["task_id"])
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            dispatcher = WorkerDispatcher(
+                adapter, WorkflowEventStore(Path(directory) / "events.jsonl")
+            )
+            receipt = dispatcher.dispatch(request())
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                first = executor.submit(dispatcher.cancel, receipt.worker_id, 0.05)
+                self.assertTrue(cancel_entered.wait(timeout=1))
+                second = executor.submit(dispatcher.cancel, receipt.worker_id, 0.05)
+                release_cancel.set()
+                self.assertTrue(first.result(timeout=1))
+                self.assertTrue(second.result(timeout=1))
+            release_terminal.set()
+
+            self.assertEqual(1, cancel_calls)
+            self.assertEqual("cancelled", dispatcher.collect_result(receipt.worker_id).status)
+
+    def test_abandonment_forces_cancelled_before_waiting_collector_commits(self):
+        cancel_entered = threading.Event()
+        release_cancel = threading.Event()
+        seal_started = threading.Event()
+        collector_committed = threading.Event()
+
+        class BlockingCancelAdapter(SynchronousWorkerAdapter):
+            def cancel(self, worker_id):
+                cancel_entered.set()
+                release_cancel.wait(timeout=1)
+                return super().cancel(worker_id)
+
+        class PausingSealDispatcher(WorkerDispatcher):
+            def _commit_result(self, record, worker_result):
+                if worker_result.status == "cancelled" and record.cancellation_abandoned:
+                    seal_started.set()
+                    collector_committed.wait(timeout=1)
+                committed = super()._commit_result(record, worker_result)
+                if worker_result.status == "completed":
+                    collector_committed.set()
+                return committed
+
+        adapter = BlockingCancelAdapter(
+            lambda payload: valid_result(payload["task_id"])
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            dispatcher = PausingSealDispatcher(adapter, store)
+            receipt = dispatcher.dispatch(request())
+
+            def invoke_cancel():
+                try:
+                    dispatcher.cancel(receipt.worker_id, timeout=0.02)
+                except TimeoutError:
+                    return "timeout"
+                return "returned"
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                pending_cancel = executor.submit(invoke_cancel)
+                self.assertTrue(cancel_entered.wait(timeout=1))
+                pending_result = executor.submit(
+                    dispatcher.collect_result, receipt.worker_id
+                )
+                self.assertTrue(seal_started.wait(timeout=1))
+                normalized = pending_result.result(timeout=1)
+                self.assertEqual("timeout", pending_cancel.result(timeout=1))
+            release_cancel.set()
+
+            self.assertEqual("cancelled", normalized.status)
+            self.assertEqual(
+                ["worker.cancelled"],
+                [
+                    event.event_type
+                    for event in store.read_all()
+                    if event.event_type in {"worker.completed", "worker.cancelled"}
+                ],
             )
 
     def test_native_cancelled_exception_preserves_acceptance_identity(self):

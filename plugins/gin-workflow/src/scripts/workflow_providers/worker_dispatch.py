@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
+import inspect
 import json
 import re
 import threading
+import time
 from typing import Any, Callable, Mapping
 
 from workflow_core.events import WorkflowEvent, WorkflowEventStore
@@ -48,6 +50,102 @@ TERMINAL_WORKER_STATES = frozenset(
         WorkerState.UNAVAILABLE,
     }
 )
+DEFAULT_CANCELLATION_TIMEOUT_SECONDS = 30.0
+
+
+def collect_adapter_result(
+    adapter: Any,
+    worker_id: str,
+    timeout: float | None,
+) -> Any:
+    """Collect with a real deadline, including legacy adapters without timeout support."""
+    collect = adapter.collect_result
+    try:
+        parameters = inspect.signature(collect).parameters
+        supports_timeout = "timeout" in parameters or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        )
+    except (TypeError, ValueError):
+        supports_timeout = False
+    if supports_timeout:
+        return collect(worker_id, timeout=timeout)
+    if timeout is None:
+        return collect(worker_id)
+
+    completed = threading.Event()
+    state: dict[str, Any] = {}
+
+    def run() -> None:
+        try:
+            state["result"] = collect(worker_id)
+        except BaseException as error:
+            state["error"] = error
+        finally:
+            completed.set()
+
+    threading.Thread(
+        target=run,
+        name=f"legacy-collect:{worker_id}",
+        daemon=True,
+    ).start()
+    if not completed.wait(timeout=timeout):
+        raise TimeoutError(f"worker result deadline exceeded: {worker_id}")
+    if "error" in state:
+        raise state["error"]
+    return state["result"]
+
+
+def request_adapter_cancellation(
+    record: Any,
+    worker_id: str,
+    timeout: float | None,
+    timeout_result: WorkerResult,
+) -> bool:
+    """Resolve one provider cancellation decision within a shared deadline."""
+    deadline = None if timeout is None else time.monotonic() + timeout
+    with record.finish_lock:
+        if record.result is not None or record.receipt.state in TERMINAL_WORKER_STATES:
+            return False
+        if not record.cancellation_decided and not record.cancel_in_progress:
+            record.cancel_in_progress = True
+            owner = True
+        else:
+            owner = False
+
+    if owner:
+        def decide() -> None:
+            accepted = False
+            error: BaseException | None = None
+            try:
+                accepted = bool(record.adapter.cancel(worker_id))
+            except BaseException as caught:
+                error = caught
+            with record.finish_lock:
+                record.cancel_in_progress = False
+                record.cancellation_decided = True
+                record.cancellation_accepted = accepted
+                record.cancellation_error = error
+                record.finish_lock.notify_all()
+
+        threading.Thread(
+            target=decide,
+            name=f"cancel-decision:{worker_id}",
+            daemon=True,
+        ).start()
+
+    with record.finish_lock:
+        while record.cancel_in_progress:
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0:
+                record.cancellation_abandoned = True
+                record.forced_result = timeout_result
+                record.finish_lock.notify_all()
+                raise TimeoutError(f"worker cancellation deadline exceeded: {worker_id}")
+            record.finish_lock.wait(timeout=remaining)
+        if record.cancellation_error is not None:
+            raise record.cancellation_error
+        return record.cancellation_accepted
 
 
 class WorkerResultContractError(ValueError):
@@ -706,9 +804,15 @@ class _DispatchRecord:
     adapter: Any
     receipt: WorkerReceipt
     result: WorkerResult | None = None
-    finish_lock: threading.Lock = field(default_factory=threading.Lock)
+    finish_lock: threading.Condition = field(default_factory=threading.Condition)
     lifecycle_ready: threading.Event = field(default_factory=threading.Event)
     dispatch_ready: threading.Event = field(default_factory=threading.Event)
+    cancel_in_progress: bool = False
+    cancellation_decided: bool = False
+    cancellation_accepted: bool = False
+    cancellation_error: BaseException | None = None
+    cancellation_abandoned: bool = False
+    forced_result: WorkerResult | None = None
 
 
 class WorkerDispatcher:
@@ -894,24 +998,20 @@ class WorkerDispatcher:
                 record.dispatch_ready.set()
         return record.receipt
 
-    def _finish(self, record: _DispatchRecord, timeout: float | None = None) -> WorkerResult:
-        if record.result is not None:
-            return record.result
-        try:
-            try:
-                result = record.adapter.collect_result(record.receipt.worker_id, timeout=timeout)
-            except TypeError:
-                result = record.adapter.collect_result(record.receipt.worker_id)
-            result = normalize_worker_result(result, record.request)
-        except TimeoutError:
-            raise
-        except WorkerResultContractError as error:
-            result = failed_worker_result(record.request, "invalid_result_contract", str(error))
-        except Exception as error:
-            result = failed_worker_result(record.request, "worker_exception", str(error))
+    def _commit_result(self, record: _DispatchRecord, result: WorkerResult) -> WorkerResult:
         with record.finish_lock:
+            while (
+                record.cancel_in_progress
+                and not record.cancellation_abandoned
+                and record.result is None
+            ):
+                record.finish_lock.wait()
             if record.result is not None:
                 return record.result
+            if record.forced_result is not None:
+                result = record.forced_result
+            elif record.cancellation_accepted:
+                result = cancelled_worker_result(record.request)
             state = {
                 "completed": WorkerState.COMPLETED,
                 "failed": WorkerState.FAILED,
@@ -935,6 +1035,22 @@ class WorkerDispatcher:
             )
             return result
 
+    def _finish(self, record: _DispatchRecord, timeout: float | None = None) -> WorkerResult:
+        if record.result is not None:
+            return record.result
+        try:
+            result = collect_adapter_result(
+                record.adapter, record.receipt.worker_id, timeout
+            )
+            result = normalize_worker_result(result, record.request)
+        except TimeoutError:
+            raise
+        except WorkerResultContractError as error:
+            result = failed_worker_result(record.request, "invalid_result_contract", str(error))
+        except Exception as error:
+            result = failed_worker_result(record.request, "worker_exception", str(error))
+        return self._commit_result(record, result)
+
     def collect_result(self, worker_id: str, timeout: float | None = None) -> WorkerResult:
         with self._lock:
             try:
@@ -954,36 +1070,55 @@ class WorkerDispatcher:
         adapter_receipt = record.adapter.status(worker_id)
         if adapter_receipt.state in TERMINAL_WORKER_STATES:
             self._finish(record, timeout=0)
-        else:
-            record.receipt = WorkerReceipt(
-                worker_id,
-                adapter_receipt.state,
-                record.receipt.task_id,
-                record.receipt.fallback_used,
-            )
+        with record.finish_lock:
+            if record.result is not None or record.receipt.state in TERMINAL_WORKER_STATES:
+                return record.receipt
+            if adapter_receipt.state not in TERMINAL_WORKER_STATES:
+                record.receipt = WorkerReceipt(
+                    worker_id,
+                    adapter_receipt.state,
+                    record.receipt.task_id,
+                    record.receipt.fallback_used,
+                )
+            else:
+                return record.receipt
         return record.receipt
 
-    def cancel(self, worker_id: str) -> bool:
+    def cancel(
+        self,
+        worker_id: str,
+        timeout: float | None = DEFAULT_CANCELLATION_TIMEOUT_SECONDS,
+    ) -> bool:
+        if timeout is not None and timeout < 0:
+            raise ValueError("cancellation timeout cannot be negative")
         with self._lock:
             try:
                 record = self._records[worker_id]
             except KeyError as error:
                 raise KeyError(f"unknown worker: {worker_id}") from error
         record.lifecycle_ready.wait()
-        with record.finish_lock:
-            if record.result is not None or record.receipt.state in TERMINAL_WORKER_STATES:
-                return False
-        if not record.adapter.cancel(worker_id):
-            return False
-        with record.finish_lock:
-            if record.result is not None:
-                return record.receipt.state is WorkerState.CANCELLED
-            adapter_receipt = record.adapter.status(worker_id)
-            if adapter_receipt.state is not WorkerState.CANCELLED:
-                return False
-            record.result = cancelled_worker_result(record.request)
-            record.receipt = WorkerReceipt(
-                worker_id, WorkerState.CANCELLED, record.request.task_id, record.receipt.fallback_used
+        started_at = time.monotonic()
+        decision_timeout_result = cancelled_worker_result(
+            record.request,
+            "cancellation_decision_timeout",
+            "provider cancellation decision exceeded its deadline",
+        )
+        try:
+            accepted = request_adapter_cancellation(
+                record, worker_id, timeout, decision_timeout_result
             )
-            self._emit(record.request, "cancelled", worker_id=worker_id)
-            return True
+        except TimeoutError:
+            self._commit_result(record, decision_timeout_result)
+            raise
+        if not accepted:
+            return False
+        remaining = (
+            None
+            if timeout is None
+            else max(0.0, timeout - (time.monotonic() - started_at))
+        )
+        try:
+            self._finish(record, timeout=remaining)
+        except TimeoutError:
+            self._commit_result(record, cancelled_worker_result(record.request))
+        return True
