@@ -7,6 +7,9 @@ import re
 from typing import Any, Callable, Mapping
 
 from .native_cli import (
+    MODEL_PROBE_PROMPT,
+    MODEL_PROBE_TIMEOUT_SECONDS,
+    NativeCliError,
     NativeCliInvocation,
     NativeCliRunner,
     NativeHealth,
@@ -14,6 +17,7 @@ from .native_cli import (
     probe_help,
     worker_prompt,
 )
+from .circuit_breaker import FailureKind
 from .worker_dispatch import SynchronousWorkerAdapter, WorkerRequest, WorkerResult
 
 
@@ -44,7 +48,14 @@ def build_codex_invocation(
     )
 
 
-def codex_health(executable: str, *, help_text: str | None = None) -> NativeHealth:
+def codex_health(
+    executable: str,
+    *,
+    help_text: str | None = None,
+    model: str | None = None,
+    native_runner: NativeCliRunner | None = None,
+    workspace: Path | None = None,
+) -> NativeHealth:
     help_text = probe_help(executable, "exec", "--help") if help_text is None else help_text
     if help_text is None:
         return NativeHealth(False, "executable_or_help_unavailable", False)
@@ -54,11 +65,27 @@ def codex_health(executable: str, *, help_text: str | None = None) -> NativeHeal
         flag in options
         for flag in ("--model", "--json", "--ephemeral", "--approve-for-me", "--cd")
     )
-    return NativeHealth(
+    health = NativeHealth(
         supported,
         "ready" if supported else "required_flags_unverified",
         model_selection,
     )
+    if not supported or model is None or native_runner is None or workspace is None:
+        return health
+    try:
+        native_runner.run(
+            build_codex_invocation(
+                executable,
+                model,
+                workspace,
+                MODEL_PROBE_PROMPT,
+                timeout_seconds=MODEL_PROBE_TIMEOUT_SECONDS,
+            )
+        )
+    except NativeCliError as error:
+        if error.kind is FailureKind.INVALID_MODEL:
+            return NativeHealth(False, "invalid_model", model_selection)
+    return health
 
 
 def _payload(request: WorkerRequest) -> Mapping[str, Any]:

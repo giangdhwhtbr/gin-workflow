@@ -147,6 +147,11 @@ class WorkerScheduler:
         isolated = self.workspace.isolate(workspace_request.workspace_id)
         if isolated.status is not OperationStatus.SUCCESS or not isolated.value.isolated:
             raise RuntimeError(isolated.message or "workspace isolation failed")
+        bootstrap = getattr(self.workspace, "bootstrap", None)
+        if callable(bootstrap):
+            bootstrapped = bootstrap(workspace_request.workspace_id)
+            if bootstrapped.status is not OperationStatus.SUCCESS:
+                raise RuntimeError(bootstrapped.message or "workspace bootstrap failed")
         assignee = f"worker:{request.workflow_id}:{request.task_id}"
         tracking_task_id = request.task_id
         records = getattr(self.task_tracking, "tasks", None)
@@ -262,6 +267,12 @@ class WorkerScheduler:
             )
             if accepted:
                 quiescent = done.wait(timeout=self.worker_timeout_seconds)
+                if quiescent:
+                    # The attempt actually finished (e.g. the native runner reported
+                    # a real cancelled/failed result with partial changed_files) --
+                    # report that real outcome instead of a synthetic empty one.
+                    with state_lock:
+                        return state["result"], state["retry_safe"]
                 return timeout_result, quiescent
         except Exception:
             return timeout_result, False

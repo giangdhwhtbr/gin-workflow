@@ -15,6 +15,9 @@ from types import MappingProxyType
 from typing import Callable
 
 from .circuit_breaker import FailureKind
+from .worker_dispatch import _SECRET_VALUE
+
+MAX_DIAGNOSTIC_CHARS = 2000
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,7 @@ class NativeCliInvocation:
     cwd: Path
     stdin: bytes
     timeout_seconds: float
+    idle_timeout_seconds: float | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "argv", tuple(str(item) for item in self.argv))
@@ -30,6 +34,8 @@ class NativeCliInvocation:
         object.__setattr__(self, "stdin", bytes(self.stdin))
         if not self.argv or self.timeout_seconds <= 0:
             raise ValueError("native CLI requires argv and positive timeout")
+        if self.idle_timeout_seconds is not None and self.idle_timeout_seconds <= 0:
+            raise ValueError("native CLI idle_timeout_seconds must be positive when set")
 
     @property
     def shell(self) -> bool:
@@ -60,8 +66,15 @@ class NativeHealth:
 
 
 class NativeCliError(RuntimeError):
-    def __init__(self, kind: FailureKind, message: str) -> None:
+    def __init__(
+        self,
+        kind: FailureKind,
+        message: str,
+        *,
+        changed_files: tuple[str, ...] = (),
+    ) -> None:
         self.kind = kind
+        self.changed_files = tuple(changed_files)
         super().__init__(message)
 
 
@@ -102,6 +115,10 @@ def probe_help(executable: str, *arguments: str) -> str | None:
     if completed.returncode:
         return None
     return completed.stdout.decode("utf-8", errors="replace")
+
+
+MODEL_PROBE_PROMPT = "Reply with exactly the single word OK. Do not read, write, or modify any files."
+MODEL_PROBE_TIMEOUT_SECONDS = 30.0
 
 
 def worker_prompt(payload: Mapping[str, object]) -> str:
@@ -145,9 +162,94 @@ def classify_native_failure(stderr: str) -> FailureKind:
         return FailureKind.RATE_LIMIT
     if any(token in diagnostic for token in ("unauthorized", "authentication", "not logged in", "401")):
         return FailureKind.AUTH
+    if "model" in diagnostic and any(
+        token in diagnostic
+        for token in (
+            "not supported",
+            "unsupported",
+            "not a valid model",
+            "invalid model",
+            "unknown model",
+            "no access to",
+        )
+    ):
+        return FailureKind.INVALID_MODEL
     if any(token in diagnostic for token in ("service unavailable", "connection refused", "502", "503")):
         return FailureKind.SERVICE
     return FailureKind.CRASH
+
+
+def _redact_secrets(text: str) -> str:
+    return _SECRET_VALUE.sub("[REDACTED]", text)
+
+
+def _diagnostic_from_stdout(stdout: bytes) -> str | None:
+    """Best-effort extraction of an error/message field from JSON(L) stdout records."""
+    text = stdout.decode("utf-8", errors="replace").strip()
+    if not text:
+        return None
+    records: list[object] = []
+    try:
+        records.append(json.loads(text))
+    except json.JSONDecodeError:
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    for record in reversed(records):
+        if not isinstance(record, Mapping):
+            continue
+        for field in ("error", "message", "detail", "reason"):
+            value = record.get(field)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+            if isinstance(value, Mapping):
+                inner = value.get("message")
+                if isinstance(inner, str) and inner.strip():
+                    return inner.strip()
+    return None
+
+
+def _classified_diagnostic(kind: FailureKind, stdout: bytes, stderr: bytes) -> str:
+    """Sanitized, bounded diagnostic text for a classified native CLI failure."""
+    diagnostic = _diagnostic_from_stdout(stdout) or stderr.decode("utf-8", errors="replace").strip()
+    diagnostic = _redact_secrets(diagnostic) or f"native CLI failed with classified reason: {kind.value}"
+    if len(diagnostic) > MAX_DIAGNOSTIC_CHARS:
+        diagnostic = diagnostic[:MAX_DIAGNOSTIC_CHARS] + "...[truncated]"
+    return diagnostic
+
+
+GRACEFUL_STOP_GRACE_SECONDS = 10.0
+POLL_INTERVAL_SECONDS = 0.05
+
+
+def _workspace_changed_files(cwd: Path) -> tuple[str, ...]:
+    """Best-effort real changed-file list for a workspace, e.g. after a kill/cancel."""
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+            cwd=cwd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=sanitized_environment(),
+            timeout=5,
+            check=False,
+            shell=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ()
+    if completed.returncode:
+        return ()
+    files = []
+    for line in completed.stdout.decode("utf-8", errors="replace").splitlines():
+        if len(line) > 3 and line[3:].strip():
+            files.append(line[3:].strip())
+    return tuple(files)
 
 
 def _parse_records(stdout: bytes) -> tuple[Mapping[str, object], ...]:
@@ -203,9 +305,72 @@ class NativeCliRunner:
             raise NativeCliError(FailureKind.CRASH, "native CLI failed to start") from error
 
         deadline = time.monotonic() + invocation.timeout_seconds
-        pending_input: bytes | None = invocation.stdin
+        idle_timeout_seconds = invocation.idle_timeout_seconds
+
+        activity_lock = threading.Lock()
+        last_activity = [time.monotonic()]
+        stdout_chunks: list[bytes] = []
+        stderr_chunks: list[bytes] = []
+
+        def pump(stream, sink: list[bytes]) -> None:
+            try:
+                for chunk in iter(lambda: stream.read(4096), b""):
+                    sink.append(chunk)
+                    with activity_lock:
+                        last_activity[0] = time.monotonic()
+            except (OSError, ValueError):
+                pass
+
+        def feed_stdin() -> None:
+            try:
+                if invocation.stdin:
+                    process.stdin.write(invocation.stdin)
+                process.stdin.close()
+            except (OSError, ValueError, BrokenPipeError):
+                pass
+
+        stdin_thread = threading.Thread(target=feed_stdin, daemon=True)
+        stdout_thread = threading.Thread(target=pump, args=(process.stdout, stdout_chunks), daemon=True)
+        stderr_thread = threading.Thread(target=pump, args=(process.stderr, stderr_chunks), daemon=True)
+        stdin_thread.start()
+        stdout_thread.start()
+        stderr_thread.start()
+
+        def group_alive() -> bool:
+            # process.poll() reaps the leader as soon as it exits; without reaping it
+            # first, killpg(pid, 0) below would keep reporting an unreaped zombie as
+            # "alive" and this check would never observe termination.
+            if process.poll() is None:
+                return True
+            if os.name != "posix":
+                return False
+            try:
+                os.killpg(process.pid, 0)
+                return True
+            except ProcessLookupError:
+                return False
+
+        def wait_until_dead(timeout_seconds: float) -> bool:
+            stop_deadline = time.monotonic() + timeout_seconds
+            while group_alive() and time.monotonic() < stop_deadline:
+                time.sleep(POLL_INTERVAL_SECONDS)
+            return not group_alive()
 
         def terminate_tree() -> None:
+            """Graceful stop signal first (bounded grace window), then force-kill escalation."""
+            try:
+                if os.name == "posix":
+                    os.killpg(process.pid, signal.SIGINT)
+                else:
+                    process.terminate()
+            except ProcessLookupError:
+                pass
+            if wait_until_dead(GRACEFUL_STOP_GRACE_SECONDS):
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
+                return
             try:
                 if os.name == "posix":
                     os.killpg(process.pid, signal.SIGTERM)
@@ -213,18 +378,7 @@ class NativeCliRunner:
                     process.terminate()
             except ProcessLookupError:
                 pass
-            try:
-                process.communicate(timeout=0.2)
-            except subprocess.TimeoutExpired:
-                pass
-            group_alive = False
-            if os.name == "posix":
-                try:
-                    os.killpg(process.pid, 0)
-                    group_alive = True
-                except ProcessLookupError:
-                    pass
-            if group_alive or (os.name != "posix" and process.poll() is None):
+            if not wait_until_dead(0.2):
                 try:
                     if os.name == "posix":
                         os.killpg(process.pid, signal.SIGKILL)
@@ -233,32 +387,69 @@ class NativeCliRunner:
                 except ProcessLookupError:
                     pass
             try:
-                process.communicate(timeout=0.5)
+                process.wait(timeout=0.5)
             except subprocess.TimeoutExpired as error:
                 raise NativeCliError(
                     FailureKind.CRASH, "native CLI process group did not terminate"
                 ) from error
 
+        kind: FailureKind | None = None
+        idle_fired = False
         while True:
-            if cancel_event is not None and cancel_event.is_set():
-                terminate_tree()
-                raise NativeCliError(FailureKind.CANCELLED, "native CLI invocation cancelled")
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                terminate_tree()
-                raise NativeCliError(FailureKind.TIMEOUT, "native CLI invocation timed out")
-            try:
-                stdout, stderr = process.communicate(
-                    input=pending_input,
-                    timeout=min(0.05, remaining),
-                )
+            if process.poll() is not None:
                 break
-            except subprocess.TimeoutExpired:
-                pending_input = None
+            if cancel_event is not None and cancel_event.is_set():
+                kind = FailureKind.CANCELLED
+                break
+            if time.monotonic() >= deadline:
+                kind = FailureKind.TIMEOUT
+                break
+            if idle_timeout_seconds is not None:
+                with activity_lock:
+                    quiet_since = last_activity[0]
+                if time.monotonic() - quiet_since >= idle_timeout_seconds:
+                    kind = FailureKind.TIMEOUT
+                    idle_fired = True
+                    break
+            time.sleep(POLL_INTERVAL_SECONDS)
+
+        def close_pipes() -> None:
+            for pipe in (process.stdin, process.stdout, process.stderr):
+                try:
+                    pipe.close()
+                except (OSError, ValueError):
+                    pass
+
+        if kind is not None:
+            terminate_tree()
+            stdin_thread.join(timeout=1)
+            stdout_thread.join(timeout=1)
+            stderr_thread.join(timeout=1)
+            close_pipes()
+            changed_files = _workspace_changed_files(invocation.cwd)
+            if kind is FailureKind.CANCELLED:
+                message = "native CLI invocation cancelled"
+            elif idle_fired:
+                message = (
+                    "native CLI invocation produced no output for "
+                    f"{invocation.idle_timeout_seconds}s (idle timeout)"
+                )
+            else:
+                message = f"native CLI invocation exceeded its {invocation.timeout_seconds}s timeout"
+            raise NativeCliError(kind, message, changed_files=changed_files)
+
+        process.wait()
+        stdin_thread.join(timeout=1)
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
+        close_pipes()
+        stdout = b"".join(stdout_chunks)
+        stderr = b"".join(stderr_chunks)
 
         if process.returncode:
-            kind = classify_native_failure(stderr.decode("utf-8", errors="replace"))
-            raise NativeCliError(kind, f"native CLI failed with classified reason: {kind.value}")
+            failure_kind = classify_native_failure(stderr.decode("utf-8", errors="replace"))
+            diagnostic = _classified_diagnostic(failure_kind, stdout, stderr)
+            raise NativeCliError(failure_kind, diagnostic)
         try:
             records = _parse_records(stdout)
         except UnicodeDecodeError as error:

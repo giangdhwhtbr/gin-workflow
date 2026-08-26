@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -157,6 +158,59 @@ class WorkerAdapterTests(unittest.TestCase):
                     break
                 time.sleep(0.01)
             self.assertIn(process_state(), (None, "Z"))
+
+    def test_native_worker_failure_preserves_classified_kind_and_diagnostic_summary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            executable = root / "rejecting-codex"
+            executable.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "sys.stdin.read()\n"
+                "sys.stderr.write(\"The 'reasoning' model is not supported when using "
+                "Codex with a ChatGPT account.\")\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            executable.chmod(0o755)
+            adapter = CodexWorkerAdapter(
+                native_runner=NativeCliRunner(),
+                executable=str(executable),
+                model="reasoning",
+                workspace=root,
+                timeout_seconds=5,
+            )
+            receipt = adapter.dispatch(request())
+            outcome = adapter.collect_result(receipt.worker_id)
+            self.assertEqual("failed", outcome.status)
+            self.assertEqual(("provider_failure:invalid_model",), outcome.blockers)
+            self.assertIn("not supported", outcome.summary)
+
+    def test_native_worker_timeout_reports_real_changed_files_not_empty(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            executable = root / "editing-claude"
+            executable.write_text(
+                "#!/usr/bin/env python3\n"
+                "from pathlib import Path\n"
+                "import time\n"
+                "Path('report.md').write_text('work in progress')\n"
+                "time.sleep(30)\n",
+                encoding="utf-8",
+            )
+            executable.chmod(0o755)
+            adapter = ClaudeWorkerAdapter(
+                native_runner=NativeCliRunner(),
+                executable=str(executable),
+                model="sonnet",
+                workspace=root,
+                timeout_seconds=0.3,
+            )
+            receipt = adapter.dispatch(request())
+            outcome = adapter.collect_result(receipt.worker_id, timeout=5)
+            self.assertEqual("failed", outcome.status)
+            self.assertIn("report.md", outcome.changed_files)
 
     def test_native_adapters_detect_missing_harness_support(self):
         for adapter_type in (

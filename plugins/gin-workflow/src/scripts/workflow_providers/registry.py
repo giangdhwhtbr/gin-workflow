@@ -305,13 +305,24 @@ class ProviderRegistry:
                     return override
 
                 def check(_candidate):
-                    if provider not in health_cache:
+                    key = (provider, _candidate.model)
+                    if key not in health_cache:
                         local = provider_local.get(provider)
                         builder = health_builders.get(provider)
                         if local is None or builder is None:
                             return False
-                        health_cache[provider] = builder(local.executable)
-                    return health_cache[provider]
+                        if provider in ("claude", "codex"):
+                            probe_workspace = runtime_root / "health-probe" / provider
+                            probe_workspace.mkdir(parents=True, exist_ok=True)
+                            health_cache[key] = builder(
+                                local.executable,
+                                model=_candidate.model,
+                                native_runner=runner,
+                                workspace=probe_workspace,
+                            )
+                        else:
+                            health_cache[key] = builder(local.executable)
+                    return health_cache[key]
 
                 return check
 

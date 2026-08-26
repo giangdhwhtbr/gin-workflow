@@ -569,12 +569,18 @@ def normalize_worker_result(
     )
 
 
-def failed_worker_result(request: WorkerRequest, blocker: str, summary: str = "") -> WorkerResult:
+def failed_worker_result(
+    request: WorkerRequest,
+    blocker: str,
+    summary: str = "",
+    *,
+    changed_files: tuple[str, ...] = (),
+) -> WorkerResult:
     return WorkerResult(
         status="failed",
         task_id=request.task_id,
         summary=summary or blocker,
-        changed_files=(),
+        changed_files=tuple(changed_files),
         commits=(),
         tests=(),
         evidence=(),
@@ -587,6 +593,8 @@ def cancelled_worker_result(
     request: WorkerRequest,
     blocker: str = "cancelled",
     summary: str = "cancelled",
+    *,
+    changed_files: tuple[str, ...] = (),
 ) -> WorkerResult:
     """Create cancellation through the same identity-bound result contract."""
     return normalize_worker_result(
@@ -594,7 +602,7 @@ def cancelled_worker_result(
             status="cancelled",
             task_id=request.task_id,
             summary=summary,
-            changed_files=(),
+            changed_files=tuple(changed_files),
             commits=(),
             tests=(),
             evidence=(),
@@ -739,10 +747,11 @@ class SynchronousWorkerAdapter:
             kind = getattr(error, "kind", None)
             kind_value = getattr(kind, "value", None)
             blocker = f"provider_failure:{kind_value}" if kind_value else "worker_exception"
+            changed_files = tuple(getattr(error, "changed_files", ()) or ())
             if kind_value == "cancelled":
-                result = cancelled_worker_result(request, blocker, str(error))
+                result = cancelled_worker_result(request, blocker, str(error), changed_files=changed_files)
             else:
-                result = failed_worker_result(request, blocker, str(error))
+                result = failed_worker_result(request, blocker, str(error), changed_files=changed_files)
         state = {
             "completed": WorkerState.COMPLETED,
             "failed": WorkerState.FAILED,
@@ -1010,7 +1019,12 @@ class WorkerDispatcher:
                 return record.result
             if record.forced_result is not None:
                 result = record.forced_result
-            elif record.cancellation_accepted:
+            elif record.cancellation_accepted and result.status != "cancelled":
+                # The adapter raced ahead of the accepted cancellation (e.g. reported
+                # completed/failed); force a cancelled outcome for safety. When the
+                # adapter already reports "cancelled" its result carries the real
+                # partial changed_files/tests from the native runner -- keep it
+                # rather than discarding that evidence for a context-free stand-in.
                 result = cancelled_worker_result(record.request)
             state = {
                 "completed": WorkerState.COMPLETED,

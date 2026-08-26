@@ -27,6 +27,7 @@ class FailureKind(str, Enum):
     SERVICE = "service"
     TIMEOUT = "timeout"
     CRASH = "crash"
+    INVALID_MODEL = "invalid_model"
     TASK = "task"
     TEST = "test"
     REVIEW = "review"
@@ -42,6 +43,7 @@ COUNTED_FAILURES = frozenset(
         FailureKind.SERVICE,
         FailureKind.TIMEOUT,
         FailureKind.CRASH,
+        FailureKind.INVALID_MODEL,
     }
 )
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import sys
 import tempfile
 import unittest
@@ -481,6 +482,129 @@ class ProviderContractTests(unittest.TestCase):
             self.assertEqual([], calls)
             self.assertFalse((root / ".planning/worktrees/track-1").exists())
             self.assertFalse((root / ".custom/worktrees/track-1").exists())
+
+    @staticmethod
+    def _init_repo_with_commit(root):
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+        (root / "file.txt").write_text("base")
+        subprocess.run(["git", "add", "."], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=root, check=True)
+        return subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    def test_worktree_adapter_recovers_existing_worktree_after_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_branch = self._init_repo_with_commit(root)
+            worktree_path = root / ".planning/worktrees/track-1"
+            subprocess.run(
+                ["git", "worktree", "add", "-b", "bead/track-1", str(worktree_path), base_branch],
+                cwd=root, check=True, capture_output=True,
+            )
+
+            # Fresh provider instance: no in-memory _workspaces cache, as after a restart.
+            workspaces = WorktreeWorkspaceProvider(root)
+
+            isolated = workspaces.isolate("track-1")
+            self.assertIs(OperationStatus.SUCCESS, isolated.status)
+            self.assertEqual("bead/track-1", isolated.value.branch)
+
+            adopted = workspaces.create(
+                WorkspaceRequest("track-1", "bead/track-1", base_branch), idempotency_key="resume"
+            )
+            self.assertIs(OperationStatus.SUCCESS, adopted.status)
+            self.assertEqual("bead/track-1", adopted.value.branch)
+            self.assertEqual(worktree_path.resolve(), adopted.value.path)
+
+    def test_worktree_adapter_rejects_adoption_of_mismatched_branch_or_foreign_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_branch = self._init_repo_with_commit(root)
+            worktree_path = root / ".planning/worktrees/track-1"
+            subprocess.run(
+                ["git", "worktree", "add", "-b", "bead/track-1", str(worktree_path), base_branch],
+                cwd=root, check=True, capture_output=True,
+            )
+            workspaces = WorktreeWorkspaceProvider(root)
+
+            mismatched = workspaces.create(
+                WorkspaceRequest("track-1", "bead/some-other-branch", base_branch),
+                idempotency_key="mismatch",
+            )
+            self.assertIs(OperationStatus.INVALID, mismatched.status)
+
+            foreign_path = root / ".planning/worktrees/track-2"
+            foreign_path.mkdir(parents=True)
+            (foreign_path / "unrelated.txt").write_text("not a worktree")
+            foreign = workspaces.create(
+                WorkspaceRequest("track-2", "bead/track-2", base_branch), idempotency_key="foreign"
+            )
+            self.assertIs(OperationStatus.INVALID, foreign.status)
+
+    def test_worktree_adapter_bootstrap_initializes_submodules_and_npm_dependencies(self):
+        # Local-path submodules need file transport explicitly allowed (git disables
+        # it by default for security); real .gitmodules URLs would be https/ssh.
+        previous_protocol = os.environ.get("GIT_ALLOW_PROTOCOL")
+        os.environ["GIT_ALLOW_PROTOCOL"] = "file"
+        self.addCleanup(
+            lambda: os.environ.pop("GIT_ALLOW_PROTOCOL", None)
+            if previous_protocol is None
+            else os.environ.__setitem__("GIT_ALLOW_PROTOCOL", previous_protocol)
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sub_root = root / "sub-repo"
+            sub_root.mkdir()
+            self._init_repo_with_commit(sub_root)
+
+            main_root = root / "main-repo"
+            main_root.mkdir()
+            base_branch = self._init_repo_with_commit(main_root)
+            subprocess.run(
+                ["git", "submodule", "add", "-q", str(sub_root), "vendor/sub"],
+                cwd=main_root, check=True, capture_output=True,
+            )
+            subprocess.run(["git", "commit", "-q", "-m", "add submodule"], cwd=main_root, check=True)
+            (main_root / "package.json").write_text("{}", encoding="utf-8")
+            subprocess.run(["git", "add", "package.json"], cwd=main_root, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "add package.json"], cwd=main_root, check=True)
+
+            worktree_path = main_root / ".planning/worktrees/track-1"
+            subprocess.run(
+                ["git", "worktree", "add", "-q", "-b", "bead/track-1", str(worktree_path), base_branch],
+                cwd=main_root, check=True, capture_output=True,
+            )
+            # git worktree add does not auto-init submodules or install JS deps --
+            # this is the exact gap the incident hit (type-check failed on missing node_modules).
+            self.assertFalse(any((worktree_path / "vendor/sub").iterdir()))
+            self.assertFalse((worktree_path / "node_modules").is_dir())
+
+            workspaces = WorktreeWorkspaceProvider(main_root)
+            result = workspaces.bootstrap("track-1")
+
+            self.assertIs(OperationStatus.SUCCESS, result.status)
+            self.assertTrue((worktree_path / "vendor/sub/file.txt").is_file())
+            # An empty {} package.json installs zero packages (no node_modules dir),
+            # but npm still writes a lockfile -- a reliable, network-free signal
+            # that the install step actually ran.
+            self.assertTrue((worktree_path / "package-lock.json").is_file())
+
+    def test_worktree_adapter_bootstrap_is_noop_without_gitmodules_or_package_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_branch = self._init_repo_with_commit(root)
+            worktree_path = root / ".planning/worktrees/track-1"
+            subprocess.run(
+                ["git", "worktree", "add", "-q", "-b", "bead/track-1", str(worktree_path), base_branch],
+                cwd=root, check=True, capture_output=True,
+            )
+            workspaces = WorktreeWorkspaceProvider(root)
+            result = workspaces.bootstrap("track-1")
+            self.assertIs(OperationStatus.SUCCESS, result.status)
+            self.assertFalse((worktree_path / "node_modules").exists())
 
     def test_review_adapter_wraps_real_ledger_status_and_request(self):
         from review_ledger.cli import mutate_ledger

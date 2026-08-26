@@ -268,6 +268,43 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertEqual(("task-2",), tuple(item.task_id for item in outcome.failed))
             self.assertEqual(("preparation_failed",), outcome.failed[0].blockers)
 
+    def test_bootstrap_failure_fails_preflight_before_worker_dispatch(self):
+        from workflow_providers.contracts import OperationStatus, ProviderResult
+
+        dispatched = []
+
+        class MissingDependenciesWorkspace(FakeWorkspaceProvider):
+            def bootstrap(self, workspace_id):
+                return ProviderResult.unavailable("dependency bootstrap failed: no node_modules")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tasks = FakeTaskTrackingProvider()
+            item = worker_request(1)
+            tasks.create_task(TaskCreateRequest(item.task_id), idempotency_key="create")
+
+            def runner(payload):
+                dispatched.append(payload)
+                return completed(payload)
+
+            scheduler = WorkerScheduler(
+                WorkerDispatcher(
+                    SequentialWorkerAdapter(runner), WorkflowEventStore(root / "events.jsonl")
+                ),
+                task_tracking=tasks,
+                workspace=MissingDependenciesWorkspace(root / "worktrees"),
+                max_parallel_workers=1,
+            )
+
+            outcome = scheduler.schedule((item,))
+
+            # The worker never ran -- bootstrap failure is caught before dispatch,
+            # not discovered mid-task via a failing type-check.
+            self.assertEqual([], dispatched)
+            self.assertEqual((), outcome.completed)
+            self.assertEqual(("preparation_failed",), outcome.failed[0].blockers)
+            self.assertIn("dependency bootstrap failed", outcome.failed[0].summary)
+
     def test_timeout_cancels_attempt_and_retries_with_a_deadline(self):
         termination_requested = threading.Event()
         first_finished = threading.Event()
@@ -465,7 +502,11 @@ class WorkerSchedulerTests(unittest.TestCase):
 
             self.assertTrue(dispatch_entered.is_set())
             self.assertEqual(["late-worker"], cancel_calls)
-            self.assertEqual(("timeout",), outcome.failed[0].blockers)
+            # Cancellation completed quiescently, so the scheduler reports the real
+            # underlying result (from cancelled_worker_result) instead of a synthetic
+            # "timeout" placeholder that would discard its changed_files/tests.
+            self.assertEqual("cancelled", outcome.failed[0].status)
+            self.assertEqual(("cancelled",), outcome.failed[0].blockers)
 
     def test_timeout_does_not_retry_until_accepted_cancellation_is_quiescent(self):
         terminal = threading.Event()
@@ -540,7 +581,10 @@ class WorkerSchedulerTests(unittest.TestCase):
 
             outcome = scheduler.schedule((item,))
 
-            self.assertEqual(("timeout",), outcome.failed[0].blockers)
+            # Cancellation completed quiescently, so the scheduler surfaces the real
+            # native-runner outcome (cancelled) instead of a synthetic "timeout" blocker.
+            self.assertEqual("cancelled", outcome.failed[0].status)
+            self.assertEqual(("provider_failure:cancelled",), outcome.failed[0].blockers)
             pid = int((worktrees / "ws-task-1/native.pid").read_text(encoding="utf-8"))
             deadline = time.monotonic() + 1
             while time.monotonic() < deadline:

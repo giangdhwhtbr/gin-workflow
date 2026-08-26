@@ -29,7 +29,12 @@ from workflow_providers.fakes import (  # noqa: E402
 )
 from workflow_providers.knowledge import RepositoryKnowledgeProvider  # noqa: E402
 from workflow_providers.notifications import TelegramNotificationProvider  # noqa: E402
-from workflow_providers.native_cli import NativeCliOutput, NativeHealth  # noqa: E402
+from workflow_providers.native_cli import (  # noqa: E402
+    FailureKind,
+    NativeCliError,
+    NativeCliOutput,
+    NativeHealth,
+)
 from workflow_providers.registry import ProviderRegistry, RegistryError  # noqa: E402
 from workflow_providers.routed_worker import RoutedWorkerDispatcher  # noqa: E402
 from workflow_providers.review import ReviewLedgerProvider  # noqa: E402
@@ -364,6 +369,86 @@ class ProviderRegistryTests(unittest.TestCase):
                     self.assertEqual(("agy", "--print", "--sandbox"), runner.invocations[0].argv)
                 else:
                     self.assertEqual(("codex", "exec"), runner.invocations[0].argv[:2])
+
+    def test_registry_wires_real_health_probe_cached_per_provider_and_model(self):
+        class _ModelAwareRunner:
+            def __init__(self):
+                self.probe_invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.probe_invocations.append(invocation)
+                if "reasoning" in invocation.argv:
+                    raise NativeCliError(FailureKind.INVALID_MODEL, "model not supported for this account")
+                return NativeCliOutput(())
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = _ModelAwareRunner()
+            codex_script = root / "codex"
+            codex_script.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "if sys.argv[1:3] == ['exec', '--help']:\n"
+                "    print('usage: codex exec --model MODEL --json --ephemeral "
+                "--approve-for-me --cd DIR')\n"
+                "    sys.exit(0)\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            codex_script.chmod(0o755)
+            local = {
+                "codex": ProviderModelConfig(
+                    "codex", str(codex_script), {"low": "mini", "medium": "coding", "high": "reasoning"}
+                ),
+            }
+            config = EffectiveConfig(
+                {
+                    "schema_version": "2.3",
+                    "harness": "codex",
+                    "providers": {
+                        "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                    },
+                    "routing": {
+                        "roles": {"backend": {"preferred": ["codex"], "fallback": []}},
+                        "concurrency": {"codex": 1},
+                        "queue": {"max_wait_seconds": 0},
+                        "worker": {"timeout_seconds": 17, "max_retries": 0},
+                        "circuit_breaker": {
+                            "failure_threshold": 1,
+                            "cooldown_seconds": 10,
+                            "half_open_max_probes": 1,
+                        },
+                    },
+                },
+                root,
+            )
+            registry = ProviderRegistry.from_effective_config(
+                config,
+                provider_local=local,
+                evidence_authority=self.composite_authority(),
+                native_runner=runner,
+            )
+
+            from types import SimpleNamespace
+
+            health_check = registry.worker.health["codex"]
+            reasoning_health = health_check(SimpleNamespace(model="reasoning"))
+            self.assertFalse(reasoning_health.available)
+            self.assertEqual("invalid_model", reasoning_health.reason)
+
+            # Same (provider, model) pair is cached -- no second probe invocation.
+            health_check(SimpleNamespace(model="reasoning"))
+            self.assertEqual(1, len(runner.probe_invocations))
+
+            coding_health = health_check(SimpleNamespace(model="coding"))
+            self.assertTrue(coding_health.available)
+            self.assertEqual(2, len(runner.probe_invocations))
+
+            probe_dir = root / ".agent-workflow/runtime/health-probe/codex"
+            self.assertTrue(probe_dir.is_dir())
+            for invocation in runner.probe_invocations:
+                self.assertEqual(probe_dir.resolve(), invocation.cwd)
 
     def test_registry_rejects_provider_default_for_non_antigravity_injection(self):
         with tempfile.TemporaryDirectory() as directory:
