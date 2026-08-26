@@ -173,6 +173,23 @@ codex sandbox -- echo hello                            # should print "hello", n
 
 gin-workflow's own Codex-provider worker dispatch (`codex_worker.py`) works around this for workers it dispatches itself, by invoking `codex exec` with `--dangerously-bypass-approvals-and-sandbox` — skipping Codex's internal sandbox entirely, since gin-workflow already isolates each worker in its own git worktree. That has no effect on a Codex CLI session you run directly, or on Antigravity's `--sandbox`, which is why the sysctl fix above is what actually resolves this everywhere on an affected host.
 
+### Review routing reports a provider as "not available" (e.g. `claude not available`) when invoked from Codex/Antigravity
+
+gin-workflow's routed dispatcher (`registry.py`) health-checks a native provider by running `<executable> --help` in a subprocess with a *sanitized* environment (`native_cli.py`'s `sanitized_environment()`/`probe_help()`) — it forwards `PATH` from whatever process is running the gin-workflow script, but that process's `PATH` did not come from your interactive shell's rc file. If a provider's CLI binary is only reachable because `~/.zshrc`/`~/.bashrc` prepends a directory to `PATH` (for example, an npm global install landing in `~/.npm-global/bin`), it resolves fine in an interactive shell but fails when gin-workflow is driven by Codex or Antigravity, whose exec/sandbox environments don't source your shell rc files. The health check then can't even launch the binary, and the dispatcher reports it as unavailable — well before any quota, auth, or model issue.
+
+Fix by putting the CLI binary somewhere already on the default system `PATH` (not dependent on shell rc files), e.g.:
+
+```bash
+sudo ln -s "$(which claude)" /usr/local/bin/claude
+```
+
+Verify it resolves independent of your shell's `PATH` customizations:
+```bash
+env -i PATH="/usr/local/bin:/usr/bin:/bin" claude --version
+```
+
+Apply the same fix for any other native provider CLI (`codex`, `agy`) that isn't already reachable from a minimal `PATH`.
+
 ---
 
 ## Local Development & Compilation
