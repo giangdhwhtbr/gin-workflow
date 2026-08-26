@@ -24,3 +24,8 @@ __pycache__/
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# Bead worktrees: local working copies, not meant to be tracked as gitlinks
+# in the main repo (they were being picked up as orphan 160000 entries with
+# no .gitmodules, causing constant spurious "modified" status).
+.planning/worktrees/
