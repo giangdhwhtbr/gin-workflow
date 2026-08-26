@@ -149,6 +149,32 @@ codex plugin add gin-workflow@gin-workflow-marketplace
 
 ---
 
+## Troubleshooting
+
+### Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
+
+On Ubuntu 24.04+ hosts, the kernel's AppArmor policy restricts unprivileged user namespace creation by default (`kernel.apparmor_restrict_unprivileged_userns=1`). Codex CLI's sandbox (`bwrap`) and Antigravity CLI's sandbox (`agy --sandbox`, backed by `nsjail`) both need to create an unprivileged user+network namespace to isolate file/network access. When that AppArmor restriction is active and no profile grants `userns,` to the sandbox helper, namespace creation fails outright — before the sandboxed process can even read the file it's trying to edit. Every sandboxed shell action (including `apply_patch`) then fails immediately, for any file, in any project.
+
+This is a host/OS-level restriction, not a bug in gin-workflow, Codex CLI, or Antigravity CLI. Fix it once per host, in a real interactive terminal (`sudo` needs a TTY for the password prompt — it won't work through a piped or non-interactive shell):
+
+```bash
+# Take effect immediately
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+# Persist across reboots
+echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/99-disable-userns-restrict.conf
+```
+
+Verify:
+```bash
+sysctl kernel.apparmor_restrict_unprivileged_userns   # should print 0
+codex sandbox -- echo hello                            # should print "hello", not a bwrap error
+```
+
+gin-workflow's own Codex-provider worker dispatch (`codex_worker.py`) works around this for workers it dispatches itself, by invoking `codex exec` with `--dangerously-bypass-approvals-and-sandbox` — skipping Codex's internal sandbox entirely, since gin-workflow already isolates each worker in its own git worktree. That has no effect on a Codex CLI session you run directly, or on Antigravity's `--sandbox`, which is why the sysctl fix above is what actually resolves this everywhere on an affected host.
+
+---
+
 ## Local Development & Compilation
 
 ### Linux and macOS

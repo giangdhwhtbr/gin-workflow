@@ -465,6 +465,12 @@ install_plugin() {
   fi
   if matches_platform "codex" && [ "$HAS_CODEX" = true ]; then
     echo "Registering $p_name with Codex..."
+    # codex plugin marketplace add/plugin add are no-ops when already
+    # registered by name, and the git-subdir source snapshots content at
+    # add-time -- so a repeat run would keep serving a stale snapshot even
+    # after local changes are committed. Force a fresh registration.
+    codex plugin remove "$p_name@gin-workflow-marketplace" >/dev/null 2>&1 || true
+    codex plugin marketplace remove "gin-workflow-marketplace" >/dev/null 2>&1 || true
     codex plugin marketplace add "$SCRIPT_DIR"
     codex plugin add "$p_name@gin-workflow-marketplace"
   fi
