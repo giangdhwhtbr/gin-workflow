@@ -37,7 +37,7 @@ def build_codex_invocation(
             model,
             "--json",
             "--ephemeral",
-            "--approve-for-me",
+            "--dangerously-bypass-approvals-and-sandbox",
             "--cd",
             str(Path(workspace).resolve()),
             "-",
@@ -63,7 +63,13 @@ def codex_health(
     model_selection = "--model" in options
     supported = all(
         flag in options
-        for flag in ("--model", "--json", "--ephemeral", "--approve-for-me", "--cd")
+        for flag in (
+            "--model",
+            "--json",
+            "--ephemeral",
+            "--dangerously-bypass-approvals-and-sandbox",
+            "--cd",
+        )
     )
     health = NativeHealth(
         supported,

@@ -390,7 +390,7 @@ class ProviderRegistryTests(unittest.TestCase):
                 "import sys\n"
                 "if sys.argv[1:3] == ['exec', '--help']:\n"
                 "    print('usage: codex exec --model MODEL --json --ephemeral "
-                "--approve-for-me --cd DIR')\n"
+                "--dangerously-bypass-approvals-and-sandbox --cd DIR')\n"
                 "    sys.exit(0)\n"
                 "sys.exit(1)\n",
                 encoding="utf-8",

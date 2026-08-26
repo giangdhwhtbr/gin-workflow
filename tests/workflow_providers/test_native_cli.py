@@ -43,7 +43,7 @@ class NativeCliTests(unittest.TestCase):
         self.assertIn("Bash(git status:*)", allowed_tools)
         self.assertIn("Bash(npm test:*)", allowed_tools)
         self.assertEqual(("codex", "exec"), codex.argv[:2])
-        self.assertIn("--approve-for-me", codex.argv)
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", codex.argv)
         self.assertNotIn("--sandbox", codex.argv)
         self.assertNotIn("workspace-write", codex.argv)
         self.assertIn("--cd", codex.argv)
@@ -54,12 +54,12 @@ class NativeCliTests(unittest.TestCase):
     def test_codex_health_requires_exact_safe_noninteractive_flags(self):
         required = (
             "usage: codex exec --model MODEL --json --ephemeral "
-            "--approve-for-me --cd DIR"
+            "--dangerously-bypass-approvals-and-sandbox --cd DIR"
         )
         missing_approval = "usage: codex exec --model MODEL --json --ephemeral --cd DIR"
         prefixed = (
             "usage: codex exec --model-cache --json-lines --ephemeral-mode "
-            "--approve-for-members"
+            "--dangerously-bypass-approvals-and-sandboxed"
         )
 
         ready = codex_health("codex", help_text=required)
@@ -284,7 +284,7 @@ class NativeCliTests(unittest.TestCase):
     def test_codex_health_probes_configured_model_and_rejects_invalid_model(self):
         required = (
             "usage: codex exec --model MODEL --json --ephemeral "
-            "--approve-for-me --cd DIR"
+            "--dangerously-bypass-approvals-and-sandbox --cd DIR"
         )
 
         class _RejectingRunner:
