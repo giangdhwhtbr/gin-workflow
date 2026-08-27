@@ -26,6 +26,8 @@ from .contracts import (
     validate_evidence_details,
     validate_authoritative_evidence,
 )
+from workflow_core.events import WorkflowEvent, WorkflowEventStore
+from workflow_core.models import thaw
 from workflow_core.identity import AcceptanceIdentity
 
 
@@ -262,6 +264,66 @@ class CompositeEvidenceAuthority:
         if category is EvidenceCategory.REVIEWS:
             return self._review(reference)
         return None
+
+
+def record_verification(
+    event_store: WorkflowEventStore,
+    *,
+    workflow_id: str,
+    task_id: str,
+    verification_event_id: str,
+    review_event_id: str,
+    acceptance_identity: AcceptanceIdentity,
+    status: str,
+) -> bool:
+    """Durably append a verification outcome for later CompositeEvidenceAuthority resolution."""
+    for field_name, value in (
+        ("workflow_id", workflow_id),
+        ("task_id", task_id),
+        ("verification_event_id", verification_event_id),
+        ("review_event_id", review_event_id),
+        ("status", status),
+    ):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} is required")
+    if not isinstance(acceptance_identity, AcceptanceIdentity):
+        raise TypeError("acceptance_identity must be an AcceptanceIdentity")
+    event = WorkflowEvent.create(
+        event_type="verification.recorded",
+        workflow_id=workflow_id,
+        task_id=task_id,
+        payload={
+            "verification_event_id": verification_event_id,
+            "review_event_id": review_event_id,
+            "acceptance_identity": acceptance_identity.to_dict(),
+            "status": status,
+        },
+        idempotency_key=f"{workflow_id}:{task_id}:verification.recorded:{verification_event_id}",
+    )
+    return event_store.append(event)
+
+
+def find_verification(
+    event_store: WorkflowEventStore,
+    verification_event_id: str,
+) -> Mapping[str, Any] | None:
+    """Resolve a previously recorded verification event by its verification_event_id."""
+    if not isinstance(verification_event_id, str) or not verification_event_id.strip():
+        raise ValueError("verification_event_id is required")
+    for event in event_store.read_all():
+        if (
+            event.event_type == "verification.recorded"
+            and event.payload.get("verification_event_id") == verification_event_id
+        ):
+            return {
+                "task_id": event.task_id,
+                "verification_event_id": event.payload["verification_event_id"],
+                "review_event_id": event.payload["review_event_id"],
+                "acceptance_identity": thaw(event.payload["acceptance_identity"]),
+                "status": event.payload["status"],
+                "recorded_at": event.timestamp,
+            }
+    return None
 
 
 class FileEvidenceProvider(ProviderBase):
