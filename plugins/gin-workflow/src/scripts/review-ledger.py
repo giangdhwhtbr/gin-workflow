@@ -7,7 +7,15 @@ from datetime import datetime, timezone
 # Add the parent directory of review_ledger to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from review_ledger.cli import initialize_ledger, mutate_ledger, start_review, load_ledger, get_ledger_paths, render_review_markdown
+from review_ledger.cli import (
+    initialize_ledger,
+    mutate_ledger,
+    start_review,
+    load_ledger,
+    get_ledger_paths,
+    render_review_markdown,
+    build_acceptance_identity_payload,
+)
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
 from review_ledger.git_adapter import create_source_checkpoint, push_review_ref, fetch_review_ref
@@ -42,6 +50,14 @@ def parse_args():
     p_check.add_argument("--actor-role", default="worker")
     p_check.add_argument("--actor-id", required=True)
     p_check.add_argument("--lease-id")
+    p_check.add_argument(
+        "--workflow-id",
+        help="Optional acceptance identity workflow ID (requires --attempt-id).",
+    )
+    p_check.add_argument(
+        "--attempt-id",
+        help="Optional acceptance identity attempt ID (requires --workflow-id).",
+    )
 
     # Start Review
     p_start = subparsers.add_parser("start-review", help="Start the review phase.")
@@ -144,6 +160,14 @@ def parse_args():
     p_app.add_argument("--actor-role", default="reviewer")
     p_app.add_argument("--actor-id", required=True)
     p_app.add_argument("--lease-id")
+    p_app.add_argument(
+        "--workflow-id",
+        help="Optional acceptance identity workflow ID (requires --attempt-id).",
+    )
+    p_app.add_argument(
+        "--attempt-id",
+        help="Optional acceptance identity attempt ID (requires --workflow-id).",
+    )
 
     # Reject / Invalidate
     p_rej = subparsers.add_parser("reject", help="Invalidate approval.")
@@ -261,10 +285,19 @@ def main():
                             "source_identity_status": "complete",
                         }
                     )
+            payload = {"repositories": repositories}
+            payload.update(
+                build_acceptance_identity_payload(
+                    task_id=args.bead_id,
+                    workflow_id=args.workflow_id,
+                    attempt_id=args.attempt_id,
+                    repositories=repositories,
+                )
+            )
             mutate_ledger(
                 args.bead_id,
                 "source-checkpoint-created",
-                {"repositories": repositories},
+                payload,
                 args.actor_role,
                 args.actor_id,
                 lease_id=args.lease_id,
@@ -377,6 +410,14 @@ def main():
                 "source_scope_hash": scope_hash,
                 "terminal_findings": terminal_fids
             }
+            payload.update(
+                build_acceptance_identity_payload(
+                    task_id=args.bead_id,
+                    workflow_id=args.workflow_id,
+                    attempt_id=args.attempt_id,
+                    repositories=proj.repositories,
+                )
+            )
             mutate_ledger(
                 args.bead_id, "review-approved", payload,
                 args.actor_role, args.actor_id, lease_id=args.lease_id

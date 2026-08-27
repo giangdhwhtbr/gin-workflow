@@ -261,6 +261,7 @@ class ReviewProjection:
 
         elif action == "implementation-in-progress":
             self.review_state = "implementation-in-progress"
+            self.active_approval = None
 
         elif action == EventActions.REVIEW_STARTED:
             self.review_state = "review-in-progress"

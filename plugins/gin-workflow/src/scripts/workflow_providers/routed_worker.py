@@ -146,6 +146,38 @@ class RoutedWorkerDispatcher:
             )
         )
 
+    def _emit_worker_result(
+        self,
+        record: "_RouteRecord",
+        result: WorkerResult,
+    ) -> None:
+        assert result.acceptance_identity is not None
+        assert record.request.acceptance_identity is not None
+        self.event_store.append(
+            WorkflowEvent.create(
+                event_type="worker.result",
+                workflow_id=record.request.workflow_id,
+                task_id=record.request.task_id,
+                payload={
+                    "worker_id": record.receipt.worker_id,
+                    "status": result.status,
+                    "schema_version": result.schema_version,
+                    "request_acceptance_identity": record.request.acceptance_identity.to_dict(),
+                    "result_acceptance_identity": result.acceptance_identity.to_dict(),
+                    "request_workspace_id": str(
+                        record.request.isolation_policy.get("workspace_id", "")
+                    ),
+                    "tests": [
+                        test.to_dict() for test in result.tests if test.auditable
+                    ],
+                },
+                idempotency_key=(
+                    f"{record.request.workflow_id}:{record.request.task_id}:"
+                    f"worker.result:{record.receipt.worker_id}"
+                ),
+            )
+        )
+
     def _blocked(self, request: WorkerRequest, blocker: str) -> RoutedWorkerReceipt:
         worker_id = worker_id_for("routed", request)
         receipt = RoutedWorkerReceipt(
@@ -471,6 +503,13 @@ class RoutedWorkerDispatcher:
                 worker_id=record.receipt.worker_id,
                 explicit_model_selection=record.explicit_model_selection,
             )
+            if (
+                result.status == "completed"
+                and result.schema_version == "2.3"
+                and result.acceptance_identity is not None
+                and record.request.acceptance_identity is not None
+            ):
+                self._emit_worker_result(record, result)
             return result
 
     def collect_result(self, worker_id: str, timeout: float | None = None) -> WorkerResult:

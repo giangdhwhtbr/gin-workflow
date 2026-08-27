@@ -24,6 +24,7 @@ from .contracts import (
     OperationStatus,
 )
 from .evidence import CompositeEvidenceAuthority, FileEvidenceProvider
+from .evidence_authority import build_composite_evidence_authority
 from .fakes import (
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
@@ -173,6 +174,12 @@ class ProviderRegistry:
             evidence_options.get("index") or artifacts.get("evidence"),
             ".agent-workflow/runtime/evidence",
         )
+        if evidence_authority is None and str(config.get("schema_version", "")) == "2.3":
+            evidence_runtime_root = _path(root, artifacts.get("runtime"), ".agent-workflow/runtime")
+            evidence_event_store = event_store or WorkflowEventStore(
+                evidence_runtime_root / "events.jsonl"
+            )
+            evidence_authority = build_composite_evidence_authority(root, evidence_event_store)
         if str(config.get("schema_version", "")) == "2.3" and not isinstance(
             evidence_authority,
             CompositeEvidenceAuthority,

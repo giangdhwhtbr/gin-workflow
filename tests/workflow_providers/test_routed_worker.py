@@ -15,6 +15,7 @@ from workflow_core.assignments import RouteCandidate  # noqa: E402
 from workflow_core.events import WorkflowEventStore  # noqa: E402
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
+from workflow_core.models import thaw  # noqa: E402
 from workflow_providers.circuit_breaker import CircuitBreakerStore, CircuitState, FailureKind  # noqa: E402
 from workflow_providers.native_cli import NativeCliError, NativeHealth  # noqa: E402
 from workflow_providers.routed_worker import RoutedWorkerDispatcher  # noqa: E402
@@ -23,7 +24,10 @@ from workflow_providers.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
     SynchronousWorkerAdapter,
     WorkerRequest,
+    WorkerResult,
     WorkerState,
+    WorkerTestResult,
+    _LegacyWorkerTestResult,
 )
 
 
@@ -73,6 +77,21 @@ def result(task_id):
         "evidence": [],
         "blockers": [],
     }
+
+
+def provenance_record(task_id="task-1", **overrides):
+    record = {
+        "argv": ["python3", "-m", "unittest"],
+        "exit_code": 0,
+        "started_at": "2026-08-20T10:00:00Z",
+        "finished_at": "2026-08-20T10:01:00Z",
+        "workspace_id": f"ws-{task_id}",
+        "repository_id": "primary",
+        "attempt_id": "attempt-1",
+        "source_tree_hash": "tree-1",
+    }
+    record.update(overrides)
+    return record
 
 
 class RoutedWorkerTests(unittest.TestCase):
@@ -523,6 +542,13 @@ class RoutedWorkerTests(unittest.TestCase):
         )
         return router, breaker, events
 
+    def _join_route_monitor(self, worker_id, *, timeout=2.0):
+        """Wait for the background route-monitor thread so tempdir teardown is safe."""
+        deadline = time.monotonic() + timeout
+        for thread in list(threading.enumerate()):
+            if thread.name == f"route-monitor:{worker_id}":
+                thread.join(timeout=max(0.0, deadline - time.monotonic()))
+
     def test_open_primary_emits_unavailable_then_routes_to_same_tier_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
             routes = (
@@ -776,6 +802,206 @@ class RoutedWorkerTests(unittest.TestCase):
                 self.assertEqual("codex", receipt.provider_name)
                 self.assertEqual("completed", router.collect_result(receipt.worker_id).status)
                 self.assertEqual(0, breaker.state("claude", "opus").probes)
+
+
+    def test_completed_schema_23_identity_bearing_result_emits_worker_result_event(self):
+        def runner(payload):
+            normalized = result(payload["task_id"])
+            normalized["schema_version"] = "2.3"
+            normalized["acceptance_identity"] = payload["acceptance_identity"]
+            normalized["tests"] = [provenance_record(payload["task_id"])]
+            return normalized
+
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, events = self.build(
+                directory, routes=routes, runners={"claude": runner}
+            )
+            identity = acceptance_identity()
+            receipt = router.dispatch(request(acceptance_identity=identity))
+            outcome = router.collect_result(receipt.worker_id)
+            self._join_route_monitor(receipt.worker_id)
+
+            self.assertEqual("completed", outcome.status)
+            worker_result_events = [
+                event for event in events.read_all() if event.event_type == "worker.result"
+            ]
+            self.assertEqual(1, len(worker_result_events))
+            payload = thaw(worker_result_events[0].payload)
+            self.assertEqual(
+                {
+                    "worker_id": receipt.worker_id,
+                    "status": "completed",
+                    "schema_version": "2.3",
+                    "request_acceptance_identity": identity.to_dict(),
+                    "result_acceptance_identity": identity.to_dict(),
+                    "request_workspace_id": "ws-task-1",
+                    "tests": [provenance_record("task-1")],
+                },
+                payload,
+            )
+
+    def test_failed_and_cancelled_results_do_not_emit_worker_result_event(self):
+        for status in ("failed", "cancelled"):
+            with self.subTest(status=status):
+
+                def runner(payload, status=status):
+                    normalized = result(payload["task_id"])
+                    normalized["status"] = status
+                    normalized["schema_version"] = "2.3"
+                    normalized["acceptance_identity"] = payload["acceptance_identity"]
+                    return normalized
+
+                with tempfile.TemporaryDirectory() as directory:
+                    routes = (RouteCandidate("claude", "opus", False),)
+                    router, _, events = self.build(
+                        directory, routes=routes, runners={"claude": runner}
+                    )
+                    receipt = router.dispatch(
+                        request(acceptance_identity=acceptance_identity())
+                    )
+                    outcome = router.collect_result(receipt.worker_id)
+                    self._join_route_monitor(receipt.worker_id)
+
+                    self.assertEqual(status, outcome.status)
+                    self.assertEqual(
+                        [],
+                        [
+                            event
+                            for event in events.read_all()
+                            if event.event_type == "worker.result"
+                        ],
+                    )
+
+    def test_completed_result_missing_request_side_identity_does_not_emit(self):
+        def runner(payload):
+            normalized = result(payload["task_id"])
+            normalized["schema_version"] = "2.3"
+            normalized["acceptance_identity"] = acceptance_identity().to_dict()
+            return normalized
+
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, events = self.build(
+                directory, routes=routes, runners={"claude": runner}
+            )
+            receipt = router.dispatch(request())
+            outcome = router.collect_result(receipt.worker_id)
+            self._join_route_monitor(receipt.worker_id)
+
+            self.assertEqual("completed", outcome.status)
+            self.assertIsNotNone(outcome.acceptance_identity)
+            self.assertEqual(
+                [],
+                [event for event in events.read_all() if event.event_type == "worker.result"],
+            )
+
+    def test_completed_result_missing_result_side_identity_does_not_emit(self):
+        block = threading.Event()
+
+        def runner(payload):
+            block.wait(timeout=2)
+            return result(payload["task_id"])
+
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, events = self.build(
+                directory, routes=routes, runners={"claude": runner}
+            )
+            bound_request = request(acceptance_identity=acceptance_identity())
+            receipt = router.dispatch(bound_request)
+            record = router._records[receipt.worker_id]
+            try:
+                forged = WorkerResult(
+                    status="completed",
+                    task_id=bound_request.task_id,
+                    summary="done",
+                    changed_files=(),
+                    commits=(),
+                    tests=(),
+                    evidence=(),
+                    blockers=(),
+                    acceptance_identity=None,
+                    schema_version="2.3",
+                )
+                committed = router._commit_result(record, forged)
+
+                self.assertEqual("completed", committed.status)
+                self.assertEqual(
+                    [],
+                    [
+                        event
+                        for event in events.read_all()
+                        if event.event_type == "worker.result"
+                    ],
+                )
+            finally:
+                block.set()
+                self._join_route_monitor(receipt.worker_id)
+
+    def test_worker_result_event_is_idempotent_across_repeated_commits(self):
+        def runner(payload):
+            normalized = result(payload["task_id"])
+            normalized["schema_version"] = "2.3"
+            normalized["acceptance_identity"] = payload["acceptance_identity"]
+            normalized["tests"] = [provenance_record(payload["task_id"])]
+            return normalized
+
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, events = self.build(
+                directory, routes=routes, runners={"claude": runner}
+            )
+            receipt = router.dispatch(
+                request(acceptance_identity=acceptance_identity())
+            )
+
+            router.collect_result(receipt.worker_id)
+            router.collect_result(receipt.worker_id)
+            self._join_route_monitor(receipt.worker_id)
+
+            worker_result_events = [
+                event for event in events.read_all() if event.event_type == "worker.result"
+            ]
+            self.assertEqual(1, len(worker_result_events))
+
+    def test_non_auditable_legacy_tests_are_excluded_from_persisted_tests(self):
+        def runner(payload):
+            auditable = WorkerTestResult(**provenance_record(payload["task_id"]))
+            legacy = _LegacyWorkerTestResult(command="echo hi", outcome="ok")
+            return WorkerResult(
+                status="completed",
+                task_id=payload["task_id"],
+                summary="done",
+                changed_files=(),
+                commits=(),
+                tests=(auditable, legacy),
+                evidence=(),
+                blockers=(),
+                acceptance_identity=acceptance_identity(),
+                schema_version="2.3",
+            )
+
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, events = self.build(
+                directory, routes=routes, runners={"claude": runner}
+            )
+            receipt = router.dispatch(
+                request(acceptance_identity=acceptance_identity())
+            )
+            outcome = router.collect_result(receipt.worker_id)
+            self._join_route_monitor(receipt.worker_id)
+
+            self.assertEqual("completed", outcome.status)
+            worker_result_events = [
+                event for event in events.read_all() if event.event_type == "worker.result"
+            ]
+            self.assertEqual(1, len(worker_result_events))
+            self.assertEqual(
+                [provenance_record("task-1")],
+                thaw(worker_result_events[0].payload["tests"]),
+            )
 
 
 if __name__ == "__main__":

@@ -17,8 +17,10 @@ from review_ledger.bead_fsm import validate_bead_transition
 from review_ledger.lease import (LeaseError, is_lease_active, validate_lease_for_write, format_utc_timestamp)
 from review_ledger.renderer import render_review_markdown
 from review_ledger.git_adapter import SourceCheckpoint, create_source_checkpoint
+from review_ledger.schema import EventActions
 from review_ledger.source_identity import canonicalize_scope
 from workflow_core.atomic import atomic_write_many
+from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot
 
 try:
     import fcntl as _fcntl
@@ -88,6 +90,187 @@ def ledger_lock(bead_id: str, base_dir: Optional[str] = None):
             yield
         finally:
             _unlock_stream(stream)
+
+
+# `workflow_id`, `attempt_id`, and `task_id` are optional acceptance-identity
+# fields carried on `source-checkpoint-created` and `review-approved` payloads.
+# They are absent on every ledger written before identity threading existed, so
+# readers must always treat them as optional.
+
+
+def build_acceptance_identity(
+    *,
+    task_id: str,
+    workflow_id: str,
+    attempt_id: str,
+    repositories: List[Dict[str, Any]],
+) -> AcceptanceIdentity:
+    """Assemble the canonical AcceptanceIdentity for a ledger repository list.
+
+    Mirrors ReviewLedgerProvider._acceptance_identity()'s snapshot shape without
+    its Git re-verification: the ledger repository dicts are taken as recorded.
+    Raises ValueError when the repositories cannot form a complete identity.
+    """
+    snapshots = []
+    for repository in repositories:
+        try:
+            snapshots.append(
+                RepositorySnapshot(
+                    repository_id=repository["repository_id"],
+                    source_scope_hash=repository["source_scope_hash"],
+                    source_tree_hash=repository["source_tree_hash"],
+                    checkpoint_sha=repository["checkpoint_sha"],
+                    checkpoint_ref=repository["checkpoint_ref"],
+                )
+            )
+        except KeyError as error:
+            raise ValueError(
+                f"repository is missing source identity field: {error.args[0]}"
+            ) from error
+    return AcceptanceIdentity(workflow_id, attempt_id, task_id, tuple(snapshots))
+
+
+def build_acceptance_identity_payload(
+    *,
+    task_id: str,
+    workflow_id: Optional[str],
+    attempt_id: Optional[str],
+    repositories: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Return the optional identity fields to merge into a mutation payload.
+
+    Returns an empty dict when no identity is supplied, so callers that omit the
+    identity emit exactly the payload they emitted before identity threading.
+    Raises ValueError when only half an identity is supplied, or when the ledger
+    repositories cannot form a complete AcceptanceIdentity, so a malformed
+    identity fails before it is appended to the append-only log.
+    """
+    workflow_id = (workflow_id or "").strip()
+    attempt_id = (attempt_id or "").strip()
+    if not workflow_id and not attempt_id:
+        return {}
+    if not workflow_id or not attempt_id:
+        raise ValueError("workflow_id and attempt_id must be supplied together")
+    build_acceptance_identity(
+        task_id=task_id,
+        workflow_id=workflow_id,
+        attempt_id=attempt_id,
+        repositories=repositories,
+    )
+    return {
+        "workflow_id": workflow_id,
+        "attempt_id": attempt_id,
+        "task_id": task_id,
+    }
+
+
+def _find_ledger_event(log: EventLog, event_id: str, action: str):
+    """Return (event, ledger_revision) for a matching event, else (None, None)."""
+    for index, event in enumerate(log.events):
+        if event.event_id == event_id:
+            if event.action != action:
+                return None, None
+            return event, index + 1
+    return None, None
+
+
+def _event_acceptance_identity(
+    event: LedgerEvent,
+    *,
+    bead_id: str,
+    repositories_key: str,
+) -> Optional[AcceptanceIdentity]:
+    payload = event.payload
+    workflow_id = str(payload.get("workflow_id") or "").strip()
+    attempt_id = str(payload.get("attempt_id") or "").strip()
+    if not workflow_id or not attempt_id:
+        return None
+    return build_acceptance_identity(
+        task_id=str(payload.get("task_id") or bead_id),
+        workflow_id=workflow_id,
+        attempt_id=attempt_id,
+        repositories=payload.get(repositories_key) or [],
+    )
+
+
+def get_checkpoint_identity_record(
+    bead_id: str,
+    checkpoint_event_id: str,
+    base_dir: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Return the identity-bearing record for one `source-checkpoint-created` event.
+
+    Returns None when the event does not exist, is not a source checkpoint, or
+    carries no acceptance identity (every ledger written before identity
+    threading). The returned mapping is the checkpoint evidence source shape
+    consumed by CompositeEvidenceAuthority._checkpoint(); `repositories` is taken
+    straight from `acceptance_identity` so the two are equal by construction.
+    """
+    log, _projection = load_ledger(bead_id, base_dir)
+    event, _revision = _find_ledger_event(
+        log, checkpoint_event_id, EventActions.SOURCE_CHECKPOINT_CREATED
+    )
+    if event is None:
+        return None
+    identity = _event_acceptance_identity(
+        event, bead_id=bead_id, repositories_key="repositories"
+    )
+    if identity is None:
+        return None
+    identity_dict = identity.to_dict()
+    return {
+        "task_id": identity_dict["task_id"],
+        "checkpoint_event_id": event.event_id,
+        "acceptance_identity": identity_dict,
+        "repositories": identity_dict["repositories"],
+        "recorded_at": event.timestamp,
+    }
+
+
+def get_review_identity_record(
+    bead_id: str,
+    review_event_id: str,
+    base_dir: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Return the identity-bearing record for one `review-approved` event.
+
+    `review_event_id` is the ledger event ID of the approval itself (the same ID
+    surfaced as ApprovalProjection.event_id), not the earlier `review-started`
+    event; that one is returned separately as `review_started_event_id`.
+
+    Returns None when the event does not exist, is not an approval, or carries no
+    acceptance identity. `terminal` is True only while this approval is still the
+    live approval (no later invalidation, scope change, or failed verification).
+
+    The result is the review evidence source shape consumed by
+    CompositeEvidenceAuthority._review() except for `verification_event_id`,
+    which the review ledger does not own: callers must merge it in from the
+    verification record store.
+    """
+    log, projection = load_ledger(bead_id, base_dir)
+    event, revision = _find_ledger_event(
+        log, review_event_id, EventActions.REVIEW_APPROVED
+    )
+    if event is None:
+        return None
+    identity = _event_acceptance_identity(
+        event, bead_id=bead_id, repositories_key="approved_repositories"
+    )
+    if identity is None:
+        return None
+    identity_dict = identity.to_dict()
+    active = projection.active_approval
+    return {
+        "task_id": identity_dict["task_id"],
+        "review_event_id": event.event_id,
+        "review_started_event_id": str(event.payload.get("review_event_id") or ""),
+        "ledger_revision": revision,
+        "acceptance_identity": identity_dict,
+        "repositories": identity_dict["repositories"],
+        "status": "approved",
+        "terminal": active is not None and active.event_id == event.event_id,
+        "recorded_at": event.timestamp,
+    }
 
 
 def initialize_ledger(

@@ -10,6 +10,7 @@ import unittest
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+from workflow_core.events import WorkflowEventStore  # noqa: E402
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_providers.contracts import (  # noqa: E402
     EvidenceCategory,
@@ -17,7 +18,11 @@ from workflow_providers.contracts import (  # noqa: E402
     EvidenceRecord,
     OperationStatus,
 )
-from workflow_providers.evidence import FileEvidenceProvider  # noqa: E402
+from workflow_providers.evidence import (  # noqa: E402
+    FileEvidenceProvider,
+    find_verification,
+    record_verification,
+)
 from workflow_providers.fakes import FakeEvidenceProvider  # noqa: E402
 
 
@@ -675,6 +680,109 @@ class EvidenceProviderTests(unittest.TestCase):
 
             self.assertIs(OperationStatus.INVALID, invalid.status)
             self.assertIs(OperationStatus.UNAVAILABLE, unavailable.status)
+
+
+
+
+class VerificationRecordTests(unittest.TestCase):
+    def test_record_verification_appends_a_single_event_with_expected_payload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            identity = acceptance_identity()
+
+            appended = record_verification(
+                store,
+                workflow_id="wf-1",
+                task_id="task-1",
+                verification_event_id="verification-event-1",
+                review_event_id="review-event-1",
+                acceptance_identity=identity,
+                status="passed",
+            )
+            events = store.read_all()
+
+            self.assertTrue(appended)
+            self.assertEqual(1, len(events))
+            event = events[0]
+            self.assertEqual("verification.recorded", event.event_type)
+            self.assertEqual("wf-1", event.workflow_id)
+            self.assertEqual("task-1", event.task_id)
+            self.assertEqual(
+                {
+                    "verification_event_id": "verification-event-1",
+                    "review_event_id": "review-event-1",
+                    "acceptance_identity": identity.to_dict(),
+                    "status": "passed",
+                },
+                event.to_dict()["payload"],
+            )
+
+    def test_record_verification_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            kwargs = dict(
+                workflow_id="wf-1",
+                task_id="task-1",
+                verification_event_id="verification-event-1",
+                review_event_id="review-event-1",
+                acceptance_identity=acceptance_identity(),
+                status="passed",
+            )
+
+            first = record_verification(store, **kwargs)
+            second = record_verification(store, **kwargs)
+
+            self.assertTrue(first)
+            self.assertFalse(second)
+            self.assertEqual(1, len(store.read_all()))
+
+    def test_record_verification_rejects_blank_required_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            base_kwargs = dict(
+                workflow_id="wf-1",
+                task_id="task-1",
+                verification_event_id="verification-event-1",
+                review_event_id="review-event-1",
+                acceptance_identity=acceptance_identity(),
+                status="passed",
+            )
+            for field_name in (
+                "workflow_id",
+                "task_id",
+                "verification_event_id",
+                "review_event_id",
+                "status",
+            ):
+                with self.subTest(field_name=field_name):
+                    with self.assertRaisesRegex(ValueError, field_name):
+                        record_verification(store, **{**base_kwargs, field_name: "  "})
+
+    def test_find_verification_resolves_a_recorded_event_and_returns_none_otherwise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = WorkflowEventStore(Path(directory) / "events.jsonl")
+            identity = acceptance_identity()
+            record_verification(
+                store,
+                workflow_id="wf-1",
+                task_id="task-1",
+                verification_event_id="verification-event-1",
+                review_event_id="review-event-1",
+                acceptance_identity=identity,
+                status="passed",
+            )
+
+            found = find_verification(store, "verification-event-1")
+            missing = find_verification(store, "verification-event-unknown")
+
+            self.assertIsNotNone(found)
+            self.assertEqual("task-1", found["task_id"])
+            self.assertEqual("verification-event-1", found["verification_event_id"])
+            self.assertEqual("review-event-1", found["review_event_id"])
+            self.assertEqual(identity.to_dict(), found["acceptance_identity"])
+            self.assertEqual("passed", found["status"])
+            self.assertTrue(found["recorded_at"])
+            self.assertIsNone(missing)
 
 
 if __name__ == "__main__":
