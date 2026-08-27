@@ -23,6 +23,7 @@ from .contracts import (
     OperationStatus,
     ProviderBase,
     ProviderResult,
+    ReviewInitRequest,
     ReviewRequest,
     ReviewOutcomeRequest,
     ReviewStatus,
@@ -312,11 +313,34 @@ class FakeWorkspaceProvider(ProviderBase):
 class FakeReviewProvider(ProviderBase):
     provider_name = "fake"
     provider_type = "review"
-    capabilities = frozenset({"review.request", "review.outcome", "review.status"})
+    capabilities = frozenset({
+        "review.initialize", "review.request", "review.outcome", "review.status",
+    })
 
     def __init__(self, *, available: bool = True) -> None:
         super().__init__(available=available)
         self.reviews: dict[str, ReviewStatus] = {}
+
+    def initialize(
+        self, request: ReviewInitRequest, *, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]:
+        if guarded := self._guard():
+            return guarded
+        if replay := self._replay("initialize", idempotency_key, request):
+            return replay
+        if not request.task_id or not request.actor_id or not idempotency_key:
+            return ProviderResult.invalid("task_id, actor_id, and idempotency_key are required")
+        existing = self.reviews.get(request.task_id)
+        if existing is not None:
+            return self._remember(
+                "initialize", idempotency_key, request,
+                ProviderResult.success(existing, idempotent=True),
+            )
+        status = ReviewStatus(request.task_id, "implementation-in-progress")
+        self.reviews[request.task_id] = status
+        return self._remember(
+            "initialize", idempotency_key, request, ProviderResult.success(status)
+        )
 
     def request(self, request: ReviewRequest, *, idempotency_key: str) -> ProviderResult[ReviewStatus]:
         if guarded := self._guard():

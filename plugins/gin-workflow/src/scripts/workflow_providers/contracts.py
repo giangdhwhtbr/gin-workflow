@@ -264,6 +264,27 @@ class WorkspaceRecord:
 
 
 @dataclass(frozen=True)
+class ReviewInitRequest:
+    """Declare the reviewed source before a review can be requested.
+
+    ``ReviewRequest`` carries only review identity, so it cannot describe which
+    repository, ref, or scope is under review. Bootstrapping the ledger needs
+    that declaration, which is why initialization is a distinct capability
+    rather than an implicit side effect of ``request``.
+    """
+
+    task_id: str
+    actor_id: str
+    repository_id: str
+    repository_path: str
+    base_ref: str
+    review_ref: str
+    scope: Mapping[str, Any]
+    role: str = "primary"
+    actor_role: str = "worker"
+
+
+@dataclass(frozen=True)
 class ReviewRequest:
     task_id: str
     actor_id: str
@@ -865,6 +886,9 @@ class WorkspaceProvider(Protocol):
 class ReviewProvider(Protocol):
     metadata: ProviderMetadata
 
+    def initialize(
+        self, request: ReviewInitRequest, *, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]: ...
     def request(self, request: ReviewRequest, *, idempotency_key: str) -> ProviderResult[ReviewStatus]: ...
     def record_outcome(
         self, request: ReviewOutcomeRequest, *, idempotency_key: str

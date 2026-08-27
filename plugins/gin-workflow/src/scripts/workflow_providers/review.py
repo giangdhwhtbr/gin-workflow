@@ -9,6 +9,7 @@ from .contracts import (
     ProviderBase,
     ProviderResult,
     ReviewFinding,
+    ReviewInitRequest,
     ReviewOutcomeRequest,
     ReviewRequest,
     ReviewStatus,
@@ -20,7 +21,9 @@ from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot
 class ReviewLedgerProvider(ProviderBase):
     provider_name = "review-ledger"
     provider_type = "review"
-    capabilities = frozenset({"review.request", "review.outcome", "review.status"})
+    capabilities = frozenset({
+        "review.initialize", "review.request", "review.outcome", "review.status",
+    })
 
     def __init__(self, repository_root: Path) -> None:
         super().__init__()
@@ -211,6 +214,63 @@ class ReviewLedgerProvider(ProviderBase):
             return ProviderResult.unavailable(str(error))
         except Exception as error:  # existing ledger boundary
             return ProviderResult.unavailable(f"review ledger unavailable: {error}")
+
+    def initialize(
+        self, request: ReviewInitRequest, *, idempotency_key: str
+    ) -> ProviderResult[ReviewStatus]:
+        if guarded := self._guard():
+            return guarded
+        if replay := self._replay("initialize", idempotency_key, request):
+            return replay
+        required = (
+            request.task_id, request.actor_id, request.repository_id,
+            request.repository_path, request.base_ref, request.review_ref,
+            request.role, request.actor_role,
+        )
+        if not all(str(field).strip() for field in required) or not idempotency_key:
+            return ProviderResult.invalid(
+                "task_id, actor_id, repository identity, refs, roles, and "
+                "idempotency_key are required"
+            )
+        if not request.scope:
+            return ProviderResult.invalid("a non-empty source scope is required")
+
+        existing = self.status(request.task_id)
+        if existing.value is not None:
+            return self._remember(
+                "initialize", idempotency_key, request,
+                ProviderResult.success(existing.value, idempotent=True),
+            )
+
+        repository_path = (self.repository_root / request.repository_path).resolve()
+        try:
+            repository_path.relative_to(self.repository_root)
+        except ValueError:
+            return ProviderResult.invalid("repository path escapes provider root")
+        if not repository_path.is_dir():
+            return ProviderResult.invalid("repository path does not exist")
+
+        try:
+            from review_ledger.cli import initialize_ledger
+
+            initialize_ledger(
+                bead_id=request.task_id,
+                repository_id=request.repository_id,
+                role=request.role,
+                repo_path=str(repository_path),
+                review_ref=request.review_ref,
+                base_ref=request.base_ref,
+                scope=dict(request.scope),
+                actor_role=request.actor_role,
+                actor_id=request.actor_id,
+                base_dir=str(self.repository_root),
+            )
+            normalized = self._normalize(request.task_id, self._load(request.task_id))
+        except Exception as error:  # existing ledger boundary
+            return ProviderResult.invalid(f"review initialization rejected: {error}")
+        return self._remember(
+            "initialize", idempotency_key, request, ProviderResult.success(normalized)
+        )
 
     def request(self, request: ReviewRequest, *, idempotency_key: str) -> ProviderResult[ReviewStatus]:
         if guarded := self._guard():
