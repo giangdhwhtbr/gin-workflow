@@ -140,7 +140,7 @@ class BuildCompositeEvidenceAuthorityTests(unittest.TestCase):
 
         authority = build_composite_evidence_authority(self.root, self.event_store)
 
-        checkpoint_reference = f"{self.bead_id}:{checkpoint_event_id}"
+        checkpoint_reference = f"{self.bead_id}.{checkpoint_event_id}"
         resolved_checkpoint = authority.resolve(
             EvidenceCategory.REPOSITORY, checkpoint_reference
         )
@@ -150,7 +150,7 @@ class BuildCompositeEvidenceAuthorityTests(unittest.TestCase):
 
         # Not yet resolvable: no verification has been recorded against this
         # review yet, so the composite review category has no evidence.
-        review_reference = f"{self.bead_id}:{review_event_id}"
+        review_reference = f"{self.bead_id}.{review_event_id}"
         self.assertIsNone(authority.resolve(EvidenceCategory.REVIEWS, review_reference))
 
         identity = build_acceptance_identity(
@@ -177,17 +177,32 @@ class BuildCompositeEvidenceAuthorityTests(unittest.TestCase):
 
     def test_checkpoint_and_review_resolvers_return_none_for_malformed_reference(self):
         authority = build_composite_evidence_authority(self.root, self.event_store)
-        self.assertIsNone(authority.resolve(EvidenceCategory.REPOSITORY, "no-colon-here"))
-        self.assertIsNone(authority.resolve(EvidenceCategory.REVIEWS, "no-colon-here"))
+        self.assertIsNone(authority.resolve(EvidenceCategory.REPOSITORY, "no-dot-here"))
+        self.assertIsNone(authority.resolve(EvidenceCategory.REVIEWS, "no-dot-here"))
 
     def test_checkpoint_and_review_resolvers_return_none_for_unknown_bead(self):
         authority = build_composite_evidence_authority(self.root, self.event_store)
         self.assertIsNone(
-            authority.resolve(EvidenceCategory.REPOSITORY, "no-such-bead:EV-000001")
+            authority.resolve(EvidenceCategory.REPOSITORY, "no-such-bead.EV-000001")
         )
         self.assertIsNone(
-            authority.resolve(EvidenceCategory.REVIEWS, "no-such-bead:EV-000001")
+            authority.resolve(EvidenceCategory.REVIEWS, "no-such-bead.EV-000001")
         )
+
+    def test_composite_reference_is_a_portable_evidence_id(self):
+        # Regression for a reviewer-found blocker: the composite reference
+        # ("{bead_id}.{ledger_event_id}") is both the EvidenceRecord.reference
+        # and (per contracts._validate_repository_evidence/_validate_review_evidence)
+        # the details["checkpoint_event_id"]/details["review_event_id"] value.
+        # Both must satisfy contracts._PORTABLE_EVIDENCE_ID (^[A-Za-z0-9._-]+$),
+        # which rejects ':' -- a ':'-separated composite reference would be
+        # unrecordable by FileEvidenceProvider even though the authority could
+        # resolve it. Assert the actual regex this module's docstring commits to.
+        from workflow_providers import contracts as contracts_module
+
+        composite = f"{self.bead_id}.EV-000002"
+        self.assertRegex(composite, contracts_module._PORTABLE_EVIDENCE_ID.pattern)
+        self.assertNotIn(":", composite)
 
 
 if __name__ == "__main__":

@@ -25,12 +25,20 @@ sequential event ids (``EV-000001``, ``EV-000002``, ...), which collide across
 every bead's ledger. Resolving one of those references therefore requires a
 bead_id the resolver otherwise has no way to receive. To keep a single global
 authority instance safe, checkpoint/review references consumed by this
-factory's resolvers use the composite form ``"{bead_id}:{ledger_event_id}"``.
+factory's resolvers use the composite form ``"{bead_id}.{ledger_event_id}"``.
 Callers that build ``EvidenceRecord`` instances for the repository/review
 categories (and callers of ``record_verification`` for the matching
 ``review_event_id``) must use this same composite form so
 ``CompositeEvidenceAuthority``'s internal reference-equality checks
 (``evidence.py``'s ``_checkpoint``/``_review``) succeed.
+
+A ``:`` separator was considered and rejected: evidence.reference and the
+matching ``details["checkpoint_event_id"]``/``details["review_event_id"]``
+must both equal the composite string and both pass
+``contracts._PORTABLE_EVIDENCE_ID`` (``^[A-Za-z0-9._-]+$``), which excludes
+``:``. ``.`` is in that character set and appears in neither a bead_id
+(``gin-workflow-xxx``) nor a ledger event id (``EV-000001``), so it splits
+unambiguously.
 """
 
 from __future__ import annotations
@@ -69,7 +77,7 @@ def build_composite_evidence_authority(
         return None
 
     def checkpoint_resolver(reference: str):
-        bead_id, _, checkpoint_event_id = reference.partition(":")
+        bead_id, _, checkpoint_event_id = reference.partition(".")
         if not bead_id or not checkpoint_event_id:
             return None
         try:
@@ -83,7 +91,7 @@ def build_composite_evidence_authority(
         return {**record, "checkpoint_event_id": reference}
 
     def review_resolver(reference: str):
-        bead_id, _, review_event_id = reference.partition(":")
+        bead_id, _, review_event_id = reference.partition(".")
         if not bead_id or not review_event_id:
             return None
         try:

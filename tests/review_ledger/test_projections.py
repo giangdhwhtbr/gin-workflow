@@ -150,5 +150,43 @@ class TestProjections(unittest.TestCase):
         self.assertIsNone(proj.active_approval)
         self.assertEqual(proj.review_state, "implementation-in-progress")
 
+    def test_generic_implementation_in_progress_transition_clears_stale_approval(self):
+        # Regression for a reviewer-found blocker: bead_fsm allows transitions
+        # like ("changes-requested", "implementation-in-progress") and
+        # ("shipping-failed", "implementation-in-progress") via the generic
+        # "transition-requested --to implementation-in-progress" action,
+        # distinct from REVIEW_APPROVAL_INVALIDATED/VERIFICATION_FAILED. That
+        # generic handler did not clear active_approval, so a stale old
+        # approval kept reporting as terminal (get_review_identity_record's
+        # `terminal = active is not None and active.event_id == event.event_id`)
+        # even after a new implementation revision began -- a stale
+        # false-positive evidence bypass in exactly the system meant to
+        # prevent that.
+        events = [
+            LedgerEvent(
+                event_id="EV-000001",
+                action=EventActions.REVIEW_APPROVED,
+                timestamp="2026-07-18T17:33:00Z",
+                actor=self.actor,
+                payload={
+                    "approved_repositories": [],
+                    "source_scope_hash": "scopehash",
+                    "terminal_findings": [],
+                },
+                previous_event_hash=None,
+            ),
+            LedgerEvent(
+                event_id="EV-000002",
+                action="implementation-in-progress",
+                timestamp="2026-07-18T17:34:00Z",
+                actor=self.actor,
+                payload={},
+                previous_event_hash="hash1",
+            ),
+        ]
+        proj = ReviewProjection.replay(events)
+        self.assertIsNone(proj.active_approval)
+        self.assertEqual(proj.review_state, "implementation-in-progress")
+
 if __name__ == "__main__":
     unittest.main()
