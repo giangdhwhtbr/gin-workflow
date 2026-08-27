@@ -326,6 +326,28 @@ def find_verification(
     return None
 
 
+def find_verification_by_review(
+    event_store: WorkflowEventStore,
+    review_event_id: str,
+) -> str | None:
+    """Return the verification_event_id recorded against a review_event_id, if any.
+
+    Companion lookup to find_verification(): callers that only know which
+    review a verification was recorded against (record_verification()'s
+    review_event_id parameter) can use this to discover the matching
+    verification_event_id before calling find_verification() itself.
+    """
+    if not isinstance(review_event_id, str) or not review_event_id.strip():
+        raise ValueError("review_event_id is required")
+    for event in event_store.read_all():
+        if (
+            event.event_type == "verification.recorded"
+            and event.payload.get("review_event_id") == review_event_id
+        ):
+            return event.payload.get("verification_event_id")
+    return None
+
+
 class FileEvidenceProvider(ProviderBase):
     provider_name = "filesystem"
     provider_type = "evidence"

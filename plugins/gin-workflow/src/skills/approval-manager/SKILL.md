@@ -29,7 +29,7 @@ Commit, push, upgrade, and data movement retain the same approval boundary.
 ## Rules
 
 1. Create a typed `ApprovalRequest` naming one action, workflow, reason, and bounded details.
-2. Ask through the native harness. A notification reply is never an approval substitute.
+2. Ask through the native harness. A notification reply is never an approval substitute. There is no per-harness adapter class: whichever agent (Claude, Codex, Antigravity, ...) is running is itself responsible for asking the user directly through its own harness's native "ask the user a question" mechanism, then constructing the portable `ApprovalDecision` dataclass (`workflow_core/approvals.py`) from that answer.
 3. Require a matching typed `ApprovalDecision`; reject mappings, denied decisions, request/action/workflow mismatches, invalid timestamps, and decisions more than five minutes old.
 4. Persist the request and decision in a matching `approval.recorded` `WorkflowEvent` through the evidence manager.
 5. Immediately before routing, re-read the event from the typed `WorkflowEventStore`. Revalidate its serialized form and require matching action, workflow, request, decision, actor, and a timestamp no more than five minutes old and not earlier than the decision.

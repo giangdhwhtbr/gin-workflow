@@ -169,19 +169,26 @@ class ProviderRegistryTests(unittest.TestCase):
             verification_resolver=verification_store.get,
         )
 
-    def test_schema_23_registry_requires_authoritative_evidence_sources(self):
+    def test_schema_23_registry_rejects_non_composite_evidence_authority(self):
         class EchoAuthority:
             def resolve(self, _category, _reference):
                 return {}
 
         with tempfile.TemporaryDirectory() as directory:
-            for authority in (None, EchoAuthority()):
-                with self.subTest(authority=authority):
-                    with self.assertRaisesRegex(RegistryError, "CompositeEvidenceAuthority"):
-                        ProviderRegistry.from_effective_config(
-                            self.evidence_config(directory),
-                            evidence_authority=authority,
-                        )
+            with self.assertRaisesRegex(RegistryError, "CompositeEvidenceAuthority"):
+                ProviderRegistry.from_effective_config(
+                    self.evidence_config(directory),
+                    evidence_authority=EchoAuthority(),
+                )
+
+    def test_schema_23_registry_auto_builds_composite_evidence_authority_when_omitted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = ProviderRegistry.from_effective_config(
+                self.evidence_config(directory),
+            )
+
+            self.assertIsInstance(registry.evidence, FakeEvidenceProvider)
+            self.assertIsInstance(registry.evidence.authority, CompositeEvidenceAuthority)
 
     def test_registry_wires_independent_composite_authority_and_rejects_forgery(self):
         authority = self.composite_authority()

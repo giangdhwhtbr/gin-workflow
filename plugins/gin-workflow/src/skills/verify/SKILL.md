@@ -14,6 +14,12 @@ Perform exactly one verification stage.
 - `ContextManifest(stage="verify")`
 - native-harness `ApprovalDecision`
 
+There is no separate adapter class per harness for the `ApprovalDecision`: the
+running agent asks the user/operator directly through its own harness's native
+"ask the user a question" mechanism, then builds the portable `ApprovalDecision`
+dataclass (`workflow_core/approvals.py`) from that answer (see the
+approval-manager skill).
+
 The caller must obtain `EffectiveConfig` through
 `load_effective_config(repository)`. If setup is required, stop and instruct
 the user to run `/setup` once. Never run setup or resolve raw configuration
