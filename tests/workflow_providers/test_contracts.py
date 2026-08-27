@@ -715,6 +715,81 @@ class ProviderContractTests(unittest.TestCase):
                 ReviewLedgerProvider(root).status("corrupt").status,
             )
 
+    def test_review_adapter_replaces_expired_lease_when_revision_begins(self):
+        from review_ledger.cli import load_ledger, mutate_ledger
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            task_id = "expired-revision-lease"
+            mutate_ledger(
+                task_id, "ledger-created", {"repositories": []},
+                "worker", "worker-1", base_dir=str(root),
+            )
+            mutate_ledger(
+                task_id, "implementation-complete", {},
+                "worker", "worker-1", base_dir=str(root),
+            )
+            mutate_ledger(
+                task_id, "review-requested", {},
+                "worker", "worker-1", base_dir=str(root),
+            )
+            mutate_ledger(
+                task_id,
+                "lease-acquired",
+                {
+                    "lease_id": "expired-lease",
+                    "actor_role": "reviewer",
+                    "actor_id": "reviewer-1",
+                    "acquired_at": "2000-01-01T00:00:00Z",
+                    "expires_at": "2999-01-01T00:00:00Z",
+                },
+                "reviewer",
+                "reviewer-1",
+                base_dir=str(root),
+            )
+            mutate_ledger(
+                task_id, "review-started", {}, "reviewer", "reviewer-1",
+                base_dir=str(root), lease_id="expired-lease",
+            )
+            mutate_ledger(
+                task_id,
+                "finding-created",
+                {"finding_id": "F-001", "severity": "IMPORTANT"},
+                "reviewer",
+                "reviewer-1",
+                base_dir=str(root),
+                lease_id="expired-lease",
+            )
+            mutate_ledger(
+                task_id, "changes-requested", {}, "reviewer", "reviewer-1",
+                base_dir=str(root), lease_id="expired-lease",
+            )
+            mutate_ledger(
+                task_id,
+                "lease-renewed",
+                {"expires_at": "2000-01-01T00:01:00Z"},
+                "reviewer",
+                "reviewer-1",
+                base_dir=str(root),
+                lease_id="expired-lease",
+            )
+
+            result = ReviewLedgerProvider(root).begin_revision(
+                task_id,
+                actor_id="worker-1",
+                lease_id="expired-lease",
+                idempotency_key="begin-expired-revision",
+            )
+
+            log, projection = load_ledger(task_id, str(root))
+            self.assertIs(OperationStatus.SUCCESS, result.status, result.message)
+            self.assertEqual("implementation-in-progress", result.value.state)
+            self.assertEqual("worker-1", projection.active_lease.actor_id)
+            self.assertEqual(
+                ["lease-broken", "lease-acquired", "implementation-in-progress"],
+                [event.action for event in log.events[-3:]],
+            )
+
 
 
     def test_approved_state_retry_fails_closed_without_persisted_identity(self):

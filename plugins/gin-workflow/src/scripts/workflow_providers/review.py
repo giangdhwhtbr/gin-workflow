@@ -454,10 +454,35 @@ class ReviewLedgerProvider(ProviderBase):
         if current.value.state == "implementation-in-progress":
             return ProviderResult.success(current.value, idempotent=True)
         try:
-            projection = self._mutate_batch(
+            from datetime import datetime, timezone
+
+            from review_ledger.cli import (
+                build_start_review_operations,
+                mutate_ledger_transaction,
+            )
+            from review_ledger.lease import is_lease_active
+
+            def build(projection):
+                operations = []
+                effective_lease_id = lease_id or None
+                if projection.active_lease is not None and not is_lease_active(
+                    projection.active_lease, datetime.now(timezone.utc)
+                ):
+                    operations, effective_lease_id = build_start_review_operations(
+                        projection,
+                        actor_id,
+                        requested_lease_id=lease_id or None,
+                        actor_role="worker",
+                    )
+                operations.append(
+                    ("implementation-in-progress", {}, "worker", actor_id)
+                )
+                return operations, effective_lease_id
+
+            _, projection = mutate_ledger_transaction(
                 task_id,
-                [("implementation-in-progress", {}, "worker", actor_id)],
-                lease_id=lease_id,
+                build,
+                base_dir=str(self.repository_root),
             )
             normalized = self._normalize(task_id, projection)
         except Exception as error:
