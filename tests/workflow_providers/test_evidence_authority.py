@@ -189,6 +189,38 @@ class BuildCompositeEvidenceAuthorityTests(unittest.TestCase):
             authority.resolve(EvidenceCategory.REVIEWS, "no-such-bead.EV-000001")
         )
 
+    def test_checkpoint_resolver_handles_a_bead_id_containing_a_dot(self):
+        # Regression for a reviewer-found blocker: real Beads IDs in this
+        # repo can themselves contain a '.' (e.g. "gin-workflow-p80.8"), so
+        # splitting the composite reference on the *first* '.' misparses the
+        # bead_id/event_id boundary. Ledger event ids are always the fixed
+        # dot-free "EV-{6 digits}" form, so the resolver must split on the
+        # *last* '.' instead.
+        dotted_bead_id = "bead-authority.8"
+        repositories = [_repository("dotted")]
+        mutate_ledger(dotted_bead_id, "ledger-created", {"repositories": repositories}, "worker", "w1", base_dir=str(self.root))
+        checkpoint_payload = {"repositories": repositories}
+        checkpoint_payload.update(
+            build_acceptance_identity_payload(
+                task_id=dotted_bead_id,
+                workflow_id="wf-1",
+                attempt_id="attempt-1",
+                repositories=repositories,
+            )
+        )
+        log, _ = mutate_ledger(
+            dotted_bead_id, "source-checkpoint-created", checkpoint_payload, "worker", "w1", base_dir=str(self.root)
+        )
+        checkpoint_event_id = log.events[-1].event_id
+        self.assertRegex(checkpoint_event_id, r"^EV-\d+$")
+
+        authority = build_composite_evidence_authority(self.root, self.event_store)
+        composite_reference = f"{dotted_bead_id}.{checkpoint_event_id}"
+        resolved = authority.resolve(EvidenceCategory.REPOSITORY, composite_reference)
+
+        self.assertIsNotNone(resolved)
+        self.assertEqual(dotted_bead_id, resolved["task_id"])
+
     def test_composite_reference_is_a_portable_evidence_id(self):
         # Regression for a reviewer-found blocker: the composite reference
         # ("{bead_id}.{ledger_event_id}") is both the EvidenceRecord.reference
