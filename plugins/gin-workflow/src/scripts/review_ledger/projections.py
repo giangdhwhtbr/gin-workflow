@@ -287,6 +287,16 @@ class ReviewProjection:
                 if num >= self.next_finding_number:
                     self.next_finding_number = num + 1
 
+        elif action == EventActions.FINDING_REOPENED:
+            # A reviewer rejecting a claimed fix. Only the status moves: the
+            # finding keeps its id, severity and evidence, so the ledger shows
+            # one finding that went open -> fixed -> open, not a new finding
+            # that happens to describe the same defect.
+            fid = payload["finding_id"]
+            if fid not in self.findings:
+                raise WorkflowIntegrityError(f"Unknown finding ID: {fid}")
+            self.findings[fid].status = "open"
+
         elif action == EventActions.FINDING_FIXED:
             fid = payload["finding_id"]
             if fid in self.findings:
