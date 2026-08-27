@@ -24,7 +24,12 @@ Before starting, enforce the configured review route. When independent review is
 4. **Record Findings**:
    - For each finding, append it to the ledger:
      `python3 review-ledger.py add-finding --bead-id <bead-id> --finding-id <finding-id> --severity <severity> --actor-id <reviewer-id> --lease-id <lease-id>`.
-5. **Approve or Request Changes**:
+5. **Re-Review of a Claimed Fix**:
+   - Verify each claimed fix against the tree before accepting it: `python3 review-ledger.py verify-finding --bead-id <bead-id> --finding-id <finding-id> --actor-id <reviewer-id> --lease-id <lease-id>`.
+   - If the fix is absent, incomplete, or wrong, reopen it rather than verifying it:
+     `python3 review-ledger.py reopen-finding --bead-id <bead-id> --finding-id <finding-id> --reason "<why the claimed fix was rejected>" --actor-id <reviewer-id> --lease-id <lease-id>`.
+   - Reopening is reviewer-only and preserves the finding's id, severity and evidence, so the ledger shows one finding that went open → fixed → open. Never verify a fix you could not confirm: `verified` is terminal, and a false one is the only way an unfixed defect reaches approval.
+6. **Approve or Request Changes**:
    - If there are unresolved findings: release the lease or transition the status to changes-requested.
    - If all findings are terminal: approve the review:
      `python3 review-ledger.py approve --bead-id <bead-id> --actor-id <reviewer-id> --lease-id <lease-id>`.

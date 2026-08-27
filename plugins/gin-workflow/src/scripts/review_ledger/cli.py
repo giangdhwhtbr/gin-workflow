@@ -447,6 +447,7 @@ def _mutate_ledger_unlocked(
         # Determine next status
         status_map = {
             "finding-created": "open",
+            "finding-reopened": "open",
             "finding-fixed": "fixed-awaiting-verification",
             "finding-disputed": "disputed",
             "clarification-requested": "clarification-requested",

@@ -19,7 +19,11 @@ from review_ledger.cli import (
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
 from review_ledger.git_adapter import create_source_checkpoint, push_review_ref, fetch_review_ref
-from review_ledger.source_identity import compute_source_scope_hash
+from review_ledger.source_identity import (
+    canonical_scope_path,
+    canonicalize_scope,
+    compute_source_scope_hash,
+)
 from review_ledger.bead_fsm import TERMINAL_FINDING_STATUSES
 
 def parse_args():
@@ -137,6 +141,65 @@ def parse_args():
     p_ver.add_argument("--actor-role", default="reviewer")
     p_ver.add_argument("--actor-id", required=True)
     p_ver.add_argument("--lease-id")
+
+    # Reopen Finding
+    p_reopen = subparsers.add_parser(
+        "reopen-finding",
+        help="Reopen a finding whose claimed fix was rejected.",
+    )
+    p_reopen.add_argument("--bead-id", required=True)
+    p_reopen.add_argument("--finding-id", required=True)
+    p_reopen.add_argument(
+        "--reason",
+        required=True,
+        help="Why the claimed fix was rejected. Recorded on the event.",
+    )
+    p_reopen.add_argument("--actor-role", default="reviewer")
+    p_reopen.add_argument("--actor-id", required=True)
+    p_reopen.add_argument("--lease-id")
+
+    # Change Review Scope
+    p_scope = subparsers.add_parser(
+        "change-scope",
+        help="Amend the review source scope. Invalidates any active approval.",
+    )
+    p_scope.add_argument("--bead-id", required=True)
+    p_scope.add_argument(
+        "--reason",
+        required=True,
+        help="Why the scope is changing. Recorded on the event.",
+    )
+    p_scope.add_argument(
+        "--add-include",
+        dest="add_included",
+        action="append",
+        default=[],
+        help="Path to add to included_paths. Repeatable.",
+    )
+    p_scope.add_argument(
+        "--remove-include",
+        dest="remove_included",
+        action="append",
+        default=[],
+        help="Path to remove from included_paths. Repeatable.",
+    )
+    p_scope.add_argument(
+        "--add-exclude",
+        dest="add_excluded",
+        action="append",
+        default=[],
+        help="Path to add to excluded_artifact_paths. Repeatable.",
+    )
+    p_scope.add_argument(
+        "--add-generated",
+        dest="add_generated",
+        action="append",
+        default=[],
+        help="Path to add to allowed_generated_paths. Repeatable.",
+    )
+    p_scope.add_argument("--actor-role", default="worker")
+    p_scope.add_argument("--actor-id", required=True)
+    p_scope.add_argument("--lease-id")
 
     # Withdraw Finding
     p_withd = subparsers.add_parser("withdraw-finding", help="Withdraw finding.")
@@ -382,6 +445,55 @@ def main():
                 args.actor_role, args.actor_id, lease_id=args.lease_id
             )
             print(f"Verified finding {args.finding_id}")
+
+        elif args.command == "reopen-finding":
+            payload = {"finding_id": args.finding_id, "reason": args.reason}
+            mutate_ledger(
+                args.bead_id, "finding-reopened", payload,
+                args.actor_role, args.actor_id, lease_id=args.lease_id
+            )
+            print(f"Reopened finding {args.finding_id}")
+
+        elif args.command == "change-scope":
+            _, proj = load_ledger(args.bead_id)
+            scope = canonicalize_scope(proj.source_scope)
+
+            def _amend(key, additions, removals=()):
+                values = list(scope.get(key, []))
+                for item in additions:
+                    if item not in values:
+                        values.append(item)
+                for item in removals:
+                    canonical = canonical_scope_path(item)
+                    values = [
+                        v for v in values if v != canonical and v != item
+                    ]
+                scope[key] = values
+
+            _amend("included_paths", args.add_included, args.remove_included)
+            _amend("excluded_artifact_paths", args.add_excluded)
+            _amend("allowed_generated_paths", args.add_generated)
+
+            canonical_scope = canonicalize_scope(scope)
+            if canonical_scope == canonicalize_scope(proj.source_scope):
+                raise ValueError(
+                    "Scope change requested but the resulting scope is unchanged."
+                )
+            if not canonical_scope["included_paths"]:
+                raise ValueError(
+                    "Refusing an empty included_paths: every path would fall in scope."
+                )
+
+            mutate_ledger(
+                args.bead_id,
+                "review-scope-change-requested",
+                {"source_scope": canonical_scope, "reason": args.reason},
+                args.actor_role, args.actor_id, lease_id=args.lease_id,
+            )
+            print(
+                f"Review scope amended to {len(canonical_scope['included_paths'])} "
+                "included path(s). Any active approval has been invalidated."
+            )
 
         elif args.command == "withdraw-finding":
             payload = {"finding_id": args.finding_id}
