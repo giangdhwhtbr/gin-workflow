@@ -26,4 +26,5 @@ from this lifecycle skill.
 3. Revalidate reviewed tree identity and every protected-action approval immediately before use.
 4. Use the approval and evidence managers for commit, push, upgrade, data movement, or other protected delivery actions. Optional notification and knowledge reconciliation remain provider-backed.
 5. Use task-tracking and workspace capabilities for durable closure and cleanup; workspace metadata never proves completion.
-6. Return `shipped` state without invoking another lifecycle stage.
+6. If this repository is itself distributed as a plugin/marketplace source that other repositories on this host install from (as `gin-workflow` is), refresh every installed platform's local snapshot before treating the shipped fix as available elsewhere: harness plugin managers cache a copy at install time and do not pick up new commits on their own, so a consumer can keep failing on an already-fixed bug against a stale cache. See the README's Troubleshooting entry for the refresh command; this step is a no-op for ordinary application repositories.
+7. Return `shipped` state without invoking another lifecycle stage.

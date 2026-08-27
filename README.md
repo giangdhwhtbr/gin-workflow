@@ -190,6 +190,22 @@ env -i PATH="/usr/local/bin:/usr/bin:/bin" claude --version
 
 Apply the same fix for any other native provider CLI (`codex`, `agy`) that isn't already reachable from a minimal `PATH`.
 
+### A repository still hits a `gin-workflow` bug that was already fixed and shipped on `master`
+
+Harness plugin managers install `gin-workflow` by snapshotting its files into a local cache at install time (e.g. Codex's `~/.codex/plugins/cache/<marketplace>/gin-workflow/<version>/`, Claude Code's global skills directory). That snapshot is not a live view of this repository — pushing a fix to `master` does not, by itself, update any consuming repository's cached install, even when the plugin's declared version number hasn't changed. A repository on the same host can keep failing with the exact symptoms of an already-fixed bug simply because its cached snapshot predates the fix.
+
+After shipping a fix in this repository, refresh every installed platform's cache on the host:
+
+```bash
+./install.sh --platform all
+```
+
+The fix must be **committed** first. Codex's marketplace registration uses a `git-subdir` source (see `.claude-plugin/marketplace.json`) that reads the plugin's tree from the repository's committed `HEAD`, not the working directory — re-running the install with only an uncommitted change staged or edited will re-register the plugin successfully but still snapshot the pre-fix content.
+
+This is safe to re-run any time — for Codex it explicitly removes and re-adds the plugin/marketplace registration (`codex plugin marketplace add`/`plugin add` are no-ops when already registered by name, and the local-source snapshot is only taken at add-time, so a plain repeat run would keep serving the stale snapshot without the explicit remove-then-add), and for Claude Code/Antigravity it recopies the compiled `dist/` output into the global install location. Use `--platform codex`/`claude`/`antigravity` to target just one. This only refreshes installs on the current host; a consumer on a different machine (installed via the GitHub marketplace or `remote-install.sh`) needs to re-run its own install/update flow from the "Remote Installation" section above.
+
+Verify the fix actually landed by checking a changed file's content inside the refreshed install directory (or, for a Python fix, importing the module from that path and exercising the fixed behavior directly) rather than assuming a successful install command means the fix is present.
+
 ---
 
 ## Local Development & Compilation
