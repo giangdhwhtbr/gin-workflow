@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from review_ledger.cli import (
+    resolve_bead_state_action,
     initialize_ledger,
     mutate_ledger,
     start_review,
@@ -590,9 +591,10 @@ def main():
             print("Ledger validation passed successfully.")
 
         elif args.command == "transition-requested":
+            action = resolve_bead_state_action(args.to)
             payload = {"to": args.to}
             mutate_ledger(
-                args.bead_id, args.to, payload,
+                args.bead_id, action, payload,
                 args.actor_role, args.actor_id, lease_id=args.lease_id
             )
             print(f"Transitioned bead {args.bead_id} to state {args.to}")
