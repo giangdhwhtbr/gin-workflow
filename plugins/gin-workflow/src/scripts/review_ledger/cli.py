@@ -397,6 +397,53 @@ def save_ledger(
         Path(md_path): md_content,
     })
 
+# Maps a ledger event action to the bead state it produces. This is the single
+# source of truth: the mutation path validates against it, and the CLI resolves
+# a requested target state back through it.
+BEAD_ACTION_STATES = {
+    "implementation-complete": "implementation-complete",
+    "review-requested": "review-requested",
+    "review-started": "review-in-progress",
+    "changes-requested": "changes-requested",
+    "implementation-in-progress": "implementation-in-progress",
+    "review-approved": "review-approved",
+    "review-approval-invalidated": "implementation-in-progress",
+    "verification-started": "verification-in-progress",
+    "verification-passed": "ready-to-ship",
+    "verification-failed": "implementation-in-progress",
+    "shipping-started": "ready-to-ship",
+    "shipping-failed": "shipping-failed",
+    "shipping-completed": "closed",
+}
+
+# Two actions can produce the same state. Name the one a state request means.
+_PREFERRED_STATE_ACTIONS = {
+    "ready-to-ship": "verification-passed",
+}
+
+
+def resolve_bead_state_action(state: str) -> str:
+    """Return the event action that drives the bead into `state`.
+
+    Raises ValueError for a state no action produces, rather than letting the
+    caller append an event the projection will silently ignore.
+    """
+    candidates = [a for a, s in BEAD_ACTION_STATES.items() if s == state]
+    if not candidates:
+        reachable = ", ".join(sorted(set(BEAD_ACTION_STATES.values())))
+        raise ValueError(
+            f"No ledger action produces bead state '{state}'. "
+            f"Reachable states: {reachable}."
+        )
+    if len(candidates) == 1:
+        return candidates[0]
+    if state in _PREFERRED_STATE_ACTIONS:
+        return _PREFERRED_STATE_ACTIONS[state]
+    if state in candidates:
+        return state
+    return sorted(candidates)[0]
+
+
 def _mutate_ledger_unlocked(
     bead_id: str,
     action: str,
@@ -482,23 +529,8 @@ def _mutate_ledger_unlocked(
                 )
 
     # b. Bead State Transitions
-    state_map = {
-        "implementation-complete": "implementation-complete",
-        "review-requested": "review-requested",
-        "review-started": "review-in-progress",
-        "changes-requested": "changes-requested",
-        "implementation-in-progress": "implementation-in-progress",
-        "review-approved": "review-approved",
-        "review-approval-invalidated": "implementation-in-progress",
-        "verification-started": "verification-in-progress",
-        "verification-passed": "ready-to-ship",
-        "verification-failed": "implementation-in-progress",
-        "shipping-started": "ready-to-ship",
-        "shipping-failed": "shipping-failed",
-        "shipping-completed": "closed"
-    }
-    if action in state_map:
-        next_state = state_map[action]
+    if action in BEAD_ACTION_STATES:
+        next_state = BEAD_ACTION_STATES[action]
         finding_statuses = [f.status for f in proj.findings.values()]
         validate_bead_transition(
             current_state=proj.review_state,

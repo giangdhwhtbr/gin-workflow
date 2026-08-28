@@ -352,3 +352,153 @@ class TestChangeScope(unittest.TestCase):
             after.active_approval,
             "widening scope must invalidate approval: the added paths were never reviewed",
         )
+
+
+class TestBeadStateActionResolution(unittest.TestCase):
+    """A requested target state must resolve to an action the projection applies.
+
+    Regression cover for gin-workflow-b8i: `transition-requested` passed the
+    target STATE name straight through as the event ACTION. Five states happen
+    to share a name with their action and worked by coincidence; the rest fell
+    out of the mutation path's state_map, skipping bead-FSM validation and
+    leaving review_state unchanged while the command printed success.
+    """
+
+    def test_every_reachable_state_resolves_to_an_action(self):
+        from review_ledger.cli import BEAD_ACTION_STATES, resolve_bead_state_action
+
+        for state in set(BEAD_ACTION_STATES.values()):
+            action = resolve_bead_state_action(state)
+            self.assertIn(action, BEAD_ACTION_STATES, state)
+            self.assertEqual(
+                state, BEAD_ACTION_STATES[action],
+                f"{state} resolved to {action}, which yields "
+                f"{BEAD_ACTION_STATES[action]}",
+            )
+
+    def test_post_approval_states_resolve_to_their_real_actions(self):
+        from review_ledger.cli import resolve_bead_state_action
+
+        self.assertEqual(
+            "verification-started", resolve_bead_state_action("verification-in-progress")
+        )
+        self.assertEqual(
+            "verification-passed", resolve_bead_state_action("ready-to-ship")
+        )
+        self.assertEqual(
+            "shipping-completed", resolve_bead_state_action("closed")
+        )
+
+    def test_unreachable_state_is_rejected_rather_than_silently_ignored(self):
+        from review_ledger.cli import resolve_bead_state_action
+
+        with self.assertRaises(ValueError) as ctx:
+            resolve_bead_state_action("not-a-state")
+        self.assertIn("not-a-state", str(ctx.exception))
+        # The diagnostic must tell the operator what IS reachable.
+        self.assertIn("ready-to-ship", str(ctx.exception))
+
+
+class TestTransitionRequestedAppliesState(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.script = str(
+            Path(__file__).resolve().parents[2]
+            / "plugins/gin-workflow/src/scripts/review-ledger.py"
+        )
+        subprocess.run(["git", "init", "-q", "."], cwd=self.test_dir, check=True)
+        Path(self.test_dir, "f.txt").write_text("x\n")
+        subprocess.run(["git", "add", "f.txt"], cwd=self.test_dir, check=True)
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t",
+             "commit", "-qm", "base"],
+            cwd=self.test_dir, check=True,
+        )
+        subprocess.run(
+            ["git", "update-ref", "refs/gin/review/bead-t", "HEAD"],
+            cwd=self.test_dir, check=True,
+        )
+        self.run_cli(
+            "init", "--bead-id", "bead-t", "--repo-id", "r", "--repo-path", ".",
+            "--include", "f.txt", "--review-ref", "refs/gin/review/bead-t",
+            "--base-sha", "HEAD", "--actor-id", "worker-1",
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def run_cli(self, *args):
+        return subprocess.run(
+            [sys.executable, self.script, *args],
+            cwd=self.test_dir, capture_output=True, text=True,
+        )
+
+    def state(self):
+        result = self.run_cli("status", "--bead-id", "bead-t")
+        for line in result.stdout.splitlines():
+            if line.startswith("State:"):
+                return line.split(":", 1)[1].strip()
+        raise AssertionError(f"no state in: {result.stdout} {result.stderr}")
+
+    def advance_to_review_approved(self):
+        self.run_cli("transition-requested", "--bead-id", "bead-t",
+                     "--to", "review-requested", "--actor-role", "worker",
+                     "--actor-id", "worker-1")
+        out = self.run_cli("start-review", "--bead-id", "bead-t",
+                           "--actor-id", "rev-1")
+        lease = out.stdout.strip().split()[-1].rstrip(".")
+        self.run_cli("approve", "--bead-id", "bead-t", "--actor-role", "reviewer",
+                     "--actor-id", "rev-1", "--lease-id", lease)
+        return lease
+
+    def test_transition_to_ready_to_ship_actually_changes_the_state(self):
+        lease = self.advance_to_review_approved()
+        self.assertEqual("review-approved", self.state())
+
+        first = self.run_cli("transition-requested", "--bead-id", "bead-t",
+                             "--to", "verification-in-progress",
+                             "--actor-role", "verifier", "--actor-id", "ver-1",
+                             "--lease-id", lease)
+        self.assertEqual(0, first.returncode, first.stderr)
+        self.assertEqual("verification-in-progress", self.state())
+
+        second = self.run_cli("transition-requested", "--bead-id", "bead-t",
+                              "--to", "ready-to-ship",
+                              "--actor-role", "verifier", "--actor-id", "ver-1",
+                              "--lease-id", lease)
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertEqual("ready-to-ship", self.state())
+
+    def test_state_survives_a_from_scratch_log_replay(self):
+        lease = self.advance_to_review_approved()
+        self.run_cli("transition-requested", "--bead-id", "bead-t",
+                     "--to", "verification-in-progress", "--actor-role", "verifier",
+                     "--actor-id", "ver-1", "--lease-id", lease)
+        self.run_cli("transition-requested", "--bead-id", "bead-t",
+                     "--to", "ready-to-ship", "--actor-role", "verifier",
+                     "--actor-id", "ver-1", "--lease-id", lease)
+
+        _, proj = load_ledger("bead-t", base_dir=self.test_dir)
+        self.assertEqual("ready-to-ship", proj.review_state)
+
+    def test_unappliable_transition_exits_non_zero_without_printing_success(self):
+        lease = self.advance_to_review_approved()
+        before = self.state()
+
+        result = self.run_cli("transition-requested", "--bead-id", "bead-t",
+                              "--to", "not-a-state", "--actor-role", "verifier",
+                              "--actor-id", "ver-1", "--lease-id", lease)
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertNotIn("Transitioned", result.stdout)
+        self.assertEqual(before, self.state())
+
+    def test_transition_forbidden_by_the_bead_fsm_is_still_refused(self):
+        lease = self.advance_to_review_approved()
+
+        result = self.run_cli("transition-requested", "--bead-id", "bead-t",
+                              "--to", "closed", "--actor-role", "verifier",
+                              "--actor-id", "ver-1", "--lease-id", lease)
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual("review-approved", self.state())
