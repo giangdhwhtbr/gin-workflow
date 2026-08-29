@@ -34,12 +34,12 @@ routing:
     antigravity: 2
     codex: 1
   queue:
-    max_wait_seconds: 120
+    max_wait_seconds: 600
   worker:
     timeout_seconds: 900
-    max_retries: 1
+    max_retries: 2
   circuit_breaker:
-    failure_threshold: 1
+    failure_threshold: 3
     cooldown_seconds: 900
     half_open_max_probes: 1
   review:

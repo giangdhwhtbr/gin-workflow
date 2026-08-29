@@ -289,6 +289,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
             portable = yaml.safe_load(
                 (ROOT / "plugins/gin-workflow/src/examples/config.full.yaml").read_text(encoding="utf-8")
             )
+            portable["routing"]["circuit_breaker"]["failure_threshold"] = 1
             portable["providers"] = {
                 "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                 "review": "fake", "evidence": "fake", "notifications": "fake",

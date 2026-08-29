@@ -2,14 +2,14 @@ harness: codex
 routing:
   circuit_breaker:
     cooldown_seconds: 900
-    failure_threshold: 1
+    failure_threshold: 3
     half_open_max_probes: 1
   concurrency:
     antigravity: 2
     claude: 2
     codex: 1
   queue:
-    max_wait_seconds: 120
+    max_wait_seconds: 600
   review:
     allow_self_review_fallback: false
     max_cycles: 3
@@ -45,7 +45,7 @@ routing:
       preferred:
       - antigravity
   worker:
-    max_retries: 1
+    max_retries: 2
     timeout_seconds: 900
 schema_version: '2.3'
 setup_cli_version: '2.3'
