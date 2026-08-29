@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from review_ledger.cli import (
     initialize_ledger,
     mutate_ledger,
+    resync_lease,
     start_review,
     load_ledger,
     get_ledger_paths,
@@ -70,6 +71,24 @@ def parse_args():
     p_start.add_argument("--actor-id", required=True)
     p_start.add_argument("--lease-id")
     p_start.add_argument("--ttl-seconds", type=int, default=600)
+    p_start.add_argument(
+        "--force-takeover",
+        action="store_true",
+        help="Seize an active lease held by another actor. Requires --reason.",
+    )
+    p_start.add_argument(
+        "--reason",
+        help="Why the lease is being seized. Recorded on the lease-broken event.",
+    )
+
+    # Resync Lease
+    p_resync = subparsers.add_parser(
+        "resync-lease",
+        help="Re-point your own lease at the ledger's current revision.",
+    )
+    p_resync.add_argument("--bead-id", required=True)
+    p_resync.add_argument("--lease-id", required=True)
+    p_resync.add_argument("--actor-id", required=True)
 
     # Add Finding
     p_add = subparsers.add_parser("add-finding", help="Add a new review finding.")
@@ -368,14 +387,29 @@ def main():
             print(f"Created source checkpoint: {checkpoint.checkpoint_sha}")
 
         elif args.command == "start-review":
+            if args.force_takeover and not (args.reason or "").strip():
+                raise ValueError("--force-takeover requires --reason.")
             _, projection = start_review(
                 args.bead_id,
                 args.actor_id,
                 requested_lease_id=args.lease_id,
                 ttl_seconds=args.ttl_seconds,
                 actor_role=args.actor_role,
+                force_takeover=args.force_takeover,
+                takeover_reason=args.reason,
             )
             print(f"Review phase started with lease {projection.active_lease.lease_id}.")
+
+        elif args.command == "resync-lease":
+            _, projection = resync_lease(
+                args.bead_id,
+                args.actor_id,
+                args.lease_id,
+            )
+            print(
+                f"Lease {args.lease_id} resynced to ledger revision "
+                f"{projection.ledger_revision}."
+            )
 
         elif args.command == "add-finding":
             payload = {"finding_id": args.finding_id, "severity": args.severity}

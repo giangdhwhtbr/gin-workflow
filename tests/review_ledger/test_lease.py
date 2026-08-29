@@ -65,5 +65,31 @@ class TestLease(unittest.TestCase):
         with self.assertRaises(LeaseError):
             validate_lease_for_write(proj, "lease-123", now)
 
+    def test_revision_drift_is_the_only_lease_failure_with_no_lease_level_cure(self):
+        """Pins the precondition resync-lease exists to repair.
+
+        A lease that drifted behind the ledger is neither expired nor
+        misidentified, so neither renewal nor takeover clears it: the lease is
+        live, owned, and still refused. Only re-pointing current_ledger_revision
+        - what the `lease-resynced` event does - restores the write.
+        """
+        now = datetime.now(timezone.utc)
+        proj = ReviewProjection()
+        proj.ledger_revision = 9
+        proj.active_lease = LeaseProjection(
+            "lease-123", "reviewer", "rev-1", "ts1",
+            format_utc_timestamp(now + timedelta(minutes=10)), 4,
+        )
+
+        # The lease is unquestionably live and unquestionably the right one.
+        self.assertTrue(is_lease_active(proj.active_lease, now))
+        self.assertFalse(is_lease_expired(proj.active_lease, now))
+        with self.assertRaises(LeaseError):
+            validate_lease_for_write(proj, "lease-123", now)
+
+        proj.active_lease.current_ledger_revision = proj.ledger_revision
+        validate_lease_for_write(proj, "lease-123", now)
+
 if __name__ == "__main__":
+
     unittest.main()
