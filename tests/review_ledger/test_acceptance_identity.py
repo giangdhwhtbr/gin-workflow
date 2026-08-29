@@ -598,5 +598,51 @@ class ReviewLedgerCommandIdentityTests(unittest.TestCase):
         self.assertEqual("1.0", payload["schema_version"])
 
 
+    def test_init_command_with_flags_attaches_identity(self):
+        bead_id = "cli-init-identity"
+        self._cli(
+            "init",
+            "--bead-id", bead_id,
+            "--repo-id", "primary",
+            "--repo-path", ".",
+            "--review-ref", f"refs/gin/review/{bead_id}",
+            "--include", "src/",
+            "--actor-id", "worker-1",
+            "--workflow-id", "wf-init",
+            "--attempt-id", "at-init",
+        )
+        log, _ = load_ledger(bead_id, base_dir=self.test_dir)
+        event = log.events[0]
+        self.assertEqual("ledger-created", event.action)
+        self.assertEqual("wf-init", event.payload["workflow_id"])
+        self.assertEqual("at-init", event.payload["attempt_id"])
+        self.assertEqual(bead_id, event.payload["task_id"])
+
+        record = get_checkpoint_identity_record(
+            bead_id, event.event_id, base_dir=self.test_dir
+        )
+        self.assertIsNotNone(record)
+        identity = AcceptanceIdentity.from_mapping(record["acceptance_identity"])
+        self.assertEqual("wf-init", identity.workflow_id)
+        self.assertEqual("at-init", identity.attempt_id)
+        self.assertEqual(bead_id, identity.task_id)
+
+    def test_init_command_rejects_half_an_identity(self):
+        bead_id = "cli-init-half-identity"
+        process = self._cli(
+            "init",
+            "--bead-id", bead_id,
+            "--repo-id", "primary",
+            "--repo-path", ".",
+            "--review-ref", f"refs/gin/review/{bead_id}",
+            "--include", "src/",
+            "--actor-id", "worker-1",
+            "--workflow-id", "wf-init",
+            expect_success=False,
+        )
+        self.assertEqual(1, process.returncode)
+        self.assertIn("must be supplied together", process.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

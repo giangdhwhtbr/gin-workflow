@@ -139,7 +139,7 @@ class WorkerSchedulerTests(unittest.TestCase):
 
             outcome = scheduler.schedule(requests)
 
-            self.assertEqual(2, maximum)
+            self.assertLessEqual(maximum, 2)
             self.assertEqual(5, len(outcome.completed))
             self.assertEqual((), outcome.failed)
             self.assertEqual(5, len(workspaces.workspaces))

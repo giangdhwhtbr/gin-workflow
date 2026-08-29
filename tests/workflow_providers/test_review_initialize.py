@@ -124,6 +124,32 @@ class ReviewInitializeTests(unittest.TestCase):
             for field in ("checkpoint_sha", "source_scope_hash", "source_tree_hash"):
                 self.assertTrue(str(recorded[field]).strip())
 
+    def test_initializes_ledger_with_acceptance_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            nested = root / "backend"
+            _seed_repository(nested)
+            provider = ReviewLedgerProvider(root)
+
+            request = self._request(
+                "backend", workflow_id="wf-prov-init", attempt_id="at-prov-init"
+            )
+            result = provider.initialize(request, idempotency_key="init-identity-1")
+
+            self.assertIs(OperationStatus.SUCCESS, result.status)
+
+            from review_ledger.cli import get_checkpoint_identity_record, load_ledger
+
+            log, _ = load_ledger("task-init", str(root))
+            event = log.events[0]
+            self.assertEqual("wf-prov-init", event.payload["workflow_id"])
+            self.assertEqual("at-prov-init", event.payload["attempt_id"])
+
+            record = get_checkpoint_identity_record("task-init", "EV-000001", base_dir=str(root))
+            self.assertIsNotNone(record)
+            self.assertEqual("wf-prov-init", record["acceptance_identity"]["workflow_id"])
+            self.assertEqual("at-prov-init", record["acceptance_identity"]["attempt_id"])
+
     def test_initialize_is_idempotent_and_never_reinitializes_an_existing_ledger(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()

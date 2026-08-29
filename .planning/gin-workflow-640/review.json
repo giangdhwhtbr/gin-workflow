@@ -1,0 +1,310 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+      "review_ref": "refs/gin/review/gin-workflow-640",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-640",
+      "review_base_sha": "bb93284ee13e7f204a49f9888577c034293e2d72",
+      "reviewed_source_sha": "ebc3ac87389a062e14caaec9289a87cfdb5541f8",
+      "checkpoint_sha": "ebc3ac87389a062e14caaec9289a87cfdb5541f8",
+      "source_scope_hash": "ee1f5efe7515302979d063cf3114ed764580ea59f97f7d014aa07c307b2e3db5",
+      "source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+      "reviewed_source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "plugins/gin-workflow/src/scripts/workflow_core",
+      "tests/workflow_core"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": {
+    "lease_id": "39b9557f28c64b838573c9d1b96b6543",
+    "actor_role": "verifier",
+    "actor_id": "claude-verifier",
+    "acquired_at": "2026-08-28T16:55:07.287102Z",
+    "expires_at": "2026-08-28T17:05:07.287102Z",
+    "current_ledger_revision": 13
+  },
+  "ledger_revision": 13,
+  "next_finding_number": 2,
+  "findings": {
+    "F-001": {
+      "finding_id": "F-001",
+      "severity": "IMPORTANT",
+      "status": "withdrawn",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-08-28T16:30:46.442698Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-implementer"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-640",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-640",
+            "review_base_sha": "bb93284ee13e7f204a49f9888577c034293e2d72",
+            "reviewed_source_sha": "781ba372f52467ec2d7d7992a7d8a2712c2160b6",
+            "checkpoint_sha": "781ba372f52467ec2d7d7992a7d8a2712c2160b6",
+            "source_scope_hash": "ee1f5efe7515302979d063cf3114ed764580ea59f97f7d014aa07c307b2e3db5",
+            "source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+            "reviewed_source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "plugins/gin-workflow/src/scripts/workflow_core",
+            "tests/workflow_core"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "67eeeadb06d557b4df583e9ce0c4c4705db533d9f3585deff75a3b3a82ea89f4"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-08-28T16:31:06.446278Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-implementer"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-640",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-640",
+            "review_base_sha": "bb93284ee13e7f204a49f9888577c034293e2d72",
+            "reviewed_source_sha": "ebc3ac87389a062e14caaec9289a87cfdb5541f8",
+            "checkpoint_sha": "ebc3ac87389a062e14caaec9289a87cfdb5541f8",
+            "source_scope_hash": "ee1f5efe7515302979d063cf3114ed764580ea59f97f7d014aa07c307b2e3db5",
+            "source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+            "reviewed_source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+            "source_identity_status": "complete"
+          }
+        ],
+        "workflow_id": "wf-flexible-traceable-workflow-20260828",
+        "attempt_id": "attempt-t1-1",
+        "task_id": "gin-workflow-640"
+      },
+      "previous_event_hash": "67eeeadb06d557b4df583e9ce0c4c4705db533d9f3585deff75a3b3a82ea89f4",
+      "event_hash": "f3b938cc4196add914aada499ed1af71dfac210b82ce0bf1b7ace3792ebd7bbf"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-08-28T16:31:06.561114Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-implementer"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "f3b938cc4196add914aada499ed1af71dfac210b82ce0bf1b7ace3792ebd7bbf",
+      "event_hash": "5560af7d16cbaa1b2846bb636c6e077a41aa8c63c52812e0303d6390c025f0b3"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-08-28T16:32:58.417164Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {
+        "lease_id": "8dc054f4cbc243b598c8871d50d90648",
+        "actor_role": "reviewer",
+        "actor_id": "antigravity-reviewer",
+        "acquired_at": "2026-08-28T16:32:58.416359Z",
+        "expires_at": "2026-08-28T16:42:58.416359Z"
+      },
+      "previous_event_hash": "5560af7d16cbaa1b2846bb636c6e077a41aa8c63c52812e0303d6390c025f0b3",
+      "event_hash": "a7697bda3d87a7e729a9ba2114ffb5968c03f0a8b029b9cb00cd5777026d4b15"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-08-28T16:32:58.434527Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {},
+      "previous_event_hash": "a7697bda3d87a7e729a9ba2114ffb5968c03f0a8b029b9cb00cd5777026d4b15",
+      "event_hash": "7ef35ef82398e15eaa2aa0ea56f5d1541099a43a5d6253a8806804cae95dee42"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-08-28T16:33:14.127620Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {
+        "finding_id": "F-001",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "7ef35ef82398e15eaa2aa0ea56f5d1541099a43a5d6253a8806804cae95dee42",
+      "event_hash": "5f3030e4232e5f6f45955c602d3836b2f1a20b38fe183d53ca4da4cfc0690592"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-disputed",
+      "timestamp": "2026-08-28T16:33:14.243422Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-implementer"
+      },
+      "payload": {
+        "finding_id": "F-001",
+        "reason": "Refuted empirically. WorkflowEvent.from_mapping (events.py:145) calls _validate_event_mapping(value) at line 148 BEFORE indexing any key; that helper raises EventPersistenceError for missing/invalid fields, which collect_waivers already catches. Probed all four corruption shapes against the real store - '{}', '[1, 2, 3]', an object with wrong-typed fields, and malformed JSON - and collect_waivers returned {} for every one, raising nothing. The finding's premise that from_mapping reaches value['event_id'] and raises KeyError/TypeError is incorrect. Additionally '[1, 2, 3]' never reaches from_mapping at all: _decode_events rejects a non-Mapping with EventPersistenceError at events.py:192."
+      },
+      "previous_event_hash": "5f3030e4232e5f6f45955c602d3836b2f1a20b38fe183d53ca4da4cfc0690592",
+      "event_hash": "cb2659cce6239834a4a414168c1beb62cc8f3605b2657415bda212377eac0833"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "finding-withdrawn",
+      "timestamp": "2026-08-28T16:33:49.802178Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {
+        "finding_id": "F-001"
+      },
+      "previous_event_hash": "cb2659cce6239834a4a414168c1beb62cc8f3605b2657415bda212377eac0833",
+      "event_hash": "9a2441deac68196ca8c95c925db3e14799ce24ba476bfceccfaee2340a7647d3"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "review-approved",
+      "timestamp": "2026-08-28T16:33:50.014920Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-640",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-640",
+            "review_base_sha": "bb93284ee13e7f204a49f9888577c034293e2d72",
+            "reviewed_source_sha": "ebc3ac87389a062e14caaec9289a87cfdb5541f8",
+            "checkpoint_sha": "ebc3ac87389a062e14caaec9289a87cfdb5541f8",
+            "source_scope_hash": "ee1f5efe7515302979d063cf3114ed764580ea59f97f7d014aa07c307b2e3db5",
+            "source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+            "reviewed_source_tree_hash": "1e6fe0cdb185f22550952b1044ae22cf1fe99551a61a958ff982e4d1fffb3fea",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "ee1f5efe7515302979d063cf3114ed764580ea59f97f7d014aa07c307b2e3db5",
+        "terminal_findings": [
+          "F-001"
+        ]
+      },
+      "previous_event_hash": "9a2441deac68196ca8c95c925db3e14799ce24ba476bfceccfaee2340a7647d3",
+      "event_hash": "a283aa453908a1deece093ab23b6204d03f936eedb2b10e8a7f29e533fb59109"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "lease-broken",
+      "timestamp": "2026-08-28T16:55:07.287843Z",
+      "actor": {
+        "role": "verifier",
+        "actor_id": "claude-verifier"
+      },
+      "payload": {
+        "lease_id": "8dc054f4cbc243b598c8871d50d90648",
+        "reason": "expired",
+        "replaced_by": "39b9557f28c64b838573c9d1b96b6543"
+      },
+      "previous_event_hash": "a283aa453908a1deece093ab23b6204d03f936eedb2b10e8a7f29e533fb59109",
+      "event_hash": "4311c0d6e7aaa3666fc5539a32489f8344c6f7e9108a5e3a9e4dc9e272ab5db4"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "lease-acquired",
+      "timestamp": "2026-08-28T16:55:07.305939Z",
+      "actor": {
+        "role": "verifier",
+        "actor_id": "claude-verifier"
+      },
+      "payload": {
+        "lease_id": "39b9557f28c64b838573c9d1b96b6543",
+        "actor_role": "verifier",
+        "actor_id": "claude-verifier",
+        "acquired_at": "2026-08-28T16:55:07.287102Z",
+        "expires_at": "2026-08-28T17:05:07.287102Z"
+      },
+      "previous_event_hash": "4311c0d6e7aaa3666fc5539a32489f8344c6f7e9108a5e3a9e4dc9e272ab5db4",
+      "event_hash": "3b70f0462282ed686878244c6749c852d27070e1e07000366a76e8045fe789da"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "verification-in-progress",
+      "timestamp": "2026-08-28T16:55:07.477784Z",
+      "actor": {
+        "role": "verifier",
+        "actor_id": "claude-verifier"
+      },
+      "payload": {
+        "to": "verification-in-progress"
+      },
+      "previous_event_hash": "3b70f0462282ed686878244c6749c852d27070e1e07000366a76e8045fe789da",
+      "event_hash": "2becdd5074ce618a2e033a8eb370ab263c81801ed106807f3de3c6251d215683"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "ready-to-ship",
+      "timestamp": "2026-08-28T16:55:07.602067Z",
+      "actor": {
+        "role": "verifier",
+        "actor_id": "claude-verifier"
+      },
+      "payload": {
+        "to": "ready-to-ship"
+      },
+      "previous_event_hash": "2becdd5074ce618a2e033a8eb370ab263c81801ed106807f3de3c6251d215683",
+      "event_hash": "28d0867df47a20a43367c1da838e8d99065f350febb60b26737a894515f7a755"
+    }
+  ]
+}

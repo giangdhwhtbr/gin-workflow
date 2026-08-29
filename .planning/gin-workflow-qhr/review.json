@@ -1,0 +1,346 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+      "review_ref": "refs/gin/review/gin-workflow-qhr",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-qhr",
+      "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+      "reviewed_source_sha": "90082c440c04960ab5add08ac746d74d102f48b9",
+      "checkpoint_sha": "90082c440c04960ab5add08ac746d74d102f48b9",
+      "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+      "source_tree_hash": "4780294c99c5f279a211cfb7ee6697f3fbd1cfd06efeaf8d297e1f58cf994dff",
+      "reviewed_source_tree_hash": "4780294c99c5f279a211cfb7ee6697f3fbd1cfd06efeaf8d297e1f58cf994dff",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "plugins/gin-workflow/src/scripts/workflow_core/router.py",
+      "tests/workflow_core/test_router.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": {
+    "lease_id": "e96c1611643c4b50b293874630af9061",
+    "actor_role": "worker",
+    "actor_id": "antigravity",
+    "acquired_at": "2026-08-29T03:07:34.838921Z",
+    "expires_at": "2026-08-29T03:22:01.817236Z",
+    "current_ledger_revision": 15
+  },
+  "ledger_revision": 15,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-08-29T00:22:46.715991Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-qhr",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qhr",
+            "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+            "reviewed_source_sha": "368460907097374566e5907c44c510a0933cd648",
+            "checkpoint_sha": "368460907097374566e5907c44c510a0933cd648",
+            "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+            "source_tree_hash": "ceca54a801c08746e9de2202b1f3f56e390135bdac8b833f1bb717ad8be23f9c",
+            "reviewed_source_tree_hash": "ceca54a801c08746e9de2202b1f3f56e390135bdac8b833f1bb717ad8be23f9c",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "plugins/gin-workflow/src/scripts/workflow_core/router.py",
+            "tests/workflow_core/test_router.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "ef52703b0fdb2d1d270ddb79b6ff441b3024d19402edccd7739b9cfef3dc14a8"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-08-29T00:22:48.582934Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-qhr",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qhr",
+            "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+            "reviewed_source_sha": "0e56a38f5a7b61511c594184ce896a7dacb690e4",
+            "checkpoint_sha": "0e56a38f5a7b61511c594184ce896a7dacb690e4",
+            "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+            "source_tree_hash": "ceca54a801c08746e9de2202b1f3f56e390135bdac8b833f1bb717ad8be23f9c",
+            "reviewed_source_tree_hash": "ceca54a801c08746e9de2202b1f3f56e390135bdac8b833f1bb717ad8be23f9c",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "ef52703b0fdb2d1d270ddb79b6ff441b3024d19402edccd7739b9cfef3dc14a8",
+      "event_hash": "e976141d13b8daa348243a25a7cb4ae73c18f19e6a96a914478cf3f3f214ba34"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-08-29T00:22:53.351761Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "e976141d13b8daa348243a25a7cb4ae73c18f19e6a96a914478cf3f3f214ba34",
+      "event_hash": "7dd266412d6a3852a821100e24bf2fb4fc1508f884218642a77c650949ebb682"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-08-29T00:23:02.874786Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "codex-reviewer"
+      },
+      "payload": {
+        "lease_id": "0d130cbafbc64aeca76f24fdc066a545",
+        "actor_role": "reviewer",
+        "actor_id": "codex-reviewer",
+        "acquired_at": "2026-08-29T00:23:02.873975Z",
+        "expires_at": "2026-08-29T00:33:02.873975Z"
+      },
+      "previous_event_hash": "7dd266412d6a3852a821100e24bf2fb4fc1508f884218642a77c650949ebb682",
+      "event_hash": "9c6846acb46dcb5913031393d8d8ae0c41654e7489b5aae2ab825018eec1a02d"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-08-29T00:23:02.896307Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "codex-reviewer"
+      },
+      "payload": {},
+      "previous_event_hash": "9c6846acb46dcb5913031393d8d8ae0c41654e7489b5aae2ab825018eec1a02d",
+      "event_hash": "470e253d82a98e794143b2db88601a1b75b9af797cf747563b96e6947444158d"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-08-29T00:23:06.750089Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "codex-reviewer"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-qhr",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qhr",
+            "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+            "reviewed_source_sha": "0e56a38f5a7b61511c594184ce896a7dacb690e4",
+            "checkpoint_sha": "0e56a38f5a7b61511c594184ce896a7dacb690e4",
+            "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+            "source_tree_hash": "ceca54a801c08746e9de2202b1f3f56e390135bdac8b833f1bb717ad8be23f9c",
+            "reviewed_source_tree_hash": "ceca54a801c08746e9de2202b1f3f56e390135bdac8b833f1bb717ad8be23f9c",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "470e253d82a98e794143b2db88601a1b75b9af797cf747563b96e6947444158d",
+      "event_hash": "6362fbf6d7daa63c7ca7fe82b564d7cdb38dcb2720c7e261ad4dd14f888e5183"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-broken",
+      "timestamp": "2026-08-29T03:07:34.839675Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "lease_id": "0d130cbafbc64aeca76f24fdc066a545",
+        "reason": "expired",
+        "replaced_by": "e96c1611643c4b50b293874630af9061"
+      },
+      "previous_event_hash": "6362fbf6d7daa63c7ca7fe82b564d7cdb38dcb2720c7e261ad4dd14f888e5183",
+      "event_hash": "8d494e7d006fdf3ac9988eff1e27334b2dd5f89b8a90d35d5b14445ca4dbd9e7"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "lease-acquired",
+      "timestamp": "2026-08-29T03:07:34.860153Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "lease_id": "e96c1611643c4b50b293874630af9061",
+        "actor_role": "worker",
+        "actor_id": "antigravity",
+        "acquired_at": "2026-08-29T03:07:34.838921Z",
+        "expires_at": "2026-08-29T03:17:34.838921Z"
+      },
+      "previous_event_hash": "8d494e7d006fdf3ac9988eff1e27334b2dd5f89b8a90d35d5b14445ca4dbd9e7",
+      "event_hash": "7a03f94ce56df3a5ee268dfe8dd6ea183c961ee854c0c74bfa05b56d3d5a374c"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "review-approval-invalidated",
+      "timestamp": "2026-08-29T03:07:46.787885Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "reason": "re-implementation on track/gin-workflow-qhr with T2 changes merged to master"
+      },
+      "previous_event_hash": "7a03f94ce56df3a5ee268dfe8dd6ea183c961ee854c0c74bfa05b56d3d5a374c",
+      "event_hash": "83ff33ccf8cc84cbcfa9b2035a8df66100c550352144b1bd876c95167803a972"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-08-29T03:08:35.523418Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-qhr",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qhr",
+            "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+            "reviewed_source_sha": "90082c440c04960ab5add08ac746d74d102f48b9",
+            "checkpoint_sha": "90082c440c04960ab5add08ac746d74d102f48b9",
+            "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+            "source_tree_hash": "4780294c99c5f279a211cfb7ee6697f3fbd1cfd06efeaf8d297e1f58cf994dff",
+            "reviewed_source_tree_hash": "4780294c99c5f279a211cfb7ee6697f3fbd1cfd06efeaf8d297e1f58cf994dff",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "83ff33ccf8cc84cbcfa9b2035a8df66100c550352144b1bd876c95167803a972",
+      "event_hash": "96d397b1cb1f13d8c5b17ce58f495bb6073bed6445ac2b0f83574936c2201ab8"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "implementation-complete",
+      "timestamp": "2026-08-29T03:08:42.300298Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "to": "implementation-complete"
+      },
+      "previous_event_hash": "96d397b1cb1f13d8c5b17ce58f495bb6073bed6445ac2b0f83574936c2201ab8",
+      "event_hash": "38180b413753e84e8965d86f10edc4f68b2067797b0da89d02a37892eaea8cd1"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "review-requested",
+      "timestamp": "2026-08-29T03:08:42.419163Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "38180b413753e84e8965d86f10edc4f68b2067797b0da89d02a37892eaea8cd1",
+      "event_hash": "50ae12615c02a615f7ac861a3e05326b876367cdbe63b4460998d5ff25e94225"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "lease-renewed",
+      "timestamp": "2026-08-29T03:12:01.818053Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "expires_at": "2026-08-29T03:22:01.817236Z"
+      },
+      "previous_event_hash": "50ae12615c02a615f7ac861a3e05326b876367cdbe63b4460998d5ff25e94225",
+      "event_hash": "dbd8fa86f21578f5ac8916b54c153fde5ef8ce338b81317acb67d4385338672a"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "review-started",
+      "timestamp": "2026-08-29T03:12:01.835945Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity"
+      },
+      "payload": {},
+      "previous_event_hash": "dbd8fa86f21578f5ac8916b54c153fde5ef8ce338b81317acb67d4385338672a",
+      "event_hash": "5eb21d90d9cce6e90efa4a69b95be3ec402b0c5cc8c3fe00bb18430753d3d228"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "review-approved",
+      "timestamp": "2026-08-29T03:12:06.616105Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/flexible-traceable-workflow",
+            "review_ref": "refs/gin/review/gin-workflow-qhr",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qhr",
+            "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+            "reviewed_source_sha": "90082c440c04960ab5add08ac746d74d102f48b9",
+            "checkpoint_sha": "90082c440c04960ab5add08ac746d74d102f48b9",
+            "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+            "source_tree_hash": "4780294c99c5f279a211cfb7ee6697f3fbd1cfd06efeaf8d297e1f58cf994dff",
+            "reviewed_source_tree_hash": "4780294c99c5f279a211cfb7ee6697f3fbd1cfd06efeaf8d297e1f58cf994dff",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "18ca6f486492c54d7a0748ba807b854a70fd4d27a56768cc87bae86ae9857896",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "5eb21d90d9cce6e90efa4a69b95be3ec402b0c5cc8c3fe00bb18430753d3d228",
+      "event_hash": "5d499f3c1b5ac7e1199675df21706730bc08262e18987dab9275ee08a218900a"
+    }
+  ]
+}

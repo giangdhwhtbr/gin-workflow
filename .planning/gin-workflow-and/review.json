@@ -1,0 +1,176 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".planning/worktrees/track-gin-workflow-and",
+      "review_ref": "refs/gin/review/gin-workflow-and",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-and",
+      "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+      "reviewed_source_sha": "b464393868bb59e3ad165ece29ad6967afe49e52",
+      "checkpoint_sha": "b464393868bb59e3ad165ece29ad6967afe49e52",
+      "source_scope_hash": "ca4beab94ce6936eb6e3d1bf7a87d6382c8431dc029378df8d454adbb32de313",
+      "source_tree_hash": "0f5ed389ae74835d47f8233568a595b300fbeefb29beb13dae1caa746cf948b6",
+      "reviewed_source_tree_hash": "0f5ed389ae74835d47f8233568a595b300fbeefb29beb13dae1caa746cf948b6",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "plugins/gin-workflow/src/scripts/review-ledger.py",
+      "plugins/gin-workflow/src/scripts/review_ledger",
+      "tests/review_ledger"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": {
+    "lease_id": "f1285bf8830d49fbb6e538367628d670",
+    "actor_role": "reviewer",
+    "actor_id": "antigravity-reviewer",
+    "acquired_at": "2026-08-29T07:11:19.475783Z",
+    "expires_at": "2026-08-29T07:21:19.475783Z",
+    "current_ledger_revision": 6
+  },
+  "ledger_revision": 6,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-08-29T07:10:28.612257Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-implementer"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/track-gin-workflow-and",
+            "review_ref": "refs/gin/review/gin-workflow-and",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-and",
+            "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+            "reviewed_source_sha": "b464393868bb59e3ad165ece29ad6967afe49e52",
+            "checkpoint_sha": "b464393868bb59e3ad165ece29ad6967afe49e52",
+            "source_scope_hash": "ca4beab94ce6936eb6e3d1bf7a87d6382c8431dc029378df8d454adbb32de313",
+            "source_tree_hash": "0f5ed389ae74835d47f8233568a595b300fbeefb29beb13dae1caa746cf948b6",
+            "reviewed_source_tree_hash": "0f5ed389ae74835d47f8233568a595b300fbeefb29beb13dae1caa746cf948b6",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "plugins/gin-workflow/src/scripts/review-ledger.py",
+            "plugins/gin-workflow/src/scripts/review_ledger",
+            "tests/review_ledger"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "60b4a0223c89a2a175b7ac524687283be4de6622ab3a0bad39ea029050d562af"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "implementation-complete",
+      "timestamp": "2026-08-29T07:10:28.626612Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-implementer"
+      },
+      "payload": {},
+      "previous_event_hash": "60b4a0223c89a2a175b7ac524687283be4de6622ab3a0bad39ea029050d562af",
+      "event_hash": "361bac45e5363b843556480b6b6d39bf2513fbfc5643af42074fbb8c12271649"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-08-29T07:10:28.641464Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-implementer"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "361bac45e5363b843556480b6b6d39bf2513fbfc5643af42074fbb8c12271649",
+      "event_hash": "82fd865cc5402f9b853c175a60535d80cd3dff313c355ed01d73fc5f07e200ec"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-08-29T07:11:19.492702Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {
+        "lease_id": "f1285bf8830d49fbb6e538367628d670",
+        "actor_role": "reviewer",
+        "actor_id": "antigravity-reviewer",
+        "acquired_at": "2026-08-29T07:11:19.475783Z",
+        "expires_at": "2026-08-29T07:21:19.475783Z"
+      },
+      "previous_event_hash": "82fd865cc5402f9b853c175a60535d80cd3dff313c355ed01d73fc5f07e200ec",
+      "event_hash": "d3358d63ad64c5e6c86c2d48606b10b30786dcf79426f10ddea0aa909414beef"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-08-29T07:11:19.512595Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {},
+      "previous_event_hash": "d3358d63ad64c5e6c86c2d48606b10b30786dcf79426f10ddea0aa909414beef",
+      "event_hash": "2974360d32a9acf790a5d6b3f020711208c07438c5c56e959c6f868a6b73686a"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-08-29T07:11:19.530856Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "antigravity-reviewer"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".planning/worktrees/track-gin-workflow-and",
+            "review_ref": "refs/gin/review/gin-workflow-and",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-and",
+            "review_base_sha": "17e2d4514ecab9cd4805765963d92240ec29279a",
+            "reviewed_source_sha": "b464393868bb59e3ad165ece29ad6967afe49e52",
+            "checkpoint_sha": "b464393868bb59e3ad165ece29ad6967afe49e52",
+            "source_scope_hash": "ca4beab94ce6936eb6e3d1bf7a87d6382c8431dc029378df8d454adbb32de313",
+            "source_tree_hash": "0f5ed389ae74835d47f8233568a595b300fbeefb29beb13dae1caa746cf948b6",
+            "reviewed_source_tree_hash": "0f5ed389ae74835d47f8233568a595b300fbeefb29beb13dae1caa746cf948b6",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "ca4beab94ce6936eb6e3d1bf7a87d6382c8431dc029378df8d454adbb32de313",
+        "terminal_findings": [],
+        "workflow_id": "wf-gin-workflow-and",
+        "attempt_id": "att-001",
+        "task_id": "gin-workflow-and",
+        "reviewer_id": "antigravity-reviewer",
+        "expected_ledger_revision": 3,
+        "review_event_id": "EV-000005",
+        "review_start_revision": 5
+      },
+      "previous_event_hash": "2974360d32a9acf790a5d6b3f020711208c07438c5c56e959c6f868a6b73686a",
+      "event_hash": "b8f8f717559e4d0d3c10e44e0d2aec3f957cc2487136e8ba260f3dc32f4dcf40"
+    }
+  ]
+}

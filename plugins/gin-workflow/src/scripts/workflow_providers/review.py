@@ -264,6 +264,8 @@ class ReviewLedgerProvider(ProviderBase):
                 actor_role=request.actor_role,
                 actor_id=request.actor_id,
                 base_dir=str(self.repository_root),
+                workflow_id=request.workflow_id or None,
+                attempt_id=request.attempt_id or None,
             )
             normalized = self._normalize(request.task_id, self._load(request.task_id))
         except Exception as error:  # existing ledger boundary

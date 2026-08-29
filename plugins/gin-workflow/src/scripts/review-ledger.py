@@ -46,6 +46,14 @@ def parse_args():
     p_init.add_argument("--reviewed-sha", help=argparse.SUPPRESS)
     p_init.add_argument("--actor-role", default="worker")
     p_init.add_argument("--actor-id", required=True)
+    p_init.add_argument(
+        "--workflow-id",
+        help="Optional acceptance identity workflow ID (requires --attempt-id).",
+    )
+    p_init.add_argument(
+        "--attempt-id",
+        help="Optional acceptance identity attempt ID (requires --workflow-id).",
+    )
 
     # Checkpoint
     p_check = subparsers.add_parser("checkpoint", help="Create source checkpoint.")
@@ -303,6 +311,8 @@ def main():
                 scope=scope,
                 actor_role=args.actor_role,
                 actor_id=args.actor_id,
+                workflow_id=args.workflow_id,
+                attempt_id=args.attempt_id,
             )
             print(
                 f"Initialized review ledger for bead {args.bead_id} "

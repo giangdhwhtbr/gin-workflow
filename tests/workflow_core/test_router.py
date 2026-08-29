@@ -531,6 +531,36 @@ class WorkflowRouterTests(unittest.TestCase):
         self.assertEqual("route", result.decision)
         self.assertIn("plan_approved=false", result.evidence)
 
+    def test_valid_safety_waiver_routes_past_unmet_verification_gate(self):
+        store = self.new_store()
+        waiver = GateWaiver(
+            gate="verification_passed",
+            gate_class=GateClass.SAFETY,
+            reason="emergency bypass approved",
+            scope_hash="scope-abc",
+            waived_by="human-1",
+            follow_up_task_id="task-123",
+        )
+        event = build_waiver_event(waiver, workflow_id="wf-1")
+        store.append(event)
+
+        state = {
+            "workflow_id": "wf-1",
+            "scope_hash": "scope-abc",
+            "requirement_confirmed": True,
+            "plan_approved": True,
+            "orchestration_ready": True,
+            "implementation_complete": True,
+            # verification_passed is absent
+            "audit_event_store": store,
+        }
+
+        result = self.route(state)
+        self.assertEqual("ship", result.stage)
+        self.assertEqual("route", result.decision)
+        self.assertIn("verification_passed=waived(emergency bypass approved)", result.evidence)
+
+
 
     def test_authorize_protected_action_with_scope_hash_and_ttl(self):
         from workflow_core.router import authorize_protected_action

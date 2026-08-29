@@ -211,6 +211,10 @@ def get_checkpoint_identity_record(
         log, checkpoint_event_id, EventActions.SOURCE_CHECKPOINT_CREATED
     )
     if event is None:
+        event, _revision = _find_ledger_event(
+            log, checkpoint_event_id, EventActions.LEDGER_CREATED
+        )
+    if event is None:
         return None
     identity = _event_acceptance_identity(
         event, bead_id=bead_id, repositories_key="repositories"
@@ -285,6 +289,8 @@ def initialize_ledger(
     actor_role: str,
     actor_id: str,
     base_dir: Optional[str] = None,
+    workflow_id: Optional[str] = None,
+    attempt_id: Optional[str] = None,
 ) -> SourceCheckpoint:
     """Checkpoint the declared source and initialize a complete replay identity."""
     canonical_scope = canonicalize_scope(scope)
@@ -323,6 +329,14 @@ def initialize_ledger(
         }],
         "source_scope": canonical_scope,
     }
+    payload.update(
+        build_acceptance_identity_payload(
+            task_id=bead_id,
+            workflow_id=workflow_id,
+            attempt_id=attempt_id,
+            repositories=payload["repositories"],
+        )
+    )
     mutate_ledger(
         bead_id,
         "ledger-created",

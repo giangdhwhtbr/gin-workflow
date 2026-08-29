@@ -282,6 +282,8 @@ class ReviewInitRequest:
     scope: Mapping[str, Any]
     role: str = "primary"
     actor_role: str = "worker"
+    workflow_id: str = ""
+    attempt_id: str = ""
 
 
 @dataclass(frozen=True)

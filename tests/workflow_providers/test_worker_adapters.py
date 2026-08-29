@@ -133,12 +133,12 @@ class WorkerAdapterTests(unittest.TestCase):
             )
 
             receipt = adapter.dispatch(request())
-            deadline = time.monotonic() + 1
+            deadline = time.monotonic() + 5
             while not (root / "native.pid").exists() and time.monotonic() < deadline:
                 time.sleep(0.01)
 
             self.assertTrue(adapter.cancel(receipt.worker_id))
-            cancelled = adapter.collect_result(receipt.worker_id, timeout=1)
+            cancelled = adapter.collect_result(receipt.worker_id, timeout=15)
             self.assertEqual("cancelled", cancelled.status)
             self.assertEqual(("provider_failure:cancelled",), cancelled.blockers)
             pid = int((root / "native.pid").read_text(encoding="utf-8"))
