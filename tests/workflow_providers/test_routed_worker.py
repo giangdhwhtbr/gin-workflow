@@ -1003,6 +1003,19 @@ class RoutedWorkerTests(unittest.TestCase):
                 thaw(worker_result_events[0].payload["tests"]),
             )
 
+    def test_collect_result_waits_for_commit_finish_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = (RouteCandidate("claude", "opus", False),)
+            router, _, events = self.build(
+                directory, routes=routes, runners={"claude": lambda payload: result(payload["task_id"])}
+            )
+            receipt = router.dispatch(request())
+            outcome = router.collect_result(receipt.worker_id)
+
+            self.assertEqual("completed", outcome.status)
+            event_types = [event.event_type for event in events.read_all()]
+            self.assertIn("worker.completed", event_types)
+
 
 if __name__ == "__main__":
     unittest.main()

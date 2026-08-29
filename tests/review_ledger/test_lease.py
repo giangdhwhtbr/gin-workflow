@@ -53,10 +53,9 @@ class TestLease(unittest.TestCase):
         with self.assertRaises(LeaseError):
             validate_lease_for_write(proj, "lease-999", now)
             
-        # Revision mismatch
+        # Ledger revision difference does not block write (decision b for gin-workflow-0qh)
         proj.ledger_revision = 6
-        with self.assertRaises(LeaseError):
-            validate_lease_for_write(proj, "lease-123", now)
+        validate_lease_for_write(proj, "lease-123", now)
             
         # Expired lease
         proj.ledger_revision = 5

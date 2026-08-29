@@ -514,8 +514,9 @@ class RoutedWorkerDispatcher:
 
     def collect_result(self, worker_id: str, timeout: float | None = None) -> WorkerResult:
         record = self._records[worker_id]
-        if record.result is not None:
-            return record.result
+        with record.finish_lock:
+            if record.result is not None:
+                return record.result
         result = collect_adapter_result(record.adapter, worker_id, timeout)
         return self._commit_result(record, result)
 

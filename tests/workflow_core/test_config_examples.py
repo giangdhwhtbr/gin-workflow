@@ -34,6 +34,7 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertEqual(3, portable["routing"]["circuit_breaker"]["failure_threshold"])
         self.assertEqual(600, portable["routing"]["queue"]["max_wait_seconds"])
         self.assertEqual(2, portable["routing"]["worker"]["max_retries"])
+        self.assertEqual(86400, portable["policy"]["approval"]["ttl_seconds"])
 
     def test_setup_questionnaire_covers_nine_groups_one_at_a_time_and_two_layer_preview(self):
         setup = (PLUGIN / "skills/setup/SKILL.md").read_text(encoding="utf-8")

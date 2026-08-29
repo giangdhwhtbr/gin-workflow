@@ -38,8 +38,7 @@ def validate_lease_for_write(
     current_time: datetime
 ) -> None:
     """
-    Verifies that the provided lease_id is the active holder, the lease is not expired,
-    and the ledger revision matches the lease revision.
+    Verifies that the provided lease_id is the active holder and the lease is not expired.
     """
     lease = projection.active_lease
     if not lease:
@@ -51,8 +50,3 @@ def validate_lease_for_write(
     if not is_lease_active(lease, current_time):
         raise LeaseError(f"Lease {lease_id} has expired (expiry: {lease.expires_at}).")
 
-    if projection.ledger_revision != lease.current_ledger_revision:
-        raise LeaseError(
-            f"Ledger revision mismatch. Expected {lease.current_ledger_revision}, "
-            f"got {projection.ledger_revision}."
-        )

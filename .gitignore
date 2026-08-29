@@ -29,3 +29,5 @@ __pycache__/
 # in the main repo (they were being picked up as orphan 160000 entries with
 # no .gitmodules, causing constant spurious "modified" status).
 .planning/worktrees/
+# br doctor per-run artifacts
+.doctor/

@@ -47,3 +47,9 @@ routing:
     require_independent: true
     allow_self_review_fallback: false
     max_cycles: 3
+
+policy:
+  approval:
+    ttl_seconds: 86400
+    bind_to_scope: true
+
