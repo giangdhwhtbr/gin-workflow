@@ -55,6 +55,17 @@ BUILT_IN_DEFAULTS: dict[str, Any] = {
             "bind_to_scope": True,
         },
     },
+    "routing": {
+        "circuit_breaker": {
+            "failure_threshold": 3,
+        },
+        "queue": {
+            "max_wait_seconds": 600,
+        },
+        "worker": {
+            "max_retries": 2,
+        },
+    },
 }
 
 _COMMAND_KEYS = {

@@ -35,10 +35,10 @@ class ConfigurationTests(unittest.TestCase):
                             }
                         },
                         "concurrency": {"claude": 2, "codex": 1},
-                        "queue": {"max_wait_seconds": 120},
-                        "worker": {"timeout_seconds": 900, "max_retries": 1},
+                        "queue": {"max_wait_seconds": 600},
+                        "worker": {"timeout_seconds": 900, "max_retries": 2},
                         "circuit_breaker": {
-                            "failure_threshold": 1,
+                            "failure_threshold": 3,
                             "cooldown_seconds": 900,
                             "half_open_max_probes": 1,
                         },
@@ -57,6 +57,17 @@ class ConfigurationTests(unittest.TestCase):
 
         self.assertEqual("2.3", result.config["schema_version"])
         self.assertEqual(("claude",), result.config["routing"]["roles"]["backend"]["preferred"])
+
+    def test_built_in_defaults_include_updated_routing_and_policy_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = resolve_effective_config(Path(directory), write=False)
+            routing = result.config["routing"]
+            self.assertEqual(3, routing["circuit_breaker"]["failure_threshold"])
+            self.assertEqual(600, routing["queue"]["max_wait_seconds"])
+            self.assertEqual(2, routing["worker"]["max_retries"])
+            self.assertEqual(86400, result.config["policy"]["approval"]["ttl_seconds"])
+            self.assertTrue(result.config["policy"]["approval"]["bind_to_scope"])
+            configuration.validate_portable_config(result.config.to_dict())
 
     def test_lifecycle_loader_requires_one_time_setup_and_reads_generated_config(self):
         loader = getattr(configuration, "load_effective_config", None)
