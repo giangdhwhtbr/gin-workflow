@@ -13,7 +13,12 @@ def reconcile_transition_states(
 ) -> str:
     """
     Compares the Beads status and ledger state. If they differ, applies recovery rules
-    from spec §11.2. Returns one of: 'ok', 'replay_bead', or raises WorkflowIntegrityError.
+    from spec §11.2. Returns one of: 'ok', 'replay_bead', 'replay_ledger', or raises
+    WorkflowIntegrityError.
+
+    'replay_bead' means the ledger is ahead and the transition must be replayed onto
+    Beads; 'replay_ledger' means Beads is ahead and the transition must be replayed
+    onto the ledger.
     """
     # Normalize state names (Beads uses in_progress, ledger uses implementation-in-progress, etc.)
     # Map Beads status to ledger state names for comparison
@@ -73,8 +78,20 @@ def reconcile_transition_states(
         if from_matches and to_matches:
             return "replay_bead"
 
-    # Beads ahead, ledger missing or unrecognized mismatch: fail closed
+        # Beads ahead, ledger behind:
+        # The same pending transition matches in the reverse direction - the ledger
+        # still sits at its 'from' state while Beads already reflects its 'to' state.
+        ledger_at_from = (ledger_state == trans_from)
+        bead_at_to = (trans_to in valid_mappings and bead_status in valid_mappings[trans_to])
+
+        if ledger_at_from and bead_at_to:
+            return "replay_ledger"
+
+    # Unrecognized mismatch: fail closed, but name the way out.
     raise WorkflowIntegrityError(
         f"Workflow integrity mismatch: Beads is '{bead_status}', ledger is '{ledger_state}'. "
-        f"No matching pending transition found."
+        f"No matching pending transition found. Remedy: record the missing transition so it "
+        f"can be replayed onto the lagging side - replay onto Beads when the ledger is ahead, "
+        f"replay onto the ledger when Beads is ahead - or run "
+        f"'review-ledger.py resync-lease' when the ledger revision has drifted from the lease."
     )

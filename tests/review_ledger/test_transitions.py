@@ -40,5 +40,34 @@ class TestTransitions(unittest.TestCase):
         with self.assertRaises(WorkflowIntegrityError):
             reconcile_transition_states("in_progress", "closed", None)
 
+    def test_reconcile_beads_ahead_replays_onto_the_ledger(self):
+        """Beads recorded the shipping close but the ledger never saw the
+        completion event. The pending transition matches in reverse, so the
+        ledger is the lagging side and can be replayed forward."""
+        pending = {"transition_id": "CRT-BEEF01", "from": "ready-to-ship", "to": "closed"}
+        res = reconcile_transition_states("closed", "ready-to-ship", pending)
+        self.assertEqual(res, "replay_ledger")
+
+    def test_reconcile_prefers_replay_bead_when_both_directions_match(self):
+        """Existing callers must keep seeing replay_bead for the ledger-ahead
+        case, so the new outcome may never take precedence over it."""
+        pending = {"transition_id": "CRT-BEEF02", "from": "ready-to-ship", "to": "closed"}
+        self.assertEqual(
+            reconcile_transition_states("open", "closed", pending), "replay_bead"
+        )
+
+    def test_reconcile_beads_ahead_without_a_pending_transition_still_raises(self):
+        pending = {"transition_id": "CRT-BEEF03", "from": "review-requested", "to": "review-in-progress"}
+        with self.assertRaises(WorkflowIntegrityError):
+            reconcile_transition_states("closed", "ready-to-ship", pending)
+
+    def test_integrity_error_names_a_concrete_remedy(self):
+        with self.assertRaises(WorkflowIntegrityError) as caught:
+            reconcile_transition_states("closed", "implementation-in-progress", None)
+        message = str(caught.exception)
+        self.assertIn("replay", message)
+        self.assertIn("resync-lease", message)
+
 if __name__ == "__main__":
+
     unittest.main()

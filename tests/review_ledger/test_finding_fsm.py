@@ -60,5 +60,36 @@ class TestFindingFSM(unittest.TestCase):
         self.assertIn("deferred-verified", TERMINAL_STATUSES)
         self.assertIn("human-waived", TERMINAL_STATUSES)
 
+    def test_human_can_waive_an_open_finding_directly(self):
+        """human-waived used to be reachable only from human-decision-required,
+        so a human who had already decided had to stage a dispute first."""
+        validate_finding_transition("open", "human-waived", "IMPORTANT", "human", 0)
+        # Still a human-only decision.
+        with self.assertRaises(InvalidTransitionError):
+            validate_finding_transition("open", "human-waived", "IMPORTANT", "reviewer", 0)
+
+    def test_waiving_an_open_finding_is_not_a_deferral_backdoor(self):
+        """A waiver is a recorded human decision, not a deferral, so it stays
+        available for CRITICAL findings while deferral remains forbidden."""
+        validate_finding_transition("open", "human-waived", "CRITICAL", "human", 0)
+        with self.assertRaises(InvalidTransitionError):
+            validate_finding_transition("open", "deferral-proposed", "CRITICAL", "human", 0)
+
+    def test_clarification_cap_is_a_parameter_with_the_previous_default(self):
+        # Default is unchanged: one clarification.
+        with self.assertRaises(InvalidTransitionError):
+            validate_finding_transition("disputed", "clarification-requested", "CRITICAL", "reviewer", 1)
+        # A caller that allows more rounds may raise the cap.
+        validate_finding_transition(
+            "disputed", "clarification-requested", "CRITICAL", "reviewer", 1,
+            max_clarifications=2,
+        )
+        with self.assertRaises(InvalidTransitionError):
+            validate_finding_transition(
+                "disputed", "clarification-requested", "CRITICAL", "reviewer", 2,
+                max_clarifications=2,
+            )
+
 if __name__ == "__main__":
+
     unittest.main()

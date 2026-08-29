@@ -23,10 +23,13 @@ def validate_finding_transition(
     next_status: str,
     severity: str,
     actor_role: str,
-    clarification_count: int
+    clarification_count: int,
+    max_clarifications: int = 1
 ) -> None:
     """
     Validates a state transition for a finding against the spec FSM state table.
+    `max_clarifications` caps how many clarification rounds a dispute may take;
+    the default of 1 is the spec §5.1 limit.
     Raises InvalidTransitionError if the transition is invalid.
     """
     severity = severity.upper()
@@ -38,6 +41,7 @@ def validate_finding_transition(
         ("open", "fixed-awaiting-verification"): {"worker"},
         ("open", "disputed"): {"worker"},
         ("open", "deferral-proposed"): {"worker"},
+        ("open", "human-waived"): {"human"},
         
         ("fixed-awaiting-verification", "verified"): {"reviewer"},
         ("fixed-awaiting-verification", "open"): {"reviewer"},
@@ -97,10 +101,11 @@ def validate_finding_transition(
                 current_status, next_status, severity, actor_role
             )
 
-    # Clarification request limit check from spec §5.1 (max 1 clarification)
+    # Clarification request limit check from spec §5.1 (max 1 clarification by default)
     if current_status == "disputed" and next_status == "clarification-requested":
-        if clarification_count >= 1:
+        if clarification_count >= max_clarifications:
             raise InvalidTransitionError(
-                "Clarification has already been requested once. Maximum 1 request allowed.",
+                f"Clarification has already been requested {clarification_count} time(s). "
+                f"Maximum {max_clarifications} request(s) allowed.",
                 current_status, next_status, severity, actor_role
             )

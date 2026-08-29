@@ -42,11 +42,10 @@ def validate_lease_for_write(
     """
     lease = projection.active_lease
     if not lease:
-        raise LeaseError("No active lease exists on this ledger.")
+        raise LeaseError("No active lease exists on the ledger.")
 
     if lease.lease_id != lease_id:
-        raise LeaseError(f"Lease ID mismatch. Active: {lease.lease_id}, Provided: {lease_id}")
+        raise LeaseError(f"Provided lease_id ({lease_id}) does not match active lease_id ({lease.lease_id}).")
 
     if not is_lease_active(lease, current_time):
         raise LeaseError(f"Lease {lease_id} has expired (expiry: {lease.expires_at}).")
-

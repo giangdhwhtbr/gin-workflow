@@ -13,7 +13,23 @@ sys.path.insert(
     ),
 )
 
-from review_ledger.cli import initialize_ledger, load_ledger, mutate_ledger
+from datetime import datetime, timedelta, timezone
+
+from review_ledger.cli import (
+    build_resync_lease_operations,
+    build_start_review_operations,
+    initialize_ledger,
+    load_ledger,
+    mutate_ledger,
+    resync_lease,
+    start_review,
+)
+from review_ledger.lease import (
+    LeaseError,
+    format_utc_timestamp,
+    validate_lease_for_write,
+)
+from review_ledger.projections import LeaseProjection, ReviewProjection
 
 
 class TestCLI(unittest.TestCase):
@@ -502,3 +518,305 @@ class TestTransitionRequestedAppliesState(unittest.TestCase):
 
         self.assertNotEqual(0, result.returncode)
         self.assertEqual("review-approved", self.state())
+
+
+class TestForcedLeaseTakeover(unittest.TestCase):
+    """A review lease held by an actor that never came back is a hard wall.
+
+    start-review only ever broke an *expired* lease, so a stalled reviewer
+    blocked every other reviewer until the TTL ran out. Taking the lease early
+    is allowed, but only deliberately and only on the record.
+    """
+
+    def _projection_with_active_lease(self, actor_id, expires_at):
+        projection = ReviewProjection()
+        projection.review_state = "review-requested"
+        projection.ledger_revision = 3
+        projection.active_lease = LeaseProjection(
+            "lease-held", "reviewer", actor_id, "2026-01-01T00:00:00Z", expires_at, 3
+        )
+        return projection
+
+    def setUp(self):
+        self.now = datetime.now(timezone.utc)
+        self.future = format_utc_timestamp(self.now + timedelta(minutes=10))
+
+    def test_active_lease_of_another_actor_still_blocks_without_the_flag(self):
+        projection = self._projection_with_active_lease("reviewer-a", self.future)
+        with self.assertRaises(LeaseError):
+            build_start_review_operations(projection, "reviewer-b", now=self.now)
+
+    def test_force_takeover_breaks_the_held_lease_before_acquiring(self):
+        projection = self._projection_with_active_lease("reviewer-a", self.future)
+        operations, lease_id = build_start_review_operations(
+            projection,
+            "reviewer-b",
+            requested_lease_id="lease-new",
+            now=self.now,
+            force_takeover=True,
+            takeover_reason="reviewer-a went offline mid-review",
+        )
+        self.assertEqual("lease-new", lease_id)
+        self.assertEqual(
+            ["lease-broken", "lease-acquired", "review-started"],
+            [action for action, _payload, _role, _actor in operations],
+        )
+        broken_payload = operations[0][1]
+        self.assertEqual("lease-held", broken_payload["lease_id"])
+        self.assertEqual("takeover", broken_payload["reason"])
+        self.assertEqual("reviewer-a went offline mid-review", broken_payload["detail"])
+        self.assertEqual("lease-new", broken_payload["replaced_by"])
+
+    def test_force_takeover_without_a_reason_is_refused(self):
+        projection = self._projection_with_active_lease("reviewer-a", self.future)
+        with self.assertRaises(ValueError):
+            build_start_review_operations(
+                projection, "reviewer-b", now=self.now, force_takeover=True
+            )
+
+    def test_force_takeover_of_ones_own_lease_still_renews_it(self):
+        """Takeover is about other actors; the holder's own retry must not
+        churn the lease id, which existing callers depend on."""
+        projection = self._projection_with_active_lease("reviewer-a", self.future)
+        operations, lease_id = build_start_review_operations(
+            projection,
+            "reviewer-a",
+            now=self.now,
+            force_takeover=True,
+            takeover_reason="retry",
+        )
+        self.assertEqual("lease-held", lease_id)
+        self.assertEqual(
+            ["lease-renewed", "review-started"],
+            [action for action, _payload, _role, _actor in operations],
+        )
+
+
+class TestForcedTakeoverEndToEnd(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.bead_id = "bead-takeover"
+        mutate_ledger(
+            self.bead_id, "ledger-created", {"repositories": []},
+            "worker", "w1", base_dir=self.test_dir,
+        )
+        mutate_ledger(self.bead_id, "implementation-complete", {}, "worker", "w1", base_dir=self.test_dir)
+        mutate_ledger(self.bead_id, "review-requested", {}, "worker", "w1", base_dir=self.test_dir)
+        start_review(self.bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+    def test_takeover_transfers_ownership_and_leaves_an_audit_trail(self):
+        with self.assertRaises(LeaseError):
+            start_review(self.bead_id, "reviewer-b", base_dir=self.test_dir)
+
+        log, projection = start_review(
+            self.bead_id,
+            "reviewer-b",
+            base_dir=self.test_dir,
+            requested_lease_id="lease-b",
+            force_takeover=True,
+            takeover_reason="reviewer-a is unreachable",
+        )
+        self.assertEqual("reviewer-b", projection.active_lease.actor_id)
+        self.assertEqual("lease-b", projection.active_lease.lease_id)
+        self.assertEqual(
+            ["lease-broken", "lease-acquired"],
+            [event.action for event in log.events[-2:]],
+        )
+        broken = log.events[-2]
+        self.assertEqual("takeover", broken.payload["reason"])
+        self.assertEqual("reviewer-a is unreachable", broken.payload["detail"])
+        self.assertEqual("lease-a", broken.payload["lease_id"])
+
+    def test_the_displaced_reviewer_can_no_longer_write(self):
+        start_review(
+            self.bead_id, "reviewer-b", base_dir=self.test_dir,
+            requested_lease_id="lease-b", force_takeover=True,
+            takeover_reason="stalled",
+        )
+        with self.assertRaises(LeaseError):
+            mutate_ledger(
+                self.bead_id, "finding-created",
+                {"finding_id": "F-001", "severity": "MINOR"},
+                "reviewer", "reviewer-a", base_dir=self.test_dir, lease_id="lease-a",
+            )
+
+
+class TestResyncLease(unittest.TestCase):
+    """Ledger-revision drift used to be a one-way door.
+
+    validate_lease_for_write demands projection.ledger_revision ==
+    lease.current_ledger_revision. Commit a25e94c taught start-review to break
+    and reacquire an *expired* lease, but a lease whose recorded revision fell
+    behind had no recovery at all: every write raised LeaseError forever.
+    resync-lease re-points the lease at the ledger, for its own holder only.
+    """
+
+    def _drifted(self):
+        projection = ReviewProjection()
+        projection.review_state = "review-in-progress"
+        projection.ledger_revision = 9
+        projection.active_lease = LeaseProjection(
+            "lease-held",
+            "reviewer",
+            "reviewer-a",
+            "2026-01-01T00:00:00Z",
+            format_utc_timestamp(datetime.now(timezone.utc) + timedelta(minutes=10)),
+            4,
+        )
+        return projection
+
+    def test_resync_repoints_the_lease_at_the_current_ledger_revision(self):
+        projection = self._drifted()
+        operations, lease_id = build_resync_lease_operations(
+            projection, "reviewer-a", "lease-held"
+        )
+        self.assertEqual("lease-held", lease_id)
+        self.assertEqual(
+            ["lease-resynced"],
+            [action for action, _payload, _role, _actor in operations],
+        )
+        payload = operations[0][1]
+        self.assertEqual("lease-held", payload["lease_id"])
+        self.assertEqual(9, payload["ledger_revision"])
+
+    def test_resync_by_a_different_actor_is_refused(self):
+        projection = self._drifted()
+        with self.assertRaises(LeaseError):
+            build_resync_lease_operations(projection, "reviewer-b", "lease-held")
+
+    def test_resync_of_a_lease_that_is_not_the_active_one_is_refused(self):
+        projection = self._drifted()
+        with self.assertRaises(LeaseError):
+            build_resync_lease_operations(projection, "reviewer-a", "lease-stale")
+
+    def test_resync_without_an_active_lease_is_refused(self):
+        projection = ReviewProjection()
+        projection.ledger_revision = 3
+        with self.assertRaises(LeaseError):
+            build_resync_lease_operations(projection, "reviewer-a", "lease-held")
+
+
+class TestResyncLeaseEndToEnd(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.bead_id = "bead-resync"
+        mutate_ledger(
+            self.bead_id, "ledger-created", {"repositories": []},
+            "worker", "w1", base_dir=self.test_dir,
+        )
+        mutate_ledger(self.bead_id, "implementation-complete", {}, "worker", "w1", base_dir=self.test_dir)
+        mutate_ledger(self.bead_id, "review-requested", {}, "worker", "w1", base_dir=self.test_dir)
+        start_review(self.bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_holder_can_resync_and_keep_writing(self):
+        _log, projection = resync_lease(
+            self.bead_id, "reviewer-a", "lease-a", base_dir=self.test_dir
+        )
+        self.assertEqual("lease-resynced", _log.events[-1].action)
+        self.assertEqual(
+            projection.ledger_revision, projection.active_lease.current_ledger_revision
+        )
+        mutate_ledger(
+            self.bead_id, "finding-created",
+            {"finding_id": "F-001", "severity": "MINOR"},
+            "reviewer", "reviewer-a", base_dir=self.test_dir, lease_id="lease-a",
+        )
+        _, after = load_ledger(self.bead_id, base_dir=self.test_dir)
+        self.assertIn("F-001", after.findings)
+
+    def test_resync_is_exempt_from_the_lease_check_it_repairs(self):
+        """Registering the action as lease-exempt is what makes recovery possible.
+
+        Without that registration the resync write is itself gated on the lease
+        being in sync, so the one event that clears revision drift could never
+        be appended while the drift lasted. Exemption is observable here as the
+        write succeeding with no lease id supplied at all.
+        """
+        log, _ = mutate_ledger(
+            self.bead_id, "lease-resynced",
+            {"lease_id": "lease-a", "ledger_revision": 4},
+            "reviewer", "reviewer-a", base_dir=self.test_dir,
+        )
+        self.assertEqual("lease-resynced", log.events[-1].action)
+
+    def test_non_holder_resync_leaves_the_ledger_untouched(self):
+        json_path = Path(self.test_dir, ".planning", self.bead_id, "review.json")
+        before = json_path.read_bytes()
+        with self.assertRaises(LeaseError):
+            resync_lease(self.bead_id, "reviewer-b", "lease-a", base_dir=self.test_dir)
+        self.assertEqual(before, json_path.read_bytes())
+
+
+class TestRecoverySubcommands(unittest.TestCase):
+    """The recovery paths must be reachable from the CLI, not only the library."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.bead_id = "bead-subcommand"
+        self.script = (
+            Path(__file__).resolve().parents[2]
+            / "plugins/gin-workflow/src/scripts/review-ledger.py"
+        )
+        mutate_ledger(
+            self.bead_id, "ledger-created", {"repositories": []},
+            "worker", "w1", base_dir=self.test_dir,
+        )
+        mutate_ledger(self.bead_id, "implementation-complete", {}, "worker", "w1", base_dir=self.test_dir)
+        mutate_ledger(self.bead_id, "review-requested", {}, "worker", "w1", base_dir=self.test_dir)
+        start_review(self.bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def _run(self, *argv):
+        return subprocess.run(
+            [sys.executable, str(self.script), *argv],
+            cwd=self.test_dir,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_resync_lease_subcommand_appends_the_event(self):
+        process = self._run(
+            "resync-lease", "--bead-id", self.bead_id,
+            "--actor-id", "reviewer-a", "--lease-id", "lease-a",
+        )
+        self.assertEqual(0, process.returncode, process.stderr)
+        log, _ = load_ledger(self.bead_id, base_dir=self.test_dir)
+        self.assertEqual("lease-resynced", log.events[-1].action)
+
+    def test_resync_lease_subcommand_refuses_a_non_holder(self):
+        process = self._run(
+            "resync-lease", "--bead-id", self.bead_id,
+            "--actor-id", "reviewer-b", "--lease-id", "lease-a",
+        )
+        self.assertEqual(1, process.returncode)
+        log, _ = load_ledger(self.bead_id, base_dir=self.test_dir)
+        self.assertNotEqual("lease-resynced", log.events[-1].action)
+
+    def test_force_takeover_subcommand_requires_a_reason(self):
+        process = self._run(
+            "start-review", "--bead-id", self.bead_id,
+            "--actor-id", "reviewer-b", "--force-takeover",
+        )
+        self.assertEqual(1, process.returncode, process.stdout)
+        self.assertIn("reason", process.stderr.lower())
+        _, projection = load_ledger(self.bead_id, base_dir=self.test_dir)
+        self.assertEqual("reviewer-a", projection.active_lease.actor_id)
+
+    def test_force_takeover_subcommand_transfers_the_lease(self):
+        process = self._run(
+            "start-review", "--bead-id", self.bead_id,
+            "--actor-id", "reviewer-b", "--lease-id", "lease-b",
+            "--force-takeover", "--reason", "reviewer-a is unreachable",
+        )
+        self.assertEqual(0, process.returncode, process.stderr)
+        log, projection = load_ledger(self.bead_id, base_dir=self.test_dir)
+        self.assertEqual("reviewer-b", projection.active_lease.actor_id)
+        self.assertEqual("takeover", log.events[-2].payload["reason"])
+        self.assertEqual("reviewer-a is unreachable", log.events[-2].payload["detail"])

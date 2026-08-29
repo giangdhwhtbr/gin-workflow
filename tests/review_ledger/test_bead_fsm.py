@@ -53,5 +53,21 @@ class TestBeadFSM(unittest.TestCase):
         with self.assertRaises(InvalidTransitionError):
             validate_bead_transition("review-approved", "implementation-in-progress", "worker")
 
+    def test_worker_can_withdraw_work_already_submitted_for_review(self):
+        """A worker who spots a defect after requesting review must be able to
+        pull the work back instead of waiting for a reviewer to reject it."""
+        validate_bead_transition("review-requested", "implementation-in-progress", "worker")
+        # Only the worker owns the implementation, so nobody else may withdraw it.
+        with self.assertRaises(InvalidTransitionError):
+            validate_bead_transition("review-requested", "implementation-in-progress", "reviewer")
+
+    def test_reviewer_can_hand_a_review_back_without_recording_a_finding(self):
+        """Not every abandoned review has a finding to record; the reviewer must
+        be able to return the bead to the queue."""
+        validate_bead_transition("review-in-progress", "review-requested", "reviewer")
+        with self.assertRaises(InvalidTransitionError):
+            validate_bead_transition("review-in-progress", "review-requested", "worker")
+
 if __name__ == "__main__":
+
     unittest.main()

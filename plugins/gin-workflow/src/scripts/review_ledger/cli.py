@@ -495,7 +495,9 @@ def _mutate_ledger_unlocked(
 
     # 2. Lease Check
     # Skip lease validation for lease-acquired, lease-broken, recovery-performed
-    if not bypass_lease and action not in ("lease-acquired", "lease-broken", "recovery-performed"):
+    if not bypass_lease and action not in (
+        "lease-acquired", "lease-broken", "lease-resynced", "recovery-performed"
+    ):
         if proj.active_lease:
             if not lease_id:
                 raise ValueError("Active lease exists, but no --lease-id was provided.")
@@ -663,8 +665,15 @@ def build_start_review_operations(
     ttl_seconds: int = 600,
     actor_role: str = "reviewer",
     now: Optional[datetime] = None,
+    force_takeover: bool = False,
+    takeover_reason: Optional[str] = None,
 ) -> Tuple[List[Tuple[str, Dict[str, Any], str, str]], str]:
-    """Return lease and state events for an atomic review start."""
+    """Return lease and state events for an atomic review start.
+
+    An active lease held by another actor is refused with LeaseError unless
+    `force_takeover` is set, which requires a non-empty `takeover_reason` and
+    records the seizure as a `lease-broken` event before acquiring.
+    """
     if not actor_id.strip():
         raise ValueError("actor_id is required")
     if ttl_seconds <= 0:
@@ -672,29 +681,37 @@ def build_start_review_operations(
     current_time = now or datetime.now(timezone.utc)
     expires_at = format_utc_timestamp(current_time + timedelta(seconds=ttl_seconds))
     active = projection.active_lease
+    seized = False
     if active and is_lease_active(active, current_time):
         if active.actor_id != actor_id:
-            raise LeaseError(
-                f"Review lease is owned by {active.actor_id} until {active.expires_at}."
-            )
-        if requested_lease_id and requested_lease_id != active.lease_id:
-            raise LeaseError("Requested lease ID does not match the reviewer's active lease.")
-        operations = [
-            ("lease-renewed", {"expires_at": expires_at}, actor_role, actor_id)
-        ]
-        if projection.review_state == "review-requested":
-            operations.append(("review-started", {}, actor_role, actor_id))
-        return operations, active.lease_id
+            if not force_takeover:
+                raise LeaseError(
+                    f"Review lease is owned by {active.actor_id} until {active.expires_at}."
+                )
+            if not (takeover_reason or "").strip():
+                raise ValueError("takeover_reason is required to force a lease takeover")
+            seized = True
+        else:
+            if requested_lease_id and requested_lease_id != active.lease_id:
+                raise LeaseError("Requested lease ID does not match the reviewer's active lease.")
+            operations = [
+                ("lease-renewed", {"expires_at": expires_at}, actor_role, actor_id)
+            ]
+            if projection.review_state == "review-requested":
+                operations.append(("review-started", {}, actor_role, actor_id))
+            return operations, active.lease_id
 
     lease_id = requested_lease_id or uuid.uuid4().hex
     operations = []
     if active:
-        operations.append((
-            "lease-broken",
-            {"lease_id": active.lease_id, "reason": "expired", "replaced_by": lease_id},
-            actor_role,
-            actor_id,
-        ))
+        break_payload = {
+            "lease_id": active.lease_id,
+            "reason": "takeover" if seized else "expired",
+            "replaced_by": lease_id,
+        }
+        if seized:
+            break_payload["detail"] = takeover_reason
+        operations.append(("lease-broken", break_payload, actor_role, actor_id))
     operations.append(("lease-acquired", {
         "lease_id": lease_id,
         "actor_role": actor_role,
@@ -715,12 +732,77 @@ def start_review(
     ttl_seconds: int = 600,
     actor_role: str = "reviewer",
     base_dir: Optional[str] = None,
+    force_takeover: bool = False,
+    takeover_reason: Optional[str] = None,
 ) -> Tuple[EventLog, ReviewProjection]:
     """Atomically acquire or renew review ownership and start the review."""
     def build(projection):
         return build_start_review_operations(
             projection, actor_id, requested_lease_id=requested_lease_id,
             ttl_seconds=ttl_seconds, actor_role=actor_role,
+            force_takeover=force_takeover, takeover_reason=takeover_reason,
         )
+
+    return mutate_ledger_transaction(bead_id, build, base_dir=base_dir)
+
+
+def build_resync_lease_operations(
+    projection: ReviewProjection,
+    actor_id: str,
+    lease_id: str,
+    *,
+    now: Optional[datetime] = None,
+) -> Tuple[List[Tuple[str, Dict[str, Any], str, str]], str]:
+    """Return the event that re-points a lease at the ledger's current revision.
+
+    `validate_lease_for_write` refuses any write once
+    `projection.ledger_revision` has moved past the lease's recorded
+    `current_ledger_revision`, and nothing else heals that drift: expiry can be
+    waited out or taken over, a stale revision cannot. Applying the emitted
+    `lease-resynced` event re-points the lease, so the holder can write again.
+
+    Only the holder of the active lease may resync it: a different `actor_id`,
+    or a `lease_id` that is not the active lease, raises LeaseError.
+    """
+    if not actor_id.strip():
+        raise ValueError("actor_id is required")
+    if not lease_id.strip():
+        raise ValueError("lease_id is required")
+    active = projection.active_lease
+    if not active:
+        raise LeaseError("No active lease exists on this ledger.")
+    if active.lease_id != lease_id:
+        raise LeaseError(
+            f"Lease ID mismatch. Active: {active.lease_id}, Provided: {lease_id}"
+        )
+    if active.actor_id != actor_id:
+        raise LeaseError(
+            f"Lease {lease_id} is held by {active.actor_id}; only its holder may resync it."
+        )
+    current_time = now or datetime.now(timezone.utc)
+    operations = [(
+        "lease-resynced",
+        {
+            "lease_id": lease_id,
+            "ledger_revision": projection.ledger_revision,
+            "previous_ledger_revision": active.current_ledger_revision,
+            "resynced_at": format_utc_timestamp(current_time),
+        },
+        active.actor_role,
+        actor_id,
+    )]
+    return operations, lease_id
+
+
+def resync_lease(
+    bead_id: str,
+    actor_id: str,
+    lease_id: str,
+    *,
+    base_dir: Optional[str] = None,
+) -> Tuple[EventLog, ReviewProjection]:
+    """Atomically re-point the holder's lease at the ledger's current revision."""
+    def build(projection):
+        return build_resync_lease_operations(projection, actor_id, lease_id)
 
     return mutate_ledger_transaction(bead_id, build, base_dir=base_dir)
