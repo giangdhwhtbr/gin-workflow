@@ -40,9 +40,10 @@ routing:
       - codex
     review:
       fallback:
+      - codex
       - claude
       preferred:
-      - codex
+      - antigravity
   worker:
     max_retries: 1
     timeout_seconds: 900

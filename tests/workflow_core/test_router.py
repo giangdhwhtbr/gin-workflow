@@ -51,6 +51,7 @@ class WorkflowRouterTests(unittest.TestCase):
         workflow_id="wf-1",
         decision_age=timedelta(minutes=1),
         event_age=timedelta(seconds=30),
+        scope_hash="",
     ):
         now = datetime.now(timezone.utc)
         request = ApprovalRequest(
@@ -58,6 +59,7 @@ class WorkflowRouterTests(unittest.TestCase):
             action=action,
             workflow_id=workflow_id,
             reason="protected execution boundary",
+            scope_hash=scope_hash,
         )
         decision = ApprovalDecision(
             request_id=request.request_id,
@@ -315,40 +317,89 @@ class WorkflowRouterTests(unittest.TestCase):
                 self.assertEqual("progress", result.stage)
                 self.assertEqual("hold", result.decision)
 
-    def test_rejects_decision_older_than_five_minutes(self):
+    def test_accepts_fifteen_minute_old_approval_with_unchanged_scope(self):
         request, decision, event = self.authorization(
-            decision_age=timedelta(minutes=6), event_age=timedelta(minutes=1)
+            decision_age=timedelta(minutes=15),
+            event_age=timedelta(minutes=15),
+            scope_hash="hash-abc",
         )
         store = self.new_store()
         store.append(event)
+        state = self.guarded_state(request, decision, store)
+        state["scope_hash"] = "hash-abc"
 
-        result = self.route(self.guarded_state(request, decision, store))
+        result = self.route(state)
 
-        self.assertEqual("progress", result.stage)
-        self.assertIn("approval:current_branch_execution=stale", result.evidence)
+        self.assertEqual("orchestrate", result.stage)
+        self.assertIn("approval:current_branch_execution=approved", result.evidence)
 
-    def test_rejects_event_older_than_five_minutes(self):
+    def test_rejects_approval_with_changed_scope_hash(self):
         request, decision, event = self.authorization(
-            decision_age=timedelta(minutes=4), event_age=timedelta(minutes=6)
+            decision_age=timedelta(minutes=15),
+            event_age=timedelta(minutes=15),
+            scope_hash="hash-abc",
         )
         store = self.new_store()
         store.append(event)
+        state = self.guarded_state(request, decision, store)
+        state["scope_hash"] = "hash-changed"
 
-        result = self.route(self.guarded_state(request, decision, store))
-
-        self.assertEqual("progress", result.stage)
-        self.assertIn("audit:current_branch_execution=stale", result.evidence)
-
-    def test_rejects_six_year_old_decision_and_event(self):
-        age = timedelta(days=365 * 6)
-        request, decision, event = self.authorization(decision_age=age, event_age=age)
-        store = self.new_store()
-        store.append(event)
-
-        result = self.route(self.guarded_state(request, decision, store))
+        result = self.route(state)
 
         self.assertEqual("progress", result.stage)
         self.assertEqual("hold", result.decision)
+        self.assertIn("approval:current_branch_execution=scope_changed", result.evidence)
+
+    def test_rejects_approval_older_than_twenty_five_hours(self):
+        age = timedelta(hours=25)
+        request, decision, event = self.authorization(
+            decision_age=age,
+            event_age=age,
+            scope_hash="hash-abc",
+        )
+        store = self.new_store()
+        store.append(event)
+        state = self.guarded_state(request, decision, store)
+        state["scope_hash"] = "hash-abc"
+
+        result = self.route(state)
+
+        self.assertEqual("progress", result.stage)
+        self.assertEqual("hold", result.decision)
+        self.assertIn("approval:current_branch_execution=stale", result.evidence)
+
+    def test_accepts_decision_thirty_seconds_in_future_due_to_clock_skew(self):
+        request, decision, event = self.authorization(
+            decision_age=timedelta(seconds=-30),
+            event_age=timedelta(seconds=5),
+            scope_hash="hash-abc",
+        )
+        store = self.new_store()
+        store.append(event)
+        state = self.guarded_state(request, decision, store)
+        state["scope_hash"] = "hash-abc"
+
+        result = self.route(state)
+
+        self.assertEqual("orchestrate", result.stage)
+        self.assertIn("approval:current_branch_execution=approved", result.evidence)
+
+    def test_rejects_decision_ten_minutes_in_future(self):
+        request, decision, event = self.authorization(
+            decision_age=timedelta(minutes=-10),
+            event_age=timedelta(seconds=5),
+            scope_hash="hash-abc",
+        )
+        store = self.new_store()
+        store.append(event)
+        state = self.guarded_state(request, decision, store)
+        state["scope_hash"] = "hash-abc"
+
+        result = self.route(state)
+
+        self.assertEqual("progress", result.stage)
+        self.assertEqual("hold", result.decision)
+        self.assertIn("approval:current_branch_execution=stale", result.evidence)
 
     def test_completion_gates_require_boolean_values(self):
         with self.assertRaisesRegex(TypeError, "requirement_confirmed must be a boolean"):
@@ -481,6 +532,57 @@ class WorkflowRouterTests(unittest.TestCase):
         self.assertIn("plan_approved=false", result.evidence)
 
 
+    def test_authorize_protected_action_with_scope_hash_and_ttl(self):
+        from workflow_core.router import authorize_protected_action
+
+        # Matching scope_hash and 15m age succeeds
+        request, decision, event = self.authorization(
+            decision_age=timedelta(minutes=15),
+            event_age=timedelta(minutes=15),
+            scope_hash="hash-1",
+        )
+        store = self.new_store()
+        store.append(event)
+        authorize_protected_action(
+            ApprovalAction.CURRENT_BRANCH_EXECUTION,
+            "wf-1",
+            request,
+            decision,
+            store,
+            scope_hash="hash-1",
+        )
+
+        # Mismatched scope_hash raises PermissionError
+        with self.assertRaisesRegex(PermissionError, "approval scope has changed"):
+            authorize_protected_action(
+                ApprovalAction.CURRENT_BRANCH_EXECUTION,
+                "wf-1",
+                request,
+                decision,
+                store,
+                scope_hash="hash-2",
+            )
+
+        # 25h age raises PermissionError
+        request_stale, decision_stale, event_stale = self.authorization(
+            decision_age=timedelta(hours=25),
+            event_age=timedelta(hours=25),
+            scope_hash="hash-1",
+        )
+        store_stale = self.new_store()
+        store_stale.append(event_stale)
+        with self.assertRaisesRegex(PermissionError, "approval decision is stale"):
+            authorize_protected_action(
+                ApprovalAction.CURRENT_BRANCH_EXECUTION,
+                "wf-1",
+                request_stale,
+                decision_stale,
+                store_stale,
+                scope_hash="hash-1",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

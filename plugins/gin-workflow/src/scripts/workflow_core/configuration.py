@@ -49,7 +49,12 @@ BUILT_IN_DEFAULTS: dict[str, Any] = {
         "docs": "cheap_simple",
     },
     "capabilities": {},
-    "policy": {},
+    "policy": {
+        "approval": {
+            "ttl_seconds": 86400,
+            "bind_to_scope": True,
+        },
+    },
 }
 
 _COMMAND_KEYS = {

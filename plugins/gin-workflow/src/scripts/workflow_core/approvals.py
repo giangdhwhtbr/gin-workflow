@@ -38,12 +38,14 @@ class ApprovalRequest:
     workflow_id: str
     reason: str
     details: Mapping[str, Any] | None = None
+    scope_hash: str = ""
 
     def __post_init__(self) -> None:
         if not self.request_id or not self.workflow_id or not self.reason:
             raise ValueError("request_id, workflow_id, and reason are required")
         object.__setattr__(self, "action", ApprovalAction(self.action))
         object.__setattr__(self, "details", freeze(self.details or {}))
+        object.__setattr__(self, "scope_hash", str(self.scope_hash or ""))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -52,6 +54,7 @@ class ApprovalRequest:
             "workflow_id": self.workflow_id,
             "reason": self.reason,
             "details": thaw(self.details),
+            "scope_hash": self.scope_hash,
         }
 
 

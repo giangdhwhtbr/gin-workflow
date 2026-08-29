@@ -47,7 +47,58 @@ _GUARDED_ACTIONS = frozenset(
         ApprovalAction.DATA_MOVE,
     }
 )
-_APPROVAL_FRESHNESS = timedelta(minutes=5)
+_CLOCK_SKEW_TOLERANCE = timedelta(seconds=60)
+
+
+def _approval_ttl(config: EffectiveConfig | Mapping[str, Any] | None = None) -> timedelta:
+    if config is not None:
+        if isinstance(config, EffectiveConfig):
+            policy = config.get("policy", {})
+        elif isinstance(config, Mapping):
+            policy = config.get("policy", {})
+        else:
+            policy = {}
+        if isinstance(policy, Mapping):
+            approval_policy = policy.get("approval", {})
+            if isinstance(approval_policy, Mapping):
+                ttl_seconds = approval_policy.get("ttl_seconds", 86400)
+                if isinstance(ttl_seconds, (int, float)) and ttl_seconds >= 0:
+                    return timedelta(seconds=ttl_seconds)
+    return timedelta(seconds=86400)
+
+
+def _bind_to_scope(config: EffectiveConfig | Mapping[str, Any] | None = None) -> bool:
+    if config is not None:
+        if isinstance(config, EffectiveConfig):
+            policy = config.get("policy", {})
+        elif isinstance(config, Mapping):
+            policy = config.get("policy", {})
+        else:
+            policy = {}
+        if isinstance(policy, Mapping):
+            approval_policy = policy.get("approval", {})
+            if isinstance(approval_policy, Mapping):
+                bind = approval_policy.get("bind_to_scope", True)
+                if type(bind) is bool:
+                    return bind
+    return True
+
+
+def _scope_matches(
+    request: ApprovalRequest,
+    target_scope: str | Mapping[str, Any],
+    bind_to_scope: bool = True,
+) -> bool:
+    if not bind_to_scope:
+        return True
+    req_hash = str(getattr(request, "scope_hash", "") or "")
+    if isinstance(target_scope, Mapping):
+        state_hash = str(target_scope.get("scope_hash", "") or "")
+    else:
+        state_hash = str(target_scope or "")
+    if req_hash and state_hash:
+        return req_hash == state_hash
+    return True
 
 
 @dataclass(frozen=True)
@@ -93,9 +144,9 @@ def _parse_utc(value: object) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-def _is_fresh(timestamp: datetime, now: datetime) -> bool:
+def _is_fresh(timestamp: datetime, now: datetime, ttl: timedelta = timedelta(seconds=86400)) -> bool:
     age = now - timestamp
-    return timedelta(0) <= age <= _APPROVAL_FRESHNESS
+    return -_CLOCK_SKEW_TOLERANCE <= age <= ttl
 
 
 def _revalidate_audit_event(value: object) -> WorkflowEvent | None:
@@ -119,6 +170,7 @@ def _audit_status(
     decision: ApprovalDecision,
     decision_time: datetime,
     now: datetime,
+    ttl: timedelta = timedelta(seconds=86400),
 ) -> str:
     try:
         persisted_events = store.read_all()
@@ -158,7 +210,7 @@ def _audit_status(
         if event_time is None:
             saw_invalid = True
             continue
-        if event_time < decision_time or not _is_fresh(event_time, now):
+        if (decision_time - event_time) > _CLOCK_SKEW_TOLERANCE or not _is_fresh(event_time, now, ttl):
             saw_stale = True
             continue
         return "recorded"
@@ -180,6 +232,8 @@ def authorize_protected_action(
     store: WorkflowEventStore,
     *,
     now: datetime | None = None,
+    scope_hash: str = "",
+    config: EffectiveConfig | Mapping[str, Any] | None = None,
 ) -> None:
     """Fail closed unless a protected action has fresh, persisted authorization."""
     action = ApprovalAction(action)
@@ -198,11 +252,15 @@ def authorize_protected_action(
     if request.workflow_id != workflow_id:
         raise PermissionError("approval request workflow mismatch")
     require_approval(decision, request)
+    ttl = _approval_ttl(config)
+    bind = _bind_to_scope(config)
+    if not _scope_matches(request, scope_hash, bind):
+        raise PermissionError("approval scope has changed")
     checked_at = now or datetime.now(timezone.utc)
     decision_time = _parse_utc(decision.decided_at)
     if decision_time is None:
         raise PermissionError("approval decision timestamp is invalid")
-    if not _is_fresh(decision_time, checked_at):
+    if not _is_fresh(decision_time, checked_at, ttl):
         raise PermissionError("approval decision is stale")
     audit_status = _audit_status(
         store,
@@ -211,13 +269,16 @@ def authorize_protected_action(
         decision=decision,
         decision_time=decision_time,
         now=checked_at,
+        ttl=ttl,
     )
     if audit_status != "recorded":
         raise PermissionError(f"approval audit is {audit_status}")
 
 
 def _guard_evidence(
-    state: Mapping[str, Any], now: datetime
+    state: Mapping[str, Any],
+    now: datetime,
+    config: EffectiveConfig | Mapping[str, Any] | None = None,
 ) -> tuple[tuple[str, ...], bool, tuple[str, ...]]:
     actions = _coerce_guarded_actions(state.get("guarded_actions", ()))
     if not actions:
@@ -232,6 +293,10 @@ def _guard_evidence(
         raise TypeError("approval_requests must be a mapping")
     if not isinstance(decisions, Mapping):
         raise TypeError("approval_decisions must be a mapping")
+
+    cfg = config or state.get("config")
+    ttl = _approval_ttl(cfg)
+    bind = _bind_to_scope(cfg)
 
     evidence: list[str] = []
     for action in actions:
@@ -263,11 +328,15 @@ def _guard_evidence(
             evidence.append(f"approval:{key}=denied")
             return tuple(evidence), True, (f"re-request approval for {key}",)
 
+        if not _scope_matches(request, state, bind):
+            evidence.append(f"approval:{key}=scope_changed")
+            return tuple(evidence), True, (f"re-request approval for {key}",)
+
         decision_time = _parse_utc(decision.decided_at)
         if decision_time is None:
             evidence.append(f"approval:{key}=invalid_timestamp")
             return tuple(evidence), True, (f"re-request approval for {key}",)
-        if not _is_fresh(decision_time, now):
+        if not _is_fresh(decision_time, now, ttl):
             evidence.append(f"approval:{key}=stale")
             return tuple(evidence), True, (f"re-request approval for {key}",)
         evidence.append(f"approval:{key}=approved")
@@ -282,6 +351,7 @@ def _guard_evidence(
             decision=decision,
             decision_time=decision_time,
             now=now,
+            ttl=ttl,
         )
         if audit_status != "recorded":
             evidence.append(f"audit:{key}={audit_status}")
@@ -345,7 +415,7 @@ def route_next_stage(
         )
 
     guard_evidence, blocked_by_guard, guard_remedies = _guard_evidence(
-        state, datetime.now(timezone.utc)
+        state, datetime.now(timezone.utc), config
     )
     if blocked_by_guard:
         return RouteDecision(

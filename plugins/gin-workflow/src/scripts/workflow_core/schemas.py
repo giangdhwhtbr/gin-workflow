@@ -180,6 +180,7 @@ APPROVAL_REQUEST_SCHEMA: dict[str, Any] = {
         "workflow_id": {"type": "string", "minLength": 1},
         "reason": {"type": "string", "minLength": 1},
         "details": {"type": "object"},
+        "scope_hash": {"type": "string"},
     },
     "additionalProperties": False,
 }
