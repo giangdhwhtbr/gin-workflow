@@ -16,7 +16,8 @@ from workflow_core.approvals import (  # noqa: E402
 )
 from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
-from workflow_core.router import route_next_stage  # noqa: E402
+from workflow_core.router import RouteDecision, route_next_stage  # noqa: E402
+from workflow_core.waivers import GateClass, GateWaiver, build_waiver_event  # noqa: E402
 
 
 def iso(value):
@@ -366,6 +367,120 @@ class WorkflowRouterTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "EffectiveConfig"):
             self.route({}, {"schema_version": "2.1"})
 
+    def test_route_decision_requires_remedies_for_hold_decision(self):
+        with self.assertRaisesRegex(ValueError, "hold decision must include at least one remedy"):
+            RouteDecision("progress", "hold", ("blocked:test",))
+        decision = RouteDecision(
+            "progress", "hold", ("blocked:test",), remedies=("unblock --clear-blocker",)
+        )
+        self.assertEqual(("unblock --clear-blocker",), decision.remedies)
+
+    def test_hold_decisions_return_remedies(self):
+        # 1. Blocked hold
+        result_blocked = self.route({"blocked": True, "blocker": "unavailable"})
+        self.assertEqual("hold", result_blocked.decision)
+        self.assertTrue(len(result_blocked.remedies) >= 1)
+        self.assertIn("unblock --clear-blocker", result_blocked.remedies)
+
+        # 2. Guard failure hold
+        request, decision, _ = self.authorization()
+        state_guard = self.guarded_state(request, decision, self.new_store())
+        # Store is empty, so audit is missing
+        result_guard = self.route(state_guard)
+        self.assertEqual("hold", result_guard.decision)
+        self.assertTrue(len(result_guard.remedies) >= 1)
+        self.assertIn("re-record audit event for current_branch_execution", result_guard.remedies)
+
+        # 3. Capability disabled hold
+        result_cap = self.route(
+            {"requirement_confirmed": True, "plan_approved": True},
+            self.config(capabilities={"orchestrate": False}),
+        )
+        self.assertEqual("hold", result_cap.decision)
+        self.assertTrue(len(result_cap.remedies) >= 1)
+        self.assertIn("enable capabilities.orchestrate in effective-config.yaml", result_cap.remedies)
+
+    def test_valid_process_waiver_routes_past_unmet_gate_with_evidence(self):
+        store = self.new_store()
+        waiver = GateWaiver(
+            gate="plan_approved",
+            gate_class=GateClass.PROCESS,
+            reason="trivial single line change",
+            scope_hash="scope-abc",
+            waived_by="agent-1",
+        )
+        event = build_waiver_event(waiver, workflow_id="wf-1")
+        store.append(event)
+
+        state = {
+            "workflow_id": "wf-1",
+            "scope_hash": "scope-abc",
+            "requirement_confirmed": True,
+            # plan_approved is absent
+            "audit_event_store": store,
+        }
+
+        result = self.route(state)
+        self.assertEqual("orchestrate", result.stage)
+        self.assertEqual("route", result.decision)
+        self.assertIn("plan_approved=waived(trivial single line change)", result.evidence)
+        self.assertIn("orchestration_ready=false", result.evidence)
+
+    def test_waiver_for_non_waivable_gate_does_not_pass_gate(self):
+        store = self.new_store()
+        event = WorkflowEvent.create(
+            event_type="gate.waived",
+            workflow_id="wf-1",
+            actor="agent-1",
+            payload={
+                "gate": "implementation_complete",
+                "gate_class": "process",
+                "reason": "urgent fix",
+                "scope_hash": "scope-abc",
+                "waived_by": "agent-1",
+            },
+        )
+        store.append(event)
+
+        state = {
+            "workflow_id": "wf-1",
+            "scope_hash": "scope-abc",
+            "requirement_confirmed": True,
+            "plan_approved": True,
+            "orchestration_ready": True,
+            # implementation_complete is absent
+            "audit_event_store": store,
+        }
+
+        result = self.route(state)
+        self.assertEqual("execute", result.stage)
+        self.assertEqual("route", result.decision)
+        self.assertIn("implementation_complete=false", result.evidence)
+
+    def test_waiver_with_mismatched_scope_hash_is_ignored(self):
+        store = self.new_store()
+        waiver = GateWaiver(
+            gate="plan_approved",
+            gate_class=GateClass.PROCESS,
+            reason="typo fix",
+            scope_hash="scope-different",
+            waived_by="agent-1",
+        )
+        store.append(build_waiver_event(waiver, workflow_id="wf-1"))
+
+        state = {
+            "workflow_id": "wf-1",
+            "scope_hash": "scope-current",
+            "requirement_confirmed": True,
+            "audit_event_store": store,
+        }
+
+        result = self.route(state)
+        self.assertEqual("plan", result.stage)
+        self.assertEqual("route", result.decision)
+        self.assertIn("plan_approved=false", result.evidence)
+
 
 if __name__ == "__main__":
     unittest.main()
+

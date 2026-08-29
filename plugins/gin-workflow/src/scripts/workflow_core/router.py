@@ -15,6 +15,7 @@ from .approvals import (
 )
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .models import EffectiveConfig, thaw
+from .waivers import NON_WAIVABLE_GATES, GateWaiver, collect_waivers
 
 
 LIFECYCLE_STAGES = (
@@ -56,10 +57,13 @@ class RouteDecision:
     stage: str
     decision: str
     evidence: tuple[str, ...]
+    remedies: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.stage not in LIFECYCLE_STAGES:
             raise ValueError(f"unsupported lifecycle stage: {self.stage}")
+        if self.decision == "hold" and not self.remedies:
+            raise ValueError("hold decision must include at least one remedy")
 
 
 def _coerce_guarded_actions(value: object) -> tuple[ApprovalAction, ...]:
@@ -214,10 +218,10 @@ def authorize_protected_action(
 
 def _guard_evidence(
     state: Mapping[str, Any], now: datetime
-) -> tuple[tuple[str, ...], bool]:
+) -> tuple[tuple[str, ...], bool, tuple[str, ...]]:
     actions = _coerce_guarded_actions(state.get("guarded_actions", ()))
     if not actions:
-        return (), False
+        return (), False, ()
 
     workflow_id = state.get("workflow_id")
     if not isinstance(workflow_id, str) or not workflow_id:
@@ -235,37 +239,37 @@ def _guard_evidence(
         request = requests.get(key)
         if not isinstance(request, ApprovalRequest):
             evidence.append(f"approval_request:{key}=invalid_type")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
         if request.action is not action:
             evidence.append(f"approval_request:{key}=action_mismatch")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
         if request.workflow_id != workflow_id:
             evidence.append(f"approval_request:{key}=workflow_mismatch")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
 
         decision = decisions.get(key)
         if decision is None:
             evidence.append(f"approval:{key}=missing")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
         if not isinstance(decision, ApprovalDecision):
             evidence.append(f"approval:{key}=invalid_type")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
         if decision.request_id != request.request_id:
             evidence.append(f"approval:{key}=stale")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
         try:
             require_approval(decision, request)
         except PermissionError:
             evidence.append(f"approval:{key}=denied")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
 
         decision_time = _parse_utc(decision.decided_at)
         if decision_time is None:
             evidence.append(f"approval:{key}=invalid_timestamp")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
         if not _is_fresh(decision_time, now):
             evidence.append(f"approval:{key}=stale")
-            return tuple(evidence), True
+            return tuple(evidence), True, (f"re-request approval for {key}",)
         evidence.append(f"approval:{key}=approved")
 
         store = state.get("audit_event_store")
@@ -281,9 +285,14 @@ def _guard_evidence(
         )
         if audit_status != "recorded":
             evidence.append(f"audit:{key}={audit_status}")
-            return tuple(evidence), True
+            remedy = (
+                f"re-record audit event for {key}"
+                if audit_status in ("missing", "invalid", "mismatched", "stale")
+                else f"re-request approval for {key}"
+            )
+            return tuple(evidence), True, (remedy,)
         evidence.append(f"audit:{key}=recorded")
-    return tuple(evidence), False
+    return tuple(evidence), False, ()
 
 
 def _capability_enabled(config: EffectiveConfig, stage: str) -> bool:
@@ -299,13 +308,19 @@ def _capability_enabled(config: EffectiveConfig, stage: str) -> bool:
     return value
 
 
-def _gate_complete(state: Mapping[str, Any], gate: str) -> bool:
-    if gate not in state:
-        return False
-    value = state[gate]
-    if type(value) is not bool:
-        raise TypeError(f"{gate} must be a boolean")
-    return value
+def _gate_status(
+    state: Mapping[str, Any], gate: str, waivers: Mapping[str, GateWaiver]
+) -> str:
+    """Return 'satisfied', 'waived', or 'unmet' for a lifecycle gate."""
+    if gate in state:
+        value = state[gate]
+        if type(value) is not bool:
+            raise TypeError(f"{gate} must be a boolean")
+        if value:
+            return "satisfied"
+    if gate not in NON_WAIVABLE_GATES and gate in waivers:
+        return "waived"
+    return "unmet"
 
 
 def route_next_stage(
@@ -319,24 +334,58 @@ def route_next_stage(
 
     if state.get("blocked") or state.get("status") == "blocked":
         blocker = str(state.get("blocker") or "unspecified")
-        return RouteDecision("progress", "hold", (f"blocked:{blocker}",))
+        return RouteDecision(
+            "progress",
+            "hold",
+            (f"blocked:{blocker}",),
+            remedies=(
+                "unblock --clear-blocker",
+                "unblock --gate <gate> --reason <why>",
+            ),
+        )
 
-    guard_evidence, blocked_by_guard = _guard_evidence(
+    guard_evidence, blocked_by_guard, guard_remedies = _guard_evidence(
         state, datetime.now(timezone.utc)
     )
     if blocked_by_guard:
-        return RouteDecision("progress", "hold", guard_evidence)
+        return RouteDecision(
+            "progress", "hold", guard_evidence, remedies=guard_remedies
+        )
 
+    store = state.get("audit_event_store")
+    workflow_id = state.get("workflow_id")
+    scope_hash = str(state.get("scope_hash") or "")
+    if (
+        isinstance(store, WorkflowEventStore)
+        and isinstance(workflow_id, str)
+        and workflow_id
+    ):
+        waivers = collect_waivers(store, workflow_id=workflow_id, scope_hash=scope_hash)
+    else:
+        waivers = {}
+
+    evidence_prefix: list[str] = list(guard_evidence)
     for stage, completed_gate in _STAGE_GATES:
-        if _gate_complete(state, completed_gate):
+        status = _gate_status(state, completed_gate, waivers)
+        if status == "satisfied":
             continue
-        evidence = (*guard_evidence, f"{completed_gate}=false")
+        if status == "waived":
+            waiver = waivers[completed_gate]
+            evidence_prefix.append(f"{completed_gate}=waived({waiver.reason})")
+            continue
+
+        evidence = (*evidence_prefix, f"{completed_gate}=false")
         if not _capability_enabled(config, stage):
             return RouteDecision(
                 "progress",
                 "hold",
                 (*evidence, f"capability:{stage}=disabled"),
+                remedies=(
+                    f"enable capabilities.{stage} in effective-config.yaml",
+                    f"waive {completed_gate} with a recorded reason",
+                ),
             )
         return RouteDecision(stage, "route", evidence)
 
-    return RouteDecision("progress", "complete", (*guard_evidence, "shipped=true"))
+    return RouteDecision("progress", "complete", (*evidence_prefix, "shipped=true"))
+
