@@ -404,13 +404,14 @@ def route_next_stage(
 
     if state.get("blocked") or state.get("status") == "blocked":
         blocker = str(state.get("blocker") or "unspecified")
+        gate = str(state.get("gate") or "<gate>")
         return RouteDecision(
             "progress",
             "hold",
             (f"blocked:{blocker}",),
             remedies=(
                 "unblock --clear-blocker",
-                "unblock --gate <gate> --reason <why>",
+                f"unblock --gate {gate} --reason <why>",
             ),
         )
 

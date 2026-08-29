@@ -581,8 +581,50 @@ class WorkflowRouterTests(unittest.TestCase):
                 scope_hash="hash-1",
             )
 
+    def test_byte_identical_routing_behavior_without_waivers(self):
+        store_empty = self.new_store()
+        states = [
+            {},
+            {"requirement_confirmed": True},
+            {"requirement_confirmed": True, "plan_approved": True},
+            {"requirement_confirmed": True, "plan_approved": True, "orchestration_ready": True},
+            {
+                "requirement_confirmed": True,
+                "plan_approved": True,
+                "orchestration_ready": True,
+                "implementation_complete": True,
+            },
+            {
+                "requirement_confirmed": True,
+                "plan_approved": True,
+                "orchestration_ready": True,
+                "implementation_complete": True,
+                "verification_passed": True,
+            },
+            {
+                "requirement_confirmed": True,
+                "plan_approved": True,
+                "orchestration_ready": True,
+                "implementation_complete": True,
+                "verification_passed": True,
+                "shipped": True,
+            },
+        ]
+        for s in states:
+            state_no_store = dict(s)
+            state_with_empty_store = dict(s, workflow_id="wf-1", audit_event_store=store_empty)
+
+            res_no_store = self.route(state_no_store)
+            res_with_store = self.route(state_with_empty_store)
+
+            self.assertEqual(res_no_store.stage, res_with_store.stage)
+            self.assertEqual(res_no_store.decision, res_with_store.decision)
+            self.assertEqual(res_no_store.evidence, res_with_store.evidence)
+            self.assertEqual(res_no_store.remedies, res_with_store.remedies)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
