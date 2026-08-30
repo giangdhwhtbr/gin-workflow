@@ -220,6 +220,36 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
     _validate_portable(config)
 
 
+SUPPORTED_HARNESSES = ("claude", "codex", "antigravity")
+
+
+def get_session_harness_override(repository: Path) -> str | None:
+    """Return active in-session main harness override if configured, else None."""
+    env_override = os.environ.get("GIN_WORKFLOW_HARNESS_OVERRIDE") or os.environ.get("GIN_WORKFLOW_HARNESS")
+    if env_override and env_override.strip():
+        override = env_override.strip().lower()
+    else:
+        override_file = Path(repository).resolve() / ".agent-workflow/runtime/session-harness.override"
+        if override_file.is_file():
+            try:
+                override = override_file.read_text(encoding="utf-8").strip().lower()
+            except Exception as error:
+                raise ConfigValidationError(
+                    f"failed to read session harness override file {override_file}: {error}"
+                ) from error
+        else:
+            return None
+
+    if not override:
+        return None
+
+    if override not in SUPPORTED_HARNESSES:
+        raise ConfigValidationError(
+            f"invalid session harness override {override!r}; must be one of: {', '.join(SUPPORTED_HARNESSES)}"
+        )
+    return override
+
+
 def load_effective_config(repository: Path) -> EffectiveConfig:
     """Load the generated lifecycle configuration after one-time setup."""
     root = Path(repository).resolve()
@@ -236,7 +266,15 @@ def load_effective_config(repository: Path) -> EffectiveConfig:
             raise ConfigValidationError(
                 f"missing required lifecycle version channel: {field}"
             )
+
+    override = get_session_harness_override(root)
+    if override:
+        config["_original_harness"] = config.get("harness")
+        config["harness"] = override
+        config["_session_harness_override"] = override
+
     return EffectiveConfig(config, root)
+
 
 
 def _read_yaml(path: Path, *, missing_ok: bool) -> dict[str, Any]:
@@ -389,9 +427,17 @@ def resolve_effective_config(
             }
         )
 
+    override = get_session_harness_override(root)
+    if override:
+        resolved["_original_harness"] = resolved.get("harness")
+        resolved["harness"] = override
+        resolved["_session_harness_override"] = override
+        effective_config = EffectiveConfig(resolved, root)
+
     return ResolvedConfig(
         config=effective_config,
         provenance=provenance,
         effective_config_path=effective_path,
         provenance_path=provenance_path,
     )
+

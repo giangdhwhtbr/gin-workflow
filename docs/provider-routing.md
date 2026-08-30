@@ -10,11 +10,14 @@ provider bypass.
 ## Selection and provider-default
 
 At orchestration, the role expands to ordered preferred and fallback providers.
-`main_harness` resolves to the harness that opened the workflow. Each candidate
-must have a machine-local executable and `low`, `medium`, and `high` mappings in
-`.agent-workflow/providers.local.yaml`. The machine-local provider/authentication
+`main_harness` resolves to the harness that opened the workflow (or an active
+in-session harness override set via `GIN_WORKFLOW_HARNESS_OVERRIDE` environment
+variable or `gin-workflow setup harness-override --harness <name>`).
+Each candidate must have a machine-local executable and `low`, `medium`, and `high`
+mappings in `.agent-workflow/providers.local.yaml`. The machine-local provider/authentication
 layer owns executable paths, concrete model aliases, credentials, and secret
 values; it is gitignored and never copied into portable config or bundles.
+
 
 `provider_default` is a deliberate selection mode supported only for the
 `antigravity` provider. Its assignment manifest records `provider: antigravity`

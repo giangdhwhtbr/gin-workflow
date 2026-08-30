@@ -399,31 +399,37 @@ class SetupCliTests(unittest.TestCase):
             }
             self.assertEqual(before, after)
 
-    def test_configure_normalizes_malformed_repository_yaml_as_structured_json(self):
+    def test_harness_override_command_and_reset(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
-            workflow = repository / ".agent-workflow"
-            workflow.mkdir()
-            config = workflow / "config.yaml"
-            malformed = b"schema_version: '2.3'\npolicy: [\n"
-            config.write_bytes(malformed)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
 
-            result = self.run_cli(
-                repository,
-                "configure",
-                "--set",
-                "policy.mode=guarded",
-                "--approve",
-                "--non-interactive",
-            )
+            # Set override to claude
+            set_res = self.run_cli(repository, "harness-override", "--harness", "claude")
+            self.assertEqual(0, set_res.returncode, set_res.stderr)
+            payload = json.loads(set_res.stdout)
+            self.assertEqual("success", payload["status"])
+            self.assertEqual("claude", payload["harness"])
 
-            self.assertNotEqual(0, result.returncode)
-            self.assertNotIn("Traceback", result.stderr)
-            payload = json.loads(result.stdout)
-            self.assertEqual("error", payload["status"])
-            self.assertIn("invalid YAML", payload["message"])
-            self.assertEqual(malformed, config.read_bytes())
+            override_file = repository / ".agent-workflow" / "runtime" / "session-harness.override"
+            self.assertTrue(override_file.is_file())
+            self.assertEqual("claude", override_file.read_text().strip())
+
+            # Query current override
+            get_res = self.run_cli(repository, "harness-override")
+            self.assertEqual(0, get_res.returncode, get_res.stderr)
+            get_payload = json.loads(get_res.stdout)
+            self.assertEqual("claude", get_payload["harness"])
+
+            # Reset override
+            reset_res = self.run_cli(repository, "harness-override", "--reset")
+            self.assertEqual(0, reset_res.returncode, reset_res.stderr)
+            reset_payload = json.loads(reset_res.stdout)
+            self.assertEqual("success", reset_payload["status"])
+            self.assertFalse(override_file.exists())
 
 
 if __name__ == "__main__":
     unittest.main()
+

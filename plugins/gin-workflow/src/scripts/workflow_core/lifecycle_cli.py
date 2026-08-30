@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from .configuration import resolve_effective_config
 from .events import WorkflowEvent, WorkflowEventStore
@@ -46,6 +46,34 @@ def _resolve_scope_hash(repo_path: Path) -> str:
     return "default-scope"
 
 
+def _process_gate_state(
+    event_store: WorkflowEventStore, workflow_id: str
+) -> dict[str, bool]:
+    """Reconstruct process gates from durable events for one workflow only."""
+    gates = {
+        "requirement_confirmed": False,
+        "plan_approved": False,
+        "orchestration_ready": False,
+    }
+    for event in event_store.read_all():
+        if event.workflow_id != workflow_id:
+            continue
+        payload = event.payload if isinstance(event.payload, Mapping) else {}
+        if event.event_type == "requirement.confirmed":
+            gates["requirement_confirmed"] = True
+        elif event.event_type == "approval.recorded":
+            decision = payload.get("decision")
+            approved = (
+                isinstance(decision, Mapping)
+                and decision.get("status") == "approved"
+            )
+            if payload.get("action") == "plan_approved" and approved:
+                gates["plan_approved"] = True
+        elif event.event_type == "orchestration.ready":
+            gates["orchestration_ready"] = True
+    return gates
+
+
 def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     repo_path = Path(args.repository).resolve()
     resolved_config = resolve_effective_config(repo_path, write=False)
@@ -59,6 +87,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "workflow_id": workflow_id,
         "audit_event_store": event_store,
         "scope_hash": scope_hash,
+        **_process_gate_state(event_store, workflow_id),
     }
 
     decision = route_next_stage(state, config)
@@ -77,6 +106,9 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     payload = {
         "stage": decision.stage,
         "decision": decision.decision,
+        "harness": config.harness,
+        "is_session_harness_override": config.is_session_harness_override,
+        "original_harness": config.original_harness if config.is_session_harness_override else None,
         "gates": gates_status,
         "evidence": list(decision.evidence),
         "remedies": list(decision.remedies),
@@ -84,6 +116,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
     exit_code = 0 if decision.decision == "route" else 1
     return payload, exit_code
+
 
 
 def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
@@ -183,7 +216,12 @@ def main(arguments: Sequence[str] | None = None) -> int:
         else:
             print(f"Lifecycle Stage: {payload.get('stage')}")
             print(f"Routing Decision: {payload.get('decision')}")
+            if payload.get("is_session_harness_override"):
+                print(f"Main Harness: {payload.get('harness')} (Session Override, Configured: {payload.get('original_harness')})")
+            else:
+                print(f"Main Harness: {payload.get('harness')}")
             print("\nGates:")
+
             for gate, status in payload.get("gates", {}).items():
                 print(f"  - {gate}: {status}")
             print("\nEvidence:")

@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 from workflow_core.cli import main as cli_main
+from workflow_core.events import WorkflowEvent, WorkflowEventStore
 from workflow_core.lifecycle_cli import main as lifecycle_main
 
 
@@ -59,6 +60,54 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertIn("evidence", data)
         self.assertIn("remedies", data)
         self.assertEqual("unmet", data["gates"]["requirement_confirmed"])
+
+    def test_state_derives_completed_process_gates_from_matching_workflow_events(self):
+        workflow_id = "two-factor"
+        event_store = WorkflowEventStore(self.workflow_dir / "runtime" / "events.jsonl")
+        for event_type, payload in (
+            ("requirement.confirmed", {"stage": "discuss"}),
+            (
+                "approval.recorded",
+                {
+                    "action": "plan_approved",
+                    "decision": {"status": "approved"},
+                },
+            ),
+            ("orchestration.ready", {"stage": "orchestrate"}),
+        ):
+            event_store.append(
+                WorkflowEvent.create(
+                    event_type=event_type,
+                    workflow_id=workflow_id,
+                    payload=payload,
+                )
+            )
+        event_store.append(
+            WorkflowEvent.create(
+                event_type="requirement.confirmed",
+                workflow_id="another-workflow",
+                payload={"state": "requirement_confirmed"},
+            )
+        )
+
+        import io
+        from unittest.mock import patch
+
+        with patch("sys.stdout", new=io.StringIO()) as fake_out:
+            exit_code = lifecycle_main([
+                "state",
+                "--repository", str(self.repo_path),
+                "--workflow-id", workflow_id,
+                "--format", "json",
+            ])
+            output = fake_out.getvalue()
+
+        self.assertEqual(0, exit_code)
+        data = json.loads(output)
+        self.assertEqual("execute", data["stage"])
+        self.assertEqual("satisfied", data["gates"]["requirement_confirmed"])
+        self.assertEqual("satisfied", data["gates"]["plan_approved"])
+        self.assertEqual("satisfied", data["gates"]["orchestration_ready"])
 
     def test_unblock_safety_gate_without_followup_fails(self):
         exit_code = lifecycle_main([

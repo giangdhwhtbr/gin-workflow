@@ -227,6 +227,63 @@ class ConfigurationTests(unittest.TestCase):
                 with self.assertRaises(ConfigValidationError):
                     resolve_effective_config(Path(directory), repository_config=config)
 
+    def test_session_harness_override_via_environment_variable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            resolve_effective_config(
+                repository,
+                repository_config={"schema_version": "2.3", "harness": "codex"},
+            )
+
+            os.environ["GIN_WORKFLOW_HARNESS_OVERRIDE"] = "claude"
+            try:
+                loaded = configuration.load_effective_config(repository)
+                self.assertEqual("claude", loaded.harness)
+                self.assertTrue(loaded.is_session_harness_override)
+                self.assertEqual("codex", loaded.original_harness)
+            finally:
+                os.environ.pop("GIN_WORKFLOW_HARNESS_OVERRIDE", None)
+
+    def test_session_harness_override_via_runtime_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            resolve_effective_config(
+                repository,
+                repository_config={"schema_version": "2.3", "harness": "codex"},
+            )
+
+            runtime_dir = repository / ".agent-workflow" / "runtime"
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            (runtime_dir / "session-harness.override").write_text("antigravity\n")
+
+            loaded = configuration.load_effective_config(repository)
+            self.assertEqual("antigravity", loaded.harness)
+            self.assertTrue(loaded.is_session_harness_override)
+            self.assertEqual("codex", loaded.original_harness)
+
+            # Check that file on disk effective-config.yaml remains codex
+            raw_effective = configuration._read_yaml(
+                repository / ".agent-workflow/generated/effective-config.yaml",
+                missing_ok=False,
+            )
+            self.assertEqual("codex", raw_effective["harness"])
+
+    def test_session_harness_override_rejects_invalid_harness(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            resolve_effective_config(
+                repository,
+                repository_config={"schema_version": "2.3", "harness": "codex"},
+            )
+
+            os.environ["GIN_WORKFLOW_HARNESS_OVERRIDE"] = "invalid-harness"
+            try:
+                with self.assertRaises(ConfigValidationError):
+                    configuration.load_effective_config(repository)
+            finally:
+                os.environ.pop("GIN_WORKFLOW_HARNESS_OVERRIDE", None)
+
 
 if __name__ == "__main__":
     unittest.main()
+

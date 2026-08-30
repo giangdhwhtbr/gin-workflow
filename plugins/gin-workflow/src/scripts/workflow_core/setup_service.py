@@ -472,6 +472,84 @@ def verify(*, bundle: Path | None, **_: Any) -> dict[str, Any]:
     return verify_bundle(bundle)
 
 
+def harness_override(
+    repository: Path,
+    *,
+    harness: str | None = None,
+    reset: bool = False,
+    clear: bool = False,
+    dry_run: bool = False,
+    **_: Any,
+) -> dict[str, Any]:
+    root = Path(repository).resolve()
+    runtime_dir = root / ".agent-workflow" / "runtime"
+    override_file = runtime_dir / "session-harness.override"
+
+    should_reset = reset or clear
+
+    if should_reset:
+        if harness:
+            raise SetupError("cannot specify both --harness and --reset/--clear")
+        if dry_run:
+            return {
+                "status": "dry_run",
+                "message": "would clear session harness override",
+                "actions": [f"delete {override_file}"],
+            }
+        if override_file.exists():
+            override_file.unlink()
+            return {
+                "status": "success",
+                "message": "cleared session main harness override",
+                "actions": [f"deleted {override_file}"],
+            }
+        return {
+            "status": "success",
+            "message": "no active session main harness override file to clear",
+            "actions": [],
+        }
+
+    if not harness:
+        if override_file.is_file():
+            current = override_file.read_text(encoding="utf-8").strip()
+            return {
+                "status": "success",
+                "message": f"active session main harness override: '{current}'",
+                "actions": [],
+                "harness": current,
+            }
+        return {
+            "status": "success",
+            "message": "no session main harness override active",
+            "actions": [],
+        }
+
+    selected = harness.strip().lower()
+    from .configuration import SUPPORTED_HARNESSES
+
+    if selected not in SUPPORTED_HARNESSES:
+        raise SetupError(
+            f"invalid harness '{harness}'; expected one of: {', '.join(SUPPORTED_HARNESSES)}"
+        )
+
+    if dry_run:
+        return {
+            "status": "dry_run",
+            "message": f"would set session main harness override to '{selected}'",
+            "actions": [f"write '{selected}' to {override_file}"],
+            "harness": selected,
+        }
+
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    override_file.write_text(selected, encoding="utf-8")
+    return {
+        "status": "success",
+        "message": f"set session main harness override to '{selected}'",
+        "actions": [f"wrote '{selected}' to {override_file}"],
+        "harness": selected,
+    }
+
+
 COMMANDS = {
     "detect": detect,
     "init": initialize,
@@ -484,4 +562,6 @@ COMMANDS = {
     "rollback": rollback,
     "export-bundle": export,
     "verify-bundle": verify,
+    "harness-override": harness_override,
 }
+

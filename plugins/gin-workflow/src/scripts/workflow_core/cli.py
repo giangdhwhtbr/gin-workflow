@@ -35,7 +35,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--backup", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--bundle", type=Path)
+    parser.add_argument("--reset", action="store_true")
+    parser.add_argument("--clear", action="store_true")
     return parser
+
 
 
 def _emit(payload: dict[str, Any], output_format: str) -> None:

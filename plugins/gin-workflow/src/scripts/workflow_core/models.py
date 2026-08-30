@@ -67,6 +67,19 @@ class EffectiveConfig(Mapping[str, Any]):
     def schema_version(self) -> str:
         return str(self.data["schema_version"])
 
+    @property
+    def harness(self) -> str:
+        return str(self.data.get("harness", ""))
+
+    @property
+    def is_session_harness_override(self) -> bool:
+        return "_session_harness_override" in self.data
+
+    @property
+    def original_harness(self) -> str:
+        return str(self.data.get("_original_harness", self.data.get("harness", "")))
+
+
 
 @dataclass(frozen=True)
 class ConfigProvenance(Mapping[str, str]):
