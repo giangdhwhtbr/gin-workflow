@@ -92,6 +92,7 @@ Required handoff contents:
 - which files changed
 - what validation was run
 - what validation was not run
+- any waived gates, including stated reasons and follow-up task IDs
 - any blocked items or residual risks
 - the bead status at handoff time
 - proposed next commands when useful
@@ -100,6 +101,7 @@ Recommended phrasing:
 
 - changed files
 - validation
+- waived gates (with reasons and follow-up task IDs)
 - beads status
 - remaining risks
 - next commands
@@ -153,6 +155,9 @@ Validation:
 - Ran: ...
 - Not run: ...
 
+Waived gates:
+- None (or e.g. verification_passed - reason: ... [follow-up task: gin-workflow-xyz])
+
 Beads:
 - Updated: ...
 - Closed: yes|no
@@ -163,6 +168,7 @@ Risks / Blockers:
 Next commands:
 - ...
 ```
+
 
 ## Relationship To Other Workflow Docs
 

@@ -206,7 +206,32 @@ This is safe to re-run any time — for Codex it explicitly removes and re-adds 
 
 Verify the fix actually landed by checking a changed file's content inside the refreshed install directory (or, for a Python fix, importing the module from that path and exercising the fixed behavior directly) rather than assuming a successful install command means the fix is present.
 
+### Workflow is held at `progress` or a gate is blocked
+
+When a task holds at `progress` or fails to advance to the next lifecycle stage, run `gin-workflow state` to diagnose the exact reason:
+
+```bash
+gin-workflow state [--format text|json]
+```
+
+This displays the current decision, target stage, evidence, and per-gate statuses (`satisfied`, `waived`, or `unmet`), along with concrete remedies for any unmet gate or missing approval.
+
+To resolve an unmet gate:
+- For **process gates** (`requirement_confirmed`, `plan_approved`, `orchestration_ready`):
+  ```bash
+  gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id>
+  ```
+- For **safety gates** (`verification_passed`, `review_approved`):
+  ```bash
+  gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id> --follow-up <follow-up-task-id>
+  ```
+- To **clear a task-tracking blocker**:
+  ```bash
+  gin-workflow unblock --clear-blocker --reason "cleared blocker reason" --actor <your-id>
+  ```
+
 ---
+
 
 ## Local Development & Compilation
 

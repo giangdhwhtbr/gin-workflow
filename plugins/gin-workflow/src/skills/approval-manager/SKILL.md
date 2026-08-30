@@ -30,9 +30,10 @@ Commit, push, upgrade, and data movement retain the same approval boundary.
 
 1. Create a typed `ApprovalRequest` naming one action, workflow, reason, and bounded details.
 2. Ask through the native harness. A notification reply is never an approval substitute. There is no per-harness adapter class: whichever agent (Claude, Codex, Antigravity, ...) is running is itself responsible for asking the user directly through its own harness's native "ask the user a question" mechanism, then constructing the portable `ApprovalDecision` dataclass (`workflow_core/approvals.py`) from that answer.
-3. Require a matching typed `ApprovalDecision`; reject mappings, denied decisions, request/action/workflow mismatches, invalid timestamps, and decisions more than five minutes old.
+3. Require a matching typed `ApprovalDecision`; reject mappings, denied decisions, request/action/workflow mismatches, invalid timestamps, decisions exceeding `policy.approval.ttl_seconds` (default 86,400 seconds), and decisions with mismatched `scope_hash` when `policy.approval.bind_to_scope` is enabled.
 4. Persist the request and decision in a matching `approval.recorded` `WorkflowEvent` through the evidence manager.
-5. Immediately before routing, re-read the event from the typed `WorkflowEventStore`. Revalidate its serialized form and require matching action, workflow, request, decision, actor, and a timestamp no more than five minutes old and not earlier than the decision.
+5. Immediately before routing, re-read the event from the typed `WorkflowEventStore`. Revalidate its serialized form and require matching action, workflow, request, decision, actor, matching `scope_hash` when bound, and a timestamp within `policy.approval.ttl_seconds` (allowing up to 60 seconds backwards clock-skew tolerance).
+
 6. Call the protected capability only after the persisted-stream check succeeds; otherwise hold at `progress`.
 
 Notifications are optional and use only the configured notification capability.

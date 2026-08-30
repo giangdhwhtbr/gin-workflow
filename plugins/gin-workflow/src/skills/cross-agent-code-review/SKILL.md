@@ -14,6 +14,9 @@ Before starting, enforce the configured review route. When independent review is
 1. **Acquire Lease**:
    - Fetch the remote review branch: `git fetch origin bead/<bead-id>`.
    - Acquire the lease: `python3 review-ledger.py start-review --bead-id <bead-id> --actor-id <reviewer-id>`.
+   - To acquire a lease held by a different actor when authorized, pass `--force-takeover --reason "<explanation>"`.
+   - If writing to the ledger fails due to lease revision staleness, the lease holder can re-sync the recorded revision using `python3 review-ledger.py resync-lease --bead-id <bead-id> --actor-id <reviewer-id> --lease-id <lease-id>`.
+
 2. **Context Gathering**:
    - Use only the approved scope, reviewed diff, acceptance criteria, test results, and implementation evidence supplied in the fresh review context.
    - Do not consume the implementer's private reasoning, self-assessment, parent transcript, unrelated history, or secrets.

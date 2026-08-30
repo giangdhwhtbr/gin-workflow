@@ -52,6 +52,17 @@ The review ledger owns findings history and triage status, lease/concurrency sta
 active approval snapshots, and review verification evidence. It is the authoritative
 audit log for review history; it does not own Beads task status or approved plan scope.
 
+### Workflow event store owns audit records and gate waivers
+
+The `WorkflowEventStore` owns append-only audit events, including recorded approvals
+(`approval.recorded`), blocker clearing (`blocker.cleared`), and gate waivers
+(`gate.waived`). `gate.waived` events record who bypassed a gate, which gate class applied,
+the stated reason, scope hash, and optional follow-up task ID. Gate waivers allow stage
+routing past unmet process or safety gates, but they are append-only audit records owned
+by the event store; they never substitute for Beads task identity, priority, dependencies,
+or closure status.
+
+
 ### Runtime metadata is local and disposable
 
 Local orchestration metadata may exist for convenience, such as:
@@ -127,7 +138,9 @@ Examples of unacceptable derived state:
 | What validation was intended? | Plan file |
 | Which worktree path belongs to a track? | Derived runtime metadata |
 | Which branch was used for a worker? | Derived runtime metadata |
+| Who waived a gate and why? | Event store (`gate.waived` events) |
 | Is the task complete? | Beads |
+
 
 ## Effective Configuration And Evidence
 

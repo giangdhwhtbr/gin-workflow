@@ -240,7 +240,24 @@ a capability is disabled, or a protected action lacks fresh persisted approval a
 audit evidence. Code Review approval is represented by terminal review/evidence
 records consumed by Verification, not by a new router gate.
 
+### Gate Classification and Waivers
+
+Gates evaluate to tri-state values (`satisfied`, `waived`, or `unmet`). When a gate is not directly satisfied by recorded state, it may be waived via an append-only `gate.waived` event in the `WorkflowEventStore` matching the active scope hash:
+
+| Gate Class | Gates | Waiver Rules |
+| --- | --- | --- |
+| **Process** | `requirement_confirmed`, `plan_approved`, `orchestration_ready` | May be waived by the agent with a mandatory recorded reason. |
+| **Safety** | `verification_passed`, `review_approved` | Requires human approval and a mandatory follow-up task ID. |
+| **Non-waivable** | `implementation_complete`, `shipped` | Cannot be waived under any circumstances; statements of fact or terminal state. |
+
+Whenever the router evaluates a hold decision, it is structurally required to return at least one concrete remedy. Diagnostic inspection is available via `gin-workflow state`, and process/safety gate holds can be acted on using `gin-workflow unblock`.
+
+### Scope-Bound Approval Validity
+
+Approval validity is bound to the target scope hash (`scope_hash`) and a configurable policy TTL (`policy.approval.ttl_seconds`, defaulting to 86,400 seconds / 24 hours) rather than a rigid wall-clock window. As long as the approved scope hash remains unchanged and the decision falls within the configured TTL (with up to 60 seconds of clock-skew tolerance), an approval obtained before dispatch remains valid even for long-running worker tasks.
+
 Identity-bound worker, checkpoint, review, and verification evidence supports the
 gates but never replaces Beads status or plan-owned scope. A lease conflict,
 identity mismatch, unavailable provider, or evidence-integrity failure is a hold
 with a diagnostic and safe next action, not permission to bypass the gate.
+
