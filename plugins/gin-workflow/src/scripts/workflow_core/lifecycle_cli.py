@@ -29,7 +29,10 @@ def _get_event_store(repo_path: Path) -> WorkflowEventStore:
 
 
 def _resolve_scope_hash(repo_path: Path) -> str:
-    # Check planning ledgers for scope_hash if available
+    # Check planning ledgers for scope_hash if available.
+    # FIXME: This picks the first matching hash from any review.json in .planning/.
+    # When multiple beads are active simultaneously, this may return a hash from
+    # the wrong bead. The caller should pass an explicit --scope-hash when it matters.
     planning_dir = repo_path / ".planning"
     if planning_dir.is_dir():
         for review_json in planning_dir.glob("*/review.json"):
@@ -88,8 +91,8 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_store = _get_event_store(repo_path)
     workflow_id = getattr(args, "workflow_id", None) or "default-workflow"
     scope_hash = getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path)
-    actor = getattr(args, "actor", None) or "operator"
-    reason = getattr(args, "reason", None) or ""
+    actor = args.actor
+    reason = args.reason
 
     if not reason.strip():
         return {"status": "error", "message": "--reason is required"}, 1
@@ -170,7 +173,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
     parser.add_argument("--scope-hash")
 
     if command == "state":
-        args = parser.parse_args(argv[1:])
+        try:
+            args = parser.parse_args(argv[1:])
+        except SystemExit as e:
+            return e.code if isinstance(e.code, int) else 2
         payload, exit_code = _state_command(args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
