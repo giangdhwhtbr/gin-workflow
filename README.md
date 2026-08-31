@@ -7,6 +7,7 @@ It is built around a simple ownership model:
 - Beads owns durable task state, dependencies, and closure.
 - Plan files under `.planning/plans/` own approved decomposition and scope.
 - Worktrees, branches, and any runtime orchestration metadata are disposable implementation details.
+- Skills are 100% self-contained — no external base plugins (such as `superpowers`) are required.
 
 ---
 
@@ -29,7 +30,7 @@ The plugin is skill-first across all supported platforms. These skills are the p
 
 ## Support Skills
 
-The plugin also provides lower-level and support skills used internally or for advanced workflows:
+The plugin provides fully self-contained support skills (bundled reasoning methodology + gin-workflow rules; `superpowers` is no longer a dependency):
 
 - `discovering-work`
 - `writing-plans`

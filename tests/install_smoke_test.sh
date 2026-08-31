@@ -154,15 +154,16 @@ assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/map-codebase.m
 assert_not_exists "plugins/gin-workflow-advanced"
 
 assert_contains "plugins/gin-workflow/dist/claude-code/commands/plan.md" "durable, git-tracked plan"
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md' 'extends `superpowers:writing-plans`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/executing-plans/SKILL.md' 'extends `superpowers:executing-plans`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verification-before-completion/SKILL.md' 'extends `superpowers:verification-before-completion`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/systematic-debugging/SKILL.md' 'extends `superpowers:systematic-debugging`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/dispatching-parallel-agents/SKILL.md' 'extends `superpowers:dispatching-parallel-agents`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/receiving-code-review/SKILL.md' 'extends `superpowers:receiving-code-review`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md' 'extends `superpowers:requesting-code-review`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/finishing-a-development-branch/SKILL.md' 'extends `superpowers:finishing-a-development-branch`'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/using-git-worktrees/SKILL.md' 'extends `superpowers:using-git-worktrees`'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/executing-plans/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/verification-before-completion/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/systematic-debugging/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/dispatching-parallel-agents/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/receiving-code-review/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/finishing-a-development-branch/SKILL.md' 'superpowers'
+assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/using-git-worktrees/SKILL.md' 'superpowers'
+
 assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verification-before-completion/SKILL.md' 'file://../../references/verification-and-handoff-workflow.md'
 assert_contains 'plugins/gin-workflow/dist/claude-code/commands/verify.md' 'file://../references/verification-and-handoff-workflow.md'
 assert_contains 'plugins/gin-workflow/dist/claude-code/commands/orchestrate.md' 'file://../references/orchestration-state-model.md'

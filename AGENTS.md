@@ -12,7 +12,6 @@ This repository separates responsibilities intentionally:
 - `docs/capability-provider-contracts.md` defines lifecycle capability boundaries.
 - `docs/context-and-evidence-policy.md` defines worker context, result, review, and evidence policy.
 - `docs/verification-and-handoff-workflow.md` is the canonical close-out checklist.
-- `docs/superpowers-integration-policy.md`: rule for using superpowers:* skills as reasoning guidance only.
 - Plugin command and skill files under `plugins/gin-workflow/src/` contain the actionable execution rules.
 
 ## Response Language
