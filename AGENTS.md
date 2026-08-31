@@ -15,6 +15,16 @@ This repository separates responsibilities intentionally:
 - `docs/superpowers-integration-policy.md`: rule for using superpowers:* skills as reasoning guidance only.
 - Plugin command and skill files under `plugins/gin-workflow/src/` contain the actionable execution rules.
 
+## Response Language
+
+- Reply to the user in Vietnamese, including when they write in English. The
+  language of their message is not a request to switch; only an explicit
+  instruction is.
+- Do not translate the things that have to stay verbatim: code, identifiers,
+  file paths, commands, log and test output, commit messages, and the content
+  written into tracked files. Those stay as they are, and the prose around them
+  is Vietnamese.
+
 ## Required Defaults
 
 - Use the task-tracking capability for durable task tracking; Beads remains its durable state owner in this repository.
