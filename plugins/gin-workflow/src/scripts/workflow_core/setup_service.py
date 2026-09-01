@@ -66,7 +66,10 @@ def _merged_provider_gitignore(path: Path) -> bytes:
     lines = existing.splitlines()
     if "providers.local.yaml" not in lines:
         lines.append("providers.local.yaml")
-    return (("\n".join(lines) + "\n") if lines else "providers.local.yaml\n").encode("utf-8")
+    if "runtime/" not in lines:
+        lines.append("runtime/")
+    return (("\n".join(lines) + "\n") if lines else "providers.local.yaml\nruntime/\n").encode("utf-8")
+
 
 
 def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[str, Any]:

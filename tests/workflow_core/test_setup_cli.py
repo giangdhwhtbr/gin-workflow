@@ -308,7 +308,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, applied.returncode, applied.stderr)
             local = (repository / ".agent-workflow/providers.local.yaml").read_text(encoding="utf-8")
             self.assertIn("high: opus", local)
-            self.assertEqual("providers.local.yaml\n", (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
+            self.assertEqual("providers.local.yaml\nruntime/\n", (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
 
     def test_provider_configuration_preserves_existing_workflow_gitignore_entries(self):
         assignments = (
@@ -328,9 +328,36 @@ class SetupCliTests(unittest.TestCase):
 
             self.assertEqual(0, applied.returncode, applied.stderr)
             self.assertEqual(
-                "runtime/private.log\n# user rule\nproviders.local.yaml\n",
+                "runtime/private.log\n# user rule\nproviders.local.yaml\nruntime/\n",
                 ignored.read_text(encoding="utf-8"),
             )
+
+    def test_provider_configuration_gitignore_idempotent_and_heals(self):
+        assignments = (
+            "--provider-set", "providers.claude.executable=claude",
+            "--provider-set", "providers.claude.models.low=haiku",
+            "--provider-set", "providers.claude.models.medium=sonnet",
+            "--provider-set", "providers.claude.models.high=opus",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+            ignored = repository / ".agent-workflow/.gitignore"
+            # Simulate pre-fix repo with only providers.local.yaml
+            ignored.write_text("providers.local.yaml\n", encoding="utf-8")
+
+            applied = self.run_cli(repository, "configure", "--approve", *assignments)
+            self.assertEqual(0, applied.returncode, applied.stderr)
+            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("runtime/"))
+            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("providers.local.yaml"))
+
+            # Re-run to verify idempotence
+            applied_again = self.run_cli(repository, "configure", "--approve", *assignments)
+            self.assertEqual(0, applied_again.returncode, applied_again.stderr)
+            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("runtime/"))
+            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("providers.local.yaml"))
+
 
     def test_update_previews_then_applies_v2_3_routing_and_local_provider_config(self):
         arguments = (
