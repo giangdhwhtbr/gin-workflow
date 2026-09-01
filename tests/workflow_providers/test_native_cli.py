@@ -48,8 +48,13 @@ class NativeCliTests(unittest.TestCase):
         self.assertNotIn("workspace-write", codex.argv)
         self.assertIn("--cd", codex.argv)
         self.assertNotIn("-C", codex.argv)
-        self.assertEqual(("agy", "--print", "--model", "flash", "--sandbox"), agy.argv)
+        self.assertEqual(
+            ("agy", "--add-dir", str(workspace.resolve()), "--sandbox", "--print-timeout", "900s", "--print", "{}"),
+            agy.argv,
+        )
+        self.assertEqual(b"", agy.stdin)
         self.assertFalse(claude.shell or codex.shell or agy.shell)
+
 
     def test_codex_health_requires_exact_safe_noninteractive_flags(self):
         required = (

@@ -246,12 +246,15 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 self.review_runs = 0
 
             def run(self, invocation, *, cancel_event=None):
-                model = invocation.argv[invocation.argv.index("--model") + 1]
+                model = invocation.argv[invocation.argv.index("--model") + 1] if "--model" in invocation.argv else "provider_default"
                 provider = {"claude": "claude", "codex": "codex", "agy": "antigravity"}[invocation.argv[0]]
+
                 self.routes.append((provider, model))
                 if provider == "claude" and model == "opus":
                     raise NativeCliError(FailureKind.QUOTA, "classified quota")
-                payload = json.loads(invocation.stdin.decode("utf-8").splitlines()[-1])
+                prompt_text = invocation.stdin.decode("utf-8") if invocation.stdin else invocation.argv[-1]
+                payload = json.loads(prompt_text.splitlines()[-1])
+
                 normalized = completed_result(payload)
                 if payload["objective"].startswith("Review approved implementation scope"):
                     self.review_runs += 1

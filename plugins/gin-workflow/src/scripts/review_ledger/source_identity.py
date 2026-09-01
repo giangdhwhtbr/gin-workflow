@@ -13,10 +13,12 @@ from review_ledger import jcs
 
 
 def _git(repo_path: str, *args: str, env: Mapping[str, str] | None = None) -> bytes:
+    full_env = dict(os.environ if env is None else env)
+    full_env.setdefault("GIT_CEILING_DIRECTORIES", os.path.dirname(os.path.abspath(repo_path)))
     process = subprocess.run(
         ["git", *args],
         cwd=repo_path,
-        env=None if env is None else dict(env),
+        env=full_env,
         capture_output=True,
         check=False,
     )
@@ -24,6 +26,25 @@ def _git(repo_path: str, *args: str, env: Mapping[str, str] | None = None) -> by
         message = process.stderr.decode("utf-8", "replace").strip()
         raise RuntimeError(f"git {' '.join(args)} failed: {message}")
     return process.stdout
+
+
+
+def is_git_repo_root(repo_path: str) -> bool:
+    try:
+        resolved = Path(repo_path).resolve()
+        if not (resolved / ".git").exists():
+            return False
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=resolved,
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        return bool(top) and Path(top).resolve() == resolved
+    except Exception:
+        return False
+
 
 
 def canonical_scope_path(path: str) -> str:

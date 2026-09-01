@@ -27,16 +27,25 @@ def build_antigravity_invocation(
     *,
     timeout_seconds: float = 900,
 ) -> NativeCliInvocation:
-    argv = [executable, "--print"]
-    if model != PROVIDER_DEFAULT:
-        argv.extend(("--model", model))
-    argv.append("--sandbox")
+    resolved_workspace = Path(workspace).resolve()
+    timeout_str = f"{int(timeout_seconds)}s"
+    argv = (
+        executable,
+        "--add-dir",
+        str(resolved_workspace),
+        "--sandbox",
+        "--print-timeout",
+        timeout_str,
+        "--print",
+        prompt,
+    )
     return NativeCliInvocation(
-        tuple(argv),
-        workspace,
-        prompt.encode("utf-8"),
+        argv,
+        resolved_workspace,
+        b"",
         timeout_seconds,
     )
+
 
 
 def antigravity_health(executable: str, *, help_text: str | None = None) -> NativeHealth:

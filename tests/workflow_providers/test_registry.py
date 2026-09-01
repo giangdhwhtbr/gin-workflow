@@ -373,7 +373,10 @@ class ProviderRegistryTests(unittest.TestCase):
                 self.assertEqual("completed", normalized.status)
                 self.assertEqual(expected_provider, receipt.provider_name)
                 if expected_provider == "antigravity":
-                    self.assertEqual(("agy", "--print", "--sandbox"), runner.invocations[0].argv)
+                    self.assertEqual(("agy", "--add-dir"), runner.invocations[0].argv[:2])
+                    self.assertIn("--sandbox", runner.invocations[0].argv)
+                    self.assertEqual("--print", runner.invocations[0].argv[-2])
+
                 else:
                     self.assertEqual(("codex", "exec"), runner.invocations[0].argv[:2])
 

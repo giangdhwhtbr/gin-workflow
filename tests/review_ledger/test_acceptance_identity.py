@@ -484,6 +484,8 @@ class ReviewLedgerCommandIdentityTests(unittest.TestCase):
 
     def _checkpoint_args(self, *extra):
         Path(self.test_dir, "src/main.py").write_text(f"print('{len(extra)}-{os.urandom(4).hex()}')\n")
+        subprocess.run(["git", "add", "src/main.py"], cwd=self.test_dir, check=True)
+        subprocess.run(["git", "commit", "-m", "checkpoint", "-q"], cwd=self.test_dir, check=True)
         return (
             "checkpoint",
             "--bead-id", self.bead_id,
@@ -492,6 +494,7 @@ class ReviewLedgerCommandIdentityTests(unittest.TestCase):
             "--actor-id", "worker-1",
             *extra,
         )
+
 
     def test_checkpoint_command_without_flags_is_unchanged(self):
         self._cli(*self._checkpoint_args())

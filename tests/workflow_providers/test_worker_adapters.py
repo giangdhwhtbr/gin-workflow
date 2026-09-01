@@ -74,7 +74,8 @@ class WorkerAdapterTests(unittest.TestCase):
 
         self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
         self.assertEqual(
-            ("agy", "--print", "--sandbox"), runner.invocations[0].argv
+            ("agy", "--add-dir", str(Path.cwd().resolve()), "--sandbox", "--print-timeout", "900s", "--print"),
+            runner.invocations[0].argv[:7],
         )
 
     def test_native_adapters_build_model_specific_invocations_and_normalize_output(self):
@@ -103,8 +104,10 @@ class WorkerAdapterTests(unittest.TestCase):
                 receipt = adapter.dispatch(request())
                 self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
                 argv = runner.invocations[0].argv
-                self.assertEqual(model, argv[argv.index("--model") + 1])
+                if adapter_type != AntigravityWorkerAdapter:
+                    self.assertEqual(model, argv[argv.index("--model") + 1])
                 self.assertEqual(17, runner.invocations[0].timeout_seconds)
+
 
     def test_started_native_worker_can_be_cancelled_and_process_is_terminated(self):
         with tempfile.TemporaryDirectory() as directory:

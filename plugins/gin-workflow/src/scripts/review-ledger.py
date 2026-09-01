@@ -25,7 +25,11 @@ from review_ledger.source_identity import (
     canonical_scope_path,
     canonicalize_scope,
     compute_source_scope_hash,
+    compute_source_tree_hash,
+    is_git_repo_root,
 )
+
+
 from review_ledger.bead_fsm import TERMINAL_FINDING_STATUSES
 
 def parse_args():
@@ -560,6 +564,17 @@ def main():
         elif args.command == "approve":
             # Gathers repository list and scope hash for approval snapshot
             log, proj = load_ledger(args.bead_id)
+            for repo in proj.repositories:
+                repo_id = repo.get("repository_id", "primary")
+                repo_path = repo.get("repository_path", ".")
+                recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
+                if recorded_hash and is_git_repo_root(repo_path):
+                    current_hash = compute_source_tree_hash(repo_id, repo_path, proj.source_scope)
+                    if current_hash != recorded_hash:
+                        raise ValueError(
+                            f"Refusing approval: working source tree hash '{current_hash}' for repository '{repo_id}' "
+                            f"differs from checkpoint reviewed_source_tree_hash '{recorded_hash}'. Run 'review-ledger.py checkpoint' to refresh the checkpoint."
+                        )
             scope_hash = compute_source_scope_hash(proj.source_scope)
             terminal_fids = [fid for fid, f in proj.findings.items() if f.status in TERMINAL_FINDING_STATUSES]
             
@@ -633,8 +648,22 @@ def main():
                 print(f"Rendered ledger to {md_path}")
 
         elif args.command == "validate":
-            load_ledger(args.bead_id)
+            log, proj = load_ledger(args.bead_id)
+            for repo in proj.repositories:
+                repo_id = repo.get("repository_id", "primary")
+                repo_path = repo.get("repository_path", ".")
+                recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
+                if recorded_hash and is_git_repo_root(repo_path):
+                    current_hash = compute_source_tree_hash(repo_id, repo_path, proj.source_scope)
+                    if current_hash != recorded_hash:
+                        raise ValueError(
+                            f"Ledger validation failed for repository '{repo_id}': working source tree hash '{current_hash}' "
+                            f"differs from checkpoint tree hash '{recorded_hash}'."
+                        )
             print("Ledger validation passed successfully.")
+
+
+
 
         elif args.command == "transition-requested":
             action = resolve_bead_state_action(args.to)

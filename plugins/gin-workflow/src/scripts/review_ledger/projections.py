@@ -225,6 +225,9 @@ class ReviewProjection:
         elif action == EventActions.REVIEW_SCOPE_CHANGE_REQUESTED:
             self.source_scope = payload.get("source_scope", {})
             self.active_approval = None # Scope change invalidates approval
+            if self.review_state in ("review-approved", "verification-in-progress", "ready-to-ship"):
+                self.review_state = "review-requested"
+
 
         elif action == EventActions.LEASE_ACQUIRED:
             self.active_lease = LeaseProjection(

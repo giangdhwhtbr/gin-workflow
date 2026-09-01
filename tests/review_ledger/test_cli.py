@@ -820,3 +820,116 @@ class TestRecoverySubcommands(unittest.TestCase):
         self.assertEqual("reviewer-b", projection.active_lease.actor_id)
         self.assertEqual("takeover", log.events[-2].payload["reason"])
         self.assertEqual("reviewer-a is unreachable", log.events[-2].payload["detail"])
+
+    def test_approve_refuses_stale_checkpoint_hash_and_succeeds_after_refresh(self):
+        bead_id = "bead-drift"
+        repo_dir = os.path.join(self.test_dir, "repo")
+        os.makedirs(repo_dir, exist_ok=True)
+        subprocess.check_call(["git", "init", "-q", "."], cwd=repo_dir)
+        test_file = os.path.join(repo_dir, "code.py")
+        with open(test_file, "w") as f:
+            f.write("print(1)\n")
+        subprocess.check_call(["git", "add", "code.py"], cwd=repo_dir)
+        subprocess.check_call(["git", "commit", "-m", "initial", "-q"], cwd=repo_dir)
+
+        # Initialize ledger
+        mutate_ledger(
+            bead_id,
+            "ledger-created",
+            {
+                "review_state": "review-in-progress",
+                "repositories": [
+                    {
+                        "repository_id": "primary",
+                        "role": "primary",
+                        "repository_path": repo_dir,
+                        "review_ref": "refs/gin/review/test",
+                        "review_base_sha": "sha1",
+                        "reviewed_source_sha": "sha1",
+                        "source_tree_hash": "stale_hash",
+                        "reviewed_source_tree_hash": "stale_hash",
+                    }
+                ],
+                "source_scope": {"included_paths": ["code.py"]},
+            },
+            "worker",
+            "w1",
+            base_dir=self.test_dir,
+        )
+
+        # 1. approve should fail due to tree hash mismatch
+        process_app = self._run("approve", "--bead-id", bead_id, "--actor-id", "reviewer-1")
+        self.assertEqual(1, process_app.returncode)
+        self.assertIn("Refusing approval", process_app.stderr)
+        self.assertIn("checkpoint", process_app.stderr)
+
+        # 2. validate should fail due to tree hash mismatch
+        process_val = self._run("validate", "--bead-id", bead_id)
+        self.assertEqual(1, process_val.returncode)
+        self.assertIn("Ledger validation failed", process_val.stderr)
+
+        # 3. Create fresh checkpoint
+        from review_ledger.source_identity import compute_source_tree_hash
+        fresh_hash = compute_source_tree_hash("primary", repo_dir, {"included_paths": ["code.py"]})
+        mutate_ledger(
+            bead_id,
+            "source-checkpoint-created",
+            {
+                "review_state": "review-in-progress",
+                "repositories": [
+                    {
+                        "repository_id": "primary",
+                        "role": "primary",
+                        "repository_path": repo_dir,
+                        "review_ref": "refs/gin/review/test",
+                        "review_base_sha": "sha1",
+                        "reviewed_source_sha": "sha1",
+                        "source_tree_hash": fresh_hash,
+                        "reviewed_source_tree_hash": fresh_hash,
+                    }
+                ]
+            },
+            "worker",
+            "w1",
+            base_dir=self.test_dir,
+        )
+
+        # 4. Now approve and validate succeed
+        process_app_ok = self._run("approve", "--bead-id", bead_id, "--actor-id", "reviewer-1")
+        self.assertEqual(0, process_app_ok.returncode, process_app_ok.stderr)
+
+        process_val_ok = self._run("validate", "--bead-id", bead_id)
+        self.assertEqual(0, process_val_ok.returncode, process_val_ok.stderr)
+
+    def test_change_scope_invalidates_approval_state(self):
+        bead_id = "bead-scope"
+        mutate_ledger(
+            bead_id,
+            "ledger-created",
+            {
+                "review_state": "review-approved",
+                "source_scope": {"included_paths": ["src/a.py"]},
+            },
+            "worker",
+            "w1",
+            base_dir=self.test_dir,
+        )
+        process = self._run(
+            "change-scope",
+            "--bead-id",
+            bead_id,
+            "--actor-id",
+            "reviewer-1",
+            "--add-include",
+            "src/b.py",
+            "--reason",
+            "expanding scope",
+        )
+        self.assertEqual(0, process.returncode, process.stderr)
+        self.assertIn("invalidated", process.stdout.lower())
+
+        _, proj = load_ledger(bead_id, base_dir=self.test_dir)
+        self.assertIsNone(proj.active_approval)
+        self.assertEqual("review-requested", proj.review_state)
+
+
