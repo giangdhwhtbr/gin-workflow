@@ -16,7 +16,7 @@ from review_ledger.cli import (
     load_ledger,
     get_ledger_paths,
     render_review_markdown,
-    build_acceptance_identity_payload,
+    resolve_acceptance_identity_payload,
 )
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
@@ -339,7 +339,7 @@ def main():
             )
 
         elif args.command == "checkpoint":
-            _, proj = load_ledger(args.bead_id)
+            log, proj = load_ledger(args.bead_id)
             repository = next(
                 (
                     item
@@ -380,7 +380,8 @@ def main():
                     )
             payload = {"repositories": repositories}
             payload.update(
-                build_acceptance_identity_payload(
+                resolve_acceptance_identity_payload(
+                    log=log,
                     task_id=args.bead_id,
                     workflow_id=args.workflow_id,
                     attempt_id=args.attempt_id,
@@ -568,7 +569,8 @@ def main():
                 "terminal_findings": terminal_fids
             }
             payload.update(
-                build_acceptance_identity_payload(
+                resolve_acceptance_identity_payload(
+                    log=log,
                     task_id=args.bead_id,
                     workflow_id=args.workflow_id,
                     attempt_id=args.attempt_id,

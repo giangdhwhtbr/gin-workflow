@@ -164,6 +164,56 @@ def build_acceptance_identity_payload(
     }
 
 
+def resolve_acceptance_identity_payload(
+    *,
+    log: EventLog,
+    task_id: str,
+    workflow_id: Optional[str],
+    attempt_id: Optional[str],
+    repositories: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Build an explicit identity or inherit the latest ledger identity.
+
+    Refresh commands commonly omit the identity flags after initialization.
+    In that case, retain the workflow and attempt IDs while rebuilding the
+    repository snapshots from the newly created checkpoint. A ledger that has
+    never carried identity remains a legacy ledger and still emits no fields.
+    """
+    explicit = build_acceptance_identity_payload(
+        task_id=task_id,
+        workflow_id=workflow_id,
+        attempt_id=attempt_id,
+        repositories=repositories,
+    )
+    if explicit:
+        return explicit
+
+    identity_actions = {
+        EventActions.LEDGER_CREATED,
+        EventActions.SOURCE_CHECKPOINT_CREATED,
+        EventActions.REVIEW_APPROVED,
+    }
+    for event in reversed(log.events):
+        if event.action not in identity_actions:
+            continue
+        inherited_workflow_id = str(event.payload.get("workflow_id") or "").strip()
+        inherited_attempt_id = str(event.payload.get("attempt_id") or "").strip()
+        if not inherited_workflow_id and not inherited_attempt_id:
+            continue
+        inherited_task_id = str(event.payload.get("task_id") or task_id).strip()
+        if inherited_task_id != task_id:
+            raise ValueError(
+                "latest acceptance identity task_id does not match the ledger bead_id"
+            )
+        return build_acceptance_identity_payload(
+            task_id=task_id,
+            workflow_id=inherited_workflow_id,
+            attempt_id=inherited_attempt_id,
+            repositories=repositories,
+        )
+    return {}
+
+
 def _find_ledger_event(log: EventLog, event_id: str, action: str):
     """Return (event, ledger_revision) for a matching event, else (None, None)."""
     for index, event in enumerate(log.events):
