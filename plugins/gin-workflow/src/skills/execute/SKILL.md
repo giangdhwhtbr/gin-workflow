@@ -27,8 +27,8 @@ configuration from this lifecycle skill.
 
 ## Execution
 
-1. Require `orchestration_ready` evidence and read one ready durable work unit through the task-tracking capability.
-2. Apply the `executing-plans` and `bead-worker` methodologies inside the plan-declared scope.
+1. Require `orchestration_ready` evidence (or an active `orchestration_ready` process gate waiver / standalone work-unit context) and read one ready durable work unit through the task-tracking capability. If executing a pre-existing or standalone work unit directly without a multi-track plan, record or accept an `orchestration_ready` process gate waiver instead of halting for plan generation.
+2. Apply the `executing-plans` and `bead-worker` methodologies inside the plan-declared or task-derived scope.
 3. Dispatch through the configured worker capability; use workspace, knowledge, and notification capabilities only when enabled.
 4. Use the approval manager and evidence manager before isolation disablement, current-branch execution, execution-strategy or scope changes, or production-impacting parallel work.
 5. Keep selected scope and validation intent required; discover related symbols, tests, and project knowledge on demand.

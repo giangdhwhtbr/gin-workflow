@@ -17,7 +17,7 @@ Execute one assigned work unit inside its approved plan scope.
 ## Execution rules
 
 1. Read task identity, status, dependencies, description, and acceptance criteria through `task.read`; claim or update it through `task.update`.
-2. Resolve its file scope and validation intent from the approved plan in the artifact registry. Durable task state never supplies file scope.
+2. Resolve its file scope and validation intent from the approved plan in the artifact registry. For standalone or pre-existing work units executed without a separate plan file, derive file scope and validation intent directly from the task description and acceptance criteria.
 3. Keep that work unit and scope required; discover related symbols, tests, and project knowledge on demand.
 4. Implement only in-scope changes and run relevant local validation. Submit notable discoveries as knowledge proposals through the knowledge capability and record results through the evidence capability.
 5. Route review findings through `receiving-code-review` and read terminal review state through the review capability.

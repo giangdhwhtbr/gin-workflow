@@ -18,9 +18,9 @@ Load plan, review critically, execute the assigned work unit, and record validat
 
 ## The Process
 
-### Step 1: Load and Review Plan
-1. Read the plan artifact to resolve approved scope and validation intent.
-2. Review critically - identify any questions or concerns about the plan.
+### Step 1: Load and Review Plan or Standalone Work Unit
+1. Read the plan artifact to resolve approved scope and validation intent. If executing a standalone work unit without a separate plan, derive approved scope and validation intent directly from the task's description and acceptance criteria.
+2. Review critically - identify any questions or concerns about the plan or task scope.
 3. If concerns: Raise them before starting.
 4. If no concerns: Read durable ownership and status for the assigned work unit through task-tracking capabilities (never plan checkboxes) and proceed.
 

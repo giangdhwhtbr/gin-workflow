@@ -13,8 +13,8 @@ At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` 
 
 ## Instructions
 
-1. Require `orchestration_ready` evidence and select one ready unit from the task-tracking capability.
-2. Use the `executing-plans` methodology and the worker-dispatch capability within the plan-declared file scope.
+1. Require `orchestration_ready` evidence (or an active `orchestration_ready` process gate waiver / standalone work-unit context) and select one ready unit from the task-tracking capability. When executing a standalone or pre-existing work unit directly, allow recording or accepting a process gate waiver for `orchestration_ready` instead of forcing a full plan/orchestration cycle.
+2. Use the `executing-plans` methodology and the worker-dispatch capability within the plan-declared or task-derived file scope.
 3. Keep only the selected work unit, dependencies, file scope, and validation intent required. Discover related symbols, tests, and project knowledge on demand.
 4. Execution strategy or scope changes and production-impacting parallel work require approval-manager authorization plus a durable audit event.
 5. Record validation and outcomes through the evidence capability and return `implementation_complete` state.

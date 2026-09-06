@@ -44,7 +44,7 @@ Plan files under `.planning/plans/` own:
 - ordering rationale
 - model guidance metadata
 
-Plan files are durable project artifacts, but they are not the source of truth for runtime status transitions.
+Plan files are durable project artifacts, but they are not the source of truth for runtime status transitions. For standalone or pre-existing beads where a separate plan was waived as unnecessary, the task description and acceptance criteria in Beads own declared file scope and validation intent.
 
 ### Review ledger owns findings and approval evidence
 
@@ -134,8 +134,8 @@ Examples of unacceptable derived state:
 | What work exists? | Beads |
 | What depends on what? | Beads |
 | What is ready now? | Beads |
-| What files are in scope for a track? | Plan file |
-| What validation was intended? | Plan file |
+| What files are in scope for a track? | Plan file (or task metadata for standalone work) |
+| What validation was intended? | Plan file (or task metadata for standalone work) |
 | Which worktree path belongs to a track? | Derived runtime metadata |
 | Which branch was used for a worker? | Derived runtime metadata |
 | Who waived a gate and why? | Event store (`gate.waived` events) |

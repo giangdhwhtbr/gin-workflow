@@ -15,11 +15,11 @@ Please load and follow the `bead-worker` skill to guide your execution.
 Before editing:
 
 1. Read the assigned bead's metadata from `bd show <track-id> --json` (status, dependencies, description, acceptance criteria).
-2. Read the bead's in-scope files from the plan file under `.planning/plans/` — match the track by its title/id and use the `Files:` / file list declared there.
+2. Read the bead's in-scope files from the plan file under `.planning/plans/` (match the track by its title/id and use the `Files:` / file list declared there), or derive them directly from the bead description and acceptance criteria if executing a standalone work unit without a separate plan file.
 3. Inspect the relevant frontend, backend, shared, and test files to understand current conventions.
 
 ## Guidelines
-1. Limit file edits strictly to the in-scope files read from the plan.
+1. Limit file edits strictly to the in-scope files declared in the plan or derived from the standalone bead.
 2. Use the `knowledge-capture` skill to record any notable codebase discoveries, environment workarounds, or architectural decisions in the Obsidian vault.
 3. If changes outside these files are needed, use `telegram-notify` to send a `work_blocked` notification before stopping and notifying the orchestrator.
 4. Run the relevant unit tests or checks to verify the change meets the acceptance criteria. If tests fail, iterate and fix issues locally.

@@ -80,11 +80,11 @@ Required actions:
 
 Source of truth:
 
-- Plan files are the source of truth for approved decomposition, file scope, and validation intent.
+- Plan files are the source of truth for approved decomposition, file scope, and validation intent. For standalone or pre-existing beads where a separate plan is unnecessary, the task itself supplies the approved file scope and validation intent.
 
 Exit criteria:
 
-- An approved implementation plan exists, or there is a documented reason why a separate plan is unnecessary.
+- An approved implementation plan exists, or there is a documented reason why a separate plan is unnecessary (with process gates waived accordingly).
 
 ### 3. Orchestration
 
@@ -116,7 +116,7 @@ Implement the approved work through Beads-backed worker execution.
 Required actions:
 
 - Start implementation using `bead-worker` or equivalent worker execution.
-- Implement each bead according to its declared scope.
+- Implement each bead according to its declared scope (from plan file, or derived from task metadata for standalone work units).
 - Keep durable progress updated through the task-tracking capability as work advances.
 - Run local validation as part of each worker’s execution loop.
 
@@ -208,6 +208,8 @@ Exit criteria:
 - declared file scope
 - validation intent
 - model guidance metadata
+
+For standalone or pre-existing beads executed without a separate plan, the task description and acceptance criteria own declared file scope and validation intent.
 
 ### Runtime artifacts own supplemental evidence and cache
 
