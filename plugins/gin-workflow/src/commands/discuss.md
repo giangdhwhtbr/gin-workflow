@@ -9,7 +9,7 @@ Route one requirement-discovery action to the `discuss` skill. Stop after that a
 
 ## Wrapper boundary
 
-At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create a `ContextManifest` whose stage is `discuss` and receive the native-harness `ApprovalDecision`. Do not read raw configuration or call a concrete adapter.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled. Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create a `ContextManifest` whose stage is `discuss` and receive the native-harness `ApprovalDecision`. Do not read raw configuration or call a concrete adapter.
 
 The manifest requires only the user's requirement and directly relevant repository context. Related symbols, tests, and project knowledge remain discoverable on demand through their configured capabilities.
 

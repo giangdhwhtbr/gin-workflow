@@ -15,9 +15,14 @@ Perform exactly one planning stage.
 - native-harness `ApprovalDecision`
 
 The caller must obtain `EffectiveConfig` through
-`load_effective_config(repository)`. If setup is required, stop and instruct
-the user to run `/setup` once. Never run setup or resolve raw configuration
-from this lifecycle skill.
+`load_effective_config(repository)`. Setup is required ONLY when
+`load_effective_config` raises `ConfigValidationError` (i.e.
+`.agent-workflow/generated/effective-config.yaml` is missing). An empty
+`capabilities: {}` mapping in `EffectiveConfig` is the valid default state where
+all capabilities and lifecycle stages are enabled. Never treat
+`capabilities: {}` as missing configuration. If setup is required, stop and
+instruct the user to run `/setup` once. Never run setup or resolve raw
+configuration from this lifecycle skill.
 
 The manifest requires the confirmed requirement and accepted decisions only. Use the context and knowledge capabilities to discover related symbols, tests, and project knowledge on demand.
 

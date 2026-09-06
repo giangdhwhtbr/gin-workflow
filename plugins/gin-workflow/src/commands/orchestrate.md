@@ -9,7 +9,7 @@ Route one orchestration action to the `orchestrate` skill. State ownership follo
 
 ## Wrapper boundary
 
-At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="orchestrate")` and receive the native-harness `ApprovalDecision`. All durable task operations use the configured task-tracking capability; workspace preparation uses the configured workspace capability.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled (task tracking uses Beads from `artifacts.beads`). Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="orchestrate")` and receive the native-harness `ApprovalDecision`. All durable task operations use the configured task-tracking capability; workspace preparation uses the configured workspace capability.
 
 ## Instructions
 

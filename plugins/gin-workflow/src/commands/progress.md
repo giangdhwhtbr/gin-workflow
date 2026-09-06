@@ -9,7 +9,7 @@ Route one read-only status action to the `progress` skill.
 
 ## Wrapper boundary
 
-At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="progress")` and receive the native-harness `ApprovalDecision`. Durable status comes only from the configured task-tracking capability; evidence and review enrichment use their configured providers.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled. Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="progress")` and receive the native-harness `ApprovalDecision`. Durable status comes only from the configured task-tracking capability; evidence and review enrichment use their configured providers.
 
 ## Instructions
 

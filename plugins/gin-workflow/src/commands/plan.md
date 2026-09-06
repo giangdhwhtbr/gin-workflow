@@ -9,7 +9,7 @@ Route one planning action to the `plan` skill only after requirement confirmatio
 
 ## Wrapper boundary
 
-At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="plan")` and receive the native-harness `ApprovalDecision`. Resolve the plan destination from `ArtifactRegistry["plans"]`; do not hard-code a repository path or concrete provider.
+At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled. Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="plan")` and receive the native-harness `ApprovalDecision`. Resolve the plan destination from `ArtifactRegistry["plans"]`; do not hard-code a repository path or concrete provider.
 
 ## Instructions
 
