@@ -564,6 +564,31 @@ class TaskTrackingCompatibilityTests(unittest.TestCase):
         self.assertIn("repository data drift", blocked.message)
         self.assertIs(OperationStatus.SUCCESS, recovered.status)
 
+    def test_br_0_2_16_workspace_health_preflight_compatibility(self):
+        class Br0216Fixture(CliFixture):
+            def __init__(self, workspace_health):
+                super().__init__("br")
+                self.workspace_health = workspace_health
+
+            def __call__(self, argv, cwd):
+                if argv == ("br", "sync", "--status", "--json"):
+                    payload = {"workspace_health": self.workspace_health}
+                    return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
+                return super().__call__(argv, cwd)
+
+        for payload in (
+            "healthy",
+            {"healthy": True, "drift": "", "reconciled": False},
+            {"backend": "sqlite-jsonl", "healthy": True, "drift": "", "reconciled": False},
+        ):
+            with self.subTest(payload=payload):
+                fixture = Br0216Fixture(payload)
+                provider = BeadsTaskTrackingProvider(Path.cwd(), runner=fixture, executable="br")
+                preflight = provider.preflight()
+                self.assertTrue(preflight.value.healthy)
+                self.assertEqual("sqlite-jsonl", preflight.value.backend)
+                self.assertEqual("", preflight.value.drift)
+
 
 if __name__ == "__main__":
     unittest.main()

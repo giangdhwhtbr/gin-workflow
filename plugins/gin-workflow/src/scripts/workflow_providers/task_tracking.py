@@ -282,17 +282,20 @@ class BeadsTaskTrackingProvider(ProviderBase):
             return result
         backend_value = status.value.get("backend")
         if not isinstance(backend_value, str) or not backend_value.strip():
-            result = ProviderResult.success(
-                TaskPreflight(
-                    self.family,
-                    version_call.stdout.strip(),
-                    frozenset(capabilities),
-                    False,
-                    "task backend status is missing backend identity",
+            if self.family == "br" and "workspace_health" in status.value:
+                backend_value = "sqlite-jsonl"
+            else:
+                result = ProviderResult.success(
+                    TaskPreflight(
+                        self.family,
+                        version_call.stdout.strip(),
+                        frozenset(capabilities),
+                        False,
+                        "task backend status is missing backend identity",
+                    )
                 )
-            )
-            self._preflight_cache = result
-            return result
+                self._preflight_cache = result
+                return result
         backend = backend_value.strip()
         if self.family == "bd":
             identity_fields = ("database", "project_id", "repo_root")
@@ -319,9 +322,32 @@ class BeadsTaskTrackingProvider(ProviderBase):
                 (backend, *(str(status.value[field_name]) for field_name in identity_fields))
             )
         else:
+            ws_health = status.value.get("workspace_health")
             healthy_value = status.value.get("healthy")
             reported_drift = status.value.get("drift")
             reconciled_value = status.value.get("reconciled")
+            if isinstance(ws_health, Mapping):
+                if healthy_value is None:
+                    healthy_value = ws_health.get("healthy")
+                if reported_drift is None:
+                    reported_drift = ws_health.get("drift")
+                if reconciled_value is None:
+                    reconciled_value = ws_health.get("reconciled")
+            elif isinstance(ws_health, str):
+                if healthy_value is None:
+                    healthy_value = ws_health.lower() in ("healthy", "ok", "clean")
+                if reported_drift is None:
+                    reported_drift = "" if healthy_value else ws_health
+                if reconciled_value is None:
+                    reconciled_value = False
+
+            if healthy_value is None and "workspace_health" in status.value:
+                healthy_value = True
+            if reported_drift is None and "workspace_health" in status.value:
+                reported_drift = ""
+            if reconciled_value is None and "workspace_health" in status.value:
+                reconciled_value = False
+
             if (
                 type(healthy_value) is not bool
                 or not isinstance(reported_drift, str)

@@ -1,6 +1,6 @@
 {
   "name": "gin-workflow",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Plan-driven workflow with requirement analysis, technical documentation, orchestration, verification, and ship flows.",
   "author": { "name": "gin" },
   "repository": "/home/gin/gin-workflow"
