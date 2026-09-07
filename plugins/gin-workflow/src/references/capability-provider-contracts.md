@@ -44,4 +44,8 @@ probes the configured `bd` or `br` executable, command capabilities, backend
 identity, and health. `br` data movement (`flush`, `pull`, or `merge`) requires a
 matching mode/backend approval and a persisted fresh `DATA_MOVE` authorization;
 dry-run previews do not mutate. Use the task-tracking capability through the
-workflow skills, never a manual provider bypass. See `workflow_providers/task_tracking.py`.
+workflow skills and official provider CLI commands (`bd` / `br`), never through a
+manual provider bypass (such as directly modifying raw `.beads/` database files or
+bypassing data-movement authorization). Workers interact with task tracking via
+standard CLI operations (`bd show`, `bd update`, `bd close`) without requiring
+internal adapter code changes. See `workflow_providers/task_tracking.py`.
