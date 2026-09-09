@@ -14,8 +14,8 @@ At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` 
 ## Instructions
 
 1. Require an approved plan resolved from the artifact registry.
-2. Use the `bead-orchestrator` methodology through task create/read/update capabilities.
-3. Mirror plan tracks and dependencies into durable task state and verify readiness through that provider.
+2. Use the `bead-orchestrator` methodology through task create/read/update capabilities. Distinguish Parent Bead (Deliverable) vs Track Beads (Work Units): rules like "remain open until human-confirmed merge" apply strictly to the Parent Bead, never to child track beads.
+3. Mirror plan tracks and dependencies into durable task state and verify readiness through that provider. Child track beads must be closed upon test and review pass to unblock downstream dependent tracks.
 4. Use workspace isolation by default. Disabling isolation or selecting current-branch execution requires approval-manager authorization and a durable audit event.
 5. Keep required context to plan decomposition and validation intent; related symbols, tests, and project knowledge stay discoverable on demand.
 6. Return `orchestration_ready` state. Do not begin execution.

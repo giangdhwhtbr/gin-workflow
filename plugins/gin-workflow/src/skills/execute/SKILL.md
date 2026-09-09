@@ -32,4 +32,4 @@ configuration from this lifecycle skill.
 3. Dispatch through the configured worker capability; use workspace, knowledge, and notification capabilities only when enabled.
 4. Use the approval manager and evidence manager before isolation disablement, current-branch execution, execution-strategy or scope changes, or production-impacting parallel work.
 5. Keep selected scope and validation intent required; discover related symbols, tests, and project knowledge on demand.
-6. Record work-unit results and return `implementation_complete` state. Do not invoke verification.
+6. Record work-unit results and return `implementation_complete` state. Do not invoke verification. If commit/push authority is absent at handoff, do not claim "waiting for PR merge"; prompt the user with the two handoff options (request commit/push for PR, or keep uncommitted in worktree and proceed to next track) per canonical handoff policy.

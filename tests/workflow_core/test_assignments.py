@@ -73,6 +73,33 @@ class AssignmentTests(unittest.TestCase):
             orchestrate.index("task-tracking capability"),
         )
 
+    def test_parent_deliverable_vs_track_bead_and_handoff_contracts(self):
+        plugin = SCRIPTS.parent
+        root = SCRIPTS.parents[3]
+        bead_orchestrator = (plugin / "skills/bead-orchestrator/SKILL.md").read_text(encoding="utf-8")
+        orchestrate = (plugin / "skills/orchestrate/SKILL.md").read_text(encoding="utf-8")
+        writing_plans = (plugin / "skills/writing-plans/SKILL.md").read_text(encoding="utf-8")
+        handoff_doc = (root / "docs/verification-and-handoff-workflow.md").read_text(encoding="utf-8")
+        handoff_ref = (plugin / "references/verification-and-handoff-workflow.md").read_text(encoding="utf-8")
+        bead_worker = (plugin / "skills/bead-worker/SKILL.md").read_text(encoding="utf-8")
+        executing_plans = (plugin / "skills/executing-plans/SKILL.md").read_text(encoding="utf-8")
+
+        # Parent Bead vs Track Bead separation
+        self.assertIn("Parent Bead (Deliverable", bead_orchestrator)
+        self.assertIn("Track Beads (Work Units", bead_orchestrator)
+        self.assertIn("remain open until human-confirmed merge", bead_orchestrator)
+        self.assertIn("Distinguish Parent Bead (Deliverable) vs Track Beads (Work Units)", orchestrate)
+        self.assertIn("Distinguish the Parent Bead", writing_plans)
+
+        # Handoff contracts and PR merge claim prohibition
+        self.assertEqual(handoff_doc, handoff_ref)
+        self.assertIn("waiting for PR merge", handoff_doc)
+        self.assertIn("Strict Prohibition on \"Waiting for PR Merge\"", handoff_doc)
+        self.assertIn("Xin lệnh commit & push nhánh worktree để tạo PR", handoff_doc)
+        self.assertIn("Giữ nguyên code uncommitted trong worktree", handoff_doc)
+        self.assertIn("Xin lệnh commit & push nhánh worktree để tạo PR", bead_worker)
+        self.assertIn("Xin lệnh commit & push nhánh worktree để tạo PR", executing_plans)
+
     def test_plan_validation_reports_every_role_and_tier_error_in_task_order(self):
         with tempfile.TemporaryDirectory() as directory:
             errors = validate_plan_assignments(

@@ -86,3 +86,4 @@ execution_strategy:
 - Select `high` for complex architecture, security, migration, or concurrency work, or other unusually constrained tasks.
 - Provider roles describe responsibility rather than filename patterns. The user may override role or reasoning before plan approval.
 - Concrete providers and models are resolved from machine-local configuration during orchestration; they never belong in the portable plan.
+- Deliverable merge-holds (e.g. "remain open until human-confirmed merge") apply exclusively to the Parent Bead. Individual track beads must close upon passing tests and code review to unblock downstream dependent tracks.

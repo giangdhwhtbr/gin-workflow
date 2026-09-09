@@ -40,6 +40,12 @@ After the work unit implementation is complete and validated:
 - Follow the canonical verification-and-handoff workflow for task-level evidence logging.
 - Invoke the code review capability (`requesting-code-review`) to coordinate code review and achieve terminal review evidence.
 - Record terminal review evidence and return state showing `implementation_complete=true`.
+- Close the track bead in Beads once technical criteria, tests, and code review pass to unblock downstream dependent tracks. Closing a track bead does not require deliverable commit/push or merge.
+- When commit/push is unauthorized:
+  - NEVER report "waiting for PR merge" without an actual commit, push, and PR link.
+  - Stop at handoff and prompt the user with two explicit options:
+    1. Xin lệnh commit & push nhánh worktree để tạo PR.
+    2. Giữ nguyên code uncommitted trong worktree và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.
 - Do not invoke `verify` or `finishing-a-development-branch` directly from `execute`; the workflow router will route to `verify` once implementation and review evidence are complete.
 
 ## When to Stop and Ask for Help

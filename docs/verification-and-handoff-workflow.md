@@ -117,7 +117,12 @@ Close the bead only when:
 - `git status` has been reviewed
 - the handoff is complete
 
-If any of those are false:
+Track Bead vs Deliverable Bead Closure:
+
+- **Track Beads (Work Units)**: When technical acceptance criteria, tests, and code review pass, close the track bead (`task.close` / `bd close`) immediately to unblock downstream dependent tracks in the Beads graph. Closing a track bead does NOT require git commit/push, PR creation, or base-branch merge.
+- **Parent Bead (Deliverable)**: Only the parent deliverable bead remains open until full integration, verification, and human-confirmed merge occur.
+
+If any required close-out conditions are false:
 
 - leave the bead in progress, or
 - update it with a blocker and follow-up state
@@ -142,6 +147,18 @@ Default policy:
 - do not push unless explicitly requested or otherwise authorized by current instructions
 
 Completion and handoff do not imply commit or push authority.
+
+### Handoff Without Commit/Push Authority
+
+When a worker completes technical implementation and verification for a track bead, but does not have explicit authorization to commit or push:
+
+1. **Strict Prohibition on "Waiting for PR Merge"**:
+   Agents are strictly forbidden from reporting, claiming, or recording a state of "waiting for PR merge" ("chờ PR merge", "awaiting PR merge") when changes have not been committed and pushed, or when no Pull Request exists with a verifiable PR link. Never fabricate or assume PR status without an actual PR link.
+
+2. **Mandatory User Decision Menu**:
+   When a track bead is technically complete and verified but commit/push authority is absent, the worker MUST stop at handoff, close the track bead in Beads (to unblock downstream tracks), and present exactly two explicit options to the user:
+   - **Option 1**: Request authorization to commit & push the worktree branch to create a PR (`Xin lệnh commit & push nhánh worktree để tạo PR`).
+   - **Option 2**: Keep code uncommitted in the worktree and proceed to the next track using the generated artifacts (`Giữ nguyên code uncommitted trong worktree và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh`).
 
 ## Minimal Handoff Template
 

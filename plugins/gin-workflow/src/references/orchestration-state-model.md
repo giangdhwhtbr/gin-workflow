@@ -90,6 +90,22 @@ When a plan is decomposed into multiple tracks:
 
 Plan order can guide creation, but readiness comes from Beads after dependencies are recorded.
 
+## Parent Bead (Deliverable) vs Track Beads (Work Units)
+
+When orchestrating a plan into Beads tasks, the workflow enforces a strict distinction between the parent deliverable and individual work units:
+
+- **Parent Bead (Deliverable / Feature / Epic)**:
+  - Represents the complete end-to-end feature or release deliverable.
+  - Rules requiring human confirmation or release-level merge gates (e.g. "No commit/push authorized. Code tasks remain open until human-confirmed merge") belong exclusively to the Parent Bead.
+  - The Parent Bead remains open until all tracks complete, integration/verification succeeds, and final human confirmation or merge takes place.
+
+- **Track Beads (Work Units / Sub-beads)**:
+  - Represent concrete technical execution units (e.g. T1, T2, T3).
+  - The orchestrator MUST NEVER copy parent-level merge-hold rules or commit prohibitions into child track bead descriptions or acceptance criteria.
+  - Acceptance criteria for track beads are strictly technical: code implemented within approved scope, tests passing, and code review approved.
+  - When technical validation and code review pass, the track bead MUST be closed (`task.close` / `bd close`) to unlock downstream tracks in the Beads graph.
+  - Closing a track bead does not require a git commit/push or merge of the overall deliverable.
+
 ## Progress And Status Reporting
 
 ### `/progress`
@@ -107,6 +123,8 @@ It must read durable state through the task-tracking capability and must not dep
 
 ## Operational Rules
 
+- Never copy deliverable-level merge-hold rules ("remain open until human-confirmed merge") into child track beads.
+- Never keep a completed track bead open waiting for parent deliverable merge when downstream tasks depend on it.
 - Never describe `.planning/orchestration-state.json` as the durable task-state source.
 - Never use plan checkboxes or worktree existence as proof of execution progress.
 - Never allow a local runtime file to replace the task-tracking capability.

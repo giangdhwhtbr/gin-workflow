@@ -31,7 +31,7 @@ configuration from this lifecycle skill.
 2. Reject implementation or review tracks that omit provider role or reasoning guidance.
 3. Build the complete set of `AssignmentRequest` values and call `resolve_all_assignments(requests, config, local)` before any manifest write or task-tracking capability call. If any route is unresolved, report every diagnostic and stop without durable mutation.
 4. Only after the full batch resolves, persist every runtime-only preview with `write_assignment_manifest`. Concrete provider/model aliases never enter Beads or the portable plan.
-5. Apply the `bead-orchestrator` methodology using only the task-tracking capability for durable identity, dependency, readiness, ownership, and status.
+5. Apply the `bead-orchestrator` methodology using only the task-tracking capability for durable identity, dependency, readiness, ownership, and status. Distinguish Parent Bead (Deliverable) vs Track Beads (Work Units): rules like "remain open until human-confirmed merge" apply strictly to the Parent Bead, never to child track beads. Child track beads are purely technical units and must be closed upon test and review pass to unblock downstream tracks.
 6. Use the workspace capability for isolation metadata; it is never authoritative task state.
 7. Send isolation disablement or current-branch execution through the approval manager and evidence manager before any workspace call.
 8. Keep plan tracks and validation intent required. Leave symbols, tests, and project knowledge discoverable on demand through the context manifest.

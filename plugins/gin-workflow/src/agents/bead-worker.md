@@ -30,5 +30,8 @@ Follow `docs/verification-and-handoff-workflow.md` before treating the bead as c
 - Use `telegram-notify` to send a `task_completed` notification after verification passes.
 - Write Beads outcome notes plus a handoff summary that covers changes, validation, and any follow-up work.
 - Run `git status` before closure and include the changed-file state in the handoff.
-- Close the bead only after acceptance criteria, validation, Beads notes, `git status`, and handoff evidence are complete.
+- Close the track bead once acceptance criteria, validation, Beads notes, and code review are complete to unblock downstream dependent tracks. Closing a track bead does not require deliverable commit/push or merge.
+- If commit/push authority is absent at handoff, do NOT claim "waiting for PR merge" ("chờ PR merge"); stop and prompt the user with the two explicit options:
+  1. Xin lệnh commit & push nhánh worktree để tạo PR.
+  2. Giữ nguyên code uncommitted trong worktree và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.
 - If validation fails or the handoff is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.

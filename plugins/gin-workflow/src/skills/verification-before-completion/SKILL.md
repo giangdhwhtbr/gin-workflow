@@ -64,12 +64,16 @@ In addition to standard evidence, follow [verification-and-handoff-workflow.md](
 | Regression test works | Red-green cycle verified | Test passes once |
 | Agent completed | VCS diff shows changes | Agent reports "success" |
 | Requirements met | Line-by-line checklist | Tests passing |
+| Waiting for PR merge | Committed & pushed branch with active, verifiable PR link | Uncommitted code, no push, no PR created |
+| Track complete | Acceptance criteria, tests, and review pass | Waiting for parent deliverable merge |
 
 ## Red Flags - STOP
 
 - Using "should", "probably", "seems to"
 - Expressing satisfaction before verification ("Great!", "Perfect!", "Done!", etc.)
 - About to commit/push/PR without verification
+- Claiming "waiting for PR merge" ("chờ PR merge") without an existing commit, push, and PR link
+- Keeping a verified track bead open waiting for parent deliverable merge (deadlocking downstream tracks)
 - Trusting agent success reports
 - Relying on partial verification
 - Thinking "just this once"

@@ -32,7 +32,7 @@ You must follow the format defined in [plan-schema.md](file://plan-schema.md) wh
 - Include `Model Guidance` metadata using the abstract classes `high_reasoning`, `standard_impl`, and `cheap_simple`. Treat `standard_impl` as the implicit default when no model class is specified. Do not name a concrete provider or model in a portable plan.
 - Declare `execution_strategy` exactly as specified in [plan-schema.md](file://plan-schema.md).
 - Give every implementation or review track a `provider_role` and `reasoning` value using the low/medium/high guidance in the schema.
-- Break work into Beads-ready tracks with explicit dependencies. Structure the plan so it can be turned directly into Beads tasks during orchestration.
+- Break work into Beads-ready tracks with explicit dependencies. Structure the plan so it can be turned directly into Beads tasks during orchestration. Distinguish the Parent Bead (the overall deliverable / epic) from individual Track Beads (technical work units). Restrictions like "remain open until human-confirmed merge" apply ONLY to the Parent Bead; track tasks must close upon passing tests and review to release downstream dependencies.
 
 ## Scope Check
 

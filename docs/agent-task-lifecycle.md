@@ -94,6 +94,7 @@ Translate the approved plan into durable execution state without requiring manua
 Required actions:
 
 - Create the required durable tasks from the approved plan through the task-tracking capability.
+- Distinguish the Parent Bead (deliverable/epic) from Track Beads (technical work units). Never attach parent deliverable merge-hold restrictions ("remain open until human-confirmed merge") to child track beads.
 - Break down large work into smaller actionable beads.
 - Define dependencies between beads.
 - Establish correct execution order and readiness.
@@ -119,6 +120,8 @@ Required actions:
 - Implement each bead according to its declared scope (from plan file, or derived from task metadata for standalone work units).
 - Keep durable progress updated through the task-tracking capability as work advances.
 - Run local validation as part of each worker’s execution loop.
+- When a track bead completes its technical scope, passes tests, and satisfies code review, it must be closed in Beads to unblock downstream dependent tracks.
+- When commit/push authority is not yet granted, do not claim "waiting for PR merge"; prompt the user with clear options (request commit & push for PR, or keep uncommitted in worktree and proceed to next track).
 
 Blocked-work handling:
 
@@ -127,7 +130,7 @@ Blocked-work handling:
 
 Exit criteria:
 
-- Implementation is complete enough for verification, or blockers are recorded clearly and routed back to discussion when needed.
+- Implementation is complete enough for verification, or blockers are recorded clearly and routed back to discussion when needed. Track beads that pass tests and review are closed to release dependencies.
 
 ### 5. Code Review
 
