@@ -16,6 +16,7 @@ from .migrations import (
     propose_migration,
     rollback_migration,
 )
+from .executable_resolver import resolve_harness_executable
 from .provider_config import validate_provider_local_config
 from .schemas import require_jsonschema
 
@@ -219,7 +220,10 @@ def _set_nested(config: dict[str, Any], path: list[str], value: Any) -> None:
         if child is None:
             child = {}
             current[component] = child
-        if not isinstance(child, dict):
+        elif isinstance(child, str):
+            child = {"model": child}
+            current[component] = child
+        elif not isinstance(child, dict):
             raise SetupError(f"cannot set nested value below non-mapping field {component}")
         current = child
     current[path[-1]] = value
@@ -341,22 +345,120 @@ def status(repository: Path, **_: Any) -> dict[str, Any]:
     }
 
 
-def doctor(repository: Path, **_: Any) -> dict[str, Any]:
+def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
-    checks = {"repository": root.is_dir(), "initialized": False, "configuration": False}
+    checks: dict[str, bool] = {"repository": root.is_dir(), "initialized": False, "configuration": False}
+    checks_details: dict[str, Any] = {}
     config = root / ".agent-workflow/config.yaml"
     checks["initialized"] = config.is_file()
     if config.is_file():
         resolve_effective_config(root, write=False)
         checks["configuration"] = True
+
+    providers_file = root / ".agent-workflow/providers.local.yaml"
+    if providers_file.is_file():
+        yaml = require_yaml()
+        try:
+            p_data = yaml.safe_load(providers_file.read_text(encoding="utf-8")) or {}
+            validate_provider_local_config(p_data)
+        except Exception as error:
+            checks["configuration"] = False
+            checks_details["providers_config"] = {"valid": False, "error": str(error)}
+            p_data = {}
+        providers_map = p_data.get("providers", {}) if isinstance(p_data, Mapping) else {}
+        if providers_map:
+            all_providers_healthy = True
+            provider_details: dict[str, Any] = {}
+            if probe:
+                from workflow_providers.claude_worker import claude_health
+                from workflow_providers.codex_worker import codex_health
+                from workflow_providers.antigravity_worker import antigravity_health
+                from workflow_providers.native_cli import NativeCliRunner
+                from .provider_config import PROVIDER_DEFAULT
+
+                runner = NativeCliRunner()
+                probe_builders = {
+                    "claude": claude_health,
+                    "codex": codex_health,
+                    "antigravity": antigravity_health,
+                }
+                for provider, pconfig in providers_map.items():
+                    if not isinstance(pconfig, Mapping):
+                        all_providers_healthy = False
+                        continue
+                    configured_exe = str(pconfig.get("executable", ""))
+                    resolved_exe = resolve_harness_executable(configured_exe, provider=provider)
+                    if not resolved_exe:
+                        all_providers_healthy = False
+                        provider_details[f"{provider}.executable"] = {
+                            "available": False,
+                            "reason": "executable_not_found",
+                        }
+                        continue
+                    builder = probe_builders.get(provider)
+                    if builder is None:
+                        continue
+                    probe_dir = root / ".agent-workflow/runtime/health-probe" / provider
+                    probe_dir.mkdir(parents=True, exist_ok=True)
+                    models = pconfig.get("models", {})
+                    if isinstance(models, Mapping):
+                        for tier, target in models.items():
+                            model = target.get("model") if isinstance(target, Mapping) else str(target)
+                            effort = target.get("effort") if isinstance(target, Mapping) else None
+                            probe_kwargs: dict[str, Any] = {}
+                            if provider == "antigravity" and model == PROVIDER_DEFAULT:
+                                health = builder(resolved_exe)
+                            else:
+                                probe_kwargs["model"] = model
+                                probe_kwargs["native_runner"] = runner
+                                probe_kwargs["workspace"] = probe_dir
+                                if provider == "codex" and effort is not None:
+                                    probe_kwargs["effort"] = effort
+                                health = builder(resolved_exe, **probe_kwargs)
+                            if not health.available:
+                                all_providers_healthy = False
+                                provider_details[f"{provider}.{tier}"] = {
+                                    "available": False,
+                                    "reason": health.reason,
+                                }
+                            else:
+                                provider_details[f"{provider}.{tier}"] = {
+                                    "available": True,
+                                    "reason": health.reason,
+                                }
+            else:
+                for provider, pconfig in providers_map.items():
+                    if not isinstance(pconfig, Mapping):
+                        all_providers_healthy = False
+                        continue
+                    configured_exe = str(pconfig.get("executable", ""))
+                    resolved_exe = resolve_harness_executable(configured_exe, provider=provider)
+                    if not resolved_exe:
+                        all_providers_healthy = False
+                        provider_details[f"{provider}.executable"] = {
+                            "available": False,
+                            "reason": "executable_not_found",
+                        }
+                    else:
+                        provider_details[f"{provider}.executable"] = {
+                            "available": True,
+                            "reason": "executable_found",
+                        }
+            checks["providers"] = all_providers_healthy
+            if provider_details:
+                checks_details["providers"] = provider_details
+
     healthy = all(checks.values())
-    return {
+    payload: dict[str, Any] = {
         "status": "healthy" if healthy else "issues_found",
         "repository": str(root),
         "checks": checks,
         "actions": [],
     }
+    if checks_details:
+        payload["checks_details"] = checks_details
+    return payload
 
 
 def diff(repository: Path, **_: Any) -> dict[str, Any]:

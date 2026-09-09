@@ -344,14 +344,14 @@ class WorkerRequest:
     retry_identity: str
     provider_role: str
     reasoning: str
-    route_affinity: tuple[str, str] | None = None
+    route_affinity: tuple[str, str] | tuple[str, str, str] | None = None
     acceptance_identity: AcceptanceIdentity | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "constraints", tuple(self.constraints))
         object.__setattr__(self, "expected_output", tuple(self.expected_output))
         if self.route_affinity is not None:
-            if len(self.route_affinity) != 2 or not all(self.route_affinity):
+            if len(self.route_affinity) not in (2, 3) or not all(self.route_affinity[:2]):
                 raise ValueError("route_affinity requires provider and model")
             object.__setattr__(self, "route_affinity", tuple(self.route_affinity))
         if not all(

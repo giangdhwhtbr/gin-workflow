@@ -9,12 +9,18 @@ providers:
   antigravity:
     executable: agy
     models:
-      low: gemini-flash
-      medium: gemini-flash
-      high: gemini-pro
+      low: gemini-3.8-flash
+      medium: gemini-3.8-flash
+      high: gemini-3.8-flash
   codex:
     executable: codex
     models:
-      low: fast
-      medium: standard
-      high: reasoning
+      low:
+        model: gpt-6-astra
+        effort: low
+      medium:
+        model: gpt-6-astra
+        effort: medium
+      high:
+        model: gpt-6-astra
+        effort: high

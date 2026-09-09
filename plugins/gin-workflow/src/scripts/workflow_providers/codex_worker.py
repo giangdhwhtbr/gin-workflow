@@ -28,20 +28,24 @@ def build_codex_invocation(
     prompt: str,
     *,
     timeout_seconds: float = 900,
+    effort: str | None = None,
 ) -> NativeCliInvocation:
+    argv = [
+        executable,
+        "exec",
+        "--model",
+        model,
+        "--json",
+        "--ephemeral",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "--cd",
+        str(Path(workspace).resolve()),
+    ]
+    if effort is not None:
+        argv.extend(["-c", f"model_reasoning_effort={effort}"])
+    argv.append("-")
     return NativeCliInvocation(
-        (
-            executable,
-            "exec",
-            "--model",
-            model,
-            "--json",
-            "--ephemeral",
-            "--dangerously-bypass-approvals-and-sandbox",
-            "--cd",
-            str(Path(workspace).resolve()),
-            "-",
-        ),
+        tuple(argv),
         workspace,
         prompt.encode("utf-8"),
         timeout_seconds,
@@ -55,6 +59,7 @@ def codex_health(
     model: str | None = None,
     native_runner: NativeCliRunner | None = None,
     workspace: Path | None = None,
+    effort: str | None = None,
 ) -> NativeHealth:
     help_text = probe_help(executable, "exec", "--help") if help_text is None else help_text
     if help_text is None:
@@ -71,6 +76,10 @@ def codex_health(
             "--cd",
         )
     )
+    if effort is not None:
+        has_config = bool(re.search(r"(?:^|\s)-c\b", help_text)) or "--config" in options
+        if not has_config:
+            supported = False
     health = NativeHealth(
         supported,
         "ready" if supported else "required_flags_unverified",
@@ -86,6 +95,7 @@ def codex_health(
                 workspace,
                 MODEL_PROBE_PROMPT,
                 timeout_seconds=MODEL_PROBE_TIMEOUT_SECONDS,
+                effort=effort,
             )
         )
     except NativeCliError as error:
@@ -110,6 +120,7 @@ class CodexWorkerAdapter(SynchronousWorkerAdapter):
         model: str | None = None,
         workspace: Path | None = None,
         timeout_seconds: float = 900,
+        effort: str | None = None,
     ) -> None:
         cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
@@ -120,6 +131,7 @@ class CodexWorkerAdapter(SynchronousWorkerAdapter):
                     Path(workspace),
                     worker_prompt(payload),
                     timeout_seconds=timeout_seconds,
+                    effort=effort,
                 )
                 return direct_worker_result(native_runner.run(invocation, cancel_event=cancel_event))
         super().__init__(

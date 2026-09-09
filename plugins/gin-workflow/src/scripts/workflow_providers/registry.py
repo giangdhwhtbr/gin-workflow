@@ -10,6 +10,7 @@ from typing import Any
 from workflow_core.models import EffectiveConfig
 from workflow_core.assignments import AssignmentRequest, resolve_assignment
 from workflow_core.events import WorkflowEventStore
+from workflow_core.executable_resolver import resolve_harness_executable
 from workflow_core.provider_config import PROVIDER_DEFAULT, ProviderModelConfig
 
 from .contracts import (
@@ -211,7 +212,8 @@ class ProviderRegistry:
         if provider_local is not None:
             for provider_name, local_config in provider_local.items():
                 if provider_name != "antigravity" and any(
-                    model == PROVIDER_DEFAULT for model in local_config.models.values()
+                    getattr(target, "model", str(target)) == PROVIDER_DEFAULT
+                    for target in local_config.models.values()
                 ):
                     raise RegistryError(
                         "provider_default is only supported for antigravity"
@@ -285,9 +287,13 @@ class ProviderRegistry:
             def factory(candidate, request):
                 local = provider_local[candidate.provider]
                 workspace_path = workspace_for(request)
+                resolved_exe = (
+                    resolve_harness_executable(local.executable, provider=candidate.provider)
+                    or local.executable
+                )
                 options = {
                     "native_runner": runner,
-                    "executable": local.executable,
+                    "executable": resolved_exe,
                     "model": candidate.model,
                     "workspace": workspace_path,
                     "timeout_seconds": timeout_seconds,
@@ -295,6 +301,8 @@ class ProviderRegistry:
                 if candidate.provider == "claude":
                     return ClaudeWorkerAdapter(**options)
                 if candidate.provider == "codex":
+                    if candidate.effort is not None:
+                        options["effort"] = candidate.effort
                     return CodexWorkerAdapter(**options)
                 if candidate.provider == "antigravity":
                     return AntigravityWorkerAdapter(**options)
@@ -312,23 +320,36 @@ class ProviderRegistry:
                     return override
 
                 def check(_candidate):
-                    key = (provider, _candidate.model)
+                    effort = getattr(_candidate, "effort", None)
+                    key = (provider, _candidate.model, effort or "")
                     if key not in health_cache:
                         local = provider_local.get(provider)
                         builder = health_builders.get(provider)
                         if local is None or builder is None:
                             return False
-                        if provider in ("claude", "codex"):
-                            probe_workspace = runtime_root / "health-probe" / provider
-                            probe_workspace.mkdir(parents=True, exist_ok=True)
-                            health_cache[key] = builder(
-                                local.executable,
-                                model=_candidate.model,
-                                native_runner=runner,
-                                workspace=probe_workspace,
-                            )
+                        resolved_exe = (
+                            resolve_harness_executable(local.executable, provider=provider)
+                            or local.executable
+                        )
+                        if provider in ("claude", "codex", "antigravity"):
+                            if provider == "antigravity" and _candidate.model == PROVIDER_DEFAULT:
+                                health_cache[key] = builder(resolved_exe)
+                            else:
+                                probe_workspace = runtime_root / "health-probe" / provider
+                                probe_workspace.mkdir(parents=True, exist_ok=True)
+                                probe_kwargs: dict[str, Any] = {
+                                    "model": _candidate.model,
+                                    "native_runner": runner,
+                                    "workspace": probe_workspace,
+                                }
+                                if provider == "codex" and effort is not None:
+                                    probe_kwargs["effort"] = effort
+                                health_cache[key] = builder(
+                                    resolved_exe,
+                                    **probe_kwargs,
+                                )
                         else:
-                            health_cache[key] = builder(local.executable)
+                            health_cache[key] = builder(resolved_exe)
                     return health_cache[key]
 
                 return check

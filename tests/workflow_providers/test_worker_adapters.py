@@ -74,8 +74,8 @@ class WorkerAdapterTests(unittest.TestCase):
 
         self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
         self.assertEqual(
-            ("agy", "--add-dir", str(Path.cwd().resolve()), "--sandbox", "--print-timeout", "900s", "--print"),
-            runner.invocations[0].argv[:7],
+            ("agy", "--add-dir", str(Path.cwd().resolve()), "--sandbox", "--output-format", "json", "--print-timeout", "900s", "--print"),
+            runner.invocations[0].argv[:9],
         )
 
     def test_native_adapters_build_model_specific_invocations_and_normalize_output(self):
@@ -104,9 +104,37 @@ class WorkerAdapterTests(unittest.TestCase):
                 receipt = adapter.dispatch(request())
                 self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
                 argv = runner.invocations[0].argv
-                if adapter_type != AntigravityWorkerAdapter:
-                    self.assertEqual(model, argv[argv.index("--model") + 1])
+                self.assertEqual(model, argv[argv.index("--model") + 1])
+                if adapter_type == AntigravityWorkerAdapter:
+                    self.assertEqual(argv.index("--model") + 2, argv.index("--print"))
+                    self.assertIn("--output-format", argv)
+                    self.assertEqual("json", argv[argv.index("--output-format") + 1])
                 self.assertEqual(17, runner.invocations[0].timeout_seconds)
+
+    def test_codex_adapter_passes_reasoning_effort_configuration(self):
+        class FakeRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput((result(),))
+
+        runner = FakeRunner()
+        adapter = CodexWorkerAdapter(
+            native_runner=runner,
+            executable="codex",
+            model="gpt-6-astra",
+            workspace=Path.cwd(),
+            effort="high",
+        )
+        receipt = adapter.dispatch(request())
+        self.assertEqual("completed", adapter.collect_result(receipt.worker_id).status)
+        argv = runner.invocations[0].argv
+        self.assertIn("-c", argv)
+        self.assertEqual("model_reasoning_effort=high", argv[argv.index("-c") + 1])
+        self.assertEqual("-", argv[-1])
+        self.assertLess(argv.index("-c"), argv.index("-"))
 
 
     def test_started_native_worker_can_be_cancelled_and_process_is_terminated(self):

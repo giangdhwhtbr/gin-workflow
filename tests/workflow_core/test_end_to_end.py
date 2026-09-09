@@ -247,7 +247,8 @@ class WorkflowEndToEndTests(unittest.TestCase):
 
             def run(self, invocation, *, cancel_event=None):
                 model = invocation.argv[invocation.argv.index("--model") + 1] if "--model" in invocation.argv else "provider_default"
-                provider = {"claude": "claude", "codex": "codex", "agy": "antigravity"}[invocation.argv[0]]
+                binary_name = Path(invocation.argv[0]).name
+                provider = {"claude": "claude", "codex": "codex", "agy": "antigravity"}[binary_name]
 
                 self.routes.append((provider, model))
                 if provider == "claude" and model == "opus":
@@ -305,6 +306,9 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 name: ProviderModelConfig(name, entry["executable"], entry["models"])
                 for name, entry in local_raw.items()
             }
+            codex_high_target = local["codex"].models["high"]
+            codex_high_model = codex_high_target.model
+            antigravity_medium_model = local["antigravity"].models["medium"].model
             runner = FakeNativeRunner()
             events = WorkflowEventStore(repository / ".agent-workflow/runtime/events.jsonl")
             identity, authority, evidence_references = evidence_fixture("frontend")
@@ -366,7 +370,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 provider_role="review",
                 reasoning="high",
                 implementation_route=(frontend_receipt.provider_name, frontend_receipt.model_alias),
-                reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
+                reviewer_candidates=(RouteCandidate("codex", codex_high_model, False, effort=codex_high_target.effort),),
                 context=ReviewContext(
                     approved_scope=("src/frontend.py",),
                     diff="bounded diff",
@@ -406,7 +410,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
                     revision_receipt.provider_name,
                     revision_receipt.model_alias,
                 ),
-                reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
+                reviewer_candidates=(RouteCandidate("codex", codex_high_model, False, effort=codex_high_target.effort),),
                 context=cycle.context,
             )
             approved_review = coordinator.dispatch_review(
@@ -449,15 +453,15 @@ class WorkflowEndToEndTests(unittest.TestCase):
                     task_id, {"status": "closed"}, idempotency_key="frontend:close"
                 )
 
-            self.assertEqual(("codex", "reasoning", True), (retry.provider_name, retry.model_alias, retry.fallback_used))
-            self.assertEqual(("antigravity", "gemini-flash"), (frontend_receipt.provider_name, frontend_receipt.model_alias))
+            self.assertEqual(("codex", codex_high_model, True), (retry.provider_name, retry.model_alias, retry.fallback_used))
+            self.assertEqual(("antigravity", antigravity_medium_model), (frontend_receipt.provider_name, frontend_receipt.model_alias))
             self.assertEqual(CircuitState.OPEN, router.breakers.state("claude", "opus").state)
-            self.assertEqual(("codex", "reasoning"), cycle.reviewer_route)
-            self.assertEqual(("codex", "reasoning"), (
+            self.assertEqual(("codex", codex_high_model), cycle.reviewer_route)
+            self.assertEqual(("codex", codex_high_model), (
                 review_execution.receipt.provider_name,
                 review_execution.receipt.model_alias,
             ))
-            self.assertEqual(("antigravity", "gemini-flash"), (revision.provider, revision.model))
+            self.assertEqual(("antigravity", antigravity_medium_model), (revision.provider, revision.model))
             self.assertEqual(2, runner.review_runs)
             self.assertTrue(complete.complete)
             self.assertEqual("closed", registry.task_tracking.read_task(task_id).value.status)

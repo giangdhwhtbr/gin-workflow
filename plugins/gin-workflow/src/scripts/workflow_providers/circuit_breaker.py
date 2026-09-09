@@ -85,7 +85,7 @@ class CircuitBreakerStore:
         self.half_open_max_probes = half_open_max_probes
         self._clock = clock
         self._lock = threading.RLock()
-        self._records: dict[tuple[str, str], CircuitRecord] = {}
+        self._records: dict[tuple[str, str, str], CircuitRecord] = {}
         self._corrupt_recovery = False
         self._load()
 
@@ -98,7 +98,8 @@ class CircuitBreakerStore:
                 raise ValueError("unsupported circuit state")
             self._corrupt_recovery = bool(raw.get("corrupt_recovery", False))
             for item in raw["circuits"]:
-                key = (str(item["provider"]), str(item["model"]))
+                effort = str(item.get("effort") or "")
+                key = (str(item["provider"]), str(item["model"]), effort)
                 self._records[key] = CircuitRecord(
                     state=CircuitState(item["state"]),
                     failures=int(item.get("failures", 0)),
@@ -118,22 +119,23 @@ class CircuitBreakerStore:
 
     def _save(self) -> None:
         circuits = []
-        for (provider, model), record in sorted(self._records.items()):
-            circuits.append(
-                {
-                    "provider": provider,
-                    "model": model,
-                    "state": record.state.value,
-                    "failures": record.failures,
-                    "opened_at": record.opened_at,
-                    "probes": record.probes,
-                    "reason": record.reason,
-                    "transitioned_at": record.transitioned_at,
-                    "workflow_id": record.workflow_id,
-                    "task_id": record.task_id,
-                    "cooldown_seconds": self.cooldown_seconds,
-                }
-            )
+        for (provider, model, effort), record in sorted(self._records.items()):
+            circuit_data: dict[str, Any] = {
+                "provider": provider,
+                "model": model,
+                "state": record.state.value,
+                "failures": record.failures,
+                "opened_at": record.opened_at,
+                "probes": record.probes,
+                "reason": record.reason,
+                "transitioned_at": record.transitioned_at,
+                "workflow_id": record.workflow_id,
+                "task_id": record.task_id,
+                "cooldown_seconds": self.cooldown_seconds,
+            }
+            if effort:
+                circuit_data["effort"] = effort
+            circuits.append(circuit_data)
         atomic_write_text(
             self.path,
             json.dumps(
@@ -147,8 +149,8 @@ class CircuitBreakerStore:
             + "\n",
         )
 
-    def _record(self, provider: str, model: str) -> CircuitRecord:
-        key = (provider, model)
+    def _record(self, provider: str, model: str, effort: str | None = None) -> CircuitRecord:
+        key = (provider, model, str(effort or ""))
         record = self._records.get(key)
         if record is None:
             if self._corrupt_recovery:
@@ -165,14 +167,14 @@ class CircuitBreakerStore:
                 record = CircuitRecord()
         return record
 
-    def state(self, provider: str, model: str) -> CircuitRecord:
+    def state(self, provider: str, model: str, effort: str | None = None) -> CircuitRecord:
         with self._lock:
-            return self._record(provider, model)
+            return self._record(provider, model, effort)
 
-    def can_attempt(self, provider: str, model: str) -> CircuitDecision:
+    def can_attempt(self, provider: str, model: str, effort: str | None = None) -> CircuitDecision:
         """Preview availability without claiming a half-open probe."""
         with self._lock:
-            record = self._record(provider, model)
+            record = self._record(provider, model, effort)
             if record.state is CircuitState.CLOSED:
                 return CircuitDecision(True, record.state, "closed")
             if record.state is CircuitState.HALF_OPEN:
@@ -187,10 +189,10 @@ class CircuitBreakerStore:
                 return CircuitDecision(True, CircuitState.HALF_OPEN, "cooldown_elapsed")
             return CircuitDecision(False, CircuitState.OPEN, record.reason or "cooldown")
 
-    def acquire(self, provider: str, model: str) -> CircuitDecision:
+    def acquire(self, provider: str, model: str, effort: str | None = None) -> CircuitDecision:
         with self._lock:
-            key = (provider, model)
-            record = self._record(provider, model)
+            key = (provider, model, str(effort or ""))
+            record = self._record(provider, model, effort)
             if record.state is CircuitState.CLOSED:
                 return CircuitDecision(True, record.state, "closed")
             if record.state is CircuitState.OPEN:
@@ -213,11 +215,11 @@ class CircuitBreakerStore:
             self._save()
             return CircuitDecision(True, CircuitState.HALF_OPEN, "half_open_probe")
 
-    def release_probe(self, provider: str, model: str) -> CircuitRecord:
+    def release_probe(self, provider: str, model: str, effort: str | None = None) -> CircuitRecord:
         """Release a neutral/cancelled half-open attempt without changing health."""
         with self._lock:
-            key = (provider, model)
-            record = self._record(provider, model)
+            key = (provider, model, str(effort or ""))
+            record = self._record(provider, model, effort)
             if record.state is CircuitState.HALF_OPEN and record.probes:
                 record = replace(record, probes=record.probes - 1)
                 self._records[key] = record
@@ -230,11 +232,13 @@ class CircuitBreakerStore:
         model: str,
         kind: FailureKind,
         *,
+        effort: str | None = None,
         workflow_id: str | None = None,
         task_id: str | None = None,
     ) -> CircuitRecord:
         with self._lock:
-            record = self._record(provider, model)
+            key = (provider, model, str(effort or ""))
+            record = self._record(provider, model, effort)
             if kind not in COUNTED_FAILURES:
                 return record
             failures = record.failures + 1
@@ -253,7 +257,7 @@ class CircuitBreakerStore:
                 workflow_id=workflow_id,
                 task_id=task_id,
             )
-            self._records[(provider, model)] = updated
+            self._records[key] = updated
             self._save()
             return updated
 
@@ -262,16 +266,18 @@ class CircuitBreakerStore:
         provider: str,
         model: str,
         *,
+        effort: str | None = None,
         workflow_id: str | None = None,
         task_id: str | None = None,
     ) -> CircuitRecord:
         with self._lock:
+            key = (provider, model, str(effort or ""))
             updated = CircuitRecord(
                 reason="success",
                 transitioned_at=self._clock(),
                 workflow_id=workflow_id,
                 task_id=task_id,
             )
-            self._records[(provider, model)] = updated
+            self._records[key] = updated
             self._save()
             return updated

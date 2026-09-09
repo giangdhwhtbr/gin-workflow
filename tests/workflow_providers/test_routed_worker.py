@@ -1016,6 +1016,44 @@ class RoutedWorkerTests(unittest.TestCase):
             event_types = [event.event_type for event in events.read_all()]
             self.assertIn("worker.completed", event_types)
 
+    def test_routed_worker_records_effort_in_events_route_key_and_breaker(self):
+        def runner(payload):
+            return WorkerResult(
+                status="completed",
+                task_id=payload["task_id"],
+                summary="done",
+                changed_files=(),
+                commits=(),
+                tests=(),
+                evidence=(),
+                blockers=(),
+                acceptance_identity=acceptance_identity(),
+                schema_version="2.3",
+            )
+
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = RouteCandidate("codex", "gpt-6-astra", False, effort="high")
+            router, breakers, events = self.build(
+                directory, routes=(candidate,), runners={"codex": runner}
+            )
+            receipt = router.dispatch(
+                request(acceptance_identity=acceptance_identity(), route_affinity=("codex", "gpt-6-astra", "high"))
+            )
+            outcome = router.collect_result(receipt.worker_id)
+            self._join_route_monitor(receipt.worker_id)
+
+            self.assertEqual("completed", outcome.status)
+            read_events = events.read_all()
+            started = next(e for e in read_events if e.event_type == "worker.started")
+            self.assertEqual("high", started.payload.get("effort"))
+            self.assertIn(":high", started.idempotency_key)
+
+            result_ev = next(e for e in read_events if e.event_type == "worker.result")
+            self.assertEqual("high", result_ev.payload.get("effort"))
+
+            # Check circuit breaker record has effort
+            self.assertEqual(CircuitState.CLOSED, breakers.state("codex", "gpt-6-astra", effort="high").state)
+
 
 if __name__ == "__main__":
     unittest.main()

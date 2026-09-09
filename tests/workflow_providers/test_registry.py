@@ -373,12 +373,14 @@ class ProviderRegistryTests(unittest.TestCase):
                 self.assertEqual("completed", normalized.status)
                 self.assertEqual(expected_provider, receipt.provider_name)
                 if expected_provider == "antigravity":
-                    self.assertEqual(("agy", "--add-dir"), runner.invocations[0].argv[:2])
+                    self.assertEqual("agy", Path(runner.invocations[0].argv[0]).name)
+                    self.assertEqual("--add-dir", runner.invocations[0].argv[1])
                     self.assertIn("--sandbox", runner.invocations[0].argv)
                     self.assertEqual("--print", runner.invocations[0].argv[-2])
 
                 else:
-                    self.assertEqual(("codex", "exec"), runner.invocations[0].argv[:2])
+                    self.assertEqual("codex", Path(runner.invocations[0].argv[0]).name)
+                    self.assertEqual("exec", runner.invocations[0].argv[1])
 
     def test_registry_wires_real_health_probe_cached_per_provider_and_model(self):
         class _ModelAwareRunner:
@@ -644,6 +646,192 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertEqual(17, scheduler.worker_timeout_seconds)
             self.assertEqual(3, scheduler.max_retries)
             self.assertEqual(2, scheduler.max_parallel_workers)
+
+    def test_registry_health_cache_distinguishes_codex_effort_and_probes_antigravity(self):
+        from types import SimpleNamespace
+
+        class _RecordingRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput(())
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = _RecordingRunner()
+            codex_script = root / "codex"
+            codex_script.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "if sys.argv[1:3] == ['exec', '--help']:\n"
+                "    print('usage: codex exec --model MODEL -c CONFIG --json --ephemeral "
+                "--dangerously-bypass-approvals-and-sandbox --cd DIR')\n"
+                "    sys.exit(0)\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            codex_script.chmod(0o755)
+
+            agy_script = root / "agy"
+            agy_script.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "if '--help' in sys.argv:\n"
+                "    print('usage: agy --print --sandbox --model MODEL --output-format FORMAT')\n"
+                "    sys.exit(0)\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            agy_script.chmod(0o755)
+
+            local = {
+                "codex": ProviderModelConfig(
+                    "codex", str(codex_script), {"low": "gpt-6-astra", "high": "gpt-6-astra"}
+                ),
+                "antigravity": ProviderModelConfig(
+                    "antigravity", str(agy_script), {"low": "gemini-3.8-flash", "high": "gemini-3.8-flash"}
+                ),
+            }
+            config = EffectiveConfig(
+                {
+                    "schema_version": "2.3",
+                    "harness": "codex",
+                    "providers": {
+                        "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                    },
+                    "routing": {
+                        "roles": {"backend": {"preferred": ["codex", "antigravity"], "fallback": []}},
+                        "concurrency": {"codex": 1, "antigravity": 1},
+                        "queue": {"max_wait_seconds": 0},
+                        "worker": {"timeout_seconds": 17, "max_retries": 0},
+                        "circuit_breaker": {
+                            "failure_threshold": 1,
+                            "cooldown_seconds": 10,
+                            "half_open_max_probes": 1,
+                        },
+                    },
+                },
+                root,
+            )
+            registry = ProviderRegistry.from_effective_config(
+                config,
+                provider_local=local,
+                evidence_authority=self.composite_authority(),
+                native_runner=runner,
+            )
+
+            codex_check = registry.worker.health["codex"]
+            # First with high effort
+            res_high = codex_check(SimpleNamespace(model="gpt-6-astra", effort="high"))
+            self.assertTrue(res_high.available)
+            self.assertEqual(1, len(runner.invocations))
+            self.assertIn("model_reasoning_effort=high", runner.invocations[0].argv)
+
+            # Re-check high effort -> cached
+            codex_check(SimpleNamespace(model="gpt-6-astra", effort="high"))
+            self.assertEqual(1, len(runner.invocations))
+
+            # Check low effort -> distinct cache key, new probe
+            res_low = codex_check(SimpleNamespace(model="gpt-6-astra", effort="low"))
+            self.assertTrue(res_low.available)
+            self.assertEqual(2, len(runner.invocations))
+            self.assertIn("model_reasoning_effort=low", runner.invocations[1].argv)
+
+            # Test antigravity model probe
+            agy_check = registry.worker.health["antigravity"]
+            res_agy = agy_check(SimpleNamespace(model="gemini-3.8-flash"))
+            self.assertTrue(res_agy.available)
+            self.assertEqual(3, len(runner.invocations))
+            self.assertIn("gemini-3.8-flash", runner.invocations[2].argv)
+            self.assertTrue((root / ".agent-workflow/runtime/health-probe/antigravity").is_dir())
+
+    def test_registry_resolves_harness_executable_for_worker_and_health_check(self):
+        from types import SimpleNamespace
+        import os
+
+        class _RecordingRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput(({"status": "completed", "task_id": "api", "summary": "ok", "changed_files": [], "commits": [], "tests": [], "evidence": [], "blockers": []},))
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            fake_agy = bin_dir / "agy"
+            fake_agy.write_text(
+                "#!/bin/sh\n"
+                "if [ \"$1\" = \"--help\" ]; then\n"
+                "    echo 'usage: agy --print --sandbox --model MODEL --output-format FORMAT'\n"
+                "    exit 0\n"
+                "fi\n"
+                "exit 0\n"
+            )
+            fake_agy.chmod(0o755)
+
+            orig_path = os.environ.get("PATH", "")
+            os.environ["PATH"] = f"{bin_dir}:{orig_path}"
+            try:
+                runner = _RecordingRunner()
+                local = {
+                    "antigravity": ProviderModelConfig(
+                        "antigravity", "antigravity", {"low": "gemini-3.8-flash", "high": "gemini-3.8-flash"}
+                    ),
+                }
+                config = EffectiveConfig(
+                    {
+                        "schema_version": "2.3",
+                        "harness": "antigravity",
+                        "providers": {
+                            "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                            "review": "fake", "evidence": "fake", "notifications": "fake",
+                        },
+                        "routing": {
+                            "roles": {"backend": {"preferred": ["antigravity"], "fallback": []}},
+                            "concurrency": {"antigravity": 1},
+                            "queue": {"max_wait_seconds": 0},
+                            "worker": {"timeout_seconds": 17, "max_retries": 0},
+                            "circuit_breaker": {
+                                "failure_threshold": 1,
+                                "cooldown_seconds": 10,
+                                "half_open_max_probes": 1,
+                            },
+                        },
+                    },
+                    root,
+                )
+                registry = ProviderRegistry.from_effective_config(
+                    config,
+                    provider_local=local,
+                    evidence_authority=self.composite_authority(),
+                    native_runner=runner,
+                )
+
+                # Check health check resolves "antigravity" -> fake_agy
+                agy_check = registry.worker.health["antigravity"]
+                agy_check(SimpleNamespace(model="gemini-3.8-flash"))
+                self.assertEqual(str(fake_agy.resolve()), runner.invocations[0].argv[0])
+
+                # Check factory resolves "antigravity" -> fake_agy
+                registry.workspace.create(
+                    WorkspaceRequest("ws-api", "task/api"), idempotency_key="create"
+                )
+                worker_request = WorkerRequest(
+                    "Implement", (), create_context_manifest("execute", ContextRequest()),
+                    {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                )
+                receipt = registry.worker.dispatch(worker_request)
+                registry.worker.collect_result(receipt.worker_id)
+                self.assertEqual(str(fake_agy.resolve()), runner.invocations[1].argv[0])
+            finally:
+                os.environ["PATH"] = orig_path
 
 
 if __name__ == "__main__":

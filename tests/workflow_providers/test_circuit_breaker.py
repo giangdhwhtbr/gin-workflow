@@ -97,6 +97,22 @@ class CircuitBreakerTests(unittest.TestCase):
             restored = CircuitBreakerStore(path, cooldown_seconds=10, clock=clock)
             self.assertEqual(CircuitState.OPEN, restored.state("claude", "opus").state)
 
+    def test_circuit_breaker_isolates_failures_by_reasoning_effort(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.json"
+            clock = FakeClock()
+            store = CircuitBreakerStore(path, failure_threshold=1, cooldown_seconds=60, clock=clock)
+
+            store.record_failure("codex", "gpt-6-astra", FailureKind.TIMEOUT, effort="high")
+
+            self.assertEqual(CircuitState.OPEN, store.state("codex", "gpt-6-astra", effort="high").state)
+            self.assertEqual(CircuitState.CLOSED, store.state("codex", "gpt-6-astra", effort="low").state)
+            self.assertEqual(CircuitState.CLOSED, store.state("codex", "gpt-6-astra").state)
+
+            restored = CircuitBreakerStore(path, failure_threshold=1, cooldown_seconds=60, clock=clock)
+            self.assertEqual(CircuitState.OPEN, restored.state("codex", "gpt-6-astra", effort="high").state)
+            self.assertEqual(CircuitState.CLOSED, restored.state("codex", "gpt-6-astra", effort="low").state)
+
 
 if __name__ == "__main__":
     unittest.main()

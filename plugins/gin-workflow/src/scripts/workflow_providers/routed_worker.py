@@ -125,7 +125,9 @@ class RoutedWorkerDispatcher:
             )
             if candidate.selection_mode == "explicit":
                 payload["model"] = candidate.model
-            route_key = f"{candidate.provider}:{candidate.selection_mode}:{candidate.model}"
+            if candidate.effort is not None:
+                payload["effort"] = candidate.effort
+            route_key = f"{candidate.provider}:{candidate.selection_mode}:{candidate.model}:{candidate.effort or 'none'}"
         if explicit_model_selection is not None:
             payload["explicit_model_selection"] = explicit_model_selection
         if worker_id:
@@ -153,24 +155,27 @@ class RoutedWorkerDispatcher:
     ) -> None:
         assert result.acceptance_identity is not None
         assert record.request.acceptance_identity is not None
+        result_payload = {
+            "worker_id": record.receipt.worker_id,
+            "status": result.status,
+            "schema_version": result.schema_version,
+            "request_acceptance_identity": record.request.acceptance_identity.to_dict(),
+            "result_acceptance_identity": result.acceptance_identity.to_dict(),
+            "request_workspace_id": str(
+                record.request.isolation_policy.get("workspace_id", "")
+            ),
+            "tests": [
+                test.to_dict() for test in result.tests if test.auditable
+            ],
+        }
+        if record.candidate is not None and record.candidate.effort is not None:
+            result_payload["effort"] = record.candidate.effort
         self.event_store.append(
             WorkflowEvent.create(
                 event_type="worker.result",
                 workflow_id=record.request.workflow_id,
                 task_id=record.request.task_id,
-                payload={
-                    "worker_id": record.receipt.worker_id,
-                    "status": result.status,
-                    "schema_version": result.schema_version,
-                    "request_acceptance_identity": record.request.acceptance_identity.to_dict(),
-                    "result_acceptance_identity": result.acceptance_identity.to_dict(),
-                    "request_workspace_id": str(
-                        record.request.isolation_policy.get("workspace_id", "")
-                    ),
-                    "tests": [
-                        test.to_dict() for test in result.tests if test.auditable
-                    ],
-                },
+                payload=result_payload,
                 idempotency_key=(
                     f"{record.request.workflow_id}:{record.request.task_id}:"
                     f"worker.result:{record.receipt.worker_id}"
@@ -237,6 +242,7 @@ class RoutedWorkerDispatcher:
                     candidate
                     for candidate in routes
                     if (candidate.provider, candidate.model) == affinity
+                    or (candidate.provider, candidate.model, candidate.effort or "") == affinity
                 ),
                 None,
             )
@@ -256,6 +262,7 @@ class RoutedWorkerDispatcher:
                             candidate.provider,
                             candidate.model,
                             FailureKind.SERVICE,
+                            effort=candidate.effort,
                             workflow_id=request.workflow_id,
                             task_id=request.task_id,
                         )
@@ -282,7 +289,9 @@ class RoutedWorkerDispatcher:
                         explicit_model_selection=explicit_model_selection,
                     )
                     continue
-                preflight = self.breakers.can_attempt(candidate.provider, candidate.model)
+                preflight = self.breakers.can_attempt(
+                    candidate.provider, candidate.model, effort=candidate.effort
+                )
                 if not preflight.allowed:
                     self._emit(
                         request,
@@ -303,7 +312,9 @@ class RoutedWorkerDispatcher:
                         request, "unavailable", candidate=candidate, reason="capacity_timeout"
                     )
                     continue
-                decision = self.breakers.acquire(candidate.provider, candidate.model)
+                decision = self.breakers.acquire(
+                    candidate.provider, candidate.model, effort=candidate.effort
+                )
                 if not decision.allowed:
                     capacity.release()
                     self._emit(
@@ -322,6 +333,7 @@ class RoutedWorkerDispatcher:
                         candidate.provider,
                         candidate.model,
                         FailureKind.SERVICE,
+                        effort=candidate.effort,
                         workflow_id=request.workflow_id,
                         task_id=request.task_id,
                     )
@@ -335,6 +347,7 @@ class RoutedWorkerDispatcher:
                         candidate.provider,
                         candidate.model,
                         FailureKind.SERVICE,
+                        effort=candidate.effort,
                         workflow_id=request.workflow_id,
                         task_id=request.task_id,
                     )
@@ -381,7 +394,9 @@ class RoutedWorkerDispatcher:
                     except Exception:
                         pass
                     self._release(record)
-                    self.breakers.release_probe(candidate.provider, candidate.model)
+                    self.breakers.release_probe(
+                        candidate.provider, candidate.model, effort=candidate.effort
+                    )
                     with self._lock:
                         self._records.pop(receipt.worker_id, None)
                         self._identities.pop(identity, None)
@@ -463,21 +478,27 @@ class RoutedWorkerDispatcher:
             if provider_failure is not None:
                 failure_kind = FailureKind(provider_failure)
                 if failure_kind is FailureKind.CANCELLED:
-                    self.breakers.release_probe(candidate.provider, candidate.model)
+                    self.breakers.release_probe(
+                        candidate.provider, candidate.model, effort=candidate.effort
+                    )
                 else:
                     self.breakers.record_failure(
                         candidate.provider,
                         candidate.model,
                         failure_kind,
+                        effort=candidate.effort,
                         workflow_id=record.request.workflow_id,
                         task_id=record.request.task_id,
                     )
             elif "invalid_result_contract" in result.blockers or result.status == "cancelled":
-                self.breakers.release_probe(candidate.provider, candidate.model)
+                self.breakers.release_probe(
+                    candidate.provider, candidate.model, effort=candidate.effort
+                )
             else:
                 self.breakers.record_success(
                     candidate.provider,
                     candidate.model,
+                    effort=candidate.effort,
                     workflow_id=record.request.workflow_id,
                     task_id=record.request.task_id,
                 )

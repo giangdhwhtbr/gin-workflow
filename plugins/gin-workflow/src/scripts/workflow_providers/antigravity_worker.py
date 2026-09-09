@@ -8,7 +8,11 @@ from typing import Any, Callable, Mapping
 
 from workflow_core.provider_config import PROVIDER_DEFAULT
 
+from .circuit_breaker import FailureKind
 from .native_cli import (
+    MODEL_PROBE_PROMPT,
+    MODEL_PROBE_TIMEOUT_SECONDS,
+    NativeCliError,
     NativeCliInvocation,
     NativeCliRunner,
     NativeHealth,
@@ -29,38 +33,63 @@ def build_antigravity_invocation(
 ) -> NativeCliInvocation:
     resolved_workspace = Path(workspace).resolve()
     timeout_str = f"{int(timeout_seconds)}s"
-    argv = (
+    argv = [
         executable,
         "--add-dir",
         str(resolved_workspace),
         "--sandbox",
+        "--output-format",
+        "json",
         "--print-timeout",
         timeout_str,
-        "--print",
-        prompt,
-    )
+    ]
+    if model and model != PROVIDER_DEFAULT:
+        argv.extend(["--model", model])
+    argv.extend(["--print", prompt])
     return NativeCliInvocation(
-        argv,
+        tuple(argv),
         resolved_workspace,
         b"",
         timeout_seconds,
     )
 
 
-
-def antigravity_health(executable: str, *, help_text: str | None = None) -> NativeHealth:
+def antigravity_health(
+    executable: str,
+    *,
+    help_text: str | None = None,
+    model: str | None = None,
+    native_runner: NativeCliRunner | None = None,
+    workspace: Path | None = None,
+) -> NativeHealth:
     help_text = probe_help(executable, "--help") if help_text is None else help_text
     if help_text is None:
         return NativeHealth(False, "executable_or_help_unavailable", False)
     options = frozenset(re.findall(r"--[A-Za-z0-9][A-Za-z0-9-]*", help_text))
-    supported = "--model" in options
+    supported = "--model" in options and "--output-format" in options
     if "--print" not in options or "--sandbox" not in options:
         return NativeHealth(False, "required_flags_unverified", supported)
-    return NativeHealth(
+    health = NativeHealth(
         True,
         "ready" if supported else "explicit_model_selection_unverified",
         supported,
     )
+    if not supported or model is None or model == PROVIDER_DEFAULT or native_runner is None or workspace is None:
+        return health
+    try:
+        native_runner.run(
+            build_antigravity_invocation(
+                executable,
+                model,
+                workspace,
+                MODEL_PROBE_PROMPT,
+                timeout_seconds=MODEL_PROBE_TIMEOUT_SECONDS,
+            )
+        )
+    except NativeCliError as error:
+        if error.kind is FailureKind.INVALID_MODEL:
+            return NativeHealth(False, "invalid_model", supported)
+    return health
 
 
 def _payload(request: WorkerRequest) -> Mapping[str, Any]:

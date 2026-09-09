@@ -118,5 +118,134 @@ class ProviderLocalConfigTests(unittest.TestCase):
             )
 
 
+    def test_loads_mapping_model_tier_with_effort(self):
+        module = self.provider_config()
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            (workflow / "providers.local.yaml").write_text(
+                "schema_version: '2.3'\n"
+                "providers:\n"
+                "  codex:\n"
+                "    executable: codex\n"
+                "    models:\n"
+                "      low:\n"
+                "        model: gpt-6-astra\n"
+                "        effort: low\n"
+                "      medium:\n"
+                "        model: gpt-6-astra\n"
+                "        effort: medium\n"
+                "      high:\n"
+                "        model: gpt-6-astra\n"
+                "        effort: high\n",
+                encoding="utf-8",
+            )
+
+            providers = module.load_provider_local_config(repository)
+
+        codex = providers["codex"]
+        self.assertEqual("gpt-6-astra", codex.models["low"].model)
+        self.assertEqual("low", codex.models["low"].effort)
+        self.assertEqual("medium", codex.models["medium"].effort)
+        self.assertEqual("high", codex.models["high"].effort)
+        self.assertEqual("explicit", codex.selection_mode("low"))
+
+    def test_rejects_effort_for_non_codex_provider(self):
+        module = self.provider_config()
+        with self.assertRaisesRegex(
+            module.ProviderLocalConfigError,
+            "effort is only supported for codex",
+        ):
+            module.validate_provider_local_config(
+                {
+                    "schema_version": "2.3",
+                    "providers": {
+                        "claude": {
+                            "executable": "claude",
+                            "models": {
+                                "low": {"model": "haiku", "effort": "low"},
+                                "medium": "sonnet",
+                                "high": "opus",
+                            },
+                        }
+                    },
+                }
+            )
+
+    def test_rejects_invalid_effort_value(self):
+        module = self.provider_config()
+        with self.assertRaisesRegex(
+            module.ProviderLocalConfigError,
+            "effort must be one of",
+        ):
+            module.validate_provider_local_config(
+                {
+                    "schema_version": "2.3",
+                    "providers": {
+                        "codex": {
+                            "executable": "codex",
+                            "models": {
+                                "low": {"model": "gpt-6-astra", "effort": "super-high"},
+                                "medium": "gpt-6-astra",
+                                "high": "gpt-6-astra",
+                            },
+                        }
+                    },
+                }
+            )
+
+    def test_rejects_effort_on_provider_default(self):
+        module = self.provider_config()
+        with self.assertRaisesRegex(
+            module.ProviderLocalConfigError,
+            "provider_default cannot declare an effort",
+        ):
+            module.validate_provider_local_config(
+                {
+                    "schema_version": "2.3",
+                    "providers": {
+                        "antigravity": {
+                            "executable": "agy",
+                            "models": {
+                                "low": {"model": "provider_default", "effort": "low"},
+                                "medium": "provider_default",
+                                "high": "gemini-pro",
+                            },
+                        }
+                    },
+                }
+            )
+
+    def test_post_init_normalizes_raw_strings_and_dicts(self):
+        module = self.provider_config()
+        config = module.ProviderModelConfig(
+            "codex",
+            "codex",
+            {
+                "low": "gpt-4o",
+                "medium": {"model": "gpt-6-astra", "effort": "medium"},
+                "high": module.TierModelTarget("gpt-6-astra", "high"),
+            },
+        )
+        self.assertEqual("gpt-4o", config.models["low"].model)
+        self.assertIsNone(config.models["low"].effort)
+        self.assertEqual("gpt-6-astra", config.models["medium"].model)
+        self.assertEqual("medium", config.models["medium"].effort)
+        self.assertEqual("high", config.models["high"].effort)
+
+    def test_tier_model_target_equality_semantics(self):
+        module = self.provider_config()
+        without_effort = module.TierModelTarget("gpt-4o")
+        with_effort = module.TierModelTarget("gpt-4o", "medium")
+
+        self.assertEqual(without_effort, "gpt-4o")
+        self.assertNotEqual(with_effort, "gpt-4o")
+        self.assertNotEqual(without_effort, with_effort)
+        self.assertEqual(with_effort, module.TierModelTarget("gpt-4o", "medium"))
+        self.assertNotEqual(with_effort, module.TierModelTarget("gpt-4o", "high"))
+
+
 if __name__ == "__main__":
     unittest.main()
+

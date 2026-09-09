@@ -50,11 +50,20 @@ class RouteCandidate:
     provider: str
     model: str
     fallback: bool
+    effort: str | None = None
 
     def __post_init__(self) -> None:
         if self.model == PROVIDER_DEFAULT and self.provider != "antigravity":
             raise AssignmentResolutionError(
                 "provider_default is only supported for antigravity"
+            )
+        if self.model == PROVIDER_DEFAULT and self.effort is not None:
+            raise AssignmentResolutionError(
+                "provider_default cannot declare an effort"
+            )
+        if self.effort is not None and self.provider != "codex":
+            raise AssignmentResolutionError(
+                "effort is only supported for codex"
             )
 
     @property
@@ -84,6 +93,8 @@ class AssignmentManifest:
             }
             if candidate.selection_mode == "explicit":
                 payload["model"] = candidate.model
+                if candidate.effort is not None:
+                    payload["effort"] = candidate.effort
             return payload
 
         return {
@@ -169,16 +180,18 @@ def resolve_assignment(
             errors.append(f"missing local provider mapping: {provider}")
             continue
         try:
-            model = provider_config.models[request.reasoning]
+            target = provider_config.models[request.reasoning]
         except KeyError:
             errors.append(
                 f"missing {request.reasoning} reasoning model for provider: {provider}"
             )
             continue
+        model = getattr(target, "model", str(target))
+        effort = getattr(target, "effort", None)
         if model == PROVIDER_DEFAULT and provider != "antigravity":
             errors.append("provider_default is only supported for antigravity")
             continue
-        candidates.append(RouteCandidate(provider, str(model), is_fallback))
+        candidates.append(RouteCandidate(provider, str(model), is_fallback, effort=effort))
     if errors:
         raise AssignmentResolutionError("; ".join(errors))
     return tuple(candidates)

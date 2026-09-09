@@ -14,6 +14,7 @@ from .schemas import SUPPORTED_SCHEMA_VERSION
 
 REASONING_TIERS = ("low", "medium", "high")
 PROVIDER_DEFAULT = "provider_default"
+CODEX_EFFORT_VALUES = frozenset({"low", "medium", "high", "xhigh"})
 
 
 class ProviderLocalConfigError(ValueError):
@@ -21,17 +22,59 @@ class ProviderLocalConfigError(ValueError):
 
 
 @dataclass(frozen=True)
+class TierModelTarget:
+    model: str
+    effort: str | None = None
+
+    def __post_init__(self) -> None:
+        if not str(self.model).strip():
+            raise ProviderLocalConfigError("model must be a non-empty string")
+        if self.effort is not None:
+            if str(self.effort) not in CODEX_EFFORT_VALUES:
+                raise ProviderLocalConfigError(
+                    f"effort must be one of: {', '.join(sorted(CODEX_EFFORT_VALUES))}"
+                )
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, str):
+            return self.model == other and self.effort is None
+        if isinstance(other, TierModelTarget):
+            return self.model == other.model and self.effort == other.effort
+        return False
+
+    def __str__(self) -> str:
+        return self.model
+
+
+@dataclass(frozen=True)
 class ProviderModelConfig:
     provider: str
     executable: str
-    models: Mapping[str, str]
+    models: Mapping[str, TierModelTarget]
+
+    def __post_init__(self) -> None:
+        normalized: dict[str, TierModelTarget] = {}
+        for tier, raw_target in self.models.items():
+            if isinstance(raw_target, TierModelTarget):
+                normalized[str(tier)] = raw_target
+            elif isinstance(raw_target, str):
+                normalized[str(tier)] = TierModelTarget(model=str(raw_target).strip(), effort=None)
+            elif isinstance(raw_target, Mapping):
+                effort_val = raw_target.get("effort")
+                normalized[str(tier)] = TierModelTarget(
+                    model=str(raw_target.get("model", "")).strip(),
+                    effort=str(effort_val).strip() if effort_val is not None else None,
+                )
+            else:
+                raise ProviderLocalConfigError(f"invalid model target for tier: {tier}")
+        object.__setattr__(self, "models", MappingProxyType(normalized))
 
     def selection_mode(self, tier: str) -> str:
         try:
-            model = self.models[tier]
+            target = self.models[tier]
         except KeyError as error:
             raise ProviderLocalConfigError(f"missing model tier: {tier}") from error
-        return "provider_default" if model == PROVIDER_DEFAULT else "explicit"
+        return "provider_default" if target.model == PROVIDER_DEFAULT else "explicit"
 
 
 def validate_provider_local_config(value: Mapping[str, Any]) -> None:
@@ -67,13 +110,55 @@ def validate_provider_local_config(value: Mapping[str, Any]) -> None:
         for tier in REASONING_TIERS:
             if tier not in models:
                 raise ProviderLocalConfigError(f"missing model tier: {tier}")
-            model = models[tier]
-            if not isinstance(model, str) or not model.strip():
-                raise ProviderLocalConfigError(f"model tier {tier} must be a non-empty string")
-            if model == PROVIDER_DEFAULT and name != "antigravity":
+            raw_target = models[tier]
+            if isinstance(raw_target, str):
+                model_str = raw_target.strip()
+                effort_str = None
+                if not model_str:
+                    raise ProviderLocalConfigError(f"model tier {tier} must be a non-empty string")
+            elif isinstance(raw_target, Mapping):
+                unknown_tier_keys = set(raw_target) - {"model", "effort"}
+                if unknown_tier_keys:
+                    raise ProviderLocalConfigError(
+                        f"unsupported keys in tier {tier}: {', '.join(sorted(unknown_tier_keys))}"
+                    )
+                model_raw = raw_target.get("model")
+                if not isinstance(model_raw, str) or not model_raw.strip():
+                    raise ProviderLocalConfigError(f"model tier {tier} requires non-empty model")
+                model_str = model_raw.strip()
+                effort_raw = raw_target.get("effort")
+                if effort_raw is not None:
+                    if not isinstance(effort_raw, str) or not effort_raw.strip():
+                        raise ProviderLocalConfigError(f"effort in tier {tier} must be a string")
+                    effort_str = effort_raw.strip()
+                    if model_str == PROVIDER_DEFAULT:
+                        raise ProviderLocalConfigError(
+                            "provider_default cannot declare an effort"
+                        )
+                    if name != "codex":
+                        raise ProviderLocalConfigError(
+                            "effort is only supported for codex"
+                        )
+                    if effort_str not in CODEX_EFFORT_VALUES:
+                        raise ProviderLocalConfigError(
+                            f"effort must be one of: {', '.join(sorted(CODEX_EFFORT_VALUES))}"
+                        )
+                else:
+                    effort_str = None
+            else:
                 raise ProviderLocalConfigError(
-                    "provider_default is only supported for antigravity"
+                    f"model tier {tier} must be a string or mapping"
                 )
+
+            if model_str == PROVIDER_DEFAULT:
+                if effort_str is not None:
+                    raise ProviderLocalConfigError(
+                        "provider_default cannot declare an effort"
+                    )
+                if name != "antigravity":
+                    raise ProviderLocalConfigError(
+                        "provider_default is only supported for antigravity"
+                    )
         unknown_tiers = set(models) - set(REASONING_TIERS)
         if unknown_tiers:
             raise ProviderLocalConfigError(
@@ -95,7 +180,17 @@ def load_provider_local_config(repository: Path) -> Mapping[str, ProviderModelCo
         str(name): ProviderModelConfig(
             str(name),
             str(entry["executable"]),
-            MappingProxyType({str(tier): str(model) for tier, model in entry["models"].items()}),
+            {
+                str(tier): (
+                    TierModelTarget(
+                        model=str(raw["model"]).strip(),
+                        effort=str(raw["effort"]).strip() if raw.get("effort") is not None else None,
+                    )
+                    if isinstance(raw, Mapping)
+                    else TierModelTarget(model=str(raw).strip(), effort=None)
+                )
+                for tier, raw in entry["models"].items()
+            },
         )
         for name, entry in loaded["providers"].items()
     }

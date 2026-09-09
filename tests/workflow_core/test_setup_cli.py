@@ -456,6 +456,94 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("success", reset_payload["status"])
             self.assertFalse(override_file.exists())
 
+    def test_configure_promotes_scalar_model_to_mapping_for_effort_upgrade(self):
+        assignments = (
+            "--provider-set", "providers.codex.executable=codex",
+            "--provider-set", "providers.codex.models.low=gpt-6-astra",
+            "--provider-set", "providers.codex.models.medium=gpt-6-astra",
+            "--provider-set", "providers.codex.models.high=gpt-6-astra",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+
+            # First setup with scalar string
+            applied = self.run_cli(repository, "configure", "--approve", *assignments)
+            self.assertEqual(0, applied.returncode, applied.stderr)
+
+            # Now upgrade low tier to include effort=low
+            upgrade = self.run_cli(
+                repository,
+                "configure",
+                "--approve",
+                "--provider-set",
+                "providers.codex.models.low.effort=low",
+            )
+            self.assertEqual(0, upgrade.returncode, upgrade.stderr)
+            import yaml
+            local = yaml.safe_load((repository / ".agent-workflow/providers.local.yaml").read_text(encoding="utf-8"))
+            low_target = local["providers"]["codex"]["models"]["low"]
+            self.assertEqual({"model": "gpt-6-astra", "effort": "low"}, low_target)
+
+    def test_doctor_offline_and_opt_in_probe_behavior(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+
+            # Doctor without providers config
+            offline = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, offline.returncode, offline.stderr)
+            payload = json.loads(offline.stdout)
+            self.assertEqual("healthy", payload["status"])
+            self.assertTrue(payload["checks"]["repository"])
+            self.assertTrue(payload["checks"]["initialized"])
+            self.assertTrue(payload["checks"]["configuration"])
+
+            # Configure with an invalid executable
+            bad_exe_assignments = (
+                "--provider-set", "providers.codex.executable=/nonexistent/binary/codex-missing",
+                "--provider-set", "providers.codex.models.low=haiku",
+                "--provider-set", "providers.codex.models.medium=sonnet",
+                "--provider-set", "providers.codex.models.high=opus",
+            )
+            self.run_cli(repository, "configure", "--approve", *bad_exe_assignments)
+            bad_doctor = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, bad_doctor.returncode, bad_doctor.stderr)
+            bad_payload = json.loads(bad_doctor.stdout)
+            self.assertEqual("issues_found", bad_payload["status"])
+            self.assertFalse(bad_payload["checks"]["providers"])
+            self.assertIsInstance(bad_payload["checks"]["providers"], bool)
+            self.assertIn("providers", bad_payload["checks_details"])
+            self.assertFalse(bad_payload["checks_details"]["providers"]["codex.executable"]["available"])
+
+            # Test doctor with malformed providers.local.yaml schema
+            providers_path = repository / ".agent-workflow/providers.local.yaml"
+            providers_path.write_text("schema_version: '2.3'\nproviders:\n  codex:\n    executable: codex\n    models:\n      low:\n        model: gpt-6\n        effort: extreme\n", encoding="utf-8")
+            invalid_schema_doctor = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, invalid_schema_doctor.returncode, invalid_schema_doctor.stderr)
+            inv_payload = json.loads(invalid_schema_doctor.stdout)
+            self.assertFalse(inv_payload["checks"]["configuration"])
+            self.assertIn("providers_config", inv_payload["checks_details"])
+            self.assertFalse(inv_payload["checks_details"]["providers_config"]["valid"])
+
+            # Test doctor --probe with valid stubbed binary
+            stub_codex = repository / "fake-codex"
+            stub_codex.write_text("#!/bin/sh\nif [ \"$1\" = \"exec\" ] && [ \"$2\" = \"--help\" ]; then\n  echo 'usage: codex exec --model MODEL --json --ephemeral --dangerously-bypass-approvals-and-sandbox --cd DIR'\n  exit 0\nfi\nexit 0\n", encoding="utf-8")
+            stub_codex.chmod(0o755)
+
+            providers_path.write_text(
+                f"schema_version: '2.3'\nproviders:\n  codex:\n    executable: '{stub_codex.resolve()}'\n    models:\n      low: haiku\n      medium: sonnet\n      high: opus\n",
+                encoding="utf-8",
+            )
+            probe_run = self.run_cli(repository, "doctor", "--probe", "--format", "json")
+            self.assertEqual(0, probe_run.returncode, probe_run.stderr)
+            probe_payload = json.loads(probe_run.stdout)
+            self.assertTrue(probe_payload["checks"]["providers"])
+            self.assertTrue((repository / ".agent-workflow/runtime/health-probe/codex").is_dir())
+            self.assertTrue(probe_payload["checks_details"]["providers"]["codex.low"]["available"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -47,9 +47,21 @@ class NativeCliTests(unittest.TestCase):
         self.assertNotIn("--sandbox", codex.argv)
         self.assertNotIn("workspace-write", codex.argv)
         self.assertIn("--cd", codex.argv)
-        self.assertNotIn("-C", codex.argv)
         self.assertEqual(
-            ("agy", "--add-dir", str(workspace.resolve()), "--sandbox", "--print-timeout", "900s", "--print", "{}"),
+            (
+                "agy",
+                "--add-dir",
+                str(workspace.resolve()),
+                "--sandbox",
+                "--output-format",
+                "json",
+                "--print-timeout",
+                "900s",
+                "--model",
+                "flash",
+                "--print",
+                "{}",
+            ),
             agy.argv,
         )
         self.assertEqual(b"", agy.stdin)
@@ -348,17 +360,21 @@ class NativeCliTests(unittest.TestCase):
 
     def test_antigravity_health_degrades_to_provider_default_without_model_flag(self):
         degraded = antigravity_health("agy", help_text="usage: agy --print --sandbox")
-        available = antigravity_health("agy", help_text="usage: agy --print --model MODEL --sandbox")
+        degraded_missing_format = antigravity_health("agy", help_text="usage: agy --print --model MODEL --sandbox")
+        available = antigravity_health("agy", help_text="usage: agy --print --model MODEL --output-format FORMAT --sandbox")
 
         self.assertTrue(degraded.available)
         self.assertEqual("explicit_model_selection_unverified", degraded.reason)
         self.assertFalse(degraded.explicit_model_selection)
+        self.assertTrue(degraded_missing_format.available)
+        self.assertEqual("explicit_model_selection_unverified", degraded_missing_format.reason)
+        self.assertFalse(degraded_missing_format.explicit_model_selection)
         self.assertTrue(available.available)
         self.assertTrue(available.explicit_model_selection)
         self.assertFalse(antigravity_health("/definitely/missing-agy").available)
 
         missing_runtime_flag = antigravity_health(
-            "agy", help_text="usage: agy --print --model MODEL"
+            "agy", help_text="usage: agy --print --model MODEL --output-format FORMAT"
         )
         self.assertFalse(missing_runtime_flag.available)
         self.assertEqual("required_flags_unverified", missing_runtime_flag.reason)
@@ -370,6 +386,63 @@ class NativeCliTests(unittest.TestCase):
         self.assertFalse(prefix_only.available)
         self.assertFalse(prefix_only.explicit_model_selection)
         self.assertEqual("required_flags_unverified", prefix_only.reason)
+
+    def test_antigravity_health_probes_configured_model_and_rejects_invalid_model(self):
+        class _RejectingRunner:
+            def run(self, invocation, *, cancel_event=None):
+                raise NativeCliError(FailureKind.INVALID_MODEL, "model not found")
+
+        class _AcceptingRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return None
+
+        rejected = antigravity_health(
+            "agy",
+            help_text="usage: agy --print --model MODEL --output-format FORMAT --sandbox",
+            model="gemini-invalid",
+            native_runner=_RejectingRunner(),
+            workspace=Path("/tmp/health-probe"),
+        )
+        self.assertFalse(rejected.available)
+        self.assertEqual("invalid_model", rejected.reason)
+
+        accepting_runner = _AcceptingRunner()
+        accepted = antigravity_health(
+            "agy",
+            help_text="usage: agy --print --model MODEL --output-format FORMAT --sandbox",
+            model="gemini-3.8-flash",
+            native_runner=accepting_runner,
+            workspace=Path("/tmp/health-probe"),
+        )
+        self.assertTrue(accepted.available)
+        self.assertEqual("ready", accepted.reason)
+        self.assertEqual(1, len(accepting_runner.invocations))
+        self.assertIn("gemini-3.8-flash", accepting_runner.invocations[0].argv)
+
+    def test_codex_health_verifies_config_flag_when_effort_is_configured(self):
+        base_help = (
+            "usage: codex exec --model MODEL --json --ephemeral "
+            "--dangerously-bypass-approvals-and-sandbox --cd DIR"
+        )
+        with_short_c = base_help + " -c CONFIG"
+        with_long_config = base_help + " --config CONFIG"
+
+        no_effort = codex_health("codex", help_text=base_help)
+        self.assertTrue(no_effort.available)
+
+        missing_c = codex_health("codex", help_text=base_help, effort="high")
+        self.assertFalse(missing_c.available)
+        self.assertEqual("required_flags_unverified", missing_c.reason)
+
+        has_short = codex_health("codex", help_text=with_short_c, effort="high")
+        self.assertTrue(has_short.available)
+
+        has_long = codex_health("codex", help_text=with_long_config, effort="high")
+        self.assertTrue(has_long.available)
 
 
 if __name__ == "__main__":

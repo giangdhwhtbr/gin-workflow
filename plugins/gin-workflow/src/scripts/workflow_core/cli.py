@@ -37,6 +37,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--bundle", type=Path)
     parser.add_argument("--reset", action="store_true")
     parser.add_argument("--clear", action="store_true")
+    parser.add_argument("--probe", action="store_true")
     return parser
 
 
