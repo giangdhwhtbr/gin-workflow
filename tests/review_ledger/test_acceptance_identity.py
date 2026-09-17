@@ -19,6 +19,7 @@ sys.path.insert(
 from review_ledger.cli import (
     build_acceptance_identity_payload,
     get_checkpoint_identity_record,
+    get_ledger_paths,
     get_review_identity_record,
     load_ledger,
     mutate_ledger,
@@ -401,7 +402,8 @@ class LegacyLedgerCompatibilityTests(unittest.TestCase):
 
     def test_legacy_ledger_loads_and_validates(self):
         self._write_legacy_ledger()
-        before = Path(self.test_dir, ".planning", self.bead_id, "review.json").read_bytes()
+        json_path = get_ledger_paths(self.bead_id, self.test_dir)[0]
+        before = Path(json_path).read_bytes()
 
         log, projection = load_ledger(self.bead_id, base_dir=self.test_dir)
         self.assertEqual("review-approved", projection.review_state)
@@ -421,7 +423,7 @@ class LegacyLedgerCompatibilityTests(unittest.TestCase):
         self.assertIn("validation passed", process.stdout)
         self.assertEqual(
             before,
-            Path(self.test_dir, ".planning", self.bead_id, "review.json").read_bytes(),
+            Path(json_path).read_bytes(),
         )
 
     def test_legacy_ledger_exposes_no_identity_records(self):
@@ -706,9 +708,8 @@ class ReviewLedgerCommandIdentityTests(unittest.TestCase):
         )
         self._cli("validate", "--bead-id", self.bead_id)
         self._cli("render", "--bead-id", self.bead_id, "--check")
-        payload = json.loads(
-            Path(self.test_dir, ".planning", self.bead_id, "review.json").read_text()
-        )
+        json_path = get_ledger_paths(self.bead_id, self.test_dir)[0]
+        payload = json.loads(Path(json_path).read_text())
         self.assertEqual("1.0", payload["schema_version"])
 
 

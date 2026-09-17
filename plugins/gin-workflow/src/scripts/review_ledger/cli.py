@@ -72,7 +72,12 @@ def get_ledger_paths(bead_id: str, base_dir: Optional[str] = None) -> Tuple[str,
     """Returns the paths to the review.json and review.md files."""
     if not base_dir:
         base_dir = os.getcwd()
-    dir_path = os.path.join(base_dir, ".planning", bead_id)
+    scoped_dir = os.path.join(base_dir, ".planning", "reviews", bead_id)
+    legacy_dir = os.path.join(base_dir, ".planning", bead_id)
+    if not os.path.exists(os.path.join(scoped_dir, "review.json")) and os.path.exists(os.path.join(legacy_dir, "review.json")):
+        dir_path = legacy_dir
+    else:
+        dir_path = scoped_dir
     return (
         os.path.join(dir_path, "review.json"),
         os.path.join(dir_path, "review.md")

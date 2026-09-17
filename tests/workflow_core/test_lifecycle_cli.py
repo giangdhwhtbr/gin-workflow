@@ -155,6 +155,25 @@ class TestLifecycleCLI(unittest.TestCase):
         data = json.loads(output)
         self.assertIn("waived", data["gates"]["requirement_confirmed"])
 
+    def test_resolve_scope_hash_discovers_scoped_and_legacy_ledgers(self):
+        from workflow_core.lifecycle_cli import _resolve_scope_hash
+
+        # When only scoped exists
+        scoped_dir = self.repo_path / ".planning" / "reviews" / "scoped-bead"
+        scoped_dir.mkdir(parents=True, exist_ok=True)
+        (scoped_dir / "review.json").write_text(json.dumps({"repositories": [{"source_scope_hash": "sha-scoped-123"}]}))
+        self.assertEqual(_resolve_scope_hash(self.repo_path), "sha-scoped-123")
+
+        # When legacy exists in a clean repo
+        legacy_repo = Path(tempfile.mkdtemp())
+        try:
+            legacy_dir = legacy_repo / ".planning" / "legacy-bead"
+            legacy_dir.mkdir(parents=True, exist_ok=True)
+            (legacy_dir / "review.json").write_text(json.dumps({"repositories": [{"source_scope_hash": "sha-legacy-456"}]}))
+            self.assertEqual(_resolve_scope_hash(legacy_repo), "sha-legacy-456")
+        finally:
+            shutil.rmtree(legacy_repo)
+
 
 if __name__ == "__main__":
     unittest.main()

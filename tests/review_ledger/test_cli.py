@@ -18,7 +18,9 @@ from datetime import datetime, timedelta, timezone
 from review_ledger.cli import (
     build_resync_lease_operations,
     build_start_review_operations,
+    get_ledger_paths,
     initialize_ledger,
+    ledger_lock,
     load_ledger,
     mutate_ledger,
     resync_lease,
@@ -38,6 +40,59 @@ class TestCLI(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.test_dir)
+
+    def test_get_ledger_paths_defaults_to_reviews_subfolder(self):
+        json_path, md_path = get_ledger_paths("test-bead-123", self.test_dir)
+        expected_json = os.path.join(self.test_dir, ".planning", "reviews", "test-bead-123", "review.json")
+        expected_md = os.path.join(self.test_dir, ".planning", "reviews", "test-bead-123", "review.md")
+        self.assertEqual(json_path, expected_json)
+        self.assertEqual(md_path, expected_md)
+
+    def test_get_ledger_paths_falls_back_to_legacy_when_present(self):
+        legacy_dir = os.path.join(self.test_dir, ".planning", "legacy-bead")
+        os.makedirs(legacy_dir, exist_ok=True)
+        with open(os.path.join(legacy_dir, "review.json"), "w") as f:
+            f.write("{}")
+        json_path, md_path = get_ledger_paths("legacy-bead", self.test_dir)
+        self.assertEqual(json_path, os.path.join(legacy_dir, "review.json"))
+        self.assertEqual(md_path, os.path.join(legacy_dir, "review.md"))
+
+    def test_get_ledger_paths_falls_back_when_empty_scoped_directory_exists(self):
+        scoped_dir = os.path.join(self.test_dir, ".planning", "reviews", "legacy-bead")
+        legacy_dir = os.path.join(self.test_dir, ".planning", "legacy-bead")
+        os.makedirs(scoped_dir, exist_ok=True)
+        os.makedirs(legacy_dir, exist_ok=True)
+        with open(os.path.join(legacy_dir, "review.json"), "w") as f:
+            f.write("{}")
+        json_path, md_path = get_ledger_paths("legacy-bead", self.test_dir)
+        self.assertEqual(json_path, os.path.join(legacy_dir, "review.json"))
+        self.assertEqual(md_path, os.path.join(legacy_dir, "review.md"))
+
+    def test_get_ledger_paths_scoped_takes_precedence_over_legacy(self):
+        scoped_dir = os.path.join(self.test_dir, ".planning", "reviews", "bead-both")
+        legacy_dir = os.path.join(self.test_dir, ".planning", "bead-both")
+        os.makedirs(scoped_dir, exist_ok=True)
+        os.makedirs(legacy_dir, exist_ok=True)
+        with open(os.path.join(scoped_dir, "review.json"), "w") as f:
+            f.write('{"scope": "new"}')
+        with open(os.path.join(legacy_dir, "review.json"), "w") as f:
+            f.write('{"scope": "old"}')
+        json_path, md_path = get_ledger_paths("bead-both", self.test_dir)
+        self.assertEqual(json_path, os.path.join(scoped_dir, "review.json"))
+        self.assertEqual(md_path, os.path.join(scoped_dir, "review.md"))
+
+    def test_ledger_lock_creates_lock_in_resolved_directory(self):
+        with ledger_lock("lock-test", self.test_dir):
+            lock_path = os.path.join(self.test_dir, ".planning", "reviews", "lock-test", ".review.lock")
+            self.assertTrue(os.path.exists(lock_path))
+
+        legacy_dir = os.path.join(self.test_dir, ".planning", "legacy-lock")
+        os.makedirs(legacy_dir, exist_ok=True)
+        with open(os.path.join(legacy_dir, "review.json"), "w") as f:
+            f.write("{}")
+        with ledger_lock("legacy-lock", self.test_dir):
+            lock_path = os.path.join(legacy_dir, ".review.lock")
+            self.assertTrue(os.path.exists(lock_path))
 
     def test_cli_ledger_lifecycle_keeps_legacy_repository_readable(self):
         bead_id = "bead-abc"
@@ -745,7 +800,7 @@ class TestResyncLeaseEndToEnd(unittest.TestCase):
         self.assertEqual("lease-resynced", log.events[-1].action)
 
     def test_non_holder_resync_leaves_the_ledger_untouched(self):
-        json_path = Path(self.test_dir, ".planning", self.bead_id, "review.json")
+        json_path = Path(get_ledger_paths(self.bead_id, base_dir=self.test_dir)[0])
         before = json_path.read_bytes()
         with self.assertRaises(LeaseError):
             resync_lease(self.bead_id, "reviewer-b", "lease-a", base_dir=self.test_dir)

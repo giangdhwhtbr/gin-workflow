@@ -65,8 +65,9 @@ class ProviderContractTests(unittest.TestCase):
                 "atomic-review", "reviewer-1", "changes_requested",
                 (ReviewFinding("F-1", "IMPORTANT", "open"),),
             )
-            json_path = root / ".planning/atomic-review/review.json"
-            markdown_path = root / ".planning/atomic-review/review.md"
+            json_p, md_p = ledger_cli.get_ledger_paths("atomic-review", root)
+            json_path = Path(json_p)
+            markdown_path = Path(md_p)
             before = (json_path.read_bytes(), markdown_path.read_bytes())
             real_mutate = ledger_cli._mutate_ledger_unlocked
 

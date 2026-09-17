@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../plugins/gin-workflow/src/scripts')))
 
-from review_ledger.cli import mutate_ledger, load_ledger, start_review
+from review_ledger.cli import get_ledger_paths, mutate_ledger, load_ledger, start_review
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.git_adapter import create_source_checkpoint, push_review_ref
 from review_ledger.projections import ReviewProjection
@@ -193,8 +193,9 @@ class TestIntegration(unittest.TestCase):
         bead_id = "conflict-review"
         self._prepare_requested_review(bead_id)
         start_review(bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
-        json_path = Path(self.test_dir, ".planning", bead_id, "review.json")
-        md_path = Path(self.test_dir, ".planning", bead_id, "review.md")
+        json_p, md_p = get_ledger_paths(bead_id, base_dir=self.test_dir)
+        json_path = Path(json_p)
+        md_path = Path(md_p)
         before = (json_path.read_bytes(), md_path.read_bytes())
 
         with self.assertRaises(Exception):

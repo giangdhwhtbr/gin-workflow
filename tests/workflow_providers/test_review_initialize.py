@@ -77,8 +77,8 @@ class ReviewInitializeTests(unittest.TestCase):
 
             self.assertIs(OperationStatus.SUCCESS, result.status)
             self.assertEqual("implementation-in-progress", result.value.state)
-            self.assertTrue((root / ".planning/task-init/review.json").is_file())
-            self.assertTrue((root / ".planning/task-init/review.md").is_file())
+            self.assertTrue((root / ".planning/reviews/task-init/review.json").is_file())
+            self.assertTrue((root / ".planning/reviews/task-init/review.md").is_file())
 
     def test_initialized_ledger_lets_request_proceed_instead_of_reporting_unavailable(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -158,7 +158,7 @@ class ReviewInitializeTests(unittest.TestCase):
             request = self._request("backend")
 
             first = provider.initialize(request, idempotency_key="init-1")
-            ledger = (root / ".planning/task-init/review.json").read_bytes()
+            ledger = (root / ".planning/reviews/task-init/review.json").read_bytes()
             replay = provider.initialize(request, idempotency_key="init-1")
             fresh_key = provider.initialize(request, idempotency_key="init-2")
 
@@ -167,7 +167,7 @@ class ReviewInitializeTests(unittest.TestCase):
             self.assertTrue(replay.idempotent)
             self.assertTrue(fresh_key.idempotent)
             self.assertEqual(
-                ledger, (root / ".planning/task-init/review.json").read_bytes()
+                ledger, (root / ".planning/reviews/task-init/review.json").read_bytes()
             )
 
     def test_rejects_a_repository_path_escaping_the_provider_root(self):
@@ -184,7 +184,7 @@ class ReviewInitializeTests(unittest.TestCase):
 
             self.assertIs(OperationStatus.INVALID, result.status)
             self.assertIn("escapes provider root", result.message)
-            self.assertFalse((root / ".planning/task-init/review.json").exists())
+            self.assertFalse((root / ".planning/reviews/task-init/review.json").exists())
 
     def test_rejects_incomplete_identity_and_empty_scope_without_writing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -204,7 +204,7 @@ class ReviewInitializeTests(unittest.TestCase):
                 with self.subTest(case=name):
                     result = provider.initialize(request, idempotency_key=f"k-{name}")
                     self.assertIs(OperationStatus.INVALID, result.status)
-            self.assertFalse((root / ".planning/task-init/review.json").exists())
+            self.assertFalse((root / ".planning/reviews/task-init/review.json").exists())
 
     def test_fake_review_provider_satisfies_the_same_initialize_contract(self):
         provider = FakeReviewProvider()

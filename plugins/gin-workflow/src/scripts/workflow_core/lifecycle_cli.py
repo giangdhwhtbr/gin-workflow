@@ -35,7 +35,8 @@ def _resolve_scope_hash(repo_path: Path) -> str:
     # the wrong bead. The caller should pass an explicit --scope-hash when it matters.
     planning_dir = repo_path / ".planning"
     if planning_dir.is_dir():
-        for review_json in planning_dir.glob("*/review.json"):
+        candidates = list(planning_dir.glob("reviews/*/review.json")) + list(planning_dir.glob("*/review.json"))
+        for review_json in candidates:
             try:
                 data = json.loads(review_json.read_text("utf-8"))
                 for repo in data.get("repositories", []):
