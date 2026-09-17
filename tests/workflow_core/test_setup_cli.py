@@ -544,6 +544,39 @@ class SetupCliTests(unittest.TestCase):
             self.assertTrue((repository / ".agent-workflow/runtime/health-probe/codex").is_dir())
             self.assertTrue(probe_payload["checks_details"]["providers"]["codex.low"]["available"])
 
+    def test_doctor_flags_stale_review_ledgers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            subprocess.run(["git", "init"], cwd=repository, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repository, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.name", "Tester"], cwd=repository, check=True, capture_output=True)
+            (repository / "init.txt").write_text("init")
+            subprocess.run(["git", "add", "."], cwd=repository, check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=repository, check=True, capture_output=True)
+
+            self.run_cli(repository, "init", "--approve", "--non-interactive")
+
+            head_sha = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repository, check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+            review_dir = repository / ".planning" / "reviews" / "closed-bead"
+            review_dir.mkdir(parents=True, exist_ok=True)
+            (review_dir / "review.json").write_text(json.dumps({
+                "review_state": "review-approved",
+                "repositories": [{"checkpoint_sha": head_sha, "repository_path": "."}],
+            }))
+
+            doc_run = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, doc_run.returncode, doc_run.stderr)
+            payload = json.loads(doc_run.stdout)
+            self.assertEqual("issues_found", payload["status"])
+            self.assertFalse(payload["checks"]["review_ledgers"])
+            self.assertIn("review_ledgers", payload["checks_details"])
+            self.assertEqual(payload["checks_details"]["review_ledgers"]["stale_count"], 1)
+            self.assertIn("closed-bead", payload["checks_details"]["review_ledgers"]["stale_beads"])
+            self.assertTrue(any("review-ledger.py cleanup --all-closed" in action for action in payload["actions"]))
+
 
 if __name__ == "__main__":
     unittest.main()

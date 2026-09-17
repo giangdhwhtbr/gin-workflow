@@ -18,4 +18,4 @@ At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` 
 3. Revalidate required approval and reviewed tree identity before any authorized integration action.
 4. Obtain native-harness approval for commit, push, upgrade, data movement, or other protected delivery actions and persist the audit event.
 5. Keep verification, review, approval, and handoff evidence required; related symbols, tests, and project knowledge remain discoverable on demand.
-6. Return `shipped` state after durable close-out. Do not start another lifecycle action.
+6. Return `shipped` state after durable close-out and clean up transient review ledgers with `python3 review-ledger.py cleanup --bead-id <bead-id>`. Do not start another lifecycle action.

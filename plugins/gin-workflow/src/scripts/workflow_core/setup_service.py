@@ -449,12 +449,34 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             if provider_details:
                 checks_details["providers"] = provider_details
 
+    actions: list[str] = []
+    checks["review_ledgers"] = True
+    planning_dir = root / ".planning"
+    if planning_dir.is_dir():
+        try:
+            from review_ledger.cleanup import cleanup_review_ledgers
+            preview = cleanup_review_ledgers(root, all_closed=True, dry_run=True)
+            stale_cleaned = preview.get("cleaned", [])
+            stale_count = len(stale_cleaned)
+            if stale_count > 0:
+                checks["review_ledgers"] = False
+                checks_details["review_ledgers"] = {
+                    "stale_count": stale_count,
+                    "stale_beads": [item["bead_id"] for item in stale_cleaned],
+                    "remedy": "Run 'python3 review-ledger.py cleanup --all-closed' to remove stale review ledgers.",
+                }
+                actions.append(
+                    f"Run 'python3 review-ledger.py cleanup --all-closed' to remove {stale_count} stale review ledger(s)."
+                )
+        except Exception:
+            checks["review_ledgers"] = True
+
     healthy = all(checks.values())
     payload: dict[str, Any] = {
         "status": "healthy" if healthy else "issues_found",
         "repository": str(root),
         "checks": checks,
-        "actions": [],
+        "actions": actions,
     }
     if checks_details:
         payload["checks_details"] = checks_details

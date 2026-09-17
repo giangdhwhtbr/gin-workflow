@@ -10,6 +10,7 @@ This skill guides the reviewing agent to execute code reviews.
 ## Reviewer Core Flow
 
 Before starting, enforce the configured review route. When independent review is required, the reviewer provider must differ from the implementation provider. Self-review is allowed only through the explicit `allow_self_review_fallback` policy; route exhaustion otherwise requires human decision.
+Active review ledgers reside scoped under `.planning/reviews/<bead-id>/` (`review.json`, `review.md`, `.review.lock`), with backward-compatible fallback for legacy `.planning/<bead-id>/`.
 
 1. **Acquire Lease**:
    - Fetch the remote review branch: `git fetch origin bead/<bead-id>`.

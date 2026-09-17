@@ -224,9 +224,21 @@ Use the `IS_WORKTREE` and `WORKTREE_PATH` metadata captured during Step 2 (befor
 - Reject wildcards, unresolved paths, and manual direct script execution.
 - For externally managed / harness-owned worktrees (such as detached HEAD workspaces), do NOT delete or remove directly — leave the workspace in place or use the harness workspace-exit tool.
 
-### Step 7: Final Task Tracking
+### Step 7: Final Task Tracking & Review Ledger Cleanup
 
 Use task-tracking capabilities for durable handoff and closure. Branch or workspace cleanup never proves task completion.
+
+Once the task bead is closed in task tracking and the branch is merged into the base branch, clean up its transient review ledger directory:
+
+```bash
+python3 review-ledger.py cleanup --bead-id <bead-id>
+```
+
+To clean up all stale review directories across the repository at once:
+
+```bash
+python3 review-ledger.py cleanup --all-closed
+```
 
 ## Quick Reference
 
