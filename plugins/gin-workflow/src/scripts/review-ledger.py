@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import sys
 import os
+import json
+from pathlib import Path
 import argparse
 from datetime import datetime, timezone
 
@@ -17,6 +19,7 @@ from review_ledger.cli import (
     get_ledger_paths,
     render_review_markdown,
     resolve_acceptance_identity_payload,
+    cleanup_review_ledgers,
 )
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
@@ -310,6 +313,13 @@ def parse_args():
     p_trans_req.add_argument("--actor-role", default="worker")
     p_trans_req.add_argument("--actor-id", required=True)
     p_trans_req.add_argument("--lease-id")
+
+    # Cleanup
+    p_clean = subparsers.add_parser("cleanup", help="Clean up stale review ledgers for closed or merged beads.")
+    p_clean.add_argument("--repository", default=".", help="Path to repository root.")
+    p_clean.add_argument("--bead-id", help="Specific bead ID to clean up.")
+    p_clean.add_argument("--all-closed", action="store_true", help="Clean up all closed bead review directories.")
+    p_clean.add_argument("--dry-run", action="store_true", help="Preview deletions without modifying disk.")
 
     return parser.parse_args()
 
@@ -680,6 +690,22 @@ def main():
             print(f"Total Findings: {len(proj.findings)}")
             unresolved = [fid for fid, f in proj.findings.items() if f.status not in TERMINAL_FINDING_STATUSES]
             print(f"Unresolved Findings: {len(unresolved)} ({', '.join(unresolved)})")
+
+        elif args.command == "cleanup":
+            repo_root = Path(args.repository).resolve()
+            if not args.bead_id and not args.all_closed:
+                print("Error: Either --bead-id or --all-closed must be specified.", file=sys.stderr)
+                sys.exit(2)
+            if args.bead_id and args.all_closed:
+                print("Error: --bead-id and --all-closed are mutually exclusive.", file=sys.stderr)
+                sys.exit(2)
+            result = cleanup_review_ledgers(
+                repo_root,
+                bead_id=args.bead_id,
+                all_closed=args.all_closed,
+                dry_run=args.dry_run,
+            )
+            print(json.dumps(result, indent=2))
 
     except WorkflowIntegrityError as e:
         print(f"Integrity Error: {e}", file=sys.stderr)
