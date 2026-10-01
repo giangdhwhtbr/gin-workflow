@@ -9,7 +9,7 @@
       "description": "Core plan-driven workflow: plan, orchestrate, execute, verify, and ship.",
       "source": {
         "source": "git-subdir",
-        "url": "/home/gin/gin-workflow",
+        "url": "https://github.com/giangdhwhtbr/gin-workflow.git",
         "path": "plugins/gin-workflow/src"
       }
     }
