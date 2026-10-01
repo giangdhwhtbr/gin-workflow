@@ -19,7 +19,7 @@ __pycache__/
 .dolt/
 *.db
 .beads-credential-key
-.beads/proxieddb/
+.beads/
 .agent-workflow/providers.local.yaml
 
 # bv (beads viewer) local config and caches
