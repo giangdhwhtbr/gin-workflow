@@ -77,6 +77,9 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(stage=stage):
                 self.assertLessEqual(stage_chars(SRC, stage), 12_000)
 
+    def test_quick_chain_within_8000(self):
+        self.assertLessEqual(stage_chars(SRC, "quick"), 8_000)
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000)]
         for pattern, limit in limits:

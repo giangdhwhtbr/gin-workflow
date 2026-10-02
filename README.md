@@ -33,6 +33,7 @@ The plugin is skill-first across all supported platforms. These skills are the p
 Each lifecycle stage skill is self-contained (methodology + gin-workflow rules) and shares `references/stage-contract.md`; `superpowers` is not a dependency. Shared support skills load on demand:
 
 - `review` — request or perform an independent review through the review ledger
+- `quick` — small, low-risk change without plan or beads, verified per rigor
 - `gin-debugging` — root cause before fix
 - `gin-worktrees` — isolated workspaces and clean baselines
 - `gin-review-response` — triage review findings in the ledger

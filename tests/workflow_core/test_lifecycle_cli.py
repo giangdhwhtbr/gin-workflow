@@ -122,6 +122,41 @@ class TestLifecycleCLI(unittest.TestCase):
         (self.workflow_dir / "config.yaml").write_text("schema_version: '2.4'\nproject: {shape: frontend}\n")
         self.assertEqual("frontend", self._state_json()["project"]["shape"])
 
+    def _write_config(self, text):
+        (self.workflow_dir / "config.yaml").write_text(text)
+
+    def _quick(self, *extra):
+        import io
+        from unittest.mock import patch
+        with patch("sys.stdout", new=io.StringIO()) as out:
+            code = cli_main(["quick-check", "--repository", str(self.repo_path), "--format", "json", *extra])
+        return code, json.loads(out.getvalue())
+
+    def test_quick_check_allows_small_change_with_rigor_commands(self):
+        self._write_config("schema_version: '2.4'\nproject: {rigor: easy}\n"
+                           "verify: {checks: {lint: l, typecheck: t, test: u, build: b, e2e: e}}\n")
+        code, payload = self._quick("--changed-files", "2", "--modules", "1")
+        self.assertEqual((0, "allowed", "self_check"), (code, payload["decision"], payload["review"]))
+        self.assertEqual({"lint": "l", "typecheck": "t", "test": "u"}, payload["verify_commands"])
+
+    def test_quick_check_escalates_over_threshold_or_multiple_modules(self):
+        self._write_config("schema_version: '2.4'\nproject: {rigor: standard}\nquick: {max_files: 3}\n")
+        self.assertEqual(3, self._quick("--changed-files", "4", "--modules", "1")[0])
+        self.assertEqual(3, self._quick("--changed-files", "1", "--modules", "2")[0])
+
+    def test_quick_check_refuses_strict_without_waiver(self):
+        self._write_config("schema_version: '2.4'\nproject: {rigor: strict}\n")
+        code, payload = self._quick("--changed-files", "1", "--modules", "1")
+        self.assertEqual((4, "refused"), (code, payload["decision"]))
+        cli_main(["unblock", "--repository", str(self.repo_path), "--gate", "requirement_confirmed",
+                  "--reason", "hotfix", "--actor", "user"])
+        self.assertEqual(0, self._quick("--changed-files", "1", "--modules", "1")[0])
+
+    def test_record_quick_completed_shows_in_state(self):
+        self.assertEqual(0, cli_main(["record", "quick-completed", "--repository", str(self.repo_path),
+                                      "--evidence", "lint ok; 3 tests ok", "--actor", "user"]))
+        self.assertEqual("lint ok; 3 tests ok", self._state_json()["recent_quick"][-1]["evidence"])
+
     def test_unblock_safety_gate_without_followup_fails(self):
         exit_code = lifecycle_main([
             "unblock",

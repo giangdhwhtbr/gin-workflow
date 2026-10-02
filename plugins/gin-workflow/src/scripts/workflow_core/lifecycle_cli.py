@@ -133,6 +133,7 @@ _RECORDABLE_GATES = {
     "plan-approved": ("approval.recorded", {"action": "plan_approved", "decision": {"status": "approved"}}),
     "orchestration-ready": ("orchestration.ready", {}),
     "verification-passed": ("verification.passed", {}),
+    "quick-completed": ("quick.completed", {}),
 }
 
 
@@ -200,6 +201,11 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "gates": gates_status,
         "evidence": list(decision.evidence),
         "remedies": list(decision.remedies),        "project": project_settings(config.to_dict()).to_dict(),
+        "recent_quick": [
+            {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
+            for event in event_store.read_all()
+            if event.workflow_id == workflow_id and event.event_type == "quick.completed"
+        ][-5:],
     }
 
     exit_code = 0 if decision.decision == "route" else 1
@@ -276,14 +282,39 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     }, 0
 
 
+_QUICK_COMMANDS = {"easy": ("lint", "typecheck", "test"), "standard": ("lint", "typecheck", "test", "build"),
+                   "strict": ("lint", "typecheck", "test", "build", "e2e")}
+
+
+def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+    repo_path = Path(args.repository).resolve()
+    config = resolve_effective_config(repo_path, write=False).config
+    settings = project_settings(config.to_dict())
+    commands = {k: v for k, v in settings.verify_commands.items() if k in _QUICK_COMMANDS[settings.rigor]}
+    base = {"rigor": settings.rigor, "verify_commands": commands,
+            "review": "self_check" if settings.rigor == "easy" else "independent"}
+    if settings.rigor == "strict":
+        store = _get_event_store(repo_path)
+        waivers = collect_waivers(store, workflow_id=args.workflow_id,
+                                  scope_hash=getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path))
+        if "requirement_confirmed" not in waivers:
+            return {**base, "decision": "refused",
+                    "reason": "strict rigor requires /discuss; waive requirement_confirmed with gin-workflow unblock to use /quick"}, 4
+    if args.changed_files > settings.quick_max_files or args.modules > 1:
+        return {**base, "decision": "escalate",
+                "reason": f"{args.changed_files} files / {args.modules} modules exceeds quick limits "
+                          f"({settings.quick_max_files} files, 1 module); use the full lifecycle"}, 3
+    return {**base, "decision": "allowed", "reason": "within quick limits"}, 0
+
+
 def main(arguments: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if arguments is None else arguments)
     if not argv:
-        print("usage: gin-workflow {state,unblock,record} ...", file=sys.stderr)
+        print("usage: gin-workflow {state,unblock,record,quick-check} ...", file=sys.stderr)
         return 2
 
     command = argv[0]
-    if command not in ("state", "unblock", "record"):
+    if command not in ("state", "unblock", "record", "quick-check"):
         print(f"unknown command: {command}", file=sys.stderr)
         return 2
 
@@ -318,6 +349,23 @@ def main(arguments: Sequence[str] | None = None) -> int:
             print("\nRemedies:")
             for rem in payload.get("remedies", []):
                 print(f"  - {rem}")
+        return exit_code
+
+    if command == "quick-check":
+        parser.add_argument("--changed-files", type=int, required=True)
+        parser.add_argument("--modules", type=int, default=1)
+        try:
+            args = parser.parse_args(argv[1:])
+        except SystemExit as e:
+            return e.code if isinstance(e.code, int) else 2
+        payload, exit_code = _quick_check_command(args)
+        if args.format == "json":
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            print(f"{payload['decision']}: {payload['reason']}")
+            print(f"Rigor: {payload['rigor']}; review: {payload['review']}")
+            for name, command_line in payload["verify_commands"].items():
+                print(f"  - {name}: {command_line}")
         return exit_code
 
     if command == "unblock":

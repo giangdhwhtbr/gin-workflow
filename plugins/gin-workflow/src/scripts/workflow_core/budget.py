@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import sys
 
-STAGES = ("discuss", "plan", "orchestrate", "execute", "verify", "ship", "review", "workflow", "progress")
+STAGES = ("discuss", "plan", "orchestrate", "execute", "verify", "ship", "review", "workflow", "progress", "quick")
 
 _REFERENCE = re.compile(r"(?<![\w.-])((?:\.\./)*references/[\w./-]+\.md)")
 _LINK = re.compile(r"\]\((?:file://)?([^)\s#]+\.md)\)")
