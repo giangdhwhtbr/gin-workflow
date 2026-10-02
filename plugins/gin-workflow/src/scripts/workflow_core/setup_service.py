@@ -486,6 +486,18 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         except Exception:
             checks["review_ledgers"] = True
 
+    if checks["configuration"]:
+        from .rules_checks import rules_doctor
+
+        rules_detail = rules_doctor(root, resolve_effective_config(root, write=False).config.to_dict())
+        checks_details["rules"] = rules_detail
+        for item in rules_detail.get("tool_checks", []):
+            if item["status"] == "missing":
+                actions.append(f"rules: add {item['id']} for pack {item['pack']} (suggestion in checks_details.rules)")
+        for item in rules_detail.get("conflicts", []):
+            actions.append(f"rules: {item['file']} says '{item['project_conflict']}', pack {item['pack']} says "
+                           f"'{item['pack_says']}'; the project wins, record the divergence")
+
     healthy = all(checks.values())
     payload: dict[str, Any] = {
         "status": "healthy" if healthy else "issues_found",
@@ -695,17 +707,27 @@ def harness_override(
 def preset(repository: Path, *, project_stage: str | None = None, project_shape: str | None = None,
            rigor: str | None = None, provider_mode: str | None = None, monorepo: bool = False,
            stack_intent: str = "", **_: Any) -> dict[str, Any]:
-    detected = detect_project(Path(repository))
+    from .rules import load_plugin_packs, plugin_rules_dir
+    from .rules_checks import propose_packs, tool_check_report
+
+    root = Path(repository).resolve()
+    detected = detect_project(root)
+    plugin = load_plugin_packs(plugin_rules_dir())
+    rule_packs = propose_packs(root, plugin, stack_intent=stack_intent)
     try:
         assignments = preset_assignments(
             stage=project_stage or detected["stage"], shape=project_shape or detected["shape"],
             rigor=rigor or detected["suggested_rigor"], provider_mode=provider_mode or "single",
             monorepo=monorepo or detected["monorepo"], stack_intent=stack_intent,
-            verify_commands=detected["verify_commands"], packages=tuple(detected["packages"]))
+            verify_commands=detected["verify_commands"], packages=tuple(detected["packages"]),
+            rule_packs=rule_packs)
     except ValueError as error:
         raise SetupError(str(error)) from error
     missing = [key for key, value in detected["verify_commands"].items() if not value and key != "e2e"]
+    tool_checks = [item for item in tool_check_report(root, [plugin[name] for name in rule_packs])
+                   if item["status"] != "present"]
     return {"status": "proposed", "assignments": assignments, "detected": detected,
+            "rule_packs": rule_packs, "rule_tool_checks": tool_checks,
             "warnings": [f"no {key} command detected" for key in missing], "actions": []}
 
 

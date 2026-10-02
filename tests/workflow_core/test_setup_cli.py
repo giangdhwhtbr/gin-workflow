@@ -45,6 +45,22 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual("proposed", payload["status"])
             self.assertIn('project.rigor="easy"', payload["assignments"])
+            self.assertEqual(["core"], payload["rule_packs"])
+            self.assertIn('rules.packs=["core"]', payload["assignments"])
+            self.assertEqual([], payload["rule_tool_checks"])
+
+    def test_doctor_reports_rules_without_changing_health(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            (repository / "CLAUDE.md").write_text("Use default export for pages.\n", encoding="utf-8")
+            self.assertEqual(0, self.run_cli(repository, "configure", "--approve",
+                                             "--set", 'rules.packs=["core", "react"]').returncode)
+            payload = json.loads(self.run_cli(repository, "doctor", "--format", "json").stdout)
+            rules = payload["checks_details"]["rules"]
+            self.assertEqual(["core", "react", "typescript"], sorted(rules["packs"]))
+            self.assertEqual("react", rules["conflicts"][0]["pack"])
+            self.assertNotIn("rules", payload["checks"])
 
     def test_init_creates_documented_layout_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 STAGES = ("greenfield", "brownfield", "legacy")
 SHAPES = ("frontend", "backend", "fullstack", "library")
@@ -81,7 +81,8 @@ ROLES_BY_SHAPE = {
 
 def preset_assignments(*, stage: str, shape: str, rigor: str, provider_mode: str, monorepo: bool = False,
                        stack_intent: str = "", verify_commands: Mapping[str, str] | None = None,
-                       packages: tuple[Mapping[str, Any], ...] | list = ()) -> list[str]:
+                       packages: tuple[Mapping[str, Any], ...] | list = (),
+                       rule_packs: Sequence[str] = ()) -> list[str]:
     """Explicit `--set` assignments for setup; skills never infer presets at runtime."""
     if stage not in STAGES or shape not in SHAPES or rigor not in RIGORS or provider_mode not in ("single", "multi"):
         raise ValueError(f"invalid project preset: {stage=} {shape=} {rigor=} {provider_mode=}")
@@ -98,6 +99,8 @@ def preset_assignments(*, stage: str, shape: str, rigor: str, provider_mode: str
         values["project.stack_intent"] = stack_intent
     if packages:
         values["project.packages"] = [dict(package) for package in packages]
+    if rule_packs:
+        values["rules.packs"] = list(rule_packs)
     for key in VERIFY_KEYS:
         values[f"verify.checks.{key}"] = str((verify_commands or {}).get(key, ""))
     if provider_mode == "single":

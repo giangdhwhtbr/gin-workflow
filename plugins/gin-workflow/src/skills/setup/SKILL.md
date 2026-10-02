@@ -21,7 +21,7 @@ Optional: a model per tier for the current harness from `gin-workflow setup mode
 
 Then:
 1. `gin-workflow setup preset --project-stage S --project-shape X --rigor R --provider-mode M [--monorepo] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
-2. Run `init --dry-run` with the harness and every assignment. Present both `configuration` and `provider_configuration`, the exact files/actions, and any validation error. Do not write on dry-run.
+2. Run `init --dry-run` with the harness and every assignment. Present both `configuration` and `provider_configuration`, the proposed `rule_packs` (the user may add or remove packs as an extra `--set rules.packs=[...]`), each `rule_tool_checks` item with its `suggest` snippet (suggestions only; setup never edits lint or type configs), the exact files/actions, and any validation error. Do not write on dry-run.
 3. Obtain explicit native-harness approval for the complete two-layer proposal.
 4. Run one approved `init` with the same harness and same assignments. The CLI validates both layers before any atomic write.
 5. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
