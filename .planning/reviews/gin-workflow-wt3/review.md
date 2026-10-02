@@ -3,31 +3,31 @@
 **Bead Status:** `review-approved`
 
 ## Active Lease
-- **Lease ID:** `4ddbb24b57c741da875df1d10685e4ab`
+- **Lease ID:** `9245fcf147534f9e983eaa13c5b5d662`
 - **Actor:** `reviewer:antigravity:gemini-3.8-flash-high` (reviewer)
-- **Acquired:** `2026-10-02T04:12:15.526150Z`
-- **Expires:** `2026-10-02T04:22:15.526150Z`
-- **Ledger Revision:** `27`
+- **Acquired:** `2026-10-02T04:36:19.216272Z`
+- **Expires:** `2026-10-02T04:46:19.634668Z`
+- **Ledger Revision:** `35`
 
 ## Review Approval
 - **Status:** Approved
-- **Approval Event ID:** `EV-000027`
+- **Approval Event ID:** `EV-000035`
 - **Source Scope Hash:** `48dddb27d8fa8ab354e761700fe382ba54bc35453765c035327bf423ceab5fce`
 - **Approved Repositories:**
-  - `primary` (SHA: `1e88bb4`, Tree Hash: `888524f`)
+  - `primary` (SHA: `42e0800`, Tree Hash: `e0b4066`)
 
 ## Tracked Repositories
 ### Repository: `primary`
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-wt3`
 - **Base SHA:** `76fb6779b17b90f901979f680b6e1de370fb6614`
-- **Reviewed SHA:** `1e88bb43def5c322cfa3952921fa4b2518c1df2a`
+- **Reviewed SHA:** `42e0800ced38621b71e10557e656f30d1d707947`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-wt3`
-- **Checkpoint SHA:** `1e88bb43def5c322cfa3952921fa4b2518c1df2a`
+- **Checkpoint SHA:** `42e0800ced38621b71e10557e656f30d1d707947`
 - **Scope Hash:** `48dddb27d8fa8ab354e761700fe382ba54bc35453765c035327bf423ceab5fce`
-- **Tree Hash:** `888524f9f9961a543e95ef25e6732735bdbf80419fb175673c40486d65d848b4`
+- **Tree Hash:** `e0b4066bda9e8f989bbb80acb710c4bcdf9c748de8a7cfe82cb094d769b5d0a3`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -83,3 +83,11 @@
 | `EV-000025` | `2026-10-02T04:12:15.724182Z` | `finding-verified` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
 | `EV-000026` | `2026-10-02T04:12:16.029215Z` | `source-checkpoint-created` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
 | `EV-000027` | `2026-10-02T04:12:16.209477Z` | `review-approved` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
+| `EV-000028` | `2026-10-02T04:36:19.217154Z` | `lease-broken` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
+| `EV-000029` | `2026-10-02T04:36:19.240724Z` | `lease-acquired` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
+| `EV-000030` | `2026-10-02T04:36:19.383330Z` | `review-approval-invalidated` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
+| `EV-000031` | `2026-10-02T04:36:19.504781Z` | `review-requested` | `claude` (worker) |
+| `EV-000032` | `2026-10-02T04:36:19.635520Z` | `lease-renewed` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
+| `EV-000033` | `2026-10-02T04:36:19.656999Z` | `review-started` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
+| `EV-000034` | `2026-10-02T04:36:19.983197Z` | `source-checkpoint-created` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
+| `EV-000035` | `2026-10-02T04:36:20.157136Z` | `review-approved` | `reviewer:antigravity:gemini-3.8-flash-high` (reviewer) |
