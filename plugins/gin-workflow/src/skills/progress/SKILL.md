@@ -3,7 +3,7 @@ name: progress
 description: Report Beads task status, blockers, open waivers, and next ready work without mutating anything.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Progress
 

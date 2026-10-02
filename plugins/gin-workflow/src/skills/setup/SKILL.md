@@ -20,7 +20,7 @@ completes.
 ## First-time execution
 
 1. Detect the repository and harness, then run the questionnaire below. Ask exactly one question group at a time and wait for its answer before continuing.
-2. Convert portable answers to repeatable `--set` assignments and executable/model answers to repeatable `--provider-set` assignments.
+2. Convert portable answers to repeatable `--set` assignments and executable/model answers to repeatable `--provider-set` assignments (CLI: `gin-workflow setup <subcommand>`). Portable policy is written to `.agent-workflow/config.yaml`; executable/model aliases go to the gitignored `.agent-workflow/providers.local.yaml`.
 3. Run `init --dry-run` with the selected harness and every assignment.
 4. Present both `configuration` and `provider_configuration`, the exact files/actions, and any validation error. Do not write on dry-run.
 5. Obtain explicit native-harness approval for the complete two-layer proposal.

@@ -3,7 +3,7 @@ name: workflow
 description: Route current durable state to exactly one guarded lifecycle stage, or diagnose a held workflow.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Workflow
 

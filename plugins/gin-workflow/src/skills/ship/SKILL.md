@@ -3,7 +3,7 @@ name: ship
 description: Present integration options for verified work, run the approved one, and close out beads and ledgers.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Ship
 

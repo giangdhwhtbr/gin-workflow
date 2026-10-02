@@ -418,6 +418,11 @@ install_plugin() {
   fi
 
   local dist_dir="$p_dir/dist"
+  # dist/ is fully generated: rebuild each selected platform from scratch so files
+  # removed from src (commands, skills) never linger and shadow same-name skills.
+  if matches_platform "claude"; then rm -rf "${dist_dir:?}/claude-code"; fi
+  if matches_platform "antigravity"; then rm -rf "${dist_dir:?}/antigravity"; fi
+  if matches_platform "codex"; then rm -rf "${dist_dir:?}/codex"; fi
   mkdir -p "$dist_dir/claude-code/.claude-plugin"
   mkdir -p "$dist_dir/antigravity"
   mkdir -p "$dist_dir/codex/.codex-plugin"

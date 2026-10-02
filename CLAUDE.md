@@ -10,7 +10,7 @@ This file is intentionally short. Use it as a pointer layer, not as a second wor
 - `docs/agent-task-lifecycle.md`: canonical agent lifecycle
 - `docs/orchestration-state-model.md`: canonical state ownership model
 - `docs/verification-and-handoff-workflow.md`: canonical verification and handoff checklist
-- `plugins/gin-workflow/src/commands/*.md` and `plugins/gin-workflow/src/skills/**/*.md`: actionable workflow behavior
+- `plugins/gin-workflow/src/skills/**/*.md`: actionable workflow behavior (each skill is also its `/gin-workflow:<name>` slash command)
 
 ## Response Language
 

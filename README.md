@@ -292,7 +292,6 @@ gin-workflow/
 │       ├── plugin.meta.json  # Metadata
 │       └── src/
 │           ├── agents/       # researcher, reviewer, mapper
-│           ├── commands/     # workflow commands
 │           ├── hooks/        # Pre/Post tool hooks
 │           ├── scripts/      # helper scripts
 │           └── skills/       # workflow and retained support skills

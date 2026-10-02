@@ -366,17 +366,22 @@ function Install-Plugin {
     }
 
     $distDirectory = Join-Path $pluginDirectory 'dist'
+    # dist/ is fully generated: rebuild each selected platform from scratch so files
+    # removed from src (commands, skills) never linger and shadow same-name skills.
     if (Test-Platform 'claude') {
         $target = Join-Path $distDirectory 'claude-code'
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
         Install-PlatformLayout -Harness claude -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${CLAUDE_PLUGIN_ROOT}' -ManifestPath (Join-Path $target '.claude-plugin/plugin.json')
     }
     if (Test-Platform 'antigravity') {
         $target = Join-Path $distDirectory 'antigravity'
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
         $installedRoot = Join-Path $UserHome ".gemini/config/plugins/$Name"
         Install-PlatformLayout -Harness antigravity -PluginDirectory $pluginDirectory -Destination $target -HooksRoot $installedRoot -ManifestPath (Join-Path $target 'plugin.json')
     }
     if (Test-Platform 'codex') {
         $target = Join-Path $distDirectory 'codex'
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
         Install-PlatformLayout -Harness codex -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath (Join-Path $target '.codex-plugin/plugin.json')
     }
 

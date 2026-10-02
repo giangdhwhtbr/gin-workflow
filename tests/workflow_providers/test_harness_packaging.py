@@ -37,8 +37,6 @@ REQUIRED_USE_CASE_SECTIONS = (
 )
 
 REQUIRED_ARTIFACTS = (
-    "commands/setup.md",
-    "commands/workflow.md",
     "skills/setup/SKILL.md",
     "skills/workflow/SKILL.md",
     "skills/discuss/SKILL.md",
@@ -159,7 +157,7 @@ class HarnessPackagingTests(unittest.TestCase):
             "plugins/gin-workflow/dist/codex/plugin.json",
         )
         tracked = (
-            "plugins/gin-workflow/src/commands/setup.md",
+            "plugins/gin-workflow/src/skills/setup/SKILL.md",
             ".claude-plugin/marketplace.json",
             ".agent-workflow/config.yaml",
             "docs/setup-system.md",

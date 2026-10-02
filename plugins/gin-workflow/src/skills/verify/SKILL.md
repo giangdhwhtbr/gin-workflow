@@ -3,7 +3,7 @@ name: verify
 description: Verify completed work against requirement, plan, and review evidence with fresh command output.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Verify
 

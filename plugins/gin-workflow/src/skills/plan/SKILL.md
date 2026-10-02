@@ -3,7 +3,7 @@ name: plan
 description: Turn a confirmed requirement into a durable, Beads-ready implementation plan with routed tracks.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Plan
 

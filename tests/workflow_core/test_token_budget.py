@@ -78,13 +78,19 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertLessEqual(stage_chars(SRC, stage), 12_000)
 
     def test_commands_agents_and_shared_skills_within_budget(self):
-        limits = [("commands/*.md", 1_200), ("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000)]
+        limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000)]
         for pattern, limit in limits:
             paths = sorted(SRC.glob(pattern))
             self.assertTrue(paths, pattern)
             for path in paths:
                 with self.subTest(path=path.name):
                     self.assertLessEqual(len(path.read_text(encoding="utf-8")), limit)
+
+    def test_no_command_shadows_a_same_name_skill(self):
+        # Claude Code resolves /gin-workflow:<name> to a same-name command, so the skill never loads.
+        for path in SRC.glob("commands/*.md"):
+            with self.subTest(command=path.name):
+                self.assertFalse((SRC / "skills" / path.stem / "SKILL.md").is_file())
 
     def test_descriptions_within_budget(self):
         self.assertLessEqual(description_chars(SRC), 4_000)

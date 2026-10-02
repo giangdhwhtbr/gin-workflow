@@ -3,7 +3,7 @@ name: discuss
 description: Clarify a requirement into a confirmed design spec before any planning, tasks, or code.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Discuss
 

@@ -70,8 +70,6 @@ assert_workflow_v22_layout() {
   local root="$1"
   local relative
   local required=(
-    "commands/setup.md"
-    "commands/workflow.md"
     "skills/setup/SKILL.md"
     "skills/workflow/SKILL.md"
     "skills/discuss/SKILL.md"
@@ -129,6 +127,10 @@ rm -rf plugins/gin-workflow-advanced/dist
 output_file="$(mktemp)"
 trap 'rm -f "$output_file"' EXIT
 
+# Seed leftovers from an older build; the installer must rebuild dist from scratch.
+mkdir -p plugins/gin-workflow/dist/claude-code/commands plugins/gin-workflow/dist/claude-code/skills/writing-plans
+touch plugins/gin-workflow/dist/claude-code/commands/stale-from-old-build.md plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md
+
 ./install.sh --platform claude --dry-run >"$output_file"
 
 assert_contains "$output_file" "Processing plugin: gin-workflow"
@@ -137,7 +139,7 @@ assert_contains "$output_file" "would install global Claude Code plugin to"
 assert_contains "$output_file" "would install gin-workflow launcher version 2.3 to"
 assert_contains "$output_file" "would link gin-workflow launcher on PATH at"
 
-assert_exists "plugins/gin-workflow/dist/claude-code/commands/tech-doc.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/full-stack-developer.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/qa-agent.md"
@@ -150,25 +152,27 @@ assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-worktrees/SKILL.
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-parallel-agents/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-knowledge/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/review/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/claude-code/commands/review.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/verification-and-handoff-workflow.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/orchestration-state-model.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/scripts/gin-workflow"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/claude-code"
 
-assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/quick.md"
-assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/new-project.md"
-assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/map-codebase.md"
+# Skills are the slash commands; a same-name command would shadow its skill (gin-workflow-04f).
+assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/stale-from-old-build.md"
+assert_not_exists "plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md"
+if [ -d "plugins/gin-workflow/dist/claude-code/commands" ] && [ -n "$(ls -A plugins/gin-workflow/dist/claude-code/commands)" ]; then
+  echo "Expected no commands in dist/claude-code (they shadow same-name skills)" >&2
+  exit 1
+fi
 assert_not_exists "plugins/gin-workflow-advanced"
 
-assert_contains "plugins/gin-workflow/dist/claude-code/commands/plan.md" "durable, git-tracked plan"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/plan/SKILL.md" "Beads-ready implementation plan"
 for skill_file in plugins/gin-workflow/dist/claude-code/skills/*/SKILL.md; do
   assert_not_contains "$skill_file" 'superpowers'
 done
 
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verify/SKILL.md' 'Follow references/stage-contract.md.'
-assert_contains 'plugins/gin-workflow/dist/claude-code/commands/verify.md' 'Use the `verify` skill.'
-assert_contains 'plugins/gin-workflow/dist/claude-code/commands/orchestrate.md' 'Use the `orchestrate` skill.'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verify/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "codegraph"
@@ -185,14 +189,13 @@ assert_exists "plugins/gin-workflow/dist/codex/agents/bead-worker.md"
 assert_exists "plugins/gin-workflow/dist/codex/references/verification-and-handoff-workflow.md"
 assert_exists "plugins/gin-workflow/dist/codex/references/orchestration-state-model.md"
 assert_exists "plugins/gin-workflow/dist/codex/skills/review/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/codex/commands/review.md"
 assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"name\": \"gin-workflow\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
-assert_contains 'plugins/gin-workflow/dist/codex/skills/verify/SKILL.md' 'Follow references/stage-contract.md.'
-assert_contains 'plugins/gin-workflow/dist/codex/commands/orchestrate.md' 'Use the `orchestrate` skill.'
+assert_contains 'plugins/gin-workflow/dist/codex/skills/verify/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
+assert_contains 'plugins/gin-workflow/dist/codex/skills/orchestrate/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "codegraph"
@@ -216,7 +219,7 @@ echo '{"enabledPlugins": {"gin-workflow@skills-dir": false}}' > "$MOCK_HOME/.cla
 
 HOME="$MOCK_HOME" ./install.sh --platform claude >/dev/null
 
-assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/commands/tech-doc.md"
+assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/skills/tech-doc/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/bead-worker.md"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-workflow@skills-dir": true'
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.3/gin-workflow"

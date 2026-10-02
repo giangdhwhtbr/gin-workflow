@@ -3,7 +3,7 @@ name: execute
 description: Implement and validate exactly one ready Beads work unit, directly or through a routed worker.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Execute
 

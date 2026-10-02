@@ -3,7 +3,7 @@ name: review
 description: Request or perform an independent bead review recorded in the review ledger, with bounded cycles.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Review
 

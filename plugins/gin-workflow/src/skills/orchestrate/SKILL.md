@@ -3,7 +3,7 @@ name: orchestrate
 description: Mirror one approved plan into Beads tracks, resolve routes, and prepare an isolated workspace.
 ---
 
-Follow references/stage-contract.md.
+Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
 
 # Orchestrate
 
