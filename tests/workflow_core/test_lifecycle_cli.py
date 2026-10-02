@@ -305,6 +305,29 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual("satisfied", gates["verification_passed"])
         self.assertEqual("satisfied", gates["shipped"])
 
+    def test_standalone_bead_is_its_own_epic_and_records_shipped_after_merge(self):
+        from unittest.mock import patch
+
+        self._record_orchestration(epic="bug-1")
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([], epic_status="open")):
+            self.assertEqual("unmet", self._state_gates()["implementation_complete"])
+        closed = self._fake_beads([], epic_status="closed")
+        with patch("workflow_core.lifecycle_cli._beads_json", closed):
+            gates = self._state_gates()
+            self.assertEqual(("satisfied", "unmet"), (gates["implementation_complete"], gates["shipped"]))
+            self.assertEqual(0, cli_main(["record", "shipped", "--repository", str(self.repo_path),
+                                          "--evidence", "merged abc123 into master", "--actor", "user"]))
+            self.assertEqual("satisfied", self._state_gates()["shipped"])
+
+    def test_record_shipped_is_refused_for_epics_with_children_or_without_epic(self):
+        from unittest.mock import patch
+
+        shipped = ["record", "shipped", "--repository", str(self.repo_path), "--evidence", "merge", "--actor", "user"]
+        self.assertEqual(2, cli_main(shipped))
+        self._record_orchestration()
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"], epic_status="closed")):
+            self.assertEqual(2, cli_main(shipped))
+
     def test_record_rejects_epic_on_other_gates(self):
         self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
                                       "--evidence", "plan.md", "--actor", "user", "--epic", "epic"]))

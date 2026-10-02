@@ -105,7 +105,10 @@ def _delivery_gate_state(
     repo_path: Path, event_store: WorkflowEventStore, workflow_id: str
 ) -> dict[str, bool]:
     """Derive delivery gates: implementation from closed epic children, verification from
-    its recorded event, shipped from the closed epic (closed only after a confirmed merge)."""
+    its recorded event, shipped from the closed epic (closed only after a confirmed merge).
+
+    A standalone bead recorded as its own epic has no children: implementation is the bead
+    itself closed, and shipped comes from an explicit `record shipped` after the merge."""
     gates = {
         "implementation_complete": False,
         "verification_passed": any(
@@ -118,14 +121,25 @@ def _delivery_gate_state(
     if not epic:
         return gates
     children = _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
+    if children == []:
+        gates["implementation_complete"] = _bead_closed(repo_path, epic)
+        gates["shipped"] = gates["implementation_complete"] and any(
+            event.workflow_id == workflow_id and event.event_type == "delivery.shipped"
+            for event in event_store.read_all()
+        )
+        return gates
     if isinstance(children, list) and children and all(
         isinstance(child, Mapping) and child.get("status") == "closed" for child in children
     ):
         gates["implementation_complete"] = True
-        shown = _beads_json(repo_path, ["show", epic])
-        record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
-        gates["shipped"] = isinstance(record, Mapping) and record.get("status") == "closed"
+        gates["shipped"] = _bead_closed(repo_path, epic)
     return gates
+
+
+def _bead_closed(repo_path: Path, bead_id: str) -> bool:
+    shown = _beads_json(repo_path, ["show", bead_id])
+    record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
+    return isinstance(record, Mapping) and record.get("status") == "closed"
 
 
 _RECORDABLE_GATES = {
@@ -134,6 +148,7 @@ _RECORDABLE_GATES = {
     "orchestration-ready": ("orchestration.ready", {}),
     "verification-passed": ("verification.passed", {}),
     "quick-completed": ("quick.completed", {}),
+    "shipped": ("delivery.shipped", {}),
 }
 
 
@@ -142,6 +157,11 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
     store = _get_event_store(Path(args.repository).resolve())
+    if args.gate == "shipped":
+        epic = _recorded_epic(store, args.workflow_id)
+        if not epic or _beads_json(Path(args.repository).resolve(), ["list", "--parent", epic, "--all", "--limit", "0"]) != []:
+            return {"status": "error", "message": "shipped is recordable only for a standalone bead recorded as its own "
+                    "epic (orchestration-ready --epic <bead>); an epic with children ships by closing it"}, 2
     payload = {**base_payload, "evidence": args.evidence}
     if args.epic:
         payload["epic"] = args.epic

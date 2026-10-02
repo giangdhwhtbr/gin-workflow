@@ -7,9 +7,10 @@ If `.agent-workflow/generated/effective-config.yaml` is missing, stop and tell t
 
 ## State and gates
 - Read: `gin-workflow state --format json [--workflow-id ID]`
-- Record: `gin-workflow record <requirement-confirmed|plan-approved|orchestration-ready|verification-passed> --evidence <path|ids|output> --actor <id> [--workflow-id ID]` (`orchestration-ready` also takes `--epic <parent-bead>`)
+- Record: `gin-workflow record <requirement-confirmed|plan-approved|orchestration-ready|verification-passed|shipped> --evidence <path|ids|output> --actor <id> [--workflow-id ID]` (`orchestration-ready` also takes `--epic <parent-bead>`)
 - Waive: `gin-workflow unblock --gate GATE --reason TEXT --actor ID [--follow-up TASK_ID]`
-`implementation_complete` is derived: every child of the recorded epic is closed in Beads. `shipped` is derived: the epic itself is closed. Neither can be recorded or waived.
+`implementation_complete` is derived: every child of the recorded epic is closed in Beads. `shipped` is derived: the epic itself is closed. Neither can be waived.
+Standalone bead (no plan): `record orchestration-ready --epic <bead>` makes the bead its own epic; `implementation_complete` is then the bead closed, and `record shipped --evidence <merge>` marks it shipped after the merge.
 
 ## Evidence
 Valid: test/command output, review-ledger state, bead IDs, spec/plan paths. Never: self-assessment, summaries, or notification delivery.
