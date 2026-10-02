@@ -9,7 +9,7 @@ from types import MappingProxyType
 from typing import Any
 
 from .configuration import require_yaml
-from .schemas import SUPPORTED_SCHEMA_VERSION
+from .schemas import SUPPORTED_CONFIG_VERSIONS
 
 
 REASONING_TIERS = ("low", "medium", "high")
@@ -85,9 +85,9 @@ def validate_provider_local_config(value: Mapping[str, Any]) -> None:
         raise ProviderLocalConfigError(
             f"unsupported provider local fields: {', '.join(sorted(unknown_root))}"
         )
-    if str(value.get("schema_version", "")) != SUPPORTED_SCHEMA_VERSION:
+    if str(value.get("schema_version", "")) not in SUPPORTED_CONFIG_VERSIONS:
         raise ProviderLocalConfigError(
-            f"provider local schema_version must be {SUPPORTED_SCHEMA_VERSION!r}"
+            f"provider local schema_version must be one of {SUPPORTED_CONFIG_VERSIONS!r}"
         )
     providers = value.get("providers")
     if not isinstance(providers, Mapping) or not providers:

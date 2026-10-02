@@ -7,14 +7,19 @@ from typing import Any, Mapping
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.3"
+SUPPORTED_SCHEMA_VERSION = "2.4"
+SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4")
+
+_SHAPES = ["frontend", "backend", "fullstack", "library"]
+_CHECKS = {"type": "object", "propertyNames": {"enum": ["lint", "typecheck", "test", "build", "e2e"]},
+           "additionalProperties": {"type": "string"}}
 
 CONFIG_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "required": ["schema_version"],
     "properties": {
-        "schema_version": {"const": SUPPORTED_SCHEMA_VERSION},
+        "schema_version": {"enum": list(SUPPORTED_CONFIG_VERSIONS)},
         "workflow_version": {"type": "string"},
         "setup_cli_version": {"type": "string"},
         "artifacts": {
@@ -88,10 +93,49 @@ CONFIG_SCHEMA: dict[str, Any] = {
                         "require_independent": {"type": "boolean"},
                         "allow_self_review_fallback": {"type": "boolean"},
                         "max_cycles": {"type": "integer", "minimum": 1},
+                        "independence": {"enum": ["provider", "session"]},
                     },
                     "additionalProperties": False,
                 },
             },
+            "additionalProperties": False,
+        },
+        "project": {
+            "type": "object",
+            "properties": {
+                "stage": {"enum": ["greenfield", "brownfield", "legacy"]},
+                "shape": {"enum": _SHAPES},
+                "monorepo": {"type": "boolean"},
+                "rigor": {"enum": ["easy", "standard", "strict"]},
+                "stack_intent": {"type": "string"},
+                "worktree": {"enum": ["never", "parallel", "always"]},
+                "review": {"enum": ["self_check", "independent"]},
+                "review_ledger": {"type": "boolean"},
+                "packages": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["path", "shape"],
+                        "properties": {
+                            "path": {"type": "string", "minLength": 1},
+                            "shape": {"enum": _SHAPES},
+                            "verify": {
+                                "type": "object",
+                                "properties": {"checks": _CHECKS},
+                                "additionalProperties": False,
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "additionalProperties": False,
+        },
+        "provider_mode": {"enum": ["single", "multi"]},
+        "verify": {"type": "object", "properties": {"checks": _CHECKS}, "additionalProperties": False},
+        "quick": {
+            "type": "object",
+            "properties": {"max_files": {"type": "integer", "minimum": 1}},
             "additionalProperties": False,
         },
     },
@@ -103,7 +147,7 @@ CONFIG_PROVENANCE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["schema_version", "fields"],
     "properties": {
-        "schema_version": {"const": SUPPORTED_SCHEMA_VERSION},
+        "schema_version": {"enum": list(SUPPORTED_CONFIG_VERSIONS)},
         "fields": {
             "type": "object",
             "additionalProperties": {"type": "string", "minLength": 1},
@@ -135,7 +179,7 @@ CONTEXT_MANIFEST_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["schema_version", "stage", "categories"],
     "properties": {
-        "schema_version": {"const": SUPPORTED_SCHEMA_VERSION},
+        "schema_version": {"enum": list(SUPPORTED_CONFIG_VERSIONS)},
         "stage": {"type": "string", "minLength": 1},
         "categories": {
             "type": "object",

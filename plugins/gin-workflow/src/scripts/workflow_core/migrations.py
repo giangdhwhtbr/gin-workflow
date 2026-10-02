@@ -12,7 +12,7 @@ from .atomic import atomic_write_many, atomic_write_bytes
 from .configuration import require_yaml, validate_portable_config
 
 
-CURRENT_VERSION = "2.3"
+CURRENT_VERSION = "2.4"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -58,11 +58,21 @@ def _migrate_2_2_to_2_3(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_2_3_to_2_4(config: dict[str, Any]) -> dict[str, Any]:
+    migrated = dict(config)
+    migrated["schema_version"] = "2.4"
+    migrated["workflow_version"] = "2.4"
+    migrated["setup_cli_version"] = "2.4"
+    return migrated
+
+
 _MIGRATIONS = {
     ("2.0", "2.1"): _migrate_2_0_to_2_1,
     ("2.1", "2.2"): _migrate_2_1_to_2_2,
     ("2.2", "2.3"): _migrate_2_2_to_2_3,
+    ("2.3", "2.4"): _migrate_2_3_to_2_4,
 }
+_NEXT_STEP = {source: target for source, target in _MIGRATIONS}
 
 
 _MIGRATION_TARGET_VERSIONS = frozenset(target for _, target in _MIGRATIONS)
@@ -73,19 +83,26 @@ def _require_migration_target(target_version: str) -> None:
         raise MigrationError(f"unsupported migration target: {target_version!r}")
 
 
+def _migration_path(source_version: str, target_version: str) -> list[tuple[str, str]]:
+    path: list[tuple[str, str]] = []
+    current = source_version
+    while current != target_version:
+        step = _NEXT_STEP.get(current)
+        if step is None:
+            raise MigrationError(
+                f"no migration is registered from {source_version!r} to {target_version!r}"
+            )
+        path.append((current, step))
+        current = step
+    return path
+
+
 def migrate_config(config: Mapping[str, Any], target_version: str) -> dict[str, Any]:
     _require_migration_target(target_version)
     source_version = str(config.get("schema_version", ""))
-    if source_version == target_version:
-        migrated = dict(config)
-    else:
-        try:
-            migration = _MIGRATIONS[(source_version, target_version)]
-        except KeyError as error:
-            raise MigrationError(
-                f"no migration is registered from {source_version!r} to {target_version!r}"
-            ) from error
-        migrated = migration(dict(config))
+    migrated = dict(config)
+    for step in _migration_path(source_version, target_version):
+        migrated = _MIGRATIONS[step](migrated)
     for field_name in ("schema_version", "workflow_version", "setup_cli_version"):
         if str(migrated.get(field_name, "")) != target_version:
             raise MigrationError(f"migration did not produce {field_name}={target_version!r}")
@@ -111,10 +128,7 @@ def propose_migration(repository: Path, *, target_version: str = CURRENT_VERSION
             "to_version": target_version,
             "actions": [],
         }
-    if (source_version, target_version) not in _MIGRATIONS:
-        raise MigrationError(
-            f"no migration is registered from {source_version!r} to {target_version!r}"
-        )
+    _migration_path(source_version, target_version)
     return {
         "status": "migration_available",
         "from_version": source_version,

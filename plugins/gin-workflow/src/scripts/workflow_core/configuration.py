@@ -16,15 +16,15 @@ from .models import (
     ResolvedConfig,
     thaw,
 )
-from .schemas import SUPPORTED_SCHEMA_VERSION, validate_config_schema
+from .schemas import SUPPORTED_CONFIG_VERSIONS, SUPPORTED_SCHEMA_VERSION, validate_config_schema
 
 
 class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.3"
-SUPPORTED_SETUP_CLI_VERSION = "2.3"
+SUPPORTED_WORKFLOW_VERSION = "2.4"
+SUPPORTED_SETUP_CLI_VERSION = "2.4"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {
@@ -183,18 +183,15 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
         raise
     except ValueError as error:
         raise ConfigValidationError(str(error)) from error
-    if str(config.get("schema_version", "")) != SUPPORTED_SCHEMA_VERSION:
+    if str(config.get("schema_version", "")) not in SUPPORTED_CONFIG_VERSIONS:
         raise ConfigValidationError(
             f"unsupported schema_version {config.get('schema_version')!r}; "
-            f"expected {SUPPORTED_SCHEMA_VERSION!r}"
+            f"expected one of {SUPPORTED_CONFIG_VERSIONS!r}"
         )
-    for field, supported in (
-        ("workflow_version", SUPPORTED_WORKFLOW_VERSION),
-        ("setup_cli_version", SUPPORTED_SETUP_CLI_VERSION),
-    ):
-        if field in config and str(config[field]) != supported:
+    for field in ("workflow_version", "setup_cli_version"):
+        if field in config and str(config[field]) not in SUPPORTED_CONFIG_VERSIONS:
             raise ConfigValidationError(
-                f"unsupported {field} {config[field]!r}; expected {supported!r}"
+                f"unsupported {field} {config[field]!r}; expected one of {SUPPORTED_CONFIG_VERSIONS!r}"
             )
     routing = config.get("routing", {})
     if isinstance(routing, Mapping):
