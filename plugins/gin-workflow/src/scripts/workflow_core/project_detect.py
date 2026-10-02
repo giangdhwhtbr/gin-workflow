@@ -71,6 +71,11 @@ def _js_package(directory: Path, pm: str) -> tuple[str | None, dict[str, str], l
     return shape, commands, stack
 
 
+def _mentions(text: str, name: str) -> bool:
+    """`name` as a whole package token: `ruff` matches `[tool.ruff]`, not `trufflehog` or `ruff-lsp`."""
+    return re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text) is not None
+
+
 def _py_package(root: Path, pm: str) -> tuple[str | None, dict[str, str], list[str]]:
     text = ""
     for name in ("pyproject.toml", "requirements.txt"):
@@ -78,15 +83,15 @@ def _py_package(root: Path, pm: str) -> tuple[str | None, dict[str, str], list[s
             text += (root / name).read_text(encoding="utf-8", errors="replace").lower()
     if not text:
         return None, _empty_commands(), []
-    found = sorted(dep for dep in BACKEND_PY if re.search(rf"\b{dep}\b", text))
+    found = sorted(dep for dep in BACKEND_PY if _mentions(text, dep))
     shape = "backend" if found else ("library" if "[project]" in text else None)
     prefix = RUN_PREFIX[pm]
     commands = _empty_commands()
-    if "ruff" in text:
+    if _mentions(text, "ruff"):
         commands["lint"] = f"{prefix}ruff check ."
-    if "mypy" in text:
+    if _mentions(text, "mypy"):
         commands["typecheck"] = f"{prefix}mypy ."
-    if "pytest" in text:
+    if _mentions(text, "pytest"):
         commands["test"] = f"{prefix}pytest"
     return shape, commands, found
 
@@ -102,6 +107,29 @@ def _workspace_globs(root: Path) -> list[str]:
     if isinstance(workspaces, list):
         globs += [str(item) for item in workspaces]
     return globs
+
+
+def _workspace_dirs(root: Path, globs: list[str]) -> list[Path]:
+    """Workspace package directories: `!` patterns exclude, dependency/VCS dirs never count."""
+    def matches(pattern: str) -> set[Path]:
+        try:
+            return {path for path in root.glob(pattern.rstrip("/")) if path.is_dir()}
+        except ValueError:
+            return set()
+
+    included: set[Path] = set()
+    excluded: set[Path] = set()
+    for pattern in globs:
+        if pattern.startswith("!"):
+            excluded |= matches(pattern[1:])
+        else:
+            included |= matches(pattern)
+    return sorted(
+        path for path in included
+        if (path / "package.json").is_file()
+        and not any(part in SKIP_DIRS for part in path.relative_to(root).parts)
+        and not any(path == ex or ex in path.parents for ex in excluded)
+    )
 
 
 def _combine(shapes: list[str]) -> str:
@@ -129,8 +157,13 @@ def _codegraph(root: Path, which: Callable[[str], str | None]) -> dict[str, bool
     stale = False
     if indexed:
         newest = max((p.stat().st_mtime for p in index.rglob("*") if p.is_file()), default=0.0)
-        head = subprocess.run(["git", "log", "-1", "--format=%ct"], cwd=root, capture_output=True, text=True, check=False)
-        stale = head.returncode == 0 and head.stdout.strip().isdigit() and newest < int(head.stdout.strip())
+        try:
+            head = subprocess.run(["git", "log", "-1", "--format=%ct"], cwd=root, capture_output=True, text=True,
+                                  check=False)
+        except OSError:
+            head = None
+        stale = (head is not None and head.returncode == 0 and head.stdout.strip().isdigit()
+                 and newest < int(head.stdout.strip()))
     return {"installed": which("codegraph") is not None, "indexed": indexed, "stale": stale}
 
 
@@ -155,12 +188,11 @@ def detect_project(root: Path, *, which: Callable[[str], str | None] = shutil.wh
     globs = _workspace_globs(root)
     monorepo = bool(globs) or (root / "turbo.json").is_file() or (root / "nx.json").is_file()
     if monorepo and pm in EXEC_PREFIX:
-        for pattern in globs:
-            for directory in sorted(p for p in root.glob(pattern) if (p / "package.json").is_file()):
-                package_shape, package_commands, _ = _js_package(directory, pm)
-                packages.append({"path": directory.relative_to(root).as_posix(),
-                                 "shape": package_shape or "library",
-                                 "verify": {"checks": package_commands}})
+        for directory in _workspace_dirs(root, globs):
+            package_shape, package_commands, _ = _js_package(directory, pm)
+            packages.append({"path": directory.relative_to(root).as_posix(),
+                             "shape": package_shape or "library",
+                             "verify": {"checks": package_commands}})
         if packages:
             shape = _combine([p["shape"] for p in packages])
     stage = "greenfield" if not manifests and _source_count(root) < 5 else "brownfield"
