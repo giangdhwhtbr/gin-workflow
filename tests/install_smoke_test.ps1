@@ -69,9 +69,9 @@ try {
     $project = Join-Path $TestRoot 'project'
     New-Item -ItemType Directory -Path $project | Out-Null
     Invoke-Installer @{ Platform = 'all'; Project = $project } | Out-Null
-    Assert-Exists (Join-Path $project '.claude/commands/setup.md')
-    Assert-Exists (Join-Path $project '.agents/commands/setup.md')
-    Assert-Exists (Join-Path $project '.codex/commands/setup.md')
+    Assert-Exists (Join-Path $project '.claude/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $project '.agents/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.3/workflow_core/cli.py')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
@@ -91,8 +91,8 @@ try {
                 ([Convert]::ToBase64String($snapshot.Value) -eq [Convert]::ToBase64String($sourceAfter)) `
                 "Linked Claude installation modified source agent $($snapshot.Key)"
         }
-        $linkedCommand = Get-Item -LiteralPath (Join-Path $linkProject '.claude/commands/setup.md')
-        Assert-True ($null -ne $linkedCommand.LinkType) 'Linked installation copied a non-templated command instead of linking it'
+        $linkedSkill = Get-Item -LiteralPath (Join-Path $linkProject '.claude/skills/setup')
+        Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
         $linkedAgent = Join-Path $linkProject '.claude/agents/solution-architect.md'
         Assert-True ($null -eq (Get-Item -LiteralPath $linkedAgent).LinkType) 'Templated Claude agent remained a source symlink'
         $linkedContent = [IO.File]::ReadAllText($linkedAgent)
@@ -212,7 +212,7 @@ try {
     Assert-True `
         ([Convert]::ToBase64String($shimBeforeUninstall) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($shim))) `
         'Uninstall modified the user launcher shim'
-    Assert-Exists (Join-Path $project '.codex/commands/setup.md')
+    Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
 
     Write-Host 'PowerShell installer smoke tests passed.'
 }
