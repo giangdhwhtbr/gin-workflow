@@ -554,7 +554,8 @@ def _mutate_ledger_unlocked(
     if not bypass_lease and action not in (
         "lease-acquired", "lease-broken", "lease-resynced", "recovery-performed"
     ):
-        if proj.active_lease:
+        # An expired lease no longer blocks other writers; presenting it is still refused.
+        if proj.active_lease and (lease_id or is_lease_active(proj.active_lease, now)):
             if not lease_id:
                 raise ValueError("Active lease exists, but no --lease-id was provided.")
             validate_lease_for_write(proj, lease_id, now)

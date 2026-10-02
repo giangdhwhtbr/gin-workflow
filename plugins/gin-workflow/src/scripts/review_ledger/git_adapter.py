@@ -228,6 +228,43 @@ def _resolve_commit(repo_path: str, ref: str) -> str:
     return _run_git(repo_path, "rev-parse", "--verify", f"{ref}^{{commit}}").decode().strip()
 
 
+def _snapshot_tree(root: str, canonical_scope: Mapping[str, Any]) -> str:
+    """Write the in-scope working tree (HEAD plus tracked and untracked changes) as a tree object.
+
+    Uses a temporary index, so HEAD, the branch, and the real index are untouched.
+    """
+    fd, temporary_index = tempfile.mkstemp(prefix="gin-review-index-")
+    os.close(fd)
+    os.unlink(temporary_index)
+    env = os.environ.copy()
+    env["GIT_INDEX_FILE"] = temporary_index
+    try:
+        _run_git(root, "read-tree", _resolve_commit(root, "HEAD"), env=env)
+        _remove_filtered_entries(root, canonical_scope, index_file=temporary_index, env=env)
+        snapshot_paths = sorted(
+            {
+                path
+                for _status, path in get_git_status_files(root)
+                if is_path_in_scope(path, canonical_scope)
+            }
+        )
+        if snapshot_paths:
+            _run_git(root, "add", "-A", "--", *snapshot_paths, env=env)
+        return _run_git(root, "write-tree", env=env).decode().strip()
+    finally:
+        try:
+            os.unlink(temporary_index)
+        except FileNotFoundError:
+            pass
+
+
+def compute_working_source_tree_hash(repository_id: str, repo_path: str, scope: Mapping[str, Any]) -> str:
+    """Source tree hash of the current working tree, computed exactly as a checkpoint computes it."""
+    root = str(_repository_root(repo_path))
+    canonical_scope = canonicalize_scope(scope)
+    return compute_tree_hash_for_commit(repository_id, root, canonical_scope, _snapshot_tree(root, canonical_scope))
+
+
 def create_source_checkpoint(
     repo_path: str,
     scope: Mapping[str, Any],
@@ -253,45 +290,16 @@ def create_source_checkpoint(
     )
     before_cached = _run_git(root, "diff", "--cached", "--binary")
 
-    fd, temporary_index = tempfile.mkstemp(prefix="gin-review-index-")
-    os.close(fd)
-    os.unlink(temporary_index)
-    env = os.environ.copy()
-    env["GIT_INDEX_FILE"] = temporary_index
-    try:
-        current_head_sha = _resolve_commit(root, "HEAD")
-        _run_git(root, "read-tree", current_head_sha, env=env)
-        _remove_filtered_entries(
-            root,
-            canonical_scope,
-            index_file=temporary_index,
-            env=env,
-        )
-        checkpoint_paths = sorted(
-            {
-                path
-                for _status, path in get_git_status_files(root)
-                if is_path_in_scope(path, canonical_scope)
-            }
-        )
-        if checkpoint_paths:
-            _run_git(root, "add", "-A", "--", *checkpoint_paths, env=env)
-        tree_sha = _run_git(root, "write-tree", env=env).decode().strip()
-        message = (commit_msg or f"gin review checkpoint for {task_id}") + "\n"
-        checkpoint_sha = _run_git(
-            root,
-            "commit-tree",
-            tree_sha,
-            "-p",
-            base_sha,
-            env=env,
-            input_bytes=message.encode("utf-8"),
-        ).decode().strip()
-    finally:
-        try:
-            os.unlink(temporary_index)
-        except FileNotFoundError:
-            pass
+    tree_sha = _snapshot_tree(root, canonical_scope)
+    message = (commit_msg or f"gin review checkpoint for {task_id}") + "\n"
+    checkpoint_sha = _run_git(
+        root,
+        "commit-tree",
+        tree_sha,
+        "-p",
+        base_sha,
+        input_bytes=message.encode("utf-8"),
+    ).decode().strip()
 
     after_head = _run_git(root, "rev-parse", "HEAD")
     after_branch = _run_git(root, "branch", "--show-current")

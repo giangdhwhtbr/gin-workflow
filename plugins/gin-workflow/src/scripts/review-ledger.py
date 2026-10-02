@@ -23,12 +23,17 @@ from review_ledger.cli import (
 )
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
-from review_ledger.git_adapter import create_source_checkpoint, push_review_ref, fetch_review_ref
+from review_ledger.git_adapter import (
+    compute_working_source_tree_hash,
+    create_source_checkpoint,
+    fetch_review_ref,
+    push_review_ref,
+)
+from review_ledger.projections import approval_tree_mismatch
 from review_ledger.source_identity import (
     canonical_scope_path,
     canonicalize_scope,
     compute_source_scope_hash,
-    compute_source_tree_hash,
     is_git_repo_root,
 )
 
@@ -579,7 +584,7 @@ def main():
                 repo_path = repo.get("repository_path", ".")
                 recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
                 if recorded_hash and is_git_repo_root(repo_path):
-                    current_hash = compute_source_tree_hash(repo_id, repo_path, proj.source_scope)
+                    current_hash = compute_working_source_tree_hash(repo_id, repo_path, proj.source_scope)
                     if current_hash != recorded_hash:
                         raise ValueError(
                             f"Refusing approval: working source tree hash '{current_hash}' for repository '{repo_id}' "
@@ -664,12 +669,15 @@ def main():
                 repo_path = repo.get("repository_path", ".")
                 recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
                 if recorded_hash and is_git_repo_root(repo_path):
-                    current_hash = compute_source_tree_hash(repo_id, repo_path, proj.source_scope)
+                    current_hash = compute_working_source_tree_hash(repo_id, repo_path, proj.source_scope)
                     if current_hash != recorded_hash:
                         raise ValueError(
                             f"Ledger validation failed for repository '{repo_id}': working source tree hash '{current_hash}' "
                             f"differs from checkpoint tree hash '{recorded_hash}'."
                         )
+            mismatch = approval_tree_mismatch(proj.active_approval, proj.repositories)
+            if mismatch:
+                raise ValueError(f"Ledger validation failed: active approval {mismatch}")
             print("Ledger validation passed successfully.")
 
 

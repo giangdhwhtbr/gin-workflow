@@ -160,6 +160,26 @@ class ApprovalProjection:
             d.get("review_start_revision"),
         )
 
+def _reviewed_tree_hashes(repositories: List[Dict[str, Any]]) -> Dict[str, str]:
+    return {
+        str(item.get("repository_id", "primary")): str(
+            item.get("reviewed_source_tree_hash") or item.get("source_tree_hash") or ""
+        )
+        for item in repositories
+    }
+
+
+def approval_tree_mismatch(approval: Optional["ApprovalProjection"], repositories: List[Dict[str, Any]]) -> str:
+    """Describe how the approved trees differ from the current checkpoint; empty when they match."""
+    if approval is None:
+        return ""
+    approved = _reviewed_tree_hashes(list(approval.approved_repositories))
+    current = _reviewed_tree_hashes(list(repositories))
+    if approved == current:
+        return ""
+    return f"binds source trees {approved} but the current checkpoint is {current}"
+
+
 class ReviewProjection:
     def __init__(self):
         self.review_state: str = "implementation-in-progress"
@@ -251,6 +271,11 @@ class ReviewProjection:
             # Checkpoint payload has repositories
             if "repositories" in payload:
                 self.repositories = [normalize_repository(item) for item in payload["repositories"]]
+            # A checkpoint of a tree nobody approved invalidates the approval, like a scope change.
+            if approval_tree_mismatch(self.active_approval, self.repositories):
+                self.active_approval = None
+                if self.review_state in ("review-approved", "verification-in-progress", "ready-to-ship"):
+                    self.review_state = "review-requested"
 
 
         elif action == "implementation-complete":

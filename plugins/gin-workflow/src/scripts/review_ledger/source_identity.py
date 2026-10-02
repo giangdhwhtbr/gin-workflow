@@ -91,10 +91,22 @@ def get_nested_repository_paths(scope: Mapping[str, Any]) -> List[str]:
     return canonicalize_scope(scope)["nested_repository_paths"]
 
 
+_LEDGER_FILES = ("review.json", "review.md", ".review.lock")
+
+
+def is_review_ledger_path(path: str) -> bool:
+    """Ledger files change on every event, so they are never reviewed source."""
+    parts = canonical_scope_path(path).split("/")
+    if parts[:2] == [".planning", "reviews"]:
+        return True
+    return len(parts) == 3 and parts[0] == ".planning" and parts[2] in _LEDGER_FILES
+
+
 def is_path_in_scope(path: str, scope: Mapping[str, Any]) -> bool:
     canonical = canonical_scope_path(path)
     return (
-        is_included_path(canonical, scope)
+        not is_review_ledger_path(canonical)
+        and is_included_path(canonical, scope)
         and not is_excluded_path(canonical, scope)
         and not is_generated_path(canonical, scope)
         and not _matches(canonical, get_nested_repository_paths(scope))
