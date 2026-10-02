@@ -12,6 +12,7 @@ from typing import Any, Mapping, Sequence
 
 from .configuration import resolve_effective_config
 from .events import WorkflowEvent, WorkflowEventStore
+from .project import project_settings
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
     NON_WAIVABLE_GATES,
@@ -198,7 +199,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "original_harness": config.original_harness if config.is_session_harness_override else None,
         "gates": gates_status,
         "evidence": list(decision.evidence),
-        "remedies": list(decision.remedies),
+        "remedies": list(decision.remedies),        "project": project_settings(config.to_dict()).to_dict(),
     }
 
     exit_code = 0 if decision.decision == "route" else 1

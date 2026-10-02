@@ -9,6 +9,7 @@ from typing import Any, Iterable, Mapping
 from .atomic import atomic_write_many
 from .bundles import export_bundle, verify_bundle
 from .configuration import require_yaml, resolve_effective_config, validate_portable_config
+from .project import preset_assignments
 from .project_detect import detect_project
 from .migrations import (
     CURRENT_VERSION,
@@ -679,8 +680,26 @@ def harness_override(
     }
 
 
+def preset(repository: Path, *, project_stage: str | None = None, project_shape: str | None = None,
+           rigor: str | None = None, provider_mode: str | None = None, monorepo: bool = False,
+           stack_intent: str = "", **_: Any) -> dict[str, Any]:
+    detected = detect_project(Path(repository))
+    try:
+        assignments = preset_assignments(
+            stage=project_stage or detected["stage"], shape=project_shape or detected["shape"],
+            rigor=rigor or detected["suggested_rigor"], provider_mode=provider_mode or "single",
+            monorepo=monorepo or detected["monorepo"], stack_intent=stack_intent,
+            verify_commands=detected["verify_commands"], packages=tuple(detected["packages"]))
+    except ValueError as error:
+        raise SetupError(str(error)) from error
+    missing = [key for key, value in detected["verify_commands"].items() if not value and key != "e2e"]
+    return {"status": "proposed", "assignments": assignments, "detected": detected,
+            "warnings": [f"no {key} command detected" for key in missing], "actions": []}
+
+
 COMMANDS = {
     "detect": detect,
+    "preset": preset,
     "init": initialize,
     "configure": configure,
     "refresh": refresh,

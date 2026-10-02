@@ -6,7 +6,8 @@ import unittest
 
 from workflow_core.configuration import ConfigValidationError, validate_portable_config
 from workflow_core.migrations import migrate_config
-from workflow_core.project import project_settings
+from workflow_core.project import preset_assignments, project_settings
+from workflow_core.setup_service import _parse_assignment, _set_nested
 
 
 class TestProjectSettings(unittest.TestCase):
@@ -45,3 +46,38 @@ class TestProjectSettings(unittest.TestCase):
         self.assertEqual("2.4", migrated["schema_version"])
         self.assertEqual({"review": {"max_cycles": 3}}, migrated["routing"])
         self.assertNotIn("project", migrated)
+
+
+def _apply(assignments):
+    config = {"schema_version": "2.4"}
+    for assignment in assignments:
+        path, value = _parse_assignment(assignment)
+        _set_nested(config, path, value)
+    return config
+
+
+class TestPresets(unittest.TestCase):
+    def test_single_provider_frontend_standard(self):
+        config = _apply(preset_assignments(stage="brownfield", shape="frontend", rigor="standard",
+                                           provider_mode="single",
+                                           verify_commands={"lint": "pnpm run lint", "test": "pnpm run test: unit"}))
+        validate_portable_config(config)
+        self.assertEqual(["docs", "frontend", "general", "review"],
+                         sorted(config["routing"]["roles"]))
+        self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"]["frontend"])
+        self.assertEqual("session", config["routing"]["review"]["independence"])
+        self.assertEqual("pnpm run test: unit", config["verify"]["checks"]["test"])
+        self.assertEqual("parallel", config["project"]["worktree"])
+        settings = project_settings(config)
+        self.assertEqual(("frontend", "standard", "single"), (settings.shape, settings.rigor, settings.provider_mode))
+
+    def test_multi_provider_writes_no_roles_and_provider_independence(self):
+        config = _apply(preset_assignments(stage="brownfield", shape="backend", rigor="strict", provider_mode="multi"))
+        validate_portable_config(config)
+        self.assertNotIn("roles", config.get("routing", {}))
+        self.assertEqual("provider", config["routing"]["review"]["independence"])
+        self.assertEqual(("always", True), (config["project"]["worktree"], config["project"]["review_ledger"]))
+
+    def test_rejects_unknown_values(self):
+        with self.assertRaises(ValueError):
+            preset_assignments(stage="legacy", shape="mobile", rigor="standard", provider_mode="single")

@@ -12,6 +12,7 @@ from .bundles import BundleError
 from .configuration import ConfigValidationError
 from .migrations import CURRENT_VERSION, MigrationError
 from .models import DependencyUnavailableError
+from .project import RIGORS, SHAPES, STAGES
 from .setup_service import COMMANDS, SetupError
 
 
@@ -38,6 +39,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--reset", action="store_true")
     parser.add_argument("--clear", action="store_true")
     parser.add_argument("--probe", action="store_true")
+    parser.add_argument("--project-stage", choices=STAGES)
+    parser.add_argument("--project-shape", choices=SHAPES)
+    parser.add_argument("--rigor", choices=RIGORS)
+    parser.add_argument("--provider-mode", choices=("single", "multi"))
+    parser.add_argument("--monorepo", action="store_true")
+    parser.add_argument("--stack-intent", default="")
     return parser
 
 

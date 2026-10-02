@@ -36,6 +36,15 @@ class SetupCliTests(unittest.TestCase):
             check=False,
         )
 
+    def test_preset_proposes_explicit_assignments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_cli(Path(directory), "preset", "--project-stage", "brownfield", "--project-shape",
+                                  "frontend", "--rigor", "easy", "--provider-mode", "single")
+            self.assertEqual(0, result.returncode, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual("proposed", payload["status"])
+            self.assertIn('project.rigor="easy"', payload["assignments"])
+
     def test_init_creates_documented_layout_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

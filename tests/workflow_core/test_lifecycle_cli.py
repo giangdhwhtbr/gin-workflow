@@ -109,6 +109,19 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual("satisfied", data["gates"]["plan_approved"])
         self.assertEqual("satisfied", data["gates"]["orchestration_ready"])
 
+    def _state_json(self):
+        import io
+        from unittest.mock import patch
+
+        with patch("sys.stdout", new=io.StringIO()) as fake_out:
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json"])
+        return json.loads(fake_out.getvalue())
+
+    def test_state_reports_project_block(self):
+        self.assertEqual("fullstack", self._state_json()["project"]["shape"])
+        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.4'\nproject: {shape: frontend}\n")
+        self.assertEqual("frontend", self._state_json()["project"]["shape"])
+
     def test_unblock_safety_gate_without_followup_fails(self):
         exit_code = lifecycle_main([
             "unblock",

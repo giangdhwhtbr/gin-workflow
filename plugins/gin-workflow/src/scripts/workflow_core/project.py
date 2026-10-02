@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 from typing import Any, Mapping
 
 STAGES = ("greenfield", "brownfield", "legacy")
@@ -68,3 +69,41 @@ def project_settings(config: Mapping[str, Any]) -> ProjectSettings:
         max_cycles=int(review.get("max_cycles", preset["max_cycles"])),
         quick_max_files=int(_section(config, "quick").get("max_files", 5)),
     )
+
+
+ROLES_BY_SHAPE = {
+    "frontend": ("frontend", "review", "docs", "general"),
+    "backend": ("backend", "review", "docs", "general"),
+    "fullstack": ("frontend", "backend", "review", "docs", "general"),
+    "library": ("frontend", "backend", "review", "docs", "general"),
+}
+
+
+def preset_assignments(*, stage: str, shape: str, rigor: str, provider_mode: str, monorepo: bool = False,
+                       stack_intent: str = "", verify_commands: Mapping[str, str] | None = None,
+                       packages: tuple[Mapping[str, Any], ...] | list = ()) -> list[str]:
+    """Explicit `--set` assignments for setup; skills never infer presets at runtime."""
+    if stage not in STAGES or shape not in SHAPES or rigor not in RIGORS or provider_mode not in ("single", "multi"):
+        raise ValueError(f"invalid project preset: {stage=} {shape=} {rigor=} {provider_mode=}")
+    preset = RIGOR_PRESETS[rigor]
+    values: dict[str, Any] = {
+        "project.stage": stage, "project.shape": shape, "project.monorepo": monorepo, "project.rigor": rigor,
+        "project.worktree": preset["worktree"], "project.review": preset["review"],
+        "project.review_ledger": preset["review_ledger"], "provider_mode": provider_mode,
+        "routing.review.max_cycles": preset["max_cycles"],
+        "routing.review.independence": "session" if provider_mode == "single" else "provider",
+        "quick.max_files": 5,
+    }
+    if stack_intent:
+        values["project.stack_intent"] = stack_intent
+    if packages:
+        values["project.packages"] = [dict(package) for package in packages]
+    for key in VERIFY_KEYS:
+        values[f"verify.checks.{key}"] = str((verify_commands or {}).get(key, ""))
+    if provider_mode == "single":
+        for role in ROLES_BY_SHAPE[shape]:
+            values[f"routing.roles.{role}"] = {"preferred": ["main_harness"]}
+        values["routing.review.role"] = "review"
+        values["routing.review.require_independent"] = True
+        values["routing.review.allow_self_review_fallback"] = False
+    return [f"{key}={json.dumps(value)}" for key, value in values.items()]
