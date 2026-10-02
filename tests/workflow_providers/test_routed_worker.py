@@ -737,7 +737,7 @@ class RoutedWorkerTests(unittest.TestCase):
                 breaker,
                 WorkflowEventStore(Path(directory) / "events.jsonl"),
                 concurrency={"claude": 1, "codex": 1},
-                max_wait_seconds=0.2,
+                max_wait_seconds=2.0,
             )
             self.assertTrue(router._capacity["claude"].acquire(timeout=0))
             waiting_receipts = []
@@ -750,9 +750,14 @@ class RoutedWorkerTests(unittest.TestCase):
             started = time.monotonic()
             fast = router.dispatch(request("fast"))
             elapsed = time.monotonic() - started
+            # Non-blocking is proven by ordering, not by an absolute latency bound: the
+            # unrelated dispatch returns while the waiter is still blocked on claude
+            # capacity, and well inside the waiter's 2 s capacity window.
+            waiter_still_blocked = waiting.is_alive() and not waiting_receipts
 
             self.assertEqual("codex", fast.provider_name)
-            self.assertLess(elapsed, 0.08)
+            self.assertTrue(waiter_still_blocked)
+            self.assertLess(elapsed, 1.0)
             router.collect_result(fast.worker_id)
             router._capacity["claude"].release()
             waiting.join(timeout=1)
