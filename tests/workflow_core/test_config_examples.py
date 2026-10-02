@@ -36,8 +36,17 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertEqual(2, portable["routing"]["worker"]["max_retries"])
         self.assertEqual(86400, portable["policy"]["approval"]["ttl_seconds"])
 
-    def test_setup_questionnaire_covers_nine_groups_one_at_a_time_and_two_layer_preview(self):
+    def test_setup_quick_flow_asks_five_questions_and_keeps_advanced_groups(self):
         setup = (PLUGIN / "skills/setup/SKILL.md").read_text(encoding="utf-8")
+        quick = ("Project type", "Rigor", "Provider mode", "Verify commands", "Code index")
+        positions = [setup.index(f"{index}. **{name}**") for index, name in enumerate(quick, 1)]
+        self.assertEqual(sorted(positions), positions)
+        for phrase in ("Ask exactly one question", "gin-workflow setup preset", "gin-workflow setup models",
+                       "--advanced", "--provider-set", "provider_configuration", "configuration",
+                       "same assignments"):
+            self.assertIn(phrase, setup)
+
+        advanced = setup[setup.index("## Advanced setup"):]
         groups = (
             "Main harness",
             "Enabled native providers",
@@ -49,14 +58,16 @@ class ConfigExampleTests(unittest.TestCase):
             "Circuit breaker",
             "Independent review",
         )
-        positions = [setup.index(f"{index}. **{group}**") for index, group in enumerate(groups, 1)]
-
+        positions = [advanced.index(f"{index}. **{group}**") for index, group in enumerate(groups, 1)]
         self.assertEqual(sorted(positions), positions)
-        self.assertIn("Ask exactly one question group at a time", setup)
-        self.assertIn("--provider-set", setup)
-        self.assertIn("provider_configuration", setup)
-        self.assertIn("configuration", setup)
-        self.assertIn("same assignments", setup)
+
+    def test_full_example_shows_project_profile_sections(self):
+        portable = self.load(PLUGIN / "examples/config.full.yaml")
+        self.assertEqual("brownfield", portable["project"]["stage"])
+        self.assertIn("checks", portable["verify"])
+        self.assertIn("max_files", portable["quick"])
+        self.assertIn(portable["provider_mode"], ("single", "multi"))
+        self.assertEqual("provider", portable["routing"]["review"]["independence"])
 
     def test_canonical_docs_match_plugin_references_and_link_routing_guide(self):
         for name in (

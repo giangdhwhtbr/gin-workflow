@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -552,6 +553,41 @@ class SetupCliTests(unittest.TestCase):
             self.assertTrue(probe_payload["checks"]["providers"])
             self.assertTrue((repository / ".agent-workflow/runtime/health-probe/codex").is_dir())
             self.assertTrue(probe_payload["checks_details"]["providers"]["codex.low"]["available"])
+
+    def test_doctor_reports_verify_commands_project_stage_and_codegraph_read_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            git = lambda *args: subprocess.run(["git", *args], cwd=repository, check=True, capture_output=True)  # noqa: E731
+            git("init")
+            git("config", "user.email", "t@example.com")
+            git("config", "user.name", "Tester")
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive",
+                                       "--set", "project.stage=greenfield", "--set", 'verify.checks.test=""',
+                                       "--set", "verify.checks.lint=ruff")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+            (repository / "package.json").write_text("{}", encoding="utf-8")
+            index = repository / ".codegraph"
+            index.mkdir()
+            (index / "graph.db").write_text("x", encoding="utf-8")
+            os.utime(index / "graph.db", (1_000_000, 1_000_000))
+            git("add", "package.json")
+            git("commit", "-m", "init")
+            before = {path: path.read_bytes() for path in repository.rglob("*")
+                      if path.is_file() and ".git" not in path.relative_to(repository).parts}
+
+            result = self.run_cli(repository, "doctor")
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            details = json.loads(result.stdout)["checks_details"]
+            self.assertIn("test", details["verify_commands"]["missing"])
+            self.assertNotIn("lint", details["verify_commands"]["missing"])
+            self.assertIn("suggestion", details["project_stage"])
+            self.assertTrue(details["codegraph"]["indexed"])
+            self.assertTrue(details["codegraph"]["stale"])
+            self.assertIn("codegraph sync", details["codegraph"]["suggestion"])
+            after = {path: path.read_bytes() for path in repository.rglob("*")
+                     if path.is_file() and ".git" not in path.relative_to(repository).parts}
+            self.assertEqual(before, after)
 
     def test_doctor_flags_stale_review_ledgers(self):
         with tempfile.TemporaryDirectory() as directory:

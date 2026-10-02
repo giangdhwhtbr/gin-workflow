@@ -1,7 +1,28 @@
-schema_version: "2.3"
-workflow_version: "2.3"
-setup_cli_version: "2.3"
+schema_version: "2.4"
+workflow_version: "2.4"
+setup_cli_version: "2.4"
 harness: codex
+provider_mode: multi
+
+project:
+  stage: brownfield
+  shape: fullstack
+  monorepo: false
+  rigor: standard
+  worktree: parallel
+  review: independent
+  review_ledger: false
+
+verify:
+  checks:
+    lint: pnpm run lint
+    typecheck: pnpm exec tsc --noEmit
+    test: pnpm run test
+    build: pnpm run build
+    e2e: ""
+
+quick:
+  max_files: 5
 
 artifacts:
   plans: .planning/plans
@@ -47,6 +68,7 @@ routing:
     require_independent: true
     allow_self_review_fallback: false
     max_cycles: 2
+    independence: provider
 
 policy:
   approval:

@@ -9,7 +9,7 @@ from typing import Any, Iterable, Mapping
 from .atomic import atomic_write_many
 from .bundles import export_bundle, verify_bundle
 from .configuration import require_yaml, resolve_effective_config, validate_portable_config
-from .project import preset_assignments
+from .project import preset_assignments, project_settings
 from .project_detect import detect_project
 from .migrations import (
     CURRENT_VERSION,
@@ -451,6 +451,18 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             checks["providers"] = all_providers_healthy
             if provider_details:
                 checks_details["providers"] = provider_details
+
+    if checks["configuration"]:
+        settings = project_settings(resolve_effective_config(root, write=False).config.to_dict())
+        missing = [k for k in ("lint", "typecheck", "test", "build") if not settings.verify_commands.get(k)]
+        checks_details["verify_commands"] = {"missing": missing}
+        detected = detect_project(root)
+        if settings.stage == "greenfield" and detected["stage"] == "brownfield":
+            checks_details["project_stage"] = {"suggestion": "project now has a manifest/sources; run /setup configure to set project.stage=brownfield"}
+        graph = dict(detected["codegraph"])
+        if graph["stale"]:
+            graph["suggestion"] = "codegraph index is older than HEAD; run `codegraph sync`"
+        checks_details["codegraph"] = graph
 
     actions: list[str] = []
     checks["review_ledgers"] = True

@@ -5,36 +5,37 @@ description: Use when a repository needs first-time gin-workflow configuration o
 
 # Setup Skill
 
-Coordinate one setup session outside the lifecycle.
+Coordinate one setup session outside the lifecycle. Do not require generated configuration, a context manifest, or a durable approval record before initial setup; they are unavailable until bootstrap completes. CLI: `gin-workflow setup <subcommand>`.
 
-## Initial setup inputs
+## Quick setup (default)
 
-- repository target
-- native harness context, when detected
-- user-selected portable settings
+Ask exactly one question at a time and wait for its answer. Do not infer required answers or combine questions.
 
-Do not require generated configuration, a context manifest, or a durable
-approval record before initial setup. They are unavailable until bootstrap
-completes.
+1. **Project type** — Show the `project` block of `gin-workflow setup detect --format json` (stage, shape, monorepo, stack, packages); confirm or edit. Never propose `legacy` unless the user says so.
+2. **Rigor** — Suggest `suggested_rigor`. `easy`: no worktree, self-check review; `standard`: worktree for parallel work, independent review; `strict`: always a worktree, independent review with a review ledger.
+3. **Provider mode** — `single` (the current harness does everything; default) or `multi` (continue with Advanced setup groups 2–9).
+4. **Verify commands** — Confirm the detected lint, typecheck, test, build, and e2e commands; the user may edit any. On greenfield, ask for `stack_intent` instead.
+5. **Code index** — Only when `codegraph.installed` is true, it is not `indexed`, and the stage is brownfield or legacy: offer `codegraph init`, and run it only on approval.
 
-## First-time execution
+Optional: a model per tier for the current harness from `gin-workflow setup models --provider <harness> --format json`. Suggest fast/cheap models for `low` and frontier models for `high`; an `agy` id suffix (`-low`/`-medium`/`-high`) matches its tier. Always allow manual entry; an empty list means manual entry. Model choices become `--provider-set` assignments.
 
-1. Detect the repository and harness, then run the questionnaire below. Ask exactly one question group at a time and wait for its answer before continuing.
-2. Convert portable answers to repeatable `--set` assignments and executable/model answers to repeatable `--provider-set` assignments (CLI: `gin-workflow setup <subcommand>`). Portable policy is written to `.agent-workflow/config.yaml`; executable/model aliases go to the gitignored `.agent-workflow/providers.local.yaml`.
-3. Run `init --dry-run` with the selected harness and every assignment.
-4. Present both `configuration` and `provider_configuration`, the exact files/actions, and any validation error. Do not write on dry-run.
-5. Obtain explicit native-harness approval for the complete two-layer proposal.
-6. Run one approved `init` with the same harness and same assignments. The CLI validates both complete layers before any atomic write.
-7. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
+Then:
+1. `gin-workflow setup preset --project-stage S --project-shape X --rigor R --provider-mode M [--monorepo] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
+2. Run `init --dry-run` with the harness and every assignment. Present both `configuration` and `provider_configuration`, the exact files/actions, and any validation error. Do not write on dry-run.
+3. Obtain explicit native-harness approval for the complete two-layer proposal.
+4. Run one approved `init` with the same harness and same assignments. The CLI validates both layers before any atomic write.
+5. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
 
-## Routed worker questionnaire
+Portable answers become `--set` assignments in `.agent-workflow/config.yaml`; executable/model answers become `--provider-set` assignments in the gitignored `.agent-workflow/providers.local.yaml`.
 
-Do not infer required answers or combine groups into one large prompt.
+## Advanced setup
+
+Used for `/setup --advanced` or `multi` provider mode: the five quick questions above, then these groups, one at a time.
 
 1. **Main harness** — Which harness opened and will coordinate this workflow: Claude, Codex, or Antigravity?
 2. **Enabled native providers** — Which installed, already-authenticated native CLIs may execute work, and what executable name/path identifies each?
 3. **Preferred provider roles** — For each user-defined role such as backend, frontend, review, docs, or general, what is the ordered preferred provider list?
-4. **Reasoning-to-model mappings** — For every enabled provider, which local model alias maps to `low`, `medium`, and `high`? (For Codex, each tier can specify both model and optional reasoning effort, e.g. `gpt-6-astra` with `low`/`medium`/`high` effort; for Antigravity, `gemini-3.8-flash` is recommended or `provider_default`).
+4. **Reasoning-to-model mappings** — For every enabled provider, which model maps to `low`, `medium`, and `high`? Offer the list from `gin-workflow setup models --provider <p>`. (For Codex, each tier can also set a reasoning effort; for Antigravity, `provider_default` is allowed.)
 5. **Ordered fallbacks** — Which providers, including optional `main_harness`, may handle each role when preferred capacity is unavailable?
 6. **Provider concurrency** — What maximum concurrent worker count applies to each provider?
 7. **Queue and worker limits** — What are queue wait seconds, worker timeout seconds, and maximum retries?
@@ -43,17 +44,10 @@ Do not infer required answers or combine groups into one large prompt.
 
 Use `plugins/gin-workflow/src/examples/config.full.yaml` and `providers.local.example.yaml` as a reference, never as silently accepted answers. Credentials remain owned by each native CLI login and are never questionnaire values.
 
-One `/setup` invocation completes initial repository setup and configuration.
-Repeated identical `init` calls are idempotent, but lifecycle stages never call
-setup automatically.
+One `/setup` invocation completes initial setup. Repeated identical `init` calls are idempotent; lifecycle stages never call setup automatically.
 
 ## Explicit maintenance
 
-On an initialized repository, select only the maintenance action the user
-requested: `detect`, `configure`, `refresh`, `update`, `doctor` (optionally `--probe` for active model health verification), `status`,
-`diff`, `rollback`, `export-bundle`, or `verify-bundle`. Present dry-run output
-before user-authored configuration changes, upgrades, rollback, or data
-movement. After bootstrap, protected mutations use the approval and evidence
-capabilities.
+On an initialized repository, run only the maintenance action the user requested: `detect`, `preset`, `models`, `configure`, `refresh`, `update`, `doctor` (`--probe` for active model health; also reports missing verify commands, a stale codegraph index, and a greenfield stage that now has sources), `status`, `diff`, `rollback`, `export-bundle`, or `verify-bundle`. Present dry-run output before user-authored configuration changes, upgrades, rollback, or data movement. After bootstrap, protected mutations use the approval and evidence capabilities.
 
-The CLI must not prompt, choose policy, or manufacture approval. Optional notifications use the configured notification capability.
+The CLI must not prompt, choose policy, or manufacture approval.
