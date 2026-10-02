@@ -136,7 +136,7 @@ touch plugins/gin-workflow/dist/claude-code/commands/stale-from-old-build.md plu
 assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_not_contains "$output_file" "gin-workflow-advanced"
 assert_contains "$output_file" "would install global Claude Code plugin to"
-assert_contains "$output_file" "would install gin-workflow launcher version 2.4 to"
+assert_contains "$output_file" "would install gin-workflow launcher version 2.5 to"
 assert_contains "$output_file" "would link gin-workflow launcher on PATH at"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
@@ -226,11 +226,11 @@ HOME="$MOCK_HOME" ./install.sh --platform claude >/dev/null
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/skills/tech-doc/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/bead-worker.md"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-workflow@skills-dir": true'
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.4/gin-workflow"
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.4/workflow_core/cli.py"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.5/gin-workflow"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.5/workflow_core/cli.py"
 assert_exists "$MOCK_HOME/.local/bin/gin-workflow"
 launcher_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" --version)"
-if [ "$launcher_version" != "gin-workflow 2.4" ]; then
+if [ "$launcher_version" != "gin-workflow 2.5" ]; then
   echo "Unexpected launcher version: $launcher_version" >&2
   exit 1
 fi
@@ -242,7 +242,7 @@ ln -s "$UPGRADE_HOME/.local/lib/gin-workflow/2.1/gin-workflow" "$UPGRADE_HOME/.l
 
 HOME="$UPGRADE_HOME" ./install.sh --platform claude >/dev/null
 
-expected_target="$UPGRADE_HOME/.local/lib/gin-workflow/2.4/gin-workflow"
+expected_target="$UPGRADE_HOME/.local/lib/gin-workflow/2.5/gin-workflow"
 actual_target="$(readlink "$UPGRADE_HOME/.local/bin/gin-workflow")"
 if [ "$actual_target" != "$expected_target" ]; then
   echo "Expected managed launcher upgrade to target $expected_target, got $actual_target" >&2

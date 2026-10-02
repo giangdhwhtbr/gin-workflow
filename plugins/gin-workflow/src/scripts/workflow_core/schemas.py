@@ -7,8 +7,8 @@ from typing import Any, Mapping
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.4"
-SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4")
+SUPPORTED_SCHEMA_VERSION = "2.5"
+SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5")
 
 _SHAPES = ["frontend", "backend", "fullstack", "library"]
 _CHECKS = {"type": "object", "propertyNames": {"enum": ["lint", "typecheck", "test", "build", "e2e"]},
@@ -136,6 +136,14 @@ CONFIG_SCHEMA: dict[str, Any] = {
         "quick": {
             "type": "object",
             "properties": {"max_files": {"type": "integer", "minimum": 1}},
+            "additionalProperties": False,
+        },
+        "rules": {
+            "type": "object",
+            "properties": {
+                "packs": {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}},
+                "disabled": {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}},
+            },
             "additionalProperties": False,
         },
     },

@@ -1,6 +1,6 @@
-schema_version: "2.4"
-workflow_version: "2.4"
-setup_cli_version: "2.4"
+schema_version: "2.5"
+workflow_version: "2.5"
+setup_cli_version: "2.5"
 harness: codex
 provider_mode: multi
 
@@ -74,4 +74,6 @@ policy:
   approval:
     ttl_seconds: 86400
     bind_to_scope: true
-
+rules:
+  packs: [core, typescript, react]
+  disabled: []

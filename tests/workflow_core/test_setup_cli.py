@@ -26,7 +26,7 @@ class SetupCliTests(unittest.TestCase):
         )
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual("gin-workflow 2.4", result.stdout.strip())
+        self.assertEqual("gin-workflow 2.5", result.stdout.strip())
 
     def run_cli(self, repository: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -251,9 +251,9 @@ class SetupCliTests(unittest.TestCase):
                 {
                     "harness": "codex",
                     "policy": {"mode": "guarded"},
-                    "schema_version": "2.4",
-                    "setup_cli_version": "2.4",
-                    "workflow_version": "2.4",
+                    "schema_version": "2.5",
+                    "setup_cli_version": "2.5",
+                    "workflow_version": "2.5",
                 },
                 payload["configuration"],
             )
@@ -394,7 +394,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("migration_available", payload["status"])
             self.assertIn("configuration", payload)
             self.assertIn("provider_configuration", payload)
-            self.assertEqual("2.4", payload["configuration"]["schema_version"])
+            self.assertEqual("2.5", payload["configuration"]["schema_version"])
             self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
             self.assertFalse((workflow / "providers.local.yaml").exists())
 
@@ -406,7 +406,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertIn("high: opus", (workflow / "providers.local.yaml").read_text(encoding="utf-8"))
             effective = (workflow / "generated/effective-config.yaml").read_text(encoding="utf-8")
             provenance = (workflow / "generated/config-provenance.yaml").read_text(encoding="utf-8")
-            self.assertIn("schema_version: '2.4'", effective)
+            self.assertIn("schema_version: '2.5'", effective)
             self.assertIn("routing:", effective)
             self.assertIn("schema_version: '2.3'", provenance)
 
