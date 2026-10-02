@@ -18,6 +18,7 @@ Collect the review inputs before judging the change:
 2. **Diff**: Inspect the current diff or the diff range supplied by the caller.
 3. **Changed files**: Read each changed file in full when practical, not only the diff.
 4. **Project conventions**: Read `AGENTS.md`, `CLAUDE.md`, linter/test configs, and nearby code patterns. Look up callers and related symbols with `codegraph explore` when `.codegraph/` exists, else grep.
+5. **Rules checklist**: Use the rules block from the request, or run `gin-workflow rules --files <changed files>`. Check `critical` and `high` rules first and cite violations as `<pack>#<anchor>`.
 
 ## Phase 2: Analysis
 

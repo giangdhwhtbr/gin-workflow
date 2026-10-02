@@ -89,6 +89,16 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(pack=pack.id):
                 self.assertLessEqual(pack.body_chars, pack.body_limit)
 
+    def test_rules_injected_only_into_implement_and_review_paths(self):
+        injected = ("skills/execute/SKILL.md", "skills/quick/SKILL.md", "skills/review/SKILL.md",
+                    "agents/developer.md", "agents/code-reviewer.md")
+        for relative in injected:
+            with self.subTest(path=relative):
+                self.assertIn("gin-workflow rules --files", (SRC / relative).read_text(encoding="utf-8"))
+        for stage in ("discuss", "plan", "orchestrate", "verify", "ship"):
+            with self.subTest(stage=stage):
+                self.assertNotIn("gin-workflow rules", (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8"))
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:

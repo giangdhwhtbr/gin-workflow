@@ -16,7 +16,7 @@ A fast path for a small, low-risk change. No plan, no beads, no lifecycle gates.
    - `refused`: stop and point to `/gin-workflow:discuss` (strict rigor needs a `requirement_confirmed` waiver first).
    - `escalate`: stop and recommend the full lifecycle.
    - `allowed`: continue with the returned `verify_commands` and `review` mode.
-3. Implement the change. Write a failing test first when behavior changes.
+3. Run `gin-workflow rules --files <files to change>` and follow its output. Implement the change. Write a failing test first when behavior changes.
 4. Run every returned `verify_commands` entry fresh and keep its output. Under `easy` rigor, scope tests to the changed files when the runner supports it.
 5. Review:
    - `review: independent`: one review per the `review` skill, with a fresh session or subagent.
