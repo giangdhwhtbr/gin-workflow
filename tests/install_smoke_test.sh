@@ -171,8 +171,8 @@ for skill_file in plugins/gin-workflow/dist/claude-code/skills/*/SKILL.md; do
   assert_not_contains "$skill_file" 'superpowers'
 done
 
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verify/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verify/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "codegraph"
@@ -194,8 +194,8 @@ assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"descriptio
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
-assert_contains 'plugins/gin-workflow/dist/codex/skills/verify/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
-assert_contains 'plugins/gin-workflow/dist/codex/skills/orchestrate/SKILL.md' 'Follow [references/stage-contract.md](../../references/stage-contract.md)'
+assert_contains 'plugins/gin-workflow/dist/codex/skills/verify/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
+assert_contains 'plugins/gin-workflow/dist/codex/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "codegraph"

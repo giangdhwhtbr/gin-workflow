@@ -3,7 +3,9 @@ name: workflow
 description: Route current durable state to exactly one guarded lifecycle stage, or diagnose a held workflow.
 ---
 
-Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
+## Before you start
+1. If `.agent-workflow/generated/effective-config.yaml` does not exist in the repository, stop: tell the user to run `/setup` once and do nothing else. (`capabilities: {}` is a valid config.)
+2. Read [references/stage-contract.md](../../references/stage-contract.md) now: it defines the gate CLI, valid evidence, approval, and git rules this stage relies on.
 
 # Workflow
 

@@ -3,7 +3,9 @@ name: progress
 description: Report Beads task status, blockers, open waivers, and next ready work without mutating anything.
 ---
 
-Follow [references/stage-contract.md](../../references/stage-contract.md) (the plugin's shared stage contract).
+## Before you start
+1. If `.agent-workflow/generated/effective-config.yaml` does not exist in the repository, stop: tell the user to run `/setup` once and do nothing else. (`capabilities: {}` is a valid config.)
+2. Read [references/stage-contract.md](../../references/stage-contract.md) now: it defines the gate CLI, valid evidence, approval, and git rules this stage relies on.
 
 # Progress
 

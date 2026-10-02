@@ -92,6 +92,17 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(command=path.name):
                 self.assertFalse((SRC / "skills" / path.stem / "SKILL.md").is_file())
 
+    def test_stage_skills_inline_setup_guard_and_contract_read(self):
+        # A one-line "follow the contract" pointer is not followed by models (gin-workflow-hei);
+        # the setup stop must be inline and the contract read must be an explicit first step.
+        for stage in STAGES:
+            text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
+            with self.subTest(stage=stage):
+                self.assertLess(text.index("## Before you start"), text.index("\n# "))
+                self.assertIn("`.agent-workflow/generated/effective-config.yaml` does not exist", text)
+                self.assertIn("run `/setup` once and do nothing else", text)
+                self.assertIn("Read [references/stage-contract.md](../../references/stage-contract.md) now", text)
+
     def test_descriptions_within_budget(self):
         self.assertLessEqual(description_chars(SRC), 4_000)
 
