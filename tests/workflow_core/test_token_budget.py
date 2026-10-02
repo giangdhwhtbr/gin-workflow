@@ -81,7 +81,7 @@ class TestBudgetLimits(unittest.TestCase):
         self.assertLessEqual(stage_chars(SRC, "quick"), 8_000)
 
     def test_commands_agents_and_shared_skills_within_budget(self):
-        limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000)]
+        limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:
             paths = sorted(SRC.glob(pattern))
             self.assertTrue(paths, pattern)

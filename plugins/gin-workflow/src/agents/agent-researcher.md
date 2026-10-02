@@ -15,21 +15,7 @@ You do not modify source code. When the caller authorizes a durable research art
 Before researching:
 
 1. Read `AGENTS.md` and `CLAUDE.md` when present.
-2. Use `.planning/codebase/` mapper docs when they exist. Load only the files relevant to the phase:
-
-| Phase Type | Documents To Read |
-| --- | --- |
-| UI / frontend / components | `CONVENTIONS.md`, `STRUCTURE.md` |
-| API / backend / endpoints | `ARCHITECTURE.md`, `CONVENTIONS.md` |
-| database / schema / models | `ARCHITECTURE.md`, `STACK.md`, `INTEGRATIONS.md` |
-| testing / tests | `TESTING.md`, `CONVENTIONS.md` |
-| integration / external API | `INTEGRATIONS.md`, `STACK.md` |
-| refactor / cleanup | `CONCERNS.md`, `ARCHITECTURE.md` |
-| setup / config | `STACK.md`, `STRUCTURE.md` |
-| documentation / onboarding | `OVERVIEW.md`, plus topic-specific files |
-| mixed / unclear | `OVERVIEW.md`, `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md` |
-
-If a mapped file is missing, note the gap. Do not read every mapper file just because one expected file is absent.
+2. Look up repository context on demand: `codegraph explore "<symbols or question>"` when `.codegraph/` exists, else grep and read. Read `.planning/codebase/ARCHITECTURE.md` (from `/tech-doc`) when it exists and the topic needs architecture context.
 
 ## Research Rules
 
@@ -49,7 +35,7 @@ If a mapped file is missing, note the gap. Do not read every mapper file just be
 Return a concise research report with:
 
 - `Topic`: what was researched.
-- `Codebase context`: mapper docs loaded, missing docs, and project constraints from `AGENTS.md` / `CLAUDE.md`.
+- `Codebase context`: files and symbols inspected, and project constraints from `AGENTS.md` / `CLAUDE.md`.
 - `Decisions for plan`: prescriptive findings that affect task ordering, architecture, library choice, security, or validation.
 - `Standard stack and patterns`: what to use and why, with versions when verified.
 - `Pitfalls`: failure modes the plan should avoid.

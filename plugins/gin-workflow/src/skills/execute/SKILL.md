@@ -19,6 +19,7 @@ Implement one ready work unit inside its approved scope and record evidence.
 
 ## 2. Implement
 - Follow the plan steps exactly, test first. Keep changes minimal and in scope.
+- Read the shape appendix for `project.shape` from `gin-workflow state --format json` (plugin `references/shape-<shape>.md`) before editing.
 - Validate immediately and keep the command output as evidence. Do not proceed while tests fail or acceptance criteria are unmet.
 - **Stop and ask** on a blocker, a plan gap, an unclear instruction, or repeated validation failure. Leave the bead in progress with a `bd update <id> --notes` entry; do not guess. Failures route to the `gin-debugging` skill.
 - Scope or execution-strategy changes and production-impacting parallel work need explicit approval first.
@@ -29,6 +30,7 @@ Execute directly for sequential work, a single agent, three or fewer tasks, or n
 - Send a bounded context (unit, scope, validation intent); never the parent transcript, model names, secrets, or private reasoning. Fail with `context_unavailable` if required context is missing.
 - Re-resolve the provider role and reasoning at dispatch time; recheck circuit, health, and capacity. Keep the preferred/fallback order and never downgrade the requested reasoning tier. Record the actual route and any fallback in runtime events only.
 - One task claim and one isolated workspace per worker; reuse the retry identity; never redispatch a completed task. If every route is unavailable, return `worker_routes_unavailable`.
+- When dispatching an implementer, use the `developer` agent.
 - Read [worker lifecycle](references/worker-lifecycle.md), [delegation policy](references/delegation-policy.md), and [result contract](references/result-contract.md) before dispatching.
 
 ## 4. Complete

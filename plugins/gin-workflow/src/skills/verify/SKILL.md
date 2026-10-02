@@ -20,7 +20,7 @@ Gate for every claim: identify the command that proves it → run it fully and f
    - `python3 review-ledger.py validate --bead-id <bead-id>` — an active, non-invalidated approval exists and every finding is terminal.
    - Source tree hashes still match the approval snapshot.
    - `python3 review-ledger.py render --bead-id <bead-id> --check` — no drift in `review.md`.
-3. **Quality gates** that apply: build, type check, lint, unit/integration tests (configured `verify.commands` first), and manual/UI checks the plan specifies.
+3. **Quality gates**: run `project.verify_commands` from `gin-workflow state --format json` per rigor (easy: lint, typecheck, tests; standard: + build; strict: + e2e/a11y when configured), then any manual/UI checks the plan specifies.
 4. **Requirements**: re-read the confirmed spec and approved plan, make a line-by-line checklist, and verify each item against the code — not only the diff.
 5. Record every run, failure, skipped check (say so explicitly), risk, and unavailable provider. Failures route to the `gin-debugging` skill; do not patch blindly here.
 

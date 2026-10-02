@@ -17,18 +17,7 @@ Collect the review inputs before judging the change:
 1. **Beads issue and plan**: Read the assigned Beads issue, approved plan or track, acceptance criteria, declared file scope, and known constraints.
 2. **Diff**: Inspect the current diff or the diff range supplied by the caller.
 3. **Changed files**: Read each changed file in full when practical, not only the diff.
-4. **Project conventions**: Read `AGENTS.md`, `CLAUDE.md`, relevant `.planning/codebase/` docs, linter/test configs, and nearby code patterns.
-
-For `.planning/codebase/`, load only relevant context:
-
-| Review Area | Documents To Read |
-| --- | --- |
-| UI / components | `CONVENTIONS.md`, `STRUCTURE.md` |
-| API / backend | `ARCHITECTURE.md`, `CONVENTIONS.md` |
-| data / migrations | `ARCHITECTURE.md`, `STACK.md`, `INTEGRATIONS.md` |
-| tests | `TESTING.md`, `CONVENTIONS.md` |
-| integrations | `INTEGRATIONS.md`, `STACK.md` |
-| refactors | `CONCERNS.md`, `ARCHITECTURE.md` |
+4. **Project conventions**: Read `AGENTS.md`, `CLAUDE.md`, linter/test configs, and nearby code patterns. Look up callers and related symbols with `codegraph explore` when `.codegraph/` exists, else grep.
 
 ## Phase 2: Analysis
 

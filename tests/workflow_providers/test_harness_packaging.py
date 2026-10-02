@@ -58,6 +58,9 @@ REQUIRED_ARTIFACTS = (
     "references/verification-and-handoff-workflow.md",
     "references/provider-routing.md",
     "references/stage-contract.md",
+    "references/shape-frontend.md",
+    "references/shape-backend.md",
+    "agents/developer.md",
     "scripts/gin-workflow",
     "scripts/workflow_core/__init__.py",
     "scripts/workflow_core/configuration.py",
@@ -119,6 +122,16 @@ class HarnessPackagingTests(unittest.TestCase):
                 root = self.dist / harness
                 missing = [relative for relative in REQUIRED_ARTIFACTS if not (root / relative).is_file()]
                 self.assertEqual([], missing)
+
+    def test_removed_agents_are_gone_and_unreferenced(self):
+        src = ROOT / "plugins/gin-workflow/src"
+        for name in ("full-stack-developer", "codebase-mapper"):
+            with self.subTest(agent=name):
+                self.assertFalse((src / "agents" / f"{name}.md").exists())
+                mentions = [path.relative_to(src).as_posix() for path in src.rglob("*")
+                            if path.is_file() and path.suffix in (".md", ".py", ".json", ".yaml")
+                            and name in path.read_text(encoding="utf-8", errors="replace")]
+                self.assertEqual([], mentions)
 
     def test_each_harness_has_its_manifest_and_hooks_in_the_expected_location(self):
         expected = {
