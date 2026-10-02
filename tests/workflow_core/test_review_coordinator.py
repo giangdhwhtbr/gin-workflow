@@ -39,13 +39,12 @@ class ReviewCoordinatorTests(unittest.TestCase):
 
     def test_review_skills_require_independence_affinity_and_terminal_gate(self):
         plugin = SCRIPTS.parent / "skills"
-        cross_agent = (plugin / "cross-agent-code-review/SKILL.md").read_text(encoding="utf-8")
-        requesting = (plugin / "requesting-code-review/SKILL.md").read_text(encoding="utf-8")
-        receiving = (plugin / "receiving-code-review/SKILL.md").read_text(encoding="utf-8")
+        review = (plugin / "review/SKILL.md").read_text(encoding="utf-8")
+        receiving = (plugin / "gin-review-response/SKILL.md").read_text(encoding="utf-8")
 
-        self.assertIn("must differ from the implementation provider", cross_agent)
-        self.assertIn("maximum review cycles", cross_agent)
-        self.assertIn("original provider/model route", requesting)
+        self.assertIn("must differ from the implementation provider", review)
+        self.assertIn("maximum review cycles", review)
+        self.assertIn("original provider/model route", review)
         self.assertIn("same-role, same-reasoning fallback", receiving)
         self.assertIn("must not close", receiving)
 

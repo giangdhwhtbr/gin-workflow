@@ -29,7 +29,7 @@ This repository separates responsibilities intentionally:
 - Use the task-tracking capability for durable task tracking; Beads remains its durable state owner in this repository.
 - Do not create markdown TODO lists or ad hoc memory files.
 - Use `bd remember` for durable project memory when needed.
-- Do not commit or push unless the user or active instructions explicitly authorize it.
+- Commit and push freely on feature/worktree branches; never commit directly to `main`/`master`. Creating a PR, merging into the base branch, or force-pushing requires explicit user approval.
 - Before ending work, follow `docs/verification-and-handoff-workflow.md`.
 
 ## Non-Interactive Shell Commands

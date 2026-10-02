@@ -174,6 +174,99 @@ class TestLifecycleCLI(unittest.TestCase):
         finally:
             shutil.rmtree(legacy_repo)
 
+    def _state_gates(self, workflow_id="default-workflow"):
+        import io
+        from unittest.mock import patch
+
+        with patch("sys.stdout", new=io.StringIO()) as out:
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json", "--workflow-id", workflow_id])
+        return json.loads(out.getvalue())["gates"]
+
+    def test_record_marks_each_process_gate_satisfied(self):
+        for gate in ("requirement-confirmed", "plan-approved", "orchestration-ready"):
+            exit_code = cli_main([
+                "record", gate,
+                "--repository", str(self.repo_path),
+                "--evidence", ".planning/specs/x.md",
+                "--actor", "user",
+            ])
+            self.assertEqual(0, exit_code)
+        gates = self._state_gates()
+        for gate in ("requirement_confirmed", "plan_approved", "orchestration_ready"):
+            self.assertEqual("satisfied", gates[gate])
+
+    def test_record_is_scoped_to_workflow_id(self):
+        cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
+                  "--evidence", "spec.md", "--actor", "user", "--workflow-id", "other"])
+        self.assertEqual("unmet", self._state_gates()["requirement_confirmed"])
+        self.assertEqual("satisfied", self._state_gates("other")["requirement_confirmed"])
+
+    def test_record_is_idempotent_for_same_evidence(self):
+        args = ["record", "plan-approved", "--repository", str(self.repo_path),
+                "--evidence", "plan.md", "--actor", "user"]
+        self.assertEqual(0, cli_main(args))
+        self.assertEqual(0, cli_main(args))
+        events = WorkflowEventStore(self.repo_path / ".agent-workflow/runtime/events.jsonl").read_all()
+        self.assertEqual(1, sum(1 for event in events if event.event_type == "approval.recorded"))
+
+    def _fake_beads(self, children, epic_status="open"):
+        def run(repo, argv):
+            if argv[:2] == ["list", "--parent"]:
+                return [{"id": f"epic.{i}", "status": status} for i, status in enumerate(children)]
+            if argv[0] == "show":
+                return [{"id": "epic", "status": epic_status}]
+            raise AssertionError(argv)
+        return run
+
+    def _record_orchestration(self, epic="epic"):
+        args = ["record", "orchestration-ready", "--repository", str(self.repo_path),
+                "--evidence", "beads", "--actor", "user"]
+        self.assertEqual(0, cli_main(args + (["--epic", epic] if epic else [])))
+
+    def test_implementation_complete_derives_from_closed_epic_children(self):
+        from unittest.mock import patch
+
+        self._record_orchestration()
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed", "open"])):
+            self.assertEqual("unmet", self._state_gates()["implementation_complete"])
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed", "closed"])):
+            gates = self._state_gates()
+        self.assertEqual("satisfied", gates["implementation_complete"])
+        self.assertEqual("unmet", gates["shipped"])
+
+    def test_implementation_complete_unmet_without_epic_children_or_beads(self):
+        from unittest.mock import patch
+
+        self._record_orchestration(epic=None)
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"])):
+            self.assertEqual("unmet", self._state_gates()["implementation_complete"])
+        self._record_orchestration()
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([])):
+            self.assertEqual("unmet", self._state_gates()["implementation_complete"])
+        with patch("workflow_core.lifecycle_cli._beads_json", lambda repo, argv: None):
+            self.assertEqual("unmet", self._state_gates()["implementation_complete"])
+
+    def test_verification_passed_is_recordable_and_shipped_follows_closed_epic(self):
+        from unittest.mock import patch
+
+        self._record_orchestration()
+        self.assertEqual(0, cli_main(["record", "verification-passed", "--repository", str(self.repo_path),
+                                      "--evidence", "547 tests OK", "--actor", "user"]))
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"], epic_status="closed")):
+            gates = self._state_gates()
+        self.assertEqual("satisfied", gates["verification_passed"])
+        self.assertEqual("satisfied", gates["shipped"])
+
+    def test_record_rejects_epic_on_other_gates(self):
+        self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
+                                      "--evidence", "plan.md", "--actor", "user", "--epic", "epic"]))
+
+    def test_record_rejects_unknown_gate_and_missing_evidence(self):
+        self.assertEqual(2, cli_main(["record", "shipped", "--repository", str(self.repo_path),
+                                      "--evidence", "x", "--actor", "user"]))
+        self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
+                                      "--actor", "user"]))
+
 
 if __name__ == "__main__":
     unittest.main()

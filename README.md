@@ -30,20 +30,14 @@ The plugin is skill-first across all supported platforms. These skills are the p
 
 ## Support Skills
 
-The plugin provides fully self-contained support skills (bundled reasoning methodology + gin-workflow rules; `superpowers` is no longer a dependency):
+Each lifecycle stage skill is self-contained (methodology + gin-workflow rules) and shares `references/stage-contract.md`; `superpowers` is not a dependency. Shared support skills load on demand:
 
-- `discovering-work`
-- `writing-plans`
-- `bead-orchestrator`
-- `bead-worker`
-- `executing-plans`
-- `verification-before-completion`
-- `finishing-a-development-branch`
-- `dispatching-parallel-agents`
-- `using-git-worktrees`
-- `systematic-debugging`
-- `requesting-code-review`
-- `receiving-code-review`
+- `review` — request or perform an independent review through the review ledger
+- `gin-debugging` — root cause before fix
+- `gin-worktrees` — isolated workspaces and clean baselines
+- `gin-review-response` — triage review findings in the ledger
+- `gin-parallel-agents` — bounded concurrent agents for independent work
+- `gin-knowledge` — capture and reconcile durable project knowledge
 
 ## One-Time Repository Setup
 

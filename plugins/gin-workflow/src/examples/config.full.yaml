@@ -46,7 +46,7 @@ routing:
     role: review
     require_independent: true
     allow_self_review_fallback: false
-    max_cycles: 3
+    max_cycles: 2
 
 policy:
   approval:

@@ -13,9 +13,9 @@ Coordinate one setup session outside the lifecycle.
 - native harness context, when detected
 - user-selected portable settings
 
-Do not require `EffectiveConfig`, `ArtifactRegistry`, `ContextManifest`, or a
-durable approval record before initial setup. They are unavailable until
-bootstrap completes.
+Do not require generated configuration, a context manifest, or a durable
+approval record before initial setup. They are unavailable until bootstrap
+completes.
 
 ## First-time execution
 
@@ -39,7 +39,7 @@ Do not infer required answers or combine groups into one large prompt.
 6. **Provider concurrency** — What maximum concurrent worker count applies to each provider?
 7. **Queue and worker limits** — What are queue wait seconds, worker timeout seconds, and maximum retries?
 8. **Circuit breaker** — What failure threshold, cooldown seconds, and half-open probe limit should apply?
-9. **Independent review** — Which review role is used, must review differ from implementation, may self-review be a fallback, and what is the maximum cycle count?
+9. **Independent review** — Which review role is used, must review differ from implementation, may self-review be a fallback, and what is the maximum cycle count (suggest 2)?
 
 Use `plugins/gin-workflow/src/examples/config.full.yaml` and `providers.local.example.yaml` as a reference, never as silently accepted answers. Credentials remain owned by each native CLI login and are never questionnaire values.
 

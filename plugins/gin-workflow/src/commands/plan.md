@@ -5,17 +5,8 @@ description: Turn a confirmed requirement into a durable implementation plan.
 
 # /plan Command
 
-Route one planning action to the `plan` skill only after requirement confirmation is evidenced. Produce a durable, git-tracked plan without starting orchestration.
+Produce a durable, git-tracked plan from a confirmed requirement: tracks, file scope, dependencies, validation intent, risks, provider role, and reasoning.
 
-## Wrapper boundary
+Use the `plan` skill.
 
-At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled. Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="plan")` and receive the native-harness `ApprovalDecision`. Resolve the plan destination from `ArtifactRegistry["plans"]`; do not hard-code a repository path or concrete provider.
-
-## Instructions
-
-1. Check evidence for an explicitly confirmed requirement; otherwise return to `discuss` on a later routing action.
-2. Use the `writing-plans` methodology skill and [plan-schema.md](file://../skills/writing-plans/plan-schema.md).
-3. Keep required context to the confirmed requirement, accepted decisions, and applicable constraints. Make related symbols, tests, and project knowledge discoverable on demand.
-4. Record scope, file boundaries, validation intent, dependencies, risks, and abstract model classes.
-5. Ask for plan approval in the native harness and persist the decision through the evidence capability.
-6. Return `plan_approved` state. Do not orchestrate in the same action.
+Require `requirement_confirmed` first; otherwise return to `discuss`. Stop after `plan_approved`; never orchestrate in the same action.

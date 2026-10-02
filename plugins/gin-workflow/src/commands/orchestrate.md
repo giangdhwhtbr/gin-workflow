@@ -1,21 +1,12 @@
 ---
 name: orchestrate
-description: Convert one approved plan into provider-backed durable execution state.
+description: Convert one approved plan into durable Beads execution state.
 ---
 
 # /orchestrate Command
 
-Route one orchestration action to the `orchestrate` skill. State ownership follows [orchestration-state-model.md](file://../references/orchestration-state-model.md).
+Mirror an approved plan's tracks and dependencies into Beads, prepare an isolated workspace, and confirm readiness.
 
-## Wrapper boundary
+Use the `orchestrate` skill.
 
-At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled (task tracking uses Beads from `artifacts.beads`). Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="orchestrate")` and receive the native-harness `ApprovalDecision`. All durable task operations use the configured task-tracking capability; workspace preparation uses the configured workspace capability.
-
-## Instructions
-
-1. Require an approved plan resolved from the artifact registry.
-2. Use the `bead-orchestrator` methodology through task create/read/update capabilities. Distinguish Parent Bead (Deliverable) vs Track Beads (Work Units): rules like "remain open until human-confirmed merge" apply strictly to the Parent Bead, never to child track beads.
-3. Mirror plan tracks and dependencies into durable task state and verify readiness through that provider. Child track beads must be closed upon test and review pass to unblock downstream dependent tracks.
-4. Use workspace isolation by default. Disabling isolation or selecting current-branch execution requires approval-manager authorization and a durable audit event.
-5. Keep required context to plan decomposition and validation intent; related symbols, tests, and project knowledge stay discoverable on demand.
-6. Return `orchestration_ready` state. Do not begin execution.
+Require `plan_approved` first. Stop after `orchestration_ready`; never begin execution.

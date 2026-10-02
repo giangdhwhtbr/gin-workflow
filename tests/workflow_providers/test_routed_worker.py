@@ -513,10 +513,10 @@ class RoutedWorkerTests(unittest.TestCase):
 
     def test_worker_dispatch_skill_requires_route_revalidation_and_same_tier_fallback(self):
         skill = (
-            SCRIPTS.parent / "skills/worker-dispatch/SKILL.md"
+            SCRIPTS.parent / "skills/execute/SKILL.md"
         ).read_text(encoding="utf-8")
         lifecycle = (
-            SCRIPTS.parent / "skills/worker-dispatch/references/worker-lifecycle.md"
+            SCRIPTS.parent / "skills/execute/references/worker-lifecycle.md"
         ).read_text(encoding="utf-8")
 
         self.assertIn("provider role and reasoning", skill)

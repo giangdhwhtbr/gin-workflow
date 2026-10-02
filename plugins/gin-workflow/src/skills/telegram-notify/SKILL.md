@@ -5,6 +5,8 @@ description: Defines when and how agents send Telegram notifications during gin-
 
 # Telegram Notify Skill
 
+Load only when Telegram is configured or the user explicitly invokes it.
+
 This skill defines the notification contract for gin-workflow lifecycle events.
 Agents reference this skill to know **when** to notify, **what** to say, and **how** to handle replies.
 
@@ -50,7 +52,7 @@ Reply "approve" to proceed, or "reject: <reason>" to revise.
 
 ### 2. Task Completed (one-way)
 
-**Trigger:** After a `bead-worker` finishes execution and passes its verification step (step 4 in bead-worker skill).
+**Trigger:** After a bead worker finishes execution and passes its validation (the `execute` skill's implement step).
 
 **Mode:** `send` — fire-and-forget.
 
@@ -73,7 +75,7 @@ Session: {SESSION_ID}
 
 ### 3. Work Blocked (one-way)
 
-**Trigger:** When a `bead-worker` encounters out-of-scope changes, or when `execute` returns to `discuss` due to ambiguity or missing requirements.
+**Trigger:** When a bead worker encounters out-of-scope changes, or when `execute` returns to `discuss` due to ambiguity or missing requirements.
 
 **Mode:** `send` — fire-and-forget.
 
@@ -156,7 +158,7 @@ Reply "ship" to deliver, or "hold: <reason>" to pause.
 
 ### 6. All Work Complete (one-way)
 
-**Trigger:** After the `bead-orchestrator` confirms all beads are closed.
+**Trigger:** After the `orchestrate`/`ship` stage confirms all beads are closed.
 
 **Mode:** `send` — fire-and-forget.
 

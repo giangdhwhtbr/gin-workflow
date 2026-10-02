@@ -71,16 +71,6 @@ If no issues are found, say that clearly and list residual risks or test gaps.
 
 ## Output and Ledger Interaction
 
-The reviewer operates on the Git review ledger and must submit all findings and transitions through the CLI:
-
-1. **Acquire Lease**: On session start, acquire the reviewer lease:
-   `python3 review-ledger.py start-review --bead-id <bead-id> --actor-id <actor-id>`
-2. **Submit Findings**: For each finding identified, write it to the ledger using:
-   `python3 review-ledger.py add-finding --bead-id <bead-id> --finding-id <finding-id> --severity <CRITICAL|IMPORTANT|MINOR|SUGGESTION> --actor-id <actor-id> --lease-id <lease-id>`
-3. **Approve or Reject**:
-   - If zero unresolved findings exist, approve the review:
-     `python3 review-ledger.py approve --bead-id <bead-id> --actor-id <actor-id> --lease-id <lease-id>`
-   - If findings require fixes, transition state to changes-requested by releasing the lease or making final assessment.
-4. **Writers**: Re-run rendering to verify Markdown consistency: `python3 review-ledger.py render --bead-id <bead-id>`.
+Follow the `review` skill (reviewer section) for the ledger: `start-review` to take the lease, `add-finding` per issue (severity `CRITICAL|IMPORTANT|MINOR|SUGGESTION`), `approve` only when every finding is terminal (otherwise request changes), then `render`.
 
 Do not close Beads issues. The orchestrator or worker closes Beads only after verification and handoff are complete.

@@ -5,6 +5,8 @@ description: Move a repository's local .beads directory to the centralized vault
 
 # Beads Migration Skill
 
+Load only when the user explicitly invokes it.
+
 Use this skill when initializing or onboarding a project repository to use the concentrated Beads database structure in the Obsidian vault.
 
 ## Purpose

@@ -26,5 +26,5 @@ This file is intentionally short. Use it as a pointer layer, not as a second wor
 
 - Use `bd` for durable task tracking.
 - Use `bd remember` for durable project memory when needed.
-- Do not commit or push unless explicitly authorized.
+- Commit and push freely on feature/worktree branches; never commit directly to `main`/`master`. Creating a PR, merging into the base branch, or force-pushing requires explicit user approval.
 - Follow the verification and handoff workflow before claiming completion.

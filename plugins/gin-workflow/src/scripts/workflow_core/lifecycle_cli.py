@@ -1,10 +1,12 @@
-"""Lifecycle command-line interface for workflow state inspection and unblocking."""
+"""Lifecycle command-line interface for workflow state inspection, gate recording, and unblocking."""
 
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
@@ -75,6 +77,89 @@ def _process_gate_state(
     return gates
 
 
+def _beads_json(repo_path: Path, argv: list[str]) -> Any:
+    """Run one read-only Beads query; None when Beads is unavailable or fails."""
+    executable = shutil.which("bd")
+    if executable is None:
+        return None
+    try:
+        completed = subprocess.run(
+            [executable, *argv, "--json"], cwd=repo_path, text=True, capture_output=True, check=False, timeout=30
+        )
+        return json.loads(completed.stdout) if completed.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return None
+
+
+def _recorded_epic(event_store: WorkflowEventStore, workflow_id: str) -> str:
+    epic = ""
+    for event in event_store.read_all():
+        payload = event.payload if isinstance(event.payload, Mapping) else {}
+        if event.workflow_id == workflow_id and event.event_type == "orchestration.ready" and payload.get("epic"):
+            epic = str(payload["epic"])
+    return epic
+
+
+def _delivery_gate_state(
+    repo_path: Path, event_store: WorkflowEventStore, workflow_id: str
+) -> dict[str, bool]:
+    """Derive delivery gates: implementation from closed epic children, verification from
+    its recorded event, shipped from the closed epic (closed only after a confirmed merge)."""
+    gates = {
+        "implementation_complete": False,
+        "verification_passed": any(
+            event.workflow_id == workflow_id and event.event_type == "verification.passed"
+            for event in event_store.read_all()
+        ),
+        "shipped": False,
+    }
+    epic = _recorded_epic(event_store, workflow_id)
+    if not epic:
+        return gates
+    children = _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
+    if isinstance(children, list) and children and all(
+        isinstance(child, Mapping) and child.get("status") == "closed" for child in children
+    ):
+        gates["implementation_complete"] = True
+        shown = _beads_json(repo_path, ["show", epic])
+        record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
+        gates["shipped"] = isinstance(record, Mapping) and record.get("status") == "closed"
+    return gates
+
+
+_RECORDABLE_GATES = {
+    "requirement-confirmed": ("requirement.confirmed", {}),
+    "plan-approved": ("approval.recorded", {"action": "plan_approved", "decision": {"status": "approved"}}),
+    "orchestration-ready": ("orchestration.ready", {}),
+    "verification-passed": ("verification.passed", {}),
+}
+
+
+def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+    event_type, base_payload = _RECORDABLE_GATES[args.gate]
+    if args.epic and args.gate != "orchestration-ready":
+        return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
+    store = _get_event_store(Path(args.repository).resolve())
+    payload = {**base_payload, "evidence": args.evidence}
+    if args.epic:
+        payload["epic"] = args.epic
+    event = WorkflowEvent.create(
+        event_type=event_type,
+        workflow_id=args.workflow_id,
+        actor=args.actor,
+        payload=payload,
+        idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}",
+    )
+    appended = store.append(event)
+    return {
+        "status": "recorded" if appended else "already_recorded",
+        "gate": args.gate,
+        "event_type": event_type,
+        "workflow_id": args.workflow_id,
+        "message": f"{args.gate} recorded for {args.workflow_id}",
+    }, 0
+
+
 def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     repo_path = Path(args.repository).resolve()
     resolved_config = resolve_effective_config(repo_path, write=False)
@@ -89,6 +174,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "audit_event_store": event_store,
         "scope_hash": scope_hash,
         **_process_gate_state(event_store, workflow_id),
+        **_delivery_gate_state(repo_path, event_store, workflow_id),
     }
 
     decision = route_next_stage(state, config)
@@ -192,11 +278,11 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 def main(arguments: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if arguments is None else arguments)
     if not argv:
-        print("usage: gin-workflow {state,unblock} ...", file=sys.stderr)
+        print("usage: gin-workflow {state,unblock,record} ...", file=sys.stderr)
         return 2
 
     command = argv[0]
-    if command not in ("state", "unblock"):
+    if command not in ("state", "unblock", "record"):
         print(f"unknown command: {command}", file=sys.stderr)
         return 2
 
@@ -253,6 +339,24 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 print(payload.get("message", "Success"))
             else:
                 print(f"error: {payload.get('message', 'Failed')}", file=sys.stderr)
+        return exit_code
+
+    if command == "record":
+        parser.add_argument("gate", choices=tuple(_RECORDABLE_GATES))
+        parser.add_argument("--evidence", required=True)
+        parser.add_argument("--actor", required=True)
+        parser.add_argument("--epic", default="", help="parent bead whose closed children prove implementation_complete")
+        try:
+            args = parser.parse_args(argv[1:])
+        except SystemExit as e:
+            return e.code if isinstance(e.code, int) else 2
+        payload, exit_code = _record_command(args)
+        if args.format == "json":
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        elif exit_code:
+            print(f"error: {payload['message']}", file=sys.stderr)
+        else:
+            print(payload["message"])
         return exit_code
 
     return 2

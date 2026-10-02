@@ -5,17 +5,8 @@ description: Perform one approved delivery action after verification.
 
 # /ship Command
 
-Route one delivery action to the `ship` skill.
+Close out verified work: present integration options, run the approved delivery action, close beads, and clean up review ledgers and worktrees.
 
-## Wrapper boundary
+Use the `ship` skill.
 
-At entry, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled. Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from a lifecycle command. Then create `ContextManifest(stage="ship")` and receive the native-harness `ApprovalDecision`. Task closure, workspace cleanup, review, evidence, knowledge, and notifications use their configured capabilities.
-
-## Instructions
-
-1. Require `verification_passed` evidence and a terminal review state.
-2. Apply the `finishing-a-development-branch` methodology and canonical handoff checklist.
-3. Revalidate required approval and reviewed tree identity before any authorized integration action.
-4. Obtain native-harness approval for commit, push, upgrade, data movement, or other protected delivery actions and persist the audit event.
-5. Keep verification, review, approval, and handoff evidence required; related symbols, tests, and project knowledge remain discoverable on demand.
-6. Return `shipped` state after durable close-out and clean up transient review ledgers with `python3 review-ledger.py cleanup --bead-id <bead-id>`. Do not start another lifecycle action.
+Require `verification_passed` and a terminal review state. Commit, push, or merge only with explicit approval. Do not start another lifecycle action.

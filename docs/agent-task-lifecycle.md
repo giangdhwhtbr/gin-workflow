@@ -121,7 +121,7 @@ Required actions:
 - Keep durable progress updated through the task-tracking capability as work advances.
 - Run local validation as part of each worker’s execution loop.
 - When a track bead completes its technical scope, passes tests, and satisfies code review, it must be closed in Beads to unblock downstream dependent tracks.
-- When commit/push authority is not yet granted, do not claim "waiting for PR merge"; prompt the user with clear options (request commit & push for PR, or keep uncommitted in worktree and proceed to next track).
+- Commit and push the feature branch; never claim "waiting for PR merge" without a real PR link, and prompt the user with clear options (request approval to create a PR, or keep the pushed branch and continue to the next track).
 
 Blocked-work handling:
 
@@ -186,7 +186,7 @@ Required actions:
 Session-close behavior:
 
 - Follow the repo session-close protocol from `AGENTS.md`.
-- Do not commit or push unless explicitly authorized by the active instructions or the user.
+- Commit and push freely on feature/worktree branches; never commit directly to `main`/`master`. Creating a PR, merging into the base branch, or force-pushing requires explicit user approval.
 
 Exit criteria:
 

@@ -108,7 +108,7 @@ class ReviewCoordinator:
         *,
         require_independent: bool = True,
         allow_self_review_fallback: bool = False,
-        max_cycles: int = 3,
+        max_cycles: int = 2,
         route_available: Callable[[str, str], bool] | None = None,
         worker_dispatcher: Any | None = None,
     ) -> None:

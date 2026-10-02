@@ -1,35 +1,27 @@
 ---
 name: discuss
-description: Clarify a requirement before planning or durable task creation.
+description: Clarify a requirement into a confirmed design spec before any planning, tasks, or code.
 ---
 
-# Discuss Skill
+Follow references/stage-contract.md.
 
-Perform exactly one requirement-discovery stage and return its transition evidence.
+# Discuss
 
-## Required inputs
+Turn a requirement into a confirmed design. The user starts with an idea, not a Beads task; never ask them to run `bd` during discovery.
 
-- resolved `EffectiveConfig`
-- `ArtifactRegistry`
-- `ContextManifest(stage="discuss")`
-- native-harness `ApprovalDecision`
+**Hard gate:** no code, scaffolding, implementation skill, plan, or Beads task until the user explicitly confirms the design. This applies to every request, however simple; a simple design can be a few sentences, but it is still presented and confirmed.
 
-The caller must obtain `EffectiveConfig` through
-`load_effective_config(repository)`. Setup is required ONLY when
-`load_effective_config` raises `ConfigValidationError` (i.e.
-`.agent-workflow/generated/effective-config.yaml` is missing). An empty
-`capabilities: {}` mapping in `EffectiveConfig` is the valid default state where
-all capabilities and lifecycle stages are enabled. Never treat
-`capabilities: {}` as missing configuration. If setup is required, stop and
-instruct the user to run `/setup` once. Never run setup or resolve raw
-configuration from this lifecycle skill.
+## Steps
 
-Reject unbounded parent context. Use the context manager to keep the requirement and relevant repository facts required while leaving related symbols, tests, and project knowledge discoverable on demand.
+1. **Explore context** — relevant files, docs, recent commits. If the request spans several independent subsystems, say so first and help decompose into sub-projects (each gets its own spec → plan → implementation); then discuss only the first.
+2. **Clarify** — one question per message, multiple choice when possible. Cover purpose, constraints, success criteria, edge cases, risks, dependencies, and assumptions.
+3. **Propose 2–3 approaches** — trade-offs, lead with your recommendation and why. Challenge assumptions that create risk. YAGNI.
+4. **Present the design** in sections scaled to complexity (a few sentences up to ~300 words); confirm each section before moving on. Cover architecture, components, data flow, error handling, testing. Prefer small units with one purpose and clear interfaces; in existing code follow existing patterns and include only targeted improvements that serve the goal.
+5. **Write the spec** to `.planning/specs/YYYY-MM-DD-<topic>-design.md`. Commit it on a feature branch, never on `main`/`master`.
+6. **Self-review the spec** and fix inline: placeholders (TBD/TODO), contradictions, scope too large for one plan, requirements readable two ways.
+7. **User review** — "Spec written to `<path>`. Please review it and tell me about any changes before we write the implementation plan." Apply changes and repeat step 6 until the user explicitly confirms.
+8. **Record** — `gin-workflow record requirement-confirmed --evidence <spec-path> --actor <user-id>`.
 
-## Execution
+## Exit
 
-1. Apply the `discovering-work` methodology.
-2. Clarify ambiguity, constraints, alternatives, risks, and acceptance criteria.
-3. Ask for explicit confirmation in the native harness.
-4. Use the evidence capability to record the confirmed requirement and decision.
-5. Return state showing whether `requirement_confirmed` is true. Do not invoke another lifecycle stage.
+Done only when the user has explicitly confirmed the summarized understanding and the gate is recorded. Return `requirement_confirmed`; the next stage is `plan`. Do not invoke it.

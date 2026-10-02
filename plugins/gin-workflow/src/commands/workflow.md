@@ -5,12 +5,8 @@ description: Route current durable state to exactly one guarded lifecycle action
 
 # /workflow Command
 
-Use the `workflow` skill to inspect state, evaluate guards, and select one next action.
+Read durable state with `gin-workflow state --format json`, keep its routing decision and evidence, and select one next action.
 
-## Wrapper boundary
+Use the `workflow` skill.
 
-Before routing, call `load_effective_config(repository)` and build `ArtifactRegistry` from that generated configuration. Setup is required ONLY when `load_effective_config` fails or `effective-config.yaml` is missing; an empty `capabilities: {}` is the valid default where all capabilities and stages are enabled. Never treat `capabilities: {}` as missing setup. If setup is required, stop and instruct the user to run `/setup` once; never run setup or configuration resolution from `/workflow`. Then create `ContextManifest(stage="workflow")` and receive the native-harness `ApprovalDecision`. Use `route_next_stage(state, config)` and preserve its decision and evidence.
-
-After routing, construct a new `ContextManifest` whose stage exactly matches the selected target, sanitize it through the context manager, and pass `EffectiveConfig`, `ArtifactRegistry`, that target-stage manifest, and `ApprovalDecision` to the selected wrapper.
-
-Invoke at most one of `discuss`, `plan`, `orchestrate`, `execute`, `verify`, `ship`, or `progress`. Never loop, combine lifecycle actions, or infer success from a prior action's return value. A later `/workflow` invocation re-reads durable state and routes again.
+Invoke at most one of `discuss`, `plan`, `orchestrate`, `execute`, `verify`, `ship`, or `progress`. Never loop, combine stages, or infer success from a prior action; a later `/workflow` re-reads state.

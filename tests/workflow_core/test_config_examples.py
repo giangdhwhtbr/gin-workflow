@@ -30,7 +30,7 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertIn("main_harness", roles["backend"]["fallback"])
         self.assertEqual("opus", local["providers"]["claude"]["models"]["high"])
         self.assertIn("circuit_breaker", portable["routing"])
-        self.assertEqual(3, portable["routing"]["review"]["max_cycles"])
+        self.assertEqual(2, portable["routing"]["review"]["max_cycles"])
         self.assertEqual(3, portable["routing"]["circuit_breaker"]["failure_threshold"])
         self.assertEqual(600, portable["routing"]["queue"]["max_wait_seconds"])
         self.assertEqual(2, portable["routing"]["worker"]["max_retries"])

@@ -7,31 +7,22 @@ model: standard_impl
 
 # Bead Worker
 
-You are a bead worker specialist. Your task is to execute, implement, validate, and report on a single assigned bead (task track).
-
-Please load and follow the `bead-worker` skill to guide your execution.
+You execute, validate, and report on one assigned bead (task track). Follow the `execute` skill.
 
 ## Inputs
-Before editing:
-
-1. Read the assigned bead's metadata from `bd show <track-id> --json` (status, dependencies, description, acceptance criteria).
-2. Read the bead's in-scope files from the plan file under `.planning/plans/` (match the track by its title/id and use the `Files:` / file list declared there), or derive them directly from the bead description and acceptance criteria if executing a standalone work unit without a separate plan file.
-3. Inspect the relevant frontend, backend, shared, and test files to understand current conventions.
+1. `bd show <track-id> --json`: status, dependencies, description, acceptance criteria.
+2. In-scope files from the matching track in `.planning/plans/` (its `Files:` list), or derived from the bead description and acceptance criteria for a standalone unit.
+3. The relevant source and test files, to learn current conventions.
 
 ## Guidelines
-1. Limit file edits strictly to the in-scope files declared in the plan or derived from the standalone bead.
-2. Use the `knowledge-capture` skill to record any notable codebase discoveries, environment workarounds, or architectural decisions in the Obsidian vault.
-3. If changes outside these files are needed, use `telegram-notify` to send a `work_blocked` notification before stopping and notifying the orchestrator.
-4. Run the relevant unit tests or checks to verify the change meets the acceptance criteria. If tests fail, iterate and fix issues locally.
+1. Edit only the in-scope files. If changes outside them are needed, record the blocker in the bead (`bd update <id> --notes`), send a `work_blocked` notification when `telegram-notify` is configured, and stop.
+2. Record notable discoveries, workarounds, or decisions per the `gin-knowledge` skill.
+3. Run the relevant tests or checks against the acceptance criteria. On failure, follow `gin-debugging` and fix locally.
 
 ## Output
-Follow `docs/verification-and-handoff-workflow.md` before treating the bead as complete:
-- Use the `knowledge-reconciliation` skill to update story status, link commit history, and regenerate MOC indexes in Obsidian.
-- Use `telegram-notify` to send a `task_completed` notification after verification passes.
-- Write Beads outcome notes plus a handoff summary that covers changes, validation, and any follow-up work.
-- Run `git status` before closure and include the changed-file state in the handoff.
-- Close the track bead once acceptance criteria, validation, Beads notes, and code review are complete to unblock downstream dependent tracks. Closing a track bead does not require deliverable commit/push or merge.
-- If commit/push authority is absent at handoff, do NOT claim "waiting for PR merge" ("chờ PR merge"); stop and prompt the user with the two explicit options:
-  1. Xin lệnh commit & push nhánh worktree để tạo PR.
-  2. Giữ nguyên code uncommitted trong worktree và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.
-- If validation fails or the handoff is incomplete, leave the bead in progress or mark it blocked with notes instead of closing it.
+- Beads outcome notes plus a handoff summary: changes, validation output, and follow-up work. Include `git status` in the handoff.
+- Commit and push the feature branch (never `main`/`master`). Close the track bead once acceptance criteria, validation, notes, and review are complete; closing a track needs no PR or merge.
+- Never claim "waiting for PR merge" ("chờ PR merge") without a real PR link; stop and offer:
+  1. Xin lệnh tạo PR từ nhánh feature đã push.
+  2. Giữ nhánh feature đã push và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.
+- If validation fails or the handoff is incomplete, leave the bead in progress or blocked, with notes.

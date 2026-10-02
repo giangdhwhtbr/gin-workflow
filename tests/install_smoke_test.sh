@@ -74,16 +74,21 @@ assert_workflow_v22_layout() {
     "commands/workflow.md"
     "skills/setup/SKILL.md"
     "skills/workflow/SKILL.md"
-    "skills/context-manager/SKILL.md"
-    "skills/approval-manager/SKILL.md"
-    "skills/evidence-manager/SKILL.md"
-    "skills/worker-dispatch/SKILL.md"
-    "skills/worker-dispatch/references/worker-lifecycle.md"
-    "skills/worker-dispatch/references/delegation-policy.md"
-    "skills/worker-dispatch/references/result-contract.md"
+    "skills/discuss/SKILL.md"
+    "skills/plan/SKILL.md"
+    "skills/plan/plan-schema.md"
+    "skills/orchestrate/SKILL.md"
+    "skills/execute/SKILL.md"
+    "skills/execute/references/worker-lifecycle.md"
+    "skills/execute/references/delegation-policy.md"
+    "skills/execute/references/result-contract.md"
+    "skills/verify/SKILL.md"
+    "skills/ship/SKILL.md"
+    "skills/review/SKILL.md"
     "references/setup-system.md"
     "references/capability-provider-contracts.md"
     "references/context-and-evidence-policy.md"
+    "references/stage-contract.md"
     "scripts/gin-workflow"
     "scripts/workflow_core/configuration.py"
     "scripts/workflow_core/setup_service.py"
@@ -138,10 +143,13 @@ assert_exists "plugins/gin-workflow/dist/claude-code/agents/full-stack-developer
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/qa-agent.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/docs-writer.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/bead-worker.md"
-assert_exists "plugins/gin-workflow/dist/claude-code/skills/systematic-debugging/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/claude-code/skills/receiving-code-review/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/claude-code/skills/cross-agent-code-review/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-debugging/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-debugging/find-polluter.sh"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-review-response/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-worktrees/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-parallel-agents/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/gin-knowledge/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/review/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/commands/review.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/verification-and-handoff-workflow.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/references/orchestration-state-model.md"
@@ -154,19 +162,13 @@ assert_not_exists "plugins/gin-workflow/dist/claude-code/commands/map-codebase.m
 assert_not_exists "plugins/gin-workflow-advanced"
 
 assert_contains "plugins/gin-workflow/dist/claude-code/commands/plan.md" "durable, git-tracked plan"
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/writing-plans/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/executing-plans/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/verification-before-completion/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/systematic-debugging/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/dispatching-parallel-agents/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/receiving-code-review/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/requesting-code-review/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/finishing-a-development-branch/SKILL.md' 'superpowers'
-assert_not_contains 'plugins/gin-workflow/dist/claude-code/skills/using-git-worktrees/SKILL.md' 'superpowers'
+for skill_file in plugins/gin-workflow/dist/claude-code/skills/*/SKILL.md; do
+  assert_not_contains "$skill_file" 'superpowers'
+done
 
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verification-before-completion/SKILL.md' 'file://../../references/verification-and-handoff-workflow.md'
-assert_contains 'plugins/gin-workflow/dist/claude-code/commands/verify.md' 'file://../references/verification-and-handoff-workflow.md'
-assert_contains 'plugins/gin-workflow/dist/claude-code/commands/orchestrate.md' 'file://../references/orchestration-state-model.md'
+assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verify/SKILL.md' 'Follow references/stage-contract.md.'
+assert_contains 'plugins/gin-workflow/dist/claude-code/commands/verify.md' 'Use the `verify` skill.'
+assert_contains 'plugins/gin-workflow/dist/claude-code/commands/orchestrate.md' 'Use the `orchestrate` skill.'
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "codegraph"
@@ -182,15 +184,15 @@ assert_exists "plugins/gin-workflow/dist/codex/agents/docs-writer.md"
 assert_exists "plugins/gin-workflow/dist/codex/agents/bead-worker.md"
 assert_exists "plugins/gin-workflow/dist/codex/references/verification-and-handoff-workflow.md"
 assert_exists "plugins/gin-workflow/dist/codex/references/orchestration-state-model.md"
-assert_exists "plugins/gin-workflow/dist/codex/skills/cross-agent-code-review/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/codex/skills/review/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/codex/commands/review.md"
 assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"name\": \"gin-workflow\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
-assert_contains "plugins/gin-workflow/dist/codex/skills/verification-before-completion/SKILL.md" "file://../../references/verification-and-handoff-workflow.md"
-assert_contains "plugins/gin-workflow/dist/codex/commands/orchestrate.md" "file://../references/orchestration-state-model.md"
+assert_contains 'plugins/gin-workflow/dist/codex/skills/verify/SKILL.md' 'Follow references/stage-contract.md.'
+assert_contains 'plugins/gin-workflow/dist/codex/commands/orchestrate.md' 'Use the `orchestrate` skill.'
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "codegraph"

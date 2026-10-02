@@ -1,40 +1,39 @@
 ---
 name: verify
-description: Validate implementation against approved requirements and evidence.
+description: Verify completed work against requirement, plan, and review evidence with fresh command output.
 ---
 
-# Verify Skill
+Follow references/stage-contract.md.
 
-Perform exactly one verification stage.
+# Verify
 
-## Required inputs
+**Iron law: no completion claim without fresh verification evidence.** If you have not run the command in this action, you cannot claim it passes.
 
-- resolved `EffectiveConfig`
-- `ArtifactRegistry`
-- `ContextManifest(stage="verify")`
-- native-harness `ApprovalDecision`
+Gate for every claim: identify the command that proves it → run it fully and fresh → read the whole output and exit code → state the actual result with the evidence.
 
-There is no separate adapter class per harness for the `ApprovalDecision`: the
-running agent asks the user/operator directly through its own harness's native
-"ask the user a question" mechanism, then builds the portable `ApprovalDecision`
-dataclass (`workflow_core/approvals.py`) from that answer (see the
-approval-manager skill).
+## Steps
 
-The caller must obtain `EffectiveConfig` through
-`load_effective_config(repository)`. Setup is required ONLY when
-`load_effective_config` raises `ConfigValidationError` (i.e.
-`.agent-workflow/generated/effective-config.yaml` is missing). An empty
-`capabilities: {}` mapping in `EffectiveConfig` is the valid default state where
-all capabilities and lifecycle stages are enabled. Never treat
-`capabilities: {}` as missing configuration. If setup is required, stop and
-instruct the user to run `/setup` once. Never run setup or resolve raw
-configuration from this lifecycle skill.
+1. Require `implementation_complete`.
+2. **Review approval** for each track bead:
+   - `python3 review-ledger.py validate --bead-id <bead-id>` — an active, non-invalidated approval exists and every finding is terminal.
+   - Source tree hashes still match the approval snapshot.
+   - `python3 review-ledger.py render --bead-id <bead-id> --check` — no drift in `review.md`.
+3. **Quality gates** that apply: build, type check, lint, unit/integration tests (configured `verify.commands` first), and manual/UI checks the plan specifies.
+4. **Requirements**: re-read the confirmed spec and approved plan, make a line-by-line checklist, and verify each item against the code — not only the diff.
+5. Record every run, failure, skipped check (say so explicitly), risk, and unavailable provider. Failures route to the `gin-debugging` skill; do not patch blindly here.
 
-## Execution
+| Claim | Requires | Not sufficient |
+|---|---|---|
+| Tests pass | Test output with 0 failures | Earlier run, "should pass" |
+| Build succeeds | Build exit 0 | Lint passing |
+| Bug fixed | Original symptom test passes; red-green verified | Code changed |
+| Agent completed | VCS diff checked | Agent says "success" |
+| Requirements met | Checklist verified | Tests passing |
+| Waiting for PR merge | Pushed branch with a real PR link | Uncommitted code |
+| Track complete | Criteria, tests, and review pass | Parent merge pending |
 
-1. Require evidence that `implementation_complete` is true.
-2. Apply `verification-before-completion` and the canonical handoff workflow.
-3. Validate against the confirmed requirement, approved plan, acceptance criteria, and review evidence rather than only the diff.
-4. Use bounded required context and discover related symbols, tests, and project knowledge on demand.
-5. Record every run, omitted check, failure, risk, and provider availability through the evidence capability. Optional notifications use the configured notification provider.
-6. Return `verification_passed` state. Do not invoke shipping.
+**Stop** on "should", "probably", "seems to", satisfaction before evidence, trusting agent reports, partial checks, or a verified track left open waiting for the parent merge.
+
+## Exit
+
+Only when every gate has evidence: `gin-workflow record verification-passed --evidence "<commands and results>" --actor <id>`, then return `verification_passed`. Do not ship.
