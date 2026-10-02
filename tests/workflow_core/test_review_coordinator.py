@@ -57,6 +57,31 @@ class ReviewCoordinatorTests(unittest.TestCase):
             evidence=({"kind": "test", "reference": "pytest"},),
         )
 
+    def test_session_independence_accepts_same_provider_with_distinct_session(self):
+        coordinator = ReviewCoordinator(FakeReviewProvider(), independence="session")
+        cycle = coordinator.request_review(
+            task_id="ui", cycle_number=1, provider_role="review", reasoning="high",
+            implementation_route=("claude", "opus"),
+            reviewer_candidates=(RouteCandidate("claude", "opus", False),),
+            context=self.context(), implementation_session="impl-1", reviewer_session="rev-1")
+        self.assertEqual(("claude", "rev-1"), (cycle.reviewer_provider, cycle.reviewer_session))
+
+    def test_session_independence_rejects_same_or_missing_session(self):
+        coordinator = ReviewCoordinator(FakeReviewProvider(), independence="session")
+        for reviewer_session in ("impl-1", ""):
+            with self.subTest(reviewer_session=reviewer_session):
+                with self.assertRaises(ReviewCoordinationError):
+                    coordinator.request_review(
+                        task_id="ui", cycle_number=1, provider_role="review", reasoning="high",
+                        implementation_route=("claude", "opus"),
+                        reviewer_candidates=(RouteCandidate("claude", "opus", False),),
+                        context=self.context(), implementation_session="impl-1",
+                        reviewer_session=reviewer_session)
+
+    def test_unknown_independence_mode_is_rejected(self):
+        with self.assertRaises(ValueError):
+            ReviewCoordinator(FakeReviewProvider(), independence="team")
+
     def test_review_context_is_bounded_and_independent_provider_is_selected(self):
         coordinator = ReviewCoordinator(FakeReviewProvider(), require_independent=True)
 

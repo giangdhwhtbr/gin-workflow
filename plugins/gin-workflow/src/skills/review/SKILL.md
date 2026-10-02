@@ -18,7 +18,7 @@ Review after every track, after a major feature, and before merge; never skip be
 4. Handle findings with the `gin-review-response` skill: fix Critical immediately and Important before proceeding, note Minor ones, and push back with evidence when the reviewer is wrong.
 
 ## Reviewing (reviewer)
-1. Independence: the reviewer provider must differ from the implementation provider. Self-review only under the explicit `allow_self_review_fallback` policy; otherwise route exhaustion needs a human decision.
+1. Independence follows `project.independence` from `gin-workflow state --format json`: `provider` — the reviewer provider must differ from the implementation provider; `session` — a fresh session/subagent of the same provider with a clean context and a different actor id (`reviewer:<provider>:session-<id>`), never the implementer's session. Self-review only under the explicit `allow_self_review_fallback` policy; otherwise route exhaustion needs a human decision.
 2. `start-review --actor-id <reviewer>` acquires the lease (`--force-takeover --reason "<why>"` only when authorized; `resync-lease --lease-id <id>` after a stale revision). `validate` replays the ledger.
 3. Inspect the in-scope files for correctness, edge cases, error handling, security, performance, and plan alignment; run the tests in isolation. Never modify implementation files.
 4. Record each issue with `add-finding --finding-id <id> --severity <sev> --actor-id <reviewer> --lease-id <lease>`.

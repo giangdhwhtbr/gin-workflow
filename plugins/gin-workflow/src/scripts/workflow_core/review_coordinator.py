@@ -64,6 +64,8 @@ class ReviewCycle:
     status: str = "review_requested"
     acceptance_identity: AcceptanceIdentity | None = None
     expected_ledger_revision: int | None = None
+    implementation_session: str = ""
+    reviewer_session: str = ""
 
     @property
     def reviewer_route(self) -> tuple[str, str]:
@@ -111,9 +113,13 @@ class ReviewCoordinator:
         max_cycles: int = 2,
         route_available: Callable[[str, str], bool] | None = None,
         worker_dispatcher: Any | None = None,
+        independence: str = "provider",
     ) -> None:
         if max_cycles < 1:
             raise ValueError("max_cycles must be positive")
+        if independence not in ("provider", "session"):
+            raise ValueError("independence must be provider or session")
+        self.independence = independence
         self.review_provider = review_provider
         self.require_independent = require_independent
         self.allow_self_review_fallback = allow_self_review_fallback
@@ -134,25 +140,31 @@ class ReviewCoordinator:
         lease_id: str = "",
         acceptance_identity: AcceptanceIdentity | None = None,
         expected_ledger_revision: int | None = None,
+        implementation_session: str = "",
+        reviewer_session: str = "",
     ) -> ReviewCycle:
         if cycle_number < 1 or cycle_number > self.max_cycles:
             raise ReviewCoordinationError("review cycle exceeds configured maximum")
-        selected = next(
-            (
-                candidate
-                for candidate in reviewer_candidates
-                if not self.require_independent
-                or candidate.provider != implementation_route[0]
-            ),
-            None,
-        )
+
+        def independent(candidate: RouteCandidate) -> bool:
+            if not self.require_independent:
+                return True
+            if self.independence == "session":
+                return bool(reviewer_session) and reviewer_session != implementation_session
+            return candidate.provider != implementation_route[0]
+
+        selected = next((c for c in reviewer_candidates if independent(c)), None)
         if selected is None and self.allow_self_review_fallback:
             selected = next(iter(reviewer_candidates), None)
         if selected is None:
-            raise ReviewCoordinationError("independent reviewer route is unavailable")
+            unavailable = "session" if self.independence == "session" else "route"
+            raise ReviewCoordinationError(f"independent reviewer {unavailable} is unavailable")
+        idempotency_key = f"{task_id}:review:{cycle_number}:{selected.provider}:{selected.model}"
+        if reviewer_session:
+            idempotency_key += f":{reviewer_session}"
         requested = self.review_provider.request(
             ReviewRequest(task_id, f"reviewer:{selected.provider}", lease_id),
-            idempotency_key=f"{task_id}:review:{cycle_number}:{selected.provider}:{selected.model}",
+            idempotency_key=idempotency_key,
         )
         if requested.status is not OperationStatus.SUCCESS:
             raise ReviewCoordinationError(requested.message or "review request failed")
@@ -169,6 +181,8 @@ class ReviewCoordinator:
             lease_id,
             acceptance_identity=acceptance_identity,
             expected_ledger_revision=expected_ledger_revision,
+            implementation_session=implementation_session,
+            reviewer_session=reviewer_session,
         )
 
     def dispatch_review(
