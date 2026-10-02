@@ -74,6 +74,7 @@ try {
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.5/workflow_core/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.5/rules/core.md')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'
@@ -110,6 +111,8 @@ try {
     if ($IsWindows) {
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
         Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.5') "Unexpected launcher version: $version"
+        $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') rules --list --repository $TestHome
+        Assert-True (($rulesList | Out-String).Contains('core (plugin, core)')) "Launcher did not list the core rule pack: $rulesList"
     }
 
     $managedRoot = Join-Path $TestHome '.local/lib/gin-workflow'

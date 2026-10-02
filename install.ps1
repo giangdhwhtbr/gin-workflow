@@ -77,7 +77,7 @@ function Copy-PluginSource {
         [Parameter(Mandatory)][string]$PluginSource,
         [Parameter(Mandatory)][string]$Destination
     )
-    foreach ($directory in @('commands', 'skills', 'agents', 'scripts', 'references', 'examples')) {
+    foreach ($directory in @('commands', 'skills', 'agents', 'scripts', 'references', 'examples', 'rules')) {
         Copy-DirectoryContent `
             -Source (Join-Path $PluginSource $directory) `
             -Destination (Join-Path $Destination $directory) `
@@ -285,6 +285,9 @@ function Install-Launcher {
     Copy-DirectoryContent `
         -Source (Join-Path $sourceDirectory 'workflow_core') `
         -Destination (Join-Path $installDirectory 'workflow_core')
+    Copy-DirectoryContent `
+        -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'rules') `
+        -Destination (Join-Path $installDirectory 'rules')
 
     $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
     $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"

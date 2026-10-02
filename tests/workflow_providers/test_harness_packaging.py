@@ -90,6 +90,14 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_providers/routed_worker.py",
     "examples/config.full.yaml",
     "examples/providers.local.example.yaml",
+    "rules/README.md",
+    "rules/core.md",
+    "rules/typescript.md",
+    "rules/python.md",
+    "rules/react.md",
+    "rules/nextjs.md",
+    "rules/fastapi.md",
+    "rules/node-api.md",
 )
 
 

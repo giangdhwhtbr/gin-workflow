@@ -80,6 +80,15 @@ class TestBudgetLimits(unittest.TestCase):
     def test_quick_chain_within_8000(self):
         self.assertLessEqual(stage_chars(SRC, "quick"), 8_000)
 
+    def test_rule_pack_bodies_within_budget(self):
+        from workflow_core.rules import load_plugin_packs
+
+        packs = load_plugin_packs(SRC / "rules")
+        self.assertEqual({"core", "typescript", "python", "react", "nextjs", "fastapi", "node-api"}, set(packs))
+        for pack in packs.values():
+            with self.subTest(pack=pack.id):
+                self.assertLessEqual(pack.body_chars, pack.body_limit)
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:

@@ -234,6 +234,12 @@ if [ "$launcher_version" != "gin-workflow 2.5" ]; then
   echo "Unexpected launcher version: $launcher_version" >&2
   exit 1
 fi
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.5/rules/core.md"
+rules_list="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" rules --list --repository "$MOCK_HOME")"
+case "$rules_list" in
+  *"core (plugin, core)"*) ;;
+  *) echo "Installed launcher did not list the core rule pack: $rules_list" >&2; exit 1 ;;
+esac
 
 UPGRADE_HOME="$MOCK_HOME/upgrade-home"
 mkdir -p "$UPGRADE_HOME/.local/lib/gin-workflow/2.1" "$UPGRADE_HOME/.local/bin"
