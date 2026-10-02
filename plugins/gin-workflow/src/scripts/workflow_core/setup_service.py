@@ -697,9 +697,19 @@ def preset(repository: Path, *, project_stage: str | None = None, project_shape:
             "warnings": [f"no {key} command detected" for key in missing], "actions": []}
 
 
+def models(repository: Path, *, provider: str | None = None, **_: Any) -> dict[str, Any]:
+    if not provider:
+        raise SetupError("--provider is required")
+    from workflow_providers.native_cli import list_models
+
+    return {"status": "listed", "provider": provider, "models": list_models(provider), "manual_entry": True,
+            "actions": []}
+
+
 COMMANDS = {
     "detect": detect,
     "preset": preset,
+    "models": models,
     "init": initialize,
     "configure": configure,
     "refresh": refresh,

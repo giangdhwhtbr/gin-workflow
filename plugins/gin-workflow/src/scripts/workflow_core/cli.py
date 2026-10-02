@@ -45,6 +45,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--provider-mode", choices=("single", "multi"))
     parser.add_argument("--monorepo", action="store_true")
     parser.add_argument("--stack-intent", default="")
+    parser.add_argument("--provider", choices=("claude", "codex", "antigravity"))
     return parser
 
 

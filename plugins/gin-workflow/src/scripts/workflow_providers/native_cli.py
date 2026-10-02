@@ -7,12 +7,16 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import re
+import shutil
 import signal
 import subprocess
 import threading
 import time
 from types import MappingProxyType
 from typing import Callable
+
+from workflow_core.executable_resolver import PROVIDER_EXE_ALIASES
 
 from .circuit_breaker import FailureKind
 from .worker_dispatch import _SECRET_VALUE
@@ -455,3 +459,53 @@ class NativeCliRunner:
         except UnicodeDecodeError as error:
             raise NativeCliError(FailureKind.INVALID_RESULT, "native CLI returned invalid UTF-8") from error
         return NativeCliOutput(records)
+
+
+_CLAUDE_ALIASES = (("opus", "Claude Opus (latest)"), ("sonnet", "Claude Sonnet (latest)"), ("haiku", "Claude Haiku (latest)"))
+_LIST_COMMANDS = {"codex": ("debug", "models"), "antigravity": ("models",)}
+_LEVEL_SUFFIX = re.compile(r"-(low|medium|high)$")
+
+
+def list_models(
+    provider: str,
+    *,
+    runner: Callable[[list[str]], subprocess.CompletedProcess[str]] | None = None,
+    which: Callable[[str], str | None] = shutil.which,
+) -> list[dict]:
+    """Models a provider CLI offers; [] on any failure so setup falls back to manual entry."""
+    if provider == "claude":
+        return [{"id": i, "label": label, "description": "alias tracks the latest model", "reasoning_levels": []}
+                for i, label in _CLAUDE_ALIASES]
+    if provider not in _LIST_COMMANDS:
+        return []
+    executable = which(PROVIDER_EXE_ALIASES.get(provider, (provider,))[0])
+    if executable is None:
+        return []
+    run = runner or (lambda argv: subprocess.run(argv, capture_output=True, text=True, timeout=30, check=False,
+                                                  env=sanitized_environment()))
+    try:
+        completed = run([executable, *_LIST_COMMANDS[provider]])
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if completed.returncode != 0:
+        return []
+    if provider == "codex":
+        try:
+            data = json.loads(completed.stdout)
+        except ValueError:
+            return []
+        entries = data.get("models", data) if isinstance(data, dict) else data
+        return [{"id": str(m.get("slug") or m.get("id")), "label": str(m.get("display_name", m.get("slug", ""))),
+                 "description": str(m.get("description", "")),
+                 "reasoning_levels": [str(l.get("effort", l)) if isinstance(l, dict) else str(l)
+                                      for l in m.get("supported_reasoning_levels", [])]}
+                for m in entries if isinstance(m, dict) and m.get("visibility", "list") == "list" and (m.get("slug") or m.get("id"))]
+    models = []
+    for line in completed.stdout.splitlines():
+        if "\t" not in line:
+            continue
+        model_id, label = (part.strip() for part in line.split("\t", 1))
+        match = _LEVEL_SUFFIX.search(model_id)
+        models.append({"id": model_id, "label": label, "description": "",
+                       "reasoning_levels": [match.group(1)] if match else []})
+    return models
