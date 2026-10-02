@@ -333,7 +333,7 @@ class TestLifecycleCLI(unittest.TestCase):
                                       "--evidence", "plan.md", "--actor", "user", "--epic", "epic"]))
 
     def test_record_rejects_unknown_gate_and_missing_evidence(self):
-        self.assertEqual(2, cli_main(["record", "shipped", "--repository", str(self.repo_path),
+        self.assertEqual(2, cli_main(["record", "no-such-gate", "--repository", str(self.repo_path),
                                       "--evidence", "x", "--actor", "user"]))
         self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
                                       "--actor", "user"]))
