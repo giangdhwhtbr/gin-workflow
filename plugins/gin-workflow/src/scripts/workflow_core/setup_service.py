@@ -9,6 +9,7 @@ from typing import Any, Iterable, Mapping
 from .atomic import atomic_write_many
 from .bundles import export_bundle, verify_bundle
 from .configuration import require_yaml, resolve_effective_config, validate_portable_config
+from .project_detect import detect_project
 from .migrations import (
     CURRENT_VERSION,
     apply_migration,
@@ -86,6 +87,7 @@ def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[st
         "initialized": (root / ".agent-workflow/config.yaml").is_file(),
         "detected_harnesses": detected,
         "harness": selected,
+        "project": detect_project(root),
         "actions": [],
     }
 
