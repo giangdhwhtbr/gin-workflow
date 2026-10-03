@@ -98,6 +98,11 @@ REQUIRED_ARTIFACTS = (
     "rules/nextjs.md",
     "rules/fastapi.md",
     "rules/node-api.md",
+    "templates/proposal.md",
+    "templates/spec-delta.md",
+    "templates/spec.md",
+    "templates/specs-README.md",
+    "templates/codebase/OVERVIEW.md",
 )
 
 

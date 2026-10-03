@@ -1,6 +1,6 @@
-schema_version: "2.5"
-workflow_version: "2.5"
-setup_cli_version: "2.5"
+schema_version: "2.6"
+workflow_version: "2.6"
+setup_cli_version: "2.6"
 harness: codex
 provider_mode: multi
 
@@ -31,6 +31,12 @@ artifacts:
   knowledge: .planning/knowledge
   evidence: .agent-workflow/runtime/evidence
   runtime: .agent-workflow/runtime
+  layout: sdd
+  specs: docs/specs
+  changes: docs/changes
+  adr: docs/adr
+  codebase: docs/codebase
+  spec_review: chat
 
 routing:
   roles:

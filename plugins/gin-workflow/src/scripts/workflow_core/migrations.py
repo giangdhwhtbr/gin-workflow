@@ -12,7 +12,7 @@ from .atomic import atomic_write_many, atomic_write_bytes
 from .configuration import require_yaml, validate_portable_config
 
 
-CURRENT_VERSION = "2.5"
+CURRENT_VERSION = "2.6"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -74,12 +74,21 @@ def _migrate_2_4_to_2_5(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_2_5_to_2_6(config: dict[str, Any]) -> dict[str, Any]:
+    migrated = dict(config)
+    migrated["schema_version"] = "2.6"
+    migrated["workflow_version"] = "2.6"
+    migrated["setup_cli_version"] = "2.6"
+    return migrated
+
+
 _MIGRATIONS = {
     ("2.0", "2.1"): _migrate_2_0_to_2_1,
     ("2.1", "2.2"): _migrate_2_1_to_2_2,
     ("2.2", "2.3"): _migrate_2_2_to_2_3,
     ("2.3", "2.4"): _migrate_2_3_to_2_4,
     ("2.4", "2.5"): _migrate_2_4_to_2_5,
+    ("2.5", "2.6"): _migrate_2_5_to_2_6,
 }
 _NEXT_STEP = {source: target for source, target in _MIGRATIONS}
 

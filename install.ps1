@@ -14,7 +14,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$LauncherVersion = '2.5'
+$LauncherVersion = '2.6'
 $ScriptRoot = $PSScriptRoot
 $UserHome = $env:HOME
 if ([string]::IsNullOrWhiteSpace($UserHome)) {
@@ -77,7 +77,7 @@ function Copy-PluginSource {
         [Parameter(Mandatory)][string]$PluginSource,
         [Parameter(Mandatory)][string]$Destination
     )
-    foreach ($directory in @('commands', 'skills', 'agents', 'scripts', 'references', 'examples', 'rules')) {
+    foreach ($directory in @('commands', 'skills', 'agents', 'scripts', 'references', 'examples', 'rules', 'templates')) {
         Copy-DirectoryContent `
             -Source (Join-Path $PluginSource $directory) `
             -Destination (Join-Path $Destination $directory) `
@@ -288,6 +288,9 @@ function Install-Launcher {
     Copy-DirectoryContent `
         -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'rules') `
         -Destination (Join-Path $installDirectory 'rules')
+    Copy-DirectoryContent `
+        -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'templates') `
+        -Destination (Join-Path $installDirectory 'templates')
 
     $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
     $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"

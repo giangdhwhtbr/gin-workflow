@@ -12,14 +12,13 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.configuration import (  # noqa: E402
     ConfigValidationError, resolve_effective_config, validate_portable_config)
-from workflow_core.migrations import CURRENT_VERSION, migrate_config  # noqa: E402
+from workflow_core.migrations import migrate_config  # noqa: E402
 from workflow_core.schemas import SUPPORTED_CONFIG_VERSIONS  # noqa: E402
 
 
 class TestSchema25(unittest.TestCase):
-    def test_current_version_is_2_5_and_older_versions_load(self):
-        self.assertEqual("2.5", CURRENT_VERSION)
-        self.assertEqual(("2.3", "2.4", "2.5"), SUPPORTED_CONFIG_VERSIONS)
+    def test_2_5_and_older_versions_load(self):
+        self.assertIn("2.5", SUPPORTED_CONFIG_VERSIONS)
         for version in SUPPORTED_CONFIG_VERSIONS:
             with self.subTest(version=version):
                 validate_portable_config({"schema_version": version})

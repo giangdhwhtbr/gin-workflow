@@ -16,7 +16,7 @@ from .project import RIGORS, SHAPES, STAGES
 from .setup_service import COMMANDS, SetupError
 
 
-CLI_VERSION = "2.5"
+CLI_VERSION = "2.6"
 
 
 def _parser() -> argparse.ArgumentParser:

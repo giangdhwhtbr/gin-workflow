@@ -9,7 +9,7 @@ PROJECT_DIR=""
 UNINSTALL=false
 DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
-LAUNCHER_VERSION="2.5"
+LAUNCHER_VERSION="2.6"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -251,7 +251,7 @@ copy_src() {
   local plugin_src_dir="$1"
   local target="$2"
 
-  mkdir -p "$target/commands" "$target/skills" "$target/agents" "$target/scripts" "$target/references" "$target/examples" "$target/rules"
+  mkdir -p "$target/commands" "$target/skills" "$target/agents" "$target/scripts" "$target/references" "$target/examples" "$target/rules" "$target/templates"
 
   if [ -d "$plugin_src_dir/commands" ] && [ "$(ls -A "$plugin_src_dir/commands" 2>/dev/null)" ]; then
     if [ "$LINK" = true ]; then
@@ -306,6 +306,14 @@ copy_src() {
       cp -rsf "$plugin_src_dir/rules/." "$target/rules/"
     else
       cp -rf "$plugin_src_dir/rules/." "$target/rules/"
+    fi
+  fi
+
+  if [ -d "$plugin_src_dir/templates" ] && [ "$(ls -A "$plugin_src_dir/templates" 2>/dev/null)" ]; then
+    if [ "$LINK" = true ]; then
+      cp -rsf "$plugin_src_dir/templates/." "$target/templates/"
+    else
+      cp -rf "$plugin_src_dir/templates/." "$target/templates/"
     fi
   fi
 }
@@ -381,10 +389,11 @@ install_launcher() {
     return
   fi
 
-  mkdir -p "$install_dir/workflow_core" "$install_dir/rules" "$(dirname "$launcher_link")"
+  mkdir -p "$install_dir/workflow_core" "$install_dir/rules" "$install_dir/templates" "$(dirname "$launcher_link")"
   cp -f "$source_dir/gin-workflow" "$launcher_target"
   cp -rf "$source_dir/workflow_core/." "$install_dir/workflow_core/"
   cp -rf "$source_dir/../rules/." "$install_dir/rules/"
+  cp -rf "$source_dir/../templates/." "$install_dir/templates/"
   chmod 755 "$launcher_target"
   ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed gin-workflow launcher version $LAUNCHER_VERSION to $launcher_link"

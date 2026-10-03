@@ -175,13 +175,13 @@ class ProviderRegistry:
             evidence_options.get("index") or artifacts.get("evidence"),
             ".agent-workflow/runtime/evidence",
         )
-        if evidence_authority is None and str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5"):
+        if evidence_authority is None and str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5", "2.6"):
             evidence_runtime_root = _path(root, artifacts.get("runtime"), ".agent-workflow/runtime")
             evidence_event_store = event_store or WorkflowEventStore(
                 evidence_runtime_root / "events.jsonl"
             )
             evidence_authority = build_composite_evidence_authority(root, evidence_event_store)
-        if str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5") and not isinstance(
+        if str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5", "2.6") and not isinstance(
             evidence_authority,
             CompositeEvidenceAuthority,
         ):

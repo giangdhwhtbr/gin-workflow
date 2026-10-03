@@ -33,6 +33,8 @@ class ProjectSettings:
     review_ledger: bool = False
     max_cycles: int = 2
     quick_max_files: int = 5
+    layout: str = "legacy"
+    spec_review: str = "chat"
 
     def to_dict(self) -> dict[str, Any]:
         return {name: (list(value) if isinstance(value, tuple) else dict(value) if isinstance(value, Mapping) else value)
@@ -68,6 +70,8 @@ def project_settings(config: Mapping[str, Any]) -> ProjectSettings:
         review_ledger=bool(project.get("review_ledger", preset["review_ledger"])),
         max_cycles=int(review.get("max_cycles", preset["max_cycles"])),
         quick_max_files=int(_section(config, "quick").get("max_files", 5)),
+        layout=str(_section(config, "artifacts").get("layout", "legacy")),
+        spec_review=str(_section(config, "artifacts").get("spec_review", "chat")),
     )
 
 
@@ -82,7 +86,7 @@ ROLES_BY_SHAPE = {
 def preset_assignments(*, stage: str, shape: str, rigor: str, provider_mode: str, monorepo: bool = False,
                        stack_intent: str = "", verify_commands: Mapping[str, str] | None = None,
                        packages: tuple[Mapping[str, Any], ...] | list = (),
-                       rule_packs: Sequence[str] = ()) -> list[str]:
+                       rule_packs: Sequence[str] = (), layout: str = "") -> list[str]:
     """Explicit `--set` assignments for setup; skills never infer presets at runtime."""
     if stage not in STAGES or shape not in SHAPES or rigor not in RIGORS or provider_mode not in ("single", "multi"):
         raise ValueError(f"invalid project preset: {stage=} {shape=} {rigor=} {provider_mode=}")
@@ -101,6 +105,8 @@ def preset_assignments(*, stage: str, shape: str, rigor: str, provider_mode: str
         values["project.packages"] = [dict(package) for package in packages]
     if rule_packs:
         values["rules.packs"] = list(rule_packs)
+    if layout:
+        values["artifacts.layout"] = layout
     for key in VERIFY_KEYS:
         values[f"verify.checks.{key}"] = str((verify_commands or {}).get(key, ""))
     if provider_mode == "single":
