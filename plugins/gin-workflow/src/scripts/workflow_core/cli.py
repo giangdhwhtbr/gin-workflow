@@ -16,7 +16,7 @@ from .project import RIGORS, SHAPES, STAGES
 from .setup_service import COMMANDS, SetupError
 
 
-CLI_VERSION = "2.6"
+CLI_VERSION = "2.7"
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -66,8 +66,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv == ["--version"]:
         print(f"gin-workflow {CLI_VERSION}")
         return 0
-    if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs"):
-        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs} <command>", file=sys.stderr)
+    if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team"):
+        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team} <command>",
+              file=sys.stderr)
         return 2
     if argv[0] == "rules":
         from .rules import main as rules_main
@@ -75,6 +76,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv[0] == "specs":
         from .specs_cli import main as specs_main
         return specs_main(argv[1:])
+    if argv[0] == "team":
+        from .team_cli import main as team_main
+        return team_main(argv[1:])
     if argv[0] in ("state", "unblock", "record", "quick-check"):
         from .lifecycle_cli import main as lifecycle_main
         return lifecycle_main(argv)

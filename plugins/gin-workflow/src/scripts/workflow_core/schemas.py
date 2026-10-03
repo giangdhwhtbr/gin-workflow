@@ -7,10 +7,56 @@ from typing import Any, Mapping
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.6"
-SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6")
+SUPPORTED_SCHEMA_VERSION = "2.7"
+SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7")
 
 _SHAPES = ["frontend", "backend", "fullstack", "library"]
+_ROLES = {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}}
+_TEAM = {
+    "type": "object",
+    "required": ["members"],
+    "properties": {
+        "host": {"enum": ["github", "gitlab"]},
+        "commit_convention": {"enum": ["conventional", "none"]},
+        "members": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {"pattern": "^[^@\\s]+@[^@\\s]+$"},
+            "additionalProperties": {
+                "type": "object",
+                "required": ["roles", "login"],
+                "properties": {"roles": {**_ROLES, "minItems": 1}, "login": {"type": "string", "minLength": 1}},
+                "additionalProperties": False,
+            },
+        },
+        "areas": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "required": ["paths", "lead"],
+                "properties": {"paths": {**_ROLES, "minItems": 1}, "lead": {"type": "string", "minLength": 1},
+                               "roles": _ROLES},
+                "additionalProperties": False,
+            },
+        },
+        "approvals": {
+            "type": "object",
+            "properties": {
+                "requirement_confirmed": _ROLES,
+                "plan_approved": {"anyOf": [{"const": "area_lead"}, _ROLES]},
+                "verification_passed": _ROLES,
+            },
+            "additionalProperties": False,
+        },
+        "beads_sync": {
+            "type": "object",
+            "required": ["remote"],
+            "properties": {"remote": {"type": "string", "minLength": 1}},
+            "additionalProperties": False,
+        },
+    },
+    "additionalProperties": False,
+}
 _CHECKS = {"type": "object", "propertyNames": {"enum": ["lint", "typecheck", "test", "build", "e2e"]},
            "additionalProperties": {"type": "string"}}
 
@@ -144,6 +190,7 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "properties": {"max_files": {"type": "integer", "minimum": 1}},
             "additionalProperties": False,
         },
+        "team": _TEAM,
         "rules": {
             "type": "object",
             "properties": {

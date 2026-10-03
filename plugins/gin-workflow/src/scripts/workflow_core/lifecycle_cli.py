@@ -13,6 +13,7 @@ from typing import Any, Mapping, Sequence
 from .configuration import resolve_effective_config
 from .events import WorkflowEvent, WorkflowEventStore
 from .project import project_settings
+from .team import load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
     NON_WAIVABLE_GATES,
@@ -162,13 +163,24 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if not epic or _beads_json(Path(args.repository).resolve(), ["list", "--parent", epic, "--all", "--limit", "0"]) != []:
             return {"status": "error", "message": "shipped is recordable only for a standalone bead recorded as its own "
                     "epic (orchestration-ready --epic <bead>); an epic with children ships by closing it"}, 2
+    actor = args.actor
+    team = team_for_repo(Path(args.repository).resolve())
+    if team is not None:
+        from .team import TeamError, require_member
+
+        try:
+            actor = require_member(Path(args.repository).resolve(), team, args.actor).email
+        except TeamError as error:
+            return {"status": "error", "message": str(error)}, 2
+    elif not actor:
+        return {"status": "error", "message": "--actor is required"}, 2
     payload = {**base_payload, "evidence": args.evidence}
     if args.epic:
         payload["epic"] = args.epic
     event = WorkflowEvent.create(
         event_type=event_type,
         workflow_id=args.workflow_id,
-        actor=args.actor,
+        actor=actor,
         payload=payload,
         idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}",
     )
@@ -220,7 +232,8 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "original_harness": config.original_harness if config.is_session_harness_override else None,
         "gates": gates_status,
         "evidence": list(decision.evidence),
-        "remedies": list(decision.remedies),        "project": project_settings(config.to_dict()).to_dict(),
+        "remedies": list(decision.remedies),        "project": {**project_settings(config.to_dict()).to_dict(),
+                    "team": team_summary(repo_path, load_team(config.to_dict()))},
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
             for event in event_store.read_all()
@@ -243,6 +256,17 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
     if not reason.strip():
         return {"status": "error", "message": "--reason is required"}, 1
+
+    team = team_for_repo(repo_path)
+    if team is not None:
+        from .team import TeamError, require_member
+
+        try:
+            actor = require_member(repo_path, team, actor).email
+        except TeamError as error:
+            return {"status": "error", "message": str(error)}, 2
+    elif not actor:
+        return {"status": "error", "message": "--actor is required"}, 2
 
     if getattr(args, "clear_blocker", False):
         event = WorkflowEvent.create(
@@ -391,7 +415,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if command == "unblock":
         parser.add_argument("--gate")
         parser.add_argument("--reason", required=True)
-        parser.add_argument("--actor", required=True)
+        parser.add_argument("--actor", default="", help="required unless team mode derives it from git user.email")
         parser.add_argument("--follow-up", dest="follow_up")
         parser.add_argument("--clear-blocker", action="store_true")
 
@@ -413,7 +437,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if command == "record":
         parser.add_argument("gate", choices=tuple(_RECORDABLE_GATES))
         parser.add_argument("--evidence", required=True)
-        parser.add_argument("--actor", required=True)
+        parser.add_argument("--actor", default="", help="required unless team mode derives it from git user.email")
         parser.add_argument("--epic", default="", help="parent bead whose closed children prove implementation_complete")
         try:
             args = parser.parse_args(argv[1:])

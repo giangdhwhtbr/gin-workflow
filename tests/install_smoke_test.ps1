@@ -62,7 +62,7 @@ try {
     Assert-Exists $Installer
 
     $dryRunOutput = Invoke-Installer @{ Platform = 'codex'; DryRun = $true }
-    Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.6'
+    Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.7'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin-workflow.cmd'))) 'Dry-run wrote the launcher shim'
 
@@ -73,9 +73,9 @@ try {
     Assert-Exists (Join-Path $project '.agents/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.6/workflow_core/cli.py')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.6/rules/core.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.6/templates/spec-delta.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/workflow_core/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/rules/core.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/templates/spec-delta.md')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'
@@ -111,7 +111,7 @@ try {
 
     if ($IsWindows) {
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
-        Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.6') "Unexpected launcher version: $version"
+        Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.7') "Unexpected launcher version: $version"
         $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') rules --list --repository $TestHome
         Assert-True (($rulesList | Out-String).Contains('core (plugin, core)')) "Launcher did not list the core rule pack: $rulesList"
     }
@@ -127,7 +127,7 @@ try {
 
     Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null
     $upgradedShim = [IO.File]::ReadAllText($shim)
-    Assert-Contains $upgradedShim (Join-Path $managedRoot '2.6/gin-workflow')
+    Assert-Contains $upgradedShim (Join-Path $managedRoot '2.7/gin-workflow')
     Assert-Exists $oldLauncher
 
     Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null

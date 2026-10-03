@@ -23,8 +23,8 @@ class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.6"
-SUPPORTED_SETUP_CLI_VERSION = "2.6"
+SUPPORTED_WORKFLOW_VERSION = "2.7"
+SUPPORTED_SETUP_CLI_VERSION = "2.7"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {
@@ -214,6 +214,12 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
         if isinstance(review, Mapping) and review.get("role") not in (None, ""):
             if not isinstance(roles, Mapping) or review["role"] not in roles:
                 raise ConfigValidationError(f"unknown review role: {review['role']!r}")
+    if isinstance(config.get("team"), Mapping):
+        from .team import validate_team
+
+        team_errors = validate_team(config["team"])
+        if team_errors:
+            raise ConfigValidationError("; ".join(team_errors))
     _validate_portable(config)
 
 

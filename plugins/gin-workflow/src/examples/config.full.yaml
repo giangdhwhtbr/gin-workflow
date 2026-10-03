@@ -1,6 +1,6 @@
-schema_version: "2.6"
-workflow_version: "2.6"
-setup_cli_version: "2.6"
+schema_version: "2.7"
+workflow_version: "2.7"
+setup_cli_version: "2.7"
 harness: codex
 provider_mode: multi
 
@@ -83,3 +83,18 @@ policy:
 rules:
   packs: [core, typescript, react]
   disabled: []
+team:
+  host: github
+  commit_convention: conventional
+  members:
+    an@example.com: {roles: [ba], login: an-ba}
+    binh@example.com: {roles: [be_lead, be_dev], login: binh-dev}
+    chi@example.com: {roles: [fe_lead, fe_dev], login: chi-fe}
+    dung@example.com: {roles: [qe], login: dung-qe}
+  areas:
+    backend: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
+    frontend: {paths: ["web/**"], lead: fe_lead, roles: [fe_dev]}
+  approvals:
+    requirement_confirmed: [ba, be_lead, fe_lead]
+    plan_approved: area_lead
+    verification_passed: [qe]

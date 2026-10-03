@@ -136,7 +136,7 @@ touch plugins/gin-workflow/dist/claude-code/commands/stale-from-old-build.md plu
 assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_not_contains "$output_file" "gin-workflow-advanced"
 assert_contains "$output_file" "would install global Claude Code plugin to"
-assert_contains "$output_file" "would install gin-workflow launcher version 2.6 to"
+assert_contains "$output_file" "would install gin-workflow launcher version 2.7 to"
 assert_contains "$output_file" "would link gin-workflow launcher on PATH at"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
@@ -226,21 +226,21 @@ HOME="$MOCK_HOME" ./install.sh --platform claude >/dev/null
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/skills/tech-doc/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/bead-worker.md"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-workflow@skills-dir": true'
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.6/gin-workflow"
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.6/workflow_core/cli.py"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/gin-workflow"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/workflow_core/cli.py"
 assert_exists "$MOCK_HOME/.local/bin/gin-workflow"
 launcher_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" --version)"
-if [ "$launcher_version" != "gin-workflow 2.6" ]; then
+if [ "$launcher_version" != "gin-workflow 2.7" ]; then
   echo "Unexpected launcher version: $launcher_version" >&2
   exit 1
 fi
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.6/rules/core.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/rules/core.md"
 rules_list="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" rules --list --repository "$MOCK_HOME")"
 case "$rules_list" in
   *"core (plugin, core)"*) ;;
   *) echo "Installed launcher did not list the core rule pack: $rules_list" >&2; exit 1 ;;
 esac
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.6/templates/spec-delta.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/spec-delta.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/templates/proposal.md"
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
 
@@ -251,7 +251,7 @@ ln -s "$UPGRADE_HOME/.local/lib/gin-workflow/2.1/gin-workflow" "$UPGRADE_HOME/.l
 
 HOME="$UPGRADE_HOME" ./install.sh --platform claude >/dev/null
 
-expected_target="$UPGRADE_HOME/.local/lib/gin-workflow/2.6/gin-workflow"
+expected_target="$UPGRADE_HOME/.local/lib/gin-workflow/2.7/gin-workflow"
 actual_target="$(readlink "$UPGRADE_HOME/.local/bin/gin-workflow")"
 if [ "$actual_target" != "$expected_target" ]; then
   echo "Expected managed launcher upgrade to target $expected_target, got $actual_target" >&2
