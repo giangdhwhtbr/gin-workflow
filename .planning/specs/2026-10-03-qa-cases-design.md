@@ -1,7 +1,7 @@
 # QA Test Cases (Sub-project G1) — Design
 
 Date: 2026-10-03
-Status: awaiting user confirmation
+Status: confirmed 2026-10-03
 Depends on:
 - F (`.planning/specs/2026-10-03-sdd-living-specs-design.md`, schema 2.6): REQ-IDs, GIVEN/WHEN/THEN scenarios, `block_hash`, living specs and change deltas.
 Followed by: G2 (Playwright evidence), G3 (agent-driven E2E runs). Both build on the test case format defined here.
