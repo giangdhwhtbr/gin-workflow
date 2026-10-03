@@ -11,7 +11,7 @@ description: Small, low-risk change without plan or beads: confirm, implement, v
 
 A fast path for a small, low-risk change. No plan, no beads, no lifecycle gates.
 
-1. Restate the requirement in 1–3 lines and get the user's confirmation.
+1. Restate the requirement in 1–3 lines and get the user's confirmation. With `project.layout: sdd`, a change to behavior a living-spec REQ describes escalates (the `gin-sdd` skill).
 2. Estimate the changed files and top-level modules, then run `gin-workflow quick-check --changed-files N --modules M --format json`:
    - `refused`: stop and point to `/gin-workflow:discuss` (strict rigor needs a `requirement_confirmed` waiver first).
    - `escalate`: stop and recommend the full lifecycle.

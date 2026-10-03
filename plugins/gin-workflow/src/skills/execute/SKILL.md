@@ -20,6 +20,7 @@ Implement one ready work unit inside its approved scope and record evidence.
 ## 2. Implement
 - Follow the plan steps exactly, test first. Keep changes minimal and in scope.
 - Read the shape appendix for `project.shape` from `gin-workflow state --format json` (plugin `references/shape-<shape>.md`) before editing.
+- With `project.layout: sdd`, tests carry the track's REQ-IDs (the `gin-sdd` skill).
 - Run `gin-workflow rules --files <scope files>` and give its output to the `developer` agent (or follow it when executing directly). Rules never widen the scope.
 - On a `greenfield` project, a task that sets up lint, typecheck, or test starts from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin-workflow setup doctor --format json`.
 - Validate immediately and keep the command output as evidence. Do not proceed while tests fail or acceptance criteria are unmet.

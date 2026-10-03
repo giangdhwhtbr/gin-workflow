@@ -111,6 +111,19 @@ class TestBudgetLimits(unittest.TestCase):
         text = (SRC / "skills/verify/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("validate --bead-id <bead-id> --in-history", text)
 
+    def test_sdd_guidance_loads_on_demand(self):
+        sdd_skill = (SRC / "skills/gin-sdd/SKILL.md").resolve()
+        for stage in ("discuss", "plan", "orchestrate", "execute", "review", "verify", "ship", "quick"):
+            text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
+            with self.subTest(stage=stage):
+                self.assertIn("`gin-sdd` skill", text)
+                self.assertLessEqual(sum("sdd" in line for line in text.splitlines()), 2)
+                self.assertNotIn(sdd_skill, stage_chain(SRC, stage))
+        guide = sdd_skill.read_text(encoding="utf-8")
+        for heading in ("## discuss", "## plan", "## orchestrate", "## execute and review", "## verify", "## ship", "## quick"):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, guide)
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:

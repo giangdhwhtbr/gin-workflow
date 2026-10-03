@@ -14,7 +14,7 @@ Write a plan an engineer with zero context could execute: exact files, code, com
 ## Steps
 
 1. Require `requirement_confirmed` (`gin-workflow state`). If objectives, constraints, non-goals, or success criteria are unclear, stop and return to `discuss`. If the spec spans independent subsystems, propose one plan per subsystem.
-2. Save to `.planning/plans/YYYY-MM-DD-<feature>.md` (user preference overrides) using the format in [plan-schema.md](plan-schema.md). Start with Goal, Architecture, Tech Stack, and **Global Constraints** copied verbatim from the spec.
+2. Save to `.planning/plans/YYYY-MM-DD-<feature>.md` (with `project.layout: sdd`: `<change>/plan.md` plus per-track `Requirements:`, per the `gin-sdd` skill; user preference overrides) using the format in [plan-schema.md](plan-schema.md). Start with Goal, Architecture, Tech Stack, and **Global Constraints** copied verbatim from the spec.
 3. Map files first: each file one responsibility; files that change together live together; follow existing patterns.
 4. Size tracks: the smallest unit with its own test cycle that a reviewer could reject independently. Fold setup, config, and docs into the track that needs them. Steps are 2–5 minutes each: failing test → run (fail) → minimal code → run (pass) → commit only if authorized.
 5. Give each track Metadata (dependencies, provider role and reasoning, model guidance), Files (create/modify/test with line ranges), and Interfaces (exact names and types consumed and produced).

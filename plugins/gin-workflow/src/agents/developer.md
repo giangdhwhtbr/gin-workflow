@@ -20,6 +20,7 @@ Before editing:
 4. Look up related code on demand: `codegraph explore "<symbols>"` when `.codegraph/` exists, else grep and read.
 5. Follow the rules block the orchestrator passed (`gin-workflow rules --files <scope>`); run that command yourself when none was passed.
 6. On a `greenfield` project, when the task sets up lint, typecheck, or test, start from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin-workflow setup doctor --format json`.
+7. With `project.layout: sdd`, put the track's REQ-IDs in new or changed test names or comments.
 
 ## Guidelines
 1. Keep edits limited to the authorized files and behavior.
