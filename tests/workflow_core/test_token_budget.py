@@ -99,6 +99,14 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(stage=stage):
                 self.assertNotIn("gin-workflow rules", (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8"))
 
+    def test_greenfield_tooling_task_uses_rule_tool_check_snippets(self):
+        for relative in ("skills/execute/SKILL.md", "agents/developer.md"):
+            text = (SRC / relative).read_text(encoding="utf-8")
+            with self.subTest(path=relative):
+                self.assertIn("greenfield", text)
+                self.assertIn("checks_details.rules.tool_checks", text)
+                self.assertIn("gin-workflow setup doctor --format json", text)
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:
