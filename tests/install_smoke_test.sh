@@ -242,6 +242,7 @@ case "$rules_list" in
 esac
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.6/templates/spec-delta.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/templates/proposal.md"
+HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
 
 UPGRADE_HOME="$MOCK_HOME/upgrade-home"
 mkdir -p "$UPGRADE_HOME/.local/lib/gin-workflow/2.1" "$UPGRADE_HOME/.local/bin"
