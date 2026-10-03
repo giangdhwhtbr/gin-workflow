@@ -50,6 +50,17 @@ class TestSchema27(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(ConfigValidationError):
                 validate_portable_config({"schema_version": "2.7", "team": bad})
 
+    def test_team_values_are_not_model_names_or_secret_keys(self):
+        raw = {"members": {"token@corp.com": {"roles": ["claude-dev"], "login": "claude-dev"}},
+               "areas": {"ai": {"paths": ["services/gemini-client/**"], "lead": "claude-dev"}},
+               "beads_sync": {"remote": "git+ssh://git@github.com/org/claude-beads.git"}}
+        validate_portable_config({"schema_version": "2.7", "team": raw})
+        leaked = {**raw, "beads_sync": {"remote": "https://ghp_abcdefgh123456@github.com/org/beads.git"}}
+        with self.assertRaisesRegex(ConfigValidationError, "secret-like value"):
+            validate_portable_config({"schema_version": "2.7", "team": leaked})
+        with self.assertRaisesRegex(ConfigValidationError, "provider-model name"):
+            validate_portable_config({"schema_version": "2.7", "team": raw, "artifacts": {"plans": "claude-plans"}})
+
     def test_semantic_rules_report_every_finding(self):
         raw = {
             "members": {"a@corp.com": {"roles": ["dev"], "login": "same"},

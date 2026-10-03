@@ -131,6 +131,8 @@ def _is_secret_ref(value: object) -> bool:
 
 
 def _validate_portable(value: object, path: tuple[str, ...] = ()) -> None:
+    # team: holds emails, logins, globs, and URLs, which are not provider models or secret keys.
+    in_team = path[:1] == ("team",)
     if isinstance(value, Mapping):
         for raw_key, item in value.items():
             key = _normalize_key(raw_key)
@@ -152,7 +154,7 @@ def _validate_portable(value: object, path: tuple[str, ...] = ()) -> None:
                         f"invalid secret_ref at {location}; use a reference such as env:VARIABLE_NAME"
                     )
                 continue
-            if any(part in key for part in _SECRET_KEY_PARTS):
+            if not in_team and any(part in key for part in _SECRET_KEY_PARTS):
                 if not _is_secret_ref(item):
                     raise ConfigValidationError(
                         f"literal secret-like value is forbidden at {location}; use secret_ref"
@@ -166,7 +168,7 @@ def _validate_portable(value: object, path: tuple[str, ...] = ()) -> None:
         return
     if isinstance(value, str):
         location = ".".join(path) or "<root>"
-        if _MODEL_VALUE.search(value):
+        if not in_team and _MODEL_VALUE.search(value):
             raise ConfigValidationError(
                 f"provider-model name is forbidden at {location}; use a logical model tier"
             )
