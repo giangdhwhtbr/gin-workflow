@@ -35,6 +35,9 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("archive", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("trace", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("status", parents=[common]).add_argument("--change", required=True)
+    item = sub.add_parser("migrate", parents=[common])
+    item.add_argument("--dry-run", action="store_true")
+    item.add_argument("--force", action="store_true")
     return parser
 
 
@@ -56,6 +59,15 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     config = specs.load_config(root)
     cfg = specs.sdd_config(config)
+    if args.command == "migrate":
+        from .specs_migrate import migrate
+
+        specs.require_layout(cfg, "legacy")
+        result = migrate(root, config, cfg, dry_run=args.dry_run, force=args.force)
+        lines = [f"{m['from']} -> {m['to']}" for m in result["moves"]]
+        lines += [f"skipped: {item}" for item in result["skipped"]] + [f"refused: {r}" for r in result["refusals"]]
+        _emit(result, args.format, "\n".join([f"status: {result['status']}", *lines]))
+        return 1 if result["status"] == "refused" else 0
     specs.require_layout(cfg, "sdd")
     if args.command == "new":
         change = specs.new_change(root, cfg, args.slug, args.epic, args.title)

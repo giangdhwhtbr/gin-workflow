@@ -489,7 +489,8 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
     if checks["configuration"]:
         from .rules_checks import rules_doctor
 
-        rules_detail = rules_doctor(root, resolve_effective_config(root, write=False).config.to_dict())
+        effective = resolve_effective_config(root, write=False).config.to_dict()
+        rules_detail = rules_doctor(root, effective)
         checks_details["rules"] = rules_detail
         for item in rules_detail.get("tool_checks", []):
             if item["status"] == "missing":
@@ -497,6 +498,17 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         for item in rules_detail.get("conflicts", []):
             actions.append(f"rules: {item['file']} says '{item['project_conflict']}', pack {item['pack']} says "
                            f"'{item['pack_says']}'; the project wins, record the divergence")
+
+        from .specs import sdd_config
+        from .specs_migrate import sdd_report
+
+        sdd_detail = sdd_report(root, effective, sdd_config(effective))
+        checks_details["sdd"] = sdd_detail
+        if "suggestion" in sdd_detail:
+            actions.append(f"sdd: {sdd_detail['suggestion']}")
+        if "conflict" in sdd_detail:
+            actions.append(f"sdd: {sdd_detail['conflict']['path']} holds non-SDD files; "
+                           f"{sdd_detail['conflict']['suggestion']}")
 
     healthy = all(checks.values())
     payload: dict[str, Any] = {
@@ -709,25 +721,30 @@ def preset(repository: Path, *, project_stage: str | None = None, project_shape:
            stack_intent: str = "", **_: Any) -> dict[str, Any]:
     from .rules import load_plugin_packs, plugin_rules_dir
     from .rules_checks import propose_packs, tool_check_report
+    from .specs import SDD_DEFAULTS
+    from .specs_migrate import sdd_report
 
     root = Path(repository).resolve()
     detected = detect_project(root)
     plugin = load_plugin_packs(plugin_rules_dir())
     rule_packs = propose_packs(root, plugin, stack_intent=stack_intent)
+    stage = project_stage or detected["stage"]
+    layout = "sdd" if stage == "greenfield" else ""
     try:
         assignments = preset_assignments(
-            stage=project_stage or detected["stage"], shape=project_shape or detected["shape"],
+            stage=stage, shape=project_shape or detected["shape"],
             rigor=rigor or detected["suggested_rigor"], provider_mode=provider_mode or "single",
             monorepo=monorepo or detected["monorepo"], stack_intent=stack_intent,
             verify_commands=detected["verify_commands"], packages=tuple(detected["packages"]),
-            rule_packs=rule_packs)
+            rule_packs=rule_packs, layout=layout)
     except ValueError as error:
         raise SetupError(str(error)) from error
     missing = [key for key, value in detected["verify_commands"].items() if not value and key != "e2e"]
     tool_checks = [item for item in tool_check_report(root, [plugin[name] for name in rule_packs])
                    if item["status"] != "present"]
+    sdd = sdd_report(root, {}, dict(SDD_DEFAULTS), proposed=bool(layout)) if layout else {"layout": "legacy"}
     return {"status": "proposed", "assignments": assignments, "detected": detected,
-            "rule_packs": rule_packs, "rule_tool_checks": tool_checks,
+            "rule_packs": rule_packs, "rule_tool_checks": tool_checks, "sdd": sdd,
             "warnings": [f"no {key} command detected" for key in missing], "actions": []}
 
 

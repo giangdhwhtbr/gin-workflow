@@ -107,6 +107,8 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/specs_cli.py",
     "scripts/workflow_core/specs_archive.py",
     "scripts/workflow_core/specs_trace.py",
+    "scripts/workflow_core/specs_migrate.py",
+    "skills/migrate-specs/SKILL.md",
 )
 
 
