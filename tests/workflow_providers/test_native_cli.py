@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -177,6 +178,27 @@ class NativeCliTests(unittest.TestCase):
             self.assertEqual(FailureKind.TIMEOUT, idle_case.exception.kind)
             self.assertIn("idle timeout", str(idle_case.exception))
             self.assertLess(elapsed, 5, "idle timeout should fire well before the 30s hard timeout")
+
+    @unittest.skipUnless(os.name == "posix", "process-group signals are POSIX-only")
+    def test_runner_stops_promptly_when_sigint_is_inherited_as_ignored(self):
+        # Under `nohup ... &` the runner (and so the child) ignores SIGINT; the graceful
+        # stop must not wait out the whole grace window for a signal the child never sees.
+        previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                quiet = root / "quiet.py"
+                quiet.write_text("import time\ntime.sleep(30)\n", encoding="utf-8")
+                started = time.monotonic()
+                with self.assertRaises(NativeCliError) as idle_case:
+                    NativeCliRunner().run(
+                        NativeCliInvocation((sys.executable, str(quiet)), root, b"", 30, 0.15)
+                    )
+                elapsed = time.monotonic() - started
+        finally:
+            signal.signal(signal.SIGINT, previous)
+        self.assertEqual(FailureKind.TIMEOUT, idle_case.exception.kind)
+        self.assertLess(elapsed, 5, "stop should not wait out the grace window for an ignored SIGINT")
 
     def test_runner_completing_run_within_idle_and_hard_timeouts_is_unaffected(self):
         with tempfile.TemporaryDirectory() as directory:

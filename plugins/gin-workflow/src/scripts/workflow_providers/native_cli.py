@@ -231,6 +231,13 @@ GRACEFUL_STOP_GRACE_SECONDS = 10.0
 POLL_INTERVAL_SECONDS = 0.05
 
 
+def _restore_default_sigint() -> None:
+    """Runs in the child before exec. Under `nohup ... &` the runner ignores SIGINT and a child
+    would inherit that, so the graceful SIGINT stop would only wait out its grace window. The
+    child has its own session, so terminal interrupts never reach it either way."""
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+
 def _workspace_changed_files(cwd: Path) -> tuple[str, ...]:
     """Best-effort real changed-file list for a workspace, e.g. after a kill/cancel."""
     try:
@@ -302,6 +309,8 @@ class NativeCliRunner:
                 stderr=subprocess.PIPE,
                 shell=False,
                 start_new_session=os.name == "posix",
+                preexec_fn=(_restore_default_sigint if os.name == "posix"
+                            and signal.getsignal(signal.SIGINT) == signal.SIG_IGN else None),
             )
         except FileNotFoundError as error:
             raise NativeCliError(FailureKind.SERVICE, "native CLI executable unavailable") from error
