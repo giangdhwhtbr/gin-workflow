@@ -98,3 +98,6 @@ team:
     requirement_confirmed: [ba, be_lead, fe_lead]
     plan_approved: area_lead
     verification_passed: [qe]
+qa:
+  cases: qa/cases
+  guidelines: qa/guidelines.md

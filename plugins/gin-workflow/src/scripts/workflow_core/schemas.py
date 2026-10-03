@@ -191,6 +191,12 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "additionalProperties": False,
         },
         "team": _TEAM,
+        "qa": {
+            "type": "object",
+            "properties": {"cases": {"type": "string", "minLength": 1},
+                           "guidelines": {"type": "string", "minLength": 1}},
+            "additionalProperties": False,
+        },
         "rules": {
             "type": "object",
             "properties": {

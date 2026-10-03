@@ -35,6 +35,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("archive", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("trace", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("status", parents=[common]).add_argument("--change", required=True)
+    sub.add_parser("reqs", parents=[common]).add_argument("--change")
     item = sub.add_parser("migrate", parents=[common])
     item.add_argument("--dry-run", action="store_true")
     item.add_argument("--force", action="store_true")
@@ -68,6 +69,17 @@ def _run(args: argparse.Namespace) -> int:
         lines += [f"skipped: {item}" for item in result["skipped"]] + [f"refused: {r}" for r in result["refusals"]]
         _emit(result, args.format, "\n".join([f"status: {result['status']}", *lines]))
         return 1 if result["status"] == "refused" else 0
+    if args.command == "reqs":
+        from .specs_reqs import requirements
+
+        change = None
+        if args.change:
+            specs.require_layout(cfg, "sdd")
+            change = specs.find_change(root, cfg, args.change)
+        result = requirements(root, config, cfg, change)
+        _emit(result, args.format, "\n".join(f"{row['id']} {row['section']} {row['hash'][:8]} {row['title']}"
+                                             for row in result["requirements"]))
+        return 0
     specs.require_layout(cfg, "sdd")
     if args.command == "new":
         change = specs.new_change(root, cfg, args.slug, args.epic, args.title)
