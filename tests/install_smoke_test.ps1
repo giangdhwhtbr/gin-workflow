@@ -76,6 +76,7 @@ try {
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/workflow_core/cli.py')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/rules/core.md')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/templates/spec-delta.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/templates/team/commit-msg')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'

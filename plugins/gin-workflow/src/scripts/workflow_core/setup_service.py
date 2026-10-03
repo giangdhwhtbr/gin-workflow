@@ -510,6 +510,17 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             actions.append(f"sdd: {sdd_detail['conflict']['path']} holds non-SDD files; "
                            f"{sdd_detail['conflict']['suggestion']}")
 
+        from .team import load_team
+
+        team = load_team(effective)
+        if team is not None:
+            from .team_init import doctor_report
+
+            team_detail = doctor_report(root, team, effective)
+            checks_details["team"] = team_detail
+            checks["team"] = all(team_detail["checks"].values())
+            actions.extend(f"team: {action}" for action in team_detail["actions"])
+
     healthy = all(checks.values())
     payload: dict[str, Any] = {
         "status": "healthy" if healthy else "issues_found",

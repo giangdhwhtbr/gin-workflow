@@ -241,6 +241,7 @@ case "$rules_list" in
   *) echo "Installed launcher did not list the core rule pack: $rules_list" >&2; exit 1 ;;
 esac
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/spec-delta.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/team/commit-msg"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/templates/proposal.md"
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
 

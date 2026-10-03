@@ -17,6 +17,11 @@ def _parser() -> argparse.ArgumentParser:
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin-workflow team")
     sub = parser.add_subparsers(dest="command", required=True)
+    item = sub.add_parser("init", parents=[common])
+    item.add_argument("--ci", action="store_true")
+    item.add_argument("--force", action="store_true")
+    sub.add_parser("codeowners", parents=[common]).add_argument("--check", action="store_true")
+    sub.add_parser("hooks", parents=[common])
     sub.add_parser("whoami", parents=[common])
     item = sub.add_parser("check", parents=[common])
     item.add_argument("url")
@@ -47,6 +52,28 @@ def _run(args: argparse.Namespace) -> int:
     if team is None:
         raise team_core.TeamError("team mode is off: add team: to .agent-workflow/config.yaml "
                                   "(/gin-workflow:team-setup)")
+    if args.command in ("init", "codeowners", "hooks"):
+        from . import team_init
+
+        if args.command == "init":
+            result = team_init.init(root, team, config, ci=args.ci, force=args.force)
+            lines = [f"wrote {item}" for item in result["written"]]
+            lines += [f"unchanged {item}" for item in result["unchanged"]]
+            lines += [f"skipped {item} (no marker; --force overwrites)" for item in result["skipped"]]
+            _emit(result, args.format, "\n".join(lines))
+            return 0
+        if args.command == "hooks":
+            result = team_init.install_hook(root)
+            _emit(result, args.format, f"{result['status']}: {result['path']}")
+            return {"active": 0, "installed": 0, "missing": 2, "occupied": 1}[result["status"]]
+        if args.check:
+            drift = team_init.codeowners_drift(root, team, config)
+            path = team_init.codeowners_path(team)
+            return _findings([f"{path} is out of date; run gin-workflow team init"] if drift else [],
+                             args.format, "ok")
+        text = team_init.codeowners(team, config)
+        _emit({"path": team_init.codeowners_path(team), "text": text}, args.format, text.rstrip("\n"))
+        return 0
     if args.command == "check-plan":
         return _findings(team_core.check_plan(team, args.plan), args.format, "ok")
     if args.command == "check":
