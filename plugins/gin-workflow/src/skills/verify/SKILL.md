@@ -18,7 +18,7 @@ Gate for every claim: identify the command that proves it → run it fully and f
 1. Require `implementation_complete`.
 2. **Review approval** for each track bead:
    - `python3 review-ledger.py validate --bead-id <bead-id>` — an active, non-invalidated approval exists and every finding is terminal.
-   - Source tree hashes still match the approval snapshot.
+   - Source tree hashes still match the approval snapshot. Several tracks on one branch: the last track validates at HEAD; each earlier one uses `python3 review-ledger.py validate --bead-id <bead-id> --in-history`, which names the approved commit, and every later change on the branch must belong to a later approved track.
    - `python3 review-ledger.py render --bead-id <bead-id> --check` — no drift in `review.md`.
 3. **Quality gates**: run `project.verify_commands` from `gin-workflow state --format json` per rigor (easy: lint, typecheck, tests; standard: + build; strict: + e2e/a11y when configured), then any manual/UI checks the plan specifies.
 4. **Requirements**: re-read the confirmed spec and approved plan, make a line-by-line checklist, and verify each item against the code — not only the diff.

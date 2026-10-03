@@ -265,6 +265,49 @@ def compute_working_source_tree_hash(repository_id: str, repo_path: str, scope: 
     return compute_tree_hash_for_commit(repository_id, root, canonical_scope, _snapshot_tree(root, canonical_scope))
 
 
+def compute_commit_source_tree_hash(repository_id: str, repo_path: str, scope: Mapping[str, Any], commit: str) -> str:
+    """Source tree hash of a committed state, filtered exactly as a checkpoint filters the working tree."""
+    root = str(_repository_root(repo_path))
+    canonical_scope = canonicalize_scope(scope)
+    fd, temporary_index = tempfile.mkstemp(prefix="gin-review-index-")
+    os.close(fd)
+    os.unlink(temporary_index)
+    env = os.environ.copy()
+    env["GIT_INDEX_FILE"] = temporary_index
+    try:
+        _run_git(root, "read-tree", _resolve_commit(root, commit), env=env)
+        _remove_filtered_entries(root, canonical_scope, index_file=temporary_index, env=env)
+        tree_sha = _run_git(root, "write-tree", env=env).decode().strip()
+    finally:
+        try:
+            os.unlink(temporary_index)
+        except FileNotFoundError:
+            pass
+    return compute_tree_hash_for_commit(repository_id, root, canonical_scope, tree_sha)
+
+
+def find_reviewed_commit(
+    repository_id: str, repo_path: str, scope: Mapping[str, Any], base_sha: str, source_tree_hash: str
+) -> str:
+    """The first commit from the review base to HEAD whose source matches an approved tree hash.
+
+    Sequential tracks on one branch each approve an earlier state of the branch; this proves that state
+    reached HEAD's history without requiring the working tree to still equal it.
+    """
+    root = str(_repository_root(repo_path))
+    base = _resolve_commit(root, base_sha)
+    head = _resolve_commit(root, "HEAD")
+    try:
+        _run_git(root, "merge-base", "--is-ancestor", base, head)
+    except GitAdapterError as error:
+        raise GitAdapterError(f"review base {base} is not an ancestor of HEAD") from error
+    later = _run_git(root, "rev-list", "--reverse", f"{base}..{head}").decode().split()
+    for commit in (base, *later):
+        if compute_commit_source_tree_hash(repository_id, root, scope, commit) == source_tree_hash:
+            return commit
+    raise GitAdapterError(f"no commit between review base {base} and HEAD matches the approved source tree")
+
+
 def create_source_checkpoint(
     repo_path: str,
     scope: Mapping[str, Any],

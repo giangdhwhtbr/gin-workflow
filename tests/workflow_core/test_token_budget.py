@@ -107,6 +107,10 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertIn("checks_details.rules.tool_checks", text)
                 self.assertIn("gin-workflow setup doctor --format json", text)
 
+    def test_verify_validates_earlier_sequential_tracks_in_history(self):
+        text = (SRC / "skills/verify/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("validate --bead-id <bead-id> --in-history", text)
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:

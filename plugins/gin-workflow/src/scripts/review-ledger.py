@@ -26,6 +26,8 @@ from review_ledger.projections import ReviewProjection
 from review_ledger.git_adapter import (
     compute_working_source_tree_hash,
     create_source_checkpoint,
+    find_reviewed_commit,
+    GitAdapterError,
     fetch_review_ref,
     push_review_ref,
 )
@@ -306,6 +308,12 @@ def parse_args():
     # Validate
     p_val = subparsers.add_parser("validate", help="Validate ledger consistency.")
     p_val.add_argument("--bead-id", required=True)
+    p_val.add_argument(
+        "--in-history",
+        action="store_true",
+        help="Accept the approved source when a commit from the review base to HEAD matches it, "
+        "instead of the working tree (earlier tracks on a shared branch).",
+    )
 
     # Status
     p_stat = subparsers.add_parser("status", help="Get summary status.")
@@ -668,7 +676,15 @@ def main():
                 repo_id = repo.get("repository_id", "primary")
                 repo_path = repo.get("repository_path", ".")
                 recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
-                if recorded_hash and is_git_repo_root(repo_path):
+                if recorded_hash and is_git_repo_root(repo_path) and args.in_history:
+                    try:
+                        commit = find_reviewed_commit(
+                            repo_id, repo_path, proj.source_scope, repo.get("review_base_sha") or "HEAD", recorded_hash
+                        )
+                    except GitAdapterError as error:
+                        raise ValueError(f"Ledger validation failed for repository '{repo_id}': {error}.") from error
+                    print(f"Repository '{repo_id}': approved source matches commit {commit}.")
+                elif recorded_hash and is_git_repo_root(repo_path):
                     current_hash = compute_working_source_tree_hash(repo_id, repo_path, proj.source_scope)
                     if current_hash != recorded_hash:
                         raise ValueError(
