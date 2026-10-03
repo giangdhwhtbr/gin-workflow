@@ -11,7 +11,7 @@ TEST_ROOT = Path(__file__).resolve().parent
 
 def load_tests(_loader, _tests, pattern):
     suite = unittest.TestSuite()
-    for name in ("workflow_core", "workflow_providers", "review_ledger"):
+    for name in ("workflow_core", "workflow_providers", "review_ledger", "gin_qa"):
         for path in sorted((TEST_ROOT / name).glob(pattern or "test_*.py")):
             module_name = f"gin_workflow_tests.{name}.{path.stem}"
             spec = importlib.util.spec_from_file_location(module_name, path)
