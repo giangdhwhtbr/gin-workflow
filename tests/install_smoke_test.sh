@@ -123,6 +123,7 @@ assert_workflow_v22_layout() {
 
 rm -rf plugins/gin-workflow/dist
 rm -rf plugins/gin-workflow-advanced/dist
+rm -rf plugins/gin-qa/dist
 
 output_file="$(mktemp)"
 trap 'rm -f "$output_file"' EXIT
@@ -138,6 +139,8 @@ assert_not_contains "$output_file" "gin-workflow-advanced"
 assert_contains "$output_file" "would install global Claude Code plugin to"
 assert_contains "$output_file" "would install gin-workflow launcher version 2.7 to"
 assert_contains "$output_file" "would link gin-workflow launcher on PATH at"
+assert_not_contains "$output_file" "gin-qa"
+assert_not_exists "plugins/gin-qa/dist"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
@@ -178,6 +181,17 @@ assert_contains 'plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "codegraph"
+
+./install.sh --platform claude --plugin gin-qa --dry-run >"$output_file"
+
+assert_contains "$output_file" "Processing plugin: gin-qa"
+assert_not_contains "$output_file" "Processing plugin: gin-workflow"
+assert_contains "$output_file" "would install gin-qa launcher version 0.1 to"
+assert_exists "plugins/gin-qa/dist/claude-code/.claude-plugin/plugin.json"
+assert_exists "plugins/gin-qa/dist/claude-code/skills/cases/SKILL.md"
+assert_exists "plugins/gin-qa/dist/claude-code/templates/guidelines.md"
+assert_exists "plugins/gin-qa/dist/claude-code/scripts/gin_qa/cli.py"
+assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-qa/src\""
 
 ./install.sh --platform codex --dry-run >"$output_file"
 
@@ -244,6 +258,61 @@ assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/spec-delta.md"
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/team/commit-msg"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/templates/proposal.md"
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
+assert_not_exists "$MOCK_HOME/.claude/skills/gin-qa"
+assert_not_exists "$MOCK_HOME/.local/bin/gin-qa"
+
+HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file" 2>&1
+assert_not_contains "$output_file" "gin-workflow is not installed"
+assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/cases/SKILL.md"
+assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-qa@skills-dir": true'
+qa_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-qa" --version)"
+if [ "$qa_version" != "gin-qa 0.1" ]; then
+  echo "Unexpected gin-qa launcher version: $qa_version" >&2
+  exit 1
+fi
+
+# Success path with the installed launchers: write cases, edit a requirement, re-pin.
+QA_REPO="$MOCK_HOME/qa-repo"
+mkdir -p "$QA_REPO/.agent-workflow" "$QA_REPO/docs/specs/auth" "$QA_REPO/qa/cases"
+git -C "$QA_REPO" init -q
+printf '%s\n' "schema_version: '2.7'" 'artifacts:' '  layout: sdd' > "$QA_REPO/.agent-workflow/config.yaml"
+cat > "$QA_REPO/docs/specs/auth/spec.md" <<'SPEC'
+# Auth
+
+## Requirements
+
+### REQ-AUTH-001: Sign in
+The system SHALL sign a user in with a valid password.
+
+#### Scenario: valid password
+- GIVEN a registered user
+- WHEN they submit the right password
+- THEN they are signed in
+SPEC
+qa_cli() { HOME="$MOCK_HOME" PATH="$MOCK_HOME/.local/bin:$PATH" "$MOCK_HOME/.local/bin/gin-qa" cases "$@" --repository "$QA_REPO"; }
+pinned="$(qa_cli plan auth --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["missing"][0]["hash8"])')"
+cat > "$QA_REPO/qa/cases/auth.md" <<CASES
+# Test cases: auth
+
+### $(qa_cli next-id auth): Sign in with a valid password
+REQ: REQ-AUTH-001@$pinned
+
+Steps:
+1. Open /login
+2. Submit the right password
+
+Expected:
+- The user is signed in
+CASES
+qa_cli check >/dev/null
+sed -i.bak 's/valid password\./valid password and a code./' "$QA_REPO/docs/specs/auth/spec.md"
+if qa_cli check >"$output_file"; then
+  echo "Expected gin-qa check to report a stale case" >&2
+  exit 1
+fi
+assert_contains "$output_file" "TC-AUTH-001: REQ-AUTH-001 changed"
+qa_cli pin TC-AUTH-001 >/dev/null
+qa_cli check >/dev/null
 
 UPGRADE_HOME="$MOCK_HOME/upgrade-home"
 mkdir -p "$UPGRADE_HOME/.local/lib/gin-workflow/2.1" "$UPGRADE_HOME/.local/bin"

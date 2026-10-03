@@ -1,0 +1,10 @@
+{
+  "name": "gin-qa",
+  "version": "0.1.0",
+  "description": "QA add-on for gin-workflow: test cases derived from specs, traced to requirements, exported as JSON.",
+  "author": {
+    "name": "gin"
+  },
+  "repository": "https://github.com/giangdhwhtbr/gin-workflow",
+  "skills": "./skills/"
+}

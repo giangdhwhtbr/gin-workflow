@@ -143,6 +143,15 @@ codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
 codex plugin add gin-workflow@gin-workflow-marketplace
 ```
 
+### QA add-on (`gin-qa`, optional)
+`gin-qa` writes and checks test cases derived from the specs (`/gin-qa:cases`). It is not installed by default and needs `gin-workflow`. Install the plugin and its `gin-qa` launcher with `--plugin gin-qa` (or `--plugin all` for both):
+```bash
+./install.sh --plugin gin-qa
+# or remotely
+curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --plugin gin-qa
+```
+Test cases live in `qa/cases/<capability>.md` (configurable with `qa.cases` in `.agent-workflow/config.yaml`); team rules for writing them go in `qa/guidelines.md` (`qa.guidelines`). `gin-qa cases export --format json` feeds your own report tooling.
+
 ---
 
 ## Troubleshooting

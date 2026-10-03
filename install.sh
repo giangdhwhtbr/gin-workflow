@@ -10,6 +10,7 @@ UNINSTALL=false
 DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
 LAUNCHER_VERSION="2.7"
+QA_LAUNCHER_VERSION="0.1"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -23,7 +24,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --plugin)
       if [ -z "${2:-}" ]; then
-        echo "Error: --plugin requires a value (gin-workflow|all)" >&2
+        echo "Error: --plugin requires a value (gin-workflow|gin-qa|all)" >&2
         exit 1
       fi
       TARGET_PLUGIN="$2"
@@ -60,15 +61,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 case "$TARGET_PLUGIN" in
-  gin-workflow|all)
-    TARGET_PLUGIN="gin-workflow"
+  gin-workflow)
+    PLUGINS=(gin-workflow)
+    ;;
+  gin-qa)
+    PLUGINS=(gin-qa)
+    ;;
+  all)
+    PLUGINS=(gin-workflow gin-qa)
     ;;
   core|advanced)
     echo "Warning: --plugin $TARGET_PLUGIN is deprecated; using gin-workflow." >&2
-    TARGET_PLUGIN="gin-workflow"
+    PLUGINS=(gin-workflow)
     ;;
   *)
-    echo "Error: --plugin must be 'gin-workflow' or 'all' (got '$TARGET_PLUGIN')" >&2
+    echo "Error: --plugin must be 'gin-workflow', 'gin-qa', or 'all' (got '$TARGET_PLUGIN')" >&2
     exit 1
     ;;
 esac
@@ -83,7 +90,7 @@ fi
 
 if [ "$UNINSTALL" = true ]; then
   echo "Uninstalling plugins..."
-  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist
+  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist
   echo "Cleaned built dist folders. Perform CLI manual uninstall/disable if registered globally."
   exit 0
 fi
@@ -352,17 +359,18 @@ install_platform() {
 is_managed_launcher_link() {
   local launcher_link="$1"
   local managed_root="$2"
+  local name="${3:-gin-workflow}"
   local target version
 
   [ -L "$launcher_link" ] || return 1
   target="$(readlink "$launcher_link")"
   case "$target" in
-    "$managed_root"/*/gin-workflow) ;;
+    "$managed_root"/*/"$name") ;;
     *) return 1 ;;
   esac
 
   version="${target#"$managed_root"/}"
-  version="${version%/gin-workflow}"
+  version="${version%/"$name"}"
   [ -n "$version" ] &&
     [ "$version" != "." ] &&
     [ "$version" != ".." ] &&
@@ -402,6 +410,39 @@ install_launcher() {
     *) echo "Warning: ${HOME}/.local/bin is not on PATH." >&2 ;;
   esac
 }
+
+install_qa_launcher() {
+  local source_dir="$SCRIPT_DIR/plugins/gin-qa/src/scripts"
+  local install_dir="${HOME}/.local/lib/gin-qa/${QA_LAUNCHER_VERSION}"
+  local launcher_target="${install_dir}/gin-qa"
+  local launcher_link="${HOME}/.local/bin/gin-qa"
+  local managed_root="${HOME}/.local/lib/gin-qa"
+
+  if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
+    if [ ! -L "$launcher_link" ] || { [ "$(readlink "$launcher_link")" != "$launcher_target" ] && ! is_managed_launcher_link "$launcher_link" "$managed_root" gin-qa; }; then
+      echo "Error: refusing to replace a different launcher at $launcher_link" >&2
+      return 1
+    fi
+  fi
+  if [ ! -e "${HOME}/.local/bin/gin-workflow" ] && ! command -v gin-workflow &> /dev/null; then
+    echo "Warning: gin-workflow is not installed; gin-qa needs it (./install.sh --plugin gin-workflow)." >&2
+  fi
+
+  if [ "$DRY_RUN" = true ]; then
+    echo "(dry-run) would install gin-qa launcher version $QA_LAUNCHER_VERSION to $launcher_target"
+    echo "(dry-run) would link gin-qa launcher on PATH at $launcher_link"
+    return
+  fi
+
+  mkdir -p "$install_dir/gin_qa" "$(dirname "$launcher_link")"
+  cp -f "$source_dir/gin-qa" "$launcher_target"
+  cp -rf "$source_dir/gin_qa/." "$install_dir/gin_qa/"
+  chmod 755 "$launcher_target"
+  ln -sfn "$launcher_target" "$launcher_link"
+  echo "Installed gin-qa launcher version $QA_LAUNCHER_VERSION to $launcher_link"
+}
+
+CODEX_MARKETPLACE_READY=false
 
 install_plugin() {
   local p_name="$1"
@@ -492,15 +533,23 @@ install_plugin() {
     # registered by name, and the git-subdir source snapshots content at
     # add-time -- so a repeat run would keep serving a stale snapshot even
     # after local changes are committed. Force a fresh registration.
+    # With --plugin all, refresh the marketplace once so the second plugin does not drop the first.
     codex plugin remove "$p_name@gin-workflow-marketplace" >/dev/null 2>&1 || true
-    codex plugin marketplace remove "gin-workflow-marketplace" >/dev/null 2>&1 || true
-    codex plugin marketplace add "$SCRIPT_DIR"
+    if [ "$CODEX_MARKETPLACE_READY" = false ]; then
+      codex plugin marketplace remove "gin-workflow-marketplace" >/dev/null 2>&1 || true
+      codex plugin marketplace add "$SCRIPT_DIR"
+      CODEX_MARKETPLACE_READY=true
+    fi
     codex plugin add "$p_name@gin-workflow-marketplace"
   fi
 }
 
-install_launcher
-
-install_plugin "$TARGET_PLUGIN"
+for p_name in "${PLUGINS[@]}"; do
+  case "$p_name" in
+    gin-workflow) install_launcher ;;
+    gin-qa) install_qa_launcher ;;
+  esac
+  install_plugin "$p_name"
+done
 
 echo "Install processes completed successfully!"

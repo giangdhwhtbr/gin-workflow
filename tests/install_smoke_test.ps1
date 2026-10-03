@@ -65,6 +65,12 @@ try {
     Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.7'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin-workflow.cmd'))) 'Dry-run wrote the launcher shim'
+    Assert-True (-not $dryRunOutput.Contains('gin-qa', [StringComparison]::Ordinal)) 'Default install processed gin-qa'
+
+    $qaDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-qa'; DryRun = $true }
+    Assert-Contains $qaDryRun 'would install gin-qa launcher version 0.1'
+    Assert-True (-not $qaDryRun.Contains('Processing plugin: gin-workflow', [StringComparison]::Ordinal)) 'gin-qa install processed gin-workflow'
+    Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/cases/SKILL.md')
 
     $project = Join-Path $TestRoot 'project'
     New-Item -ItemType Directory -Path $project | Out-Null
@@ -78,6 +84,14 @@ try {
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/templates/spec-delta.md')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/templates/team/commit-msg')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
+
+    $qaProject = Join-Path $TestRoot 'qa-project'
+    New-Item -ItemType Directory -Path $qaProject | Out-Null
+    Invoke-Installer @{ Platform = 'claude'; Plugin = 'all'; Project = $qaProject } | Out-Null
+    Assert-Exists (Join-Path $qaProject '.claude/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $qaProject '.claude/skills/cases/SKILL.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.1/gin_qa/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/bin/gin-qa.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'
     New-Item -ItemType Directory -Path $linkProject | Out-Null
