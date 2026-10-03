@@ -18,6 +18,7 @@ Write a plan an engineer with zero context could execute: exact files, code, com
 3. Map files first: each file one responsibility; files that change together live together; follow existing patterns.
 4. Size tracks: the smallest unit with its own test cycle that a reviewer could reject independently. Fold setup, config, and docs into the track that needs them. Steps are 2–5 minutes each: failing test → run (fail) → minimal code → run (pass) → commit only if authorized.
 5. Give each track Metadata (dependencies, provider role and reasoning, model guidance), Files (create/modify/test with line ranges), and Interfaces (exact names and types consumed and produced).
+   With `project.team.enabled`, tracks add `Area:`/`Owner:` and the plan is approved through a PR (the `gin-team` skill).
 6. Routing: every implementation or review track names a configured provider role and low/medium/high reasoning. Use abstract model classes `high_reasoning`, `standard_impl` (default), `cheap_simple`; `Reasoning: low` dispatches at `cheap_simple`. Do not name a concrete provider or model in a portable plan. Declare `execution_strategy` exactly as in the schema.
 7. Distinguish the Parent Bead (the deliverable/epic) from Track Beads (work units). "Remain open until human-confirmed merge" applies only to the Parent Bead; tracks close after tests and review pass so dependents unblock.
 8. **No placeholders**: no TBD/TODO, "add error handling", "write tests for the above", "similar to Task N", steps without code, or references to undefined names.

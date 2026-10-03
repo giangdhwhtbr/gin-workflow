@@ -21,6 +21,7 @@ Turn a requirement into a confirmed design. The user starts with an idea, not a 
 4. **Present the design** in sections scaled to complexity (a few sentences up to ~300 words); confirm each section before moving on. Cover architecture, components, data flow, error handling, testing. Prefer small units with one purpose and clear interfaces; in existing code follow existing patterns and include only targeted improvements that serve the goal.
 5. **Write the spec** to `.planning/specs/YYYY-MM-DD-<topic>-design.md`. Commit it on a feature branch, never on `main`/`master`.
    With `project.layout: sdd` (`gin-workflow state --format json`), steps 5–8 follow the `gin-sdd` skill instead: change folder, REQ-IDs, and `chat` or `pr` spec review.
+   With `project.team.enabled`, spec review and the `requirement-confirmed` evidence follow the `gin-team` skill.
 6. **Self-review the spec** and fix inline: placeholders (TBD/TODO), contradictions, scope too large for one plan, requirements readable two ways.
 7. **User review** — "Spec written to `<path>`. Please review it and tell me about any changes before we write the implementation plan." Apply changes and repeat step 6 until the user explicitly confirms.
 8. **Record** — `gin-workflow record requirement-confirmed --evidence <spec-path> --actor <user-id>`.

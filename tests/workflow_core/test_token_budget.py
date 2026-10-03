@@ -124,6 +124,19 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(heading=heading):
                 self.assertIn(heading, guide)
 
+    def test_team_guidance_loads_on_demand(self):
+        team_skill = (SRC / "skills/gin-team/SKILL.md").resolve()
+        for stage in ("discuss", "plan", "orchestrate", "execute", "verify", "ship"):
+            text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
+            with self.subTest(stage=stage):
+                self.assertIn("`gin-team` skill", text)
+                self.assertEqual(1, sum("project.team" in line for line in text.splitlines()))
+                self.assertNotIn(team_skill, stage_chain(SRC, stage))
+        guide = team_skill.read_text(encoding="utf-8")
+        for heading in ("## Gates", "## discuss", "## plan", "## orchestrate", "## execute", "## verify", "## ship"):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, guide)
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:

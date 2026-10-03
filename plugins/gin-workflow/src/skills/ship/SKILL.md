@@ -14,6 +14,7 @@ Verify → detect workspace → present options → execute the choice → clean
 ## Steps
 
 1. Require `verification_passed` and a terminal review state. Re-run the project test command; if it fails, show the failures and stop. With `project.layout: sdd`, archive the change into the living spec first, per the `gin-sdd` skill.
+   With `project.team.enabled`, merging follows the host rules and Beads are synced (the `gin-team` skill).
 2. Detect the workspace before changing directory and save the results:
    ```bash
    GIT_DIR=$(cd "$(git rev-parse --git-dir)" && pwd -P); GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)

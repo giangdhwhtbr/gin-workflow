@@ -110,6 +110,17 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/specs_migrate.py",
     "skills/migrate-specs/SKILL.md",
     "skills/gin-sdd/SKILL.md",
+    "templates/team/pull_request_template.md",
+    "templates/team/commit-msg",
+    "templates/team/github-ci.yml",
+    "templates/team/gitlab-ci.yml",
+    "scripts/workflow_core/team.py",
+    "scripts/workflow_core/team_host.py",
+    "scripts/workflow_core/team_beads.py",
+    "scripts/workflow_core/team_init.py",
+    "scripts/workflow_core/team_cli.py",
+    "skills/gin-team/SKILL.md",
+    "skills/team-setup/SKILL.md",
 )
 
 
