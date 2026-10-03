@@ -163,18 +163,22 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if not epic or _beads_json(Path(args.repository).resolve(), ["list", "--parent", epic, "--all", "--limit", "0"]) != []:
             return {"status": "error", "message": "shipped is recordable only for a standalone bead recorded as its own "
                     "epic (orchestration-ready --epic <bead>); an epic with children ships by closing it"}, 2
-    actor = args.actor
+    actor, team_payload = args.actor, {}
     team = team_for_repo(Path(args.repository).resolve())
     if team is not None:
-        from .team import TeamError, require_member
+        from .team import TeamError, TeamRejected, authorize_record
+        from .team_host import HostUnavailable
 
         try:
-            actor = require_member(Path(args.repository).resolve(), team, args.actor).email
-        except TeamError as error:
+            actor, team_payload = authorize_record(Path(args.repository).resolve(), team, args.gate.replace("-", "_"),
+                                                   args.evidence, actor=args.actor, plan=args.plan)
+        except (TeamError, HostUnavailable) as error:
             return {"status": "error", "message": str(error)}, 2
+        except TeamRejected as rejected:
+            return {"status": "rejected", "message": str(rejected), "reasons": rejected.reasons}, 1
     elif not actor:
         return {"status": "error", "message": "--actor is required"}, 2
-    payload = {**base_payload, "evidence": args.evidence}
+    payload = {**base_payload, "evidence": args.evidence, **team_payload}
     if args.epic:
         payload["epic"] = args.epic
     event = WorkflowEvent.create(
@@ -259,10 +263,10 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
     team = team_for_repo(repo_path)
     if team is not None:
-        from .team import TeamError, require_member
+        from .team import TeamError, authorize_waiver
 
         try:
-            actor = require_member(repo_path, team, actor).email
+            actor = authorize_waiver(repo_path, team, None if args.clear_blocker else args.gate, actor=actor)
         except TeamError as error:
             return {"status": "error", "message": str(error)}, 2
     elif not actor:
@@ -438,6 +442,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         parser.add_argument("gate", choices=tuple(_RECORDABLE_GATES))
         parser.add_argument("--evidence", required=True)
         parser.add_argument("--actor", default="", help="required unless team mode derives it from git user.email")
+        parser.add_argument("--plan", help="team mode: the plan file a plan-approved PR approves")
         parser.add_argument("--epic", default="", help="parent bead whose closed children prove implementation_complete")
         try:
             args = parser.parse_args(argv[1:])

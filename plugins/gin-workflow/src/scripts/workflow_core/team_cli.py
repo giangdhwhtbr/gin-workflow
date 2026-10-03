@@ -18,11 +18,22 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gin-workflow team")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("whoami", parents=[common])
+    item = sub.add_parser("check", parents=[common])
+    item.add_argument("url")
+    item.add_argument("--gate", required=True, choices=team_core.GATES)
+    item.add_argument("--plan")
+    sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
     return parser
 
 
 def _emit(payload: dict[str, Any], output_format: str, text: str) -> None:
     print(json.dumps(payload, indent=2, sort_keys=True) if output_format == "json" else text)
+
+
+def _findings(errors: list[str], output_format: str, ok: str) -> int:
+    _emit({"status": "findings" if errors else "ok", "findings": errors}, output_format,
+          "\n".join(errors) if errors else ok)
+    return 1 if errors else 0
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -36,6 +47,14 @@ def _run(args: argparse.Namespace) -> int:
     if team is None:
         raise team_core.TeamError("team mode is off: add team: to .agent-workflow/config.yaml "
                                   "(/gin-workflow:team-setup)")
+    if args.command == "check-plan":
+        return _findings(team_core.check_plan(team, args.plan), args.format, "ok")
+    if args.command == "check":
+        pr, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan)
+        payload = {"status": "rejected" if reasons else "ok", "gate": args.gate, "url": pr.url, "reasons": reasons,
+                   "approvers": team_core.approver_payload(pr, team)}
+        _emit(payload, args.format, "\n".join(reasons) if reasons else f"ok: {args.gate} {pr.url}")
+        return 1 if reasons else 0
     member = team_core.require_member(root, team)
     payload = {"email": member.email, "login": member.login, "roles": list(member.roles),
                "areas": team.areas_for(member)}
@@ -45,12 +64,14 @@ def _run(args: argparse.Namespace) -> int:
 
 
 def main(arguments: Sequence[str]) -> int:
+    from .team_host import HostUnavailable
+
     try:
         args = _parser().parse_args(list(arguments))
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
     try:
         return _run(args)
-    except (team_core.TeamError, ValueError) as error:
+    except (team_core.TeamError, HostUnavailable, ValueError) as error:
         print(f"team error: {error}", file=sys.stderr)
         return 2
