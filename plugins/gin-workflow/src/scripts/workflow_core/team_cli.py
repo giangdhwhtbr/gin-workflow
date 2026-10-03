@@ -28,6 +28,10 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--gate", required=True, choices=team_core.GATES)
     item.add_argument("--plan")
     sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
+    sub.add_parser("ready", parents=[common])
+    sub.add_parser("claim", parents=[common]).add_argument("bead")
+    sub.add_parser("deps", parents=[common])
+    sub.add_parser("sync", parents=[common])
     return parser
 
 
@@ -83,11 +87,36 @@ def _run(args: argparse.Namespace) -> int:
         _emit(payload, args.format, "\n".join(reasons) if reasons else f"ok: {args.gate} {pr.url}")
         return 1 if reasons else 0
     member = team_core.require_member(root, team)
-    payload = {"email": member.email, "login": member.login, "roles": list(member.roles),
-               "areas": team.areas_for(member)}
-    _emit(payload, args.format, f"{member.email} ({member.login}) roles: {', '.join(member.roles)}; "
-                                f"areas: {', '.join(payload['areas']) or '-'}")
-    return 0
+    if args.command == "whoami":
+        payload = {"email": member.email, "login": member.login, "roles": list(member.roles),
+                   "areas": team.areas_for(member)}
+        _emit(payload, args.format, f"{member.email} ({member.login}) roles: {', '.join(member.roles)}; "
+                                    f"areas: {', '.join(payload['areas']) or '-'}")
+        return 0
+    from . import team_beads
+
+    try:
+        if args.command == "ready":
+            rows = team_beads.ready(root, team, member)
+            _emit({"ready": rows}, args.format, "\n".join(f"{row['id']} {row['title']}" for row in rows))
+            return 0
+        if args.command == "claim":
+            result = team_beads.claim(root, team, member, args.bead)
+            _emit(result, args.format, f"claimed {args.bead}")
+            return 0
+        if args.command == "deps":
+            result = team_beads.deps(root, team)
+            lines = [f"closed {row['id']} ({row['pr']})" for row in result["closed"]]
+            lines += [f"waiting {item}" for item in result["waiting"]]
+            _emit(result, args.format, "\n".join(lines) or "no external placeholders")
+            return 0
+        if not team.beads_remote:
+            raise team_core.TeamError("team.beads_sync.remote is not set")
+        _emit(team_beads.sync(root), args.format, "synced")
+        return 0
+    except team_beads.SyncConflict as conflict:
+        _emit({"status": "conflict", "message": str(conflict)}, args.format, f"conflict: {conflict}")
+        return 1
 
 
 def main(arguments: Sequence[str]) -> int:
