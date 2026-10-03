@@ -32,6 +32,9 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("new")
     item.add_argument("--change", required=True)
     item.add_argument("--against")
+    sub.add_parser("archive", parents=[common]).add_argument("--change", required=True)
+    sub.add_parser("trace", parents=[common]).add_argument("--change", required=True)
+    sub.add_parser("status", parents=[common]).add_argument("--change", required=True)
     return parser
 
 
@@ -76,9 +79,30 @@ def _run(args: argparse.Namespace) -> int:
         _emit({"id": block.id, "hash": digest}, args.format, f"<!-- base: {digest} -->")
         return 0
     change = specs.find_change(root, cfg, args.change)
-    result = specs.renumber(root, cfg, change, args.old, args.new, against=args.against)
-    _emit(result, args.format, "\n".join([f"{args.old} -> {args.new}", *result["files"], *result["beads"]]))
+    if args.command == "renumber":
+        result = specs.renumber(root, cfg, change, args.old, args.new, against=args.against)
+        _emit(result, args.format, "\n".join([f"{args.old} -> {args.new}", *result["files"], *result["beads"]]))
+        return 0
+    if args.command == "archive":
+        from .specs_archive import ArchiveConflict, archive
+
+        try:
+            result = archive(root, cfg, change)
+        except ArchiveConflict as conflict:
+            return _findings(conflict.errors, args.format, "ok")
+        _emit(result, args.format, f"archived to {result['archived_to']}; updated {', '.join(result['specs'])}")
+        return 0
+    from .specs_trace import status, trace
+
+    if args.command == "trace":
+        result = trace(root, cfg, change)
+        lines = [f"{row['id']}: {row['status']} {' '.join(row['sources'])}".rstrip() for row in result["requirements"]]
+        _emit(result, args.format, "\n".join(lines))
+        return 1 if result["missing"] else 0
+    result = status(root, change)
+    _emit(result, args.format, " ".join(str(result.get(key, "")) for key in ("status", "url", "merge_commit")).strip())
     return 0
+
 
 def main(arguments: Sequence[str]) -> int:
     try:

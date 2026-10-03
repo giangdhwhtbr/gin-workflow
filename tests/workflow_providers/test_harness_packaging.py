@@ -105,6 +105,8 @@ REQUIRED_ARTIFACTS = (
     "templates/codebase/OVERVIEW.md",
     "scripts/workflow_core/specs.py",
     "scripts/workflow_core/specs_cli.py",
+    "scripts/workflow_core/specs_archive.py",
+    "scripts/workflow_core/specs_trace.py",
 )
 
 
