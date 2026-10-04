@@ -1,7 +1,7 @@
 # QA E2E Evidence (Sub-project G2) — Design
 
 Date: 2026-10-04
-Status: draft
+Status: confirmed 2026-10-04
 Depends on:
 - G1 (`.planning/specs/2026-10-03-qa-cases-design.md`): the `gin-qa` plugin, the TC format, `gin-qa cases export`.
 Followed by: G3 (agents that explore the application in a browser).
