@@ -1,6 +1,6 @@
 # Docs Rewrite Design
 
-Status: draft 2026-10-04
+Status: confirmed 2026-10-04
 
 ## Goal
 
