@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -12,7 +15,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
-from qa_fixtures import AUTH_SPEC, case, cases_file, gin_workflow_bin, make_repo, qa, write  # noqa: E402
+from qa_fixtures import AUTH_SPEC, QA_LAUNCHER, case, cases_file, gin_workflow_bin, make_repo, qa, write  # noqa: E402
 from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
 
 FAKE_NPX = textwrap.dedent('''\
@@ -22,16 +25,17 @@ FAKE_NPX = textwrap.dedent('''\
     root, run = pathlib.Path.cwd(), pathlib.Path(os.environ["GIN_QA_RUN_DIR"])
     (root / ".npx-args").write_text(json.dumps(sys.argv[1:]))
     skip = (root / ".fake-skip").read_text().split() if (root / ".fake-skip").exists() else []
-    for spec in sys.argv[3:]:
+    for spec in [arg for arg in sys.argv[3:] if arg.endswith(".spec.ts")]:
         tc, pinned = re.match(r"// TC: (\\S+)@(\\w+)", (root / spec).read_text()).groups()
         if tc in skip:
             continue
         folder = run / tc.lower()
         folder.mkdir(parents=True)
         (folder / "01.png").write_bytes(b"png")
+        (folder / "01.aria.yml").write_text("- heading Login")
         (folder / "result.json").write_text(json.dumps({{"tc": tc, "tc_hash8": pinned, "status": "passed",
             "steps": [{{"n": 1, "title": "1. Open /login", "status": "passed", "screenshot": "01.png",
-                        "error": None}}]}}))
+                        "snapshot": "01.aria.yml", "url": "http://127.0.0.1/login", "error": None}}]}}))
     exit_file = root / ".fake-exit"
     sys.exit(int(exit_file.read_text()) if exit_file.exists() else 0)
 ''').format(python=sys.executable)
@@ -166,12 +170,31 @@ class TestRunAndEvidence(E2eCase):
         payload = json.loads(result.stdout)
         self.assertEqual((0, []), (payload["playwright_exit"], payload["findings"]))
         self.assertRegex(payload["run"], r"^qa/evidence/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d$")
-        self.assertEqual(["playwright", "test", "qa/e2e/auth/tc-auth-001.spec.ts"],
+        self.assertEqual(["playwright", "test", "qa/e2e/auth/tc-auth-001.spec.ts",
+                          "--output", f"{payload['run']}/playwright"],
                          json.loads((self.root / ".npx-args").read_text()))
         record = json.loads((self.root / payload["run"] / "run.json").read_text())
         self.assertEqual((["qa/e2e/auth/tc-auth-001.spec.ts"], 0), (record["specs"], record["playwright_exit"]))
         self.assertNotEqual(payload["run"], json.loads(self.run_e2e("auth").stdout)["run"])
         self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
+
+    def test_a_taken_folder_moves_to_the_next_suffix(self):
+        now = datetime.now(timezone.utc)
+        for moment in (now, now + timedelta(seconds=1)):
+            (self.root / "qa/evidence" / moment.strftime("%Y-%m-%dT%H-%M-%S")).mkdir(parents=True)
+        self.assertRegex(json.loads(self.run_e2e().stdout)["run"], r"^qa/evidence/[0-9T-]+-2$")
+
+    def test_concurrent_runs_keep_separate_complete_evidence(self):
+        env = {**os.environ, "PATH": f"{self.bin}:{self.npx}:/usr/bin:/bin"}
+        command = [sys.executable, str(QA_LAUNCHER), "e2e", "run", "--format", "json", "--repository", str(self.root)]
+        procs = [subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+                 for _ in range(3)]
+        outputs = [proc.communicate() for proc in procs]
+        self.assertEqual([0, 0, 0], [proc.returncode for proc in procs], outputs)
+        runs = [json.loads(out)["run"] for out, _ in outputs]
+        self.assertEqual(3, len(set(runs)))
+        for folder in runs:
+            self.assertEqual(0, self.e2e("check", "--run", folder).returncode)
 
     def test_run_exit_codes(self):
         (self.root / ".fake-exit").write_text("1")
@@ -216,8 +239,15 @@ class TestRunAndEvidence(E2eCase):
                 self.assertEqual([finding], self.run_json("check", "--run", folder)["findings"])
         result_file.write_text(json.dumps(data))
         (self.root / folder / "tc-auth-001/01.png").write_bytes(b"")
-        self.assertEqual([f"{where}: step 1 has no screenshot on disk"],
+        (self.root / folder / "tc-auth-001/01.aria.yml").unlink()
+        self.assertEqual([f"{where}: step 1 has no screenshot on disk", f"{where}: step 1 has no snapshot on disk"],
                          self.run_json("check", "--run", folder)["findings"])
+        (self.root / folder / "tc-auth-001/01.png").write_bytes(b"png")
+        for step in ({"snapshot": None, "url": None}, {}):
+            with self.subTest(step=step):
+                g2_step = {key: value for key, value in data["steps"][0].items() if key not in ("snapshot", "url")}
+                result_file.write_text(json.dumps({**data, "steps": [{**g2_step, **step}]}))
+                self.assertEqual([], self.run_json("check", "--run", folder)["findings"])
         result_file.write_text("{")
         self.assertIn("result.json is not valid JSON", self.run_json("check", "--run", folder)["findings"][0])
         for bad in ("qa/cases", "qa/evidence/none"):
@@ -230,9 +260,9 @@ class TestRunAndEvidence(E2eCase):
         self.assertEqual((folder, 0), (payload["run"], payload["playwright_exit"]))
         [row] = payload["cases"]
         self.assertEqual(("TC-AUTH-001", self.tc_hash(), "qa/e2e/auth/tc-auth-001.spec.ts", "passed",
-                          f"{folder}/tc-auth-001/01.png"),
+                          f"{folder}/tc-auth-001/01.png", f"{folder}/tc-auth-001/01.aria.yml"),
                          (row["id"], row["hash8"], row["spec"], row["result"]["status"],
-                          row["result"]["steps"][0]["screenshot"]))
+                          row["result"]["steps"][0]["screenshot"], row["result"]["steps"][0]["snapshot"]))
         (self.root / folder / "tc-auth-001/result.json").unlink()
         self.assertIsNone(self.run_json("export", "--run", folder)["cases"][0]["result"])
 

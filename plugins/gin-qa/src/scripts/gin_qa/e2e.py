@@ -181,14 +181,19 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
     if not specs:
         raise QaError(f"no e2e specs under {eff.e2e_dir}; write them with /gin-qa:e2e")
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
-    folder = f"{evidence_root(eff)}/{stamp}"
-    suffix = 2
-    while (root / folder).exists():
-        folder, suffix = f"{evidence_root(eff)}/{stamp}-{suffix}", suffix + 1
-    (root / folder).mkdir(parents=True)
+    folder, suffix = f"{evidence_root(eff)}/{stamp}", 2
+    (root / evidence_root(eff)).mkdir(parents=True, exist_ok=True)
+    while True:
+        try:
+            (root / folder).mkdir()
+            break
+        except FileExistsError:  # another run started in the same second
+            folder, suffix = f"{evidence_root(eff)}/{stamp}-{suffix}", suffix + 1
     record = {"started": datetime.now(timezone.utc).isoformat(), "specs": specs, "playwright_exit": None}
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-    result = subprocess.run([npx, "playwright", "test", *specs], cwd=root, stdout=sys.stderr,
+    # Each run gets its own Playwright output folder: the shared default is wiped when a run starts.
+    result = subprocess.run([npx, "playwright", "test", *specs, "--output", f"{folder}/playwright"],
+                            cwd=root, stdout=sys.stderr,
                             env={**os.environ, "GIN_QA_RUN_DIR": str(root / folder)})
     record["playwright_exit"] = result.returncode
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
@@ -218,6 +223,10 @@ def _result(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     return data, None
 
 
+def _non_empty(folder: Path, name: object) -> bool:
+    return isinstance(name, str) and bool(name) and (folder / name).is_file() and (folder / name).stat().st_size > 0
+
+
 def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
     path, record = _run_folder(root, eff, folder)
     shown = path.relative_to(root.resolve()).as_posix()
@@ -240,11 +249,11 @@ def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
         if data["status"] == "passed" and not data["steps"]:
             errors.append(f"{where}: passed without any ev.step; nothing was checked")
         for step in data["steps"]:
-            name = step.get("screenshot") if isinstance(step, dict) else None
-            shot = path / case_id.lower() / name if isinstance(name, str) and name else None
-            if shot is None or not shot.is_file() or shot.stat().st_size == 0:
-                errors.append(f"{where}: step {step.get('n') if isinstance(step, dict) else '?'} "
-                              f"has no screenshot on disk")
+            step = step if isinstance(step, dict) else {"n": "?"}
+            if not _non_empty(path / case_id.lower(), step.get("screenshot")):
+                errors.append(f"{where}: step {step.get('n')} has no screenshot on disk")
+            if step.get("snapshot") is not None and not _non_empty(path / case_id.lower(), step["snapshot"]):
+                errors.append(f"{where}: step {step.get('n')} has no snapshot on disk")
         if case_id not in cases:
             errors.append(f"{where}: {case_id} is not an e2e test case any more")
         elif data.get("tc_hash8") != tc.hash8(cases[case_id]):
@@ -261,8 +270,9 @@ def export(root: Path, eff: Effective, folder: str) -> dict[str, Any]:
         data, _ = _result(path / case.id.lower() / "result.json")
         if data is not None:
             for step in data["steps"]:
-                if isinstance(step, dict) and step.get("screenshot"):
-                    step["screenshot"] = f"{shown}/{case.id.lower()}/{step['screenshot']}"
+                for key in ("screenshot", "snapshot"):
+                    if isinstance(step, dict) and step.get(key):
+                        step[key] = f"{shown}/{case.id.lower()}/{step[key]}"
         spec = spec_path(eff, case)
         rows.append({**tc.as_dict(case), "spec": spec if (root / spec).is_file() else None, "result": data})
     return {"run": shown, "started": record.get("started"), "playwright_exit": record.get("playwright_exit"),
