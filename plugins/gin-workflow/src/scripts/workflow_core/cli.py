@@ -66,8 +66,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv == ["--version"]:
         print(f"gin-workflow {CLI_VERSION}")
         return 0
-    if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team"):
-        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team} <command>",
+    if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team", "usage"):
+        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage} <command>",
               file=sys.stderr)
         return 2
     if argv[0] == "rules":
@@ -79,6 +79,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv[0] == "team":
         from .team_cli import main as team_main
         return team_main(argv[1:])
+    if argv[0] == "usage":
+        from .usage_cli import main as usage_main
+        return usage_main(argv[1:])
     if argv[0] in ("state", "unblock", "record", "quick-check"):
         from .lifecycle_cli import main as lifecycle_main
         return lifecycle_main(argv)
