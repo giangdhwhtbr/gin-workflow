@@ -186,10 +186,11 @@ assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 
 assert_contains "$output_file" "Processing plugin: gin-qa"
 assert_not_contains "$output_file" "Processing plugin: gin-workflow"
-assert_contains "$output_file" "would install gin-qa launcher version 0.2 to"
+assert_contains "$output_file" "would install gin-qa launcher version 0.3 to"
 assert_exists "plugins/gin-qa/dist/claude-code/.claude-plugin/plugin.json"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/cases/SKILL.md"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/SKILL.md"
+assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/references/explore-case.md"
 assert_exists "plugins/gin-qa/dist/claude-code/templates/evidence.ts"
 assert_exists "plugins/gin-qa/dist/claude-code/templates/guidelines.md"
 assert_exists "plugins/gin-qa/dist/claude-code/scripts/gin_qa/cli.py"
@@ -267,10 +268,11 @@ HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file"
 assert_not_contains "$output_file" "gin-workflow is not installed"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/cases/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/e2e/SKILL.md"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.2/templates/evidence.ts"
+assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/e2e/references/explore-case.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.3/templates/evidence.ts"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-qa@skills-dir": true'
 qa_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-qa" --version)"
-if [ "$qa_version" != "gin-qa 0.2" ]; then
+if [ "$qa_version" != "gin-qa 0.3" ]; then
   echo "Unexpected gin-qa launcher version: $qa_version" >&2
   exit 1
 fi
