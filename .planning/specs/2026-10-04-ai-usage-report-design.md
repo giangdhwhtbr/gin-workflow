@@ -12,11 +12,11 @@ Show what AI-assisted work on each bead and epic cost and how well it went: toke
 | Topic | Decision |
 |---|---|
 | Purpose | Cost and quality per bead and per epic, to improve the process and the choice of models. No per-member view. |
-| Sources | Claude Code session logs, Codex session logs, and workers that gin-workflow dispatches itself. Antigravity session logs are out of scope. |
+| Sources | Claude Code session logs and Codex session logs (which include `codex exec` reviewers). Antigravity is not measured: `agy` prints no token counts and its own logs are binary. The report names the sources it read. |
 | Collection | After the fact, from local logs, at bead close. No telemetry infrastructure. |
 | Attribution | Track bead: its worktree or branch. Repository root: the workflow of the next gate event, labelled with that stage. Anything else: `unattributed`. |
 | Storage | A summary in the bead's metadata (`ai_usage`), synced with the bead. Raw records are never stored. |
-| Cost | Estimated from a price table in the project config. A model without a price has no cost; it is never guessed. |
+| Cost | Estimated from a tracked price list, `.agent-workflow/usage-prices.yaml` (the portable config holds no concrete model names). A model without a price has no cost; it is never guessed. |
 | Export | `usage report --format json`. Pushing to a metric collector is out of scope. |
 
 ## Global Constraints
@@ -29,7 +29,7 @@ Show what AI-assisted work on each bead and epic cost and how well it went: toke
 
 ## Design
 
-### 1. Usage records (`workflow_core/usage/`)
+### 1. Usage records (`workflow_core/usage_logs.py`)
 
 Every adapter yields the same record:
 
@@ -38,9 +38,10 @@ UsageRecord(ts, harness, model, session_id, cwd, branch,
             input, output, cache_read, cache_write)
 ```
 
-- `claude_code`: `~/.claude/projects/<slug>/*.jsonl` for every slug that starts with the repository's slug (sessions started inside a worktree get their own slug). One record per assistant message with `message.usage`; sidechain (subagent) messages included. Duplicate message ids are counted once.
+- `claude_code`: `~/.claude/projects/<slug>/**/*.jsonl` for every slug that starts with the repository's slug (sessions started inside a worktree get their own slug); records whose `cwd` is outside the repository are dropped. One record per assistant message with `message.usage`; sidechain (subagent) messages included. Duplicate message ids are counted once.
 - `codex`: `~/.codex/sessions/**/rollout-*.jsonl` whose session `cwd` is the repository or one of its worktrees; one record per `token_count` event (per-turn usage, not the running total).
-- `dispatch`: when gin-workflow dispatches a worker or reviewer and the result reports usage, it appends a `worker.usage` event to `.agent-workflow/runtime/events.jsonl` (`task_id`, `harness`, `model`, the four token counts). The adapter reads those events.
+
+Codex counts cached tokens inside `input_tokens`; the adapter subtracts them so `input` is uncached input for every harness. A Codex `token_count` event is counted only when its running total changes, so repeated events are not counted twice.
 
 `CLAUDE_CONFIG_DIR` and `CODEX_HOME` override the default log roots. A malformed or unknown line is skipped and counted in `skipped_lines`. A missing log root is reported as `not_found` for that source.
 
@@ -48,13 +49,10 @@ UsageRecord(ts, harness, model, session_id, cwd, branch,
 
 Applied in order:
 
-1. `cwd` inside `.planning/worktrees/<bead>` or `branch` equal to that worktree's branch → the bead, stage `execute`.
-2. `dispatch` record with a `task_id` → that bead, stage `review` when the worker was a reviewer, else `execute`.
-3. `cwd` at the repository root → the workflow of the first gate event in `events.jsonl` after the record's timestamp. The stage follows from that event: `requirement.confirmed` → `discuss`, `plan.approved` → `plan`, `orchestration.ready` → `orchestrate`, `verification.passed` → `verify`, `delivery.shipped` → `ship`.
-4. `cwd` at the repository root after the last gate event, while collecting an epic whose latest gate event is `verification.passed` → that epic, stage `ship` (the epic's `delivery.shipped` does not exist yet when ship collects).
-5. Otherwise `unattributed`.
-
-Records outside the bead's time span (first claim to close) are not attributed to it by rule 1.
+1. `cwd` inside a worktree under `.planning/worktrees/`, or `branch` equal to that worktree's branch → the track bead whose time span (first claim to close) holds the record, among the beads named by the worktree or whose parent it names; stage `review` inside the bead's review intervals from its ledger (`review-requested` to the next `changes-requested`, `review-approved`, or `review-approval-invalidated`), else `execute`. No such bead, or more than one → the bead the worktree is named after, stage `execute`.
+2. `cwd` at the repository root → the workflow of the first gate event in `events.jsonl` after the record's timestamp. The workflow maps to its epic through `orchestration.ready`. The stage follows from that event: `requirement.confirmed` → `discuss`, `approval.recorded` for `plan_approved` → `plan`, `quick.completed` → `quick`, `orchestration.ready` → `orchestrate`, `verification.passed` → `verify`, `delivery.shipped` → `ship`.
+3. `cwd` at the repository root after the last gate event, while collecting an epic whose latest gate event is `verification.passed` → that epic, stage `ship` (the epic's `delivery.shipped` does not exist yet when ship collects).
+4. Otherwise `unattributed`. Collecting an epic also stores the `unattributed` usage inside the epic's span (its first gate event to now), so the report shows it without reading logs.
 
 ### 3. Quality signals
 
@@ -67,12 +65,11 @@ From Beads and the review ledger, at collect time (ledgers are removed after shi
 
 ### 4. Prices
 
-Optional `usage.prices` in `.agent-workflow/config.yaml`, USD per million tokens:
+Optional `.agent-workflow/usage-prices.yaml`, tracked so the team shares one list, USD per million tokens:
 
 ```yaml
-usage:
-  prices:
-    claude-opus-5-5: {input: 15, output: 75, cache_read: 1.5, cache_write: 18.75}
+prices:
+  claude-opus-5-5: {input: 15, output: 75, cache_read: 1.5, cache_write: 18.75}
 ```
 
 A record whose model has no price gets `cost: null`; the summary lists the model under `unpriced`.
@@ -90,12 +87,12 @@ Summary written to `ai_usage`:
  "stages": {"execute": {"cost": 0.0}, "review": {"cost": 0.0}},
  "cost": 0.0, "unpriced": [],
  "quality": {"reopens": 0, "bugs": 0, "review_cycles": 0, "rejections": 0,
-             "findings": {"critical": 0, "important": 0, "minor": 0}, "waivers": 0},
- "sources": {"claude_code": "ok", "codex": "not_found", "dispatch": "ok"},
+             "findings": {"critical": 0, "important": 0, "minor": 0, "suggestion": 0}, "waivers": 0},
+ "sources": {"claude_code": "ok", "codex": "not_found"},
  "skipped_lines": 0}
 ```
 
-`report --format json` prints a list of these summaries, each with `bead`, `title`, and `type`, plus totals and the `unattributed` usage for the period.
+`report --format json` prints a list of these summaries, each with `bead`, `title`, and `type`, plus totals and the `unattributed` usage stored in the epics of the period.
 
 ### 6. Skills
 
@@ -104,8 +101,8 @@ Summary written to `ai_usage`:
 
 ## Testing
 
-- Adapters: fixture logs for Claude Code (sidechain, cache tokens, duplicate message ids, a worktree slug) and Codex (per-turn `token_count`), each with malformed lines; check records and `skipped_lines`; missing roots give `not_found`.
-- Attribution: worktree path, branch, dispatch `task_id`, root records mapped to the next gate event and its stage, records outside the bead's time span, `unattributed`.
+- Adapters: fixture logs for Claude Code (sidechain, cache tokens, duplicate message ids, a worktree slug) and Codex (per-turn `token_count`, repeated totals, cached input), each with malformed lines; check records and `skipped_lines`; missing roots give `not_found`.
+- Attribution: worktree path, branch, review intervals, overlapping track spans, root records mapped to the next gate event and its stage, records outside the bead's time span, `unattributed`.
 - Cost: priced, unpriced, cache tokens priced separately.
 - Quality: fake `bd` output for reopens and `discovered-from` bugs; sample review ledger; waiver events.
 - CLI: `collect` twice gives identical metadata; `--best-effort` exits 0 on every failure; `report --format json` shape; `not collected` beads.
@@ -121,7 +118,7 @@ Summary written to `ai_usage`:
 ## Non-goals
 
 - Per-member reports.
-- Antigravity session logs.
+- Antigravity usage (`agy` reports no tokens).
 - OpenTelemetry or pushing to a metric collector.
 - Real-time tracking or budgets and alerts.
-- Usage of ad-hoc scripts that call providers outside gin-workflow dispatch.
+- Usage of sessions whose working directory is outside the repository and its worktrees.
