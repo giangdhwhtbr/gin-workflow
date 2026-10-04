@@ -117,6 +117,21 @@ class TestSelect(unittest.TestCase):
         _, warnings = select_packs(self.plugin, [], {"rules": {"packs": ["vue"]}}, ["a.vue"])
         self.assertEqual(["unknown rule pack 'vue' ignored"], warnings)
 
+    def _with_lean(self):
+        _pack(self.root / "rules", "lean", "id: lean\ntier: core\napplies_to: ['**/*']",
+              "- [high] `reuse-existing`: Reuse what exists.\n")
+        self.plugin = load_plugin_packs(self.root / "rules")
+
+    def test_lean_is_on_by_default_after_core(self):
+        self._with_lean()
+        self.assertEqual(["core", "lean"], self._ids({}, ["app/page.tsx"]))
+        self.assertEqual(["python", "core", "lean"], self._ids({"rules": {"packs": ["python"]}}, ["a.py"]))
+        self.assertEqual(["core", "lean"], self._ids({"rules": {"packs": ["lean"]}}, ["a.py"]))
+
+    def test_lean_can_be_disabled(self):
+        self._with_lean()
+        self.assertEqual(["core"], self._ids({"rules": {"disabled": ["lean"]}}, ["a.py"]))
+
 
 class TestBudget(unittest.TestCase):
     def _packs(self, root: Path):
@@ -174,14 +189,16 @@ class TestCli(unittest.TestCase):
             result = self._run(Path(tmp), "--files", "src/a.py", "--format", "json")
             self.assertEqual(0, result.returncode, result.stderr)
             payload = json.loads(result.stdout)
-            self.assertEqual(["core"], [p["id"] for p in payload["packs"]])
+            self.assertEqual(["core", "lean"], [p["id"] for p in payload["packs"]])
 
     def test_list_reports_sizes_and_impact_counts(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = self._run(Path(tmp), "--list", "--format", "json")
             self.assertEqual(0, result.returncode, result.stderr)
-            [core] = json.loads(result.stdout)["packs"]
+            core, lean = json.loads(result.stdout)["packs"]
             self.assertEqual(("core", "plugin"), (core["id"], core["source"]))
+            self.assertEqual(("lean", "plugin", 1_000), (lean["id"], lean["source"], lean["limit"]))
+            self.assertFalse(lean["over_limit"])
             self.assertEqual({"critical", "high", "medium"}, set(core["impacts"]))
 
     def test_malformed_project_rule_exits_2(self):

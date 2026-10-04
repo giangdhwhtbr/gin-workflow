@@ -16,7 +16,8 @@ TIERS = ("core", "language", "framework")
 IMPACTS = ("critical", "high", "medium")
 TASK_BUDGET = 4_000
 DEFAULT_BODY_LIMIT = 1_500
-BODY_LIMITS = {"core": 1_000}
+DEFAULT_PACKS = ("core", "lean")
+BODY_LIMITS = {"core": 1_000, "lean": 1_000}
 _TIER_RANK = {"project": 0, "framework": 1, "language": 2, "core": 3}
 _FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 _BULLET = re.compile(r"^- (?:\[([a-z]+)\] )?`([a-z0-9][a-z0-9-]*)`: (\S.*)$")
@@ -169,10 +170,10 @@ def _depth(pack: Pack, plugin: Mapping[str, Pack], seen: tuple[str, ...] = ()) -
 
 def select_packs(plugin: Mapping[str, Pack], project: Sequence[Pack], config: Mapping[str, Any],
                  files: Sequence[str]) -> tuple[list[Pack], list[str]]:
-    """Enabled packs matching `files` (+ core, + requires), highest precedence first."""
+    """Enabled packs matching `files` (+ core and lean, + requires), highest precedence first."""
     packs, disabled = rules_config(config)
     warnings = [f"unknown rule pack {name!r} ignored" for name in packs if name not in plugin]
-    enabled = {name for name in ("core", *packs) if name in plugin and name not in disabled}
+    enabled = {name for name in (*DEFAULT_PACKS, *packs) if name in plugin and name not in disabled}
     chosen = {name for name in enabled if name == "core" or _matches(plugin[name], files)}
     pending = list(chosen)
     while pending:
@@ -228,7 +229,7 @@ def build_rules(packs: Sequence[Pack], budget: int = TASK_BUDGET) -> dict[str, A
 
 def list_packs(plugin: Mapping[str, Pack], project: Sequence[Pack], config: Mapping[str, Any]) -> list[dict[str, Any]]:
     packs, disabled = rules_config(config)
-    enabled = [plugin[name] for name in dict.fromkeys(("core", *packs)) if name in plugin and name not in disabled]
+    enabled = [plugin[name] for name in dict.fromkeys((*DEFAULT_PACKS, *packs)) if name in plugin and name not in disabled]
     rows = [rule for rule in project if rule.id not in disabled] + enabled
     return [{"id": pack.id, "source": pack.source, "tier": pack.tier, "chars": pack.body_chars,
              "limit": pack.body_limit, "over_limit": pack.body_chars > pack.body_limit,

@@ -5,10 +5,11 @@ Best-practice packs injected by `gin-workflow rules --files <paths>` into the `d
 ## Format
 - Frontmatter: `id` (= file stem), `tier` (`core` | `language` | `framework`), `applies_to` (globs), optional `requires`, `detect`, `conflict_keywords`, `tool_checks`.
 - Body: one bullet per rule, `- [critical|high|medium] \`anchor\`: Imperative text.` Impact defaults to `medium`. Anchors are stable; findings cite `<pack>#<anchor>`.
-- Body ≤ 1,500 chars (`core` ≤ 1,000). `## Why` holds at most one line per anchor and is never injected; every `critical` rule has one.
+- Body ≤ 1,500 chars (`core` and `lean` ≤ 1,000). `## Why` holds at most one line per anchor and is never injected; every `critical` rule has one.
 - Only rules that linters and type checkers cannot enforce. Enforceable rules belong in `tool_checks`.
 
 ## Precedence
+`core` and `lean` load by default; `rules.disabled` in `.agent-workflow/config.yaml` turns either off.
 Project rules (`.agent-workflow/rules/*.md`) > framework > language > core. Over the 4,000-char task budget, `medium` then `high` bullets are trimmed from the lowest precedence first; `critical` is never trimmed.
 
 ## Maintenance

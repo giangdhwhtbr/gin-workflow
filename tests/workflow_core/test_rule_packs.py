@@ -44,9 +44,12 @@ class TestRulePacks(unittest.TestCase):
                     with self.subTest(pack=pack.id, anchor=bullet.anchor):
                         self.assertIn(bullet.anchor, pack.why)
 
-    def test_core_applies_everywhere_and_others_are_scoped(self):
-        self.assertEqual(("**/*",), PACKS["core"].applies_to)
-        self.assertNotIn("**/*", [p for pack in PACKS.values() if pack.id != "core" for p in pack.applies_to])
+    def test_core_and_lean_apply_everywhere_and_others_are_scoped(self):
+        for name in ("core", "lean"):
+            self.assertEqual(("**/*",), PACKS[name].applies_to)
+            self.assertEqual("core", PACKS[name].tier)
+        self.assertNotIn("**/*", [p for pack in PACKS.values() if pack.id not in ("core", "lean")
+                                  for p in pack.applies_to])
 
 
 if __name__ == "__main__":

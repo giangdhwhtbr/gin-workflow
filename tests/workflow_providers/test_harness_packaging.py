@@ -92,6 +92,7 @@ REQUIRED_ARTIFACTS = (
     "examples/providers.local.example.yaml",
     "rules/README.md",
     "rules/core.md",
+    "rules/lean.md",
     "rules/typescript.md",
     "rules/python.md",
     "rules/react.md",

@@ -84,7 +84,7 @@ class TestBudgetLimits(unittest.TestCase):
         from workflow_core.rules import load_plugin_packs
 
         packs = load_plugin_packs(SRC / "rules")
-        self.assertEqual({"core", "typescript", "python", "react", "nextjs", "fastapi", "node-api"}, set(packs))
+        self.assertEqual({"core", "lean", "typescript", "python", "react", "nextjs", "fastapi", "node-api"}, set(packs))
         for pack in packs.values():
             with self.subTest(pack=pack.id):
                 self.assertLessEqual(pack.body_chars, pack.body_limit)
