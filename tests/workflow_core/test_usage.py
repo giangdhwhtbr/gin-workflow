@@ -270,7 +270,15 @@ class ReportTests(Fixture):
         fake_cli(self.bin, "bd", self.rules)
         out = usage.report(self.repo)
         self.assertIsNone(out["totals"]["cost"])
+        self.assertEqual(out["unattributed"], {"tokens": 0, "cost": 0.0})
         self.assertEqual(out["unpriced"], ["m9"])
+
+    def test_unpriced_unattributed_cost_is_null(self):
+        doc = {"cost": None, "models": {}, "stages": {}, "unpriced": [], "unattributed": {"tokens": 7, "cost": None}}
+        self.rules[0]["stdout"] = [{"id": "e9", "title": "E", "issue_type": "epic", "status": "closed",
+                                    "metadata": {"ai_usage": json.dumps(doc)}}]
+        fake_cli(self.bin, "bd", self.rules)
+        self.assertEqual(usage.report(self.repo)["unattributed"], {"tokens": 7, "cost": None})
 
     def test_since_and_bead(self):
         self.assertEqual([row["bead"] for row in usage.report(self.repo, since=date(2026, 10, 1))["beads"]],
