@@ -194,7 +194,8 @@ def _run_e2e(args: argparse.Namespace) -> int:
     if args.command == "export":
         payload = e2e.export(root, eff, args.folder)
         _emit(payload, args.format, "\n".join(
-            f"{row['id']} {(row['result'] or {}).get('status', 'not run')}" for row in payload["cases"]))
+            f"{row['id']} {' '.join(result['status'] for result in row['results']) or 'not run'}"
+            for row in payload["cases"]))
         return 0
     folder, code, errors = e2e.run(root, eff, args.targets)
     _emit({"run": folder, "playwright_exit": code, "findings": errors}, args.format,

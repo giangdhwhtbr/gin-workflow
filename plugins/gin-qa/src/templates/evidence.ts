@@ -4,7 +4,8 @@
 // A spec starts with `// TC: <TC-ID>@<hash8>` (written by `gin-qa e2e pin`) and wraps each test
 // case step in `ev.step`. Under `gin-qa e2e run` (GIN_QA_RUN_DIR set) every step leaves a
 // screenshot, an ARIA snapshot (NN.aria.yml), and the page URL, and the test leaves
-// <run>/<tc-id>/result.json. Without it the fixture records nothing. ARIA snapshots need
+// <run>/<tc-id>/result.json (<run>/<tc-id>/<project>/ for a named Playwright project, so
+// projects never overwrite each other). Without it the fixture records nothing. ARIA snapshots need
 // @playwright/test 1.49 or later; on older versions `snapshot` is null.
 import { test as base, expect } from '@playwright/test';
 import * as fs from 'node:fs';
@@ -35,10 +36,15 @@ function firstLine(error: unknown): string {
 
 export const test = base.extend<{ ev: Evidence }>({
   ev: async ({ page }, use, testInfo) => {
-    const header = HEADER.exec(fs.readFileSync(testInfo.file, 'utf8').split('\n')[0]);
+    const header = HEADER.exec(fs.readFileSync(testInfo.file, 'utf8').split(/\r?\n/)[0]);
     const runDir = process.env.GIN_QA_RUN_DIR;
-    const tcDir = runDir && header ? path.join(runDir, header[1].toLowerCase()) : null;
-    if (tcDir) fs.mkdirSync(tcDir, { recursive: true });
+    const project = testInfo.project.name;
+    const caseDir = runDir && header ? path.join(runDir, header[1].toLowerCase()) : null;
+    const tcDir = caseDir && project ? path.join(caseDir, project.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')) : caseDir;
+    if (tcDir) {
+      fs.rmSync(tcDir, { recursive: true, force: true }); // a retry starts from an empty folder
+      fs.mkdirSync(tcDir, { recursive: true });
+    }
     const steps: StepResult[] = [];
     const started = new Date().toISOString();
 
@@ -90,6 +96,7 @@ export const test = base.extend<{ ev: Evidence }>({
     const result = {
       tc: header[1],
       tc_hash8: header[2],
+      project: project || null,
       status: failed ? 'failed' : 'passed',
       started,
       finished: new Date().toISOString(),

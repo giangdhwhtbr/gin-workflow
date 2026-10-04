@@ -240,6 +240,12 @@ def _artifact(folder: Path, name: object) -> Path | None:
     return path
 
 
+def _result_folders(case_dir: Path) -> list[Path]:
+    """Where a case's results live: the case folder (unnamed Playwright project) and one subfolder per named project."""
+    subfolders = sorted(sub for sub in case_dir.iterdir() if (sub / "result.json").is_file()) if case_dir.is_dir() else []
+    return ([case_dir] if (case_dir / "result.json").is_file() else []) + subfolders
+
+
 def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
     path, record = _run_folder(root, eff, folder)
     shown = path.relative_to(root.resolve()).as_posix()
@@ -252,26 +258,32 @@ def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
             errors.append(f"{spec}: no '// TC:' header, so its evidence cannot be found")
             continue
         case_id = match.group(1)
-        where = f"{shown}/{case_id.lower()}/result.json"
-        data, problem = _result(path / case_id.lower() / "result.json")
-        if problem:
-            errors.append(f"{where}: {problem}")
-            continue
-        if data.get("tc") != case_id:
-            errors.append(f"{where}: tc is {data.get('tc')!r}, expected {case_id}")
-        if data["status"] == "passed" and not data["steps"]:
-            errors.append(f"{where}: passed without any ev.step; nothing was checked")
-        for step in data["steps"]:
-            step = step if isinstance(step, dict) else {"n": "?"}
-            if _artifact(path / case_id.lower(), step.get("screenshot")) is None:
-                errors.append(f"{where}: step {step.get('n')} has no screenshot on disk")
-            if step.get("snapshot") is not None and _artifact(path / case_id.lower(), step["snapshot"]) is None:
-                errors.append(f"{where}: step {step.get('n')} has no snapshot on disk")
-        if case_id not in cases:
-            errors.append(f"{where}: {case_id} is not an e2e test case any more")
-        elif data.get("tc_hash8") != tc.hash8(cases[case_id]):
-            errors.append(f"{where}: ran {case_id}@{data.get('tc_hash8')}, but the case is now "
-                          f"@{tc.hash8(cases[case_id])}")
+        for result_dir in _result_folders(path / case_id.lower()) or [path / case_id.lower()]:
+            errors += _check_result(result_dir, f"{shown}/{result_dir.relative_to(path).as_posix()}/result.json",
+                                    case_id, cases)
+    return errors
+
+
+def _check_result(folder: Path, where: str, case_id: str, cases: dict[str, tc.Case]) -> list[str]:
+    data, problem = _result(folder / "result.json")
+    if problem:
+        return [f"{where}: {problem}"]
+    errors: list[str] = []
+    if data.get("tc") != case_id:
+        errors.append(f"{where}: tc is {data.get('tc')!r}, expected {case_id}")
+    if data["status"] == "passed" and not data["steps"]:
+        errors.append(f"{where}: passed without any ev.step; nothing was checked")
+    for step in data["steps"]:
+        step = step if isinstance(step, dict) else {"n": "?"}
+        if _artifact(folder, step.get("screenshot")) is None:
+            errors.append(f"{where}: step {step.get('n')} has no screenshot on disk")
+        if step.get("snapshot") is not None and _artifact(folder, step["snapshot"]) is None:
+            errors.append(f"{where}: step {step.get('n')} has no snapshot on disk")
+    if case_id not in cases:
+        errors.append(f"{where}: {case_id} is not an e2e test case any more")
+    elif data.get("tc_hash8") != tc.hash8(cases[case_id]):
+        errors.append(f"{where}: ran {case_id}@{data.get('tc_hash8')}, but the case is now "
+                      f"@{tc.hash8(cases[case_id])}")
     return errors
 
 
@@ -280,14 +292,18 @@ def export(root: Path, eff: Effective, folder: str) -> dict[str, Any]:
     shown = path.relative_to(root.resolve()).as_posix()
     rows: list[dict[str, Any]] = []
     for case in e2e_cases(root, eff).values():
-        data, _ = _result(path / case.id.lower() / "result.json")
-        if data is not None:
+        results: list[dict[str, Any]] = []
+        for result_dir in _result_folders(path / case.id.lower()):
+            data, _ = _result(result_dir / "result.json")
+            if data is None:
+                continue
             for step in data["steps"]:
                 for key in ("screenshot", "snapshot"):
                     if isinstance(step, dict) and step.get(key) is not None:
-                        found = _artifact(path / case.id.lower(), step[key])
+                        found = _artifact(result_dir, step[key])
                         step[key] = found.relative_to(root.resolve()).as_posix() if found else None
+            results.append(data)
         spec = spec_path(eff, case)
-        rows.append({**tc.as_dict(case), "spec": spec if (root / spec).is_file() else None, "result": data})
+        rows.append({**tc.as_dict(case), "spec": spec if (root / spec).is_file() else None, "results": results})
     return {"run": shown, "started": record.get("started"), "playwright_exit": record.get("playwright_exit"),
             "cases": rows}

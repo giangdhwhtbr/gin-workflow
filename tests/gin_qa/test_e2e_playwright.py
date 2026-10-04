@@ -117,6 +117,25 @@ class TestPlaywrightRun(unittest.TestCase):
         self.assertIn('button "Sign in"', (self.root / payload["run"] / "tc-auth-001/02.aria.yml").read_text())
         self.assertNotIn("\x1b", result["steps"][1]["error"])
 
+    def test_named_projects_and_crlf_spec_keep_separate_evidence(self):
+        write(self.root, "playwright.config.ts",
+              "import { defineConfig } from '@playwright/test';\n"
+              f"export default defineConfig({{ reporter: 'line', use: {{ baseURL: '{self.url('')}' }}, "
+              "projects: [{ name: 'Desktop Chrome' }, { name: 'mobile' }] });\n")
+        self.write_spec("Dashboard")
+        spec = self.root / "qa/e2e/auth/tc-auth-001.spec.ts"
+        spec.write_bytes(spec.read_bytes().replace(b"\n", b"\r\n"))
+        code, payload = self.run_once()
+        self.assertEqual((0, []), (code, payload["findings"]))
+        case_dir = self.root / payload["run"] / "tc-auth-001"
+        self.assertEqual(["desktop-chrome", "mobile"], sorted(p.name for p in case_dir.iterdir()))
+        for folder, project in (("desktop-chrome", "Desktop Chrome"), ("mobile", "mobile")):
+            result = json.loads((case_dir / folder / "result.json").read_text())
+            self.assertEqual((project, "passed", ["01.png", "02.png"]),
+                             (result["project"], result["status"], [s["screenshot"] for s in result["steps"]]))
+        rows = json.loads(self.e2e("export", "--run", payload["run"], "--format", "json").stdout)["cases"]
+        self.assertEqual(2, len(rows[0]["results"]))
+
 
 if __name__ == "__main__":
     unittest.main()

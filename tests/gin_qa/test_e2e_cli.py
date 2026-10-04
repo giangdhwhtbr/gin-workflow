@@ -279,7 +279,7 @@ class TestRunAndEvidence(E2eCase):
                 result_file.write_text(json.dumps({**data, "steps": [step]}))
                 self.assertEqual([f"{where}: step 1 has no screenshot on disk", f"{where}: step 1 has no snapshot on disk"],
                                  self.run_json("check", "--run", folder)["findings"])
-                exported = self.run_json("export", "--run", folder)["cases"][0]["result"]["steps"][0]
+                exported = self.run_json("export", "--run", folder)["cases"][0]["results"][0]["steps"][0]
                 self.assertEqual((None, None), (exported["screenshot"], exported["snapshot"]))
         result_file.write_text("{")
         self.assertIn("result.json is not valid JSON", self.run_json("check", "--run", folder)["findings"][0])
@@ -300,10 +300,30 @@ class TestRunAndEvidence(E2eCase):
         [row] = payload["cases"]
         self.assertEqual(("TC-AUTH-001", self.tc_hash(), "qa/e2e/auth/tc-auth-001.spec.ts", "passed",
                           f"{folder}/tc-auth-001/01.png", f"{folder}/tc-auth-001/01.aria.yml"),
-                         (row["id"], row["hash8"], row["spec"], row["result"]["status"],
-                          row["result"]["steps"][0]["screenshot"], row["result"]["steps"][0]["snapshot"]))
+                         (row["id"], row["hash8"], row["spec"], row["results"][0]["status"],
+                          row["results"][0]["steps"][0]["screenshot"], row["results"][0]["steps"][0]["snapshot"]))
         (self.root / folder / "tc-auth-001/result.json").unlink()
-        self.assertIsNone(self.run_json("export", "--run", folder)["cases"][0]["result"])
+        self.assertEqual([], self.run_json("export", "--run", folder)["cases"][0]["results"])
+
+    def test_one_result_per_playwright_project(self):
+        folder = json.loads(self.run_e2e().stdout)["run"]
+        case_dir = self.root / folder / "tc-auth-001"
+        data = json.loads((case_dir / "result.json").read_text())
+        for project in ("desktop", "mobile"):
+            (case_dir / project).mkdir()
+            for name in ("01.png", "01.aria.yml"):
+                (case_dir / project / name).write_bytes((case_dir / name).read_bytes())
+            (case_dir / project / "result.json").write_text(json.dumps({**data, "project": project}))
+        for name in ("result.json", "01.png", "01.aria.yml"):
+            (case_dir / name).unlink()
+        self.assertEqual([], self.run_json("check", "--run", folder)["findings"])
+        results = self.run_json("export", "--run", folder)["cases"][0]["results"]
+        self.assertEqual([("desktop", f"{folder}/tc-auth-001/desktop/01.png"),
+                          ("mobile", f"{folder}/tc-auth-001/mobile/01.png")],
+                         [(r["project"], r["steps"][0]["screenshot"]) for r in results])
+        (case_dir / "mobile/01.png").write_bytes(b"")
+        self.assertEqual([f"{folder}/tc-auth-001/mobile/result.json: step 1 has no screenshot on disk"],
+                         self.run_json("check", "--run", folder)["findings"])
 
 
 if __name__ == "__main__":
