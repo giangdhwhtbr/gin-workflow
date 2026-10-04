@@ -76,7 +76,7 @@ def gates_from_events(events: Iterable[WorkflowEvent]) -> tuple[list[Gate], dict
 
 
 def worktrees(repo: Path) -> list[Worktree]:
-    """Worktrees under <repo>/.planning/worktrees with their branch ("" when detached)."""
+    """Git worktrees inside the repository (`.planning/worktrees`, harness-native ones too) with their branch."""
     try:
         listed = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=repo, text=True,
                                 capture_output=True, check=False, timeout=30)
@@ -84,7 +84,7 @@ def worktrees(repo: Path) -> list[Worktree]:
         return []
     if listed.returncode != 0:
         return []
-    base = Path(os.path.realpath(repo)) / ".planning" / "worktrees"
+    base = Path(os.path.realpath(repo))
     found: list[Worktree] = []
     path: Path | None = None
     branch = ""
@@ -94,7 +94,7 @@ def worktrees(repo: Path) -> list[Worktree]:
         elif line.startswith("branch "):
             branch = line[len("branch "):].removeprefix("refs/heads/")
         elif not line and path is not None:
-            if path.parent == base:
+            if path != base and inside(path, base):
                 found.append(Worktree(path, branch))
             path = None
     return found
@@ -123,10 +123,6 @@ def review_intervals(ledger: Mapping[str, Any], *, now: datetime | None = None
     return tuple(intervals)
 
 
-def _in_tree(record: UsageRecord, tree: Worktree) -> bool:
-    return inside(record.cwd, tree.path) or (bool(record.branch) and record.branch == tree.branch)
-
-
 def attribute(records: Iterable[UsageRecord], *, repo: Path, spans: Mapping[str, BeadSpan],
               trees: Sequence[Worktree], gates: Sequence[Gate], epic_of: Mapping[str, str],
               collecting: str | None = None, now: datetime | None = None
@@ -151,13 +147,18 @@ def attribute(records: Iterable[UsageRecord], *, repo: Path, spans: Mapping[str,
 
 def _key(record, repo, spans, trees, gates, owner_of, collecting, ship, now) -> tuple[str, str]:
     for tree in trees:
-        if not _in_tree(record, tree):
+        in_path = inside(record.cwd, tree.path)
+        if not in_path and not (record.branch and record.branch == tree.branch):
             continue
         name = tree.path.name
         holders = [span for span in spans.values()
                    if (span.bead == name or span.parent == name) and span.start is not None
                    and span.start <= record.ts <= (span.end or now)]
         if len(holders) != 1:
+            if not in_path:
+                # Same branch in another checkout, e.g. discuss and plan committing on the feature branch
+                # in the main checkout before the worktree exists: only a track's span claims it.
+                continue
             return name, "execute"
         span = holders[0]
         in_review = any(start <= record.ts <= end for start, end in span.review)

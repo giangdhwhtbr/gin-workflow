@@ -308,11 +308,10 @@ def report(repo: Path, *, bead: str | None = None, epic: str | None = None, sinc
             if values.get("cost") is not None:
                 slot["cost"] = round((slot["cost"] or 0) + values["cost"], 4)
     costs = [entry["cost"] for entry in top if entry.get("cost") is not None]
-    unattributed = {"tokens": 0, "cost": 0.0}
-    for entry in top:
-        part = entry.get("unattributed") or {}
-        unattributed["tokens"] += part.get("tokens", 0)
-        unattributed["cost"] = round(unattributed["cost"] + (part.get("cost") or 0), 4)
+    parts = [entry.get("unattributed") or {} for entry in top]
+    tokens = sum(part.get("tokens", 0) for part in parts)
+    priced = [part["cost"] for part in parts if part.get("cost") is not None]
+    unattributed = {"tokens": tokens, "cost": round(sum(priced), 4) if priced or not tokens else None}
     return {
         "beads": beads,
         "totals": {"cost": round(sum(costs), 4) if costs or not models else None, "models": models, "stages": stages},

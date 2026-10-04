@@ -108,6 +108,11 @@ class AttributeTests(unittest.TestCase):
     def test_branch_match_counts_as_the_worktree(self):
         self.assertEqual(self.run_one(rec(9.25, REPO, "feat/ep1")), {("ep1.1", "execute"): 1})
 
+    def test_branch_only_match_outside_every_track_falls_through_to_the_gates(self):
+        # discuss and plan commit on the feature branch in the main checkout before the worktree exists
+        self.assertEqual(self.run_one(rec(1.5, REPO, "feat/ep1")), {("ep1", "plan"): 1})
+        self.assertEqual(self.run_one(rec(9.25, REPO, "feat/ep1")), {("ep1.1", "execute"): 1})
+
     def test_root_records_go_to_the_next_gate(self):
         self.assertEqual(self.run_one(rec(0.5)), {("ep1", "discuss"): 1})
         self.assertEqual(self.run_one(rec(1.5)), {("ep1", "plan"): 1})
@@ -134,7 +139,7 @@ class AttributeTests(unittest.TestCase):
 
 
 class WorktreeListTests(unittest.TestCase):
-    def test_lists_only_planning_worktrees(self):
+    def test_excludes_worktrees_outside_the_repository(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "repo"
             root.mkdir()
@@ -144,6 +149,15 @@ class WorktreeListTests(unittest.TestCase):
             git(root, "worktree", "add", "-q", "-b", "other", str(Path(tmp) / "elsewhere"))
             found = worktrees(root)
             self.assertEqual([(t.path.name, t.branch) for t in found], [("ep1", "feat/ep1")])
+
+    def test_lists_every_worktree_inside_the_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            root.mkdir()
+            git(root, "init", "-q", "-b", "main")
+            git(root, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
+            git(root, "worktree", "add", "-q", "-b", "wt-x", str(root / ".claude/worktrees/x"))
+            self.assertEqual([(t.path.name, t.branch) for t in worktrees(root)], [("x", "wt-x")])
 
     def test_not_a_git_repository(self):
         with tempfile.TemporaryDirectory() as tmp:
