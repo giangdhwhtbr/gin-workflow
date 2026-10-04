@@ -1,7 +1,7 @@
 # Lean Rule Pack — Design
 
 Date: 2026-10-04
-Status: draft
+Status: confirmed 2026-10-04
 Credit: ideas from ponytail (https://github.com/dietrichgebert/ponytail, MIT, commit `c982cd4`); wording is our own.
 
 ## Goal
