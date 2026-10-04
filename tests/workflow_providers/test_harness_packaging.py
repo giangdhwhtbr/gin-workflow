@@ -121,6 +121,11 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/team_cli.py",
     "skills/gin-team/SKILL.md",
     "skills/team-setup/SKILL.md",
+    "skills/report/SKILL.md",
+    "scripts/workflow_core/usage.py",
+    "scripts/workflow_core/usage_logs.py",
+    "scripts/workflow_core/usage_attribution.py",
+    "scripts/workflow_core/usage_cli.py",
 )
 
 

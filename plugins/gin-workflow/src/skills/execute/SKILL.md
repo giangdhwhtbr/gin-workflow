@@ -39,7 +39,7 @@ Execute directly for sequential work, a single agent, three or fewer tasks, or n
 
 ## 4. Complete
 1. Request review through the `review` skill and wait for a terminal review state.
-2. Close the track bead (`bd close <id> --reason "<evidence>"`) once tests and review pass; this unblocks dependents and needs no PR or merge.
+2. Once tests and review pass, run `gin-workflow usage collect --bead <id> --best-effort`, then close the track bead (`bd close <id> --reason "<evidence>"`); this unblocks dependents and needs no PR or merge.
 3. Commit and push the feature branch. Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
    1. Xin lệnh tạo PR từ nhánh feature đã push.
    2. Giữ nhánh feature đã push và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.

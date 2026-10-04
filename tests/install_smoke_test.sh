@@ -143,6 +143,7 @@ assert_not_contains "$output_file" "gin-qa"
 assert_not_exists "plugins/gin-qa/dist"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/report/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/developer.md"
 assert_not_exists "plugins/gin-workflow/dist/claude-code/agents/full-stack-developer.md"
@@ -210,6 +211,7 @@ assert_exists "plugins/gin-workflow/dist/codex/agents/bead-worker.md"
 assert_exists "plugins/gin-workflow/dist/codex/references/verification-and-handoff-workflow.md"
 assert_exists "plugins/gin-workflow/dist/codex/references/orchestration-state-model.md"
 assert_exists "plugins/gin-workflow/dist/codex/skills/review/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/codex/skills/report/SKILL.md"
 assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"name\": \"gin-workflow\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
@@ -228,6 +230,7 @@ assert_not_contains ".claude-plugin/marketplace.json" "gin-workflow-advanced"
 
 assert_exists "plugins/gin-workflow/dist/antigravity/plugin.json"
 assert_exists "plugins/gin-workflow/dist/antigravity/hooks/hooks.json"
+assert_exists "plugins/gin-workflow/dist/antigravity/skills/report/SKILL.md"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/antigravity"
 
 # Test actual installation with a mocked HOME
