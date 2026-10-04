@@ -315,7 +315,7 @@ def report(repo: Path, *, bead: str | None = None, epic: str | None = None, sinc
         unattributed["cost"] = round(unattributed["cost"] + (part.get("cost") or 0), 4)
     return {
         "beads": beads,
-        "totals": {"cost": round(sum(costs), 4), "models": models, "stages": stages},
+        "totals": {"cost": round(sum(costs), 4) if costs or not models else None, "models": models, "stages": stages},
         "unpriced": sorted({name for entry in top for name in entry.get("unpriced") or ()}),
         "unattributed": unattributed,
         "not_collected": [row["id"] for row, doc in collected if doc is None],
