@@ -26,6 +26,7 @@ The plugin is skill-first across all supported platforms. These skills are the p
 | `verify` | Validate the implementation against the approved requirement, plan, and acceptance criteria. |
 | `ship` | Prepare the verified implementation for delivery and perform the final completion workflow. |
 | `progress` | Display strict Beads-first status, active execution context, and recommended next tasks. |
+| `report` | Report AI usage per bead or epic: tokens and estimated cost per model and stage, next to reopens, bugs, and review rework. |
 | `tech-doc` | Scan the codebase and write a human-readable technical document covering stack, architecture, structure, conventions, and risks. |
 
 ## Support Skills
@@ -92,7 +93,9 @@ Some hosts also surface plugin commands. Where available, these are optional ali
 - `/execute`
 - `/verify`
 - `/ship`
-- `/progress`, `/tech-doc`
+- `/progress`, `/tech-doc`, `/report`
+
+AI usage: `gin-workflow usage collect --bead <id>` summarizes the bead's tokens from local Claude Code and Codex logs into its metadata (the `execute` and `ship` skills run it at close); `gin-workflow usage report [--bead|--epic|--since]` reads the summaries back. Costs are estimated from `.agent-workflow/usage-prices.yaml` (`prices: {<model>: {input, output, cache_read, cache_write}}`, USD per million tokens); a model without a price is listed as unpriced.
 
 For the detailed workflow contracts:
 

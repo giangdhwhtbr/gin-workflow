@@ -80,6 +80,8 @@ try {
     Assert-Exists (Join-Path $project '.claude/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.agents/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
+    Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/workflow_core/cli.py')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.7/rules/core.md')
