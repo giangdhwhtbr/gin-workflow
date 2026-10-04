@@ -1,7 +1,7 @@
 # QA E2E Exploration (Sub-project G3) — Design
 
 Date: 2026-10-04
-Status: draft
+Status: confirmed 2026-10-04
 Depends on:
 - G1 (`.planning/specs/2026-10-03-qa-cases-design.md`): the TC format.
 - G2 (`.planning/specs/2026-10-04-qa-e2e-design.md`): `evidence.ts`, `gin-qa e2e`, `/gin-qa:e2e`.
