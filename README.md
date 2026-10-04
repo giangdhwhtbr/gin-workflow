@@ -106,6 +106,12 @@ For the detailed workflow contracts:
 
 ---
 
+## Rule Packs
+
+`gin-workflow rules --files <paths>` gives the `developer` agent, `/quick`, and the reviewer the best-practice rules for the files in scope. `core` and `lean` load by default; language and framework packs come from `rules.packs` in `.agent-workflow/config.yaml`, and `rules.disabled: [lean]` turns a pack off. `lean` asks for the shortest correct solution: reuse what exists, prefer the standard library, the platform, and installed dependencies, and add nothing speculative, without cutting validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT).
+
+---
+
 ## Notifications (Optional)
 
 Notifications are optional and provider-backed. Existing Telegram support may be selected through configuration, but lifecycle guidance neither requires it nor exposes provider-specific commands or credential instructions. See [capability provider contracts](docs/capability-provider-contracts.md).

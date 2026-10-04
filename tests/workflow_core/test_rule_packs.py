@@ -51,6 +51,14 @@ class TestRulePacks(unittest.TestCase):
         self.assertNotIn("**/*", [p for pack in PACKS.values() if pack.id not in ("core", "lean")
                                   for p in pack.applies_to])
 
+    def test_review_skill_grades_lean_findings(self):
+        text = (ROOT / "plugins/gin-workflow/src/skills/review/SKILL.md").read_text(encoding="utf-8")
+        for phrase in ("`lean`", "`IMPORTANT`", "`MINOR`", "`simplified:`"):
+            self.assertIn(phrase, text)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("## Rule Packs", readme)
+        self.assertIn("https://github.com/dietrichgebert/ponytail", readme)
+
 
 if __name__ == "__main__":
     unittest.main()
