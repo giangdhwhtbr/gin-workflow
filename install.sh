@@ -10,7 +10,7 @@ UNINSTALL=false
 DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
 LAUNCHER_VERSION="2.7"
-QA_LAUNCHER_VERSION="0.3"
+QA_LAUNCHER_VERSION="0.4"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
