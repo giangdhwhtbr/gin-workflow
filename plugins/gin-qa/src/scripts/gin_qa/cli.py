@@ -90,9 +90,14 @@ def _work(root: Path, eff: Effective, cases: list[tc.Case], capability: str | No
 
 def _check(root: Path, eff: Effective, change: str | None) -> list[str]:
     cases, errors = tc.load(root, eff.cases_dir)
-    probe = f"{eff.cases_dir.rstrip('/')}/probe.md"
-    errors += [f"{eff.cases_dir}: matches artifacts.test_globs pattern {pattern!r}; test cases would count as "
-               "executed tests in specs trace" for pattern in eff.test_globs if tc.glob_regex(pattern).match(probe)]
+    files = [f"{eff.cases_dir}/probe.md", *(path.relative_to(root).as_posix()
+                                            for path in tc.case_files(root, eff.cases_dir).values())]
+    for pattern in eff.test_globs:
+        hit = next((path for path in files if tc.glob_regex(pattern).match(path)), None)
+        if hit is not None:
+            shown = eff.cases_dir if hit == files[0] else hit
+            errors.append(f"{shown}: matches artifacts.test_globs pattern {pattern!r}; test cases would count as "
+                          "executed tests in specs trace")
     needed = "REQ" if eff.layout == "sdd" else "Source"
     errors += [f"{case.path}:{case.line}: {case.id}: needs a {needed}: field" for case in cases
                if needed not in case.fields]

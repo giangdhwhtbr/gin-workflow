@@ -169,6 +169,14 @@ class TestStructure(QaCase):
         self.assertEqual(["tests/cases: matches artifacts.test_globs pattern 'tests/**'; test cases would count as "
                           "executed tests in specs trace"], self.findings())
 
+    def test_test_globs_matching_one_case_file_is_a_finding(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text().replace("  layout: sdd\n", "  layout: sdd\n  test_globs:\n"
+                                                      "    - qa/cases/auth.md\n"))
+        self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-002")))
+        self.assertEqual(["qa/cases/auth.md: matches artifacts.test_globs pattern 'qa/cases/auth.md'; test cases "
+                          "would count as executed tests in specs trace"], self.findings())
+
 
 class TestIdsAndExport(QaCase):
     def test_next_id_never_reuses_a_number(self):

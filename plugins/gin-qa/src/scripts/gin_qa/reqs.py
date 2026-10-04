@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import posixpath
 import shutil
 import subprocess
 from typing import Any
@@ -45,11 +46,20 @@ def specs_reqs(root: Path, change: str | None = None) -> dict[str, Any]:
     return json.loads(result.stdout)
 
 
+def _inside(key: str, value: str) -> str:
+    """One spelling per path (`./qa/e2e/` is `qa/e2e`), so paths built from config compare equal to found ones."""
+    path = posixpath.normpath(value.replace("\\", "/"))
+    if path.startswith(("/", "../")) or path in ("..", ".") or ":" in path.split("/")[0]:
+        raise QaError(f"qa.{key} must be a path inside the repository, got {value!r}")
+    return path
+
+
 def resolve(payload: dict[str, Any]) -> Effective:
     """An open change's ADDED/MODIFIED block wins over the living block; its REMOVED block removes the REQ."""
     qa = payload.get("qa") or {}
-    effective = Effective(payload["layout"], qa.get("cases", DEFAULT_CASES), qa.get("guidelines", DEFAULT_GUIDELINES),
-                          list(payload.get("test_globs", [])), qa.get("e2e", DEFAULT_E2E))
+    effective = Effective(payload["layout"], _inside("cases", qa.get("cases", DEFAULT_CASES)),
+                          _inside("guidelines", qa.get("guidelines", DEFAULT_GUIDELINES)),
+                          list(payload.get("test_globs", [])), _inside("e2e", qa.get("e2e", DEFAULT_E2E)))
     owner: dict[str, str] = {}
     for row in payload["requirements"]:
         req, change = row["id"], row["change"]

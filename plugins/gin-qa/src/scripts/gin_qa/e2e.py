@@ -207,7 +207,14 @@ def _run_folder(root: Path, eff: Effective, folder: str) -> tuple[Path, dict[str
         raise QaError(f"{folder}: not a run folder under {evidence_root(eff)}")
     if not (path / "run.json").is_file():
         raise QaError(f"{folder}: no run.json; runs are made by `gin-qa e2e run`")
-    return path, json.loads((path / "run.json").read_text(encoding="utf-8"))
+    try:
+        record = json.loads((path / "run.json").read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        record = None
+    specs = record.get("specs") if isinstance(record, dict) else None
+    if not specs or not isinstance(specs, list) or not all(isinstance(spec, str) for spec in specs):
+        raise QaError(f"{folder}: run.json is not a gin-qa run record (needs a non-empty specs list)")
+    return path, record
 
 
 def _result(path: Path) -> tuple[dict[str, Any] | None, str | None]:
@@ -223,8 +230,14 @@ def _result(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     return data, None
 
 
-def _non_empty(folder: Path, name: object) -> bool:
-    return isinstance(name, str) and bool(name) and (folder / name).is_file() and (folder / name).stat().st_size > 0
+def _artifact(folder: Path, name: object) -> Path | None:
+    """A non-empty evidence file named relative to its case folder and resolving inside it, else None."""
+    if not isinstance(name, str) or not name or Path(name).is_absolute():
+        return None
+    path = (folder / name).resolve()
+    if folder.resolve() not in path.parents or not path.is_file() or path.stat().st_size == 0:
+        return None
+    return path
 
 
 def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
@@ -250,9 +263,9 @@ def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
             errors.append(f"{where}: passed without any ev.step; nothing was checked")
         for step in data["steps"]:
             step = step if isinstance(step, dict) else {"n": "?"}
-            if not _non_empty(path / case_id.lower(), step.get("screenshot")):
+            if _artifact(path / case_id.lower(), step.get("screenshot")) is None:
                 errors.append(f"{where}: step {step.get('n')} has no screenshot on disk")
-            if step.get("snapshot") is not None and not _non_empty(path / case_id.lower(), step["snapshot"]):
+            if step.get("snapshot") is not None and _artifact(path / case_id.lower(), step["snapshot"]) is None:
                 errors.append(f"{where}: step {step.get('n')} has no snapshot on disk")
         if case_id not in cases:
             errors.append(f"{where}: {case_id} is not an e2e test case any more")
@@ -271,8 +284,9 @@ def export(root: Path, eff: Effective, folder: str) -> dict[str, Any]:
         if data is not None:
             for step in data["steps"]:
                 for key in ("screenshot", "snapshot"):
-                    if isinstance(step, dict) and step.get(key):
-                        step[key] = f"{shown}/{case.id.lower()}/{step[key]}"
+                    if isinstance(step, dict) and step.get(key) is not None:
+                        found = _artifact(path / case.id.lower(), step[key])
+                        step[key] = found.relative_to(root.resolve()).as_posix() if found else None
         spec = spec_path(eff, case)
         rows.append({**tc.as_dict(case), "spec": spec if (root / spec).is_file() else None, "result": data})
     return {"run": shown, "started": record.get("started"), "playwright_exit": record.get("playwright_exit"),

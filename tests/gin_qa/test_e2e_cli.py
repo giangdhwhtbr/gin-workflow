@@ -121,6 +121,29 @@ class TestInitPlanPin(E2eCase):
                          self.e2e("pin", "TC-AUTH-001").stdout)
 
 
+class TestE2eFolderConfig(E2eCase):
+    def test_equivalent_spellings_of_the_e2e_folder(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        base = config.read_text()
+        self.write_spec()
+        for value in ("./qa/e2e", "qa/e2e/", "qa//e2e"):
+            with self.subTest(value=value):
+                config.write_text(base + f"qa:\n  e2e: {value}\n")
+                work = self.run_json("plan")
+                self.assertEqual(("qa/e2e", [], []), (work["e2e"], work["missing"], work["stale"]))
+                self.assertEqual(0, self.e2e("check").returncode)
+
+    def test_folders_outside_the_repository_are_rejected(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        base = config.read_text()
+        for key, value in (("e2e", "../e2e"), ("cases", "/tmp/cases")):
+            with self.subTest(key=key):
+                config.write_text(base + f"qa:\n  {key}: {value}\n")
+                result = self.e2e("plan")
+                self.assertEqual(2, result.returncode)
+                self.assertIn(f"qa.{key} must be a path inside the repository", result.stderr)
+
+
 class TestCheckSpecs(E2eCase):
     def test_clean_and_unaffected_by_requirement_pins(self):
         self.write_spec()
@@ -248,11 +271,27 @@ class TestRunAndEvidence(E2eCase):
                 g2_step = {key: value for key, value in data["steps"][0].items() if key not in ("snapshot", "url")}
                 result_file.write_text(json.dumps({**data, "steps": [{**g2_step, **step}]}))
                 self.assertEqual([], self.run_json("check", "--run", folder)["findings"])
+        outside = self.root / "README.md"
+        outside.write_text("not evidence")
+        for name in (str(outside), "../../../README.md"):
+            with self.subTest(screenshot=name):
+                step = {**data["steps"][0], "screenshot": name, "snapshot": name}
+                result_file.write_text(json.dumps({**data, "steps": [step]}))
+                self.assertEqual([f"{where}: step 1 has no screenshot on disk", f"{where}: step 1 has no snapshot on disk"],
+                                 self.run_json("check", "--run", folder)["findings"])
+                exported = self.run_json("export", "--run", folder)["cases"][0]["result"]["steps"][0]
+                self.assertEqual((None, None), (exported["screenshot"], exported["snapshot"]))
         result_file.write_text("{")
         self.assertIn("result.json is not valid JSON", self.run_json("check", "--run", folder)["findings"][0])
         for bad in ("qa/cases", "qa/evidence/none"):
             with self.subTest(folder=bad):
                 self.assertEqual(2, self.e2e("check", "--run", bad).returncode)
+        for record in ("{}", "[]", '{"specs": []}', '{"specs": [1]}'):
+            with self.subTest(record=record):
+                (self.root / folder / "run.json").write_text(record)
+                result = self.e2e("check", "--run", folder)
+                self.assertEqual(2, result.returncode)
+                self.assertIn("run.json is not a gin-qa run record", result.stderr)
 
     def test_export_joins_results_with_repository_paths(self):
         folder = json.loads(self.run_e2e().stdout)["run"]
