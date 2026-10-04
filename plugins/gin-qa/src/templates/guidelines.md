@@ -10,6 +10,7 @@ Rules for writing test cases in this repository. `/gin-qa:cases` reads this file
 
 ## E2E specs (`/gin-qa:e2e`)
 
+- Playwright: `@playwright/test` 1.49 or later (the evidence fixture records ARIA snapshots).
 - Locators: prefer `getByRole` with the accessible name; use `getByTestId` only when no stable name exists.
 - Sign-in: none yet (describe how specs sign in, e.g. a `storageState` file or a sign-in step).
 - Test data: none yet (describe the users and records specs may rely on).

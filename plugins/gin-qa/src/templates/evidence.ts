@@ -3,7 +3,9 @@
 //
 // A spec starts with `// TC: <TC-ID>@<hash8>` (written by `gin-qa e2e pin`) and wraps each test
 // case step in `ev.step`. Under `gin-qa e2e run` (GIN_QA_RUN_DIR set) every step leaves a
-// screenshot, and the test leaves <run>/<tc-id>/result.json. Without it the fixture records nothing.
+// screenshot, an ARIA snapshot (NN.aria.yml), and the page URL, and the test leaves
+// <run>/<tc-id>/result.json. Without it the fixture records nothing. ARIA snapshots need
+// @playwright/test 1.49 or later; on older versions `snapshot` is null.
 import { test as base, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -13,6 +15,8 @@ type StepResult = {
   title: string;
   status: 'passed' | 'failed';
   screenshot: string | null;
+  snapshot: string | null;
+  url: string;
   error: string | null;
 };
 
@@ -49,13 +53,21 @@ export const test = base.extend<{ ev: Evidence }>({
             failure = error;
           }
           let screenshot: string | null = null;
+          let snapshot: string | null = null;
           if (tcDir) {
-            const name = `${String(n).padStart(2, '0')}.png`;
+            const prefix = String(n).padStart(2, '0');
             try {
-              await page.screenshot({ path: path.join(tcDir, name), fullPage: true });
-              screenshot = name;
+              await page.screenshot({ path: path.join(tcDir, `${prefix}.png`), fullPage: true });
+              screenshot = `${prefix}.png`;
             } catch {
               screenshot = null;
+            }
+            try {
+              const aria = await page.locator('body').ariaSnapshot({ timeout: 5000 });
+              fs.writeFileSync(path.join(tcDir, `${prefix}.aria.yml`), aria + '\n');
+              snapshot = `${prefix}.aria.yml`;
+            } catch {
+              snapshot = null;
             }
           }
           steps.push({
@@ -63,6 +75,8 @@ export const test = base.extend<{ ev: Evidence }>({
             title,
             status: failure ? 'failed' : 'passed',
             screenshot,
+            snapshot,
+            url: page.url(),
             error: failure ? firstLine(failure) : null,
           });
           if (failure) throw failure;

@@ -78,6 +78,9 @@ class TestPlaywrightRun(unittest.TestCase):
     def e2e(self, *args: str):
         return qa(self.root, self.bin, *args, group="e2e", path=os.environ.get("PATH", "/usr/bin:/bin"))
 
+    def url(self, page: str) -> str:
+        return f"http://127.0.0.1:{self.server.server_address[1]}{page}"
+
     def write_spec(self, heading: str) -> None:
         write(self.root, "qa/e2e/auth/tc-auth-001.spec.ts", SPEC.format(pinned="00000000", heading=heading))
         self.assertEqual(0, self.e2e("pin", "TC-AUTH-001").returncode)
@@ -96,6 +99,10 @@ class TestPlaywrightRun(unittest.TestCase):
                          (result["status"], result["error"], [s["status"] for s in result["steps"]],
                           [s["screenshot"] for s in result["steps"]]))
         self.assertTrue(all((evidence / name).stat().st_size > 1000 for name in ("01.png", "02.png")))
+        self.assertEqual((["01.aria.yml", "02.aria.yml"], [self.url("/login.html")] * 2),
+                         ([s["snapshot"] for s in result["steps"]], [s["url"] for s in result["steps"]]))
+        self.assertIn('button "Sign in"', (evidence / "01.aria.yml").read_text())
+        self.assertIn('heading "Dashboard"', (evidence / "02.aria.yml").read_text())
         self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
 
     def test_failing_step_is_recorded_with_its_screenshot(self):
@@ -106,6 +113,8 @@ class TestPlaywrightRun(unittest.TestCase):
         self.assertEqual(("failed", ["passed", "failed"], "02.png"),
                          (result["status"], [s["status"] for s in result["steps"]], result["steps"][1]["screenshot"]))
         self.assertIn("expect(locator).toBeVisible()", result["steps"][1]["error"])
+        self.assertEqual("02.aria.yml", result["steps"][1]["snapshot"])
+        self.assertIn('button "Sign in"', (self.root / payload["run"] / "tc-auth-001/02.aria.yml").read_text())
         self.assertNotIn("\x1b", result["steps"][1]["error"])
 
 
