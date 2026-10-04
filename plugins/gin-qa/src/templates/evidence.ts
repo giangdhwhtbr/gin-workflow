@@ -22,9 +22,11 @@ export type Evidence = {
 
 const HEADER = /^\/\/ TC: (TC-[A-Z][A-Z0-9-]*-\d{3,})@([0-9a-f]{8})$/;
 
+const ANSI = /\u001b\[[0-9;]*m/g; // Playwright colors its assertion messages
+
 function firstLine(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
-  return text.split('\n')[0].slice(0, 300);
+  return text.replace(ANSI, '').split('\n')[0].slice(0, 300);
 }
 
 export const test = base.extend<{ ev: Evidence }>({

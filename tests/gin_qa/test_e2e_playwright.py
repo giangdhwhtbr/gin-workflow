@@ -105,7 +105,8 @@ class TestPlaywrightRun(unittest.TestCase):
         result = json.loads((self.root / payload["run"] / "tc-auth-001/result.json").read_text())
         self.assertEqual(("failed", ["passed", "failed"], "02.png"),
                          (result["status"], [s["status"] for s in result["steps"]], result["steps"][1]["screenshot"]))
-        self.assertIn("toBeVisible", result["steps"][1]["error"])
+        self.assertIn("expect(locator).toBeVisible()", result["steps"][1]["error"])
+        self.assertNotIn("\x1b", result["steps"][1]["error"])
 
 
 if __name__ == "__main__":
