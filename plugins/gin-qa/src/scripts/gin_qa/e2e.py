@@ -242,9 +242,11 @@ def _artifact(folder: Path, name: object) -> Path | None:
 
 def _result_folders(case_dir: Path) -> list[Path]:
     """Where a case's results live: the case folder (unnamed Playwright project) and every subfolder (one per named
-    project). Every subfolder must hold a result.json; a case folder with neither stands for its missing result."""
-    subfolders = sorted(sub for sub in case_dir.iterdir() if sub.is_dir()) if case_dir.is_dir() else []
-    own = [case_dir] if (case_dir / "result.json").is_file() or not subfolders else []
+    project, symlinks included so they are reported). Every one must hold a result.json: the case folder itself
+    when it holds any file (evidence of an unnamed project) or nothing else, each subfolder always."""
+    entries = sorted(case_dir.iterdir()) if case_dir.is_dir() else []
+    subfolders = [entry for entry in entries if entry.is_symlink() or entry.is_dir()]
+    own = [case_dir] if len(subfolders) < len(entries) or not subfolders else []
     return own + subfolders
 
 

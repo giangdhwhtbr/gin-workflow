@@ -324,6 +324,18 @@ class TestRunAndEvidence(E2eCase):
         (case_dir / "mobile/01.png").write_bytes(b"")
         self.assertEqual([f"{folder}/tc-auth-001/mobile/result.json: step 1 has no screenshot on disk"],
                          self.run_json("check", "--run", folder)["findings"])
+        (case_dir / "01.png").write_bytes(b"png")
+        self.assertEqual([f"{folder}/tc-auth-001/result.json: no result.json (the spec did not run, or it does not use "
+                          "the evidence fixture)", f"{folder}/tc-auth-001/mobile/result.json: step 1 has no screenshot "
+                          "on disk"], self.run_json("check", "--run", folder)["findings"])
+        (case_dir / "01.png").unlink()
+        (case_dir / "tablet").symlink_to(self.base / "gone", target_is_directory=True)
+        self.assertEqual([f"{folder}/tc-auth-001/mobile/result.json: step 1 has no screenshot on disk",
+                          f"{folder}/tc-auth-001/tablet: not a folder inside the run"],
+                         self.run_json("check", "--run", folder)["findings"])
+        self.assertEqual(["desktop", "mobile"], [r["project"] for r in
+                                                 self.run_json("export", "--run", folder)["cases"][0]["results"]])
+        (case_dir / "tablet").unlink()
         (case_dir / "mobile/01.png").write_bytes(b"png")
         (case_dir / "mobile/result.json").unlink()
         self.assertEqual([f"{folder}/tc-auth-001/mobile/result.json: no result.json (the spec did not run, or it does "
