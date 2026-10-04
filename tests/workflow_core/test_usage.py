@@ -262,6 +262,16 @@ class ReportTests(Fixture):
         self.assertEqual(out["totals"]["cost"], 3.0)
         self.assertEqual(out["unattributed"], {"tokens": 5, "cost": 0.5})
 
+    def test_total_is_null_when_nothing_is_priced(self):
+        self.rules[0]["stdout"] = [{"id": "u1", "title": "U", "issue_type": "task", "status": "closed",
+                                    "metadata": {"ai_usage": json.dumps({"cost": None, "models": {"m9": {
+                                        "input": 5, "output": 0, "cache_read": 0, "cache_write": 0, "cost": None}},
+                                        "stages": {}, "unpriced": ["m9"]})}}]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo)
+        self.assertIsNone(out["totals"]["cost"])
+        self.assertEqual(out["unpriced"], ["m9"])
+
     def test_since_and_bead(self):
         self.assertEqual([row["bead"] for row in usage.report(self.repo, since=date(2026, 10, 1))["beads"]],
                          ["ep1.1"])
