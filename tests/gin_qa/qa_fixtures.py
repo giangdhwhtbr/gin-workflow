@@ -28,10 +28,11 @@ def gin_workflow_bin(base: Path, body: str = "") -> Path:
     return bin_dir
 
 
-def qa(root: Path, bin_dir: Path | None, *args: str) -> subprocess.CompletedProcess[str]:
-    path = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), "/usr/bin", "/bin"])
-    return subprocess.run([sys.executable, str(QA_LAUNCHER), "cases", *args, "--repository", str(root)],
-                          capture_output=True, text=True, env={**os.environ, "PATH": path})
+def qa(root: Path, bin_dir: Path | None, *args: str, group: str = "cases",
+       path: str = "/usr/bin:/bin") -> subprocess.CompletedProcess[str]:
+    search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
+    return subprocess.run([sys.executable, str(QA_LAUNCHER), group, *args, "--repository", str(root)],
+                          capture_output=True, text=True, env={**os.environ, "PATH": search})
 
 
 def hash8(root: Path, bin_dir: Path, req: str) -> str:

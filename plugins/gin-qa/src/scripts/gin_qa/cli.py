@@ -1,4 +1,4 @@
-"""`gin-qa cases`: exit 0 ok, 1 findings, 2 usage or environment error."""
+"""`gin-qa cases` and `gin-qa e2e`: exit 0 ok, 1 findings, 2 usage or environment error."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import sys
 from typing import Any, Sequence
 
 from . import cases as tc
+from . import e2e
 from .reqs import Effective, QaError, resolve, specs_reqs
 
 VERSION = "0.1"
@@ -28,6 +29,19 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
     sub.add_parser("check", parents=[common]).add_argument("--change")
     sub.add_parser("export", parents=[common])
+    return parser
+
+
+def _e2e_parser() -> argparse.ArgumentParser:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--format", choices=("text", "json"), default="text")
+    parser = argparse.ArgumentParser(prog="gin-qa e2e")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("init", parents=[common])
+    sub.add_parser("plan", parents=[common]).add_argument("capability", nargs="?")
+    sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
+    sub.add_parser("check", parents=[common])
     return parser
 
 
@@ -152,20 +166,39 @@ def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_e2e(args: argparse.Namespace) -> int:
+    root = args.repository.resolve()
+    eff = resolve(specs_reqs(root))
+    if args.command == "init":
+        done = e2e.init(root, eff)
+        _emit({"done": done}, args.format, "\n".join(done) or "already initialized")
+        return 0
+    if args.command == "plan":
+        work = e2e.plan(root, eff, args.capability)
+        lines = [f"{kind} {row['tc']} {row['spec']}" for kind in ("missing", "stale", "orphan") for row in work[kind]]
+        _emit({"e2e": eff.e2e_dir, "guidelines": eff.guidelines, **work}, args.format,
+              "\n".join(lines) or "nothing to do")
+        return 0
+    if args.command == "pin":
+        return _findings(e2e.pin(root, eff, args.ids), args.format, f"pinned {' '.join(args.ids)}")
+    return _findings(e2e.check_specs(root, eff), args.format, "ok")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv[:1] == ["--version"]:
         print(f"gin-qa {VERSION}")
         return 0
-    if argv[:1] != ["cases"]:
-        print("usage: gin-qa cases {plan,next-id,pin,check,export} ...", file=sys.stderr)
+    if argv[:1] not in (["cases"], ["e2e"]):
+        print("usage: gin-qa cases {plan,next-id,pin,check,export} ...\n"
+              "       gin-qa e2e {init,plan,pin,check} ...", file=sys.stderr)
         return 2
     try:
-        args = _parser().parse_args(argv[1:])
+        args = (_parser() if argv[0] == "cases" else _e2e_parser()).parse_args(argv[1:])
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
     try:
-        return _run(args)
+        return _run(args) if argv[0] == "cases" else _run_e2e(args)
     except (QaError, ValueError, OSError) as error:
         print(f"gin-qa error: {error}", file=sys.stderr)
         return 2
