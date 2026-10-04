@@ -10,7 +10,7 @@ UNINSTALL=false
 DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
 LAUNCHER_VERSION="2.7"
-QA_LAUNCHER_VERSION="0.1"
+QA_LAUNCHER_VERSION="0.2"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -434,9 +434,10 @@ install_qa_launcher() {
     return
   fi
 
-  mkdir -p "$install_dir/gin_qa" "$(dirname "$launcher_link")"
+  mkdir -p "$install_dir/gin_qa" "$install_dir/templates" "$(dirname "$launcher_link")"
   cp -f "$source_dir/gin-qa" "$launcher_target"
   cp -rf "$source_dir/gin_qa/." "$install_dir/gin_qa/"
+  cp -rf "$source_dir/../templates/." "$install_dir/templates/"
   chmod 755 "$launcher_target"
   ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed gin-qa launcher version $QA_LAUNCHER_VERSION to $launcher_link"

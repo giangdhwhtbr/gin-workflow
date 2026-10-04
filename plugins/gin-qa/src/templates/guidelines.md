@@ -7,3 +7,9 @@ Rules for writing test cases in this repository. `/gin-qa:cases` reads this file
 - `Type: e2e` for cases a browser test can run, `manual` otherwise.
 - `Priority: high | medium | low`.
 - Extra fields this team uses (kept and exported as-is): none yet.
+
+## E2E specs (`/gin-qa:e2e`)
+
+- Locators: prefer `getByRole` with the accessible name; use `getByTestId` only when no stable name exists.
+- Sign-in: none yet (describe how specs sign in, e.g. a `storageState` file or a sign-in step).
+- Test data: none yet (describe the users and records specs may rely on).

@@ -30,15 +30,18 @@ class TestPackaging(unittest.TestCase):
                          {p["name"]: p["source"]["path"] for p in marketplace["plugins"]})
 
     def test_skill_budget_and_links(self):
-        skill = QA / "src/skills/cases/SKILL.md"
-        text = skill.read_text(encoding="utf-8")
-        self.assertLessEqual(len(text), 6_000)
+        expected = {"cases": ["../../templates/guidelines.md", "../../templates/cases.md"], "e2e": []}
+        self.assertEqual(sorted(expected), sorted(p.name for p in (QA / "src/skills").iterdir()))
         self.assertLessEqual(description_chars(QA / "src"), 1_000)
-        links = re.findall(r"\]\(([^)]+)\)", text)
-        self.assertEqual(["../../templates/guidelines.md", "../../templates/cases.md"], links)
-        for link in links:
-            with self.subTest(link=link):
-                self.assertTrue((skill.parent / link).resolve().is_file())
+        for name, want in expected.items():
+            skill = QA / f"src/skills/{name}/SKILL.md"
+            text = skill.read_text(encoding="utf-8")
+            self.assertLessEqual(len(text), 6_000, name)
+            links = re.findall(r"\]\(([^)]+)\)", text)
+            self.assertEqual(want, links, name)
+            for link in links:
+                with self.subTest(link=link):
+                    self.assertTrue((skill.parent / link).resolve().is_file())
 
     def test_core_never_refers_to_gin_qa(self):
         for path in sorted(p for p in CORE.rglob("*") if p.is_file() and p.suffix in (".md", ".py", ".yaml", ".json")):

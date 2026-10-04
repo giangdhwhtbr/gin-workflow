@@ -186,9 +186,11 @@ assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 
 assert_contains "$output_file" "Processing plugin: gin-qa"
 assert_not_contains "$output_file" "Processing plugin: gin-workflow"
-assert_contains "$output_file" "would install gin-qa launcher version 0.1 to"
+assert_contains "$output_file" "would install gin-qa launcher version 0.2 to"
 assert_exists "plugins/gin-qa/dist/claude-code/.claude-plugin/plugin.json"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/cases/SKILL.md"
+assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/SKILL.md"
+assert_exists "plugins/gin-qa/dist/claude-code/templates/evidence.ts"
 assert_exists "plugins/gin-qa/dist/claude-code/templates/guidelines.md"
 assert_exists "plugins/gin-qa/dist/claude-code/scripts/gin_qa/cli.py"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-qa/src\""
@@ -264,9 +266,11 @@ assert_not_exists "$MOCK_HOME/.local/bin/gin-qa"
 HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file" 2>&1
 assert_not_contains "$output_file" "gin-workflow is not installed"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/cases/SKILL.md"
+assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/e2e/SKILL.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.2/templates/evidence.ts"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-qa@skills-dir": true'
 qa_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-qa" --version)"
-if [ "$qa_version" != "gin-qa 0.1" ]; then
+if [ "$qa_version" != "gin-qa 0.2" ]; then
   echo "Unexpected gin-qa launcher version: $qa_version" >&2
   exit 1
 fi
@@ -296,6 +300,7 @@ cat > "$QA_REPO/qa/cases/auth.md" <<CASES
 
 ### $(qa_cli next-id auth): Sign in with a valid password
 REQ: REQ-AUTH-001@$pinned
+Type: e2e
 
 Steps:
 1. Open /login
@@ -313,6 +318,14 @@ fi
 assert_contains "$output_file" "TC-AUTH-001: REQ-AUTH-001 changed"
 qa_cli pin TC-AUTH-001 >/dev/null
 qa_cli check >/dev/null
+
+# The installed launcher finds its fixture template and plans the e2e case.
+qa_e2e() { HOME="$MOCK_HOME" PATH="$MOCK_HOME/.local/bin:$PATH" "$MOCK_HOME/.local/bin/gin-qa" e2e "$@" --repository "$QA_REPO"; }
+qa_e2e init >/dev/null
+assert_exists "$QA_REPO/qa/e2e/evidence.ts"
+assert_contains "$QA_REPO/.gitignore" "/qa/evidence/"
+qa_e2e plan auth >"$output_file"
+assert_contains "$output_file" "missing TC-AUTH-001 qa/e2e/auth/tc-auth-001.spec.ts"
 
 UPGRADE_HOME="$MOCK_HOME/upgrade-home"
 mkdir -p "$UPGRADE_HOME/.local/lib/gin-workflow/2.1" "$UPGRADE_HOME/.local/bin"

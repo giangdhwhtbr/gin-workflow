@@ -15,7 +15,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $LauncherVersion = '2.7'
-$QaLauncherVersion = '0.1'
+$QaLauncherVersion = '0.2'
 $ScriptRoot = $PSScriptRoot
 $UserHome = $env:HOME
 if ([string]::IsNullOrWhiteSpace($UserHome)) {
@@ -357,6 +357,10 @@ function Install-QaLauncher {
     Copy-DirectoryContent `
         -Source (Join-Path $sourceDirectory 'gin_qa') `
         -Destination (Join-Path $installDirectory 'gin_qa')
+    New-Directory (Join-Path $installDirectory 'templates')
+    Copy-DirectoryContent `
+        -Source (Join-Path $sourceDirectory '../templates') `
+        -Destination (Join-Path $installDirectory 'templates')
     $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
     $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"
     try {

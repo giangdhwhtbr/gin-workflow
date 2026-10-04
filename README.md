@@ -152,6 +152,8 @@ curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/rem
 ```
 Test cases live in `qa/cases/<capability>.md` (configurable with `qa.cases` in `.agent-workflow/config.yaml`); team rules for writing them go in `qa/guidelines.md` (`qa.guidelines`). `gin-qa cases export --format json` feeds your own report tooling.
 
+`/gin-qa:e2e <capability>` turns `Type: e2e` cases into Playwright specs under `qa/e2e/<capability>/` (`qa.e2e`) and runs them with `gin-qa e2e run`. `gin-qa e2e init` copies the evidence fixture `qa/e2e/evidence.ts` (yours to edit) and git-ignores `qa/evidence/`; each run leaves a screenshot per step and a `result.json` per case there, checked by `gin-qa e2e check --run <folder>` and exported with `gin-qa e2e export --run <folder> --format json`. The project provides `@playwright/test` and its Playwright config (`baseURL`, browsers, video, trace).
+
 ---
 
 ## Troubleshooting

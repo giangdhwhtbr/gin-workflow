@@ -15,7 +15,7 @@
     },
     {
       "name": "gin-qa",
-      "description": "QA add-on: test cases derived from gin-workflow specs, traced to requirements, exported as JSON.",
+      "description": "QA add-on: test cases derived from gin-workflow specs and Playwright specs with per-step evidence, traced and exported as JSON.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/giangdhwhtbr/gin-workflow.git",
