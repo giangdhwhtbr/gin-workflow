@@ -1,4 +1,4 @@
-"""`gin-qa e2e`: init, plan, pin, and check."""
+"""`gin-qa e2e`: init, plan, pin, check, run (with a fake npx), and export."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import textwrap
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -13,6 +14,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src
 
 from qa_fixtures import AUTH_SPEC, case, cases_file, gin_workflow_bin, make_repo, qa, write  # noqa: E402
 from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
+
+FAKE_NPX = textwrap.dedent('''\
+    #!{python}
+    """Stands in for `npx playwright test <specs>`: writes the evidence a passing spec would leave."""
+    import json, os, pathlib, re, sys
+    root, run = pathlib.Path.cwd(), pathlib.Path(os.environ["GIN_QA_RUN_DIR"])
+    (root / ".npx-args").write_text(json.dumps(sys.argv[1:]))
+    skip = (root / ".fake-skip").read_text().split() if (root / ".fake-skip").exists() else []
+    for spec in sys.argv[3:]:
+        tc, pinned = re.match(r"// TC: (\\S+)@(\\w+)", (root / spec).read_text()).groups()
+        if tc in skip:
+            continue
+        folder = run / tc.lower()
+        folder.mkdir(parents=True)
+        (folder / "01.png").write_bytes(b"png")
+        (folder / "result.json").write_text(json.dumps({{"tc": tc, "tc_hash8": pinned, "status": "passed",
+            "steps": [{{"n": 1, "title": "1. Open /login", "status": "passed", "screenshot": "01.png",
+                        "error": None}}]}}))
+    exit_file = root / ".fake-exit"
+    sys.exit(int(exit_file.read_text()) if exit_file.exists() else 0)
+''').format(python=sys.executable)
+
 
 def spec_text(tc_id: str, pinned: str) -> str:
     return (f"// TC: {tc_id}@{pinned}\nimport {{ test, expect }} from '../evidence';\n\n"
@@ -121,6 +144,97 @@ class TestCheckSpecs(E2eCase):
             path.unlink()
         self.assertEqual(["qa/cases/auth.md:3: TC-AUTH-001 has no e2e spec (qa/e2e/auth/tc-auth-001.spec.ts)"],
                          self.run_json("check")["findings"])
+
+
+class TestRunAndEvidence(E2eCase):
+    def setUp(self):
+        super().setUp()
+        self.npx = self.base / "npx-bin"
+        self.npx.mkdir()
+        (self.npx / "npx").write_text(FAKE_NPX)
+        (self.npx / "npx").chmod(0o755)
+        self.assertEqual(0, self.e2e("init").returncode)
+        write(self.root, "node_modules/@playwright/test/package.json", "{}")
+        self.write_spec()
+
+    def run_e2e(self, *args: str):
+        return self.e2e("run", *args, "--format", "json", path=f"{self.npx}:/usr/bin:/bin")
+
+    def test_run_records_the_selection_and_checks_the_evidence(self):
+        result = self.run_e2e("TC-AUTH-001")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual((0, []), (payload["playwright_exit"], payload["findings"]))
+        self.assertRegex(payload["run"], r"^qa/evidence/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d$")
+        self.assertEqual(["playwright", "test", "qa/e2e/auth/tc-auth-001.spec.ts"],
+                         json.loads((self.root / ".npx-args").read_text()))
+        record = json.loads((self.root / payload["run"] / "run.json").read_text())
+        self.assertEqual((["qa/e2e/auth/tc-auth-001.spec.ts"], 0), (record["specs"], record["playwright_exit"]))
+        self.assertNotEqual(payload["run"], json.loads(self.run_e2e("auth").stdout)["run"])
+        self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
+
+    def test_run_exit_codes(self):
+        (self.root / ".fake-exit").write_text("1")
+        self.assertEqual(1, self.run_e2e().returncode)
+        (self.root / ".fake-exit").write_text("0")
+        (self.root / ".fake-skip").write_text("TC-AUTH-001")
+        result = self.run_e2e()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("no result.json", json.loads(result.stdout)["findings"][0])
+
+    def test_run_environment_errors(self):
+        cases = [
+            ((), "/nonexistent", "npx is not on PATH"),
+            (("TC-AUTH-009",), None, "TC-AUTH-009: no e2e spec"),
+            (("billing",), None, "billing: no e2e specs under qa/e2e/billing"),
+        ]
+        for targets, path, message in cases:
+            with self.subTest(message=message):
+                result = self.e2e("run", *targets, path=path or f"{self.npx}:/usr/bin:/bin")
+                self.assertEqual(2, result.returncode)
+                self.assertIn(message, result.stderr)
+        (self.root / "node_modules/@playwright/test/package.json").unlink()
+        self.assertIn("@playwright/test is not installed", self.run_e2e().stderr)
+        (self.root / "qa/e2e/evidence.ts").unlink()
+        self.assertIn("run `gin-qa e2e init`", self.run_e2e().stderr)
+
+    def test_check_run_findings(self):
+        folder = json.loads(self.run_e2e().stdout)["run"]
+        result_file = self.root / folder / "tc-auth-001/result.json"
+        data = json.loads(result_file.read_text())
+        where = f"{folder}/tc-auth-001/result.json"
+        variants = [
+            ({**data, "steps": []}, f"{where}: passed without any ev.step; nothing was checked"),
+            ({**data, "tc_hash8": "00000000"},
+             f"{where}: ran TC-AUTH-001@00000000, but the case is now @{self.tc_hash()}"),
+            ({**data, "status": "skipped"}, f"{where}: result.json needs a status of passed or failed and a steps list"),
+            ({**data, "tc": "TC-AUTH-003"}, f"{where}: tc is 'TC-AUTH-003', expected TC-AUTH-001"),
+        ]
+        for content, finding in variants:
+            with self.subTest(finding=finding):
+                result_file.write_text(json.dumps(content))
+                self.assertEqual([finding], self.run_json("check", "--run", folder)["findings"])
+        result_file.write_text(json.dumps(data))
+        (self.root / folder / "tc-auth-001/01.png").write_bytes(b"")
+        self.assertEqual([f"{where}: step 1 has no screenshot on disk"],
+                         self.run_json("check", "--run", folder)["findings"])
+        result_file.write_text("{")
+        self.assertIn("result.json is not valid JSON", self.run_json("check", "--run", folder)["findings"][0])
+        for bad in ("qa/cases", "qa/evidence/none"):
+            with self.subTest(folder=bad):
+                self.assertEqual(2, self.e2e("check", "--run", bad).returncode)
+
+    def test_export_joins_results_with_repository_paths(self):
+        folder = json.loads(self.run_e2e().stdout)["run"]
+        payload = self.run_json("export", "--run", folder)
+        self.assertEqual((folder, 0), (payload["run"], payload["playwright_exit"]))
+        [row] = payload["cases"]
+        self.assertEqual(("TC-AUTH-001", self.tc_hash(), "qa/e2e/auth/tc-auth-001.spec.ts", "passed",
+                          f"{folder}/tc-auth-001/01.png"),
+                         (row["id"], row["hash8"], row["spec"], row["result"]["status"],
+                          row["result"]["steps"][0]["screenshot"]))
+        (self.root / folder / "tc-auth-001/result.json").unlink()
+        self.assertIsNone(self.run_json("export", "--run", folder)["cases"][0]["result"])
 
 
 if __name__ == "__main__":

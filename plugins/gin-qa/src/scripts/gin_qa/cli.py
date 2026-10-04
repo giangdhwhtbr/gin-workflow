@@ -41,7 +41,9 @@ def _e2e_parser() -> argparse.ArgumentParser:
     sub.add_parser("init", parents=[common])
     sub.add_parser("plan", parents=[common]).add_argument("capability", nargs="?")
     sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
-    sub.add_parser("check", parents=[common])
+    sub.add_parser("run", parents=[common]).add_argument("targets", nargs="*", metavar="TC-ID|capability")
+    sub.add_parser("check", parents=[common]).add_argument("--run", dest="folder")
+    sub.add_parser("export", parents=[common]).add_argument("--run", dest="folder", required=True)
     return parser
 
 
@@ -181,7 +183,18 @@ def _run_e2e(args: argparse.Namespace) -> int:
         return 0
     if args.command == "pin":
         return _findings(e2e.pin(root, eff, args.ids), args.format, f"pinned {' '.join(args.ids)}")
-    return _findings(e2e.check_specs(root, eff), args.format, "ok")
+    if args.command == "check":
+        errors = e2e.check_run(root, eff, args.folder) if args.folder else e2e.check_specs(root, eff)
+        return _findings(errors, args.format, "ok")
+    if args.command == "export":
+        payload = e2e.export(root, eff, args.folder)
+        _emit(payload, args.format, "\n".join(
+            f"{row['id']} {(row['result'] or {}).get('status', 'not run')}" for row in payload["cases"]))
+        return 0
+    folder, code, errors = e2e.run(root, eff, args.targets)
+    _emit({"run": folder, "playwright_exit": code, "findings": errors}, args.format,
+          "\n".join([*errors, f"run: {folder}"]))
+    return code or (1 if errors else 0)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -191,7 +204,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if argv[:1] not in (["cases"], ["e2e"]):
         print("usage: gin-qa cases {plan,next-id,pin,check,export} ...\n"
-              "       gin-qa e2e {init,plan,pin,check} ...", file=sys.stderr)
+              "       gin-qa e2e {init,plan,pin,run,check,export} ...", file=sys.stderr)
         return 2
     try:
         args = (_parser() if argv[0] == "cases" else _e2e_parser()).parse_args(argv[1:])

@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import subprocess
+import sys
 from typing import Any
 
 from . import cases as tc
@@ -142,3 +147,123 @@ def _playwright(root: Path) -> Path | None:
         if (base / "node_modules/@playwright/test/package.json").is_file():
             return base
     return None
+
+
+def _selected(root: Path, eff: Effective, targets: list[str]) -> list[str]:
+    specs = load_specs(root, eff)
+    if not targets:
+        return [spec.path for spec in specs]
+    cases = e2e_cases(root, eff)
+    chosen: list[str] = []
+    for target in targets:
+        if tc.TC_ID.fullmatch(target):
+            if target not in cases or not (root / spec_path(eff, cases[target])).is_file():
+                raise QaError(f"{target}: no e2e spec; write one with /gin-qa:e2e {target}")
+            chosen.append(spec_path(eff, cases[target]))
+        else:
+            found = [spec.path for spec in specs if spec.path.split("/")[-2] == target]
+            if not found:
+                raise QaError(f"{target}: no e2e specs under {eff.e2e_dir}/{target}")
+            chosen += found
+    return list(dict.fromkeys(chosen))
+
+
+def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[str]]:
+    """Runs the selected specs into a new evidence folder. Returns (folder, Playwright exit, check findings)."""
+    if not (root / eff.e2e_dir / FIXTURE).is_file():
+        raise QaError(f"{eff.e2e_dir}/{FIXTURE} is missing; run `gin-qa e2e init`")
+    npx = shutil.which("npx")
+    if npx is None:
+        raise QaError("npx is not on PATH; install Node.js")
+    if _playwright(root) is None:
+        raise QaError("@playwright/test is not installed: npm install -D @playwright/test")
+    specs = _selected(root, eff, targets)
+    if not specs:
+        raise QaError(f"no e2e specs under {eff.e2e_dir}; write them with /gin-qa:e2e")
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+    folder = f"{evidence_root(eff)}/{stamp}"
+    suffix = 2
+    while (root / folder).exists():
+        folder, suffix = f"{evidence_root(eff)}/{stamp}-{suffix}", suffix + 1
+    (root / folder).mkdir(parents=True)
+    record = {"started": datetime.now(timezone.utc).isoformat(), "specs": specs, "playwright_exit": None}
+    (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    result = subprocess.run([npx, "playwright", "test", *specs], cwd=root, stdout=sys.stderr,
+                            env={**os.environ, "GIN_QA_RUN_DIR": str(root / folder)})
+    record["playwright_exit"] = result.returncode
+    (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    return folder, result.returncode, check_run(root, eff, folder)
+
+
+def _run_folder(root: Path, eff: Effective, folder: str) -> tuple[Path, dict[str, Any]]:
+    path = (root / folder).resolve()
+    base = (root / evidence_root(eff)).resolve()
+    if base not in path.parents:
+        raise QaError(f"{folder}: not a run folder under {evidence_root(eff)}")
+    if not (path / "run.json").is_file():
+        raise QaError(f"{folder}: no run.json; runs are made by `gin-qa e2e run`")
+    return path, json.loads((path / "run.json").read_text(encoding="utf-8"))
+
+
+def _result(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    if not path.is_file():
+        return None, "no result.json (the spec did not run, or it does not use the evidence fixture)"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return None, f"result.json is not valid JSON: {error}"
+    if not isinstance(data, dict) or data.get("status") not in ("passed", "failed") \
+            or not isinstance(data.get("steps"), list):
+        return None, "result.json needs a status of passed or failed and a steps list"
+    return data, None
+
+
+def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
+    path, record = _run_folder(root, eff, folder)
+    shown = path.relative_to(root.resolve()).as_posix()
+    cases = e2e_cases(root, eff)
+    errors: list[str] = []
+    for spec in record.get("specs", []):
+        match = HEADER.match((root / spec).read_text(encoding="utf-8").split("\n", 1)[0]) \
+            if (root / spec).is_file() else None
+        if match is None:
+            errors.append(f"{spec}: no '// TC:' header, so its evidence cannot be found")
+            continue
+        case_id = match.group(1)
+        where = f"{shown}/{case_id.lower()}/result.json"
+        data, problem = _result(path / case_id.lower() / "result.json")
+        if problem:
+            errors.append(f"{where}: {problem}")
+            continue
+        if data.get("tc") != case_id:
+            errors.append(f"{where}: tc is {data.get('tc')!r}, expected {case_id}")
+        if data["status"] == "passed" and not data["steps"]:
+            errors.append(f"{where}: passed without any ev.step; nothing was checked")
+        for step in data["steps"]:
+            name = step.get("screenshot") if isinstance(step, dict) else None
+            shot = path / case_id.lower() / name if isinstance(name, str) and name else None
+            if shot is None or not shot.is_file() or shot.stat().st_size == 0:
+                errors.append(f"{where}: step {step.get('n') if isinstance(step, dict) else '?'} "
+                              f"has no screenshot on disk")
+        if case_id not in cases:
+            errors.append(f"{where}: {case_id} is not an e2e test case any more")
+        elif data.get("tc_hash8") != tc.hash8(cases[case_id]):
+            errors.append(f"{where}: ran {case_id}@{data.get('tc_hash8')}, but the case is now "
+                          f"@{tc.hash8(cases[case_id])}")
+    return errors
+
+
+def export(root: Path, eff: Effective, folder: str) -> dict[str, Any]:
+    path, record = _run_folder(root, eff, folder)
+    shown = path.relative_to(root.resolve()).as_posix()
+    rows: list[dict[str, Any]] = []
+    for case in e2e_cases(root, eff).values():
+        data, _ = _result(path / case.id.lower() / "result.json")
+        if data is not None:
+            for step in data["steps"]:
+                if isinstance(step, dict) and step.get("screenshot"):
+                    step["screenshot"] = f"{shown}/{case.id.lower()}/{step['screenshot']}"
+        spec = spec_path(eff, case)
+        rows.append({**tc.as_dict(case), "spec": spec if (root / spec).is_file() else None, "result": data})
+    return {"run": shown, "started": record.get("started"), "playwright_exit": record.get("playwright_exit"),
+            "cases": rows}
