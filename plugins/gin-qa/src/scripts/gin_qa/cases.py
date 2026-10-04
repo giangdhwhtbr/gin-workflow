@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 from pathlib import Path
 import re
 import subprocess
@@ -153,8 +154,18 @@ def glob_regex(pattern: str) -> re.Pattern[str]:
     return re.compile(f"^{out}$")
 
 
+def hash8(case: Case) -> str:
+    """What a test implements: title, free fields, and sections. REQ:/Source:, Type, and Priority are left out,
+    so re-pinning a requirement does not make the case's e2e spec stale."""
+    lines = [case.title, *(f"{key}: {value}" for key, value in case.fields.items() if key not in KNOWN_FIELDS)]
+    for name, items in zip(SECTIONS, (case.preconditions, case.steps, case.expected)):
+        lines += [f"{name}:", *items]
+    return hashlib.sha256("\n".join(line.strip() for line in lines).encode("utf-8")).hexdigest()[:8]
+
+
 def as_dict(case: Case) -> dict[str, object]:
     return {"id": case.id, "title": case.title, "capability": case.cap, "file": str(case.path), "line": case.line,
+            "hash8": hash8(case),
             "reqs": [{"id": req, "hash8": pinned} for req, pinned in case.reqs],
             "source": case.fields.get("Source", ""), "type": case.fields.get("Type", ""),
             "priority": case.fields.get("Priority", ""),

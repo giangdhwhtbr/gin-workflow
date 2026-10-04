@@ -90,8 +90,8 @@ class TestSpecsReqs(unittest.TestCase):
 
     def test_qa_key_is_passed_through_and_validated(self):
         config = self.root / ".agent-workflow/config.yaml"
-        config.write_text(config.read_text() + "qa:\n  cases: tests-design/cases\n")
-        self.assertEqual({"cases": "tests-design/cases"}, self.payload()["qa"])
+        config.write_text(config.read_text() + "qa:\n  cases: tests-design/cases\n  e2e: tests-design/e2e\n")
+        self.assertEqual({"cases": "tests-design/cases", "e2e": "tests-design/e2e"}, self.payload()["qa"])
         config.write_text(config.read_text() + "  other: x\n")
         result = reqs(self.root)
         self.assertEqual(2, result.returncode)

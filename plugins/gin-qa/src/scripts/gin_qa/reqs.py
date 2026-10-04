@@ -11,6 +11,7 @@ from typing import Any
 
 DEFAULT_CASES = "qa/cases"
 DEFAULT_GUIDELINES = "qa/guidelines.md"
+DEFAULT_E2E = "qa/e2e"
 
 
 class QaError(RuntimeError):
@@ -23,6 +24,7 @@ class Effective:
     cases_dir: str
     guidelines: str
     test_globs: list[str]
+    e2e_dir: str = DEFAULT_E2E
     reqs: dict[str, dict[str, Any]] = field(default_factory=dict)
     removed: dict[str, str] = field(default_factory=dict)
     conflicts: list[str] = field(default_factory=list)
@@ -47,7 +49,7 @@ def resolve(payload: dict[str, Any]) -> Effective:
     """An open change's ADDED/MODIFIED block wins over the living block; its REMOVED block removes the REQ."""
     qa = payload.get("qa") or {}
     effective = Effective(payload["layout"], qa.get("cases", DEFAULT_CASES), qa.get("guidelines", DEFAULT_GUIDELINES),
-                          list(payload.get("test_globs", [])))
+                          list(payload.get("test_globs", [])), qa.get("e2e", DEFAULT_E2E))
     owner: dict[str, str] = {}
     for row in payload["requirements"]:
         req, change = row["id"], row["change"]

@@ -10,9 +10,11 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
 from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, cases_file, commit_all, delta, gin_workflow_bin,  # noqa: E402
                          hash8, make_change, make_repo, qa, write)
+from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
 
 
 class QaCase(unittest.TestCase):
@@ -181,12 +183,33 @@ class TestIdsAndExport(QaCase):
     def test_export_keeps_free_fields(self):
         self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001"), title="Login", extra="Owner: qa-team\n"))
         rows = self.run_json("export")["cases"]
+        self.assertRegex(rows[0].pop("hash8"), "^[0-9a-f]{8}$")
         self.assertEqual([{
             "id": "TC-AUTH-001", "title": "Login", "capability": "auth", "file": "qa/cases/auth.md", "line": 3,
             "reqs": [{"id": "REQ-AUTH-001", "hash8": hash8(self.root, self.bin, "REQ-AUTH-001")}], "source": "",
             "type": "e2e", "priority": "high", "fields": {"Owner": "qa-team"},
             "preconditions": ["a user exists"], "steps": ["Open /login", 'Click "Sign in"'],
             "expected": ["The dashboard is shown"]}], rows)
+
+
+class TestCaseHash(unittest.TestCase):
+    def hashes(self, *blocks: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "auth.md"
+            path.write_text(cases_file("auth", *blocks), encoding="utf-8")
+            found, errors = parse_file(path, "qa/cases/auth.md")
+        self.assertEqual([], errors)
+        return [case_hash8(item) for item in found]
+
+    def test_hash_ignores_pins_type_and_priority_but_not_content(self):
+        base = case("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000")
+        repinned = base.replace("@00000000", "@11111111").replace("Type: e2e", "Type: manual")
+        renamed = base.replace("Priority: high", "Priority: low")
+        changed = base.replace("1. Open /login", "1. Open /signin")
+        extra = case("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000", extra="Owner: qa-team\n")
+        first, *others = self.hashes(base, repinned, renamed, changed, extra)
+        self.assertEqual([first, first, first], [first, *others[:2]])
+        self.assertNotIn(first, others[2:])
 
 
 class TestLegacyAndEnvironment(unittest.TestCase):
