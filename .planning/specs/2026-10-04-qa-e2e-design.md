@@ -32,7 +32,7 @@ qa/
     auth/tc-auth-001.spec.ts        # one spec per `Type: e2e` TC
   evidence/                         # gitignored, one folder per run
     2026-10-04T10-00-00/tc-auth-001/{result.json, 01.png, 02.png}
-    2026-10-04T10-00-00/tc-auth-001/<project>/{...}  # per named Playwright project
+    2026-10-04T10-00-00/tc-auth-001/<project folder>/{...}  # per named Playwright project
 ```
 
 Core accepts one more optional key, `qa.e2e` (non-empty string, default `qa/e2e`), next to `qa.cases` and `qa.guidelines`; unknown keys are still rejected. Paths are normalized (`./qa/e2e/` is `qa/e2e`) and must stay inside the repository. The evidence root is the `evidence` folder next to the `qa.e2e` folder (`qa/evidence` by default; `tests/evidence` for `qa.e2e: tests/e2e`).
@@ -47,7 +47,7 @@ A spec's path is `<qa.e2e>/<capability>/<lower-case TC-ID>.spec.ts`.
 
 - Exports `test` (Playwright `test` extended with an `ev` fixture) and `expect`.
 - `ev.step(title, fn)` wraps `test.step`; after `fn` settles (pass or throw) it saves a full-page screenshot `NN.png` (NN = step number, two digits) and records `{n, title, status, screenshot, error}`; a throw is re-raised after recording.
-- On teardown it writes `result.json` into `$GIN_QA_RUN_DIR/<lower-case TC-ID>/`, or `$GIN_QA_RUN_DIR/<lower-case TC-ID>/<project slug>/` for a named Playwright project (so browsers never overwrite each other; each attempt starts from an empty folder):
+- On teardown it writes `result.json` into `$GIN_QA_RUN_DIR/<lower-case TC-ID>/`, or `$GIN_QA_RUN_DIR/<lower-case TC-ID>/<project folder>/` for a named Playwright project, where the project folder is the lower-case name with other characters as `-`, then `-` and the first 6 hex of sha256 of the exact name (`Desktop Chrome` → `desktop-chrome-<hex6>`), so projects never share a folder. Each attempt first removes the files (not the subfolders) of its own folder. `check --run` requires a valid `result.json` in every subfolder of a case folder and rejects case or project folders that are symlinks or resolve outside the run; a project whose test never started leaves no folder, and Playwright's exit code reports it:
   ```json
   {"tc": "TC-AUTH-001", "tc_hash8": "1a2b3c4d", "project": null, "status": "passed",
    "started": "<ISO-8601>", "finished": "<ISO-8601>",
@@ -80,7 +80,7 @@ Errors (exit 2, naming the command to run): `npx` or `@playwright/test` missing 
 2. Read `qa/guidelines.md`; its e2e rules (locator conventions, sign-in, test data) override the skill's defaults.
 3. `gin-qa e2e plan …`. For each `missing` or `stale` TC: read the UI source to pick locators (role, then label/placeholder, then text, then test id); write one spec with one `ev.step` per TC step and the `Expected` bullets as auto-waiting assertions (never `waitForTimeout` to await state); then `gin-qa e2e pin`.
 4. `gin-qa e2e run` for those TCs. A spec defect (locator, timing) is fixed, up to 3 rounds per TC. When the application does not do what `Expected` says, the spec is not bent to pass: report it as a suspected application defect with the evidence path.
-5. Loop on `gin-qa e2e check` until exit 0. `orphan`: list and ask whether to delete or keep; never delete on its own.
+5. Rerun `plan` with the same scope until the cases handled are out of `missing` and `stale` (G3 adds `blocked` cases, which are reported instead). `orphan`: list and ask whether to delete or keep; never delete on its own.
 6. Report the specs written or changed and the run path. Never commit.
 
 ### 6. Packaging

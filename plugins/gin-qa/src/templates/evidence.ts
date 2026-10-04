@@ -8,6 +8,7 @@
 // projects never overwrite each other). Without it the fixture records nothing. ARIA snapshots need
 // @playwright/test 1.49 or later; on older versions `snapshot` is null.
 import { test as base, expect } from '@playwright/test';
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -34,16 +35,25 @@ function firstLine(error: unknown): string {
   return text.replace(ANSI, '').split('\n')[0].slice(0, 300);
 }
 
+// Readable and unique: 'Desktop Chrome' -> desktop-chrome-<first 6 hex of sha256('Desktop Chrome')>.
+function projectFolder(name: string): string {
+  const slug = name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+  return `${slug}-${createHash('sha256').update(name).digest('hex').slice(0, 6)}`;
+}
+
 export const test = base.extend<{ ev: Evidence }>({
   ev: async ({ page }, use, testInfo) => {
     const header = HEADER.exec(fs.readFileSync(testInfo.file, 'utf8').split(/\r?\n/)[0]);
     const runDir = process.env.GIN_QA_RUN_DIR;
     const project = testInfo.project.name;
     const caseDir = runDir && header ? path.join(runDir, header[1].toLowerCase()) : null;
-    const tcDir = caseDir && project ? path.join(caseDir, project.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')) : caseDir;
+    const tcDir = caseDir && project ? path.join(caseDir, projectFolder(project)) : caseDir;
     if (tcDir) {
-      fs.rmSync(tcDir, { recursive: true, force: true }); // a retry starts from an empty folder
       fs.mkdirSync(tcDir, { recursive: true });
+      // A retry starts clean; the unnamed project's folder also holds the named projects' folders, so only files go.
+      for (const entry of fs.readdirSync(tcDir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) fs.rmSync(path.join(tcDir, entry.name), { force: true });
+      }
     }
     const steps: StepResult[] = [];
     const started = new Date().toISOString();

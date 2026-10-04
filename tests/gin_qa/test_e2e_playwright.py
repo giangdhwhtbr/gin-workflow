@@ -7,6 +7,7 @@ browsers installed (`npm install @playwright/test && npx playwright install chro
 from __future__ import annotations
 
 import functools
+import hashlib
 import http.server
 import json
 import os
@@ -121,20 +122,23 @@ class TestPlaywrightRun(unittest.TestCase):
         write(self.root, "playwright.config.ts",
               "import { defineConfig } from '@playwright/test';\n"
               f"export default defineConfig({{ reporter: 'line', use: {{ baseURL: '{self.url('')}' }}, "
-              "projects: [{ name: 'Desktop Chrome' }, { name: 'mobile' }] });\n")
+              "projects: [{ name: 'Desktop Chrome' }, { name: 'desktop-chrome' }, {}] });\n")
         self.write_spec("Dashboard")
         spec = self.root / "qa/e2e/auth/tc-auth-001.spec.ts"
         spec.write_bytes(spec.read_bytes().replace(b"\n", b"\r\n"))
         code, payload = self.run_once()
         self.assertEqual((0, []), (code, payload["findings"]))
         case_dir = self.root / payload["run"] / "tc-auth-001"
-        self.assertEqual(["desktop-chrome", "mobile"], sorted(p.name for p in case_dir.iterdir()))
-        for folder, project in (("desktop-chrome", "Desktop Chrome"), ("mobile", "mobile")):
+        named = {f"desktop-chrome-{hashlib.sha256(name.encode()).hexdigest()[:6]}": name
+                 for name in ("Desktop Chrome", "desktop-chrome")}
+        self.assertEqual(sorted([*named, "01.aria.yml", "01.png", "02.aria.yml", "02.png", "result.json"]),
+                         sorted(p.name for p in case_dir.iterdir()))
+        for folder, project in [*named.items(), ("", None)]:
             result = json.loads((case_dir / folder / "result.json").read_text())
             self.assertEqual((project, "passed", ["01.png", "02.png"]),
                              (result["project"], result["status"], [s["screenshot"] for s in result["steps"]]))
         rows = json.loads(self.e2e("export", "--run", payload["run"], "--format", "json").stdout)["cases"]
-        self.assertEqual(2, len(rows[0]["results"]))
+        self.assertEqual(3, len(rows[0]["results"]))
 
 
 if __name__ == "__main__":

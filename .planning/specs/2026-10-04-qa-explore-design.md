@@ -56,7 +56,7 @@ No new command.
 - Before writing, check that `<e2e>/evidence.ts` contains `ariaSnapshot`; otherwise stop and ask for the merge (section 1).
 - Each `missing` or `stale` case goes through `references/explore-case.md`:
   1. Write a draft spec with the header `// TC: <TC-ID>@00000000` and step 1 only.
-  2. `gin-qa e2e run <TC-ID>`; read the last step's (or the failing step's) `NN.aria.yml` and `url` in `<run>/<tc-id>/`.
+  2. `gin-qa e2e run <TC-ID>`; read the last step's (or the failing step's) `NN.aria.yml` and `url` in `<run>/<tc-id>/` (or one named project's folder under it).
   3. Add the next step, choosing the locator from the snapshot and cross-checking it in the UI source (same locator order as G2). Repeat until every TC step is in the spec, with each `Expected` item asserted.
   4. `pin <TC-ID>`, run once more, and review the evidence: read each screenshot and confirm it shows what the step title says. A test that passes but shows the wrong screen is a spec defect.
   5. Spec defects: at most 3 repair rounds after the spec is complete. The application not doing what `Expected` says is reported as a suspected application defect with the step, error, screenshot, and snapshot; the spec is not bent to pass.

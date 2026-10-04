@@ -241,9 +241,16 @@ def _artifact(folder: Path, name: object) -> Path | None:
 
 
 def _result_folders(case_dir: Path) -> list[Path]:
-    """Where a case's results live: the case folder (unnamed Playwright project) and one subfolder per named project."""
-    subfolders = sorted(sub for sub in case_dir.iterdir() if (sub / "result.json").is_file()) if case_dir.is_dir() else []
-    return ([case_dir] if (case_dir / "result.json").is_file() else []) + subfolders
+    """Where a case's results live: the case folder (unnamed Playwright project) and every subfolder (one per named
+    project). Every subfolder must hold a result.json; a case folder with neither stands for its missing result."""
+    subfolders = sorted(sub for sub in case_dir.iterdir() if sub.is_dir()) if case_dir.is_dir() else []
+    own = [case_dir] if (case_dir / "result.json").is_file() or not subfolders else []
+    return own + subfolders
+
+
+def _contained(run: Path, folder: Path) -> bool:
+    """A real folder under the run folder, not a symlink to somewhere else."""
+    return not folder.is_symlink() and run.resolve() in folder.resolve().parents
 
 
 def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
@@ -258,9 +265,16 @@ def check_run(root: Path, eff: Effective, folder: str) -> list[str]:
             errors.append(f"{spec}: no '// TC:' header, so its evidence cannot be found")
             continue
         case_id = match.group(1)
-        for result_dir in _result_folders(path / case_id.lower()) or [path / case_id.lower()]:
-            errors += _check_result(result_dir, f"{shown}/{result_dir.relative_to(path).as_posix()}/result.json",
-                                    case_id, cases)
+        case_dir = path / case_id.lower()
+        if case_dir.exists() and not _contained(path, case_dir):
+            errors.append(f"{shown}/{case_id.lower()}: not a folder inside the run")
+            continue
+        for result_dir in _result_folders(case_dir):
+            relative = result_dir.relative_to(path).as_posix()
+            if not _contained(path, result_dir):
+                errors.append(f"{shown}/{relative}: not a folder inside the run")
+                continue
+            errors += _check_result(result_dir, f"{shown}/{relative}/result.json", case_id, cases)
     return errors
 
 
@@ -294,6 +308,8 @@ def export(root: Path, eff: Effective, folder: str) -> dict[str, Any]:
     for case in e2e_cases(root, eff).values():
         results: list[dict[str, Any]] = []
         for result_dir in _result_folders(path / case.id.lower()):
+            if not _contained(path, result_dir) or not _contained(path, path / case.id.lower()):
+                continue
             data, _ = _result(result_dir / "result.json")
             if data is None:
                 continue
