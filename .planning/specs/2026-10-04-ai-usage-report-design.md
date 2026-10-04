@@ -51,7 +51,7 @@ Applied in order:
 
 1. `cwd` inside a worktree under `.planning/worktrees/`, or `branch` equal to that worktree's branch → the track bead whose time span (first claim to close) holds the record, among the beads named by the worktree or whose parent it names; stage `review` inside the bead's review intervals from its ledger (`review-requested` to the next `changes-requested`, `review-approved`, or `review-approval-invalidated`), else `execute`. No such bead, or more than one → the bead the worktree is named after, stage `execute`.
 2. `cwd` at the repository root → the workflow of the first gate event in `events.jsonl` after the record's timestamp. The workflow maps to its epic through `orchestration.ready`. The stage follows from that event: `requirement.confirmed` → `discuss`, `approval.recorded` for `plan_approved` → `plan`, `quick.completed` → `quick`, `orchestration.ready` → `orchestrate`, `verification.passed` → `verify`, `delivery.shipped` → `ship`.
-3. `cwd` at the repository root after the last gate event, while collecting an epic whose latest gate event is `verification.passed` → that epic, stage `ship` (the epic's `delivery.shipped` does not exist yet when ship collects).
+3. `cwd` at the repository root after the last gate event in the repository, when that event is the collecting epic's `verification.passed` → that epic, stage `ship`, up to the epic's close (the epic's `delivery.shipped` does not exist yet when ship collects).
 4. Otherwise `unattributed`. Collecting an epic also stores the `unattributed` usage inside the epic's span (its first gate event to now), so the report shows it without reading logs.
 
 ### 3. Quality signals

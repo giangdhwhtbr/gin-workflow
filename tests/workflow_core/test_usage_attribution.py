@@ -121,6 +121,13 @@ class AttributeTests(unittest.TestCase):
         self.assertEqual(self.run_one(rec(13)), {(UNATTRIBUTED, ""): 1})
         self.assertEqual(self.run_one(rec(13), collecting="other"), {(UNATTRIBUTED, ""): 1})
 
+    def test_ship_only_while_the_epic_holds_the_latest_gate_and_until_it_closes(self):
+        later = self.gates + [Gate(at(14), "wf2", "discuss")]
+        self.assertEqual(self.run_one(rec(15), collecting="ep1", gates=later), {(UNATTRIBUTED, ""): 1})
+        self.spans["ep1"] = BeadSpan("ep1", None, None, at(16))
+        self.assertEqual(self.run_one(rec(15), collecting="ep1"), {("ep1", "ship"): 1})
+        self.assertEqual(self.run_one(rec(17), collecting="ep1"), {(UNATTRIBUTED, ""): 1})
+
     def test_not_verified_epic_does_not_take_ship(self):
         self.gates = self.gates[:3]
         self.assertEqual(self.run_one(rec(5), collecting="ep1"), {(UNATTRIBUTED, ""): 1})

@@ -134,19 +134,22 @@ def attribute(records: Iterable[UsageRecord], *, repo: Path, spans: Mapping[str,
     now = now or datetime.now(timezone.utc)
     gates = sorted(gates, key=lambda gate: gate.ts)
     owner_of = lambda workflow: epic_of.get(workflow, workflow)  # noqa: E731
-    ship_after: datetime | None = None
-    if collecting is not None:
-        own = [gate for gate in gates if owner_of(gate.workflow_id) == collecting]
-        if own and own[-1].stage == "verify":
-            ship_after = own[-1].ts
+    ship: tuple[datetime, datetime] | None = None
+    if collecting is not None and gates:
+        # Ship is the collecting epic's own work after its verification, while that is still the latest gate
+        # in the repository and until the epic closes; otherwise every verified epic would claim the same records.
+        last = gates[-1]
+        if owner_of(last.workflow_id) == collecting and last.stage == "verify":
+            span = spans.get(collecting)
+            ship = (last.ts, span.end if span is not None and span.end is not None else now)
     groups: dict[tuple[str, str], list[UsageRecord]] = {}
     for record in records:
-        key = _key(record, repo, spans, trees, gates, owner_of, collecting, ship_after, now)
+        key = _key(record, repo, spans, trees, gates, owner_of, collecting, ship, now)
         groups.setdefault(key, []).append(record)
     return groups
 
 
-def _key(record, repo, spans, trees, gates, owner_of, collecting, ship_after, now) -> tuple[str, str]:
+def _key(record, repo, spans, trees, gates, owner_of, collecting, ship, now) -> tuple[str, str]:
     for tree in trees:
         if not _in_tree(record, tree):
             continue
@@ -163,6 +166,6 @@ def _key(record, repo, spans, trees, gates, owner_of, collecting, ship_after, no
         for gate in gates:
             if gate.ts > record.ts:
                 return owner_of(gate.workflow_id), gate.stage
-        if ship_after is not None and record.ts > ship_after:
+        if ship is not None and ship[0] < record.ts <= ship[1]:
             return collecting, "ship"
     return UNATTRIBUTED, ""
