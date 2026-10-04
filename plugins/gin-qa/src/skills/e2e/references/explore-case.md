@@ -11,7 +11,7 @@ Build the Playwright spec for one `Type: e2e` test case from what the running ap
 
 ## Loop
 
-1. Write the spec with step 1 only. `run <TC-ID> --format json` prints the run folder (`run`); the case's evidence is in `<run>/<tc-id>/`. Until step 4 the run also reports the unpinned header as a finding; ignore that one.
+1. Write the spec with step 1 only. `run <TC-ID> --format json` prints the run folder (`run`); the case's evidence is in `<run>/<tc-id>/` (in `<run>/<tc-id>/<project>/` for each named Playwright project; read any one). Until step 4 the run also reports the unpinned header as a finding; ignore that one.
 2. Read `result.json` there. For the last step (or the failing one) read its `NN.aria.yml` (the page's ARIA tree after the step) and `url`. If step 1 cannot reach the page, stop with `blocked`: name the `baseURL` and ask how to start the application.
 3. Add the next step. Take its locator from the snapshot (role and accessible name as shown there) and confirm it in the UI source. Add the assertions for the `Expected` items it produces. Run again and go back to 2 until every case step is in the spec.
 4. `pin <TC-ID>` writes the real hash; never type a hash by hand. Run once more.

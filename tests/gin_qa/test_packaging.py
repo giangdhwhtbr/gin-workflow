@@ -43,6 +43,10 @@ class TestPackaging(unittest.TestCase):
                 with self.subTest(link=link):
                     self.assertTrue((skill.parent / link).resolve().is_file())
 
+    def test_guidelines_template_sets_no_language(self):
+        text = (QA / "src/templates/guidelines.md").read_text(encoding="utf-8")
+        self.assertRegex(text, r"- Language: not set yet")
+
     def test_core_never_refers_to_gin_qa(self):
         for path in sorted(p for p in CORE.rglob("*") if p.is_file() and p.suffix in (".md", ".py", ".yaml", ".json")):
             with self.subTest(path=str(path.relative_to(CORE))):

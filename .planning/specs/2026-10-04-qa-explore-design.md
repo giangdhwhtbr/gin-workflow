@@ -61,7 +61,7 @@ No new command.
   4. `pin <TC-ID>`, run once more, and review the evidence: read each screenshot and confirm it shows what the step title says. A test that passes but shows the wrong screen is a spec defect.
   5. Spec defects: at most 3 repair rounds after the spec is complete. The application not doing what `Expected` says is reported as a suspected application defect with the step, error, screenshot, and snapshot; the spec is not bent to pass.
 - A subagent receives one case (the `plan` row), the guidelines path, and `explore-case.md`; it writes only that case's spec file and returns `done`, `app_defect`, or `blocked` with a one-line reason and its last run folder. It never commits and never edits the fixture, guidelines, or another spec.
-- After all cases: `git status` shows only the expected spec files changed; `check` until exit 0; one `run` of all specs written or changed; report that run folder (the official evidence) and each case's result. Draft run folders from exploration are left in the git-ignored evidence root.
+- After all cases: `git status` shows only the expected spec files changed (anything else is reported, not silently reverted); `plan` with the same scope shows no `done` or `app_defect` case as missing or stale (a `blocked` case keeps its draft spec and is reported); one `run` of the `done` and `app_defect` specs; report that run folder (the official evidence), each case's outcome, and any `check` findings outside the scope. Draft run folders from exploration are left in the git-ignored evidence root.
 
 ### 4. Errors
 

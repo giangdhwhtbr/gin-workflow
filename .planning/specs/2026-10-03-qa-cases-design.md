@@ -36,9 +36,10 @@ gin-workflow specs reqs [--change <epic>] [--format json]
 - Without `--change`: every block of every living spec (`<specs>/<capability>/spec.md`), followed by the delta blocks (`ADDED`, `MODIFIED`, `REMOVED`) of every open change (every folder under `<changes>/` except `archive/`).
 - With `--change`: only the blocks of that change's `spec-delta.md`, including `REMOVED` blocks.
 - JSON: `{"requirements": [{"id", "title", "capability", "section", "change", "hash", "source", "scenarios": [{"title", "given": [], "when": [], "then": []}]}]}`. `section` is `LIVING`, `ADDED`, `MODIFIED`, or `REMOVED`; `change` is the change folder name, or `null` for a living block; `hash` is `block_hash` of the block (base lines ignored, so a delta block and the living block it becomes after `specs archive` have the same hash); `source` is `<repo-relative path>:<line>`.
-- Exit 0; exit 2 on the legacy layout or an unknown change, like the other `specs` commands.
+- JSON also carries `layout`, `qa` (the raw `qa:` config, `{}` when absent), and `test_globs`, so `gin-qa` never parses YAML.
+- Exit 0, including on the legacy layout (`requirements: []`, so legacy repositories can run `gin-qa cases check`); exit 2 on an unknown change or `--change` on the legacy layout.
 
-### 2. Configuration (schema 2.8)
+### 2. Configuration (schema 2.7)
 
 ```yaml
 qa:
@@ -46,7 +47,7 @@ qa:
   guidelines: qa/guidelines.md   # default
 ```
 
-Core accepts and validates the `qa:` key (two optional non-empty strings, no other keys); only `gin-qa` reads it. The `2.7 → 2.8` migration only bumps the version. A repository without `qa:` uses the defaults. `cases` must not match any `artifacts.test_globs` pattern (TC files are designs, not executed tests, and must not count as coverage in `specs trace`); `gin-qa cases check` reports it if it does.
+Core accepts and validates the `qa:` key (two optional non-empty strings, no other keys); only `gin-qa` reads it. No schema bump: the top level already allows unknown keys, so `qa:` is validated under schema 2.7. A repository without `qa:` uses the defaults. Paths are normalized (`./qa/cases/` is `qa/cases`) and must stay inside the repository. `cases` and no case file may match any `artifacts.test_globs` pattern (TC files are designs, not executed tests, and must not count as coverage in `specs trace`); `gin-qa cases check` reports it if it does.
 
 ### 3. Test case format
 
@@ -110,8 +111,8 @@ Python stdlib only; installed as a launcher on `PATH` the same way as `gin-workf
 
 ## Testing
 
-- Core `specs reqs`: living plus open-change JSON, `--change` JSON, archived changes excluded; multi-scenario REQs; a delta block's hash equals the living block's hash after `specs archive`; `REMOVED` blocks listed; legacy layout and unknown change exit 2.
-- Schema 2.8: `qa:` accepted with defaults, unknown sub-keys rejected, `2.7 → 2.8` migration.
+- Core `specs reqs`: living plus open-change JSON, `--change` JSON, archived changes excluded; multi-scenario REQs; a delta block's hash equals the living block's hash after `specs archive`; `REMOVED` blocks listed; legacy layout exits 0 with no requirements; unknown change exits 2.
+- Schema 2.7: `qa:` accepted with defaults, unknown sub-keys rejected.
 - `gin-qa cases`: effective-requirement resolution (open `MODIFIED` wins, open `REMOVED` removes, two open changes on one REQ conflict); a TC for an unarchived change passes `check` before and after `specs archive`; `plan` finds `missing`, `stale`, `obsolete`; `next-id` never reuses a number; every `check` finding type with `file:line`; free fields give exit 0; `pin` changes only the named TC; `export` keeps free fields; legacy `Source:` checks; missing or too-old `gin-workflow` exits 2.
 - Packaging: `install.sh --plugin gin-qa`, `--plugin all`, `--dry-run`; the default install does not install `gin-qa`; no core skill or agent mentions `gin-qa`; token budget for the `cases` skill and its description.
 - Smoke: an SDD sample repository → write TCs → `check` exit 0 → edit a REQ → `check` reports stale → `pin` → `check` exit 0.

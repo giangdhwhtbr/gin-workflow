@@ -32,9 +32,10 @@ qa/
     auth/tc-auth-001.spec.ts        # one spec per `Type: e2e` TC
   evidence/                         # gitignored, one folder per run
     2026-10-04T10-00-00/tc-auth-001/{result.json, 01.png, 02.png}
+    2026-10-04T10-00-00/tc-auth-001/<project>/{...}  # per named Playwright project
 ```
 
-Core accepts one more optional key, `qa.e2e` (non-empty string, default `qa/e2e`), next to `qa.cases` and `qa.guidelines`; unknown keys are still rejected. The evidence root is the `evidence` folder next to the `qa.e2e` folder (`qa/evidence` by default; `tests/evidence` for `qa.e2e: tests/e2e`).
+Core accepts one more optional key, `qa.e2e` (non-empty string, default `qa/e2e`), next to `qa.cases` and `qa.guidelines`; unknown keys are still rejected. Paths are normalized (`./qa/e2e/` is `qa/e2e`) and must stay inside the repository. The evidence root is the `evidence` folder next to the `qa.e2e` folder (`qa/evidence` by default; `tests/evidence` for `qa.e2e: tests/e2e`).
 
 A spec's path is `<qa.e2e>/<capability>/<lower-case TC-ID>.spec.ts`.
 
@@ -46,13 +47,13 @@ A spec's path is `<qa.e2e>/<capability>/<lower-case TC-ID>.spec.ts`.
 
 - Exports `test` (Playwright `test` extended with an `ev` fixture) and `expect`.
 - `ev.step(title, fn)` wraps `test.step`; after `fn` settles (pass or throw) it saves a full-page screenshot `NN.png` (NN = step number, two digits) and records `{n, title, status, screenshot, error}`; a throw is re-raised after recording.
-- On teardown it writes `result.json` into `$GIN_QA_RUN_DIR/<lower-case TC-ID>/`:
+- On teardown it writes `result.json` into `$GIN_QA_RUN_DIR/<lower-case TC-ID>/`, or `$GIN_QA_RUN_DIR/<lower-case TC-ID>/<project slug>/` for a named Playwright project (so browsers never overwrite each other; each attempt starts from an empty folder):
   ```json
-  {"tc": "TC-AUTH-001", "tc_hash8": "1a2b3c4d", "status": "passed",
+  {"tc": "TC-AUTH-001", "tc_hash8": "1a2b3c4d", "project": null, "status": "passed",
    "started": "<ISO-8601>", "finished": "<ISO-8601>",
    "steps": [{"n": 1, "title": "1. Open /login", "status": "passed", "screenshot": "01.png", "error": null}]}
   ```
-  `status` is `failed` if any step failed or the test failed outside a step (the first error line is kept in a step-less `error` field). The TC-ID and hash come from the spec's `// TC:` header, which the fixture reads from the spec file (`testInfo.file`); the header is the only place they live.
+  `status` is `failed` if any step failed or the test failed outside a step (the first error line is kept in a step-less `error` field). The TC-ID and hash come from the spec's `// TC:` header, which the fixture reads from the spec file (`testInfo.file`, LF or CRLF); the header is the only place they live.
 - Without `GIN_QA_RUN_DIR` the fixture writes nothing, so specs also run under plain `npx playwright test`.
 - Video, trace, base URL, and browsers stay in the project's own Playwright config.
 
@@ -66,8 +67,8 @@ Same conventions as `gin-qa cases`: Python stdlib, `--repository` (default cwd),
 | `plan [<capability>]` | JSON work list: `missing` (e2e TC without a spec, with the TC), `stale` (spec whose `@hash8` differs from the TC's, with the TC), `orphan` (spec whose TC no longer exists or is no longer `Type: e2e`). Exit 0 even when non-empty. |
 | `pin <TC-ID>...` | Rewrites the header line of each TC's spec to the current hash. Touches nothing else. Exit 1 if a TC or its spec does not exist. |
 | `run [<TC-ID>... \| <capability>]` | Creates `<evidence root>/<timestamp>/`, sets `GIN_QA_RUN_DIR`, runs `npx playwright test <spec files>` (all specs when no argument), then runs `check --run` on that folder and prints the run path. Exit: Playwright's exit code if non-zero, else 1 if the check has findings, else 0. |
-| `check [--run <dir>]` | Without `--run`, specs: missing or malformed header, header TC-ID not matching the file name, stale, orphan, missing. With `--run`, evidence: every spec selected in the run has a valid `result.json`; every recorded screenshot exists and is non-empty; `passed` with zero steps; `tc_hash8` differs from the current TC. Findings carry `file:line` (spec) or the evidence path. |
-| `export --run <dir>` | `{"run": "<dir>", "cases": [<cases export entry> + {"result": <result.json with screenshot paths made repository-relative> or null}]}` for every e2e TC. |
+| `check [--run <dir>]` | Without `--run`, specs: missing or malformed header, header TC-ID not matching the file name, stale, orphan, missing. With `--run`, evidence: every spec selected in the run has a valid `result.json` (each project's, when there are several); every recorded screenshot exists inside its case folder and is non-empty; `passed` with zero steps; `tc_hash8` differs from the current TC. Findings carry `file:line` (spec) or the evidence path. |
+| `export --run <dir>` | `{"run": "<dir>", "cases": [<cases export entry> + {"results": [<result.json per project, screenshot paths made repository-relative>]}]}` for every e2e TC; `results` is empty when the TC did not run. |
 
 `run` records which specs it selected in `<run>/run.json` (`{"started", "specs": [...], "playwright_exit"}`) so `check --run` and `export` know what was expected.
 
@@ -89,7 +90,7 @@ Errors (exit 2, naming the command to run): `npx` or `@playwright/test` missing 
 
 ## Testing
 
-- Unit (stdlib, fixture repositories as in G1): TC `hash8` ignores `REQ:`/`Type`/`Priority` and changes with steps; `plan` finds missing, stale, orphan; `pin` changes only the header line; every `check` finding type, with and without `--run`; `export` joins results and leaves `result: null` for TCs not run; `init` copies once and never overwrites; `.gitignore` updated once.
+- Unit (stdlib, fixture repositories as in G1): TC `hash8` ignores `REQ:`/`Type`/`Priority` and changes with steps; `plan` finds missing, stale, orphan; `pin` changes only the header line; every `check` finding type, with and without `--run`; `export` joins results and leaves `results: []` for TCs not run; `init` copies once and never overwrites; `.gitignore` updated once.
 - `run` with a fake `npx` on `PATH` that writes `result.json`: environment variable, TC-ID → file mapping, `run.json`, exit-code rules; missing `npx` exits 2.
 - Real Playwright smoke, skipped when `npx playwright` is unavailable: a static page served by `python3 -m http.server`, one two-step e2e TC, `run` then `check --run` exit 0, two non-empty PNGs.
 - Core: `qa.e2e` accepted, unknown `qa` sub-keys still rejected.

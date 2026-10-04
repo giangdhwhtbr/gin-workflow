@@ -2,7 +2,7 @@
 
 Rules for writing test cases in this repository. `/gin-qa:cases` reads this file first; its rules override the skill's defaults. Edit freely.
 
-- Language: English.
+- Language: not set yet (the language test cases are written in).
 - One user action per step.
 - `Type: e2e` for cases a browser test can run, `manual` otherwise.
 - `Priority: high | medium | low`.
