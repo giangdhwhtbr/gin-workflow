@@ -653,12 +653,6 @@ def validate_evidence_details(evidence: EvidenceRecord) -> str | None:
     return None
 
 
-def _identity_key(identity: AcceptanceIdentity | None) -> str:
-    if identity is None:
-        return ""
-    return json.dumps(identity.to_dict(), sort_keys=True, separators=(",", ":"))
-
-
 def _ordered(evidence: list[EvidenceRecord], *, require_timestamps: bool) -> bool:
     stamps: dict[EvidenceCategory, list[datetime]] = {}
     for record in evidence:
