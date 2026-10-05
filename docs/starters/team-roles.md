@@ -6,13 +6,13 @@ This guide details how cross-functional teams with **Business Analysts (BA)**, *
 
 ## 1. Separation of Concerns Matrix
 
-`gin-workflow` enforces the principle of **Single State Ownership**: every file, task, and quality gate has exactly one owning role.
+In team mode, each area of the repository has a lead role, each track belongs to one area, and each gate can require approval from a specific role. The matrix below is a suggested split of responsibilities; `gin-workflow` enforces only what `team.areas` and `team.approvals` configure.
 
 | Role | Primary Skills | File / Folder Scope | Git Branch Convention | Quality Gate Owned |
 |---|---|---|---|---|
-| **BA** (Business Analyst) | `/discuss`, `/gin-sdd`, `/progress`, `/tech-doc` | `docs/specs/`, `docs/changes/` | `spec/<feature>` or `change/<feature>` | `requirement_confirmed` |
+| **BA** (Business Analyst) | `/discuss`, `/progress`, `/tech-doc` | `docs/specs/`, `docs/changes/` | `spec/<topic>` (spec pull request) | `requirement_confirmed` |
 | **Dev / Tech Lead** | `/plan`, `/orchestrate`, `/execute`, `/verify`, `/ship`, `/review` | `src/`, `services/`, `.planning/plans/` | `feat/<epic>-<area>` (isolated in worktrees) | `plan_approved` |
-| **Tester / QE** | `/gin-qa:cases`, `/gin-qa:e2e`, `/verify`, `/progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | `qa/<feature>` or review on dev PR | `verification_passed` |
+| **Tester / QE** | `/gin-qa:cases`, `/gin-qa:e2e`, `/verify`, `/progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's PR | `verification_passed` |
 
 ---
 
@@ -23,10 +23,10 @@ BAs own requirements, acceptance criteria, and business logic verification.
 ### Step-by-Step Activities:
 1. **Clarify Requirements (`/gin-workflow:discuss <feature>`):**
    - BA initiates the discussion session with Claude.
-   - Claude clarifies scope, constraints, and edge cases, then formats the output into a specification with unique requirement IDs (`REQ-<MODULE>-001`) under `docs/changes/<epic>/spec.md` (or `docs/specs/`).
+   - Claude clarifies scope, constraints, and edge cases, then formats the output into a specification with unique requirement IDs (`REQ-<MODULE>-001`) in a change folder `docs/changes/<epic>-<slug>/` (`proposal.md`, `spec-delta.md`, `design.md`) with the SDD layout, or `.planning/specs/` otherwise.
 2. **Review & Approve Spec:**
-   - BA opens a Pull Request for the spec branch (`spec/<feature>`).
-   - With `team.approvals.requirement_confirmed: [ba]`, the requirement gate is recorded only when the BA approves and merges the spec PR.
+   - The spec is committed on a spec branch (`spec/<topic>`) and opened as a Pull Request.
+   - With `team.approvals.requirement_confirmed: [ba]`, the requirement gate is recorded with the PR URL only after the PR is merged and approved by a member with the `ba` role who is not its author.
 3. **Traceability:**
    - BAs can use `/progress` at any time to monitor which requirements have been planned, implemented, or shipped.
 
@@ -40,13 +40,13 @@ Developers and Tech Leads own system architecture, implementation tracks, unit t
 1. **Plan Architecture & Decomposition (`/gin-workflow:plan <feature>`):**
    - Tech Lead breaks the confirmed spec into tracks, assigning `Area:` and `Owner:` for each track.
    - Files are strictly bounded within defined areas (e.g. `Area: backend` only touches `services/backend/**`).
-   - The Area Lead approves the plan PR to record `plan_approved`.
+   - `team check-plan <plan>` must pass; with `plan_approved: area_lead`, the area lead approves the plan PR (`plan/<topic>`) and the gate is recorded with its URL after merge.
 2. **Orchestrate (`/gin-workflow:orchestrate <feature>`):**
-   - Creates Beads task units for each track with dependency links (`team deps`).
-   - Automatically prepares an isolated Git worktree under `.agent-workflow/worktrees/`.
+   - Creates a Beads task for each track, labelled `track:<N>,area:<area>` and assigned to its owner, with dependency links.
+   - Prepares an isolated Git worktree under `.planning/worktrees/`.
 3. **Execute Test-First (`/gin-workflow:execute`):**
-   - Developer claims the track bead (`team claim <bead>`).
-   - Work is performed test-first inside the isolated worktree.
+   - Developer runs `gin-workflow team deps`, picks from `gin-workflow team ready`, and claims the track bead (`gin-workflow team claim <bead>`).
+   - Work is performed test-first inside the isolated worktree on branch `feat/<epic>-<area>`.
    - Claude requests an independent code review; review findings must be addressed in the review ledger before the track closes.
 4. **Ship Delivery (`/gin-workflow:ship`):**
    - Once all tracks pass verification, Tech Lead merges or opens the final Pull Request.
@@ -79,7 +79,7 @@ Testers own test case authoring, requirement coverage tracking, and automated E2
    - Generates and executes Playwright tests under `qa/e2e/`.
    - Collects screenshots, ARIA snapshots, and run reports into `qa/evidence/`.
 4. **Approve Verification Gate:**
-   - With `team.approvals.verification_passed: [qe]`, the QE/Tester reviews the developer's PR and attached test evidence before approving the gate.
+   - With `team.approvals.verification_passed: [qe]`, the QE/Tester approves the latest commit of the developer's PR; a commit pushed after the approval needs a new approval.
 
 ---
 
@@ -87,17 +87,17 @@ Testers own test case authoring, requirement coverage tracking, and automated E2
 
 To ensure zero friction across team members:
 
-1. **Spec Freeze During Execution:**
-   - Once a plan is approved, the spec is frozen. If the BA needs to change a requirement, submit a new change proposal rather than modifying an in-flight spec.
-2. **Strict Test Separation:**
-   - Developers own unit and integration tests located alongside code in `src/**/__tests__/`.
-   - Testers own acceptance cases and E2E scenarios inside `qa/**`. Neither role edits the other's test files.
+1. **Requirement Changes Go Through a New Change** (team convention):
+   - Once a plan is approved, avoid editing the in-flight spec. With the SDD layout, a requirement change becomes a new change folder whose `MODIFIED` block carries the hash of the requirement it replaces, and `gin-qa cases plan` shows which test cases went stale.
+2. **Test Separation** (team convention):
+   - Developers own unit and integration tests next to the code they change.
+   - Testers own acceptance cases and E2E scenarios inside `qa/**`. Put each in its own area in `team.areas` so plans keep them apart.
 3. **Git Worktree Isolation:**
    - Every developer works in an isolated Git worktree created by `orchestrate`. Edits on one track never contaminate another developer's workspace.
 4. **Exclusive Beads Claims:**
-   - In shared team mode, task beads are locked via `team claim <bead>`. No two team members or agents can execute the same bead concurrently.
+   - In team mode, a track bead is claimed with `gin-workflow team claim <bead>`; the claim fails if someone else already holds it, so pick another.
 5. **PR-Proven Gates:**
-   - Approvals are cryptographically proven through Git host Pull Request reviews, preventing accidental or unauthorized gate progression.
+   - A gate with roles in `team.approvals` is recorded only with a PR URL that the Git host confirms is merged (or open, for `verification_passed`) and approved by a member with a listed role, never by its author.
 
 ---
 

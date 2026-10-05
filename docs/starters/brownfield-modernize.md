@@ -36,12 +36,17 @@ Run `/tech-doc`:
 /gin-workflow:tech-doc
 ```
 
-Claude will inspect your repository and produce a structured technical baseline under `docs/codebase/`:
+Claude will inspect your repository and produce a structured technical baseline under `.planning/codebase/` (with the SDD layout, `docs/codebase/`):
 - `OVERVIEW.md`: High-level purpose and core system capabilities.
-- `ARCHITECTURE.md`: Existing architectural boundaries and runtime flows.
 - `STACK.md`: Frameworks, runtimes, database drivers, and legacy libraries.
 - `INTEGRATIONS.md`: Third-party APIs, message queues, external databases.
+- `ARCHITECTURE.md`: Existing architectural boundaries and runtime flows.
+- `STRUCTURE.md`: Directory layout and where things live.
+- `CONVENTIONS.md`: Coding patterns the existing code follows.
+- `TESTING.md`: Test setup, coverage, and gaps.
 - `CONCERNS.md`: Technical debt, performance bottlenecks, security risks, and fragile modules.
+
+If [CodeGraph](../guides/recommended-tools.md) is installed, `/gin-workflow:setup` offers `codegraph init` on brownfield and legacy repositories, and `tech-doc` uses the index to map structure and call paths faster.
 
 Commit these documents as your team's documented baseline.
 
@@ -66,16 +71,18 @@ The authentication service MUST verify legacy MD5/SHA1 hashes while seamlessly u
 
 Never attempt a "Big Bang" rewrite. Instead, use the **Strangler Fig Pattern**: modernize one bounded context at a time behind a stable facade or router.
 
-1. **Define Areas:** Configure `team.areas` in `.agent-workflow/config.yaml` to isolate legacy modules from modernized modules:
+1. **Define Areas (team mode):** With [team mode](../guides/team.md), configure `team.areas` in `.agent-workflow/config.yaml` so plan tracks stay inside either the legacy or the modernized paths (`team check-plan` rejects a track that crosses areas):
    ```yaml
    team:
      areas:
        legacy_core:
-         paths: ["legacy/**", "legacy/tests/**"]
+         paths: ["legacy/**"]
+         lead: legacy_lead
        modern_api:
          paths: ["src/**", "tests/**"]
+         lead: api_lead
    ```
-2. **Deploy an API Gateway or Facade:** Route traffic for modernized endpoints to the new implementation while letting unmigrated requests pass through to the legacy core.
+2. **Deploy an API Gateway or Facade** (your own infrastructure; `gin-workflow` does not provide one): Route traffic for modernized endpoints to the new implementation while letting unmigrated requests pass through to the legacy core.
 
 ---
 
@@ -98,7 +105,7 @@ If using the `gin-qa` add-on:
    Type: integration
    ...
    ```
-2. If requirements change, `gin-qa cases plan` immediately flags stale or missing test coverage.
+2. If requirements change, `gin-qa cases plan` flags stale, missing, or obsolete test cases.
 
 ---
 
@@ -119,7 +126,7 @@ When ready to modernize a module, run the standard guarded lifecycle:
    - Track 5: Legacy cleanup (scheduled after verification).
 
 3. **Orchestrate & Execute (`/gin-workflow:orchestrate`, `/gin-workflow:execute`):**
-   - Builds within isolated Git worktrees.
+   - Builds within isolated Git worktrees under `.planning/worktrees/`.
    - Writes tests first, implements, runs independent review per track.
 
 4. **Verify (`/gin-workflow:verify`):**

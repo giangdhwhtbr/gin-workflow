@@ -35,7 +35,7 @@ Run setup inside Claude Code to configure your project:
 ```
 
 Setup asks simple questions to generate `.agent-workflow/config.yaml`:
-- **Rigor:** `standard` (recommended: isolates tracks in Git worktrees and checks lint, typecheck, test, and build).
+- **Rigor:** `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks).
 - **Provider mode:** `single` (standard baseline using Claude Code).
 - **Verify commands:** Confirms your test and build commands.
 
@@ -86,7 +86,7 @@ Claude offers four integration options: **Merge locally**, **Push & open Pull Re
 ## 4. Helpful Shortcuts
 
 - `/gin-workflow:workflow`: Automatically detects the current state and runs whichever stage is next.
-- `/gin-workflow:quick <change>`: Fast-tracks small, single-file changes without requiring specs or beads.
+- `/gin-workflow:quick <change>`: Fast-tracks small changes (up to 5 files in one module by default) without requiring specs or beads.
 - `/gin-workflow:progress`: Inspects active, ready, or blocked tasks.
 
 ---

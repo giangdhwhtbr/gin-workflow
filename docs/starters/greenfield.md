@@ -38,8 +38,8 @@ Inside Claude Code, run setup to configure your project foundation:
 
 The interactive setup will detect your environment and ask:
 - **Project stage:** Select `greenfield`.
-- **Project shape & stack:** Choose your architecture (e.g., `monolith`, `service`, `web-app`) and technologies (e.g., TypeScript, Python, React, FastAPI).
-- **Rigor:** Select `standard` (recommended: enforces Git worktree isolation, build, lint, and test checks) or `strict` (adds E2E requirements).
+- **Project shape & stack:** Choose the shape (`frontend`, `backend`, `fullstack`, or `library`) and describe the technologies you intend to use (e.g., TypeScript, Python, React, FastAPI).
+- **Rigor:** Select `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks) or `strict` (always a worktree, a review ledger, and E2E/accessibility checks when configured).
 - **Provider mode:** Choose `single` (baseline with Claude Code).
 - **Verification commands:** Confirm your lint, typecheck, test, and build commands (can be updated later in `.agent-workflow/config.yaml`).
 
@@ -63,7 +63,7 @@ Use `/discuss` to define your high-level architecture:
 /gin-workflow:discuss Project architecture, folder structure, and tech stack foundation
 ```
 
-Claude will propose 2-3 architectural approaches, evaluate tradeoffs, and write an Architecture Decision Record (ADR) or spec to `.planning/specs/` (or `docs/specs/` if using SDD layout). Review and confirm the design to record `requirement-confirmed`.
+Claude will propose 2-3 architectural approaches, evaluate tradeoffs, and write a spec to `.planning/specs/` (with the SDD layout, a change folder under `docs/changes/`, plus an Architecture Decision Record in `docs/adr/` for an architecture decision). Review and confirm the design to record `requirement-confirmed`.
 
 ### Step 3.2: Plan Foundation Tracks
 Run `/plan` to decompose the foundation into testable tracks:
@@ -155,12 +155,12 @@ Every new feature moves through a clean, reproducible cycle:
                 └─────────────────────┘
 ```
 
-1. **Discuss (`/gin-workflow:discuss <feature>`):** Creates a change folder under `docs/changes/<epic>/spec.md` with explicit, traceable requirement IDs (`REQ-<MODULE>-001`).
+1. **Discuss (`/gin-workflow:discuss <feature>`):** Creates a change folder `docs/changes/<epic>-<slug>/` holding `proposal.md`, `spec-delta.md`, and `design.md`, with explicit, traceable requirement IDs (`REQ-<MODULE>-001`).
 2. **Plan (`/gin-workflow:plan <feature>`):** Maps requirements to implementation tracks and files.
 3. **Orchestrate (`/gin-workflow:orchestrate <feature>`):** Sets up task beads and an isolated Git worktree.
 4. **Execute (`/gin-workflow:execute`):** Builds the tracks test-first with independent review checkpoints.
 5. **Verify (`/gin-workflow:verify`):** Verifies all tests, builds, and checks off every requirement line-by-line against fresh command evidence.
-6. **Ship (`/gin-workflow:ship`):** Merges the branch and automatically archives the change spec into the living project specs (`docs/specs/`).
+6. **Ship (`/gin-workflow:ship`):** Archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
 
 ---
 
