@@ -13,12 +13,12 @@ from .native_cli import (
     NativeCliInvocation,
     NativeCliRunner,
     NativeHealth,
-    direct_worker_result,
+    native_cancellable_dispatch,
+    native_worker_payload,
     probe_help,
-    worker_prompt,
 )
 from .circuit_breaker import FailureKind
-from .worker_dispatch import SynchronousWorkerAdapter, WorkerRequest, WorkerResult
+from .worker_dispatch import SynchronousWorkerAdapter, WorkerResult
 
 
 def build_codex_invocation(
@@ -104,10 +104,6 @@ def codex_health(
     return health
 
 
-def _payload(request: WorkerRequest) -> Mapping[str, Any]:
-    return {**request.to_payload(), "delegate_to": "subagent-driven-development"}
-
-
 class CodexWorkerAdapter(SynchronousWorkerAdapter):
     provider_name = "codex"
 
@@ -124,19 +120,20 @@ class CodexWorkerAdapter(SynchronousWorkerAdapter):
     ) -> None:
         cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
-            def cancellable_dispatch(payload: Mapping[str, Any], cancel_event) -> Mapping[str, Any]:
-                invocation = build_codex_invocation(
+            cancellable_dispatch = native_cancellable_dispatch(
+                native_runner,
+                lambda prompt: build_codex_invocation(
                     str(executable),
                     str(model),
                     Path(workspace),
-                    worker_prompt(payload),
+                    prompt,
                     timeout_seconds=timeout_seconds,
                     effort=effort,
-                )
-                return direct_worker_result(native_runner.run(invocation, cancel_event=cancel_event))
+                ),
+            )
         super().__init__(
             native_dispatch,
             available=native_dispatch is not None or cancellable_dispatch is not None,
-            payload_factory=_payload,
+            payload_factory=native_worker_payload,
             cancellable_runner=cancellable_dispatch,
         )

@@ -19,7 +19,7 @@ from typing import Callable
 from workflow_core.executable_resolver import PROVIDER_EXE_ALIASES
 
 from .circuit_breaker import FailureKind
-from .worker_dispatch import _SECRET_VALUE
+from .worker_dispatch import _SECRET_VALUE, WorkerRequest
 
 MAX_DIAGNOSTIC_CHARS = 2000
 
@@ -156,6 +156,20 @@ def direct_worker_result(output: NativeCliOutput) -> Mapping[str, object]:
             if isinstance(parsed, Mapping) and required.issubset(parsed):
                 return parsed
     raise NativeCliError(FailureKind.INVALID_RESULT, "native CLI output lacks worker result contract")
+
+
+def native_worker_payload(request: WorkerRequest) -> Mapping[str, object]:
+    return {**request.to_payload(), "delegate_to": "subagent-driven-development"}
+
+
+def native_cancellable_dispatch(
+    native_runner: NativeCliRunner,
+    build_invocation: Callable[[str], NativeCliInvocation],
+) -> Callable[[Mapping[str, object], threading.Event], Mapping[str, object]]:
+    def dispatch(payload: Mapping[str, object], cancel_event: threading.Event) -> Mapping[str, object]:
+        invocation = build_invocation(worker_prompt(payload))
+        return direct_worker_result(native_runner.run(invocation, cancel_event=cancel_event))
+    return dispatch
 
 
 def classify_native_failure(stderr: str) -> FailureKind:
