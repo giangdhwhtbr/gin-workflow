@@ -347,8 +347,12 @@ def initialize_ledger(
     base_dir: Optional[str] = None,
     workflow_id: Optional[str] = None,
     attempt_id: Optional[str] = None,
-) -> SourceCheckpoint:
-    """Checkpoint the declared source and initialize a complete replay identity."""
+) -> Optional[SourceCheckpoint]:
+    """Checkpoint the declared source and initialize a complete replay identity.
+
+    Returns None, without touching git or the ledger, when the bead already has a ledger."""
+    if os.path.exists(get_ledger_paths(bead_id, base_dir)[0]):
+        return None
     canonical_scope = canonicalize_scope(scope)
     checkpoint = create_source_checkpoint(
         repo_path,
@@ -530,6 +534,8 @@ def _mutate_ledger_unlocked(
 
     # 1. Handle Init Case
     if action == "ledger-created":
+        if os.path.exists(get_ledger_paths(bead_id, base_dir)[0]):
+            raise ValueError(f"Review ledger for bead {bead_id} already exists; refusing to replace its history.")
         log = EventLog()
         proj = ReviewProjection()
         
