@@ -653,12 +653,6 @@ def validate_evidence_details(evidence: EvidenceRecord) -> str | None:
     return None
 
 
-def _identity_key(identity: AcceptanceIdentity | None) -> str:
-    if identity is None:
-        return ""
-    return json.dumps(identity.to_dict(), sort_keys=True, separators=(",", ":"))
-
-
 def _ordered(evidence: list[EvidenceRecord], *, require_timestamps: bool) -> bool:
     stamps: dict[EvidenceCategory, list[datetime]] = {}
     for record in evidence:
@@ -898,15 +892,6 @@ class ReviewProvider(Protocol):
     def begin_revision(
         self,
         task_id: str,
-        *,
-        actor_id: str,
-        lease_id: str,
-        idempotency_key: str,
-    ) -> ProviderResult[ReviewStatus]: ...
-    def complete_revision(
-        self,
-        task_id: str,
-        finding_ids: tuple[str, ...],
         *,
         actor_id: str,
         lease_id: str,

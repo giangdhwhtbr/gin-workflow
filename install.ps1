@@ -263,33 +263,50 @@ function Test-ManagedLauncherShim {
 }
 
 function Install-Launcher {
-    $sourceDirectory = Join-Path $ScriptRoot 'plugins/gin-workflow/src/scripts'
-    $managedRoot = Join-Path $UserHome '.local/lib/gin-workflow'
-    $installDirectory = Join-Path $managedRoot $LauncherVersion
-    $launcherTarget = Join-Path $installDirectory 'gin-workflow'
-    $launcherShim = Join-Path $UserHome '.local/bin/gin-workflow.cmd'
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Version
+    )
+    $sourceDirectory = Join-Path $ScriptRoot "plugins/$Name/src/scripts"
+    $managedRoot = Join-Path $UserHome ".local/lib/$Name"
+    $installDirectory = Join-Path $managedRoot $Version
+    $launcherTarget = Join-Path $installDirectory $Name
+    $launcherShim = Join-Path $UserHome ".local/bin/$Name.cmd"
+    $package = if ($Name -eq 'gin-workflow') { 'workflow_core' } else { 'gin_qa' }
 
     if (Test-Path -LiteralPath $launcherShim) {
-        if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot)) {
+        if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot -Name $Name)) {
             throw "Error: refusing to replace a different launcher at $launcherShim"
         }
     }
 
+    if ($Name -eq 'gin-qa') {
+        $workflowShim = Join-Path $UserHome '.local/bin/gin-workflow.cmd'
+        if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin-workflow -ErrorAction SilentlyContinue)) {
+            Write-Warning 'gin-workflow is not installed; gin-qa needs it (./install.ps1 -Plugin gin-workflow).'
+        }
+    }
+
     if ($DryRun) {
-        Write-Output "(dry-run) would install gin-workflow launcher version $LauncherVersion to $launcherTarget"
-        Write-Output "(dry-run) would install gin-workflow launcher shim at $launcherShim"
+        Write-Output "(dry-run) would install $Name launcher version $Version to $launcherTarget"
+        Write-Output "(dry-run) would install $Name launcher shim at $launcherShim"
         return
     }
 
-    New-Directory (Join-Path $installDirectory 'workflow_core')
+    New-Directory (Join-Path $installDirectory $package)
     New-Directory (Split-Path -Parent $launcherShim)
-    Copy-Item -LiteralPath (Join-Path $sourceDirectory 'gin-workflow') -Destination $launcherTarget -Force
+    Copy-Item -LiteralPath (Join-Path $sourceDirectory $Name) -Destination $launcherTarget -Force
     Copy-DirectoryContent `
-        -Source (Join-Path $sourceDirectory 'workflow_core') `
-        -Destination (Join-Path $installDirectory 'workflow_core')
-    Copy-DirectoryContent `
-        -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'rules') `
-        -Destination (Join-Path $installDirectory 'rules')
+        -Source (Join-Path $sourceDirectory $package) `
+        -Destination (Join-Path $installDirectory $package)
+    if ($Name -eq 'gin-workflow') {
+        Copy-DirectoryContent `
+            -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'rules') `
+            -Destination (Join-Path $installDirectory 'rules')
+    }
+    if ($Name -eq 'gin-qa') {
+        New-Directory (Join-Path $installDirectory 'templates')
+    }
     Copy-DirectoryContent `
         -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'templates') `
         -Destination (Join-Path $installDirectory 'templates')
@@ -306,73 +323,28 @@ function Install-Launcher {
         }
     }
 
-    Write-Output "Installed gin-workflow launcher version $LauncherVersion to $launcherShim"
-    $launcherBin = [IO.Path]::GetFullPath((Split-Path -Parent $launcherShim)).TrimEnd('\', '/')
-    $pathContainsLauncher = $false
-    foreach ($entry in ($env:PATH -split [Regex]::Escape([IO.Path]::PathSeparator))) {
-        if ([string]::IsNullOrWhiteSpace($entry)) {
-            continue
-        }
-        try {
-            if ([IO.Path]::GetFullPath($entry).TrimEnd('\', '/').Equals($launcherBin, [StringComparison]::OrdinalIgnoreCase)) {
-                $pathContainsLauncher = $true
-                break
+    Write-Output "Installed $Name launcher version $Version to $launcherShim"
+    if ($Name -eq 'gin-workflow') {
+        $launcherBin = [IO.Path]::GetFullPath((Split-Path -Parent $launcherShim)).TrimEnd('\', '/')
+        $pathContainsLauncher = $false
+        foreach ($entry in ($env:PATH -split [Regex]::Escape([IO.Path]::PathSeparator))) {
+            if ([string]::IsNullOrWhiteSpace($entry)) {
+                continue
+            }
+            try {
+                if ([IO.Path]::GetFullPath($entry).TrimEnd('\', '/').Equals($launcherBin, [StringComparison]::OrdinalIgnoreCase)) {
+                    $pathContainsLauncher = $true
+                    break
+                }
+            }
+            catch {
+                continue
             }
         }
-        catch {
-            continue
+        if (-not $pathContainsLauncher) {
+            Write-Warning "$launcherBin is not on PATH."
         }
     }
-    if (-not $pathContainsLauncher) {
-        Write-Warning "$launcherBin is not on PATH."
-    }
-}
-
-function Install-QaLauncher {
-    $sourceDirectory = Join-Path $ScriptRoot 'plugins/gin-qa/src/scripts'
-    $managedRoot = Join-Path $UserHome '.local/lib/gin-qa'
-    $installDirectory = Join-Path $managedRoot $QaLauncherVersion
-    $launcherTarget = Join-Path $installDirectory 'gin-qa'
-    $launcherShim = Join-Path $UserHome '.local/bin/gin-qa.cmd'
-
-    if (Test-Path -LiteralPath $launcherShim) {
-        if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot -Name 'gin-qa')) {
-            throw "Error: refusing to replace a different launcher at $launcherShim"
-        }
-    }
-    $workflowShim = Join-Path $UserHome '.local/bin/gin-workflow.cmd'
-    if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin-workflow -ErrorAction SilentlyContinue)) {
-        Write-Warning 'gin-workflow is not installed; gin-qa needs it (./install.ps1 -Plugin gin-workflow).'
-    }
-
-    if ($DryRun) {
-        Write-Output "(dry-run) would install gin-qa launcher version $QaLauncherVersion to $launcherTarget"
-        Write-Output "(dry-run) would install gin-qa launcher shim at $launcherShim"
-        return
-    }
-
-    New-Directory (Join-Path $installDirectory 'gin_qa')
-    New-Directory (Split-Path -Parent $launcherShim)
-    Copy-Item -LiteralPath (Join-Path $sourceDirectory 'gin-qa') -Destination $launcherTarget -Force
-    Copy-DirectoryContent `
-        -Source (Join-Path $sourceDirectory 'gin_qa') `
-        -Destination (Join-Path $installDirectory 'gin_qa')
-    New-Directory (Join-Path $installDirectory 'templates')
-    Copy-DirectoryContent `
-        -Source (Join-Path $sourceDirectory '../templates') `
-        -Destination (Join-Path $installDirectory 'templates')
-    $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
-    $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"
-    try {
-        Write-Utf8File -Path $temporaryShim -Content $shimContent
-        Move-Item -LiteralPath $temporaryShim -Destination $launcherShim -Force
-    }
-    finally {
-        if (Test-Path -LiteralPath $temporaryShim) {
-            Remove-Item -LiteralPath $temporaryShim -Force
-        }
-    }
-    Write-Output "Installed gin-qa launcher version $QaLauncherVersion to $launcherShim"
 }
 
 function Invoke-NativeCommand {
@@ -506,7 +478,8 @@ if ($Uninstall) {
 }
 
 foreach ($name in $Plugins) {
-    if ($name -eq 'gin-workflow') { Install-Launcher } else { Install-QaLauncher }
+    $version = if ($name -eq 'gin-workflow') { $LauncherVersion } else { $QaLauncherVersion }
+    Install-Launcher -Name $name -Version $version
     Install-Plugin -Name $name
 }
 Write-Output 'Install processes completed successfully!'

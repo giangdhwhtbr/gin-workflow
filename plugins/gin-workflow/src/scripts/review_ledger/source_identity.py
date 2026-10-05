@@ -189,31 +189,6 @@ def compute_source_scope_hash(scope: Mapping[str, Any]) -> str:
     return hashlib.sha256(jcs.serialize(canonical).encode("utf-8")).hexdigest()
 
 
-def _status_paths(repo_path: str) -> List[str]:
-    raw = _git(
-        repo_path,
-        "status",
-        "--porcelain=v1",
-        "-z",
-        "--untracked-files=all",
-        "--ignore-submodules=none",
-    )
-    fields = raw.split(b"\0")
-    paths: List[str] = []
-    index = 0
-    while index < len(fields):
-        field = fields[index]
-        index += 1
-        if not field:
-            continue
-        status = field[:2].decode("ascii", "replace")
-        path = field[3:].decode("utf-8", "surrogateescape")
-        paths.append(path)
-        if "R" in status or "C" in status:
-            index += 1
-    return paths
-
-
 def validate_untracked_files(repo_path: str, scope: Mapping[str, Any]) -> List[str]:
     """Return only untracked paths that are neither source nor declared artifacts.
 
