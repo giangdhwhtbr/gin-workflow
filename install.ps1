@@ -272,7 +272,7 @@ function Install-Launcher {
     $installDirectory = Join-Path $managedRoot $Version
     $launcherTarget = Join-Path $installDirectory $Name
     $launcherShim = Join-Path $UserHome ".local/bin/$Name.cmd"
-    $package = if ($Name -eq 'gin-workflow') { 'workflow_core' } else { 'gin_qa' }
+    $packages = if ($Name -eq 'gin-workflow') { @('workflow_core', 'workflow_providers', 'review_ledger') } else { @('gin_qa') }
 
     if (Test-Path -LiteralPath $launcherShim) {
         if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot -Name $Name)) {
@@ -293,12 +293,14 @@ function Install-Launcher {
         return
     }
 
-    New-Directory (Join-Path $installDirectory $package)
     New-Directory (Split-Path -Parent $launcherShim)
     Copy-Item -LiteralPath (Join-Path $sourceDirectory $Name) -Destination $launcherTarget -Force
-    Copy-DirectoryContent `
-        -Source (Join-Path $sourceDirectory $package) `
-        -Destination (Join-Path $installDirectory $package)
+    foreach ($package in $packages) {
+        New-Directory (Join-Path $installDirectory $package)
+        Copy-DirectoryContent `
+            -Source (Join-Path $sourceDirectory $package) `
+            -Destination (Join-Path $installDirectory $package)
+    }
     if ($Name -eq 'gin-workflow') {
         Copy-DirectoryContent `
             -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'rules') `
