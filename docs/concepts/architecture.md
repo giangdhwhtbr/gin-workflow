@@ -139,7 +139,7 @@ flowchart LR
     MK[marketplace: claude plugin install, codex plugin add] --> C1b[harness plugin cache]
 ```
 
-The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the `gin-workflow` launcher. See [Troubleshooting](../reference/troubleshooting.md).
+The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the `gin-workflow` launcher. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
 
 ## Usage collection
 

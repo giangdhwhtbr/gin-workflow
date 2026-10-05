@@ -8,7 +8,7 @@ Skills call the `gin-workflow` CLI (and `gin-qa` for the QA add-on). A marketpla
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform codex
 ```
 
-Use `--platform claude` for Claude Code. Make sure `~/.local/bin` is on `PATH`, then check with `gin-workflow --version`.
+Use `--platform claude` for Claude Code; installer options are in [Contributing](../contributing.md#build-and-install-locally). Make sure `~/.local/bin` is on `PATH`, then check with `gin-workflow --version`.
 
 
 ## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
