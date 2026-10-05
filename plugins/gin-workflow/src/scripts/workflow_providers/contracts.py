@@ -912,15 +912,6 @@ class ReviewProvider(Protocol):
         lease_id: str,
         idempotency_key: str,
     ) -> ProviderResult[ReviewStatus]: ...
-    def complete_revision(
-        self,
-        task_id: str,
-        finding_ids: tuple[str, ...],
-        *,
-        actor_id: str,
-        lease_id: str,
-        idempotency_key: str,
-    ) -> ProviderResult[ReviewStatus]: ...
     def status(self, task_id: str) -> ProviderResult[ReviewStatus]: ...
 
 

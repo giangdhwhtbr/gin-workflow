@@ -386,26 +386,6 @@ class FakeReviewProvider(ProviderBase):
         self.reviews[task_id] = status
         return ProviderResult.success(status)
 
-    def complete_revision(
-        self, task_id: str, finding_ids: tuple[str, ...], *,
-        actor_id: str, lease_id: str, idempotency_key: str
-    ) -> ProviderResult[ReviewStatus]:
-        current = self.reviews.get(task_id)
-        if current is None or not actor_id or not idempotency_key:
-            return ProviderResult.invalid("known review and revision identity are required")
-        selected = set(finding_ids)
-        findings = tuple(
-            replace(finding, status="fixed-awaiting-verification")
-            if finding.finding_id in selected else finding
-            for finding in current.findings
-        )
-        status = ReviewStatus(
-            task_id, "review-requested", len(findings),
-            tuple(f.finding_id for f in findings if f.status != "verified"), findings,
-        )
-        self.reviews[task_id] = status
-        return ProviderResult.success(status)
-
     def status(self, task_id: str) -> ProviderResult[ReviewStatus]:
         if guarded := self._guard():
             return guarded

@@ -522,30 +522,3 @@ class ReviewLedgerProvider(ProviderBase):
             "complete_revision", idempotency_key, fingerprint,
             ProviderResult.success(normalized),
         )
-
-    def complete_revision(
-        self, task_id: str, finding_ids: tuple[str, ...], *,
-        actor_id: str, lease_id: str, idempotency_key: str
-    ) -> ProviderResult[ReviewStatus]:
-        fingerprint = (task_id, tuple(finding_ids), actor_id, lease_id)
-        if replay := self._replay("complete_revision", idempotency_key, fingerprint):
-            return replay
-        operations = [
-            ("finding-fixed", {"finding_id": finding_id}, "worker", actor_id)
-            for finding_id in finding_ids
-        ]
-        operations.extend(
-            [
-                ("implementation-complete", {}, "worker", actor_id),
-                ("review-requested", {}, "worker", actor_id),
-            ]
-        )
-        try:
-            projection = self._mutate_batch(task_id, operations, lease_id=lease_id)
-            normalized = self._normalize(task_id, projection)
-        except Exception as error:
-            return ProviderResult.invalid(f"revision completion rejected: {error}")
-        return self._remember(
-            "complete_revision", idempotency_key, fingerprint,
-            ProviderResult.success(normalized),
-        )
