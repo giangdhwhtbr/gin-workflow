@@ -693,7 +693,7 @@ Gate orchestration_ready recorded.`;
         actor: 'BE Dev & FE Dev',
         badge: 'Gate: implementation_complete',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        command: 'team claim <bead> && /gin-workflow:execute',
+        command: 'gin-workflow team claim <bead> → /gin-workflow:execute',
         desc: 'Developer claims bead, writes failing test first inside the sub-repo, implements, and undergoes independent review in the review ledger.',
         renderDetails: function() {
           const reviewLedgerSample = `# Review Ledger for BEAD-201 (backend repo)
@@ -711,7 +711,7 @@ Date: 2026-10-05T14:50:00Z`;
           return `
             <h4 class="font-bold text-slate-900 text-sm mb-2">Test-First Loop with Review Ledger in Sub-Repos</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              Developer runs <code>team claim BEAD-201</code>, then <code>/gin-workflow:execute</code> inside the backend worktree:
+              Developer claims the task via shell CLI <code>gin-workflow team claim BEAD-201</code>, then triggers <code>/gin-workflow:execute</code> inside the backend worktree:
             </p>
             ${renderCodeCard(reviewLedgerSample, 'markdown', '.planning/reviews/BEAD-201/review.md')}
           `;
@@ -1178,6 +1178,17 @@ files in scope:
   - frontend/src/features/... (Area: frontend)
   - qa/cases/... (Area: qa)
 status: ok (exit 0)`
+      },
+      {
+        cmd: 'gin-workflow team claim',
+        category: 'Team Governance',
+        role: 'Developer',
+        lang: 'yaml',
+        desc: 'Atomically claims an open track bead for the active user email, pushing claim locks to shared Dolt remote when beads_sync is enabled.',
+        exampleInput: 'gin-workflow team claim BEAD-201',
+        exampleOutput: `status: claimed
+bead: BEAD-201
+assignee: binh-be@example.com`
       },
       {
         cmd: 'gin-workflow rules --list',
