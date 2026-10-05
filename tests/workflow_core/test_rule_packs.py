@@ -56,8 +56,9 @@ class TestRulePacks(unittest.TestCase):
         for phrase in ("`lean`", "`IMPORTANT`", "`MINOR`", "`simplified:`"):
             self.assertIn(phrase, text)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("## Rule Packs", readme)
-        self.assertIn("https://github.com/dietrichgebert/ponytail", readme)
+        guide = (ROOT / "docs/guides/rules.md").read_text(encoding="utf-8")
+        self.assertIn("docs/guides/rules.md", readme)
+        self.assertIn("https://github.com/dietrichgebert/ponytail", guide)
 
 
 if __name__ == "__main__":
