@@ -26,7 +26,7 @@ PROCESS_GATES = frozenset(
     {"requirement_confirmed", "plan_approved", "orchestration_ready"}
 )
 # Bypass requires human approval and a follow-up task. `review_approved` is
-# deliberately not a router gate (see docs/agent-task-lifecycle.md); it is
+# deliberately not a router gate (see docs/concepts/lifecycle.md); it is
 # classified here so that waiving independent review is recorded the same way.
 SAFETY_GATES = frozenset({"verification_passed", "review_approved"})
 # `implementation_complete` states a fact, not a formality, and `shipped` is

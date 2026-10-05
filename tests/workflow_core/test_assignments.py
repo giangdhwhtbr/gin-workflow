@@ -74,11 +74,8 @@ class AssignmentTests(unittest.TestCase):
 
     def test_parent_deliverable_vs_track_bead_and_handoff_contracts(self):
         plugin = SCRIPTS.parent
-        root = SCRIPTS.parents[3]
         orchestrate = (plugin / "skills/orchestrate/SKILL.md").read_text(encoding="utf-8")
         planning = (plugin / "skills/plan/SKILL.md").read_text(encoding="utf-8")
-        handoff_doc = (root / "docs/verification-and-handoff-workflow.md").read_text(encoding="utf-8")
-        handoff_ref = (plugin / "references/verification-and-handoff-workflow.md").read_text(encoding="utf-8")
         execute = (plugin / "skills/execute/SKILL.md").read_text(encoding="utf-8")
 
         # Parent Bead vs Track Bead separation
@@ -88,13 +85,10 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("Distinguish Parent Bead (Deliverable) vs Track Beads (Work Units)", orchestrate)
         self.assertIn("Distinguish the Parent Bead", planning)
 
-        # Handoff contracts and PR merge claim prohibition
-        self.assertEqual(handoff_doc, handoff_ref)
-        self.assertIn("waiting for PR merge", handoff_doc)
-        self.assertIn("Strict Prohibition on \"Waiting for PR Merge\"", handoff_doc)
-        self.assertIn("Xin lệnh tạo PR từ nhánh feature đã push", handoff_doc)
-        self.assertIn("Giữ nhánh feature đã push", handoff_doc)
+        # Handoff contracts and PR merge claim prohibition live in the execute skill
+        self.assertIn("waiting for PR merge", execute)
         self.assertIn("Xin lệnh tạo PR từ nhánh feature đã push", execute)
+        self.assertIn("Giữ nhánh feature đã push", execute)
 
     def test_plan_validation_reports_every_role_and_tier_error_in_task_order(self):
         with tempfile.TemporaryDirectory() as directory:

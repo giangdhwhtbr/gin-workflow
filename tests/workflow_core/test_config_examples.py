@@ -69,32 +69,25 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertIn(portable["provider_mode"], ("single", "multi"))
         self.assertEqual("provider", portable["routing"]["review"]["independence"])
 
-    def test_canonical_docs_match_plugin_references_and_link_routing_guide(self):
-        for name in (
-            "setup-system.md",
-            "capability-provider-contracts.md",
-            "context-and-evidence-policy.md",
-        ):
-            self.assertEqual(
-                (ROOT / "docs" / name).read_bytes(),
-                (PLUGIN / "references" / name).read_bytes(),
-            )
+    def test_readme_links_the_provider_guide_and_docs_cover_routing(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        vietnamese = (ROOT / "docs/huong-dan-workflow-v2.1.md").read_text(encoding="utf-8")
-        routing = (ROOT / "docs/provider-routing.md").read_text(encoding="utf-8")
+        vietnamese = (ROOT / "docs/huong-dan.md").read_text(encoding="utf-8")
+        routing = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")
+        config = (ROOT / "docs/reference/config.md").read_text(encoding="utf-8")
 
-        self.assertIn("docs/provider-routing.md", readme)
-        self.assertIn("v2.2", vietnamese)
+        self.assertIn("docs/concepts/providers.md", readme)
+        self.assertIn("getting-started.md", vietnamese)
+        self.assertIn("docs/huong-dan.md", readme)
         for phrase in (
             "provider role",
             "reasoning tier",
             "providers.local.yaml",
             "health",
             "circuit breaker",
-            "rollback",
             "privacy",
         ):
             self.assertIn(phrase, routing.lower())
+        self.assertIn("rollback", config)
 
 
 if __name__ == "__main__":
