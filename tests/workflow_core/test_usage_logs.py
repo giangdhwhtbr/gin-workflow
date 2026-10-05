@@ -104,6 +104,10 @@ class ClaudeCodeTests(unittest.TestCase):
         scan = claude_code_records(self.repo, Path(self.tmp.name) / "nope")
         self.assertEqual((scan.status, scan.records, scan.skipped_lines), ("not_found", (), 0))
 
+    def test_no_project_for_the_repository_is_not_found(self):
+        scan = claude_code_records(self.repo.parent / "elsewhere", self.root)
+        self.assertEqual((scan.status, scan.records), ("not_found", ()))
+
     def test_env_root(self):
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.root.parent)}):
             self.assertEqual(len(claude_code_records(self.repo).records), 3)

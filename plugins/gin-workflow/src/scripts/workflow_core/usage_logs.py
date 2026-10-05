@@ -82,9 +82,11 @@ def claude_code_records(repo: Path, root: Path | None = None) -> SourceScan:
     records: list[UsageRecord] = []
     seen: set[tuple[str, str]] = set()
     skipped = 0
+    matched = False
     for project in sorted(root.iterdir()):
         if not project.is_dir() or not (project.name == slug or project.name.startswith(slug + "-")):
             continue
+        matched = True
         for path in sorted(project.rglob("*.jsonl")):
             for row in _rows(path):
                 if row is None:
@@ -116,7 +118,7 @@ def claude_code_records(repo: Path, root: Path | None = None) -> SourceScan:
                 records.append(UsageRecord(ts, "claude_code", model, str(row.get("sessionId", "")),
                                            os.path.abspath(cwd), branch if isinstance(branch, str) else "",
                                            tokens[0], tokens[1], tokens[2], tokens[3]))
-    return SourceScan(tuple(records), "ok", skipped)
+    return SourceScan(tuple(records), "ok" if matched else "not_found", skipped)
 
 
 def codex_records(repo: Path, root: Path | None = None) -> SourceScan:

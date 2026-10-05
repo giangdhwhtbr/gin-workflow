@@ -222,6 +222,11 @@ class CollectTests(Fixture):
         self.assertNotIn("ship", doc["stages"])
         self.assertEqual(doc["unattributed"], {"tokens": 0, "cost": 0.0})
 
+    def test_collect_from_inside_a_worktree_matches_the_main_checkout(self):
+        from_tree = usage.collect(self.tree, "ep1.1", now=at(14), claude_root=self.claude, codex_root=self.codex)
+        self.assertEqual(from_tree, self.collect("ep1.1"))
+        self.assertEqual(from_tree["stages"]["review"]["tokens"], 100)
+
     def test_removed_worktree_still_names_its_bead(self):
         git(self.repo, "worktree", "remove", "--force", str(self.tree))
         doc = self.collect("ep1.1")
