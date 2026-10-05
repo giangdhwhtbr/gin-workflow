@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -28,13 +29,15 @@ class SetupCliTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("gin-workflow 2.7", result.stdout.strip())
 
-    def run_cli(self, repository: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    def run_cli(self, repository: Path, *arguments: str,
+                env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(LAUNCHER), "setup", *arguments, "--repository", str(repository), "--format", "json"],
             cwd=ROOT,
             text=True,
             capture_output=True,
             check=False,
+            env=env,
         )
 
     def test_preset_proposes_explicit_assignments(self):
@@ -571,7 +574,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertTrue(probe_payload["checks_details"]["providers"]["codex.low"]["available"])
 
     def test_doctor_reports_verify_commands_project_stage_and_codegraph_read_only(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
             repository = Path(directory)
             git = lambda *args: subprocess.run(["git", *args], cwd=repository, check=True, capture_output=True)  # noqa: E731
             git("init")
@@ -591,7 +594,12 @@ class SetupCliTests(unittest.TestCase):
             before = {path: path.read_bytes() for path in repository.rglob("*")
                       if path.is_file() and ".git" not in path.relative_to(repository).parts}
 
-            result = self.run_cli(repository, "doctor")
+            stub = Path(bin_directory) / "codegraph"
+            stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            stub.chmod(0o755)
+
+            result = self.run_cli(repository, "doctor",
+                                  env={**os.environ, "PATH": f"{bin_directory}{os.pathsep}{os.environ['PATH']}"})
 
             self.assertEqual(0, result.returncode, result.stderr)
             details = json.loads(result.stdout)["checks_details"]
@@ -604,6 +612,27 @@ class SetupCliTests(unittest.TestCase):
             after = {path: path.read_bytes() for path in repository.rglob("*")
                      if path.is_file() and ".git" not in path.relative_to(repository).parts}
             self.assertEqual(before, after)
+
+    def test_doctor_suggests_installing_codegraph_only_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
+            repository = Path(directory)
+            subprocess.run(["git", "init"], cwd=repository, check=True, capture_output=True)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+            git_dir = str(Path(shutil.which("git")).parent)
+            missing = self.run_cli(repository, "doctor", env={**os.environ, "PATH": git_dir})
+            self.assertEqual(0, missing.returncode, missing.stderr)
+            graph = json.loads(missing.stdout)["checks_details"]["codegraph"]
+            self.assertFalse(graph["installed"])
+            self.assertIn("recommended-tools", graph["suggestion"])
+            stub = Path(bin_directory) / "codegraph"
+            stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            stub.chmod(0o755)
+            present = self.run_cli(repository, "doctor", env={**os.environ, "PATH": f"{bin_directory}{os.pathsep}{git_dir}"})
+            self.assertEqual(0, present.returncode, present.stderr)
+            graph = json.loads(present.stdout)["checks_details"]["codegraph"]
+            self.assertTrue(graph["installed"])
+            self.assertNotIn("suggestion", graph)
 
     def test_doctor_flags_stale_review_ledgers(self):
         with tempfile.TemporaryDirectory() as directory:

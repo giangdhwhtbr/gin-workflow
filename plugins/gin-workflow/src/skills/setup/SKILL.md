@@ -15,7 +15,7 @@ Ask exactly one question at a time and wait for its answer. Do not infer require
 2. **Rigor** — Suggest `suggested_rigor`. `easy`: no worktree, self-check review; `standard`: worktree for parallel work, independent review; `strict`: always a worktree, independent review with a review ledger.
 3. **Provider mode** — `single` (the current harness does everything; default) or `multi` (continue with Advanced setup groups 2–9).
 4. **Verify commands** — Confirm the detected lint, typecheck, test, build, and e2e commands; the user may edit any. On greenfield, ask for `stack_intent` instead.
-5. **Code index** — Only when `codegraph.installed` is true, it is not `indexed`, and the stage is brownfield or legacy: offer `codegraph init`, and run it only on approval.
+5. **Code index** — Brownfield or legacy only. When `codegraph.installed` is true and it is not `indexed`: offer `codegraph init`, and run it only on approval. When `codegraph.installed` is false: print one line suggesting CodeGraph with https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md; do not ask, install, or wait.
 
 Optional: a model per tier for the current harness from `gin-workflow setup models --provider <harness> --format json`. Suggest fast/cheap models for `low` and frontier models for `high`; an `agy` id suffix (`-low`/`-medium`/`-high`) matches its tier. Always allow manual entry; an empty list means manual entry. Model choices become `--provider-set` assignments.
 
