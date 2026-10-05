@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-cij",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-cij",
+      "review_base_sha": "1cd86251bd24c4e017d45d8cfb60a8c4dcf53251",
+      "reviewed_source_sha": "9018a9c86a90de106e40653caf9b822c9d6b9886",
+      "checkpoint_sha": "9018a9c86a90de106e40653caf9b822c9d6b9886",
+      "source_scope_hash": "6078263e2aa4dd06395fa388e807aaa38d47fc75878f29de0bed22ce09daba6f",
+      "source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+      "reviewed_source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "plugins/gin-workflow/src/scripts/workflow_providers/registry.py",
+      "plugins/gin-workflow/src/scripts/workflow_providers/routed_worker.py",
+      "tests/workflow_providers/test_registry.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": {
+    "lease_id": "86fc7a006fb74d0da3f5d82258b7327c",
+    "actor_role": "reviewer",
+    "actor_id": "reviewer:independent:gin-workflow-cij",
+    "acquired_at": "2026-10-05T12:17:13.514741Z",
+    "expires_at": "2026-10-05T12:27:13.514741Z",
+    "current_ledger_revision": 6
+  },
+  "ledger_revision": 6,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-10-05T12:01:49.617821Z",
+      "actor": {
+        "role": "implementer",
+        "actor_id": "implementer:claude:gin-workflow-cij"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-cij",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-cij",
+            "review_base_sha": "1cd86251bd24c4e017d45d8cfb60a8c4dcf53251",
+            "reviewed_source_sha": "79e52055b55aa97f70e05a03d1aca9efc3a71a6f",
+            "checkpoint_sha": "79e52055b55aa97f70e05a03d1aca9efc3a71a6f",
+            "source_scope_hash": "6078263e2aa4dd06395fa388e807aaa38d47fc75878f29de0bed22ce09daba6f",
+            "source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+            "reviewed_source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "plugins/gin-workflow/src/scripts/workflow_providers/registry.py",
+            "plugins/gin-workflow/src/scripts/workflow_providers/routed_worker.py",
+            "tests/workflow_providers/test_registry.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "9eb8c5788224d8d09da393d9f278c4f1dc20120c06d83e25f33d8855964b55db"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-05T12:01:49.891358Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:gin-workflow-cij"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-cij",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-cij",
+            "review_base_sha": "1cd86251bd24c4e017d45d8cfb60a8c4dcf53251",
+            "reviewed_source_sha": "9018a9c86a90de106e40653caf9b822c9d6b9886",
+            "checkpoint_sha": "9018a9c86a90de106e40653caf9b822c9d6b9886",
+            "source_scope_hash": "6078263e2aa4dd06395fa388e807aaa38d47fc75878f29de0bed22ce09daba6f",
+            "source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+            "reviewed_source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "9eb8c5788224d8d09da393d9f278c4f1dc20120c06d83e25f33d8855964b55db",
+      "event_hash": "5f6853ea97fc30816a324d78074fd3ba4ad67a71e4488a91268c18a61699afd1"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-10-05T12:01:50.021785Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:gin-workflow-cij"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "5f6853ea97fc30816a324d78074fd3ba4ad67a71e4488a91268c18a61699afd1",
+      "event_hash": "c69df6b477f3a35b334ec5e52c052d563cc9168c1074b6eea6ec564a8a861b57"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-05T12:17:13.515528Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:independent:gin-workflow-cij"
+      },
+      "payload": {
+        "lease_id": "86fc7a006fb74d0da3f5d82258b7327c",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:independent:gin-workflow-cij",
+        "acquired_at": "2026-10-05T12:17:13.514741Z",
+        "expires_at": "2026-10-05T12:27:13.514741Z"
+      },
+      "previous_event_hash": "c69df6b477f3a35b334ec5e52c052d563cc9168c1074b6eea6ec564a8a861b57",
+      "event_hash": "96290b043b808493ca33174c8ebcb33e5569da1465f0bf1d2cbd63c07bc4a4e9"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-10-05T12:17:13.532316Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:independent:gin-workflow-cij"
+      },
+      "payload": {},
+      "previous_event_hash": "96290b043b808493ca33174c8ebcb33e5569da1465f0bf1d2cbd63c07bc4a4e9",
+      "event_hash": "0720a3edfe019c17b6ff98301687262b8c5151a0c3ebb8e0a96ca1759ed50d20"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-10-05T12:17:28.237191Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:independent:gin-workflow-cij"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-cij",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-cij",
+            "review_base_sha": "1cd86251bd24c4e017d45d8cfb60a8c4dcf53251",
+            "reviewed_source_sha": "9018a9c86a90de106e40653caf9b822c9d6b9886",
+            "checkpoint_sha": "9018a9c86a90de106e40653caf9b822c9d6b9886",
+            "source_scope_hash": "6078263e2aa4dd06395fa388e807aaa38d47fc75878f29de0bed22ce09daba6f",
+            "source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+            "reviewed_source_tree_hash": "0b5e45f17181cab152d5c244f8a079013099c1c87fd7471d1fb527e3a380841b",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "6078263e2aa4dd06395fa388e807aaa38d47fc75878f29de0bed22ce09daba6f",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "0720a3edfe019c17b6ff98301687262b8c5151a0c3ebb8e0a96ca1759ed50d20",
+      "event_hash": "ea6b4dd29a138da169ba01f6747db302c5302abf9f340024fd7e36b19a1545c2"
+    }
+  ]
+}
