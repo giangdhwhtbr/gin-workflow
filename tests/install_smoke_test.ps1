@@ -136,41 +136,63 @@ try {
         Assert-True (($rulesList | Out-String).Contains('core (plugin, core)')) "Launcher did not list the core rule pack: $rulesList"
     }
 
-    $managedRoot = Join-Path $TestHome '.local/lib/gin-workflow'
-    $oldInstall = Join-Path $managedRoot '2.1'
-    $oldLauncher = Join-Path $oldInstall 'gin-workflow'
-    $shim = Join-Path $TestHome '.local/bin/gin-workflow.cmd'
-    New-Item -ItemType Directory -Path $oldInstall -Force | Out-Null
-    [IO.File]::WriteAllText($oldLauncher, '# old launcher')
-    $oldShim = "@echo off`r`npython `"$oldLauncher`" %*`r`n"
-    [IO.File]::WriteAllText($shim, $oldShim, [Text.UTF8Encoding]::new($false))
+    foreach ($launcherCase in @(
+        @{ Name = 'gin-workflow'; Old = '2.1'; Current = '2.7' },
+        @{ Name = 'gin-qa'; Old = '0.3'; Current = '0.4' }
+    )) {
+        $launcherName = $launcherCase.Name
+        $managedRoot = Join-Path $TestHome ".local/lib/$launcherName"
+        $oldInstall = Join-Path $managedRoot $launcherCase.Old
+        $oldLauncher = Join-Path $oldInstall $launcherName
+        $shim = Join-Path $TestHome ".local/bin/$launcherName.cmd"
+        New-Item -ItemType Directory -Path $oldInstall -Force | Out-Null
+        [IO.File]::WriteAllText($oldLauncher, '# old launcher')
+        $oldShim = "@echo off`r`npython `"$oldLauncher`" %*`r`n"
+        [IO.File]::WriteAllText($shim, $oldShim, [Text.UTF8Encoding]::new($false))
 
-    Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null
-    $upgradedShim = [IO.File]::ReadAllText($shim)
-    Assert-Contains $upgradedShim (Join-Path $managedRoot '2.7/gin-workflow')
-    Assert-Exists $oldLauncher
+        Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
+        $upgradedShim = [IO.File]::ReadAllText($shim)
+        Assert-Contains $upgradedShim (Join-Path $managedRoot "$($launcherCase.Current)/$launcherName")
+        Assert-Exists $oldLauncher
 
-    Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null
+        Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
 
-    $nestedLauncher = Join-Path $managedRoot '2.1/nested/gin-workflow'
-    New-Item -ItemType Directory -Path (Split-Path -Parent $nestedLauncher) -Force | Out-Null
-    [IO.File]::WriteAllText($nestedLauncher, '# nested launcher')
-    $nestedShim = "@echo off`r`npython `"$nestedLauncher`" %*`r`n"
-    [IO.File]::WriteAllText($shim, $nestedShim, [Text.UTF8Encoding]::new($false))
-    $nestedBefore = [IO.File]::ReadAllBytes($shim)
-    $nestedFailed = $false
-    try {
-        Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null
+        $nestedLauncher = Join-Path $managedRoot "$($launcherCase.Old)/nested/$launcherName"
+        New-Item -ItemType Directory -Path (Split-Path -Parent $nestedLauncher) -Force | Out-Null
+        [IO.File]::WriteAllText($nestedLauncher, '# nested launcher')
+        $nestedShim = "@echo off`r`npython `"$nestedLauncher`" %*`r`n"
+        [IO.File]::WriteAllText($shim, $nestedShim, [Text.UTF8Encoding]::new($false))
+        $nestedBefore = [IO.File]::ReadAllBytes($shim)
+        $nestedFailed = $false
+        try {
+            Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
+        }
+        catch {
+            $nestedFailed = $true
+            Assert-Contains $_.Exception.Message 'refusing to replace a different launcher'
+        }
+        Assert-True $nestedFailed 'Expected a nested managed launcher path to fail installation'
+        Assert-True `
+            ([Convert]::ToBase64String($nestedBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($shim))) `
+            'Nested managed launcher shim was modified'
+        [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
+
+        $foreignShim = "@echo off`r`necho foreign launcher`r`n"
+        [IO.File]::WriteAllText($shim, $foreignShim, [Text.UTF8Encoding]::new($false))
+        $before = [IO.File]::ReadAllBytes($shim)
+        $collisionFailed = $false
+        try {
+            Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
+        }
+        catch {
+            $collisionFailed = $true
+            Assert-Contains $_.Exception.Message 'refusing to replace a different launcher'
+        }
+        Assert-True $collisionFailed 'Expected a foreign launcher collision to fail installation'
+        $after = [IO.File]::ReadAllBytes($shim)
+        Assert-True ([Convert]::ToBase64String($before) -eq [Convert]::ToBase64String($after)) 'Foreign launcher shim was modified'
+        [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
     }
-    catch {
-        $nestedFailed = $true
-        Assert-Contains $_.Exception.Message 'refusing to replace a different launcher'
-    }
-    Assert-True $nestedFailed 'Expected a nested managed launcher path to fail installation'
-    Assert-True `
-        ([Convert]::ToBase64String($nestedBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($shim))) `
-        'Nested managed launcher shim was modified'
-    [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
 
     $mockLog = Join-Path $TestRoot 'harness-commands.log'
     $env:GIN_WORKFLOW_MOCK_LOG = $mockLog
@@ -204,20 +226,9 @@ try {
     Assert-True $agyFailureDetected 'Expected a failing Antigravity registration command to fail installation'
     $env:PATH = $OriginalPath
 
+    $shim = Join-Path $TestHome '.local/bin/gin-workflow.cmd'
     $foreignShim = "@echo off`r`necho foreign launcher`r`n"
     [IO.File]::WriteAllText($shim, $foreignShim, [Text.UTF8Encoding]::new($false))
-    $before = [IO.File]::ReadAllBytes($shim)
-    $collisionFailed = $false
-    try {
-        Invoke-Installer @{ Platform = 'codex'; Project = $project } | Out-Null
-    }
-    catch {
-        $collisionFailed = $true
-        Assert-Contains $_.Exception.Message 'refusing to replace a different launcher'
-    }
-    Assert-True $collisionFailed 'Expected a foreign launcher collision to fail installation'
-    $after = [IO.File]::ReadAllBytes($shim)
-    Assert-True ([Convert]::ToBase64String($before) -eq [Convert]::ToBase64String($after)) 'Foreign launcher shim was modified'
 
     $missingProjectFailed = $false
     try {

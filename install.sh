@@ -378,69 +378,52 @@ is_managed_launcher_link() {
 }
 
 install_launcher() {
-  local source_dir="$SCRIPT_DIR/plugins/gin-workflow/src/scripts"
-  local install_dir="${HOME}/.local/lib/gin-workflow/${LAUNCHER_VERSION}"
-  local launcher_target="${install_dir}/gin-workflow"
-  local launcher_link="${HOME}/.local/bin/gin-workflow"
-  local managed_root="${HOME}/.local/lib/gin-workflow"
-
-  if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
-    if [ ! -L "$launcher_link" ] || { [ "$(readlink "$launcher_link")" != "$launcher_target" ] && ! is_managed_launcher_link "$launcher_link" "$managed_root"; }; then
-      echo "Error: refusing to replace a different launcher at $launcher_link" >&2
-      return 1
-    fi
-  fi
-
-  if [ "$DRY_RUN" = true ]; then
-    echo "(dry-run) would install gin-workflow launcher version $LAUNCHER_VERSION to $launcher_target"
-    echo "(dry-run) would link gin-workflow launcher on PATH at $launcher_link"
-    return
-  fi
-
-  mkdir -p "$install_dir/workflow_core" "$install_dir/rules" "$install_dir/templates" "$(dirname "$launcher_link")"
-  cp -f "$source_dir/gin-workflow" "$launcher_target"
-  cp -rf "$source_dir/workflow_core/." "$install_dir/workflow_core/"
-  cp -rf "$source_dir/../rules/." "$install_dir/rules/"
-  cp -rf "$source_dir/../templates/." "$install_dir/templates/"
-  chmod 755 "$launcher_target"
-  ln -sfn "$launcher_target" "$launcher_link"
-  echo "Installed gin-workflow launcher version $LAUNCHER_VERSION to $launcher_link"
-  case ":${PATH}:" in
-    *":${HOME}/.local/bin:"*) ;;
-    *) echo "Warning: ${HOME}/.local/bin is not on PATH." >&2 ;;
+  local name="$1" version="$2" package
+  local source_dir="$SCRIPT_DIR/plugins/$name/src/scripts"
+  local managed_root="${HOME}/.local/lib/$name"
+  local install_dir="$managed_root/$version"
+  local launcher_target="$install_dir/$name"
+  local launcher_link="${HOME}/.local/bin/$name"
+  case "$name" in
+    gin-workflow) package=workflow_core ;;
+    gin-qa) package=gin_qa ;;
   esac
-}
-
-install_qa_launcher() {
-  local source_dir="$SCRIPT_DIR/plugins/gin-qa/src/scripts"
-  local install_dir="${HOME}/.local/lib/gin-qa/${QA_LAUNCHER_VERSION}"
-  local launcher_target="${install_dir}/gin-qa"
-  local launcher_link="${HOME}/.local/bin/gin-qa"
-  local managed_root="${HOME}/.local/lib/gin-qa"
 
   if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
-    if [ ! -L "$launcher_link" ] || { [ "$(readlink "$launcher_link")" != "$launcher_target" ] && ! is_managed_launcher_link "$launcher_link" "$managed_root" gin-qa; }; then
+    if [ ! -L "$launcher_link" ] || { [ "$(readlink "$launcher_link")" != "$launcher_target" ] && ! is_managed_launcher_link "$launcher_link" "$managed_root" "$name"; }; then
       echo "Error: refusing to replace a different launcher at $launcher_link" >&2
       return 1
     fi
   fi
-  if [ ! -e "${HOME}/.local/bin/gin-workflow" ] && ! command -v gin-workflow &> /dev/null; then
+  if [ "$name" = gin-qa ] && [ ! -e "${HOME}/.local/bin/gin-workflow" ] && ! command -v gin-workflow &> /dev/null; then
     echo "Warning: gin-workflow is not installed; gin-qa needs it (./install.sh --plugin gin-workflow)." >&2
   fi
 
   if [ "$DRY_RUN" = true ]; then
-    echo "(dry-run) would install gin-qa launcher version $QA_LAUNCHER_VERSION to $launcher_target"
-    echo "(dry-run) would link gin-qa launcher on PATH at $launcher_link"
+    echo "(dry-run) would install $name launcher version $version to $launcher_target"
+    echo "(dry-run) would link $name launcher on PATH at $launcher_link"
     return
   fi
 
-  mkdir -p "$install_dir/gin_qa" "$install_dir/templates" "$(dirname "$launcher_link")"
-  cp -f "$source_dir/gin-qa" "$launcher_target"
-  cp -rf "$source_dir/gin_qa/." "$install_dir/gin_qa/"
+  mkdir -p "$install_dir/$package" "$install_dir/templates" "$(dirname "$launcher_link")"
+  if [ "$name" = gin-workflow ]; then
+    mkdir -p "$install_dir/rules"
+  fi
+  cp -f "$source_dir/$name" "$launcher_target"
+  cp -rf "$source_dir/$package/." "$install_dir/$package/"
+  if [ "$name" = gin-workflow ]; then
+    cp -rf "$source_dir/../rules/." "$install_dir/rules/"
+  fi
   cp -rf "$source_dir/../templates/." "$install_dir/templates/"
   chmod 755 "$launcher_target"
   ln -sfn "$launcher_target" "$launcher_link"
-  echo "Installed gin-qa launcher version $QA_LAUNCHER_VERSION to $launcher_link"
+  echo "Installed $name launcher version $version to $launcher_link"
+  if [ "$name" = gin-workflow ]; then
+    case ":${PATH}:" in
+      *":${HOME}/.local/bin:"*) ;;
+      *) echo "Warning: ${HOME}/.local/bin is not on PATH." >&2 ;;
+    esac
+  fi
 }
 
 CODEX_MARKETPLACE_READY=false
@@ -547,8 +530,8 @@ install_plugin() {
 
 for p_name in "${PLUGINS[@]}"; do
   case "$p_name" in
-    gin-workflow) install_launcher ;;
-    gin-qa) install_qa_launcher ;;
+    gin-workflow) install_launcher "$p_name" "$LAUNCHER_VERSION" ;;
+    gin-qa) install_launcher "$p_name" "$QA_LAUNCHER_VERSION" ;;
   esac
   install_plugin "$p_name"
 done
