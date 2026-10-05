@@ -22,6 +22,7 @@ Every change moves through recorded quality gates:
    ```bash
    bd init
    ```
+5. Optional: [recommended tools](guides/recommended-tools.md) such as CodeGraph, which gives agents faster code lookup.
 
 ---
 

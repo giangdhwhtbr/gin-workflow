@@ -307,12 +307,22 @@
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 class="text-xl font-bold text-slate-900">Project Manager (PM) Intelligence & Analytics</h2>
-          <p class="text-sm text-slate-500 mt-1">Real-time visibility into AI token consumption, budget tracking, rework rate, and quality signals via <code class="text-blue-600">/report</code> across all sub-repos.</p>
+          <p class="text-sm text-slate-500 mt-1">Milestone-based accounting of AI token consumption, cost attribution per lifecycle stage, rework rate, and quality signals via <code class="text-blue-600">/report</code> across all sub-repos.</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs bg-slate-100 text-slate-600 font-mono px-2.5 py-1 rounded-md border border-slate-300">Epic: #AUTH-MIGRATE</span>
-          <button class="text-xs bg-blue-600 text-white font-semibold px-3 py-1 rounded-md hover:bg-blue-700 transition" onclick="refreshMetrics()">Simulate Live Refresh</button>
+          <span class="text-xs bg-blue-50 text-blue-800 font-semibold px-2.5 py-1 rounded-md border border-blue-200">Source: Beads (ai_usage metadata)</span>
         </div>
+      </div>
+
+      <!-- Architectural Reality Callout -->
+      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1.5 leading-relaxed">
+        <div class="font-bold flex items-center gap-1.5 text-slate-900 text-xs uppercase tracking-wider">
+          <span>ℹ️</span> <span>How Usage & Quality Reporting Actually Works</span>
+        </div>
+        <p class="text-slate-600">
+          Reports are <strong>milestone-based audits</strong>, not streaming real-time meters. When a worker finishes a track and closes its bead (<code>bd close</code> at stage <code>execute</code>), <code>gin-workflow usage collect --bead &lt;id&gt;</code> parses local Claude Code/Codex session logs and records the token counts into the bead's metadata. The <code>/report</code> skill is a <strong>read-only query</strong> across these immutable records, calculating costs and pairing them with review reopens, findings, and waivers.
+        </p>
       </div>
 
       <!-- KPI Summary Cards -->
@@ -1660,14 +1670,6 @@ Estimated ROI: +42% efficiency vs manual dev budget`
       if (window.Prism) {
         setTimeout(() => Prism.highlightAll(), 20);
       }
-    }
-
-    // PM METRICS LIVE REFRESH
-    function refreshMetrics() {
-      const spend = (14.28 + (Math.random() * 0.5)).toFixed(2);
-      const tokens = (1842500 + Math.floor(Math.random() * 50000)).toLocaleString();
-      document.getElementById('kpi-spend').innerText = `$${spend}`;
-      document.getElementById('kpi-tokens').innerText = tokens;
     }
 
     window.addEventListener('DOMContentLoaded', init);

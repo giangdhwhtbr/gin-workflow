@@ -11,7 +11,7 @@ A workflow plugin for **Claude Code**, **Codex CLI**, and **Antigravity CLI** th
 | Starters | [greenfield](docs/starters/greenfield.md), [brownfield & modernization](docs/starters/brownfield-modernize.md), [team roles (BA/Dev/Tester)](docs/starters/team-roles.md) |
 | [Architecture](docs/concepts/architecture.md) | how the pieces fit, with flow diagrams |
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
-| Guides | [use cases](docs/guides/use-cases.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
+| Guides | [use cases](docs/guides/use-cases.md), [recommended tools](docs/guides/recommended-tools.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
 | Advanced | [multi-agent routing](docs/advanced/multi-agent-routing.md) |
 | Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md) |
 | [Contributing](docs/contributing.md) | build, test, release |
@@ -27,7 +27,7 @@ A workflow plugin for **Claude Code**, **Codex CLI**, and **Antigravity CLI** th
 | [Beads](https://github.com/gastownhall/beads) (`bd`) | task tracking | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
 | A harness | running the skills | Claude Code, Codex CLI, or Antigravity CLI (`agy`) |
 
-Optional, per feature: `codex` or `agy` next to your main harness for multi-provider routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md).
+Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; `codex` or `agy` next to your main harness for multi-provider routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).
 
 Then, in each repository: `bd init` once, and `/gin-workflow:setup` once ([getting started](docs/getting-started.md)).
 

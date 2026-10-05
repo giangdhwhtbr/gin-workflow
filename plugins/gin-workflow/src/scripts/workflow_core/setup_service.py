@@ -460,7 +460,10 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         if settings.stage == "greenfield" and detected["stage"] == "brownfield":
             checks_details["project_stage"] = {"suggestion": "project now has a manifest/sources; run /setup configure to set project.stage=brownfield"}
         graph = dict(detected["codegraph"])
-        if graph["stale"]:
+        if not graph["installed"]:
+            graph["suggestion"] = ("codegraph is not installed (optional); see "
+                                   "https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md")
+        elif graph["stale"]:
             graph["suggestion"] = "codegraph index is older than HEAD; run `codegraph sync`"
         checks_details["codegraph"] = graph
 
