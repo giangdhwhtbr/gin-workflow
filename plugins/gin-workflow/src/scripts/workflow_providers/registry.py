@@ -47,7 +47,7 @@ from .circuit_breaker import CircuitBreakerStore
 from .claude_worker import ClaudeWorkerAdapter, claude_health
 from .codex_worker import CodexWorkerAdapter, codex_health
 from .native_cli import NativeCliRunner
-from .routed_worker import RoutedWorkerDispatcher
+from .routed_worker import RoutedWorkerDispatcher, WorkspaceUnavailableError
 
 
 class RegistryError(ValueError):
@@ -260,16 +260,18 @@ class ProviderRegistry:
 
             def workspace_for(request) -> Path:
                 workspace_id = str(request.isolation_policy.get("workspace_id", ""))
+                if not workspace_id and request.provider_role == "review":
+                    return root.resolve()
                 isolated = workspace.isolate(workspace_id)
                 if (
                     isolated.status is not OperationStatus.SUCCESS
                     or isolated.value is None
                     or not isolated.value.isolated
                 ):
-                    raise RegistryError(f"unknown isolated workspace: {workspace_id}")
+                    raise WorkspaceUnavailableError(f"unknown isolated workspace: {workspace_id}")
                 record = isolated.value
                 if str(request.isolation_policy.get("branch", "")) != record.branch:
-                    raise RegistryError("isolated workspace branch does not match authoritative record")
+                    raise WorkspaceUnavailableError("isolated workspace branch does not match authoritative record")
                 authoritative = record.path
                 resolved = authoritative.resolve()
                 supported_root = worktree_root.resolve()
@@ -278,10 +280,10 @@ class ProviderRegistry:
                     or not resolved.is_dir()
                     or not resolved.is_relative_to(supported_root)
                 ):
-                    raise RegistryError("authoritative workspace violates worktree root safety")
+                    raise WorkspaceUnavailableError("authoritative workspace violates worktree root safety")
                 supplied = request.isolation_policy.get("workspace_path")
                 if supplied and Path(str(supplied)).resolve() != resolved:
-                    raise RegistryError("workspace_path does not match authoritative workspace")
+                    raise WorkspaceUnavailableError("workspace_path does not match authoritative workspace")
                 return resolved
 
             def factory(candidate, request):

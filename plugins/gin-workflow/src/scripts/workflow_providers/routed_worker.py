@@ -29,6 +29,10 @@ from .worker_dispatch import (
 )
 
 
+class WorkspaceUnavailableError(RuntimeError):
+    """The request's workspace cannot host a worker; not a provider failure."""
+
+
 @dataclass(frozen=True)
 class RoutedWorkerReceipt:
     worker_id: str
@@ -327,6 +331,15 @@ class RoutedWorkerDispatcher:
                 try:
                     adapter = self.adapter_factory(candidate, request)
                     adapter_receipt: WorkerReceipt = adapter.prepare(request)
+                except WorkspaceUnavailableError:
+                    capacity.release()
+                    self.breakers.release_probe(
+                        candidate.provider, candidate.model, effort=candidate.effort
+                    )
+                    self._emit(
+                        request, "unavailable", candidate=candidate, reason="workspace_unavailable"
+                    )
+                    continue
                 except Exception:
                     capacity.release()
                     self.breakers.record_failure(
