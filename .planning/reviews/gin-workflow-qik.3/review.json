@@ -1,0 +1,178 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-qik.3",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-qik.3",
+      "review_base_sha": "0076e53e51cd03235a8b4efa8a053f5b770019e8",
+      "reviewed_source_sha": "50235238dee730ebfb7e1bdbad5be5af5cfd6934",
+      "checkpoint_sha": "50235238dee730ebfb7e1bdbad5be5af5cfd6934",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+      "reviewed_source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": {
+    "lease_id": "4839da475d3b4c2a89e2f0e400ce0137",
+    "actor_role": "reviewer",
+    "actor_id": "reviewer:antigravity:gemini-3.8-flash-high",
+    "acquired_at": "2026-10-05T00:42:08.616237Z",
+    "expires_at": "2026-10-05T00:52:08.616237Z",
+    "current_ledger_revision": 6
+  },
+  "ledger_revision": 6,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-10-05T00:38:41.107335Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-qik.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qik.3",
+            "review_base_sha": "0076e53e51cd03235a8b4efa8a053f5b770019e8",
+            "reviewed_source_sha": "34feffd422f421c841bd56740d143416afb8ddbd",
+            "checkpoint_sha": "34feffd422f421c841bd56740d143416afb8ddbd",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+            "reviewed_source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "deb1ecbcbc4134aebf3f80dc1a6166a4365f784bc5fc73807a01d348bf590344"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-05T00:38:41.372052Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-qik.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qik.3",
+            "review_base_sha": "0076e53e51cd03235a8b4efa8a053f5b770019e8",
+            "reviewed_source_sha": "50235238dee730ebfb7e1bdbad5be5af5cfd6934",
+            "checkpoint_sha": "50235238dee730ebfb7e1bdbad5be5af5cfd6934",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+            "reviewed_source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "deb1ecbcbc4134aebf3f80dc1a6166a4365f784bc5fc73807a01d348bf590344",
+      "event_hash": "297488971f6b18ffa879f35632e0707d6dc5ad39b52bee317a9abf3cd93316c2"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-10-05T00:38:41.502247Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "297488971f6b18ffa879f35632e0707d6dc5ad39b52bee317a9abf3cd93316c2",
+      "event_hash": "121226e1315177c2baaa693b87dceb1e9db37a764f0a9425e31b202b597e0535"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-05T00:42:08.617124Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:antigravity:gemini-3.8-flash-high"
+      },
+      "payload": {
+        "lease_id": "4839da475d3b4c2a89e2f0e400ce0137",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:antigravity:gemini-3.8-flash-high",
+        "acquired_at": "2026-10-05T00:42:08.616237Z",
+        "expires_at": "2026-10-05T00:52:08.616237Z"
+      },
+      "previous_event_hash": "121226e1315177c2baaa693b87dceb1e9db37a764f0a9425e31b202b597e0535",
+      "event_hash": "a35740f31589dd3c73735bd82a6b70fc228a19198b23ab8652a213ad4d8a9825"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-10-05T00:42:08.638448Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:antigravity:gemini-3.8-flash-high"
+      },
+      "payload": {},
+      "previous_event_hash": "a35740f31589dd3c73735bd82a6b70fc228a19198b23ab8652a213ad4d8a9825",
+      "event_hash": "0fb125ef7dff3dcc6b1766118ebdbba6b4dcedd713bc17e69176276c9902de21"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-10-05T00:42:08.828550Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:antigravity:gemini-3.8-flash-high"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-qik.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qik.3",
+            "review_base_sha": "0076e53e51cd03235a8b4efa8a053f5b770019e8",
+            "reviewed_source_sha": "50235238dee730ebfb7e1bdbad5be5af5cfd6934",
+            "checkpoint_sha": "50235238dee730ebfb7e1bdbad5be5af5cfd6934",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+            "reviewed_source_tree_hash": "74e17587a5247856a85ce0760c39ec8ee97c9bb5bd70cae025a198f990cb836b",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "0fb125ef7dff3dcc6b1766118ebdbba6b4dcedd713bc17e69176276c9902de21",
+      "event_hash": "86dad984fa125a5d870930d71575d8b5c9e307bd65204c4560cba2fed903d099"
+    }
+  ]
+}
