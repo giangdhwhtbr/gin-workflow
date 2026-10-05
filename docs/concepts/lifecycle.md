@@ -8,20 +8,20 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 
 | Stage | Does | Closes with | Gate recorded by |
 |---|---|---|---|
-| `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/`, and waits for your confirmation | `requirement_confirmed` | `gin-workflow record requirement-confirmed --evidence <spec>` |
-| `plan` | Writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role and reasoning tier each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan>` |
-| `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch>` |
+| `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/`, and waits for your confirmation | `requirement_confirmed` | `gin-workflow record requirement-confirmed --evidence <spec> --actor <id>` |
+| `plan` | Writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role and reasoning tier each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
+| `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>` |
 | `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
-| `verify` | Re-runs the quality gates, validates every review ledger, and checks the spec and plan line by line against the code | `verification_passed` | `record verification-passed --evidence <commands and results>` |
+| `verify` | Re-runs the quality gates, validates every review ledger, and checks the spec and plan line by line against the code | `verification_passed` | `record verification-passed --evidence <commands and results> --actor <id>` |
 | `ship` | Offers merge, pull request, keep, or discard; runs the one you choose; cleans up; closes the epic | `shipped` | derived: the epic is closed |
 
-One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the plan's slug) so gates from different features do not mix; without one, `default-workflow` is used.
+Every `record` needs `--actor <id>` (in team mode it comes from your git email). One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the plan's slug) so gates from different features do not mix; without one, `default-workflow` is used.
 
 `gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing.
 
 ### Standalone beads
 
-A pre-existing bead can skip discuss and plan: record it as its own epic with `record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead>`, and pass `--workflow-id <bead>` to every later call. `implementation_complete` is then the bead itself closed, and after the merge `record shipped --workflow-id <bead> --evidence <merge commit>` marks it shipped.
+A pre-existing bead can skip discuss and plan: record it as its own epic with `record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later call. `implementation_complete` is then the bead itself closed, and after the merge `record shipped --workflow-id <bead> --evidence <merge commit> --actor <id>` marks it shipped.
 
 ## Execute and review
 

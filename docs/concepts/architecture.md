@@ -16,7 +16,7 @@ flowchart LR
         AGT[agents/ developer, code-reviewer, ...]
         REF[references/ stage-contract, shape-*]
         RUL[rules/ rule packs]
-        HK[hooks/ safety-check.sh, post-edit.sh]
+        HK[hooks/hooks.json: scripts/safety-check.sh, post-edit.sh]
         CLI[gin-workflow CLI: workflow_core]
         RL[review-ledger.py: review_ledger]
         PRV[workflow_providers: routed workers]
