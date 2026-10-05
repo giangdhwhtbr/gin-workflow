@@ -110,6 +110,13 @@ class WorkerAdapterTests(unittest.TestCase):
                     self.assertIn("--output-format", argv)
                     self.assertEqual("json", argv[argv.index("--output-format") + 1])
                 self.assertEqual(17, runner.invocations[0].timeout_seconds)
+                invocation = runner.invocations[0]
+                prompt = (
+                    invocation.argv[invocation.argv.index("--print") + 1]
+                    if adapter_type == AntigravityWorkerAdapter
+                    else invocation.stdin.decode("utf-8")
+                )
+                self.assertIn('"delegate_to": "subagent-driven-development"', prompt)
 
     def test_codex_adapter_passes_reasoning_effort_configuration(self):
         class FakeRunner:
@@ -267,8 +274,18 @@ class WorkerAdapterTests(unittest.TestCase):
                 payloads.append(payload)
                 return result()
 
+            class UnusedRunner:
+                def run(self, invocation, *, cancel_event=None):
+                    raise AssertionError("native_dispatch must take precedence over native_runner")
+
             with self.subTest(adapter=adapter_type.__name__):
-                adapter = adapter_type(native_dispatch=native_dispatch)
+                adapter = adapter_type(
+                    native_dispatch=native_dispatch,
+                    native_runner=UnusedRunner(),
+                    executable="native",
+                    model="model",
+                    workspace=Path.cwd(),
+                )
                 receipt = adapter.dispatch(request())
                 normalized = adapter.collect_result(receipt.worker_id)
                 self.assertEqual("completed", normalized.status)
