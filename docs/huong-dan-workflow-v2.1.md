@@ -108,7 +108,7 @@ route đều lỗi hoặc hết capacity, task giữ trạng thái mở với bl
 mapping model low/medium/high, fallback, concurrency, queue/timeout/retry,
 circuit breaker và review độc lập. Dry-run phải hiển thị cả config portable lẫn
 config provider local trước khi xin duyệt. Xem cấu hình đầy đủ và giải thích chi
-tiết tại [provider-routing.md](provider-routing.md).
+tiết tại [provider-routing.md](concepts/providers.md).
 
 ## Kiểm tra và bàn giao
 
@@ -129,9 +129,9 @@ Evidence phải có kết quả đạt cho test, review và repository trước 
 
 ## Tài liệu tham chiếu
 
-- [Agent task lifecycle](agent-task-lifecycle.md)
-- [Orchestration state model](orchestration-state-model.md)
-- [Setup system](setup-system.md)
-- [Capability provider contracts](capability-provider-contracts.md)
-- [Context and evidence policy](context-and-evidence-policy.md)
-- [Verification and handoff workflow](verification-and-handoff-workflow.md)
+- [Agent task lifecycle](concepts/lifecycle.md)
+- [Orchestration state model](concepts/state-model.md)
+- [Setup system](reference/config.md)
+- [Capability provider contracts](concepts/providers.md)
+- [Context and evidence policy](concepts/providers.md)
+- [Verification and handoff workflow](concepts/lifecycle.md)

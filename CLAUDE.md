@@ -7,9 +7,11 @@ This file is intentionally short. Use it as a pointer layer, not as a second wor
 ## Canonical References
 
 - `AGENTS.md`: repo operating policy and command safety defaults
-- `docs/agent-task-lifecycle.md`: canonical agent lifecycle
-- `docs/orchestration-state-model.md`: canonical state ownership model
-- `docs/verification-and-handoff-workflow.md`: canonical verification and handoff checklist
+- `docs/concepts/architecture.md`: components and flow diagrams
+- `docs/concepts/lifecycle.md`: canonical agent lifecycle, verification, and handoff checklist
+- `docs/concepts/state-model.md`: canonical state ownership model
+- `docs/concepts/providers.md`: provider routing, worker context, and evidence policy
+- `docs/reference/cli.md`, `docs/reference/config.md`: commands and configuration
 - `plugins/gin-workflow/src/skills/**/*.md`: actionable workflow behavior (each skill is also its `/gin-workflow:<name>` slash command)
 
 ## Response Language

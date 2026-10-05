@@ -10,16 +10,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 
-CANONICAL_REFERENCE_PAIRS = (
-    "agent-task-lifecycle.md",
-    "orchestration-state-model.md",
-    "setup-system.md",
-    "capability-provider-contracts.md",
-    "context-and-evidence-policy.md",
-    "verification-and-handoff-workflow.md",
-    "provider-routing.md",
-)
-
 USE_CASE_PAGES = (
     "README.md",
     "large-task.md",
@@ -50,13 +40,6 @@ REQUIRED_ARTIFACTS = (
     "skills/verify/SKILL.md",
     "skills/ship/SKILL.md",
     "skills/review/SKILL.md",
-    "references/setup-system.md",
-    "references/capability-provider-contracts.md",
-    "references/context-and-evidence-policy.md",
-    "references/agent-task-lifecycle.md",
-    "references/orchestration-state-model.md",
-    "references/verification-and-handoff-workflow.md",
-    "references/provider-routing.md",
     "references/stage-contract.md",
     "references/shape-frontend.md",
     "references/shape-backend.md",
@@ -210,7 +193,7 @@ class HarnessPackagingTests(unittest.TestCase):
             "plugins/gin-workflow/src/skills/setup/SKILL.md",
             ".claude-plugin/marketplace.json",
             ".agent-workflow/config.yaml",
-            "docs/setup-system.md",
+            "docs/reference/config.md",
             "install.sh",
             "install.ps1",
         )
@@ -259,15 +242,10 @@ class HarnessPackagingTests(unittest.TestCase):
                 )
                 self.assertEqual("", result.stdout)
 
-    def test_canonical_references_are_packaged_without_drift(self):
+    def test_docs_have_a_single_copy_outside_the_bundle(self):
         references = ROOT / "plugins/gin-workflow/src/references"
-        for relative in CANONICAL_REFERENCE_PAIRS:
-            canonical = ROOT / "docs" / relative
-            packaged = references / relative
-            with self.subTest(relative=relative):
-                self.assertTrue(canonical.is_file())
-                self.assertTrue(packaged.is_file())
-                self.assertEqual(canonical.read_bytes(), packaged.read_bytes())
+        packaged = sorted(path.name for path in references.glob("*.md"))
+        self.assertEqual(["shape-backend.md", "shape-frontend.md", "stage-contract.md"], packaged)
 
     def test_use_case_pages_have_required_sections_and_readme_links(self):
         use_cases = ROOT / "docs/use-cases"
@@ -282,9 +260,8 @@ class HarnessPackagingTests(unittest.TestCase):
             self.assertIn(f"docs/use-cases/{relative}", readme)
 
     def test_t8_lifecycle_review_is_separate_from_router_stages(self):
-        lifecycle = (ROOT / "docs/agent-task-lifecycle.md").read_text(encoding="utf-8")
+        lifecycle = (ROOT / "docs/concepts/lifecycle.md").read_text(encoding="utf-8")
         resume = (ROOT / "docs/use-cases/resume-in-progress.md").read_text(encoding="utf-8")
-        self.assertIn("separately coordinated provider-backed activity", lifecycle)
         self.assertIn("not a router lifecycle stage", lifecycle)
         self.assertIn("review_approved", lifecycle)
         self.assertNotIn("`workflow` routes review", resume)
@@ -308,11 +285,10 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertIn("creates the Bead", content)
 
     def test_t8_provider_routing_documents_portable_and_local_boundaries(self):
-        content = (ROOT / "docs/provider-routing.md").read_text(encoding="utf-8")
-        self.assertIn("provider aliases plus routing/concurrency policy", content)
-        self.assertIn("machine-local provider/authentication", content)
-        self.assertIn("concrete model aliases", content)
-        self.assertIn("secret values", content)
+        content = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")
+        self.assertIn("without ever writing a provider or model name into the plan or Beads", content)
+        self.assertIn("Concrete models come only from `.agent-workflow/providers.local.yaml`", content)
+        self.assertIn("secret values are never written", content)
         self.assertIn("provider_default", content)
 
     def test_scoped_markdown_links_are_repo_relative_and_resolve(self):

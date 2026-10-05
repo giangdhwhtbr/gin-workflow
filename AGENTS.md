@@ -6,12 +6,11 @@ This repository separates responsibilities intentionally:
 
 - `README.md` is human-facing product and workflow documentation.
 - `AGENTS.md` and `CLAUDE.md` define only repo operating policy and entry-point pointers.
-- `docs/agent-task-lifecycle.md` is the canonical lifecycle spec.
-- `docs/orchestration-state-model.md` is the canonical orchestration-state ownership model.
-- `docs/setup-system.md` is the canonical setup, versioning, and migration policy.
-- `docs/capability-provider-contracts.md` defines lifecycle capability boundaries.
-- `docs/context-and-evidence-policy.md` defines worker context, result, review, and evidence policy.
-- `docs/verification-and-handoff-workflow.md` is the canonical close-out checklist.
+- `docs/concepts/architecture.md` shows how the components fit, with flow diagrams.
+- `docs/concepts/lifecycle.md` is the canonical lifecycle, gate, verification, and handoff spec.
+- `docs/concepts/state-model.md` is the canonical state ownership model.
+- `docs/concepts/providers.md` defines capability boundaries, provider routing, and worker context and evidence policy.
+- `docs/reference/config.md` is the canonical setup, versioning, and migration reference; `docs/reference/cli.md` documents every command.
 - Plugin command and skill files under `plugins/gin-workflow/src/` contain the actionable execution rules.
 
 ## Response Language
@@ -30,7 +29,7 @@ This repository separates responsibilities intentionally:
 - Do not create markdown TODO lists or ad hoc memory files.
 - Use `bd remember` for durable project memory when needed.
 - Commit and push freely on feature/worktree branches; never commit directly to `main`/`master`. Creating a PR, merging into the base branch, or force-pushing requires explicit user approval.
-- Before ending work, follow `docs/verification-and-handoff-workflow.md`.
+- Before ending work, follow the verification and handoff rules in `docs/concepts/lifecycle.md`.
 
 ## Non-Interactive Shell Commands
 

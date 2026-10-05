@@ -99,13 +99,12 @@ AI usage: `gin-workflow usage collect --bead <id>` summarizes the bead's tokens 
 
 For the detailed workflow contracts:
 
-- Agent lifecycle: [docs/agent-task-lifecycle.md](docs/agent-task-lifecycle.md)
-- Orchestration state ownership: [docs/orchestration-state-model.md](docs/orchestration-state-model.md)
-- Setup, versions, and migration: [docs/setup-system.md](docs/setup-system.md)
-- Capability boundaries: [docs/capability-provider-contracts.md](docs/capability-provider-contracts.md)
-- Context and evidence: [docs/context-and-evidence-policy.md](docs/context-and-evidence-policy.md)
-- Native provider routing and model aliases: [docs/provider-routing.md](docs/provider-routing.md)
-- Verification and handoff: [docs/verification-and-handoff-workflow.md](docs/verification-and-handoff-workflow.md)
+- Architecture and flow diagrams: [docs/concepts/architecture.md](docs/concepts/architecture.md)
+- Lifecycle, gates, verification, and handoff: [docs/concepts/lifecycle.md](docs/concepts/lifecycle.md)
+- State ownership: [docs/concepts/state-model.md](docs/concepts/state-model.md)
+- Providers, routing, and evidence: [docs/concepts/providers.md](docs/concepts/providers.md)
+- Configuration, versions, and migration: [docs/reference/config.md](docs/reference/config.md)
+- CLI: [docs/reference/cli.md](docs/reference/cli.md)
 
 ---
 
@@ -117,7 +116,7 @@ For the detailed workflow contracts:
 
 ## Notifications (Optional)
 
-Notifications are optional and provider-backed. Existing Telegram support may be selected through configuration, but lifecycle guidance neither requires it nor exposes provider-specific commands or credential instructions. See [capability provider contracts](docs/capability-provider-contracts.md).
+Notifications are optional and provider-backed. Existing Telegram support may be selected through configuration, but lifecycle guidance neither requires it nor exposes provider-specific commands or credential instructions. See [Providers](docs/concepts/providers.md#capabilities).
 
 ---
 
