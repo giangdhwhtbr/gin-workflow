@@ -360,10 +360,16 @@ def main():
                 workflow_id=args.workflow_id,
                 attempt_id=args.attempt_id,
             )
-            print(
-                f"Initialized review ledger for bead {args.bead_id} "
-                f"at {checkpoint.checkpoint_sha}"
-            )
+            if checkpoint is None:
+                print(
+                    f"Review ledger for bead {args.bead_id} already exists; kept its history. "
+                    "Use checkpoint or change-scope to update it."
+                )
+            else:
+                print(
+                    f"Initialized review ledger for bead {args.bead_id} "
+                    f"at {checkpoint.checkpoint_sha}"
+                )
 
         elif args.command == "checkpoint":
             log, proj = load_ledger(args.bead_id)

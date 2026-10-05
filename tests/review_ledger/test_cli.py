@@ -167,6 +167,44 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(projection.source_scope["included_paths"], ["src"])
         self.assertEqual(projection.repositories[0]["source_identity_status"], "complete")
 
+    def _git_repo_with_commit(self):
+        subprocess.run(["git", "init"], cwd=self.test_dir, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=self.test_dir, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, check=True)
+        with open(os.path.join(self.test_dir, "base.py"), "w") as stream:
+            stream.write("base")
+        subprocess.run(["git", "add", "base.py"], cwd=self.test_dir, check=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=self.test_dir, capture_output=True, check=True)
+
+    def _cli(self, *arguments):
+        script = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts/review-ledger.py"
+        return subprocess.run([sys.executable, str(script), *arguments], cwd=self.test_dir,
+                              capture_output=True, text=True)
+
+    def test_init_on_an_existing_ledger_keeps_its_history(self):
+        self._git_repo_with_commit()
+        init = ("init", "--bead-id", "bead-again", "--repo-id", "primary", "--repo-path", ".",
+                "--review-ref", "refs/gin/review/bead-again", "--actor-id", "worker-1")
+        self.assertEqual(self._cli(*init).returncode, 0)
+        moved = self._cli("transition-requested", "--bead-id", "bead-again", "--to", "review-requested",
+                          "--actor-id", "worker-1")
+        self.assertEqual(moved.returncode, 0, moved.stderr)
+        before, _ = load_ledger("bead-again", base_dir=self.test_dir)
+
+        again = self._cli(*init, "--base-sha", "HEAD")
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertIn("already exists", again.stdout)
+        after, projection = load_ledger("bead-again", base_dir=self.test_dir)
+        self.assertEqual(len(after.events), len(before.events))
+        self.assertEqual(projection.review_state, "review-requested")
+
+    def test_ledger_created_refuses_to_replace_an_existing_ledger(self):
+        mutate_ledger("bead-twice", "ledger-created", {"repositories": []}, "worker", "w1",
+                      base_dir=self.test_dir)
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            mutate_ledger("bead-twice", "ledger-created", {"repositories": []}, "worker", "w1",
+                          base_dir=self.test_dir)
+
     def test_initialize_computes_scope_and_tree_identity_without_mutating_checkout(self):
         subprocess.run(["git", "init"], cwd=self.test_dir, capture_output=True, check=True)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=self.test_dir, check=True)
