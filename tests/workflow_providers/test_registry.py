@@ -12,6 +12,7 @@ from workflow_core.models import EffectiveConfig  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
+from workflow_providers.circuit_breaker import CircuitState  # noqa: E402
 from workflow_providers.contracts import (  # noqa: E402
     EvidenceCategory,
     EvidenceRecord,
@@ -260,7 +261,10 @@ class ProviderRegistryTests(unittest.TestCase):
                     "review": "fake", "evidence": "fake", "notifications": "fake",
                 },
                 "routing": {
-                    "roles": {"backend": {"preferred": ["claude"], "fallback": []}},
+                    "roles": {
+                        "backend": {"preferred": ["claude"], "fallback": []},
+                        "review": {"preferred": ["claude"], "fallback": []},
+                    },
                     "concurrency": {"claude": 2},
                     "queue": {"max_wait_seconds": 0},
                     "worker": {"timeout_seconds": 17, "max_retries": 3},
@@ -632,6 +636,48 @@ class ProviderRegistryTests(unittest.TestCase):
 
             self.assertEqual(("worker_routes_unavailable",), result.blockers)
             self.assertEqual([], runner.invocations)
+            reasons = [
+                event.payload.get("reason")
+                for event in registry.worker.event_store.read_all()
+                if event.event_type == "worker.unavailable"
+            ]
+            self.assertEqual(["workspace_unavailable"], reasons)
+            self.assertEqual(
+                CircuitState.CLOSED, registry.worker.breakers.state("claude", "opus").state
+            )
+
+    def test_review_worker_without_workspace_runs_in_repository_root(self):
+        class Runner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput(())
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = Runner()
+            registry = ProviderRegistry.from_effective_config(
+                self.routed_config(root),
+                provider_local=self.local(),
+                native_runner=runner,
+                worker_health={"claude": lambda candidate: True},
+            )
+            review = WorkerRequest(
+                "Review", (), create_context_manifest("review", ContextRequest()), {},
+                REQUIRED_RESULT_FIELDS, "rev", "wf", "try-1", "review", "high",
+            )
+            registry.worker.collect_result(registry.worker.dispatch(review).worker_id)
+            self.assertEqual([root.resolve()], [invocation.cwd for invocation in runner.invocations])
+
+            implement = WorkerRequest(
+                "Implement", (), create_context_manifest("execute", ContextRequest()), {},
+                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+            )
+            result = registry.worker.collect_result(registry.worker.dispatch(implement).worker_id)
+            self.assertEqual(("worker_routes_unavailable",), result.blockers)
+            self.assertEqual(1, len(runner.invocations))
 
     def test_registry_builds_scheduler_from_configured_worker_runtime_policy(self):
         with tempfile.TemporaryDirectory() as directory:

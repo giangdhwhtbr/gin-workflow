@@ -257,6 +257,7 @@ assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/spec-delta.md"
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/team/commit-msg"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/templates/proposal.md"
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
+HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" setup models --provider claude >/dev/null
 assert_not_exists "$MOCK_HOME/.claude/skills/gin-qa"
 assert_not_exists "$MOCK_HOME/.local/bin/gin-qa"
 

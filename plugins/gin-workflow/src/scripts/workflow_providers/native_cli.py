@@ -133,28 +133,36 @@ def worker_prompt(payload: Mapping[str, object]) -> str:
     )
 
 
+def _contract_object(text: str, required: set[str]) -> Mapping[str, object] | None:
+    decoder = json.JSONDecoder()
+    found = None
+    index = text.find("{")
+    while index != -1:
+        try:
+            parsed, end = decoder.raw_decode(text, index)
+        except json.JSONDecodeError:
+            index = text.find("{", index + 1)
+            continue
+        if isinstance(parsed, Mapping) and required.issubset(parsed):
+            found = parsed
+        index = text.find("{", end)
+    return found
+
+
 def direct_worker_result(output: NativeCliOutput) -> Mapping[str, object]:
     required = {"status", "task_id", "summary", "changed_files", "commits", "tests", "evidence", "blockers"}
     for record in reversed(output.records):
         if required.issubset(record):
             return record
-        for field in ("result", "response", "text"):
-            candidate = record.get(field)
-            if isinstance(candidate, str):
-                try:
-                    parsed = json.loads(candidate)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(parsed, Mapping) and required.issubset(parsed):
-                    return parsed
+        candidates = [record.get(field) for field in ("result", "response", "text")]
         item = record.get("item")
-        if isinstance(item, Mapping) and isinstance(item.get("text"), str):
-            try:
-                parsed = json.loads(item["text"])
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, Mapping) and required.issubset(parsed):
-                return parsed
+        if isinstance(item, Mapping):
+            candidates.append(item.get("text"))
+        for candidate in candidates:
+            if isinstance(candidate, str):
+                parsed = _contract_object(candidate, required)
+                if parsed is not None:
+                    return parsed
     raise NativeCliError(FailureKind.INVALID_RESULT, "native CLI output lacks worker result contract")
 
 
@@ -189,6 +197,7 @@ def classify_native_failure(stderr: str) -> FailureKind:
             "invalid model",
             "unknown model",
             "no access to",
+            "not recognized",
         )
     ):
         return FailureKind.INVALID_MODEL
@@ -474,7 +483,9 @@ class NativeCliRunner:
         stderr = b"".join(stderr_chunks)
 
         if process.returncode:
-            failure_kind = classify_native_failure(stderr.decode("utf-8", errors="replace"))
+            failure_kind = classify_native_failure(
+                stderr.decode("utf-8", errors="replace") + "\n" + (_diagnostic_from_stdout(stdout) or "")
+            )
             diagnostic = _classified_diagnostic(failure_kind, stdout, stderr)
             raise NativeCliError(failure_kind, diagnostic)
         try:

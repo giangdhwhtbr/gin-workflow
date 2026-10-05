@@ -378,15 +378,15 @@ is_managed_launcher_link() {
 }
 
 install_launcher() {
-  local name="$1" version="$2" package
+  local name="$1" version="$2" packages package
   local source_dir="$SCRIPT_DIR/plugins/$name/src/scripts"
   local managed_root="${HOME}/.local/lib/$name"
   local install_dir="$managed_root/$version"
   local launcher_target="$install_dir/$name"
   local launcher_link="${HOME}/.local/bin/$name"
   case "$name" in
-    gin-workflow) package=workflow_core ;;
-    gin-qa) package=gin_qa ;;
+    gin-workflow) packages="workflow_core workflow_providers review_ledger" ;;
+    gin-qa) packages=gin_qa ;;
   esac
 
   if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
@@ -405,12 +405,15 @@ install_launcher() {
     return
   fi
 
-  mkdir -p "$install_dir/$package" "$install_dir/templates" "$(dirname "$launcher_link")"
+  mkdir -p "$install_dir/templates" "$(dirname "$launcher_link")"
   if [ "$name" = gin-workflow ]; then
     mkdir -p "$install_dir/rules"
   fi
   cp -f "$source_dir/$name" "$launcher_target"
-  cp -rf "$source_dir/$package/." "$install_dir/$package/"
+  for package in $packages; do
+    mkdir -p "$install_dir/$package"
+    cp -rf "$source_dir/$package/." "$install_dir/$package/"
+  done
   if [ "$name" = gin-workflow ]; then
     cp -rf "$source_dir/../rules/." "$install_dir/rules/"
   fi
