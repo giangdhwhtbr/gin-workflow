@@ -197,6 +197,7 @@ def classify_native_failure(stderr: str) -> FailureKind:
             "invalid model",
             "unknown model",
             "no access to",
+            "not recognized",
         )
     ):
         return FailureKind.INVALID_MODEL
@@ -482,7 +483,9 @@ class NativeCliRunner:
         stderr = b"".join(stderr_chunks)
 
         if process.returncode:
-            failure_kind = classify_native_failure(stderr.decode("utf-8", errors="replace"))
+            failure_kind = classify_native_failure(
+                stderr.decode("utf-8", errors="replace") + "\n" + (_diagnostic_from_stdout(stdout) or "")
+            )
             diagnostic = _classified_diagnostic(failure_kind, stdout, stderr)
             raise NativeCliError(failure_kind, diagnostic)
         try:

@@ -25,6 +25,7 @@ from workflow_providers.native_cli import (  # noqa: E402
     NativeCliInvocation,
     NativeCliOutput,
     NativeCliRunner,
+    classify_native_failure,
     direct_worker_result,
 )
 
@@ -178,6 +179,25 @@ class NativeCliTests(unittest.TestCase):
         with self.assertRaises(NativeCliError) as prose:
             direct_worker_result(NativeCliOutput(({"type": "result", "response": "only {prose} here"},)))
         self.assertEqual(FailureKind.INVALID_RESULT, prose.exception.kind)
+
+    def test_runner_classifies_invalid_model_reported_on_stdout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rejected = root / "rejected_stdout.py"
+            rejected.write_text(
+                "import json, sys\n"
+                "print(json.dumps({'type': 'error', 'error': {'message': \"The 'sol' model is not supported "
+                "when using Codex with a ChatGPT account.\"}}))\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(NativeCliError) as invalid_model:
+                NativeCliRunner().run(NativeCliInvocation((sys.executable, str(rejected)), root, b"", 1))
+            self.assertEqual(FailureKind.INVALID_MODEL, invalid_model.exception.kind)
+        self.assertEqual(
+            FailureKind.INVALID_MODEL,
+            classify_native_failure("model gemini flash 3.7 is not recognized as a known model"),
+        )
 
     def test_runner_idle_timeout_fires_independently_of_larger_hard_timeout(self):
         with tempfile.TemporaryDirectory() as directory:
