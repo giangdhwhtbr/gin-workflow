@@ -4,8 +4,7 @@ This walks one small feature from idea to merge. It assumes a git repository and
 
 ## 1. Prerequisites
 
-- Python 3 and git.
-- [Beads](https://github.com/steveyegge/beads) (`bd`) initialized in the repository (`bd init`).
+- Python 3 with PyYAML, git, and [Beads](https://github.com/gastownhall/beads) (`bd`), installed as listed in [Installation](../README.md#1-dependencies); Beads initialized in the repository (`bd init`).
 - The plugin and its `gin-workflow` launcher installed ([Installation](../README.md#installation)). Check with `gin-workflow --version`.
 
 ## 2. Set up the repository once

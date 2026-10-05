@@ -4,8 +4,7 @@ Trang này đi qua một tính năng nhỏ, từ ý tưởng đến lúc merge. 
 
 ## 1. Chuẩn bị
 
-- Python 3 và git.
-- [Beads](https://github.com/steveyegge/beads) (`bd`), đã khởi tạo trong repository bằng `bd init`.
+- Python 3 kèm PyYAML, git và [Beads](https://github.com/gastownhall/beads) (`bd`), cài theo bảng [Installation](../README.md#1-dependencies); Beads đã khởi tạo trong repository bằng `bd init`.
 - Plugin và lệnh `gin-workflow` đã được cài ([Installation](../README.md#installation)). Kiểm tra bằng `gin-workflow --version`.
 
 ## 2. Thiết lập repository (một lần)

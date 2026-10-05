@@ -15,6 +15,21 @@ A workflow plugin for **Claude Code**, **Codex CLI**, and **Antigravity CLI** th
 
 ## Installation
 
+### 1. Dependencies
+
+| Need | For | Install |
+|---|---|---|
+| Python 3 with PyYAML | the `gin-workflow` CLI | `python3 -m pip install PyYAML` |
+| git | branches, worktrees, review checkpoints | your package manager |
+| [Beads](https://github.com/gastownhall/beads) (`bd`) | task tracking | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
+| A harness | running the skills | Claude Code, Codex CLI, or Antigravity CLI (`agy`) |
+
+Optional, per feature: `codex` or `agy` next to your main harness for multi-provider routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md).
+
+Then, in each repository: `bd init` once, and `/gin-workflow:setup` once ([getting started](docs/getting-started.md)).
+
+### 2. The plugin
+
 Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). The installer links it; a marketplace install alone does not ([fix](docs/reference/troubleshooting.md#gin-workflow-is-not-on-path-after-a-marketplace-install)).
 
 **Any harness, with the launcher** (clones this repository and runs `install.sh`):
@@ -39,7 +54,7 @@ codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
 codex plugin add gin-workflow@gin-workflow-marketplace
 ```
 
-Antigravity has no git-based install; use the installer above. You also need Python 3, git, and [Beads](https://github.com/steveyegge/beads) (`bd`).
+Antigravity has no git-based install; use the installer above.
 
 ## Quickstart
 
