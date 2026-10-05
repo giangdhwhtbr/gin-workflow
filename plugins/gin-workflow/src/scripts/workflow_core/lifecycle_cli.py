@@ -137,6 +137,13 @@ def _delivery_gate_state(
     return gates
 
 
+def _standalone_requirement(repo_path: Path, event_store: WorkflowEventStore, workflow_id: str) -> bool:
+    """A standalone bead, recorded as its own epic with no children, carries its requirement and
+    scope in its description, so it needs no separate discuss or plan gate."""
+    epic = _recorded_epic(event_store, workflow_id)
+    return bool(epic) and _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"]) == []
+
+
 def _bead_closed(repo_path: Path, bead_id: str) -> bool:
     shown = _beads_json(repo_path, ["show", bead_id])
     record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
@@ -214,6 +221,8 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         **_process_gate_state(event_store, workflow_id),
         **_delivery_gate_state(repo_path, event_store, workflow_id),
     }
+    if _standalone_requirement(repo_path, event_store, workflow_id):
+        state["requirement_confirmed"] = state["plan_approved"] = True
 
     decision = route_next_stage(state, config)
 

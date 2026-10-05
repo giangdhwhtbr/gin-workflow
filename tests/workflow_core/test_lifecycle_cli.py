@@ -319,6 +319,36 @@ class TestLifecycleCLI(unittest.TestCase):
                                           "--evidence", "merged abc123 into master", "--actor", "user"]))
             self.assertEqual("satisfied", self._state_gates()["shipped"])
 
+    def _state(self):
+        import io
+        from unittest.mock import patch
+
+        with patch("sys.stdout", new=io.StringIO()) as out:
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json"])
+        return json.loads(out.getvalue())
+
+    def test_standalone_bead_reaches_ship_without_discuss_or_plan_gates(self):
+        from unittest.mock import patch
+
+        self._record_orchestration(epic="bug-1")
+        self.assertEqual(0, cli_main(["record", "verification-passed", "--repository", str(self.repo_path),
+                                      "--evidence", "tests OK", "--actor", "user"]))
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([], epic_status="closed")):
+            state = self._state()
+        self.assertEqual(("satisfied", "satisfied"),
+                         (state["gates"]["requirement_confirmed"], state["gates"]["plan_approved"]))
+        self.assertEqual("ship", state["stage"])
+
+    def test_planned_epic_still_needs_discuss_and_plan_gates(self):
+        from unittest.mock import patch
+
+        self._record_orchestration()
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"])):
+            state = self._state()
+        self.assertEqual(("unmet", "unmet"),
+                         (state["gates"]["requirement_confirmed"], state["gates"]["plan_approved"]))
+        self.assertEqual("discuss", state["stage"])
+
     def test_record_shipped_is_refused_for_epics_with_children_or_without_epic(self):
         from unittest.mock import patch
 
