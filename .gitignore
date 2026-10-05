@@ -31,3 +31,6 @@ __pycache__/
 .planning/worktrees/
 # br doctor per-run artifacts
 .doctor/
+
+# CodeGraph index: machine-local database and daemon files
+.codegraph/
