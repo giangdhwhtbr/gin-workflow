@@ -1,78 +1,98 @@
 # Getting Started
 
-This walks one small feature from idea to merge. It assumes a git repository and one harness (Claude Code, Codex, or Antigravity). Commands are shown as Claude Code slash commands; Codex uses `$gin-workflow:<skill>`.
+This guide walks you through delivering a feature from initial idea to final merge using **Claude Code** and **`gin-workflow`**.
 
-## 1. Prerequisites
+Every change moves through recorded quality gates:
+**`discuss` → `plan` → `orchestrate` → `execute` → `verify` → `ship`**.
 
-- Python 3 with PyYAML, git, and [Beads](https://github.com/gastownhall/beads) (`bd`), installed as listed in [Installation](../README.md#1-dependencies); Beads initialized in the repository (`bd init`).
-- The plugin and its `gin-workflow` launcher installed ([Installation](../README.md#installation)). Check with `gin-workflow --version`.
+---
 
-## 2. Set up the repository once
+## 1. Quick Prerequisites
 
-```
+1. **Python 3** (with PyYAML) and **Git**.
+2. **Beads (`bd`)** for durable task tracking:
+   ```bash
+   brew install beads       # or: npm install -g @beads/bd
+   ```
+3. **Claude Code** and the `gin-workflow` plugin:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
+   ```
+4. Initialize Beads in your repository:
+   ```bash
+   bd init
+   ```
+
+---
+
+## 2. One-Time Setup (`/setup`)
+
+Run setup inside Claude Code to configure your project:
+
+```text
 /gin-workflow:setup
 ```
 
-Setup detects the project (stage, shape, stack, verify commands) and asks one question at a time: project type, rigor (`easy`, `standard`, `strict`), provider mode (`single` for one harness, `multi` to route work to other CLIs), and the lint, typecheck, test, build, and e2e commands. It shows the proposed configuration, waits for your approval, then writes `.agent-workflow/config.yaml` (commit it) and the gitignored machine-local files. See [Configuration](reference/config.md).
+Setup asks simple questions to generate `.agent-workflow/config.yaml`:
+- **Rigor:** `standard` (recommended: isolates tracks in Git worktrees and checks lint, typecheck, test, and build).
+- **Provider mode:** `single` (standard baseline using Claude Code).
+- **Verify commands:** Confirms your test and build commands.
 
-## 3. Discuss
+Commit `.agent-workflow/config.yaml` to git.
 
+---
+
+## 3. The 6-Stage Feature Workflow
+
+### Stage 1: Discuss
+```text
+/gin-workflow:discuss Add an export-to-csv button on the user list
 ```
-/gin-workflow:discuss Add a "last login" column to the admin user list
+Claude analyzes existing code, asks clarifying questions one at a time, proposes architectural approaches, and writes a specification to `.planning/specs/<date>-<topic>-design.md` (or `docs/changes/` in SDD mode). Confirm the design to pass the `requirement_confirmed` gate.
+
+### Stage 2: Plan
+```text
+/gin-workflow:plan export-csv-button
 ```
+Claude breaks the confirmed spec into implementation tracks in `.planning/plans/` (defining files, interfaces, and test-first steps). Review the plan and approve it to pass the `plan_approved` gate.
 
-The agent reads the relevant code, asks clarifying questions one at a time, proposes two or three approaches with a recommendation, and presents the design in sections for you to confirm. It writes the spec to `.planning/specs/<date>-<topic>-design.md` on a feature branch and asks you to review it. When you confirm, it records `requirement-confirmed`. Nothing is planned or coded before that.
-
-## 4. Plan
-
+### Stage 3: Orchestrate
+```text
+/gin-workflow:orchestrate export-csv-button
 ```
-/gin-workflow:plan last-login-column
-```
+Claude creates an epic and task beads in Beads (`bd`), then creates an isolated Git worktree for clean implementation. Passes the `orchestration_ready` gate.
 
-The plan in `.planning/plans/` splits the work into tracks: each with its files, interfaces, test-first steps, a provider role, and a reasoning tier. Review it; when you approve, the agent records `plan-approved`.
-
-## 5. Orchestrate
-
-```
-/gin-workflow:orchestrate last-login-column
-```
-
-The agent resolves a provider route for every track, creates an epic and one bead per track with their dependencies, creates a worktree under `.planning/worktrees/`, checks that the tests pass there, and records `orchestration-ready`.
-
-## 6. Execute
-
-```
+### Stage 4: Execute
+```text
 /gin-workflow:execute
 ```
+Claude claims the next ready track bead, writes a failing test first, implements the solution until tests pass, and conducts an independent code review in the review ledger. Once approved, the bead closes. Repeat `/gin-workflow:execute` until all tracks are done.
 
-For each ready track the agent claims the bead, writes a failing test, implements until it passes, and asks an independent reviewer (another provider, or a fresh session) to review the diff in the review ledger. Findings are fixed or answered; once approved, the track's AI usage is collected and the bead closes, which makes the next track ready. Run it again for the next track. The branch is pushed; nothing is merged.
-
-## 7. Verify
-
-```
+### Stage 5: Verify
+```text
 /gin-workflow:verify
 ```
+Claude re-runs all verification commands with fresh evidence and audits the code line-by-line against every requirement in the spec and plan. Passes the `verification_passed` gate.
 
-Fresh evidence only: every review ledger validates, the verify commands for your rigor pass, and every line of the spec and plan is checked against the code. Then `verification-passed` is recorded.
-
-## 8. Ship
-
-```
+### Stage 6: Ship
+```text
 /gin-workflow:ship
 ```
+Claude offers four integration options: **Merge locally**, **Push & open Pull Request**, **Keep branch**, or **Discard**. After your approval, it integrates the work, re-tests on the merged result, removes the worktree, and closes the epic (`shipped`).
 
-Choose: merge locally, push and open a pull request, keep the branch, or discard. Merging or opening a pull request needs your explicit approval. After a merge the agent re-runs the tests, removes the worktree and branch, collects the epic's usage, closes the epic (which marks it shipped), and lists what is ready next.
+---
 
-## Shortcuts and status
+## 4. Helpful Shortcuts
 
-- `/gin-workflow:workflow` reads the state and runs whichever stage comes next.
-- `/gin-workflow:quick <change>` handles a small, low-risk change without spec, plan, or beads ([use cases](guides/use-cases.md#small-change)).
-- `/gin-workflow:progress` shows ready, active, and blocked work; `gin-workflow state` explains a held workflow and its remedies.
-- `/gin-workflow:report --epic <epic>` shows what the AI work cost per model and stage, next to review and rework signals ([usage report](guides/usage-report.md)).
+- `/gin-workflow:workflow`: Automatically detects the current state and runs whichever stage is next.
+- `/gin-workflow:quick <change>`: Fast-tracks small, single-file changes without requiring specs or beads.
+- `/gin-workflow:progress`: Inspects active, ready, or blocked tasks.
 
-## Next
+---
 
-- [Architecture](concepts/architecture.md): how the pieces fit, in diagrams.
-- [Lifecycle](concepts/lifecycle.md): gates, waivers, verification, and handoff in detail.
-- Optional features: [rule packs](guides/rules.md), [SDD living specs](guides/sdd.md), [team mode](guides/team.md), [QA add-on](guides/qa.md).
-- [Skills](reference/skills.md) and [CLI](reference/cli.md) reference.
+## 5. Tailored Starters & Guides
+
+- 🚀 **Starting a new project?** Read the [Greenfield Project Starter](starters/greenfield.md).
+- 🔄 **Refactoring a legacy codebase?** Read the [Brownfield & Modernization Starter](starters/brownfield-modernize.md).
+- 👥 **Working in a team with BA, Dev, and Tester?** Read the [Team Roles Guide](starters/team-roles.md).
+- ⚡ **Looking for multi-agent / multi-model routing?** See [Multi-Agent Routing](advanced/multi-agent-routing.md).

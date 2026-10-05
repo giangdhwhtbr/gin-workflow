@@ -71,13 +71,13 @@ class ConfigExampleTests(unittest.TestCase):
 
     def test_readme_links_the_provider_guide_and_docs_cover_routing(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        vietnamese = (ROOT / "docs/huong-dan.md").read_text(encoding="utf-8")
+        getting_started = (ROOT / "docs/getting-started.md").read_text(encoding="utf-8")
         routing = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")
         config = (ROOT / "docs/reference/config.md").read_text(encoding="utf-8")
 
         self.assertIn("docs/concepts/providers.md", readme)
-        self.assertIn("getting-started.md", vietnamese)
-        self.assertIn("docs/huong-dan.md", readme)
+        self.assertIn("docs/starters/greenfield.md", readme)
+        self.assertIn("discuss", getting_started)
         for phrase in (
             "provider role",
             "reasoning tier",
