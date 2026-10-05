@@ -244,7 +244,22 @@
     <section id="view-commands" class="hidden space-y-6">
       <div class="border-b border-slate-200 pb-4">
         <h2 class="text-xl font-bold text-slate-900">Every Gin-Workflow Command with Real Inputs & Outputs</h2>
-        <p class="text-sm text-slate-500 mt-1">Every command across all stages, with exact command-line syntax, flags, who executes it, and realistic terminal outputs.</p>
+        <p class="text-sm text-slate-500 mt-1">Every command across all stages, with exact command-line syntax, flags, who executes it, and authentic terminal outputs.</p>
+      </div>
+
+      <!-- Architecture Reality Callout -->
+      <div class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1.5 leading-relaxed">
+        <div class="font-bold flex items-center gap-1.5 text-sm text-amber-950">
+          <span>💡</span> <span>Under the Hood: How Detection & Multi-Subrepos Actually Work in Gin-Workflow</span>
+        </div>
+        <div>
+          <strong>Automated Heuristics (<code>project_detect.py</code>):</strong> 
+          <code>gin-workflow setup detect</code> scans for standard manifests (like root <code>package.json</code>, <code>pnpm-workspace.yaml</code>, <code>pyproject.toml</code>, <code>turbo.json</code>).
+        </div>
+        <div>
+          <strong>Handling Polyglot Multi-Subrepos (Java + Node + Playwright):</strong> 
+          In a complex modernization monorepo with diverse sub-repos (<code>as-is/</code>, <code>backend/</code>, <code>frontend/</code>, <code>qa/</code>), <code>detect</code> identifies the repo as <code>stage: brownfield</code>. The team then explicitly maps each sub-repo to a governed area using <code>team.areas</code> in <code>.agent-workflow/config.yaml</code>. This guarantees 100% deterministic isolation without fragile auto-guessing.
+        </div>
       </div>
 
       <!-- Command Quick Selector Tabs -->
@@ -1056,161 +1071,177 @@ Expected:
     ];
 
     // -------------------------------------------------------------
-    // DATA STORE: COMMAND REFERENCE EXAMPLES
+    // DATA STORE: REAL CLI COMMAND REFERENCE & AUTHENTIC OUTPUTS
     // -------------------------------------------------------------
     const COMMAND_EXAMPLES = [
       {
-        cmd: '/gin-workflow:setup',
-        category: 'Foundation',
+        cmd: 'gin-workflow setup detect',
+        category: 'Discovery & Heuristics',
+        role: 'Tech Lead / Architect',
+        lang: 'json',
+        desc: 'Deterministic, read-only project probing (no LLM, no writes). In a multi-subrepo layout without root JS workspace manifests, it identifies brownfield stage, detects installed providers and CodeGraph status.',
+        exampleInput: 'gin-workflow setup detect --format json',
+        exampleOutput: `{
+  "status": "detected",
+  "repository": "/home/gin/monorepo",
+  "initialized": true,
+  "project": {
+    "stage": "brownfield",
+    "shape": "fullstack",
+    "monorepo": false,
+    "package_manager": "",
+    "stack": [],
+    "packages": [],
+    "suggested_rigor": "standard",
+    "verify_commands": {
+      "lint": "",
+      "typecheck": "",
+      "test": "cd backend && mvn test",
+      "build": "",
+      "e2e": "cd qa && npm test"
+    },
+    "providers": {
+      "claude": "/usr/local/bin/claude",
+      "codex": "/usr/local/bin/codex",
+      "antigravity": "/usr/local/bin/agy"
+    },
+    "codegraph": {
+      "installed": true,
+      "indexed": true,
+      "stale": false
+    }
+  }
+}`
+      },
+      {
+        cmd: 'gin-workflow state',
+        category: 'Lifecycle Engine',
+        role: 'All Roles / Agent',
+        lang: 'yaml',
+        desc: 'Evaluates the event store and Beads status to derive the exact lifecycle stage, active gate statuses, evidence, and remedies.',
+        exampleInput: 'gin-workflow state --workflow-id biometric-auth',
+        exampleOutput: `Lifecycle Stage: execute
+Routing Decision: route
+Main Harness: claude
+
+Gates:
+  - requirement_confirmed: satisfied
+  - plan_approved: satisfied
+  - orchestration_ready: satisfied
+  - implementation_complete: unmet
+  - verification_passed: unmet
+  - shipped: unmet
+
+Evidence:
+  - implementation_complete=false
+
+Remedies:`
+      },
+      {
+        cmd: 'gin-workflow record',
+        category: 'Quality Gates',
+        role: 'BA / Tech Lead / QE',
+        lang: 'yaml',
+        desc: 'Appends an immutable, cryptographic quality gate event to .agent-workflow/runtime/events.jsonl. In team mode, proven by PR approvals.',
+        exampleInput: 'gin-workflow record requirement-confirmed --evidence docs/changes/biometric-auth/spec.md --actor an-ba@example.com --workflow-id biometric-auth',
+        exampleOutput: `gate: requirement-confirmed
+workflow_id: biometric-auth
+actor: an-ba@example.com
+evidence: docs/changes/biometric-auth/spec.md
+status: recorded`
+      },
+      {
+        cmd: 'gin-workflow team whoami',
+        category: 'Team Governance',
+        role: 'Any Team Member',
+        lang: 'yaml',
+        desc: 'Identifies the active team member from git config user.email, listing assigned roles, logins, and accessible sub-repo areas.',
+        exampleInput: 'gin-workflow team whoami',
+        exampleOutput: `email: binh-be@example.com
+login: binh-dev
+roles: [be_lead, be_dev]
+areas: [backend, legacy]
+host: github`
+      },
+      {
+        cmd: 'gin-workflow team check-plan',
+        category: 'Team Governance',
         role: 'Tech Lead',
         lang: 'bash',
-        exampleInput: '/gin-workflow:setup',
-        exampleOutput: `[setup] Detecting multi-subrepo monorepo layout...
-Found sub-repos: ./as-is, ./backend, ./frontend, ./qa.
-Configuring .agent-workflow/config.yaml:
-- rigor: standard (requires worktree isolation & build checks)
-- provider_mode: single (Claude Code baseline)
-- verify commands: cd backend && mvn test; cd frontend && npm test; cd qa && npm run test:e2e
-Configuration saved to .agent-workflow/config.yaml.`
+        desc: 'Validates that every track in an approved plan is bounded inside defined sub-repo areas and owned by an authorized role.',
+        exampleInput: 'gin-workflow team check-plan .planning/plans/2026-10-05-biometric-auth.md',
+        exampleOutput: `plan: .planning/plans/2026-10-05-biometric-auth.md
+tracks: 3
+areas: backend (binh-dev), frontend (dung-fe), qa (hoa-qe)
+files in scope:
+  - backend/src/main/java/... (Area: backend)
+  - frontend/src/features/... (Area: frontend)
+  - qa/cases/... (Area: qa)
+status: ok (exit 0)`
       },
       {
-        cmd: 'codegraph index',
-        category: 'Intelligence',
-        role: 'Tech Lead / Dev',
+        cmd: 'gin-workflow rules --list',
+        category: 'Guardrails & Context',
+        role: 'Developer / Agent',
         lang: 'bash',
-        exampleInput: 'codegraph index ./as-is',
-        exampleOutput: `[codegraph] Parsing Java & JSP ASTs under ./as-is...
-Indexed 142 classes, 84 servlets, 56 JSPs, 1,290 symbols.
-Call graph built in .codegraph/symbols.db (2.4 MB).
-Claude Code can now explore symbols with tool codegraph_explore.`
+        desc: 'Lists active rule packs trimmed to the task token budget, ensuring critical coding rules are never dropped.',
+        exampleInput: 'gin-workflow rules --list',
+        exampleOutput: `core (plugin, core): 855/1000 chars; critical=2 high=3 medium=3
+lean (plugin, core): 995/1000 chars; critical=0 high=2 medium=6
+spring-boot (plugin, backend): 1120/1200 chars; critical=1 high=4 medium=2
+react (plugin, frontend): 1040/1200 chars; critical=1 high=3 medium=3`
       },
       {
-        cmd: '/gin-workflow:tech-doc',
-        category: 'Discovery',
-        role: 'Tech Lead / BA',
-        lang: 'bash',
-        exampleInput: '/gin-workflow:tech-doc',
-        exampleOutput: `[tech-doc] Inspecting codebase evidence...
-Generated docs/as-is/OVERVIEW.md (Business capabilities)
-Generated docs/as-is/ARCHITECTURE.md (Monolith topology)
-Generated docs/as-is/STACK.md (JDK 8, Struts, raw JDBC)
-Generated docs/as-is/CONCERNS.md (Session concurrency & MD5 security risks)
-All documents written to docs/as-is/*.`
+        cmd: 'review-ledger.py status',
+        category: 'Independent Review',
+        role: 'Developer / Reviewer',
+        lang: 'yaml',
+        desc: 'Inspects the durable review ledger for a specific bead, verifying leases, checkpoint commit hashes, and finding resolutions.',
+        exampleInput: 'python3 plugins/gin-workflow/src/scripts/review-ledger.py status --bead-id BEAD-201',
+        exampleOutput: `bead_id: BEAD-201
+status: review-approved
+lease: active
+checkpoint_commit: 9b8c21a4e2
+approved_snapshot: 9b8c21a4e2
+findings:
+  - id: 1
+    state: verified
+    title: Argon2id salt generation must use SecureRandom
+active_findings: 0`
       },
       {
-        cmd: '/gin-workflow:discuss',
-        category: 'Requirements',
-        role: 'Business Analyst (BA)',
-        lang: 'bash',
-        exampleInput: '/gin-workflow:discuss Modernize authentication across backend and frontend repos',
-        exampleOutput: `[discuss] Proposing approaches and clarifying scope:
-- Approach A: Pure Passkey with Email OTP fallback
-- Approach B (Recommended): WebAuthn with legacy password fallback & auto-upgrade
-Writing spec to docs/changes/biometric-auth/spec.md...
-Gate requirement_confirmed pending PR #142 approval.`
-      },
-      {
-        cmd: '/gin-workflow:plan',
-        category: 'Planning',
-        role: 'Area Lead',
-        lang: 'bash',
-        exampleInput: '/gin-workflow:plan biometric-auth',
-        exampleOutput: `[plan] Decomposing spec into sub-repo tracks:
-Track 1: Spring Boot WebAuthn Service [Area: backend] [Owner: binh-dev]
-Track 2: React 19 Biometric Form [Area: frontend] [Owner: dung-fe]
-Track 3: Parity & Regression Suite [Area: qa] [Owner: hoa-qe]
-Plan written to .planning/plans/2026-10-05-biometric-auth.md.`
-      },
-      {
-        cmd: '/gin-workflow:orchestrate',
-        category: 'Execution Prep',
-        role: 'Tech Lead',
-        lang: 'bash',
-        exampleInput: '/gin-workflow:orchestrate biometric-auth',
-        exampleOutput: `[orchestrate] Creating Beads epics and tracks:
-Created Epic: BEAD-200
-Created Track Beads: BEAD-201 (backend), BEAD-202 (frontend), BEAD-203 (qa)
-Creating isolated worktrees for sub-repos:
-- .agent-workflow/worktrees/feat-biometric-backend
-- .agent-workflow/worktrees/feat-biometric-frontend
-Baseline tests passing in worktrees. Gate orchestration_ready PASSED.`
-      },
-      {
-        cmd: 'team claim & /execute',
-        category: 'Development',
-        role: 'Developer',
-        lang: 'bash',
-        exampleInput: 'team claim BEAD-201 && /gin-workflow:execute',
-        exampleOutput: `[team] Claimed BEAD-201 for binh-dev.
-[execute] Running test-first loop in backend worktree...
-Step 1: Write WebAuthnControllerTest.java (FAIL - 404 Not Found)
-Step 2: Implement WebAuthnController.java (PASS - 200 OK)
-Step 3: Review ledger validation: 1 finding resolved.
-Closed bead BEAD-201.`
-      },
-      {
-        cmd: '/gin-qa:cases',
+        cmd: 'gin-qa cases plan',
         category: 'Quality Assurance',
         role: 'Test Lead / QE',
-        lang: 'bash',
-        exampleInput: '/gin-qa:cases biometric-auth',
-        exampleOutput: `[gin-qa] Reading living spec docs/changes/biometric-auth/spec.md...
-Generated TC-BIO-001 pinned to REQ-BIO-001@7d9a1f2e
-Generated TC-BIO-002 pinned to REQ-BIO-002@7d9a1f2e
-Generated TC-BIO-003 pinned to REQ-BIO-003@7d9a1f2e
-Test cases written to qa/cases/auth.md in qa sub-repo.`
+        lang: 'yaml',
+        desc: 'Scans living specs and test cases in the qa sub-repo, reporting missing, stale (spec hash changed), or obsolete test cases.',
+        exampleInput: 'gin-qa cases plan biometric-auth',
+        exampleOutput: `capability: biometric-auth
+spec_file: docs/changes/biometric-auth/spec.md
+cases_file: qa/cases/auth.md
+summary:
+  missing: 0
+  stale: 0
+  obsolete: 0
+  pinned: 4
+status: clean (exit 0)`
       },
       {
-        cmd: '/gin-qa:e2e',
-        category: 'Quality Assurance',
-        role: 'QE',
-        lang: 'bash',
-        exampleInput: '/gin-qa:e2e biometric-auth',
-        exampleOutput: `[gin-qa] Compiling Playwright specs from qa/cases/auth.md...
-Created qa/e2e/auth/biometric.spec.ts in qa sub-repo
-Running Playwright headless browser test against backend and frontend...
-Captured 4 screenshots and 1 ARIA snapshot under qa/evidence/run-104/
-Result: 3 passed, 0 failed.`
-      },
-      {
-        cmd: '/gin-workflow:verify',
-        category: 'Verification',
-        role: 'Test Lead',
-        lang: 'bash',
-        exampleInput: '/gin-workflow:verify',
-        exampleOutput: `[verify] Executing verification suites across sub-repos:
-- backend (mvn test): 124 passed, 0 failures
-- frontend (npm test): 48 passed, 0 failures
-- qa (playwright test): all cases verified
-- Spec checklist audit: 4 of 4 REQ-IDs verified in code
-Gate verification_passed PASSED.`
-      },
-      {
-        cmd: '/gin-workflow:ship',
-        category: 'Release',
-        role: 'Tech Lead / PM',
-        lang: 'bash',
-        exampleInput: '/gin-workflow:ship',
-        exampleOutput: `[ship] Verification passed. Select integration:
-1) Merge locally to master
-2) Push and open Pull Request
-Selected: 1) Merge locally to master.
-Running regression suite across sub-repos... OK.
-Removing worktrees and closing epic BEAD-200. Shipped!`
-      },
-      {
-        cmd: '/gin-workflow:report',
+        cmd: 'gin-workflow usage report',
         category: 'Governance & ROI',
         role: 'Project Manager (PM)',
-        lang: 'bash',
-        exampleInput: '/gin-workflow:report --epic BEAD-200',
-        exampleOutput: `[report] AI Usage & Cost Attribution for BEAD-200:
-- Total Prompt Tokens: 1,842,500
-- Total Completion Tokens: 316,000
-- Total AI Cost: $14.28
-- Review Cycles: 1.25 avg (max 3)
-- Reopened Beads: 0 (100% first-pass pass rate)
-Report generated.`
+        lang: 'yaml',
+        desc: 'Generates token usage, model tier attribution, dollar cost, and quality signals across all closed sub-repo beads.',
+        exampleInput: 'gin-workflow usage report --epic BEAD-200',
+        exampleOutput: `Epic: BEAD-200 (Biometric WebAuthn Authentication)
+Total Closed Beads: 3
+Token Attribution:
+  - claude-3-5-sonnet: 1,842,500 prompt, 316,000 completion ($14.28)
+Quality Signals:
+  - Average Review Cycles: 1.25 (cap: 3)
+  - Reopened Beads: 0
+  - Unmet Waivers: 0
+Estimated ROI: +42% efficiency vs manual dev budget`
       }
     ];
 
