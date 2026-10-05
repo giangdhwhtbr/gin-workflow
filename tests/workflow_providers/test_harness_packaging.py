@@ -10,20 +10,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 
-USE_CASE_PAGES = (
-    "README.md",
-    "large-task.md",
-    "resume-in-progress.md",
-    "quick-debug.md",
-)
-
-REQUIRED_USE_CASE_SECTIONS = (
-    "Prerequisites",
-    "Flow",
-    "State and evidence gates",
-    "Realistic example",
-    "Common failures",
-    "Safe recovery",
+USE_CASE_SECTIONS = (
+    "Small change",
+    "Bounded defect",
+    "Large multi-track change",
+    "Resume in-progress work",
 )
 
 REQUIRED_ARTIFACTS = (
@@ -247,42 +238,31 @@ class HarnessPackagingTests(unittest.TestCase):
         packaged = sorted(path.name for path in references.glob("*.md"))
         self.assertEqual(["shape-backend.md", "shape-frontend.md", "stage-contract.md"], packaged)
 
-    def test_use_case_pages_have_required_sections_and_readme_links(self):
-        use_cases = ROOT / "docs/use-cases"
-        for relative in USE_CASE_PAGES:
-            content = (use_cases / relative).read_text(encoding="utf-8")
-            with self.subTest(relative=relative):
-                for section in REQUIRED_USE_CASE_SECTIONS:
-                    self.assertRegex(content, re.compile(rf"^## {re.escape(section)}\s*$", re.MULTILINE))
-
+    def test_use_cases_guide_has_every_case_and_readme_links_it(self):
+        content = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")
+        for section in USE_CASE_SECTIONS:
+            with self.subTest(section=section):
+                self.assertRegex(content, re.compile(rf"^## {re.escape(section)}\s*$", re.MULTILINE))
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        for relative in ("large-task.md", "resume-in-progress.md", "quick-debug.md"):
-            self.assertIn(f"docs/use-cases/{relative}", readme)
+        self.assertIn("docs/guides/use-cases.md", readme)
 
     def test_t8_lifecycle_review_is_separate_from_router_stages(self):
         lifecycle = (ROOT / "docs/concepts/lifecycle.md").read_text(encoding="utf-8")
-        resume = (ROOT / "docs/use-cases/resume-in-progress.md").read_text(encoding="utf-8")
+        guide = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")
+        resume = guide[guide.index("## Resume in-progress work"):]
         self.assertIn("not a router lifecycle stage", lifecycle)
         self.assertIn("review_approved", lifecycle)
-        self.assertNotIn("`workflow` routes review", resume)
-        self.assertIn("review capability before workflow", resume)
-        self.assertIn("router mechanically selects `verify` after", resume)
-        self.assertIn("regardless of review state", resume)
-        self.assertIn("The verify wrapper and evidence checks", resume)
-        self.assertIn("fail closed without terminal review approval", resume)
-        flow = resume[resume.index("## Flow") : resume.index("## State and evidence gates")]
-        self.assertLess(flow.index("$gin-workflow:progress"), flow.index("Inspect that durable state"))
-        self.assertLess(flow.index("Inspect that durable state"), flow.index("review capability and"))
-        self.assertLess(flow.index("review capability and"), flow.index("$gin-workflow:workflow"))
-        self.assertLess(flow.index("$gin-workflow:workflow"), flow.index("$gin-workflow:verify"))
-        self.assertNotIn("Only then can `workflow` route `verify`", resume)
+        self.assertIn("fails closed when a ledger lacks terminal approval", resume)
+        self.assertLess(resume.index("/gin-workflow:progress"), resume.index("finish the review first"))
+        self.assertLess(resume.index("finish the review first"), resume.index("/gin-workflow:workflow"))
+        self.assertLess(resume.index("/gin-workflow:workflow"), resume.index("selects `verify`"))
 
-    def test_t8_quick_debug_orchestrates_before_execute(self):
-        content = (ROOT / "docs/use-cases/quick-debug.md").read_text(encoding="utf-8")
-        self.assertIn("$gin-workflow:orchestrate", content)
-        self.assertIn("orchestration_ready", content)
-        self.assertLess(content.index("$gin-workflow:orchestrate"), content.index("$gin-workflow:execute"))
-        self.assertIn("creates the Bead", content)
+    def test_t8_bounded_defect_orchestrates_before_execute(self):
+        guide = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")
+        defect = guide[guide.index("## Bounded defect"):guide.index("## Large multi-track change")]
+        self.assertIn("/gin-workflow:orchestrate", defect)
+        self.assertLess(defect.index("/gin-workflow:orchestrate"), defect.index("/gin-workflow:execute"))
+        self.assertLess(defect.index("gin-debugging"), defect.index("/gin-workflow:plan"))
 
     def test_t8_provider_routing_documents_portable_and_local_boundaries(self):
         content = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")

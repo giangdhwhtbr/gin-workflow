@@ -115,11 +115,11 @@ Maps lifecycle phases (`brainstorm`, `design`, `plan`, `implement`, `verify`, `r
 | `packs` | extra rule packs to enable, for example `[typescript, react]` |
 | `disabled` | packs to turn off, including the defaults |
 
-`core` and `lean` are always enabled unless disabled. Project packs live in `.agent-workflow/rules/`. Inspect the result with `gin-workflow rules --list`.
+`core` and `lean` are always enabled unless disabled. Project packs live in `.agent-workflow/rules/`. Inspect the result with `gin-workflow rules --list`. See [Rule packs](../guides/rules.md).
 
 ### `team`
 
-Present only in team mode: `host` (`github`), `commit_convention`, `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals` (per gate: a role list or `area_lead`), and `beads_sync.remote`.
+Present only in team mode ([guide](../guides/team.md)): `host` (`github` or `gitlab`), `commit_convention`, `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals` (per gate: a role list or `area_lead`), and `beads_sync.remote`.
 
 ### `qa`
 

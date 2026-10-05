@@ -64,7 +64,7 @@ At handoff the agent reports what changed, what was validated and what was not, 
 - `escalate`: too large; use the full lifecycle.
 - `refused`: `strict` rigor without a `requirement_confirmed` waiver.
 
-`/quick` never commits; you do.
+`/quick` never commits; you do. See [Use cases](../guides/use-cases.md#small-change).
 
 ## Waivers
 
@@ -84,6 +84,6 @@ You approve the design (confirmation), the plan, production-impacting parallel w
 
 ## Variations
 
-- **SDD layout** (`artifacts.layout: sdd`): `discuss` writes a change folder with REQ-IDs instead of a dated spec, tests carry the REQ-IDs, and `ship` archives the change into the living specs.
-- **Team mode** (`team:` configured): gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member.
+- **SDD layout** (`artifacts.layout: sdd`): `discuss` writes a change folder with REQ-IDs instead of a dated spec, tests carry the REQ-IDs, and `ship` archives the change into the living specs. See [SDD](../guides/sdd.md).
+- **Team mode** (`team:` configured): gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member. See [Team mode](../guides/team.md).
 - **Rigor**: `easy` skips worktrees and uses a self check; `strict` always isolates and requires a review ledger.

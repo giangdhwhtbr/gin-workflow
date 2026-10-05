@@ -156,4 +156,4 @@ flowchart LR
     M --> R[gin-workflow usage report and /report]
 ```
 
-`execute` and `ship` run `usage collect` before closing a bead; it reads only token counts and routing fields, never prompt text, and never blocks closing.
+`execute` and `ship` run `usage collect` before closing a bead; it reads only token counts and routing fields, never prompt text, and never blocks closing. See [Usage report](../guides/usage-report.md).

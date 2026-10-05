@@ -37,8 +37,8 @@ Stages load these when needed; you can also invoke them directly.
 | `gin-worktrees` | Detect or create an isolated git worktree and check a clean test baseline |
 | `gin-parallel-agents` | Work several independent tasks concurrently, one bounded agent per domain |
 | `gin-knowledge` | Capture durable decisions and lessons, and reconcile project knowledge at ship |
-| `gin-sdd` | Stage rules for `artifacts.layout: sdd`: change folders, REQ-IDs, trace, spec review, archive |
-| `gin-team` | Stage rules for team mode: identity, PR-proven gates, areas and owners, claims, Beads sync |
+| `gin-sdd` | Stage rules for `artifacts.layout: sdd`: change folders, REQ-IDs, trace, spec review, archive ([guide](../guides/sdd.md)) |
+| `gin-team` | Stage rules for team mode: identity, PR-proven gates, areas and owners, claims, Beads sync ([guide](../guides/team.md)) |
 
 ## gin-workflow: setup and maintenance
 
@@ -51,6 +51,8 @@ Stages load these when needed; you can also invoke them directly.
 | `telegram-notify` | Send Telegram notifications on lifecycle events; opt-in via `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` |
 
 ## gin-qa (optional add-on)
+
+See [QA](../guides/qa.md).
 
 | Skill | Purpose |
 |---|---|

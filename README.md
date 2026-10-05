@@ -73,13 +73,7 @@ The plugin’s canonical workflow is:
 
 ### Common Use Cases
 
-| Need | Guide | Durable starting point |
-| :--- | :--- | :--- |
-| New multi-track change | [Large task](docs/use-cases/large-task.md) | `discuss` → confirmed requirement |
-| Continue existing work | [Resume in progress](docs/use-cases/resume-in-progress.md) | `progress` / `workflow` and Beads |
-| Small bounded defect | [Quick debug](docs/use-cases/quick-debug.md) | bounded diagnosis and approved plan |
-
-The guides describe prerequisites, state/evidence gates, failure handling, and safe recovery.
+Small change, bounded defect, large multi-track change, resuming work: see [Use cases](docs/guides/use-cases.md).
 
 
 ## Optional Commands
@@ -95,7 +89,7 @@ Some hosts also surface plugin commands. Where available, these are optional ali
 - `/ship`
 - `/progress`, `/tech-doc`, `/report`
 
-AI usage: `gin-workflow usage collect --bead <id>` summarizes the bead's tokens from local Claude Code and Codex logs into its metadata (the `execute` and `ship` skills run it at close); `gin-workflow usage report [--bead|--epic|--since]` reads the summaries back. Costs are estimated from `.agent-workflow/usage-prices.yaml` (`prices: {<model>: {input, output, cache_read, cache_write}}`, USD per million tokens); a model without a price is listed as unpriced.
+AI usage per bead and epic: see [Usage report](docs/guides/usage-report.md).
 
 For the detailed workflow contracts:
 
@@ -110,7 +104,7 @@ For the detailed workflow contracts:
 
 ## Rule Packs
 
-`gin-workflow rules --files <paths>` gives the `developer` agent, `/quick`, and the reviewer the best-practice rules for the files in scope. `core` and `lean` load by default; language and framework packs come from `rules.packs` in `.agent-workflow/config.yaml`, and `rules.disabled: [lean]` turns a pack off. `lean` asks for the shortest correct solution: reuse what exists, prefer the standard library, the platform, and installed dependencies, and add nothing speculative, without cutting validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT).
+Best-practice checklists for the developer and the reviewer; `core` and `lean` load by default. See [Rule packs](docs/guides/rules.md).
 
 ---
 
@@ -152,15 +146,8 @@ codex plugin add gin-workflow@gin-workflow-marketplace
 ```
 
 ### QA add-on (`gin-qa`, optional)
-`gin-qa` writes and checks test cases derived from the specs (`/gin-qa:cases`). It is not installed by default and needs `gin-workflow`. Install the plugin and its `gin-qa` launcher with `--plugin gin-qa` (or `--plugin all` for both):
-```bash
-./install.sh --plugin gin-qa
-# or remotely
-curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --plugin gin-qa
-```
-Test cases live in `qa/cases/<capability>.md` (configurable with `qa.cases` in `.agent-workflow/config.yaml`); team rules for writing them go in `qa/guidelines.md` (`qa.guidelines`). `gin-qa cases export --format json` feeds your own report tooling.
 
-`/gin-qa:e2e <capability>` turns `Type: e2e` cases into Playwright specs under `qa/e2e/<capability>/` (`qa.e2e`) and runs them with `gin-qa e2e run`. `gin-qa e2e init` copies the evidence fixture `qa/e2e/evidence.ts` (yours to edit) and git-ignores `qa/evidence/`; each run leaves a screenshot per step and a `result.json` per case (per case and Playwright project when the config names projects) there, checked by `gin-qa e2e check --run <folder>` and exported with `gin-qa e2e export --run <folder> --format json`. The skill builds each spec step by step against the running application, reading the ARIA snapshot (`NN.aria.yml`) and URL the fixture records after every step, and reviews the screenshots before it reports a case; on platforms with subagents it works on several cases in parallel (`--parallel N`, default 3). The project provides `@playwright/test` (1.49 or later) and its Playwright config (`baseURL`, browsers, video, trace).
+Test cases from specs and Playwright end-to-end specs with evidence. Install with `./install.sh --plugin gin-qa`; see [QA](docs/guides/qa.md).
 
 ---
 
