@@ -161,7 +161,7 @@ execution_strategy:
 
      ### Configure
 
-     - **Index each repository** once with `codegraph init` in its root. On a brownfield or legacy repository, `/gin-workflow:setup` offers to run it for you. The index lives in `.codegraph/`, which ignores its own contents.
+     - **Index each repository** once with `codegraph init` in its root. On a brownfield or legacy repository, `/gin-workflow:setup` offers to run it for you. The index lives in `.codegraph/`; add `.codegraph/` to the repository's `.gitignore`, because git otherwise lists the folder as untracked.
      - **Optional MCP server:** `codegraph install` adds CodeGraph's MCP tools to Claude Code, Codex, and other supported agents (one global run covers every project). gin-workflow's skills call the `codegraph` CLI, so the MCP server is not required; it adds a file watcher that keeps the index current while you edit.
 
      ### Where gin-workflow uses it
