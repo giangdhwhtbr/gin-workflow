@@ -117,15 +117,33 @@
     <!-- VIEW 2: INTERACTIVE BA DISCUSS SIMULATOR (Biometric Auth) -->
     <!-- ============================================================ -->
     <section id="view-dialogue" class="hidden space-y-6">
-      <div class="border-b border-slate-200 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+      <!-- Breadcrumb & Close Bar -->
+      <div class="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center space-x-2 text-xs text-slate-500">
+          <button onclick="closeDialogueToJourney()" class="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 transition">
+            <span>&larr;</span> <span>Back to Modernization Journey</span>
+          </button>
+          <span>/</span>
+          <span class="text-slate-600">Phase 01: BA Requirements</span>
+          <span>/</span>
+          <span class="text-slate-900 font-semibold">Interactive /discuss Simulator</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="resetDialogue()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition border border-slate-300">
+            🔄 Restart
+          </button>
+          <button onclick="closeDialogueToJourney()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition border border-rose-200 flex items-center gap-1 shadow-sm">
+            <span>✕ Close Simulator</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="border-b border-slate-200 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
           <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">BA & Claude Live Simulation</span>
           <h2 class="text-2xl font-extrabold text-slate-900 mt-1">Interactive /discuss: Modern Biometric Login Flow</h2>
           <p class="text-sm text-slate-500 mt-0.5">Experience how an agent clarifies an ambiguous user story into an unambiguous SDD specification spanning backend, frontend, and qa repos.</p>
         </div>
-        <button onclick="resetDialogue()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition border border-slate-300">
-          🔄 Restart Dialogue
-        </button>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -136,7 +154,10 @@
               <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
               <span class="text-xs font-bold text-white uppercase tracking-wider font-mono">Claude Code Session (/discuss)</span>
             </div>
-            <span class="text-[11px] font-mono text-slate-400">Harness: claude-3-5-sonnet</span>
+            <div class="flex items-center gap-3">
+              <span class="text-[11px] font-mono text-slate-400">Harness: claude-3-5-sonnet</span>
+              <button onclick="closeDialogueToJourney()" class="text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition" title="Close simulator">✕ Close</button>
+            </div>
           </div>
 
           <!-- Chat Messages Scroll Container -->
@@ -1348,13 +1369,17 @@ Report generated.`
 
       const btn = document.getElementById('btn-advance-dialogue');
       if (currentDialogueIndex >= DIALOGUE_STEPS.length - 1) {
-        btn.innerHTML = `<span>Discussion Completed ✓</span>`;
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = `<span>✅ Close & Return to Journey (Proceed to Plan Phase) &rarr;</span>`;
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-blue-600', 'hover:bg-blue-500');
+        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+        btn.onclick = () => closeDialogueToJourney(4);
       } else {
         btn.innerHTML = `<span>Next Conversation Step</span> &rarr;`;
         btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500', 'opacity-50', 'cursor-not-allowed');
+        btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+        btn.onclick = advanceDialogue;
       }
     }
 
@@ -1368,6 +1393,13 @@ Report generated.`
     function resetDialogue() {
       currentDialogueIndex = 0;
       renderDialogue();
+    }
+
+    function closeDialogueToJourney(phaseIndex = null) {
+      switchView('journey');
+      if (phaseIndex !== null) {
+        selectJourneyPhase(phaseIndex);
+      }
     }
 
     // MONOREPO TREE EXPLORER (MULTI-SUBREPOS)
