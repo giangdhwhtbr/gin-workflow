@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gin-Workflow Interactive Visualizer | Legacy Modernization Simulation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .tab-active { border-color: #3b82f6; color: #1d4ed8; background-color: #eff6ff; }
+    .stage-card.active { border-color: #3b82f6; ring-width: 2px; }
+  </style>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased">
+
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 text-white shrink-0 sticky top-0 z-50 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">
+            GW
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold tracking-tight text-lg text-white">Gin-Workflow</span>
+              <span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">Team Simulation</span>
+            </div>
+            <p class="text-xs text-slate-400">Legacy Java JSP/Servlet &rarr; Spring Boot 3 + React 19</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex space-x-1" id="main-nav">
+          <button onclick="switchView('lifecycle')" id="btn-nav-lifecycle" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-white bg-blue-600 shadow-sm">
+            🔄 Lifecycle & Gates
+          </button>
+          <button onclick="switchView('roles')" id="btn-nav-roles" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
+            👥 Roles Matrix (8 Roles)
+          </button>
+          <button onclick="switchView('pm')" id="btn-nav-pm" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
+            📊 PM Analytics & Cost
+          </button>
+          <button onclick="switchView('strangler')" id="btn-nav-strangler" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
+            🏗️ Architecture & Strangler Fig
+          </button>
+          <button onclick="switchView('artifacts')" id="btn-nav-artifacts" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
+            📝 Artifacts Inspector
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- ============================================================ -->
+    <!-- VIEW 1: INTERACTIVE LIFECYCLE & GATES -->
+    <!-- ============================================================ -->
+    <section id="view-lifecycle" class="space-y-6">
+      <!-- Scenario Banner -->
+      <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 shadow-xl border border-blue-800/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-2">
+            Active Feature: Epic #AUTH-MIGRATE
+          </div>
+          <h1 class="text-2xl font-extrabold tracking-tight">Modernize Legacy User Authentication & Session Management</h1>
+          <p class="text-slate-300 text-sm mt-1 max-w-2xl">
+            Decommissioning <code class="text-amber-300 bg-amber-950/50 px-1 py-0.5 rounded">UserAuthServlet.java</code> & <code class="text-amber-300 bg-amber-950/50 px-1 py-0.5 rounded">login.jsp</code> into Spring Boot 3 JWT Security and React 19 Auth Component with zero downtime.
+          </p>
+        </div>
+        <div class="bg-slate-800/80 backdrop-blur rounded-xl p-3 border border-slate-700/60 shrink-0 text-right">
+          <div class="text-xs text-slate-400">Current Lifecycle Gate</div>
+          <div class="text-base font-bold text-amber-400 flex items-center justify-end gap-1.5 mt-0.5" id="current-gate-indicator">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            Stage 1: discuss
+          </div>
+          <div class="text-[11px] text-slate-400 mt-1">Requires PR approval by: <strong class="text-white">BA</strong></div>
+        </div>
+      </div>
+
+      <!-- Lifecycle Stepper -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-2" id="lifecycle-stepper">
+          <!-- 6 Buttons generated / attached via JS -->
+        </div>
+      </div>
+
+      <!-- Active Stage Detailed Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" id="stage-detail-panel">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+
+    <!-- ============================================================ -->
+    <!-- VIEW 2: TEAM ROLES MATRIX (8 ROLES) -->
+    <!-- ============================================================ -->
+    <section id="view-roles" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-4">
+        <h2 class="text-xl font-bold text-slate-900">Cross-Functional Team Collaboration Matrix</h2>
+        <p class="text-sm text-slate-500 mt-1">
+          How 8 roles collaborate safely on the same codebase using Git-worktrees, CODEOWNERS, and single-owner states.
+        </p>
+      </div>
+
+      <!-- Role Selector Pills -->
+      <div class="flex flex-wrap gap-2" id="role-selector-bar">
+        <!-- Generated by JS -->
+      </div>
+
+      <!-- Selected Role Info -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" id="role-detail-card">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Collaboration Guardrails Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm mb-3">1</div>
+          <h3 class="font-bold text-slate-900 text-sm">Directory & Area Boundaries</h3>
+          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+            BE Lead/Devs own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">services/**</code>. FE Lead/Devs own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">apps/web/**</code>. Testers own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">qa/**</code>. BAs own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">docs/**</code>. CODEOWNERS strictly prevents unauthorised cross-edits.
+          </p>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm mb-3">2</div>
+          <h3 class="font-bold text-slate-900 text-sm">Isolated Git Worktrees</h3>
+          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+            Devs work in separate Git worktrees created automatically by <code class="bg-slate-100 px-1 py-0.5 rounded text-indigo-600">orchestrate</code>. A BE Dev can implement JWT filters while a FE Dev builds React 19 forms without merge collisions on local branches.
+          </p>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm mb-3">3</div>
+          <h3 class="font-bold text-slate-900 text-sm">Decoupled Task Claims</h3>
+          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+            Every task is tracked by Beads (<code class="bg-slate-100 px-1 py-0.5 rounded text-emerald-600">bd</code>) and claimed by one person via <code class="bg-slate-100 px-1 py-0.5 rounded text-emerald-600">team claim &lt;bead&gt;</code>. Dual-claiming is impossible, eliminating duplicated work.
+          </p>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ============================================================ -->
+    <!-- VIEW 3: PM EXECUTIVE DASHBOARD & AI METRICS -->
+    <!-- ============================================================ -->
+    <section id="view-pm" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Project Manager (PM) Intelligence & Analytics</h2>
+          <p class="text-sm text-slate-500 mt-1">Real-time visibility into AI token consumption, budget tracking, rework rate, and quality signals via <code class="text-blue-600">/report</code>.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs bg-slate-100 text-slate-600 font-mono px-2.5 py-1 rounded-md border border-slate-300">Epic: #AUTH-MIGRATE</span>
+          <button class="text-xs bg-blue-600 text-white font-semibold px-3 py-1 rounded-md hover:bg-blue-700 transition" onclick="refreshMetrics()">Simulate Live Refresh</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total AI Spend</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-1" id="kpi-spend">$14.28</div>
+          <div class="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+            <span>↓ 42%</span> vs human estimate ($3,400)
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Token Consumption</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-1" id="kpi-tokens">1,842,500</div>
+          <div class="text-xs text-slate-500 mt-1">Claude 3.5 & 3.7 Sonnet</div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Rework Rate / Reopens</div>
+          <div class="text-2xl font-extrabold text-emerald-600 mt-1">0 Reopens</div>
+          <div class="text-xs text-slate-500 mt-1">100% verified test-first</div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Review Cycles Average</div>
+          <div class="text-2xl font-extrabold text-blue-600 mt-1">1.25 Cycles</div>
+          <div class="text-xs text-slate-500 mt-1">Cap: 3 max cycles</div>
+        </div>
+      </div>
+
+      <!-- Detailed Breakdown Tables -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Breakdown by Stage -->
+        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <h3 class="font-bold text-slate-900 text-sm mb-3">AI Resource Attribution by Lifecycle Stage</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 uppercase border-b border-slate-200">
+                <tr>
+                  <th class="p-2.5">Stage</th>
+                  <th class="p-2.5">Tokens (Prompt/Completion)</th>
+                  <th class="p-2.5">Cost ($)</th>
+                  <th class="p-2.5">Findings Handled</th>
+                  <th class="p-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono">
+                <tr>
+                  <td class="p-2.5 font-bold font-sans text-blue-600">1. discuss</td>
+                  <td class="p-2.5">245,000 / 38,000</td>
+                  <td class="p-2.5 font-semibold">$1.32</td>
+                  <td class="p-2.5 font-sans">0 findings</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Confirmed</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 font-bold font-sans text-blue-600">2. plan</td>
+                  <td class="p-2.5">180,000 / 42,000</td>
+                  <td class="p-2.5 font-semibold">$1.18</td>
+                  <td class="p-2.5 font-sans">1 amendment</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Approved</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 font-bold font-sans text-blue-600">3. orchestrate</td>
+                  <td class="p-2.5">95,000 / 15,000</td>
+                  <td class="p-2.5 font-semibold">$0.48</td>
+                  <td class="p-2.5 font-sans">0</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Ready</span></td>
+                </tr>
+                <tr class="bg-blue-50/50">
+                  <td class="p-2.5 font-bold font-sans text-blue-600">4. execute (3 tracks)</td>
+                  <td class="p-2.5">1,120,000 / 185,000</td>
+                  <td class="p-2.5 font-semibold">$9.80</td>
+                  <td class="p-2.5 font-sans">4 fixed, 1 waived</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">Closed</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 font-bold font-sans text-blue-600">5. verify</td>
+                  <td class="p-2.5">165,000 / 28,000</td>
+                  <td class="p-2.5 font-semibold">$1.20</td>
+                  <td class="p-2.5 font-sans">0 checklist gaps</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Passed</span></td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 font-bold font-sans text-blue-600">6. ship</td>
+                  <td class="p-2.5">45,000 / 8,000</td>
+                  <td class="p-2.5 font-semibold">$0.30</td>
+                  <td class="p-2.5 font-sans">0</td>
+                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full font-semibold">Pending PR</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bead Track Status -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+          <h3 class="font-bold text-slate-900 text-sm">Epic Track Beads Velocity</h3>
+          <div class="space-y-2 text-xs">
+            <div class="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60">
+              <div class="flex justify-between font-semibold text-emerald-900">
+                <span>BEAD-101: Spring Boot JWT Service</span>
+                <span class="text-emerald-700">Closed ✓</span>
+              </div>
+              <p class="text-emerald-700/80 text-[11px] mt-0.5">Assigned: binh-dev (BE) • Area: backend</p>
+            </div>
+
+            <div class="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60">
+              <div class="flex justify-between font-semibold text-emerald-900">
+                <span>BEAD-102: React 19 Auth Component</span>
+                <span class="text-emerald-700">Closed ✓</span>
+              </div>
+              <p class="text-emerald-700/80 text-[11px] mt-0.5">Assigned: dung-fe (FE) • Area: frontend</p>
+            </div>
+
+            <div class="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60">
+              <div class="flex justify-between font-semibold text-emerald-900">
+                <span>BEAD-103: E2E Parity & Playwright Tests</span>
+                <span class="text-emerald-700">Closed ✓</span>
+              </div>
+              <p class="text-emerald-700/80 text-[11px] mt-0.5">Assigned: hoa-qe (Tester) • Area: qa</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ============================================================ -->
+    <!-- VIEW 4: STRANGLER FIG ARCHITECTURE & MIGRATION -->
+    <!-- ============================================================ -->
+    <section id="view-strangler" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-4">
+        <h2 class="text-xl font-bold text-slate-900">Strangler Fig Architecture: Monolith to Modern Stack</h2>
+        <p class="text-sm text-slate-500 mt-1">Incremental migration pattern eliminating single-point-of-failure risks.</p>
+      </div>
+
+      <!-- Architecture Comparison Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Legacy Monolith -->
+        <div class="bg-red-50/40 rounded-2xl border border-red-200 p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+              BEFORE: Legacy Monolith (JDK 8)
+            </span>
+            <span class="text-xs text-red-600 font-semibold">Decommissioning in progress</span>
+          </div>
+
+          <div class="space-y-3 font-mono text-xs">
+            <div class="bg-white p-3 rounded-lg border border-red-100 shadow-sm">
+              <div class="font-bold text-slate-800 font-sans">Presentation: JSP & Scriptlets</div>
+              <div class="text-slate-500 mt-0.5">/webapp/auth/login.jsp</div>
+              <div class="text-red-600 text-[11px] mt-1">Issues: Business logic mixed with HTML, vulnerable to XSS</div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border border-red-100 shadow-sm">
+              <div class="font-bold text-slate-800 font-sans">Controller: Raw Java Servlets</div>
+              <div class="text-slate-500 mt-0.5">UserAuthServlet.java (HttpServlet)</div>
+              <div class="text-red-600 text-[11px] mt-1">Issues: Manual session clustering, stateful HttpSession, tight Tomcat coupling</div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border border-red-100 shadow-sm">
+              <div class="font-bold text-slate-800 font-sans">Security: Legacy MD5 + Salt Hash</div>
+              <div class="text-slate-500 mt-0.5">Custom SecurityFilter.java</div>
+              <div class="text-red-600 text-[11px] mt-1">Issues: Outdated cryptography, non-standard authorization</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modern Target -->
+        <div class="bg-emerald-50/40 rounded-2xl border border-emerald-200 p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              AFTER: Modern Cloud-Native Stack
+            </span>
+            <span class="text-xs text-emerald-700 font-semibold">Zero-downtime Strangler Facade</span>
+          </div>
+
+          <div class="space-y-3 font-mono text-xs">
+            <div class="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+              <div class="font-bold text-slate-800 font-sans">Frontend: React 19 + TypeScript + Vite</div>
+              <div class="text-slate-500 mt-0.5">apps/web/src/features/auth/AuthForm.tsx</div>
+              <div class="text-emerald-700 text-[11px] mt-1">Benefits: Componentized UI, Action Hooks, type-safe contract</div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+              <div class="font-bold text-slate-800 font-sans">Backend: Spring Boot 3.3 (Java 21)</div>
+              <div class="text-slate-500 mt-0.5">services/backend/src/.../AuthController.java</div>
+              <div class="text-emerald-700 text-[11px] mt-1">Benefits: Stateless JWT, Spring Security 6, OpenAPI contracts</div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+              <div class="font-bold text-slate-800 font-sans">Security: Argon2id + Dual-Verification Upgrade</div>
+              <div class="text-slate-500 mt-0.5">Argon2PasswordEncoder.java</div>
+              <div class="text-emerald-700 text-[11px] mt-1">Benefits: Verifies MD5 on first login and silently upgrades hash to Argon2id</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Migration Facade Router Flow -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-bold text-slate-900 text-base">Strangler Reverse Proxy / API Gateway Flow</h3>
+        <div class="p-4 bg-slate-900 text-slate-200 rounded-xl font-mono text-xs space-y-2 overflow-x-auto">
+          <div class="text-slate-400">// NGINX / Gateway Routing Rules</div>
+          <div>location /api/v2/auth {</div>
+          <div class="pl-4 text-emerald-400">proxy_pass http://spring-boot-modern-service:8080; # New Modernized Traffic</div>
+          <div>}</div>
+          <div>location / {</div>
+          <div class="pl-4 text-amber-400">proxy_pass http://legacy-tomcat-cluster:8080;       # Unmigrated Legacy Traffic</div>
+          <div>}</div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ============================================================ -->
+    <!-- VIEW 5: ARTIFACTS & CODE INSPECTOR -->
+    <!-- ============================================================ -->
+    <section id="view-artifacts" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-4">
+        <h2 class="text-xl font-bold text-slate-900">Artifacts & State Inspector</h2>
+        <p class="text-sm text-slate-500 mt-1">Inspect real markdown artifacts generated by Claude Code during the modernization lifecycle.</p>
+      </div>
+
+      <div class="flex space-x-2 border-b border-slate-200" id="artifact-tabs">
+        <button onclick="switchArtifact('spec')" id="btn-art-spec" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-blue-600 text-blue-600">
+          📄 SDD Spec (REQ-IDs)
+        </button>
+        <button onclick="switchArtifact('plan')" id="btn-art-plan" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-transparent text-slate-500 hover:text-slate-700">
+          📋 Track Plan (Areas & Owners)
+        </button>
+        <button onclick="switchArtifact('review')" id="btn-art-review" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-transparent text-slate-500 hover:text-slate-700">
+          🔍 Review Ledger
+        </button>
+        <button onclick="switchArtifact('qa')" id="btn-art-qa" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-transparent text-slate-500 hover:text-slate-700">
+          🧪 Pinned Test Cases (gin-qa)
+        </button>
+      </div>
+
+      <div class="bg-slate-900 text-slate-100 rounded-2xl p-5 shadow-lg overflow-x-auto text-xs font-mono" id="artifact-content">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================ -->
+  <!-- JAVASCRIPT LOGIC -->
+  <!-- ============================================================ -->
+  <script>
+    // DATA STORE: 6 LIFECYCLE STAGES
+    const STAGES = [
+      {
+        id: 'discuss',
+        num: 1,
+        title: 'discuss',
+        name: 'Requirement Clarification & SDD Spec',
+        gate: 'requirement_confirmed',
+        approver: 'BA (Business Analyst)',
+        cli: '/gin-workflow:discuss Modernize legacy authentication servlet to Spring Boot 3 JWT & React 19',
+        summary: 'Claude explores legacy UserAuthServlet.java, identifies hidden business rules, clarifies JWT expiry & password upgrade policy, and writes an SDD spec with unique REQ-IDs.',
+        evidence: 'docs/changes/auth-modernize/spec.md',
+        roleActions: {
+          'BA': 'Reviews the spec.md PR, ensures acceptance criteria match business needs, and approves the PR.',
+          'BE Lead': 'Verifies architectural constraints (Spring Security 6, Argon2id compatibility).',
+          'FE Lead': 'Confirms API request/response schema for React 19 actions.',
+          'Tester': 'Begins drafting test matrix from REQ-IDs.'
+        }
+      },
+      {
+        id: 'plan',
+        num: 2,
+        title: 'plan',
+        name: 'Technical Track Decomposition',
+        gate: 'plan_approved',
+        approver: 'Backend Lead & Frontend Lead',
+        cli: '/gin-workflow:plan auth-modernize',
+        summary: 'Decomposes the confirmed spec into 3 isolated tracks with assigned Areas and Owners: Track 1 (Spring Boot API), Track 2 (React 19 Form), Track 3 (Parity E2E).',
+        evidence: '.planning/plans/2026-10-05-auth-modernize.md',
+        roleActions: {
+          'BE Lead': 'Approves plan PR for Area: backend (Track 1).',
+          'FE Lead': 'Approves plan PR for Area: frontend (Track 2).',
+          'PM': 'Validates sprint capacity and milestones in Beads.'
+        }
+      },
+      {
+        id: 'orchestrate',
+        num: 3,
+        title: 'orchestrate',
+        name: 'Beads Task Creation & Worktree Prep',
+        gate: 'orchestration_ready',
+        approver: 'Automated by System / Lead',
+        cli: '/gin-workflow:orchestrate auth-modernize',
+        summary: 'Creates parent Epic bead and 3 track beads in Beads (bd), creates isolated Git worktrees under .agent-workflow/worktrees/ for safe parallel coding.',
+        evidence: 'Epic: BEAD-100; Worktrees: worktree-be, worktree-fe',
+        roleActions: {
+          'BE Dev': 'Claims Track 1 bead via team claim BEAD-101.',
+          'FE Dev': 'Claims Track 2 bead via team claim BEAD-102.',
+          'Tester': 'Claims Track 3 bead via team claim BEAD-103.'
+        }
+      },
+      {
+        id: 'execute',
+        num: 4,
+        title: 'execute',
+        name: 'TDD Execution & Independent Review',
+        gate: 'implementation_complete',
+        approver: 'Peer Reviewer (Review Ledger)',
+        cli: '/gin-workflow:execute',
+        summary: 'Developers work inside isolated worktrees: write failing test first, write implementation, run independent review in the review ledger. Closes track beads.',
+        evidence: 'Review Ledgers: .planning/reviews/BEAD-101/review.md',
+        roleActions: {
+          'BE Dev': 'Writes Spring Boot mock test, implements JWT AuthController, resolves review findings, closes BEAD-101.',
+          'FE Dev': 'Writes React 19 component test, implements AuthForm, closes BEAD-102.',
+          'Tester': 'Executes E2E Playwright parity against legacy servlet.'
+        }
+      },
+      {
+        id: 'verify',
+        num: 5,
+        title: 'verify',
+        name: 'Evidence Audit & Quality Gate',
+        gate: 'verification_passed',
+        approver: 'Test Lead / QE',
+        cli: '/gin-workflow:verify',
+        summary: 'Re-runs all verification commands (mvn test, npm run test, lint, e2e Playwright parity check) with fresh command output and audits code against spec.',
+        evidence: 'Verification check evidence report & all ledgers validated',
+        roleActions: {
+          'Test Lead': 'Reviews Playwright video & screenshot evidence in qa/evidence/, approves verification_passed PR gate.',
+          'BA': 'Confirms all REQ-IDs are satisfied by the verification checklist.'
+        }
+      },
+      {
+        id: 'ship',
+        num: 6,
+        title: 'ship',
+        name: 'Integration & Strangler Cutover',
+        gate: 'shipped',
+        approver: 'Project Manager (PM) & Leads',
+        cli: '/gin-workflow:ship',
+        summary: 'Presents 4 integration choices: Merge locally, Open Pull Request, Keep branch, or Discard. Updates NGINX gateway to route /api/v2/auth to Spring Boot, cleans worktrees, closes Epic.',
+        evidence: 'Merged PR #342 into master & Epic BEAD-100 closed',
+        roleActions: {
+          'PM': 'Approves final release to staging/prod.',
+          'BE Lead': 'Monitors gateway telemetry & error rates.',
+          'All': 'Epic closed; usage data collected into reports.'
+        }
+      }
+    ];
+
+    // DATA STORE: 8 TEAM ROLES
+    const ROLES = [
+      {
+        id: 'pm',
+        title: 'Project Manager (PM)',
+        badge: 'Governance & ROI',
+        color: 'bg-purple-100 text-purple-800 border-purple-300',
+        commands: ['/gin-workflow:report', '/gin-workflow:progress', 'gin-workflow state'],
+        owns: 'Budget, sprint timelines, AI ROI reports, release authorizations',
+        responsibilities: [
+          'Tracks AI token costs vs engineering budget using /report.',
+          'Monitors rework signals (reopens, review cycles, held states).',
+          'Approves milestone releases and final ship gates.'
+        ]
+      },
+      {
+        id: 'ba',
+        title: 'Business Analyst (BA)',
+        badge: 'Requirements Owner',
+        color: 'bg-amber-100 text-amber-800 border-amber-300',
+        commands: ['/gin-workflow:discuss <feature>', '/gin-workflow:progress'],
+        owns: 'docs/specs/**, docs/changes/**, requirement_confirmed gate',
+        responsibilities: [
+          'Conducts archaeological sessions with Claude to extract business logic from legacy JSPs/Servlets.',
+          'Authors and reviews SDD specs with unambiguous REQ-IDs.',
+          'Controls the requirement_confirmed gate via GitHub/GitLab PR approvals.'
+        ]
+      },
+      {
+        id: 'be-lead',
+        title: 'Backend Lead',
+        badge: 'Architecture Owner',
+        color: 'bg-blue-100 text-blue-800 border-blue-300',
+        commands: ['/gin-workflow:plan', '/gin-workflow:orchestrate', 'gin-workflow team check-plan'],
+        owns: 'services/backend/**, ADRs, plan_approved gate (backend area)',
+        responsibilities: [
+          'Approves architecture plans for Spring Boot 3 services and Strangler facade.',
+          'Sets verification rigor (standard/strict) and quality gates in config.',
+          'Reviews backend track plans and oversees CODEOWNERS.'
+        ]
+      },
+      {
+        id: 'be-dev',
+        title: 'Backend Member (Dev)',
+        badge: 'Code Implementation',
+        color: 'bg-sky-100 text-sky-800 border-sky-300',
+        commands: ['team claim <bead>', '/gin-workflow:execute', '/gin-workflow:review', '/gin-debugging'],
+        owns: 'services/backend/src/**, unit & integration tests',
+        responsibilities: [
+          'Claims backend track beads (team claim BEAD-XXX).',
+          'Works inside isolated Git worktrees, writes failing tests first (TDD).',
+          'Responds to review ledger findings and closes beads.'
+        ]
+      },
+      {
+        id: 'fe-lead',
+        title: 'Frontend Lead',
+        badge: 'UI Architecture',
+        color: 'bg-teal-100 text-teal-800 border-teal-300',
+        commands: ['/gin-workflow:plan', 'gin-workflow team check-plan'],
+        owns: 'apps/web/**, design system, plan_approved gate (frontend area)',
+        responsibilities: [
+          'Designs the React 19 migration structure (Actions, hooks, Tailwind, Vite).',
+          'Reviews frontend track decompositions and API contracts.',
+          'Ensures accessibility and design system consistency.'
+        ]
+      },
+      {
+        id: 'fe-dev',
+        title: 'Frontend Member (Dev)',
+        badge: 'UI Implementation',
+        color: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+        commands: ['team claim <bead>', '/gin-workflow:execute', '/gin-workflow:review'],
+        owns: 'apps/web/src/**, React components, component tests',
+        responsibilities: [
+          'Converts legacy JSP scriptlets into clean, modular React 19 components.',
+          'Consumes modern Spring Boot REST endpoints.',
+          'Works test-first in isolated worktrees.'
+        ]
+      },
+      {
+        id: 'test-lead',
+        title: 'Test Lead / QA Lead',
+        badge: 'Quality Assurance Owner',
+        color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+        commands: ['/gin-qa:cases plan', '/gin-workflow:verify', 'gin-qa cases check'],
+        owns: 'qa/guidelines.md, qa/cases/**, verification_passed gate',
+        responsibilities: [
+          'Defines QA guidelines and parity testing criteria against legacy JSP.',
+          'Audits requirement coverage and detects stale test cases.',
+          'Signs off on the verification_passed PR gate.'
+        ]
+      },
+      {
+        id: 'test-member',
+        title: 'Test Member / QE',
+        badge: 'Test Automation',
+        color: 'bg-green-100 text-green-800 border-green-300',
+        commands: ['/gin-qa:cases <capability>', '/gin-qa:e2e <capability>', 'gin-qa e2e run'],
+        owns: 'qa/e2e/**, qa/evidence/**',
+        responsibilities: [
+          'Generates test cases pinned to REQ-IDs (TC-AUTH-001 -> REQ-AUTH-001@hash).',
+          'Builds Playwright E2E automation scripts with visual evidence and traces.',
+          'Executes parity tests comparing legacy output vs modern output.'
+        ]
+      }
+    ];
+
+    // ARTIFACTS TEMPLATES
+    const ARTIFACTS = {
+      spec: `<!-- docs/changes/auth-modernize/spec.md -->
+# Change Proposal: Modernize Authentication & Session Management
+Status: Confirmed by BA (Gate: requirement_confirmed passed)
+
+## 1. Problem Statement
+The legacy \`UserAuthServlet.java\` uses stateful \`HttpSession\` and MD5 hashing,
+causing clustering issues and security compliance failures.
+
+## 2. Requirements
+
+### REQ-AUTH-001: Modern Password Verification & Seamless Upgrade
+The system MUST authenticate users with legacy MD5 hashes and automatically
+re-hash valid passwords with Argon2id upon successful login without requiring
+user password reset.
+
+### REQ-AUTH-002: Stateless JWT Authentication
+The Spring Boot endpoint \`POST /api/v2/auth/login\` MUST return a stateless JWT
+(access token: 15 min, refresh token: 7 days) in an HttpOnly, Secure cookie.
+
+### REQ-AUTH-003: React 19 Login Interface
+The modern React application MUST replace \`/login.jsp\` with an accessible,
+responsive component using React 19 Action hooks and client-side validation.`,
+
+      plan: `<!-- .planning/plans/2026-10-05-auth-modernize.md -->
+# Implementation Plan: Auth Modernization (Strangler Fig)
+Gate: plan_approved (Backend Lead & Frontend Lead)
+
+## Track 1: Spring Boot JWT Service & Security Filters
+- Area: backend
+- Owner: binh-dev
+- Files: services/backend/src/.../AuthController.java, SecurityConfig.java
+- Test-first: AuthControllerTest (red -> green)
+- Route: claude-3-5-sonnet
+
+## Track 2: React 19 Authentication Component
+- Area: frontend
+- Owner: dung-fe
+- Files: apps/web/src/features/auth/AuthForm.tsx, useAuth.ts
+- Test-first: AuthForm.test.tsx
+- Route: claude-3-5-sonnet
+
+## Track 3: End-to-End Parity & Regression Shield
+- Area: qa
+- Owner: hoa-qe
+- Files: qa/cases/auth.md, qa/e2e/auth/login-parity.spec.ts
+- Verification: dual-run against legacy servlet and modern API`,
+
+      review: `<!-- .planning/reviews/BEAD-101/review.md -->
+# Review Ledger for BEAD-101 (Spring Boot JWT Service)
+Lease: active | Checkpoint: commit 4e29b1a
+
+## Findings
+- Finding #1 [resolved]: Missing rate limiting on /api/v2/auth/login.
+  - Response: Added Bucket4j rate-limiter filter (5 attempts/min per IP).
+- Finding #2 [resolved]: Ensure Argon2id salt generation is cryptographically random.
+  - Response: Switched to SecureRandom with 16-byte salt.
+
+## Verdict
+Status: review-approved
+Reviewer: independent-code-reviewer
+Date: 2026-10-05T14:20:00Z`,
+
+      qa: `<!-- qa/cases/auth.md (Managed by gin-qa) -->
+# Capability: Authentication
+
+### TC-AUTH-001: Legacy MD5 user login and auto-upgrade to Argon2id
+REQ: REQ-AUTH-001@3a8f1b2c
+Type: integration
+Priority: high
+Preconditions:
+- User exists in DB with legacy MD5 password hash
+Steps:
+1. POST credentials to /api/v2/auth/login
+Expected:
+- HTTP 200 OK returned with valid JWT cookie
+- Database password_hash column is automatically updated to Argon2id
+
+### TC-AUTH-002: React 19 form validation and error toast
+REQ: REQ-AUTH-003@3a8f1b2c
+Type: e2e
+Priority: high
+Steps:
+1. Navigate to /login
+2. Submit invalid email format
+Expected:
+- React 19 action displays inline error without page reload`
+    };
+
+    let activeStageIndex = 0;
+    let activeRoleIndex = 0;
+
+    // INITIALIZATION
+    function init() {
+      renderLifecycleStepper();
+      renderStageDetail(activeStageIndex);
+      renderRoleSelector();
+      renderRoleDetail(activeRoleIndex);
+      renderArtifact('spec');
+    }
+
+    // VIEW SWITCHER
+    function switchView(viewId) {
+      const views = ['lifecycle', 'roles', 'pm', 'strangler', 'artifacts'];
+      views.forEach(v => {
+        document.getElementById(`view-${v}`).classList.add('hidden');
+        const navBtn = document.getElementById(`btn-nav-${v}`);
+        if (navBtn) {
+          navBtn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+          navBtn.classList.add('text-slate-300');
+        }
+      });
+
+      document.getElementById(`view-${viewId}`).classList.remove('hidden');
+      const activeNavBtn = document.getElementById(`btn-nav-${viewId}`);
+      if (activeNavBtn) {
+        activeNavBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+        activeNavBtn.classList.remove('text-slate-300');
+      }
+    }
+
+    // RENDER LIFECYCLE STEPPER
+    function renderLifecycleStepper() {
+      const container = document.getElementById('lifecycle-stepper');
+      container.innerHTML = STAGES.map((s, idx) => `
+        <button onclick="selectStage(${idx})" class="p-3 text-left rounded-xl border transition ${idx === activeStageIndex ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'}">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold px-1.5 py-0.5 rounded ${idx === activeStageIndex ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}">0${s.num}</span>
+            <span class="text-[10px] font-mono text-slate-400">Gate</span>
+          </div>
+          <div class="font-bold text-xs mt-1.5 text-slate-900 truncate">${s.title}</div>
+          <div class="text-[10px] text-slate-500 truncate mt-0.5">${s.gate}</div>
+        </button>
+      `).join('');
+    }
+
+    function selectStage(idx) {
+      activeStageIndex = idx;
+      renderLifecycleStepper();
+      renderStageDetail(idx);
+    }
+
+    // RENDER STAGE DETAIL
+    function renderStageDetail(idx) {
+      const stage = STAGES[idx];
+      const panel = document.getElementById('stage-detail-panel');
+      const indicator = document.getElementById('current-gate-indicator');
+      if (indicator) {
+        indicator.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span> Stage ${stage.num}: ${stage.title}`;
+      }
+
+      let roleCardsHtml = '';
+      for (const [role, action] of Object.entries(stage.roleActions)) {
+        roleCardsHtml += `
+          <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 text-xs">
+            <div class="font-bold text-slate-800">${role}</div>
+            <div class="text-slate-600 mt-1">${action}</div>
+          </div>
+        `;
+      }
+
+      panel.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider">Stage ${stage.num} of 6</div>
+            <h2 class="text-xl font-extrabold text-slate-900 mt-0.5">${stage.name} (<span class="font-mono text-blue-600">/${stage.title}</span>)</h2>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+              Gate: ${stage.gate}
+            </span>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-4">
+            <div>
+              <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">What happens here?</div>
+              <p class="text-sm text-slate-700 mt-1 leading-relaxed">${stage.summary}</p>
+            </div>
+
+            <div class="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-xs">
+              <div class="text-slate-400 text-[10px] uppercase tracking-wider mb-1">// Slash command executed in Claude Code</div>
+              <div class="text-emerald-400">${stage.cli}</div>
+            </div>
+
+            <div>
+              <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Role Actions During This Stage</div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ${roleCardsHtml}
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 text-xs">
+            <div class="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Gate Governance Rules</div>
+            
+            <div class="space-y-1">
+              <span class="text-slate-500 block">Required Approver:</span>
+              <strong class="text-slate-900">${stage.approver}</strong>
+            </div>
+
+            <div class="space-y-1">
+              <span class="text-slate-500 block">Durable Evidence Recorded:</span>
+              <code class="text-blue-600 bg-white p-1 rounded border border-slate-200 block truncate">${stage.evidence}</code>
+            </div>
+
+            <div class="pt-2 border-t border-slate-200 text-slate-600 text-[11px]">
+              🔒 <strong>Non-Bypassable:</strong> In Team Mode, this gate can only be satisfied by an approved GitHub/GitLab PR review. An agent cannot self-approve or skip.
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // RENDER ROLE SELECTOR
+    function renderRoleSelector() {
+      const container = document.getElementById('role-selector-bar');
+      container.innerHTML = ROLES.map((r, idx) => `
+        <button onclick="selectRole(${idx})" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition border ${idx === activeRoleIndex ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'}">
+          ${r.title}
+        </button>
+      `).join('');
+    }
+
+    function selectRole(idx) {
+      activeRoleIndex = idx;
+      renderRoleSelector();
+      renderRoleDetail(idx);
+    }
+
+    // RENDER ROLE DETAIL
+    function renderRoleDetail(idx) {
+      const role = ROLES[idx];
+      const panel = document.getElementById('role-detail-card');
+
+      const cmdList = role.commands.map(c => `<code class="bg-slate-100 text-blue-600 px-2 py-1 rounded text-xs">${c}</code>`).join(' ');
+      const respList = role.responsibilities.map(r => `<li class="flex items-start gap-2"><span class="text-blue-500 mt-0.5">•</span><span>${r}</span></li>`).join('');
+
+      panel.innerHTML = `
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${role.color}">
+              ${role.badge}
+            </span>
+            <h3 class="text-2xl font-extrabold text-slate-900 mt-1">${role.title}</h3>
+          </div>
+          <div class="text-xs text-slate-500">
+            Assigned Scope: <strong class="text-slate-800">${role.owns}</strong>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+          <div>
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Key Daily Commands</h4>
+            <div class="flex flex-wrap gap-2">
+              ${cmdList}
+            </div>
+
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-4 mb-2">Primary File Ownership</h4>
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs font-mono text-slate-700">
+              ${role.owns}
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Core Workflow Responsibilities</h4>
+            <ul class="space-y-2 text-slate-700 text-xs">
+              ${respList}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+
+    // ARTIFACT SWITCHER
+    function switchArtifact(type) {
+      const tabs = ['spec', 'plan', 'review', 'qa'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-art-${t}`);
+        if (btn) {
+          btn.classList.remove('border-blue-600', 'text-blue-600');
+          btn.classList.add('border-transparent', 'text-slate-500');
+        }
+      });
+
+      const activeBtn = document.getElementById(`btn-art-${type}`);
+      if (activeBtn) {
+        activeBtn.classList.add('border-blue-600', 'text-blue-600');
+        activeBtn.classList.remove('border-transparent', 'text-slate-500');
+      }
+
+      renderArtifact(type);
+    }
+
+    function renderArtifact(type) {
+      const container = document.getElementById('artifact-content');
+      container.textContent = ARTIFACTS[type] || 'No content found';
+    }
+
+    // SIMULATE PM METRICS REFRESH
+    function refreshMetrics() {
+      const spend = (14.28 + (Math.random() * 0.5)).toFixed(2);
+      const tokens = (1842500 + Math.floor(Math.random() * 50000)).toLocaleString();
+      document.getElementById('kpi-spend').innerText = `$${spend}`;
+      document.getElementById('kpi-tokens').innerText = tokens;
+    }
+
+    // Run on load
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

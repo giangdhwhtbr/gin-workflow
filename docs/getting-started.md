@@ -92,6 +92,7 @@ Claude offers four integration options: **Merge locally**, **Push & open Pull Re
 
 ## 5. Tailored Starters & Guides
 
+- 🌐 **Interactive Visualizer:** Open the [Interactive Simulator](interactive/index.html) for a visual walkthrough of team roles and modernization.
 - 🚀 **Starting a new project?** Read the [Greenfield Project Starter](starters/greenfield.md).
 - 🔄 **Refactoring a legacy codebase?** Read the [Brownfield & Modernization Starter](starters/brownfield-modernize.md).
 - 👥 **Working in a team with BA, Dev, and Tester?** Read the [Team Roles Guide](starters/team-roles.md).
