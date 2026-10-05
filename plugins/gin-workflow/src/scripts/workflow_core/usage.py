@@ -218,9 +218,21 @@ def _children(repo: Path, epic: str) -> list[str]:
     return sorted(str(row["id"]) for row in rows if row.get("id"))
 
 
+def main_checkout(repo: Path) -> Path:
+    """The repository's main checkout, also when `repo` is one of its linked worktrees."""
+    try:
+        done = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=repo,
+                              text=True, capture_output=True, check=False, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return repo
+    common = Path(done.stdout.strip())
+    return common.parent.resolve() if done.returncode == 0 and common.name == ".git" else repo
+
+
 def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: Path | None = None,
             codex_root: Path | None = None) -> dict[str, Any]:
-    repo = Path(repo).resolve()
+    # Logs, gate events, and worktrees all belong to the main checkout, wherever collect runs.
+    repo = main_checkout(Path(repo).resolve())
     now = now or datetime.now(timezone.utc)
     prices = load_prices(repo)
     shown = _show(repo, bead)

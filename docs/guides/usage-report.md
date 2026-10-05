@@ -21,9 +21,7 @@ Quality signals come from Beads and the review ledger:
 
 ## When it runs
 
-`execute` runs `gin-workflow usage collect --bead <track> --best-effort` before closing each track, and `ship` runs it for the epic before closing it. You can run it yourself at any time; it recomputes the summary from scratch, so running it twice gives the same result. With `--best-effort` an error becomes a warning and never blocks closing a bead.
-
-Run `collect` from the main checkout: started inside a worktree, it currently finds no Claude Code logs.
+`execute` runs `gin-workflow usage collect --bead <track> --best-effort` before closing each track, and `ship` runs it for the epic before closing it. You can run it yourself at any time, from the main checkout or any of its worktrees; it recomputes the summary from scratch, so running it twice gives the same result. With `--best-effort` an error becomes a warning and never blocks closing a bead.
 
 ## How usage is attributed
 
