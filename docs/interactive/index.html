@@ -262,6 +262,32 @@
         </div>
       </div>
 
+      <!-- Quick Decision Guide: Which Skill or Command to Use When? -->
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+            <span>🧭</span> Quick Decision Guide: Which Skill or Command to Use When?
+          </div>
+          <span class="text-[11px] text-slate-500">Click any row below to inspect authentic terminal inputs & outputs</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100/75 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-2.5 px-3 whitespace-nowrap">Stage / Context</th>
+                <th class="py-2.5 px-3 whitespace-nowrap">Command / Skill</th>
+                <th class="py-2.5 px-3 whitespace-nowrap">Role</th>
+                <th class="py-2.5 px-3">When to Use? (Triggers & Prerequisites)</th>
+                <th class="py-2.5 px-3">Durable Artifact / State</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100" id="decision-matrix-tbody">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Command Quick Selector Tabs -->
       <div class="flex flex-wrap gap-2" id="command-selector-tabs">
         <!-- Rendered by JS -->
@@ -1076,10 +1102,13 @@ Expected:
     const COMMAND_EXAMPLES = [
       {
         cmd: '/gin-workflow:discuss',
+        stage: 'Stage 1: Requirements',
         category: 'Lifecycle Skill: Discovery',
         role: 'Business Analyst (BA)',
         lang: 'markdown',
         desc: 'Interactive discovery interview clarifying ambiguous requirements into a confirmed living spec (docs/changes/<id>/spec.md) with traceable REQ-IDs.',
+        whenToUse: 'At the start of any new feature, user story, or brownfield refactor; BEFORE writing plans, creating tasks, or touching code.',
+        produces: 'Living spec at docs/changes/<id>/spec.md with unique REQ-IDs. Satisfies gate: requirement_confirmed.',
         exampleInput: '/gin-workflow:discuss biometric-auth',
         exampleOutput: `[discuss] Starting interactive discovery for "biometric-auth"...
 Generated living spec at docs/changes/biometric-auth/spec.md
@@ -1092,10 +1121,13 @@ Spec PR opened and merged. Gate requirement_confirmed PASSED.`
       },
       {
         cmd: '/gin-workflow:plan',
+        stage: 'Stage 2: Architecture & Planning',
         category: 'Lifecycle Skill: Planning',
         role: 'Area Leads / Tech Lead',
         lang: 'markdown',
         desc: 'Decomposes confirmed specs into bounded sub-repo implementation tracks with assigned owners, file scopes, and verification plans.',
+        whenToUse: 'Once gate requirement_confirmed is satisfied (spec PR approved/merged). Used to partition work across sub-repos before execution.',
+        produces: 'Implementation plan at .planning/plans/<date>-<id>.md with routed tracks and sub-repo boundaries. Satisfies gate: plan_approved.',
         exampleInput: '/gin-workflow:plan biometric-auth',
         exampleOutput: `[plan] Loading spec docs/changes/biometric-auth/spec.md...
 Plan drafted at .planning/plans/2026-10-05-biometric-auth.md
@@ -1107,10 +1139,13 @@ Plan validated by team check-plan. Gate plan_approved PASSED.`
       },
       {
         cmd: '/gin-workflow:orchestrate',
+        stage: 'Stage 3: Task & Worktree Setup',
         category: 'Lifecycle Skill: Orchestration',
         role: 'Tech Lead',
         lang: 'bash',
         desc: 'Materializes an approved plan into durable Beads epics and tracks, prepares isolated worktrees, and verifies a clean test baseline.',
+        whenToUse: 'Once gate plan_approved is satisfied. Used to set up isolated git worktrees and Beads task tracking before developers begin coding.',
+        produces: 'Durable Beads Epic & Track IDs (e.g. BEAD-200, BEAD-201) and isolated git worktrees. Satisfies gate: orchestration_ready.',
         exampleInput: '/gin-workflow:orchestrate biometric-auth',
         exampleOutput: `[orchestrate] Creating Beads epics and tracks:
   - Created Epic: BEAD-200 (Biometric Authentication)
@@ -1124,10 +1159,13 @@ Baseline tests verified passing. Gate orchestration_ready PASSED.`
       },
       {
         cmd: 'gin-workflow team claim',
+        stage: 'Stage 4: Task Locking (Team Mode)',
         category: 'Essential CLI: Team Governance',
         role: 'Developer',
         lang: 'yaml',
         desc: 'Atomically claims an open track bead for the active developer, preventing concurrent conflicting work in shared team mode.',
+        whenToUse: 'Before starting implementation on a track bead in a multi-developer team repository (when project.team.enabled is true).',
+        produces: 'Assignee lock on Dolt remote database; exits 1 with conflict message if another teammate already holds it.',
         exampleInput: 'gin-workflow team claim BEAD-201',
         exampleOutput: `status: claimed
 bead: BEAD-201
@@ -1135,10 +1173,13 @@ assignee: binh-be@example.com`
       },
       {
         cmd: '/gin-workflow:execute',
+        stage: 'Stage 4: TDD Implementation',
         category: 'Lifecycle Skill: Implementation',
         role: 'Developer (BE / FE)',
         lang: 'bash',
         desc: 'Executes the test-first (TDD) cycle inside the isolated worktree, writes minimal code, requests code review, and pushes feature branch.',
+        whenToUse: 'When gate orchestration_ready is satisfied and track bead is claimed. Used to write tests and implement business logic.',
+        produces: 'Passing tests, code changes committed & pushed on feature branch, bead closed in Beads, handoff options presented.',
         exampleInput: '/gin-workflow:execute',
         exampleOutput: `[execute] Working on BEAD-201 in worktree feat-biometric-backend:
 Step 1: Write WebAuthnControllerTest.java (FAIL - 404 Not Found)
@@ -1150,10 +1191,13 @@ Handoff: Stop and ask user (Create PR / Continue to next track).`
       },
       {
         cmd: '/gin-workflow:review',
+        stage: 'Stage 4: Code Review Guardrail',
         category: 'Lifecycle Skill: Code Review',
         role: 'Independent Reviewer / Lead',
         lang: 'yaml',
         desc: 'Requests or conducts an independent review recorded in the durable review ledger, snapshotting commits and tracking findings.',
+        whenToUse: 'Triggered during /execute after tests pass, or run standalone to audit code changes before marking a work unit complete.',
+        produces: 'Immutable entry in .planning/reviews/<bead>/review.md, checkpoint commit hash, and terminal review-approved status.',
         exampleInput: '/gin-workflow:review --bead-id BEAD-201',
         exampleOutput: `bead_id: BEAD-201
 status: review-approved
@@ -1168,10 +1212,13 @@ active_findings: 0`
       },
       {
         cmd: 'gin-qa cases plan',
+        stage: 'Stage 5: Test Case Governance',
         category: 'Essential CLI: Quality Assurance',
         role: 'Test Lead / QE',
         lang: 'yaml',
         desc: 'Scans living specs and test cases in the qa sub-repo, reporting missing, stale (spec hash changed), or obsolete test cases.',
+        whenToUse: 'After spec confirmation or during implementation; ensures test cases in qa/cases/*.md stay synchronized with spec REQ-IDs.',
+        produces: 'Traceability status report (pinned, missing, stale, obsolete); triggers warning if spec changed without updating tests.',
         exampleInput: 'gin-qa cases plan biometric-auth',
         exampleOutput: `capability: biometric-auth
 spec_file: docs/changes/biometric-auth/spec.md
@@ -1185,10 +1232,13 @@ status: clean (exit 0)`
       },
       {
         cmd: '/gin-workflow:verify',
+        stage: 'Stage 6: Cross-Repo Verification',
         category: 'Lifecycle Skill: Verification',
         role: 'Test Lead / QE',
         lang: 'bash',
         desc: 'Executes multi-subrepo test suites (mvn test, npm test, playwright test) and audits that all REQ-IDs have passing test evidence.',
+        whenToUse: 'When all track beads are closed (derived gate implementation_complete is satisfied); run BEFORE releasing/shipping.',
+        produces: 'Fresh command test output across all sub-repos and 100% REQ-ID evidence audit. Satisfies gate: verification_passed.',
         exampleInput: '/gin-workflow:verify',
         exampleOutput: `[verify] Running multi-subrepo verification suites:
   - backend (mvn test): 124 passed, 0 failures
@@ -1199,10 +1249,13 @@ Gate verification_passed PASSED.`
       },
       {
         cmd: '/gin-workflow:ship',
+        stage: 'Stage 7: Production Integration',
         category: 'Lifecycle Skill: Release',
         role: 'Tech Lead / PM',
         lang: 'bash',
         desc: 'Presents safe integration choices (local merge or Pull Request), executes approved action, closes epic bead, and archives ledger.',
+        whenToUse: 'Once gate verification_passed is satisfied. This is the SOLE stage authorized to merge into main/master or create a release PR.',
+        produces: 'Clean merge to master branch or open PR link, closed epic bead, cleaned up worktrees and ledgers. Satisfies gate: shipped.',
         exampleInput: '/gin-workflow:ship',
         exampleOutput: `[ship] Verification passed. Select integration:
   1) Merge locally to master
@@ -1214,10 +1267,13 @@ Closed parent epic BEAD-200. Shipped!`
       },
       {
         cmd: 'gin-workflow state',
+        stage: 'Anytime: Workflow Inspection',
         category: 'Essential CLI: Lifecycle Engine',
         role: 'All Roles / Agent',
         lang: 'yaml',
         desc: 'Evaluates event store and Beads status to derive current lifecycle stage, active gate statuses, evidence, and next remedies.',
+        whenToUse: 'Run at any time to inspect workflow health, check which quality gates are blocking, or discover the exact next command to run.',
+        produces: 'Deterministic lifecycle report including derived stage, gate matrix, missing evidence, and suggested remedial action.',
         exampleInput: 'gin-workflow state --workflow-id biometric-auth',
         exampleOutput: `Lifecycle Stage: execute
 Routing Decision: route
@@ -1238,10 +1294,13 @@ Remedies:`
       },
       {
         cmd: 'gin-workflow record',
+        stage: 'Anytime: Manual Gate Proof',
         category: 'Essential CLI: Quality Gates',
         role: 'BA / Tech Lead / QE',
         lang: 'yaml',
         desc: 'Appends an immutable quality gate event to .agent-workflow/runtime/events.jsonl with evidence and actor identification.',
+        whenToUse: 'When a human or CI action completes a quality gate milestone (e.g. BA merges spec PR, Lead approves plan, QE passes tests).',
+        produces: 'Cryptographic event appended to .agent-workflow/runtime/events.jsonl transitioning gate from unmet to satisfied.',
         exampleInput: 'gin-workflow record requirement-confirmed --evidence docs/changes/biometric-auth/spec.md --actor an-ba@example.com --workflow-id biometric-auth',
         exampleOutput: `gate: requirement-confirmed
 workflow_id: biometric-auth
@@ -1251,10 +1310,13 @@ status: recorded`
       },
       {
         cmd: 'gin-workflow usage report',
+        stage: 'Sprint Closeout / PM Review',
         category: 'Essential CLI: ROI & Governance',
         role: 'Project Manager (PM)',
         lang: 'yaml',
         desc: 'Generates token usage, model tier attribution, dollar cost, and quality signals across all closed sub-repo beads.',
+        whenToUse: 'At the end of an epic or sprint, during stakeholder reviews, or for budget governance and cost-benefit analysis.',
+        produces: 'Financial token accounting report broken down by model tier, review efficiency cycles, zero-reopen rates, and estimated ROI.',
         exampleInput: 'gin-workflow usage report --epic BEAD-200',
         exampleOutput: `Epic: BEAD-200 (Biometric WebAuthn Authentication)
 Total Closed Beads: 3
@@ -1281,6 +1343,7 @@ Estimated ROI: +42% efficiency vs manual dev budget`
       renderDialogue();
       renderMonorepoTree();
       selectMonorepoNode(0);
+      renderDecisionMatrix();
       renderCommandTabs();
       renderCommandDetail(0);
     }
@@ -1492,6 +1555,30 @@ Estimated ROI: +42% efficiency vs manual dev budget`
     }
 
     // COMMAND REFERENCE
+    function renderDecisionMatrix() {
+      const tbody = document.getElementById('decision-matrix-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = COMMAND_EXAMPLES.map((c, idx) => {
+        const isSkill = c.cmd.startsWith('/');
+        const isSelected = idx === currentCommandIndex;
+        const tag = isSkill 
+          ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Skill</span>`
+          : `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">CLI</span>`;
+        return `
+          <tr onclick="selectCommand(${idx}, true)" class="cursor-pointer transition hover:bg-blue-50/70 ${isSelected ? 'bg-blue-50 text-blue-950 font-medium' : ''}">
+            <td class="py-2.5 px-3 text-slate-800 font-semibold whitespace-nowrap">${c.stage}</td>
+            <td class="py-2.5 px-3 font-mono text-blue-700 flex items-center gap-1.5 whitespace-nowrap">
+              <span>${c.cmd}</span>
+              ${tag}
+            </td>
+            <td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">${c.role}</td>
+            <td class="py-2.5 px-3 text-slate-700 leading-relaxed font-medium">${c.whenToUse}</td>
+            <td class="py-2.5 px-3 text-slate-500 leading-relaxed">${c.produces}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     function renderCommandTabs() {
       const container = document.getElementById('command-selector-tabs');
       container.innerHTML = COMMAND_EXAMPLES.map((c, idx) => {
@@ -1509,10 +1596,14 @@ Estimated ROI: +42% efficiency vs manual dev budget`
       }).join('');
     }
 
-    function selectCommand(idx) {
+    function selectCommand(idx, scroll = false) {
       currentCommandIndex = idx;
+      renderDecisionMatrix();
       renderCommandTabs();
       renderCommandDetail(idx);
+      if (scroll) {
+        document.getElementById('command-detail-card')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
 
     function renderCommandDetail(idx) {
@@ -1521,13 +1612,35 @@ Estimated ROI: +42% efficiency vs manual dev budget`
       panel.innerHTML = `
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-4">
           <div>
-            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider">${c.category}</div>
+            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider">${c.category} · ${c.stage}</div>
             <h3 class="text-xl font-extrabold font-mono text-slate-900 mt-0.5">${c.cmd}</h3>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-800 border border-slate-200">
               Role: ${c.role}
             </span>
+          </div>
+        </div>
+
+        <!-- Short Description, When to Use & Output Box -->
+        <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div>
+            <div class="font-bold text-slate-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <span>📖</span> Description
+            </div>
+            <p class="text-slate-600 leading-relaxed">${c.desc}</p>
+          </div>
+          <div>
+            <div class="font-bold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <span>⚡</span> When to Use (Triggers & Prerequisites)
+            </div>
+            <p class="text-amber-900/90 font-medium leading-relaxed">${c.whenToUse}</p>
+          </div>
+          <div>
+            <div class="font-bold text-emerald-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <span>📦</span> Output & Durable Evidence
+            </div>
+            <p class="text-emerald-900/90 leading-relaxed">${c.produces}</p>
           </div>
         </div>
 
@@ -1539,7 +1652,7 @@ Estimated ROI: +42% efficiency vs manual dev budget`
 
           <div>
             <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Terminal Output & Evidence</div>
-            ${renderCodeCard(c.exampleOutput, 'bash', 'terminal-output')}
+            ${renderCodeCard(c.exampleOutput, c.lang || 'bash', 'terminal-output')}
           </div>
         </div>
       `;
