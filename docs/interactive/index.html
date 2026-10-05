@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gin-Workflow End-to-End Visualizer | Monorepo Modernization Simulation</title>
+  <title>Gin-Workflow End-to-End Visualizer | Multi-Subrepo Monorepo Modernization</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -15,7 +15,6 @@
     code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
     .chat-bubble-agent { background-color: #1e293b; color: #f8fafc; border-top-left-radius: 4px; }
     .chat-bubble-user { background-color: #2563eb; color: #ffffff; border-top-right-radius: 4px; }
-    /* Prism override to blend with Tailwind */
     pre[class*="language-"] {
       background: transparent !important;
       margin: 0 !important;
@@ -42,9 +41,11 @@
           <div>
             <div class="flex items-center space-x-2">
               <span class="font-bold tracking-tight text-lg text-white">Gin-Workflow</span>
-              <span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">End-to-End Simulation</span>
+              <span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Sub-Repo Monorepo</span>
             </div>
-            <p class="text-xs text-slate-400">Monorepo Modernization: <code class="text-amber-300">./as-is</code> (Java JSP/Servlet) &rarr; Spring Boot 3 + React 19</p>
+            <p class="text-xs text-slate-400">
+              Umbrella Workspace: <code class="text-amber-300">./as-is</code> (Legacy) | <code class="text-blue-300">./backend</code> (Spring Boot 3) | <code class="text-teal-300">./frontend</code> (React 19) | <code class="text-emerald-300">./qa</code> (Playwright)
+            </p>
           </div>
         </div>
 
@@ -57,7 +58,7 @@
             💬 Interactive BA Discuss Simulator
           </button>
           <button onclick="switchView('monorepo')" id="btn-nav-monorepo" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
-            📂 Monorepo Architecture Tree
+            📂 Sub-Repos Monorepo Tree
           </button>
           <button onclick="switchView('commands')" id="btn-nav-commands" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
             ⚡ Command Reference with Real Examples
@@ -81,11 +82,11 @@
       <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-2xl p-6 shadow-xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 mb-2">
-            Architecture: Monorepo with <code class="text-amber-300">./as-is</code> Reference
+            Multi-Subrepo Architecture (as-is repo, backend repo, frontend repo, qa repo)
           </div>
           <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">The Complete Gin-Workflow Lifecycle</h1>
           <p class="text-slate-300 text-sm mt-1 max-w-2xl leading-relaxed">
-            From Day 0 repo initialization, CodeGraph indexing, and archaeological <code class="text-cyan-300">/tech-doc</code> survey, to BA spec creation, multi-track TDD execution, E2E parity testing, and zero-downtime shipping.
+            Coordinating multi-repository changes seamlessly under a single monorepo umbrella: CodeGraph semantic indexing, <code class="text-cyan-300">/tech-doc</code> discovery, BA spec creation, and isolated cross-repo TDD with Beads.
           </p>
         </div>
         <div class="bg-slate-800/80 backdrop-blur rounded-xl p-3.5 border border-slate-700/60 shrink-0 text-right">
@@ -120,7 +121,7 @@
         <div>
           <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">BA & Claude Live Simulation</span>
           <h2 class="text-2xl font-extrabold text-slate-900 mt-1">Interactive /discuss: Modern Biometric Login Flow</h2>
-          <p class="text-sm text-slate-500 mt-0.5">Experience how an agent clarifies an ambiguous user story into an unambiguous SDD specification with traceable REQ-IDs.</p>
+          <p class="text-sm text-slate-500 mt-0.5">Experience how an agent clarifies an ambiguous user story into an unambiguous SDD specification spanning backend, frontend, and qa repos.</p>
         </div>
         <button onclick="resetDialogue()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition border border-slate-300">
           🔄 Restart Dialogue
@@ -179,16 +180,16 @@
     <!-- ============================================================ -->
     <section id="view-monorepo" class="hidden space-y-6">
       <div class="border-b border-slate-200 pb-4">
-        <h2 class="text-xl font-bold text-slate-900">Monorepo Modernization Architecture</h2>
+        <h2 class="text-xl font-bold text-slate-900">Monorepo Sub-Repositories Architecture</h2>
         <p class="text-sm text-slate-500 mt-1">
-          How the monorepo is structured with the legacy as-is codebase, generated architectural surveys, living specs, Spring Boot 3 services, React 19 apps, and QA tests.
+          An umbrella monorepo organizing separate repositories (<code class="text-amber-600 font-semibold">as-is repo</code>, <code class="text-blue-600 font-semibold">backend repo</code>, <code class="text-teal-600 font-semibold">frontend repo</code>, <code class="text-emerald-600 font-semibold">qa repo</code>) with unified governance, CodeGraph indexing, and living specs.
         </p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <!-- Interactive Folder Tree -->
         <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Monorepo Directory Layout</div>
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Monorepo Sub-Repositories Layout</div>
           <div class="space-y-1 font-mono text-xs" id="monorepo-tree">
             <!-- Tree nodes populated by JS -->
           </div>
@@ -198,14 +199,14 @@
         <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col">
           <div class="border-b border-slate-100 pb-3 mb-3 flex items-center justify-between">
             <div>
-              <span class="text-xs font-bold text-blue-600 uppercase tracking-wider" id="tree-preview-badge">Selected Path</span>
-              <h3 class="text-base font-bold font-mono text-slate-900" id="tree-preview-path">./as-is/ (Legacy Codebase)</h3>
+              <span class="text-xs font-bold text-blue-600 uppercase tracking-wider" id="tree-preview-badge">Selected Sub-Repo</span>
+              <h3 class="text-base font-bold font-mono text-slate-900" id="tree-preview-path">./as-is/ (Legacy Repo)</h3>
             </div>
             <span class="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-medium" id="tree-preview-role">Role Owner: All (Read-Only)</span>
           </div>
 
           <div class="text-xs text-slate-600 mb-3" id="tree-preview-desc">
-            The legacy Java JSP & Servlet system preserved as an immutable reference inside the monorepo.
+            The legacy Java JSP & Servlet system preserved as an immutable sub-repo reference.
           </div>
 
           <div id="tree-preview-code-container">
@@ -244,7 +245,7 @@
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 class="text-xl font-bold text-slate-900">Project Manager (PM) Intelligence & Analytics</h2>
-          <p class="text-sm text-slate-500 mt-1">Real-time visibility into AI token consumption, budget tracking, rework rate, and quality signals via <code class="text-blue-600">/report</code>.</p>
+          <p class="text-sm text-slate-500 mt-1">Real-time visibility into AI token consumption, budget tracking, rework rate, and quality signals via <code class="text-blue-600">/report</code> across all sub-repos.</p>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs bg-slate-100 text-slate-600 font-mono px-2.5 py-1 rounded-md border border-slate-300">Epic: #AUTH-MIGRATE</span>
@@ -289,76 +290,85 @@
             <thead class="bg-slate-50 text-slate-600 uppercase border-b border-slate-200 font-semibold">
               <tr>
                 <th class="p-3">Stage / Task</th>
+                <th class="p-3">Target Sub-Repo</th>
                 <th class="p-3">Model</th>
                 <th class="p-3">Prompt Tokens</th>
                 <th class="p-3">Completion Tokens</th>
                 <th class="p-3">Cost ($)</th>
-                <th class="p-3">Review Findings</th>
                 <th class="p-3">Status</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 font-mono">
               <tr>
                 <td class="p-3 font-sans font-bold text-blue-600">0. Archaeological /tech-doc</td>
+                <td class="p-3 font-mono text-amber-700">as-is (legacy)</td>
                 <td class="p-3">claude-3-7-sonnet</td>
                 <td class="p-3">380,000</td>
                 <td class="p-3">48,000</td>
                 <td class="p-3 font-semibold">$1.86</td>
-                <td class="p-3 font-sans text-slate-400">N/A</td>
                 <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Baseline Created</span></td>
               </tr>
               <tr>
                 <td class="p-3 font-sans font-bold text-blue-600">1. discuss (Biometric Auth)</td>
+                <td class="p-3 font-mono text-slate-600">docs/changes/</td>
                 <td class="p-3">claude-3-5-sonnet</td>
                 <td class="p-3">245,000</td>
                 <td class="p-3">38,000</td>
                 <td class="p-3 font-semibold">$1.32</td>
-                <td class="p-3 font-sans">0</td>
                 <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Confirmed</span></td>
               </tr>
               <tr>
                 <td class="p-3 font-sans font-bold text-blue-600">2. plan</td>
+                <td class="p-3 font-mono text-slate-600">.planning/</td>
                 <td class="p-3">claude-3-5-sonnet</td>
                 <td class="p-3">180,000</td>
                 <td class="p-3">42,000</td>
                 <td class="p-3 font-semibold">$1.18</td>
-                <td class="p-3 font-sans">1 amendment</td>
                 <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Approved</span></td>
               </tr>
               <tr>
                 <td class="p-3 font-sans font-bold text-blue-600">3. orchestrate</td>
+                <td class="p-3 font-mono text-slate-600">Beads & Worktrees</td>
                 <td class="p-3">claude-3-5-haiku</td>
                 <td class="p-3">95,000</td>
                 <td class="p-3">15,000</td>
                 <td class="p-3 font-semibold">$0.18</td>
-                <td class="p-3 font-sans">0</td>
                 <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Ready</span></td>
               </tr>
               <tr class="bg-blue-50/50">
-                <td class="p-3 font-sans font-bold text-blue-600">4. execute (3 tracks)</td>
+                <td class="p-3 font-sans font-bold text-blue-600">4. execute (Track 1)</td>
+                <td class="p-3 font-mono text-blue-700">backend repo</td>
                 <td class="p-3">claude-3-5-sonnet</td>
-                <td class="p-3">1,120,000</td>
-                <td class="p-3">185,000</td>
-                <td class="p-3 font-semibold">$8.30</td>
-                <td class="p-3 font-sans">3 fixed, 1 waived</td>
-                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">Tracks Closed</span></td>
+                <td class="p-3">620,000</td>
+                <td class="p-3">98,000</td>
+                <td class="p-3 font-semibold">$4.42</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">Closed</span></td>
+              </tr>
+              <tr class="bg-teal-50/50">
+                <td class="p-3 font-sans font-bold text-blue-600">4. execute (Track 2)</td>
+                <td class="p-3 font-mono text-teal-700">frontend repo</td>
+                <td class="p-3">claude-3-5-sonnet</td>
+                <td class="p-3">500,000</td>
+                <td class="p-3">87,000</td>
+                <td class="p-3 font-semibold">$3.88</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">Closed</span></td>
               </tr>
               <tr>
-                <td class="p-3 font-sans font-bold text-blue-600">5. verify (E2E parity)</td>
+                <td class="p-3 font-sans font-bold text-blue-600">5. verify (Parity)</td>
+                <td class="p-3 font-mono text-emerald-700">qa repo</td>
                 <td class="p-3">claude-3-5-sonnet</td>
                 <td class="p-3">165,000</td>
                 <td class="p-3">28,000</td>
                 <td class="p-3 font-semibold">$1.14</td>
-                <td class="p-3 font-sans">0 gaps</td>
                 <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Passed</span></td>
               </tr>
               <tr>
                 <td class="p-3 font-sans font-bold text-blue-600">6. ship</td>
+                <td class="p-3 font-mono text-slate-700">Cross-repo merge</td>
                 <td class="p-3">claude-3-5-haiku</td>
                 <td class="p-3">45,000</td>
                 <td class="p-3">8,000</td>
                 <td class="p-3 font-semibold">$0.30</td>
-                <td class="p-3 font-sans">0</td>
                 <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-semibold">Shipped</span></td>
               </tr>
             </tbody>
@@ -412,19 +422,19 @@
     }
 
     // -------------------------------------------------------------
-    // DATA STORE: 9 PHASES OF MODERNIZATION
+    // DATA STORE: 9 PHASES OF MODERNIZATION (WITH SEPARATED SUB-REPOS)
     // -------------------------------------------------------------
     const JOURNEY_PHASES = [
       {
         id: 'phase-0-setup',
         num: '0A',
-        title: 'Project Setup & Config',
+        title: 'Monorepo Setup & Areas',
         stage: 'setup',
         actor: 'Tech Lead / Architect',
         badge: 'Foundation',
         badgeColor: 'bg-slate-100 text-slate-800 border-slate-300',
         command: '/gin-workflow:setup',
-        desc: 'Initialize the monorepo, configure .agent-workflow/config.yaml with team areas, rigor, and verify commands.',
+        desc: 'Initialize the monorepo umbrella containing separate sub-repos: as-is repo, backend repo, frontend repo, and qa repo.',
         renderDetails: function() {
           const yamlCode = `project:
   stage: brownfield
@@ -438,30 +448,33 @@ team:
     binh-be@example.com: {roles: [be_lead, be_dev], login: binh-dev}
     dung-fe@example.com: {roles: [fe_lead, fe_dev], login: dung-fe}
     hoa-qe@example.com: {roles: [qe], login: hoa-qe}
+  
+  # Multi-Subrepo boundaries mapped to team areas
   areas:
     legacy:
-      paths: ["as-is/**"]
+      paths: ["as-is/**"]          # Sub-repo: as-is (Java JSP/Servlet)
       lead: be_lead
     backend:
-      paths: ["services/backend/**"]
+      paths: ["backend/**"]        # Sub-repo: backend (Spring Boot 3)
       lead: be_lead
       roles: [be_dev]
     frontend:
-      paths: ["apps/web/**"]
+      paths: ["frontend/**"]       # Sub-repo: frontend (React 19)
       lead: fe_lead
       roles: [fe_dev]
     qa:
-      paths: ["qa/**"]
+      paths: ["qa/**"]             # Sub-repo: qa (Playwright E2E)
       lead: qe
+      
   approvals:
     requirement_confirmed: [ba]
     plan_approved: area_lead
     verification_passed: [qe]`;
 
           return `
-            <h4 class="font-bold text-slate-900 text-sm mb-2">Step 1: Configure .agent-workflow/config.yaml</h4>
+            <h4 class="font-bold text-slate-900 text-sm mb-2">Step 1: Configure Monorepo Areas across Sub-Repos</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              Setup detects the repository layout and configures the team areas (separating <code>as-is</code> legacy code, <code>services/backend</code> Spring Boot 3, <code>apps/web</code> React 19, and <code>qa</code> tests).
+              <code>gin-workflow</code> manages the overarching monorepo while preserving separate sub-repositories (<code>as-is/</code>, <code>backend/</code>, <code>frontend/</code>, and <code>qa/</code>) via distinct <code>team.areas</code> boundaries.
             </p>
             ${renderCodeCard(yamlCode, 'yaml', '.agent-workflow/config.yaml')}
           `;
@@ -476,18 +489,18 @@ team:
         badge: 'Intelligence',
         badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
         command: 'codegraph index ./as-is',
-        desc: 'Index the existing legacy Java JSP & Servlet system into a local semantic code graph (.codegraph/).',
+        desc: 'Index the as-is legacy sub-repo into an AST-aware semantic code graph (.codegraph/) for cross-repo referencing.',
         renderDetails: function() {
-          const bashCode = `# Index the legacy system into local CodeGraph AST
+          const bashCode = `# Index the legacy sub-repo into local CodeGraph AST
 codegraph index ./as-is
 
-# Query symbols or call paths via CLI or Agent tool
+# Query symbols or call paths across servlets and JSPs
 codegraph explore "UserAuthServlet authenticate"`;
 
           return `
-            <h4 class="font-bold text-slate-900 text-sm mb-2">Indexing the As-Is Legacy Codebase</h4>
+            <h4 class="font-bold text-slate-900 text-sm mb-2">Indexing the As-Is Legacy Sub-Repository</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              Before changing or refactoring anything, we run <code>codegraph index ./as-is</code>. This parses all legacy servlets, JSP custom tags, DAOs, and SQL queries into an AST-aware knowledge base.
+              Before modernizing into <code>backend/</code> and <code>frontend/</code>, we index <code>./as-is</code>. This parses all legacy servlets, JSP custom tags, DAOs, and SQL queries into an AST-aware knowledge base.
             </p>
             ${renderCodeCard(bashCode, 'bash', 'terminal')}
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
@@ -508,15 +521,15 @@ codegraph explore "UserAuthServlet authenticate"`;
         badge: 'Archaeology',
         badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-300',
         command: '/gin-workflow:tech-doc',
-        desc: 'Scan the as-is legacy codebase to generate comprehensive technical documentation under docs/as-is/*.md.',
+        desc: 'Scan the as-is legacy sub-repo to generate comprehensive technical documentation under docs/as-is/*.md.',
         renderDetails: function() {
           const concernsDoc = `# Legacy System Concerns & Fragilities (docs/as-is/CONCERNS.md)
 1. Security Vulnerabilities:
-   - MD5 without salt used in UserAuthServlet.java (CWE-327).
-   - SQL string concatenations in AccountDao.java.
+   - MD5 without salt used in as-is/src/.../UserAuthServlet.java (CWE-327).
+   - SQL string concatenations in as-is/src/.../AccountDao.java.
 2. Architecture & State Bottlenecks:
-   - Stateful HttpSession prevents horizontal scaling on Kubernetes.
-   - Scriptlets in login.jsp mix HTML presentation with direct database queries.`;
+   - Stateful HttpSession in as-is prevents horizontal scaling on Kubernetes.
+   - Scriptlets in as-is/webapp/login.jsp mix HTML with direct SQL queries.`;
 
           return `
             <h4 class="font-bold text-slate-900 text-sm mb-2">Automated Discovery of Legacy Reality</h4>
@@ -538,18 +551,22 @@ codegraph explore "UserAuthServlet authenticate"`;
         command: '/gin-workflow:discuss <feature-prompt>',
         desc: 'BA initiates requirement clarification. Claude interviews BA one question at a time and writes the SDD spec with REQ-IDs.',
         renderDetails: function() {
-          const specSample = `### REQ-BIO-001: WebAuthn / Passkey Registration
+          const specSample = `### REQ-BIO-001: WebAuthn / Passkey Registration (backend repo)
 The endpoint \`POST /api/v2/auth/webauthn/register\` MUST verify client credential
 creation and persist public keys for authenticated users.
 
-### REQ-BIO-003: Password Fallback & Silent Argon2id Upgrade
+### REQ-BIO-003: Password Fallback & Silent Argon2id Upgrade (backend repo)
 If biometric authentication fails or is unsupported, legacy password login MUST
-succeed and opportunistically upgrade MD5 hashes to Argon2id.`;
+succeed and opportunistically upgrade MD5 hashes to Argon2id.
+
+### REQ-BIO-004: React 19 Biometric Action Component (frontend repo)
+The modern React application MUST expose a biometric login component
+using React 19 Action hooks that automatically detects \`window.PublicKeyCredential\`.`;
 
           return `
             <h4 class="font-bold text-slate-900 text-sm mb-2">Interactive Interview & Spec Generation</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              BA executes <code>/gin-workflow:discuss Modernize authentication to Biometric WebAuthn (Passkeys) + Spring Boot JWT with backward compatibility for legacy users</code>.
+              BA executes <code>/gin-workflow:discuss Modernize authentication to Biometric WebAuthn (Passkeys) in backend repo and React 19 frontend repo with backward compatibility for as-is users</code>.
             </p>
             ${renderCodeCard(specSample, 'markdown', 'docs/changes/biometric-auth/spec.md')}
             <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-1 text-amber-900 mb-3">
@@ -564,32 +581,38 @@ succeed and opportunistically upgrade MD5 hashes to Argon2id.`;
       {
         id: 'phase-2-plan',
         num: '02',
-        title: 'Technical Track Decomposition',
+        title: 'Cross-Subrepo Track Decomposition',
         stage: 'plan',
         actor: 'Backend & Frontend Leads',
         badge: 'Gate: plan_approved',
         badgeColor: 'bg-blue-100 text-blue-800 border-blue-300',
         command: '/gin-workflow:plan biometric-auth',
-        desc: 'Decomposes confirmed spec into Area-bounded implementation tracks with assigned roles and reasoning tiers.',
+        desc: 'Decomposes confirmed spec into sub-repo tracks with assigned roles and reasoning tiers.',
         renderDetails: function() {
           const planSample = `## Track 1: Spring Boot 3 WebAuthn Service & JWT Issuer
-- Area: backend
+- Area: backend (backend repo)
 - Owner: binh-dev
 - Route: claude-3-5-sonnet (tier: standard)
-- Files: services/backend/src/.../WebAuthnController.java
-- Test-First: WebAuthnControllerTest.java
+- Files: backend/src/main/java/com/bank/modern/auth/WebAuthnController.java
+- Test-First: backend/src/test/java/WebAuthnControllerTest.java
 
 ## Track 2: React 19 Biometric Action Component
-- Area: frontend
+- Area: frontend (frontend repo)
 - Owner: dung-fe
 - Route: claude-3-5-sonnet (tier: standard)
-- Files: apps/web/src/features/auth/BiometricLoginForm.tsx
-- Test-First: BiometricLoginForm.test.tsx`;
+- Files: frontend/src/features/auth/BiometricLoginForm.tsx
+- Test-First: frontend/tests/BiometricLoginForm.test.tsx
+
+## Track 3: Parity & Regression Test Suite
+- Area: qa (qa repo)
+- Owner: hoa-qe
+- Route: claude-3-5-sonnet (tier: standard)
+- Files: qa/cases/auth.md, qa/e2e/auth/biometric.spec.ts`;
 
           return `
             <h4 class="font-bold text-slate-900 text-sm mb-2">Track Plan Breakdown (.planning/plans/)</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              The plan defines exact track boundaries so developers do not conflict:
+              The plan defines exact boundaries across the sub-repositories so developers and testers never conflict:
             </p>
             ${renderCodeCard(planSample, 'markdown', '.planning/plans/2026-10-05-biometric-auth.md')}
           `;
@@ -604,23 +627,23 @@ succeed and opportunistically upgrade MD5 hashes to Argon2id.`;
         badge: 'Gate: orchestration_ready',
         badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
         command: '/gin-workflow:orchestrate biometric-auth',
-        desc: 'Creates Beads task units (bd) for all tracks, links dependencies, and provisions isolated Git worktrees.',
+        desc: 'Creates Beads task units (bd) for each sub-repo track, links dependencies, and provisions isolated Git worktrees.',
         renderDetails: function() {
-          const orchSample = `[orchestrate] Creating Beads Epics & Tracks:
+          const orchSample = `[orchestrate] Creating Beads Epics & Tracks across sub-repos:
 Created Epic: BEAD-200 (Biometric WebAuthn Authentication)
-├── BEAD-201 [Area: backend]  assigned to binh-dev
-├── BEAD-202 [Area: frontend] assigned to dung-fe (depends on BEAD-201)
-└── BEAD-203 [Area: qa]       assigned to hoa-qe
+├── BEAD-201 [Area: backend]  assigned to binh-dev (backend repo)
+├── BEAD-202 [Area: frontend] assigned to dung-fe (frontend repo, depends on BEAD-201)
+└── BEAD-203 [Area: qa]       assigned to hoa-qe (qa repo)
 
 [worktree] Creating isolated git worktrees:
-- .agent-workflow/worktrees/feat-biometric-be (branch: feat/auth-backend)
-- .agent-workflow/worktrees/feat-biometric-fe (branch: feat/auth-frontend)
+- .agent-workflow/worktrees/feat-biometric-backend  (branch: feat/auth-backend)
+- .agent-workflow/worktrees/feat-biometric-frontend (branch: feat/auth-frontend)
 Gate orchestration_ready recorded.`;
 
           return `
             <h4 class="font-bold text-slate-900 text-sm mb-2">Safe Task Isolation with Beads & Worktrees</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              Orchestration guarantees that parallel work will not cause Git merge conflicts:
+              Orchestration guarantees that backend and frontend developers work in isolated worktrees without Git collisions:
             </p>
             ${renderCodeCard(orchSample, 'bash', 'terminal')}
           `;
@@ -635,14 +658,14 @@ Gate orchestration_ready recorded.`;
         badge: 'Gate: implementation_complete',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
         command: 'team claim <bead> && /gin-workflow:execute',
-        desc: 'Developer claims bead, writes failing test first (TDD), implements, and undergoes independent review in the review ledger.',
+        desc: 'Developer claims bead, writes failing test first inside the sub-repo, implements, and undergoes independent review in the review ledger.',
         renderDetails: function() {
-          const reviewLedgerSample = `# Review Ledger for BEAD-201 (WebAuthn Service)
+          const reviewLedgerSample = `# Review Ledger for BEAD-201 (backend repo)
 Lease: active | Checkpoint: commit 9b8c21a
 
 ## Findings
 - Finding #1 [verified]: Argon2id salt generation must use SecureRandom.
-  - Fix: Updated Argon2UpgradeService.java line 42 with SecureRandom instance.
+  - Fix: Updated backend/src/.../Argon2UpgradeService.java line 42.
 
 ## Approval
 Status: review-approved
@@ -650,9 +673,9 @@ Reviewer: independent-code-reviewer
 Date: 2026-10-05T14:50:00Z`;
 
           return `
-            <h4 class="font-bold text-slate-900 text-sm mb-2">Test-First Loop with Review Ledger</h4>
+            <h4 class="font-bold text-slate-900 text-sm mb-2">Test-First Loop with Review Ledger in Sub-Repos</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              Developer runs <code>team claim BEAD-201</code>, then <code>/gin-workflow:execute</code>:
+              Developer runs <code>team claim BEAD-201</code>, then <code>/gin-workflow:execute</code> inside the backend worktree:
             </p>
             ${renderCodeCard(reviewLedgerSample, 'markdown', '.planning/reviews/BEAD-201/review.md')}
           `;
@@ -667,29 +690,29 @@ Date: 2026-10-05T14:50:00Z`;
         badge: 'gin-qa Add-on',
         badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
         command: '/gin-qa:cases biometric-auth && /gin-qa:e2e biometric-auth',
-        desc: 'Tester generates test cases pinned to REQ-IDs and turns them into Playwright specs with visual snapshot evidence.',
+        desc: 'Tester generates test cases in the qa repo pinned to REQ-IDs and executes Playwright specs against running backend and frontend.',
         renderDetails: function() {
           const qaSample = `### TC-BIO-001: Register Passkey on supported device
 REQ: REQ-BIO-001@7d9a1f2e
 Type: e2e
-Priority: high
+Sub-Repo: qa
 Preconditions:
 - Browser supports navigator.credentials.create()
 Steps:
-1. Navigate to /settings/security
+1. Open frontend app at /settings/security
 2. Click "Enable Biometric Login"
 3. Provide FaceID assertion
 Expected:
-- WebAuthn public key stored in DB
-- User profile shows Biometric: Enabled`;
+- Backend /api/v2/auth/webauthn/register returns 201 Created
+- Public key stored in database`;
 
           return `
-            <h4 class="font-bold text-slate-900 text-sm mb-2">Traceability & Hash Pinning</h4>
+            <h4 class="font-bold text-slate-900 text-sm mb-2">Traceability & Hash Pinning inside qa repo</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              Tester runs <code>/gin-qa:cases biometric-auth</code>. Every case is pinned to the exact hash of the requirement:
+              Tester runs <code>/gin-qa:cases biometric-auth</code> inside the <code>qa/</code> sub-repo:
             </p>
             ${renderCodeCard(qaSample, 'markdown', 'qa/cases/auth.md')}
-            <p class="text-xs text-slate-600 mt-2">Running <code>/gin-qa:e2e</code> generates Playwright specs that capture step-by-step screenshots and ARIA snapshots in <code>qa/evidence/</code>.</p>
+            <p class="text-xs text-slate-600 mt-2">Running <code>/gin-qa:e2e</code> generates Playwright specs in <code>qa/e2e/auth/biometric.spec.ts</code> that capture screenshots and ARIA snapshots in <code>qa/evidence/</code>.</p>
           `;
         }
       },
@@ -702,38 +725,46 @@ Expected:
         badge: 'Gate: verification_passed & shipped',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
         command: '/gin-workflow:verify && /gin-workflow:ship',
-        desc: 'Fresh evidence validation across all suites, line-by-line spec checklist audit, PR merge, and Strangler Fig router cutover.',
+        desc: 'Fresh evidence validation across backend, frontend, and qa sub-repos, line-by-line spec audit, PR merges, and Strangler Gateway cutover.',
         renderDetails: function() {
           const nginxSample = `# NGINX Strangler Gateway Configuration
-upstream spring_boot_modern {
-    server 127.0.0.1:8080;
+upstream modern_spring_boot {
+    server backend-service:8080;   # backend repo deployment
+}
+upstream modern_react_web {
+    server frontend-service:3000;  # frontend repo deployment
 }
 upstream legacy_tomcat_monolith {
-    server 127.0.0.1:8000;
+    server legacy-tomcat:8000;     # as-is repo deployment
 }
 
 server {
     listen 443 ssl;
     server_name bank.example.com;
 
-    # Modernized Routes (Strangled)
+    # Modernized Backend APIs (Strangled)
     location /api/v2/auth {
-        proxy_pass http://spring_boot_modern;
+        proxy_pass http://modern_spring_boot;
     }
 
-    # Unmigrated Legacy Routes (Pass-through)
+    # Modernized Frontend SPA (Strangled)
+    location /login {
+        proxy_pass http://modern_react_web;
+    }
+
+    # Unmigrated Legacy Monolith Routes (Pass-through)
     location / {
         proxy_pass http://legacy_tomcat_monolith;
     }
 }`;
 
           return `
-            <h4 class="font-bold text-slate-900 text-sm mb-2">Strict Verification & Zero-Downtime Cutover</h4>
+            <h4 class="font-bold text-slate-900 text-sm mb-2">Cross-Subrepo Verification & Zero-Downtime Cutover</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              1. <strong>/verify:</strong> Re-runs all test commands with fresh output. Audits every REQ-ID checklist against the code. Test Lead approves <code>verification_passed</code> PR gate.
+              1. <strong>/verify:</strong> Re-runs test suites across <code>backend/</code>, <code>frontend/</code>, and <code>qa/</code> with fresh output. Audits every REQ-ID checklist against the code. Test Lead approves <code>verification_passed</code> PR gate.
             </p>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              2. <strong>/ship:</strong> PM approves merge. Gateway router cuts over modernized traffic:
+              2. <strong>/ship:</strong> PM approves merge. Gateway router cuts over modernized routes to the new services:
             </p>
             ${renderCodeCard(nginxSample, 'nginx', '/etc/nginx/conf.d/strangler-gateway.conf')}
           `;
@@ -750,25 +781,25 @@ server {
         author: 'An (Business Analyst)',
         roleBadge: 'BA',
         text: `/gin-workflow:discuss
-We need to modernize our authentication flow by adding Biometric Login (WebAuthn / Passkeys) using the new Spring Boot 3 backend and React 19 frontend. It must support fingerprint and FaceID on modern mobile and laptops, but existing legacy users in the as-is system who only have passwords must still be able to log in without interruption.`,
+We need to modernize our authentication flow by adding Biometric Login (WebAuthn / Passkeys) using the new backend repo (Spring Boot 3) and frontend repo (React 19). It must support fingerprint and FaceID on modern devices, but existing legacy users in the as-is repo who only have passwords must still be able to log in without interruption.`,
         specSnapshot: `<!-- docs/changes/biometric-auth/spec.md (Draft 1) -->
 # Change Proposal: Biometric WebAuthn Authentication
 Status: In Discussion with BA
 
 ## 1. Problem Statement
 The legacy authentication in \`./as-is/UserAuthServlet.java\` relies on stateful passwords.
-Modern users require biometric login (FaceID / Fingerprint) with seamless fallback.`,
+Modern users require biometric login implemented across \`backend/\` and \`frontend/\` sub-repos.`,
         status: 'Interviewing...'
       },
       {
         sender: 'agent',
         author: 'Claude Code',
         roleBadge: 'Agent',
-        text: `I've analyzed the legacy authentication in \`./as-is/UserAuthServlet.java\` and \`./as-is/login.jsp\`. To construct an exact specification, I have three clarifying questions:
+        text: `I've analyzed the legacy authentication in \`./as-is/UserAuthServlet.java\` and \`./as-is/login.jsp\`. To construct an exact specification across the backend and frontend sub-repos, I have three clarifying questions:
 
 1. **Fallback & Legacy Parity:** When a user with a registered Passkey attempts login on a device without a biometric sensor, should they fall back to the legacy password, or should we send an email OTP?
-2. **Session / Token Standard:** The legacy system stores session state in Tomcat \`HttpSession\`. For the Spring Boot 3 service, shall we issue stateless JWTs in \`HttpOnly, Secure\` cookies or OAuth2 Bearer tokens?
-3. **Password Auto-Upgrade:** The legacy database stores MD5-hashed passwords. When legacy users log in, should we opportunistically upgrade their stored hash to Argon2id?`,
+2. **Session / Token Standard:** The legacy system stores session state in Tomcat \`HttpSession\`. For the Spring Boot 3 service in \`backend/\`, shall we issue stateless JWTs in \`HttpOnly, Secure\` cookies or OAuth2 Bearer tokens?
+3. **Password Auto-Upgrade:** The legacy database stores MD5-hashed passwords. When legacy users log in, should we opportunistically upgrade their stored hash to Argon2id in the backend service?`,
         specSnapshot: `<!-- docs/changes/biometric-auth/spec.md (Draft 2) -->
 # Change Proposal: Biometric WebAuthn Authentication
 Status: Clarifying Requirements with BA
@@ -778,7 +809,7 @@ Legacy \`./as-is/UserAuthServlet.java\` uses stateful Tomcat sessions and MD5.
 
 ## 2. In-Flight Questions
 - Fallback strategy for non-biometric devices
-- Token standard for Spring Boot 3
+- Token standard for Spring Boot 3 in \`backend/\` sub-repo
 - Legacy MD5 hash migration policy`,
         status: 'Awaiting BA Response...'
       },
@@ -796,8 +827,9 @@ Status: Structuring Formal Requirements
 
 ## 1. Confirmed Architectural Decisions
 - Dual-path login: WebAuthn Passkeys primary, password fallback.
-- Stateless JWT in HttpOnly cookies.
-- Silent hash migration: MD5 -> Argon2id.`,
+- Stateless JWT in HttpOnly cookies emitted by \`backend/\` sub-repo.
+- React 19 biometric form in \`frontend/\` sub-repo.
+- Automated parity suite in \`qa/\` sub-repo.`,
         status: 'Generating REQ-IDs...'
       },
       {
@@ -812,24 +844,24 @@ I have also pushed the branch \`spec/biometric-auth\` and created Pull Request #
 Status: Requirement Confirmed (PR #142 Merged by BA)
 
 ## 1. Background & Scope
-Replaces legacy \`./as-is/UserAuthServlet.java\` with Spring Boot 3 WebAuthn + React 19.
+Replaces legacy \`./as-is\` with modern services in \`backend/\` and \`frontend/\`.
 
 ## 2. Traceable Requirements
 
-### REQ-BIO-001: WebAuthn / Passkey Registration
-The system MUST provide an endpoint \`POST /api/v2/auth/webauthn/register\`
-allowing authenticated users to register FIDO2/WebAuthn public keys.
+### REQ-BIO-001: WebAuthn / Passkey Registration [Sub-Repo: backend]
+The endpoint \`POST /api/v2/auth/webauthn/register\` MUST verify client credential
+creation and persist public keys for authenticated users.
 
-### REQ-BIO-002: Biometric Authentication & Stateless JWT
+### REQ-BIO-002: Biometric Authentication & Stateless JWT [Sub-Repo: backend]
 The endpoint \`POST /api/v2/auth/webauthn/login\` MUST verify biometric
 assertions and issue a stateless JWT inside an \`HttpOnly, Secure\` cookie.
 
-### REQ-BIO-003: Password Fallback & Silent Argon2id Upgrade
+### REQ-BIO-003: Password Fallback & Silent Argon2id Upgrade [Sub-Repo: backend]
 If biometric login is unavailable, the user MAY submit their password.
 Upon successful legacy MD5 verification, the system MUST automatically
 upgrade the database record to Argon2id.
 
-### REQ-BIO-004: React 19 Biometric Action Component
+### REQ-BIO-004: React 19 Biometric Action Component [Sub-Repo: frontend]
 The modern React application MUST expose a biometric login component
 using React 19 Action hooks that automatically detects \`window.PublicKeyCredential\`.`,
         status: 'Confirmed ✓ (Gate Passed)'
@@ -838,30 +870,30 @@ using React 19 Action hooks that automatically detects \`window.PublicKeyCredent
         sender: 'user',
         author: 'An (Business Analyst)',
         roleBadge: 'BA',
-        text: `Pull Request #142 approved and merged into \`master\`! All requirements are clear, traceable, and agreed upon by the product team.`,
+        text: `Pull Request #142 approved and merged into \`master\`! All requirements are clear, traceable, and agreed upon by the product team across all sub-repos.`,
         specSnapshot: `<!-- docs/changes/biometric-auth/spec.md -->
 # Change Proposal: Biometric WebAuthn Authentication
 Status: Requirement Confirmed (Gate: requirement_confirmed PASSED)
 Evidence: PR https://github.com/org/repo/pull/142 (Actor: an-ba@example.com)
 
-Ready for Tech Lead to execute:
+Ready for Tech Leads to execute:
 /gin-workflow:plan biometric-auth`,
         status: 'Gate requirement_confirmed Passed'
       }
     ];
 
     // -------------------------------------------------------------
-    // DATA STORE: MONOREPO DIRECTORY TREE
+    // DATA STORE: MONOREPO DIRECTORY TREE (MULTI-SUBREPOS)
     // -------------------------------------------------------------
     const MONOREPO_TREE = [
       {
         path: './as-is/',
-        label: 'as-is/ (Legacy Codebase Reference)',
-        badge: 'Immutable Reference',
+        label: 'as-is/ (Legacy Sub-Repo)',
+        badge: 'Sub-Repo: as-is',
         role: 'All Roles (Read-Only)',
         lang: 'java',
         filename: 'as-is/src/main/java/UserAuthServlet.java',
-        desc: 'The legacy Java JSP & Servlet system preserved as an immutable reference inside the monorepo.',
+        desc: 'The legacy Java JSP & Servlet system preserved as an immutable sub-repo reference.',
         code: `package com.bank.legacy;
 
 import javax.servlet.http.HttpServlet;
@@ -887,68 +919,13 @@ public class UserAuthServlet extends HttpServlet {
 }`
       },
       {
-        path: './.codegraph/',
-        label: '.codegraph/ (Semantic Code Graph)',
-        badge: 'Tooling Index',
-        role: 'Claude Code Agent',
-        lang: 'json',
-        filename: '.codegraph/config.json',
-        desc: 'Generated by `codegraph index ./as-is`. Enables instant AST-aware queries for agent tool calls.',
-        code: `{
-  "version": "1.0.0",
-  "indexed_root": "./as-is",
-  "symbol_count": 1290,
-  "servlets_indexed": 84,
-  "jsps_indexed": 56,
-  "database_queries_mapped": 142,
-  "storage": "./.codegraph/symbols.db"
-}`
-      },
-      {
-        path: './docs/as-is/',
-        label: 'docs/as-is/ (Archaeological Survey)',
-        badge: 'Generated by /tech-doc',
-        role: 'Tech Lead / BA',
-        lang: 'markdown',
-        filename: 'docs/as-is/ARCHITECTURE.md',
-        desc: 'Comprehensive architectural documentation generated by `/gin-workflow:tech-doc` from inspecting `./as-is/`.',
-        code: `# Legacy Architecture Survey (docs/as-is/ARCHITECTURE.md)
-
-## 1. Runtime Topology
-- App Server: Apache Tomcat 8.5 on Java 8
-- Monolith: Single \`ROOT.war\` archive containing servlets, JSPs, and batch cron jobs
-- Database: Oracle 11g with raw JDBC connection pooling in \`context.xml\`
-
-## 2. Integration Interfaces
-- Core Banking MQ: IBM MQ via JMS queues
-- Payment Gateway: Custom ISO-8583 socket protocol`
-      },
-      {
-        path: './docs/changes/ & docs/specs/',
-        label: 'docs/changes/ & specs/ (SDD Living Specs)',
-        badge: 'SDD Source of Truth',
-        role: 'Business Analyst (BA)',
-        lang: 'markdown',
-        filename: 'docs/changes/biometric-auth/spec.md',
-        desc: 'Living specifications containing unique, immutable REQ-IDs (REQ-BIO-001) that drive TDD and QA test cases.',
-        code: `# Change Proposal: Biometric WebAuthn Authentication
-
-### REQ-BIO-001: WebAuthn / Passkey Registration
-The system MUST provide \`POST /api/v2/auth/webauthn/register\` allowing authenticated
-users to register FIDO2/WebAuthn public keys.
-
-### REQ-BIO-002: Biometric Authentication & Stateless JWT
-The endpoint \`POST /api/v2/auth/webauthn/login\` MUST verify assertions and issue
-stateless JWT inside an \`HttpOnly, Secure\` cookie.`
-      },
-      {
-        path: './services/backend/',
-        label: 'services/backend/ (Spring Boot 3.3)',
-        badge: 'Target Backend',
+        path: './backend/',
+        label: 'backend/ (Spring Boot 3 Sub-Repo)',
+        badge: 'Sub-Repo: backend',
         role: 'Backend Lead & Devs',
         lang: 'java',
-        filename: 'services/backend/src/.../WebAuthnController.java',
-        desc: 'Modern cloud-native Java 21 Spring Boot microservice implementing stateless WebAuthn and JWT security.',
+        filename: 'backend/src/main/java/com/bank/modern/auth/WebAuthnController.java',
+        desc: 'Separate backend sub-repo implementing Java 21, Spring Boot 3.3, and stateless WebAuthn security.',
         code: `package com.bank.modern.auth;
 
 import org.springframework.web.bind.annotation.*;
@@ -972,14 +949,14 @@ public class WebAuthnController {
 }`
       },
       {
-        path: './apps/web/',
-        label: 'apps/web/ (React 19 Frontend)',
-        badge: 'Target Frontend',
+        path: './frontend/',
+        label: 'frontend/ (React 19 Sub-Repo)',
+        badge: 'Sub-Repo: frontend',
         role: 'Frontend Lead & Devs',
         lang: 'javascript',
-        filename: 'apps/web/src/features/auth/BiometricLoginForm.tsx',
-        desc: 'Modern client web application built with React 19, TypeScript, Tailwind CSS, and Vite.',
-        code: `import { useActionState, useTransition } from 'react';
+        filename: 'frontend/src/features/auth/BiometricLoginForm.tsx',
+        desc: 'Separate frontend sub-repo built with React 19, TypeScript, Tailwind CSS, and Vite.',
+        code: `import { useActionState } from 'react';
 import { authenticateWithWebAuthn } from './auth-actions';
 
 export function BiometricLoginForm() {
@@ -1002,26 +979,58 @@ export function BiometricLoginForm() {
       },
       {
         path: './qa/',
-        label: 'qa/ (Test Cases & Playwright E2E)',
-        badge: 'QA & Traceability',
+        label: 'qa/ (Playwright QA Sub-Repo)',
+        badge: 'Sub-Repo: qa',
         role: 'Test Lead & QEs',
         lang: 'markdown',
         filename: 'qa/cases/auth.md',
-        desc: 'Automated test suite managed by `gin-qa`, pinning every test case to specification hashes.',
+        desc: 'Separate QA sub-repo containing test cases pinned to REQ-IDs and Playwright E2E automation suites.',
         code: `# Capability: Authentication
 
 ### TC-BIO-001: Register Passkey on supported device
 REQ: REQ-BIO-001@7d9a1f2e
 Type: e2e
-Priority: high
-Preconditions:
-- Browser supports WebAuthn APIs
+Sub-Repo: qa
 Steps:
-1. Navigate to /settings/security
+1. Open frontend app at /settings/security
 2. Click "Enable Biometric Login"
 3. Provide FaceID assertion
 Expected:
-- WebAuthn public key stored in database`
+- WebAuthn public key stored in modern database`
+      },
+      {
+        path: './docs/',
+        label: 'docs/ (Centralized SDD & Surveys)',
+        badge: 'Living Specs & Docs',
+        role: 'BA & Tech Leads',
+        lang: 'markdown',
+        filename: 'docs/changes/biometric-auth/spec.md',
+        desc: 'Centralized living specifications, SDD change proposals, and as-is architectural surveys.',
+        code: `# Change Proposal: Biometric WebAuthn Authentication
+
+### REQ-BIO-001: WebAuthn / Passkey Registration [backend repo]
+### REQ-BIO-002: Biometric Authentication & Stateless JWT [backend repo]
+### REQ-BIO-003: Password Fallback & Silent Argon2id Upgrade [backend repo]
+### REQ-BIO-004: React 19 Biometric Action Component [frontend repo]`
+      },
+      {
+        path: './.codegraph/',
+        label: '.codegraph/ (Unified AST Graph)',
+        badge: 'Cross-Repo Index',
+        role: 'Claude Code Agent',
+        lang: 'json',
+        filename: '.codegraph/config.json',
+        desc: 'Semantic code graph indexing ./as-is as well as modern backend and frontend sub-repos.',
+        code: `{
+  "version": "1.0.0",
+  "indexed_subrepos": [
+    "./as-is",
+    "./backend",
+    "./frontend"
+  ],
+  "symbol_count": 2840,
+  "storage": "./.codegraph/symbols.db"
+}`
       }
     ];
 
@@ -1035,12 +1044,12 @@ Expected:
         role: 'Tech Lead',
         lang: 'bash',
         exampleInput: '/gin-workflow:setup',
-        exampleOutput: `[setup] Detecting project layout...
-Found: brownfield monorepo with ./as-is legacy code.
+        exampleOutput: `[setup] Detecting multi-subrepo monorepo layout...
+Found sub-repos: ./as-is, ./backend, ./frontend, ./qa.
 Configuring .agent-workflow/config.yaml:
 - rigor: standard (requires worktree isolation & build checks)
 - provider_mode: single (Claude Code baseline)
-- verify commands: mvn test, npm test, npm run lint
+- verify commands: cd backend && mvn test; cd frontend && npm test; cd qa && npm run test:e2e
 Configuration saved to .agent-workflow/config.yaml.`
       },
       {
@@ -1072,7 +1081,7 @@ All documents written to docs/as-is/*.`
         category: 'Requirements',
         role: 'Business Analyst (BA)',
         lang: 'bash',
-        exampleInput: '/gin-workflow:discuss Modernize authentication to Biometric WebAuthn',
+        exampleInput: '/gin-workflow:discuss Modernize authentication across backend and frontend repos',
         exampleOutput: `[discuss] Proposing approaches and clarifying scope:
 - Approach A: Pure Passkey with Email OTP fallback
 - Approach B (Recommended): WebAuthn with legacy password fallback & auto-upgrade
@@ -1085,7 +1094,7 @@ Gate requirement_confirmed pending PR #142 approval.`
         role: 'Area Lead',
         lang: 'bash',
         exampleInput: '/gin-workflow:plan biometric-auth',
-        exampleOutput: `[plan] Decomposing spec into 3 tracks:
+        exampleOutput: `[plan] Decomposing spec into sub-repo tracks:
 Track 1: Spring Boot WebAuthn Service [Area: backend] [Owner: binh-dev]
 Track 2: React 19 Biometric Form [Area: frontend] [Owner: dung-fe]
 Track 3: Parity & Regression Suite [Area: qa] [Owner: hoa-qe]
@@ -1099,9 +1108,11 @@ Plan written to .planning/plans/2026-10-05-biometric-auth.md.`
         exampleInput: '/gin-workflow:orchestrate biometric-auth',
         exampleOutput: `[orchestrate] Creating Beads epics and tracks:
 Created Epic: BEAD-200
-Created Track Beads: BEAD-201, BEAD-202, BEAD-203
-Creating isolated worktree: .agent-workflow/worktrees/feat-biometric-be
-Baseline tests passing in worktree. Gate orchestration_ready PASSED.`
+Created Track Beads: BEAD-201 (backend), BEAD-202 (frontend), BEAD-203 (qa)
+Creating isolated worktrees for sub-repos:
+- .agent-workflow/worktrees/feat-biometric-backend
+- .agent-workflow/worktrees/feat-biometric-frontend
+Baseline tests passing in worktrees. Gate orchestration_ready PASSED.`
       },
       {
         cmd: 'team claim & /execute',
@@ -1110,7 +1121,7 @@ Baseline tests passing in worktree. Gate orchestration_ready PASSED.`
         lang: 'bash',
         exampleInput: 'team claim BEAD-201 && /gin-workflow:execute',
         exampleOutput: `[team] Claimed BEAD-201 for binh-dev.
-[execute] Running test-first loop in worktree...
+[execute] Running test-first loop in backend worktree...
 Step 1: Write WebAuthnControllerTest.java (FAIL - 404 Not Found)
 Step 2: Implement WebAuthnController.java (PASS - 200 OK)
 Step 3: Review ledger validation: 1 finding resolved.
@@ -1126,7 +1137,7 @@ Closed bead BEAD-201.`
 Generated TC-BIO-001 pinned to REQ-BIO-001@7d9a1f2e
 Generated TC-BIO-002 pinned to REQ-BIO-002@7d9a1f2e
 Generated TC-BIO-003 pinned to REQ-BIO-003@7d9a1f2e
-Test cases written to qa/cases/auth.md.`
+Test cases written to qa/cases/auth.md in qa sub-repo.`
       },
       {
         cmd: '/gin-qa:e2e',
@@ -1135,8 +1146,8 @@ Test cases written to qa/cases/auth.md.`
         lang: 'bash',
         exampleInput: '/gin-qa:e2e biometric-auth',
         exampleOutput: `[gin-qa] Compiling Playwright specs from qa/cases/auth.md...
-Created qa/e2e/auth/biometric.spec.ts
-Running Playwright headless browser test...
+Created qa/e2e/auth/biometric.spec.ts in qa sub-repo
+Running Playwright headless browser test against backend and frontend...
 Captured 4 screenshots and 1 ARIA snapshot under qa/evidence/run-104/
 Result: 3 passed, 0 failed.`
       },
@@ -1146,10 +1157,10 @@ Result: 3 passed, 0 failed.`
         role: 'Test Lead',
         lang: 'bash',
         exampleInput: '/gin-workflow:verify',
-        exampleOutput: `[verify] Executing verification suites with fresh evidence:
-- mvn test: 124 passed, 0 failures
-- npm test: 48 passed, 0 failures
-- gin-qa e2e check: all cases verified
+        exampleOutput: `[verify] Executing verification suites across sub-repos:
+- backend (mvn test): 124 passed, 0 failures
+- frontend (npm test): 48 passed, 0 failures
+- qa (playwright test): all cases verified
 - Spec checklist audit: 4 of 4 REQ-IDs verified in code
 Gate verification_passed PASSED.`
       },
@@ -1163,8 +1174,8 @@ Gate verification_passed PASSED.`
 1) Merge locally to master
 2) Push and open Pull Request
 Selected: 1) Merge locally to master.
-Running regression suite on merged master... OK.
-Removing worktree and closing epic BEAD-200. Shipped!`
+Running regression suite across sub-repos... OK.
+Removing worktrees and closing epic BEAD-200. Shipped!`
       },
       {
         cmd: '/gin-workflow:report',
@@ -1294,7 +1305,7 @@ Report generated.`
             </div>
 
             <div class="pt-2 border-t border-slate-200 text-slate-600 text-[11px] leading-relaxed">
-              🛡️ <strong>Safety Principle:</strong> No stage can run without fresh verified evidence from preceding gates.
+              🛡️ <strong>Safety Principle:</strong> No stage can run without fresh verified evidence from preceding gates across sub-repos.
             </div>
           </div>
         </div>
@@ -1359,7 +1370,7 @@ Report generated.`
       renderDialogue();
     }
 
-    // MONOREPO TREE EXPLORER
+    // MONOREPO TREE EXPLORER (MULTI-SUBREPOS)
     function renderMonorepoTree() {
       const container = document.getElementById('monorepo-tree');
       container.innerHTML = MONOREPO_TREE.map((node, idx) => `
