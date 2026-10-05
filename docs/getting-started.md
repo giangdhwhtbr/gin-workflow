@@ -6,6 +6,7 @@ This walks one small feature from idea to merge. It assumes a git repository and
 
 - Python 3 with PyYAML, git, and [Beads](https://github.com/gastownhall/beads) (`bd`), installed as listed in [Installation](../README.md#1-dependencies); Beads initialized in the repository (`bd init`).
 - The plugin and its `gin-workflow` launcher installed ([Installation](../README.md#installation)). Check with `gin-workflow --version`.
+- Optional: [recommended tools](guides/recommended-tools.md) such as CodeGraph, which gives agents faster code lookup.
 
 ## 2. Set up the repository once
 

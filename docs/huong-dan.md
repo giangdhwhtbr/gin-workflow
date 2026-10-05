@@ -6,6 +6,7 @@ Trang này đi qua một tính năng nhỏ, từ ý tưởng đến lúc merge. 
 
 - Python 3 kèm PyYAML, git và [Beads](https://github.com/gastownhall/beads) (`bd`), cài theo bảng [Installation](../README.md#1-dependencies); Beads đã khởi tạo trong repository bằng `bd init`.
 - Plugin và lệnh `gin-workflow` đã được cài ([Installation](../README.md#installation)). Kiểm tra bằng `gin-workflow --version`.
+- Tùy chọn: [công cụ khuyến nghị](guides/recommended-tools.md) như CodeGraph, giúp agent tra cứu code nhanh hơn.
 
 ## 2. Thiết lập repository (một lần)
 
