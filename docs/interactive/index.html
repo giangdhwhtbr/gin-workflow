@@ -3,53 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gin-Workflow Interactive Visualizer | Legacy Modernization Simulation</title>
+  <title>Gin-Workflow End-to-End Visualizer | Monorepo Modernization Simulation</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
-    .tab-active { border-color: #3b82f6; color: #1d4ed8; background-color: #eff6ff; }
-    .stage-card.active { border-color: #3b82f6; ring-width: 2px; }
+    .chat-bubble-agent { background-color: #1e293b; color: #f8fafc; border-top-left-radius: 4px; }
+    .chat-bubble-user { background-color: #2563eb; color: #ffffff; border-top-right-radius: 4px; }
   </style>
 </head>
-<body class="h-full flex flex-col text-slate-800 antialiased">
+<body class="h-full flex flex-col text-slate-800 antialiased selection:bg-blue-500 selection:text-white">
 
   <!-- TOP HEADER -->
   <header class="bg-slate-900 border-b border-slate-800 text-white shrink-0 sticky top-0 z-50 shadow-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
         <div class="flex items-center space-x-3">
-          <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-white shadow-lg shadow-blue-500/30">
             GW
           </div>
           <div>
             <div class="flex items-center space-x-2">
               <span class="font-bold tracking-tight text-lg text-white">Gin-Workflow</span>
-              <span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">Team Simulation</span>
+              <span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">End-to-End Simulation</span>
             </div>
-            <p class="text-xs text-slate-400">Legacy Java JSP/Servlet &rarr; Spring Boot 3 + React 19</p>
+            <p class="text-xs text-slate-400">Monorepo Modernization: <code class="text-amber-300">./as-is</code> (Java JSP/Servlet) &rarr; Spring Boot 3 + React 19</p>
           </div>
         </div>
 
         <!-- Navigation Tabs -->
         <nav class="flex space-x-1" id="main-nav">
-          <button onclick="switchView('lifecycle')" id="btn-nav-lifecycle" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-white bg-blue-600 shadow-sm">
-            🔄 Lifecycle & Gates
+          <button onclick="switchView('journey')" id="btn-nav-journey" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-white bg-blue-600 shadow-sm">
+            🗺️ Modernization Journey (9 Phases)
           </button>
-          <button onclick="switchView('roles')" id="btn-nav-roles" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
-            👥 Roles Matrix (8 Roles)
+          <button onclick="switchView('dialogue')" id="btn-nav-dialogue" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
+            💬 Interactive BA Discuss Simulator
+          </button>
+          <button onclick="switchView('monorepo')" id="btn-nav-monorepo" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
+            📂 Monorepo Architecture Tree
+          </button>
+          <button onclick="switchView('commands')" id="btn-nav-commands" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
+            ⚡ Command Reference with Real Examples
           </button>
           <button onclick="switchView('pm')" id="btn-nav-pm" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
-            📊 PM Analytics & Cost
-          </button>
-          <button onclick="switchView('strangler')" id="btn-nav-strangler" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
-            🏗️ Architecture & Strangler Fig
-          </button>
-          <button onclick="switchView('artifacts')" id="btn-nav-artifacts" class="px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800">
-            📝 Artifacts Inspector
+            📊 PM Analytics & Cost Attribution
           </button>
         </nav>
       </div>
@@ -57,99 +57,170 @@
   </header>
 
   <!-- MAIN CONTAINER -->
-  <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+  <main class="flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
 
     <!-- ============================================================ -->
-    <!-- VIEW 1: INTERACTIVE LIFECYCLE & GATES -->
+    <!-- VIEW 1: THE COMPLETE 9-PHASE MODERNIZATION JOURNEY -->
     <!-- ============================================================ -->
-    <section id="view-lifecycle" class="space-y-6">
-      <!-- Scenario Banner -->
-      <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 shadow-xl border border-blue-800/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <section id="view-journey" class="space-y-6">
+      <!-- Hero Banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-2xl p-6 shadow-xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-2">
-            Active Feature: Epic #AUTH-MIGRATE
+          <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 mb-2">
+            Architecture: Monorepo with <code class="text-amber-300">./as-is</code> Reference
           </div>
-          <h1 class="text-2xl font-extrabold tracking-tight">Modernize Legacy User Authentication & Session Management</h1>
-          <p class="text-slate-300 text-sm mt-1 max-w-2xl">
-            Decommissioning <code class="text-amber-300 bg-amber-950/50 px-1 py-0.5 rounded">UserAuthServlet.java</code> & <code class="text-amber-300 bg-amber-950/50 px-1 py-0.5 rounded">login.jsp</code> into Spring Boot 3 JWT Security and React 19 Auth Component with zero downtime.
+          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">The Complete Gin-Workflow Lifecycle</h1>
+          <p class="text-slate-300 text-sm mt-1 max-w-2xl leading-relaxed">
+            From Day 0 repo initialization, CodeGraph indexing, and archaeological <code class="text-cyan-300">/tech-doc</code> survey, to BA spec creation, multi-track TDD execution, E2E parity testing, and zero-downtime shipping.
           </p>
         </div>
-        <div class="bg-slate-800/80 backdrop-blur rounded-xl p-3 border border-slate-700/60 shrink-0 text-right">
-          <div class="text-xs text-slate-400">Current Lifecycle Gate</div>
-          <div class="text-base font-bold text-amber-400 flex items-center justify-end gap-1.5 mt-0.5" id="current-gate-indicator">
+        <div class="bg-slate-800/80 backdrop-blur rounded-xl p-3.5 border border-slate-700/60 shrink-0 text-right">
+          <div class="text-xs text-slate-400">Interactive Stepper</div>
+          <div class="text-sm font-bold text-amber-400 flex items-center justify-end gap-1.5 mt-0.5" id="journey-active-badge">
             <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-            Stage 1: discuss
+            Phase 0: Setup & Indexing
           </div>
-          <div class="text-[11px] text-slate-400 mt-1">Requires PR approval by: <strong class="text-white">BA</strong></div>
+          <div class="text-[11px] text-slate-400 mt-1">Select any phase below to inspect</div>
         </div>
       </div>
 
-      <!-- Lifecycle Stepper -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-        <div class="grid grid-cols-2 md:grid-cols-6 gap-2" id="lifecycle-stepper">
-          <!-- 6 Buttons generated / attached via JS -->
+      <!-- 9-Phase Stepper Navigation -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 overflow-x-auto">
+        <div class="flex space-x-2 min-w-max" id="journey-stepper-bar">
+          <!-- Populated by JS -->
         </div>
       </div>
 
-      <!-- Active Stage Detailed Card -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" id="stage-detail-panel">
+      <!-- Active Phase Detail Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6" id="journey-detail-card">
         <!-- Rendered dynamically -->
       </div>
     </section>
 
 
     <!-- ============================================================ -->
-    <!-- VIEW 2: TEAM ROLES MATRIX (8 ROLES) -->
+    <!-- VIEW 2: INTERACTIVE BA DISCUSS SIMULATOR (Biometric Auth) -->
     <!-- ============================================================ -->
-    <section id="view-roles" class="hidden space-y-6">
+    <section id="view-dialogue" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">BA & Claude Live Simulation</span>
+          <h2 class="text-2xl font-extrabold text-slate-900 mt-1">Interactive /discuss: Modern Biometric Login Flow</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Experience how an agent clarifies an ambiguous user story into an unambiguous SDD specification with traceable REQ-IDs.</p>
+        </div>
+        <button onclick="resetDialogue()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition border border-slate-300">
+          🔄 Restart Dialogue
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Chat Dialogue Window -->
+        <div class="lg:col-span-7 bg-slate-900 rounded-2xl p-5 shadow-xl flex flex-col h-[580px] border border-slate-800">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+              <span class="text-xs font-bold text-white uppercase tracking-wider font-mono">Claude Code Session (/discuss)</span>
+            </div>
+            <span class="text-[11px] font-mono text-slate-400">Harness: claude-3-5-sonnet</span>
+          </div>
+
+          <!-- Chat Messages Scroll Container -->
+          <div class="flex-1 overflow-y-auto space-y-4 pr-2" id="dialogue-messages-container">
+            <!-- Messages populated by JS -->
+          </div>
+
+          <!-- Next Step Controls -->
+          <div class="border-t border-slate-800 pt-3 mt-3 flex items-center justify-between" id="dialogue-controls">
+            <span class="text-xs text-slate-400" id="dialogue-step-counter">Step 1 of 5</span>
+            <button onclick="advanceDialogue()" id="btn-advance-dialogue" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-1.5">
+              <span>Next Conversation Step</span> &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Generated Spec Preview -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col h-[580px]">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Generated Output</span>
+              <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-mono text-slate-600">docs/changes/biometric-auth/spec.md</span>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800" id="spec-status-badge">Drafting in progress...</span>
+          </div>
+
+          <div class="flex-1 overflow-y-auto font-mono text-xs text-slate-800 bg-slate-50 p-4 rounded-xl border border-slate-200 whitespace-pre-wrap leading-relaxed" id="live-spec-content">
+            <!-- Live spec text updated as dialogue progresses -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ============================================================ -->
+    <!-- VIEW 3: MONOREPO ARCHITECTURE TREE EXPLORER -->
+    <!-- ============================================================ -->
+    <section id="view-monorepo" class="hidden space-y-6">
       <div class="border-b border-slate-200 pb-4">
-        <h2 class="text-xl font-bold text-slate-900">Cross-Functional Team Collaboration Matrix</h2>
+        <h2 class="text-xl font-bold text-slate-900">Monorepo Modernization Architecture</h2>
         <p class="text-sm text-slate-500 mt-1">
-          How 8 roles collaborate safely on the same codebase using Git-worktrees, CODEOWNERS, and single-owner states.
+          How the monorepo is structured with the legacy as-is codebase, generated architectural surveys, living specs, Spring Boot 3 services, React 19 apps, and QA tests.
         </p>
       </div>
 
-      <!-- Role Selector Pills -->
-      <div class="flex flex-wrap gap-2" id="role-selector-bar">
-        <!-- Generated by JS -->
-      </div>
-
-      <!-- Selected Role Info -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" id="role-detail-card">
-        <!-- Rendered dynamically -->
-      </div>
-
-      <!-- Collaboration Guardrails Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm mb-3">1</div>
-          <h3 class="font-bold text-slate-900 text-sm">Directory & Area Boundaries</h3>
-          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-            BE Lead/Devs own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">services/**</code>. FE Lead/Devs own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">apps/web/**</code>. Testers own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">qa/**</code>. BAs own <code class="bg-slate-100 px-1 py-0.5 rounded text-blue-600">docs/**</code>. CODEOWNERS strictly prevents unauthorised cross-edits.
-          </p>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Interactive Folder Tree -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Monorepo Directory Layout</div>
+          <div class="space-y-1 font-mono text-xs" id="monorepo-tree">
+            <!-- Tree nodes populated by JS -->
+          </div>
         </div>
 
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm mb-3">2</div>
-          <h3 class="font-bold text-slate-900 text-sm">Isolated Git Worktrees</h3>
-          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-            Devs work in separate Git worktrees created automatically by <code class="bg-slate-100 px-1 py-0.5 rounded text-indigo-600">orchestrate</code>. A BE Dev can implement JWT filters while a FE Dev builds React 19 forms without merge collisions on local branches.
-          </p>
-        </div>
+        <!-- Node Details & Code Preview -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col">
+          <div class="border-b border-slate-100 pb-3 mb-3 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-blue-600 uppercase tracking-wider" id="tree-preview-badge">Selected Path</span>
+              <h3 class="text-base font-bold font-mono text-slate-900" id="tree-preview-path">./as-is/ (Legacy Codebase)</h3>
+            </div>
+            <span class="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-medium" id="tree-preview-role">Role Owner: All (Read-Only)</span>
+          </div>
 
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm mb-3">3</div>
-          <h3 class="font-bold text-slate-900 text-sm">Decoupled Task Claims</h3>
-          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-            Every task is tracked by Beads (<code class="bg-slate-100 px-1 py-0.5 rounded text-emerald-600">bd</code>) and claimed by one person via <code class="bg-slate-100 px-1 py-0.5 rounded text-emerald-600">team claim &lt;bead&gt;</code>. Dual-claiming is impossible, eliminating duplicated work.
-          </p>
+          <div class="text-xs text-slate-600 mb-3" id="tree-preview-desc">
+            The legacy Java JSP & Servlet system preserved as an immutable reference inside the monorepo.
+          </div>
+
+          <div class="flex-1 bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-xs overflow-x-auto whitespace-pre-wrap" id="tree-preview-code">
+            <!-- Code preview -->
+          </div>
         </div>
       </div>
     </section>
 
 
     <!-- ============================================================ -->
-    <!-- VIEW 3: PM EXECUTIVE DASHBOARD & AI METRICS -->
+    <!-- VIEW 4: COMMAND REFERENCE WITH REAL EXAMPLES -->
+    <!-- ============================================================ -->
+    <section id="view-commands" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-4">
+        <h2 class="text-xl font-bold text-slate-900">Every Gin-Workflow Command with Real Inputs & Outputs</h2>
+        <p class="text-sm text-slate-500 mt-1">Every command across all stages, with exact command-line syntax, flags, who executes it, and realistic terminal outputs.</p>
+      </div>
+
+      <!-- Command Quick Selector Tabs -->
+      <div class="flex flex-wrap gap-2" id="command-selector-tabs">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Command Details & Output Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" id="command-detail-card">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+
+    <!-- ============================================================ -->
+    <!-- VIEW 5: PM ANALYTICS & AI ATTRIBUTION -->
     <!-- ============================================================ -->
     <section id="view-pm" class="hidden space-y-6">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
@@ -192,736 +263,973 @@
         </div>
       </div>
 
-      <!-- Detailed Breakdown Tables -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Breakdown by Stage -->
-        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h3 class="font-bold text-slate-900 text-sm mb-3">AI Resource Attribution by Lifecycle Stage</h3>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-600 uppercase border-b border-slate-200">
-                <tr>
-                  <th class="p-2.5">Stage</th>
-                  <th class="p-2.5">Tokens (Prompt/Completion)</th>
-                  <th class="p-2.5">Cost ($)</th>
-                  <th class="p-2.5">Findings Handled</th>
-                  <th class="p-2.5">Status</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100 font-mono">
-                <tr>
-                  <td class="p-2.5 font-bold font-sans text-blue-600">1. discuss</td>
-                  <td class="p-2.5">245,000 / 38,000</td>
-                  <td class="p-2.5 font-semibold">$1.32</td>
-                  <td class="p-2.5 font-sans">0 findings</td>
-                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Confirmed</span></td>
-                </tr>
-                <tr>
-                  <td class="p-2.5 font-bold font-sans text-blue-600">2. plan</td>
-                  <td class="p-2.5">180,000 / 42,000</td>
-                  <td class="p-2.5 font-semibold">$1.18</td>
-                  <td class="p-2.5 font-sans">1 amendment</td>
-                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Approved</span></td>
-                </tr>
-                <tr>
-                  <td class="p-2.5 font-bold font-sans text-blue-600">3. orchestrate</td>
-                  <td class="p-2.5">95,000 / 15,000</td>
-                  <td class="p-2.5 font-semibold">$0.48</td>
-                  <td class="p-2.5 font-sans">0</td>
-                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Ready</span></td>
-                </tr>
-                <tr class="bg-blue-50/50">
-                  <td class="p-2.5 font-bold font-sans text-blue-600">4. execute (3 tracks)</td>
-                  <td class="p-2.5">1,120,000 / 185,000</td>
-                  <td class="p-2.5 font-semibold">$9.80</td>
-                  <td class="p-2.5 font-sans">4 fixed, 1 waived</td>
-                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">Closed</span></td>
-                </tr>
-                <tr>
-                  <td class="p-2.5 font-bold font-sans text-blue-600">5. verify</td>
-                  <td class="p-2.5">165,000 / 28,000</td>
-                  <td class="p-2.5 font-semibold">$1.20</td>
-                  <td class="p-2.5 font-sans">0 checklist gaps</td>
-                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">Passed</span></td>
-                </tr>
-                <tr>
-                  <td class="p-2.5 font-bold font-sans text-blue-600">6. ship</td>
-                  <td class="p-2.5">45,000 / 8,000</td>
-                  <td class="p-2.5 font-semibold">$0.30</td>
-                  <td class="p-2.5 font-sans">0</td>
-                  <td class="p-2.5 font-sans"><span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full font-semibold">Pending PR</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+      <!-- Detailed Breakdown Table -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <h3 class="font-bold text-slate-900 text-sm">Detailed AI Usage & Attribution per Stage (<code class="text-blue-600">/gin-workflow:report --epic auth-modernize</code>)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 uppercase border-b border-slate-200 font-semibold">
+              <tr>
+                <th class="p-3">Stage / Task</th>
+                <th class="p-3">Model</th>
+                <th class="p-3">Prompt Tokens</th>
+                <th class="p-3">Completion Tokens</th>
+                <th class="p-3">Cost ($)</th>
+                <th class="p-3">Review Findings</th>
+                <th class="p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-mono">
+              <tr>
+                <td class="p-3 font-sans font-bold text-blue-600">0. Archaeological /tech-doc</td>
+                <td class="p-3">claude-3-7-sonnet</td>
+                <td class="p-3">380,000</td>
+                <td class="p-3">48,000</td>
+                <td class="p-3 font-semibold">$1.86</td>
+                <td class="p-3 font-sans text-slate-400">N/A</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Baseline Created</span></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-sans font-bold text-blue-600">1. discuss (Biometric Auth)</td>
+                <td class="p-3">claude-3-5-sonnet</td>
+                <td class="p-3">245,000</td>
+                <td class="p-3">38,000</td>
+                <td class="p-3 font-semibold">$1.32</td>
+                <td class="p-3 font-sans">0</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Confirmed</span></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-sans font-bold text-blue-600">2. plan</td>
+                <td class="p-3">claude-3-5-sonnet</td>
+                <td class="p-3">180,000</td>
+                <td class="p-3">42,000</td>
+                <td class="p-3 font-semibold">$1.18</td>
+                <td class="p-3 font-sans">1 amendment</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Approved</span></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-sans font-bold text-blue-600">3. orchestrate</td>
+                <td class="p-3">claude-3-5-haiku</td>
+                <td class="p-3">95,000</td>
+                <td class="p-3">15,000</td>
+                <td class="p-3 font-semibold">$0.18</td>
+                <td class="p-3 font-sans">0</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Ready</span></td>
+              </tr>
+              <tr class="bg-blue-50/50">
+                <td class="p-3 font-sans font-bold text-blue-600">4. execute (3 tracks)</td>
+                <td class="p-3">claude-3-5-sonnet</td>
+                <td class="p-3">1,120,000</td>
+                <td class="p-3">185,000</td>
+                <td class="p-3 font-semibold">$8.30</td>
+                <td class="p-3 font-sans">3 fixed, 1 waived</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-semibold">Tracks Closed</span></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-sans font-bold text-blue-600">5. verify (E2E parity)</td>
+                <td class="p-3">claude-3-5-sonnet</td>
+                <td class="p-3">165,000</td>
+                <td class="p-3">28,000</td>
+                <td class="p-3 font-semibold">$1.14</td>
+                <td class="p-3 font-sans">0 gaps</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">Passed</span></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-sans font-bold text-blue-600">6. ship</td>
+                <td class="p-3">claude-3-5-haiku</td>
+                <td class="p-3">45,000</td>
+                <td class="p-3">8,000</td>
+                <td class="p-3 font-semibold">$0.30</td>
+                <td class="p-3 font-sans">0</td>
+                <td class="p-3 font-sans"><span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-semibold">Shipped</span></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-
-        <!-- Bead Track Status -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
-          <h3 class="font-bold text-slate-900 text-sm">Epic Track Beads Velocity</h3>
-          <div class="space-y-2 text-xs">
-            <div class="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60">
-              <div class="flex justify-between font-semibold text-emerald-900">
-                <span>BEAD-101: Spring Boot JWT Service</span>
-                <span class="text-emerald-700">Closed ✓</span>
-              </div>
-              <p class="text-emerald-700/80 text-[11px] mt-0.5">Assigned: binh-dev (BE) • Area: backend</p>
-            </div>
-
-            <div class="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60">
-              <div class="flex justify-between font-semibold text-emerald-900">
-                <span>BEAD-102: React 19 Auth Component</span>
-                <span class="text-emerald-700">Closed ✓</span>
-              </div>
-              <p class="text-emerald-700/80 text-[11px] mt-0.5">Assigned: dung-fe (FE) • Area: frontend</p>
-            </div>
-
-            <div class="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60">
-              <div class="flex justify-between font-semibold text-emerald-900">
-                <span>BEAD-103: E2E Parity & Playwright Tests</span>
-                <span class="text-emerald-700">Closed ✓</span>
-              </div>
-              <p class="text-emerald-700/80 text-[11px] mt-0.5">Assigned: hoa-qe (Tester) • Area: qa</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-
-    <!-- ============================================================ -->
-    <!-- VIEW 4: STRANGLER FIG ARCHITECTURE & MIGRATION -->
-    <!-- ============================================================ -->
-    <section id="view-strangler" class="hidden space-y-6">
-      <div class="border-b border-slate-200 pb-4">
-        <h2 class="text-xl font-bold text-slate-900">Strangler Fig Architecture: Monolith to Modern Stack</h2>
-        <p class="text-sm text-slate-500 mt-1">Incremental migration pattern eliminating single-point-of-failure risks.</p>
-      </div>
-
-      <!-- Architecture Comparison Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Legacy Monolith -->
-        <div class="bg-red-50/40 rounded-2xl border border-red-200 p-6 space-y-4">
-          <div class="flex items-center justify-between">
-            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
-              BEFORE: Legacy Monolith (JDK 8)
-            </span>
-            <span class="text-xs text-red-600 font-semibold">Decommissioning in progress</span>
-          </div>
-
-          <div class="space-y-3 font-mono text-xs">
-            <div class="bg-white p-3 rounded-lg border border-red-100 shadow-sm">
-              <div class="font-bold text-slate-800 font-sans">Presentation: JSP & Scriptlets</div>
-              <div class="text-slate-500 mt-0.5">/webapp/auth/login.jsp</div>
-              <div class="text-red-600 text-[11px] mt-1">Issues: Business logic mixed with HTML, vulnerable to XSS</div>
-            </div>
-
-            <div class="bg-white p-3 rounded-lg border border-red-100 shadow-sm">
-              <div class="font-bold text-slate-800 font-sans">Controller: Raw Java Servlets</div>
-              <div class="text-slate-500 mt-0.5">UserAuthServlet.java (HttpServlet)</div>
-              <div class="text-red-600 text-[11px] mt-1">Issues: Manual session clustering, stateful HttpSession, tight Tomcat coupling</div>
-            </div>
-
-            <div class="bg-white p-3 rounded-lg border border-red-100 shadow-sm">
-              <div class="font-bold text-slate-800 font-sans">Security: Legacy MD5 + Salt Hash</div>
-              <div class="text-slate-500 mt-0.5">Custom SecurityFilter.java</div>
-              <div class="text-red-600 text-[11px] mt-1">Issues: Outdated cryptography, non-standard authorization</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Modern Target -->
-        <div class="bg-emerald-50/40 rounded-2xl border border-emerald-200 p-6 space-y-4">
-          <div class="flex items-center justify-between">
-            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-              AFTER: Modern Cloud-Native Stack
-            </span>
-            <span class="text-xs text-emerald-700 font-semibold">Zero-downtime Strangler Facade</span>
-          </div>
-
-          <div class="space-y-3 font-mono text-xs">
-            <div class="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-              <div class="font-bold text-slate-800 font-sans">Frontend: React 19 + TypeScript + Vite</div>
-              <div class="text-slate-500 mt-0.5">apps/web/src/features/auth/AuthForm.tsx</div>
-              <div class="text-emerald-700 text-[11px] mt-1">Benefits: Componentized UI, Action Hooks, type-safe contract</div>
-            </div>
-
-            <div class="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-              <div class="font-bold text-slate-800 font-sans">Backend: Spring Boot 3.3 (Java 21)</div>
-              <div class="text-slate-500 mt-0.5">services/backend/src/.../AuthController.java</div>
-              <div class="text-emerald-700 text-[11px] mt-1">Benefits: Stateless JWT, Spring Security 6, OpenAPI contracts</div>
-            </div>
-
-            <div class="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-              <div class="font-bold text-slate-800 font-sans">Security: Argon2id + Dual-Verification Upgrade</div>
-              <div class="text-slate-500 mt-0.5">Argon2PasswordEncoder.java</div>
-              <div class="text-emerald-700 text-[11px] mt-1">Benefits: Verifies MD5 on first login and silently upgrades hash to Argon2id</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Migration Facade Router Flow -->
-      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        <h3 class="font-bold text-slate-900 text-base">Strangler Reverse Proxy / API Gateway Flow</h3>
-        <div class="p-4 bg-slate-900 text-slate-200 rounded-xl font-mono text-xs space-y-2 overflow-x-auto">
-          <div class="text-slate-400">// NGINX / Gateway Routing Rules</div>
-          <div>location /api/v2/auth {</div>
-          <div class="pl-4 text-emerald-400">proxy_pass http://spring-boot-modern-service:8080; # New Modernized Traffic</div>
-          <div>}</div>
-          <div>location / {</div>
-          <div class="pl-4 text-amber-400">proxy_pass http://legacy-tomcat-cluster:8080;       # Unmigrated Legacy Traffic</div>
-          <div>}</div>
-        </div>
-      </div>
-    </section>
-
-
-    <!-- ============================================================ -->
-    <!-- VIEW 5: ARTIFACTS & CODE INSPECTOR -->
-    <!-- ============================================================ -->
-    <section id="view-artifacts" class="hidden space-y-6">
-      <div class="border-b border-slate-200 pb-4">
-        <h2 class="text-xl font-bold text-slate-900">Artifacts & State Inspector</h2>
-        <p class="text-sm text-slate-500 mt-1">Inspect real markdown artifacts generated by Claude Code during the modernization lifecycle.</p>
-      </div>
-
-      <div class="flex space-x-2 border-b border-slate-200" id="artifact-tabs">
-        <button onclick="switchArtifact('spec')" id="btn-art-spec" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-blue-600 text-blue-600">
-          📄 SDD Spec (REQ-IDs)
-        </button>
-        <button onclick="switchArtifact('plan')" id="btn-art-plan" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-transparent text-slate-500 hover:text-slate-700">
-          📋 Track Plan (Areas & Owners)
-        </button>
-        <button onclick="switchArtifact('review')" id="btn-art-review" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-transparent text-slate-500 hover:text-slate-700">
-          🔍 Review Ledger
-        </button>
-        <button onclick="switchArtifact('qa')" id="btn-art-qa" class="px-4 py-2 border-b-2 font-semibold text-xs sm:text-sm border-transparent text-slate-500 hover:text-slate-700">
-          🧪 Pinned Test Cases (gin-qa)
-        </button>
-      </div>
-
-      <div class="bg-slate-900 text-slate-100 rounded-2xl p-5 shadow-lg overflow-x-auto text-xs font-mono" id="artifact-content">
-        <!-- Rendered dynamically -->
       </div>
     </section>
 
   </main>
 
   <!-- ============================================================ -->
-  <!-- JAVASCRIPT LOGIC -->
+  <!-- JAVASCRIPT LOGIC & STATE -->
   <!-- ============================================================ -->
   <script>
-    // DATA STORE: 6 LIFECYCLE STAGES
-    const STAGES = [
+    // -------------------------------------------------------------
+    // DATA STORE: 9 PHASES OF MODERNIZATION
+    // -------------------------------------------------------------
+    const JOURNEY_PHASES = [
       {
-        id: 'discuss',
-        num: 1,
-        title: 'discuss',
-        name: 'Requirement Clarification & SDD Spec',
-        gate: 'requirement_confirmed',
-        approver: 'BA (Business Analyst)',
-        cli: '/gin-workflow:discuss Modernize legacy authentication servlet to Spring Boot 3 JWT & React 19',
-        summary: 'Claude explores legacy UserAuthServlet.java, identifies hidden business rules, clarifies JWT expiry & password upgrade policy, and writes an SDD spec with unique REQ-IDs.',
-        evidence: 'docs/changes/auth-modernize/spec.md',
-        roleActions: {
-          'BA': 'Reviews the spec.md PR, ensures acceptance criteria match business needs, and approves the PR.',
-          'BE Lead': 'Verifies architectural constraints (Spring Security 6, Argon2id compatibility).',
-          'FE Lead': 'Confirms API request/response schema for React 19 actions.',
-          'Tester': 'Begins drafting test matrix from REQ-IDs.'
-        }
+        id: 'phase-0-setup',
+        num: '0A',
+        title: 'Project Setup & Config',
+        stage: 'setup',
+        actor: 'Tech Lead / Architect',
+        badge: 'Foundation',
+        badgeColor: 'bg-slate-100 text-slate-800',
+        command: '/gin-workflow:setup',
+        desc: 'Initialize the monorepo, configure .agent-workflow/config.yaml with team areas, rigor, and verify commands.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Step 1: Configure .agent-workflow/config.yaml</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            Setup detects the repository layout and configures the team areas (separating <code>as-is</code> legacy code, <code>services/backend</code> Spring Boot 3, <code>apps/web</code> React 19, and <code>qa</code> tests).
+          </p>
+          <div class="bg-slate-900 text-slate-200 p-3 rounded-lg font-mono text-xs overflow-x-auto mb-3">
+project:
+  stage: brownfield
+  layout: sdd
+team:
+  host: github
+  members:
+    an-ba@example.com: {roles: [ba], login: an-ba}
+    binh-be@example.com: {roles: [be_lead], login: binh-dev}
+    dung-fe@example.com: {roles: [fe_lead], login: dung-fe}
+    hoa-qe@example.com: {roles: [qe], login: hoa-qe}
+  areas:
+    legacy: {paths: ["as-is/**"], lead: be_lead}
+    backend: {paths: ["services/backend/**"], lead: be_lead}
+    frontend: {paths: ["apps/web/**"], lead: fe_lead}
+    qa: {paths: ["qa/**"], lead: qe}
+          </div>
+        `
       },
       {
-        id: 'plan',
-        num: 2,
-        title: 'plan',
-        name: 'Technical Track Decomposition',
-        gate: 'plan_approved',
-        approver: 'Backend Lead & Frontend Lead',
-        cli: '/gin-workflow:plan auth-modernize',
-        summary: 'Decomposes the confirmed spec into 3 isolated tracks with assigned Areas and Owners: Track 1 (Spring Boot API), Track 2 (React 19 Form), Track 3 (Parity E2E).',
-        evidence: '.planning/plans/2026-10-05-auth-modernize.md',
-        roleActions: {
-          'BE Lead': 'Approves plan PR for Area: backend (Track 1).',
-          'FE Lead': 'Approves plan PR for Area: frontend (Track 2).',
-          'PM': 'Validates sprint capacity and milestones in Beads.'
-        }
+        id: 'phase-0-index',
+        num: '0B',
+        title: 'CodeGraph Legacy Indexing',
+        stage: 'codegraph',
+        actor: 'Tech Lead / Developer',
+        badge: 'Intelligence',
+        badgeColor: 'bg-indigo-100 text-indigo-800',
+        command: 'codegraph index ./as-is',
+        desc: 'Index the existing legacy Java JSP & Servlet system into a local semantic code graph (.codegraph/).',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Indexing the As-Is Legacy Codebase</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            Before changing or refactoring anything, we run <code>codegraph index ./as-is</code>. This parses all legacy servlets, JSP custom tags, DAOs, and SQL queries into an AST-aware knowledge base.
+          </p>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+            <div class="font-bold text-slate-800">Why CodeGraph matters for Modernization:</div>
+            <div class="text-slate-600">• Claude queries CodeGraph via tool calls before reading raw files.</div>
+            <div class="text-slate-600">• Finds dynamic servlet dispatches and hidden database queries that simple grep would miss.</div>
+            <div class="text-slate-600">• Eliminates hallucinated assumptions about how the legacy system functions.</div>
+          </div>
+        `
       },
       {
-        id: 'orchestrate',
-        num: 3,
-        title: 'orchestrate',
-        name: 'Beads Task Creation & Worktree Prep',
-        gate: 'orchestration_ready',
-        approver: 'Automated by System / Lead',
-        cli: '/gin-workflow:orchestrate auth-modernize',
-        summary: 'Creates parent Epic bead and 3 track beads in Beads (bd), creates isolated Git worktrees under .agent-workflow/worktrees/ for safe parallel coding.',
-        evidence: 'Epic: BEAD-100; Worktrees: worktree-be, worktree-fe',
-        roleActions: {
-          'BE Dev': 'Claims Track 1 bead via team claim BEAD-101.',
-          'FE Dev': 'Claims Track 2 bead via team claim BEAD-102.',
-          'Tester': 'Claims Track 3 bead via team claim BEAD-103.'
-        }
+        id: 'phase-0-techdoc',
+        num: '0C',
+        title: 'Archaeological /tech-doc',
+        stage: 'tech-doc',
+        actor: 'Lead / BA',
+        badge: 'Archaeology',
+        badgeColor: 'bg-cyan-100 text-cyan-800',
+        command: '/gin-workflow:tech-doc',
+        desc: 'Scan the as-is legacy codebase to generate comprehensive technical documentation under docs/as-is/*.md.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Automated Discovery of Legacy Reality</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            Running <code>/gin-workflow:tech-doc</code> analyzes the legacy codebase and produces five structured living documents in <code>./docs/as-is/</code>:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+            <div class="p-2 bg-slate-100 rounded border border-slate-200"><strong>OVERVIEW.md:</strong> Business context & modules</div>
+            <div class="p-2 bg-slate-100 rounded border border-slate-200"><strong>ARCHITECTURE.md:</strong> Monolith topology</div>
+            <div class="p-2 bg-slate-100 rounded border border-slate-200"><strong>STACK.md:</strong> JDK 8, Tomcat, Struts/Servlets</div>
+            <div class="p-2 bg-slate-100 rounded border border-slate-200"><strong>CONCERNS.md:</strong> SQL injection & session clustering risks</div>
+          </div>
+        `
       },
       {
-        id: 'execute',
-        num: 4,
-        title: 'execute',
-        name: 'TDD Execution & Independent Review',
-        gate: 'implementation_complete',
-        approver: 'Peer Reviewer (Review Ledger)',
-        cli: '/gin-workflow:execute',
-        summary: 'Developers work inside isolated worktrees: write failing test first, write implementation, run independent review in the review ledger. Closes track beads.',
-        evidence: 'Review Ledgers: .planning/reviews/BEAD-101/review.md',
-        roleActions: {
-          'BE Dev': 'Writes Spring Boot mock test, implements JWT AuthController, resolves review findings, closes BEAD-101.',
-          'FE Dev': 'Writes React 19 component test, implements AuthForm, closes BEAD-102.',
-          'Tester': 'Executes E2E Playwright parity against legacy servlet.'
-        }
+        id: 'phase-1-discuss',
+        num: '01',
+        title: 'BA Requirements Clarification',
+        stage: 'discuss',
+        actor: 'Business Analyst (BA)',
+        badge: 'Gate: requirement_confirmed',
+        badgeColor: 'bg-amber-100 text-amber-800',
+        command: '/gin-workflow:discuss <feature-prompt>',
+        desc: 'BA initiates requirement clarification. Claude interviews BA one question at a time and writes the SDD spec with REQ-IDs.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Interactive Interview & Spec Generation</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            BA types: <code>/gin-workflow:discuss Modernize authentication to Biometric WebAuthn (Passkeys) + Spring Boot JWT with backward compatibility for legacy users</code>.
+          </p>
+          <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-1 text-amber-900 mb-3">
+            <strong>Gate Governance:</strong> The resulting spec in <code>docs/changes/biometric-auth/spec.md</code> is submitted as a PR. The gate <code>requirement_confirmed</code> cannot be passed until the BA reviews and merges the PR.
+          </div>
+          <button onclick="switchView('dialogue')" class="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition">
+            💬 Open Interactive BA Discuss Simulator &rarr;
+          </button>
+        `
       },
       {
-        id: 'verify',
-        num: 5,
-        title: 'verify',
-        name: 'Evidence Audit & Quality Gate',
-        gate: 'verification_passed',
-        approver: 'Test Lead / QE',
-        cli: '/gin-workflow:verify',
-        summary: 'Re-runs all verification commands (mvn test, npm run test, lint, e2e Playwright parity check) with fresh command output and audits code against spec.',
-        evidence: 'Verification check evidence report & all ledgers validated',
-        roleActions: {
-          'Test Lead': 'Reviews Playwright video & screenshot evidence in qa/evidence/, approves verification_passed PR gate.',
-          'BA': 'Confirms all REQ-IDs are satisfied by the verification checklist.'
-        }
+        id: 'phase-2-plan',
+        num: '02',
+        title: 'Technical Track Decomposition',
+        stage: 'plan',
+        actor: 'Backend & Frontend Leads',
+        badge: 'Gate: plan_approved',
+        badgeColor: 'bg-blue-100 text-blue-800',
+        command: '/gin-workflow:plan biometric-auth',
+        desc: 'Decomposes confirmed spec into Area-bounded implementation tracks with assigned roles and reasoning tiers.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Track Plan Breakdown (.planning/plans/)</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            The plan defines exact track boundaries so developers do not conflict:
+          </p>
+          <div class="space-y-2 text-xs">
+            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+              <span class="font-bold text-blue-700 font-mono">Track 1 (Backend):</span> Spring Boot 3 WebAuthn Controller & JWT Issuer
+              <div class="text-[11px] text-slate-500 mt-0.5">Area: backend • Owner: binh-dev • Route: claude-3-5-sonnet</div>
+            </div>
+            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+              <span class="font-bold text-teal-700 font-mono">Track 2 (Frontend):</span> React 19 Biometric Authentication Component
+              <div class="text-[11px] text-slate-500 mt-0.5">Area: frontend • Owner: dung-fe • Route: claude-3-5-sonnet</div>
+            </div>
+            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+              <span class="font-bold text-emerald-700 font-mono">Track 3 (QA):</span> Parity & Characterization Test Suite
+              <div class="text-[11px] text-slate-500 mt-0.5">Area: qa • Owner: hoa-qe • Route: claude-3-5-sonnet</div>
+            </div>
+          </div>
+        `
       },
       {
-        id: 'ship',
-        num: 6,
-        title: 'ship',
-        name: 'Integration & Strangler Cutover',
-        gate: 'shipped',
-        approver: 'Project Manager (PM) & Leads',
-        cli: '/gin-workflow:ship',
-        summary: 'Presents 4 integration choices: Merge locally, Open Pull Request, Keep branch, or Discard. Updates NGINX gateway to route /api/v2/auth to Spring Boot, cleans worktrees, closes Epic.',
-        evidence: 'Merged PR #342 into master & Epic BEAD-100 closed',
-        roleActions: {
-          'PM': 'Approves final release to staging/prod.',
-          'BE Lead': 'Monitors gateway telemetry & error rates.',
-          'All': 'Epic closed; usage data collected into reports.'
-        }
+        id: 'phase-3-orch',
+        num: '03',
+        title: 'Orchestration & Worktrees',
+        stage: 'orchestrate',
+        actor: 'Automated / Lead',
+        badge: 'Gate: orchestration_ready',
+        badgeColor: 'bg-purple-100 text-purple-800',
+        command: '/gin-workflow:orchestrate biometric-auth',
+        desc: 'Creates Beads task units (bd) for all tracks, links dependencies, and provisions isolated Git worktrees.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Safe Task Isolation with Beads & Worktrees</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            Orchestration guarantees that parallel work will not cause Git merge conflicts:
+          </p>
+          <div class="p-3 bg-slate-900 text-slate-200 rounded-lg font-mono text-xs space-y-1">
+            <div class="text-emerald-400">Created Epic: BEAD-200 (biometric-auth)</div>
+            <div>├── BEAD-201 [Area: backend]  assigned to binh-dev</div>
+            <div>├── BEAD-202 [Area: frontend] assigned to dung-fe (depends on BEAD-201)</div>
+            <div>└── BEAD-203 [Area: qa]       assigned to hoa-qe</div>
+            <div class="text-blue-400 mt-2">Worktree ready: .agent-workflow/worktrees/feat-biometric-be</div>
+          </div>
+        `
+      },
+      {
+        id: 'phase-4-exec',
+        num: '04',
+        title: 'TDD Execution & Code Review',
+        stage: 'execute',
+        actor: 'BE Dev & FE Dev',
+        badge: 'Gate: implementation_complete',
+        badgeColor: 'bg-emerald-100 text-emerald-800',
+        command: 'team claim <bead> && /gin-workflow:execute',
+        desc: 'Developer claims bead, writes failing test first (TDD), implements, and undergoes independent review in the review ledger.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Test-First Loop with Review Ledger</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            Developer runs <code>team claim BEAD-201</code>, then <code>/gin-workflow:execute</code>:
+          </p>
+          <ol class="list-decimal list-inside text-xs text-slate-700 space-y-1.5 mb-3">
+            <li><strong>Failing Test:</strong> Writes WebAuthnRegistrationTest (red).</li>
+            <li><strong>Implementation:</strong> Implements Spring Boot endpoint until test passes (green).</li>
+            <li><strong>Review Lease:</strong> Reviewer takes a snapshot commit and records findings in <code>.planning/reviews/BEAD-201/review.md</code>.</li>
+            <li><strong>Resolution:</strong> Developer addresses each finding until approved, closing the bead.</li>
+          </ol>
+        `
+      },
+      {
+        id: 'phase-5-qa',
+        num: '05',
+        title: 'QA Test Cases & E2E Automation',
+        stage: 'cases & e2e',
+        actor: 'Test Lead / QE',
+        badge: 'gin-qa Add-on',
+        badgeColor: 'bg-teal-100 text-teal-800',
+        command: '/gin-qa:cases biometric-auth && /gin-qa:e2e biometric-auth',
+        desc: 'Tester generates test cases pinned to REQ-IDs and turns them into Playwright specs with visual snapshot evidence.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Traceability & Hash Pinning</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            Tester runs <code>/gin-qa:cases biometric-auth</code>. Every case is pinned to the exact hash of the requirement:
+          </p>
+          <div class="p-3 bg-slate-900 text-slate-200 rounded-lg font-mono text-xs mb-3">
+### TC-BIO-001: Register Passkey on supported device
+REQ: REQ-BIO-001@7d9a1f2e
+Type: e2e
+Steps:
+1. Navigate to modern security settings
+2. Click "Register Biometric Key"
+Expected: WebAuthn credential created & public key stored
+          </div>
+          <p class="text-xs text-slate-600">Running <code>/gin-qa:e2e</code> generates Playwright specs that capture step-by-step screenshots and ARIA snapshots in <code>qa/evidence/</code>.</p>
+        `
+      },
+      {
+        id: 'phase-6-verify-ship',
+        num: '06',
+        title: 'Verification, Ship & Cutover',
+        stage: 'verify & ship',
+        actor: 'Test Lead & PM',
+        badge: 'Gate: verification_passed & shipped',
+        badgeColor: 'bg-emerald-100 text-emerald-800',
+        command: '/gin-workflow:verify && /gin-workflow:ship',
+        desc: 'Fresh evidence validation across all suites, line-by-line spec checklist audit, PR merge, and Strangler Fig router cutover.',
+        details: `
+          <h4 class="font-bold text-slate-900 text-sm mb-2">Strict Verification & Zero-Downtime Cutover</h4>
+          <p class="text-xs text-slate-600 leading-relaxed mb-2">
+            1. <strong>/verify:</strong> Re-runs all test commands with fresh output. Audits every REQ-ID checklist against the code. Test Lead approves <code>verification_passed</code> PR gate.
+          </p>
+          <p class="text-xs text-slate-600 leading-relaxed mb-3">
+            2. <strong>/ship:</strong> PM approves merge. Gateway router updates:
+          </p>
+          <div class="p-3 bg-slate-900 text-slate-200 rounded-lg font-mono text-xs">
+location /api/v2/auth/biometric {
+    proxy_pass http://spring-boot-service:8080; # New Modern Service
+}
+          </div>
+        `
       }
     ];
 
-    // DATA STORE: 8 TEAM ROLES
-    const ROLES = [
+    // -------------------------------------------------------------
+    // DATA STORE: INTERACTIVE BA & CLAUDE DIALOGUE
+    // -------------------------------------------------------------
+    const DIALOGUE_STEPS = [
       {
-        id: 'pm',
-        title: 'Project Manager (PM)',
-        badge: 'Governance & ROI',
-        color: 'bg-purple-100 text-purple-800 border-purple-300',
-        commands: ['/gin-workflow:report', '/gin-workflow:progress', 'gin-workflow state'],
-        owns: 'Budget, sprint timelines, AI ROI reports, release authorizations',
-        responsibilities: [
-          'Tracks AI token costs vs engineering budget using /report.',
-          'Monitors rework signals (reopens, review cycles, held states).',
-          'Approves milestone releases and final ship gates.'
-        ]
-      },
-      {
-        id: 'ba',
-        title: 'Business Analyst (BA)',
-        badge: 'Requirements Owner',
-        color: 'bg-amber-100 text-amber-800 border-amber-300',
-        commands: ['/gin-workflow:discuss <feature>', '/gin-workflow:progress'],
-        owns: 'docs/specs/**, docs/changes/**, requirement_confirmed gate',
-        responsibilities: [
-          'Conducts archaeological sessions with Claude to extract business logic from legacy JSPs/Servlets.',
-          'Authors and reviews SDD specs with unambiguous REQ-IDs.',
-          'Controls the requirement_confirmed gate via GitHub/GitLab PR approvals.'
-        ]
-      },
-      {
-        id: 'be-lead',
-        title: 'Backend Lead',
-        badge: 'Architecture Owner',
-        color: 'bg-blue-100 text-blue-800 border-blue-300',
-        commands: ['/gin-workflow:plan', '/gin-workflow:orchestrate', 'gin-workflow team check-plan'],
-        owns: 'services/backend/**, ADRs, plan_approved gate (backend area)',
-        responsibilities: [
-          'Approves architecture plans for Spring Boot 3 services and Strangler facade.',
-          'Sets verification rigor (standard/strict) and quality gates in config.',
-          'Reviews backend track plans and oversees CODEOWNERS.'
-        ]
-      },
-      {
-        id: 'be-dev',
-        title: 'Backend Member (Dev)',
-        badge: 'Code Implementation',
-        color: 'bg-sky-100 text-sky-800 border-sky-300',
-        commands: ['team claim <bead>', '/gin-workflow:execute', '/gin-workflow:review', '/gin-debugging'],
-        owns: 'services/backend/src/**, unit & integration tests',
-        responsibilities: [
-          'Claims backend track beads (team claim BEAD-XXX).',
-          'Works inside isolated Git worktrees, writes failing tests first (TDD).',
-          'Responds to review ledger findings and closes beads.'
-        ]
-      },
-      {
-        id: 'fe-lead',
-        title: 'Frontend Lead',
-        badge: 'UI Architecture',
-        color: 'bg-teal-100 text-teal-800 border-teal-300',
-        commands: ['/gin-workflow:plan', 'gin-workflow team check-plan'],
-        owns: 'apps/web/**, design system, plan_approved gate (frontend area)',
-        responsibilities: [
-          'Designs the React 19 migration structure (Actions, hooks, Tailwind, Vite).',
-          'Reviews frontend track decompositions and API contracts.',
-          'Ensures accessibility and design system consistency.'
-        ]
-      },
-      {
-        id: 'fe-dev',
-        title: 'Frontend Member (Dev)',
-        badge: 'UI Implementation',
-        color: 'bg-cyan-100 text-cyan-800 border-cyan-300',
-        commands: ['team claim <bead>', '/gin-workflow:execute', '/gin-workflow:review'],
-        owns: 'apps/web/src/**, React components, component tests',
-        responsibilities: [
-          'Converts legacy JSP scriptlets into clean, modular React 19 components.',
-          'Consumes modern Spring Boot REST endpoints.',
-          'Works test-first in isolated worktrees.'
-        ]
-      },
-      {
-        id: 'test-lead',
-        title: 'Test Lead / QA Lead',
-        badge: 'Quality Assurance Owner',
-        color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        commands: ['/gin-qa:cases plan', '/gin-workflow:verify', 'gin-qa cases check'],
-        owns: 'qa/guidelines.md, qa/cases/**, verification_passed gate',
-        responsibilities: [
-          'Defines QA guidelines and parity testing criteria against legacy JSP.',
-          'Audits requirement coverage and detects stale test cases.',
-          'Signs off on the verification_passed PR gate.'
-        ]
-      },
-      {
-        id: 'test-member',
-        title: 'Test Member / QE',
-        badge: 'Test Automation',
-        color: 'bg-green-100 text-green-800 border-green-300',
-        commands: ['/gin-qa:cases <capability>', '/gin-qa:e2e <capability>', 'gin-qa e2e run'],
-        owns: 'qa/e2e/**, qa/evidence/**',
-        responsibilities: [
-          'Generates test cases pinned to REQ-IDs (TC-AUTH-001 -> REQ-AUTH-001@hash).',
-          'Builds Playwright E2E automation scripts with visual evidence and traces.',
-          'Executes parity tests comparing legacy output vs modern output.'
-        ]
-      }
-    ];
-
-    // ARTIFACTS TEMPLATES
-    const ARTIFACTS = {
-      spec: `<!-- docs/changes/auth-modernize/spec.md -->
-# Change Proposal: Modernize Authentication & Session Management
-Status: Confirmed by BA (Gate: requirement_confirmed passed)
+        sender: 'user',
+        author: 'An (Business Analyst)',
+        roleBadge: 'BA',
+        text: `/gin-workflow:discuss
+We need to modernize our authentication flow by adding Biometric Login (WebAuthn / Passkeys) using the new Spring Boot 3 backend and React 19 frontend. It must support fingerprint and FaceID on modern mobile and laptops, but existing legacy users in the as-is system who only have passwords must still be able to log in without interruption.`,
+        specSnapshot: `<!-- docs/changes/biometric-auth/spec.md (Draft 1) -->
+# Change Proposal: Biometric WebAuthn Authentication
+Status: In Discussion with BA
 
 ## 1. Problem Statement
-The legacy \`UserAuthServlet.java\` uses stateful \`HttpSession\` and MD5 hashing,
-causing clustering issues and security compliance failures.
+The legacy authentication in \`./as-is/UserAuthServlet.java\` relies on stateful passwords.
+Modern users require biometric login (FaceID / Fingerprint) with seamless fallback.`,
+        status: 'Interviewing...'
+      },
+      {
+        sender: 'agent',
+        author: 'Claude Code',
+        roleBadge: 'Agent',
+        text: `I've analyzed the legacy authentication in \`./as-is/UserAuthServlet.java\` and \`./as-is/login.jsp\`. To construct an exact specification, I have three clarifying questions:
 
-## 2. Requirements
+1. **Fallback & Legacy Parity:** When a user with a registered Passkey attempts login on a device without a biometric sensor, should they fall back to the legacy password, or should we send an email OTP?
+2. **Session / Token Standard:** The legacy system stores session state in Tomcat \`HttpSession\`. For the Spring Boot 3 service, shall we issue stateless JWTs in \`HttpOnly, Secure\` cookies or OAuth2 Bearer tokens?
+3. **Password Auto-Upgrade:** The legacy database stores MD5-hashed passwords. When legacy users log in, should we opportunistically upgrade their stored hash to Argon2id?`,
+        specSnapshot: `<!-- docs/changes/biometric-auth/spec.md (Draft 2) -->
+# Change Proposal: Biometric WebAuthn Authentication
+Status: Clarifying Requirements with BA
 
-### REQ-AUTH-001: Modern Password Verification & Seamless Upgrade
-The system MUST authenticate users with legacy MD5 hashes and automatically
-re-hash valid passwords with Argon2id upon successful login without requiring
-user password reset.
+## 1. Problem Statement
+Legacy \`./as-is/UserAuthServlet.java\` uses stateful Tomcat sessions and MD5.
 
-### REQ-AUTH-002: Stateless JWT Authentication
-The Spring Boot endpoint \`POST /api/v2/auth/login\` MUST return a stateless JWT
-(access token: 15 min, refresh token: 7 days) in an HttpOnly, Secure cookie.
+## 2. In-Flight Questions
+- Fallback strategy for non-biometric devices
+- Token standard for Spring Boot 3
+- Legacy MD5 hash migration policy`,
+        status: 'Awaiting BA Response...'
+      },
+      {
+        sender: 'user',
+        author: 'An (Business Analyst)',
+        roleBadge: 'BA',
+        text: `Here are the decisions confirmed with stakeholders:
+1. **Fallback:** If biometric is unavailable or fails, fall back to password login.
+2. **Tokens:** Use stateless JWTs stored in \`HttpOnly, Secure, SameSite=Strict\` cookies (15 min access, 7 days refresh).
+3. **Password Upgrade:** YES, absolutely! Silently re-hash legacy MD5 passwords to Argon2id on first successful password login.`,
+        specSnapshot: `<!-- docs/changes/biometric-auth/spec.md (Draft 3) -->
+# Change Proposal: Biometric WebAuthn Authentication
+Status: Structuring Formal Requirements
 
-### REQ-AUTH-003: React 19 Login Interface
-The modern React application MUST replace \`/login.jsp\` with an accessible,
-responsive component using React 19 Action hooks and client-side validation.`,
+## 1. Confirmed Architectural Decisions
+- Dual-path login: WebAuthn Passkeys primary, password fallback.
+- Stateless JWT in HttpOnly cookies.
+- Silent hash migration: MD5 -> Argon2id.`,
+        status: 'Generating REQ-IDs...'
+      },
+      {
+        sender: 'agent',
+        author: 'Claude Code',
+        roleBadge: 'Agent',
+        text: `Thank you! I have compiled the confirmed specification with four unique, traceable REQ-IDs under \`docs/changes/biometric-auth/spec.md\`.
 
-      plan: `<!-- .planning/plans/2026-10-05-auth-modernize.md -->
-# Implementation Plan: Auth Modernization (Strangler Fig)
-Gate: plan_approved (Backend Lead & Frontend Lead)
+I have also pushed the branch \`spec/biometric-auth\` and created Pull Request #142 for your review. Please inspect the formal spec on the right panel. When you confirm and merge the PR, the gate \`requirement_confirmed\` will be permanently recorded.`,
+        specSnapshot: `<!-- docs/changes/biometric-auth/spec.md -->
+# Change Proposal: Biometric WebAuthn Authentication
+Status: Requirement Confirmed (PR #142 Merged by BA)
 
-## Track 1: Spring Boot JWT Service & Security Filters
-- Area: backend
-- Owner: binh-dev
-- Files: services/backend/src/.../AuthController.java, SecurityConfig.java
-- Test-first: AuthControllerTest (red -> green)
-- Route: claude-3-5-sonnet
+## 1. Background & Scope
+Replaces legacy \`./as-is/UserAuthServlet.java\` with Spring Boot 3 WebAuthn + React 19.
 
-## Track 2: React 19 Authentication Component
-- Area: frontend
-- Owner: dung-fe
-- Files: apps/web/src/features/auth/AuthForm.tsx, useAuth.ts
-- Test-first: AuthForm.test.tsx
-- Route: claude-3-5-sonnet
+## 2. Traceable Requirements
 
-## Track 3: End-to-End Parity & Regression Shield
-- Area: qa
-- Owner: hoa-qe
-- Files: qa/cases/auth.md, qa/e2e/auth/login-parity.spec.ts
-- Verification: dual-run against legacy servlet and modern API`,
+### REQ-BIO-001: WebAuthn / Passkey Registration
+The system MUST provide an endpoint \`POST /api/v2/auth/webauthn/register\`
+allowing authenticated users to register FIDO2/WebAuthn public keys.
 
-      review: `<!-- .planning/reviews/BEAD-101/review.md -->
-# Review Ledger for BEAD-101 (Spring Boot JWT Service)
-Lease: active | Checkpoint: commit 4e29b1a
+### REQ-BIO-002: Biometric Authentication & Stateless JWT
+The endpoint \`POST /api/v2/auth/webauthn/login\` MUST verify biometric
+assertions and issue a stateless JWT inside an \`HttpOnly, Secure\` cookie.
 
-## Findings
-- Finding #1 [resolved]: Missing rate limiting on /api/v2/auth/login.
-  - Response: Added Bucket4j rate-limiter filter (5 attempts/min per IP).
-- Finding #2 [resolved]: Ensure Argon2id salt generation is cryptographically random.
-  - Response: Switched to SecureRandom with 16-byte salt.
+### REQ-BIO-003: Password Fallback & Silent Argon2id Upgrade
+If biometric login is unavailable, the user MAY submit their password.
+Upon successful legacy MD5 verification, the system MUST automatically
+upgrade the database record to Argon2id.
 
-## Verdict
-Status: review-approved
-Reviewer: independent-code-reviewer
-Date: 2026-10-05T14:20:00Z`,
+### REQ-BIO-004: React 19 Biometric Action Component
+The modern React application MUST expose a biometric login component
+using React 19 Action hooks that automatically detects \`window.PublicKeyCredential\`.`,
+        status: 'Confirmed ✓ (Gate Passed)'
+      },
+      {
+        sender: 'user',
+        author: 'An (Business Analyst)',
+        roleBadge: 'BA',
+        text: `Pull Request #142 approved and merged into \`master\`! All requirements are clear, traceable, and agreed upon by the product team.`,
+        specSnapshot: `<!-- docs/changes/biometric-auth/spec.md -->
+# Change Proposal: Biometric WebAuthn Authentication
+Status: Requirement Confirmed (Gate: requirement_confirmed PASSED)
+Evidence: PR https://github.com/org/repo/pull/142 (Actor: an-ba@example.com)
 
-      qa: `<!-- qa/cases/auth.md (Managed by gin-qa) -->
-# Capability: Authentication
+Ready for Tech Lead to execute:
+/gin-workflow:plan biometric-auth`,
+        status: 'Gate requirement_confirmed Passed'
+      }
+    ];
 
-### TC-AUTH-001: Legacy MD5 user login and auto-upgrade to Argon2id
-REQ: REQ-AUTH-001@3a8f1b2c
-Type: integration
-Priority: high
-Preconditions:
-- User exists in DB with legacy MD5 password hash
-Steps:
-1. POST credentials to /api/v2/auth/login
-Expected:
-- HTTP 200 OK returned with valid JWT cookie
-- Database password_hash column is automatically updated to Argon2id
+    // -------------------------------------------------------------
+    // DATA STORE: MONOREPO DIRECTORY TREE
+    // -------------------------------------------------------------
+    const MONOREPO_TREE = [
+      {
+        path: './as-is/',
+        label: 'as-is/ (Legacy Codebase Reference)',
+        badge: 'Immutable Reference',
+        role: 'All Roles (Read-Only)',
+        desc: 'The legacy Java JSP & Servlet system preserved as an immutable reference inside the monorepo.',
+        code: `as-is/
+├── src/main/java/com/bank/legacy/
+│   ├── UserAuthServlet.java      <-- Analyzed by CodeGraph & /tech-doc
+│   ├── SecurityFilter.java       <-- Legacy MD5 password check
+│   └── AccountStatementServlet.java
+├── webapp/
+│   ├── WEB-INF/web.xml           <-- Legacy servlet mappings
+│   ├── login.jsp                 <-- Scriptlet login form
+│   └── dashboard.jsp
+└── pom.xml (Java 8, Tomcat 8.5)`
+      },
+      {
+        path: './.codegraph/',
+        label: '.codegraph/ (Semantic Code Graph)',
+        badge: 'Tooling Index',
+        role: 'Claude Code Agent',
+        desc: 'Generated by `codegraph index ./as-is`. Enables instant AST-aware queries for agent tool calls.',
+        code: `.codegraph/
+├── symbols.db                    <-- SQLite database of symbols & call graphs
+├── call_graph.json               <-- Caller/callee paths across JSP scriptlets
+└── config.json                   <-- Indexed root: ./as-is`
+      },
+      {
+        path: './docs/as-is/',
+        label: 'docs/as-is/ (Archaeological Survey)',
+        badge: 'Generated by /tech-doc',
+        role: 'Tech Lead / BA',
+        desc: 'Comprehensive architectural documentation generated by `/gin-workflow:tech-doc` from inspecting `./as-is/`.',
+        code: `docs/as-is/
+├── OVERVIEW.md                   <-- Core banking capabilities & business logic
+├── ARCHITECTURE.md               <-- Legacy monolith topology & database schemas
+├── STACK.md                      <-- JDK 8, Struts, raw JDBC connections
+├── INTEGRATIONS.md               <-- Mainframe MQ & payment gateway interfaces
+└── CONCERNS.md                   <-- Fragile session locks & cryptography debt`
+      },
+      {
+        path: './docs/changes/ & docs/specs/',
+        label: 'docs/changes/ & specs/ (SDD Living Specs)',
+        badge: 'SDD Source of Truth',
+        role: 'Business Analyst (BA)',
+        desc: 'Living specifications containing unique, immutable REQ-IDs (REQ-BIO-001) that drive TDD and QA test cases.',
+        code: `docs/
+├── changes/
+│   └── biometric-auth/
+│       ├── spec.md               <-- Confirmed spec with REQ-BIO-001..004
+│       └── adr-003-webauthn.md   <-- Architecture decision record
+└── specs/
+    ├── auth/spec.md              <-- Archived living spec after shipping
+    └── accounts/spec.md`
+      },
+      {
+        path: './services/backend/',
+        label: 'services/backend/ (Spring Boot 3.3)',
+        badge: 'Target Backend',
+        role: 'Backend Lead & Devs',
+        desc: 'Modern cloud-native Java 21 Spring Boot microservice implementing stateless WebAuthn and JWT security.',
+        code: `services/backend/
+├── src/main/java/com/bank/modern/
+│   ├── auth/
+│   │   ├── WebAuthnController.java  <-- Implements REQ-BIO-001 & REQ-BIO-002
+│   │   ├── JwtTokenService.java
+│   │   └── Argon2UpgradeService.java<-- Implements REQ-BIO-003
+├── src/test/java/
+│   └── WebAuthnControllerTest.java  <-- Test-first TDD suite
+└── pom.xml (Java 21, Spring Boot 3.3.4)`
+      },
+      {
+        path: './apps/web/',
+        label: 'apps/web/ (React 19 Frontend)',
+        badge: 'Target Frontend',
+        role: 'Frontend Lead & Devs',
+        desc: 'Modern client web application built with React 19, TypeScript, Tailwind CSS, and Vite.',
+        code: `apps/web/
+├── src/
+│   ├── features/auth/
+│   │   ├── BiometricLoginForm.tsx   <-- Implements REQ-BIO-004
+│   │   └── useWebAuthn.ts
+│   └── components/ui/
+├── tests/
+│   └── BiometricLoginForm.test.tsx
+└── package.json (React 19.0.0, Vite 5)`
+      },
+      {
+        path: './qa/',
+        label: 'qa/ (Test Cases & Playwright E2E)',
+        badge: 'QA & Traceability',
+        role: 'Test Lead & QEs',
+        desc: 'Automated test suite managed by `gin-qa`, pinning every test case to specification hashes.',
+        code: `qa/
+├── guidelines.md                 <-- QA team test conventions
+├── cases/
+│   └── auth.md                   <-- TC-BIO-001 pinned to REQ-BIO-001@hash
+├── e2e/
+│   └── auth/biometric.spec.ts    <-- Playwright script generated by /gin-qa:e2e
+└── evidence/                     <-- Screenshots & ARIA snapshots`
+      }
+    ];
 
-### TC-AUTH-002: React 19 form validation and error toast
-REQ: REQ-AUTH-003@3a8f1b2c
-Type: e2e
-Priority: high
-Steps:
-1. Navigate to /login
-2. Submit invalid email format
-Expected:
-- React 19 action displays inline error without page reload`
-    };
+    // -------------------------------------------------------------
+    // DATA STORE: COMMAND REFERENCE EXAMPLES
+    // -------------------------------------------------------------
+    const COMMAND_EXAMPLES = [
+      {
+        cmd: '/gin-workflow:setup',
+        category: 'Foundation',
+        role: 'Tech Lead',
+        syntax: '/gin-workflow:setup',
+        desc: 'Interactive repository configuration. Detects project type, rigor, and verify commands.',
+        exampleInput: '/gin-workflow:setup',
+        exampleOutput: `[setup] Detecting project layout...
+Found: brownfield monorepo with ./as-is legacy code.
+Configuring .agent-workflow/config.yaml:
+- rigor: standard (requires worktree isolation & build checks)
+- provider_mode: single (Claude Code baseline)
+- verify commands: mvn test, npm test, npm run lint
+Configuration saved to .agent-workflow/config.yaml.`
+      },
+      {
+        cmd: 'codegraph index',
+        category: 'Intelligence',
+        role: 'Tech Lead / Dev',
+        syntax: 'codegraph index <path>',
+        desc: 'Indexes source code into an AST-aware semantic code graph for agent exploration.',
+        exampleInput: 'codegraph index ./as-is',
+        exampleOutput: `[codegraph] Parsing Java & JSP ASTs under ./as-is...
+Indexed 142 classes, 84 servlets, 56 JSPs, 1,290 symbols.
+Call graph built in .codegraph/symbols.db (2.4 MB).
+Claude Code can now explore symbols with tool codegraph_explore.`
+      },
+      {
+        cmd: '/gin-workflow:tech-doc',
+        category: 'Discovery',
+        role: 'Tech Lead / BA',
+        syntax: '/gin-workflow:tech-doc',
+        desc: 'Generates structured architectural surveys from verified codebase evidence.',
+        exampleInput: '/gin-workflow:tech-doc',
+        exampleOutput: `[tech-doc] Inspecting codebase evidence...
+Generated docs/as-is/OVERVIEW.md (Business capabilities)
+Generated docs/as-is/ARCHITECTURE.md (Monolith topology)
+Generated docs/as-is/STACK.md (JDK 8, Struts, raw JDBC)
+Generated docs/as-is/CONCERNS.md (Session concurrency & MD5 security risks)
+All documents written to docs/as-is/*.`
+      },
+      {
+        cmd: '/gin-workflow:discuss',
+        category: 'Requirements',
+        role: 'Business Analyst (BA)',
+        syntax: '/gin-workflow:discuss <feature-prompt>',
+        desc: 'Interactive requirements clarification interview. Generates SDD spec with REQ-IDs.',
+        exampleInput: '/gin-workflow:discuss Modernize authentication to Biometric WebAuthn',
+        exampleOutput: `[discuss] Proposing approaches and clarifying scope:
+- Approach A: Pure Passkey with Email OTP fallback
+- Approach B (Recommended): WebAuthn with legacy password fallback & auto-upgrade
+Writing spec to docs/changes/biometric-auth/spec.md...
+Gate requirement_confirmed pending PR #142 approval.`
+      },
+      {
+        cmd: '/gin-workflow:plan',
+        category: 'Planning',
+        role: 'Area Lead',
+        syntax: '/gin-workflow:plan <feature-name>',
+        desc: 'Decomposes confirmed spec into Area-bounded implementation tracks.',
+        exampleInput: '/gin-workflow:plan biometric-auth',
+        exampleOutput: `[plan] Decomposing spec into 3 tracks:
+Track 1: Spring Boot WebAuthn Service [Area: backend] [Owner: binh-dev]
+Track 2: React 19 Biometric Form [Area: frontend] [Owner: dung-fe]
+Track 3: Parity & Regression Suite [Area: qa] [Owner: hoa-qe]
+Plan written to .planning/plans/2026-10-05-biometric-auth.md.`
+      },
+      {
+        cmd: '/gin-workflow:orchestrate',
+        category: 'Execution Prep',
+        role: 'Tech Lead',
+        syntax: '/gin-workflow:orchestrate <feature-name>',
+        desc: 'Creates Beads task units and provisions isolated Git worktrees.',
+        exampleInput: '/gin-workflow:orchestrate biometric-auth',
+        exampleOutput: `[orchestrate] Creating Beads epics and tracks:
+Created Epic: BEAD-200
+Created Track Beads: BEAD-201, BEAD-202, BEAD-203
+Creating isolated worktree: .agent-workflow/worktrees/feat-biometric-be
+Baseline tests passing in worktree. Gate orchestration_ready PASSED.`
+      },
+      {
+        cmd: 'team claim & /execute',
+        category: 'Development',
+        role: 'Developer',
+        syntax: 'team claim <bead> && /gin-workflow:execute',
+        desc: 'Claims bead and executes implementation test-first with review ledger checkpoints.',
+        exampleInput: 'team claim BEAD-201 && /gin-workflow:execute',
+        exampleOutput: `[team] Claimed BEAD-201 for binh-dev.
+[execute] Running test-first loop in worktree...
+Step 1: Write WebAuthnControllerTest.java (FAIL - 404 Not Found)
+Step 2: Implement WebAuthnController.java (PASS - 200 OK)
+Step 3: Review ledger validation: 1 finding resolved.
+Closed bead BEAD-201.`
+      },
+      {
+        cmd: '/gin-qa:cases',
+        category: 'Quality Assurance',
+        role: 'Test Lead / QE',
+        syntax: '/gin-qa:cases <capability>',
+        desc: 'Generates test cases pinned to specification REQ-IDs with content hash.',
+        exampleInput: '/gin-qa:cases biometric-auth',
+        exampleOutput: `[gin-qa] Reading living spec docs/changes/biometric-auth/spec.md...
+Generated TC-BIO-001 pinned to REQ-BIO-001@7d9a1f2e
+Generated TC-BIO-002 pinned to REQ-BIO-002@7d9a1f2e
+Generated TC-BIO-003 pinned to REQ-BIO-003@7d9a1f2e
+Test cases written to qa/cases/auth.md.`
+      },
+      {
+        cmd: '/gin-qa:e2e',
+        category: 'Quality Assurance',
+        role: 'QE',
+        syntax: '/gin-qa:e2e <capability>',
+        desc: 'Transforms test cases into Playwright scripts with visual evidence recording.',
+        exampleInput: '/gin-qa:e2e biometric-auth',
+        exampleOutput: `[gin-qa] Compiling Playwright specs from qa/cases/auth.md...
+Created qa/e2e/auth/biometric.spec.ts
+Running Playwright headless browser test...
+Captured 4 screenshots and 1 ARIA snapshot under qa/evidence/run-104/
+Result: 3 passed, 0 failed.`
+      },
+      {
+        cmd: '/gin-workflow:verify',
+        category: 'Verification',
+        role: 'Test Lead',
+        syntax: '/gin-workflow:verify',
+        desc: 'Audits fresh command execution evidence and spec checklist line-by-line.',
+        exampleInput: '/gin-workflow:verify',
+        exampleOutput: `[verify] Executing verification suites with fresh evidence:
+- mvn test: 124 passed, 0 failures
+- npm test: 48 passed, 0 failures
+- gin-qa e2e check: all cases verified
+- Spec checklist audit: 4 of 4 REQ-IDs verified in code
+Gate verification_passed PASSED.`
+      },
+      {
+        cmd: '/gin-workflow:ship',
+        category: 'Release',
+        role: 'Tech Lead / PM',
+        syntax: '/gin-workflow:ship',
+        desc: 'Presents integration choices (Merge / PR), executes merge, and cuts over gateway.',
+        exampleInput: '/gin-workflow:ship',
+        exampleOutput: `[ship] Verification passed. Select integration:
+1) Merge locally to master
+2) Push and open Pull Request
+Selected: 1) Merge locally to master.
+Running regression suite on merged master... OK.
+Removing worktree and closing epic BEAD-200. Shipped!`
+      },
+      {
+        cmd: '/gin-workflow:report',
+        category: 'Governance & ROI',
+        role: 'Project Manager (PM)',
+        syntax: '/gin-workflow:report --epic <epic-id>',
+        desc: 'Generates AI token usage, dollar cost attribution, and rework quality metrics.',
+        exampleInput: '/gin-workflow:report --epic BEAD-200',
+        exampleOutput: `[report] AI Usage & Cost Attribution for BEAD-200:
+- Total Prompt Tokens: 1,842,500
+- Total Completion Tokens: 316,000
+- Total AI Cost: $14.28
+- Review Cycles: 1.25 avg (max 3)
+- Reopened Beads: 0 (100% first-pass pass rate)
+Report generated.`
+      }
+    ];
 
-    let activeStageIndex = 0;
-    let activeRoleIndex = 0;
+    let currentJourneyIndex = 0;
+    let currentDialogueIndex = 0;
+    let currentCommandIndex = 0;
 
-    // INITIALIZATION
+    // -------------------------------------------------------------
+    // CONTROLLER & RENDERERS
+    // -------------------------------------------------------------
     function init() {
-      renderLifecycleStepper();
-      renderStageDetail(activeStageIndex);
-      renderRoleSelector();
-      renderRoleDetail(activeRoleIndex);
-      renderArtifact('spec');
+      renderJourneyStepper();
+      renderJourneyDetail(0);
+      renderDialogue();
+      renderMonorepoTree();
+      selectMonorepoNode(0);
+      renderCommandTabs();
+      renderCommandDetail(0);
     }
 
-    // VIEW SWITCHER
     function switchView(viewId) {
-      const views = ['lifecycle', 'roles', 'pm', 'strangler', 'artifacts'];
+      const views = ['journey', 'dialogue', 'monorepo', 'commands', 'pm'];
       views.forEach(v => {
-        document.getElementById(`view-${v}`).classList.add('hidden');
-        const navBtn = document.getElementById(`btn-nav-${v}`);
-        if (navBtn) {
-          navBtn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
-          navBtn.classList.add('text-slate-300');
+        const el = document.getElementById(`view-${v}`);
+        if (el) el.classList.add('hidden');
+        const btn = document.getElementById(`btn-nav-${v}`);
+        if (btn) {
+          btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+          btn.classList.add('text-slate-300');
         }
       });
 
-      document.getElementById(`view-${viewId}`).classList.remove('hidden');
-      const activeNavBtn = document.getElementById(`btn-nav-${viewId}`);
-      if (activeNavBtn) {
-        activeNavBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
-        activeNavBtn.classList.remove('text-slate-300');
+      const targetEl = document.getElementById(`view-${viewId}`);
+      if (targetEl) targetEl.classList.remove('hidden');
+      const targetBtn = document.getElementById(`btn-nav-${viewId}`);
+      if (targetBtn) {
+        targetBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+        targetBtn.classList.remove('text-slate-300');
       }
     }
 
-    // RENDER LIFECYCLE STEPPER
-    function renderLifecycleStepper() {
-      const container = document.getElementById('lifecycle-stepper');
-      container.innerHTML = STAGES.map((s, idx) => `
-        <button onclick="selectStage(${idx})" class="p-3 text-left rounded-xl border transition ${idx === activeStageIndex ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'}">
+    // JOURNEY STEPPER
+    function renderJourneyStepper() {
+      const container = document.getElementById('journey-stepper-bar');
+      container.innerHTML = JOURNEY_PHASES.map((p, idx) => `
+        <button onclick="selectJourneyPhase(${idx})" class="p-3 text-left rounded-xl border transition shrink-0 w-44 ${idx === currentJourneyIndex ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20' : 'border-slate-200 bg-white hover:border-slate-300'}">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold px-1.5 py-0.5 rounded ${idx === activeStageIndex ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}">0${s.num}</span>
-            <span class="text-[10px] font-mono text-slate-400">Gate</span>
+            <span class="text-[11px] font-bold px-1.5 py-0.5 rounded ${idx === currentJourneyIndex ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}">P${p.num}</span>
+            <span class="text-[10px] font-mono text-slate-400 truncate">${p.stage}</span>
           </div>
-          <div class="font-bold text-xs mt-1.5 text-slate-900 truncate">${s.title}</div>
-          <div class="text-[10px] text-slate-500 truncate mt-0.5">${s.gate}</div>
+          <div class="font-bold text-xs mt-1.5 text-slate-900 truncate">${p.title}</div>
+          <div class="text-[10px] text-slate-500 truncate mt-0.5">${p.actor}</div>
         </button>
       `).join('');
     }
 
-    function selectStage(idx) {
-      activeStageIndex = idx;
-      renderLifecycleStepper();
-      renderStageDetail(idx);
+    function selectJourneyPhase(idx) {
+      currentJourneyIndex = idx;
+      renderJourneyStepper();
+      renderJourneyDetail(idx);
     }
 
-    // RENDER STAGE DETAIL
-    function renderStageDetail(idx) {
-      const stage = STAGES[idx];
-      const panel = document.getElementById('stage-detail-panel');
-      const indicator = document.getElementById('current-gate-indicator');
-      if (indicator) {
-        indicator.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span> Stage ${stage.num}: ${stage.title}`;
+    function renderJourneyDetail(idx) {
+      const p = JOURNEY_PHASES[idx];
+      const badge = document.getElementById('journey-active-badge');
+      if (badge) {
+        badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span> Phase ${p.num}: ${p.title}`;
       }
 
-      let roleCardsHtml = '';
-      for (const [role, action] of Object.entries(stage.roleActions)) {
-        roleCardsHtml += `
-          <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 text-xs">
-            <div class="font-bold text-slate-800">${role}</div>
-            <div class="text-slate-600 mt-1">${action}</div>
-          </div>
-        `;
-      }
-
-      panel.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-b border-slate-100 pb-4">
-          <div>
-            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider">Stage ${stage.num} of 6</div>
-            <h2 class="text-xl font-extrabold text-slate-900 mt-0.5">${stage.name} (<span class="font-mono text-blue-600">/${stage.title}</span>)</h2>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-              Gate: ${stage.gate}
-            </span>
-          </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 space-y-4">
-            <div>
-              <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">What happens here?</div>
-              <p class="text-sm text-slate-700 mt-1 leading-relaxed">${stage.summary}</p>
-            </div>
-
-            <div class="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-xs">
-              <div class="text-slate-400 text-[10px] uppercase tracking-wider mb-1">// Slash command executed in Claude Code</div>
-              <div class="text-emerald-400">${stage.cli}</div>
-            </div>
-
-            <div>
-              <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Role Actions During This Stage</div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                ${roleCardsHtml}
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 text-xs">
-            <div class="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Gate Governance Rules</div>
-            
-            <div class="space-y-1">
-              <span class="text-slate-500 block">Required Approver:</span>
-              <strong class="text-slate-900">${stage.approver}</strong>
-            </div>
-
-            <div class="space-y-1">
-              <span class="text-slate-500 block">Durable Evidence Recorded:</span>
-              <code class="text-blue-600 bg-white p-1 rounded border border-slate-200 block truncate">${stage.evidence}</code>
-            </div>
-
-            <div class="pt-2 border-t border-slate-200 text-slate-600 text-[11px]">
-              🔒 <strong>Non-Bypassable:</strong> In Team Mode, this gate can only be satisfied by an approved GitHub/GitLab PR review. An agent cannot self-approve or skip.
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    // RENDER ROLE SELECTOR
-    function renderRoleSelector() {
-      const container = document.getElementById('role-selector-bar');
-      container.innerHTML = ROLES.map((r, idx) => `
-        <button onclick="selectRole(${idx})" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition border ${idx === activeRoleIndex ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'}">
-          ${r.title}
-        </button>
-      `).join('');
-    }
-
-    function selectRole(idx) {
-      activeRoleIndex = idx;
-      renderRoleSelector();
-      renderRoleDetail(idx);
-    }
-
-    // RENDER ROLE DETAIL
-    function renderRoleDetail(idx) {
-      const role = ROLES[idx];
-      const panel = document.getElementById('role-detail-card');
-
-      const cmdList = role.commands.map(c => `<code class="bg-slate-100 text-blue-600 px-2 py-1 rounded text-xs">${c}</code>`).join(' ');
-      const respList = role.responsibilities.map(r => `<li class="flex items-start gap-2"><span class="text-blue-500 mt-0.5">•</span><span>${r}</span></li>`).join('');
-
+      const panel = document.getElementById('journey-detail-card');
       panel.innerHTML = `
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-4">
           <div>
-            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${role.color}">
-              ${role.badge}
-            </span>
-            <h3 class="text-2xl font-extrabold text-slate-900 mt-1">${role.title}</h3>
+            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider">Phase ${p.num} of 6</div>
+            <h3 class="text-2xl font-extrabold text-slate-900 mt-0.5">${p.title}</h3>
           </div>
-          <div class="text-xs text-slate-500">
-            Assigned Scope: <strong class="text-slate-800">${role.owns}</strong>
+          <div class="flex items-center gap-2">
+            <span class="text-xs px-2.5 py-1 rounded-full font-semibold ${p.badgeColor} border">
+              ${p.badge}
+            </span>
           </div>
         </div>
 
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-          <div>
-            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Key Daily Commands</h4>
-            <div class="flex flex-wrap gap-2">
-              ${cmdList}
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-8 space-y-4">
+            <div>
+              <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Phase Objective</div>
+              <p class="text-sm text-slate-700 mt-1 leading-relaxed">${p.desc}</p>
             </div>
 
-            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-4 mb-2">Primary File Ownership</h4>
-            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs font-mono text-slate-700">
-              ${role.owns}
+            <div class="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-xs">
+              <div class="text-slate-400 text-[10px] uppercase tracking-wider mb-1">// Primary Command Executed</div>
+              <div class="text-emerald-400">${p.command}</div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3">
+              ${p.details}
             </div>
           </div>
 
-          <div>
-            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Core Workflow Responsibilities</h4>
-            <ul class="space-y-2 text-slate-700 text-xs">
-              ${respList}
-            </ul>
+          <div class="lg:col-span-4 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 text-xs">
+            <div class="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Governance & Execution Rules</div>
+            
+            <div class="space-y-1">
+              <span class="text-slate-500 block">Responsible Role:</span>
+              <strong class="text-slate-900 text-sm">${p.actor}</strong>
+            </div>
+
+            <div class="space-y-1">
+              <span class="text-slate-500 block">Single State Owner:</span>
+              <code class="text-blue-600 bg-white p-1 rounded border border-slate-200 block truncate font-mono">${p.stage}</code>
+            </div>
+
+            <div class="pt-2 border-t border-slate-200 text-slate-600 text-[11px] leading-relaxed">
+              🛡️ <strong>Safety Principle:</strong> No stage can run without fresh verified evidence from preceding gates.
+            </div>
           </div>
         </div>
       `;
     }
 
-    // ARTIFACT SWITCHER
-    function switchArtifact(type) {
-      const tabs = ['spec', 'plan', 'review', 'qa'];
-      tabs.forEach(t => {
-        const btn = document.getElementById(`btn-art-${t}`);
-        if (btn) {
-          btn.classList.remove('border-blue-600', 'text-blue-600');
-          btn.classList.add('border-transparent', 'text-slate-500');
+    // INTERACTIVE DIALOGUE SIMULATOR
+    function renderDialogue() {
+      const container = document.getElementById('dialogue-messages-container');
+      const displayed = DIALOGUE_STEPS.slice(0, currentDialogueIndex + 1);
+
+      container.innerHTML = displayed.map(msg => `
+        <div class="flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}">
+          <div class="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-slate-400">
+            <span class="font-bold text-slate-200">${msg.author}</span>
+            <span>•</span>
+            <span class="font-mono text-[10px]">${msg.roleBadge}</span>
+          </div>
+          <div class="p-3.5 rounded-xl text-xs leading-relaxed max-w-[92%] whitespace-pre-wrap ${msg.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-agent'}">
+            ${msg.text}
+          </div>
+        </div>
+      `).join('');
+
+      container.scrollTop = container.scrollHeight;
+
+      // Update Spec Preview
+      const currentStep = DIALOGUE_STEPS[currentDialogueIndex];
+      document.getElementById('live-spec-content').textContent = currentStep.specSnapshot;
+      document.getElementById('spec-status-badge').textContent = currentStep.status;
+      document.getElementById('dialogue-step-counter').textContent = `Step ${currentDialogueIndex + 1} of ${DIALOGUE_STEPS.length}`;
+
+      const btn = document.getElementById('btn-advance-dialogue');
+      if (currentDialogueIndex >= DIALOGUE_STEPS.length - 1) {
+        btn.innerHTML = `<span>Discussion Completed ✓</span>`;
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        btn.innerHTML = `<span>Next Conversation Step</span> &rarr;`;
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    function advanceDialogue() {
+      if (currentDialogueIndex < DIALOGUE_STEPS.length - 1) {
+        currentDialogueIndex++;
+        renderDialogue();
+      }
+    }
+
+    function resetDialogue() {
+      currentDialogueIndex = 0;
+      renderDialogue();
+    }
+
+    // MONOREPO TREE EXPLORER
+    function renderMonorepoTree() {
+      const container = document.getElementById('monorepo-tree');
+      container.innerHTML = MONOREPO_TREE.map((node, idx) => `
+        <button onclick="selectMonorepoNode(${idx})" class="w-full text-left p-2.5 rounded-lg border transition flex items-center justify-between text-xs ${idx === 0 ? 'bg-blue-50 border-blue-300 text-blue-900 font-bold' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}">
+          <span class="truncate">${node.label}</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-slate-500">${node.badge}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectMonorepoNode(idx) {
+      const node = MONOREPO_TREE[idx];
+      document.getElementById('tree-preview-path').textContent = node.path;
+      document.getElementById('tree-preview-role').textContent = node.role;
+      document.getElementById('tree-preview-desc').textContent = node.desc;
+      document.getElementById('tree-preview-code').textContent = node.code;
+
+      // Update button styles
+      const buttons = document.querySelectorAll('#monorepo-tree button');
+      buttons.forEach((btn, i) => {
+        if (i === idx) {
+          btn.className = 'w-full text-left p-2.5 rounded-lg border transition flex items-center justify-between text-xs bg-blue-50 border-blue-300 text-blue-900 font-bold';
+        } else {
+          btn.className = 'w-full text-left p-2.5 rounded-lg border transition flex items-center justify-between text-xs bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-normal';
         }
       });
-
-      const activeBtn = document.getElementById(`btn-art-${type}`);
-      if (activeBtn) {
-        activeBtn.classList.add('border-blue-600', 'text-blue-600');
-        activeBtn.classList.remove('border-transparent', 'text-slate-500');
-      }
-
-      renderArtifact(type);
     }
 
-    function renderArtifact(type) {
-      const container = document.getElementById('artifact-content');
-      container.textContent = ARTIFACTS[type] || 'No content found';
+    // COMMAND REFERENCE
+    function renderCommandTabs() {
+      const container = document.getElementById('command-selector-tabs');
+      container.innerHTML = COMMAND_EXAMPLES.map((c, idx) => `
+        <button onclick="selectCommand(${idx})" class="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition border ${idx === currentCommandIndex ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'}">
+          ${c.cmd}
+        </button>
+      `).join('');
     }
 
-    // SIMULATE PM METRICS REFRESH
+    function selectCommand(idx) {
+      currentCommandIndex = idx;
+      renderCommandTabs();
+      renderCommandDetail(idx);
+    }
+
+    function renderCommandDetail(idx) {
+      const c = COMMAND_EXAMPLES[idx];
+      const panel = document.getElementById('command-detail-card');
+      panel.innerHTML = `
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider">${c.category}</div>
+            <h3 class="text-xl font-extrabold font-mono text-slate-900 mt-0.5">${c.cmd}</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-800 border border-slate-200">
+              Role: ${c.role}
+            </span>
+          </div>
+        </div>
+
+        <p class="text-sm text-slate-700 mt-4 leading-relaxed">${c.desc}</p>
+
+        <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Executed Command</div>
+            <div class="p-3 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl overflow-x-auto">
+              ${c.exampleInput}
+            </div>
+          </div>
+
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Terminal Output & Evidence</div>
+            <div class="p-3 bg-slate-900 text-slate-200 font-mono text-xs rounded-xl overflow-x-auto whitespace-pre-wrap">
+              ${c.exampleOutput}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // PM METRICS LIVE REFRESH
     function refreshMetrics() {
       const spend = (14.28 + (Math.random() * 0.5)).toFixed(2);
       const tokens = (1842500 + Math.floor(Math.random() * 50000)).toLocaleString();
@@ -929,7 +1237,6 @@ Expected:
       document.getElementById('kpi-tokens').innerText = tokens;
     }
 
-    // Run on load
     window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
