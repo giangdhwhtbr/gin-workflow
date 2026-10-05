@@ -25,7 +25,7 @@ Keep existing dry-run messages and launcher-write behavior, error propagation, u
 
 Use the existing Bash and PowerShell installer smoke tests. Preserve coverage of installation, dry-run, installed CLI behavior, managed upgrades, and refusal to overwrite foreign or malformed launchers. Extend the existing suites where equivalent gin-qa upgrade and collision coverage is missing; confirm rejected installation leaves the existing launcher intact.
 
-Run bash tests/install_smoke_test.sh and pwsh -NoProfile -File tests/install_smoke_test.ps1 in suitable environments. Report unavailable platform validation explicitly rather than claiming it passed. Verify the final diff and obtain independent review before closing the bead.
+Run bash tests/install_smoke_test.sh. On 2026-10-05 the user explicitly waived running PowerShell verification: change the PowerShell implementation, close the corresponding work after static inspection and independent review, and leave runtime verification to the user, who will report any later issue. Do not install or run pwsh for this change. Report PowerShell runtime tests as not run by user instruction, not as passed. Verify the final diff and obtain independent review before closing the bead.
 
 ## Acceptance Criteria
 
