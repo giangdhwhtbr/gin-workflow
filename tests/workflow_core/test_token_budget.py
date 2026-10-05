@@ -111,6 +111,11 @@ class TestBudgetLimits(unittest.TestCase):
         text = (SRC / "skills/verify/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("validate --bead-id <bead-id> --in-history", text)
 
+    def test_ship_merge_never_rewrites_the_local_base(self):
+        text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("git pull --ff-only", text)
+        self.assertNotIn("git pull &&", text)
+
     def test_sdd_guidance_loads_on_demand(self):
         sdd_skill = (SRC / "skills/gin-sdd/SKILL.md").resolve()
         for stage in ("discuss", "plan", "orchestrate", "execute", "review", "verify", "ship", "quick"):
