@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -165,6 +167,91 @@ class CollectTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"PATH": str(Path(self.tmp.name) / "nothing")}):
             with self.assertRaisesRegex(describe.DescribeError, "bd is not installed"):
                 describe.collect(self.repo, "e", now=NOW)
+
+
+class LayoutTests(unittest.TestCase):
+    def graph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / "bin"
+            fake_cli(bin_dir, "bd", fixture_rules())
+            with mock.patch.dict(os.environ, path_with(bin_dir)):
+                return describe.collect(Path(tmp), "e", now=NOW)
+
+    def positions(self, graph):
+        return {node["id"]: (node["x"], node["y"]) for node in graph["nodes"]}
+
+    def test_layout_is_deterministic(self):
+        self.assertEqual(self.positions(describe.layout(self.graph())), self.positions(describe.layout(self.graph())))
+
+    def test_rows_slots_and_centering(self):
+        at = self.positions(describe.layout(self.graph()))
+        self.assertEqual(len(set(at.values())), len(at), "two nodes share a position")
+        self.assertEqual(at["e"][1], 0)
+        self.assertEqual((at["g"][1], at["p"][1]), (-2, -1))
+        self.assertEqual(at["g"][0], at["e"][0])
+        self.assertEqual(at["p"][0], at["e"][0])
+        self.assertEqual(at["e"][0], (at["e.1"][0] + at["e.2"][0]) / 2)
+        self.assertEqual(at["e.1"][0], (at["e.1.1"][0] + at["b2"][0]) / 2)
+        self.assertEqual(at["e.1.1"][1], 2)
+
+    def test_a_bug_sits_below_its_smallest_discoverer(self):
+        at = self.positions(describe.layout(self.graph()))
+        self.assertEqual(at["b1"][1], at["e.1.1"][1] + 1)
+        self.assertEqual(at["b2"][1], at["e.1"][1] + 1)
+
+    def test_single_node(self):
+        graph = {"meta": {"root": "t"}, "nodes": [{"id": "t", "role": "root"}], "edges": []}
+        self.assertEqual(self.positions(describe.layout(graph)), {"t": (0, 0)})
+
+    def test_corrupt_parent_cycle_still_places_every_node(self):
+        graph = {"meta": {"root": "r"}, "edges": [{"from": "a", "to": "b", "kind": "parent"},
+                                                  {"from": "b", "to": "a", "kind": "parent"}],
+                 "nodes": [{"id": "r", "role": "root"}, {"id": "a", "role": "descendant"},
+                           {"id": "b", "role": "descendant"}]}
+        at = self.positions(describe.layout(graph))
+        self.assertEqual(set(at), {"r", "a", "b"})
+        self.assertEqual(len(set(at.values())), 3)
+
+
+class RenderTests(unittest.TestCase):
+    PAGE = "<html><script>const DATA = " + describe.PLACEHOLDER + ";</script></html>"
+
+    def test_data_is_embedded_and_html_is_escaped(self):
+        title = "</script><img src=x onerror=alert(1)> & <!--"
+        graph = {"meta": {"root": "t"}, "edges": [], "nodes": [{"id": "t", "title": title, "role": "root"}]}
+        html = describe.render(graph, self.PAGE)
+        self.assertNotIn(describe.PLACEHOLDER, html)
+        self.assertNotIn("</script><img", html)
+        self.assertNotIn("<!--", html)
+        self.assertIn("\\u003c/script\\u003e", html)
+        start = html.index("const DATA = ") + len("const DATA = ")
+        self.assertEqual(json.loads(html[start:html.index(";</script>", start)]), graph)
+
+    def test_template_needs_exactly_one_placeholder(self):
+        for page in ("<html></html>", describe.PLACEHOLDER * 2):
+            with self.assertRaisesRegex(describe.DescribeError, "placeholder once"):
+                describe.render({}, page)
+
+    def test_the_fixed_template_is_offline_and_has_no_html_sinks(self):
+        text = describe.template()
+        self.assertEqual(text.count(describe.PLACEHOLDER), 1)
+        for pattern in (r"""(?:src|href)\s*=\s*["']?https?:""", r"@import", r"""url\(\s*["']?https?:""",
+                        r"<link\b", r"<script[^>]+src\s*="):
+            self.assertIsNone(re.search(pattern, text), pattern)
+        for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"):
+            self.assertNotIn(sink, text)
+        self.assertIn("Back to root", text)
+        self.assertIn("white-space: pre-wrap", text)
+
+    def test_the_fixed_template_renders_a_real_graph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / "bin"
+            fake_cli(bin_dir, "bd", fixture_rules())
+            with mock.patch.dict(os.environ, path_with(bin_dir)):
+                graph = describe.layout(describe.collect(Path(tmp), "e", now=NOW))
+        html = describe.render(graph, describe.template())
+        self.assertNotIn(describe.PLACEHOLDER, html)
+        self.assertIn('"root": "e"', html)
 
 
 if __name__ == "__main__":

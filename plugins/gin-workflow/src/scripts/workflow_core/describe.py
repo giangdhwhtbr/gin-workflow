@@ -9,7 +9,10 @@ import shutil
 import subprocess
 from typing import Any, Iterable
 
+from .specs import SpecsError, plugin_templates_dir
+
 MAX_NODES = 300
+PLACEHOLDER = "/*__DESCRIBE_DATA__*/"
 DETAIL_FIELDS = ("description", "design", "acceptance_criteria", "notes", "close_reason", "assignee", "owner",
                  "labels", "created_at", "updated_at", "closed_at", "metadata")
 
@@ -124,3 +127,69 @@ def collect(repo: Path, root_id: str, *, max_nodes: int = MAX_NODES, now: dateti
     return {"meta": {"root": root_id, "generated_at": stamp, "repo": repo.resolve().name},
             "nodes": [_node(issues[key], roles[key], outside.get(key, [])) for key in sorted(issues)],
             "edges": [{"from": source, "to": target, "kind": kind} for kind, source, target in sorted(edges)]}
+
+
+def layout(graph: dict[str, Any]) -> dict[str, Any]:
+    """Tidy tree: root on row 0, ancestors above it, a bug under its smallest discoverer; leaves take next slots."""
+    nodes = {node["id"]: node for node in graph["nodes"]}
+    root = graph["meta"]["root"]
+    tree_parent = {edge["to"]: edge["from"] for edge in graph["edges"] if edge["kind"] == "parent"}
+    owner: dict[str, str] = {}
+    for bead_id, node in nodes.items():
+        if node["role"] == "descendant":
+            owner[bead_id] = tree_parent.get(bead_id, root)
+        elif node["role"] == "bug":
+            found = sorted(edge["from"] for edge in graph["edges"]
+                           if edge["kind"] == "discovered" and edge["to"] == bead_id
+                           and nodes[edge["from"]]["role"] in ("root", "descendant"))
+            owner[bead_id] = found[0] if found else root
+    children: dict[str, list[str]] = {}
+    for bead_id in sorted(owner, key=lambda key: (nodes[key]["role"] == "bug", key)):
+        children.setdefault(owner[bead_id], []).append(bead_id)
+
+    seen: set[str] = set()
+    slot = 0
+
+    def place(bead_id: str, row: int) -> None:
+        nonlocal slot
+        seen.add(bead_id)
+        nodes[bead_id]["y"] = row
+        placed = []
+        for child in children.get(bead_id, []):
+            if child not in seen:
+                place(child, row + 1)
+                placed.append(child)
+        if placed:
+            nodes[bead_id]["x"] = (nodes[placed[0]]["x"] + nodes[placed[-1]]["x"]) / 2
+        else:
+            nodes[bead_id]["x"] = float(slot)
+            slot += 1
+
+    place(root, 0)
+    for bead_id in sorted(owner):  # corrupt data only: a parent cycle that never reaches the root
+        if bead_id not in seen:
+            place(bead_id, 1)
+    row, current = -1, root
+    while tree_parent.get(current) in nodes and nodes[tree_parent[current]]["role"] == "ancestor":
+        current = tree_parent[current]
+        nodes[current]["y"], nodes[current]["x"] = row, nodes[root]["x"]
+        row -= 1
+    return graph
+
+
+def template() -> str:
+    try:
+        return (plugin_templates_dir() / "describe.html").read_text(encoding="utf-8")
+    except (SpecsError, OSError) as error:
+        raise DescribeError(f"describe template unavailable: {error}") from error
+
+
+def render(graph: dict[str, Any], template_text: str) -> str:
+    """Embed the graph as JSON; `<`, `>`, `&` are escaped so bead text can never close the script element."""
+    if template_text.count(PLACEHOLDER) != 1:
+        raise DescribeError("describe template must contain the data placeholder once")
+    payload = json.dumps(graph, ensure_ascii=False, sort_keys=True)
+    for char, escaped in (("&", "\\u0026"), ("<", "\\u003c"), (">", "\\u003e"),
+                          ("\u2028", "\\u2028"), ("\u2029", "\\u2029")):
+        payload = payload.replace(char, escaped)
+    return template_text.replace(PLACEHOLDER, payload)
