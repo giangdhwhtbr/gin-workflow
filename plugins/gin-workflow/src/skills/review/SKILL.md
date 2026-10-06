@@ -12,7 +12,7 @@ description: Request or perform an independent bead review recorded in the revie
 Review after every track, after a major feature, and before merge; never skip because "it's simple". A completed implementation starts review; it is not evidence that the task may close. Ledgers live in `.planning/reviews/<bead-id>/` (legacy fallback `.planning/<bead-id>/`). All commands are `python3 review-ledger.py <cmd> --bead-id <bead-id> ...`; never hand-write or copy `review.json`.
 
 ## Requesting (implementer)
-1. `init --repo-id <id> [--repo-path <worktree>] [--include <scope>]` once (idempotent), then `checkpoint --repo-id <id> --commit-msg "<msg>" --actor-id <id>` to snapshot the reviewed tree.
+1. `init --repo-id <id> [--repo-path <worktree>] [--include <scope>]` once (idempotent), then `checkpoint --repo-id <id> --commit-msg "<msg>" --actor-id <id>` to snapshot the reviewed tree, then `transition-requested --to review-requested --actor-role worker --actor-id <id>`; without it the reviewer cannot approve. After `changes-requested`: fix, `transition-requested --to implementation-in-progress`, checkpoint, and request review again.
 2. Dispatch an independent reviewer with a fresh context: reviewed diff, confirmed requirement, acceptance criteria, and test evidence only. Exclude private reasoning, self-assessment, persuasive summaries, unrelated history, and secrets. Include the output of `gin-workflow rules --files <reviewed files>` as the rules checklist.
 3. Record the implementation's original provider/model route as runtime affinity only; never put concrete aliases in the plan or Beads.
 4. Handle findings with the `gin-review-response` skill: fix Critical immediately and Important before proceeding, note Minor ones, and push back with evidence when the reviewer is wrong.
@@ -23,7 +23,7 @@ Review after every track, after a major feature, and before merge; never skip be
 3. Inspect the in-scope files for correctness, edge cases, error handling, security, performance, and plan alignment; run the tests in isolation. Never modify implementation files. Check the rules checklist, `critical` and `high` first; cite a violation as `<pack>#<anchor>`, and record a `critical` violation at severity `IMPORTANT` or higher. Grade `lean` findings by impact: a `high` bullet at `IMPORTANT`, any other at `MINOR`; name what to cut and what replaces it, and do not flag a simplification marked `simplified:`. With `project.layout: sdd`, each scenario of the track's REQs needs a test (the `gin-sdd` skill).
 4. Record each issue with `add-finding --finding-id <id> --severity <sev> --actor-id <reviewer> --lease-id <lease>`.
 5. For a claimed fix, check the tree. If confirmed, `verify-finding`; if absent, incomplete, or wrong, `reopen-finding --reason "<why>"`. `verified` is terminal, so never verify what you could not confirm. If sources changed, re-run `checkpoint` before approving.
-6. When every finding is terminal, `approve --actor-id <reviewer> --lease-id <lease>`; otherwise request changes. Then `render`.
+6. When every finding is terminal, `approve --actor-id <reviewer> --lease-id <lease>`; otherwise request changes. Then `render`, and `release-lease --actor-id <reviewer> --lease-id <lease>` so the implementer can write again.
 
 ## Cycles
 Each unresolved revision is a new review cycle. Stop at the maximum review cycles (`routing.review.max_cycles`) and return `human_decision_required`; never loop unbounded. Never manufacture approval or close work on a notification.
