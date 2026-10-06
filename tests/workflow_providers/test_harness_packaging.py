@@ -101,6 +101,10 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/usage_logs.py",
     "scripts/workflow_core/usage_attribution.py",
     "scripts/workflow_core/usage_cli.py",
+    "skills/describe/SKILL.md",
+    "scripts/workflow_core/describe.py",
+    "scripts/workflow_core/describe_cli.py",
+    "templates/describe.html",
 )
 
 

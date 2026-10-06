@@ -66,10 +66,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv == ["--version"]:
         print(f"gin-workflow {CLI_VERSION}")
         return 0
-    if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team", "usage"):
-        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage} <command>",
+    if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team", "usage", "describe"):
+        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,describe} <command>",
               file=sys.stderr)
         return 2
+    if argv[0] == "describe":
+        from .describe_cli import main as describe_main
+        return describe_main(argv[1:])
     if argv[0] == "rules":
         from .rules import main as rules_main
         return rules_main(argv[1:])

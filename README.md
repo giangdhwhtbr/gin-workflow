@@ -83,6 +83,7 @@ Antigravity has no git-based install; use the installer above.
 | `workflow`, `progress` | route to the next stage; show status |
 | `quick` | small change without plan or beads |
 | `report` | AI usage per bead or epic |
+| `describe` | HTML view of a bead or epic: graph and details |
 
 All skills, including the support skills and the `gin-qa` add-on: [skills reference](docs/reference/skills.md).
 
