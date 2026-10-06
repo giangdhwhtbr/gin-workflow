@@ -40,7 +40,7 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 - findings, each moving to a terminal state (`verified`, `withdrawn`, `deferred-verified`, `human-waived`);
 - approval, which holds only while the tree still matches the approved snapshot; `change-scope` or new commits invalidate it.
 
-The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. After a bead is closed and merged, `review-ledger.py cleanup --bead-id <bead>` (or `--all-closed`) removes its ledger.
+The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. After a bead is closed and merged, `review-ledger.py cleanup --bead-id <bead>` (or `--all-closed`) removes its ledger and its `refs/gin/review/` checkpoint refs; `--all-closed` also deletes leftover refs of closed beads whose ledger is already gone.
 
 ## The `.planning/` and `.agent-workflow/` trees
 

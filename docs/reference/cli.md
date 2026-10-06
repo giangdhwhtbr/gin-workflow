@@ -199,7 +199,7 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 | Lifecycle | `init`, `checkpoint`, `transition-requested`, `start-review`, `resync-lease`, `release-lease`, `change-scope`, `approve`, `reject`, `accept-as-is`, `record-human-decision` |
 | Findings | `add-finding`, `fix-finding`, `dispute-finding`, `request-clarification`, `provide-clarification`, `propose-deferral`, `approve-deferral`, `verify-finding`, `reopen-finding`, `withdraw-finding`, `waive-finding` |
 | Inspection | `status`, `validate` (`--in-history` for an earlier track on a shared branch), `render` (`--check` for drift) |
-| Housekeeping | `cleanup` (`--bead-id` or `--all-closed`) |
+| Housekeeping | `cleanup` (`--bead-id` or `--all-closed`; also deletes the bead's `refs/gin/review/` refs) |
 
 `change-scope` and `reject` invalidate an active approval. `approve` requires a clean worktree.
 

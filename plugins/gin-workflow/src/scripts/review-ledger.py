@@ -338,7 +338,7 @@ def parse_args():
     p_trans_req.add_argument("--lease-id")
 
     # Cleanup
-    p_clean = subparsers.add_parser("cleanup", help="Clean up stale review ledgers for closed or merged beads.")
+    p_clean = subparsers.add_parser("cleanup", help="Clean up stale review ledgers and their review refs for closed or merged beads.")
     p_clean.add_argument("--repository", default=".", help="Path to repository root.")
     p_clean.add_argument("--bead-id", help="Specific bead ID to clean up.")
     p_clean.add_argument("--all-closed", action="store_true", help="Clean up all closed bead review directories.")

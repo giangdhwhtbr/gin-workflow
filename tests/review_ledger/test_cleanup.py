@@ -289,3 +289,84 @@ class TestReviewLedgerCleanup(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReviewRefCleanup(unittest.TestCase):
+    """Cleanup also deletes the checkpoint refs that pin a ledger's commits."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.repo_root = Path(self.test_dir)
+        self.git("init", "-q")
+        (self.repo_root / "README.md").write_text("# Test Repo\n")
+        self.git("add", ".")
+        self.git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "initial")
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(["git", *args], cwd=self.repo_root, check=True,
+                              capture_output=True, text=True).stdout
+
+    def refs(self) -> list[str]:
+        return self.git("for-each-ref", "--format=%(refname)", "refs/gin/review/").split()
+
+    def make_ref(self, bead_id: str) -> str:
+        ref = f"refs/gin/review/{bead_id}"
+        self.git("update-ref", ref, "HEAD")
+        return ref
+
+    def make_ledger(self, bead_id: str) -> Path:
+        ref = self.make_ref(bead_id)
+        review_dir = self.repo_root / ".planning" / "reviews" / bead_id
+        review_dir.mkdir(parents=True)
+        (review_dir / "review.json").write_text(json.dumps({
+            "review_state": "review-approved",
+            "repositories": [{"checkpoint_sha": "HEAD", "checkpoint_ref": ref, "repository_path": "."}],
+        }))
+        return review_dir
+
+    @patch("review_ledger.cleanup._query_beads_status")
+    def test_cleanup_of_a_closed_bead_deletes_its_ref(self, mock_beads):
+        mock_beads.return_value = ("closed", "bead status is closed")
+        self.make_ledger("b-closed")
+        result = cleanup_review_ledgers(self.repo_root, bead_id="b-closed")
+        self.assertEqual([], self.refs())
+        self.assertEqual(["refs/gin/review/b-closed"], result["cleaned"][0]["refs"])
+
+    @patch("review_ledger.cleanup._query_beads_status")
+    def test_open_bead_and_dry_run_keep_the_ref(self, mock_beads):
+        mock_beads.return_value = ("in_progress", "bead status is in_progress")
+        self.make_ledger("b-open")
+        cleanup_review_ledgers(self.repo_root, bead_id="b-open")
+        self.assertEqual(["refs/gin/review/b-open"], self.refs())
+        mock_beads.return_value = ("closed", "bead status is closed")
+        result = cleanup_review_ledgers(self.repo_root, bead_id="b-open", dry_run=True)
+        self.assertEqual(["refs/gin/review/b-open"], self.refs())
+        self.assertEqual(["refs/gin/review/b-open"], result["cleaned"][0]["refs"])
+
+    @patch("review_ledger.cleanup._query_beads_status")
+    def test_bead_id_cleanup_deletes_a_ref_whose_ledger_is_already_gone(self, mock_beads):
+        mock_beads.return_value = ("closed", "bead status is closed")
+        self.make_ref("b-orphan")
+        result = cleanup_review_ledgers(self.repo_root, bead_id="b-orphan")
+        self.assertEqual([], self.refs())
+        self.assertEqual(["refs/gin/review/b-orphan"], result["cleaned"][0]["refs"])
+
+    @patch("review_ledger.cleanup._query_beads_status")
+    def test_all_closed_sweeps_orphan_refs_of_closed_beads_only(self, mock_beads):
+        statuses = {"o-closed": "closed", "o-open": "open", "l-closed": "closed"}
+
+        def fake(bead_id, repo_root, **kwargs):
+            status = statuses.get(bead_id)
+            return status, "bead not found in beads task tracking" if status is None else f"bead status is {status}"
+
+        mock_beads.side_effect = fake
+        for bead_id in ("o-closed", "o-open", "o-unknown"):
+            self.make_ref(bead_id)
+        self.make_ledger("l-closed")
+        result = cleanup_review_ledgers(self.repo_root, all_closed=True)
+        self.assertEqual(["refs/gin/review/o-open", "refs/gin/review/o-unknown"], self.refs())
+        self.assertEqual({"l-closed", "o-closed"}, {item["bead_id"] for item in result["cleaned"]})
+        self.assertEqual({"o-open", "o-unknown"}, {item["bead_id"] for item in result["skipped"]})
