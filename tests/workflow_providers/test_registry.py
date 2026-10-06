@@ -182,6 +182,27 @@ class ProviderRegistryTests(unittest.TestCase):
                     evidence_authority=EchoAuthority(),
                 )
 
+    def test_routed_runtime_state_lives_in_the_main_checkout_of_a_worktree(self):
+        import subprocess
+
+        def git(cwd, *args):
+            subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory).resolve()
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
+            tree = repo / ".planning/worktrees/wt1"
+            git(repo, "worktree", "add", "-q", "-b", "feat/wt1", str(tree))
+            local = {"codex": ProviderModelConfig("codex", "codex", {"low": "a", "medium": "b", "high": "c"})}
+            registry = ProviderRegistry.from_effective_config(
+                self.antigravity_config(tree), provider_local=local,
+                evidence_authority=self.composite_authority(),
+            )
+            self.assertEqual(
+                registry.worker.breakers.path, repo / ".agent-workflow/runtime/circuit-breakers.json"
+            )
+
     def test_schema_23_registry_auto_builds_composite_evidence_authority_when_omitted(self):
         with tempfile.TemporaryDirectory() as directory:
             registry = ProviderRegistry.from_effective_config(

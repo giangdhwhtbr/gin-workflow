@@ -14,6 +14,7 @@ import shutil
 import subprocess
 from typing import Any, Iterable, Mapping, Sequence
 
+from .checkout import main_checkout
 from .events import WorkflowEventStore
 from .configuration import require_yaml
 from .usage_attribution import (
@@ -216,17 +217,6 @@ def _span(repo: Path, bead: str, shown: Mapping[str, Any], now: datetime) -> Bea
 def _children(repo: Path, epic: str) -> list[str]:
     rows = _list(_bd(repo, ["dep", "list", epic, "--direction=up", "--type", "parent-child", "--json"]))
     return sorted(str(row["id"]) for row in rows if row.get("id"))
-
-
-def main_checkout(repo: Path) -> Path:
-    """The repository's main checkout, also when `repo` is one of its linked worktrees."""
-    try:
-        done = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=repo,
-                              text=True, capture_output=True, check=False, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return repo
-    common = Path(done.stdout.strip())
-    return common.parent.resolve() if done.returncode == 0 and common.name == ".git" else repo
 
 
 def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: Path | None = None,

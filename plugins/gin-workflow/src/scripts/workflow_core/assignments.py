@@ -11,6 +11,7 @@ from types import MappingProxyType
 from typing import Any, Iterator, Sequence
 
 from .atomic import atomic_write_text
+from .checkout import main_checkout
 from .configuration import require_yaml
 from .models import EffectiveConfig
 from .provider_config import PROVIDER_DEFAULT, ProviderModelConfig, REASONING_TIERS
@@ -250,7 +251,7 @@ def write_assignment_manifest(repository: Path, manifest: AssignmentManifest) ->
     if not _SAFE_WORKFLOW_ID.fullmatch(manifest.workflow_id):
         raise AssignmentResolutionError("workflow_id contains unsafe path characters")
     path = (
-        Path(repository).resolve()
+        main_checkout(Path(repository).resolve())
         / ".agent-workflow/runtime/assignments"
         / f"{manifest.workflow_id}.yaml"
     )

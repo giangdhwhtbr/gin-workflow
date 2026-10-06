@@ -9,6 +9,7 @@ import subprocess
 from typing import Any, Mapping
 
 from .atomic import atomic_write_many
+from .checkout import main_checkout
 from .specs import specs_dir, template_text
 from .specs_archive import move
 
@@ -59,7 +60,7 @@ def in_flight_workflows(root: Path) -> list[str]:
     from .events import WorkflowEventStore
     from .lifecycle_cli import _delivery_gate_state, _process_gate_state
 
-    path = Path(root) / ".agent-workflow/runtime/events.jsonl"
+    path = main_checkout(Path(root)) / ".agent-workflow/runtime/events.jsonl"
     if not path.is_file():
         return []
     store = WorkflowEventStore(path)

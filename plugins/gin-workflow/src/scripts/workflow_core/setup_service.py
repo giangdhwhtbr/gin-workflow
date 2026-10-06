@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping
 
 from .atomic import atomic_write_many
 from .bundles import export_bundle, verify_bundle
+from .checkout import main_checkout
 from .configuration import require_yaml, resolve_effective_config, validate_portable_config
 from .project import preset_assignments, project_settings
 from .project_detect import detect_project
@@ -661,8 +662,7 @@ def harness_override(
     dry_run: bool = False,
     **_: Any,
 ) -> dict[str, Any]:
-    root = Path(repository).resolve()
-    runtime_dir = root / ".agent-workflow" / "runtime"
+    runtime_dir = main_checkout(Path(repository).resolve()) / ".agent-workflow" / "runtime"
     override_file = runtime_dir / "session-harness.override"
 
     should_reset = reset or clear

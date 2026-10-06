@@ -9,6 +9,7 @@ from typing import Any
 
 from workflow_core.models import EffectiveConfig
 from workflow_core.assignments import AssignmentRequest, resolve_assignment
+from workflow_core.checkout import main_checkout
 from workflow_core.events import WorkflowEventStore
 from workflow_core.executable_resolver import resolve_harness_executable
 from workflow_core.provider_config import PROVIDER_DEFAULT, ProviderModelConfig
@@ -111,6 +112,7 @@ class ProviderRegistry:
         if not isinstance(config, EffectiveConfig):
             raise TypeError("ProviderRegistry requires EffectiveConfig")
         root = config.repository_root
+        state_root = main_checkout(root)
         artifacts = config.get("artifacts", {})
         if not isinstance(artifacts, Mapping):
             raise RegistryError("artifacts must be a mapping")
@@ -171,12 +173,12 @@ class ProviderRegistry:
             raise RegistryError(f"unknown review provider: {review_name}")
 
         evidence_path = _path(
-            root,
+            state_root,
             evidence_options.get("index") or artifacts.get("evidence"),
             ".agent-workflow/runtime/evidence",
         )
         if evidence_authority is None and str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5", "2.6", "2.7"):
-            evidence_runtime_root = _path(root, artifacts.get("runtime"), ".agent-workflow/runtime")
+            evidence_runtime_root = _path(state_root, artifacts.get("runtime"), ".agent-workflow/runtime")
             evidence_event_store = event_store or WorkflowEventStore(
                 evidence_runtime_root / "events.jsonl"
             )
@@ -230,7 +232,7 @@ class ProviderRegistry:
             if not all(isinstance(value, Mapping) for value in (queue, breaker_policy, worker_policy)):
                 raise RegistryError("routing queue, worker, and circuit_breaker must be mappings")
             runtime_root = _path(
-                root,
+                state_root,
                 artifacts.get("runtime"),
                 ".agent-workflow/runtime",
             )

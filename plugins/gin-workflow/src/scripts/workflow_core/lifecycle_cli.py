@@ -10,6 +10,7 @@ import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
+from .checkout import main_checkout
 from .configuration import resolve_effective_config
 from .events import WorkflowEvent, WorkflowEventStore
 from .project import project_settings
@@ -26,7 +27,7 @@ from .waivers import (
 
 
 def _get_event_store(repo_path: Path) -> WorkflowEventStore:
-    runtime_dir = repo_path / ".agent-workflow" / "runtime"
+    runtime_dir = main_checkout(repo_path) / ".agent-workflow" / "runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     events_path = runtime_dir / "events.jsonl"
     return WorkflowEventStore(events_path)
