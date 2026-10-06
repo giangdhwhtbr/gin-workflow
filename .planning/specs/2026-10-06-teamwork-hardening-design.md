@@ -32,21 +32,24 @@ Team members are trusted. Gates guard against mistakes (wrong URL, stale approva
 - **Artifact.** Add `--spec <path>` next to the existing `--plan <path>` on `record` and `team check`. Without a selector the PR must change exactly one candidate artifact for the gate (legacy: `.planning/specs/*.md` / `.planning/plans/*.md`; SDD: files under the configured `artifacts.changes` folder — `spec-delta.md` for the spec gate, `plan.md` for the plan gate). Zero or several candidates report that a selector is needed. With a selector, the path must be in `pr.files`. `_plan_in` no longer picks the first match.
 - **Plan validity.** The `plan_approved` gate runs `check_plan` on the selected plan (read from the local checkout, which must contain the merged plan); every error, including an empty plan, is a rejection reason.
 - **Approval freshness.** When the gate requires a specific commit (`verification_passed`), an approval with an empty commit is not counted.
-- **GitLab.** The adapter reads the project's `reset_approvals_on_push` (`/projects/:id/approvals`). When true, each `approved_by` entry is bound to the MR's current `head_sha`; when false, the commit stays `""` and the rejection reason names the setting to enable.
+- **GitLab.** The adapter reads the project's `reset_approvals_on_push` (`/projects/:id/approvals`). When false, the commit stays `""` and the rejection reason names the setting to enable. When true, approval resets are asynchronous, so the adapter binds `approved_by` entries to `head_sha` only if (a) the MR `head_sha` read before and after the approvals request is identical and (b) `detailed_merge_status` is neither `checking` nor `approvals_syncing`. Otherwise the gate rejects with "approvals still syncing; retry" (exit 1).
 - **Event payload.** Team gate events additionally record the repository and the artifact path.
 
 ### 2. Verification binds to a commit (defect 4; solo and team)
 
 - `record verification-passed` stores `branch` (current branch) and `head` (`git rev-parse HEAD`) in the event payload. Detached HEAD refuses to record (exit 2).
-- `verification_passed` is derived from the latest `verification.passed` event of the workflow: satisfied only when `git rev-parse refs/heads/<branch>` equals the recorded `head`. Refs come from the shared git dir, so the main checkout and linked worktrees agree.
-- A new commit on the branch returns the gate to unmet; `workflow` routes back to verify.
+- `verification_passed` is derived from the latest `verification.passed` event of the workflow: satisfied when `git rev-parse refs/heads/<branch>` equals the recorded `head`, or when the recorded `head` is an ancestor of the branch tip and every commit after it changes only spec artifacts (legacy `.planning/specs/`, `.planning/plans/`; SDD `artifacts.specs` and `artifacts.changes`). This keeps the SDD ship step (`specs archive` then commit on the feature branch, after verification) from invalidating the gate. Ship still re-runs the test command before integration.
+- The event store already lives in the main checkout (`main_checkout()` in `_get_event_store`) and refs come from the shared git dir, so the main checkout and linked worktrees agree.
+- Any other new commit on the branch returns the gate to unmet; `workflow` routes back to verify.
 - Events without `head` (recorded before this change) count as unmet; in-flight workflows verify once more.
 - A deleted branch reads as unmet; `shipped` is derived from the closed epic and is unaffected. `state` output must not present this as a regression after ship.
 - Uncommitted worktree changes are out of scope here; the `verify` skill already requires fresh command output.
 
 ### 3. Dependencies, ownership, branches (defects 5–7)
 
-- **`team deps` ancestry.** After finding a merged PR for a placeholder, run `git merge-base --is-ancestor <merge_commit> HEAD`. Success closes the placeholder as today. Failure (missing object or not an ancestor) leaves it in `waiting` with the reason `fetch/rebase onto <target> to include <merge_commit>`. Never merge or cherry-pick automatically.
+- **`team deps` ancestry.** After finding a merged PR for a placeholder, run `git merge-base --is-ancestor <merge_commit> HEAD`. Success closes the placeholder and stores the merge commit in the bead's metadata. Failure (missing object or not an ancestor) leaves it in `waiting` with the reason `fetch/rebase onto <target> to include <merge_commit>`. Never merge or cherry-pick automatically.
+- **`team deps` rechecks resolved placeholders.** Closed `external:` placeholders that still block an open bead are re-checked against the current workspace `HEAD` using their stored merge commit; a missing commit is reported as `missing` and `team deps` exits 1. The placeholder is not reopened.
+- **Run in the execution workspace (skill).** The `gin-team` execute section runs `team deps` inside the selected track worktree, after workspace selection and before implementation, and requires exit 0. A placeholder closed from another checkout therefore cannot stand in for code absent from the track worktree.
 - **Owners required in local mode.** Without `team.beads_sync`, `check_plan` reports every track lacking `Owner:`. Because the gate runs `check_plan` (Requirement 1), such a plan cannot pass `plan_approved`.
 - **Orchestrate (skill).** In local mode each member creates beads only for tracks they own, plus the `external:` placeholders those tracks need. The "unowned tracks in my areas" rule is removed.
 - **Branch name (skill).** `feat/<topic>-t<N>`, where `<topic>` is the plan's topic slug and `<N>` the track number. Every machine derives the same name; same-area tracks no longer collide. Existing branches are not renamed.
@@ -70,9 +73,9 @@ Document in the team guide and `gin-team` skill:
 
 Extend the existing team and lifecycle tests:
 
-- Gate: PR without the artifact; PR from another repository (SSH vs HTTPS equality); zero/several candidates without selector; empty plan; plan errors via gate when `check-plan` was skipped; approval with empty commit; GitLab with `reset_approvals_on_push` true/false (fixture).
-- Verification: temporary git repo — verify → met; new commit → unmet; re-verify → met; legacy event without `head` → unmet; record in a worktree, read from the main checkout → same result; detached HEAD → exit 2.
-- Deps: temporary git repo with a stubbed host — merge commit is/is not an ancestor of HEAD.
+- Gate: PR without the artifact; PR from another repository (SSH vs HTTPS equality); zero/several candidates without selector; empty plan; plan errors via gate when `check-plan` was skipped; approval with empty commit; GitLab with `reset_approvals_on_push` true/false, head changed between reads, and `approvals_syncing` (fixtures).
+- Verification: temporary git repo — verify → met; new commit → unmet; spec-artifact-only commit after verify (SDD archive) → still met; re-verify → met; legacy event without `head` → unmet; record in a worktree, read from the main checkout → same result; detached HEAD → exit 2.
+- Deps: temporary git repo with a stubbed host — merge commit is/is not an ancestor of HEAD; placeholder closed in one worktree, re-checked from another worktree lacking the commit → `missing`, exit 1.
 - `check-plan`: missing owner in local mode is an error; with `beads_sync` it is not.
 
 Host interactions are fixtures, not live provider validation. Keep skill instruction budgets and documentation checks passing.
