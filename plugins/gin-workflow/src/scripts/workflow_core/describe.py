@@ -70,8 +70,9 @@ def collect(repo: Path, root_id: str, *, max_nodes: int = MAX_NODES, now: dateti
         if len(issues) + len(wanted) > max_nodes:
             raise GraphTooLarge(len(issues) + len(wanted), max_nodes)
         for row in _rows(_bd(repo, ["show", *wanted, "--json", "--include-comments"])):
-            issues[row["id"]] = row
-            roles[row["id"]] = role
+            if row.get("id"):
+                issues[row["id"]] = row
+                roles[row["id"]] = role
 
     def dependents(ids: Iterable[str], kind: str) -> set[str]:
         argv = ["dep", "list", *sorted(ids), "--direction=up", "--type", kind, "--json"]
@@ -82,7 +83,7 @@ def collect(repo: Path, root_id: str, *, max_nodes: int = MAX_NODES, now: dateti
     except GraphTooLarge:
         raise
     except DescribeError as error:
-        if "no issue found" not in str(error):
+        if "no issue found" not in str(error) and "not found" not in str(error).lower():
             raise
     if root_id not in issues:
         raise DescribeError(f"bd show {root_id}: no such bead")
@@ -109,6 +110,8 @@ def collect(repo: Path, root_id: str, *, max_nodes: int = MAX_NODES, now: dateti
             edges.add(("parent", row["parent"], bead_id))
         for dep in _rows(row.get("dependencies")):
             kind, source = dep.get("dependency_type"), dep.get("id")
+            if not source:
+                continue
             if kind == "blocks" and source in issues:
                 edges.add(("blocks", source, bead_id))
             elif kind == "blocks":

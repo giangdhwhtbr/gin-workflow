@@ -141,6 +141,16 @@ class CollectTests(unittest.TestCase):
         self.assertEqual([node["id"] for node in graph["nodes"]], ["t1"])
         self.assertEqual(graph["edges"], [])
 
+    def test_rows_and_dependencies_without_an_id_are_skipped(self):
+        root = issue("t1")
+        root["dependencies"] += [{"dependency_type": BLK, "title": "no id"},
+                                 {"id": "x", "title": "X", "status": "open", "dependency_type": BLK}]
+        graph = self.run_collect([show_rule("t1", rows=[root, {"title": "no id"}]), up_rule(PCH, "t1", rows=[]),
+                                  up_rule(DISC, "t1", rows=[])], root="t1")
+        self.assertEqual([node["id"] for node in graph["nodes"]], ["t1"])
+        self.assertEqual(graph["nodes"][0]["detail"]["external_blockers"],
+                         [{"id": "x", "title": "X", "status": "open"}])
+
     def test_errors(self):
         missing = {"argv": ["show", "zz"], "exit": 1,
                    "stderr": 'Error fetching zz: no issue found matching "zz"\n'}
