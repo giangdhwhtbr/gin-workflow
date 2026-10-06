@@ -172,20 +172,6 @@ gin-workflow usage report [--bead ID | --epic ID | --since YYYY-MM-DD]
 
 Exit codes: 0 ok; 2 error. With `--best-effort`, `collect` turns any error into a `warning:` line and exits 0, so it never blocks closing a bead.
 
-## `gin-workflow describe`
-
-```
-gin-workflow describe ID [--out PATH] [--format text|json]
-```
-
-Writes a self-contained HTML file presenting an interactive visualization of the bead or epic. The page contains a fixed two-column template: an SVG graph on the left and full Beads details, metadata, and comments on the right.
-
-- **Graph scope**: The root bead, its ancestor parent chain up to the top, all descendant children down the parent-child hierarchy, and any bugs discovered from them (`discovered-from`, one hop). `blocks` dependencies between nodes in the graph are drawn as arrows; blockers outside the graph are listed in the bead's detail pane under `Blocked By`.
-- **Default output path**: `.agent-workflow/runtime/describe/<ID>.html`.
-- **Limits**: Maximum 300 nodes. If a graph exceeds 300 nodes, `describe` halts with exit code 3.
-
-Exit codes: 0 ok; 2 error (unknown bead or `bd` failure); 3 graph too large.
-
 ## `review-ledger.py`
 
 ```
