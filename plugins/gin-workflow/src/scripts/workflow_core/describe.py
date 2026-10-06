@@ -170,8 +170,9 @@ def layout(graph: dict[str, Any]) -> dict[str, Any]:
         if bead_id not in seen:
             place(bead_id, 1)
     row, current = -1, root
-    while tree_parent.get(current) in nodes and nodes[tree_parent[current]]["role"] == "ancestor":
+    while tree_parent.get(current) in nodes and nodes[tree_parent[current]]["role"] == "ancestor" and tree_parent[current] not in seen:
         current = tree_parent[current]
+        seen.add(current)
         nodes[current]["y"], nodes[current]["x"] = row, nodes[root]["x"]
         row -= 1
     return graph
