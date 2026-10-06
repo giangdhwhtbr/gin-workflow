@@ -7,152 +7,174 @@ Extends: [Team Mode](2026-10-03-team-mode-design.md)
 
 ## Goal and scope
 
-Make the existing team workflow reliable when members use Claude Code on separate machines, work on separate branches, and share Beads through a Git repository configured by `team.beads_sync.remote`.
+Make the existing team workflow reliable when members use Claude Code on separate machines and orchestrate their own work from an approved, merged plan. Beads and lifecycle events remain local to each member. Git and the Git host provide the shared plan, ownership, review evidence, and integration status.
 
-The user selected teamwork hardening from an evaluation of team support, framework effectiveness, and token consumption, then requested this spec. This change covers approval provenance and freshness, dependency code availability, branch identity, and safe Beads claims. It preserves the existing lifecycle and state owners; it does not introduce a coordination service.
+The user selected teamwork hardening after an evaluation of team support, workflow effectiveness, and token consumption. During spec review, the user proposed using the existing local-Beads path instead of synchronizing Beads between members. This revision adopts that direction: omit `team.beads_sync` for the target workflow and remove distributed claim/sync hardening from this change.
 
-Claude is the execution and review scenario for validation. GitHub and GitLab remain supported hosts. Review may use a fresh Claude session under the existing single-provider/session-independence policy.
+The deliverable covers approval provenance and freshness, unambiguous ownership, repeatable local orchestration, dependency code availability, stable branch identity, and accurate member-versus-feature completion reporting. Claude is the execution/review scenario; GitHub and GitLab remain supported hosts. Existing single-provider review uses a fresh Claude session.
 
 ## Evidence motivating the change
 
 The assessment used repository commit `44becc54ea5292f928ff345d1e754d34e433aed2`:
 
-- `team.py:check_approval` accepted an unrelated merged PR for `requirement_confirmed`, and accepted a plan with no tracks under the `area_lead` policy. These were reproduced with in-memory inputs.
-- `_approver_roles` did not reject an approval with an unknown commit when checking the current head. The GitLab adapter currently supplies an empty approval commit.
-- `lifecycle_cli.py` derives verification from the existence of a recorded event; that event does not carry a verified head for freshness checks.
-- The execute skill closes tracks and unblocks dependents before merge. Across branches, a closed dependency does not establish that its code is present in the dependent workspace.
-- Team branch naming is `feat/<epic>-<area>`, which cannot distinguish simultaneous tracks in the same area.
-- A failed shared claim push invokes an embedded-only reset to `origin/main`. It does not distinguish a concurrent claim from an unavailable remote.
+- `gin-team` already supports local orchestration without `team.beads_sync`, including `external: <plan>#<N>` placeholders for dependencies owned by another member.
+- That path also permits members to take unowned tracks in their area. Independent local claims cannot prevent two members from taking the same unassigned track.
+- `team.py:check_approval` accepted an unrelated merged PR for `requirement_confirmed`, and accepted an empty plan under `area_lead`. These were reproduced with in-memory inputs.
+- `_approver_roles` accepted an unknown approval commit when checking the current head. The GitLab adapter currently supplies an empty approval commit.
+- `lifecycle_cli.py` derives verification from the existence of a recorded event without checking a recorded verified head.
+- `team deps` closes an external placeholder when a matching PR merges, without establishing that the merged code exists in the dependent workspace.
+- Team branch naming uses local epic identity plus area, which is neither a shared track identity nor sufficient to distinguish concurrent tracks in one area.
 
-The existing 76 tests selected for team gates, usage, instruction budgets, and benchmark summaries passed during the assessment. The additional probes identified coverage gaps; they were not live Git-host or multi-machine tests.
+The 76 existing tests selected during the assessment passed. The additional gate probes exposed coverage gaps; neither result demonstrates a live, multi-member Git-host workflow.
 
-## Approach
+## Approach and decisions
 
-Extend the existing `team.py`, `team_host.py`, `team_beads.py`, `team_cli.py`, and lifecycle gate handling. Reuse Beads metadata, Git commits, host review evidence, and the existing event store.
+Build on the existing local mode, `team deps`, Beads claims, PR/MR template, host adapters, and gate validator. No shared database, new coordination service, or replacement task tracker is required.
 
-An always-on shared Beads server is an alternative deployment, but it adds operation requirements and does not resolve approval or code-integration gaps. Replacing the team backend is outside this change.
+| Decision | Rule |
+|---|---|
+| Shared allocation | Each executable track has one explicit `Owner:` in the approved, merged plan |
+| Shared track identity | Repository identity plus plan path and stable track number; local bead IDs are not shared identifiers |
+| Local orchestration | Each member creates only their assigned executable tracks and the external placeholders those tracks need |
+| Cross-member delivery | Matching PR/MR merged into the plan's integration target, with the resulting code present in the dependent workspace |
+| Same-member delivery | Local dependency closure plus reviewed output present in the selected workspace; merge is not required between local tracks |
+| Progress | Beads answers local progress; PR/MR evidence answers cross-member integration progress |
+| Shared Beads compatibility | Existing opt-in configuration remains available; hardening or removing it is outside this change |
+
+This removes Beads network synchronization and distributed-claim recovery from the normal team path. It does not establish a measured token-saving percentage. Cross-member dependencies may wait longer because their handoff boundary is a merged PR/MR; stacked, unmerged cross-member work is outside this design.
 
 ## State ownership and data flow
 
 | Information | Authority |
 |---|---|
-| Work, assignment, dependencies, closure, track delivery reference | Beads |
-| Approved requirement and plan content | Versioned spec/plan at the reviewed Git revision |
-| PR/MR identity, review state, reviewed revision, merge result | Git host |
-| Code available in a member's workspace | Local Git history and working tree |
-| Locally recorded gate evidence | Existing workflow event store |
-| Worktree and branch locations | Existing disposable runtime metadata |
+| Agreed scope, track allocation, dependencies, integration target | Approved, merged spec and plan in Git |
+| Local task status, claims, dependency graph and closure | Each member's Beads database |
+| Reviews, PR/MR status and integration commits | Git host |
+| Code available in a workspace | Local Git history and working tree |
+| Locally recorded gate evidence | Existing local workflow event store |
+| Branch/worktree locations | Existing disposable runtime metadata |
 
 ```mermaid
-flowchart LR
-    H[Git host: PR/MR and approvals] --> V[Validate repository, artifact, roles and revision]
-    V --> E[Local gate evidence for one workflow]
-    A[Member A: tested and reviewed commit] --> B[Shared Beads: closed track and delivery reference]
-    B --> C[Member B: check dependency commit in workspace]
-    C --> D[Confirm shared claim]
+flowchart TD
+    P[Approved and merged plan: owners and dependencies] --> A[Member A: orchestrate own tracks locally]
+    P --> B[Member B: orchestrate own tracks locally]
+    A --> R[Track PR/MR reviewed and merged]
+    R --> D[Member B: team deps checks PR and local Git ancestry]
+    B --> D
     D --> X[Execute dependent track]
 ```
 
-Gate events remain local. A teammate reconstructs local gate evidence by validating the same PR/MR against the same explicit workflow and artifacts. Merely pulling shared Beads does not satisfy local gates.
+A teammate validates the same specification and plan PRs to reconstruct local gate evidence. They do not rerun discovery/planning or obtain new approvals for unchanged artifacts. Beads databases and event stores are not copied or synchronized between members.
 
 ## Requirements
 
 ### 1. Bind approvals to the intended work
 
-Role-gated team `record` and `team check` must use the same validation path and require an explicit workflow ID. Team skills always supply that ID instead of relying on `default-workflow`.
+Role-gated team `record` and `team check` share a validator and require an explicit workflow ID. The plan supplies the shared feature/workflow identity; skills do not rely on `default-workflow`.
 
-The expected code repository comes from the Git remote used by the workflow, not from the evidence URL. SSH and HTTPS representations of the same host/project compare equal; a different host or project is rejected. An ambiguous upstream must be resolved explicitly. The Beads storage remote is never treated as the code repository.
+Resolve the expected code repository from the workflow's Git remote, not the evidence URL. SSH and HTTPS representations of the same host/project compare equal; a different project or host is rejected. An ambiguous upstream requires an explicit selection.
 
-For `requirement_confirmed`, identify the expected spec explicitly or from existing evidence for that workflow. Add a `--spec` selector alongside the existing `--plan` selector. For `plan_approved`, identify the expected plan the same way. An initial record without an unambiguous artifact fails with a corrective command rather than choosing the first Markdown file.
+For `requirement_confirmed`, select the expected spec explicitly or from existing workflow evidence; add a `--spec` selector alongside the existing `--plan` selector. For `plan_approved`, select the expected plan the same way. An initial record without an unambiguous artifact reports the missing selector rather than choosing the first Markdown file.
 
-Selected paths must stay within the repository and the applicable legacy or SDD artifact layout. The artifact must be part of the PR/MR's changes. Read and validate its content at the reviewed revision, and verify that the accepted merged result retains that content. A local edited file or a same-named file from another PR is not proof. Plan evidence must reference the confirmed spec for that workflow; feature verification must identify the approved plan and its tracks through the existing PR/MR template fields.
+Selected paths must stay within the repository and applicable legacy/SDD layout. The artifact must be among the PR/MR changes. Validate its content at the reviewed revision and establish that the accepted merged result retains that content. Local edits and same-named artifacts from other PRs are not evidence. Plan evidence references the confirmed spec; feature PR/MR evidence identifies the approved plan and delivered tracks through the existing template fields.
 
-Run plan validation inside the gate validator, not only as an earlier skill instruction. An empty plan, duplicate track numbers, missing/unknown required areas, invalid owners, or files outside their declared areas must reject the gate. Preserve current role-list semantics: one eligible non-author approver from the configured list suffices; `area_lead` requires coverage for every area in the valid plan.
+Plan metadata records the shared workflow identity and target integration branch. Every executable track has a unique, stable number, eligible `Owner:`, explicit dependencies, and valid file scope. Require an area when areas are configured. Reassignment or changes to scope/dependencies go through a reviewed, merged plan revision; do not renumber existing tracks or recycle their identity for different work.
 
-Record repository identity, workflow ID, artifact paths and content hashes, PR/MR URL, reviewed head, merge result when applicable, and approval provenance in the event payload. Selectors and evidence checks must be available to both `record` and read-only `team check`.
+Run these checks inside gate validation, even if `team check-plan` was skipped. Empty plans, duplicate tracks, missing/ineligible owners, unknown areas and out-of-area files reject the gate. Preserve role-list semantics: an eligible non-author approver from the configured list suffices; `area_lead` requires approval coverage for every area in the valid plan.
+
+Record repository/workflow identity, artifact paths and hashes, PR/MR URL, reviewed head, merge result where applicable, and approver provenance in the gate event. Both `record` and read-only `team check` accept the same selectors.
 
 ### 2. Require current approval evidence
 
-Unknown approval revision is not equivalent to the current revision. GitHub reviews must demonstrate approval for the accepted PR head. GitLab must provide either revision-bound approval evidence or host evidence that approvals apply to the current revision and were invalidated by intervening pushes. A bare `approved_by` list is insufficient.
+Unknown approval revision is not equivalent to the current revision. GitHub reviews must demonstrate approval for the accepted PR head. GitLab must supply revision-bound evidence or host evidence establishing that the approvals apply to the current revision and were invalidated by intervening pushes. A bare `approved_by` list is insufficient.
 
-A host deployment unable to establish freshness reports the missing capability and holds the gate. Do not infer freshness from a successful API response or silently waive the check. Read the head consistently around approval retrieval; if it changes during validation, reject the attempt and request revalidation.
+When the host cannot establish freshness, report the missing capability and hold the gate. Read the head consistently around approval retrieval; a concurrent head change rejects the attempt for revalidation. Before consuming a role-gated approval to advance a stage or ship, recheck host evidence so revoked approvals do not remain valid indefinitely.
 
-For verification, the approved source head must equal the local feature `HEAD`, and the worktree/index must contain no uncommitted changes affecting the verified result. Record the verified head and tree. Subsequent source changes make that evidence stale. State derivation must not report a current verification solely because an older `verification.passed` event exists.
+For verification, the approved source head equals the local feature `HEAD`, and the index/worktree has no uncommitted changes affecting the verified result. Record the verified head/tree. A new source commit or dirty source change invalidates that verification. Event replay must not treat any historical `verification.passed` event as approval for the current source.
 
-Spec or plan content changes invalidate the corresponding approval and dependent lifecycle evidence for that workflow. Unrelated commits that leave those artifact hashes unchanged do not require repeating specification approval. A previous verified source head may authorize its own merge, but validation of the resulting integration commit still follows the existing ship checks.
+Changed spec/plan content invalidates its approval and dependent evidence in that local workflow. Unrelated commits leaving the artifact hashes unchanged do not require repeating specification approval. A verified source head may authorize its own merge; the integration result still receives the existing post-merge checks.
 
-Before consuming a role-gated approval to advance a stage or ship, recheck current host evidence so revoked approvals do not remain valid indefinitely. An offline status view may show recorded evidence, but must distinguish it from a currently validated gate. Existing team events lacking the required binding fields are retained for audit and require revalidation; they are not silently upgraded to trusted evidence.
+Offline status may display recorded evidence but must distinguish it from a currently validated gate. Existing team events without artifact/revision binding remain audit history and require revalidation before use.
 
-### 3. Check dependency code before execution
+### 3. Orchestrate and claim only locally assigned work
 
-Keep the distinction between a completed track and a shipped feature. A track may still close after its tests and independent review pass, without waiting for a PR merge.
+After the plan merges, each member fetches the approved plan and referenced spec, validates their gate evidence, and orchestrates the tracks whose `Owner:` matches their configured identity. Membership in an area alone does not allocate its unowned tracks.
 
-Before closing a team track, commit and publish its reviewed output, then store a delivery reference in that bead's metadata: code repository identity, workflow/plan/track identity, full source commit SHA, and the branch or PR/MR through which the commit can be fetched. The published commit must match the tested and reviewed content. Sync this reference together with closure when shared Beads is enabled. Failure to publish the required reference prevents completion from being advertised to teammates.
+Use the shared repository/plan/track identity to find existing local beads. Repeating orchestration reuses them, preserves their status and notes, and does not create duplicate tasks, epics, or placeholders. Keep this mapping in existing Beads metadata, not a second durable task registry.
 
-Add a read-only `team check-deps <bead>` check for the selected execution workspace. It checks every blocking dependency's completion and delivery reference. Parent-child and informational links are not code dependencies. For a cross-member placeholder, retain the matching merged PR/MR and merge result when resolving it.
+Dependencies owned by the same member become local Beads edges. A dependency owned by another member becomes a local `external: <plan path>#<track number>` placeholder. Create only the placeholders needed by local tracks; do not mirror other members' executable tasks.
 
-A dependency is usable when its recorded output commit is an ancestor of the workspace `HEAD`. For squash or rebase integration, the host-confirmed merge result is acceptable only when it is linked to the recorded delivered source revision and is present in local ancestry. Patch similarity or a shared commit message does not establish equivalence.
+Use the supported explicit Beads actor argument and native atomic local claim. Recheck ownership, member eligibility and dependency readiness at claim time. Local claims coordinate sessions sharing that database; they do not represent a distributed lock. The reviewed `Owner:` allocation prevents normal cross-member duplicate execution. Multiple independent clones belonging to the same owner still require that member to coordinate their sessions.
 
-Missing objects, missing legacy delivery metadata, unknown integration provenance, or a dependency whose commit is absent produce a clear hold naming the bead and missing revision. The command reports the fetch/integration needed; it does not merge, cherry-pick, rewrite branches, or close tasks automatically.
+Before new execution, compare with the latest approved plan revision. If a track was reassigned, the previous owner cannot start it based on stale local metadata. Preserve existing work and report a handoff when an in-progress track changes owner; do not reset, delete, or automatically transfer its database records. Offline work on an already claimed track may continue, but a new assignment or ownership decision requires current plan evidence.
 
-The execute skill runs this check after workspace selection and immediately before implementation. `team claim` also checks current task readiness and member eligibility instead of trusting an earlier `team ready` listing. A `ready` result means graph readiness, not a guarantee that an arbitrary checkout contains dependency code.
+### 4. Resolve dependency code and use stable branches
 
-### 4. Give concurrent tracks distinct branches
+Extend `team deps` rather than adding a separate dependency service or command. Resolve cross-member dependencies using the code repository, approved plan identity, stable track number, and integration target. A title or unchecked PR body is not sufficient: confirm the PR/MR belongs to the expected repository, references the approved plan revision and track, has the expected owner's delivery or a reviewed handoff, and merged into the intended target branch.
 
-New team track branches use `feat/<epic>-<area>-<track-id>`, with a stable track identifier and Git-valid components. Two tracks in the same epic and area must receive different branches and isolated workspaces.
+The template retains `Plan:` and `Tracks:` and carries the approved plan revision so a PR for an older, superseded track scope cannot satisfy the current dependency. A newer plan revision that changes only unrelated tracks does not invalidate that delivery: compare the referenced track's requirements, owner, dependencies and integration target. If more than one candidate is ambiguous, hold and report the candidates rather than accepting the first search result. Search pagination must not silently hide a matching delivery.
 
-Reuse already-recorded branches/workspaces for ongoing tracks; do not rename existing branches or disrupt open PRs. An intentionally shared sequential branch remains reusable when the approved execution arrangement records it. Branch identity never replaces Beads ownership or task state.
+A merged PR/MR resolves an external placeholder only when its host-confirmed integration commit is an ancestor of the selected workspace `HEAD`. This handles merge, squash, and rebase through their actual integration result. Missing objects or missing ancestry produce an actionable fetch/update message and leave the placeholder open. Do not merge or cherry-pick automatically. A PR into the wrong target or an open PR does not unblock cross-member work.
 
-### 5. Make shared claims safe and recoverable
+For same-member dependencies, local closure plus the reviewed output commit being present in the workspace suffices. Record that local output commit in existing bead metadata when closing a track. It need not be published or merged before the next local track. Different local branches still need an explicit integration step before the dependent code is usable.
 
-Keep `team.beads_sync.remote` and the existing Dolt-through-Git deployment. Setup and doctor must verify that the database remote actually used by synchronization matches that configuration, and report the installed Beads capabilities required for reliable claims. Detect the configured remote/ref rather than assuming `origin/main`.
+Run dependency validation after selecting the execution workspace and immediately before implementation, including previously resolved dependencies. Changing worktrees must not let an old closed placeholder stand in for absent code. Hold execution without erasing the historical delivery evidence.
 
-Use the supported explicit Beads actor argument for member identity. Ensure the claim change is included in the durable data being pushed; a successful push of older commits does not prove that a new claim was published.
+New track branches use `feat/<workflow-id>-<area>-t<track-number>` with Git-valid components. When no area is configured, omit that component. Shared workflow IDs must be unique within the repository. Two tracks in the same area get distinct names; two members referring to the same plan track derive the same name regardless of local bead IDs.
 
-The shared claim sequence is: synchronize current state, validate readiness/eligibility and ownership, perform the native atomic local claim, publish it, and confirm the resulting remote ownership. Only a confirmed claim returns success and permits execution. This is an optimistic distributed claim, not a promise that independent local databases provide a global lock.
+Reuse already-recorded branches/workspaces for ongoing tracks. An intentionally shared sequential branch remains valid when recorded in the approved execution arrangement. No existing branch is renamed automatically.
 
-On a competing claim, report the observed owner and stop. On network failure, timeout, or an ambiguous push response, report that claim ownership is unconfirmed and stop before execution. Preserve local database changes and expose the recovery action; do not assert that the remote did or did not accept the claim without checking it.
+### 5. Distinguish local delivery from whole-feature completion
 
-Remove automatic whole-database hard reset from the claim failure path. Safe recovery may use native Beads/Dolt operations that preserve unrelated updates; if those operations cannot establish a conflict-free state, leave it for explicit conflict resolution. A retry must reconcile the remote before publishing a previously unconfirmed claim or returning success. No force push is performed.
+Each local epic represents that member's assigned portion of the approved plan. Closing all of its tracks means that portion is implemented and reviewed; it does not prove other members' work is complete. The local epic may be shipped when its delivered tracks have merged and passed the applicable checks. Report that scope explicitly.
 
-Embedded and server modes must either satisfy this contract through supported native operations or fail with an actionable capability error before changing ownership. The implementation must document the versions/modes it actually validates. Offline reads remain usable; offline execution cannot begin on a new, unconfirmed shared claim.
+Member verification checks the assigned requirements/tracks and their dependency integration. It must not claim that the entire spec has been verified when other tracks live only in other members' environments. Existing verification and handoff instructions must distinguish member scope from full-feature scope.
+
+Whole-feature integration status is derived read-only from the approved plan's complete track set and matching PR/MR evidence. Report tracks as merged, open PR/MR, or no verifiable delivery; do not infer another member's in-progress state from missing PRs. A feature is reported as integrated only when every required track has valid merged evidence. Claiming whole-feature verification additionally requires the complete spec/plan checks on the combined integration revision.
+
+Reuse existing progress, verification and host-query mechanisms. Do not introduce a shared Beads epic or a new mandatory lead-approval stage. Git-host evidence is refreshed at handoff and dependency checks, not through a background polling service.
 
 ## Errors and compatibility
 
-- Exit 0: validated evidence, dependencies available, or confirmed ownership, according to the command.
-- Exit 1: rejected evidence, stale revision, missing dependency code, ownership contention, or a data conflict.
-- Exit 2: missing configuration/tool capability, invalid command arguments, authentication/network failure, or an unconfirmed outcome caused by unavailable infrastructure.
-- Failed gate validation appends no success event. Failed claims never return a success-shaped result.
-- Preserve existing config keys and role semantics. No new database, remote service, or shared event log is required.
-- Solo behavior is unchanged. Existing team approvals and deliveries are upgraded through explicit revalidation/backfill from verifiable Git evidence, not inferred from task closure alone.
-- Legacy and SDD layouts use the same safety rules. This change does not migrate artifact directories or enable team mode in the current repository.
+- Exit 0 means the requested evidence, dependency, orchestration or local claim check succeeded.
+- Exit 1 means rejected/stale evidence, invalid plan allocation, dependency not integrated, ambiguous delivery, or local claim contention.
+- Exit 2 means missing tools/configuration/capabilities, invalid arguments, or unavailable host/authentication/network needed for the requested check.
+- Failed gate validation writes no success event. Dependency refresh failure cannot silently unblock a task.
+- Solo behavior is unchanged. Legacy and SDD layouts use the same rules without relocating their artifacts.
+- Existing local team plans lacking owners must receive a reviewed allocation before new orchestration. Existing beads are reused/backfilled only when their plan/track identity can be established unambiguously.
+- Existing shared-Beads installations and `team.beads_sync.remote` remain supported as before. This change neither removes their configuration nor modifies their sync recovery algorithm. Local-mode acceptance runs omit that configuration and must make no Beads remote calls.
+- The current repository's team mode is not enabled or migrated as part of implementing these rules.
 
 ## Acceptance and validation
 
 | Scenario | Required outcome |
 |---|---|
-| Valid spec/plan PR from the configured repository, expected artifact and roles | Gate records reproducible artifact/revision evidence |
-| Foreign repository, unrelated PR, wrong artifact, or mismatched workflow plan | Gate rejected; no success event |
-| Empty plan, duplicate track numbers, invalid area/owner/scope | Rejected by the gate itself, even if `check-plan` was skipped |
+| Valid spec/plan PR with expected repository, artifacts, roles and allocation | Reproducible artifact/revision-bound gate evidence |
+| Foreign/unrelated PR, wrong artifact or mismatched plan | Gate rejected without a success event |
+| Empty plan, duplicate tracks, missing/ineligible owner, invalid area/scope | Gate rejects even if `check-plan` was skipped |
 | Old, missing-revision, dismissed or revoked approval | Does not satisfy the current gate |
-| PR head changes while reviews are being read | Attempt rejected for revalidation |
-| Verification followed by a new source commit or dirty source changes | Prior verification no longer authorizes the changed result |
-| Spec/plan edited after approval | Corresponding and dependent evidence becomes stale |
-| Dependency closed on another branch; code absent locally | Execution holds with the missing delivery revision |
-| Dependency output or proven squash/rebase integration is in local ancestry | Dependency check passes |
-| Two tracks in one epic/area | Distinct new branch names; existing branches remain usable |
-| Two clones race to claim one shared bead | At most one confirmed winner; the loser cannot execute |
-| Push rejected or response lost after a possible remote write | No success until reconciliation; unrelated local changes survive |
-| Non-default remote/ref, supported embedded/server mode | No hard-coded reset target; capability failures occur before ownership mutation |
-| Same verified PR/MR checked on a second member's machine | Equivalent local gate evidence can be reconstructed |
-| No team configuration | Existing solo behavior and host-call avoidance remain intact |
+| Head changes during approval retrieval, or source changes after verification | Revalidation required; stale evidence cannot authorize execution/ship |
+| Two members orchestrate one merged plan in independent environments | Each gets only assigned executable tracks and needed external placeholders |
+| Same member repeats orchestration | Existing bead identities, notes and status preserved; no duplicates |
+| Member attempts an unowned or other member's track | Refused despite area eligibility |
+| Approved plan reassigns an in-progress track | Previous owner gets a handoff hold; existing work preserved |
+| Another member closes a local bead or opens a PR | No cross-member dependency is released |
+| Matching PR merges but checkout lacks its integration commit | Placeholder stays open and execution holds |
+| Correct merge/squash/rebase result is present locally | Dependency resolves for that workspace |
+| Old closed placeholder used from a different, stale workspace | Execution holds despite prior resolution |
+| Same-member dependency reviewed and present on the local branch | Next local track may start without a merge |
+| Two same-area tracks; different local bead IDs across clones | Distinct per-track branches derived from shared plan identity |
+| One member ships their local epic while another track remains open | Report member delivery only; whole feature remains incomplete |
+| Every plan track merged and combined result freshly verified | Whole-feature completion can be reported with evidence |
+| Local-mode workflow from orchestration through handoff | No Beads pull/push, shared claim, or remote database requirement |
+| No team configuration | Existing solo behavior and host-call avoidance preserved |
 
-Extend existing team/gate suites with deterministic GitHub and GitLab fixtures. Use temporary Git histories for artifact provenance, dirty worktrees, branch identity, dependency ancestry, and squash/rebase cases. Exercise shared claims with two independent temporary Beads databases and a bare Git remote, including a coordinated race and an unrelated concurrent update.
+Extend existing team/gate tests with deterministic GitHub/GitLab fixtures. Use temporary Git histories for artifact binding, plan amendments, dirty worktrees, branch identity, target validation and dependency ancestry. Use two independent local Beads databases to exercise assigned-track projection, repeated orchestration, and cross-member placeholder resolution without a Beads remote. Cover paginated/ambiguous PR results and failed host queries.
 
-Do not present mocked host tests as live provider validation. Record exact Beads/Dolt versions and modes for integration runs; missing capabilities or skipped runs remain explicit limitations. Maintain the existing skill instruction budgets and run documentation checks for changed CLI/skill contracts.
+Use commands that fail the test if a Beads remote operation is attempted in local mode. Do not present mocked host tests as live provider validation. Record unavailable integration dependencies or skipped runs explicitly. Maintain skill instruction budgets and documentation checks for changed contracts.
 
 ## Documentation and boundaries
 
-Update the canonical lifecycle, state model, team guide, CLI reference, and affected team/lifecycle skills when implementing this design so track closure, code availability, approval freshness, and recovery instructions agree.
+Update lifecycle, state model, team guide, CLI reference, templates, and affected skills so local ownership, dependency readiness, plan revisions, and completion scope agree. This spec supersedes the earlier shared-claim-hardening scope for this change, not the existing optional shared-Beads feature.
 
-Token attribution, pricing, usage aggregation, framework benchmarks, provider routing changes, automatic remote creation, and automatic branch-protection configuration are outside this change. Implementation planning and Beads task creation follow review and explicit confirmation of this written spec.
+Token attribution/pricing, usage aggregation, framework benchmarks, provider routing changes, sync recovery, automatic remote creation, automatic branch-protection configuration and cross-member work on unmerged stacked branches are outside this change. Implementation planning and task creation follow review and explicit confirmation of this written spec.
