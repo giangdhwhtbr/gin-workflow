@@ -32,7 +32,7 @@ Write durable technical documentation for onboarding, architecture review, and p
 
 Every file starts with `Analysis Date`, `Scope`, `Evidence` (files inspected, with line numbers when available), and `Index Use` (codegraph or direct inspection), and ends with `Inference And Uncertainty` and `Follow-up` (Beads to create, or "None identified").
 
-When a column cannot apply, say so once instead of filling it: a CLI or library uses commands or public functions as the `FEATURES.md` entry point and drops the Frontend and API columns; a backend-only repository writes `—` for Frontend; a frontend-only repository writes no `API.md`, lists the third-party APIs it calls in `INTEGRATIONS.md`, and names the external endpoint in the API column.
+When a column cannot apply, say so once instead of filling it: a CLI or library uses commands or public functions as the `FEATURES.md` entry point and drops the Frontend and API columns; a backend-only repository writes `—` for Frontend and lists only feature-level gaps in `Coverage Gaps`; a frontend-only repository writes no `API.md`, lists the third-party APIs it calls in `INTEGRATIONS.md`, and names the external endpoint in the API column.
 
 These files are evidence for humans and planning, not runtime status; they never replace Beads state.
 
