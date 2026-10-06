@@ -78,6 +78,8 @@ REQUIRED_ARTIFACTS = (
     "templates/spec.md",
     "templates/specs-README.md",
     "templates/codebase/OVERVIEW.md",
+    "templates/codebase/API.md",
+    "templates/codebase/FEATURES.md",
     "scripts/workflow_core/specs.py",
     "scripts/workflow_core/specs_cli.py",
     "scripts/workflow_core/specs_archive.py",

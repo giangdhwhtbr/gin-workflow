@@ -9,6 +9,8 @@ Index Use:
 
 ## Capabilities
 
+Summarize capabilities here; the full catalog and mapping live in [FEATURES.md](FEATURES.md).
+
 ## Primary Workflows
 
 ## Entry Points

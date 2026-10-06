@@ -38,6 +38,8 @@ Run `/tech-doc`:
 
 Claude will inspect your repository and produce a structured technical baseline under `.planning/codebase/` (with the SDD layout, `docs/codebase/`):
 - `OVERVIEW.md`: High-level purpose and core system capabilities.
+- `FEATURES.md`: Feature catalog and the map from each feature to frontend screen, API endpoint, backend handler, and data.
+- `API.md`: Endpoints the system exposes, with handler, auth, and summary.
 - `STACK.md`: Frameworks, runtimes, database drivers, and legacy libraries.
 - `INTEGRATIONS.md`: Third-party APIs, message queues, external databases.
 - `ARCHITECTURE.md`: Existing architectural boundaries and runtime flows.

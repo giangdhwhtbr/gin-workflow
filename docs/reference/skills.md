@@ -48,7 +48,7 @@ Stages load these when needed; you can also invoke them directly.
 | `team-setup` | Set up or join team mode: members, roles, areas, approvals, conventions, hooks, shared Beads |
 | `migrate-specs` | Move a legacy `.planning` specs and plans layout into the SDD `docs/` layout |
 | `beads-migration` | Move a repository's local `.beads` directory to the central vault and link it back |
-| `tech-doc` | Write technical documentation (stack, architecture, conventions, testing) from repository evidence, on request only |
+| `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing) from repository evidence, on request only |
 | `telegram-notify` | Send Telegram notifications on lifecycle events; opt-in via `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` |
 
 ## gin-qa (optional add-on)
