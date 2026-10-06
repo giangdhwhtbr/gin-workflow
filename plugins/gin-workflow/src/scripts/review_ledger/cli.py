@@ -558,7 +558,7 @@ def _mutate_ledger_unlocked(
     # 2. Lease Check
     # Skip lease validation for lease-acquired, lease-broken, recovery-performed
     if not bypass_lease and action not in (
-        "lease-acquired", "lease-broken", "lease-resynced", "recovery-performed"
+        "lease-acquired", "lease-broken", "lease-released", "lease-resynced", "recovery-performed"
     ):
         # An expired lease no longer blocks other writers; presenting it is still refused.
         if proj.active_lease and (lease_id or is_lease_active(proj.active_lease, now)):
@@ -867,5 +867,57 @@ def resync_lease(
     """Atomically re-point the holder's lease at the ledger's current revision."""
     def build(projection):
         return build_resync_lease_operations(projection, actor_id, lease_id)
+
+    return mutate_ledger_transaction(bead_id, build, base_dir=base_dir)
+
+
+def build_release_lease_operations(
+    projection: ReviewProjection,
+    actor_id: str,
+    lease_id: str,
+    *,
+    now: Optional[datetime] = None,
+) -> Tuple[List[Tuple[str, Dict[str, Any], str, str]], str]:
+    """Return the event that gives up the holder's lease once its review is done.
+
+    Until it is released, an active lease refuses every write that does not
+    present it, including the implementer's fix-finding, checkpoint and
+    transition-requested. Only the holder of the active lease may release it.
+    """
+    if not actor_id.strip():
+        raise ValueError("actor_id is required")
+    if not lease_id.strip():
+        raise ValueError("lease_id is required")
+    active = projection.active_lease
+    if not active:
+        raise LeaseError("No active lease exists on this ledger.")
+    if active.lease_id != lease_id:
+        raise LeaseError(
+            f"Lease ID mismatch. Active: {active.lease_id}, Provided: {lease_id}"
+        )
+    if active.actor_id != actor_id:
+        raise LeaseError(
+            f"Lease {lease_id} is held by {active.actor_id}; only its holder may release it."
+        )
+    current_time = now or datetime.now(timezone.utc)
+    operations = [(
+        "lease-released",
+        {"lease_id": lease_id, "released_at": format_utc_timestamp(current_time)},
+        active.actor_role,
+        actor_id,
+    )]
+    return operations, lease_id
+
+
+def release_lease(
+    bead_id: str,
+    actor_id: str,
+    lease_id: str,
+    *,
+    base_dir: Optional[str] = None,
+) -> Tuple[EventLog, ReviewProjection]:
+    """Atomically release the holder's lease."""
+    def build(projection):
+        return build_release_lease_operations(projection, actor_id, lease_id)
 
     return mutate_ledger_transaction(bead_id, build, base_dir=base_dir)

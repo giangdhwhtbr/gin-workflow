@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import pty
 import shutil
 import subprocess
 import sys
@@ -24,7 +25,8 @@ HAS_DOLT = shutil.which("dolt") is not None
 
 def bd(root: Path, *args: str, actor: str = "") -> str:
     env = None if not actor else {**os.environ, "BD_ACTOR": actor}
-    return subprocess.run(["bd", *args], cwd=root, check=True, capture_output=True, text=True, env=env).stdout
+    return subprocess.run(["bd", *args], cwd=root, check=True, capture_output=True, text=True, env=env,
+                          stdin=subprocess.DEVNULL, timeout=60).stdout
 
 
 def create(root: Path, title: str, *labels: str) -> str:
@@ -35,6 +37,24 @@ def create(root: Path, title: str, *labels: str) -> str:
 def show(root: Path, bead: str) -> dict:
     data = json.loads(bd(root, "show", bead, "--json"))
     return data[0] if isinstance(data, list) else data
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestBdHelperUnderATerminal(unittest.TestCase):
+    """`bd init` waits on a terminal stdin, so the suite hung when run from a pseudo-terminal."""
+
+    def test_bd_init_does_not_wait_on_a_terminal_stdin(self):
+        master, slave = pty.openpty()
+        saved = os.dup(0)
+        os.dup2(slave, 0)
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                git(Path(tmp), "init", "-q")
+                bd(Path(tmp), "init", "--prefix", "t", "-q")
+        finally:
+            os.dup2(saved, 0)
+            for fd in (saved, master, slave):
+                os.close(fd)
 
 
 @unittest.skipUnless(HAS_BD, "bd is not installed")

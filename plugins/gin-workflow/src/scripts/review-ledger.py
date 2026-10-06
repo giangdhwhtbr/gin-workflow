@@ -13,6 +13,7 @@ from review_ledger.cli import (
     resolve_bead_state_action,
     initialize_ledger,
     mutate_ledger,
+    release_lease,
     resync_lease,
     start_review,
     load_ledger,
@@ -112,6 +113,15 @@ def parse_args():
     p_resync.add_argument("--bead-id", required=True)
     p_resync.add_argument("--lease-id", required=True)
     p_resync.add_argument("--actor-id", required=True)
+
+    # Release Lease
+    p_release = subparsers.add_parser(
+        "release-lease",
+        help="Give up your own lease when your review is done.",
+    )
+    p_release.add_argument("--bead-id", required=True)
+    p_release.add_argument("--lease-id", required=True)
+    p_release.add_argument("--actor-id", required=True)
 
     # Add Finding
     p_add = subparsers.add_parser("add-finding", help="Add a new review finding.")
@@ -328,7 +338,7 @@ def parse_args():
     p_trans_req.add_argument("--lease-id")
 
     # Cleanup
-    p_clean = subparsers.add_parser("cleanup", help="Clean up stale review ledgers for closed or merged beads.")
+    p_clean = subparsers.add_parser("cleanup", help="Clean up stale review ledgers and their review refs for closed or merged beads.")
     p_clean.add_argument("--repository", default=".", help="Path to repository root.")
     p_clean.add_argument("--bead-id", help="Specific bead ID to clean up.")
     p_clean.add_argument("--all-closed", action="store_true", help="Clean up all closed bead review directories.")
@@ -455,6 +465,10 @@ def main():
                 f"Lease {args.lease_id} resynced to ledger revision "
                 f"{projection.ledger_revision}."
             )
+
+        elif args.command == "release-lease":
+            release_lease(args.bead_id, args.actor_id, args.lease_id)
+            print(f"Lease {args.lease_id} released.")
 
         elif args.command == "add-finding":
             payload = {"finding_id": args.finding_id, "severity": args.severity}

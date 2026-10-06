@@ -4,7 +4,7 @@ description: Turn a confirmed requirement into a durable, Beads-ready implementa
 ---
 
 ## Before you start
-1. If `.agent-workflow/generated/effective-config.yaml` does not exist in the repository, stop: tell the user to run `/setup` once and do nothing else. (`capabilities: {}` is a valid config.)
+1. If `.agent-workflow/generated/effective-config.yaml` does not exist in the main checkout (the parent of `git rev-parse --path-format=absolute --git-common-dir`; linked worktrees have none), stop: tell the user to run `/setup` once and do nothing else. (`capabilities: {}` is a valid config.)
 2. Read [references/stage-contract.md](../../references/stage-contract.md) now: it defines the gate CLI, valid evidence, approval, and git rules this stage relies on.
 
 # Plan

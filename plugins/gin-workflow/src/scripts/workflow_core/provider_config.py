@@ -8,6 +8,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from .checkout import main_checkout
 from .configuration import require_yaml
 from .schemas import SUPPORTED_CONFIG_VERSIONS
 
@@ -167,7 +168,7 @@ def validate_provider_local_config(value: Mapping[str, Any]) -> None:
 
 
 def load_provider_local_config(repository: Path) -> Mapping[str, ProviderModelConfig]:
-    path = Path(repository).resolve() / ".agent-workflow/providers.local.yaml"
+    path = main_checkout(Path(repository).resolve()) / ".agent-workflow/providers.local.yaml"
     if not path.is_file():
         raise ProviderLocalConfigError(f"provider local configuration does not exist: {path}")
     yaml = require_yaml()

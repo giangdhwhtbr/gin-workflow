@@ -24,7 +24,6 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | `quick` | Small, low-risk change without plan or beads: confirm, implement, verify per rigor, report |
 | `progress` | Report task status, blockers, open waivers, and next ready work without changing anything |
 | `report` | Report AI usage per bead or epic (tokens, cost, quality signals) without changing anything |
-| `describe` | Write a self-contained HTML page for a bead or epic: graph of children, blockers, and bugs beside its full details, without changing anything |
 | `setup` | First-time repository configuration and requested setup maintenance |
 
 ## gin-workflow: supporting skills

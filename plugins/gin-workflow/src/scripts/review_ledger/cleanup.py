@@ -26,6 +26,7 @@ PROTECTED_PLANNING_DIRS = frozenset({
 })
 
 _BEAD_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
+_REVIEW_REF_PREFIX = "refs/gin/review/"
 
 
 def _find_bd_executable() -> Optional[str]:
@@ -186,6 +187,32 @@ def is_bead_closed(
     return False, "bead is not closed in task tracking and not merged in git"
 
 
+def _existing_review_refs(repo_root: Path) -> set[str]:
+    res = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname)", _REVIEW_REF_PREFIX],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    return set(res.stdout.split()) if res.returncode == 0 else set()
+
+
+def _ledger_refs(bead_id: str, dir_path: Optional[Path], existing: set[str]) -> list[str]:
+    """The checkpoint refs a ledger created: its default ref plus any its review.json names."""
+    refs = {f"{_REVIEW_REF_PREFIX}{bead_id}"}
+    if dir_path is not None:
+        try:
+            data = json.loads((dir_path / "review.json").read_text(encoding="utf-8"))
+            for repo in data.get("repositories", []):
+                for key in ("checkpoint_ref", "review_ref"):
+                    ref = repo.get(key)
+                    if isinstance(ref, str) and ref.startswith(_REVIEW_REF_PREFIX):
+                        refs.add(ref)
+        except (OSError, ValueError, AttributeError):
+            pass
+    return sorted(refs & existing)
+
+
 def cleanup_review_ledgers(
     repo_root: Path,
     *,
@@ -199,7 +226,8 @@ def cleanup_review_ledgers(
     if bead_id and all_closed:
         raise ValueError("--bead-id and --all-closed are mutually exclusive.")
 
-    candidates: list[tuple[str, Path]] = []
+    candidates: list[tuple[str, Optional[Path]]] = []
+    existing_refs = _existing_review_refs(repo_root)
 
     if bead_id:
         if not _BEAD_ID_PATTERN.match(bead_id) or bead_id in (".", ".."):
@@ -217,6 +245,8 @@ def cleanup_review_ledgers(
             candidates.append((bead_id, scoped))
         if _is_review_dir(legacy) and bead_id not in PROTECTED_PLANNING_DIRS:
             candidates.append((bead_id, legacy))
+        if not candidates and f"{_REVIEW_REF_PREFIX}{bead_id}" in existing_refs:
+            candidates.append((bead_id, None))
         if not candidates:
             return {
                 "cleaned": [],
@@ -242,6 +272,13 @@ def cleanup_review_ledgers(
                 ):
                     candidates.append((child.name, child))
 
+        # Refs whose ledger directory is already gone.
+        with_ledger = {b_id for b_id, _ in candidates}
+        for ref in sorted(existing_refs):
+            b_id = ref[len(_REVIEW_REF_PREFIX):]
+            if b_id not in with_ledger and _BEAD_ID_PATTERN.match(b_id):
+                candidates.append((b_id, None))
+
     cleaned: list[dict[str, str]] = []
     skipped: list[dict[str, str]] = []
 
@@ -249,18 +286,26 @@ def cleanup_review_ledgers(
 
     for b_id, dir_path in candidates:
         eligible, reason = is_bead_closed(b_id, repo_root, dir_path, issues_cache=issues_cache_ref)
+        path = str(dir_path) if dir_path is not None else ""
         if eligible:
+            # Several directories of one bead share its refs; the first one deletes them.
+            refs = _ledger_refs(b_id, dir_path, existing_refs)
             if not dry_run:
-                shutil.rmtree(dir_path)
+                if dir_path is not None:
+                    shutil.rmtree(dir_path)
+                for ref in refs:
+                    subprocess.run(["git", "update-ref", "-d", ref], cwd=repo_root, check=True, capture_output=True)
+            existing_refs.difference_update(refs)
             cleaned.append({
                 "bead_id": b_id,
-                "path": str(dir_path),
+                "path": path,
                 "reason": reason,
+                "refs": refs,
             })
         else:
             skipped.append({
                 "bead_id": b_id,
-                "path": str(dir_path),
+                "path": path,
                 "reason": reason,
             })
 

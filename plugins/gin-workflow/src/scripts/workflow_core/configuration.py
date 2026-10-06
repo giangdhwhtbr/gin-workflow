@@ -9,6 +9,7 @@ import re
 from typing import Any
 
 from .atomic import atomic_write_many
+from .checkout import main_checkout
 from .models import (
     ConfigProvenance,
     DependencyUnavailableError,
@@ -234,7 +235,7 @@ def get_session_harness_override(repository: Path) -> str | None:
     if env_override and env_override.strip():
         override = env_override.strip().lower()
     else:
-        override_file = Path(repository).resolve() / ".agent-workflow/runtime/session-harness.override"
+        override_file = main_checkout(Path(repository).resolve()) / ".agent-workflow/runtime/session-harness.override"
         if override_file.is_file():
             try:
                 override = override_file.read_text(encoding="utf-8").strip().lower()
@@ -258,7 +259,7 @@ def get_session_harness_override(repository: Path) -> str | None:
 def load_effective_config(repository: Path) -> EffectiveConfig:
     """Load the generated lifecycle configuration after one-time setup."""
     root = Path(repository).resolve()
-    path = root / ".agent-workflow/generated/effective-config.yaml"
+    path = main_checkout(root) / ".agent-workflow/generated/effective-config.yaml"
     if not path.is_file():
         raise ConfigValidationError(
             "gin-workflow repository setup is required; run "

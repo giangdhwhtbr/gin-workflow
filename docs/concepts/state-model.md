@@ -29,7 +29,7 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 
 ## Event store
 
-`gin-workflow record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `verification.passed`, `quick.completed`, `delivery.shipped`, `gate.waived`, and `blocker.cleared`. Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. `gin-workflow state` replays them per workflow id, together with Beads, to derive the gates. The store is local to the machine; team mode proves gates with pull requests instead.
+`gin-workflow record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `verification.passed`, `quick.completed`, `delivery.shipped`, `gate.waived`, and `blocker.cleared`. Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. `gin-workflow state` replays them per workflow id, together with Beads, to derive the gates. The store is local to the machine; team mode proves gates with pull requests instead. All untracked workflow state — this store, the rest of `.agent-workflow/runtime/`, `generated/effective-config.yaml`, and `providers.local.yaml` — lives in the main checkout: commands run inside a linked worktree read and write the main checkout's copy, so a gate recorded in either place is one state.
 
 ## Review ledger
 
@@ -40,7 +40,7 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 - findings, each moving to a terminal state (`verified`, `withdrawn`, `deferred-verified`, `human-waived`);
 - approval, which holds only while the tree still matches the approved snapshot; `change-scope` or new commits invalidate it.
 
-The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. After a bead is closed and merged, `review-ledger.py cleanup --bead-id <bead>` (or `--all-closed`) removes its ledger.
+The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. After a bead is closed and merged, `review-ledger.py cleanup --bead-id <bead>` (or `--all-closed`) removes its ledger and its `refs/gin/review/` checkpoint refs; `--all-closed` also deletes leftover refs of closed beads whose ledger is already gone.
 
 ## The `.planning/` and `.agent-workflow/` trees
 

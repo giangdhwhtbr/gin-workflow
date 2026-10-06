@@ -23,6 +23,7 @@ from review_ledger.cli import (
     ledger_lock,
     load_ledger,
     mutate_ledger,
+    release_lease,
     resync_lease,
     start_review,
 )
@@ -843,6 +844,58 @@ class TestResyncLeaseEndToEnd(unittest.TestCase):
         with self.assertRaises(LeaseError):
             resync_lease(self.bead_id, "reviewer-b", "lease-a", base_dir=self.test_dir)
         self.assertEqual(before, json_path.read_bytes())
+
+
+class TestReleaseLease(unittest.TestCase):
+    """A reviewer that finishes releases its lease, so the implementer can write again."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.bead_id = "bead-release"
+        mutate_ledger(
+            self.bead_id, "ledger-created", {"repositories": []},
+            "worker", "w1", base_dir=self.test_dir,
+        )
+        mutate_ledger(self.bead_id, "implementation-complete", {}, "worker", "w1", base_dir=self.test_dir)
+        mutate_ledger(self.bead_id, "review-requested", {}, "worker", "w1", base_dir=self.test_dir)
+        start_review(self.bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
+        mutate_ledger(
+            self.bead_id, "finding-created", {"finding_id": "F-001", "severity": "IMPORTANT"},
+            "reviewer", "reviewer-a", base_dir=self.test_dir, lease_id="lease-a",
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_released_lease_lets_the_implementer_write_without_a_lease_id(self):
+        with self.assertRaisesRegex(ValueError, "Active lease exists"):
+            mutate_ledger(self.bead_id, "finding-fixed", {"finding_id": "F-001"},
+                          "worker", "w1", base_dir=self.test_dir)
+        log, projection = release_lease(self.bead_id, "reviewer-a", "lease-a", base_dir=self.test_dir)
+        self.assertEqual("lease-released", log.events[-1].action)
+        self.assertIsNone(projection.active_lease)
+        mutate_ledger(self.bead_id, "finding-fixed", {"finding_id": "F-001"},
+                      "worker", "w1", base_dir=self.test_dir)
+
+    def test_only_the_holder_may_release(self):
+        json_path = Path(get_ledger_paths(self.bead_id, base_dir=self.test_dir)[0])
+        before = json_path.read_bytes()
+        with self.assertRaises(LeaseError):
+            release_lease(self.bead_id, "reviewer-b", "lease-a", base_dir=self.test_dir)
+        with self.assertRaises(LeaseError):
+            release_lease(self.bead_id, "reviewer-a", "lease-other", base_dir=self.test_dir)
+        self.assertEqual(before, json_path.read_bytes())
+
+    def test_release_lease_subcommand(self):
+        script = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts/review-ledger.py"
+        process = subprocess.run(
+            [sys.executable, str(script), "release-lease", "--bead-id", self.bead_id,
+             "--actor-id", "reviewer-a", "--lease-id", "lease-a"],
+            cwd=self.test_dir, capture_output=True, text=True,
+        )
+        self.assertEqual(0, process.returncode, process.stderr)
+        _, projection = load_ledger(self.bead_id, base_dir=self.test_dir)
+        self.assertIsNone(projection.active_lease)
 
 
 class TestRecoverySubcommands(unittest.TestCase):

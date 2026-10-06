@@ -172,20 +172,6 @@ gin-workflow usage report [--bead ID | --epic ID | --since YYYY-MM-DD]
 
 Exit codes: 0 ok; 2 error. With `--best-effort`, `collect` turns any error into a `warning:` line and exits 0, so it never blocks closing a bead.
 
-## `gin-workflow describe`
-
-```
-gin-workflow describe ID [--out PATH] [--format text|json]
-```
-
-Writes a self-contained HTML file presenting an interactive visualization of the bead or epic. The page contains a fixed two-column template: an SVG graph on the left and full Beads details, metadata, and comments on the right.
-
-- **Graph scope**: The root bead, its ancestor parent chain up to the top, all descendant children down the parent-child hierarchy, and any bugs discovered from them (`discovered-from`, one hop). `blocks` dependencies between nodes in the graph are drawn as arrows; blockers outside the graph are listed in the bead's detail pane under `Blocked By`.
-- **Default output path**: `.agent-workflow/runtime/describe/<ID>.html`.
-- **Limits**: Maximum 300 nodes. If a graph exceeds 300 nodes, `describe` halts with exit code 3.
-
-Exit codes: 0 ok; 2 error (unknown bead or `bd` failure); 3 graph too large.
-
 ## `review-ledger.py`
 
 ```
@@ -196,10 +182,10 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 
 | Group | Commands |
 |---|---|
-| Lifecycle | `init`, `checkpoint`, `transition-requested`, `start-review`, `resync-lease`, `change-scope`, `approve`, `reject`, `accept-as-is`, `record-human-decision` |
+| Lifecycle | `init`, `checkpoint`, `transition-requested`, `start-review`, `resync-lease`, `release-lease`, `change-scope`, `approve`, `reject`, `accept-as-is`, `record-human-decision` |
 | Findings | `add-finding`, `fix-finding`, `dispute-finding`, `request-clarification`, `provide-clarification`, `propose-deferral`, `approve-deferral`, `verify-finding`, `reopen-finding`, `withdraw-finding`, `waive-finding` |
 | Inspection | `status`, `validate` (`--in-history` for an earlier track on a shared branch), `render` (`--check` for drift) |
-| Housekeeping | `cleanup` (`--bead-id` or `--all-closed`) |
+| Housekeeping | `cleanup` (`--bead-id` or `--all-closed`; also deletes the bead's `refs/gin/review/` refs) |
 
 `change-scope` and `reject` invalidate an active approval. `approve` requires a clean worktree.
 
