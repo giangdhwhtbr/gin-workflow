@@ -33,7 +33,7 @@ remote-install.sh                 clone-and-install for curl
 
 `install.sh` rebuilds `plugins/<plugin>/dist/<harness>/` from `src/` and registers it with each harness it finds; it also links the `gin-workflow` (and `gin-qa`) launcher into `~/.local/bin`.
 
-Each harness registers differently: Claude Code gets the bundle at `~/.claude/skills/<plugin>`, Codex and Antigravity register through their plugin marketplaces, and OpenCode gets the bundle at `~/.config/opencode/skills/<plugin>`, which it scans as a global skills source. The OpenCode bundle drops the Claude/Codex `agents/` and `commands/` files, rewrites the `${PLUGIN_ROOT}` variable to a relative path, and renames `report` to `gin-workflow-report` so it does not shadow OpenCode's built-in `report` skill.
+Each harness registers differently: Claude Code gets the bundle at `~/.claude/skills/<plugin>`, Codex and Antigravity register through their plugin marketplaces, and OpenCode gets the bundle at `~/.config/opencode/skills/<plugin>`, which it scans as a global skills source. The OpenCode bundle drops the Claude/Codex `agents/` and `commands/` files (so a project install never clobbers a repository's own `.opencode/agents` or `.opencode/commands`), rewrites the `${PLUGIN_ROOT}` variable to the absolute install path (shell commands run from the agent's working directory), and renames `report` to `gin-workflow-report` so it does not shadow OpenCode's built-in `report` skill.
 
 ```bash
 ./install.sh --platform all                 # build and install for every detected harness

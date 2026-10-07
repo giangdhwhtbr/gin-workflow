@@ -94,7 +94,7 @@ if [ "$UNINSTALL" = true ]; then
   for p_name in "${PLUGINS[@]}"; do
     rm -rf "${HOME}/.config/opencode/skills/${p_name}"
   done
-  echo "Removed generated dist output and OpenCode skill installs. Perform CLI manual uninstall/disable for Claude Code, Codex, and Antigravity."
+  echo "Removed generated dist output and the global OpenCode skill install. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
   exit 0
 fi
 
@@ -335,9 +335,15 @@ install_platform() {
   local hooks_root="$4"
   local manifest_path="$5"
   local include_schema="$6"
+  local install_root="${7:-}"
+
+  if [ "$platform" = "opencode" ]; then
+    install_opencode_bundle "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir" "$install_root"
+    return
+  fi
 
   copy_src "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir"
-  if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ] && [ "$platform" != "opencode" ]; then
+  if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ]; then
     mkdir -p "$target_dir/hooks"
     case "$platform" in
       claude)    template_hooks_for_claude "$target_dir/hooks/hooks.json" "$hooks_root" ;;
@@ -359,32 +365,58 @@ install_platform() {
   fi
 }
 
-prepare_opencode_bundle() {
-  local target="$1"
-  local file tmp
+# Write a transformed copy, so a --link symlink never edits the source file.
+rewrite_file() {
+  local file="$1"
+  local expression="$2"
+  local tmp
+  tmp="$(mktemp)"
+  sed "$expression" "$file" > "$tmp"
+  rm -f "$file"
+  mv "$tmp" "$file"
+}
 
-  # OpenCode does not load Claude/Codex agent or command files.
-  rm -rf "$target/agents" "$target/commands"
+install_opencode_bundle() {
+  local src="$1"
+  local target="$2"
+  local install_root="$3"
+  local dir file
 
-  # The `report` skill id collides with OpenCode's built-in `report` skill, so
-  # namespace the copy instead of silently shadowing the built-in one.
+  # OpenCode loads skills, references, scripts, rules, and templates. It has no
+  # use for the Claude/Codex agents/ and commands/ files, and copying them would
+  # risk clobbering a repository's own .opencode/agents or .opencode/commands.
+  mkdir -p "$target"
+  for dir in skills scripts references examples rules templates; do
+    [ -d "$src/$dir" ] || continue
+    [ -n "$(ls -A "$src/$dir" 2>/dev/null)" ] || continue
+    mkdir -p "$target/$dir"
+    if [ "$LINK" = true ]; then
+      cp -rsf "$src/$dir/." "$target/$dir/"
+    else
+      cp -rf "$src/$dir/." "$target/$dir/"
+    fi
+  done
+
+  # OpenCode selects a skill by its directory id, so keep the display `name`
+  # aligned with the renamed `report` directory (id `gin-workflow-report`).
   if [ -d "$target/skills/report" ]; then
     rm -rf "$target/skills/gin-workflow-report"
     mv "$target/skills/report" "$target/skills/gin-workflow-report"
+    rewrite_file "$target/skills/gin-workflow-report/SKILL.md" 's/^name: report$/name: gin-workflow-report/'
   fi
 
-  # Skills resolve support files relative to their own directory; replace the
-  # Codex/Antigravity ${PLUGIN_ROOT} variable with a relative path. Break the
-  # source link first so a --link install never rewrites the source tree.
-  while IFS= read -r file; do
-    [ -n "$file" ] || continue
-    if grep -q 'PLUGIN_ROOT' "$file" 2>/dev/null; then
-      tmp="$(mktemp)"
-      sed 's#\${PLUGIN_ROOT}/#../../#g' "$file" > "$tmp"
-      rm -f "$file"
-      mv "$tmp" "$file"
-    fi
-  done < <(find "$target/skills" -name '*.md' 2>/dev/null)
+  # Shell commands run from the agent's working directory, so point support
+  # scripts at the absolute install location; ${PLUGIN_ROOT} does not exist here.
+  # `find` (not `grep -r`) so a --link symlinked file is still inspected, then
+  # materialized only when it actually needs rewriting.
+  if [ -n "$install_root" ]; then
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      if grep -qF '${PLUGIN_ROOT}' "$file" 2>/dev/null; then
+        rewrite_file "$file" "s#\${PLUGIN_ROOT}#$install_root#g"
+      fi
+    done < <(find "$target" \( -type f -o -type l \) 2>/dev/null)
+  fi
 }
 
 is_managed_launcher_link() {
@@ -492,8 +524,7 @@ install_plugin() {
       install_platform "codex" "$p_name" "$PROJECT_DIR/.codex" "\${PLUGIN_ROOT}" "" ""
     fi
     if matches_platform "opencode"; then
-      install_platform "opencode" "$p_name" "$PROJECT_DIR/.opencode" "" "" ""
-      prepare_opencode_bundle "$PROJECT_DIR/.opencode"
+      install_platform "opencode" "$p_name" "$PROJECT_DIR/.opencode" "" "" "" "$PROJECT_DIR/.opencode"
     fi
     return
   fi
@@ -525,8 +556,7 @@ install_plugin() {
   fi
   if matches_platform "opencode"; then
     echo "Configuring OpenCode skill structure for $p_name..."
-    install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" ""
-    prepare_opencode_bundle "$dist_dir/opencode"
+    install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" "" "${HOME}/.config/opencode/skills/${p_name}"
   fi
 
   if [ "$DRY_RUN" = true ]; then

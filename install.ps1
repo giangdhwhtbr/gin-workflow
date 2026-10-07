@@ -179,16 +179,25 @@ function Convert-ClaudeAgents {
     }
 }
 
-function Convert-OpenCodeBundle {
-    param([Parameter(Mandatory)][string]$Destination)
-    # OpenCode does not load Claude/Codex agent or command files.
-    foreach ($stale in @('agents', 'commands')) {
-        $path = Join-Path $Destination $stale
-        if (Test-Path -LiteralPath $path) {
-            Remove-Item -LiteralPath $path -Recurse -Force
-        }
+function Install-OpenCodeBundle {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Destination,
+        [Parameter(Mandatory)][string]$InstallRoot
+    )
+    # OpenCode loads skills, references, scripts, rules, and templates. It has no
+    # use for the Claude/Codex agents/ and commands/ files, and copying them would
+    # risk clobbering a repository's own .opencode/agents or .opencode/commands.
+    New-Directory $Destination
+    foreach ($directory in @('skills', 'scripts', 'references', 'examples', 'rules', 'templates')) {
+        Copy-DirectoryContent `
+            -Source (Join-Path $Source $directory) `
+            -Destination (Join-Path $Destination $directory) `
+            -AsLink:$Link
     }
-    # The `report` skill id collides with OpenCode's built-in `report` skill.
+
+    # OpenCode selects a skill by its directory id; keep `name` aligned with the
+    # renamed `report` directory (id `gin-workflow-report`).
     $reportDirectory = Join-Path $Destination 'skills/report'
     if (Test-Path -LiteralPath $reportDirectory) {
         $renamed = Join-Path $Destination 'skills/gin-workflow-report'
@@ -196,21 +205,30 @@ function Convert-OpenCodeBundle {
             Remove-Item -LiteralPath $renamed -Recurse -Force
         }
         Move-Item -LiteralPath $reportDirectory -Destination $renamed
-    }
-    $skillsDirectory = Join-Path $Destination 'skills'
-    if (-not (Test-Path -LiteralPath $skillsDirectory)) {
-        return
-    }
-    foreach ($file in Get-ChildItem -LiteralPath $skillsDirectory -Recurse -Filter '*.md') {
-        $content = [IO.File]::ReadAllText($file.FullName)
-        if (-not $content.Contains('${PLUGIN_ROOT}')) {
-            continue
+        $reportSkill = Join-Path $renamed 'SKILL.md'
+        if (Test-Path -LiteralPath $reportSkill) {
+            $content = [regex]::Replace([IO.File]::ReadAllText($reportSkill), '(?m)^name: report$', 'name: gin-workflow-report')
+            if ($null -ne (Get-Item -LiteralPath $reportSkill).LinkType) {
+                Remove-Item -LiteralPath $reportSkill -Force
+            }
+            Write-Utf8File -Path $reportSkill -Content $content
         }
-        $content = $content.Replace('${PLUGIN_ROOT}/', '../../')
-        if ($null -ne $file.LinkType) {
-            Remove-Item -LiteralPath $file.FullName -Force
+    }
+
+    # Shell commands run from the agent's working directory, so point support
+    # scripts at the absolute install location; ${PLUGIN_ROOT} does not exist here.
+    if (-not [string]::IsNullOrWhiteSpace($InstallRoot)) {
+        foreach ($file in Get-ChildItem -LiteralPath $Destination -Recurse -File) {
+            $content = [IO.File]::ReadAllText($file.FullName)
+            if (-not $content.Contains('${PLUGIN_ROOT}')) {
+                continue
+            }
+            $content = $content.Replace('${PLUGIN_ROOT}', $InstallRoot)
+            if ($null -ne $file.LinkType) {
+                Remove-Item -LiteralPath $file.FullName -Force
+            }
+            Write-Utf8File -Path $file.FullName -Content $content
         }
-        Write-Utf8File -Path $file.FullName -Content $content
     }
 }
 
@@ -220,10 +238,15 @@ function Install-PlatformLayout {
         [Parameter(Mandatory)][string]$PluginDirectory,
         [Parameter(Mandatory)][string]$Destination,
         [Parameter(Mandatory)][string]$HooksRoot,
-        [string]$ManifestPath
+        [string]$ManifestPath,
+        [string]$InstallRoot
     )
+    if ($Harness -eq 'opencode') {
+        Install-OpenCodeBundle -Source (Join-Path $PluginDirectory 'src') -Destination $Destination -InstallRoot $InstallRoot
+        return
+    }
     Copy-PluginSource -PluginSource (Join-Path $PluginDirectory 'src') -Destination $Destination
-    if ((Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/hooks') -PathType Container) -and ($Harness -in @('claude', 'antigravity', 'codex'))) {
+    if (Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/hooks') -PathType Container) {
         New-HooksFile -Harness $Harness -OutputPath (Join-Path $Destination 'hooks/hooks.json') -HooksRoot $HooksRoot
     }
     if ($Harness -eq 'claude') {
@@ -428,8 +451,7 @@ function Install-Plugin {
         }
         if (Test-Platform 'opencode') {
             $target = Join-Path $Project '.opencode'
-            Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath ''
-            Convert-OpenCodeBundle -Destination $target
+            Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath '' -InstallRoot $target
         }
         return
     }
@@ -456,8 +478,7 @@ function Install-Plugin {
     if (Test-Platform 'opencode') {
         $target = Join-Path $distDirectory 'opencode'
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
-        Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath ''
-        Convert-OpenCodeBundle -Destination $target
+        Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath '' -InstallRoot (Join-Path $UserHome ".config/opencode/skills/$Name")
     }
 
     if ($DryRun) {
@@ -545,7 +566,7 @@ if ($Uninstall) {
             Remove-Item -LiteralPath $opencodeSkills -Recurse -Force
         }
     }
-    Write-Output 'Removed generated dist output and OpenCode skill installs. Perform CLI manual uninstall/disable for Claude Code, Codex, and Antigravity.'
+    Write-Output 'Removed generated dist output and the global OpenCode skill install. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
     return
 }
 

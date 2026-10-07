@@ -20,7 +20,7 @@ If they are missing:
 - Check the bundle exists: `ls ~/.config/opencode/skills/gin-workflow/skills`.
 - Reload OpenCode, then list skills to confirm registration.
 
-The installer prunes the Claude/Codex `agents/` and `commands/` files from the OpenCode bundle and rewrites the Codex/Antigravity `${PLUGIN_ROOT}` variable to a relative path. OpenCode has no `PreToolUse`/`PostToolUse` hook system, so the bundle's safety and post-edit hooks do not run there; lifecycle gates are still enforced by the `gin-workflow` CLI.
+The installer prunes the Claude/Codex `agents/` and `commands/` files from the OpenCode bundle (leaving a repository's own `.opencode/agents` and `.opencode/commands` untouched) and rewrites the Codex/Antigravity `${PLUGIN_ROOT}` variable to the absolute install path, because shell commands run from the agent's working directory. OpenCode has no `PreToolUse`/`PostToolUse` hook system, so the bundle's safety and post-edit hooks do not run there; lifecycle gates are still enforced by the `gin-workflow` CLI.
 
 `gin-workflow`'s `report` skill installs as `gin-workflow-report` in OpenCode. Its original id would otherwise shadow OpenCode's built-in `report` skill, so invoke it with `@gin-workflow-report`; the built-in `report` skill keeps working.
 
