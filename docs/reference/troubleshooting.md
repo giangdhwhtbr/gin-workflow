@@ -13,17 +13,18 @@ Use `--platform claude` for Claude Code; installer options are in [Contributing]
 
 ## OpenCode does not show the gin-workflow skills
 
-OpenCode discovers global skills in `~/.config/opencode/skills`, and the installer writes the bundle to `~/.config/opencode/skills/gin-workflow`. OpenCode scans nested `SKILL.md` files, so the `skills/<name>/SKILL.md` entries inside the bundle register as skills.
+OpenCode discovers global skills in `~/.config/opencode/skills`, and the installer writes the bundle to `~/.config/opencode/skills/gin-workflow` whenever `--platform opencode` (or `all`) runs. It does not need the `opencode` CLI on `PATH`. OpenCode scans nested `SKILL.md` files, so the `skills/<name>/SKILL.md` entries inside the bundle register as skills.
 
 If they are missing:
 
-- Confirm `opencode` was on `PATH` when the installer ran. The OpenCode install is skipped when the CLI is not detected, so re-run `./install.sh --platform opencode` after installing OpenCode.
 - Check the bundle exists: `ls ~/.config/opencode/skills/gin-workflow/skills`.
 - Reload OpenCode, then list skills to confirm registration.
 
-OpenCode hosts the skills, but gin-workflow's routed workers still need the Claude, Codex, or Antigravity CLIs to execute delegated tracks — there is no OpenCode worker adapter. See [Providers](../concepts/providers.md).
+The installer prunes the Claude/Codex `agents/` and `commands/` files from the OpenCode bundle and rewrites the Codex/Antigravity `${PLUGIN_ROOT}` variable to a relative path. OpenCode has no `PreToolUse`/`PostToolUse` hook system, so the bundle's safety and post-edit hooks do not run there; lifecycle gates are still enforced by the `gin-workflow` CLI.
 
-OpenCode selects skills by id, so gin-workflow's `report` skill (AI usage per bead or epic) shares the id of OpenCode's built-in `report` skill and takes precedence while the bundle is installed. The gin-workflow `report` workflow is the one that loads; the built-in issue-report skill is shadowed.
+`gin-workflow`'s `report` skill installs as `gin-workflow-report` in OpenCode. Its original id would otherwise shadow OpenCode's built-in `report` skill, so invoke it with `@gin-workflow-report`; the built-in `report` skill keeps working.
+
+OpenCode hosts the skills, but gin-workflow's routed workers still need the Claude, Codex, or Antigravity CLIs to execute delegated tracks — there is no OpenCode worker adapter. See [Providers](../concepts/providers.md).
 
 
 ## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`

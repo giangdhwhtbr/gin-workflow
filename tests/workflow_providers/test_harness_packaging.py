@@ -130,10 +130,18 @@ class HarnessPackagingTests(unittest.TestCase):
 
     def test_dry_run_builds_every_harness_layout(self):
         self.assertEqual(0, self.install.returncode, self.install.stderr)
+        # OpenCode drops Claude/Codex agent and command files, and renames the
+        # `report` skill to `gin-workflow-report` to avoid shadowing OpenCode's
+        # built-in `report` skill.
+        opencode_removed = {"agents/developer.md", "skills/report/SKILL.md"}
+        opencode_added = {"skills/gin-workflow-report/SKILL.md"}
         for harness in ("claude-code", "codex", "antigravity", "opencode"):
             with self.subTest(harness=harness):
                 root = self.dist / harness
-                missing = [relative for relative in REQUIRED_ARTIFACTS if not (root / relative).is_file()]
+                required = [r for r in REQUIRED_ARTIFACTS if not (harness == "opencode" and r in opencode_removed)]
+                if harness == "opencode":
+                    required += sorted(opencode_added)
+                missing = [relative for relative in required if not (root / relative).is_file()]
                 self.assertEqual([], missing)
 
     def test_removed_agents_are_gone_and_unreferenced(self):
@@ -160,9 +168,13 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
         root = self.dist / "opencode"
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())
+        self.assertTrue((root / "skills/gin-workflow-report/SKILL.md").is_file())
         self.assertTrue((root / "references/stage-contract.md").is_file())
         self.assertFalse((root / "hooks").exists())
         self.assertFalse((root / "plugin.json").exists())
+        # Claude/Codex-only files are pruned for OpenCode.
+        self.assertFalse((root / "agents").exists())
+        self.assertFalse((root / "commands").exists())
 
     def test_plugin_metadata_and_harness_manifests_publish_current_version(self):
         manifests = (

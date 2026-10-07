@@ -179,12 +179,47 @@ function Convert-ClaudeAgents {
     }
 }
 
+function Convert-OpenCodeBundle {
+    param([Parameter(Mandatory)][string]$Destination)
+    # OpenCode does not load Claude/Codex agent or command files.
+    foreach ($stale in @('agents', 'commands')) {
+        $path = Join-Path $Destination $stale
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Recurse -Force
+        }
+    }
+    # The `report` skill id collides with OpenCode's built-in `report` skill.
+    $reportDirectory = Join-Path $Destination 'skills/report'
+    if (Test-Path -LiteralPath $reportDirectory) {
+        $renamed = Join-Path $Destination 'skills/gin-workflow-report'
+        if (Test-Path -LiteralPath $renamed) {
+            Remove-Item -LiteralPath $renamed -Recurse -Force
+        }
+        Move-Item -LiteralPath $reportDirectory -Destination $renamed
+    }
+    $skillsDirectory = Join-Path $Destination 'skills'
+    if (-not (Test-Path -LiteralPath $skillsDirectory)) {
+        return
+    }
+    foreach ($file in Get-ChildItem -LiteralPath $skillsDirectory -Recurse -Filter '*.md') {
+        $content = [IO.File]::ReadAllText($file.FullName)
+        if (-not $content.Contains('${PLUGIN_ROOT}')) {
+            continue
+        }
+        $content = $content.Replace('${PLUGIN_ROOT}/', '../../')
+        if ($null -ne $file.LinkType) {
+            Remove-Item -LiteralPath $file.FullName -Force
+        }
+        Write-Utf8File -Path $file.FullName -Content $content
+    }
+}
+
 function Install-PlatformLayout {
     param(
         [Parameter(Mandatory)][ValidateSet('claude', 'antigravity', 'codex', 'opencode')][string]$Harness,
         [Parameter(Mandatory)][string]$PluginDirectory,
         [Parameter(Mandatory)][string]$Destination,
-        [string]$HooksRoot,
+        [Parameter(Mandatory)][string]$HooksRoot,
         [string]$ManifestPath
     )
     Copy-PluginSource -PluginSource (Join-Path $PluginDirectory 'src') -Destination $Destination
@@ -393,7 +428,8 @@ function Install-Plugin {
         }
         if (Test-Platform 'opencode') {
             $target = Join-Path $Project '.opencode'
-            Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -ManifestPath ''
+            Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath ''
+            Convert-OpenCodeBundle -Destination $target
         }
         return
     }
@@ -420,7 +456,8 @@ function Install-Plugin {
     if (Test-Platform 'opencode') {
         $target = Join-Path $distDirectory 'opencode'
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
-        Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -ManifestPath ''
+        Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath ''
+        Convert-OpenCodeBundle -Destination $target
     }
 
     if ($DryRun) {
@@ -450,7 +487,7 @@ function Install-Plugin {
         Enable-ClaudePlugin -Name $Name
         Write-Output "Successfully installed and enabled $Name globally in Claude Code!"
     }
-    if ((Test-Platform 'opencode') -and (Get-Command opencode -ErrorAction SilentlyContinue)) {
+    if (Test-Platform 'opencode') {
         $source = Join-Path $distDirectory 'opencode'
         $destination = Join-Path $UserHome ".config/opencode/skills/$Name"
         if (Test-Path -LiteralPath $destination) {
@@ -502,7 +539,13 @@ if ($Uninstall) {
             Remove-Item -LiteralPath $directory -Recurse -Force
         }
     }
-    Write-Output 'Cleaned built dist folders. Perform CLI manual uninstall/disable if registered globally.'
+    foreach ($name in $Plugins) {
+        $opencodeSkills = Join-Path $UserHome ".config/opencode/skills/$name"
+        if (Test-Path -LiteralPath $opencodeSkills) {
+            Remove-Item -LiteralPath $opencodeSkills -Recurse -Force
+        }
+    }
+    Write-Output 'Removed generated dist output and OpenCode skill installs. Perform CLI manual uninstall/disable for Claude Code, Codex, and Antigravity.'
     return
 }
 

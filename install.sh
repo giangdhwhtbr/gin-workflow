@@ -91,14 +91,16 @@ fi
 if [ "$UNINSTALL" = true ]; then
   echo "Uninstalling plugins..."
   rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist
-  echo "Cleaned built dist folders. Perform CLI manual uninstall/disable if registered globally."
+  for p_name in "${PLUGINS[@]}"; do
+    rm -rf "${HOME}/.config/opencode/skills/${p_name}"
+  done
+  echo "Removed generated dist output and OpenCode skill installs. Perform CLI manual uninstall/disable for Claude Code, Codex, and Antigravity."
   exit 0
 fi
 
 HAS_CLAUDE=false
 HAS_AGY=false
 HAS_CODEX=false
-HAS_OPENCODE=false
 if command -v claude &> /dev/null; then
   HAS_CLAUDE=true
 fi
@@ -107,9 +109,6 @@ if command -v agy &> /dev/null; then
 fi
 if command -v codex &> /dev/null; then
   HAS_CODEX=true
-fi
-if command -v opencode &> /dev/null; then
-  HAS_OPENCODE=true
 fi
 
 matches_platform() {
@@ -360,6 +359,34 @@ install_platform() {
   fi
 }
 
+prepare_opencode_bundle() {
+  local target="$1"
+  local file tmp
+
+  # OpenCode does not load Claude/Codex agent or command files.
+  rm -rf "$target/agents" "$target/commands"
+
+  # The `report` skill id collides with OpenCode's built-in `report` skill, so
+  # namespace the copy instead of silently shadowing the built-in one.
+  if [ -d "$target/skills/report" ]; then
+    rm -rf "$target/skills/gin-workflow-report"
+    mv "$target/skills/report" "$target/skills/gin-workflow-report"
+  fi
+
+  # Skills resolve support files relative to their own directory; replace the
+  # Codex/Antigravity ${PLUGIN_ROOT} variable with a relative path. Break the
+  # source link first so a --link install never rewrites the source tree.
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    if grep -q 'PLUGIN_ROOT' "$file" 2>/dev/null; then
+      tmp="$(mktemp)"
+      sed 's#\${PLUGIN_ROOT}/#../../#g' "$file" > "$tmp"
+      rm -f "$file"
+      mv "$tmp" "$file"
+    fi
+  done < <(find "$target/skills" -name '*.md' 2>/dev/null)
+}
+
 is_managed_launcher_link() {
   local launcher_link="$1"
   local managed_root="$2"
@@ -466,6 +493,7 @@ install_plugin() {
     fi
     if matches_platform "opencode"; then
       install_platform "opencode" "$p_name" "$PROJECT_DIR/.opencode" "" "" ""
+      prepare_opencode_bundle "$PROJECT_DIR/.opencode"
     fi
     return
   fi
@@ -480,7 +508,6 @@ install_plugin() {
   mkdir -p "$dist_dir/claude-code/.claude-plugin"
   mkdir -p "$dist_dir/antigravity"
   mkdir -p "$dist_dir/codex/.codex-plugin"
-  mkdir -p "$dist_dir/opencode"
 
   if matches_platform "claude"; then
     echo "Configuring Claude Code plugin structure for $p_name..."
@@ -499,6 +526,7 @@ install_plugin() {
   if matches_platform "opencode"; then
     echo "Configuring OpenCode skill structure for $p_name..."
     install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" ""
+    prepare_opencode_bundle "$dist_dir/opencode"
   fi
 
   if [ "$DRY_RUN" = true ]; then
@@ -527,7 +555,7 @@ install_plugin() {
     enable_claude_plugin "$p_name"
     echo "Successfully installed and enabled $p_name globally in Claude Code!"
   fi
-  if matches_platform "opencode" && [ "$HAS_OPENCODE" = true ]; then
+  if matches_platform "opencode"; then
     local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
     echo "Installing $p_name skills globally to OpenCode: $opencode_install_dir"
     rm -rf "$opencode_install_dir"

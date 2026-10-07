@@ -57,7 +57,7 @@ codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
 codex plugin add gin-workflow@gin-workflow-marketplace
 ```
 
-Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either — the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI.
+Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either — the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
 
 ## Quickstart
 

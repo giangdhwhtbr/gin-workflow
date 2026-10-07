@@ -74,6 +74,14 @@ try {
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/references/explore-case.md')
 
+    $opencodeDryRun = Invoke-Installer @{ Platform = 'opencode'; DryRun = $true }
+    Assert-Contains $opencodeDryRun 'Configuring OpenCode skill structure for gin-workflow'
+    Assert-Contains $opencodeDryRun 'would install global OpenCode skills to'
+    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist/opencode/agents'))) 'OpenCode dry-run kept agents'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist/opencode/hooks'))) 'OpenCode dry-run wrote hooks'
+
     $project = Join-Path $TestRoot 'project'
     New-Item -ItemType Directory -Path $project | Out-Null
     Invoke-Installer @{ Platform = 'all'; Project = $project } | Out-Null
@@ -81,6 +89,8 @@ try {
     Assert-Exists (Join-Path $project '.agents/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.opencode/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $project '.opencode/skills/gin-workflow-report/SKILL.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $project '.opencode/agents'))) 'OpenCode project install kept agents'
     Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
@@ -226,12 +236,24 @@ try {
     }
     Assert-True $agyFailureDetected 'Expected a failing Antigravity registration command to fail installation'
 
-    $opencodeMockBin = New-MockCommand -Name 'opencode' -ExitCode 0
-    $env:PATH = "$opencodeMockBin$([IO.Path]::PathSeparator)$OriginalPath"
     Invoke-Installer @{ Platform = 'opencode' } | Out-Null
     Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/agents'))) 'OpenCode install kept agents'
     Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/references/stage-contract.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/hooks'))) 'OpenCode install wrote hooks'
+
+    $opencodeLinkProject = Join-Path $TestRoot 'opencode-link-project'
+    New-Item -ItemType Directory -Path $opencodeLinkProject | Out-Null
+    $sourceTelegram = Join-Path $Root 'plugins/gin-workflow/src/skills/telegram-notify/SKILL.md'
+    $telegramBefore = [IO.File]::ReadAllBytes($sourceTelegram)
+    Invoke-Installer @{ Platform = 'opencode'; Project = $opencodeLinkProject; Link = $true } | Out-Null
+    Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-workflow-report/SKILL.md')
+    Assert-True `
+        ([Convert]::ToBase64String($telegramBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceTelegram))) `
+        'Linked OpenCode install rewrote the source skill'
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $opencodeLinkProject '.opencode/skills/telegram-notify/SKILL.md'))) '../../scripts/telegram.sh'
     $env:PATH = $OriginalPath
 
     $shim = Join-Path $TestHome '.local/bin/gin-workflow.cmd'
