@@ -147,12 +147,16 @@ class TestRecordGitHub(GateCase):
         for form in ("git@github.com:Org/App.git", "ssh://git@github.com/org/app", "https://github.com/org/app.git",
                      "https://github.com/org/app/pull/7"):
             with self.subTest(form):
-                self.assertEqual("github.com/org/app", repo_slug(form))
-        self.assertEqual("gitlab.corp.com/group/app", repo_slug(MR))
-        self.assertEqual("gitlab.corp.com/group/pull/app",
-                         repo_slug("https://gitlab.corp.com/group/pull/app/-/merge_requests/3"))
-        self.assertNotEqual(repo_slug("https://gitlab.corp.com/group/pull/other/-/merge_requests/3"),
-                            repo_slug("git@gitlab.corp.com:group/pull/app.git"))
+                self.assertEqual("github.com/org/app", repo_slug(form, pr=form.endswith("/7")))
+        self.assertEqual("gitlab.corp.com/group/app", repo_slug(MR, pr=True))
+        for namespace in ("group/pull/app", "group/pull/123/app", "group/sub/pull/5"):
+            with self.subTest(namespace):
+                remote = repo_slug(f"git@gitlab.corp.com:{namespace}.git")
+                self.assertEqual(f"gitlab.corp.com/{namespace}", remote)
+                self.assertEqual(remote, repo_slug(f"https://gitlab.corp.com/{namespace}/-/merge_requests/3/diffs",
+                                                   pr=True))
+        self.assertNotEqual(repo_slug("https://gitlab.corp.com/group/pull/123/other/-/merge_requests/3", pr=True),
+                            repo_slug("git@gitlab.corp.com:group/pull/123/app.git"))
 
     def test_pr_from_another_repository_is_rejected(self):
         self.gh(gh_pr(url="https://github.com/other/app/pull/7", files=[SPEC_PATH],

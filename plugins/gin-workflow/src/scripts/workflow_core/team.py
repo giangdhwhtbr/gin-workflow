@@ -253,11 +253,11 @@ def _approver_roles(pr: Any, team: TeamConfig, *, on_commit: str | None = None) 
 
 
 _SCP = re.compile(r"^[\w.-]+@([^:/]+):(.+)$")
-_PR_SUFFIX = re.compile(r"/(?:-/merge_requests|pull)/\d+(?:/.*)?$")
 
 
-def repo_slug(location: str) -> str:
-    """`host/group/project` of a git remote or PR/MR URL; SSH, scp-style and HTTPS forms compare equal."""
+def repo_slug(location: str, *, pr: bool = False) -> str:
+    """`host/group/project` of a git remote, or with `pr` of a PR/MR URL; SSH, scp-style and HTTPS forms
+    compare equal. A GitLab MR path ends the project at `/-/`; a GitHub PR path is `owner/repo/pull/N`."""
     text = location.strip()
     scp = _SCP.match(text)
     if scp and "://" not in text:
@@ -265,7 +265,9 @@ def repo_slug(location: str) -> str:
     else:
         parsed = urlparse(text)
         host, path = parsed.hostname or "", parsed.path
-    path = _PR_SUFFIX.sub("", path.strip("/"))
+    path = path.strip("/")
+    if pr:
+        path = path.split("/-/", 1)[0] if "/-/" in path else "/".join(path.split("/")[:2])
     return f"{host}/{path.removesuffix('.git')}".lower()
 
 
@@ -305,7 +307,7 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
     policy = team.approvals.get(gate, [])
     reasons: list[str] = []
-    expected, actual = origin_slug(Path(root)), repo_slug(pr.url)
+    expected, actual = origin_slug(Path(root)), repo_slug(pr.url, pr=True)
     if actual != expected:
         reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
     if gate == "verification_passed":
@@ -406,7 +408,7 @@ def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, 
     if reasons:
         raise TeamRejected(reasons)
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
-                          "approvers": approver_payload(pr, team), "repository": repo_slug(pr.url),
+                          "approvers": approver_payload(pr, team), "repository": repo_slug(pr.url, pr=True),
                           **({"artifact": artifact} if artifact else {})}
 
 
