@@ -149,6 +149,10 @@ class TestRecordGitHub(GateCase):
             with self.subTest(form):
                 self.assertEqual("github.com/org/app", repo_slug(form))
         self.assertEqual("gitlab.corp.com/group/app", repo_slug(MR))
+        self.assertEqual("gitlab.corp.com/group/pull/app",
+                         repo_slug("https://gitlab.corp.com/group/pull/app/-/merge_requests/3"))
+        self.assertNotEqual(repo_slug("https://gitlab.corp.com/group/pull/other/-/merge_requests/3"),
+                            repo_slug("git@gitlab.corp.com:group/pull/app.git"))
 
     def test_pr_from_another_repository_is_rejected(self):
         self.gh(gh_pr(url="https://github.com/other/app/pull/7", files=[SPEC_PATH],

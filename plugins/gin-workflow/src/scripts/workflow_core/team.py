@@ -253,6 +253,7 @@ def _approver_roles(pr: Any, team: TeamConfig, *, on_commit: str | None = None) 
 
 
 _SCP = re.compile(r"^[\w.-]+@([^:/]+):(.+)$")
+_PR_SUFFIX = re.compile(r"/(?:-/merge_requests|pull)/\d+(?:/.*)?$")
 
 
 def repo_slug(location: str) -> str:
@@ -264,9 +265,7 @@ def repo_slug(location: str) -> str:
     else:
         parsed = urlparse(text)
         host, path = parsed.hostname or "", parsed.path
-    path = path.strip("/")
-    for marker in ("/-/merge_requests/", "/pull/"):
-        path = path.split(marker)[0]
+    path = _PR_SUFFIX.sub("", path.strip("/"))
     return f"{host}/{path.removesuffix('.git')}".lower()
 
 
