@@ -29,6 +29,7 @@ class PrInfo:
     approvals: tuple[tuple[str, str], ...]  # (login, commit the approval was made on; "" when unknown)
     files: tuple[str, ...]
     body: str = ""
+    approval_note: str = ""                 # why approvals carry no commit (GitLab), shown when none count
 
 
 def _run(host: str, argv: list[str], cwd: Path) -> Any:
@@ -81,25 +82,45 @@ def _gitlab_ref(url: str) -> tuple[str, str]:
     return f"{parsed.scheme}://{parsed.netloc}/{project}", rest.split("/")[0]
 
 
+_UNSETTLED = {"checking", "approvals_syncing"}
+
+
 def _gitlab(url: str, cwd: Path) -> PrInfo:
     repo, iid = _gitlab_ref(url)
     host = urlparse(url).netloc
-    data = _run("gitlab", ["mr", "view", iid, "-R", repo, "-F", "json"], cwd)
-    base = f"projects/{data['project_id']}/merge_requests/{iid}"
+    view = ["mr", "view", iid, "-R", repo, "-F", "json"]
+    data = _run("gitlab", view, cwd)
+    project = f"projects/{data['project_id']}"
+    base = f"{project}/merge_requests/{iid}"
     approvals = _run("gitlab", ["api", "--hostname", host, f"{base}/approvals"], cwd)
     changes = _run("gitlab", ["api", "--hostname", host, f"{base}/changes"], cwd)
+    after = _run("gitlab", view, cwd)
+    settings = _run("gitlab", ["api", "--hostname", host, f"{project}/approvals"], cwd) or {}
+    versions = _run("gitlab", ["api", "--hostname", host, f"{base}/versions"], cwd) or []
+    head = data.get("sha", "")
+    commit, note = "", ""
+    if not settings.get("reset_approvals_on_push"):
+        note = ("GitLab approvals are not tied to a commit: enable 'Reset approvals on push' "
+                "(reset_approvals_on_push) on the project")
+    elif (after.get("sha") != head
+          or {data.get("detailed_merge_status"), after.get("detailed_merge_status")} & _UNSETTLED
+          or not any(item.get("head_commit_sha") == head and item.get("patch_id_sha") for item in versions)):
+        note = "approvals still syncing; retry"
+    else:
+        commit = head
     state = {"opened": "open"}.get(str(data.get("state", "")), str(data.get("state", "")))
     return PrInfo(
         url=data.get("web_url", url),
         state=state,
         merged=state == "merged",
         merge_commit=data.get("merge_commit_sha") or data.get("squash_commit_sha") or "",
-        head_sha=data.get("sha", ""),
+        head_sha=head,
         author=(data.get("author") or {}).get("username", ""),
-        approvals=tuple(((item.get("user") or {}).get("username", ""), "")
+        approvals=tuple(((item.get("user") or {}).get("username", ""), commit)
                         for item in approvals.get("approved_by") or []),
         files=tuple(item.get("new_path", "") for item in changes.get("changes") or []),
         body=data.get("description") or "",
+        approval_note=note,
     )
 
 

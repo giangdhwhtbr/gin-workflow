@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 from typing import Any, Mapping
+from urllib.parse import urlparse
 
 GATES = ("requirement_confirmed", "plan_approved", "verification_passed")
 DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead",
@@ -238,12 +239,12 @@ def check_plan(team: TeamConfig, path: Path) -> list[str]:
 
 
 def _approver_roles(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> dict[str, set[str]]:
-    """Roles per approving login, excluding the PR author and approvals on other commits."""
+    """Roles per approving login, excluding the PR author and approvals not made on `on_commit`."""
     roles: dict[str, set[str]] = {}
     for login, commit in pr.approvals:
         if login.lower() == pr.author.lower():
             continue
-        if on_commit and commit and commit != on_commit:
+        if on_commit and commit != on_commit:
             continue
         member = team.by_login(login)
         if member is not None:
@@ -251,39 +252,90 @@ def _approver_roles(pr: Any, team: TeamConfig, *, on_commit: str | None = None) 
     return roles
 
 
-def _plan_in(pr: Any, root: Path, plan: str | None) -> Path:
-    if plan:
-        return Path(root) / plan
-    candidates = [item for item in pr.files
-                  if item.endswith(".md") and ("/plans/" in f"/{item}" or item.endswith("/plan.md"))]
-    if not candidates:
-        raise TeamError("the PR changes no plan file; pass --plan <path>")
-    return Path(root) / candidates[0]
+_SCP = re.compile(r"^[\w.-]+@([^:/]+):(.+)$")
 
 
-def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, plan: str | None = None,
+def repo_slug(location: str) -> str:
+    """`host/group/project` of a git remote or PR/MR URL; SSH, scp-style and HTTPS forms compare equal."""
+    text = location.strip()
+    scp = _SCP.match(text)
+    if scp and "://" not in text:
+        host, path = scp.group(1), scp.group(2)
+    else:
+        parsed = urlparse(text)
+        host, path = parsed.hostname or "", parsed.path
+    path = path.strip("/")
+    for marker in ("/-/merge_requests/", "/pull/"):
+        path = path.split(marker)[0]
+    return f"{host}/{path.removesuffix('.git')}".lower()
+
+
+def origin_slug(root: Path) -> str:
+    done = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, text=True, capture_output=True,
+                          check=False)
+    if done.returncode != 0 or not done.stdout.strip():
+        raise TeamError("no git remote 'origin'; team gates compare the PR repository with it")
+    return repo_slug(done.stdout)
+
+
+def _is_artifact(path: str, gate: str, changes: str) -> bool:
+    if gate == "requirement_confirmed":
+        return (path.startswith(".planning/specs/") and path.endswith(".md")) or (
+            path.startswith(f"{changes}/") and path.endswith("/spec-delta.md"))
+    return (path.startswith(".planning/plans/") and path.endswith(".md")) or (
+        path.startswith(f"{changes}/") and path.endswith("/plan.md"))
+
+
+def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> str:
+    """The spec or plan the gate approves: the selector, else the one candidate the PR changes."""
+    if selected:
+        return selected
+    from .specs import load_config, sdd_config
+
+    kind, flag = ("spec", "--spec") if gate == "requirement_confirmed" else ("plan", "--plan")
+    changes = str(sdd_config(load_config(Path(root)))["changes"]).strip("/")
+    candidates = [item for item in pr.files if _is_artifact(item, gate, changes)]
+    if len(candidates) != 1:
+        raise TeamError(f"the PR must change exactly one {kind} file (found: {', '.join(candidates) or 'none'}); "
+                        f"pass {flag} <path>")
+    return candidates[0]
+
+
+def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact: str = "",
                    local_head: str = "") -> list[str]:
     """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
     policy = team.approvals.get(gate, [])
     reasons: list[str] = []
+    expected, actual = origin_slug(Path(root)), repo_slug(pr.url)
+    if actual != expected:
+        reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
     if gate == "verification_passed":
         if pr.state not in ("open", "merged"):
             reasons.append(f"PR is {pr.state}")
         if local_head and pr.head_sha != local_head:
             reasons.append(f"PR head {pr.head_sha[:12]} is not local HEAD {local_head[:12]}")
         approvers = _approver_roles(pr, team, on_commit=pr.head_sha)
+        if not approvers and pr.approval_note:
+            reasons.append(pr.approval_note)
     else:
         if not pr.merged:
             reasons.append(f"PR is {pr.state}, not merged")
+        if artifact not in pr.files:
+            reasons.append(f"PR does not change {artifact}")
         approvers = _approver_roles(pr, team)
+    tracks: list[Track] = []
+    if gate == "plan_approved":
+        plan = Path(root) / artifact
+        if plan.is_file():
+            reasons += check_plan(team, plan)
+            tracks = plan_tracks(plan)
+        else:
+            reasons.append(f"{artifact} is not in this checkout; pull the merged plan")
     held = set().union(*approvers.values()) if approvers else set()
     if policy == "area_lead":
-        areas = sorted({track.area for track in plan_tracks(_plan_in(pr, root, plan)) if track.area})
-        for name in areas:
+        for name in sorted({track.area for track in tracks if track.area}):
             area = team.areas.get(name)
-            if area is None:
-                reasons.append(f"plan names unknown area {name}")
-            elif area.lead not in held:
+            if area is not None and area.lead not in held:
                 reasons.append(f"missing approval from {area.lead} for area {name}")
     elif policy and not held & set(policy):
         reasons.append(f"missing approval from one of {', '.join(policy)}")
@@ -330,29 +382,33 @@ def _head(root: Path) -> str:
                           check=False).stdout.strip()
 
 
-def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *,
-                plan: str | None = None) -> tuple[Any, list[str]]:
-    """Fetch the PR/MR and return it with the reasons it fails the gate (HostUnavailable propagates)."""
+def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str | None = None,
+                spec: str | None = None) -> tuple[Any, str, list[str]]:
+    """Fetch the PR/MR and return it, the approved artifact, and the reasons it fails the gate
+    (HostUnavailable propagates)."""
     from .team_host import fetch_pr
 
     if not url.startswith(("https://", "http://")):
         raise TeamError(f"{gate} needs a PR/MR URL as --evidence in team mode, got {url!r}")
     pr = fetch_pr(url, team.host, Path(root))
+    artifact = "" if gate == "verification_passed" else resolve_artifact(
+        pr, Path(root), gate, plan if gate == "plan_approved" else spec)
     head = _head(Path(root)) if gate == "verification_passed" else ""
-    return pr, check_approval(gate, pr, team, root=Path(root), plan=plan, local_head=head)
+    return pr, artifact, check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
 
 
 def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, actor: str | None = None,
-                     plan: str | None = None) -> tuple[str, dict[str, Any]]:
+                     plan: str | None = None, spec: str | None = None) -> tuple[str, dict[str, Any]]:
     """Team-mode `record`: the member's email as actor plus, for a gate with a policy, the PR proof."""
     member = require_member(root, team, actor)
     if gate not in GATES or not has_policy(gate, team):
         return member.email, {}
-    pr, reasons = verify_gate(root, team, gate, evidence, plan=plan)
+    pr, artifact, reasons = verify_gate(root, team, gate, evidence, plan=plan, spec=spec)
     if reasons:
         raise TeamRejected(reasons)
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
-                          "approvers": approver_payload(pr, team)}
+                          "approvers": approver_payload(pr, team), "repository": repo_slug(pr.url),
+                          **({"artifact": artifact} if artifact else {})}
 
 
 def authorize_waiver(root: Path, team: TeamConfig, gate: str | None, *, actor: str | None = None) -> str:

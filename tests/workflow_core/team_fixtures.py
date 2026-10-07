@@ -89,6 +89,8 @@ def make_team_repo(root: Path, *, email: str = "binh@corp.com", host: str = "git
     git(root, "init", "-q", "-b", "main")
     git(root, "config", "user.email", email)
     git(root, "config", "user.name", "T")
+    origin = {"gitlab": "https://gitlab.corp.com/group/app.git"}.get(host, "git@github.com:org/app.git")
+    git(root, "remote", "add", "origin", origin)
     (root / ".agent-workflow").mkdir()
     body = TEAM.format(host=host) if team is None else team
     (root / ".agent-workflow/config.yaml").write_text(f"schema_version: '2.7'\n{extra}{body}", encoding="utf-8")

@@ -179,7 +179,8 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
         try:
             actor, team_payload = authorize_record(Path(args.repository).resolve(), team, args.gate.replace("-", "_"),
-                                                   args.evidence, actor=args.actor, plan=args.plan)
+                                                   args.evidence, actor=args.actor, plan=args.plan,
+                                                   spec=args.spec)
         except (TeamError, HostUnavailable) as error:
             return {"status": "error", "message": str(error)}, 2
         except TeamRejected as rejected:
@@ -453,6 +454,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         parser.add_argument("--evidence", required=True)
         parser.add_argument("--actor", default="", help="required unless team mode derives it from git user.email")
         parser.add_argument("--plan", help="team mode: the plan file a plan-approved PR approves")
+        parser.add_argument("--spec", help="team mode: the spec file a requirement-confirmed PR approves")
         parser.add_argument("--epic", default="", help="parent bead whose closed children prove implementation_complete")
         try:
             args = parser.parse_args(argv[1:])

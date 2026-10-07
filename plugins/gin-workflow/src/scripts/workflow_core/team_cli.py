@@ -27,6 +27,7 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("url")
     item.add_argument("--gate", required=True, choices=team_core.GATES)
     item.add_argument("--plan")
+    item.add_argument("--spec")
     sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
     sub.add_parser("ready", parents=[common])
     sub.add_parser("claim", parents=[common]).add_argument("bead")
@@ -81,9 +82,10 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "check-plan":
         return _findings(team_core.check_plan(team, args.plan), args.format, "ok")
     if args.command == "check":
-        pr, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan)
+        pr, artifact, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan,
+                                                      spec=args.spec)
         payload = {"status": "rejected" if reasons else "ok", "gate": args.gate, "url": pr.url, "reasons": reasons,
-                   "approvers": team_core.approver_payload(pr, team)}
+                   "approvers": team_core.approver_payload(pr, team), "artifact": artifact}
         _emit(payload, args.format, "\n".join(reasons) if reasons else f"ok: {args.gate} {pr.url}")
         return 1 if reasons else 0
     member = team_core.require_member(root, team)
