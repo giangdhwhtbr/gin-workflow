@@ -39,15 +39,22 @@ The `gin-team` skill carries the exact steps.
 
 | Stage | In team mode |
 |---|---|
-| gates | `record` and `unblock` take the actor from your git email. A gate with roles in `team.approvals` takes `--evidence <PR url>`: `record` checks the pull request is merged (open is enough for `verification_passed`) and approved by a member with a listed role who is not its author. A rejection lists the missing approvals; it is never worked around with other evidence or a waiver. |
+| gates | `record` and `unblock` take the actor from your git email. A gate with roles in `team.approvals` takes `--evidence <PR url>`: `record` checks the pull request is merged (open is enough for `verification_passed`) and approved by a member with a listed role who is not its author. The pull request must belong to this repository and change the gate's artifact (`--plan`/`--spec` pick one when it changes several); the plan gate also runs `check-plan`. A rejection lists the missing approvals; it is never worked around with other evidence or a waiver. |
 | `discuss` | When `requirement_confirmed` has roles, the spec goes through a pull request (`spec/<topic>`, or the SDD `pr` flow) and the gate is recorded after it merges. |
-| `plan` | Each track adds `Area:` and optionally `Owner:`; a track's files stay inside its area. `team check-plan <plan>` must pass. With `plan_approved: area_lead`, the plan merges through a pull request approved by the area lead. |
-| `orchestrate` | Track beads get `track:<N>` and `area:<area>` labels and the owner as assignee. With shared Beads the lead orchestrates once; otherwise each member creates beads for their own tracks, and a dependency on someone else's track becomes an `external: <plan>#<N>` placeholder. |
-| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready` and claim it with `team claim <bead>`. Branches are `feat/<epic>-<area>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. |
-| `verify` | When `verification_passed` has roles, that role approves the latest commit of the pull request; a later push needs a new approval. |
+| `plan` | Each track adds `Area:` and `Owner:` (optional only with shared Beads; reassigning a track means a new plan PR); a track's files stay inside its area. `team check-plan <plan>` must pass. With `plan_approved: area_lead`, the plan merges through a pull request approved by the area lead. |
+| `orchestrate` | Track beads get `track:<N>` and `area:<area>` labels and the owner as assignee. With shared Beads the lead orchestrates once; otherwise each member creates beads only for the tracks they own, and a dependency on someone else's track becomes an `external: <plan>#<N>` placeholder. |
+| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready`, claim it with `team claim <bead>`, and in the track worktree `team deps --bead <bead>` must pass before implementation. Branches are `feat/<topic>-t<N>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. |
+| `verify` | When `verification_passed` has roles, that role approves the latest commit of the pull request; a later push needs a new approval. GitLab needs "Reset approvals on push". |
 | `ship` | Merging follows the host's rules (CODEOWNERS, branch protection). With shared Beads, `team sync` after closing beads. |
 
 `gin-workflow team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
+
+The lead declares a feature complete when every track pull request has merged; a member's ship covers only their own tracks.
+
+## Host settings
+
+- GitHub: branch protection on the integration branch, "Dismiss stale pull request approvals when new commits are pushed", and CODEOWNERS per area (`team init`).
+- GitLab: "Reset approvals on push" (`reset_approvals_on_push`), required for `verification_passed`; without it the gate rejects the approval.
 
 ## Commands
 

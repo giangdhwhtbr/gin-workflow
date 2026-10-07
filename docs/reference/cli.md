@@ -54,17 +54,17 @@ Exit codes: 0 when the decision is `route`; 1 when the workflow is held or block
 ## `gin-workflow record`
 
 ```
-gin-workflow record <gate> --evidence TEXT [--actor ID] [--workflow-id ID] [--epic BEAD] [--plan PATH]
+gin-workflow record <gate> --evidence TEXT [--actor ID] [--workflow-id ID] [--epic BEAD] [--plan PATH] [--spec PATH]
 ```
 
 Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 
 | Gate | Records | Notes |
 |---|---|---|
-| `requirement-confirmed` | the user confirmed the design | evidence: spec path |
+| `requirement-confirmed` | the user confirmed the design | evidence: spec path; team mode adds `--spec` |
 | `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan` |
 | `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped` |
-| `verification-passed` | every verification check has evidence | evidence: commands and results |
+| `verification-passed` | every verification check has evidence | evidence: commands and results; records the branch and commit, and a later non-spec commit makes the gate unmet |
 | `quick-completed` | a `/quick` change finished | evidence: files and verify results |
 | `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead |
 
@@ -152,11 +152,11 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `codeowners [--check]` | Print CODEOWNERS, or check it is up to date |
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
 | `whoami` | Show your member entry, roles, and areas (from `git config user.email`) |
-| `check URL --gate GATE [--plan P]` | Check that a pull request satisfies a gate's approvals |
+| `check URL --gate GATE [--plan P] [--spec S]` | Check that a pull request of this repository changes the gate's artifact and satisfies its approvals |
 | `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields |
 | `ready` | Ready beads in your areas |
 | `claim BEAD` | Claim a bead as yourself |
-| `deps` | Resolve cross-team placeholder dependencies |
+| `deps [--bead ID]` | Without `--bead`: close placeholders whose track PR merged, storing its merge commit. With `--bead`: exit 1 unless each external dependency's merge commit is in this workspace |
 | `sync` | Sync Beads with `team.beads_sync.remote` |
 
 Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuration, or host error.
