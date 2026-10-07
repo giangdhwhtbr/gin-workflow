@@ -23,6 +23,8 @@ If they are missing:
 
 OpenCode hosts the skills, but gin-workflow's routed workers still need the Claude, Codex, or Antigravity CLIs to execute delegated tracks — there is no OpenCode worker adapter. See [Providers](../concepts/providers.md).
 
+OpenCode selects skills by id, so gin-workflow's `report` skill (AI usage per bead or epic) shares the id of OpenCode's built-in `report` skill and takes precedence while the bundle is installed. The gin-workflow `report` workflow is the one that loads; the built-in issue-report skill is shadowed.
+
 
 ## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
 
