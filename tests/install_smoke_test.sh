@@ -226,6 +226,23 @@ assert_exists "plugins/gin-workflow/dist/antigravity/hooks/hooks.json"
 assert_exists "plugins/gin-workflow/dist/antigravity/skills/report/SKILL.md"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/antigravity"
 
+./install.sh --platform opencode --dry-run >"$output_file"
+
+assert_contains "$output_file" "Configuring OpenCode skill structure for gin-workflow"
+assert_contains "$output_file" "would install global OpenCode skills to"
+assert_exists "plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md"
+assert_not_exists "plugins/gin-workflow/dist/opencode/skills/report"
+assert_exists "plugins/gin-workflow/dist/opencode/references/stage-contract.md"
+assert_not_exists "plugins/gin-workflow/dist/opencode/agents"
+assert_not_exists "plugins/gin-workflow/dist/opencode/commands"
+assert_not_exists "plugins/gin-workflow/dist/opencode/hooks/hooks.json"
+assert_not_exists "plugins/gin-workflow/dist/opencode/plugin.json"
+assert_contains "plugins/gin-workflow/dist/opencode/skills/telegram-notify/SKILL.md" "$TEST_HOME/.config/opencode/skills/gin-workflow/scripts/telegram.sh"
+assert_not_contains "plugins/gin-workflow/dist/opencode/skills/telegram-notify/SKILL.md" '${PLUGIN_ROOT}'
+assert_contains "plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
+assert_workflow_v22_layout "plugins/gin-workflow/dist/opencode"
+
 # Test actual installation with a mocked HOME
 echo "Running mock HOME global installation test..."
 MOCK_HOME="$(mktemp -d)"
@@ -260,6 +277,44 @@ HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" setup models --provider claude >/dev/null
 assert_not_exists "$MOCK_HOME/.claude/skills/gin-qa"
 assert_not_exists "$MOCK_HOME/.local/bin/gin-qa"
+
+# Global OpenCode install writes into the harness skills directory without
+# needing the `opencode` CLI on PATH.
+HOME="$MOCK_HOME" ./install.sh --platform opencode >/dev/null
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/setup/SKILL.md"
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/tech-doc/SKILL.md"
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md"
+assert_contains "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
+assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/report"
+assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/agents"
+assert_contains "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/telegram-notify/SKILL.md" "$MOCK_HOME/.config/opencode/skills/gin-workflow/scripts/telegram.sh"
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/references/stage-contract.md"
+assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/hooks/hooks.json"
+
+# --link installs by symlink; preparing the bundle must never rewrite source.
+opencode_link_home="$MOCK_HOME/opencode-link-home"
+mkdir -p "$opencode_link_home"
+HOME="$opencode_link_home" ./install.sh --platform opencode --link >/dev/null
+assert_exists "$opencode_link_home/.config/opencode/skills/gin-workflow/skills/setup/SKILL.md"
+assert_exists "$opencode_link_home/.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md"
+assert_contains "plugins/gin-workflow/src/skills/telegram-notify/SKILL.md" '${PLUGIN_ROOT}/scripts/telegram.sh'
+assert_contains "$opencode_link_home/.config/opencode/skills/gin-workflow/skills/telegram-notify/SKILL.md" "$opencode_link_home/.config/opencode/skills/gin-workflow/scripts/telegram.sh"
+
+# Project-level OpenCode install writes into the repository without touching the
+# repository's own .opencode/agents or .opencode/commands files.
+opencode_project="$MOCK_HOME/opencode-project"
+mkdir -p "$opencode_project/.opencode/agents" "$opencode_project/.opencode/commands"
+printf '%s\n' '# user agent' > "$opencode_project/.opencode/agents/user-agent.md"
+printf '%s\n' '# user command' > "$opencode_project/.opencode/commands/user-command.md"
+HOME="$MOCK_HOME" ./install.sh --platform opencode --project "$opencode_project" >/dev/null
+assert_exists "$opencode_project/.opencode/skills/setup/SKILL.md"
+assert_exists "$opencode_project/.opencode/skills/gin-workflow-report/SKILL.md"
+assert_not_exists "$opencode_project/.opencode/skills/report"
+assert_exists "$opencode_project/.opencode/agents/user-agent.md"
+assert_exists "$opencode_project/.opencode/commands/user-command.md"
+assert_exists "$opencode_project/.opencode/references/stage-contract.md"
+assert_contains "$opencode_project/.opencode/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
+assert_contains "$opencode_project/.opencode/skills/telegram-notify/SKILL.md" "$opencode_project/.opencode/scripts/telegram.sh"
 
 HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file" 2>&1
 assert_not_contains "$output_file" "gin-workflow is not installed"
@@ -386,4 +441,13 @@ for launcher in gin-workflow gin-qa; do
   assert_contains "$output_file" "refusing to replace a different launcher"
   assert_contains "$COLLISION_HOME/.local/bin/$launcher" "different launcher"
 done
+
+# Uninstall removes the generated dist output and the OpenCode global install.
+uninstall_home="$MOCK_HOME/uninstall-home"
+mkdir -p "$uninstall_home"
+HOME="$uninstall_home" ./install.sh --platform opencode >/dev/null
+assert_exists "$uninstall_home/.config/opencode/skills/gin-workflow/skills/setup/SKILL.md"
+HOME="$uninstall_home" ./install.sh --uninstall >/dev/null
+assert_not_exists "$uninstall_home/.config/opencode/skills/gin-workflow"
+
 rmdir "$TEST_HOME"

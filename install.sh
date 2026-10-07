@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh - Installs gin-workflow to Claude Code, Antigravity, and Codex CLI.
+# install.sh - Installs gin-workflow to Claude Code, Antigravity, Codex CLI, and OpenCode.
 
 set -euo pipefail
 
@@ -91,7 +91,10 @@ fi
 if [ "$UNINSTALL" = true ]; then
   echo "Uninstalling plugins..."
   rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist
-  echo "Cleaned built dist folders. Perform CLI manual uninstall/disable if registered globally."
+  for p_name in "${PLUGINS[@]}"; do
+    rm -rf "${HOME}/.config/opencode/skills/${p_name}"
+  done
+  echo "Removed generated dist output and the global OpenCode skill install. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
   exit 0
 fi
 
@@ -332,6 +335,12 @@ install_platform() {
   local hooks_root="$4"
   local manifest_path="$5"
   local include_schema="$6"
+  local install_root="${7:-}"
+
+  if [ "$platform" = "opencode" ]; then
+    install_opencode_bundle "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir" "$install_root"
+    return
+  fi
 
   copy_src "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir"
   if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ]; then
@@ -353,6 +362,60 @@ install_platform() {
   fi
   if [ -n "$manifest_path" ]; then
     generate_manifest "plugins/$p_name" "$manifest_path" "$include_schema"
+  fi
+}
+
+# Write a transformed copy, so a --link symlink never edits the source file.
+rewrite_file() {
+  local file="$1"
+  local expression="$2"
+  local tmp
+  tmp="$(mktemp)"
+  sed "$expression" "$file" > "$tmp"
+  rm -f "$file"
+  mv "$tmp" "$file"
+}
+
+install_opencode_bundle() {
+  local src="$1"
+  local target="$2"
+  local install_root="$3"
+  local dir file
+
+  # OpenCode loads skills, references, scripts, rules, and templates. It has no
+  # use for the Claude/Codex agents/ and commands/ files, and copying them would
+  # risk clobbering a repository's own .opencode/agents or .opencode/commands.
+  mkdir -p "$target"
+  for dir in skills scripts references examples rules templates; do
+    [ -d "$src/$dir" ] || continue
+    [ -n "$(ls -A "$src/$dir" 2>/dev/null)" ] || continue
+    mkdir -p "$target/$dir"
+    if [ "$LINK" = true ]; then
+      cp -rsf "$src/$dir/." "$target/$dir/"
+    else
+      cp -rf "$src/$dir/." "$target/$dir/"
+    fi
+  done
+
+  # OpenCode selects a skill by its directory id, so keep the display `name`
+  # aligned with the renamed `report` directory (id `gin-workflow-report`).
+  if [ -d "$target/skills/report" ]; then
+    rm -rf "$target/skills/gin-workflow-report"
+    mv "$target/skills/report" "$target/skills/gin-workflow-report"
+    rewrite_file "$target/skills/gin-workflow-report/SKILL.md" 's/^name: report$/name: gin-workflow-report/'
+  fi
+
+  # Shell commands run from the agent's working directory, so point support
+  # scripts at the absolute install location; ${PLUGIN_ROOT} does not exist here.
+  # `find` (not `grep -r`) so a --link symlinked file is still inspected, then
+  # materialized only when it actually needs rewriting.
+  if [ -n "$install_root" ]; then
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      if grep -qF '${PLUGIN_ROOT}' "$file" 2>/dev/null; then
+        rewrite_file "$file" "s#\${PLUGIN_ROOT}#$install_root#g"
+      fi
+    done < <(find "$target" \( -type f -o -type l \) 2>/dev/null)
   fi
 }
 
@@ -460,6 +523,9 @@ install_plugin() {
     if matches_platform "codex"; then
       install_platform "codex" "$p_name" "$PROJECT_DIR/.codex" "\${PLUGIN_ROOT}" "" ""
     fi
+    if matches_platform "opencode"; then
+      install_platform "opencode" "$p_name" "$PROJECT_DIR/.opencode" "" "" "" "$PROJECT_DIR/.opencode"
+    fi
     return
   fi
 
@@ -469,6 +535,7 @@ install_plugin() {
   if matches_platform "claude"; then rm -rf "${dist_dir:?}/claude-code"; fi
   if matches_platform "antigravity"; then rm -rf "${dist_dir:?}/antigravity"; fi
   if matches_platform "codex"; then rm -rf "${dist_dir:?}/codex"; fi
+  if matches_platform "opencode"; then rm -rf "${dist_dir:?}/opencode"; fi
   mkdir -p "$dist_dir/claude-code/.claude-plugin"
   mkdir -p "$dist_dir/antigravity"
   mkdir -p "$dist_dir/codex/.codex-plugin"
@@ -487,12 +554,20 @@ install_plugin() {
     echo "Configuring Codex plugin structure for $p_name..."
     install_platform "codex" "$p_name" "$dist_dir/codex" "\${PLUGIN_ROOT}" "$dist_dir/codex/.codex-plugin/plugin.json" "false"
   fi
+  if matches_platform "opencode"; then
+    echo "Configuring OpenCode skill structure for $p_name..."
+    install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" "" "${HOME}/.config/opencode/skills/${p_name}"
+  fi
 
   if [ "$DRY_RUN" = true ]; then
     echo "(dry-run) registration skipped for $p_name"
     if matches_platform "claude"; then
       local claude_install_dir="${HOME}/.claude/skills/${p_name}"
       echo "(dry-run) would install global Claude Code plugin to $claude_install_dir"
+    fi
+    if matches_platform "opencode"; then
+      local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
+      echo "(dry-run) would install global OpenCode skills to $opencode_install_dir"
     fi
     return
   fi
@@ -509,6 +584,18 @@ install_plugin() {
     fi
     enable_claude_plugin "$p_name"
     echo "Successfully installed and enabled $p_name globally in Claude Code!"
+  fi
+  if matches_platform "opencode"; then
+    local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
+    echo "Installing $p_name skills globally to OpenCode: $opencode_install_dir"
+    rm -rf "$opencode_install_dir"
+    mkdir -p "$(dirname "$opencode_install_dir")"
+    if [ "$LINK" = true ]; then
+      ln -sf "$SCRIPT_DIR/$dist_dir/opencode" "$opencode_install_dir"
+    else
+      cp -rf "$dist_dir/opencode" "$opencode_install_dir"
+    fi
+    echo "Successfully installed $p_name globally in OpenCode!"
   fi
   if matches_platform "antigravity" && [ "$HAS_AGY" = true ]; then
     echo "Registering $p_name with Antigravity..."

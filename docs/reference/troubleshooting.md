@@ -11,6 +11,22 @@ curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/rem
 Use `--platform claude` for Claude Code; installer options are in [Contributing](../contributing.md#build-and-install-locally). Make sure `~/.local/bin` is on `PATH`, then check with `gin-workflow --version`.
 
 
+## OpenCode does not show the gin-workflow skills
+
+OpenCode discovers global skills in `~/.config/opencode/skills`, and the installer writes the bundle to `~/.config/opencode/skills/gin-workflow` whenever `--platform opencode` (or `all`) runs. It does not need the `opencode` CLI on `PATH`. OpenCode scans nested `SKILL.md` files, so the `skills/<name>/SKILL.md` entries inside the bundle register as skills.
+
+If they are missing:
+
+- Check the bundle exists: `ls ~/.config/opencode/skills/gin-workflow/skills`.
+- Reload OpenCode, then list skills to confirm registration.
+
+The installer prunes the Claude/Codex `agents/` and `commands/` files from the OpenCode bundle (leaving a repository's own `.opencode/agents` and `.opencode/commands` untouched) and rewrites the Codex/Antigravity `${PLUGIN_ROOT}` variable to the absolute install path, because shell commands run from the agent's working directory. OpenCode has no `PreToolUse`/`PostToolUse` hook system, so the bundle's safety and post-edit hooks do not run there; lifecycle gates are still enforced by the `gin-workflow` CLI.
+
+`gin-workflow`'s `report` skill installs as `gin-workflow-report` in OpenCode. Its original id would otherwise shadow OpenCode's built-in `report` skill, so invoke it with `@gin-workflow-report`; the built-in `report` skill keeps working.
+
+OpenCode hosts the skills, but gin-workflow's routed workers still need the Claude, Codex, or Antigravity CLIs to execute delegated tracks — there is no OpenCode worker adapter. See [Providers](../concepts/providers.md).
+
+
 ## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
 
 On Ubuntu 24.04+ hosts, the kernel's AppArmor policy restricts unprivileged user namespace creation by default (`kernel.apparmor_restrict_unprivileged_userns=1`). Codex CLI's sandbox (`bwrap`) and Antigravity CLI's sandbox (`agy --sandbox`, backed by `nsjail`) both need to create an unprivileged user+network namespace to isolate file/network access. When that AppArmor restriction is active and no profile grants `userns,` to the sandbox helper, namespace creation fails outright — before the sandboxed process can even read the file it's trying to edit. Every sandboxed shell action (including `apply_patch`) then fails immediately, for any file, in any project.
@@ -62,7 +78,7 @@ After shipping a fix in this repository, refresh every installed platform's cach
 
 The fix must be **committed** first. Codex's marketplace registration uses a `git-subdir` source (see `.claude-plugin/marketplace.json`) that reads the plugin's tree from the repository's committed `HEAD`, not the working directory — re-running the install with only an uncommitted change staged or edited will re-register the plugin successfully but still snapshot the pre-fix content.
 
-This is safe to re-run any time — for Codex it explicitly removes and re-adds the plugin/marketplace registration (`codex plugin marketplace add`/`plugin add` are no-ops when already registered by name, and the local-source snapshot is only taken at add-time, so a plain repeat run would keep serving the stale snapshot without the explicit remove-then-add), and for Claude Code/Antigravity it recopies the compiled `dist/` output into the global install location. Use `--platform codex`/`claude`/`antigravity` to target just one. This only refreshes installs on the current host; a consumer on a different machine (installed via the GitHub marketplace or `remote-install.sh`) needs to re-run its own install or update flow from [Installation](../../README.md#installation).
+This is safe to re-run any time — for Codex it explicitly removes and re-adds the plugin/marketplace registration (`codex plugin marketplace add`/`plugin add` are no-ops when already registered by name, and the local-source snapshot is only taken at add-time, so a plain repeat run would keep serving the stale snapshot without the explicit remove-then-add), and for Claude Code, Antigravity, and OpenCode it recopies the compiled `dist/` output into the global install location. Use `--platform codex`/`claude`/`antigravity`/`opencode` to target just one. This only refreshes installs on the current host; a consumer on a different machine (installed via the GitHub marketplace or `remote-install.sh`) needs to re-run its own install or update flow from [Installation](../../README.md#installation).
 
 Verify the fix actually landed by checking a changed file's content inside the refreshed install directory (or, for a Python fix, importing the module from that path and exercising the fixed behavior directly) rather than assuming a successful install command means the fix is present.
 

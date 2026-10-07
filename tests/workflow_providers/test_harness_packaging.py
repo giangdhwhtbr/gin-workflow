@@ -128,12 +128,20 @@ class HarnessPackagingTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.temporary_home.cleanup()
 
-    def test_dry_run_builds_all_three_harness_layouts(self):
+    def test_dry_run_builds_every_harness_layout(self):
         self.assertEqual(0, self.install.returncode, self.install.stderr)
-        for harness in ("claude-code", "codex", "antigravity"):
+        # OpenCode drops Claude/Codex agent and command files, and renames the
+        # `report` skill to `gin-workflow-report` to avoid shadowing OpenCode's
+        # built-in `report` skill.
+        opencode_removed = {"agents/developer.md", "skills/report/SKILL.md"}
+        opencode_added = {"skills/gin-workflow-report/SKILL.md"}
+        for harness in ("claude-code", "codex", "antigravity", "opencode"):
             with self.subTest(harness=harness):
                 root = self.dist / harness
-                missing = [relative for relative in REQUIRED_ARTIFACTS if not (root / relative).is_file()]
+                required = [r for r in REQUIRED_ARTIFACTS if not (harness == "opencode" and r in opencode_removed)]
+                if harness == "opencode":
+                    required += sorted(opencode_added)
+                missing = [relative for relative in required if not (root / relative).is_file()]
                 self.assertEqual([], missing)
 
     def test_removed_agents_are_gone_and_unreferenced(self):
@@ -157,7 +165,24 @@ class HarnessPackagingTests(unittest.TestCase):
                 root = self.dist / harness
                 self.assertTrue(all((root / relative).is_file() for relative in relatives))
 
-    def test_plugin_metadata_and_harness_manifests_publish_version_1_1_0(self):
+    def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
+        root = self.dist / "opencode"
+        self.assertTrue((root / "skills/setup/SKILL.md").is_file())
+        self.assertTrue((root / "skills/gin-workflow-report/SKILL.md").is_file())
+        self.assertTrue((root / "references/stage-contract.md").is_file())
+        self.assertFalse((root / "hooks").exists())
+        self.assertFalse((root / "plugin.json").exists())
+        # Claude/Codex-only files are pruned for OpenCode.
+        self.assertFalse((root / "agents").exists())
+        self.assertFalse((root / "commands").exists())
+        # The renamed skill keeps its display name aligned with the directory id.
+        self.assertIn("name: gin-workflow-report", (root / "skills/gin-workflow-report/SKILL.md").read_text(encoding="utf-8"))
+        # ${PLUGIN_ROOT} is replaced with an absolute path for shell execution.
+        telegram = (root / "skills/telegram-notify/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("${PLUGIN_ROOT}", telegram)
+        self.assertIn("/scripts/telegram.sh", telegram)
+
+    def test_plugin_metadata_and_harness_manifests_publish_current_version(self):
         manifests = (
             ROOT / "plugins/gin-workflow/plugin.meta.json",
             ROOT / "plugins/gin-workflow/src/.claude-plugin/plugin.json",
@@ -169,18 +194,20 @@ class HarnessPackagingTests(unittest.TestCase):
         for manifest in manifests:
             with self.subTest(manifest=manifest.relative_to(ROOT)):
                 with manifest.open(encoding="utf-8") as file:
-                    self.assertEqual("1.3.1", json.load(file)["version"])
+                    self.assertEqual("1.4.0", json.load(file)["version"])
 
     def test_repository_ignores_installations_and_generated_workflow_output(self):
         ignored = (
             ".codex/plugin.json",
             ".claude/plugin.json",
             ".agents/plugin.json",
+            ".opencode/skills/plan/SKILL.md",
             ".agent-workflow/generated/plan.json",
             ".agent-workflow/runtime/evidence.json",
             ".agent-workflow/backups/config.yaml",
             ".agent-workflow/providers.local.yaml",
             "plugins/gin-workflow/dist/codex/plugin.json",
+            "plugins/gin-workflow/dist/opencode/plugin.json",
         )
         tracked = (
             "plugins/gin-workflow/src/skills/setup/SKILL.md",
@@ -220,6 +247,7 @@ class HarnessPackagingTests(unittest.TestCase):
             ".codex",
             ".claude",
             ".agents",
+            ".opencode",
             ".agent-workflow/generated",
             ".agent-workflow/runtime",
             ".agent-workflow/backups",

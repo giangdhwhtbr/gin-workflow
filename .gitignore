@@ -4,6 +4,14 @@ plugins/*/dist/
 /.codex/
 /.claude/
 /.agents/
+# OpenCode project install: ignore only the generated bundle, so a repository can
+# still track its own .opencode/opencode.json, agents, and commands.
+/.opencode/skills/
+/.opencode/references/
+/.opencode/scripts/
+/.opencode/rules/
+/.opencode/templates/
+/.opencode/examples/
 
 # OS/Editor files
 .DS_Store

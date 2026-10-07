@@ -1,6 +1,6 @@
 # Skills Reference
 
-Every skill is also a slash command: `/gin-workflow:<name>` (Claude Code) or the harness equivalent, and `/gin-qa:<name>` for the QA add-on.
+Every skill is also a slash command: `/gin-workflow:<name>` (Claude Code) or the harness equivalent, and `/gin-qa:<name>` for the QA add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`); the lifecycle stages still run through the `gin-workflow` CLI.
 
 ## gin-workflow: lifecycle stages
 
