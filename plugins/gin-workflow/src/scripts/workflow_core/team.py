@@ -229,6 +229,8 @@ def check_plan(team: TeamConfig, path: Path) -> list[str]:
             else:
                 errors += [f"{label}: {item} is outside area {track.area}" for item in track.files
                            if team.area_of(item) != track.area]
+        if not track.owner and not team.beads_remote:
+            errors.append(f"{label}: missing Owner: (required when Beads are not shared)")
         if track.owner:
             member = team.member(track.owner)
             if member is None:

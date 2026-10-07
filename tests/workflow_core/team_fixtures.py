@@ -47,6 +47,7 @@ PLAN = """# Plan: Login
 ### Track 2: Form
 **Metadata:**
 - Area: frontend
+- Owner: chi@corp.com
 
 **Files:**
 - Modify: `web/login.tsx:10-20`

@@ -308,9 +308,16 @@ class TestPlanChecks(unittest.TestCase):
         tracks = plan_tracks(path)
         self.assertEqual([(1, "API", "backend", "em@corp.com",
                            ("services/auth/login.py", "tests/services/test_login.py")),
-                          (2, "Form", "frontend", "", ("web/login.tsx",))],
+                          (2, "Form", "frontend", "chi@corp.com", ("web/login.tsx",))],
                          [(t.number, t.title, t.area, t.owner, t.files) for t in tracks])
         self.assertEqual([], check_plan(self.team, path))
+
+    def test_local_mode_requires_owner(self):
+        path = write(self.root, PLAN_PATH, PLAN.replace("- Owner: chi@corp.com\n", ""))
+        self.assertIn("Track 2: missing Owner: (required when Beads are not shared)", check_plan(self.team, path))
+        config = yaml.safe_load((self.root / ".agent-workflow/config.yaml").read_text())
+        config["team"]["beads_sync"] = {"remote": "file:///tmp/x"}
+        self.assertEqual([], check_plan(load_team(config), path))
 
     def test_fenced_code_is_not_a_track(self):
         sample = "```markdown\n### Track 9: Sample\n- Area: nowhere\n## Integration\n```\n"

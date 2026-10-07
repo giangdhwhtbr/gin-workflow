@@ -62,6 +62,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = make_team_repo(Path(self.tmp.name) / "repo")
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "base")
         bd(self.root, "init", "--prefix", "t", "-q")
 
     def tearDown(self):
@@ -105,6 +106,54 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertEqual([{"id": done, "pr": "https://github.com/org/app/pull/9"}], payload["closed"])
         self.assertEqual([pending], payload["waiting"])
         self.assertEqual("closed", show(self.root, done)["status"])
+        self.assertEqual("abc", show(self.root, done)["metadata"]["merge_commit"])
+
+    def merged_pr(self, commit: str, track: int = 2) -> dict[str, str]:
+        bin_dir = Path(self.tmp.name) / "bin"
+        fake_cli(bin_dir, "gh", [{"argv": ["pr", "list"], "stdout": [
+            {"url": "https://github.com/org/app/pull/9", "mergeCommit": {"oid": commit},
+             "body": f"Plan: .planning/plans/p.md\nTracks: {track}\n"}]}])
+        return path_with(bin_dir)
+
+    def test_deps_for_bead_checks_ancestry_in_this_workspace(self):
+        base = git(self.root, "rev-parse", "HEAD").strip()
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "merged")
+        merged = git(self.root, "rev-parse", "HEAD").strip()
+        work = create(self.root, "work", "area:backend")
+        ext = create(self.root, "external: .planning/plans/p.md#2")
+        bd(self.root, "dep", "add", work, ext)
+        env = self.merged_pr(merged)
+        self.assertEqual(0, run_cli(self.root, "team", "deps", env=env).returncode)
+        self.assertEqual(0, run_cli(self.root, "team", "claim", work).returncode)
+        result = run_cli(self.root, "team", "deps", "--bead", work, "--format", "json", env=env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([ext], json.loads(result.stdout)["ok"])
+        git(self.root, "checkout", "-q", "--detach", base)
+        result = run_cli(self.root, "team", "deps", "--bead", work, env=env)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("fetch/rebase", result.stdout)
+        self.assertIn(merged, result.stdout)
+
+    def test_deps_for_bead_ignores_other_beads(self):
+        a = create(self.root, "a")
+        b = create(self.root, "b")
+        ext = create(self.root, "external: .planning/plans/p.md#5")
+        bd(self.root, "dep", "add", b, ext)
+        result = run_cli(self.root, "team", "deps", "--bead", a)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn(f"{a} has no external dependencies", result.stdout)
+        result = run_cli(self.root, "team", "deps", "--bead", b)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("has not merged; run team deps", result.stdout)
+
+    def test_refresh_unblocks_ready_without_deadlock(self):
+        work = create(self.root, "work", "area:backend")
+        ext = create(self.root, "external: .planning/plans/p.md#2")
+        bd(self.root, "dep", "add", work, ext)
+        ready = lambda: {row["id"] for row in json.loads(run_cli(self.root, "team", "ready", "--format", "json").stdout)["ready"]}
+        self.assertNotIn(work, ready())
+        self.assertEqual(0, run_cli(self.root, "team", "deps", env=self.merged_pr("abc")).returncode)
+        self.assertIn(work, ready())
 
     def test_sync_needs_a_remote(self):
         result = run_cli(self.root, "team", "sync")

@@ -31,7 +31,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
     sub.add_parser("ready", parents=[common])
     sub.add_parser("claim", parents=[common]).add_argument("bead")
-    sub.add_parser("deps", parents=[common])
+    sub.add_parser("deps", parents=[common]).add_argument("--bead")
     sub.add_parser("sync", parents=[common])
     return parser
 
@@ -106,6 +106,12 @@ def _run(args: argparse.Namespace) -> int:
             result = team_beads.claim(root, team, member, args.bead)
             _emit(result, args.format, f"claimed {args.bead}")
             return 0
+        if args.command == "deps" and args.bead:
+            result = team_beads.deps_for(root, args.bead)
+            lines = [f"ok {item}" for item in result["ok"]]
+            lines += [f"missing {row['id']}: {row['reason']}" for row in result["missing"]]
+            _emit(result, args.format, "\n".join(lines) or f"{args.bead} has no external dependencies")
+            return 1 if result["missing"] else 0
         if args.command == "deps":
             result = team_beads.deps(root, team)
             lines = [f"closed {row['id']} ({row['pr']})" for row in result["closed"]]

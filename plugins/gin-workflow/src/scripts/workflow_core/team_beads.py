@@ -131,8 +131,35 @@ def deps(root: Path, team: TeamConfig) -> dict[str, Any]:
         if found is None:
             waiting.append(issue["id"])
             continue
+        noted = _bd(root, ["update", issue["id"], "--set-metadata", f"merge_commit={found.merge_commit}"])
+        if noted.returncode != 0:
+            raise TeamError(f"bd update {issue['id']} failed: {noted.stderr.strip()}")
         done = _bd(root, ["close", issue["id"], "--reason", f"{found.url} merged ({found.merge_commit})"])
         if done.returncode != 0:
             raise TeamError(f"bd close {issue['id']} failed: {done.stderr.strip()}")
         closed.append({"id": issue["id"], "pr": found.url})
     return {"closed": closed, "waiting": waiting}
+
+
+def _has_commit(root: Path, commit: str) -> bool:
+    return bool(commit) and subprocess.run(["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=root,
+                                           capture_output=True, check=False).returncode == 0
+
+
+def deps_for(root: Path, bead: str) -> dict[str, Any]:
+    """The bead's `external:` placeholders: ok only when closed with its merge commit in this workspace."""
+    ok, missing = [], []
+    for dep in _show(root, bead).get("dependencies") or []:
+        match = _EXTERNAL.match(dep.get("title", ""))
+        if not match:
+            continue
+        commit = str((dep.get("metadata") or {}).get("merge_commit", ""))
+        if dep.get("status") != "closed":
+            missing.append({"id": dep["id"], "reason": f"{match.group(1)}#{match.group(2)} has not merged; run team deps"})
+        elif not commit:
+            missing.append({"id": dep["id"], "reason": "no merge commit recorded; run team deps"})
+        elif not _has_commit(root, commit):
+            missing.append({"id": dep["id"], "reason": f"fetch/rebase onto the plan's integration branch to include {commit}"})
+        else:
+            ok.append(dep["id"])
+    return {"bead": bead, "ok": ok, "missing": missing}
