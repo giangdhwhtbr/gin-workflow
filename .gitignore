@@ -4,6 +4,7 @@ plugins/*/dist/
 /.codex/
 /.claude/
 /.agents/
+/.opencode/
 
 # OS/Editor files
 .DS_Store

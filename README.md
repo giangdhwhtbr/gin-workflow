@@ -1,6 +1,6 @@
 # Gin Workflow (`gin-workflow`)
 
-A workflow plugin for **Claude Code**, **Codex CLI**, and **Antigravity CLI** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Beads tracks the work, every track gets an independent review, and nothing is merged without your approval. A `/quick` path handles small changes.
+A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and **OpenCode** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Beads tracks the work, every track gets an independent review, and nothing is merged without your approval. A `/quick` path handles small changes.
 
 ## Documentation
 
@@ -25,7 +25,7 @@ A workflow plugin for **Claude Code**, **Codex CLI**, and **Antigravity CLI** th
 | Python 3 with PyYAML | the `gin-workflow` CLI | `python3 -m pip install PyYAML` |
 | git | branches, worktrees, review checkpoints | your package manager |
 | [Beads](https://github.com/gastownhall/beads) (`bd`) | task tracking | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
-| A harness | running the skills | Claude Code, Codex CLI, or Antigravity CLI (`agy`) |
+| A harness | running the skills | Claude Code, Codex CLI, Antigravity CLI (`agy`), or OpenCode |
 
 Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; `codex` or `agy` next to your main harness for multi-provider routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).
 
@@ -41,7 +41,7 @@ Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). Th
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform all
 ```
 
-Use `--platform claude`, `codex`, or `antigravity` for one harness, and `--plugin all` to add the QA add-on. On Windows use `install.ps1` ([contributing](docs/contributing.md#windows-powershell-7)).
+Use `--platform claude`, `codex`, `antigravity`, or `opencode` for one harness, and `--plugin all` to add the QA add-on. On Windows use `install.ps1` ([contributing](docs/contributing.md#windows-powershell-7)).
 
 **Claude Code marketplace:**
 
@@ -57,7 +57,7 @@ codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
 codex plugin add gin-workflow@gin-workflow-marketplace
 ```
 
-Antigravity has no git-based install; use the installer above.
+Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either — the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI.
 
 ## Quickstart
 

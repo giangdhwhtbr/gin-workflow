@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh - Installs gin-workflow to Claude Code, Antigravity, and Codex CLI.
+# install.sh - Installs gin-workflow to Claude Code, Antigravity, Codex CLI, and OpenCode.
 
 set -euo pipefail
 
@@ -98,6 +98,7 @@ fi
 HAS_CLAUDE=false
 HAS_AGY=false
 HAS_CODEX=false
+HAS_OPENCODE=false
 if command -v claude &> /dev/null; then
   HAS_CLAUDE=true
 fi
@@ -106,6 +107,9 @@ if command -v agy &> /dev/null; then
 fi
 if command -v codex &> /dev/null; then
   HAS_CODEX=true
+fi
+if command -v opencode &> /dev/null; then
+  HAS_OPENCODE=true
 fi
 
 matches_platform() {
@@ -334,7 +338,7 @@ install_platform() {
   local include_schema="$6"
 
   copy_src "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir"
-  if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ]; then
+  if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ] && [ "$platform" != "opencode" ]; then
     mkdir -p "$target_dir/hooks"
     case "$platform" in
       claude)    template_hooks_for_claude "$target_dir/hooks/hooks.json" "$hooks_root" ;;
@@ -460,6 +464,9 @@ install_plugin() {
     if matches_platform "codex"; then
       install_platform "codex" "$p_name" "$PROJECT_DIR/.codex" "\${PLUGIN_ROOT}" "" ""
     fi
+    if matches_platform "opencode"; then
+      install_platform "opencode" "$p_name" "$PROJECT_DIR/.opencode" "" "" ""
+    fi
     return
   fi
 
@@ -469,9 +476,11 @@ install_plugin() {
   if matches_platform "claude"; then rm -rf "${dist_dir:?}/claude-code"; fi
   if matches_platform "antigravity"; then rm -rf "${dist_dir:?}/antigravity"; fi
   if matches_platform "codex"; then rm -rf "${dist_dir:?}/codex"; fi
+  if matches_platform "opencode"; then rm -rf "${dist_dir:?}/opencode"; fi
   mkdir -p "$dist_dir/claude-code/.claude-plugin"
   mkdir -p "$dist_dir/antigravity"
   mkdir -p "$dist_dir/codex/.codex-plugin"
+  mkdir -p "$dist_dir/opencode"
 
   if matches_platform "claude"; then
     echo "Configuring Claude Code plugin structure for $p_name..."
@@ -487,12 +496,20 @@ install_plugin() {
     echo "Configuring Codex plugin structure for $p_name..."
     install_platform "codex" "$p_name" "$dist_dir/codex" "\${PLUGIN_ROOT}" "$dist_dir/codex/.codex-plugin/plugin.json" "false"
   fi
+  if matches_platform "opencode"; then
+    echo "Configuring OpenCode skill structure for $p_name..."
+    install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" ""
+  fi
 
   if [ "$DRY_RUN" = true ]; then
     echo "(dry-run) registration skipped for $p_name"
     if matches_platform "claude"; then
       local claude_install_dir="${HOME}/.claude/skills/${p_name}"
       echo "(dry-run) would install global Claude Code plugin to $claude_install_dir"
+    fi
+    if matches_platform "opencode"; then
+      local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
+      echo "(dry-run) would install global OpenCode skills to $opencode_install_dir"
     fi
     return
   fi
@@ -509,6 +526,18 @@ install_plugin() {
     fi
     enable_claude_plugin "$p_name"
     echo "Successfully installed and enabled $p_name globally in Claude Code!"
+  fi
+  if matches_platform "opencode" && [ "$HAS_OPENCODE" = true ]; then
+    local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
+    echo "Installing $p_name skills globally to OpenCode: $opencode_install_dir"
+    rm -rf "$opencode_install_dir"
+    mkdir -p "$(dirname "$opencode_install_dir")"
+    if [ "$LINK" = true ]; then
+      ln -sf "$SCRIPT_DIR/$dist_dir/opencode" "$opencode_install_dir"
+    else
+      cp -rf "$dist_dir/opencode" "$opencode_install_dir"
+    fi
+    echo "Successfully installed $p_name globally in OpenCode!"
   fi
   if matches_platform "antigravity" && [ "$HAS_AGY" = true ]; then
     echo "Registering $p_name with Antigravity..."

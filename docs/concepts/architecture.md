@@ -1,6 +1,6 @@
 # Architecture
 
-gin-workflow is a plugin for Claude Code, Codex, and Antigravity that walks a change from requirement to merge through recorded gates. Skills tell the agent what to do at each stage; a small Python CLI keeps durable state honest; Beads tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
+gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that walks a change from requirement to merge through recorded gates. Skills tell the agent what to do at each stage; a small Python CLI keeps durable state honest; Beads tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
 
 ## Components
 
@@ -10,6 +10,7 @@ flowchart LR
         CC[Claude Code]
         CX[Codex]
         AG[Antigravity agy]
+        OC[OpenCode]
     end
     subgraph Bundle["Plugin bundle (dist/&lt;harness&gt;)"]
         SK[skills/ stage and support skills]
@@ -27,7 +28,7 @@ flowchart LR
         BD[(Beads: bd)]
         GIT[(git branches and worktrees)]
     end
-    CC & CX & AG --> SK
+    CC & CX & AG & OC --> SK
     SK --> AGT
     SK --> REF
     SK --> CLI
@@ -132,10 +133,12 @@ flowchart LR
     I --> D1[dist/claude-code]
     I --> D2[dist/codex]
     I --> D3[dist/antigravity]
+    I --> D4[dist/opencode]
     I --> LCH[~/.local/bin/gin-workflow launcher]
     D1 --> C1[~/.claude/skills/&lt;plugin&gt;]
     D2 --> C2[codex plugin add: cached snapshot]
     D3 --> C3[agy plugin install]
+    D4 --> C4[~/.config/opencode/skills/&lt;plugin&gt;]
     MK[marketplace: claude plugin install, codex plugin add] --> C1b[harness plugin cache]
 ```
 

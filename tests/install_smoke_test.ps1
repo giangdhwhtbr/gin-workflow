@@ -80,6 +80,7 @@ try {
     Assert-Exists (Join-Path $project '.claude/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.agents/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $project '.opencode/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
@@ -224,6 +225,13 @@ try {
         Assert-Contains $_.Exception.Message 'exit code 19'
     }
     Assert-True $agyFailureDetected 'Expected a failing Antigravity registration command to fail installation'
+
+    $opencodeMockBin = New-MockCommand -Name 'opencode' -ExitCode 0
+    $env:PATH = "$opencodeMockBin$([IO.Path]::PathSeparator)$OriginalPath"
+    Invoke-Installer @{ Platform = 'opencode' } | Out-Null
+    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/references/stage-contract.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/hooks'))) 'OpenCode install wrote hooks'
     $env:PATH = $OriginalPath
 
     $shim = Join-Path $TestHome '.local/bin/gin-workflow.cmd'

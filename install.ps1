@@ -1,7 +1,7 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param(
-    [ValidateSet('claude', 'antigravity', 'codex', 'both', 'all')]
+    [ValidateSet('claude', 'antigravity', 'codex', 'opencode', 'both', 'all')]
     [string]$Platform = 'all',
     [ValidateSet('gin-workflow', 'gin-qa', 'all')]
     [string]$Plugin = 'gin-workflow',
@@ -181,14 +181,14 @@ function Convert-ClaudeAgents {
 
 function Install-PlatformLayout {
     param(
-        [Parameter(Mandatory)][ValidateSet('claude', 'antigravity', 'codex')][string]$Harness,
+        [Parameter(Mandatory)][ValidateSet('claude', 'antigravity', 'codex', 'opencode')][string]$Harness,
         [Parameter(Mandatory)][string]$PluginDirectory,
         [Parameter(Mandatory)][string]$Destination,
-        [Parameter(Mandatory)][string]$HooksRoot,
+        [string]$HooksRoot,
         [string]$ManifestPath
     )
     Copy-PluginSource -PluginSource (Join-Path $PluginDirectory 'src') -Destination $Destination
-    if (Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/hooks') -PathType Container) {
+    if ((Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/hooks') -PathType Container) -and ($Harness -in @('claude', 'antigravity', 'codex'))) {
         New-HooksFile -Harness $Harness -OutputPath (Join-Path $Destination 'hooks/hooks.json') -HooksRoot $HooksRoot
     }
     if ($Harness -eq 'claude') {
@@ -391,6 +391,10 @@ function Install-Plugin {
             $target = Join-Path $Project '.codex'
             Install-PlatformLayout -Harness codex -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath (Join-Path $target '.codex-plugin/plugin.json')
         }
+        if (Test-Platform 'opencode') {
+            $target = Join-Path $Project '.opencode'
+            Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -ManifestPath ''
+        }
         return
     }
 
@@ -413,11 +417,19 @@ function Install-Plugin {
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
         Install-PlatformLayout -Harness codex -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath (Join-Path $target '.codex-plugin/plugin.json')
     }
+    if (Test-Platform 'opencode') {
+        $target = Join-Path $distDirectory 'opencode'
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+        Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -ManifestPath ''
+    }
 
     if ($DryRun) {
         Write-Output "(dry-run) registration skipped for $Name"
         if (Test-Platform 'claude') {
             Write-Output "(dry-run) would install global Claude Code plugin to $(Join-Path $UserHome ".claude/skills/$Name")"
+        }
+        if (Test-Platform 'opencode') {
+            Write-Output "(dry-run) would install global OpenCode skills to $(Join-Path $UserHome ".config/opencode/skills/$Name")"
         }
         return
     }
@@ -437,6 +449,21 @@ function Install-Plugin {
         }
         Enable-ClaudePlugin -Name $Name
         Write-Output "Successfully installed and enabled $Name globally in Claude Code!"
+    }
+    if ((Test-Platform 'opencode') -and (Get-Command opencode -ErrorAction SilentlyContinue)) {
+        $source = Join-Path $distDirectory 'opencode'
+        $destination = Join-Path $UserHome ".config/opencode/skills/$Name"
+        if (Test-Path -LiteralPath $destination) {
+            Remove-Item -LiteralPath $destination -Recurse -Force
+        }
+        New-Directory (Split-Path -Parent $destination)
+        if ($Link) {
+            New-Item -ItemType SymbolicLink -Path $destination -Target $source | Out-Null
+        }
+        else {
+            Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+        }
+        Write-Output "Successfully installed $Name globally in OpenCode!"
     }
     if ((Test-Platform 'antigravity') -and (Get-Command agy -ErrorAction SilentlyContinue)) {
         Invoke-NativeCommand `

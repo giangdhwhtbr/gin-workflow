@@ -226,6 +226,17 @@ assert_exists "plugins/gin-workflow/dist/antigravity/hooks/hooks.json"
 assert_exists "plugins/gin-workflow/dist/antigravity/skills/report/SKILL.md"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/antigravity"
 
+./install.sh --platform opencode --dry-run >"$output_file"
+
+assert_contains "$output_file" "Configuring OpenCode skill structure for gin-workflow"
+assert_contains "$output_file" "would install global OpenCode skills to"
+assert_exists "plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/opencode/skills/report/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/opencode/references/stage-contract.md"
+assert_not_exists "plugins/gin-workflow/dist/opencode/hooks/hooks.json"
+assert_not_exists "plugins/gin-workflow/dist/opencode/plugin.json"
+assert_workflow_v22_layout "plugins/gin-workflow/dist/opencode"
+
 # Test actual installation with a mocked HOME
 echo "Running mock HOME global installation test..."
 MOCK_HOME="$(mktemp -d)"
@@ -260,6 +271,25 @@ HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" setup models --provider claude >/dev/null
 assert_not_exists "$MOCK_HOME/.claude/skills/gin-qa"
 assert_not_exists "$MOCK_HOME/.local/bin/gin-qa"
+
+# OpenCode reads skills from its global skills directory; the installer only
+# writes them when the `opencode` CLI is present, so mock one onto PATH.
+opencode_mock_bin="$MOCK_HOME/opencode-bin"
+mkdir -p "$opencode_mock_bin"
+printf '%s\n' '#!/bin/sh' 'exit 0' > "$opencode_mock_bin/opencode"
+chmod +x "$opencode_mock_bin/opencode"
+PATH="$opencode_mock_bin:$PATH" HOME="$MOCK_HOME" ./install.sh --platform opencode >/dev/null
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/setup/SKILL.md"
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/tech-doc/SKILL.md"
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/references/stage-contract.md"
+assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/hooks/hooks.json"
+
+# Project-level OpenCode install needs no CLI; it writes into the repository.
+opencode_project="$MOCK_HOME/opencode-project"
+mkdir -p "$opencode_project"
+HOME="$MOCK_HOME" ./install.sh --platform opencode --project "$opencode_project" >/dev/null
+assert_exists "$opencode_project/.opencode/skills/setup/SKILL.md"
+assert_exists "$opencode_project/.opencode/references/stage-contract.md"
 
 HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file" 2>&1
 assert_not_contains "$output_file" "gin-workflow is not installed"
