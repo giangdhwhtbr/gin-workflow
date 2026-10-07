@@ -116,8 +116,9 @@ def _run(args: argparse.Namespace) -> int:
             result = team_beads.deps(root, team)
             lines = [f"closed {row['id']} ({row['pr']})" for row in result["closed"]]
             lines += [f"waiting {item}" for item in result["waiting"]]
+            lines += [f"unresolved {row['id']}: {row['pr']} merged without a merge commit" for row in result["unresolved"]]
             _emit(result, args.format, "\n".join(lines) or "no external placeholders")
-            return 0
+            return 1 if result["unresolved"] else 0
         if not team.beads_remote:
             raise team_core.TeamError("team.beads_sync.remote is not set")
         _emit(team_beads.sync(root), args.format, "synced")

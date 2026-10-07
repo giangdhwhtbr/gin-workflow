@@ -136,5 +136,6 @@ def merged_with_text(host: str, text: str, cwd: Path) -> list[PrInfo]:
         return [PrInfo(row.get("url", ""), "merged", True, (row.get("mergeCommit") or {}).get("oid", ""),
                        "", "", (), (), row.get("body") or "") for row in rows or []]
     rows = _run("gitlab", ["mr", "list", "--merged", "--search", text, "-F", "json"], cwd)
-    return [PrInfo(row.get("web_url", ""), "merged", True, row.get("merge_commit_sha") or "", "", "", (), (),
+    return [PrInfo(row.get("web_url", ""), "merged", True,
+                   row.get("merge_commit_sha") or row.get("squash_commit_sha") or "", "", "", (), (),
                    row.get("description") or "") for row in rows or []]

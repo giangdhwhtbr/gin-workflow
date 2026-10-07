@@ -121,7 +121,7 @@ def _delivers(body: str, plan: str, number: int) -> bool:
 def deps(root: Path, team: TeamConfig) -> dict[str, Any]:
     from .team_host import merged_with_text
 
-    closed, waiting = [], []
+    closed, waiting, unresolved = [], [], []
     for issue in _bd_json(root, ["list", "--status", "open"]):
         match = _EXTERNAL.match(issue.get("title", ""))
         if not match:
@@ -131,6 +131,9 @@ def deps(root: Path, team: TeamConfig) -> dict[str, Any]:
         if found is None:
             waiting.append(issue["id"])
             continue
+        if not found.merge_commit:
+            unresolved.append({"id": issue["id"], "pr": found.url})
+            continue
         noted = _bd(root, ["update", issue["id"], "--set-metadata", f"merge_commit={found.merge_commit}"])
         if noted.returncode != 0:
             raise TeamError(f"bd update {issue['id']} failed: {noted.stderr.strip()}")
@@ -138,7 +141,7 @@ def deps(root: Path, team: TeamConfig) -> dict[str, Any]:
         if done.returncode != 0:
             raise TeamError(f"bd close {issue['id']} failed: {done.stderr.strip()}")
         closed.append({"id": issue["id"], "pr": found.url})
-    return {"closed": closed, "waiting": waiting}
+    return {"closed": closed, "waiting": waiting, "unresolved": unresolved}
 
 
 def _has_commit(root: Path, commit: str) -> bool:

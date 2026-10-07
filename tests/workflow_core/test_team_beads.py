@@ -146,6 +146,22 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertEqual(1, result.returncode)
         self.assertIn("has not merged; run team deps", result.stdout)
 
+    def test_deps_keeps_placeholder_open_without_merge_commit(self):
+        ext = create(self.root, "external: .planning/plans/p.md#2")
+        result = run_cli(self.root, "team", "deps", env=self.merged_pr(""))
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn(f"unresolved {ext}: https://github.com/org/app/pull/9 merged without a merge commit", result.stdout)
+        self.assertEqual("open", show(self.root, ext)["status"])
+
+    def test_gitlab_merged_list_falls_back_to_squash_commit(self):
+        from workflow_core.team_host import merged_with_text
+        bin_dir = Path(self.tmp.name) / "bin"
+        fake_cli(bin_dir, "glab", [{"argv": ["mr", "list"], "stdout": [
+            {"web_url": "https://gitlab.corp.com/group/app/-/merge_requests/3", "merge_commit_sha": None,
+             "squash_commit_sha": "def", "description": "Plan: p.md"}]}])
+        with mock.patch.dict(os.environ, path_with(bin_dir)):
+            self.assertEqual("def", merged_with_text("gitlab", "p.md", self.root)[0].merge_commit)
+
     def test_refresh_unblocks_ready_without_deadlock(self):
         work = create(self.root, "work", "area:backend")
         ext = create(self.root, "external: .planning/plans/p.md#2")
