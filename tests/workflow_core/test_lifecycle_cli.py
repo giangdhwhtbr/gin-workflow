@@ -312,6 +312,53 @@ class TestLifecycleCLI(unittest.TestCase):
         self._commit_file("src/a.py")
         self.assertEqual("unmet", self._state_gates()["verification_passed"])
 
+    def test_reverted_code_commit_still_invalidates(self):
+        self._git_repo()
+        self.assertEqual(0, self._verify())
+        self._commit_file("src/a.py")
+        self._git("revert", "--no-edit", "HEAD")
+        self._commit_file(".planning/specs/x.md")
+        self.assertEqual("unmet", self._state_gates()["verification_passed"])
+
+    def test_merge_bringing_code_invalidates(self):
+        self._git_repo()
+        self._git("checkout", "-q", "-b", "side")
+        self._commit_file("src/side.py")
+        self._git("checkout", "-q", "main")
+        self.assertEqual(0, self._verify())
+        self._git("merge", "-q", "--no-ff", "--no-edit", "side")
+        self.assertEqual("unmet", self._state_gates()["verification_passed"])
+
+    def test_failing_git_history_is_unmet(self):
+        from unittest.mock import patch
+
+        self._git_repo()
+        self.assertEqual(0, self._verify())
+        self._commit_file(".planning/specs/x.md")
+        real = subprocess.run
+
+        def failing_log(argv, *args, **kwargs):
+            if argv[:2] == ["git", "log"]:
+                return subprocess.CompletedProcess(argv, 128, "", "fatal: bad object")
+            return real(argv, *args, **kwargs)
+
+        with patch("workflow_core.lifecycle_cli.subprocess.run", side_effect=failing_log):
+            self.assertEqual("unmet", self._state_gates()["verification_passed"])
+
+    def test_reverifying_an_earlier_commit_records_again(self):
+        self._git_repo()
+        first = self._git("rev-parse", "HEAD")
+        self.assertEqual(0, self._verify())
+        self._commit_file("src/a.py")
+        self.assertEqual(0, self._verify())
+        self._git("reset", "-q", "--hard", first)
+        self.assertEqual(0, self._verify())
+        self.assertEqual(first, self._verification_events()[-1].payload["head"])
+        self.assertEqual(3, len(self._verification_events()))
+        self.assertEqual("satisfied", self._state_gates()["verification_passed"])
+        self.assertEqual(0, self._verify())
+        self.assertEqual(3, len(self._verification_events()))
+
     def test_event_without_head_is_unmet(self):
         self._git_repo()
         WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").append(WorkflowEvent.create(

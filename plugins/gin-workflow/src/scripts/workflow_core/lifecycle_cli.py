@@ -118,13 +118,19 @@ def _spec_prefixes(repo_path: Path) -> tuple[str, ...]:
     return _SPEC_DIRS + tuple(f"{str(cfg[key]).strip('/')}/" for key in ("specs", "changes"))
 
 
-def _verification_current(repo_path: Path, event_store: WorkflowEventStore, workflow_id: str) -> bool:
-    """The latest verification still describes its branch: the tip is the verified commit, or every
-    later commit only changes spec artifacts (the SDD archive commit at ship)."""
-    payload: Mapping[str, Any] = {}
+def _latest_verification(event_store: WorkflowEventStore, workflow_id: str) -> WorkflowEvent | None:
+    latest = None
     for event in event_store.read_all():
         if event.workflow_id == workflow_id and event.event_type == "verification.passed":
-            payload = event.payload if isinstance(event.payload, Mapping) else {}
+            latest = event
+    return latest
+
+
+def _verification_current(repo_path: Path, event_store: WorkflowEventStore, workflow_id: str) -> bool:
+    """The latest verification still describes its branch: the tip is the verified commit, or every
+    later commit, merges per parent, only changes spec artifacts (the SDD archive commit at ship)."""
+    latest = _latest_verification(event_store, workflow_id)
+    payload = latest.payload if latest is not None and isinstance(latest.payload, Mapping) else {}
     head, branch = str(payload.get("head", "")), str(payload.get("branch", ""))
     if not head or not branch:
         return False
@@ -134,8 +140,12 @@ def _verification_current(repo_path: Path, event_store: WorkflowEventStore, work
     if not tip or subprocess.run(["git", "merge-base", "--is-ancestor", head, tip], cwd=repo_path,
                                  capture_output=True, check=False).returncode != 0:
         return False
+    history = subprocess.run(["git", "log", "-m", "--name-only", "--format=", f"{head}..{tip}"], cwd=repo_path,
+                             text=True, capture_output=True, check=False)
+    if history.returncode != 0:
+        return False
     prefixes = _spec_prefixes(repo_path)
-    return all(path.startswith(prefixes) for path in _git(repo_path, "diff", "--name-only", head, tip).splitlines())
+    return all(path.startswith(prefixes) for path in history.stdout.splitlines() if path)
 
 
 def _delivery_gate_state(
@@ -232,6 +242,11 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             return {"status": "rejected", "message": str(rejected), "reasons": rejected.reasons}, 1
     elif not actor:
         return {"status": "error", "message": "--actor is required"}, 2
+    previous = ""
+    if head:
+        latest = _latest_verification(store, args.workflow_id)
+        if latest is not None and isinstance(latest.payload, Mapping) and latest.payload.get("head") != head:
+            previous = latest.event_id  # a return to an earlier commit is a new verification, not a duplicate
     payload = {**base_payload, "evidence": args.evidence, **team_payload}
     if args.epic:
         payload["epic"] = args.epic
@@ -240,7 +255,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         workflow_id=args.workflow_id,
         actor=actor,
         payload=payload,
-        idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}" + (f":{head}" if head else ""),
+        idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}" + (f":{head}:{previous}" if head else ""),
     )
     appended = store.append(event)
     return {
