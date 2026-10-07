@@ -10,7 +10,7 @@ Spec: `.planning/specs/2026-10-07-review-tier-routing-design.md` (bead `gin-work
 - Inputs: `--tier` is the track's `Reasoning:` (default `medium`); `--implementer` is the provider that actually implemented the work.
 - Raise rule: tier `low` + any non-documentation changed file → `medium`. Documentation: ends in `.md` or under `docs/`, unless a path segment is `skills`. Never lowered; no other rule.
 - Independence: at `low` the implementer provider stays in the list; at `medium`/`high` it is removed. `require_independent: false` keeps every candidate; `allow_self_review_fallback` keeps its meaning.
-- Exit 0 routes printed; exit 2 when `git diff <base>..HEAD` fails, no candidate resolves for the tier, or the list is empty after the independence filter.
+- Exit 0 routes printed; exit 2 when `git diff <base>...HEAD` fails, no candidate resolves for the tier, or the list is empty after the independence filter.
 - No new configuration keys, no runtime events, no JSON output, no reviewer dispatch.
 
 ## Model Guidance
@@ -76,9 +76,9 @@ execution_strategy:
 
 **Interfaces:**
 - `reviewer.is_docs(path: str) -> bool`
-- `reviewer.review_tier(tier: str, changed: Sequence[str]) -> tuple[str, list[str]]` (tier, reasons)
+- `reviewer.review_tier(tier: str, changed: Sequence[str]) -> tuple[str, str | None]` (tier, reason)
 - `reviewer.ReviewerError(Exception)`
-- `reviewer.route(root: Path, base: str, *, tier: str, implementer: str, config: EffectiveConfig, local: Mapping[str, ProviderModelConfig]) -> dict[str, Any]` with keys `tier`, `reasons`, `independence`, `routes` (list of `(provider, model, effort)`)
+- `reviewer.route(root: Path, base: str, *, tier: str, implementer: str, config: EffectiveConfig, local: Mapping[str, ProviderModelConfig]) -> dict[str, Any]` with keys `tier`, `reason`, `routes` (list of `(provider, model, effort)`)
 - `reviewer.main(arguments: Sequence[str]) -> int`
 
 **Steps:**
@@ -128,17 +128,17 @@ class ReviewTierTests(unittest.TestCase):
         self.assertFalse(is_docs("src/app.py"))
 
     def test_low_with_only_docs_stays_low(self):
-        self.assertEqual(("low", []), review_tier("low", ["README.md", "docs/a.md"]))
+        self.assertEqual(("low", None), review_tier("low", ["README.md", "docs/a.md"]))
 
     def test_low_with_code_or_skill_becomes_medium(self):
-        self.assertEqual(("medium", ["low track changes non-docs files: src/app.py"]),
+        self.assertEqual(("medium", "low track changes non-docs files: src/app.py"),
                          review_tier("low", ["README.md", "src/app.py"]))
         self.assertEqual("medium", review_tier("low", ["plugins/x/skills/y/SKILL.md"])[0])
 
     def test_medium_and_high_never_change_and_empty_diff_keeps_the_tier(self):
-        self.assertEqual(("medium", []), review_tier("medium", ["src/app.py"]))
-        self.assertEqual(("high", []), review_tier("high", ["README.md"]))
-        self.assertEqual(("low", []), review_tier("low", []))
+        self.assertEqual(("medium", None), review_tier("medium", ["src/app.py"]))
+        self.assertEqual(("high", None), review_tier("high", ["README.md"]))
+        self.assertEqual(("low", None), review_tier("low", []))
 
 
 class RouteTests(unittest.TestCase):
@@ -168,9 +168,17 @@ class RouteTests(unittest.TestCase):
     def test_low_track_changing_code_reviews_at_medium_without_the_implementer(self):
         self.change("src/app.py")
         out = route(self.root, self.base, tier="low", implementer="claude", config=config(self.root), local=LOCAL)
-        self.assertEqual(("medium", "provider"), (out["tier"], out["independence"]))
-        self.assertEqual(["low track changes non-docs files: src/app.py"], out["reasons"])
-        self.assertEqual(["antigravity g-mid", "codex sol"], self.providers("low"))
+        self.assertEqual(("medium", "low track changes non-docs files: src/app.py"), (out["tier"], out["reason"]))
+        self.assertEqual([("antigravity", "g-mid"), ("codex", "sol")], [r[:2] for r in out["routes"]])
+
+    def test_commits_added_to_the_base_branch_later_are_not_counted(self):
+        git(self.root, "checkout", "-q", "-b", "track")
+        self.change("docs/a.md")
+        git(self.root, "checkout", "-q", "main")
+        self.change("src/app.py")
+        git(self.root, "checkout", "-q", "track")
+        self.base = "main"
+        self.assertEqual("antigravity g-low", self.providers("low")[0])
 
     def test_require_independent_false_keeps_the_implementer(self):
         self.assertIn("claude sonnet", self.providers("medium", cfg=config(self.root, require_independent=False)))
@@ -184,7 +192,7 @@ class RouteTests(unittest.TestCase):
 
     def test_bad_base_is_an_error(self):
         self.base = "nope"
-        with self.assertRaisesRegex(ReviewerError, "git diff nope..HEAD failed"):
+        with self.assertRaisesRegex(ReviewerError, r"git diff nope\.\.\.HEAD failed"):
             self.providers("low")
 
     def test_cli_prints_routes_and_exits_2_on_a_bad_base(self):
@@ -199,11 +207,11 @@ class RouteTests(unittest.TestCase):
                                       "--repository", str(self.root)])
             return code, out.getvalue()
 
-        self.assertEqual((0, "tier low; independence session\nantigravity g-low\ncodex luna\nclaude haiku\n"),
+        self.assertEqual((0, "tier low\nantigravity g-low\ncodex luna\nclaude haiku\n"),
                          run(self.base))
         code, text = run("nope")
         self.assertEqual(2, code)
-        self.assertIn("git diff nope..HEAD failed", text)
+        self.assertIn("git diff nope...HEAD failed", text)
 ```
 
 2. Run: `PYTHONPATH=plugins/gin-workflow/src/scripts:tests python3 -m unittest tests.workflow_core.test_reviewer </dev/null` → fails with `ImportError: cannot import name 'reviewer' from 'workflow_core'`.
@@ -237,21 +245,21 @@ def is_docs(path: str) -> bool:
     return "skills" not in parts and (path.endswith(".md") or parts[:1] == ("docs",))
 
 
-def review_tier(tier: str, changed: Sequence[str]) -> tuple[str, list[str]]:
+def review_tier(tier: str, changed: Sequence[str]) -> tuple[str, str | None]:
     """Raise a low tier to medium when the diff changes anything but documentation; never lower."""
     code = [path for path in changed if not is_docs(path)]
     if tier != "low" or not code:
-        return tier, []
-    return "medium", [f"low track changes non-docs files: {', '.join(code[:3])}"]
+        return tier, None
+    return "medium", f"low track changes non-docs files: {', '.join(code[:3])}"
 
 
 def route(root: Path, base: str, *, tier: str, implementer: str, config: EffectiveConfig,
           local: Mapping[str, ProviderModelConfig]) -> dict[str, Any]:
-    diff = subprocess.run(["git", "diff", "--name-only", f"{base}..HEAD"], cwd=root, capture_output=True,
-                          text=True, check=False)
+    diff = subprocess.run(["git", "diff", "--name-only", "--no-renames", f"{base}...HEAD"], cwd=root,
+                          capture_output=True, text=True, check=False)
     if diff.returncode != 0:
-        raise ReviewerError(f"git diff {base}..HEAD failed: {diff.stderr.strip()}")
-    tier, reasons = review_tier(tier, diff.stdout.splitlines())
+        raise ReviewerError(f"git diff {base}...HEAD failed: {diff.stderr.strip()}")
+    tier, reason = review_tier(tier, diff.stdout.splitlines())
     try:
         candidates = resolve_assignment(
             AssignmentRequest("reviewer", "review", tier, config.harness or implementer), config, local)
@@ -264,8 +272,7 @@ def route(root: Path, base: str, *, tier: str, implementer: str, config: Effecti
         routes = list(candidates)
     if not routes:
         raise ReviewerError(f"no reviewer route independent of {implementer} at tier {tier}")
-    return {"tier": tier, "reasons": reasons, "independence": "provider" if independent else "session",
-            "routes": [(c.provider, c.model, c.effort) for c in routes]}
+    return {"tier": tier, "reason": reason, "routes": [(c.provider, c.model, c.effort) for c in routes]}
 
 
 def main(arguments: Sequence[str]) -> int:
@@ -282,8 +289,7 @@ def main(arguments: Sequence[str]) -> int:
     except (ReviewerError, ConfigValidationError, ProviderLocalConfigError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    lines = [f"tier {out['tier']}; independence {out['independence']}"]
-    lines += [f"reason: {reason}" for reason in out["reasons"]]
+    lines = [f"tier {out['tier']}"] + ([f"reason: {out['reason']}"] if out["reason"] else [])
     lines += [" ".join(filter(None, item)) for item in out["routes"]]
     print("\n".join(lines))
     return 0
@@ -330,7 +336,7 @@ Exit codes: 0 routes printed; 2 bad `--base`, no route for the tier, or no indep
 ## Validation
 - [ ] `PYTHONPATH=plugins/gin-workflow/src/scripts timeout 600 python3 -m unittest tests/test_all.py </dev/null` → `OK (skipped=3)`
 - [ ] `bash tests/install_smoke_test.sh </dev/null` → exit 0
-- [ ] Manual: on the feature branch, `gin-workflow reviewer --base master --implementer claude --tier low` prints `tier medium; independence provider`, a `reason: low track changes non-docs files: ...` line, and no `claude` route
+- [ ] Manual: on the feature branch, `gin-workflow reviewer --base master --implementer claude --tier low` prints `tier medium`, a `reason: low track changes non-docs files: ...` line, and no `claude` route
 
 ## Notes
 - This track changes code, so its own review runs at `medium` whatever tier it declares.
