@@ -6,14 +6,14 @@ Bead: `gin-workflow-hv9`. Status: draft for user review.
 
 Size the reviewer to the change. Today the `review` skill names no reasoning tier, so every review runs on a high-tier model, and `independence: provider` applies to every review: a docs-only track is blocked when the only independent provider is out of quota (teamwork-hardening Track 4).
 
-This change adds one read-only command that tells the reviewer dispatch which tier and which ordered reviewer routes to use. It does not dispatch reviewers, change implementer routing, or touch ledgers.
+This change adds one read-only command that tells the reviewer dispatch which tier and which ordered reviewer routes to use. The command is agent-facing: the `review` skill calls it, and users keep invoking `/gin-workflow:review` as before. It does not dispatch reviewers, change implementer routing, or touch ledgers.
 
 ## Requirements
 
-### 1. `gin-workflow review route`
+### 1. `gin-workflow reviewer`
 
 ```
-gin-workflow review route --bead ID --base SHA [--workflow-id ID] [--format text|json]
+gin-workflow reviewer --bead ID --base SHA [--workflow-id ID] [--format text|json]
 ```
 
 - **Base tier.** The `requested.reasoning` of the bead's entry in `.agent-workflow/runtime/assignments/<workflow-id>.yaml` (main checkout), and the implementer provider from its `resolved.provider`. Without a manifest or entry, the base tier is `medium`, the implementer provider is the main harness, and the reasons include `no assignment manifest`.
@@ -24,7 +24,7 @@ gin-workflow review route --bead ID --base SHA [--workflow-id ID] [--format text
 
 ### 2. `review` skill
 
-The dispatch step runs `gin-workflow review route --bead <id> --base <ledger base>` and dispatches the first available route with its model; on an infrastructure failure (quota, rate limit, timeout) it tries the next route. The actor id is `reviewer:<provider>`, or `reviewer:<provider>:session-<id>` when the provider equals the implementer's. When the list is empty or every route fails, return `human_decision_required` as today.
+The dispatch step runs `gin-workflow reviewer --bead <id> --base <ledger base>` and dispatches the first available route with its model; on an infrastructure failure (quota, rate limit, timeout) it tries the next route. The actor id is `reviewer:<provider>`, or `reviewer:<provider>:session-<id>` when the provider equals the implementer's. When the list is empty or every route fails, return `human_decision_required` as today.
 
 ## Errors and compatibility
 
@@ -36,7 +36,7 @@ The dispatch step runs `gin-workflow review route --bead <id> --base <ledger bas
 
 - Raise rule (pure function): `low` + only `.md`/`docs/` files → `low`; `low` + a `.py` file → `medium`; `low` + `plugins/x/skills/y/SKILL.md` → `medium`; `medium` and `high` are never changed; an empty diff keeps the base tier.
 - CLI in a temporary git repository with a manifest and a `providers.local.yaml`: tier and models follow the manifest tier; at `low` the implementer provider is listed; at `medium` it is not; without a manifest the tier is `medium` with reason `no assignment manifest`; a bad `--base` exits 2; `require_independent: false` keeps the implementer at `medium`.
-- Docs: `docs/concepts/providers.md` (Independent review), `docs/reference/cli.md` (new `review` command); the `review` skill stays within its instruction budget and the packaging and docs checks pass.
+- Docs: `docs/concepts/providers.md` (Independent review), `docs/reference/cli.md` (new `reviewer` command, marked as called by the `review` skill rather than run by hand); the `review` skill stays within its instruction budget and the packaging and docs checks pass.
 
 ## Out of scope
 
