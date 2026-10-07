@@ -103,39 +103,76 @@ def _recorded_epic(event_store: WorkflowEventStore, workflow_id: str) -> str:
     return epic
 
 
+_SPEC_DIRS = (".planning/specs/", ".planning/plans/")
+
+
+def _git(repo_path: Path, *argv: str) -> str:
+    done = subprocess.run(["git", *argv], cwd=repo_path, text=True, capture_output=True, check=False)
+    return done.stdout.strip() if done.returncode == 0 else ""
+
+
+def _spec_prefixes(repo_path: Path) -> tuple[str, ...]:
+    from .specs import sdd_config
+
+    cfg = sdd_config(resolve_effective_config(repo_path, write=False).config.to_dict())
+    return _SPEC_DIRS + tuple(f"{str(cfg[key]).strip('/')}/" for key in ("specs", "changes"))
+
+
+def _verification_current(repo_path: Path, event_store: WorkflowEventStore, workflow_id: str) -> bool:
+    """The latest verification still describes its branch: the tip is the verified commit, or every
+    later commit only changes spec artifacts (the SDD archive commit at ship)."""
+    payload: Mapping[str, Any] = {}
+    for event in event_store.read_all():
+        if event.workflow_id == workflow_id and event.event_type == "verification.passed":
+            payload = event.payload if isinstance(event.payload, Mapping) else {}
+    head, branch = str(payload.get("head", "")), str(payload.get("branch", ""))
+    if not head or not branch:
+        return False
+    tip = _git(repo_path, "rev-parse", "--verify", "-q", f"refs/heads/{branch}")
+    if tip == head:
+        return True
+    if not tip or subprocess.run(["git", "merge-base", "--is-ancestor", head, tip], cwd=repo_path,
+                                 capture_output=True, check=False).returncode != 0:
+        return False
+    prefixes = _spec_prefixes(repo_path)
+    return all(path.startswith(prefixes) for path in _git(repo_path, "diff", "--name-only", head, tip).splitlines())
+
+
 def _delivery_gate_state(
     repo_path: Path, event_store: WorkflowEventStore, workflow_id: str
 ) -> dict[str, bool]:
-    """Derive delivery gates: implementation from closed epic children, verification from
-    its recorded event, shipped from the closed epic (closed only after a confirmed merge).
+    """Derive delivery gates: implementation from closed epic children, shipped from the closed epic
+    (closed only after a confirmed merge), verification from its recorded event while the branch tip
+    is the verified commit; once shipped, the recorded verification stands even if the branch is gone.
 
     A standalone bead recorded as its own epic has no children: implementation is the bead
     itself closed, and shipped comes from an explicit `record shipped` after the merge."""
-    gates = {
-        "implementation_complete": False,
-        "verification_passed": any(
-            event.workflow_id == workflow_id and event.event_type == "verification.passed"
-            for event in event_store.read_all()
-        ),
-        "shipped": False,
-    }
+    implemented, shipped = _implementation_and_shipped(repo_path, event_store, workflow_id)
+    verified = _verification_current(repo_path, event_store, workflow_id) or shipped and any(
+        event.workflow_id == workflow_id and event.event_type == "verification.passed"
+        for event in event_store.read_all()
+    )
+    return {"implementation_complete": implemented, "verification_passed": verified, "shipped": shipped}
+
+
+def _implementation_and_shipped(
+    repo_path: Path, event_store: WorkflowEventStore, workflow_id: str
+) -> tuple[bool, bool]:
     epic = _recorded_epic(event_store, workflow_id)
     if not epic:
-        return gates
+        return False, False
     children = _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
     if children == []:
-        gates["implementation_complete"] = _bead_closed(repo_path, epic)
-        gates["shipped"] = gates["implementation_complete"] and any(
+        implemented = _bead_closed(repo_path, epic)
+        return implemented, implemented and any(
             event.workflow_id == workflow_id and event.event_type == "delivery.shipped"
             for event in event_store.read_all()
         )
-        return gates
     if isinstance(children, list) and children and all(
         isinstance(child, Mapping) and child.get("status") == "closed" for child in children
     ):
-        gates["implementation_complete"] = True
-        gates["shipped"] = _bead_closed(repo_path, epic)
-    return gates
+        return True, _bead_closed(repo_path, epic)
+    return False, False
 
 
 def _standalone_requirement(repo_path: Path, event_store: WorkflowEventStore, workflow_id: str) -> bool:
@@ -165,6 +202,14 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
+    head = ""
+    if args.gate == "verification-passed":
+        repository = Path(args.repository).resolve()
+        branch, head = _git(repository, "symbolic-ref", "--short", "-q", "HEAD"), _git(repository, "rev-parse", "HEAD")
+        if not branch or not head:
+            return {"status": "error", "message": "verification-passed needs a checked-out branch with a commit "
+                    "(detached HEAD or no git repository)"}, 2
+        base_payload = {**base_payload, "branch": branch, "head": head}
     store = _get_event_store(Path(args.repository).resolve())
     if args.gate == "shipped":
         epic = _recorded_epic(store, args.workflow_id)
@@ -195,7 +240,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         workflow_id=args.workflow_id,
         actor=actor,
         payload=payload,
-        idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}",
+        idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}" + (f":{head}" if head else ""),
     )
     appended = store.append(event)
     return {
