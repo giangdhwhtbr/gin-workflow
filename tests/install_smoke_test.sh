@@ -140,6 +140,7 @@ assert_not_contains "$output_file" "gin-qa"
 assert_not_exists "plugins/gin-qa/dist"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/report/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/developer.md"
@@ -177,6 +178,9 @@ assert_contains 'plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "codegraph"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "every file of the tech-doc folder"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "never close or delete"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "Never \`bd create --id\` an existing id"
 
 ./install.sh --platform claude --plugin gin-qa --dry-run >"$output_file"
 
