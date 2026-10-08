@@ -13,7 +13,7 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
 
 ## Steps
 
-1. Require `plan_approved` and read the plan from `.planning/plans/`. When the spec names `Epic: <id>` (a roadmap epic), use it as the parent and create no other epic. With `project.layout: sdd`, read `<change>/plan.md`, reuse the epic, and label tracks per the `gin-sdd` skill.
+1. Require `plan_approved` and read the plan from `.planning/plans/`. When the spec names `Epic: <id>` (a roadmap epic), use it as the parent of the tracks (`bd create --parent <epic>`) and create no other epic. With `project.layout: sdd`, read `<change>/plan.md`, reuse the epic, and label tracks per the `gin-sdd` skill.
    With `project.team.enabled`, label, assign, and sync track beads per the `gin-team` skill.
 2. Reject any implementation or review track without a provider role and reasoning; list every one.
 3. Resolve routes for the whole batch before any durable write: build an `AssignmentRequest(task_id, provider_role, reasoning, main_harness, workflow_id)` per track and call `workflow_core.assignments.resolve_all_assignments(requests, config, local)` (`PYTHONPATH=<plugin>/scripts`; `config` is the generated effective config and `local` comes from `workflow_core.provider_config.load_provider_local_config(repo)`). If anything is unresolved, report all diagnostics and stop. Otherwise persist each preview with `write_assignment_manifest`. Concrete provider/model names never enter Beads or the plan.
