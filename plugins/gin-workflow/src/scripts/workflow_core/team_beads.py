@@ -97,13 +97,45 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
     completed = _bd(root, ["update", bead, "--claim"], actor=member.email)
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
+    _push(root, team, bead)
+    return {"status": "claimed", "bead": bead, "assignee": member.email}
+
+
+def _push(root: Path, team: TeamConfig, bead: str) -> None:
     if team.beads_remote:
         pushed = _bd(root, ["dolt", "push"])
         if pushed.returncode != 0:
             reset_to_remote(root)
             holder = (_show(root, bead).get("assignee") or "").lower() or "nobody"
             raise SyncConflict(f"push rejected; local Beads reset to the remote; {bead} is held by {holder}")
-    return {"status": "claimed", "bead": bead, "assignee": member.email}
+
+
+def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str) -> dict[str, Any]:
+    """Hand a track to another member: only the current assignee or the lead of one of its areas may."""
+    target = team.member(email)
+    if target is None:
+        raise TeamError(f"{email} is not a team member")
+    if team.beads_remote:
+        sync(root)
+    issue = _show(root, bead)
+    if issue.get("status") == "closed":
+        raise SyncConflict(f"{bead} is closed")
+    holder = (issue.get("assignee") or "").lower()
+    areas = [team.areas[name] for label in issue.get("labels") or [] if label.startswith("area:")
+             if (name := label[5:]) in team.areas]
+    if holder != member.email and not any(area.lead in member.roles for area in areas):
+        raise SyncConflict(f"only {holder or 'an area lead'} or the lead of its area may reassign {bead}")
+    if holder == target.email:
+        raise SyncConflict(f"{bead} is already assigned to {target.email}")
+    ineligible = [area.name for area in areas if not team.eligible(target, area)]
+    if ineligible:
+        raise SyncConflict(f"{target.email} may not own tracks in {', '.join(ineligible)}")
+    note = f"reassigned {holder or 'nobody'} -> {target.email} by {member.email}"
+    completed = _bd(root, ["update", bead, "--assignee", target.email, "--append-notes", note], actor=member.email)
+    if completed.returncode != 0:
+        raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
+    _push(root, team, bead)
+    return {"status": "reassigned", "bead": bead, "from": holder, "assignee": target.email}
 
 
 def _tracks_in(body: str) -> tuple[str, set[int]]:

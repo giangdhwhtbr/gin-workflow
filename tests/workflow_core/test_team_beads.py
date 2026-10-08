@@ -90,6 +90,33 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertEqual(1, refused.returncode)
         self.assertIn("already claimed by em@corp.com", refused.stdout)
 
+    def test_reassign_lead_takes_over_and_checks_eligibility(self):
+        bead = create(self.root, "work", "area:backend")
+        bd(self.root, "update", bead, "--claim", actor="em@corp.com")
+        refused = run_cli(self.root, "team", "reassign", bead, "chi@corp.com")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("may not own tracks in backend", refused.stdout)
+        self.assertEqual(2, run_cli(self.root, "team", "reassign", bead, "nobody@corp.com").returncode)
+        done = run_cli(self.root, "team", "reassign", bead, "binh@corp.com")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        moved = show(self.root, bead)
+        self.assertEqual("binh@corp.com", moved["assignee"])
+        self.assertIn("reassigned em@corp.com -> binh@corp.com by binh@corp.com", moved["notes"])
+        again = run_cli(self.root, "team", "reassign", bead, "binh@corp.com")
+        self.assertEqual(1, again.returncode)
+        self.assertIn("already assigned", again.stdout)
+
+    def test_reassign_by_non_holder_non_lead_is_refused(self):
+        bead = create(self.root, "work", "area:backend")
+        bd(self.root, "update", bead, "--claim", actor="binh@corp.com")
+        git(self.root, "config", "user.email", "em@corp.com")
+        refused = run_cli(self.root, "team", "reassign", bead, "em@corp.com")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("only binh@corp.com or the lead", refused.stdout)
+        mine = create(self.root, "mine", "area:backend")
+        bd(self.root, "update", mine, "--claim", actor="em@corp.com")
+        self.assertEqual(0, run_cli(self.root, "team", "reassign", mine, "binh@corp.com").returncode)
+
     def test_deps_closes_placeholders_whose_track_merged(self):
         done = create(self.root, "external: .planning/plans/p.md#2")
         pending = create(self.root, "external: .planning/plans/p.md#3")

@@ -31,6 +31,9 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
     sub.add_parser("ready", parents=[common])
     sub.add_parser("claim", parents=[common]).add_argument("bead")
+    item = sub.add_parser("reassign", parents=[common])
+    item.add_argument("bead")
+    item.add_argument("email")
     sub.add_parser("deps", parents=[common]).add_argument("--bead")
     sub.add_parser("sync", parents=[common])
     return parser
@@ -105,6 +108,10 @@ def _run(args: argparse.Namespace) -> int:
         if args.command == "claim":
             result = team_beads.claim(root, team, member, args.bead)
             _emit(result, args.format, f"claimed {args.bead}")
+            return 0
+        if args.command == "reassign":
+            result = team_beads.reassign(root, team, member, args.bead, args.email)
+            _emit(result, args.format, f"reassigned {args.bead} to {result['assignee']}")
             return 0
         if args.command == "deps" and args.bead:
             result = team_beads.deps_for(root, args.bead)
