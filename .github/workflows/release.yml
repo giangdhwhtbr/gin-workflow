@@ -18,6 +18,8 @@ jobs:
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "::error::tag $GITHUB_REF_NAME does not match plugins/gin-workflow/plugin.meta.json version $version"; exit 1
           fi
+      - name: Install test dependencies
+        run: python3 -m pip install PyYAML
       - name: Tests
         run: python3 -m unittest discover -s tests -q
       - name: Create the release
