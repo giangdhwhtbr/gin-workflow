@@ -53,7 +53,7 @@ Execution runs directly in the session for sequential plans and three or fewer t
 
 ## Independent review
 
-Review goes through the same routing under `routing.review`. With `independence: provider` (multi-provider mode) the reviewer's provider must differ from the implementer's; with `independence: session` (single-provider mode) a fresh session of the same provider reviews with a clean context and a different actor id. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts.
+Review goes through the same routing under `routing.review`. With `independence: provider` (multi-provider mode) the reviewer's provider must differ from the implementer's; with `independence: session` (single-provider mode) a fresh session of the same provider reviews with a clean context and a different actor id. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts. The reviewer's tier follows the track's reasoning; a `low` track whose diff changes more than documentation is reviewed at `medium`. A `low`-tier review accepts a fresh session of the implementer's provider. `gin-workflow reviewer` computes the tier and the route order for the `review` skill.
 
 ## Worker context and results
 

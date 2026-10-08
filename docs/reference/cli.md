@@ -161,6 +161,16 @@ Opt-in team mode, active when the configuration has a `team:` section.
 
 Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuration, or host error.
 
+## `gin-workflow reviewer`
+
+```
+gin-workflow reviewer --base SHA --implementer PROVIDER [--tier low|medium|high]
+```
+
+Called by the `review` skill to pick the reviewer; you do not need to run it. Prints the review tier and the reviewer routes in order. `--tier` is the track's reasoning (default `medium`); a `low` track whose diff since `--base` changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) is reviewed at `medium`. At `low` the implementer's provider may review in a fresh session; at `medium` and `high` it is excluded unless `routing.review.require_independent` is false.
+
+Exit codes: 0 routes printed; 2 bad `--base`, no route for the tier, or no independent route.
+
 ## `gin-workflow usage`
 
 ```
