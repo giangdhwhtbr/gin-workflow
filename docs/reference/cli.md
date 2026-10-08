@@ -156,6 +156,7 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields |
 | `ready` | Ready beads in your areas |
 | `claim BEAD` | Claim a bead as yourself |
+| `reassign BEAD EMAIL` | Hand a track bead to another member. Allowed for the bead's current assignee or the lead of one of its areas; the new assignee must be allowed to own tracks in each area (`team.areas.<name>.roles`). Sets the assignee, appends a note, and pushes with shared Beads. A closed bead, a non-member, or a no-op is refused |
 | `deps [--bead ID]` | Without `--bead`: close placeholders whose track PR merged, storing its merge commit. With `--bead`: exit 1 unless each external dependency's merge commit is in this workspace |
 | `sync` | Sync Beads with `team.beads_sync.remote` |
 

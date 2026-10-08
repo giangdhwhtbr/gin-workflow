@@ -49,6 +49,8 @@ The `gin-team` skill carries the exact steps.
 | `verify` | When `verification_passed` has roles, that role approves the latest commit of the pull request; a later push needs a new approval. GitLab needs "Reset approvals on push". |
 | `ship` | Merging follows the host's rules (CODEOWNERS, branch protection). With shared Beads, `team sync` after closing beads. |
 
+**Handing a track over** (a member runs out of quota or is away): push the track branch, then the current assignee or the area lead runs `gin-workflow team reassign <bead> <email>`. The new assignee must be allowed to own tracks in the bead's areas; the bead keeps its status, gets a note `reassigned <from> -> <to> by <you>`, and with shared Beads the change is pushed. The new owner checks out the pushed branch and continues. The plan's `Owner:` field is not changed, and the review ledger travels with the branch only if it was committed.
+
 `gin-workflow team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
 
 The lead declares a feature complete when every track pull request has merged; a member's ship covers only their own tracks.
