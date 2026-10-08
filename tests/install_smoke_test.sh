@@ -181,6 +181,10 @@ assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "every file of the tech-doc folder"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "never close or delete"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "Never \`bd create --id\` an existing id"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/discuss/SKILL.md" "/discuss <epic-id>"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.md" "create no other epic"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/execute/SKILL.md" "labelled \`roadmap\`"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/progress/SKILL.md" "sprint:<name>"
 
 ./install.sh --platform claude --plugin gin-qa --dry-run >"$output_file"
 

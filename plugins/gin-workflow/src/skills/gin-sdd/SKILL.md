@@ -8,8 +8,8 @@ description: Use in a lifecycle stage when `project.layout` is `sdd` — change 
 Applies only when `gin-workflow state --format json` reports `project.layout: sdd`. Paths come from `artifacts.specs` (default `docs/specs`) and `artifacts.changes` (default `docs/changes`). Every `state`/`record` call for a change passes `--workflow-id <epic>`. All commands are `gin-workflow specs <command>`; exit 1 means findings to fix, exit 2 means wrong usage or layout.
 
 ## discuss
-1. After the user confirms the design: `bd create --type epic --title "<title>"` → `specs new <slug> --epic <epic>` creates `<changes>/<epic>-<slug>/`.
-2. Write `proposal.md`, `spec-delta.md`, and `design.md` in that folder. Each new requirement gets its ID from `specs next-id <cap>`; a `MODIFIED` or `REMOVED` block puts the output of `specs hash <REQ-ID>` on the line after its heading, and a `REMOVED` block adds `Reason: <why>`. An architecture decision also gets `docs/adr/NNNN-<slug>.md` from `specs template adr.md`.
+1. After the user confirms the design: `bd create --type epic --title "<title>"` (a roadmap epic is reused as is) → `specs new <slug> --epic <epic>` creates `<changes>/<epic>-<slug>/`.
+2. Write `proposal.md`, `spec-delta.md`, and `design.md` in that folder. `proposal.md` lists `## User Stories` from `specs template user-story.md`, each with `REQ:`. Each new requirement gets its ID from `specs next-id <cap>`; a `MODIFIED` or `REMOVED` block puts the output of `specs hash <REQ-ID>` on the line after its heading, and a `REMOVED` block adds `Reason: <why>`. An architecture decision also gets `docs/adr/NNNN-<slug>.md` from `specs template adr.md`.
 3. `specs lint --change <epic>` must exit 0.
 4. `project.spec_review`:
    - `chat`: the user confirms → `gin-workflow record requirement-confirmed --workflow-id <epic> --evidence <change folder> --actor <id>`.
