@@ -1,25 +1,29 @@
 # Code Review Ledger
 
-**Bead Status:** `review-in-progress`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000021`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `app` (SHA: `311999e`, Tree Hash: `a9c4c6a`)
 
 ## Tracked Repositories
 ### Repository: `app`
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-69r.5`
 - **Base SHA:** `780724107eb4265af9471421b350870d8ecc40a8`
-- **Reviewed SHA:** `548999a6d5349935d5364184ba305bda6357f95c`
+- **Reviewed SHA:** `311999e58a1a58b8c45936259746cfd987af4318`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-69r.5`
-- **Checkpoint SHA:** `548999a6d5349935d5364184ba305bda6357f95c`
+- **Checkpoint SHA:** `311999e58a1a58b8c45936259746cfd987af4318`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `f671d6844c701eeff41c5330b2ea59695b8cd6da834261476a5dac289cbdc517`
+- **Tree Hash:** `a9c4c6ab418b2af90e43d5bd1aafd49c48cc62f6ae174548e35f8b857b104ad1`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -31,7 +35,7 @@
 | :--- | :--- | :--- | :---: | :--- |
 | `F1-execute-refusal` | `MINOR` | `verified` | 0 | - |
 | `F2-progress-tracks` | `MINOR` | `verified` | 0 | - |
-| `F3-orchestrate-parent` | `MINOR` | `open` | 0 | - |
+| `F3-orchestrate-parent` | `MINOR` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `F1-execute-refusal` (MINOR)
@@ -43,7 +47,7 @@
 - **Clarification Count:** 0
 
 ### `F3-orchestrate-parent` (MINOR)
-- **Status:** `open`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -66,3 +70,9 @@
 | `EV-000014` | `2026-10-08T05:10:56.564207Z` | `finding-verified` | `reviewer:claude:session-aba19a9f` (reviewer) |
 | `EV-000015` | `2026-10-08T05:10:56.687645Z` | `finding-verified` | `reviewer:claude:session-aba19a9f` (reviewer) |
 | `EV-000016` | `2026-10-08T05:10:57.086025Z` | `lease-released` | `reviewer:claude:session-aba19a9f` (reviewer) |
+| `EV-000017` | `2026-10-08T05:11:13.388995Z` | `finding-fixed` | `implementer:claude` (worker) |
+| `EV-000018` | `2026-10-08T05:11:13.679936Z` | `source-checkpoint-created` | `implementer:claude` (worker) |
+| `EV-000019` | `2026-10-08T05:11:13.819713Z` | `lease-acquired` | `reviewer:claude:session-aba19a9f` (reviewer) |
+| `EV-000020` | `2026-10-08T05:11:13.966966Z` | `finding-verified` | `reviewer:claude:session-aba19a9f` (reviewer) |
+| `EV-000021` | `2026-10-08T05:11:14.137677Z` | `review-approved` | `reviewer:claude:session-aba19a9f` (reviewer) |
+| `EV-000022` | `2026-10-08T05:11:14.373537Z` | `lease-released` | `reviewer:claude:session-aba19a9f` (reviewer) |
