@@ -285,7 +285,7 @@ def report(repo: Path, *, bead: str | None = None, epic: str | None = None, sinc
         selected = [row for row in rows if row.get("id") == bead]
     elif epic:
         selected = [row for row in rows if row.get("id") == epic or row.get("parent") == epic]
-    elif sprint:
+    elif sprint is not None:
         epics = {row["id"] for row in rows if row.get("issue_type") == "epic"
                  and f"sprint:{sprint}" in (row.get("labels") or ())}
         selected = [row for row in rows if row.get("id") in epics or row.get("parent") in epics]

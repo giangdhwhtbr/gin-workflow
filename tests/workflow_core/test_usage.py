@@ -272,6 +272,9 @@ class ReportTests(Fixture):
         rows[0]["labels"] = ["roadmap", "sprint:s1"]
         rows.append({"id": "ep2", "title": "Next", "issue_type": "epic", "status": "open",
                      "labels": ["sprint:s2"]})
+        rows.append({"id": "ep3", "title": "Longer name", "issue_type": "epic", "status": "open",
+                     "labels": ["sprint:s10"]})
+        rows.append({"id": "ep4", "title": "No labels", "issue_type": "epic", "status": "open", "labels": None})
         self.rules[0]["stdout"] = rows
         fake_cli(self.bin, "bd", self.rules)
         out = usage.report(self.repo, sprint="s1")
@@ -279,6 +282,7 @@ class ReportTests(Fixture):
         self.assertEqual(["ep1.2"], out["not_collected"])
         self.assertEqual(3.0, out["totals"]["cost"])
         self.assertEqual([], usage.report(self.repo, sprint="none")["beads"])
+        self.assertEqual([], usage.report(self.repo, sprint="")["beads"])
 
     def test_total_is_null_when_nothing_is_priced(self):
         self.rules[0]["stdout"] = [{"id": "u1", "title": "U", "issue_type": "task", "status": "closed",
