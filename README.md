@@ -86,6 +86,10 @@ Antigravity has no git-based install; use the installer above. OpenCode has no p
 
 All skills, including the support skills and the `gin-qa` add-on: [skills reference](docs/reference/skills.md).
 
+## License
+
+[MIT](LICENSE).
+
 ## Credits
 
 The `lean` rule pack's ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT).

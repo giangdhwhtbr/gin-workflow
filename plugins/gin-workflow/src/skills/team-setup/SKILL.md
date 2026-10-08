@@ -12,7 +12,7 @@ Requires `.agent-workflow/config.yaml`; if it is missing, tell the user to run `
 2. Show the resulting `team:` YAML and get confirmation. Write it with `gin-workflow setup configure --approve --set 'team=<json>'`, adding `--set 'artifacts.spec_review="pr"'` when `requirement_confirmed` lists roles. Exit 2 lists every rule the config breaks; fix them and retry.
 3. `gin-workflow team init` (`--ci` adds a CI job); report the files it skipped. Commit on a branch, push, and offer to open a PR.
 4. With `beads_sync`: `bd dolt remote add origin <remote>`, then `gin-workflow team sync`.
-5. Tell the lead what to enable on the host: branch protection on the base branch requiring a PR with one approval and code-owner review (GitHub "Require review from Code Owners"; GitLab Premium "Code owner approval"). The CI spec and CODEOWNERS step runs only when the repository variable `GIN_WORKFLOW_INSTALL` holds a command that installs gin-workflow.
+5. Tell the lead what to enable on the host: branch protection on the base branch requiring a PR with one approval and code-owner review (GitHub "Require review from Code Owners"; GitLab Premium "Code owner approval"). The CI spec and CODEOWNERS step runs only when the repository variable `GIN_WORKFLOW_INSTALL` holds a command that installs gin-workflow; on GitLab also add the `include` for `.gitlab/ci/gin-workflow.yml` (see the CI section of docs/guides/team.md).
 
 ## Member: join
 1. `gin-workflow team whoami` must print your entry; otherwise fix `git config user.email` or ask the lead to add you.

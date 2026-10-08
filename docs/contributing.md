@@ -81,7 +81,8 @@ Skills stay under 6,000 characters each; the core never names `gin-qa`.
 1. Bump the version in `plugins/<plugin>/plugin.meta.json`, `src/.claude-plugin/plugin.json`, and `src/.codex-plugin/plugin.json` (for `gin-qa` also `src/scripts/gin_qa/cli.py`), plus the launcher version in `install.sh` (`LAUNCHER_VERSION`, `QA_LAUNCHER_VERSION`) and `install.ps1` (`$LauncherVersion`, `$QaLauncherVersion`) when the CLI changed, and the version assertions in `tests/install_smoke_test.sh`, `tests/install_smoke_test.ps1`, and `tests/workflow_providers/test_harness_packaging.py`.
 2. Run the tests and the smoke test.
 3. Merge to `master` with approval and push.
-4. Reinstall on each machine (`./install.sh --platform all`); marketplace users update through their harness.
+4. Tag the merge commit `vX.Y.Z` (the `gin-workflow` version) and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`, runs the full test suite, then creates the GitHub release with generated notes. `gin-qa` ships in the same release under its own version.
+5. Reinstall on each machine (`./install.sh --platform all`); marketplace users update through their harness.
 
 ## Benchmarks
 

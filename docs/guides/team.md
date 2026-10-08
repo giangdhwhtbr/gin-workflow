@@ -58,6 +58,23 @@ The lead declares a feature complete when every track pull request has merged; a
 - GitHub: branch protection on the integration branch, "Dismiss stale pull request approvals when new commits are pushed", and CODEOWNERS per area (`team init`).
 - GitLab: "Reset approvals on push" (`reset_approvals_on_push`), required for `verification_passed`; without it the gate rejects the approval.
 
+## CI (optional)
+
+`gin-workflow team init --ci` writes a CI job for the host. Commit it with the rest of `team init`'s files.
+
+| Host | File | Runs on |
+|---|---|---|
+| GitHub Actions | `.github/workflows/gin-workflow.yml` (job `conventions`) | every pull request |
+| GitLab CI | `.gitlab/ci/gin-workflow.yml` (job `gin-workflow-conventions`, stage `test`) | every merge request |
+
+GitLab does not pick the file up by itself: add `include: { local: .gitlab/ci/gin-workflow.yml }` to the root `.gitlab-ci.yml`.
+
+The job always checks commit messages against `team.commit_convention` (skipped for `none`). It also runs `gin-workflow team codeowners --check` and, with the SDD layout, `gin-workflow specs lint`, but only when the variable `GIN_WORKFLOW_INSTALL` holds a shell command that installs `gin-workflow` on the CI runner; without it those two checks are skipped and the job still passes.
+
+- GitHub: Settings, Secrets and variables, Actions, tab **Variables** (a Variable, not a Secret).
+- GitLab: Settings, CI/CD, Variables.
+- Example value: `curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude`.
+
 ## Commands
 
 See [`gin-workflow team`](../reference/cli.md#gin-workflow-team) and the [`team` configuration keys](../reference/config.md#team).
