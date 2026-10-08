@@ -45,6 +45,7 @@ _TEAM = {
                 "requirement_confirmed": _ROLES,
                 "plan_approved": {"anyOf": [{"const": "area_lead"}, _ROLES]},
                 "verification_passed": _ROLES,
+                "roadmap": _ROLES,
             },
             "additionalProperties": False,
         },

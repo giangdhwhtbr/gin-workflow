@@ -152,7 +152,7 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `codeowners [--check]` | Print CODEOWNERS, or check it is up to date |
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
 | `whoami` | Show your member entry, roles, and areas (from `git config user.email`) |
-| `check URL --gate GATE [--plan P] [--spec S]` | Check that a pull request of this repository changes the gate's artifact and satisfies its approvals |
+| `check URL --gate GATE [--plan P] [--spec S]` | Check that a pull request of this repository changes the gate's artifact and satisfies its approvals; `--gate roadmap` checks the roadmap file without recording anything |
 | `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields |
 | `ready` | Ready beads in your areas |
 | `claim BEAD` | Claim a bead as yourself |

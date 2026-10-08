@@ -119,7 +119,7 @@ Maps lifecycle phases (`brainstorm`, `design`, `plan`, `implement`, `verify`, `r
 
 ### `team`
 
-Present only in team mode ([guide](../guides/team.md)): `host` (`github` or `gitlab`), `commit_convention`, `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals` (per gate: a role list or `area_lead`), and `beads_sync.remote`.
+Present only in team mode ([guide](../guides/team.md)): `host` (`github` or `gitlab`), `commit_convention`, `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals` (per gate: a role list or `area_lead`; `roadmap` takes a role list and gates the `/roadmap` pull request), and `beads_sync.remote`.
 
 ### `qa`
 

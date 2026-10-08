@@ -9,7 +9,7 @@ Run `/team-setup` and answer as the lead. It asks for:
 - **host**: `github` or `gitlab`, and the **commit convention**: `conventional` or `none`;
 - **members**: git email, roles, and host login for each person;
 - **areas**: a name, path globs (including the area's tests), the `lead` role, and optionally the `roles` allowed to own tracks;
-- **approvals**: which roles approve `requirement_confirmed` and `verification_passed`, and `area_lead` or roles for `plan_approved` (`[]` for none);
+- **approvals**: which roles approve `requirement_confirmed`, `verification_passed`, and the `/roadmap` pull request (`roadmap`), and `area_lead` or roles for `plan_approved` (`[]` for none);
 - optionally **shared Beads**: a separate repository used as `team.beads_sync.remote`.
 
 It writes the `team:` block with `gin-workflow setup configure`, then runs `gin-workflow team init` to generate CODEOWNERS, the pull request template, the commit-msg hook, and with `--ci` a CI workflow that checks commit messages against the convention and, when the repository variable `GIN_WORKFLOW_INSTALL` holds an install command, runs `team codeowners --check` and (SDD layout) `specs lint`. Commit those on a branch. On the host, protect the base branch: require a pull request with an approval and code-owner review.
@@ -20,6 +20,7 @@ team:
   commit_convention: conventional
   members:
     an@example.com: {roles: [ba], login: an-ba}
+    lan@example.com: {roles: [pm], login: lan-pm}
     binh@example.com: {roles: [be_lead, be_dev], login: binh-dev}
   areas:
     backend: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
@@ -27,6 +28,7 @@ team:
     requirement_confirmed: [ba, be_lead]
     plan_approved: area_lead
     verification_passed: [qe]
+    roadmap: [pm]
 ```
 
 ## Join it (member)

@@ -9,7 +9,8 @@ import subprocess
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
-GATES = ("requirement_confirmed", "plan_approved", "verification_passed")
+GATES = ("requirement_confirmed", "plan_approved", "verification_passed", "roadmap")
+ROADMAP = {"legacy": ".planning/roadmap.md", "sdd": "docs/roadmap.md"}
 DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead",
                                      "verification_passed": []}
 _WILDCARDS = re.compile(r"[*?\[]")
@@ -290,13 +291,16 @@ def _is_artifact(path: str, gate: str, changes: str) -> bool:
 
 
 def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> str:
-    """The spec or plan the gate approves: the selector, else the one candidate the PR changes."""
-    if selected:
-        return selected
+    """The spec, plan, or roadmap the gate approves: the selector, else the one candidate the PR changes."""
     from .specs import load_config, sdd_config
 
+    cfg = sdd_config(load_config(Path(root)))
+    if gate == "roadmap":
+        return ROADMAP[cfg["layout"]]
+    if selected:
+        return selected
     kind, flag = ("spec", "--spec") if gate == "requirement_confirmed" else ("plan", "--plan")
-    changes = str(sdd_config(load_config(Path(root)))["changes"]).strip("/")
+    changes = str(cfg["changes"]).strip("/")
     candidates = [item for item in pr.files if _is_artifact(item, gate, changes)]
     if len(candidates) != 1:
         raise TeamError(f"the PR must change exactly one {kind} file (found: {', '.join(candidates) or 'none'}); "

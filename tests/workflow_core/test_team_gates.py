@@ -11,7 +11,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import PLAN, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
+from team_fixtures import PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
 from workflow_core.team import check_plan, load_team, plan_tracks, repo_slug  # noqa: E402
 from workflow_core.team_host import fetch_pr  # noqa: E402
 
@@ -222,6 +222,60 @@ class TestWaivers(GateCase):
         allowed = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "r")
         self.assertEqual(0, allowed.returncode, allowed.stdout + allowed.stderr)
         self.assertEqual(0, run_cli(self.root, "unblock", "--clear-blocker", "--reason", "r").returncode)
+
+
+ROADMAP_TEAM = TEAM.format(host="github").replace(
+    "    em@corp.com:", "    lan@corp.com: {roles: [pm], login: lan-pm}\n    em@corp.com:").replace(
+    "    verification_passed: [qe]\n", "    verification_passed: [qe]\n    roadmap: [pm]\n")
+ROADMAP_PATH = ".planning/roadmap.md"
+
+
+class TestRoadmapApproval(GateCase):
+    def setUp(self):
+        super().setUp()
+        self.root = make_team_repo(Path(self.tmp.name) / "roadmap-repo", team=ROADMAP_TEAM)
+
+    def check(self):
+        return run_cli(self.root, "team", "check", PR, "--gate", "roadmap", env=self.env)
+
+    def test_pm_approval_of_a_merged_roadmap_pr_passes_without_recording(self):
+        self.gh(gh_pr(author="binh-dev", files=[ROADMAP_PATH], reviews=[("lan-pm", "APPROVED", "c")]))
+        result = self.check()
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], self.events())
+
+    def test_rejections(self):
+        cases = [
+            (gh_pr(author="binh-dev", files=[ROADMAP_PATH], reviews=[("an-ba", "APPROVED", "c")]),
+             "missing approval from one of pm"),
+            (gh_pr(author="lan-pm", files=[ROADMAP_PATH], reviews=[("lan-pm", "APPROVED", "c")]),
+             "missing approval from one of pm"),
+            (gh_pr(author="binh-dev", files=["README.md"], reviews=[("lan-pm", "APPROVED", "c")]),
+             f"PR does not change {ROADMAP_PATH}"),
+            (gh_pr(state="OPEN", author="binh-dev", files=[ROADMAP_PATH], reviews=[("lan-pm", "APPROVED", "c")]),
+             "not merged"),
+        ]
+        for pr, reason in cases:
+            with self.subTest(reason=reason):
+                self.gh(pr)
+                result = self.check()
+                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertIn(reason, result.stdout)
+
+    def test_sdd_layout_uses_docs_roadmap(self):
+        root = make_team_repo(Path(self.tmp.name) / "sdd-repo", team=ROADMAP_TEAM,
+                              extra="artifacts:\n  layout: sdd\n")
+        self.gh(gh_pr(author="binh-dev", files=["docs/roadmap.md"], reviews=[("lan-pm", "APPROVED", "c")]))
+        result = run_cli(root, "team", "check", PR, "--gate", "roadmap", env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_roadmap_role_held_by_no_member_is_a_config_error(self):
+        team = TEAM.format(host="github").replace("    verification_passed: [qe]\n",
+                                                  "    verification_passed: [qe]\n    roadmap: [pm]\n")
+        root = make_team_repo(Path(self.tmp.name) / "no-pm-repo", team=team)
+        result = run_cli(root, "team", "check", PR, "--gate", "roadmap", env=self.env)
+        self.assertEqual(2, result.returncode)
+        self.assertIn("team.approvals.roadmap: role pm is held by no member", result.stderr)
 
 
 class TestRecordGitLab(GateCase):
