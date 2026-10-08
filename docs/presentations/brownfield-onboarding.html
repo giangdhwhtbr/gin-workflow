@@ -264,7 +264,7 @@ the monolith within two quarters without downtime.</code></pre>
   <h2>Set up the team, then plan and orchestrate</h2>
   <div class="cols">
     <div class="card"><h3>Commands</h3><ul class="plain"><li><code>/gin-workflow:setup</code>, <code>/gin-workflow:team-setup</code></li><li><code>/gin-workflow:tech-doc</code></li><li><code>/gin-workflow:plan</code>, <code>/gin-workflow:orchestrate</code></li><li><code>/gin-workflow:ship</code></li></ul></div>
-    <div class="card"><h3>You get</h3><ul class="plain"><li>The <code>team:</code> block, CODEOWNERS, commit hook</li><li>Tracks per area and owner under the reused epic</li><li>An isolated worktree and dependencies</li></ul></div>
+    <div class="card"><h3>You get</h3><ul class="plain"><li>The <code>team:</code> block, CODEOWNERS, and the commit hook on every clone</li><li>Members only pull and run <code>team-setup</code> as a member; nothing is written back</li><li>Tracks per area and owner under the reused epic</li><li>An isolated worktree and dependencies</li></ul></div>
   </div>
   <pre tabindex="0"><code>/gin-workflow:tech-doc whole repository
 /gin-workflow:plan
@@ -360,8 +360,9 @@ REQ: {{reqs}}</code></pre></div>
   <p class="eyebrow">Day-one checklist</p>
   <h2>Your first day on a new brownfield project</h2>
   <ul class="checklist">
-    <li><span>Tech Lead runs <code>/gin-workflow:setup</code> and <code>/gin-workflow:team-setup</code>; every member runs <code>team-setup</code> as a member.</span></li>
-    <li><span>Protect the base branch on the host: pull request, approval, code-owner review.</span></li>
+    <li><span>Tech Lead runs <code>/gin-workflow:setup</code> and <code>/gin-workflow:team-setup</code> as lead, listing every member, role, area, and approval, then commits, pushes, and merges the pull request (<code>gin-workflow team init</code> writes CODEOWNERS).</span></li>
+    <li><span>Every member pulls and runs <code>/gin-workflow:team-setup</code> as a member: <code>team whoami</code>, commit hook, <code>gh auth login</code>.</span></li>
+    <li><span>Tech Lead protects the base branch on the host: pull request, approval, code-owner review; set <code>GIN_WORKFLOW_INSTALL</code> for the CI job.</span></li>
     <li><span>Make sure each approving role has a second holder, because authors cannot approve their own pull request.</span></li>
     <li><span>Tech Lead runs <code>/gin-workflow:tech-doc whole repository</code>; the team reviews it.</span></li>
     <li><span>PM runs <code>/gin-workflow:roadmap</code> with the goal; a second role-holder approves the pull request.</span></li>

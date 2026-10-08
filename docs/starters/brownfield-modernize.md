@@ -60,8 +60,8 @@ Next, turn the baseline into a roadmap of epics with `/gin-workflow:roadmap` (se
 
 When refactoring a legacy capability, you must capture its **current behavior** before changing code.
 
-1. Ensure `artifacts.layout: sdd` is set in `.agent-workflow/config.yaml`.
-2. For each capability you intend to modernize, create a living spec in `docs/specs/<capability>/spec.md` with explicit requirement IDs (`REQ-<MODULE>-001`).
+1. Ensure `artifacts.layout: sdd` is set in `.agent-workflow/config.yaml`. `/gin-workflow:migrate-specs` sets it and offers to seed living specs from the tech-doc set.
+2. For each capability you intend to modernize, create a living spec in `docs/specs/<capability>/spec.md` from `gin-workflow specs template spec.md`, with explicit requirement IDs (`gin-workflow specs next-id <capability>`, e.g. `REQ-AUTH-001`), and run `gin-workflow specs lint`.
 3. Detail all legacy edge cases, validation rules, and error codes identified during code exploration.
 
 ```markdown

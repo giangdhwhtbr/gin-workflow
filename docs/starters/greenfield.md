@@ -102,11 +102,12 @@ Choose **merge locally** to merge the baseline foundation into `master`/`main`.
 
 ## 4. Feature Development Flow (Spec-Driven Development)
 
-For greenfield projects, we strongly recommend enabling the Spec-Driven Development (SDD) layout in `.agent-workflow/config.yaml`:
+For greenfield projects, setup proposes the Spec-Driven Development (SDD) layout; to set or change it, edit `.agent-workflow/config.yaml`:
 
 ```yaml
 project:
   stage: greenfield
+artifacts:
   layout: sdd
 ```
 

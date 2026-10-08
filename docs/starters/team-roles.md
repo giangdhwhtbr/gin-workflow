@@ -12,7 +12,7 @@ In team mode, each area of the repository has a lead role, each track belongs to
 |---|---|---|---|---|
 | **PM** (Product Manager) | `/roadmap`, `/progress`, `/report` | `.planning/roadmap.md` or `docs/roadmap.md` | `roadmap/<topic>` (roadmap pull request) | `roadmap` (approves the roadmap pull request) |
 | **BA** (Business Analyst) | `/discuss`, `/progress`, `/tech-doc` | `docs/specs/`, `docs/changes/` | `spec/<topic>` (spec pull request) | `requirement_confirmed` |
-| **Dev / Tech Lead** | `/plan`, `/orchestrate`, `/execute`, `/verify`, `/ship`, `/review` | `src/`, `services/`, `.planning/plans/` | `feat/<epic>-<area>` (isolated in worktrees) | `plan_approved` |
+| **Dev / Tech Lead** | `/plan`, `/orchestrate`, `/execute`, `/verify`, `/ship`, `/review` | `src/`, `services/`, `.planning/plans/` | `feat/<topic>-t<N>` (isolated in worktrees) | `plan_approved` |
 | **Tester / QE** | `/gin-qa:cases`, `/gin-qa:e2e`, `/verify`, `/progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's PR | `verification_passed` |
 
 ---
@@ -56,13 +56,13 @@ Developers and Tech Leads own system architecture, implementation tracks, unit t
 1. **Plan Architecture & Decomposition (`/gin-workflow:plan <feature>`):**
    - Tech Lead breaks the confirmed spec into tracks, assigning `Area:` and `Owner:` for each track.
    - Files are strictly bounded within defined areas (e.g. `Area: backend` only touches `services/backend/**`).
-   - `team check-plan <plan>` must pass; with `plan_approved: area_lead`, the area lead approves the plan PR (`plan/<topic>`) and the gate is recorded with its URL after merge.
+   - `gin-workflow team check-plan <plan>` must pass; with `plan_approved: area_lead`, the area lead approves the plan PR (`plan/<topic>`) and the gate is recorded with its URL after merge.
 2. **Orchestrate (`/gin-workflow:orchestrate <feature>`):**
    - Creates a Beads task for each track, labelled `track:<N>,area:<area>` and assigned to its owner, with dependency links.
    - Prepares an isolated Git worktree under `.planning/worktrees/`.
 3. **Execute Test-First (`/gin-workflow:execute`):**
    - Developer runs `gin-workflow team deps`, picks from `gin-workflow team ready`, and claims the track bead (`gin-workflow team claim <bead>`).
-   - Work is performed test-first inside the isolated worktree on branch `feat/<epic>-<area>`.
+   - Work is performed test-first inside the isolated worktree on branch `feat/<topic>-t<N>` (`<topic>` from the plan file name, `<N>` the track number).
    - Claude requests an independent code review; review findings must be addressed in the review ledger before the track closes.
 4. **Ship Delivery (`/gin-workflow:ship`):**
    - Once all tracks pass verification, Tech Lead merges or opens the final Pull Request.

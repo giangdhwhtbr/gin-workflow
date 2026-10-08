@@ -56,19 +56,26 @@ flowchart LR
 
 ## 1. Setup
 
-**Who:** Tech Lead (once per repository); every other member runs `/gin-workflow:team-setup` as a member.
+**Who:** Tech Lead once per repository, then every member once on their own clone. Members do not register themselves: the lead lists every member, role, area, and approval in the `team:` block.
 
-**Prompt**
+**Prompt (Tech Lead)**
 ```text
 /gin-workflow:setup
 /gin-workflow:team-setup
 ```
+Answer `team-setup` as the lead. It writes the `team:` block, runs `gin-workflow team init` (add `--ci` for a CI workflow), then you commit on a branch, push, and open a pull request. Merge it.
 
-**You get:** `.agent-workflow/config.yaml` with the `team:` block, CODEOWNERS, a pull request template, and a commit-msg hook.
+**Prompt (each member, after pulling the merged branch)**
+```text
+/gin-workflow:team-setup
+```
+Answer as a member. It checks `gin-workflow team whoami` finds your `git config user.email`, installs the commit-msg hook (`gin-workflow team hooks`), asks you to log in (`gh auth login` or `glab auth login`), runs `bd init --remote <remote>` when the team shares Beads, and ends with `gin-workflow setup doctor`. Nothing is written back to the repository.
 
-**Gate or approval:** none. Protect the base branch on the host (pull request with approval and code-owner review).
+**You get:** `.agent-workflow/config.yaml` with the `team:` block, `.github/CODEOWNERS` (`.gitlab/CODEOWNERS` on GitLab), a pull request template, and a commit-msg hook on every clone.
 
-**Common mistakes:** forgetting to add the PM to `members` (the `roadmap` approval then fails with "role pm is held by no member"); skipping the host login (`gh auth login`).
+**Gate or approval:** none. The lead protects the base branch on the host (pull request, one approval, "Require review from Code Owners") and, for the CI job to run `team codeowners --check`, sets the repository variable `GIN_WORKFLOW_INSTALL`.
+
+**Common mistakes:** forgetting to add a member or the PM to `members` (the `roadmap` approval then fails with "role pm is held by no member"; fixing it takes another pull request); a member whose git email differs from the one in `members` (`team whoami` finds nothing); skipping the host login.
 
 ## 2. Survey the legacy system
 
@@ -79,7 +86,7 @@ flowchart LR
 /gin-workflow:tech-doc whole repository
 ```
 
-**You get:** the tech-doc set under `.planning/codebase/` (or `docs/codebase/` with the SDD layout): overview, architecture, stack, conventions, testing, and concerns, one file per topic.
+**You get:** the tech-doc set under `.planning/codebase/` (or `docs/codebase/` with the SDD layout): overview, architecture, stack, conventions, testing, and concerns, one file per topic (`OVERVIEW`, `FEATURES`, `API`, `STACK`, `INTEGRATIONS`, `ARCHITECTURE`, `STRUCTURE`, `CONVENTIONS`, `TESTING`, `CONCERNS`).
 
 **Gate or approval:** none. Review it with the team; the roadmap is only as good as this survey.
 
@@ -167,10 +174,9 @@ flowchart LR
 
 **Prompt**
 ```text
-gin-workflow team ready
-gin-workflow team claim <bead>
 /gin-workflow:execute
 ```
+In team mode `execute` runs `gin-workflow team deps`, picks from `gin-workflow team ready`, and claims with `gin-workflow team claim <bead>`; run them yourself first to choose a track.
 
 **You get:** one track implemented test-first in the worktree, an independent review, a closed track bead, and a pushed feature branch.
 
