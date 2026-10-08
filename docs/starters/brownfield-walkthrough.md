@@ -30,11 +30,13 @@ team:
     legacy_core: {paths: ["legacy/**"], lead: be_lead, roles: [be_dev]}
     modern_api: {paths: ["src/**", "tests/**"], lead: be_lead, roles: [be_dev]}
   approvals:
-    requirement_confirmed: [ba]
+    requirement_confirmed: [ba, be_lead]
     plan_approved: area_lead
     verification_passed: [qe]
-    roadmap: [pm]
+    roadmap: [pm, be_lead]
 ```
+
+A gate is never approved by the author of its pull request, so each approving role needs a second holder. Here Lan has no second `pm` and An no second `ba`, so Binh (`be_lead`) approves their roadmap and spec pull requests.
 
 ## The flow at a glance
 
@@ -94,7 +96,7 @@ flowchart LR
 
 **You get:** the skill reads every file of the tech-doc set, asks about goals, capacity, and constraints, proposes two or three ways to split the work, and shows the roadmap for your confirmation. After you confirm it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>`.
 
-**Gate or approval:** with `team.approvals.roadmap: [pm]`, the roadmap goes through a pull request approved by another `pm`. Run the prompt again with the PR URL; the skill checks it with `gin-workflow team check <url> --gate roadmap`, then creates the epics `<prefix>-rm-<slug>` (label `roadmap`) with their dependencies in Beads.
+**Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin-workflow team check <url> --gate roadmap`, then creates the epics `<prefix>-rm-<slug>` (label `roadmap`) with their dependencies in Beads.
 
 **Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics when you remove them from the file (it only reports them).
 
@@ -124,7 +126,7 @@ flowchart LR
 
 **You get:** the discussion starts from the epic and its roadmap entry and reuses it (no new epic). The spec is built from the `design-spec.md` template (or `proposal.md` with the SDD layout) and has a `## User Stories` section. Every story has acceptance criteria and, with REQ-IDs, a `REQ:` line.
 
-**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. With `requirement_confirmed: [ba]`, another `ba` approves it; the gate is recorded with the PR URL after the merge.
+**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. With `requirement_confirmed: [ba, be_lead]`, Binh approves it (An cannot approve his own); the gate is recorded with the PR URL after the merge.
 
 **Common mistakes:** creating a second epic by hand; stories without acceptance criteria.
 
@@ -221,7 +223,7 @@ Every artifact starts from a template. Copy a template to `.agent-workflow/templ
 | Design spec (legacy layout) | `discuss` | `.agent-workflow/templates/design-spec.md` |
 | Proposal (SDD layout) | `discuss` | `.agent-workflow/templates/proposal.md` |
 
-Print the current text with `gin-workflow specs template <name>`. Example override of `user-story.md` that adds a priority and Vietnamese headings:
+Print the current text with `gin-workflow specs template <file>` (for example `user-story.md`). Example override of `user-story.md` that adds a priority and Vietnamese headings:
 
 ```markdown
 ### US-{{n}}: {{title}}

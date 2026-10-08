@@ -24,7 +24,7 @@ PMs own the long-term plan: which epics exist, in what order, and which go into 
 ### Step-by-Step Activities:
 1. **Build the Roadmap (`/gin-workflow:roadmap <goal>`):**
    - Claude reads the whole tech-doc set (or a product brief), asks about goals and constraints, proposes how to split the work, and writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) after the PM confirms.
-   - With `team.approvals.roadmap: [pm]` the roadmap is a pull request (`roadmap/<topic>`) approved by another `pm`; then the epics `<prefix>-rm-<slug>` and their dependencies are created in Beads.
+   - With `team.approvals.roadmap: [pm]` the roadmap is a pull request (`roadmap/<topic>`) approved by a member with a listed role who is not its author; then the epics `<prefix>-rm-<slug>` and their dependencies are created in Beads.
 2. **Plan a Sprint:**
    - Label the chosen epics `sprint:<name>` (ask `/gin-workflow:roadmap Label <epic> for sprint <name>`).
 3. **Review the Sprint:**
