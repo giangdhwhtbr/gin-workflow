@@ -117,6 +117,21 @@ class TestTeamBeadsLocal(unittest.TestCase):
         bd(self.root, "update", mine, "--claim", actor="em@corp.com")
         self.assertEqual(0, run_cli(self.root, "team", "reassign", mine, "binh@corp.com").returncode)
 
+    def test_reassign_refuses_closed_and_unowned_unlabelled_beads_and_lead_takes_unassigned(self):
+        closed = create(self.root, "done", "area:backend")
+        bd(self.root, "close", closed)
+        refused = run_cli(self.root, "team", "reassign", closed, "em@corp.com")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("is closed", refused.stdout)
+        unlabelled = create(self.root, "orphan")
+        refused = run_cli(self.root, "team", "reassign", unlabelled, "em@corp.com")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("an area lead", refused.stdout)
+        free = create(self.root, "free", "area:backend")
+        done = run_cli(self.root, "team", "reassign", free, "em@corp.com")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        self.assertIn("reassigned nobody -> em@corp.com", show(self.root, free)["notes"])
+
     def test_deps_closes_placeholders_whose_track_merged(self):
         done = create(self.root, "external: .planning/plans/p.md#2")
         pending = create(self.root, "external: .planning/plans/p.md#3")

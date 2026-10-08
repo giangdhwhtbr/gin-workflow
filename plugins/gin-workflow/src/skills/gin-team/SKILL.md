@@ -26,7 +26,7 @@ Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` when t
 ## execute
 - `team deps` first: it closes `external:` placeholders whose track PR has merged.
 - Pick from `team ready` and claim with `team claim <bead>` instead of `bd update --status in_progress`; exit 1 means someone else holds it, so pick another.
-- Out of quota or unavailable: push the branch, then the assignee (or the area lead) runs `team reassign <bead> <email>`; the new owner claims nothing, checks out the pushed `feat/<topic>-t<N>` branch, and continues. The plan's `Owner:` is not changed.
+- Out of quota or unavailable: push the branch, then the assignee (or the area lead) runs `team reassign <bead> <email>`; the new owner checks out the pushed `feat/<topic>-t<N>` branch, runs `team claim <bead>` (idempotent for the holder; it marks the bead in progress), and continues. The plan's `Owner:` is not changed.
 - In the track worktree, `team deps --bead <bead>` must exit 0 before implementation; exit 1 names the merge commit to fetch or rebase onto.
 - Branch `feat/<topic>-t<N>` (`<topic>` from the plan file name, `<N>` the track number); existing branches keep their names. Commits follow `team.commit_convention`.
 - The PR/MR uses the generated template; fill `Plan:` with the plan path and `Tracks:` with the track numbers exactly, because `team deps` on other machines reads them.
