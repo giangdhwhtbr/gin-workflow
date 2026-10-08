@@ -7,6 +7,8 @@ Date: {{date}}
 
 ## What Changes
 
+## User Stories
+
 ## Capabilities Affected
 
 ## Non-goals

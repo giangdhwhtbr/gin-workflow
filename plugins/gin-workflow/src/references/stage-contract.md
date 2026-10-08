@@ -19,7 +19,7 @@ Valid: test/command output, review-ledger state, bead IDs, spec/plan paths. Neve
 Get explicit user confirmation in the harness before `plan-approved`, production-impacting parallel work, disabling worktree isolation, or execution-strategy/scope changes. Record it before acting.
 
 ## Context
-Load only the requirement, file scope, and validation intent. Look up symbols, tests, and knowledge on demand: `codegraph explore "<query>"` when `.codegraph/` exists, else grep/read.
+Load only the requirement, file scope, and validation intent. Look up symbols, tests, and knowledge on demand: `codegraph explore "<query>"` when `.codegraph/` exists, else grep/read. Build an artifact from `gin-workflow specs template <name>` when one exists; never invent its structure.
 
 ## Git
 Commit and push freely on feature/worktree branches; never commit directly to `main`/`master`. Creating a PR, merging into the base branch, or force-pushing requires explicit user approval.

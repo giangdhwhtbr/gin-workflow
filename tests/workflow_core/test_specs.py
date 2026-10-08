@@ -185,6 +185,18 @@ class TestRepositoryCommands(unittest.TestCase):
 
 
 class TestSpecsCli(unittest.TestCase):
+    def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = make_repo(Path(directory), layout="legacy")
+            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md"):
+                with self.subTest(name=name):
+                    self.assertEqual(0, run_specs(root, "template", name).returncode)
+            self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
+            self.assertIn("## User Stories", run_specs(root, "template", "proposal.md").stdout)
+            self.assertIn("Depends on:", run_specs(root, "template", "roadmap.md").stdout)
+            write(root, ".agent-workflow/templates/user-story.md", "### Story {{n}}\n")
+            self.assertEqual("### Story {{n}}\n", run_specs(root, "template", "user-story.md").stdout)
+
     def test_exit_codes_and_layout_guard(self):
         with tempfile.TemporaryDirectory() as directory:
             root = make_repo(Path(directory), layout="legacy")
