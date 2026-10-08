@@ -1,6 +1,6 @@
-# Team Roles Guide: BA, Dev & Tester
+# Team Roles Guide: PM, BA, Dev & Tester
 
-This guide details how cross-functional teams with **Business Analysts (BA)**, **Developers (Dev)**, and **Testers (QA/QE)** collaborate smoothly using **Claude Code** and **`gin-workflow`** without friction, overlapping edits, or Git conflicts.
+This guide details how cross-functional teams with **Product Managers (PM)**, **Business Analysts (BA)**, **Developers (Dev)**, and **Testers (QA/QE)** collaborate smoothly using **Claude Code** and **`gin-workflow`** without friction, overlapping edits, or Git conflicts.
 
 ---
 
@@ -10,18 +10,34 @@ In team mode, each area of the repository has a lead role, each track belongs to
 
 | Role | Primary Skills | File / Folder Scope | Git Branch Convention | Quality Gate Owned |
 |---|---|---|---|---|
+| **PM** (Product Manager) | `/roadmap`, `/progress`, `/report` | `.planning/roadmap.md` or `docs/roadmap.md` | `roadmap/<topic>` (roadmap pull request) | `roadmap` (approves the roadmap pull request) |
 | **BA** (Business Analyst) | `/discuss`, `/progress`, `/tech-doc` | `docs/specs/`, `docs/changes/` | `spec/<topic>` (spec pull request) | `requirement_confirmed` |
 | **Dev / Tech Lead** | `/plan`, `/orchestrate`, `/execute`, `/verify`, `/ship`, `/review` | `src/`, `services/`, `.planning/plans/` | `feat/<epic>-<area>` (isolated in worktrees) | `plan_approved` |
 | **Tester / QE** | `/gin-qa:cases`, `/gin-qa:e2e`, `/verify`, `/progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's PR | `verification_passed` |
 
 ---
 
-## 2. The BA (Business Analyst) Workflow
+## 2. The PM (Product Manager) Workflow
+
+PMs own the long-term plan: which epics exist, in what order, and which go into the next sprint.
+
+### Step-by-Step Activities:
+1. **Build the Roadmap (`/gin-workflow:roadmap <goal>`):**
+   - Claude reads the whole tech-doc set (or a product brief), asks about goals and constraints, proposes how to split the work, and writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) after the PM confirms.
+   - With `team.approvals.roadmap: [pm]` the roadmap is a pull request (`roadmap/<topic>`) approved by another `pm`; then the epics `<prefix>-rm-<slug>` and their dependencies are created in Beads.
+2. **Plan a Sprint:**
+   - Label the chosen epics `sprint:<name>` (ask `/gin-workflow:roadmap Label <epic> for sprint <name>`).
+3. **Review the Sprint:**
+   - `/gin-workflow:progress sprint <name>` shows status per epic; `/gin-workflow:report --sprint <name>` shows usage and cost.
+
+---
+
+## 3. The BA (Business Analyst) Workflow
 
 BAs own requirements, acceptance criteria, and business logic verification.
 
 ### Step-by-Step Activities:
-1. **Clarify Requirements (`/gin-workflow:discuss <feature>`):**
+1. **Clarify Requirements (`/gin-workflow:discuss <feature>` or `/gin-workflow:discuss <epic-id>` for a roadmap epic):**
    - BA initiates the discussion session with Claude.
    - Claude clarifies scope, constraints, and edge cases, then formats the output into a specification with unique requirement IDs (`REQ-<MODULE>-001`) in a change folder `docs/changes/<epic>-<slug>/` (`proposal.md`, `spec-delta.md`, `design.md`) with the SDD layout, or `.planning/specs/` otherwise.
 2. **Review & Approve Spec:**
@@ -32,7 +48,7 @@ BAs own requirements, acceptance criteria, and business logic verification.
 
 ---
 
-## 3. The Developer & Tech Lead Workflow
+## 4. The Developer & Tech Lead Workflow
 
 Developers and Tech Leads own system architecture, implementation tracks, unit testing, and code delivery.
 
@@ -53,7 +69,7 @@ Developers and Tech Leads own system architecture, implementation tracks, unit t
 
 ---
 
-## 4. The Tester / QA Workflow
+## 5. The Tester / QA Workflow
 
 Testers own test case authoring, requirement coverage tracking, and automated E2E validation using the `gin-qa` add-on.
 
@@ -83,7 +99,7 @@ Testers own test case authoring, requirement coverage tracking, and automated E2
 
 ---
 
-## 5. Built-in Safeguards Against Conflicts
+## 6. Built-in Safeguards Against Conflicts
 
 To ensure zero friction across team members:
 
@@ -101,8 +117,9 @@ To ensure zero friction across team members:
 
 ---
 
-## 6. Next Steps
+## 7. Next Steps
 
+- **Want the whole flow with example prompts per role?** See the [Brownfield Walkthrough](brownfield-walkthrough.md).
 - **New project setup?** See the [Greenfield Starter](greenfield.md).
 - **Modernizing an existing app?** See the [Brownfield & Modernization Starter](brownfield-modernize.md).
 - **Full Team Mode Configuration:** See [Team Guide](../guides/team.md).

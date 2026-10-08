@@ -52,6 +52,8 @@ If [CodeGraph](../guides/recommended-tools.md) is installed, `/gin-workflow:setu
 
 Commit these documents as your team's documented baseline.
 
+Next, turn the baseline into a roadmap of epics with `/gin-workflow:roadmap` (see the [Brownfield Walkthrough](brownfield-walkthrough.md)).
+
 ---
 
 ## 3. Step 2: Establish Baseline Living Specs (SDD)
@@ -141,6 +143,7 @@ When ready to modernize a module, run the standard guarded lifecycle:
 
 ## 7. Next Steps
 
+- **Following the whole flow with prompts per role?** See the [Brownfield Walkthrough](brownfield-walkthrough.md).
 - **Collaborating with BA, Dev, and Tester?** Read [Team Roles Guide](team-roles.md).
 - **Managing test cases and E2E automation?** See the [QA Guide](../guides/qa.md).
 - **Scale execution with multiple providers?** Check [Multi-Agent Routing](../advanced/multi-agent-routing.md).

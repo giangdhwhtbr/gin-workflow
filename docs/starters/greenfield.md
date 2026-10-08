@@ -166,6 +166,7 @@ Every new feature moves through a clean, reproducible cycle:
 
 ## 5. Next Steps
 
+- **Planning several epics?** Start from a product brief with `/gin-workflow:roadmap`.
 - **Collaborating with a team?** Read the [Team Roles Guide](team-roles.md).
 - **Need automated E2E tests?** Check out the [QA Add-on Guide](../guides/qa.md).
 - **Want to scale to multi-agent workers?** Explore [Multi-Agent Routing](../advanced/multi-agent-routing.md).
