@@ -79,6 +79,9 @@ class UsageCliTests(unittest.TestCase):
     def test_report_scope_flags_are_exclusive_and_since_is_a_date(self):
         done = run_cli(self.repo, "usage", "report", "--bead", "t1", "--epic", "e1", env=self.env)
         self.assertEqual(done.returncode, 2)
+        done = run_cli(self.repo, "usage", "report", "--sprint", "s1", "--epic", "e1", env=self.env)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("not allowed with argument", done.stderr)
         done = run_cli(self.repo, "usage", "report", "--since", "yesterday", env=self.env)
         self.assertEqual(done.returncode, 2)
 

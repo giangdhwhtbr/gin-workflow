@@ -175,10 +175,10 @@ Exit codes: 0 routes printed; 2 bad `--base`, no route for the tier, or no indep
 
 ```
 gin-workflow usage collect --bead ID [--best-effort]
-gin-workflow usage report [--bead ID | --epic ID | --since YYYY-MM-DD]
+gin-workflow usage report [--bead ID | --epic ID | --sprint NAME | --since YYYY-MM-DD]
 ```
 
-`collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`.
+`collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. `--sprint NAME` covers the epics labelled `sprint:NAME` and their tracks. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`.
 
 Exit codes: 0 ok; 2 error. With `--best-effort`, `collect` turns any error into a `warning:` line and exits 0, so it never blocks closing a bead.
 

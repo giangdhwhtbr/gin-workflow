@@ -278,13 +278,17 @@ def _usage_of(row: Mapping[str, Any]) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def report(repo: Path, *, bead: str | None = None, epic: str | None = None, since: date | None = None
-           ) -> dict[str, Any]:
+def report(repo: Path, *, bead: str | None = None, epic: str | None = None, since: date | None = None,
+           sprint: str | None = None) -> dict[str, Any]:
     rows = _list(_bd(Path(repo), ["list", "--all", "-n", "0", "--json"]))
     if bead:
         selected = [row for row in rows if row.get("id") == bead]
     elif epic:
         selected = [row for row in rows if row.get("id") == epic or row.get("parent") == epic]
+    elif sprint:
+        epics = {row["id"] for row in rows if row.get("issue_type") == "epic"
+                 and f"sprint:{sprint}" in (row.get("labels") or ())}
+        selected = [row for row in rows if row.get("id") in epics or row.get("parent") in epics]
     else:
         selected = [row for row in rows if since is None or
                     ((_ts(row.get("closed_at")) or datetime.min.replace(tzinfo=timezone.utc)).date() >= since)]

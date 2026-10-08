@@ -267,6 +267,19 @@ class ReportTests(Fixture):
         self.assertEqual(out["totals"]["cost"], 3.0)
         self.assertEqual(out["unattributed"], {"tokens": 5, "cost": 0.5})
 
+    def test_sprint_report_covers_labelled_epics_and_their_tracks(self):
+        rows = self.rows()
+        rows[0]["labels"] = ["roadmap", "sprint:s1"]
+        rows.append({"id": "ep2", "title": "Next", "issue_type": "epic", "status": "open",
+                     "labels": ["sprint:s2"]})
+        self.rules[0]["stdout"] = rows
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, sprint="s1")
+        self.assertEqual(["ep1", "ep1.1"], [row["bead"] for row in out["beads"]])
+        self.assertEqual(["ep1.2"], out["not_collected"])
+        self.assertEqual(3.0, out["totals"]["cost"])
+        self.assertEqual([], usage.report(self.repo, sprint="none")["beads"])
+
     def test_total_is_null_when_nothing_is_priced(self):
         self.rules[0]["stdout"] = [{"id": "u1", "title": "U", "issue_type": "task", "status": "closed",
                                     "metadata": {"ai_usage": json.dumps({"cost": None, "models": {"m9": {

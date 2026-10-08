@@ -33,6 +33,7 @@ def _parser() -> argparse.ArgumentParser:
     scope.add_argument("--bead")
     scope.add_argument("--epic")
     scope.add_argument("--since", type=_date)
+    scope.add_argument("--sprint")
     return parser
 
 
@@ -67,7 +68,7 @@ def main(arguments: Sequence[str]) -> int:
             text = f"{args.bead}: cost {_money(out['cost'])}; sources " + \
                 ", ".join(f"{name} {status}" for name, status in sorted(out["sources"].items()))
         else:
-            out = usage.report(root, bead=args.bead, epic=args.epic, since=args.since)
+            out = usage.report(root, bead=args.bead, epic=args.epic, since=args.since, sprint=args.sprint)
             text = _report_text(out)
     except usage.UsageError as error:
         if args.command == "collect" and args.best_effort:
