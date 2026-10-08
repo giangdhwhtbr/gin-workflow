@@ -47,6 +47,7 @@ header.rail { justify-content: space-between; color: var(--muted); font-size: 13
 .bar { flex: 1; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
 main { flex: 1; min-height: 0; overflow-y: auto; padding-block: 8px 20px; }
+.slide[hidden] { display: none; }
 .slide { max-width: 1040px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
 h1, h2 { font-family: var(--font-display); line-height: 1.1; text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
 h1 { font-size: clamp(34px, 6vw, 60px); }
@@ -72,7 +73,7 @@ code { font-size: 0.92em; background: var(--surface-2); padding: 1px 5px; border
 pre code { background: none; padding: 0; }
 .tag { display: inline-block; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
-.diagram svg { display: block; width: 100%; height: auto; min-width: 680px; }
+.diagram svg { display: block; width: 100%; height: auto; min-width: 760px; }
 svg text { font-family: var(--font-body); fill: var(--fg); font-size: 13px; }
 svg .node { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
 svg .node.hot { fill: var(--accent); stroke: var(--accent); }
@@ -82,8 +83,8 @@ svg .arrow { fill: var(--muted); }
 svg .lane { fill: var(--surface-2); }
 svg .dot { fill: var(--accent); }
 svg .diamond { fill: var(--gate); }
-svg .sub { fill: var(--muted); font-size: 11px; }
-svg .gatetext { fill: var(--gate); font-size: 11px; font-weight: 600; }
+svg .sub { fill: var(--muted); font-size: 12px; }
+svg .gatetext { fill: var(--gate); font-size: 12px; font-weight: 600; }
 .pair { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .checklist li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; max-width: 70ch; }
@@ -114,7 +115,7 @@ button[disabled] { opacity: .4; cursor: default; }
 <section class="slide" data-title="Title">
   <p class="eyebrow">Team onboarding</p>
   <h1>Starting a brownfield project with gin-workflow</h1>
-  <p class="lead">From an inherited legacy system to sprint delivery: one flow, five roles, a gate at every handover.</p>
+  <p class="lead">From an inherited legacy system to sprint delivery: one flow, five roles, approval gates where quality matters.</p>
   <div class="grid">
     <div class="card"><h3>PM</h3><p>Roadmap and sprints</p></div>
     <div class="card"><h3>BA</h3><p>Specs and user stories</p></div>
@@ -164,14 +165,14 @@ button[disabled] { opacity: .4; cursor: default; }
         <line class="edge" x1="840" y1="63" x2="858" y2="63" marker-end="url(#ar)"/>
       </g>
       <g>
-        <polygon class="diamond" points="180,108 188,116 180,124 172,116"/><text class="gatetext" x="196" y="120">roadmap approval</text>
+        <polygon class="diamond" points="180,108 188,116 180,124 172,116"/><text class="gatetext" x="196" y="120">roadmap</text>
         <polygon class="diamond" points="300,108 308,116 300,124 292,116"/><text class="gatetext" x="316" y="120">requirement</text>
-        <polygon class="diamond" points="420,108 428,116 420,124 412,116"/><text class="gatetext" x="436" y="124">plan</text>
+        <polygon class="diamond" points="420,108 428,116 420,124 412,116"/><text class="gatetext" x="436" y="120">plan</text>
         <polygon class="diamond" points="790,108 798,116 790,124 782,116"/><text class="gatetext" x="806" y="120">verification</text>
       </g>
     </svg>
   </div>
-  <p>Amber diamonds are approval gates. The roadmap is the new first step for a brownfield project: it reads the whole tech-doc set before any epic is planned.</p>
+  <p>Amber diamonds are approval gates. The roadmap is the first planning step for a brownfield project: it reads the whole tech-doc set before any epic is planned.</p>
 </section>
 
 <!-- 4 -->
@@ -194,8 +195,8 @@ button[disabled] { opacity: .4; cursor: default; }
   <p class="eyebrow">Team map</p>
   <h2>Who acts at each stage</h2>
   <div class="diagram">
-    <svg viewBox="0 0 900 330" role="img" aria-label="Swimlanes for PM, BA, Tech Lead, Dev, and QE across stages">
-      <g font-size="12">
+    <svg viewBox="0 0 900 330" role="img" aria-label="Swimlanes for PM, BA, Tech Lead, Dev, and QE across stages; amber diamonds mark the stages where a role approves a gate">
+      <g>
         <text class="sub" x="190" y="18" text-anchor="middle">roadmap</text>
         <text class="sub" x="270" y="18" text-anchor="middle">discuss</text>
         <text class="sub" x="350" y="18" text-anchor="middle">plan</text>
@@ -229,7 +230,7 @@ button[disabled] { opacity: .4; cursor: default; }
       <text class="gatetext" x="880" y="318" text-anchor="end">amber diamond = role approves a gate</text>
     </svg>
   </div>
-  <p>Roadmap approval comes from <code>pm</code>, spec approval from <code>ba</code>, plan approval from the area lead, and verification from <code>qe</code>. These names are roles in your <code>team.members</code>.</p>
+  <p>Roadmap approval comes from <code>pm</code> or <code>be_lead</code> (the role list in <code>team.approvals.roadmap</code>), spec approval from <code>ba</code> or <code>be_lead</code>, plan approval from the area lead, and verification from <code>qe</code>. These names are roles in your <code>team.members</code>.</p>
 </section>
 
 <!-- 6 -->
@@ -240,7 +241,7 @@ button[disabled] { opacity: .4; cursor: default; }
     <div class="card"><h3>Commands</h3><ul class="plain"><li><code>/gin-workflow:roadmap</code></li><li><code>/gin-workflow:progress sprint &lt;name&gt;</code></li><li><code>/gin-workflow:report --sprint &lt;name&gt;</code></li></ul></div>
     <div class="card"><h3>You get</h3><ul class="plain"><li><code>.planning/roadmap.md</code> after you confirm it</li><li>Epics <code>&lt;prefix&gt;-rm-&lt;slug&gt;</code> with dependencies in Beads</li><li>A <code>sprint:&lt;name&gt;</code> label on chosen epics</li></ul></div>
   </div>
-  <pre><code>/gin-workflow:roadmap Goal: move payments and inventory out of
+  <pre tabindex="0"><code>/gin-workflow:roadmap Goal: move payments and inventory out of
 the monolith within two quarters without downtime.</code></pre>
   <p><span class="gate">Gate:</span> the roadmap pull request is approved by a member with the <code>roadmap</code> role, never by its author.</p>
 </section>
@@ -253,7 +254,7 @@ the monolith within two quarters without downtime.</code></pre>
     <div class="card"><h3>Commands</h3><ul class="plain"><li><code>/gin-workflow:discuss &lt;epic-id&gt;</code></li><li><code>/gin-workflow:progress</code></li></ul></div>
     <div class="card"><h3>You get</h3><ul class="plain"><li>The existing epic is reused, no second epic</li><li>A spec with a <code>## User Stories</code> section</li><li>Acceptance criteria and <code>REQ:</code> links per story</li></ul></div>
   </div>
-  <pre><code>/gin-workflow:discuss demo-rm-payments</code></pre>
+  <pre tabindex="0"><code>/gin-workflow:discuss demo-rm-payments</code></pre>
   <p><span class="gate">Gate:</span> <code>requirement_confirmed</code>, recorded with the merged spec pull request.</p>
 </section>
 
@@ -265,7 +266,7 @@ the monolith within two quarters without downtime.</code></pre>
     <div class="card"><h3>Commands</h3><ul class="plain"><li><code>/gin-workflow:setup</code>, <code>/gin-workflow:team-setup</code></li><li><code>/gin-workflow:tech-doc</code></li><li><code>/gin-workflow:plan</code>, <code>/gin-workflow:orchestrate</code></li><li><code>/gin-workflow:ship</code></li></ul></div>
     <div class="card"><h3>You get</h3><ul class="plain"><li>The <code>team:</code> block, CODEOWNERS, commit hook</li><li>Tracks per area and owner under the reused epic</li><li>An isolated worktree and dependencies</li></ul></div>
   </div>
-  <pre><code>/gin-workflow:tech-doc whole repository
+  <pre tabindex="0"><code>/gin-workflow:tech-doc whole repository
 /gin-workflow:plan
 /gin-workflow:orchestrate</code></pre>
   <p><span class="gate">Gate:</span> <code>plan_approved</code>, approved by the area lead on the plan pull request.</p>
@@ -279,7 +280,7 @@ the monolith within two quarters without downtime.</code></pre>
     <div class="card"><h3>Commands</h3><ul class="plain"><li><code>gin-workflow team ready</code></li><li><code>gin-workflow team claim &lt;bead&gt;</code></li><li><code>/gin-workflow:execute</code></li></ul></div>
     <div class="card"><h3>You get</h3><ul class="plain"><li>One track, tests first, inside its file scope</li><li>An independent review before the bead closes</li><li>A pushed feature branch</li></ul></div>
   </div>
-  <pre><code>gin-workflow team ready
+  <pre tabindex="0"><code>gin-workflow team ready
 gin-workflow team claim demo-rm-payments.1
 /gin-workflow:execute</code></pre>
   <p>A claim fails if a teammate already holds the track. <code>execute</code> refuses a roadmap epic that has no confirmed spec.</p>
@@ -293,7 +294,7 @@ gin-workflow team claim demo-rm-payments.1
     <div class="card"><h3>Commands</h3><ul class="plain"><li><code>/gin-qa:cases &lt;capability&gt;</code></li><li><code>/gin-qa:e2e &lt;capability&gt;</code></li><li><code>/gin-workflow:verify</code></li></ul></div>
     <div class="card"><h3>You get</h3><ul class="plain"><li><code>qa/cases/&lt;capability&gt;.md</code>, each case tied to a requirement hash</li><li>Playwright specs and evidence under <code>qa/</code></li><li>Stale cases flagged when a requirement changes</li></ul></div>
   </div>
-  <pre><code>/gin-qa:cases payments
+  <pre tabindex="0"><code>/gin-qa:cases payments
 /gin-qa:e2e payments</code></pre>
   <p><span class="gate">Gate:</span> <code>verification_passed</code>. The QE approves the latest commit; a later push needs a new approval.</p>
 </section>
@@ -306,7 +307,7 @@ gin-workflow team claim demo-rm-payments.1
     <svg viewBox="0 0 960 110" role="img" aria-label="Roadmap epic, sprint label, discuss, tracks, ship, sprint report">
       <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path class="arrow" d="M0,0 L8,4 L0,8 z"/></marker></defs>
       <rect class="node" x="10" y="30" width="130" height="50" rx="8"/><text x="75" y="52" text-anchor="middle">Roadmap epic</text><text class="sub" x="75" y="68" text-anchor="middle">PM</text>
-      <rect class="node hot" x="170" y="30" width="130" height="50" rx="8"/><text class="on-hot" x="235" y="52" text-anchor="middle">Sprint label</text><text class="on-hot" font-size="11" x="235" y="68" text-anchor="middle">PM</text>
+      <rect class="node hot" x="170" y="30" width="130" height="50" rx="8"/><text class="on-hot" x="235" y="52" text-anchor="middle">Sprint label</text><text class="sub on-hot" x="235" y="68" text-anchor="middle">PM</text>
       <rect class="node" x="330" y="30" width="130" height="50" rx="8"/><text x="395" y="52" text-anchor="middle">Discuss</text><text class="sub" x="395" y="68" text-anchor="middle">BA</text>
       <rect class="node" x="490" y="30" width="130" height="50" rx="8"/><text x="555" y="52" text-anchor="middle">Tracks</text><text class="sub" x="555" y="68" text-anchor="middle">Tech Lead, Dev, QE</text>
       <rect class="node" x="650" y="30" width="130" height="50" rx="8"/><text x="715" y="52" text-anchor="middle">Ship</text><text class="sub" x="715" y="68" text-anchor="middle">Tech Lead</text>
@@ -319,9 +320,9 @@ gin-workflow team claim demo-rm-payments.1
     </svg>
   </div>
   <div class="cols">
-    <div class="card"><h3>Plan the sprint</h3><pre><code>/gin-workflow:roadmap Label demo-rm-payments
+    <div class="card"><h3>Plan the sprint</h3><pre tabindex="0"><code>/gin-workflow:roadmap Label demo-rm-payments
 and demo-rm-orders-api for sprint 2026-s1.</code></pre></div>
-    <div class="card"><h3>Review the sprint</h3><pre><code>/gin-workflow:progress sprint 2026-s1
+    <div class="card"><h3>Review the sprint</h3><pre tabindex="0"><code>/gin-workflow:progress sprint 2026-s1
 /gin-workflow:report --sprint 2026-s1</code></pre></div>
   </div>
   <p>A sprint is a label, <code>sprint:2026-s1</code>, on epics. Their tracks are included in the report.</p>
@@ -341,12 +342,12 @@ and demo-rm-orders-api for sprint 2026-s1.</code></pre></div>
   </div>
   <div class="pair">
     <div><span class="tag">Before: shipped template</span>
-<pre><code>### US-{{n}}: {{title}}
+<pre tabindex="0"><code>### US-{{n}}: {{title}}
 As a {{role}}, I want {{goal}},
 so that {{benefit}}.
 REQ: {{reqs}}</code></pre></div>
-    <div><span class="tag">After: your override</span>
-<pre><code>### US-{{n}}: {{title}}
+    <div><span class="tag">After: your override (Vietnamese headings as a localization example)</span>
+<pre tabindex="0"><code>### US-{{n}}: {{title}}
 Priority: {{priority}}
 Là {{role}}, tôi muốn {{goal}},
 để {{benefit}}.
@@ -376,6 +377,7 @@ REQ: {{reqs}}</code></pre></div>
 <footer class="controls">
   <button class="ghost" id="prev" type="button">Previous</button>
   <span class="hint">← → to navigate · T to switch theme</span>
+  <button class="ghost" id="theme" type="button" aria-label="Switch between light and dark theme">Theme</button>
   <button id="next" type="button">Next</button>
 </footer>
 
@@ -410,11 +412,12 @@ REQ: {{reqs}}</code></pre></div>
     root.setAttribute('data-theme', dark ? 'light' : 'dark');
   }
 
+  document.getElementById('theme').addEventListener('click', toggleTheme);
   prev.addEventListener('click', function () { show(index - 1); });
   next.addEventListener('click', function () { show(index + 1); });
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(index + 1); }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); show(index + 1); }
     else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(index - 1); }
     else if (e.key === 'Home') show(0);
     else if (e.key === 'End') show(slides.length - 1);
