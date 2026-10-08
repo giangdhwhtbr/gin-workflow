@@ -587,7 +587,7 @@ Run `./install.sh --platform all </dev/null && bash tests/install_smoke_test.sh 
 
 **Steps:**
 
-1. Ask the user the slide language (Vietnamese or English) before writing.
+1. Slide language: English (confirmed by the user at plan approval).
 2. Build one self-contained HTML file (inline CSS, JS, and SVG; no network requests), keyboard and click navigation, a slide counter, readable at phone width, light and dark themes via CSS custom properties. Content comes only from the walkthrough and the merged skills; team mode only, no solo slides. Slides:
    1. Title.
    2. Why gin-workflow: the problems it removes (unclear requirements, unreviewed AI code, lost traceability, invisible cost).
