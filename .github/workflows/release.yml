@@ -22,7 +22,7 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME does not match plugins/gin-workflow/plugin.meta.json version $version"; exit 1
           fi
       - name: Install test dependencies
-        run: python3 -m pip install PyYAML
+        run: python3 -m pip install PyYAML jsonschema
       - name: Git identity for tests
         run: |
           git config --global user.name "ci"
