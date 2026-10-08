@@ -1,6 +1,6 @@
 # Brownfield Walkthrough: From Legacy Code to Sprint Delivery
 
-This walkthrough follows one team from "we inherited a legacy system" to "sprint work is shipped". Each stage lists who runs it, the prompt to paste, what you get, the gate or approval, and the mistakes to avoid.
+This walkthrough follows one team from "we inherited a legacy system" to "sprint work is shipped". Each stage lists who runs it, the prompt to paste, what you get, the gate or approval, and the mistakes to avoid. A slide version for onboarding the team is in [brownfield-onboarding.html](../presentations/brownfield-onboarding.html).
 
 ## The scenario
 
