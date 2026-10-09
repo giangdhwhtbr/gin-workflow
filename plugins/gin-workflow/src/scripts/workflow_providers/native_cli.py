@@ -94,6 +94,7 @@ def sanitized_environment(source: Mapping[str, str] | None = None) -> dict[str, 
         "TERM",
         "TMPDIR",
         "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
         "CODEX_HOME",
         "CLAUDE_CONFIG_DIR",
     }
@@ -158,6 +159,9 @@ def direct_worker_result(output: NativeCliOutput) -> Mapping[str, object]:
         item = record.get("item")
         if isinstance(item, Mapping):
             candidates.append(item.get("text"))
+        part = record.get("part")
+        if isinstance(part, Mapping):
+            candidates.append(part.get("text"))
         for candidate in candidates:
             if isinstance(candidate, str):
                 parsed = _contract_object(candidate, required)
@@ -198,6 +202,7 @@ def classify_native_failure(stderr: str) -> FailureKind:
             "unknown model",
             "no access to",
             "not recognized",
+            "model unavailable",
         )
     ):
         return FailureKind.INVALID_MODEL
