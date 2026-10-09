@@ -183,6 +183,16 @@ class AssignmentTests(unittest.TestCase):
             ):
                 RouteCandidate("codex", "provider_default", False)
 
+    def test_opencode_accepts_provider_default_and_records_selection_mode(self):
+        candidate = RouteCandidate("opencode", "provider_default", False)
+        payload = AssignmentManifest(
+            "wf-default", AssignmentRequest("api", "backend", "high", "codex"), (candidate,)
+        ).to_dict()
+
+        self.assertEqual(
+            {"provider": "opencode", "selection_mode": "provider_default"}, payload["resolved"]
+        )
+
     def test_batch_resolution_returns_manifests_only_after_every_route_resolves(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

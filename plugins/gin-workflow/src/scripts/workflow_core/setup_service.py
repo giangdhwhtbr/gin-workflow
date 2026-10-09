@@ -79,7 +79,7 @@ def _merged_provider_gitignore(path: Path) -> bytes:
 def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[str, Any]:
     root = Path(repository).resolve()
     detected = []
-    for name, marker in (("claude", ".claude"), ("codex", ".codex"), ("antigravity", ".agents")):
+    for name, marker in (("claude", ".claude"), ("codex", ".codex"), ("antigravity", ".agents"), ("opencode", ".opencode")):
         if (root / marker).exists():
             detected.append(name)
     selected = harness or (detected[0] if len(detected) == 1 else None)
@@ -378,14 +378,16 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 from workflow_providers.claude_worker import claude_health
                 from workflow_providers.codex_worker import codex_health
                 from workflow_providers.antigravity_worker import antigravity_health
+                from workflow_providers.opencode_worker import opencode_health
                 from workflow_providers.native_cli import NativeCliRunner
-                from .provider_config import PROVIDER_DEFAULT
+                from .provider_config import PROVIDER_DEFAULT, PROVIDER_DEFAULT_PROVIDERS
 
                 runner = NativeCliRunner()
                 probe_builders = {
                     "claude": claude_health,
                     "codex": codex_health,
                     "antigravity": antigravity_health,
+                    "opencode": opencode_health,
                 }
                 for provider, pconfig in providers_map.items():
                     if not isinstance(pconfig, Mapping):
@@ -411,7 +413,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                             model = target.get("model") if isinstance(target, Mapping) else str(target)
                             effort = target.get("effort") if isinstance(target, Mapping) else None
                             probe_kwargs: dict[str, Any] = {}
-                            if provider == "antigravity" and model == PROVIDER_DEFAULT:
+                            if provider in PROVIDER_DEFAULT_PROVIDERS and model == PROVIDER_DEFAULT:
                                 health = builder(resolved_exe)
                             else:
                                 probe_kwargs["model"] = model

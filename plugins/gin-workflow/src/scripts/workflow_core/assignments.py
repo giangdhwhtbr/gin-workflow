@@ -14,7 +14,12 @@ from .atomic import atomic_write_text
 from .checkout import main_checkout
 from .configuration import require_yaml
 from .models import EffectiveConfig
-from .provider_config import PROVIDER_DEFAULT, ProviderModelConfig, REASONING_TIERS
+from .provider_config import (
+    PROVIDER_DEFAULT,
+    PROVIDER_DEFAULT_PROVIDERS,
+    ProviderModelConfig,
+    REASONING_TIERS,
+)
 
 
 class AssignmentResolutionError(ValueError):
@@ -54,9 +59,9 @@ class RouteCandidate:
     effort: str | None = None
 
     def __post_init__(self) -> None:
-        if self.model == PROVIDER_DEFAULT and self.provider != "antigravity":
+        if self.model == PROVIDER_DEFAULT and self.provider not in PROVIDER_DEFAULT_PROVIDERS:
             raise AssignmentResolutionError(
-                "provider_default is only supported for antigravity"
+                "provider_default is only supported for antigravity and opencode"
             )
         if self.model == PROVIDER_DEFAULT and self.effort is not None:
             raise AssignmentResolutionError(
@@ -189,8 +194,8 @@ def resolve_assignment(
             continue
         model = getattr(target, "model", str(target))
         effort = getattr(target, "effort", None)
-        if model == PROVIDER_DEFAULT and provider != "antigravity":
-            errors.append("provider_default is only supported for antigravity")
+        if model == PROVIDER_DEFAULT and provider not in PROVIDER_DEFAULT_PROVIDERS:
+            errors.append("provider_default is only supported for antigravity and opencode")
             continue
         candidates.append(RouteCandidate(provider, str(model), is_fallback, effort=effort))
     if errors:

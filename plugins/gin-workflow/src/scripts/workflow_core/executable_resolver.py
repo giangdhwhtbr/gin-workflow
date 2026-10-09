@@ -14,6 +14,7 @@ PROVIDER_EXE_ALIASES: dict[str, tuple[str, ...]] = {
 COMMON_INSTALL_DIRS: tuple[Path, ...] = (
     Path.home() / ".npm-global/bin",
     Path.home() / ".local/bin",
+    Path.home() / ".opencode/bin",
     Path.home() / ".local/share/pnpm",
     Path("/usr/local/bin"),
     Path("/home/linuxbrew/.linuxbrew/bin"),

@@ -95,6 +95,24 @@ class ProviderLocalConfigTests(unittest.TestCase):
         self.assertEqual("provider_default", antigravity.selection_mode("medium"))
         self.assertEqual("explicit", antigravity.selection_mode("high"))
 
+    def test_provider_default_is_accepted_for_opencode(self):
+        module = self.provider_config()
+        module.validate_provider_local_config(
+            {
+                "schema_version": "2.3",
+                "providers": {
+                    "opencode": {
+                        "executable": "opencode",
+                        "models": {
+                            "low": "provider_default",
+                            "medium": "provider_default",
+                            "high": "github-copilot/claude-sonnet-5.5",
+                        },
+                    }
+                },
+            }
+        )
+
     def test_provider_default_is_rejected_for_non_antigravity_providers(self):
         module = self.provider_config()
         with self.assertRaisesRegex(

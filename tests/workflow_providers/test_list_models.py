@@ -34,6 +34,12 @@ class TestListModels(unittest.TestCase):
         self.assertEqual(["high"], models[0]["reasoning_levels"])
         self.assertEqual([], models[1]["reasoning_levels"])
 
+    def test_opencode_lines_are_ids(self):
+        text = "github-copilot/claude-sonnet-5.5\n\ngithub-copilot/gemini-3.6-flash\n"
+        models = list_models("opencode", runner=runner_for(text), which=FOUND)
+        self.assertEqual(["github-copilot/claude-sonnet-5.5", "github-copilot/gemini-3.6-flash"], [m["id"] for m in models])
+        self.assertEqual([], models[0]["reasoning_levels"])
+
     def test_claude_returns_aliases_without_running_cli(self):
         def fail(argv):
             raise AssertionError("claude has no list command")

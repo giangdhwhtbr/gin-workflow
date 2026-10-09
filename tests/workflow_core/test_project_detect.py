@@ -79,7 +79,7 @@ class TestDetectProject(unittest.TestCase):
         result = detect_project(_repo({"package.json": _pkg(["express"]), "package-lock.json": "{}"}),
                                 which=lambda name: found.get(name))
         self.assertNotEqual("legacy", result["stage"])
-        self.assertEqual({"claude": True, "codex": False, "antigravity": True},
+        self.assertEqual({"claude": True, "codex": False, "antigravity": True, "opencode": False},
                          {k: bool(v) for k, v in result["providers"].items()})
         self.assertEqual({"installed": True, "indexed": False, "stale": False}, result["codegraph"])
 

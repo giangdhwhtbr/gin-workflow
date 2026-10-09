@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
@@ -54,6 +55,18 @@ class ExecutableResolverTests(unittest.TestCase):
                 self.assertEqual(str(dummy_agy), resolved)
             finally:
                 os.environ["PATH"] = old_path
+
+    def test_finds_opencode_in_its_default_install_dir(self):
+        from workflow_core import executable_resolver as module
+
+        self.assertIn(Path.home() / ".opencode/bin", module.COMMON_INSTALL_DIRS)
+        with tempfile.TemporaryDirectory() as directory:
+            exe = Path(directory) / "opencode"
+            exe.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            exe.chmod(0o755)
+            with mock.patch.object(module, "COMMON_INSTALL_DIRS", (Path(directory),)), \
+                    mock.patch("shutil.which", return_value=None):
+                self.assertEqual(str(exe), module.resolve_harness_executable("opencode", provider="opencode"))
 
     def test_preserves_symlink_without_resolving_to_target(self):
         with tempfile.TemporaryDirectory() as directory:

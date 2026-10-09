@@ -12,7 +12,11 @@ from workflow_core.assignments import AssignmentRequest, resolve_assignment
 from workflow_core.checkout import main_checkout
 from workflow_core.events import WorkflowEventStore
 from workflow_core.executable_resolver import resolve_harness_executable
-from workflow_core.provider_config import PROVIDER_DEFAULT, ProviderModelConfig
+from workflow_core.provider_config import (
+    PROVIDER_DEFAULT,
+    PROVIDER_DEFAULT_PROVIDERS,
+    ProviderModelConfig,
+)
 
 from .contracts import (
     EvidenceAuthority,
@@ -44,6 +48,7 @@ from .antigravity_worker import (
     AntigravityWorkerAdapter,
     antigravity_health,
 )
+from .opencode_worker import OpenCodeWorkerAdapter, opencode_health
 from .circuit_breaker import CircuitBreakerStore
 from .claude_worker import ClaudeWorkerAdapter, claude_health
 from .codex_worker import CodexWorkerAdapter, codex_health
@@ -213,12 +218,12 @@ class ProviderRegistry:
         configured_parallel = 1
         if provider_local is not None:
             for provider_name, local_config in provider_local.items():
-                if provider_name != "antigravity" and any(
+                if provider_name not in PROVIDER_DEFAULT_PROVIDERS and any(
                     getattr(target, "model", str(target)) == PROVIDER_DEFAULT
                     for target in local_config.models.values()
                 ):
                     raise RegistryError(
-                        "provider_default is only supported for antigravity"
+                        "provider_default is only supported for antigravity and opencode"
                     )
             routing = config.get("routing", {})
             if not isinstance(routing, Mapping):
@@ -310,12 +315,15 @@ class ProviderRegistry:
                     return CodexWorkerAdapter(**options)
                 if candidate.provider == "antigravity":
                     return AntigravityWorkerAdapter(**options)
+                if candidate.provider == "opencode":
+                    return OpenCodeWorkerAdapter(**options)
                 raise RegistryError(f"unsupported native worker provider: {candidate.provider}")
 
             health_builders = {
                 "claude": claude_health,
                 "codex": codex_health,
                 "antigravity": antigravity_health,
+                "opencode": opencode_health,
             }
 
             def health_for(provider: str):
@@ -335,8 +343,8 @@ class ProviderRegistry:
                             resolve_harness_executable(local.executable, provider=provider)
                             or local.executable
                         )
-                        if provider in ("claude", "codex", "antigravity"):
-                            if provider == "antigravity" and _candidate.model == PROVIDER_DEFAULT:
+                        if provider in ("claude", "codex", "antigravity", "opencode"):
+                            if provider in PROVIDER_DEFAULT_PROVIDERS and _candidate.model == PROVIDER_DEFAULT:
                                 health_cache[key] = builder(resolved_exe)
                             else:
                                 probe_workspace = runtime_root / "health-probe" / provider

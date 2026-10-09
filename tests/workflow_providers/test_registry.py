@@ -1,4 +1,5 @@
 from dataclasses import replace
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -62,7 +63,7 @@ class ProviderRegistryTests(unittest.TestCase):
             Path(root),
         )
 
-    def antigravity_config(self, root):
+    def antigravity_config(self, root, provider="antigravity"):
         return EffectiveConfig(
             {
                 "schema_version": "2.3",
@@ -74,11 +75,11 @@ class ProviderRegistryTests(unittest.TestCase):
                 "routing": {
                     "roles": {
                         "backend": {
-                            "preferred": ["antigravity"],
+                            "preferred": [provider],
                             "fallback": ["codex"],
                         }
                     },
-                    "concurrency": {"antigravity": 1, "codex": 1},
+                    "concurrency": {provider: 1, "codex": 1},
                     "queue": {"max_wait_seconds": 0},
                     "worker": {"timeout_seconds": 17, "max_retries": 0},
                     "circuit_breaker": {
@@ -406,6 +407,58 @@ class ProviderRegistryTests(unittest.TestCase):
                 else:
                     self.assertEqual("codex", Path(runner.invocations[0].argv[0]).name)
                     self.assertEqual("exec", runner.invocations[0].argv[1])
+
+    def test_registry_routes_opencode_with_and_without_explicit_model(self):
+        class Runner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput(({"type": "text", "part": {"text": json.dumps({
+                    "status": "completed", "task_id": "api", "summary": "done",
+                    "changed_files": [], "commits": [], "tests": [], "evidence": [], "blockers": [],
+                })}},))
+
+        for model, expect_model_flag in (("provider_default", False), ("github-copilot/gemini-3.6-flash", True)):
+            with self.subTest(model=model), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                runner = Runner()
+                local = {
+                    "opencode": ProviderModelConfig(
+                        "opencode", "opencode", {"low": model, "medium": model, "high": model}
+                    ),
+                    "codex": ProviderModelConfig(
+                        "codex", "codex", {"low": "mini", "medium": "coding", "high": "reasoning"}
+                    ),
+                }
+                registry = ProviderRegistry.from_effective_config(
+                    self.antigravity_config(root, "opencode"),
+                    provider_local=local,
+                    evidence_authority=self.composite_authority(),
+                    native_runner=runner,
+                    worker_health={
+                        "opencode": lambda candidate: NativeHealth(True, "ready", True),
+                        "codex": lambda candidate: True,
+                    },
+                )
+                registry.workspace.create(
+                    WorkspaceRequest("ws-api", "task/api"), idempotency_key="create"
+                )
+                worker_request = WorkerRequest(
+                    "Implement", (), create_context_manifest("execute", ContextRequest()),
+                    {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                )
+
+                receipt = registry.worker.dispatch(worker_request)
+                normalized = registry.worker.collect_result(receipt.worker_id)
+
+                self.assertEqual("completed", normalized.status)
+                self.assertEqual("opencode", receipt.provider_name)
+                argv = runner.invocations[0].argv
+                self.assertEqual(("run", "--standalone", "--auto"), argv[1:4])
+                self.assertEqual(expect_model_flag, "--model" in argv)
 
     def test_registry_wires_real_health_probe_cached_per_provider_and_model(self):
         class _ModelAwareRunner:

@@ -15,6 +15,7 @@ from .schemas import SUPPORTED_CONFIG_VERSIONS
 
 REASONING_TIERS = ("low", "medium", "high")
 PROVIDER_DEFAULT = "provider_default"
+PROVIDER_DEFAULT_PROVIDERS = frozenset({"antigravity", "opencode"})
 CODEX_EFFORT_VALUES = frozenset({"low", "medium", "high", "xhigh"})
 
 
@@ -156,9 +157,9 @@ def validate_provider_local_config(value: Mapping[str, Any]) -> None:
                     raise ProviderLocalConfigError(
                         "provider_default cannot declare an effort"
                     )
-                if name != "antigravity":
+                if name not in PROVIDER_DEFAULT_PROVIDERS:
                     raise ProviderLocalConfigError(
-                        "provider_default is only supported for antigravity"
+                        "provider_default is only supported for antigravity and opencode"
                     )
         unknown_tiers = set(models) - set(REASONING_TIERS)
         if unknown_tiers:

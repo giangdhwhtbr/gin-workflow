@@ -25,7 +25,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
-    parser.add_argument("--harness", choices=("claude", "codex", "antigravity"))
+    parser.add_argument("--harness", choices=("claude", "codex", "antigravity", "opencode"))
     parser.add_argument("--non-interactive", action="store_true")
     parser.add_argument("--approve", action="store_true")
     parser.add_argument("--set", dest="assignments", action="append", default=[])
@@ -45,7 +45,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--provider-mode", choices=("single", "multi"))
     parser.add_argument("--monorepo", action="store_true")
     parser.add_argument("--stack-intent", default="")
-    parser.add_argument("--provider", choices=("claude", "codex", "antigravity"))
+    parser.add_argument("--provider", choices=("claude", "codex", "antigravity", "opencode"))
     return parser
 
 

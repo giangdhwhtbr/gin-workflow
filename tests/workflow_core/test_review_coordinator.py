@@ -66,6 +66,18 @@ class ReviewCoordinatorTests(unittest.TestCase):
             context=self.context(), implementation_session="impl-1", reviewer_session="rev-1")
         self.assertEqual(("claude", "rev-1"), (cycle.reviewer_provider, cycle.reviewer_session))
 
+    def test_provider_independence_accepts_opencode_reviewer_only_for_another_implementer(self):
+        coordinator = ReviewCoordinator(FakeReviewProvider(), independence="provider")
+        kwargs = dict(
+            task_id="ui", cycle_number=1, provider_role="review", reasoning="high",
+            reviewer_candidates=(RouteCandidate("opencode", "provider_default", False),),
+            context=self.context(),
+        )
+        cycle = coordinator.request_review(implementation_route=("claude", "opus"), **kwargs)
+        self.assertEqual("opencode", cycle.reviewer_provider)
+        with self.assertRaises(ReviewCoordinationError):
+            coordinator.request_review(implementation_route=("opencode", "provider_default"), **kwargs)
+
     def test_session_independence_rejects_same_or_missing_session(self):
         coordinator = ReviewCoordinator(FakeReviewProvider(), independence="session")
         for reviewer_session in ("impl-1", ""):

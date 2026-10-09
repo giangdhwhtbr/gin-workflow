@@ -9,6 +9,7 @@ import time
 from typing import Any
 
 from workflow_core.assignments import RouteCandidate
+from workflow_core.provider_config import PROVIDER_DEFAULT_PROVIDERS
 from workflow_core.events import WorkflowEvent, WorkflowEventStore
 
 from .circuit_breaker import CircuitBreakerStore, FailureKind
@@ -276,7 +277,7 @@ class RoutedWorkerDispatcher:
                         health, "explicit_model_selection", None
                     )
                 if (
-                    candidate.provider == "antigravity"
+                    candidate.provider in PROVIDER_DEFAULT_PROVIDERS
                     and candidate.selection_mode == "explicit"
                     and explicit_model_selection is not True
                 ):

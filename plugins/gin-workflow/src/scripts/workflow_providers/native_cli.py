@@ -501,7 +501,7 @@ class NativeCliRunner:
 
 
 _CLAUDE_ALIASES = (("opus", "Claude Opus (latest)"), ("sonnet", "Claude Sonnet (latest)"), ("haiku", "Claude Haiku (latest)"))
-_LIST_COMMANDS = {"codex": ("debug", "models"), "antigravity": ("models",)}
+_LIST_COMMANDS = {"codex": ("debug", "models"), "antigravity": ("models",), "opencode": ("models",)}
 _LEVEL_SUFFIX = re.compile(r"-(low|medium|high)$")
 
 
@@ -539,6 +539,9 @@ def list_models(
                  "reasoning_levels": [str(l.get("effort", l)) if isinstance(l, dict) else str(l)
                                       for l in m.get("supported_reasoning_levels", [])]}
                 for m in entries if isinstance(m, dict) and m.get("visibility", "list") == "list" and (m.get("slug") or m.get("id"))]
+    if provider == "opencode":
+        return [{"id": line.strip(), "label": line.strip(), "description": "", "reasoning_levels": []}
+                for line in completed.stdout.splitlines() if line.strip()]
     models = []
     for line in completed.stdout.splitlines():
         if "\t" not in line:

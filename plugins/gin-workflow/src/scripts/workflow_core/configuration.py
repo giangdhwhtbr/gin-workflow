@@ -226,7 +226,7 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
     _validate_portable(config)
 
 
-SUPPORTED_HARNESSES = ("claude", "codex", "antigravity")
+SUPPORTED_HARNESSES = ("claude", "codex", "antigravity", "opencode")
 
 
 def get_session_harness_override(repository: Path) -> str | None:
