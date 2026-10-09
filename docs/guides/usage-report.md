@@ -9,6 +9,7 @@ What did the AI work on a bead or an epic cost, and how well did it go? `gin-wor
 | Claude Code | `~/.claude/projects/<repo slug>*/**/*.jsonl` | includes subagents; each message counted once |
 | Codex | `~/.codex/sessions/**/rollout-*.jsonl` | includes `codex exec` reviewers; per-turn usage |
 | Antigravity | not measured | `agy` reports no token counts |
+| OpenCode | not measured | usage is not read from OpenCode sessions |
 
 `CLAUDE_CONFIG_DIR` and `CODEX_HOME` override the log locations. Only numbers and routing fields are read (model, token counts, time, working directory, branch); prompt and response text is never read or stored. A missing log directory shows as `not_found`, and unreadable lines are counted in `skipped_lines`.
 
@@ -54,7 +55,7 @@ Or ask `/report`. The text report lists each bead's cost, totals per model (toke
 
 ## Limits
 
-- Antigravity work is not counted.
+- Antigravity and OpenCode work is not counted.
 - Two sessions working at the repository root at the same time cannot be told apart: root work is attributed to the next gate, even if the other session recorded it.
 - The `review` stage covers the whole time a review was open, including time the implementer spent on something else while waiting.
 - Sessions whose working directory is outside the repository and its worktrees are not counted.

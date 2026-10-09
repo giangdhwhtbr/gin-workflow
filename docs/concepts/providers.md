@@ -1,6 +1,6 @@
 # Providers
 
-The harness you open (the main harness) plans and coordinates. Bounded work, such as an implementation track or an independent review, can run on another installed CLI: Claude Code (`claude`), Codex (`codex`), or Antigravity (`agy`). Routing decides which one, without ever writing a provider or model name into the plan or Beads. The [routing diagram](architecture.md#provider-routing) shows the flow.
+The harness you open (the main harness) plans and coordinates. Bounded work, such as an implementation track or an independent review, can run on another installed CLI: Claude Code (`claude`), Codex (`codex`), Antigravity (`agy`), or OpenCode (`opencode`). Routing decides which one, without ever writing a provider or model name into the plan or Beads. The [routing diagram](architecture.md#provider-routing) shows the flow.
 
 ## Capabilities
 
@@ -17,6 +17,8 @@ Skills work through provider-neutral capabilities, each with health and capabili
 | Notifications | optional delivery only (for example `telegram-notify`) |
 
 Selecting a provider never authorizes a lifecycle transition; gates and approvals still apply.
+
+**OpenCode has no sandbox.** Its adapter runs `opencode run --standalone --auto --format json` in the track workspace (it has no `--cd`); `--auto` auto-approves permissions, so isolation relies on the worktree and working directory, the same trade-off as Codex's `--dangerously-bypass-approvals-and-sandbox`.
 
 ## Roles, reasoning, and model classes
 
@@ -37,13 +39,13 @@ Plans may also give model guidance as abstract classes: `high_reasoning`, `stand
 
 The result is written with `write_assignment_manifest` to `.agent-workflow/runtime/assignments/<workflow>.yaml`, which is runtime metadata, not plan or Beads data.
 
-For Antigravity only, a tier may be `provider_default`: the manifest records the provider and omits a model, and `agy` uses its own default.
+For Antigravity and OpenCode, a tier may be `provider_default`: the manifest records the provider and omits a model, and the CLI uses its own default. An OpenCode tier can also be a verbatim `provider/model` or `provider/model#variant` string.
 
 ## Dispatch and fallback
 
 At dispatch, `RoutedWorkerDispatcher` rechecks each candidate in order:
 
-1. **Health**: the CLI starts and supports the flags the adapter needs (`claude -p`, `codex exec`, `agy --print --sandbox`). Antigravity with an explicit model also needs proven model selection.
+1. **Health**: the CLI starts and supports the flags the adapter needs (`claude -p`, `codex exec`, `agy --print --sandbox`, `opencode run --auto --format json`). Antigravity and OpenCode with an explicit model also need proven model selection.
 2. **Circuit breaker**: infrastructure failures (quota, rate limit, authentication, service, timeout, crash, invalid model) count against a provider and model; at `circuit_breaker.failure_threshold` the circuit opens for `cooldown_seconds`, then allows `half_open_max_probes` trial runs. Task, test, review, and invalid-result failures do not count against the provider.
 3. **Capacity**: at most `concurrency.<provider>` workers at once; a task waits up to `queue.max_wait_seconds`.
 

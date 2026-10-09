@@ -40,7 +40,7 @@ Portable layers are validated before anything is written; a value that looks lik
 
 | Key | Values | Default |
 |---|---|---|
-| `harness` | `claude`, `codex`, `antigravity`: the main harness that coordinates the workflow | set by setup |
+| `harness` | `claude`, `codex`, `antigravity`, `opencode`: the main harness that coordinates the workflow | set by setup |
 | `provider_mode` | `single` (the main harness does everything) or `multi` (routed providers) | `multi` |
 
 ### `project`
@@ -90,7 +90,7 @@ Rigor presets:
 
 | Key | Meaning |
 |---|---|
-| `roles.<role>.preferred`, `.fallback` | ordered providers for a role (`claude`, `codex`, `antigravity`, or `main_harness`) |
+| `roles.<role>.preferred`, `.fallback` | ordered providers for a role (`claude`, `codex`, `antigravity`, `opencode`, or `main_harness`) |
 | `roles.<role>.require_independent` | the role must use a different provider from the implementer |
 | `concurrency.<provider>` | maximum concurrent workers |
 | `queue.max_wait_seconds` | how long a task waits for capacity (default 600) |
@@ -136,13 +136,16 @@ providers:
   antigravity:
     executable: agy
     models: {low: <model>, medium: <model>, high: <model>}
+  opencode:
+    executable: opencode
+    models: {low: provider_default, medium: provider_default, high: <provider/model>}
   codex:
     executable: codex
     models:
       high: {model: <model>, effort: high}
 ```
 
-Each provider names its executable and a model per reasoning tier; Codex tiers may add a reasoning `effort`. `gin-workflow setup models --provider <name>` lists the models a CLI reports. Credentials stay with each CLI's own login.
+Each provider names its executable and a model per reasoning tier; Codex tiers may add a reasoning `effort`; Antigravity and OpenCode tiers may be `provider_default`. `gin-workflow setup models --provider <name>` lists the models a CLI reports. Credentials stay with each CLI's own login.
 
 ## `usage-prices.yaml`
 

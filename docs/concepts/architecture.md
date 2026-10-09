@@ -119,7 +119,7 @@ flowchart TD
     H --> CB{circuit breaker and capacity}
     CB -->|open or full| N
     N --> H
-    CB -->|allowed| RUN[run native CLI: claude, codex, agy]
+    CB -->|allowed| RUN[run native CLI: claude, codex, agy, opencode]
     N -->|none left before queue deadline| U[worker_routes_unavailable: bead stays open]
 ```
 

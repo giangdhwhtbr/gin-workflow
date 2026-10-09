@@ -43,6 +43,6 @@ A git worktree has no `.codegraph/` of its own, so agents working in one fall ba
 
 | Tool | For | Set up |
 |---|---|---|
-| Codex CLI (`codex`) or Antigravity CLI (`agy`) next to your main harness | [multi-provider routing](../concepts/providers.md) | install the CLI, then choose models with `gin-workflow setup models` |
+| Codex CLI (`codex`), Antigravity CLI (`agy`), or OpenCode (`opencode`) next to your main harness | [multi-provider routing](../concepts/providers.md) | install the CLI, then choose models with `gin-workflow setup models` |
 | GitHub CLI (`gh`) or GitLab CLI (`glab`) | [team mode](team.md) | your package manager, then `gh auth login` or `glab auth login` |
 | Node with `@playwright/test` 1.49 or later | [QA end-to-end specs](qa.md) | `npm i -D @playwright/test` and `npx playwright install` in the application repository |

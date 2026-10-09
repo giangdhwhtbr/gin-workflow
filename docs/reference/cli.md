@@ -23,7 +23,7 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 |---|---|---|
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
 | `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--provider-mode` (plus `--monorepo`, `--stack-intent`) into `--set` assignments | no |
-| `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity`) | no |
+| `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode`) | no |
 | `init` | First setup: validates and writes `.agent-workflow/config.yaml`, `providers.local.yaml`, and generated files; `--dry-run` previews | yes |
 | `configure` | Changes portable (`--set key=value`) or local (`--provider-set key=value`) settings | yes |
 | `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration | yes |

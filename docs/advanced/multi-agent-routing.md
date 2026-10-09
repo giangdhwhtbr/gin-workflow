@@ -2,7 +2,7 @@
 
 With `provider_mode: single`, **`gin-workflow` runs everything in the harness you open**, such as Claude Code. This baseline is simple and covers the whole workflow lifecycle.
 
-When scaling up to complex architectures, heavy workloads, or specialized tasks, you can optionally configure **multi-agent routing** across different harnesses (such as Codex CLI or Antigravity CLI) and models.
+When scaling up to complex architectures, heavy workloads, or specialized tasks, you can optionally configure **multi-agent routing** across different harnesses (such as Codex CLI, Antigravity CLI, or OpenCode) and models.
 
 ---
 
@@ -40,7 +40,7 @@ routing:
     max_cycles: 3
 ```
 
-Roles are responsibilities such as `backend`, `frontend`, `docs`, `review`, or `general`; each lists providers (`claude`, `codex`, `antigravity`, or `main_harness`) in preference order. Plans name a role and a reasoning tier (`low`, `medium`, `high`), never a provider or model.
+Roles are responsibilities such as `backend`, `frontend`, `docs`, `review`, or `general`; each lists providers (`claude`, `codex`, `antigravity`, `opencode`, or `main_harness`) in preference order. Plans name a role and a reasoning tier (`low`, `medium`, `high`), never a provider or model.
 
 Map each provider's executable and its models per reasoning tier in your local machine configuration (`.agent-workflow/providers.local.yaml`, which is git-ignored):
 
@@ -75,7 +75,7 @@ During `/gin-workflow:orchestrate`:
 ## 4. Resilience & Circuit Breakers
 
 `gin-workflow` includes built-in safeguards for routed workers:
-- **Health checks:** at dispatch, each candidate CLI must start and support the flags its adapter needs (`claude -p`, `codex exec`, `agy --print --sandbox`).
+- **Health checks:** at dispatch, each candidate CLI must start and support the flags its adapter needs (`claude -p`, `codex exec`, `agy --print --sandbox`, `opencode run --auto --format json`).
 - **Circuit breakers:** infrastructure failures (quota, rate limit, authentication, timeout, crash) count against a provider; at `routing.circuit_breaker.failure_threshold` the provider is skipped for `cooldown_seconds` and the task moves to the next configured route. When no route is left, the worker returns `worker_routes_unavailable` and the bead stays open.
 - **Strict tier guarantee:** a fallback never downgrades the reasoning tier requested by the plan.
 

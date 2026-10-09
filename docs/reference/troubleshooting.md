@@ -24,7 +24,7 @@ The installer prunes the Claude/Codex `agents/` and `commands/` files from the O
 
 `gin-workflow`'s `report` skill installs as `gin-workflow-report` in OpenCode. Its original id would otherwise shadow OpenCode's built-in `report` skill, so invoke it with `@gin-workflow-report`; the built-in `report` skill keeps working.
 
-OpenCode hosts the skills, but gin-workflow's routed workers still need the Claude, Codex, or Antigravity CLIs to execute delegated tracks — there is no OpenCode worker adapter. See [Providers](../concepts/providers.md).
+OpenCode hosts the skills and can also run routed workers and reviews (`opencode run --auto --format json`); it has no sandbox, so isolation relies on the worktree. The resolver also looks in `~/.opencode/bin`, so a binary installed by OpenCode's own script is found without a `PATH` change. See [Providers](../concepts/providers.md).
 
 
 ## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
