@@ -1,16 +1,12 @@
 # Code Review Ledger
 
-**Bead Status:** `review-approved`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-- **Status:** Approved
-- **Approval Event ID:** `EV-000018`
-- **Source Scope Hash:** `8a4e7ee9cc6dcac27674e4f48db75f1f2cae76c201b78aea7e76bd4a72e37630`
-- **Approved Repositories:**
-  - `gin-workflow` (SHA: `751a918`, Tree Hash: `eb6e881`)
+*Not approved or approval has been invalidated.*
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -76,3 +72,4 @@
 | `EV-000017` | `2026-10-09T03:53:25.115584Z` | `finding-verified` | `reviewer:antigravity` (reviewer) |
 | `EV-000018` | `2026-10-09T03:53:32.953330Z` | `review-approved` | `reviewer:antigravity` (reviewer) |
 | `EV-000019` | `2026-10-09T03:53:33.176343Z` | `lease-released` | `reviewer:antigravity` (reviewer) |
+| `EV-000020` | `2026-10-09T07:04:50.868058Z` | `implementation-in-progress` | `reviewer:claude:session-reopen` (reviewer) |
