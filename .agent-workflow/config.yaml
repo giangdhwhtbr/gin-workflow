@@ -1,4 +1,5 @@
-harness: codex
+harness: claude
+provider_mode: single
 routing:
   circuit_breaker:
     cooldown_seconds: 900
@@ -12,38 +13,26 @@ routing:
     max_wait_seconds: 600
   review:
     allow_self_review_fallback: false
+    independence: session
     max_cycles: 3
     require_independent: true
     role: review
   roles:
     backend:
-      fallback:
-      - codex
       preferred:
-      - claude
+      - main_harness
     docs:
-      fallback:
-      - codex
-      - claude
       preferred:
-      - antigravity
+      - main_harness
     frontend:
-      fallback:
-      - codex
-      - claude
       preferred:
-      - antigravity
+      - main_harness
     general:
-      fallback:
-      - claude
       preferred:
-      - codex
+      - main_harness
     review:
-      fallback:
-      - codex
-      - claude
       preferred:
-      - antigravity
+      - main_harness
   worker:
     max_retries: 2
     timeout_seconds: 900
