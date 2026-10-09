@@ -1,25 +1,29 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000013`
+- **Source Scope Hash:** `41820db572dd1f4ef32b9939bb07d50a445d1664c554bfe083e0a6cbf068456a`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `73b7b64`, Tree Hash: `7adfd1e`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-lm6.1`
 - **Base SHA:** `764ae2bcf289e0a1e00e386fed0355685f2d8d51`
-- **Reviewed SHA:** `71e22e6245e39616b5ec516e12dfb7a105491cc1`
+- **Reviewed SHA:** `73b7b64a33c292d726025643938efae92c116ba6`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-lm6.1`
-- **Checkpoint SHA:** `71e22e6245e39616b5ec516e12dfb7a105491cc1`
+- **Checkpoint SHA:** `73b7b64a33c292d726025643938efae92c116ba6`
 - **Scope Hash:** `41820db572dd1f4ef32b9939bb07d50a445d1664c554bfe083e0a6cbf068456a`
-- **Tree Hash:** `da04b277d554a8f7bd06b43eb54ca9a8111266f0e152cd5fdf78350ebccd822e`
+- **Tree Hash:** `7adfd1e5a067016bd1c6a90ac4a193f8f80aedce7fe6f8a7e5ffdfd850f591bb`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -45,3 +49,9 @@
 | `EV-000006` | `2026-10-09T03:19:06.639968Z` | `review-approved` | `reviewer:antigravity` (reviewer) |
 | `EV-000007` | `2026-10-09T03:19:06.878657Z` | `lease-released` | `reviewer:antigravity` (reviewer) |
 | `EV-000008` | `2026-10-09T07:04:50.623817Z` | `implementation-in-progress` | `reviewer:claude:session-reopen` (reviewer) |
+| `EV-000009` | `2026-10-09T07:05:00.747056Z` | `source-checkpoint-created` | `implementer:claude` (worker) |
+| `EV-000010` | `2026-10-09T07:05:00.874053Z` | `review-requested` | `implementer:claude` (worker) |
+| `EV-000011` | `2026-10-09T07:05:49.795227Z` | `lease-acquired` | `reviewer:claude:session-t1` (reviewer) |
+| `EV-000012` | `2026-10-09T07:05:49.814401Z` | `review-started` | `reviewer:claude:session-t1` (reviewer) |
+| `EV-000013` | `2026-10-09T07:06:13.497126Z` | `review-approved` | `reviewer:claude:session-t1` (reviewer) |
+| `EV-000014` | `2026-10-09T07:06:13.741089Z` | `lease-released` | `reviewer:claude:session-t1` (reviewer) |
