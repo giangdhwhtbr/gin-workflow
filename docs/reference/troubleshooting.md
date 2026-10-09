@@ -64,7 +64,7 @@ Verify it resolves independent of your shell's `PATH` customizations:
 env -i PATH="/usr/local/bin:/usr/bin:/bin" claude --version
 ```
 
-Apply the same fix for any other native provider CLI (`codex`, `agy`) that isn't already reachable from a minimal `PATH`.
+Apply the same fix for any other native provider CLI (`codex`, `agy`, `opencode`) that isn't already reachable from a minimal `PATH`.
 
 ## A repository still hits a `gin-workflow` bug that was already fixed and shipped on `master`
 

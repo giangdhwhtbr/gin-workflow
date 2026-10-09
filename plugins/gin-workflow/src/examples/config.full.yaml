@@ -60,6 +60,7 @@ routing:
     claude: 2
     antigravity: 2
     codex: 1
+    opencode: 1
   queue:
     max_wait_seconds: 600
   worker:

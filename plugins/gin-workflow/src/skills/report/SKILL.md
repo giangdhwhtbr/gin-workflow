@@ -20,5 +20,5 @@ Read-only usage report. Summaries are written into each bead's metadata (`ai_usa
    - `unpriced` models: their tokens count, their cost does not; prices live in `.agent-workflow/usage-prices.yaml` (USD per million tokens).
    - `unattributed` usage: work that matched no bead or gate.
    - `not_collected` beads: offer `gin-workflow usage collect --bead <id>` for each, and run it only if the user agrees.
-4. Say what the numbers are: estimates from local Claude Code and Codex logs on the machine that collected them. Antigravity usage is not measured.
+4. Say what the numbers are: estimates from local Claude Code and Codex logs on the machine that collected them. Antigravity and OpenCode usage is not measured.
 5. Never change beads, prices, or logs, and never chain into another stage.
