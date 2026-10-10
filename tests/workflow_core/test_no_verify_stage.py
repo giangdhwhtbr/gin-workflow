@@ -7,10 +7,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 REMOVED = re.compile(
-    r"verification_passed|verification-passed|skills/verify|/gin-workflow:verify|model_tiers\.verify"
+    r"verification_passed|verification-passed|verification\.passed|skills/verify|/gin-workflow:verify|model_tiers\.verify"
     r"|`verify` (stage|skill)|verify stage",
     re.IGNORECASE,
 )
+LEGACY_NOTE = re.compile(r"deprecated|removed", re.IGNORECASE)
 # Intentional leftovers: removal messages, the deprecated-key mapping, historical-event readers, the review
 # ledger's own state machine (its verification-* actions are kept on purpose).
 ALLOWED = (
@@ -20,9 +21,6 @@ ALLOWED = (
     "plugins/gin-workflow/src/scripts/workflow_core/usage_attribution.py",
     "plugins/gin-workflow/src/scripts/review_ledger/",
     "plugins/gin-workflow/src/scripts/review-ledger.py",
-    "docs/reference/config.md",
-    "docs/reference/cli.md",
-    "docs/guides/team.md",
     "tests/",
     ".planning/",
     ".beads/",
@@ -43,7 +41,7 @@ class TestNoVerifyStage(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
             except UnicodeDecodeError:
                 continue
-            offenders += [f"{relative}:{n}" for n, line in enumerate(text.splitlines(), 1) if REMOVED.search(line)]
+            offenders += [f"{relative}:{n}" for n, line in enumerate(text.splitlines(), 1) if REMOVED.search(line) and not LEGACY_NOTE.search(line)]
         self.assertEqual([], offenders)
 
 
