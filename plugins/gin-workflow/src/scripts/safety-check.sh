@@ -50,6 +50,13 @@ if [[ "$COMMAND" =~ (^|[[:space:]/])rm([[:space:]]|$) ]]; then
   fi
 fi
 
+# 1b. The git hooks are the quality gate: never skip them.
+if [[ "$COMMAND" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify ]] || \
+   [[ "$COMMAND" =~ git[[:space:]].*--no-verify.*(commit|push|merge) ]]; then
+  echo "Blocked: --no-verify skips the gin-workflow git hooks; fix the failing check instead." >&2
+  exit 2
+fi
+
 # 2. Path constraint validation for worktree executions
 # If running inside a subagent worker that has a worktree context, verify all operations stay inside it.
 if [ -n "${WORKTREE_PATH:-}" ]; then

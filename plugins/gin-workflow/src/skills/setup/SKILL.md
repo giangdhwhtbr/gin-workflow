@@ -24,7 +24,8 @@ Then:
 2. Run `init --dry-run` with the harness and every assignment. Present both `configuration` and `provider_configuration`, the proposed `rule_packs` (the user may add or remove packs as an extra `--set rules.packs=[...]`), each `rule_tool_checks` item with its `suggest` snippet (suggestions only; setup never edits lint or type configs), the exact files/actions, and any validation error. Do not write on dry-run.
 3. Obtain explicit native-harness approval for the complete two-layer proposal.
 4. Run one approved `init` with the same harness and same assignments. The CLI validates both layers before any atomic write.
-5. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
+5. When `verify.checks` is configured, run `gin-workflow hooks install` (quality checks run in `pre-commit`/`pre-push`, not in a lifecycle stage). If it reports `occupied` or `missing`, show the user the printed instruction; never overwrite a hook.
+6. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
 
 Portable answers become `--set` assignments in `.agent-workflow/config.yaml`; executable/model answers become `--provider-set` assignments in the gitignored `.agent-workflow/providers.local.yaml`.
 
@@ -48,6 +49,6 @@ One `/setup` invocation completes initial setup. Repeated identical `init` calls
 
 ## Explicit maintenance
 
-On an initialized repository, run only the maintenance action the user requested: `detect`, `preset`, `models`, `configure`, `refresh`, `update`, `doctor` (`--probe` for active model health; also reports missing verify commands, a stale codegraph index, and a greenfield stage that now has sources), `status`, `diff`, `rollback`, `export-bundle`, or `verify-bundle`. Present dry-run output before user-authored configuration changes, upgrades, rollback, or data movement. After bootstrap, protected mutations use the approval and evidence capabilities.
+On an initialized repository, run only the maintenance action the user requested: `detect`, `preset`, `models`, `configure`, `refresh`, `update`, `doctor` (`--probe` for active model health; also reports missing git hooks and missing verify commands, a stale codegraph index, and a greenfield stage that now has sources), `status`, `diff`, `rollback`, `export-bundle`, or `verify-bundle`. Present dry-run output before user-authored configuration changes, upgrades, rollback, or data movement. After bootstrap, protected mutations use the approval and evidence capabilities.
 
 The CLI must not prompt, choose policy, or manufacture approval.

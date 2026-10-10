@@ -162,6 +162,19 @@ Opt-in team mode, active when the configuration has a `team:` section.
 
 Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuration, or host error.
 
+## `gin-workflow hooks`
+
+```
+gin-workflow hooks install
+gin-workflow hooks run pre-commit|pre-push
+```
+
+`install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`). It is idempotent, never overwrites a hook it did not write (`occupied`: add `exec gin-workflow hooks run <hook> "$@"` to your hook to chain it), and does not create a missing hooks directory. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
+
+`run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks; `pre-push` runs `test`, plus `build` at `standard` rigor and `e2e` at `strict`, only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook.
+
+Exit codes: install 0 installed, 1 occupied, 2 hooks directory missing; run 0 pass, otherwise the failing command's exit code.
+
 ## `gin-workflow reviewer`
 
 ```

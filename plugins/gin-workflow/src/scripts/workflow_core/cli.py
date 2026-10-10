@@ -67,10 +67,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
         print(f"gin-workflow {CLI_VERSION}")
         return 0
     if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team",
-                                   "usage", "reviewer"):
-        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,reviewer} <command>",
+                                   "usage", "reviewer", "hooks"):
+        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,reviewer,hooks} <command>",
               file=sys.stderr)
         return 2
+    if argv[0] == "hooks":
+        from .hooks import main as hooks_main
+        return hooks_main(argv[1:])
     if argv[0] == "rules":
         from .rules import main as rules_main
         return rules_main(argv[1:])

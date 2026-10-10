@@ -455,10 +455,18 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             if provider_details:
                 checks_details["providers"] = provider_details
 
+    hook_actions: list[str] = []
     if checks["configuration"]:
         settings = project_settings(resolve_effective_config(root, write=False).config.to_dict())
         missing = [k for k in ("lint", "typecheck", "test", "build") if not settings.verify_commands.get(k)]
         checks_details["verify_commands"] = {"missing": missing}
+        if settings.verify_commands:
+            from .hooks import status as hooks_status
+
+            states = hooks_status(root)
+            checks_details["hooks"] = states
+            hook_actions = [f"hooks: {name} is {state}; run gin-workflow hooks install"
+                            for name, state in states.items() if state != "ok"]
         detected = detect_project(root)
         if settings.stage == "greenfield" and detected["stage"] == "brownfield":
             checks_details["project_stage"] = {"suggestion": "project now has a manifest/sources; run /setup configure to set project.stage=brownfield"}
@@ -470,7 +478,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             graph["suggestion"] = "codegraph index is older than HEAD; run `codegraph sync`"
         checks_details["codegraph"] = graph
 
-    actions: list[str] = []
+    actions: list[str] = list(hook_actions)
     checks["review_ledgers"] = True
     planning_dir = root / ".planning"
     if planning_dir.is_dir():
