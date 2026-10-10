@@ -1,0 +1,458 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-8ii.1",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-8ii.1",
+      "review_base_sha": "3ae4635d92ec47cb3e52bdb58821111cce480f3d",
+      "reviewed_source_sha": "6a8d435a7ea3d3be747b306c9f7559e99da9c9b9",
+      "checkpoint_sha": "6a8d435a7ea3d3be747b306c9f7559e99da9c9b9",
+      "source_scope_hash": "467b4a98b494c50d279c6b6c10fe130a158d50e4bff05f1dd2093649d9a621e1",
+      "source_tree_hash": "b3f7e896b58bfad8e4bd8c04da339319db6109e1f4109bce73eeeb0818963404",
+      "reviewed_source_tree_hash": "b3f7e896b58bfad8e4bd8c04da339319db6109e1f4109bce73eeeb0818963404",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "docs/reference/cli.md",
+      "plugins/gin-workflow/src/scripts/safety-check.sh",
+      "plugins/gin-workflow/src/scripts/workflow_core/cli.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/hooks.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/setup_service.py",
+      "plugins/gin-workflow/src/skills/setup/SKILL.md",
+      "tests/test_safety_check.py",
+      "tests/workflow_core/test_hooks.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 21,
+  "next_finding_number": 2,
+  "findings": {
+    "F1": {
+      "finding_id": "F1",
+      "severity": "SUGGESTION",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-10-10T09:02:22.783036Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "review_base_sha": "3ae4635d92ec47cb3e52bdb58821111cce480f3d",
+            "reviewed_source_sha": "5df6669d16044287ffcf29081d0700134c60bda6",
+            "checkpoint_sha": "5df6669d16044287ffcf29081d0700134c60bda6",
+            "source_scope_hash": "467b4a98b494c50d279c6b6c10fe130a158d50e4bff05f1dd2093649d9a621e1",
+            "source_tree_hash": "94b0c53f6187d32f6f282f12cffbdd45d0965035851c5a43805d03336cad657d",
+            "reviewed_source_tree_hash": "94b0c53f6187d32f6f282f12cffbdd45d0965035851c5a43805d03336cad657d",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "docs/reference/cli.md",
+            "plugins/gin-workflow/src/scripts/safety-check.sh",
+            "plugins/gin-workflow/src/scripts/workflow_core/cli.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/hooks.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/setup_service.py",
+            "plugins/gin-workflow/src/skills/setup/SKILL.md",
+            "tests/test_safety_check.py",
+            "tests/workflow_core/test_hooks.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "83562cfa6e4601fa8925140a038447db3192e9e31196c9427adf7e0bf6d7120d"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-10T09:02:23.080178Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "review_base_sha": "3ae4635d92ec47cb3e52bdb58821111cce480f3d",
+            "reviewed_source_sha": "0eecb26cd0a12db7a23e48c267fe983fb7e9db75",
+            "checkpoint_sha": "0eecb26cd0a12db7a23e48c267fe983fb7e9db75",
+            "source_scope_hash": "467b4a98b494c50d279c6b6c10fe130a158d50e4bff05f1dd2093649d9a621e1",
+            "source_tree_hash": "94b0c53f6187d32f6f282f12cffbdd45d0965035851c5a43805d03336cad657d",
+            "reviewed_source_tree_hash": "94b0c53f6187d32f6f282f12cffbdd45d0965035851c5a43805d03336cad657d",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "83562cfa6e4601fa8925140a038447db3192e9e31196c9427adf7e0bf6d7120d",
+      "event_hash": "6f11511e2a1ab3ac191af9c06a0a31cec89c8f02cbe1a3de419211a81a2ed3ef"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-10-10T09:02:23.245548Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "6f11511e2a1ab3ac191af9c06a0a31cec89c8f02cbe1a3de419211a81a2ed3ef",
+      "event_hash": "876a4dc2c22099487a7bb034da73941639d1311eff25ec4a027091c4e761b698"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-10T09:03:55.491261Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "ab6a40b9628a4f8e86306835a9794483",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1",
+        "acquired_at": "2026-10-10T09:03:55.490431Z",
+        "expires_at": "2026-10-10T09:13:55.490431Z"
+      },
+      "previous_event_hash": "876a4dc2c22099487a7bb034da73941639d1311eff25ec4a027091c4e761b698",
+      "event_hash": "f6b97a81c7c8a914f70b6d4df6ad7b6a0c10c27e1d880d7f8ddcd8f1d2a56937"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-10-10T09:03:55.510499Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {},
+      "previous_event_hash": "f6b97a81c7c8a914f70b6d4df6ad7b6a0c10c27e1d880d7f8ddcd8f1d2a56937",
+      "event_hash": "9151a6f8debd090f21805c48bfa24137883433454ee7f47856f3e0c56439605d"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-10-10T09:04:03.710603Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "finding_id": "F1",
+        "severity": "SUGGESTION"
+      },
+      "previous_event_hash": "9151a6f8debd090f21805c48bfa24137883433454ee7f47856f3e0c56439605d",
+      "event_hash": "f624e512c8f370ded451d7a3efc7a07c939c2d30046a22efe113929d461bcd45"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-10-10T09:04:04.145580Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "ab6a40b9628a4f8e86306835a9794483",
+        "released_at": "2026-10-10T09:04:04.144796Z"
+      },
+      "previous_event_hash": "f624e512c8f370ded451d7a3efc7a07c939c2d30046a22efe113929d461bcd45",
+      "event_hash": "257f3733c8fd5d83affcc877cefb650a7e9e35e99f204583da09e79b280b6cea"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-10T09:04:10.676290Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "508026b073d744f5a996c0026f1c084a",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1",
+        "acquired_at": "2026-10-10T09:04:10.675437Z",
+        "expires_at": "2026-10-10T09:14:10.675437Z"
+      },
+      "previous_event_hash": "257f3733c8fd5d83affcc877cefb650a7e9e35e99f204583da09e79b280b6cea",
+      "event_hash": "7e41351ad8171d43167f57efaa8dbdac3ec8744ec45054e517551f1fe5bf428a"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "lease-released",
+      "timestamp": "2026-10-10T09:04:17.924205Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "508026b073d744f5a996c0026f1c084a",
+        "released_at": "2026-10-10T09:04:17.923338Z"
+      },
+      "previous_event_hash": "7e41351ad8171d43167f57efaa8dbdac3ec8744ec45054e517551f1fe5bf428a",
+      "event_hash": "ccb347a39dae113a1578cd1b038fd438dd4623258f42d973149fe665c3ae19c7"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-10T09:04:22.030789Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "671f211dabaf4cd98816621147ea734c",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1",
+        "acquired_at": "2026-10-10T09:04:22.029933Z",
+        "expires_at": "2026-10-10T09:14:22.029933Z"
+      },
+      "previous_event_hash": "ccb347a39dae113a1578cd1b038fd438dd4623258f42d973149fe665c3ae19c7",
+      "event_hash": "4cd9df44d6262bf19685c193d19532748446b6a2ed8f599fb100b60d63475e45"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "lease-released",
+      "timestamp": "2026-10-10T09:04:22.660377Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "671f211dabaf4cd98816621147ea734c",
+        "released_at": "2026-10-10T09:04:22.659061Z"
+      },
+      "previous_event_hash": "4cd9df44d6262bf19685c193d19532748446b6a2ed8f599fb100b60d63475e45",
+      "event_hash": "773a0d821398d3e540f17ed553935f55acd8a06b749e3ae7aef993e231fd5ad0"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-10T09:04:27.883051Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "dc2f4cfca40941e2b451e617f159296a",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1",
+        "acquired_at": "2026-10-10T09:04:27.882242Z",
+        "expires_at": "2026-10-10T09:14:27.882242Z"
+      },
+      "previous_event_hash": "773a0d821398d3e540f17ed553935f55acd8a06b749e3ae7aef993e231fd5ad0",
+      "event_hash": "363505a2bb7f34403744b1add456916d26e2db24f5b2a07df4414602ee7403e5"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "lease-released",
+      "timestamp": "2026-10-10T09:04:28.248185Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "dc2f4cfca40941e2b451e617f159296a",
+        "released_at": "2026-10-10T09:04:28.247389Z"
+      },
+      "previous_event_hash": "363505a2bb7f34403744b1add456916d26e2db24f5b2a07df4414602ee7403e5",
+      "event_hash": "1def0983a3797ade24390965000620b7cddb5bf3345a8865aca4be7fa37c15ae"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-10T09:04:32.369915Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "2101ab0dfbab40e989b8cb6bd1bb05e6",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1",
+        "acquired_at": "2026-10-10T09:04:32.369077Z",
+        "expires_at": "2026-10-10T09:14:32.369077Z"
+      },
+      "previous_event_hash": "1def0983a3797ade24390965000620b7cddb5bf3345a8865aca4be7fa37c15ae",
+      "event_hash": "88d9e2beb89909a6abb80d85ed0301fd94b5b5b0c107b032b8cfe97287d59f7e"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "lease-released",
+      "timestamp": "2026-10-10T09:04:32.735169Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "2101ab0dfbab40e989b8cb6bd1bb05e6",
+        "released_at": "2026-10-10T09:04:32.734307Z"
+      },
+      "previous_event_hash": "88d9e2beb89909a6abb80d85ed0301fd94b5b5b0c107b032b8cfe97287d59f7e",
+      "event_hash": "8c6e12d65325ffe10f575bd90e36b1a3d611e211ec16733c3f976e70d371123c"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-10T09:05:26.264161Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude"
+      },
+      "payload": {
+        "finding_id": "F1"
+      },
+      "previous_event_hash": "8c6e12d65325ffe10f575bd90e36b1a3d611e211ec16733c3f976e70d371123c",
+      "event_hash": "a84343856bb66db8441e8c48d44f85be0bfef5489afdee1f84dc557e7dbf0f36"
+    },
+    {
+      "event_id": "EV-000017",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-10T09:05:26.642610Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "review_base_sha": "3ae4635d92ec47cb3e52bdb58821111cce480f3d",
+            "reviewed_source_sha": "6a8d435a7ea3d3be747b306c9f7559e99da9c9b9",
+            "checkpoint_sha": "6a8d435a7ea3d3be747b306c9f7559e99da9c9b9",
+            "source_scope_hash": "467b4a98b494c50d279c6b6c10fe130a158d50e4bff05f1dd2093649d9a621e1",
+            "source_tree_hash": "b3f7e896b58bfad8e4bd8c04da339319db6109e1f4109bce73eeeb0818963404",
+            "reviewed_source_tree_hash": "b3f7e896b58bfad8e4bd8c04da339319db6109e1f4109bce73eeeb0818963404",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "a84343856bb66db8441e8c48d44f85be0bfef5489afdee1f84dc557e7dbf0f36",
+      "event_hash": "76869d2091cdb24588c7217b66075659a56eaa18a22a082783171754e36a70af"
+    },
+    {
+      "event_id": "EV-000018",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-10T09:05:51.343907Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "39a983b5463a480db3974925dab1f091",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1",
+        "acquired_at": "2026-10-10T09:05:51.343056Z",
+        "expires_at": "2026-10-10T09:15:51.343056Z"
+      },
+      "previous_event_hash": "76869d2091cdb24588c7217b66075659a56eaa18a22a082783171754e36a70af",
+      "event_hash": "bf1857d284087d11acfa174bdea398ca1c2d91675de79cc8a5cb728c75abddd9"
+    },
+    {
+      "event_id": "EV-000019",
+      "action": "finding-verified",
+      "timestamp": "2026-10-10T09:05:51.494403Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "finding_id": "F1"
+      },
+      "previous_event_hash": "bf1857d284087d11acfa174bdea398ca1c2d91675de79cc8a5cb728c75abddd9",
+      "event_hash": "d741bac8fe5a0abba75a601c91b94a44dca4e692df084d6866cb2a70783914bf"
+    },
+    {
+      "event_id": "EV-000020",
+      "action": "review-approved",
+      "timestamp": "2026-10-10T09:05:51.728213Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-8ii.1",
+            "review_base_sha": "3ae4635d92ec47cb3e52bdb58821111cce480f3d",
+            "reviewed_source_sha": "6a8d435a7ea3d3be747b306c9f7559e99da9c9b9",
+            "checkpoint_sha": "6a8d435a7ea3d3be747b306c9f7559e99da9c9b9",
+            "source_scope_hash": "467b4a98b494c50d279c6b6c10fe130a158d50e4bff05f1dd2093649d9a621e1",
+            "source_tree_hash": "b3f7e896b58bfad8e4bd8c04da339319db6109e1f4109bce73eeeb0818963404",
+            "reviewed_source_tree_hash": "b3f7e896b58bfad8e4bd8c04da339319db6109e1f4109bce73eeeb0818963404",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "467b4a98b494c50d279c6b6c10fe130a158d50e4bff05f1dd2093649d9a621e1",
+        "terminal_findings": [
+          "F1"
+        ]
+      },
+      "previous_event_hash": "d741bac8fe5a0abba75a601c91b94a44dca4e692df084d6866cb2a70783914bf",
+      "event_hash": "11f925230f9f0a0141015aad8162af17a77f67c624b88928b040e8baf2930bef"
+    },
+    {
+      "event_id": "EV-000021",
+      "action": "lease-released",
+      "timestamp": "2026-10-10T09:05:51.958883Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-8ii1"
+      },
+      "payload": {
+        "lease_id": "39a983b5463a480db3974925dab1f091",
+        "released_at": "2026-10-10T09:05:51.958072Z"
+      },
+      "previous_event_hash": "11f925230f9f0a0141015aad8162af17a77f67c624b88928b040e8baf2930bef",
+      "event_hash": "02fadd41b92fefcdde532e055424d8ef9ca205d40427e8419ccd19a5f6b54d22"
+    }
+  ]
+}
