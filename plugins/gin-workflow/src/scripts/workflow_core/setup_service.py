@@ -465,7 +465,8 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
 
             states = hooks_status(root)
             checks_details["hooks"] = states
-            hook_actions = [f"hooks: {name} is {state}; run gin-workflow hooks install"
+            hook_actions = [f"hooks: {name} is missing; run gin-workflow hooks install" if state == "missing" else
+                            f"hooks: {name} is occupied; chain `exec gin-workflow hooks run {name}` into it"
                             for name, state in states.items() if state != "ok"]
         detected = detect_project(root)
         if settings.stage == "greenfield" and detected["stage"] == "brownfield":

@@ -87,6 +87,14 @@ class TestHooksInstall(unittest.TestCase):
         hooks.install(self.root)
         self.assertEqual({"pre-commit": "ok", "pre-push": "ok"}, hooks.status(self.root))
 
+    def test_chained_foreign_hook_counts_as_ok(self):
+        (self.root / ".git/hooks/pre-push").write_text('#!/bin/sh\nmy-tool\nexec gin-workflow hooks run pre-push "$@"\n')
+        self.assertEqual("ok", hooks.status(self.root)["pre-push"])
+        (self.root / ".git/hooks/pre-commit").write_text("#!/bin/sh\necho mine\n")
+        self.assertEqual("occupied", hooks.status(self.root)["pre-commit"])
+        actions = setup_service.doctor(repository=self.root)["actions"]
+        self.assertTrue(any("pre-commit" in a and "hooks run pre-commit" in a for a in actions), actions)
+
     def test_doctor_reports_hooks_without_flipping_health(self):
         payload = setup_service.doctor(repository=self.root)
         self.assertEqual({"pre-commit": "missing", "pre-push": "missing"}, payload["checks_details"]["hooks"])

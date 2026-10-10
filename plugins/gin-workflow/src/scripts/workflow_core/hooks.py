@@ -54,7 +54,8 @@ def status(root: Path) -> dict[str, str]:
         if not target.is_file():
             out[hook] = "missing"
         else:
-            out[hook] = "ok" if MARKER in target.read_text(encoding="utf-8", errors="replace") else "occupied"
+            text = target.read_text(encoding="utf-8", errors="replace")
+            out[hook] = "ok" if MARKER in text or "gin-workflow hooks run" in text else "occupied"
     return out
 
 
