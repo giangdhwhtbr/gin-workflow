@@ -1,6 +1,6 @@
 # Drop the verify stage; enforce quality in git hooks and a mechanical ship-check
 
-Status: draft for user review (revision 3, after two independent Opus reviews).
+Status: draft for user review (revision 4, after three independent Opus reviews).
 
 ## Goal and scope
 
@@ -49,9 +49,11 @@ Hooks (track A)
   to `commit-msg`) and reuses `active_hooks_dir()`: writes marker-tagged `pre-commit` and
   `pre-push` shims that call `gin-workflow hooks run <hook>`, is idempotent, and never
   overwrites a hook it did not write (reports `occupied` and prints how to chain the
-  call). It honors an existing `core.hooksPath`, including `.githooks` (shims written
-  there, not skipped). A `core.hooksPath` directory that does not exist is reported and
-  not silently created. `/setup` calls it. If `gin-workflow` is not on PATH the shim fails
+  call; for `.beads/hooks` it prints the chaining line for bd's own hooks). It honors an
+  existing `core.hooksPath`; shims written into the versioned `.githooks` are committed
+  by `/setup` (an untracked shim would dirty review checkpoints). A `core.hooksPath`
+  directory that does not exist is reported and not created; this intentionally changes
+  the current `commit-msg` install, which creates it. `/setup` calls it. If `gin-workflow` is not on PATH the shim fails
   closed with an install message. Hooks apply in linked worktrees (shared hooks dir).
 - R5. `setup doctor` reports hooks that are missing, occupied, or not on the active hooks
   path.
@@ -63,8 +65,10 @@ Hooks (track A)
   that nothing was tested (`ship-check` covers that case). `hooks run pre-push --head`
   (also used when stdin is empty) tests HEAD directly; `ship-check` uses it. It runs the remaining
   `verify_commands` allowed by rigor (easy: test; standard: + build; strict: + e2e;
-  per-package `verify.checks` run in the package directory, only for packages touched
-  since the upstream or merge-base). On success, and only if
+  per-package `verify.checks` run in the package directory, for packages touched since the
+  merge-base with the base branch, falling back to all packages; the chosen package set is
+  part of `commands_hash`). `--head` also runs the `lint` and `typecheck` entries. A push
+  is skipped when an event already matches `<sha>:<commands_hash>`. On success, and only if
   `git status --porcelain --untracked-files=no` is empty, it records an event
   `hooks.pre_push.passed` with `workflow_id: git-hooks`, payload `{sha, rigor,
   commands_hash}` and `idempotency_key=<sha>:<commands_hash>`, written only when
@@ -80,46 +84,57 @@ Hooks (track A)
 - R9. `scripts/safety-check.sh` finds the git subcommand after global options and blocks:
   `--no-verify` on `commit`, `push` and `merge`; `-n` (alone or bundled, e.g. `-nm`) only
   on `commit`; `-c core.hooksPath`, `--config-env` naming `core.hooksPath`, and
-  `git config core.hooksPath`. It allows `git push -n` and `git commit -m "fix -n flag"`.
+  `git config core.hooksPath`. It tokenizes the command with `shlex` after splitting `&&`, `;`, `|`, `bash -c` and `env X=`
+  prefixes, treats unambiguous long-option prefixes (`--no-verif`) as the option, and also
+  blocks `GIT_CONFIG_PARAMETERS`/`GIT_CONFIG_COUNT`. It allows `git push -n` and
+  `git commit -m "fix -n flag"`. It is a best-effort guard that exists only on harnesses
+  with a PreToolUse hook.
 
 Ship (track B)
 - R10. New `gin-workflow ship-check` (deterministic, no agent, no network):
-  0. Fail on a dirty working tree.
+  0. Fail when `git status --porcelain --untracked-files=no` is non-empty.
   1. If `project.review_ledger` is on: for each closed track bead of the epic,
      `review-ledger.py validate --in-history` (every track, the last included) and
      `render --check`.
-  2. If the ledger is on, reject code changed after the newest approved commit
-     (`review_ledger/git_adapter.find_reviewed_commit` per track, newest in
-     `git rev-list HEAD` order): `git log -m --name-only` since then may touch only
-     non-source prefixes (existing spec prefixes, `.planning/reviews/`, the legacy
-     `.planning/<bead>/` ledger path). A merge of the base into the branch after approval
-     fails by design; the remedy is the same as for code changes (below).
-  3. With `project.layout: sdd`, `specs lint` and `specs trace`.
+  2. If the ledger is on, reject code changed after the newest approved commit. Per track the
+     approved commit is the newest commit, walking back from HEAD, whose source hash equals
+     the approval (`review_ledger/git_adapter.find_reviewed_commit` semantics). A path
+     changed after it counts as source only if the ledger's own scope predicate
+     (`is_path_in_scope`, `included_paths`, excluded/generated paths) says so; spec
+     prefixes, `.planning/reviews/` and the legacy `.planning/<bead>/` ledger path never
+     count. A merge of the base into the branch after approval fails by design.
+  3. With `project.layout: sdd`, `specs lint` and `specs trace`, with the SDD rigor
+     semantics (a missing REQ is only a warning at easy).
   4. Pre-push evidence: if a `hooks.pre_push.passed` event matches HEAD sha and current
      `commands_hash`, pass; otherwise run `hooks run pre-push --head` once, which fails
      the check if any command fails.
   Usage: `ship-check --workflow-id <id>` (default as `state`); the epic comes from the
   recorded `orchestration.ready` event and tracks from `bd list --parent <epic> --all`.
-  It runs before ledger cleanup and before the SDD archive commit.
-- R10a. A failing `ship-check` makes ship stop with status `blocked` and a printed remedy,
-  never a retry: code changed after approval or a failing test -> `bd reopen` the last
-  track bead (so `implementation_complete` turns false and the router returns to
-  `execute`, then review and close); ledger or SDD failure -> the matching fix command.
-  The next `state` call after a failure must not route `ship` again unchanged.
+  A standalone bead (an epic with no children) is its own single track. It runs before
+  ledger cleanup and before the SDD archive commit. It makes no network calls.
+- R10a. Termination. `ship-check` records `ship_check.passed` or `ship_check.failed`
+  (`{sha, commands_hash, reason}`) in the event store. While the latest `ship_check` event
+  for the current HEAD is `failed`, `state` returns `hold` with the printed remedy, never
+  `ship` again; a new HEAD allows one retry. After two failed ship-checks for one epic,
+  `state` holds until a human clears it. `ship-check` never reopens beads on its own; the
+  remedy text names the fix: a failing test, ledger or SDD check -> fix and commit; code
+  changed after approval -> reopen the last approved track (the bead with the newest
+  approval) with `bd reopen` and run it through review again, which the user or agent
+  does explicitly. A flaky or environment failure holds and is not reopened.
 - R11. `ship` runs `ship-check` instead of re-running tests, runs no test after the
   merge, and does not require a push (Merge locally, Keep and Discard keep working,
   including repos with no remote). A failing `ship-check` stops ship with its output.
 - R12. A commit made after the last track closes returns no gate to unmet. At worst it
   makes the pre-push event stale, which `ship-check` refreshes with one script run.
 
-Team mode (track C)
+Team mode (track B)
 - R13. When `team.approvals.ship` has roles (the same `has_policy` test `team.py` applies
   today to `verification_passed`), `ship` offers only "push and create a PR" and "keep"
-  (no local merge), opens or reuses the PR, and requires it approved at HEAD before
-  merge, via the existing host check in `team.py` (the `verification_passed` special
-  cases at `team.py:319,401,403` are renamed to `ship`). Exposed as
-  `ship-check --pr <url>` or `record ship-approved`. With no roles, and in solo mode,
-  nothing changes.
+  (no local merge), opens or reuses the PR, and `record ship-approved` checks the PR
+  approved at HEAD through the existing host check (`verification_passed` becomes `ship`
+  in `team.py:12,319,401,403`). While `has_policy("ship")`, `shipped` is derived only when
+  an `ship.approved` event exists at the merged commit or an ancestor. Without roles, and
+  in solo mode, nothing changes. `ship-check` itself stays offline.
 
 Review checklist
 - R14. The per-track review checklist includes the spec/plan requirements the track
@@ -132,8 +147,12 @@ Docs and consistency
   `skills/{verify,ship,workflow,execute,gin-team,gin-sdd,team-setup,gin-debugging,telegram-notify,gin-worktrees,report}`,
   `plan/plan-schema.md`, `references/stage-contract.md`, plugin and marketplace manifests,
   `README.md`, `docs/getting-started.md`, `docs/{concepts,reference,guides,starters,interactive,presentations}`,
-  `examples/config.full.yaml`, `tests/install_smoke_test.sh`, and the tests that reference
-  them. The ledger FSM names in `review_ledger/schema.py` and `cli.py`
+  `examples/config.full.yaml`, `agents/qa-agent.md`, `tests/install_smoke_test.sh`, and the tests that reference
+  them. The check uses an explicit regex list of removed tokens (`verification_passed`,
+  `verification-passed` as a gate, `skills/verify`, `/gin-workflow:verify`, `model_tiers.verify`,
+  the `verify` stage in routing); the word `verify` stays valid in `verify_commands`,
+  `verify.checks`, `verify-finding`, and `usage_attribution` must still read old events.
+  The ledger FSM names in `review_ledger/schema.py` and `cli.py`
   (`verification-passed` etc.) are kept and excluded from the "no remaining mention" check.
 
 ## User Stories
@@ -164,7 +183,7 @@ it never breaks my setup.
 
 Acceptance criteria:
 - Re-running `hooks install` changes nothing.
-- A foreign `pre-commit`/`pre-push` or an unwritable `core.hooksPath` is reported, not overwritten.
+- A foreign `pre-commit`/`pre-push` or a missing `core.hooksPath` directory is reported, not overwritten.
 - `setup doctor` flags missing or occupied hooks.
 - `git commit --no-verify` is blocked by `safety-check.sh`.
 
@@ -195,13 +214,19 @@ Acceptance criteria:
   Historical usage reports keep their old `verify` rows (attribution reads, not writes).
 - A repository whose `core.hooksPath` points at a missing directory (this repo: `.beads/hooks`)
   gets `occupied`/missing guidance from `hooks install` and `setup doctor`, not a silent no-op.
-- Hooks are not versioned; a fresh clone needs `/setup` or `hooks install`. `ship-check`
-  covers the gap by re-running `pre-push` when no matching event exists.
+- Hooks outside a versioned `.githooks` are not versioned; a fresh clone needs `/setup` or
+  `hooks install`. `ship-check` covers the gap by running `hooks run pre-push --head`
+  (lint, typecheck and tests) when no matching event exists.
 
 ## Testing
 
 Test first, red then green.
 - `ship-check` run with empty stdin and a failing test must fail (not pass).
+- Termination: after a failed `ship-check`, same HEAD -> `state` returns `hold`; new HEAD
+  allows one retry; a second failure holds for a human; a flaky failure is not reopened.
+- Ledger scope: a track with `included_paths`, an out-of-scope commit after approval and a
+  clean re-approval does not loop (passes or holds).
+- Team: with `ship` roles, `shipped` is not derived without `ship.approved`.
 - `hooks run` strips `GIT_*` variables; a dirty tree records no event.
 - Router: satisfied `implementation_complete` routes to `ship`; no `verify` stage.
 - `hooks run`: first-failure stop, empty config, tag/delete skip, event written on pass.
