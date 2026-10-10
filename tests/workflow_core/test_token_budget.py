@@ -107,9 +107,10 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertIn("checks_details.rules.tool_checks", text)
                 self.assertIn("gin-workflow setup doctor --format json", text)
 
-    def test_verify_validates_earlier_sequential_tracks_in_history(self):
-        text = (SRC / "skills/verify/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("validate --bead-id <bead-id> --in-history", text)
+    def test_ship_validates_every_track_ledger_in_history(self):
+        text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("validate --bead-id <id> --in-history", text)
+        self.assertNotIn("Re-run the tests", text)
 
     def test_ship_merge_never_rewrites_the_local_base(self):
         text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
@@ -125,7 +126,7 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertLessEqual(sum("sdd" in line for line in text.splitlines()), 2)
                 self.assertNotIn(sdd_skill, stage_chain(SRC, stage))
         guide = sdd_skill.read_text(encoding="utf-8")
-        for heading in ("## discuss", "## plan", "## orchestrate", "## execute and review", "## verify", "## ship", "## quick"):
+        for heading in ("## discuss", "## plan", "## orchestrate", "## execute and review", "## ship", "## quick"):
             with self.subTest(heading=heading):
                 self.assertIn(heading, guide)
 
@@ -138,7 +139,7 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertEqual(1, sum("project.team" in line for line in text.splitlines()))
                 self.assertNotIn(team_skill, stage_chain(SRC, stage))
         guide = team_skill.read_text(encoding="utf-8")
-        for heading in ("## Gates", "## discuss", "## plan", "## orchestrate", "## execute", "## verify", "## ship"):
+        for heading in ("## Gates", "## discuss", "## plan", "## orchestrate", "## execute", "## ship"):
             with self.subTest(heading=heading):
                 self.assertIn(heading, guide)
 

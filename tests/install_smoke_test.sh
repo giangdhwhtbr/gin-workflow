@@ -80,7 +80,6 @@ assert_workflow_v22_layout() {
     "skills/execute/references/worker-lifecycle.md"
     "skills/execute/references/delegation-policy.md"
     "skills/execute/references/result-contract.md"
-    "skills/verify/SKILL.md"
     "skills/ship/SKILL.md"
     "skills/review/SKILL.md"
     "references/stage-contract.md"
@@ -173,7 +172,6 @@ for skill_file in plugins/gin-workflow/dist/claude-code/skills/*/SKILL.md; do
   assert_not_contains "$skill_file" 'superpowers'
 done
 
-assert_contains 'plugins/gin-workflow/dist/claude-code/skills/verify/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains 'plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
@@ -218,7 +216,6 @@ assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"descriptio
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
-assert_contains 'plugins/gin-workflow/dist/codex/skills/verify/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains 'plugins/gin-workflow/dist/codex/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"

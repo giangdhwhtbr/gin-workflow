@@ -64,13 +64,12 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 | `requirement-confirmed` | the user confirmed the design | evidence: spec path; team mode adds `--spec` |
 | `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan` |
 | `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped` |
-| `verification-passed` | every verification check has evidence | evidence: commands and results; records the branch and commit, and a later non-spec commit makes the gate unmet |
 | `quick-completed` | a `/quick` change finished | evidence: files and verify results |
 | `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead |
 
 `--actor` is required unless team mode derives it from `git config user.email`. Recording the same gate with the same evidence twice reports `already_recorded`.
 
-Exit codes: 0 recorded; 1 team mode rejected the evidence; 2 usage error (missing actor, `--epic` on another gate, `shipped` on an epic with children).
+Exit codes: 0 recorded; 1 team mode rejected the evidence; 2 usage error (missing actor, `--epic` on another gate, `shipped` on an epic with children, or the removed `verification-passed` gate: quality checks run in the git hooks). `unblock --gate verification_passed` also exits 2.
 
 ## `gin-workflow unblock`
 
@@ -84,7 +83,7 @@ Waives a gate or clears a recorded blocker. A waiver is an auditable `gate.waive
 | Gate | Class | Waiver needs |
 |---|---|---|
 | `requirement_confirmed`, `plan_approved`, `orchestration_ready` | process | a reason |
-| `verification_passed`, `review_approved` | safety | a reason and `--follow-up <bead>` |
+| `review_approved` | safety | a reason and `--follow-up <bead>` |
 | `implementation_complete`, `shipped` | not waivable | — |
 
 Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or follow-up; 2 missing actor or team-mode refusal.

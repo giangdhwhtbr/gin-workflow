@@ -12,7 +12,6 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 | `plan` | Writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role and reasoning tier each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
 | `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>` |
 | `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
-| `verify` | Re-runs the quality gates, validates every review ledger, and checks the spec and plan line by line against the code. The recorded event names the verified branch and commit; a later commit that changes more than spec artifacts returns the gate to unmet | `verification_passed` | `record verification-passed --evidence <commands and results> --actor <id>` |
 | `ship` | Offers merge, pull request, keep, or discard; runs the one you choose; cleans up; closes the epic | `shipped` | derived: the epic is closed |
 
 Every `record` needs `--actor <id>` (in team mode it comes from your git email). One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the plan's slug) so gates from different features do not mix; without one, `default-workflow` is used.
@@ -28,19 +27,21 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 - The agent picks a ready bead (`bd ready`), claims it, and works in the track's worktree. It runs `gin-workflow rules --files <scope>` and follows the output, and reads the shape appendix for `project.shape`.
 - It writes the failing test first, implements, and keeps the command output as evidence. A blocker, a plan gap, or repeated failures stop the work: the bead stays in progress with a note.
 - Work runs directly in the session for sequential plans and three or fewer tasks; routed workers are for more than three parallel tasks, long-running or specialized work, or independent review ([Providers](providers.md)).
-- Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `verify` checks the approvals instead.
+- Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `ship` checks the approvals instead.
 - Review is independent: a different provider (or session, in single-provider mode) reviews the bounded diff and records findings and approval in the review ledger, for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
 - When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks.
 - The feature branch is committed and pushed. The agent never reports "waiting for PR merge" without a real pull request link; it offers to request a pull request or to continue with the next track.
 
-## Verification and handoff
+## Quality gates and handoff
 
-`verify` claims nothing without fresh evidence from this run:
+Quality checks are mechanical, so there is no separate verification step: git hooks run them without spending agent tokens (`gin-workflow hooks install`; `/setup` runs it):
 
-1. Every track's ledger validates (`review-ledger.py validate`, `--in-history` for earlier tracks on a shared branch) and `render --check` shows no drift.
-2. The verify commands for the rigor pass (easy: lint, typecheck, test; standard: + build; strict: + e2e), plus any manual checks in the plan.
-3. A checklist of every spec and plan requirement is checked against the code, not just the diff.
-4. Every run, failure, skipped check, risk, and unavailable provider is recorded. Failures go to `gin-debugging`.
+1. `pre-commit` runs `lint` and `typecheck` from `verify.checks`.
+2. `pre-push` runs `test`, plus `build` at `standard` rigor and `e2e` at `strict`, when the pushed branch is the checked-out HEAD. It stops at the first failure.
+3. CI is the backstop for large projects: nothing in `ship` proves a hook ran.
+4. `ship` runs a few plain steps instead of re-running the suite: with the review ledger on, every closed track validates (`--in-history`) and `render --check` shows no drift, and nothing but spec and review artifacts changed after the newest approval; with SDD, `specs lint` and `specs trace`. A failure stops `ship` and reports; it does not retry. Failures go to `gin-debugging`.
+
+The agent still checks, per track during review, that each spec and plan requirement the track delivers is met in the code, not just the diff.
 
 | Claim | Requires | Not enough |
 |---|---|---|
@@ -54,7 +55,7 @@ At handoff the agent reports what changed, what was validated and what was not, 
 
 ## Ship
 
-`ship` requires `verification_passed`, re-runs the tests, and offers exactly four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. After a merge it re-runs the tests on the merged result, removes the worktree, deletes the branch, runs `usage collect` for the epic, closes the epic (which marks `shipped`), and cleans up the closed beads' review ledgers.
+`ship` requires `implementation_complete` and runs the plain steps above, then offers exactly four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. After a merge it removes the worktree, deletes the branch, runs `usage collect` for the epic, closes the epic (which marks `shipped`), and cleans up the closed beads' review ledgers.
 
 ## The quick path
 
@@ -73,7 +74,7 @@ A gate is never removed: it is satisfied, or waived on the record with `gin-work
 | Class | Gates | Waiver |
 |---|---|---|
 | Process | `requirement_confirmed`, `plan_approved`, `orchestration_ready` | the agent may waive with a stated reason |
-| Safety | `verification_passed`, `review_approved` | needs human approval and a follow-up bead |
+| Safety | `review_approved` | needs human approval and a follow-up bead |
 | Not waivable | `implementation_complete`, `shipped` | facts, not formalities |
 
 `review_approved` is not a routing gate; it is classified so that skipping independent review is recorded like any other waiver. `unblock --clear-blocker` clears a recorded blocker.

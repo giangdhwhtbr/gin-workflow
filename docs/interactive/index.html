@@ -541,7 +541,7 @@ team:
   approvals:
     requirement_confirmed: [ba]
     plan_approved: area_lead
-    verification_passed: [qe]`;
+    ship: [qe]`;
 
           return `
             <h4 class="font-bold text-slate-900 text-sm mb-2">Step 1: Configure Monorepo Areas</h4>
@@ -910,13 +910,13 @@ test('TC-AUTH-001: Register a passkey with a virtual authenticator', async ({ pa
       {
         id: 'phase-6-verify-ship',
         num: '06',
-        title: 'Verification, Ship & Cutover',
-        stage: 'verify & ship',
+        title: 'Ship & Cutover',
+        stage: 'ship',
         actor: 'Test Lead & PM',
-        badge: 'Gate: verification_passed & shipped',
+        badge: 'Gate: shipped',
         badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        command: '/gin-workflow:verify && /gin-workflow:ship',
-        desc: 'Fresh evidence across backend/, frontend/, and qa/, a line-by-line spec audit, then merge; the gateway cutover is your own deployment step.',
+        command: '/gin-workflow:ship',
+        desc: 'Quality checks already ran in the git hooks (and CI); ship validates the review ledgers, then merges; the gateway cutover is your own deployment step.',
         renderDetails: function() {
           const nginxSample = `# Illustration only: your own NGINX strangler gateway (not part of gin-workflow)
 upstream modern_spring_boot {
@@ -950,12 +950,12 @@ server {
 }`;
 
           return `
-            <h4 class="font-bold text-slate-900 text-sm mb-2">Verification, Ship & Cutover</h4>
+            <h4 class="font-bold text-slate-900 text-sm mb-2">Ship & Cutover</h4>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              1. <strong>/verify:</strong> Re-runs test suites across <code>backend/</code>, <code>frontend/</code>, and <code>qa/</code> with fresh output. Audits every REQ-ID checklist against the code. With <code>verification_passed: [qe]</code>, the QE approves the latest commit of the PR before the gate is recorded.
+              1. <strong>Git hooks:</strong> <code>pre-commit</code> runs lint and typecheck and <code>pre-push</code> runs the test suites across <code>backend/</code>, <code>frontend/</code>, and <code>qa/</code>, with no agent involved. With <code>ship: [qe]</code>, the QE approves the latest commit of the PR before it merges.
             </p>
             <p class="text-xs text-slate-600 leading-relaxed mb-1">
-              2. <strong>/ship:</strong> archives the change into the living specs, then merges or opens a PR after explicit approval. Cutting traffic over to the new services is a deployment step outside gin-workflow, for example:
+              2. <strong>/ship:</strong> validates the review ledgers, archives the change into the living specs, then merges or opens a PR after explicit approval. Cutting traffic over to the new services is a deployment step outside gin-workflow, for example:
             </p>
             ${renderCodeCard(nginxSample, 'nginx', '/etc/nginx/conf.d/strangler-gateway.conf')}
           `;
@@ -1360,31 +1360,13 @@ Handoff: 1. create a PR  2. keep the branch and continue with the next track`
 stale TC-AUTH-002 (REQ-AUTH-002)`
       },
       {
-        cmd: '/gin-workflow:verify',
-        stage: 'Stage 6: Verification',
-        category: 'Lifecycle Skill: Verification',
-        role: 'Test Lead / QE',
-        lang: 'bash',
-        desc: 'Re-runs the configured verify commands fresh (e.g. mvn test, npm test, playwright test), validates review approvals, audits the spec line by line, and runs specs lint/trace with the SDD layout.',
-        whenToUse: 'When all track beads are closed (derived gate implementation_complete is satisfied); run BEFORE releasing/shipping.',
-        produces: 'Fresh command output for every verify command, a requirements checklist, and specs trace results. Satisfies gate: verification_passed.',
-        exampleInput: '/gin-workflow:verify',
-        exampleOutput: `# Illustrative summary
-review-ledger.py validate --bead-id bank-7k2.1..3   -> approved
-backend/ (mvn test): 124 passed, 0 failures
-frontend/ (npm test): 48 passed, 0 failures
-qa/ (npx playwright test): 12 passed, 0 failures
-gin-workflow specs trace --change bank-7k2   -> 4 of 4 REQs covered
-(team mode: QE approves the PR, then record verification-passed --evidence <PR url>)`
-      },
-      {
         cmd: '/gin-workflow:ship',
-        stage: 'Stage 7: Production Integration',
+        stage: 'Stage 6: Production Integration',
         category: 'Lifecycle Skill: Release',
         role: 'Tech Lead / PM',
         lang: 'bash',
-        desc: 'Re-runs tests, archives the SDD change into the living specs, presents four options (merge locally, push and open a PR, keep, discard), and acts only on explicit approval.',
-        whenToUse: 'Once gate verification_passed is satisfied. Merging or opening the PR needs your explicit approval; in team mode it follows the host rules.',
+        desc: 'Validates review ledgers (the quality checks ran in the git hooks), archives the SDD change into the living specs, presents four options (merge locally, push and open a PR, keep, discard), and acts only on explicit approval.',
+        whenToUse: 'Once every track bead is closed (gate implementation_complete is satisfied). Merging or opening the PR needs your explicit approval; in team mode it follows the host rules.',
         produces: 'Merge commit or PR link, removed worktree after a merge, and the epic closed after a human-confirmed merge (which marks shipped). Review ledgers are removed separately with review-ledger.py cleanup.',
         exampleInput: '/gin-workflow:ship',
         exampleOutput: `1. Merge back to master locally
@@ -1415,7 +1397,6 @@ Gates:
   - plan_approved: satisfied
   - orchestration_ready: satisfied
   - implementation_complete: unmet
-  - verification_passed: unmet
   - shipped: unmet
 
 Evidence:

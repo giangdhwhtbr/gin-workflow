@@ -143,7 +143,7 @@ button[disabled] { opacity: .4; cursor: default; }
   <p class="eyebrow">Lifecycle at a glance</p>
   <h2>One path from survey to shipped</h2>
   <div class="diagram">
-    <svg viewBox="0 0 960 150" role="img" aria-label="Lifecycle: tech-doc, roadmap, discuss, plan, orchestrate, execute, verify, ship">
+    <svg viewBox="0 0 960 150" role="img" aria-label="Lifecycle: tech-doc, roadmap, discuss, plan, orchestrate, execute, ship">
       <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path class="arrow" d="M0,0 L8,4 L0,8 z"/></marker></defs>
       <g>
         <rect class="node" x="10" y="40" width="100" height="46" rx="8"/><text x="60" y="68" text-anchor="middle">tech-doc</text>
@@ -152,8 +152,7 @@ button[disabled] { opacity: .4; cursor: default; }
         <rect class="node" x="370" y="40" width="100" height="46" rx="8"/><text x="420" y="68" text-anchor="middle">plan</text>
         <rect class="node" x="490" y="40" width="110" height="46" rx="8"/><text x="545" y="68" text-anchor="middle">orchestrate</text>
         <rect class="node" x="620" y="40" width="100" height="46" rx="8"/><text x="670" y="68" text-anchor="middle">execute</text>
-        <rect class="node" x="740" y="40" width="100" height="46" rx="8"/><text x="790" y="68" text-anchor="middle">verify</text>
-        <rect class="node" x="860" y="40" width="90" height="46" rx="8"/><text x="905" y="68" text-anchor="middle">ship</text>
+        <rect class="node" x="740" y="40" width="100" height="46" rx="8"/><text x="790" y="68" text-anchor="middle">ship</text>
       </g>
       <g>
         <line class="edge" x1="110" y1="63" x2="128" y2="63" marker-end="url(#ar)"/>
@@ -162,13 +161,12 @@ button[disabled] { opacity: .4; cursor: default; }
         <line class="edge" x1="470" y1="63" x2="488" y2="63" marker-end="url(#ar)"/>
         <line class="edge" x1="600" y1="63" x2="618" y2="63" marker-end="url(#ar)"/>
         <line class="edge" x1="720" y1="63" x2="738" y2="63" marker-end="url(#ar)"/>
-        <line class="edge" x1="840" y1="63" x2="858" y2="63" marker-end="url(#ar)"/>
       </g>
       <g>
         <polygon class="diamond" points="180,108 188,116 180,124 172,116"/><text class="gatetext" x="196" y="120">roadmap</text>
         <polygon class="diamond" points="300,108 308,116 300,124 292,116"/><text class="gatetext" x="316" y="120">requirement</text>
         <polygon class="diamond" points="420,108 428,116 420,124 412,116"/><text class="gatetext" x="436" y="120">plan</text>
-        <polygon class="diamond" points="790,108 798,116 790,124 782,116"/><text class="gatetext" x="806" y="120">verification</text>
+        <polygon class="diamond" points="790,108 798,116 790,124 782,116"/><text class="gatetext" x="806" y="120">team approval</text>
       </g>
     </svg>
   </div>
@@ -203,7 +201,7 @@ button[disabled] { opacity: .4; cursor: default; }
         <text class="sub" x="430" y="18" text-anchor="middle">orchestrate</text>
         <text class="sub" x="510" y="18" text-anchor="middle">cases</text>
         <text class="sub" x="590" y="18" text-anchor="middle">execute</text>
-        <text class="sub" x="670" y="18" text-anchor="middle">verify</text>
+        <text class="sub" x="670" y="18" text-anchor="middle">e2e</text>
         <text class="sub" x="750" y="18" text-anchor="middle">ship</text>
         <text class="sub" x="830" y="18" text-anchor="middle">report</text>
       </g>
@@ -291,12 +289,12 @@ gin-workflow team claim demo-rm-payments.1
   <p class="eyebrow">Role · QE</p>
   <h2>Cases from the spec, E2E from the cases</h2>
   <div class="cols">
-    <div class="card"><h3>Commands</h3><ul class="plain"><li><code>/gin-qa:cases &lt;capability&gt;</code></li><li><code>/gin-qa:e2e &lt;capability&gt;</code></li><li><code>/gin-workflow:verify</code></li></ul></div>
+    <div class="card"><h3>Commands</h3><ul class="plain"><li><code>/gin-qa:cases &lt;capability&gt;</code></li><li><code>/gin-qa:e2e &lt;capability&gt;</code></li></ul></div>
     <div class="card"><h3>You get</h3><ul class="plain"><li><code>qa/cases/&lt;capability&gt;.md</code>, each case tied to a requirement hash</li><li>Playwright specs and evidence under <code>qa/</code></li><li>Stale cases flagged when a requirement changes</li></ul></div>
   </div>
   <pre tabindex="0"><code>/gin-qa:cases payments
 /gin-qa:e2e payments</code></pre>
-  <p><span class="gate">Gate:</span> <code>verification_passed</code>. The QE approves the latest commit; a later push needs a new approval.</p>
+  <p><span class="gate">Gate:</span> <code>ship</code> (team mode, <code>team.approvals.ship</code>). The QE approves the latest commit; a later push needs a new approval.</p>
 </section>
 
 <!-- 11 -->

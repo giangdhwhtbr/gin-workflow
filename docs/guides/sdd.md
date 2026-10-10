@@ -52,7 +52,6 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 | `plan` | Writes `<change>/plan.md`; each track lists `Requirements: REQ-...`, and every added or modified requirement belongs to a track. |
 | `orchestrate` | Reuses the epic; each track bead gets `--spec-id <epic>-<slug>` and `req:<REQ-ID>` labels. |
 | `execute` / review | New or changed tests carry the REQ-ID in the test name or a comment; the reviewer checks each scenario has a test. |
-| `verify` | `specs lint --change <epic> --against <base>` and `specs trace --change <epic>`. An untested requirement is a warning under `easy` and blocks verification under `standard` and `strict`. A clashing ID: `specs renumber <old> <new> --change <epic>`. |
 | `ship` | `specs archive --change <epic>` merges the delta into the living specs and moves the folder to `changes/archive/`. A conflict stops ship. |
 | `quick` | Never creates a change folder; a change to behavior a requirement describes needs the full lifecycle. |
 

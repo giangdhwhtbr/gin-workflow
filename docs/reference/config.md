@@ -66,7 +66,7 @@ Rigor presets:
 
 ### `verify.checks`
 
-`lint`, `typecheck`, `test`, `build`, `e2e`: shell commands. `verify` and `/quick` run the ones the rigor requires (easy: lint, typecheck, test; standard: + build; strict: + e2e). Empty commands are skipped. `gin-workflow setup doctor` reports missing ones.
+`lint`, `typecheck`, `test`, `build`, `e2e`: shell commands. The git hooks (`gin-workflow hooks install`) and `/quick` run the ones the rigor requires: `pre-commit` runs lint and typecheck; `pre-push` runs test, plus build at standard and e2e at strict. Empty commands are skipped. `gin-workflow setup doctor` reports missing ones.
 
 ### `quick`
 
@@ -102,7 +102,7 @@ Plans name roles and a reasoning tier (`low`, `medium`, `high`), never providers
 
 ### `model_tiers`
 
-Maps lifecycle phases (`brainstorm`, `design`, `plan`, `implement`, `verify`, `review`, `docs`) to abstract model classes (`high_reasoning`, `standard_impl`, `cheap_simple`).
+Maps lifecycle phases (`brainstorm`, `design`, `plan`, `implement`, `review`, `docs`) to abstract model classes (`high_reasoning`, `standard_impl`, `cheap_simple`).
 
 ### `policy.approval`
 

@@ -1,4 +1,4 @@
-"""Git hooks that run the project's verify commands without an agent (replaces the verify stage)."""
+"""Git hooks that run the project's verify commands without an agent."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Present integration options for verified work, run the approved one, and close out beads and ledgers.
+description: Present integration options for completed work, run the approved one, and close out beads and ledgers.
 ---
 
 ## Before you start
@@ -9,12 +9,14 @@ description: Present integration options for verified work, run the approved one
 
 # Ship
 
-Verify → detect workspace → present options → execute the choice → clean up → close out.
+Check → detect workspace → present options → execute the choice → clean up → close out.
 
 ## Steps
 
-1. Require `verification_passed` and a terminal review state. Re-run the project test command; if it fails, show the failures and stop. With `project.layout: sdd`, archive the change into the living spec first, per the `gin-sdd` skill.
-   With `project.team.enabled`, merging follows the host rules and Beads are synced (the `gin-team` skill).
+1. Require `implementation_complete` and a terminal review state. Do not run tests: the `pre-commit`/`pre-push` git hooks and CI own that (run `gin-workflow hooks install` if `gin-workflow setup doctor` reports a hook missing). Run only these plain steps and stop on the first failure, reporting it to the user without retrying:
+   - With `project.review_ledger` on, for each closed track bead of the epic: `python3 review-ledger.py validate --bead-id <id> --in-history` and `render --bead-id <id> --check`. Then `git log -m --name-only <newest approved commit>..HEAD` may touch only `.planning/specs/`, `.planning/reviews/`, and the SDD spec dirs; any other change after approval needs the last approved track reopened (`bd reopen`) and reviewed again.
+   - With `project.layout: sdd`, lint, trace, and archive the change into the living spec, per the `gin-sdd` skill.
+   With `project.team.enabled`, merging follows the host rules, Beads are synced, and a `team.approvals.ship` policy limits the options (the `gin-team` skill).
 2. Detect the workspace before changing directory and save the results:
    ```bash
    GIT_DIR=$(cd "$(git rev-parse --git-dir)" && pwd -P); GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
@@ -26,7 +28,7 @@ Verify → detect workspace → present options → execute the choice → clean
    - Named branch: `1. Merge back to <base> locally` · `2. Push and create a Pull Request` · `3. Keep the branch as-is` · `4. Discard this work`
    - Detached HEAD (externally managed): `1. Push as new branch and create a PR` · `2. Keep as-is` · `3. Discard`
 5. Before creating a PR, merging, force-pushing, or cleanup: get explicit approval for that action, and confirm `git status --porcelain` is clean in both the worktree and `MAIN_ROOT` (ask to commit uncommitted work first). Never force-push unless asked.
-   - **Merge:** `cd "$MAIN_ROOT" && git checkout <base> && git pull --ff-only && git merge "$FEATURE_BRANCH"`; if the base cannot fast-forward (it diverged from its upstream), stop and ask instead of rebasing it. Re-run the tests on the merged result, then clean up (step 6) and `git branch -d "$FEATURE_BRANCH"`.
+   - **Merge:** `cd "$MAIN_ROOT" && git checkout <base> && git pull --ff-only && git merge "$FEATURE_BRANCH"`; if the base cannot fast-forward (it diverged from its upstream), stop and ask instead of rebasing it. Then clean up (step 6) and `git branch -d "$FEATURE_BRANCH"`.
    - **PR:** (detached: `git checkout -b <branch>` first) `git push -u origin <branch>` then `gh pr create --fill`. Keep the worktree.
    - **Keep:** report the branch and worktree path. Keep the worktree.
    - **Discard:** list what will be deleted and require the typed word `discard`. Then `git reset --hard HEAD && git clean -fd`; for a named branch, clean up (step 6), then `cd "$MAIN_ROOT" && git checkout <base> && git branch -D "$FEATURE_BRANCH"`. A detached workspace is only reset; the harness owns its removal.

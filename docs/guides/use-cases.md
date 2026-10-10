@@ -21,7 +21,7 @@ A reproducible bug whose fix should stay narrow.
 2. Diagnose with the `gin-debugging` skill: reproduce, find the root cause, and stop if it is not isolated. Do not guess a plan.
 3. `/gin-workflow:plan`: one track with a regression test that fails before the fix.
 4. `/gin-workflow:orchestrate`, then `/gin-workflow:execute`: the regression goes red, the fix turns it green, review approves, the track closes.
-5. `/gin-workflow:verify`, then `/gin-workflow:ship`.
+5. `/gin-workflow:ship`.
 
 If the diagnosis widens the scope, return to `discuss`; never broaden the patch silently. A small enough fix can use the quick path instead.
 
@@ -33,7 +33,7 @@ A feature or migration that splits into dependent tracks, for example CSV export
 2. `/gin-workflow:plan` gives each track its files, interfaces, test-first steps, a provider role (`backend` for A and B, `frontend` for C), and a reasoning tier.
 3. `/gin-workflow:orchestrate` resolves every route before creating anything, then creates the epic, three track beads, their dependencies, and the worktree.
 4. `/gin-workflow:execute` per ready track: A first; closing A makes B ready, and so on. Each track is reviewed independently before it closes.
-5. `/gin-workflow:verify` checks every ledger, the quality gates, and the spec line by line; `/gin-workflow:ship` merges or opens the pull request with your approval.
+5. `/gin-workflow:ship` checks every ledger and any changes after review (the quality gates already ran in the git hooks), then merges or opens the pull request with your approval.
 
 If a route is unavailable the bead stays open; fallback never lowers the reasoning tier. If orchestration reports an unresolved role or tier, it creates nothing until the plan or `providers.local.yaml` is fixed.
 
@@ -43,7 +43,7 @@ A session, provider, or machine stopped before the work reached a terminal state
 
 1. `/gin-workflow:progress` reads the durable state: bead status, readiness, blockers, waivers, review state, and recent quick runs. A leftover worktree or branch is not evidence of progress.
 2. If a track's review is pending, finish the review first (the `review` skill): the reviewer takes a fresh lease, checks the current snapshot, and records findings or approval.
-3. `/gin-workflow:workflow` routes to exactly one stage. Once every track is closed it selects `verify`, which fails closed when a ledger lacks terminal approval.
+3. `/gin-workflow:workflow` routes to exactly one stage. Once every track is closed it selects `ship`, which fails closed when a ledger lacks terminal approval.
 4. Continue from the stage it names.
 
 When the state is held, `gin-workflow state` lists the remedies: clear a blocker, waive a process gate with a reason, or fix the missing configuration through `/setup`. Never delete a worktree to mark work done, edit runtime caches, or bypass `bd`.

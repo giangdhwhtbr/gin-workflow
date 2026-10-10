@@ -43,4 +43,4 @@ Execute directly for sequential work, a single agent, three or fewer tasks, or n
 3. Commit and push the feature branch. Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
    1. Xin lệnh tạo PR từ nhánh feature đã push.
    2. Giữ nhánh feature đã push và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.
-4. Return `implementation_complete`. Do not invoke `verify` or `ship`.
+4. Return `implementation_complete`. Do not invoke `ship`.

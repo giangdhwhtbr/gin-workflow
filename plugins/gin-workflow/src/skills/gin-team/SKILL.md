@@ -9,7 +9,7 @@ Applies only when `gin-workflow state --format json` reports `project.team.enabl
 
 ## Gates
 - `record` and `unblock` take the actor from the git email; omit `--actor`.
-- A gate with roles in `team.approvals` is recorded with `--evidence <PR/MR URL>`; `record` checks that the PR is merged (open is fine for `verification_passed`) and approved by a member holding a listed role, never by its author. Exit 1 lists the missing approvals: report them to the user. Never switch evidence or waive a gate to get past a rejection.
+- A gate with roles in `team.approvals` is recorded with `--evidence <PR/MR URL>`; `record` checks that the PR is merged (open is fine for `ship`) and approved by a member holding a listed role, never by its author. Exit 1 lists the missing approvals: report them to the user. Never switch evidence or waive a gate to get past a rejection.
 - `team check --gate <gate> <url>` re-verifies a teammate's gate without recording it.
 
 ## discuss
@@ -32,8 +32,5 @@ Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` when t
 - The PR/MR uses the generated template; fill `Plan:` with the plan path and `Tracks:` with the track numbers exactly, because `team deps` on other machines reads them.
 - With `team.beads_sync`, run `team sync` after closing a bead.
 
-## verify
-When `team.approvals.verification_passed` lists roles: push the feature branch, open the PR, ask that role to approve the latest commit, then record `verification-passed --evidence <pr-url>`. A commit pushed after the approval needs a new approval. On GitLab the project must enable 'Reset approvals on push'; when the gate reports `approvals still syncing`, retry.
-
 ## ship
-Merging follows the host rules (CODEOWNERS, branch protection). With `team.beads_sync`, run `team sync` after closing the beads. A member's ship reports only their own tracks; the lead declares the feature complete once every track PR has merged.
+When `team.approvals.ship` lists roles: offer only the PR and keep options, push the feature branch, open or reuse the PR, ask that role to approve the latest commit, and before merging run `gin-workflow team check --gate ship <pr-url>`; stop if it reports reasons. A commit pushed after the approval needs a new approval. On GitLab the project must enable 'Reset approvals on push'; when the check reports `approvals still syncing`, retry. Merging follows the host rules (CODEOWNERS, branch protection). With `team.beads_sync`, run `team sync` after closing the beads. A member's ship reports only their own tracks; the lead declares the feature complete once every track PR has merged.

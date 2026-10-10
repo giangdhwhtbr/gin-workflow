@@ -97,7 +97,7 @@ To resolve an unmet gate:
   ```bash
   gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id>
   ```
-- For **safety gates** (`verification_passed`, `review_approved`):
+- For the **safety gate** (`review_approved`):
   ```bash
   gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id> --follow-up <follow-up-task-id>
   ```

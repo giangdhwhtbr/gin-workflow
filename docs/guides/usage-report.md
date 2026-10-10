@@ -28,7 +28,7 @@ Quality signals come from Beads and the review ledger:
 
 1. Work inside a worktree of the repository goes to the track bead whose claim-to-close span contains it: stage `review` while the bead's review ledger shows a review in progress, `execute` otherwise.
 2. Work at the repository root goes to the workflow of the next gate recorded after it, with that gate's stage: `discuss` before `requirement-confirmed`, `plan` before `plan-approved`, `orchestrate`, `verify`, `quick`, or `ship`.
-3. Root work after an epic's `verification-passed` and before the epic closes counts as that epic's `ship`.
+3. Root work after an old epic's recorded verification (earlier versions) and before the epic closes counts as that epic's `ship`.
 4. Anything else is `unattributed`; collecting an epic also stores the unattributed usage inside its span so the report shows it.
 
 The summary is stored in the bead's metadata as `ai_usage` (aggregates only), and an epic's summary also aggregates its tracks.

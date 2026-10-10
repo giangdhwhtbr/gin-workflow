@@ -133,8 +133,8 @@ When ready to modernize a module, run the standard guarded lifecycle:
    - Builds within isolated Git worktrees under `.planning/worktrees/`.
    - Writes tests first, implements, runs independent review per track.
 
-4. **Verify (`/gin-workflow:verify`):**
-   - Fresh command verification: unit tests, parity tests, and data validation scripts must pass with 0 errors.
+4. **Quality checks (git hooks):**
+   - `pre-commit` runs lint and typecheck; `pre-push` runs the unit tests, parity tests, and data validation scripts you configured in `verify.checks`. They must pass with 0 errors.
 
 5. **Ship (`/gin-workflow:ship`):**
    - Merge or open a Pull Request with all evidence attached.

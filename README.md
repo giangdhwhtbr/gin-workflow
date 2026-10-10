@@ -67,7 +67,6 @@ Antigravity has no git-based install; use the installer above. OpenCode has no p
 /gin-workflow:plan <feature>                approve the plan → tracks
 /gin-workflow:orchestrate <feature>         beads, routes, worktree
 /gin-workflow:execute                       one track: test first, review, close
-/gin-workflow:verify                        fresh evidence for every claim
 /gin-workflow:ship                          merge, PR, keep, or discard
 ```
 
@@ -78,7 +77,7 @@ Antigravity has no git-based install; use the installer above. OpenCode has no p
 | Skill | Purpose |
 |---|---|
 | `setup` | configure a repository once |
-| `discuss`, `plan`, `orchestrate`, `execute`, `verify`, `ship` | the lifecycle stages |
+| `discuss`, `plan`, `orchestrate`, `execute`, `ship` | the lifecycle stages |
 | `review` | independent review in the review ledger |
 | `workflow`, `progress` | route to the next stage; show status |
 | `quick` | small change without plan or beads |

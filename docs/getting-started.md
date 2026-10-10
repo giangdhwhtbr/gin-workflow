@@ -3,7 +3,7 @@
 This guide walks you through delivering a feature from initial idea to final merge using **Claude Code** and **`gin-workflow`**.
 
 Every change moves through recorded quality gates:
-**`discuss` → `plan` → `orchestrate` → `execute` → `verify` → `ship`**.
+**`discuss` → `plan` → `orchestrate` → `execute` → `ship`**.
 
 ---
 
@@ -69,13 +69,9 @@ Claude creates an epic and task beads in Beads (`bd`), then creates an isolated 
 ```
 Claude claims the next ready track bead, writes a failing test first, implements the solution until tests pass, and conducts an independent code review in the review ledger. Once approved, the bead closes. Repeat `/gin-workflow:execute` until all tracks are done.
 
-### Stage 5: Verify
-```text
-/gin-workflow:verify
-```
-Claude re-runs all verification commands with fresh evidence and audits the code line-by-line against every requirement in the spec and plan. Passes the `verification_passed` gate.
+Quality checks do not need a stage: `pre-commit` runs lint and typecheck, `pre-push` runs the tests, and CI is the backstop (`gin-workflow hooks install`, see the [CLI reference](reference/cli.md#gin-workflow-hooks)).
 
-### Stage 6: Ship
+### Stage 5: Ship
 ```text
 /gin-workflow:ship
 ```

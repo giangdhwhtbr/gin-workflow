@@ -10,7 +10,6 @@
   - `design`: `high_reasoning`
   - `plan`: `standard_impl`
   - `implement`: `standard_impl`
-  - `verify`: `standard_impl`
   - `review`: `high_reasoning`
   - `docs`: `cheap_simple`
 - `override_rule`: Use `high_reasoning` for planning only when execution boundaries, dependency sequencing, or major tradeoffs are still unresolved.

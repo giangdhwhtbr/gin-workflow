@@ -90,9 +90,8 @@ Run `/orchestrate` and `/execute` to build the foundation test-first:
 
 Claude implements each track inside an isolated Git worktree, writes tests first, conducts review, and closes each track bead.
 
-### Step 3.4: Verify & Ship Foundation
+### Step 3.4: Ship Foundation
 ```text
-/gin-workflow:verify
 /gin-workflow:ship
 ```
 
@@ -142,13 +141,6 @@ Every new feature moves through a clean, reproducible cycle:
                 └──────────┬──────────┘
                            │ implementation-complete
                            ▼
-                        Verify
-                ┌─────────────────────┐
-                │/gin-workflow:verify │
-                │ tests, spec check   │
-                └──────────┬──────────┘
-                           │ verification-passed
-                           ▼
                          Ship
                 ┌─────────────────────┐
                 │ /gin-workflow:ship  │
@@ -160,8 +152,7 @@ Every new feature moves through a clean, reproducible cycle:
 2. **Plan (`/gin-workflow:plan <feature>`):** Maps requirements to implementation tracks and files.
 3. **Orchestrate (`/gin-workflow:orchestrate <feature>`):** Sets up task beads and an isolated Git worktree.
 4. **Execute (`/gin-workflow:execute`):** Builds the tracks test-first with independent review checkpoints.
-5. **Verify (`/gin-workflow:verify`):** Verifies all tests, builds, and checks off every requirement line-by-line against fresh command evidence.
-6. **Ship (`/gin-workflow:ship`):** Archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
+5. **Ship (`/gin-workflow:ship`):** Archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
 
 ---
 

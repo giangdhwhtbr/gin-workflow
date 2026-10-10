@@ -12,8 +12,8 @@ In team mode, each area of the repository has a lead role, each track belongs to
 |---|---|---|---|---|
 | **PM** (Product Manager) | `/roadmap`, `/progress`, `/report` | `.planning/roadmap.md` or `docs/roadmap.md` | `roadmap/<topic>` (roadmap pull request) | `roadmap` (approves the roadmap pull request) |
 | **BA** (Business Analyst) | `/discuss`, `/progress`, `/tech-doc` | `docs/specs/`, `docs/changes/` | `spec/<topic>` (spec pull request) | `requirement_confirmed` |
-| **Dev / Tech Lead** | `/plan`, `/orchestrate`, `/execute`, `/verify`, `/ship`, `/review` | `src/`, `services/`, `.planning/plans/` | `feat/<topic>-t<N>` (isolated in worktrees) | `plan_approved` |
-| **Tester / QE** | `/gin-qa:cases`, `/gin-qa:e2e`, `/verify`, `/progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's PR | `verification_passed` |
+| **Dev / Tech Lead** | `/plan`, `/orchestrate`, `/execute`, `/ship`, `/review` | `src/`, `services/`, `.planning/plans/` | `feat/<topic>-t<N>` (isolated in worktrees) | `plan_approved` |
+| **Tester / QE** | `/gin-qa:cases`, `/gin-qa:e2e`, `/progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's PR | `ship` |
 
 ---
 
@@ -94,8 +94,8 @@ Testers own test case authoring, requirement coverage tracking, and automated E2
 3. **Automate E2E Scenarios (`/gin-qa:e2e <capability>`):**
    - Generates and executes Playwright tests under `qa/e2e/`.
    - Collects screenshots, ARIA snapshots, and run reports into `qa/evidence/`.
-4. **Approve Verification Gate:**
-   - With `team.approvals.verification_passed: [qe]`, the QE/Tester approves the latest commit of the developer's PR; a commit pushed after the approval needs a new approval.
+4. **Approve Ship Gate:**
+   - With `team.approvals.ship: [qe]`, the QE/Tester approves the latest commit of the developer's PR; a commit pushed after the approval needs a new approval.
 
 ---
 
@@ -113,7 +113,7 @@ To ensure zero friction across team members:
 4. **Exclusive Beads Claims:**
    - In team mode, a track bead is claimed with `gin-workflow team claim <bead>`; the claim fails if someone else already holds it, so pick another. To hand a track to a teammate (for example when you run out of quota), push the branch and run `gin-workflow team reassign <bead> <email>`; the area lead can do the same.
 5. **PR-Proven Gates:**
-   - A gate with roles in `team.approvals` is recorded only with a PR URL that the Git host confirms is merged (or open, for `verification_passed`) and approved by a member with a listed role, never by its author.
+   - A gate with roles in `team.approvals` is recorded only with a PR URL that the Git host confirms is merged (or open, for `ship`) and approved by a member with a listed role, never by its author.
 
 ---
 

@@ -26,7 +26,7 @@ State one hypothesis: "X is the root cause because Y". Test it with the smallest
 2. Make one minimal fix at the root cause. No "while I'm here" changes or bundled refactors.
 3. Never swallow errors, skip or comment out failing tests, or turn the failing path into a log-only no-op to hide the symptom.
 4. If the fix needs changes outside the bead or plan scope, stop and report instead of expanding scope.
-5. Verify per the `verify` skill: the new test passes, nothing else broke, and the original symptom is gone.
+5. Re-run the new test and the affected checks: the new test passes, nothing else broke, and the original symptom is gone.
 6. After a failed fix, go back to step 1 with the new information. **After 3 failed fixes, stop**: new symptoms appearing in different places point at the architecture. Discuss it with the user before attempting fix #4.
 
 **Stop and return to step 1** if you catch yourself thinking "quick fix for now", "just try X", "it's probably X", or "skip the test", if you are proposing fixes before tracing the data flow, or if you are making several changes at once. The user saying "stop guessing", "is that not happening?", or "we're stuck?" means the same.

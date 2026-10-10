@@ -32,7 +32,7 @@ team:
   approvals:
     requirement_confirmed: [ba, be_lead]
     plan_approved: area_lead
-    verification_passed: [qe]
+    ship: [qe]
     roadmap: [pm, be_lead]
 ```
 
@@ -49,7 +49,7 @@ flowchart LR
   E --> F["plan + orchestrate<br/>Tech Lead"]
   F --> G["Test cases<br/>QE"]
   G --> H["execute<br/>Dev"]
-  H --> I["e2e + verify<br/>QE"]
+  H --> I["e2e<br/>QE"]
   I --> J["ship<br/>Tech Lead"]
   J --> K["progress / report<br/>PM"]
 ```
@@ -184,19 +184,18 @@ In team mode `execute` runs `gin-workflow team deps`, picks from `gin-workflow t
 
 **Common mistakes:** working outside the track's file scope; closing the bead before the review finishes.
 
-## 9. E2E and verify
+## 9. E2E
 
 **Who:** QE.
 
 **Prompt**
 ```text
 /gin-qa:e2e payments
-/gin-workflow:verify
 ```
 
-**You get:** Playwright specs under `qa/e2e/`, evidence under `qa/evidence/`, and the verification record.
+**You get:** Playwright specs under `qa/e2e/`, evidence under `qa/evidence/`, and the run report.
 
-**Gate or approval:** with `verification_passed: [qe]`, the QE approves the latest commit of the developer's pull request. A later push needs a new approval.
+**Gate or approval:** with `ship: [qe]`, the QE approves the latest commit of the developer's pull request before it merges. A later push needs a new approval.
 
 **Common mistakes:** approving before the last commit; a push after approval silently invalidates it.
 
@@ -257,4 +256,4 @@ One person plays every role, so the flow shrinks:
 - No `team-setup`, no `team:` block, no pull requests for gates: you confirm in chat.
 - Stage 3: `/gin-workflow:roadmap` writes the file after you confirm it and creates the epics directly.
 - Stage 8: pick work with `bd ready` instead of `team ready`.
-- Everything else is the same: `/gin-workflow:discuss <epic-id>`, `plan`, `orchestrate`, `execute`, `verify`, `ship`.
+- Everything else is the same: `/gin-workflow:discuss <epic-id>`, `plan`, `orchestrate`, `execute`, `ship`.

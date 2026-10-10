@@ -54,8 +54,7 @@ stateDiagram-v2
     plan --> orchestrate: plan_approved
     orchestrate --> execute: orchestration_ready
     execute --> execute: next ready track
-    execute --> verify: implementation_complete
-    verify --> ship: verification_passed
+    execute --> ship: implementation_complete
     ship --> [*]: shipped
     [*] --> quick: small change
     quick --> [*]: quick_completed
@@ -152,7 +151,7 @@ flowchart LR
     L2[~/.codex/sessions/**/rollout-*.jsonl] --> A
     A[usage_logs: token records per model] --> B{usage_attribution}
     B -->|inside a worktree| T[track bead: execute or review]
-    B -->|repository root| G[next gate: discuss, plan, orchestrate, verify, ship]
+    B -->|repository root| G[next gate: discuss, plan, orchestrate, ship]
     B -->|neither| UA[epic: unattributed]
     T & G & UA --> S[usage: cost from usage-prices.yaml + quality signals]
     S --> M[(bead metadata ai_usage)]

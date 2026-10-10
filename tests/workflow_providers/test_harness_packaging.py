@@ -28,7 +28,6 @@ REQUIRED_ARTIFACTS = (
     "skills/execute/references/worker-lifecycle.md",
     "skills/execute/references/delegation-policy.md",
     "skills/execute/references/result-contract.md",
-    "skills/verify/SKILL.md",
     "skills/ship/SKILL.md",
     "skills/review/SKILL.md",
     "references/stage-contract.md",
@@ -285,7 +284,7 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertIn("fails closed when a ledger lacks terminal approval", resume)
         self.assertLess(resume.index("/gin-workflow:progress"), resume.index("finish the review first"))
         self.assertLess(resume.index("finish the review first"), resume.index("/gin-workflow:workflow"))
-        self.assertLess(resume.index("/gin-workflow:workflow"), resume.index("selects `verify`"))
+        self.assertLess(resume.index("/gin-workflow:workflow"), resume.index("selects `ship`"))
 
     def test_t8_bounded_defect_orchestrates_before_execute(self):
         guide = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")

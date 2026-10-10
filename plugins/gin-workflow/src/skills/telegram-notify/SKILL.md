@@ -99,7 +99,7 @@ Session: {SESSION_ID}
 
 ### 4. Verification Result (one-way)
 
-**Trigger:** After the `verify` skill finishes running quality gates.
+**Trigger:** After a git hook or an explicit check run finishes the quality gates.
 
 **Mode:** `send` — fire-and-forget.
 
@@ -127,7 +127,7 @@ Session: {SESSION_ID}
 
 **Agent behavior:**
 - Run: `telegram.sh send "{message}"`
-- Continue with normal verify workflow (transition to ship on pass, or fix on fail).
+- Continue with the normal workflow (ship on pass, or fix on fail).
 
 ---
 
