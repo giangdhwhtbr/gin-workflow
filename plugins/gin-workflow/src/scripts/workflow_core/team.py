@@ -6,13 +6,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import re
 import subprocess
+import sys
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
-GATES = ("requirement_confirmed", "plan_approved", "verification_passed", "roadmap")
+GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
 ROADMAP = {"legacy": ".planning/roadmap.md", "sdd": "docs/roadmap.md"}
-DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead",
-                                     "verification_passed": []}
+DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead", "ship": []}
 _WILDCARDS = re.compile(r"[*?\[]")
 
 
@@ -113,12 +113,18 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
                for email, spec in (raw.get("members") or {}).items()}
     areas = {name: Area(name, tuple(spec.get("paths", ())), str(spec.get("lead", "")), tuple(spec.get("roles", ())))
              for name, spec in (raw.get("areas") or {}).items()}
+    approvals = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}
+    if "verification_passed" in approvals:
+        legacy = approvals.pop("verification_passed")
+        if not approvals["ship"]:
+            approvals["ship"] = legacy
+        print("warning: team.approvals.verification_passed is deprecated; use team.approvals.ship", file=sys.stderr)
     return TeamConfig(
         host=str(raw.get("host", "github")),
         commit_convention=str(raw.get("commit_convention", "conventional")),
         members=members,
         areas=areas,
-        approvals={**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})},
+        approvals=approvals,
         beads_remote=str((raw.get("beads_sync") or {}).get("remote", "")),
     )
 
@@ -316,7 +322,7 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     expected, actual = origin_slug(Path(root)), repo_slug(pr.url, pr=True)
     if actual != expected:
         reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
-    if gate == "verification_passed":
+    if gate == "ship":
         if pr.state not in ("open", "merged"):
             reasons.append(f"PR is {pr.state}")
         if local_head and pr.head_sha != local_head:
@@ -398,9 +404,9 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
     if not url.startswith(("https://", "http://")):
         raise TeamError(f"{gate} needs a PR/MR URL as --evidence in team mode, got {url!r}")
     pr = fetch_pr(url, team.host, Path(root))
-    artifact = "" if gate == "verification_passed" else resolve_artifact(
+    artifact = "" if gate == "ship" else resolve_artifact(
         pr, Path(root), gate, plan if gate == "plan_approved" else spec)
-    head = _head(Path(root)) if gate == "verification_passed" else ""
+    head = _head(Path(root)) if gate == "ship" else ""
     return pr, artifact, check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
 
 

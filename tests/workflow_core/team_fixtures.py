@@ -28,7 +28,7 @@ TEAM = """team:
   approvals:
     requirement_confirmed: [ba, be_lead, fe_lead]
     plan_approved: area_lead
-    verification_passed: [qe]
+    ship: [qe]
 """
 
 PLAN = """# Plan: Login

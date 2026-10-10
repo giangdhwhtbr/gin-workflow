@@ -95,7 +95,7 @@ class TestBudgetLimits(unittest.TestCase):
         for relative in injected:
             with self.subTest(path=relative):
                 self.assertIn("gin-workflow rules --files", (SRC / relative).read_text(encoding="utf-8"))
-        for stage in ("discuss", "plan", "orchestrate", "verify", "ship"):
+        for stage in ("discuss", "plan", "orchestrate", "ship"):
             with self.subTest(stage=stage):
                 self.assertNotIn("gin-workflow rules", (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8"))
 
@@ -118,7 +118,7 @@ class TestBudgetLimits(unittest.TestCase):
 
     def test_sdd_guidance_loads_on_demand(self):
         sdd_skill = (SRC / "skills/gin-sdd/SKILL.md").resolve()
-        for stage in ("discuss", "plan", "orchestrate", "execute", "review", "verify", "ship", "quick"):
+        for stage in ("discuss", "plan", "orchestrate", "execute", "review", "ship", "quick"):
             text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(stage=stage):
                 self.assertIn("`gin-sdd` skill", text)
@@ -131,7 +131,7 @@ class TestBudgetLimits(unittest.TestCase):
 
     def test_team_guidance_loads_on_demand(self):
         team_skill = (SRC / "skills/gin-team/SKILL.md").resolve()
-        for stage in ("discuss", "plan", "orchestrate", "execute", "verify", "ship"):
+        for stage in ("discuss", "plan", "orchestrate", "execute", "ship"):
             text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(stage=stage):
                 self.assertIn("`gin-team` skill", text)

@@ -44,7 +44,8 @@ _TEAM = {
             "properties": {
                 "requirement_confirmed": _ROLES,
                 "plan_approved": {"anyOf": [{"const": "area_lead"}, _ROLES]},
-                "verification_passed": _ROLES,
+                "ship": _ROLES,
+                "verification_passed": _ROLES,  # deprecated: mapped to ship
                 "roadmap": _ROLES,
             },
             "additionalProperties": False,

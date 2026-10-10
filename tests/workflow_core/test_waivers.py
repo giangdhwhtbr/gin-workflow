@@ -35,7 +35,7 @@ def process_waiver(gate="plan_approved", scope_hash="scope-1", waived_by="agent-
 
 def safety_waiver(follow_up_task_id="gin-workflow-abc", scope_hash="scope-1"):
     return GateWaiver(
-        gate="verification_passed",
+        gate="review_approved",
         gate_class=GateClass.SAFETY,
         reason="release blocked on a downstream outage",
         scope_hash=scope_hash,
@@ -222,9 +222,9 @@ class CollectWaiversTests(unittest.TestCase):
         ]
         found = self.collect(events)
 
-        self.assertEqual({"plan_approved", "verification_passed"}, set(found))
+        self.assertEqual({"plan_approved", "review_approved"}, set(found))
         self.assertEqual(
-            "gin-workflow-abc", found["verification_passed"].follow_up_task_id
+            "gin-workflow-abc", found["review_approved"].follow_up_task_id
         )
 
 

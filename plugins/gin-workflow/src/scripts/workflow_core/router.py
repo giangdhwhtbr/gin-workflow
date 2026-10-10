@@ -23,7 +23,6 @@ LIFECYCLE_STAGES = (
     "plan",
     "orchestrate",
     "execute",
-    "verify",
     "ship",
     "progress",
 )
@@ -33,7 +32,6 @@ _STAGE_GATES = (
     ("plan", "plan_approved"),
     ("orchestrate", "orchestration_ready"),
     ("execute", "implementation_complete"),
-    ("verify", "verification_passed"),
     ("ship", "shipped"),
 )
 

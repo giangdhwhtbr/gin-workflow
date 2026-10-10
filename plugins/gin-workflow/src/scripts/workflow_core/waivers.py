@@ -28,7 +28,7 @@ PROCESS_GATES = frozenset(
 # Bypass requires human approval and a follow-up task. `review_approved` is
 # deliberately not a router gate (see docs/concepts/lifecycle.md); it is
 # classified here so that waiving independent review is recorded the same way.
-SAFETY_GATES = frozenset({"verification_passed", "review_approved"})
+SAFETY_GATES = frozenset({"review_approved"})
 # `implementation_complete` states a fact, not a formality, and `shipped` is
 # terminal. Neither is meaningfully waivable.
 NON_WAIVABLE_GATES = frozenset({"implementation_complete", "shipped"})

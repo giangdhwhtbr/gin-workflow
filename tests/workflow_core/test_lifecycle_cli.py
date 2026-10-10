@@ -161,8 +161,8 @@ class TestLifecycleCLI(unittest.TestCase):
     def test_unblock_safety_gate_without_followup_fails(self):
         exit_code = lifecycle_main([
             "unblock",
-            "--gate", "verification_passed",
-            "--reason", "skipping verification for doc change",
+            "--gate", "review_approved",
+            "--reason", "skipping review for doc change",
             "--actor", "operator",
             "--repository", str(self.repo_path),
         ])
@@ -277,127 +277,41 @@ class TestLifecycleCLI(unittest.TestCase):
         self._git("config", "user.name", "T")
         self._git("commit", "-q", "--allow-empty", "-m", "base")
 
-    def _verify(self, repo=None):
-        return cli_main(["record", "verification-passed", "--repository", str(repo or self.repo_path),
-                         "--evidence", "tests OK", "--actor", "user"])
-
-    def _commit_file(self, relative, cwd=None):
-        root = Path(cwd or self.repo_path)
-        (root / relative).parent.mkdir(parents=True, exist_ok=True)
-        (root / relative).write_text(relative, encoding="utf-8")
-        self._git("add", relative, cwd=root)
-        self._git("commit", "-q", "-m", relative, cwd=root)
-
-    def _verification_events(self):
-        return [event for event in WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").read_all()
-                if event.event_type == "verification.passed"]
-
-    def test_new_commit_invalidates_verification(self):
+    def test_verification_passed_gate_is_removed(self):
         self._git_repo()
-        self.assertEqual(0, self._verify())
-        self.assertEqual("satisfied", self._state_gates()["verification_passed"])
-        self._commit_file("src/code.py")
-        self.assertEqual("unmet", self._state_gates()["verification_passed"])
-        self.assertEqual(0, self._verify())
-        self.assertEqual(self._git("rev-parse", "HEAD"), self._verification_events()[-1].payload["head"])
-        self.assertEqual("main", self._verification_events()[-1].payload["branch"])
-        self.assertEqual("satisfied", self._state_gates()["verification_passed"])
+        self.assertNotIn("verification_passed", self._state_gates())
+        for argv in (["record", "verification-passed", "--evidence", "tests OK", "--actor", "user"],):
+            self.assertEqual(2, cli_main([argv[0], argv[1], "--repository", str(self.repo_path), *argv[2:]]))
+        events = WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").read_all()
+        self.assertEqual([], [e for e in events if e.event_type == "verification.passed"])
 
-    def test_spec_only_commit_keeps_verification(self):
-        self._git_repo()
-        self.assertEqual(0, self._verify())
-        self._commit_file(".planning/specs/x.md")
-        self._commit_file("docs/changes/archive/c/spec-delta.md")
-        self.assertEqual("satisfied", self._state_gates()["verification_passed"])
-        self._commit_file("src/a.py")
-        self.assertEqual("unmet", self._state_gates()["verification_passed"])
-
-    def test_reverted_code_commit_still_invalidates(self):
-        self._git_repo()
-        self.assertEqual(0, self._verify())
-        self._commit_file("src/a.py")
-        self._git("revert", "--no-edit", "HEAD")
-        self._commit_file(".planning/specs/x.md")
-        self.assertEqual("unmet", self._state_gates()["verification_passed"])
-
-    def test_merge_bringing_code_invalidates(self):
-        self._git_repo()
-        self._git("checkout", "-q", "-b", "side")
-        self._commit_file("src/side.py")
-        self._git("checkout", "-q", "main")
-        self.assertEqual(0, self._verify())
-        self._git("merge", "-q", "--no-ff", "--no-edit", "side")
-        self.assertEqual("unmet", self._state_gates()["verification_passed"])
-
-    def test_failing_git_history_is_unmet(self):
+    def test_record_verification_passed_points_at_the_hooks(self):
+        import io
         from unittest.mock import patch
 
-        self._git_repo()
-        self.assertEqual(0, self._verify())
-        self._commit_file(".planning/specs/x.md")
-        real = subprocess.run
+        with patch("sys.stderr", new=io.StringIO()) as err:
+            code = lifecycle_main(["record", "verification-passed", "--repository", str(self.repo_path),
+                                   "--evidence", "x", "--actor", "user"])
+        self.assertEqual(2, code)
+        self.assertIn("gin-workflow hooks install", err.getvalue())
 
-        def failing_log(argv, *args, **kwargs):
-            if argv[:2] == ["git", "log"]:
-                return subprocess.CompletedProcess(argv, 128, "", "fatal: bad object")
-            return real(argv, *args, **kwargs)
+    def test_unblock_verification_passed_is_rejected(self):
+        import io
+        from unittest.mock import patch
 
-        with patch("workflow_core.lifecycle_cli.subprocess.run", side_effect=failing_log):
-            self.assertEqual("unmet", self._state_gates()["verification_passed"])
+        with patch("sys.stderr", new=io.StringIO()) as err:
+            code = lifecycle_main(["unblock", "--gate", "verification_passed", "--reason", "x", "--actor", "op",
+                                   "--follow-up", "t-1", "--repository", str(self.repo_path)])
+        self.assertEqual(2, code)
+        self.assertIn("gin-workflow hooks install", err.getvalue())
 
-    def test_reverifying_an_earlier_commit_records_again(self):
-        self._git_repo()
-        first = self._git("rev-parse", "HEAD")
-        self.assertEqual(0, self._verify())
-        self._commit_file("src/a.py")
-        self.assertEqual(0, self._verify())
-        self._git("reset", "-q", "--hard", first)
-        self.assertEqual(0, self._verify())
-        self.assertEqual(first, self._verification_events()[-1].payload["head"])
-        self.assertEqual(3, len(self._verification_events()))
-        self.assertEqual("satisfied", self._state_gates()["verification_passed"])
-        self.assertEqual(0, self._verify())
-        self.assertEqual(3, len(self._verification_events()))
-
-    def test_event_without_head_is_unmet(self):
+    def test_old_verification_events_are_ignored(self):
         self._git_repo()
         WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").append(WorkflowEvent.create(
             event_type="verification.passed", workflow_id="default-workflow", actor="user",
-            payload={"evidence": "old"}, idempotency_key="old"))
-        self.assertEqual("unmet", self._state_gates()["verification_passed"])
-
-    def test_worktree_record_is_read_from_main_checkout(self):
-        self._git_repo()
-        worktree = Path(self.test_dir) / "wt"
-        self._git("worktree", "add", "-q", "-b", "feat/x", str(worktree))
-        self.assertEqual(0, self._verify(worktree))
-        self.assertEqual("satisfied", self._state_gates()["verification_passed"])
-        self._commit_file("src/b.py", cwd=worktree)
-        self.assertEqual("unmet", self._state_gates()["verification_passed"])
-
-    def test_detached_head_refuses_to_record(self):
-        self._git_repo()
-        self._git("checkout", "-q", "--detach")
-        self.assertEqual(2, self._verify())
-        self.assertEqual([], self._verification_events())
-
-    def test_deleted_branch_after_ship_keeps_shipped(self):
-        from unittest.mock import patch
-
-        self._git_repo()
-        self._record_orchestration(epic="bug-1")
-        self._git("checkout", "-q", "-b", "feat/y")
-        self.assertEqual(0, self._verify())
-        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([], epic_status="closed")):
-            self.assertEqual(0, cli_main(["record", "shipped", "--repository", str(self.repo_path),
-                                          "--evidence", "merged feat/y", "--actor", "user"]))
-            before = self._state()
-            self._git("checkout", "-q", "main")
-            self._git("branch", "-q", "-D", "feat/y")
-            after = self._state()
-        self.assertEqual("satisfied", after["gates"]["shipped"])
-        self.assertEqual("satisfied", after["gates"]["verification_passed"])
-        self.assertEqual(before["stage"], after["stage"])
+            payload={"evidence": "old", "head": "abc", "branch": "main"}, idempotency_key="old"))
+        self.assertEqual({"requirement_confirmed", "plan_approved", "orchestration_ready",
+                          "implementation_complete", "shipped"}, set(self._state_gates()))
 
     def _record_orchestration(self, epic="epic"):
         args = ["record", "orchestration-ready", "--repository", str(self.repo_path),
@@ -427,16 +341,13 @@ class TestLifecycleCLI(unittest.TestCase):
         with patch("workflow_core.lifecycle_cli._beads_json", lambda repo, argv: None):
             self.assertEqual("unmet", self._state_gates()["implementation_complete"])
 
-    def test_verification_passed_is_recordable_and_shipped_follows_closed_epic(self):
+    def test_shipped_follows_closed_epic(self):
         from unittest.mock import patch
 
         self._git_repo()
         self._record_orchestration()
-        self.assertEqual(0, cli_main(["record", "verification-passed", "--repository", str(self.repo_path),
-                                      "--evidence", "547 tests OK", "--actor", "user"]))
         with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"], epic_status="closed")):
             gates = self._state_gates()
-        self.assertEqual("satisfied", gates["verification_passed"])
         self.assertEqual("satisfied", gates["shipped"])
 
     def test_standalone_bead_is_its_own_epic_and_records_shipped_after_merge(self):
@@ -466,8 +377,6 @@ class TestLifecycleCLI(unittest.TestCase):
 
         self._git_repo()
         self._record_orchestration(epic="bug-1")
-        self.assertEqual(0, cli_main(["record", "verification-passed", "--repository", str(self.repo_path),
-                                      "--evidence", "tests OK", "--actor", "user"]))
         with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([], epic_status="closed")):
             state = self._state()
         self.assertEqual(("satisfied", "satisfied"),

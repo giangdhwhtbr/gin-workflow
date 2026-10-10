@@ -45,7 +45,6 @@ BUILT_IN_DEFAULTS: dict[str, Any] = {
         "design": "high_reasoning",
         "plan": "high_reasoning",
         "implement": "standard_impl",
-        "verify": "standard_impl",
         "review": "high_reasoning",
         "docs": "cheap_simple",
     },

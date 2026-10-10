@@ -1166,16 +1166,9 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 [event.event_type for event in event_store.read_all()],
             )
 
-    def test_verification_evidence_gates_shipping_until_every_category_succeeds(self):
+    def test_evidence_completeness_needs_every_category(self):
         identity, authority, references = evidence_fixture("track-7")
         provider = FakeEvidenceProvider(authority=authority)
-        state = {
-            "requirement_confirmed": True,
-            "plan_approved": True,
-            "orchestration_ready": True,
-            "implementation_complete": True,
-        }
-        config = EffectiveConfig({"schema_version": "2.3"}, Path.cwd())
         for evidence_id, category, reference in references[1:]:
             recorded = provider.record(
                 record_from_authority(authority, evidence_id, category, reference),
@@ -1184,21 +1177,16 @@ class WorkflowEndToEndTests(unittest.TestCase):
             self.assertIs(OperationStatus.SUCCESS, recorded.status)
 
         incomplete = provider.completeness("track-7", identity).value
-        verify = route_next_stage({**state, "verification_passed": incomplete.complete}, config)
         self.assertFalse(incomplete.complete)
         self.assertEqual(("tests",), incomplete.missing_categories)
-        self.assertEqual("verify", verify.stage)
 
         tests_record = record_from_authority(
             authority, "tests-passed", EvidenceCategory.TESTS, "worker-e2e"
         )
         provider.record(tests_record, idempotency_key="tests-passed")
         complete = provider.completeness("track-7", identity).value
-        ship = route_next_stage({**state, "verification_passed": complete.complete}, config)
-
         self.assertTrue(complete.complete)
         self.assertEqual((), complete.missing_categories)
-        self.assertEqual("ship", ship.stage)
 
 
 if __name__ == "__main__":

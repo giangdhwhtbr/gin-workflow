@@ -44,6 +44,9 @@ class GateCase(unittest.TestCase):
     def record(self, gate: str, evidence: str = PR, *extra: str):
         return run_cli(self.root, "record", gate, "--evidence", evidence, "--workflow-id", "w", *extra, env=self.env)
 
+    def check_ship(self, evidence: str = PR):
+        return run_cli(self.root, "team", "check", evidence, "--gate", "ship", env=self.env)
+
     def events(self) -> list[dict]:
         path = self.root / ".agent-workflow/runtime/events.jsonl"
         return [json.loads(line) for line in path.read_text().splitlines()] if path.is_file() else []
@@ -100,18 +103,30 @@ class TestRecordGitHub(GateCase):
         self.assertEqual(1, result.returncode)
         self.assertIn(f"PR does not change {PLAN_PATH}", result.stderr)
 
-    def test_verification_needs_qe_approval_on_local_head(self):
+    def test_ship_needs_qe_approval_on_local_head(self):
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "feat: x")
         head = git(self.root, "rev-parse", "HEAD").strip()
         self.gh(gh_pr(state="OPEN", head=head, reviews=[("dung-qe", "APPROVED", "old")]))
-        result = self.record("verification-passed")
+        result = self.check_ship()
         self.assertEqual(1, result.returncode)
-        self.assertIn("missing approval from one of qe", result.stderr)
+        self.assertIn("missing approval from one of qe", result.stdout)
         self.gh(gh_pr(state="OPEN", head="f" * 40, reviews=[("dung-qe", "APPROVED", "f" * 40)]))
-        self.assertIn("is not local HEAD", self.record("verification-passed").stderr)
+        self.assertIn("is not local HEAD", self.check_ship().stdout)
         self.gh(gh_pr(state="OPEN", head=head, reviews=[("dung-qe", "APPROVED", head)]))
-        self.assertEqual(0, self.record("verification-passed").returncode)
+        self.assertEqual(0, self.check_ship().returncode)
+
+    def test_deprecated_verification_passed_key_maps_to_ship(self):
+        team = TEAM.format(host="github").replace("    ship: [qe]\n", "    verification_passed: [qe]\n")
+        root = make_team_repo(Path(self.tmp.name) / "legacy-repo", team=team)
+        git(root, "add", "-A")
+        git(root, "commit", "-q", "-m", "feat: x")
+        head = git(root, "rev-parse", "HEAD").strip()
+        self.gh(gh_pr(state="OPEN", head=head, reviews=[]))
+        result = run_cli(root, "team", "check", PR, "--gate", "ship", env=self.env)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from one of qe", result.stdout)
+        self.assertIn("team.approvals.verification_passed is deprecated", result.stderr)
 
     def test_gate_without_policy_records_member_email(self):
         result = self.record("orchestration-ready", "beads", "--epic", "ep-1")
@@ -202,14 +217,14 @@ class TestRecordGitHub(GateCase):
         self.assertIn("unknown area nowhere", result.stderr)
         self.assertEqual([], self.events())
 
-    def test_verification_ignores_approval_without_commit(self):
+    def test_ship_ignores_approval_without_commit(self):
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "feat: x")
         head = git(self.root, "rev-parse", "HEAD").strip()
         self.gh(gh_pr(state="OPEN", head=head, reviews=[("dung-qe", "APPROVED", "")]))
-        result = self.record("verification-passed")
+        result = self.check_ship()
         self.assertEqual(1, result.returncode)
-        self.assertIn("missing approval from one of qe", result.stderr)
+        self.assertIn("missing approval from one of qe", result.stdout)
 
 
 class TestWaivers(GateCase):
@@ -226,7 +241,7 @@ class TestWaivers(GateCase):
 
 ROADMAP_TEAM = TEAM.format(host="github").replace(
     "    em@corp.com:", "    lan@corp.com: {roles: [pm], login: lan-pm}\n    em@corp.com:").replace(
-    "    verification_passed: [qe]\n", "    verification_passed: [qe]\n    roadmap: [pm]\n")
+    "    ship: [qe]\n", "    ship: [qe]\n    roadmap: [pm]\n")
 ROADMAP_PATH = ".planning/roadmap.md"
 
 
@@ -270,8 +285,8 @@ class TestRoadmapApproval(GateCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_roadmap_role_held_by_no_member_is_a_config_error(self):
-        team = TEAM.format(host="github").replace("    verification_passed: [qe]\n",
-                                                  "    verification_passed: [qe]\n    roadmap: [pm]\n")
+        team = TEAM.format(host="github").replace("    ship: [qe]\n",
+                                                  "    ship: [qe]\n    roadmap: [pm]\n")
         root = make_team_repo(Path(self.tmp.name) / "no-pm-repo", team=team)
         result = run_cli(root, "team", "check", PR, "--gate", "roadmap", env=self.env)
         self.assertEqual(2, result.returncode)
@@ -309,20 +324,20 @@ class TestRecordGitLab(GateCase):
         self.glab(state="opened", approvers=["an-ba"])
         self.assertIn("PR is open, not merged", self.record("requirement-confirmed", MR).stderr)
 
-    def test_verification_needs_reset_on_push(self):
+    def test_ship_needs_reset_on_push(self):
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "feat: x")
         head = git(self.root, "rev-parse", "HEAD").strip()
         common = {"head": head, "state": "opened", "approvers": ["dung-qe"]}
         self.glab(reset=False, **common)
-        self.assertIn("reset_approvals_on_push", self.record("verification-passed", MR).stderr)
+        self.assertIn("reset_approvals_on_push", (lambda r: r.stdout + r.stderr)(self.check_ship(MR)))
         self.glab(status="approvals_syncing", **common)
-        self.assertIn("approvals still syncing; retry", self.record("verification-passed", MR).stderr)
+        self.assertIn("approvals still syncing; retry", (lambda r: r.stdout + r.stderr)(self.check_ship(MR)))
         self.glab(patch=None, **common)
-        self.assertIn("approvals still syncing; retry", self.record("verification-passed", MR).stderr)
+        self.assertIn("approvals still syncing; retry", (lambda r: r.stdout + r.stderr)(self.check_ship(MR)))
         self.assertEqual([], self.events())
         self.glab(**common)
-        result = self.record("verification-passed", MR)
+        result = self.check_ship(MR)
         self.assertEqual(0, result.returncode, result.stderr)
 
     def test_head_change_between_reads_is_unsettled(self):
