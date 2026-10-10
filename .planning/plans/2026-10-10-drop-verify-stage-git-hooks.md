@@ -371,7 +371,7 @@ fi
             actions.extend(f"hooks: {name} is {state}; run gin-workflow hooks install"
                            for name, state in states.items() if state != "ok")
 ```
-   (informational: does not flip `checks`, so `healthy` is unchanged.) Add one test in `test_hooks.py` calling `setup_service.doctor(repository=root)` hmm: assert `"hooks"` in `payload["checks_details"]` and an action exists when not installed. Run the whole `tests/workflow_core/test_setup_cli.py` to confirm nothing regressed.
+   (informational: does not flip `checks`, so `healthy` is unchanged.) Add one test in `test_hooks.py` calling `setup_service.doctor(repository=root)`; assert `"hooks"` in `payload["checks_details"]` and an action exists when not installed. Run the whole `tests/workflow_core/test_setup_cli.py` to confirm nothing regressed.
 7. `skills/setup/SKILL.md`: add to the maintenance/initialization section: "After configuring `verify.checks`, run `gin-workflow hooks install`; if it reports `occupied`, show the user the chaining line it prints." Commit if authorized.
 
 ### Track 2: Remove the verify gate and stage; move team approval to `ship`
