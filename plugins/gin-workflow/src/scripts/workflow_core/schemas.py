@@ -192,6 +192,11 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "properties": {"max_files": {"type": "integer", "minimum": 1}},
             "additionalProperties": False,
         },
+        "clarify": {
+            "type": "object",
+            "properties": {"max_questions": {"type": "integer", "minimum": 1}},
+            "additionalProperties": False,
+        },
         "team": _TEAM,
         "qa": {
             "type": "object",

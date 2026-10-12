@@ -72,6 +72,10 @@ Rigor presets:
 
 `max_files` (default 5): the largest change `/quick` accepts; it also accepts only one module.
 
+### `clarify`
+
+`max_questions` (default 8): cap on clarifying questions in `/discuss` and `/roadmap`; at the cap the agent proposes splitting the scope into smaller epics or lists the rest as assumptions.
+
 ### `artifacts`
 
 | Key | Default | Meaning |

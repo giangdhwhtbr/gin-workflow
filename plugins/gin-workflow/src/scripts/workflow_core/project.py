@@ -33,6 +33,7 @@ class ProjectSettings:
     review_ledger: bool = False
     max_cycles: int = 2
     quick_max_files: int = 5
+    max_questions: int = 8
     layout: str = "legacy"
     spec_review: str = "chat"
 
@@ -70,6 +71,7 @@ def project_settings(config: Mapping[str, Any]) -> ProjectSettings:
         review_ledger=bool(project.get("review_ledger", preset["review_ledger"])),
         max_cycles=int(review.get("max_cycles", preset["max_cycles"])),
         quick_max_files=int(_section(config, "quick").get("max_files", 5)),
+        max_questions=int(_section(config, "clarify").get("max_questions", 8)),
         layout=str(_section(config, "artifacts").get("layout", "legacy")),
         spec_review=str(_section(config, "artifacts").get("spec_review", "chat")),
     )

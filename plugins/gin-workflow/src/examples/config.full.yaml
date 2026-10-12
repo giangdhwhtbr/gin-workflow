@@ -24,6 +24,9 @@ verify:
 quick:
   max_files: 5
 
+clarify:
+  max_questions: 8
+
 artifacts:
   plans: .planning/plans
   beads: .beads

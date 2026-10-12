@@ -25,11 +25,14 @@ class TestProjectSettings(unittest.TestCase):
             "verify": {"checks": {"lint": "pnpm run lint", "e2e": ""}},
             "routing": {"review": {"independence": "session", "max_cycles": 2}},
             "quick": {"max_files": 7},
+            "clarify": {"max_questions": 5},
         })
         self.assertEqual("frontend", settings.shape)
         self.assertEqual("session", settings.independence)
         self.assertEqual({"lint": "pnpm run lint"}, settings.verify_commands)
         self.assertEqual(7, settings.quick_max_files)
+        self.assertEqual(5, settings.max_questions)
+        self.assertEqual(8, project_settings({}).max_questions)
 
     def test_both_versions_validate_and_bad_enum_fails(self):
         validate_portable_config({"schema_version": "2.3"})

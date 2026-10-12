@@ -18,7 +18,8 @@ Turn a requirement into a confirmed design. The user starts with an idea, not a 
 ## Steps
 
 1. **Explore context** — relevant files, docs, recent commits. If the request spans several independent subsystems, say so first and help decompose into sub-projects (each gets its own spec → plan → implementation); then discuss only the first.
-2. **Clarify** — one question per message, multiple choice when possible. Cover purpose, constraints, success criteria, edge cases, risks, dependencies, and assumptions.
+2. **Clarify** — one question per message, multiple choice when possible. `project.max_questions` (`gin-workflow state --format json`, default 8) caps your clarifying questions in total; put a question with a sensible default into the spec as an assumption instead of asking it. At the cap, stop, say the scope is too large or unclear, and propose splitting it into smaller epics or list the remaining answers as assumptions for one review.
+   Cover purpose, constraints, success criteria, edge cases, risks, dependencies, and assumptions.
 3. **Propose 2–3 approaches** — trade-offs, lead with your recommendation and why. Challenge assumptions that create risk. YAGNI.
 4. **Present the design** in sections scaled to complexity (a few sentences up to ~300 words); confirm each section before moving on. Cover architecture, components, data flow, error handling, testing. Prefer small units with one purpose and clear interfaces; in existing code follow existing patterns and include only targeted improvements that serve the goal.
 5. **Write the spec** to `.planning/specs/YYYY-MM-DD-<topic>-design.md` from `gin-workflow specs template design-spec.md` (`Epic: <id>` for a roadmap epic), with user stories from `specs template user-story.md`. Commit it on a feature branch, never on `main`/`master`.
