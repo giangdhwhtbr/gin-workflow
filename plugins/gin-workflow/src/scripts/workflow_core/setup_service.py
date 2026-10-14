@@ -527,6 +527,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 checks_details["providers"] = provider_details
     else:
         if required_providers or needs_main_harness_check:
+            # Deliberately flag missing file to nudge explicit setup even though runtime supports single-mode fallback.
             checks["providers"] = False
             checks_details["providers_config"] = {
                 "valid": False,
