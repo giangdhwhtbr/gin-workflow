@@ -166,22 +166,15 @@ def initialize(
             _set_nested(provider_config, path, value)
         validate_provider_local_config(provider_config)
 
-    provider_mode = config.get("provider_mode")
-    roles = config.get("routing", {}).get("roles", {}) if isinstance(config.get("routing"), dict) else {}
-    needs_main_harness = provider_mode == "single" or any(
-        "main_harness" in role.get("preferred", []) or "main_harness" in role.get("fallback", [])
-        for role in roles.values()
-        if isinstance(role, dict)
-    )
-    resolved_harness = harness or config.get("harness")
-    if not resolved_harness and needs_main_harness:
-        resolved_harness = detect(root).get("harness")
-
-    if needs_main_harness and resolved_harness and resolved_harness in DEFAULT_HARNESS_MODELS:
-        if provider_config is None:
-            provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
-        if resolved_harness not in provider_config["providers"]:
-            provider_config["providers"][resolved_harness] = default_provider_config(resolved_harness)
+    if config.get("provider_mode") == "single":
+        resolved_harness = harness or config.get("harness")
+        if not resolved_harness:
+            resolved_harness = detect(root).get("harness")
+        if resolved_harness and resolved_harness in DEFAULT_HARNESS_MODELS:
+            if provider_config is None:
+                provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
+            if resolved_harness not in provider_config["providers"]:
+                provider_config["providers"][resolved_harness] = default_provider_config(resolved_harness)
     resolved = resolve_effective_config(root, repository_config=config, write=False)
     config_text = _yaml_text(config)
     if dry_run:
@@ -370,6 +363,34 @@ def status(repository: Path, **_: Any) -> dict[str, Any]:
     }
 
 
+def _inspect_required_providers(
+    roles: Any,
+    harness: str | None,
+) -> tuple[set[str], bool]:
+    required: set[str] = set()
+    needs_main = False
+    if not isinstance(roles, Mapping):
+        return required, needs_main
+    for role_entry in roles.values():
+        if not isinstance(role_entry, Mapping):
+            continue
+        for key in ("preferred", "fallback"):
+            items = role_entry.get(key)
+            candidates: list[str] = []
+            if isinstance(items, (list, tuple)):
+                candidates = [str(x) for x in items if x is not None]
+            elif isinstance(items, str) and items:
+                candidates = [items]
+            for cand in candidates:
+                if cand == "main_harness":
+                    needs_main = True
+                    if harness:
+                        required.add(harness)
+                else:
+                    required.add(cand)
+    return required, needs_main
+
+
 def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
@@ -377,29 +398,21 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
     checks_details: dict[str, Any] = {}
     config = root / ".agent-workflow/config.yaml"
     checks["initialized"] = config.is_file()
+    effective_cfg: dict[str, Any] = {}
     if config.is_file():
-        resolve_effective_config(root, write=False)
+        effective_cfg = resolve_effective_config(root, write=False).config.to_dict()
         checks["configuration"] = True
 
     provider_actions: list[str] = []
-    required_providers: set[str] = set()
-    needs_main_harness_check = False
-    detected_harness: str | None = None
-    if checks["configuration"]:
-        effective_cfg = resolve_effective_config(root, write=False).config.to_dict()
-        roles_map = effective_cfg.get("routing", {}).get("roles", {}) if isinstance(effective_cfg.get("routing"), Mapping) else {}
-        detected_harness = effective_cfg.get("harness") or detect(root).get("harness")
-        if isinstance(roles_map, Mapping):
-            for role_entry in roles_map.values():
-                if isinstance(role_entry, Mapping):
-                    for cand in (*role_entry.get("preferred", ()), *role_entry.get("fallback", ())):
-                        cand_str = str(cand)
-                        if cand_str == "main_harness":
-                            needs_main_harness_check = True
-                            if detected_harness:
-                                required_providers.add(detected_harness)
-                        else:
-                            required_providers.add(cand_str)
+    detected_harness = effective_cfg.get("harness") or detect(root).get("harness")
+    roles_map = effective_cfg.get("routing", {}).get("roles", {}) if isinstance(effective_cfg.get("routing"), Mapping) else {}
+    required_providers, needs_main_harness_check = _inspect_required_providers(roles_map, detected_harness)
+
+    def _missing_provider_action(provider: str, is_main: bool) -> str:
+        if is_main:
+            target = detected_harness or "configured harness"
+            return f"roles route to main_harness but no local mapping for {target}"
+        return f"roles route to {provider} but no local mapping for {provider}"
 
     providers_file = root / ".agent-workflow/providers.local.yaml"
     if providers_file.is_file():
@@ -414,24 +427,22 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         providers_map = p_data.get("providers", {}) if isinstance(p_data, Mapping) else {}
         all_providers_healthy = True
         provider_details: dict[str, Any] = {}
-        if required_providers:
+        if required_providers or needs_main_harness_check:
+            if needs_main_harness_check and (not detected_harness or detected_harness not in providers_map):
+                all_providers_healthy = False
+                provider_actions.append(_missing_provider_action(detected_harness or "", True))
+                provider_details[f"{detected_harness or 'main_harness'}.mapping"] = {
+                    "available": False,
+                    "reason": "missing_local_provider_mapping",
+                }
             for p in sorted(required_providers):
-                if p not in providers_map:
+                if p != detected_harness and p not in providers_map:
                     all_providers_healthy = False
-                    if needs_main_harness_check and p == detected_harness:
-                        provider_actions.append(
-                            f"roles route to main_harness but no local mapping for {detected_harness}"
-                        )
-                        provider_details[f"{detected_harness}.mapping"] = {
-                            "available": False,
-                            "reason": "missing_local_provider_mapping",
-                        }
-                    else:
-                        provider_actions.append(f"roles route to {p} but no local mapping for {p}")
-                        provider_details[f"{p}.mapping"] = {
-                            "available": False,
-                            "reason": "missing_local_provider_mapping",
-                        }
+                    provider_actions.append(_missing_provider_action(p, False))
+                    provider_details[f"{p}.mapping"] = {
+                        "available": False,
+                        "reason": "missing_local_provider_mapping",
+                    }
         if providers_map:
             if probe:
                 from workflow_providers.claude_worker import claude_health
@@ -515,23 +526,21 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             if provider_details:
                 checks_details["providers"] = provider_details
     else:
-        if required_providers:
+        if required_providers or needs_main_harness_check:
             checks["providers"] = False
             checks_details["providers_config"] = {
                 "valid": False,
                 "error": f"provider local configuration does not exist: {providers_file}",
             }
             if needs_main_harness_check:
-                provider_actions.append(
-                    f"roles route to main_harness but no local mapping for {detected_harness or 'main_harness'}"
-                )
+                provider_actions.append(_missing_provider_action(detected_harness or "", True))
             for p in sorted(required_providers):
-                if not (needs_main_harness_check and p == detected_harness):
-                    provider_actions.append(f"roles route to {p} but no local mapping for {p}")
+                if p != detected_harness:
+                    provider_actions.append(_missing_provider_action(p, False))
 
     hook_actions: list[str] = []
     if checks["configuration"]:
-        settings = project_settings(resolve_effective_config(root, write=False).config.to_dict())
+        settings = project_settings(effective_cfg)
         missing = [k for k in ("lint", "typecheck", "test", "build") if not settings.verify_commands.get(k)]
         checks_details["verify_commands"] = {"missing": missing}
         if settings.verify_commands:
@@ -578,7 +587,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
     if checks["configuration"]:
         from .rules_checks import rules_doctor
 
-        effective = resolve_effective_config(root, write=False).config.to_dict()
+        effective = effective_cfg
         rules_detail = rules_doctor(root, effective)
         checks_details["rules"] = rules_detail
         for item in rules_detail.get("tool_checks", []):

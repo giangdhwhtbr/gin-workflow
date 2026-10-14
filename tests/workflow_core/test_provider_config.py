@@ -307,6 +307,21 @@ class ProviderLocalConfigTests(unittest.TestCase):
             with self.assertRaises(module.ProviderLocalConfigError):
                 module.load_provider_local_config(repository)
 
+    def test_load_provider_local_config_raises_on_invalid_or_corrupt_config(self):
+        module = self.provider_config()
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+
+            # Corrupt/invalid YAML in config.yaml
+            (workflow / "config.yaml").write_text(
+                "schema_version: [\nunclosed array\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(module.ProviderLocalConfigError, "failed to load effective configuration"):
+                module.load_provider_local_config(repository)
+
 
 if __name__ == "__main__":
     unittest.main()

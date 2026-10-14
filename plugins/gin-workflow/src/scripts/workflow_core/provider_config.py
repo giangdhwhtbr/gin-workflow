@@ -221,15 +221,19 @@ def load_provider_local_config(repository: Path) -> Mapping[str, ProviderModelCo
     root = main_checkout(Path(repository).resolve())
     path = root / ".agent-workflow/providers.local.yaml"
     if not path.is_file():
+        effective_path = root / ".agent-workflow/generated/effective-config.yaml"
         config_path = root / ".agent-workflow/config.yaml"
-        if config_path.is_file():
-            yaml = require_yaml()
+        if effective_path.is_file() or config_path.is_file():
+            from .configuration import resolve_effective_config
+
             try:
-                loaded_cfg = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-            except Exception:
-                loaded_cfg = {}
-            if loaded_cfg.get("provider_mode") == "single":
-                harness = loaded_cfg.get("harness")
+                effective = resolve_effective_config(root, write=False).config
+            except Exception as error:
+                raise ProviderLocalConfigError(
+                    f"failed to load effective configuration while resolving default harness: {error}"
+                ) from error
+            if effective.get("provider_mode") == "single":
+                harness = effective.get("harness")
                 if not harness:
                     from .project_detect import detect_project
 

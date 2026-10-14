@@ -311,6 +311,38 @@ class AssignmentTests(unittest.TestCase):
                     self.assertEqual(expected_model, candidates[0].model)
                     self.assertEqual(expected_effort, candidates[0].effort)
 
+    def test_resolve_assignment_falls_back_to_harness_default_even_when_other_providers_present(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            cfg = EffectiveConfig(
+                {
+                    "schema_version": "2.2",
+                    "harness": "claude",
+                    "provider_mode": "single",
+                    "routing": {
+                        "roles": {
+                            "backend": {
+                                "preferred": ["main_harness"],
+                            }
+                        }
+                    },
+                },
+                repository,
+            )
+            # local has opencode configured, but NOT claude
+            other_local = {
+                "opencode": ProviderModelConfig(
+                    provider="opencode",
+                    executable="opencode",
+                    models={"medium": "provider_default"},
+                )
+            }
+            request = AssignmentRequest("task-1", "backend", "medium", "claude", "wf-1")
+            candidates = resolve_assignment(request, cfg, other_local)
+            self.assertEqual(1, len(candidates))
+            self.assertEqual("claude", candidates[0].provider)
+            self.assertEqual("sonnet", candidates[0].model)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -703,6 +703,34 @@ class SetupCliTests(unittest.TestCase):
             self.assertIn("medium: sonnet", content)
             self.assertIn("low: haiku", content)
 
+    def test_multi_mode_init_does_not_create_default_provider_mapping_without_provider_set(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            preset_run = self.run_cli(
+                repository,
+                "preset",
+                "--project-stage", "brownfield",
+                "--project-shape", "fullstack",
+                "--rigor", "standard",
+                "--provider-mode", "multi",
+            )
+            self.assertEqual(0, preset_run.returncode, preset_run.stderr)
+            assignments = json.loads(preset_run.stdout)["assignments"]
+            set_flags = []
+            for item in assignments:
+                set_flags.extend(["--set", item])
+
+            dry = self.run_cli(repository, "init", "--dry-run", "--harness", "claude", *set_flags)
+            self.assertEqual(0, dry.returncode, dry.stderr)
+            dry_payload = json.loads(dry.stdout)
+            self.assertNotIn("provider_configuration", dry_payload)
+            self.assertNotIn("create .agent-workflow/providers.local.yaml", dry_payload["actions"])
+
+            init_run = self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude", *set_flags)
+            self.assertEqual(0, init_run.returncode, init_run.stderr)
+            prov_file = repository / ".agent-workflow/providers.local.yaml"
+            self.assertFalse(prov_file.exists())
+
     def test_doctor_flags_roles_route_to_main_harness_when_local_mapping_missing(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
