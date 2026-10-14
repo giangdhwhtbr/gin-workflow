@@ -18,6 +18,55 @@ PROVIDER_DEFAULT = "provider_default"
 PROVIDER_DEFAULT_PROVIDERS = frozenset({"antigravity", "opencode"})
 CODEX_EFFORT_VALUES = frozenset({"low", "medium", "high", "xhigh"})
 
+DEFAULT_HARNESS_MODELS: Mapping[str, Mapping[str, Any]] = MappingProxyType({
+    "claude": {
+        "executable": "claude",
+        "models": {"low": "haiku", "medium": "sonnet", "high": "opus"},
+    },
+    "antigravity": {
+        "executable": "agy",
+        "models": {
+            "low": PROVIDER_DEFAULT,
+            "medium": PROVIDER_DEFAULT,
+            "high": PROVIDER_DEFAULT,
+        },
+    },
+    "opencode": {
+        "executable": "opencode",
+        "models": {
+            "low": PROVIDER_DEFAULT,
+            "medium": PROVIDER_DEFAULT,
+            "high": PROVIDER_DEFAULT,
+        },
+    },
+    "codex": {
+        "executable": "codex",
+        "models": {
+            "low": {"model": "gpt-6-astra", "effort": "low"},
+            "medium": {"model": "gpt-6-astra", "effort": "medium"},
+            "high": {"model": "gpt-6-astra", "effort": "high"},
+        },
+    },
+})
+
+
+def default_provider_config(harness: str) -> dict[str, Any]:
+    if harness not in DEFAULT_HARNESS_MODELS:
+        raise ProviderLocalConfigError(f"unknown harness for default provider mapping: {harness}")
+    return {
+        "executable": DEFAULT_HARNESS_MODELS[harness]["executable"],
+        "models": dict(DEFAULT_HARNESS_MODELS[harness]["models"]),
+    }
+
+
+def default_provider_model_config(harness: str) -> ProviderModelConfig:
+    data = default_provider_config(harness)
+    return ProviderModelConfig(
+        provider=harness,
+        executable=data["executable"],
+        models=data["models"],
+    )
+
 
 class ProviderLocalConfigError(ValueError):
     """Raised when native executable/model mappings are missing or unsafe."""
@@ -169,8 +218,24 @@ def validate_provider_local_config(value: Mapping[str, Any]) -> None:
 
 
 def load_provider_local_config(repository: Path) -> Mapping[str, ProviderModelConfig]:
-    path = main_checkout(Path(repository).resolve()) / ".agent-workflow/providers.local.yaml"
+    root = main_checkout(Path(repository).resolve())
+    path = root / ".agent-workflow/providers.local.yaml"
     if not path.is_file():
+        config_path = root / ".agent-workflow/config.yaml"
+        if config_path.is_file():
+            yaml = require_yaml()
+            try:
+                loaded_cfg = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                loaded_cfg = {}
+            if loaded_cfg.get("provider_mode") == "single":
+                harness = loaded_cfg.get("harness")
+                if not harness:
+                    from .project_detect import detect_project
+
+                    harness = detect_project(root).get("harness")
+                if harness and harness in DEFAULT_HARNESS_MODELS:
+                    return MappingProxyType({harness: default_provider_model_config(harness)})
         raise ProviderLocalConfigError(f"provider local configuration does not exist: {path}")
     yaml = require_yaml()
     try:

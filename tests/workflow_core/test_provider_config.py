@@ -263,6 +263,50 @@ class ProviderLocalConfigTests(unittest.TestCase):
         self.assertEqual(with_effort, module.TierModelTarget("gpt-4o", "medium"))
         self.assertNotEqual(with_effort, module.TierModelTarget("gpt-4o", "high"))
 
+    def test_default_provider_config_returns_valid_config_for_all_harnesses(self):
+        module = self.provider_config()
+        for harness in ("claude", "antigravity", "opencode", "codex"):
+            with self.subTest(harness=harness):
+                data = module.default_provider_config(harness)
+                module.validate_provider_local_config(
+                    {"schema_version": "2.3", "providers": {harness: data}}
+                )
+                model_cfg = module.default_provider_model_config(harness)
+                self.assertEqual(harness, model_cfg.provider)
+                self.assertIn("medium", model_cfg.models)
+
+        with self.assertRaisesRegex(module.ProviderLocalConfigError, "unknown harness"):
+            module.default_provider_config("unknown-harness")
+
+    def test_load_provider_local_config_falls_back_to_harness_default_in_single_mode(self):
+        module = self.provider_config()
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+
+            # Missing config and missing providers.local.yaml -> raises
+            with self.assertRaises(module.ProviderLocalConfigError):
+                module.load_provider_local_config(repository)
+
+            # Config with provider_mode=single and harness=claude -> falls back to default mapping
+            (workflow / "config.yaml").write_text(
+                "schema_version: '2.3'\nharness: claude\nprovider_mode: single\n",
+                encoding="utf-8",
+            )
+            providers = module.load_provider_local_config(repository)
+            self.assertIn("claude", providers)
+            self.assertEqual("claude", providers["claude"].executable)
+            self.assertEqual("sonnet", providers["claude"].models["medium"])
+
+            # Config with provider_mode=multi -> still raises
+            (workflow / "config.yaml").write_text(
+                "schema_version: '2.3'\nharness: claude\nprovider_mode: multi\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(module.ProviderLocalConfigError):
+                module.load_provider_local_config(repository)
+
 
 if __name__ == "__main__":
     unittest.main()

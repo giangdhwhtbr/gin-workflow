@@ -667,6 +667,83 @@ class SetupCliTests(unittest.TestCase):
             self.assertIn("closed-bead", payload["checks_details"]["review_ledgers"]["stale_beads"])
             self.assertTrue(any("review-ledger.py cleanup --all-closed" in action for action in payload["actions"]))
 
+    def test_single_mode_init_creates_default_provider_mapping_without_provider_set(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            preset_run = self.run_cli(
+                repository,
+                "preset",
+                "--project-stage", "brownfield",
+                "--project-shape", "fullstack",
+                "--rigor", "standard",
+                "--provider-mode", "single",
+            )
+            self.assertEqual(0, preset_run.returncode, preset_run.stderr)
+            assignments = json.loads(preset_run.stdout)["assignments"]
+            set_flags = []
+            for item in assignments:
+                set_flags.extend(["--set", item])
+
+            # Dry run previews provider config
+            dry = self.run_cli(repository, "init", "--dry-run", "--harness", "claude", *set_flags)
+            self.assertEqual(0, dry.returncode, dry.stderr)
+            dry_payload = json.loads(dry.stdout)
+            self.assertIn("provider_configuration", dry_payload)
+            self.assertIn("claude", dry_payload["provider_configuration"]["providers"])
+            self.assertEqual("opus", dry_payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
+            self.assertIn("create .agent-workflow/providers.local.yaml", dry_payload["actions"])
+
+            # Approved init writes providers.local.yaml
+            init_run = self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude", *set_flags)
+            self.assertEqual(0, init_run.returncode, init_run.stderr)
+            prov_file = repository / ".agent-workflow/providers.local.yaml"
+            self.assertTrue(prov_file.is_file())
+            content = prov_file.read_text(encoding="utf-8")
+            self.assertIn("high: opus", content)
+            self.assertIn("medium: sonnet", content)
+            self.assertIn("low: haiku", content)
+
+    def test_doctor_flags_roles_route_to_main_harness_when_local_mapping_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(
+                0,
+                self.run_cli(
+                    repository,
+                    "init",
+                    "--approve",
+                    "--non-interactive",
+                    "--harness",
+                    "claude",
+                    "--set",
+                    'provider_mode="single"',
+                    "--set",
+                    'routing.roles.backend={"preferred":["main_harness"]}',
+                ).returncode,
+            )
+            prov_file = repository / ".agent-workflow/providers.local.yaml"
+            self.assertTrue(prov_file.is_file())
+
+            # Remove providers.local.yaml
+            prov_file.unlink()
+            doc_res = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, doc_res.returncode, doc_res.stderr)
+            doc_payload = json.loads(doc_res.stdout)
+            self.assertEqual("issues_found", doc_payload["status"])
+            self.assertFalse(doc_payload["checks"]["providers"])
+            self.assertTrue(any("roles route to main_harness but no local mapping for claude" in a for a in doc_payload["actions"]))
+
+            # Create providers.local.yaml with only codex (missing claude)
+            prov_file.write_text(
+                "schema_version: '2.3'\nproviders:\n  codex:\n    executable: codex\n    models:\n      low: mini\n      medium: coding\n      high: reasoning\n",
+                encoding="utf-8",
+            )
+            doc_res2 = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, doc_res2.returncode, doc_res2.stderr)
+            doc_payload2 = json.loads(doc_res2.stdout)
+            self.assertFalse(doc_payload2["checks"]["providers"])
+            self.assertTrue(any("roles route to main_harness but no local mapping for claude" in a for a in doc_payload2["actions"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,7 +20,11 @@ from .migrations import (
     rollback_migration,
 )
 from .executable_resolver import resolve_harness_executable
-from .provider_config import validate_provider_local_config
+from .provider_config import (
+    DEFAULT_HARNESS_MODELS,
+    default_provider_config,
+    validate_provider_local_config,
+)
 from .schemas import require_jsonschema
 
 
@@ -161,6 +165,23 @@ def initialize(
             path, value = _parse_assignment(assignment)
             _set_nested(provider_config, path, value)
         validate_provider_local_config(provider_config)
+
+    provider_mode = config.get("provider_mode")
+    roles = config.get("routing", {}).get("roles", {}) if isinstance(config.get("routing"), dict) else {}
+    needs_main_harness = provider_mode == "single" or any(
+        "main_harness" in role.get("preferred", []) or "main_harness" in role.get("fallback", [])
+        for role in roles.values()
+        if isinstance(role, dict)
+    )
+    resolved_harness = harness or config.get("harness")
+    if not resolved_harness and needs_main_harness:
+        resolved_harness = detect(root).get("harness")
+
+    if needs_main_harness and resolved_harness and resolved_harness in DEFAULT_HARNESS_MODELS:
+        if provider_config is None:
+            provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
+        if resolved_harness not in provider_config["providers"]:
+            provider_config["providers"][resolved_harness] = default_provider_config(resolved_harness)
     resolved = resolve_effective_config(root, repository_config=config, write=False)
     config_text = _yaml_text(config)
     if dry_run:
@@ -360,6 +381,26 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         resolve_effective_config(root, write=False)
         checks["configuration"] = True
 
+    provider_actions: list[str] = []
+    required_providers: set[str] = set()
+    needs_main_harness_check = False
+    detected_harness: str | None = None
+    if checks["configuration"]:
+        effective_cfg = resolve_effective_config(root, write=False).config.to_dict()
+        roles_map = effective_cfg.get("routing", {}).get("roles", {}) if isinstance(effective_cfg.get("routing"), Mapping) else {}
+        detected_harness = effective_cfg.get("harness") or detect(root).get("harness")
+        if isinstance(roles_map, Mapping):
+            for role_entry in roles_map.values():
+                if isinstance(role_entry, Mapping):
+                    for cand in (*role_entry.get("preferred", ()), *role_entry.get("fallback", ())):
+                        cand_str = str(cand)
+                        if cand_str == "main_harness":
+                            needs_main_harness_check = True
+                            if detected_harness:
+                                required_providers.add(detected_harness)
+                        else:
+                            required_providers.add(cand_str)
+
     providers_file = root / ".agent-workflow/providers.local.yaml"
     if providers_file.is_file():
         yaml = require_yaml()
@@ -371,9 +412,27 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             checks_details["providers_config"] = {"valid": False, "error": str(error)}
             p_data = {}
         providers_map = p_data.get("providers", {}) if isinstance(p_data, Mapping) else {}
+        all_providers_healthy = True
+        provider_details: dict[str, Any] = {}
+        if required_providers:
+            for p in sorted(required_providers):
+                if p not in providers_map:
+                    all_providers_healthy = False
+                    if needs_main_harness_check and p == detected_harness:
+                        provider_actions.append(
+                            f"roles route to main_harness but no local mapping for {detected_harness}"
+                        )
+                        provider_details[f"{detected_harness}.mapping"] = {
+                            "available": False,
+                            "reason": "missing_local_provider_mapping",
+                        }
+                    else:
+                        provider_actions.append(f"roles route to {p} but no local mapping for {p}")
+                        provider_details[f"{p}.mapping"] = {
+                            "available": False,
+                            "reason": "missing_local_provider_mapping",
+                        }
         if providers_map:
-            all_providers_healthy = True
-            provider_details: dict[str, Any] = {}
             if probe:
                 from workflow_providers.claude_worker import claude_health
                 from workflow_providers.codex_worker import codex_health
@@ -451,9 +510,24 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                             "available": True,
                             "reason": "executable_found",
                         }
+        if providers_map or required_providers:
             checks["providers"] = all_providers_healthy
             if provider_details:
                 checks_details["providers"] = provider_details
+    else:
+        if required_providers:
+            checks["providers"] = False
+            checks_details["providers_config"] = {
+                "valid": False,
+                "error": f"provider local configuration does not exist: {providers_file}",
+            }
+            if needs_main_harness_check:
+                provider_actions.append(
+                    f"roles route to main_harness but no local mapping for {detected_harness or 'main_harness'}"
+                )
+            for p in sorted(required_providers):
+                if not (needs_main_harness_check and p == detected_harness):
+                    provider_actions.append(f"roles route to {p} but no local mapping for {p}")
 
     hook_actions: list[str] = []
     if checks["configuration"]:
@@ -479,7 +553,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             graph["suggestion"] = "codegraph index is older than HEAD; run `codegraph sync`"
         checks_details["codegraph"] = graph
 
-    actions: list[str] = list(hook_actions)
+    actions: list[str] = [*provider_actions, *hook_actions]
     checks["review_ledgers"] = True
     planning_dir = root / ".planning"
     if planning_dir.is_dir():

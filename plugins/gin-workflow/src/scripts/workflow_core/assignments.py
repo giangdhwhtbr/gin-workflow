@@ -15,10 +15,12 @@ from .checkout import main_checkout
 from .configuration import require_yaml
 from .models import EffectiveConfig
 from .provider_config import (
+    DEFAULT_HARNESS_MODELS,
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderModelConfig,
     REASONING_TIERS,
+    default_provider_model_config,
 )
 
 
@@ -183,8 +185,11 @@ def resolve_assignment(
     for provider, is_fallback in ordered:
         provider_config = local.get(provider)
         if provider_config is None:
-            errors.append(f"missing local provider mapping: {provider}")
-            continue
+            if config.get("provider_mode") == "single" and provider == request.main_harness and provider in DEFAULT_HARNESS_MODELS:
+                provider_config = default_provider_model_config(provider)
+            else:
+                errors.append(f"missing local provider mapping: {provider}")
+                continue
         try:
             target = provider_config.models[request.reasoning]
         except KeyError:

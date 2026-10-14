@@ -279,6 +279,38 @@ class AssignmentTests(unittest.TestCase):
             payload["resolved"],
         )
 
+    def test_resolve_assignment_treats_main_harness_without_local_mapping_as_default_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            cfg = EffectiveConfig(
+                {
+                    "schema_version": "2.2",
+                    "harness": "claude",
+                    "provider_mode": "single",
+                    "routing": {
+                        "roles": {
+                            "backend": {
+                                "preferred": ["main_harness"],
+                            }
+                        }
+                    },
+                },
+                repository,
+            )
+            for harness, expected_model, expected_effort in (
+                ("claude", "sonnet", None),
+                ("antigravity", "provider_default", None),
+                ("opencode", "provider_default", None),
+                ("codex", "gpt-6-astra", "medium"),
+            ):
+                with self.subTest(harness=harness):
+                    request = AssignmentRequest("task-1", "backend", "medium", harness, "wf-1")
+                    candidates = resolve_assignment(request, cfg, {})
+                    self.assertEqual(1, len(candidates))
+                    self.assertEqual(harness, candidates[0].provider)
+                    self.assertEqual(expected_model, candidates[0].model)
+                    self.assertEqual(expected_effort, candidates[0].effort)
+
 
 if __name__ == "__main__":
     unittest.main()
