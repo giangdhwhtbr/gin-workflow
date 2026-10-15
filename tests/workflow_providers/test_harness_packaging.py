@@ -134,10 +134,12 @@ class HarnessPackagingTests(unittest.TestCase):
         # built-in `report` skill.
         opencode_removed = {"agents/developer.md", "skills/report/SKILL.md"}
         opencode_added = {"skills/gin-workflow-report/SKILL.md"}
-        for harness in ("claude-code", "codex", "antigravity", "opencode"):
+        copilot_removed = {"agents/developer.md"}
+        for harness in ("claude-code", "codex", "antigravity", "opencode", "copilot"):
             with self.subTest(harness=harness):
                 root = self.dist / harness
-                required = [r for r in REQUIRED_ARTIFACTS if not (harness == "opencode" and r in opencode_removed)]
+                removed = opencode_removed if harness == "opencode" else copilot_removed if harness == "copilot" else set()
+                required = [r for r in REQUIRED_ARTIFACTS if r not in removed]
                 if harness == "opencode":
                     required += sorted(opencode_added)
                 missing = [relative for relative in required if not (root / relative).is_file()]
@@ -163,6 +165,19 @@ class HarnessPackagingTests(unittest.TestCase):
             with self.subTest(harness=harness):
                 root = self.dist / harness
                 self.assertTrue(all((root / relative).is_file() for relative in relatives))
+
+    def test_copilot_layout_is_a_claude_manifest_bundle_without_hooks_or_agents(self):
+        # Copilot CLI reads .claude-plugin/plugin.json and skills/<name>/SKILL.md;
+        # its hook and agent formats differ, so those are left out.
+        root = self.dist / "copilot"
+        manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual("gin-workflow", manifest["name"])
+        self.assertTrue((root / "skills/setup/SKILL.md").is_file())
+        self.assertTrue((root / "skills/report/SKILL.md").is_file())
+        self.assertTrue((root / "references/stage-contract.md").is_file())
+        self.assertFalse((root / "hooks").exists())
+        self.assertFalse((root / "agents").exists())
+        self.assertFalse((root / "commands").exists())
 
     def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
         root = self.dist / "opencode"

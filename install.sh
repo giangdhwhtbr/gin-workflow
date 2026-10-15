@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh - Installs gin-workflow to Claude Code, Antigravity, Codex CLI, and OpenCode.
+# install.sh - Installs gin-workflow to Claude Code, Antigravity, Codex CLI, OpenCode, and GitHub Copilot CLI.
 
 set -euo pipefail
 
@@ -94,13 +94,19 @@ if [ "$UNINSTALL" = true ]; then
   for p_name in "${PLUGINS[@]}"; do
     rm -rf "${HOME}/.config/opencode/skills/${p_name}"
   done
-  echo "Removed generated dist output and the global OpenCode skill install. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
+  if command -v copilot &> /dev/null; then
+    for p_name in "${PLUGINS[@]}"; do
+      copilot plugin uninstall "$p_name" >/dev/null 2>&1 || true
+    done
+  fi
+  echo "Removed generated dist output, the global OpenCode skill install, and the Copilot plugin registration. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
   exit 0
 fi
 
 HAS_CLAUDE=false
 HAS_AGY=false
 HAS_CODEX=false
+HAS_COPILOT=false
 if command -v claude &> /dev/null; then
   HAS_CLAUDE=true
 fi
@@ -109,6 +115,9 @@ if command -v agy &> /dev/null; then
 fi
 if command -v codex &> /dev/null; then
   HAS_CODEX=true
+fi
+if command -v copilot &> /dev/null; then
+  HAS_COPILOT=true
 fi
 
 matches_platform() {
@@ -342,6 +351,16 @@ install_platform() {
     return
   fi
 
+  if [ "$platform" = "copilot" ]; then
+    # Copilot CLI reads the Claude layout (.claude-plugin/plugin.json,
+    # skills/<name>/SKILL.md); its hook and agent formats differ, so hooks/
+    # and agents/ are left out.
+    copy_bundle_dirs "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir"
+    mkdir -p "$(dirname "$manifest_path")"
+    generate_manifest "plugins/$p_name" "$manifest_path" "false"
+    return
+  fi
+
   copy_src "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir"
   if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ]; then
     mkdir -p "$target_dir/hooks"
@@ -376,15 +395,11 @@ rewrite_file() {
   mv "$tmp" "$file"
 }
 
-install_opencode_bundle() {
+copy_bundle_dirs() {
   local src="$1"
   local target="$2"
-  local install_root="$3"
-  local dir file
+  local dir
 
-  # OpenCode loads skills, references, scripts, rules, and templates. It has no
-  # use for the Claude/Codex agents/ and commands/ files, and copying them would
-  # risk clobbering a repository's own .opencode/agents or .opencode/commands.
   mkdir -p "$target"
   for dir in skills scripts references examples rules templates; do
     [ -d "$src/$dir" ] || continue
@@ -396,6 +411,18 @@ install_opencode_bundle() {
       cp -rf "$src/$dir/." "$target/$dir/"
     fi
   done
+}
+
+install_opencode_bundle() {
+  local src="$1"
+  local target="$2"
+  local install_root="$3"
+  local file
+
+  # OpenCode loads skills, references, scripts, rules, and templates. It has no
+  # use for the Claude/Codex agents/ and commands/ files, and copying them would
+  # risk clobbering a repository's own .opencode/agents or .opencode/commands.
+  copy_bundle_dirs "$src" "$target"
 
   # OpenCode selects a skill by its directory id, so keep the display `name`
   # aligned with the renamed `report` directory (id `gin-workflow-report`).
@@ -508,6 +535,9 @@ install_plugin() {
   echo "=========================================="
 
   if [ -n "$PROJECT_DIR" ]; then
+    if matches_platform "copilot"; then
+      echo "Warning: Copilot plugins are global; --project skips copilot." >&2
+    fi
     if [ "$DRY_RUN" = true ]; then
       echo "(dry-run) would install project-level configs for $p_name to $PROJECT_DIR"
       return
@@ -536,6 +566,7 @@ install_plugin() {
   if matches_platform "antigravity"; then rm -rf "${dist_dir:?}/antigravity"; fi
   if matches_platform "codex"; then rm -rf "${dist_dir:?}/codex"; fi
   if matches_platform "opencode"; then rm -rf "${dist_dir:?}/opencode"; fi
+  if matches_platform "copilot"; then rm -rf "${dist_dir:?}/copilot"; fi
   mkdir -p "$dist_dir/claude-code/.claude-plugin"
   mkdir -p "$dist_dir/antigravity"
   mkdir -p "$dist_dir/codex/.codex-plugin"
@@ -558,6 +589,10 @@ install_plugin() {
     echo "Configuring OpenCode skill structure for $p_name..."
     install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" "" "${HOME}/.config/opencode/skills/${p_name}"
   fi
+  if matches_platform "copilot"; then
+    echo "Configuring Copilot plugin structure for $p_name..."
+    install_platform "copilot" "$p_name" "$dist_dir/copilot" "" "$dist_dir/copilot/.claude-plugin/plugin.json" "false"
+  fi
 
   if [ "$DRY_RUN" = true ]; then
     echo "(dry-run) registration skipped for $p_name"
@@ -568,6 +603,9 @@ install_plugin() {
     if matches_platform "opencode"; then
       local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
       echo "(dry-run) would install global OpenCode skills to $opencode_install_dir"
+    fi
+    if matches_platform "copilot"; then
+      echo "(dry-run) would install Copilot plugin from $SCRIPT_DIR/$dist_dir/copilot"
     fi
     return
   fi
@@ -615,6 +653,16 @@ install_plugin() {
       CODEX_MARKETPLACE_READY=true
     fi
     codex plugin add "$p_name@gin-workflow-marketplace"
+  fi
+  if matches_platform "copilot"; then
+    if [ "$HAS_COPILOT" = true ]; then
+      echo "Registering $p_name with Copilot..."
+      # Remove first so a re-run replaces the installed copy.
+      copilot plugin uninstall "$p_name" >/dev/null 2>&1 || true
+      copilot plugin install "$SCRIPT_DIR/$dist_dir/copilot"
+    else
+      echo "Copilot CLI not found; skipped registration. Run: copilot plugin install $SCRIPT_DIR/$dist_dir/copilot"
+    fi
   fi
 }
 
