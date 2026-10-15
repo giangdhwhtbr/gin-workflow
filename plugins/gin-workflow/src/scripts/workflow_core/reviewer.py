@@ -45,7 +45,9 @@ def route(root: Path, base: str, *, tier: str, implementer: str, config: Effecti
     except AssignmentResolutionError as error:
         raise ReviewerError(str(error)) from error
     review = (config.get("routing") or {}).get("review") or {}
-    independent = bool(review.get("require_independent", True)) and tier != "low"
+    # `session` independence: a fresh session of the implementer's provider may review.
+    independent = (bool(review.get("require_independent", True)) and tier != "low"
+                   and review.get("independence", "provider") != "session")
     routes = [c for c in candidates if not independent or c.provider != implementer]
     if not routes and review.get("allow_self_review_fallback"):
         routes = list(candidates)

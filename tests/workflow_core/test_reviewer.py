@@ -95,6 +95,10 @@ class RouteTests(unittest.TestCase):
     def test_require_independent_false_keeps_the_implementer(self):
         self.assertIn("claude sonnet", self.providers("medium", cfg=config(self.root, require_independent=False)))
 
+    def test_session_independence_keeps_the_implementer_provider(self):
+        self.assertIn("claude sonnet", self.providers("medium", cfg=config(self.root, independence="session")))
+        self.assertNotIn("claude sonnet", self.providers("medium", cfg=config(self.root, independence="provider")))
+
     def test_empty_list_after_the_filter_is_an_error_unless_self_review_is_allowed(self):
         only_codex = config(self.root, preferred=("codex",), fallback=())
         with self.assertRaisesRegex(ReviewerError, "no reviewer route independent of codex at tier high"):
