@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 import unittest
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -178,6 +180,13 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertFalse((root / "hooks").exists())
         self.assertFalse((root / "agents").exists())
         self.assertFalse((root / "commands").exists())
+
+    def test_every_skill_frontmatter_is_strict_yaml(self):
+        # Copilot CLI skips a skill whose frontmatter is not valid YAML.
+        for path in sorted(ROOT.glob("plugins/*/src/skills/*/SKILL.md")):
+            with self.subTest(skill=path.relative_to(ROOT).as_posix()):
+                frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
+                self.assertIsInstance(yaml.safe_load(frontmatter), dict)
 
     def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
         root = self.dist / "opencode"

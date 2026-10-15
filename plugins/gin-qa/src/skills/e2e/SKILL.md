@@ -1,6 +1,6 @@
 ---
 name: e2e
-description: Write or update Playwright specs for `Type: e2e` test cases by exploring the running application step by step, run them, and check the per-step evidence — one spec per case under qa/e2e/<capability>/, traced to the case by the gin-qa CLI.
+description: 'Write or update Playwright specs for `Type: e2e` test cases by exploring the running application step by step, run them, and check the per-step evidence — one spec per case under qa/e2e/<capability>/, traced to the case by the gin-qa CLI.'
 ---
 
 # E2E Specs
