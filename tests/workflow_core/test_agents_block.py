@@ -145,6 +145,45 @@ class AgentsBlockTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(agents.stat().st_mode), 0o644)
             self.assertEqual(stat.S_IMODE(claude.stat().st_mode), 0o644)
 
+    def test_claude_symlink_to_agents_is_left_alone(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            claude = root / "CLAUDE.md"
+            agents = root / "AGENTS.md"
+            claude.symlink_to("AGENTS.md")
+            writes = agents_block.planned_writes(root, {}, create=True)
+            self.assertNotIn(claude, writes)
+            self.assertIn(agents, writes)
+            self.assertNotIn("@AGENTS.md", writes[agents].decode("utf-8"))
+
+    def test_claude_symlink_elsewhere_or_dangling_is_left_alone(self):
+        for target in ("docs/x.md", "nowhere.md"):
+            with tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                (root / "docs").mkdir()
+                (root / "docs/x.md").write_text("# x\n", encoding="utf-8")
+                (root / "CLAUDE.md").symlink_to(target)
+                writes = agents_block.planned_writes(root, {}, create=True)
+                self.assertEqual([root / "AGENTS.md"], list(writes))
+                agents_block.write(writes)
+                self.assertTrue((root / "CLAUDE.md").is_symlink())
+
+    def test_symlinked_agents_needing_a_write_raises(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "real.md").write_text("# mine\n", encoding="utf-8")
+            (root / "AGENTS.md").symlink_to("real.md")
+            with self.assertRaises(agents_block.AgentsBlockError):
+                agents_block.planned_writes(root, {}, create=True)
+
+    def test_status_of_symlinked_agents_with_stale_block_is_invalid(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "real.md").write_text(f"{agents_block.START}\nold\n{agents_block.END}\n", encoding="utf-8")
+            (root / "AGENTS.md").symlink_to("real.md")
+            self.assertEqual("invalid", agents_block.status(root, {}))
+
 
 if __name__ == "__main__":
     unittest.main()
+

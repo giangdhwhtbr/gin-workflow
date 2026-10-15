@@ -83,8 +83,11 @@ def planned_writes(root: Path, config: Mapping[str, Any], *, create: bool) -> di
     else:
         updated = current[:span[0]] + block + current[span[1]:]
     if updated != current:
+        if agents.is_symlink():
+            raise AgentsBlockError("AGENTS.md is a symbolic link; edit its target by hand or replace it with a file")
         writes[agents] = updated.encode("utf-8")
-    if create:
+    # A symlinked CLAUDE.md (to AGENTS.md or elsewhere) is the user's own wiring; never write through or replace it.
+    if create and not claude.is_symlink():
         existing = _read(claude)
         if existing is None:
             writes[claude] = (IMPORT + "\n").encode("utf-8")
@@ -97,12 +100,11 @@ def planned_writes(root: Path, config: Mapping[str, Any], *, create: bool) -> di
 def status(root: Path, config: Mapping[str, Any]) -> str:
     current = _read(Path(root) / "AGENTS.md")
     try:
-        span = locate(current) if current is not None else None
+        if current is None or locate(current) is None:
+            return "absent"
+        return "ok" if not planned_writes(root, config, create=False) else "stale"
     except AgentsBlockError:
         return "invalid"
-    if span is None:
-        return "absent"
-    return "ok" if not planned_writes(root, config, create=False) else "stale"
 
 
 def write(writes: Mapping[Path, bytes]) -> None:
