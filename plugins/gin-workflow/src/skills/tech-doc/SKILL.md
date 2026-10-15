@@ -14,6 +14,7 @@ Write durable technical documentation for onboarding, architecture review, and p
 3. **Choose the shape**: default to the split set below under `.planning/codebase/` (with `project.layout: sdd`, `artifacts.codebase`, default `docs/codebase/`; a subsystem gets a `<scope-slug>/` subfolder). Start each file from `gin-workflow specs template codebase/<FILE>.md`, which honors project overrides in `.agent-workflow/templates/`. Use a single combined document only when the user asks for one, the scope is very narrow, or an approved plan says so. Do not invent alternate names (`Backend.md`, `Database.md`) when a canonical file covers the topic.
 4. **Write**: clear prose with headings and short lists; Mermaid only where it clarifies architecture, data flow, or ownership; one topic per file, linking to siblings instead of repeating them.
 5. **Mark uncertainty and check completeness**: separate verified facts from inference; name what is unknown and where the answer likely lives. Every `API.md` and `FEATURES.md` row cites `file:line`; a cell without a citation is marked as inference. In `API.md` → `Completeness Check`, record the search method, the number of route declarations found, and the number of table rows, and explain any difference. In `FEATURES.md` → `Coverage Gaps`, list endpoints with no frontend caller, frontend calls with no matching endpoint, and features missing one side; serious gaps also go to `CONCERNS.md`.
+6. **Report**: the files written, and `gin-workflow setup refresh` to update the links in `AGENTS.md`.
 
 ## Split documentation set
 

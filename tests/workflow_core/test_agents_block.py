@@ -183,6 +183,15 @@ class AgentsBlockTests(unittest.TestCase):
             (root / "AGENTS.md").symlink_to("real.md")
             self.assertEqual("invalid", agents_block.status(root, {}))
 
+    def test_roadmap_and_tech_doc_skills_remind_refresh(self):
+        for relative in (
+            "plugins/gin-workflow/src/skills/roadmap/SKILL.md",
+            "plugins/gin-workflow/src/skills/tech-doc/SKILL.md",
+        ):
+            with self.subTest(path=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                self.assertIn("gin-workflow setup refresh", text)
+
 
 if __name__ == "__main__":
     unittest.main()

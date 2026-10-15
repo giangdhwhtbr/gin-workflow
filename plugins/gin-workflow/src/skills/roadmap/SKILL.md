@@ -27,4 +27,4 @@ On `/roadmap` only. Outside the lifecycle: it records no gate. One question per 
    - an epic labelled `roadmap` that the file no longer lists: report it and ask; never close or delete an epic;
    - a failing `bd` call: stop and report which epics were synced; a re-run continues from there.
 7. **Sprint** (when asked): `bd update <epic> --add-label sprint:<name>` for each chosen epic.
-8. **Report**: the roadmap path, epics created and updated, dependency changes, `bd ready` epics, and the next step `/discuss <epic-id>`.
+8. **Report**: the roadmap path, epics created and updated, dependency changes, `bd ready` epics, the next step `/discuss <epic-id>`, and `gin-workflow setup refresh` to update the links in `AGENTS.md`.
