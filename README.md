@@ -41,7 +41,7 @@ Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). Th
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform all
 ```
 
-Use `--platform claude`, `codex`, `antigravity`, or `opencode` for one harness, and `--plugin all` to add the QA add-on. On Windows use `install.ps1` ([contributing](docs/contributing.md#windows-powershell-7)).
+Use `--platform claude`, `codex`, `antigravity`, `opencode`, or `copilot` for one harness, and `--plugin all` to add the QA add-on. On Windows use `install.ps1` ([contributing](docs/contributing.md#windows-powershell-7)).
 
 **Claude Code marketplace:**
 
@@ -58,6 +58,8 @@ codex plugin add gin-workflow@gin-workflow-marketplace
 ```
 
 Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either — the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
+
+GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot hosts the skills only; workers and reviews still need `claude`, `codex`, `agy`, or `opencode`, and the safety hook does not run in Copilot ([troubleshooting](docs/reference/troubleshooting.md#github-copilot-cli)).
 
 ## Quickstart
 

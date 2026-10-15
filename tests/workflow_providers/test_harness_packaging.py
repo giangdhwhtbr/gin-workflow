@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 import unittest
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -134,10 +136,12 @@ class HarnessPackagingTests(unittest.TestCase):
         # built-in `report` skill.
         opencode_removed = {"agents/developer.md", "skills/report/SKILL.md"}
         opencode_added = {"skills/gin-workflow-report/SKILL.md"}
-        for harness in ("claude-code", "codex", "antigravity", "opencode"):
+        copilot_removed = {"agents/developer.md"}
+        for harness in ("claude-code", "codex", "antigravity", "opencode", "copilot"):
             with self.subTest(harness=harness):
-                root = self.dist / harness
-                required = [r for r in REQUIRED_ARTIFACTS if not (harness == "opencode" and r in opencode_removed)]
+                root = self.dist / ("copilot/gin-workflow" if harness == "copilot" else harness)
+                removed = opencode_removed if harness == "opencode" else copilot_removed if harness == "copilot" else set()
+                required = [r for r in REQUIRED_ARTIFACTS if r not in removed]
                 if harness == "opencode":
                     required += sorted(opencode_added)
                 missing = [relative for relative in required if not (root / relative).is_file()]
@@ -163,6 +167,26 @@ class HarnessPackagingTests(unittest.TestCase):
             with self.subTest(harness=harness):
                 root = self.dist / harness
                 self.assertTrue(all((root / relative).is_file() for relative in relatives))
+
+    def test_copilot_layout_is_a_claude_manifest_bundle_without_hooks_or_agents(self):
+        # Copilot CLI reads .claude-plugin/plugin.json and skills/<name>/SKILL.md;
+        # its hook and agent formats differ, so those are left out.
+        root = self.dist / "copilot/gin-workflow"
+        manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual("gin-workflow", manifest["name"])
+        self.assertTrue((root / "skills/setup/SKILL.md").is_file())
+        self.assertTrue((root / "skills/report/SKILL.md").is_file())
+        self.assertTrue((root / "references/stage-contract.md").is_file())
+        self.assertFalse((root / "hooks").exists())
+        self.assertFalse((root / "agents").exists())
+        self.assertFalse((root / "commands").exists())
+
+    def test_every_skill_frontmatter_is_strict_yaml(self):
+        # Copilot CLI skips a skill whose frontmatter is not valid YAML.
+        for path in sorted(ROOT.glob("plugins/*/src/skills/*/SKILL.md")):
+            with self.subTest(skill=path.relative_to(ROOT).as_posix()):
+                frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
+                self.assertIsInstance(yaml.safe_load(frontmatter), dict)
 
     def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
         root = self.dist / "opencode"
@@ -193,7 +217,7 @@ class HarnessPackagingTests(unittest.TestCase):
         for manifest in manifests:
             with self.subTest(manifest=manifest.relative_to(ROOT)):
                 with manifest.open(encoding="utf-8") as file:
-                    self.assertEqual("1.4.2", json.load(file)["version"])
+                    self.assertEqual("1.5.0", json.load(file)["version"])
 
     def test_repository_ignores_installations_and_generated_workflow_output(self):
         ignored = (

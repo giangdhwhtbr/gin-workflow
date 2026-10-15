@@ -27,6 +27,17 @@ The installer prunes the Claude/Codex `agents/` and `commands/` files from the O
 OpenCode hosts the skills and can also run routed workers and reviews (`opencode run --auto --format json`); it has no sandbox, so isolation relies on the worktree. The resolver also looks in `~/.opencode/bin`, so a binary installed by OpenCode's own script is found without a `PATH` change. See [Providers](../concepts/providers.md).
 
 
+## GitHub Copilot CLI
+
+`--platform copilot` (or `all`) builds `plugins/<plugin>/dist/copilot/<plugin>` and registers it with `copilot plugin install <path>` when `copilot` is on `PATH`; otherwise it prints that command for you to run. Check with `copilot plugin list` and `copilot skill list`.
+
+- **One directory per plugin.** Copilot stores a local install under the source directory's name (`~/.copilot/installed-plugins/_direct/<name>`), so each plugin is built into a directory named after it; otherwise `--plugin all` would install both into the same place.
+- **No safety hook.** The bundle has no `hooks/`, because Copilot's hook format differs, so `safety-check` and `post-edit` do not run in Copilot. Lifecycle gates are still enforced by the `gin-workflow` CLI.
+- **Workers and reviews.** Copilot hosts the skills only. Routed workers and reviewers run through `claude`, `codex`, `agy`, or `opencode`, so run `/setup` with one of them as `harness`.
+- **Global only.** `--project` skips copilot, because Copilot plugins are installed per user.
+- **Local-path installs.** Copilot CLI warns that installs from a local path are deprecated in favor of `plugin@marketplace`; the installer still uses the local path.
+- **Telegram notifications.** The `telegram-notify` skill refers to `${PLUGIN_ROOT}/scripts/telegram.sh`, which is not resolved under Copilot.
+
 ## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
 
 On Ubuntu 24.04+ hosts, the kernel's AppArmor policy restricts unprivileged user namespace creation by default (`kernel.apparmor_restrict_unprivileged_userns=1`). Codex CLI's sandbox (`bwrap`) and Antigravity CLI's sandbox (`agy --sandbox`, backed by `nsjail`) both need to create an unprivileged user+network namespace to isolate file/network access. When that AppArmor restriction is active and no profile grants `userns,` to the sandbox helper, namespace creation fails outright — before the sandboxed process can even read the file it's trying to edit. Every sandboxed shell action (including `apply_patch`) then fails immediately, for any file, in any project.

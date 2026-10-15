@@ -1,6 +1,6 @@
 ---
 name: quick
-description: Small, low-risk change without plan or beads: confirm, implement, verify per rigor, report.
+description: 'Small, low-risk change without plan or beads: confirm, implement, verify per rigor, report.'
 ---
 
 ## Before you start

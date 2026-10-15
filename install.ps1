@@ -1,7 +1,7 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param(
-    [ValidateSet('claude', 'antigravity', 'codex', 'opencode', 'both', 'all')]
+    [ValidateSet('claude', 'antigravity', 'codex', 'opencode', 'copilot', 'both', 'all')]
     [string]$Platform = 'all',
     [ValidateSet('gin-workflow', 'gin-qa', 'all')]
     [string]$Plugin = 'gin-workflow',
@@ -48,7 +48,8 @@ function Copy-DirectoryContent {
     param(
         [Parameter(Mandatory)][string]$Source,
         [Parameter(Mandatory)][string]$Destination,
-        [switch]$AsLink
+        [switch]$AsLink,
+        [switch]$LinkFiles
     )
     if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
         return
@@ -59,7 +60,12 @@ function Copy-DirectoryContent {
         if (Test-Path -LiteralPath $target) {
             Remove-Item -LiteralPath $target -Recurse -Force
         }
-        if ($AsLink) {
+        if ($AsLink -and $LinkFiles -and $item.PSIsContainer) {
+            # Link files, not directories (as `cp -rs` does), so a later rewrite
+            # replaces only the link and never edits the source through it.
+            Copy-DirectoryContent -Source $item.FullName -Destination $target -AsLink -LinkFiles
+        }
+        elseif ($AsLink) {
             try {
                 New-Item -ItemType SymbolicLink -Path $target -Target $item.FullName | Out-Null
             }
@@ -179,6 +185,22 @@ function Convert-ClaudeAgents {
     }
 }
 
+function Copy-BundleDirectories {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Destination,
+        [switch]$LinkFiles
+    )
+    New-Directory $Destination
+    foreach ($directory in @('skills', 'scripts', 'references', 'examples', 'rules', 'templates')) {
+        Copy-DirectoryContent `
+            -Source (Join-Path $Source $directory) `
+            -Destination (Join-Path $Destination $directory) `
+            -AsLink:$Link `
+            -LinkFiles:$LinkFiles
+    }
+}
+
 function Install-OpenCodeBundle {
     param(
         [Parameter(Mandatory)][string]$Source,
@@ -188,13 +210,7 @@ function Install-OpenCodeBundle {
     # OpenCode loads skills, references, scripts, rules, and templates. It has no
     # use for the Claude/Codex agents/ and commands/ files, and copying them would
     # risk clobbering a repository's own .opencode/agents or .opencode/commands.
-    New-Directory $Destination
-    foreach ($directory in @('skills', 'scripts', 'references', 'examples', 'rules', 'templates')) {
-        Copy-DirectoryContent `
-            -Source (Join-Path $Source $directory) `
-            -Destination (Join-Path $Destination $directory) `
-            -AsLink:$Link
-    }
+    Copy-BundleDirectories -Source $Source -Destination $Destination -LinkFiles
 
     # OpenCode selects a skill by its directory id; keep `name` aligned with the
     # renamed `report` directory (id `gin-workflow-report`).
@@ -234,7 +250,7 @@ function Install-OpenCodeBundle {
 
 function Install-PlatformLayout {
     param(
-        [Parameter(Mandatory)][ValidateSet('claude', 'antigravity', 'codex', 'opencode')][string]$Harness,
+        [Parameter(Mandatory)][ValidateSet('claude', 'antigravity', 'codex', 'opencode', 'copilot')][string]$Harness,
         [Parameter(Mandatory)][string]$PluginDirectory,
         [Parameter(Mandatory)][string]$Destination,
         [Parameter(Mandatory)][string]$HooksRoot,
@@ -243,6 +259,14 @@ function Install-PlatformLayout {
     )
     if ($Harness -eq 'opencode') {
         Install-OpenCodeBundle -Source (Join-Path $PluginDirectory 'src') -Destination $Destination -InstallRoot $InstallRoot
+        return
+    }
+    if ($Harness -eq 'copilot') {
+        # Copilot CLI reads the Claude layout (.claude-plugin/plugin.json,
+        # skills/<name>/SKILL.md); its hook and agent formats differ, so hooks/
+        # and agents/ are left out.
+        Copy-BundleDirectories -Source (Join-Path $PluginDirectory 'src') -Destination $Destination
+        New-PluginManifest -PluginDirectory $PluginDirectory -OutputPath $ManifestPath
         return
     }
     Copy-PluginSource -PluginSource (Join-Path $PluginDirectory 'src') -Destination $Destination
@@ -352,6 +376,7 @@ function Install-Launcher {
     }
 
     New-Directory (Split-Path -Parent $launcherShim)
+    New-Directory $installDirectory
     Copy-Item -LiteralPath (Join-Path $sourceDirectory $Name) -Destination $launcherTarget -Force
     foreach ($package in $packages) {
         New-Directory (Join-Path $installDirectory $package)
@@ -433,6 +458,9 @@ function Install-Plugin {
     Write-Output '=========================================='
 
     if (-not [string]::IsNullOrWhiteSpace($Project)) {
+        if (Test-Platform 'copilot') {
+            Write-Warning 'Copilot plugins are global; -Project skips copilot.'
+        }
         if ($DryRun) {
             Write-Output "(dry-run) would install project-level configs for $Name to $Project"
             return
@@ -478,7 +506,17 @@ function Install-Plugin {
     if (Test-Platform 'opencode') {
         $target = Join-Path $distDirectory 'opencode'
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+        Write-Output "Configuring OpenCode skill structure for $Name..."
         Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath '' -InstallRoot (Join-Path $UserHome ".config/opencode/skills/$Name")
+    }
+    if (Test-Platform 'copilot') {
+        $target = Join-Path $distDirectory 'copilot'
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+        Write-Output "Configuring Copilot plugin structure for $Name..."
+        # Copilot names a direct install after the source directory, so the
+        # bundle directory carries the plugin name to keep plugins apart.
+        $bundle = Join-Path $target $Name
+        Install-PlatformLayout -Harness copilot -PluginDirectory $pluginDirectory -Destination $bundle -HooksRoot '${PLUGIN_ROOT}' -ManifestPath (Join-Path $bundle '.claude-plugin/plugin.json')
     }
 
     if ($DryRun) {
@@ -488,6 +526,9 @@ function Install-Plugin {
         }
         if (Test-Platform 'opencode') {
             Write-Output "(dry-run) would install global OpenCode skills to $(Join-Path $UserHome ".config/opencode/skills/$Name")"
+        }
+        if (Test-Platform 'copilot') {
+            Write-Output "(dry-run) would install Copilot plugin from $(Join-Path $distDirectory "copilot/$Name")"
         }
         return
     }
@@ -536,6 +577,18 @@ function Install-Plugin {
             -Executable 'codex' `
             -CommandArguments @('plugin', 'add', "$Name@gin-workflow-marketplace")
     }
+    if (Test-Platform 'copilot') {
+        $copilotBundle = Join-Path $distDirectory "copilot/$Name"
+        if (Get-Command copilot -ErrorAction SilentlyContinue) {
+            Write-Output "Registering $Name with Copilot..."
+            # Remove first so a re-run replaces the installed copy.
+            & copilot plugin uninstall $Name *> $null
+            Invoke-NativeCommand -Executable 'copilot' -CommandArguments @('plugin', 'install', $copilotBundle)
+        }
+        else {
+            Write-Output "Copilot CLI not found; skipped registration. Run: copilot plugin install $copilotBundle"
+        }
+    }
 }
 
 if (-not [string]::IsNullOrWhiteSpace($Project)) {
@@ -566,7 +619,12 @@ if ($Uninstall) {
             Remove-Item -LiteralPath $opencodeSkills -Recurse -Force
         }
     }
-    Write-Output 'Removed generated dist output and the global OpenCode skill install. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
+    if (Get-Command copilot -ErrorAction SilentlyContinue) {
+        foreach ($name in $Plugins) {
+            & copilot plugin uninstall $name *> $null
+        }
+    }
+    Write-Output 'Removed generated dist output, the global OpenCode skill install, and the Copilot plugin registration. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
     return
 }
 
