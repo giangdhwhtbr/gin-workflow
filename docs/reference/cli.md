@@ -24,11 +24,11 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
 | `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--provider-mode` (plus `--monorepo`, `--stack-intent`) into `--set` assignments | no |
 | `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode`) | no |
-| `init` | First setup: validates and writes `.agent-workflow/config.yaml`, `providers.local.yaml`, and generated files; `--dry-run` previews | yes |
+| `init` | First setup: validates and writes `.agent-workflow/config.yaml`, `providers.local.yaml`, and generated files; `--dry-run` previews; also writes the gin-workflow block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone), and adds a missing block on an initialized repository with `--approve` | yes |
 | `configure` | Changes portable (`--set key=value`) or local (`--provider-set key=value`) settings | yes |
-| `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration | yes |
+| `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration and re-renders an existing `AGENTS.md` block (never creates one) | yes |
 | `update` | Proposes, then with `--approve` applies, a registered schema migration (`--to-version`) | yes |
-| `doctor` | Checks configuration, providers, verify commands, rule tool checks, and the code index; `--probe` also probes model health | no |
+| `doctor` | Checks configuration, providers, verify commands, rule tool checks, the code index, and the `AGENTS.md` block (`ok`, `stale`, `absent`, `invalid`); `--probe` also probes model health | no |
 | `status` | Shows whether the repository is initialized and the generated files exist | no |
 | `diff` | Shows how generated configuration differs from what the current inputs would produce | no |
 | `rollback` | Restores a validated backup (`--backup PATH`) | yes |

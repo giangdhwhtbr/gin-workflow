@@ -25,6 +25,7 @@ from .provider_config import (
     default_provider_config,
     validate_provider_local_config,
 )
+from . import agents_block
 from .schemas import require_jsonschema
 
 
@@ -44,6 +45,21 @@ class SetupError(ValueError):
     def __init__(self, message: str, *, status: str = "error") -> None:
         super().__init__(message)
         self.status = status
+
+
+def _agents_writes(root: Path, config: Mapping[str, Any], *, create: bool) -> dict[Path, bytes]:
+    try:
+        return agents_block.planned_writes(root, config, create=create)
+    except agents_block.AgentsBlockError as error:
+        raise SetupError(str(error)) from error
+
+
+def _agents_actions(root: Path, writes: Mapping[Path, bytes]) -> list[str]:
+    names = {
+        root / "AGENTS.md": "write AGENTS.md gin-workflow block",
+        root / "CLAUDE.md": "add @AGENTS.md to CLAUDE.md",
+    }
+    return [names[path] for path in writes if path in names]
 
 
 def _dependencies() -> None:
@@ -122,11 +138,13 @@ def initialize(
         ]
         if not generated.is_file() or not provenance.is_file() or missing_directories:
             actions = ["repair incomplete one-time setup"]
+            effective_result = resolve_effective_config(root, write=False)
+            agents_writes = _agents_writes(root, effective_result.config.to_dict(), create=True)
             if dry_run:
                 return {
                     "status": "would_repair",
                     "repository": str(root),
-                    "actions": actions,
+                    "actions": actions + _agents_actions(root, agents_writes),
                 }
             if not approve:
                 raise SetupError(
@@ -136,12 +154,35 @@ def initialize(
             resolve_effective_config(root)
             for path in missing_directories:
                 path.mkdir(parents=True, exist_ok=True)
+            agents_block.write(agents_writes)
+            actions.extend(_agents_actions(root, agents_writes))
             return {
                 "status": "repaired",
                 "repository": str(root),
                 "actions": actions,
             }
-        return {"status": "already_initialized", "repository": str(root), "actions": []}
+        effective_result = resolve_effective_config(root, write=False)
+        agents_writes = _agents_writes(root, effective_result.config.to_dict(), create=True)
+        if not agents_writes:
+            return {"status": "already_initialized", "repository": str(root), "actions": []}
+        agents_actions = _agents_actions(root, agents_writes)
+        if dry_run:
+            return {
+                "status": "would_update",
+                "repository": str(root),
+                "actions": agents_actions,
+            }
+        if not approve:
+            raise SetupError(
+                "setup update requires explicit --approve before writing repository configuration",
+                status="approval_required",
+            )
+        agents_block.write(agents_writes)
+        return {
+            "status": "updated",
+            "repository": str(root),
+            "actions": agents_actions,
+        }
 
     changes = list(assignments)
     provider_changes = list(provider_assignments)
@@ -176,6 +217,8 @@ def initialize(
             if resolved_harness not in provider_config["providers"]:
                 provider_config["providers"][resolved_harness] = default_provider_config(resolved_harness)
     resolved = resolve_effective_config(root, repository_config=config, write=False)
+    agents_writes = _agents_writes(root, resolved.config.to_dict(), create=True)
+    agents_actions = _agents_actions(root, agents_writes)
     config_text = _yaml_text(config)
     if dry_run:
         payload = {
@@ -192,6 +235,7 @@ def initialize(
                     "create .agent-workflow/.gitignore",
                 ]
             )
+        payload["actions"].extend(agents_actions)
         return payload
 
     writes = {
@@ -205,6 +249,7 @@ def initialize(
     atomic_write_many(writes)
     for relative in ("backups", "references", "runtime/evidence"):
         (workflow / relative).mkdir(parents=True, exist_ok=True)
+    agents_block.write(agents_writes)
     actions = list(INIT_ACTIONS)
     if provider_config is not None:
         actions.extend(
@@ -213,6 +258,7 @@ def initialize(
                 "create .agent-workflow/.gitignore",
             ]
         )
+    actions.extend(agents_actions)
     return {"status": "initialized", "repository": str(root), "actions": actions}
 
 
@@ -333,16 +379,30 @@ def configure(
 def refresh(repository: Path, *, dry_run: bool = False, **_: Any) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
-    result = resolve_effective_config(root, write=not dry_run)
+    result = resolve_effective_config(root, write=False)
+    writes = _agents_writes(root, result.config.to_dict(), create=False)  # broken markers fail before any write
+    if not dry_run:
+        result = resolve_effective_config(root, write=True)
+    agents_state = (
+        "updated"
+        if writes
+        else ("unchanged" if agents_block.status(root, result.config.to_dict()) == "ok" else "absent")
+    )
+    if writes and not dry_run:
+        agents_block.write(writes)
+    actions = [
+        "generate .agent-workflow/generated/effective-config.yaml",
+        "generate .agent-workflow/generated/config-provenance.yaml",
+    ]
+    if writes:
+        actions.append("update AGENTS.md gin-workflow block")
     return {
         "status": "would_refresh" if dry_run else "refreshed",
         "repository": str(root),
-        "actions": [
-            "generate .agent-workflow/generated/effective-config.yaml",
-            "generate .agent-workflow/generated/config-provenance.yaml",
-        ],
+        "actions": actions,
         "effective_config": str(result.effective_config_path),
         "provenance": str(result.provenance_path),
+        "agents_block": agents_state,
     }
 
 
@@ -597,6 +657,13 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         for item in rules_detail.get("conflicts", []):
             actions.append(f"rules: {item['file']} says '{item['project_conflict']}', pack {item['pack']} says "
                            f"'{item['pack_says']}'; the project wins, record the divergence")
+
+        state = agents_block.status(root, effective)
+        checks_details["agents_block"] = state
+        if state == "stale":
+            actions.append("agents: AGENTS.md block is stale; run gin-workflow setup refresh")
+        elif state == "invalid":
+            actions.append("agents: AGENTS.md block cannot be updated (broken markers or a symbolic link); fix it by hand")
 
         from .specs import sdd_config
         from .specs_migrate import sdd_report
