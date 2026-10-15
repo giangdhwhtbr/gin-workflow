@@ -133,11 +133,13 @@ flowchart LR
     I --> D2[dist/codex]
     I --> D3[dist/antigravity]
     I --> D4[dist/opencode]
+    I --> D5[dist/copilot/&lt;plugin&gt;]
     I --> LCH[~/.local/bin/gin-workflow launcher]
     D1 --> C1[~/.claude/skills/&lt;plugin&gt;]
     D2 --> C2[codex plugin add: cached snapshot]
     D3 --> C3[agy plugin install]
     D4 --> C4[~/.config/opencode/skills/&lt;plugin&gt;]
+    D5 --> C5[copilot plugin install]
     MK[marketplace: claude plugin install, codex plugin add] --> C1b[harness plugin cache]
 ```
 
