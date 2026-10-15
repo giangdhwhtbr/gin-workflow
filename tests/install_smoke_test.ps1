@@ -252,14 +252,54 @@ try {
     New-Item -ItemType Directory -Path $opencodeLinkProject | Out-Null
     $sourceTelegram = Join-Path $Root 'plugins/gin-workflow/src/skills/telegram-notify/SKILL.md'
     $telegramBefore = [IO.File]::ReadAllBytes($sourceTelegram)
+    $sourceReport = Join-Path $Root 'plugins/gin-workflow/src/skills/report/SKILL.md'
+    $reportBefore = [IO.File]::ReadAllBytes($sourceReport)
     Invoke-Installer @{ Platform = 'opencode'; Project = $opencodeLinkProject; Link = $true } | Out-Null
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-workflow-report/SKILL.md')
     Assert-True `
         ([Convert]::ToBase64String($telegramBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceTelegram))) `
         'Linked OpenCode install rewrote the source skill'
+    Assert-True `
+        ([Convert]::ToBase64String($reportBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceReport))) `
+        'Linked OpenCode install renamed the source report skill'
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $opencodeLinkProject '.opencode/skills/telegram-notify/SKILL.md'))) (Join-Path $opencodeLinkProject '.opencode/scripts/telegram.sh')
+
+    $copilotDryRun = Invoke-Installer @{ Platform = 'copilot'; DryRun = $true }
+    $copilotDist = Join-Path $Root 'plugins/gin-workflow/dist/copilot'
+    Assert-Contains $copilotDryRun 'Configuring Copilot plugin structure for gin-workflow'
+    Assert-Contains $copilotDryRun "(dry-run) would install Copilot plugin from $copilotDist"
+    Assert-Exists (Join-Path $copilotDist '.claude-plugin/plugin.json')
+    Assert-Exists (Join-Path $copilotDist 'skills/setup/SKILL.md')
+    Assert-Exists (Join-Path $copilotDist 'references/stage-contract.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'hooks'))) 'Copilot bundle has hooks'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'agents'))) 'Copilot bundle has agents'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'commands'))) 'Copilot bundle has commands'
+
+    Set-Content -LiteralPath $mockLog -Value '' -NoNewline
+    New-MockCommand -Name 'copilot' -ExitCode 0 | Out-Null
+    $copilotInstall = Invoke-Installer @{ Platform = 'copilot' }
+    $copilotLog = [IO.File]::ReadAllText($mockLog)
+    Assert-Contains $copilotInstall 'Registering gin-workflow with Copilot...'
+    Assert-Contains $copilotLog 'plugin uninstall gin-workflow'
+    Assert-Contains $copilotLog "plugin install $copilotDist"
+
+    $copilotProject = Join-Path $TestRoot 'copilot-project'
+    New-Item -ItemType Directory -Path $copilotProject | Out-Null
+    $copilotProjectOutput = & $Installer -Platform copilot -Project $copilotProject 3>&1 | Out-String
+    Assert-Contains $copilotProjectOutput 'Copilot plugins are global; -Project skips copilot.'
+
+    Set-Content -LiteralPath $mockLog -Value '' -NoNewline
+    & $Installer -Uninstall | Out-Null
+    Assert-Contains ([IO.File]::ReadAllText($mockLog)) 'plugin uninstall gin-workflow'
+    # Later blocks run without the stub.
+    Remove-Item -LiteralPath (Join-Path $TestRoot "mock-bin/$(if ($IsWindows) { 'copilot.cmd' } else { 'copilot' })") -Force
     $env:PATH = $OriginalPath
+
+    if (-not (Get-Command copilot -ErrorAction SilentlyContinue)) {
+        $copilotSkip = Invoke-Installer @{ Platform = 'copilot' }
+        Assert-Contains $copilotSkip "Copilot CLI not found; skipped registration. Run: copilot plugin install $(Join-Path $Root 'plugins/gin-workflow/dist/copilot')"
+    }
 
     $shim = Join-Path $TestHome '.local/bin/gin-workflow.cmd'
     $foreignShim = "@echo off`r`necho foreign launcher`r`n"
