@@ -251,16 +251,16 @@ assert_workflow_v22_layout "plugins/gin-workflow/dist/opencode"
 ./install.sh --platform copilot --dry-run >"$output_file"
 
 assert_contains "$output_file" "Configuring Copilot plugin structure for gin-workflow"
-assert_contains "$output_file" "(dry-run) would install Copilot plugin from $ROOT_DIR/plugins/gin-workflow/dist/copilot"
-assert_exists "plugins/gin-workflow/dist/copilot/.claude-plugin/plugin.json"
-assert_contains "plugins/gin-workflow/dist/copilot/.claude-plugin/plugin.json" '"name": "gin-workflow"'
-assert_exists "plugins/gin-workflow/dist/copilot/skills/setup/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/copilot/skills/report/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/copilot/references/stage-contract.md"
-assert_exists "plugins/gin-workflow/dist/copilot/scripts/gin-workflow"
-assert_not_exists "plugins/gin-workflow/dist/copilot/hooks"
-assert_not_exists "plugins/gin-workflow/dist/copilot/agents"
-assert_not_exists "plugins/gin-workflow/dist/copilot/commands"
+assert_contains "$output_file" "(dry-run) would install Copilot plugin from $ROOT_DIR/plugins/gin-workflow/dist/copilot/gin-workflow"
+assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/.claude-plugin/plugin.json"
+assert_contains "plugins/gin-workflow/dist/copilot/gin-workflow/.claude-plugin/plugin.json" '"name": "gin-workflow"'
+assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/skills/setup/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/skills/report/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/references/stage-contract.md"
+assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/scripts/gin-workflow"
+assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/hooks"
+assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/agents"
+assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/commands"
 
 # Test actual installation with a mocked HOME
 echo "Running mock HOME global installation test..."
@@ -484,13 +484,20 @@ chmod +x "$copilot_bin/copilot"
 
 HOME="$copilot_home" PATH="$copilot_bin:$PATH" COPILOT_LOG="$copilot_log" ./install.sh --platform copilot >"$output_file"
 assert_contains "$copilot_log" "plugin uninstall gin-workflow"
-assert_contains "$copilot_log" "plugin install $ROOT_DIR/plugins/gin-workflow/dist/copilot"
+assert_contains "$copilot_log" "plugin install $ROOT_DIR/plugins/gin-workflow/dist/copilot/gin-workflow"
 assert_contains "$output_file" "Registering gin-workflow with Copilot..."
 assert_exists "$copilot_home/.local/bin/gin-workflow"
 
+# Copilot names a direct install after the source directory, so each plugin
+# needs its own bundle directory name or one install overwrites the other.
+: > "$copilot_log"
+HOME="$copilot_home" PATH="$copilot_bin:$PATH" COPILOT_LOG="$copilot_log" ./install.sh --platform copilot --plugin all >/dev/null
+assert_contains "$copilot_log" "plugin install $ROOT_DIR/plugins/gin-workflow/dist/copilot/gin-workflow"
+assert_contains "$copilot_log" "plugin install $ROOT_DIR/plugins/gin-qa/dist/copilot/gin-qa"
+
 if ! command -v copilot >/dev/null 2>&1; then
   HOME="$copilot_home" ./install.sh --platform copilot >"$output_file"
-  assert_contains "$output_file" "Copilot CLI not found; skipped registration. Run: copilot plugin install $ROOT_DIR/plugins/gin-workflow/dist/copilot"
+  assert_contains "$output_file" "Copilot CLI not found; skipped registration. Run: copilot plugin install $ROOT_DIR/plugins/gin-workflow/dist/copilot/gin-workflow"
 fi
 
 copilot_project="$MOCK_HOME/copilot-project"

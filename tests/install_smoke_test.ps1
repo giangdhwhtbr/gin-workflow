@@ -266,7 +266,7 @@ try {
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $opencodeLinkProject '.opencode/skills/telegram-notify/SKILL.md'))) (Join-Path $opencodeLinkProject '.opencode/scripts/telegram.sh')
 
     $copilotDryRun = Invoke-Installer @{ Platform = 'copilot'; DryRun = $true }
-    $copilotDist = Join-Path $Root 'plugins/gin-workflow/dist/copilot'
+    $copilotDist = Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin-workflow'
     Assert-Contains $copilotDryRun 'Configuring Copilot plugin structure for gin-workflow'
     Assert-Contains $copilotDryRun "(dry-run) would install Copilot plugin from $copilotDist"
     Assert-Exists (Join-Path $copilotDist '.claude-plugin/plugin.json')
@@ -284,6 +284,12 @@ try {
     Assert-Contains $copilotLog 'plugin uninstall gin-workflow'
     Assert-Contains $copilotLog "plugin install $copilotDist"
 
+    Set-Content -LiteralPath $mockLog -Value '' -NoNewline
+    Invoke-Installer @{ Platform = 'copilot'; Plugin = 'all' } | Out-Null
+    $copilotAllLog = [IO.File]::ReadAllText($mockLog)
+    Assert-Contains $copilotAllLog "plugin install $copilotDist"
+    Assert-Contains $copilotAllLog "plugin install $(Join-Path $Root 'plugins/gin-qa/dist/copilot/gin-qa')"
+
     $copilotProject = Join-Path $TestRoot 'copilot-project'
     New-Item -ItemType Directory -Path $copilotProject | Out-Null
     $copilotProjectOutput = & $Installer -Platform copilot -Project $copilotProject 3>&1 | Out-String
@@ -298,7 +304,7 @@ try {
 
     if (-not (Get-Command copilot -ErrorAction SilentlyContinue)) {
         $copilotSkip = Invoke-Installer @{ Platform = 'copilot' }
-        Assert-Contains $copilotSkip "Copilot CLI not found; skipped registration. Run: copilot plugin install $(Join-Path $Root 'plugins/gin-workflow/dist/copilot')"
+        Assert-Contains $copilotSkip "Copilot CLI not found; skipped registration. Run: copilot plugin install $(Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin-workflow')"
     }
 
     $shim = Join-Path $TestHome '.local/bin/gin-workflow.cmd'

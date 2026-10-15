@@ -139,7 +139,7 @@ class HarnessPackagingTests(unittest.TestCase):
         copilot_removed = {"agents/developer.md"}
         for harness in ("claude-code", "codex", "antigravity", "opencode", "copilot"):
             with self.subTest(harness=harness):
-                root = self.dist / harness
+                root = self.dist / ("copilot/gin-workflow" if harness == "copilot" else harness)
                 removed = opencode_removed if harness == "opencode" else copilot_removed if harness == "copilot" else set()
                 required = [r for r in REQUIRED_ARTIFACTS if r not in removed]
                 if harness == "opencode":
@@ -171,7 +171,7 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_copilot_layout_is_a_claude_manifest_bundle_without_hooks_or_agents(self):
         # Copilot CLI reads .claude-plugin/plugin.json and skills/<name>/SKILL.md;
         # its hook and agent formats differ, so those are left out.
-        root = self.dist / "copilot"
+        root = self.dist / "copilot/gin-workflow"
         manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual("gin-workflow", manifest["name"])
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())

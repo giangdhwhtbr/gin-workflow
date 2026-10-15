@@ -591,7 +591,9 @@ install_plugin() {
   fi
   if matches_platform "copilot"; then
     echo "Configuring Copilot plugin structure for $p_name..."
-    install_platform "copilot" "$p_name" "$dist_dir/copilot" "" "$dist_dir/copilot/.claude-plugin/plugin.json" "false"
+    # Copilot names a direct install after the source directory, so the
+    # bundle directory carries the plugin name to keep plugins apart.
+    install_platform "copilot" "$p_name" "$dist_dir/copilot/$p_name" "" "$dist_dir/copilot/$p_name/.claude-plugin/plugin.json" "false"
   fi
 
   if [ "$DRY_RUN" = true ]; then
@@ -605,7 +607,7 @@ install_plugin() {
       echo "(dry-run) would install global OpenCode skills to $opencode_install_dir"
     fi
     if matches_platform "copilot"; then
-      echo "(dry-run) would install Copilot plugin from $SCRIPT_DIR/$dist_dir/copilot"
+      echo "(dry-run) would install Copilot plugin from $SCRIPT_DIR/$dist_dir/copilot/$p_name"
     fi
     return
   fi
@@ -659,9 +661,9 @@ install_plugin() {
       echo "Registering $p_name with Copilot..."
       # Remove first so a re-run replaces the installed copy.
       copilot plugin uninstall "$p_name" >/dev/null 2>&1 || true
-      copilot plugin install "$SCRIPT_DIR/$dist_dir/copilot"
+      copilot plugin install "$SCRIPT_DIR/$dist_dir/copilot/$p_name"
     else
-      echo "Copilot CLI not found; skipped registration. Run: copilot plugin install $SCRIPT_DIR/$dist_dir/copilot"
+      echo "Copilot CLI not found; skipped registration. Run: copilot plugin install $SCRIPT_DIR/$dist_dir/copilot/$p_name"
     fi
   fi
 }

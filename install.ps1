@@ -513,7 +513,10 @@ function Install-Plugin {
         $target = Join-Path $distDirectory 'copilot'
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
         Write-Output "Configuring Copilot plugin structure for $Name..."
-        Install-PlatformLayout -Harness copilot -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath (Join-Path $target '.claude-plugin/plugin.json')
+        # Copilot names a direct install after the source directory, so the
+        # bundle directory carries the plugin name to keep plugins apart.
+        $bundle = Join-Path $target $Name
+        Install-PlatformLayout -Harness copilot -PluginDirectory $pluginDirectory -Destination $bundle -HooksRoot '${PLUGIN_ROOT}' -ManifestPath (Join-Path $bundle '.claude-plugin/plugin.json')
     }
 
     if ($DryRun) {
@@ -525,7 +528,7 @@ function Install-Plugin {
             Write-Output "(dry-run) would install global OpenCode skills to $(Join-Path $UserHome ".config/opencode/skills/$Name")"
         }
         if (Test-Platform 'copilot') {
-            Write-Output "(dry-run) would install Copilot plugin from $(Join-Path $distDirectory 'copilot')"
+            Write-Output "(dry-run) would install Copilot plugin from $(Join-Path $distDirectory "copilot/$Name")"
         }
         return
     }
@@ -575,7 +578,7 @@ function Install-Plugin {
             -CommandArguments @('plugin', 'add', "$Name@gin-workflow-marketplace")
     }
     if (Test-Platform 'copilot') {
-        $copilotBundle = Join-Path $distDirectory 'copilot'
+        $copilotBundle = Join-Path $distDirectory "copilot/$Name"
         if (Get-Command copilot -ErrorAction SilentlyContinue) {
             Write-Output "Registering $Name with Copilot..."
             # Remove first so a re-run replaces the installed copy.
