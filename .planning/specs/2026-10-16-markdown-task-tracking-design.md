@@ -25,7 +25,7 @@ Out of scope:
 
 ## Requirements
 
-1. **Beads non-regression.** With `task_tracking: beads` (the default), every existing lifecycle behavior, gate result, and test outcome is unchanged. `gin-workflow task <args>` under `beads` runs `bd <args>` with the arguments unchanged and returns its exit code and output. The existing test suites pass unmodified.
+1. **Beads non-regression.** With `task_tracking: beads` (the default), every existing lifecycle behavior, gate result, and test outcome is unchanged. `gin-workflow task <args>` under `beads` runs `bd <args>` with the arguments unchanged and returns its exit code and output. The existing test suites pass unmodified, except contract tests that assert skill text containing a literal `bd` command, which follow the R8 rewrite.
 2. **Provider.** `MarkdownTaskTrackingProvider` in `workflow_providers/` implements the task-tracking interface (create, read, update, close, dependency, readiness, preflight; `sync` reports unavailable), and `registry.py` registers it under the name `markdown`.
 3. **Storage.** One file per task, YAML frontmatter (`id`, `title`, `issue_type`, `status`, `parent`, `deps`, `labels`, `acceptance_criteria`, `close_reason`, …) plus a Markdown body (description, then a `## Notes` section). A task without a parent (an epic, or a standalone task) is `.planning/tasks/<id>/<id>.md`; a child lives in its parent's directory as `<parent-id>.<n>.md`. Top-level IDs are `<repo-name>-<n>` unless `--id` is given; child IDs are `<parent-id>.<n>`, matching the Beads child-ID shape. Paths always resolve to the main checkout (the parent of `git-common-dir`), so every worktree reads and writes the same files.
 4. **Local only.** The store writes `.planning/tasks/.gitignore` containing `*` on its first write, so task files are never committed and never make a checkout dirty. Nothing in this mode commits task files.
@@ -33,7 +33,7 @@ Out of scope:
 6. **CLI.** `gin-workflow task create|show|update|close|reopen|list|ready|blocked|dep add|dep remove|dep list|config get issue_prefix|remember|memories`, accepting the `bd` flags the skills use today and printing `bd`-shaped JSON with `--json` (`id`, `title`, `status`, `issue_type`, `labels`, `dependencies`, `close_reason`, …). Under `markdown`, `remember`/`memories` use `.planning/tasks/memory.md`.
 7. **Gates.** `lifecycle_cli.py` derives `implementation_complete` and `shipped` through the configured backend. Under `beads` the query is the same `bd` call as today.
 8. **Skills and agents.** Every direct `bd …` instruction in skills and agents becomes `gin-workflow task …`, except Beads-only material: `beads-migration`, `team-setup`, and `gin-team`.
-9. **Concurrency.** Writes take an exclusive lock on `.agent-workflow/runtime/tasks.lock` in the main checkout, reusing `_file_lock` from `workflow_core/events.py`, and write files with `workflow_core/atomic.py`.
+9. **Concurrency.** Writes take an exclusive lock on `.planning/tasks/.lock` in the main checkout (git-ignored with the rest), reusing `_file_lock` from `workflow_core/events.py`, and write files with `workflow_core/atomic.py`.
 10. **Setup.** `gin-workflow setup detect` reports `beads_installed`. When it is false, `/setup` proposes `--set providers.task_tracking=markdown` and records it only after the user confirms. If `bd` is present, the default remains `beads` and setup does not ask.
 11. **Safety hook.** `safety-check.sh` parses the hook payload with `jq` when present, otherwise with `python3`. It errors only when neither is available.
 
