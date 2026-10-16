@@ -122,7 +122,8 @@ def _ignore(root: Path) -> None:
 
 
 def _save(root: Path, task: dict[str, Any]) -> None:
-    if re.search(r"^## Notes$", task.get("description") or "", flags=re.M):
+    task["description"] = re.sub(r"\r\n?", "\n", task.get("description") or "")
+    if re.search(r"^## Notes$", task["description"], flags=re.M):
         raise TaskFileError("description cannot contain a '## Notes' line; use --notes")
     task["updated_at"] = _now()
     path = task.pop("_path")

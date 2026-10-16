@@ -199,9 +199,10 @@ class TaskMarkdownTests(unittest.TestCase):
         self.assertEqual(("intro\n### Notes about x\nmore", "n1"), (shown["description"], shown["notes"]))
 
     def test_notes_heading_in_description_is_rejected(self):
-        code, _, err = self.run_task("create", "-d", "a\n## Notes\nb", "D")
-        self.assertEqual(1, code)
-        self.assertIn("## Notes", err)
+        for description in ("a\n## Notes\nb", "a\r\n## Notes\r\nb", "a\r## Notes\rb"):
+            code, _, err = self.run_task("create", "-d", description, "D")
+            self.assertEqual(1, code, repr(description))
+            self.assertIn("## Notes", err)
         task = self.q("create", "T")["id"]
         self.assertEqual(1, self.run_task("update", task, "-d", "x\n## Notes")[0])
         self.assertEqual("", self.q("show", task)[0]["description"])
