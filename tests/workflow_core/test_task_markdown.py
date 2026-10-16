@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -144,6 +145,58 @@ class TaskMarkdownTests(unittest.TestCase):
         self.assertEqual((0, f"{task} [open] T\n", ""), self.run_task("list"))
         self.assertNotEqual(0, self.run_task("frobnicate")[0])
 
+
+    def test_unsafe_explicit_ids_are_rejected(self):
+        for bad in ("../../escape", "x/y", "..", ".hidden", "a..b"):
+            code, _, err = self.run_task("create", "--id", bad, "T")
+            self.assertEqual(1, code, bad)
+            self.assertIn("invalid task id", err)
+        self.assertFalse((Path(self._directory.name) / "escape.md").exists())
+        self.assertEqual("repo:a.b-1", self.q("create", "--id", "repo:a.b-1", "T")["id"])
+
+    def test_concurrent_remembers_keep_every_fact(self):
+        code = f"import sys; sys.path.insert(0, {str(SCRIPTS)!r}); from pathlib import Path; " \
+               f"from workflow_core.task_markdown import main; sys.exit(main(Path('.'), sys.argv[1:]))"
+        workers = [subprocess.Popen([sys.executable, "-c", code, "remember", f"fact {n}"],
+                                    cwd=self.root, stdout=subprocess.DEVNULL) for n in range(16)]
+        self.assertEqual([0] * 16, [worker.wait() for worker in workers])
+        self.assertEqual(16, len(self.q("memories")))
+
+    def test_misshapen_frontmatter_fails_closed_naming_the_file(self):
+        self.q("create", "--type", "epic", "E")
+        bad = self.root / ".planning/tasks/repo-1/bad.md"
+        for head in ("deps: [repo-1]", "labels: foo", "acceptance_criteria: [1, {a: b}]", "title: [x]"):
+            text = "---\nid: repo-9\ntitle: x\n" + head + "\n---\n"
+            bad.write_text(text.replace("title: x\ntitle:", "title:"), encoding="utf-8")
+            code, _, err = self.run_task("list")
+            self.assertEqual(1, code, head)
+            self.assertIn(str(bad), err, head)
+        bad.write_bytes(b"---\nid: repo-9\ntitle: \xff\n---\n")
+        code, _, err = self.run_task("list")
+        self.assertEqual((1, True), (code, str(bad) in err))
+        bad.write_text("---\nid: repo-1\ntitle: dup\n---\n", encoding="utf-8")
+        code, _, err = self.run_task("list")
+        self.assertEqual(1, code)
+        self.assertIn("duplicate task id repo-1", err)
+        self.assertIn(str(bad), err)
+        self.assertIn("repo-1.md", err)
+
+    def test_unquoted_timestamps_stay_strings(self):
+        task = self.q("create", "T")["id"]
+        path = self.root / f".planning/tasks/{task}/{task}.md"
+        path.write_text(path.read_text(encoding="utf-8").replace("created_at: '", "created_at: ").replace(
+            "Z'\n", "Z\n", 1), encoding="utf-8")
+        code, out, _ = self.run_task("show", task, "--json")
+        self.assertEqual(0, code)
+        self.assertIsInstance(json.loads(out)[0]["created_at"], str)
+
+    def test_dep_remove_status_and_notes_heading_in_description(self):
+        a = self.q("create", "A")["id"]
+        b = self.q("create", "B", "-d", "intro\n### Notes about x\nmore", "--notes", "n1")["id"]
+        self.assertEqual("added", self.q("dep", "add", b, a)["status"])
+        self.assertEqual("removed", self.q("dep", "remove", b, a)["status"])
+        shown = self.q("show", b)[0]
+        self.assertEqual(("intro\n### Notes about x\nmore", "n1"), (shown["description"], shown["notes"]))
 
 if __name__ == "__main__":
     unittest.main()

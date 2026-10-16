@@ -20,6 +20,16 @@ STATUSES = ("open", "in_progress", "blocked", "deferred", "closed")
 _FIELDS = ("id", "title", "issue_type", "status", "parent", "deps", "labels", "priority", "assignee",
            "spec_id", "acceptance_criteria", "close_reason", "created_at", "updated_at")
 _NOTES = "\n## Notes\n"
+_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*")
+
+
+class _Loader(yaml.SafeLoader):
+    """SafeLoader that keeps timestamps as strings, so a hand-edited date stays JSON-serializable."""
+
+
+_Loader.yaml_implicit_resolvers = {
+    key: [resolver for resolver in resolvers if resolver[0] != "tag:yaml.org,2002:timestamp"]
+    for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()}
 
 
 class TaskFileError(ValueError):
@@ -35,19 +45,31 @@ def _now() -> str:
 
 
 def _parse(path: Path) -> dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise TaskFileError(f"{path}: unreadable: {error}") from error
     if not text.startswith("---\n") or "\n---\n" not in text[4:]:
         raise TaskFileError(f"{path}: missing YAML frontmatter")
     head, body = text[4:].split("\n---\n", 1)
     try:
-        task = yaml.safe_load(head)
+        task = yaml.load(head, Loader=_Loader)
     except yaml.YAMLError as error:
         raise TaskFileError(f"{path}: invalid frontmatter: {error}") from error
     if not isinstance(task, dict) or not task.get("id") or not task.get("title"):
         raise TaskFileError(f"{path}: frontmatter needs id and title")
+    if not all(isinstance(task[key], (str, int)) for key in ("id", "title")):
+        raise TaskFileError(f"{path}: id and title must be strings")
+    for key in ("labels", "acceptance_criteria"):
+        if not isinstance(task.get(key) or [], list) or not all(isinstance(item, str) for item in task.get(key) or []):
+            raise TaskFileError(f"{path}: {key} must be a list of strings")
+    deps = task.get("deps") or []
+    if not isinstance(deps, list) or not all(isinstance(dep, dict) and isinstance(dep.get("id"), str) for dep in deps):
+        raise TaskFileError(f"{path}: deps must be a list of mappings with an id")
+    task["id"], task["title"] = str(task["id"]), str(task["title"])
     if task.get("status", "open") not in STATUSES:
         raise TaskFileError(f"{path}: unsupported status {task.get('status')!r}")
-    description, _, notes = body.strip("\n").partition(_NOTES.strip("\n"))
+    description, notes = (re.split(r"^## Notes$", body.strip("\n"), maxsplit=1, flags=re.M) + [""])[:2]
     task.update(description=description.strip(), notes=notes.strip())
     task.setdefault("status", "open")
     task.setdefault("issue_type", "task")
@@ -72,7 +94,9 @@ def load_all(root: Path) -> dict[str, dict[str, Any]]:
     for path in sorted(base.glob("*/*.md")) if base.is_dir() else ():
         task = _parse(path)
         task["_path"] = path
-        tasks[str(task["id"])] = task
+        if task["id"] in tasks:
+            raise TaskFileError(f"duplicate task id {task['id']}: {tasks[task['id']]['_path']} and {path}")
+        tasks[task["id"]] = task
     return tasks
 
 
@@ -231,15 +255,15 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
     _ignore(root)
     if command == "config":
         return {"key": "issue_prefix", "value": prefix(root)}
-    if command in ("remember", "memories"):
-        memory = tasks_root(root) / "memory.md"
-        lines = memory.read_text(encoding="utf-8").splitlines() if memory.is_file() else []
-        if command == "memories":
-            return [line[2:] for line in lines if line.startswith("- ") and args.keyword.lower() in line.lower()]
-        atomic_write_text(memory, "\n".join(lines or ["# Project memory", ""]) + f"\n- {args.fact}\n", mode=0o644)
-        return {"remembered": args.fact}
-
-    with _file_lock(tasks_root(root) / ".lock", exclusive=command not in ("show", "list", "ready", "blocked")):
+    readers = ("show", "list", "ready", "blocked", "memories")
+    with _file_lock(tasks_root(root) / ".lock", exclusive=command not in readers):
+        if command in ("remember", "memories"):
+            memory = tasks_root(root) / "memory.md"
+            lines = memory.read_text(encoding="utf-8").splitlines() if memory.is_file() else []
+            if command == "memories":
+                return [line[2:] for line in lines if line.startswith("- ") and args.keyword.lower() in line.lower()]
+            atomic_write_text(memory, "\n".join(lines or ["# Project memory", ""]) + f"\n- {args.fact}\n", mode=0o644)
+            return {"remembered": args.fact}
         tasks = load_all(root)
         if command == "show":
             return [as_json(_get(tasks, task_id)) for task_id in args.ids]
@@ -270,6 +294,8 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
             else:
                 task_id = args.id or _next_id(tasks, f"{prefix(root)}-")
                 directory = tasks_root(root) / task_id
+            if not _ID.fullmatch(task_id) or ".." in task_id:
+                raise TaskFileError(f"invalid task id: {task_id!r}")
             if task_id in tasks:
                 raise TaskFileError(f"task already exists: {task_id}")
             task = {"id": task_id, "title": title.strip(), "issue_type": args.type, "status": args.status,
@@ -318,7 +344,8 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
             else:
                 task["deps"] = [dep for dep in task["deps"] if dep["id"] != args.depends_on]
             _save(root, task)
-            return {"status": args.dep_command + "ed", "issue_id": args.id, "depends_on_id": args.depends_on}
+            status = {"add": "added", "remove": "removed"}[args.dep_command]
+            return {"status": status, "issue_id": args.id, "depends_on_id": args.depends_on}
     raise TaskFileError(f"unsupported command: {command}")
 
 
