@@ -198,5 +198,27 @@ class TaskMarkdownTests(unittest.TestCase):
         shown = self.q("show", b)[0]
         self.assertEqual(("intro\n### Notes about x\nmore", "n1"), (shown["description"], shown["notes"]))
 
+    def test_notes_heading_in_description_is_rejected(self):
+        code, _, err = self.run_task("create", "-d", "a\n## Notes\nb", "D")
+        self.assertEqual(1, code)
+        self.assertIn("## Notes", err)
+        task = self.q("create", "T")["id"]
+        self.assertEqual(1, self.run_task("update", task, "-d", "x\n## Notes")[0])
+        self.assertEqual("", self.q("show", task)[0]["description"])
+
+    def test_undecodable_memory_and_tagged_scalars_fail_closed(self):
+        self.q("remember", "a fact")
+        memory = self.root / ".planning/tasks/memory.md"
+        memory.write_bytes(memory.read_bytes() + b"\xff\n")
+        code, _, err = self.run_task("remember", "hi")
+        self.assertEqual((1, True), (code, str(memory) in err))
+        self.q("create", "--type", "epic", "E")
+        bad = self.root / ".planning/tasks/repo-1/bad.md"
+        for head in ("priority: !!binary aGk=", "assignee: !!set {a: null}", "parent: [x]"):
+            bad.write_text("---\nid: repo-9\ntitle: x\n" + head + "\n---\n", encoding="utf-8")
+            code, _, err = self.run_task("show", "repo-9", "--json")
+            self.assertEqual(1, code, head)
+            self.assertIn(str(bad), err, head)
+
 if __name__ == "__main__":
     unittest.main()

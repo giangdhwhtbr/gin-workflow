@@ -44,11 +44,15 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _parse(path: Path) -> dict[str, Any]:
+def _read(path: Path) -> str:
     try:
-        text = path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         raise TaskFileError(f"{path}: unreadable: {error}") from error
+
+
+def _parse(path: Path) -> dict[str, Any]:
+    text = _read(path)
     if not text.startswith("---\n") or "\n---\n" not in text[4:]:
         raise TaskFileError(f"{path}: missing YAML frontmatter")
     head, body = text[4:].split("\n---\n", 1)
@@ -66,6 +70,9 @@ def _parse(path: Path) -> dict[str, Any]:
     deps = task.get("deps") or []
     if not isinstance(deps, list) or not all(isinstance(dep, dict) and isinstance(dep.get("id"), str) for dep in deps):
         raise TaskFileError(f"{path}: deps must be a list of mappings with an id")
+    if not all(isinstance(value, (str, int, type(None))) for key, value in task.items()
+               if key not in ("deps", "labels", "acceptance_criteria")):
+        raise TaskFileError(f"{path}: scalar fields must be strings or numbers")
     task["id"], task["title"] = str(task["id"]), str(task["title"])
     if task.get("status", "open") not in STATUSES:
         raise TaskFileError(f"{path}: unsupported status {task.get('status')!r}")
@@ -115,6 +122,8 @@ def _ignore(root: Path) -> None:
 
 
 def _save(root: Path, task: dict[str, Any]) -> None:
+    if re.search(r"^## Notes$", task.get("description") or "", flags=re.M):
+        raise TaskFileError("description cannot contain a '## Notes' line; use --notes")
     task["updated_at"] = _now()
     path = task.pop("_path")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -259,7 +268,7 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
     with _file_lock(tasks_root(root) / ".lock", exclusive=command not in readers):
         if command in ("remember", "memories"):
             memory = tasks_root(root) / "memory.md"
-            lines = memory.read_text(encoding="utf-8").splitlines() if memory.is_file() else []
+            lines = _read(memory).splitlines() if memory.is_file() else []
             if command == "memories":
                 return [line[2:] for line in lines if line.startswith("- ") and args.keyword.lower() in line.lower()]
             atomic_write_text(memory, "\n".join(lines or ["# Project memory", ""]) + f"\n- {args.fact}\n", mode=0o644)
