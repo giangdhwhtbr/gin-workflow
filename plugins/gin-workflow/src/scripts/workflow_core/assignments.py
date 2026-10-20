@@ -164,7 +164,8 @@ def resolve_assignment(
     if not isinstance(role, Mapping):
         raise AssignmentResolutionError(f"unknown provider role: {request.provider_role}")
 
-    preferred = tuple(role.get("preferred", ()))
+    by_tier = role.get("by_tier") or {}
+    preferred = tuple(by_tier.get(request.reasoning) or role.get("preferred", ()))
     fallback = tuple(role.get("fallback", ()))
     ordered: list[tuple[str, bool]] = []
     seen: set[str] = set()

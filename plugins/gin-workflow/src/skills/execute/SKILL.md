@@ -30,7 +30,7 @@ Implement one ready work unit inside its approved scope and record evidence.
 - Record notable decisions or risks per `gin-knowledge`.
 
 ## 3. Direct vs worker dispatch
-Execute directly for sequential work, a single agent, three or fewer tasks, or no explicit worker condition. Use a worker only for parallelizable work with more than three tasks, long-running or specialized work, or independent review. When dispatching:
+Execute directly for sequential work, a single agent, three or fewer tasks, or no explicit worker condition. Use a worker only for parallelizable work with more than three tasks, long-running or specialized work, independent review, or a track whose resolved route (`.agent-workflow/runtime/assignments/<workflow>.yaml`) names a provider other than the main harness; run that worker through the provider's CLI, which needs no extra approval. When dispatching:
 - Send a bounded context (unit, scope, validation intent); never the parent transcript, model names, secrets, or private reasoning. Fail with `context_unavailable` if required context is missing.
 - Re-resolve the provider role and reasoning at dispatch time; recheck circuit, health, and capacity. Keep the preferred/fallback order and never downgrade the requested reasoning tier. Record the actual route and any fallback in runtime events only.
 - One task claim and one isolated workspace per worker; reuse the retry identity; never redispatch a completed task. If every route is unavailable, return `worker_routes_unavailable`.

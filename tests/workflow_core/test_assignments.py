@@ -90,6 +90,10 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("Xin lệnh tạo PR từ nhánh feature đã push", execute)
         self.assertIn("Giữ nhánh feature đã push", execute)
 
+        # Routed tracks dispatch to their provider; orchestrate hands off a /goal
+        self.assertIn("provider other than the main harness", execute)
+        self.assertIn("/goal", orchestrate)
+
     def test_plan_validation_reports_every_role_and_tier_error_in_task_order(self):
         with tempfile.TemporaryDirectory() as directory:
             errors = validate_plan_assignments(
@@ -220,6 +224,19 @@ class AssignmentTests(unittest.TestCase):
             (("claude", "opus", False), ("codex", "reasoning", True)),
             tuple((route.provider, route.model, route.fallback) for route in routes),
         )
+
+    def test_resolver_by_tier_replaces_preferred_for_that_tier_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            role = {"preferred": ["claude"], "by_tier": {"low": ["codex"]}}
+            config = EffectiveConfig({"harness": "codex", "routing": {"roles": {"backend": role}}}, Path(directory))
+            low = resolve_assignment(AssignmentRequest("api", "backend", "low", "codex"), config, local())
+            high = resolve_assignment(AssignmentRequest("api", "backend", "high", "codex"), config, local())
+
+        self.assertEqual(
+            (("codex", "mini", False),),
+            tuple((route.provider, route.model, route.fallback) for route in low),
+        )
+        self.assertEqual("claude", high[0].provider)
 
     def test_resolver_rejects_missing_role_provider_mapping_and_invalid_tier(self):
         with tempfile.TemporaryDirectory() as directory:

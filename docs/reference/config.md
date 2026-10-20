@@ -96,6 +96,7 @@ Rigor presets:
 | Key | Meaning |
 |---|---|
 | `roles.<role>.preferred`, `.fallback` | ordered providers for a role (`claude`, `codex`, `antigravity`, `opencode`, or `main_harness`) |
+| `roles.<role>.by_tier.<low\|medium\|high>` | providers that replace `preferred` for tasks at that reasoning tier, for example cheap work on one provider and hard work on another |
 | `roles.<role>.require_independent` | the role must use a different provider from the implementer |
 | `concurrency.<provider>` | maximum concurrent workers |
 | `queue.max_wait_seconds` | how long a task waits for capacity (default 600) |

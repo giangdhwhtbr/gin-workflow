@@ -213,7 +213,8 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
             for role_name, role in roles.items():
                 if not isinstance(role, Mapping):
                     continue
-                for provider in (*role.get("preferred", ()), *role.get("fallback", ())):
+                tiers = role.get("by_tier") or {}
+                for provider in (*role.get("preferred", ()), *role.get("fallback", ()), *(p for t in tiers.values() for p in t)):
                     if provider != "main_harness" and provider not in known_providers:
                         raise ConfigValidationError(
                             f"unknown routing provider {provider!r} in role {role_name!r}"

@@ -436,8 +436,9 @@ def _inspect_required_providers(
     for role_entry in roles.values():
         if not isinstance(role_entry, Mapping):
             continue
-        for key in ("preferred", "fallback"):
-            items = role_entry.get(key)
+        tiers = role_entry.get("by_tier")
+        tier_lists = list(tiers.values()) if isinstance(tiers, Mapping) else []
+        for items in (role_entry.get("preferred"), role_entry.get("fallback"), *tier_lists):
             candidates: list[str] = []
             if isinstance(items, (list, tuple)):
                 candidates = [str(x) for x in items if x is not None]

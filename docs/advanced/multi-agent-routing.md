@@ -66,7 +66,7 @@ providers:
 
 During `/gin-workflow:orchestrate`:
 1. The orchestrator inspects each track in the approved plan.
-2. It resolves the requested role (e.g. `backend`) and reasoning tier (e.g. `medium`) against the role's `preferred` then `fallback` providers; each candidate needs an executable and a model for that tier in `providers.local.yaml`.
+2. It resolves the requested role (e.g. `backend`) and reasoning tier (e.g. `medium`) against the role's `preferred` then `fallback` providers (or its `by_tier.<tier>` list, which replaces `preferred` for that tier); each candidate needs an executable and a model for that tier in `providers.local.yaml`.
 3. It writes the resolved routes to the runtime assignment manifest (`.agent-workflow/runtime/assignments/<workflow>.yaml`). Provider and model names never enter the plan or Beads.
 4. If any track cannot be resolved, every diagnostic is reported and nothing durable is created.
 

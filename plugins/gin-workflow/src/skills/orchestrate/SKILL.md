@@ -28,3 +28,9 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
 ## Exit
 
 Return `orchestration_ready`. Do not begin execution.
+
+End with `Next commands:`, the ready tracks (`/gin-workflow:execute <id>`), and a Claude Code goal that runs the whole epic unattended (suggest auto mode):
+
+```
+/goal gin-workflow state --workflow-id <workflow> shows implementation_complete satisfied: every track of epic <epic> closed after tests and review passed, each executed per /gin-workflow:execute on its routed provider. Or stop after 40 turns.
+```

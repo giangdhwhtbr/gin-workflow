@@ -2,6 +2,10 @@
 
 The dispatcher exposes `dispatch(request)`, `cancel(worker_id)`, `status(worker_id)`, and `collect_result(worker_id)` for every worker provider.
 
+## Launching a CLI worker
+
+Run the routed executable in the track worktree with the argv from `scripts/workflow_providers/<provider>_worker.py`. Verify the diff and tests yourself.
+
 ## Events
 
 Record lifecycle events in this order when the corresponding transition occurs:

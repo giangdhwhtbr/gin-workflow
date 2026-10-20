@@ -1,5 +1,5 @@
 harness: claude
-provider_mode: single
+provider_mode: multi
 routing:
   circuit_breaker:
     cooldown_seconds: 900
@@ -9,6 +9,7 @@ routing:
     antigravity: 2
     claude: 2
     codex: 1
+    opencode: 2
   queue:
     max_wait_seconds: 600
   review:
@@ -19,15 +20,42 @@ routing:
     role: review
   roles:
     backend:
+      by_tier:
+        high:
+        - antigravity
+        low:
+        - opencode
+        medium:
+        - opencode
+      fallback:
+      - main_harness
       preferred:
       - main_harness
     docs:
       preferred:
       - main_harness
     frontend:
+      by_tier:
+        high:
+        - antigravity
+        low:
+        - opencode
+        medium:
+        - opencode
+      fallback:
+      - main_harness
       preferred:
       - main_harness
     general:
+      by_tier:
+        high:
+        - antigravity
+        low:
+        - opencode
+        medium:
+        - opencode
+      fallback:
+      - main_harness
       preferred:
       - main_harness
     review:

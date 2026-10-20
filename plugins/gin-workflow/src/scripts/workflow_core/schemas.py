@@ -107,6 +107,18 @@ CONFIG_SCHEMA: dict[str, Any] = {
                                 "type": "array",
                                 "items": {"type": "string", "minLength": 1},
                             },
+                            "by_tier": {
+                                "type": "object",
+                                "properties": {
+                                    tier: {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "items": {"type": "string", "minLength": 1},
+                                    }
+                                    for tier in ("low", "medium", "high")
+                                },
+                                "additionalProperties": False,
+                            },
                             "require_independent": {"type": "boolean"},
                         },
                         "additionalProperties": False,
