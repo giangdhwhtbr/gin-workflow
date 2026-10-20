@@ -16,8 +16,14 @@ if [ ! -t 0 ]; then
         exit 2
       }
       CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null) || CWD=""
+    elif command -v python3 >/dev/null 2>&1; then
+      COMMAND=$(printf '%s' "$INPUT" | python3 -c 'import json, sys; print((json.load(sys.stdin).get("tool_input") or {}).get("command") or "")' 2>/dev/null) || {
+        echo "Error: failed to parse PreToolUse hook payload as JSON." >&2
+        exit 2
+      }
+      CWD=$(printf '%s' "$INPUT" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("cwd") or "")' 2>/dev/null) || CWD=""
     else
-      echo "Error: jq is required to parse PreToolUse hook payload but is missing." >&2
+      echo "Error: jq or python3 is required to parse PreToolUse hook payload but neither is installed." >&2
       exit 2
     fi
   else

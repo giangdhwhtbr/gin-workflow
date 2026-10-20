@@ -26,7 +26,7 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | git | branches, worktrees, review checkpoints | your package manager |
 | jq | the safety hook, which blocks every shell command when `jq` is missing | `brew install jq`, `apt install jq`, or `winget install jqlang.jq` |
 | Git Bash (Windows only) | the `.sh` hook scripts | [Git for Windows](https://gitforwindows.org/) or `winget install Git.Git` |
-| [Beads](https://github.com/gastownhall/beads) (`bd`) | task tracking | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
+| [Beads](https://github.com/gastownhall/beads) (`bd`) | task tracking; optional: without it, `/setup` offers local Markdown tasks (`providers.task_tracking: markdown`) | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
 | A harness | running the skills | Claude Code, Codex CLI, Antigravity CLI (`agy`), or OpenCode |
 
 Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; `codex`, `agy`, or `opencode` next to your main harness for multi-provider routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).

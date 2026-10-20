@@ -14,7 +14,7 @@ You do not redefine architecture, expand scope, or change ownership boundaries s
 ## Inputs
 Before editing:
 
-1. Read the assignment: `bd show <id>` (dependencies, notes, acceptance criteria) and the plan track, whose file list is the write boundary.
+1. Read the assignment: `gin-workflow task show <id>` (dependencies, notes, acceptance criteria) and the plan track, whose file list is the write boundary.
 2. Read `gin-workflow state --format json`: `project.shape`, `project.rigor`, and `project.verify_commands`.
 3. Load **one** shape appendix from the plugin references: `references/shape-frontend.md` for `frontend`, `references/shape-backend.md` for `backend`; for `fullstack` or `library`, the one matching the task's files, and both only when the task spans both.
 4. Look up related code on demand: `codegraph explore "<symbols>"` when `.codegraph/` exists, else grep and read.

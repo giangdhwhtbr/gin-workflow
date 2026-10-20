@@ -10,12 +10,12 @@ model: standard_impl
 You execute, validate, and report on one assigned bead (task track). Follow the `execute` skill.
 
 ## Inputs
-1. `bd show <track-id> --json`: status, dependencies, description, acceptance criteria.
+1. `gin-workflow task show <track-id> --json`: status, dependencies, description, acceptance criteria.
 2. In-scope files from the matching track in `.planning/plans/` (its `Files:` list), or derived from the bead description and acceptance criteria for a standalone unit.
 3. The relevant source and test files, to learn current conventions.
 
 ## Guidelines
-1. Edit only the in-scope files. If changes outside them are needed, record the blocker in the bead (`bd update <id> --notes`), send a `work_blocked` notification when `telegram-notify` is configured, and stop.
+1. Edit only the in-scope files. If changes outside them are needed, record the blocker in the bead (`gin-workflow task update <id> --notes`), send a `work_blocked` notification when `telegram-notify` is configured, and stop.
 2. Record notable discoveries, workarounds, or decisions per the `gin-knowledge` skill.
 3. Run the relevant tests or checks against the acceptance criteria. On failure, follow `gin-debugging` and fix locally.
 

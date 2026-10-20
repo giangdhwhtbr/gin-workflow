@@ -184,6 +184,16 @@ Called by the `review` skill to pick the reviewer; you do not need to run it. Pr
 
 Exit codes: 0 routes printed; 2 bad `--base`, no route for the tier, or no independent route.
 
+## `gin-workflow task`
+
+```
+gin-workflow task <bd arguments>
+```
+
+The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` (the default) it runs `bd` with the arguments unchanged. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update`, `close`, `reopen`, `list`, `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
+
+Exit codes: 0 ok; 1 invalid request or malformed task file (the message names the file); 127 `beads` is configured but `bd` is not installed.
+
 ## `gin-workflow usage`
 
 ```
