@@ -17,9 +17,14 @@ def backend(root: Path) -> str:
     from .configuration import ConfigValidationError, load_effective_config
 
     try:
-        providers = load_effective_config(Path(root)).get("providers", {})
+        return backend_name(load_effective_config(Path(root)))
     except (ConfigValidationError, OSError):
         return "beads"
+
+
+def backend_name(config: Mapping[str, Any]) -> str:
+    """`providers.task_tracking` in an already-loaded config; `beads` when unset."""
+    providers = config.get("providers", {})
     raw = providers.get("task_tracking", "beads") if isinstance(providers, Mapping) else "beads"
     name = raw.get("name", raw.get("type")) if isinstance(raw, Mapping) else raw
     return str(name or "beads")
