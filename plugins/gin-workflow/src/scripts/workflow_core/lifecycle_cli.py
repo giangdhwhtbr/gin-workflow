@@ -148,6 +148,7 @@ _RECORDABLE_GATES = {
     "quick-completed": ("quick.completed", {}),
     "shipped": ("delivery.shipped", {}),
 }
+_PROCESS_GATES = ("requirement-confirmed", "plan-approved", "orchestration-ready")
 
 
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
@@ -155,6 +156,11 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
     store = _get_event_store(Path(args.repository).resolve())
+    if args.gate in _PROCESS_GATES and _implementation_and_shipped(
+        Path(args.repository).resolve(), store, args.workflow_id
+    )[1]:
+        return {"status": "error", "message": f"workflow {args.workflow_id} is already shipped; "
+                "pass --workflow-id <new-id> for new work"}, 2
     if args.gate == "shipped":
         epic = _recorded_epic(store, args.workflow_id)
         if not epic or _beads_json(Path(args.repository).resolve(), ["list", "--parent", epic, "--all", "--limit", "0"]) != []:

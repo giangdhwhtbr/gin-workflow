@@ -402,6 +402,18 @@ class TestLifecycleCLI(unittest.TestCase):
         with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"], epic_status="closed")):
             self.assertEqual(2, cli_main(shipped))
 
+    def test_process_gates_are_refused_for_a_shipped_workflow(self):
+        from unittest.mock import patch
+
+        self._record_orchestration(epic="bug-1")
+        with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([], epic_status="closed")):
+            self.assertEqual(0, cli_main(["record", "shipped", "--repository", str(self.repo_path),
+                                          "--evidence", "merged abc123 into master", "--actor", "user"]))
+            self.assertEqual(2, cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
+                                          "--evidence", "spec.md", "--actor", "user"]))
+            self.assertEqual(0, cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
+                                          "--evidence", "spec.md", "--actor", "user", "--workflow-id", "fresh"]))
+
     def test_record_rejects_epic_on_other_gates(self):
         self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
                                       "--evidence", "plan.md", "--actor", "user", "--epic", "epic"]))
