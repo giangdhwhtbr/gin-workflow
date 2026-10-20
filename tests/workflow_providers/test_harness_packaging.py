@@ -168,16 +168,21 @@ class HarnessPackagingTests(unittest.TestCase):
                 root = self.dist / harness
                 self.assertTrue(all((root / relative).is_file() for relative in relatives))
 
-    def test_copilot_layout_is_a_claude_manifest_bundle_without_hooks_or_agents(self):
-        # Copilot CLI reads .claude-plugin/plugin.json and skills/<name>/SKILL.md;
-        # its hook and agent formats differ, so those are left out.
+    def test_copilot_layout_is_a_claude_manifest_bundle_with_copilot_hooks(self):
+        # Copilot CLI reads .claude-plugin/plugin.json, skills/<name>/SKILL.md,
+        # and hooks/hooks.json in Copilot's format; agents are left out.
         root = self.dist / "copilot/gin-workflow"
         manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual("gin-workflow", manifest["name"])
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())
         self.assertTrue((root / "skills/report/SKILL.md").is_file())
         self.assertTrue((root / "references/stage-contract.md").is_file())
-        self.assertFalse((root / "hooks").exists())
+        hooks = json.loads((root / "hooks/hooks.json").read_text(encoding="utf-8"))
+        self.assertEqual(1, hooks.get("version"))
+        pre_tool_use = hooks.get("hooks", {}).get("PreToolUse", [])
+        self.assertTrue(any(entry.get("matcher") == "bash" and entry.get("bash", "").endswith('/scripts/safety-check.sh"') for entry in pre_tool_use))
+        post_tool_use = hooks.get("hooks", {}).get("PostToolUse", [])
+        self.assertTrue(any(entry.get("matcher") == "edit|create" and entry.get("bash", "").endswith('/scripts/post-edit.sh"') for entry in post_tool_use))
         self.assertFalse((root / "agents").exists())
         self.assertFalse((root / "commands").exists())
 

@@ -8,7 +8,7 @@ set -euo pipefail
 if [ ! -t 0 ]; then
   INPUT=$(cat)
   if [ -n "$INPUT" ] && command -v jq >/dev/null 2>&1; then
-    TARGET_FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty')
+    TARGET_FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // empty')
   else
     TARGET_FILE="${1:-}"
   fi
