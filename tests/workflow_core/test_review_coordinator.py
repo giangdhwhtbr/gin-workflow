@@ -45,6 +45,10 @@ class ReviewCoordinatorTests(unittest.TestCase):
         self.assertIn("must differ from the implementation provider", review)
         self.assertIn("maximum review cycles", review)
         self.assertIn("original provider/model route", review)
+        self.assertIn("transition-requested --to changes-requested --actor-role reviewer", review)
+        self.assertIn("`reject` only invalidates an existing approval", review)
+        self.assertIn("never in shell variables", review)
+        self.assertIn("never stop a process you did not start", review)
         self.assertIn("same-role, same-reasoning fallback", receiving)
         self.assertIn("must not close", receiving)
 
