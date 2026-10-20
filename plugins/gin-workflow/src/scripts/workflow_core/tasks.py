@@ -10,16 +10,25 @@ import sys
 from typing import Any, Mapping, Sequence
 
 from . import task_markdown
+from .checkout import main_checkout
+from .configuration import ConfigValidationError
 
 
 def backend(root: Path) -> str:
-    """The configured `providers.task_tracking` name; `beads` when unset or setup has not run."""
-    from .configuration import ConfigValidationError, load_effective_config
+    """The configured `providers.task_tracking` name; `beads` when setup has not run.
 
-    try:
-        return backend_name(load_effective_config(Path(root)))
-    except (ConfigValidationError, OSError):
+    An effective config that exists but is invalid raises ConfigValidationError instead of
+    falling back, so a markdown repository never silently writes to Beads.
+    """
+    from .configuration import load_effective_config
+
+    root = Path(root)
+    if not (main_checkout(root.resolve()) / ".agent-workflow/generated/effective-config.yaml").is_file():
         return "beads"
+    try:
+        return backend_name(load_effective_config(root))
+    except OSError as error:
+        raise ConfigValidationError(f"cannot read the effective config: {error}") from error
 
 
 def backend_name(config: Mapping[str, Any]) -> str:
@@ -32,7 +41,11 @@ def backend_name(config: Mapping[str, Any]) -> str:
 
 def query(root: Path, argv: Sequence[str]) -> Any:
     """Run one read-only query and return its JSON; None when the backend is unavailable or fails."""
-    if backend(root) == "markdown":
+    try:
+        name = backend(root)
+    except ConfigValidationError:
+        return None
+    if name == "markdown":
         return task_markdown.query(root, argv)
     executable = shutil.which("bd")
     if executable is None:
@@ -48,7 +61,12 @@ def query(root: Path, argv: Sequence[str]) -> Any:
 
 def main(argv: Sequence[str]) -> int:
     root = Path.cwd()
-    if backend(root) == "markdown":
+    try:
+        name = backend(root)
+    except ConfigValidationError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    if name == "markdown":
         return task_markdown.main(root, argv)
     executable = shutil.which("bd")
     if executable is None:

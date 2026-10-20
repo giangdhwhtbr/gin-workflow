@@ -101,5 +101,35 @@ class TaskDispatchTests(unittest.TestCase):
             validate_portable_config(config)
 
 
+    def test_invalid_config_fails_instead_of_running_bd(self):
+        self.init("providers.task_tracking=markdown")
+        config = self.root / ".agent-workflow/generated/effective-config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + "team:\n  host: github\n  members: {}\n",
+                          encoding="utf-8")
+        with mock.patch("workflow_core.tasks.shutil.which") as which, \
+                mock.patch("workflow_core.tasks.Path.cwd", return_value=self.root), \
+                mock.patch("sys.stderr") as stderr:
+            self.assertEqual(1, tasks.main(["ready"]))
+            self.assertIsNone(tasks.query(self.root, ["ready"]))
+        which.assert_not_called()
+        self.assertIn("team mode requires Beads", "".join(c.args[0] for c in stderr.write.call_args_list))
+        from workflow_core import specs, usage
+
+        with self.assertRaisesRegex(specs.SpecsError, "team mode requires Beads"):
+            specs._bd(self.root, ["ready"])
+        with self.assertRaisesRegex(usage.UsageError, "team mode requires Beads"):
+            usage._bd(self.root, ["show", "x"])
+
+    def test_specs_and_usage_follow_the_markdown_backend(self):
+        from workflow_core import specs, usage
+
+        self.init("providers.task_tracking=markdown")
+        epic = json.loads(gw(self.root, "task", "create", "--type", "epic", "E", "--json").stdout)["id"]
+        self.assertEqual(epic, specs._bd(self.root, ["show", epic])[0]["id"])
+        with self.assertRaisesRegex(specs.SpecsError, "failed"):
+            specs._bd(self.root, ["show", "nope-1"])
+        with self.assertRaisesRegex(usage.UsageError, "AI usage tracking requires Beads"):
+            usage._bd(self.root, ["show", epic])
+
 if __name__ == "__main__":
     unittest.main()
