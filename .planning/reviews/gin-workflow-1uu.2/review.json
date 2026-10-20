@@ -1,0 +1,165 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-in-progress",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "backend",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-1uu.2",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-1uu.2",
+      "review_base_sha": "5ac20522f65d193d69a7a011aec19a4cf1ef321f",
+      "reviewed_source_sha": "5c626e616b173238d970675ed5a20543035cbc77",
+      "checkpoint_sha": "5c626e616b173238d970675ed5a20543035cbc77",
+      "source_scope_hash": "1f6d048bd2034aab1c3171a3d39cae4cf9f987edeb91ec4609f97cd580d6b171",
+      "source_tree_hash": "6a43d85fefa11058aca65513a9e0285d2297fb029db85109690ae06e07596252",
+      "reviewed_source_tree_hash": "6a43d85fefa11058aca65513a9e0285d2297fb029db85109690ae06e07596252",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "plugins/gin-workflow/src/scripts/workflow_core/cli.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/configuration.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/lifecycle_cli.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/setup_service.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/specs.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/tasks.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/usage.py",
+      "tests/workflow_core/test_tasks.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": {
+    "lease_id": "bb1f0511be1f4cfdb191fa7450d0cc47",
+    "actor_role": "reviewer",
+    "actor_id": "reviewer:claude:session-1uu2",
+    "acquired_at": "2026-10-20T06:37:20.100792Z",
+    "expires_at": "2026-10-20T06:47:20.100792Z",
+    "current_ledger_revision": 5
+  },
+  "ledger_revision": 5,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-10-20T06:36:51.682534Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "backend",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-1uu.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-1uu.2",
+            "review_base_sha": "5ac20522f65d193d69a7a011aec19a4cf1ef321f",
+            "reviewed_source_sha": "ce314531dfe031a1aaf4527c3d2ab1046374da3d",
+            "checkpoint_sha": "ce314531dfe031a1aaf4527c3d2ab1046374da3d",
+            "source_scope_hash": "1f6d048bd2034aab1c3171a3d39cae4cf9f987edeb91ec4609f97cd580d6b171",
+            "source_tree_hash": "6a43d85fefa11058aca65513a9e0285d2297fb029db85109690ae06e07596252",
+            "reviewed_source_tree_hash": "6a43d85fefa11058aca65513a9e0285d2297fb029db85109690ae06e07596252",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "plugins/gin-workflow/src/scripts/workflow_core/cli.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/configuration.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/lifecycle_cli.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/setup_service.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/specs.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/tasks.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/usage.py",
+            "tests/workflow_core/test_tasks.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "adc1e84a48735352441902e291a6509bdb1d4ce7cc76fb0bb865194c75aba75e"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-20T06:36:52.040316Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "backend",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-1uu.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-1uu.2",
+            "review_base_sha": "5ac20522f65d193d69a7a011aec19a4cf1ef321f",
+            "reviewed_source_sha": "5c626e616b173238d970675ed5a20543035cbc77",
+            "checkpoint_sha": "5c626e616b173238d970675ed5a20543035cbc77",
+            "source_scope_hash": "1f6d048bd2034aab1c3171a3d39cae4cf9f987edeb91ec4609f97cd580d6b171",
+            "source_tree_hash": "6a43d85fefa11058aca65513a9e0285d2297fb029db85109690ae06e07596252",
+            "reviewed_source_tree_hash": "6a43d85fefa11058aca65513a9e0285d2297fb029db85109690ae06e07596252",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "adc1e84a48735352441902e291a6509bdb1d4ce7cc76fb0bb865194c75aba75e",
+      "event_hash": "434ba328fda1c33755a48737660a03d5776a5d84cfbf314ea116d07a52f44f3f"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-10-20T06:36:52.159987Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "434ba328fda1c33755a48737660a03d5776a5d84cfbf314ea116d07a52f44f3f",
+      "event_hash": "fec9f49c9a31080844cc8cda68c557d7378e0792187c085acec451c58ced8a8c"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-20T06:37:20.101625Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu2"
+      },
+      "payload": {
+        "lease_id": "bb1f0511be1f4cfdb191fa7450d0cc47",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu2",
+        "acquired_at": "2026-10-20T06:37:20.100792Z",
+        "expires_at": "2026-10-20T06:47:20.100792Z"
+      },
+      "previous_event_hash": "fec9f49c9a31080844cc8cda68c557d7378e0792187c085acec451c58ced8a8c",
+      "event_hash": "77781c51fcf4b83c24706a5d81ef06a0c751797d11053642ea90f0d79ab92ecc"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-10-20T06:37:20.119182Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu2"
+      },
+      "payload": {},
+      "previous_event_hash": "77781c51fcf4b83c24706a5d81ef06a0c751797d11053642ea90f0d79ab92ecc",
+      "event_hash": "8d8c0b74cd694c56765b148a8e5a1b8ec05b9cebddbc05a8f34d21aeff1af351"
+    }
+  ]
+}
