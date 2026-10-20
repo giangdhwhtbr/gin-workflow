@@ -1,6 +1,6 @@
 # Split gin-orchestrator out of gin-workflow
 
-Status: revised 2026-10-20 after code review; awaiting user confirmation.
+Status: confirmed 2026-10-20 (revised after code review).
 
 ## Goal and scope
 
