@@ -23,7 +23,7 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
 5. Mirror dependencies with `gin-workflow task dep add <blocked> <blocker>` and check `gin-workflow task ready` / `gin-workflow task show`. Each track closes after tests and review pass, which unblocks its dependents.
 6. Isolate by default: create a worktree per the `gin-worktrees` skill under `.planning/worktrees/`. Disabling isolation or running on the current branch needs explicit approval, recorded first.
 7. Production-impacting parallel work or an execution-strategy change needs explicit approval.
-8. `gin-workflow record orchestration-ready --epic <parent-bead> --evidence "<bead-ids>; <worktree>; <branch>" --actor <id>`. The epic lets `gin-workflow state` derive `implementation_complete` once every track is closed.
+8. `gin-workflow record orchestration-ready --workflow-id <id> --epic <parent-bead> --evidence "<bead-ids>; <worktree>; <branch>" --actor <id>`. The epic lets `gin-workflow state` derive `implementation_complete` once every track is closed.
 
 ## Exit
 

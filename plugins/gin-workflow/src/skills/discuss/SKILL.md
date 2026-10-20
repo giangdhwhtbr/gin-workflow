@@ -27,7 +27,7 @@ Turn a requirement into a confirmed design. The user starts with an idea, not a 
    With `project.team.enabled`, spec review and the `requirement-confirmed` evidence follow the `gin-team` skill.
 6. **Self-review the spec** and fix inline: placeholders (TBD/TODO), contradictions, scope too large for one plan, requirements readable two ways. Every user story has acceptance criteria and, with REQ-IDs, at least one `REQ:`; every new REQ has a story or a stated technical reason.
 7. **User review** — "Spec written to `<path>`. Please review it and tell me about any changes before we write the implementation plan." Apply changes and repeat step 6 until the user explicitly confirms.
-8. **Record** — `gin-workflow record requirement-confirmed --evidence <spec-path> --actor <user-id>`; without a roadmap epic, pass `--workflow-id <topic>` where `<topic>` is the spec's topic slug.
+8. **Record** — `gin-workflow record requirement-confirmed --evidence <spec-path> --actor <user-id>`; without a roadmap epic, pass `--workflow-id <topic>` where `<topic>` is the spec's topic slug, and name it in the spec as `Workflow: <topic>` for later stages.
 
 ## Exit
 

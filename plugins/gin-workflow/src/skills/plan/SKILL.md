@@ -24,7 +24,7 @@ Write a plan an engineer with zero context could execute: exact files, code, com
 8. **No placeholders**: no TBD/TODO, "add error handling", "write tests for the above", "similar to Task N", steps without code, or references to undefined names.
 9. Self-review against the spec: every requirement maps to a track, no placeholders, names and signatures consistent across tracks. Fix inline.
 10. Validate that every track has a configured role and low/medium/high reasoning; report every problem in track order and fix before asking for approval.
-11. Ask for explicit approval, then `gin-workflow record plan-approved --evidence <plan-path> --actor <user-id>`.
+11. Ask for explicit approval, then `gin-workflow record plan-approved --evidence <plan-path> --actor <user-id> --workflow-id <id>` (the spec's `Epic:` or `Workflow:` id).
 
 ## Exit
 
