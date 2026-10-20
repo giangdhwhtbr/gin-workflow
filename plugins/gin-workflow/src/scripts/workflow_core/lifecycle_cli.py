@@ -404,7 +404,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
     if command == "quick-check":
         parser.add_argument("--changed-files", type=int, required=True)
-        parser.add_argument("--modules", type=int, default=1)
+        parser.add_argument("--modules", type=int, default=1,
+                            help="source modules the change touches; a module's tests and docs count as that module")
         try:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:

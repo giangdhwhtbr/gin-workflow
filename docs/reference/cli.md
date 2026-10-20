@@ -94,7 +94,7 @@ Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or foll
 gin-workflow quick-check --changed-files N [--modules M]
 ```
 
-Decides whether a change may use the `/quick` path. It returns the rigor, the verify commands to run, and the review mode (`self_check` under `easy`, `independent` otherwise).
+Decides whether a change may use the `/quick` path. `--modules` counts the source modules the change touches; a changed module's tests and docs count as that module, not as another one. It returns the rigor, the verify commands to run, and the review mode (`self_check` under `easy`, `independent` otherwise).
 
 | Decision | Exit | When |
 |---|---|---|
