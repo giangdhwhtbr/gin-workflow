@@ -1,6 +1,6 @@
 # Split gin-orchestrator out of gin-workflow
 
-Status: draft for user review.
+Status: confirmed 2026-10-20.
 
 ## Goal and scope
 
@@ -92,6 +92,8 @@ gin-workflow finds the executable through `executable_resolver.py`.
 ### Release sequence
 
 Each step ships as its own release and leaves existing consumers working.
+The first implementation plan covers steps 1 and 2 only; steps 3 and 4 become
+separate epics on the gin-harness roadmap.
 
 1. **gin-workflow 1.7**: move task tracking into `workflow_core`, add
    `TaskBackend`, derive gates through it.
