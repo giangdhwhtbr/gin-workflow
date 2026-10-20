@@ -83,5 +83,16 @@ class MarkdownTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual("markdown", registry.task_tracking.metadata.name)
 
 
+    def test_values_that_look_like_flags_are_kept(self):
+        created = self.provider.create_task(TaskCreateRequest("-x", description="--force", notes=("-n",)),
+                                            idempotency_key="c")
+        self.assertEqual(("-x", "--force", ("-n",)),
+                         (created.value.title, created.value.description, created.value.notes))
+        updated = self.provider.update_task(created.value.task_id, {"assignee": "-a"}, idempotency_key="u")
+        self.assertEqual("-a", updated.value.attributes["assignee"])
+        closed = self.provider.close_task(TaskClosureRequest(created.value.task_id, "-done", ("-e",)),
+                                          idempotency_key="close")
+        self.assertEqual(("closed", "-done"), (closed.value.status, closed.value.closure_reason))
+
 if __name__ == "__main__":
     unittest.main()

@@ -52,13 +52,14 @@ class MarkdownTaskTrackingProvider(ProviderBase):
             return ProviderResult.invalid(error)
         if replay := self._replay("create_task", idempotency_key, request):
             return replay
-        argv = ["create", request.title, "--status", request.status, "--description", request.description]
+        # `--flag=value` keeps a value that starts with "-" from being parsed as an option.
+        argv = ["create", f"--title={request.title}", f"--status={request.status}",
+                f"--description={request.description}"]
         if request.notes:
-            argv += ["--notes", "\n".join(request.notes)]
+            argv.append("--notes=" + "\n".join(request.notes))
         if request.acceptance_criteria:
-            argv += ["--acceptance", "\n".join(request.acceptance_criteria)]
-        for key, value in sorted(request.attributes.items()):
-            argv += [f"--{key}", str(value)]
+            argv.append("--acceptance=" + "\n".join(request.acceptance_criteria))
+        argv += [f"--{key}={value}" for key, value in sorted(request.attributes.items())]
         return self._remember("create_task", idempotency_key, request, self._record(*argv))
 
     def read_task(self, task_id: str) -> ProviderResult[TaskRecord]:
@@ -77,7 +78,7 @@ class MarkdownTaskTrackingProvider(ProviderBase):
         argv = ["update", task_id]
         for key, value in normalized.items():
             flag = "acceptance" if key == "acceptance_criteria" else key
-            argv += [f"--{flag}", "\n".join(value) if isinstance(value, tuple) else str(value)]
+            argv.append(f"--{flag}=" + ("\n".join(value) if isinstance(value, tuple) else str(value)))
         return self._remember("update_task", idempotency_key, (task_id, changes), self._record(*argv))
 
     def close_task(self, request: TaskClosureRequest, *, idempotency_key: str) -> ProviderResult[TaskRecord]:
@@ -98,10 +99,10 @@ class MarkdownTaskTrackingProvider(ProviderBase):
                 return ProviderResult.success(current.value, idempotent=True)
             return ProviderResult.invalid("closed task provenance does not match closure request")
         if not matches:
-            noted = self._run("update", request.task_id, "--append-notes", _closure_note(request))
+            noted = self._run("update", request.task_id, f"--append-notes={_closure_note(request)}")
             if noted.value is None:
                 return noted
-        closed = self._run("close", request.task_id, "--reason", request.closure_reason)
+        closed = self._run("close", request.task_id, f"--reason={request.closure_reason}")
         if closed.value is None:
             return closed
         return self._remember("close_task", idempotency_key, request, self.read_task(request.task_id))
