@@ -5,8 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import shutil
-import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
@@ -81,17 +79,10 @@ def _process_gate_state(
 
 
 def _beads_json(repo_path: Path, argv: list[str]) -> Any:
-    """Run one read-only Beads query; None when Beads is unavailable or fails."""
-    executable = shutil.which("bd")
-    if executable is None:
-        return None
-    try:
-        completed = subprocess.run(
-            [executable, *argv, "--json"], cwd=repo_path, text=True, capture_output=True, check=False, timeout=30
-        )
-        return json.loads(completed.stdout) if completed.returncode == 0 else None
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
-        return None
+    """Run one read-only task query on the configured backend; None when it is unavailable or fails."""
+    from .tasks import query
+
+    return query(repo_path, argv)
 
 
 def _recorded_epic(event_store: WorkflowEventStore, workflow_id: str) -> str:

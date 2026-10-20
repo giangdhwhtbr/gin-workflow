@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import difflib
 from pathlib import Path
+import shutil
 from typing import Any, Iterable, Mapping
 
 from .atomic import atomic_write_many
@@ -110,6 +111,7 @@ def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[st
         "detected_harnesses": detected,
         "harness": selected,
         "project": detect_project(root),
+        "beads_installed": shutil.which("bd") is not None,
         "actions": [],
     }
 

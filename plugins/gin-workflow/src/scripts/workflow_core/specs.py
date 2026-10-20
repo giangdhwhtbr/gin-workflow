@@ -367,6 +367,14 @@ def requirement_hash(root: Path, cfg: Mapping[str, Any], req_id: str) -> tuple[B
 
 
 def _bd(root: Path, argv: Sequence[str]) -> Any:
+    from . import task_markdown
+    from .tasks import backend
+
+    if backend(root) == "markdown":
+        value = task_markdown.query(root, argv)
+        if value is None:
+            raise SpecsError(f"task {' '.join(argv)} failed")
+        return value
     executable = shutil.which("bd")
     if executable is None:
         raise SpecsError("bd is not installed")

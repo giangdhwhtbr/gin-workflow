@@ -67,6 +67,10 @@ def cost(totals: Mapping[str, int], price: Price | None) -> float | None:
 
 
 def _bd(repo: Path, argv: list[str]) -> Any:
+    from .tasks import backend
+
+    if backend(repo) == "markdown":
+        raise UsageError("AI usage tracking requires Beads (providers.task_tracking: beads)")
     executable = shutil.which("bd")
     if executable is None:
         raise UsageError("bd is not installed")
