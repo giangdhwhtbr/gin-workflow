@@ -69,7 +69,7 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("every track has a configured role and low/medium/high reasoning", planning)
         self.assertLess(
             orchestrate.index("resolve_all_assignments"),
-            orchestrate.index("bd create"),
+            orchestrate.index("gin-workflow task create"),
         )
 
     def test_parent_deliverable_vs_track_bead_and_handoff_contracts(self):

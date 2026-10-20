@@ -15,7 +15,7 @@ Dispatch one agent per independent problem domain and let them work concurrently
 Do not use it for related failures (fixing one may fix the others), exploratory debugging, work that needs whole-system understanding, or agents that would edit the same files. Production-impacting parallel work or an execution-strategy change needs explicit user approval, recorded first.
 
 ## Pattern
-1. **Group** the work by what it affects, and confirm each group is dependency-ready in Beads (`bd ready`).
+1. **Group** the work by what it affects, and confirm each group is dependency-ready in Beads (`gin-workflow task ready`).
 2. **Brief each agent** with:
    - one focused goal (one test file, subsystem, or bead);
    - its dependencies;
@@ -25,7 +25,7 @@ Do not use it for related failures (fixing one may fix the others), exploratory 
    - the expected return (root cause, changes, evidence).
    Include the exact error messages and test names. Never pass your transcript, secrets, or concrete model names.
 3. **Dispatch** through the harness's worker or subagent mechanism within the configured concurrency, giving each agent its own worktree (`gin-worktrees`) and one bead claim.
-4. **Integrate**: read each summary, record the outcome in the bead (`bd update <id> --notes`), check for edits outside the approved scopes or conflicting changes, run the full suite, and spot-check, since agents make systematic errors.
+4. **Integrate**: read each summary, record the outcome in the bead (`gin-workflow task update <id> --notes`), check for edits outside the approved scopes or conflicting changes, run the full suite, and spot-check, since agents make systematic errors.
 
 ## Example brief
 ```

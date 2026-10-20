@@ -179,6 +179,12 @@ def _validate_portable(value: object, path: tuple[str, ...] = ()) -> None:
 
 
 def validate_portable_config(config: Mapping[str, Any]) -> None:
+    providers = config.get("providers", {})
+    task_tracking = providers.get("task_tracking") if isinstance(providers, Mapping) else None
+    if "team" in config and (
+        task_tracking.get("name") if isinstance(task_tracking, Mapping) else task_tracking
+    ) == "markdown":
+        raise ConfigValidationError("team mode requires Beads; providers.task_tracking: markdown is not supported")
     try:
         validate_config_schema(config)
     except DependencyUnavailableError:

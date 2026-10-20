@@ -43,6 +43,7 @@ from .knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider
 from .notifications import TelegramNotificationProvider
 from .review import ReviewLedgerProvider
 from .task_tracking import BeadsTaskTrackingProvider
+from .task_tracking_markdown import MarkdownTaskTrackingProvider
 from .workspace import WorktreeWorkspaceProvider
 from .antigravity_worker import (
     AntigravityWorkerAdapter,
@@ -137,6 +138,8 @@ class ProviderRegistry:
                 )
             except ValueError as error:
                 raise RegistryError(str(error)) from error
+        elif task_name == "markdown":
+            task_tracking = MarkdownTaskTrackingProvider(root)
         elif task_name == "fake":
             task_tracking = FakeTaskTrackingProvider()
         else:

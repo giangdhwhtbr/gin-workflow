@@ -122,6 +122,10 @@ Maps lifecycle phases (`brainstorm`, `design`, `plan`, `implement`, `review`, `d
 
 `core` and `lean` are always enabled unless disabled. Project packs live in `.agent-workflow/rules/`. Inspect the result with `gin-workflow rules --list`. See [Rule packs](../guides/rules.md).
 
+### `providers`
+
+`task_tracking`: `beads` (default) or `markdown`. `markdown` keeps one Markdown file per task under `.planning/tasks/` in the main checkout, git-ignored and local to this machine; it needs no `bd`. Team mode and `gin-workflow usage` require `beads`.
+
 ### `team`
 
 Present only in team mode ([guide](../guides/team.md)): `host` (`github` or `gitlab`), `commit_convention`, `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals` (per gate: a role list or `area_lead`; `roadmap` takes a role list and gates the `/roadmap` pull request), and `beads_sync.remote`.

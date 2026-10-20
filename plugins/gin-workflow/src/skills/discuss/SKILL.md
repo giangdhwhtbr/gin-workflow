@@ -9,9 +9,9 @@ description: Clarify a requirement into a confirmed design spec before any plann
 
 # Discuss
 
-Turn a requirement into a confirmed design. The user starts with an idea, not a Beads task; never ask them to run `bd` during discovery.
+Turn a requirement into a confirmed design. The user starts with an idea, not a Beads task; never ask them to run `gin-workflow task` during discovery.
 
-**Roadmap epic:** `/discuss <epic-id>` starts from `bd show <id> --json` and its roadmap entry. Stop if the id is missing, not an epic, or closed; warn if its dependencies are still open. Pass `--workflow-id <epic-id>` to every `state` and `record` call and never create another epic.
+**Roadmap epic:** `/discuss <epic-id>` starts from `gin-workflow task show <id> --json` and its roadmap entry. Stop if the id is missing, not an epic, or closed; warn if its dependencies are still open. Pass `--workflow-id <epic-id>` to every `state` and `record` call and never create another epic.
 
 **Hard gate:** no code, scaffolding, implementation skill, plan, or Beads task until the user explicitly confirms the design. This applies to every request, however simple; a simple design can be a few sentences, but it is still presented and confirmed.
 

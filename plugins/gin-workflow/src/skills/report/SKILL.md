@@ -12,7 +12,7 @@ description: Report AI usage per bead or epic — tokens and estimated cost per 
 Read-only usage report. Summaries are written into each bead's metadata (`ai_usage`) when the bead closes (`execute`) or the epic ships (`ship`); this skill only reads them.
 
 1. Scope from the request: one bead (`--bead <id>`), an epic and its tracks (`--epic <id>`), a sprint's epics and their tracks (`--sprint <name>`, epics labelled `sprint:<name>`), beads closed since a date (`--since YYYY-MM-DD`), or every collected bead (no flag).
-2. Run `gin-workflow usage report <scope> --format json`. Exit 2 means `bd` is missing or failed: show the error and stop.
+2. Run `gin-workflow usage report <scope> --format json`. Exit 2 means the task backend is missing or failed (usage reports need Beads): show the error and stop.
 3. Present:
    - Each bead: cost, title, and its quality signals.
    - Totals per model (input, output, cache read, cache write, cost) and per stage (`discuss`, `plan`, `orchestrate`, `execute`, `review`, `verify`, `ship`, `quick`).

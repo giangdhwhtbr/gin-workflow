@@ -193,6 +193,15 @@ class AgentsBlockTests(unittest.TestCase):
                 self.assertIn("gin-workflow setup refresh", text)
 
 
+    def test_render_names_the_configured_task_backend(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            beads = agents_block.render(Path(temp_dir), {})
+            markdown = agents_block.render(Path(temp_dir), {"providers": {"task_tracking": "markdown"}})
+        self.assertIn("- Track work in Beads (`bd`). Stages:", beads)
+        self.assertNotIn("`bd`", markdown)
+        self.assertIn("- Track work with `gin-workflow task` (local Markdown tasks in `.planning/tasks/`). Stages:",
+                      markdown)
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -1,0 +1,230 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "backend",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-1uu.4",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-1uu.4",
+      "review_base_sha": "dfbb44d31d01f96e4340b774d8dfc75d9a0730fd",
+      "reviewed_source_sha": "54782ef801df79a14d507b3a58ea339f31854606",
+      "checkpoint_sha": "54782ef801df79a14d507b3a58ea339f31854606",
+      "source_scope_hash": "8357d1160b9a04c2e7556836443c9375221a40ffa8fc80122c7384c2d2ea0dd9",
+      "source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+      "reviewed_source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "README.md",
+      "docs/concepts/providers.md",
+      "docs/reference/cli.md",
+      "docs/reference/config.md",
+      "plugins/gin-workflow/src/agents/bead-worker.md",
+      "plugins/gin-workflow/src/agents/developer.md",
+      "plugins/gin-workflow/src/scripts/safety-check.sh",
+      "plugins/gin-workflow/src/skills/discuss/SKILL.md",
+      "plugins/gin-workflow/src/skills/execute/SKILL.md",
+      "plugins/gin-workflow/src/skills/gin-knowledge/SKILL.md",
+      "plugins/gin-workflow/src/skills/gin-parallel-agents/SKILL.md",
+      "plugins/gin-workflow/src/skills/gin-sdd/SKILL.md",
+      "plugins/gin-workflow/src/skills/orchestrate/SKILL.md",
+      "plugins/gin-workflow/src/skills/progress/SKILL.md",
+      "plugins/gin-workflow/src/skills/report/SKILL.md",
+      "plugins/gin-workflow/src/skills/roadmap/SKILL.md",
+      "plugins/gin-workflow/src/skills/setup/SKILL.md",
+      "plugins/gin-workflow/src/skills/ship/SKILL.md",
+      "tests/test_no_direct_bd.py",
+      "tests/test_safety_check.py",
+      "tests/workflow_core/test_assignments.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 7,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-10-20T06:58:27.632185Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "backend",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-1uu.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-1uu.4",
+            "review_base_sha": "dfbb44d31d01f96e4340b774d8dfc75d9a0730fd",
+            "reviewed_source_sha": "f06ae2bb35a2dc042ab2154bbf89ee9eb9b91950",
+            "checkpoint_sha": "f06ae2bb35a2dc042ab2154bbf89ee9eb9b91950",
+            "source_scope_hash": "8357d1160b9a04c2e7556836443c9375221a40ffa8fc80122c7384c2d2ea0dd9",
+            "source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+            "reviewed_source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "README.md",
+            "docs/concepts/providers.md",
+            "docs/reference/cli.md",
+            "docs/reference/config.md",
+            "plugins/gin-workflow/src/agents/bead-worker.md",
+            "plugins/gin-workflow/src/agents/developer.md",
+            "plugins/gin-workflow/src/scripts/safety-check.sh",
+            "plugins/gin-workflow/src/skills/discuss/SKILL.md",
+            "plugins/gin-workflow/src/skills/execute/SKILL.md",
+            "plugins/gin-workflow/src/skills/gin-knowledge/SKILL.md",
+            "plugins/gin-workflow/src/skills/gin-parallel-agents/SKILL.md",
+            "plugins/gin-workflow/src/skills/gin-sdd/SKILL.md",
+            "plugins/gin-workflow/src/skills/orchestrate/SKILL.md",
+            "plugins/gin-workflow/src/skills/progress/SKILL.md",
+            "plugins/gin-workflow/src/skills/report/SKILL.md",
+            "plugins/gin-workflow/src/skills/roadmap/SKILL.md",
+            "plugins/gin-workflow/src/skills/setup/SKILL.md",
+            "plugins/gin-workflow/src/skills/ship/SKILL.md",
+            "tests/test_no_direct_bd.py",
+            "tests/test_safety_check.py",
+            "tests/workflow_core/test_assignments.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "01ff45948f9e0b3db05db1131c291cbbffda2c6622a52aa92542076b1ab43fdb"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-20T06:58:28.154075Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "backend",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-1uu.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-1uu.4",
+            "review_base_sha": "dfbb44d31d01f96e4340b774d8dfc75d9a0730fd",
+            "reviewed_source_sha": "54782ef801df79a14d507b3a58ea339f31854606",
+            "checkpoint_sha": "54782ef801df79a14d507b3a58ea339f31854606",
+            "source_scope_hash": "8357d1160b9a04c2e7556836443c9375221a40ffa8fc80122c7384c2d2ea0dd9",
+            "source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+            "reviewed_source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "01ff45948f9e0b3db05db1131c291cbbffda2c6622a52aa92542076b1ab43fdb",
+      "event_hash": "dd5e42488131d1ba0ec624555f5a6ecfdcbed872f74885648cc8e7658f50e589"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-10-20T06:58:28.281830Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "dd5e42488131d1ba0ec624555f5a6ecfdcbed872f74885648cc8e7658f50e589",
+      "event_hash": "89c66a2491241c957cd625c567045c0880a12d03f67119ba99cf46af42334440"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-20T06:59:34.913459Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu4"
+      },
+      "payload": {
+        "lease_id": "6a561503f5ba4ad39229d09d1808e217",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu4",
+        "acquired_at": "2026-10-20T06:59:34.912625Z",
+        "expires_at": "2026-10-20T07:09:34.912625Z"
+      },
+      "previous_event_hash": "89c66a2491241c957cd625c567045c0880a12d03f67119ba99cf46af42334440",
+      "event_hash": "0909353162067b0d7015d2be73e9e2ffd520fd8fb71f25118f9d97a36492ab70"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-10-20T06:59:34.930266Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu4"
+      },
+      "payload": {},
+      "previous_event_hash": "0909353162067b0d7015d2be73e9e2ffd520fd8fb71f25118f9d97a36492ab70",
+      "event_hash": "b1f520478b771bc56cc47e65ff2e9e40ca52f48ff3deb499eeeeca528e1a60d3"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-10-20T06:59:38.742401Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu4"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "backend",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-1uu.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-1uu.4",
+            "review_base_sha": "dfbb44d31d01f96e4340b774d8dfc75d9a0730fd",
+            "reviewed_source_sha": "54782ef801df79a14d507b3a58ea339f31854606",
+            "checkpoint_sha": "54782ef801df79a14d507b3a58ea339f31854606",
+            "source_scope_hash": "8357d1160b9a04c2e7556836443c9375221a40ffa8fc80122c7384c2d2ea0dd9",
+            "source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+            "reviewed_source_tree_hash": "8aa71ee0d9544e613696c99c5d7ab851d301ee84ba5cdde9e6452907458e3e32",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "8357d1160b9a04c2e7556836443c9375221a40ffa8fc80122c7384c2d2ea0dd9",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "b1f520478b771bc56cc47e65ff2e9e40ca52f48ff3deb499eeeeca528e1a60d3",
+      "event_hash": "033e723efb2ba638f6b151c70776dae29bf56770da19fd3e3d4f17fb5c366ba4"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-10-20T06:59:38.967421Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-1uu4"
+      },
+      "payload": {
+        "lease_id": "6a561503f5ba4ad39229d09d1808e217",
+        "released_at": "2026-10-20T06:59:38.966613Z"
+      },
+      "previous_event_hash": "033e723efb2ba638f6b151c70776dae29bf56770da19fd3e3d4f17fb5c366ba4",
+      "event_hash": "24ef3d4501742dc4710bfeb341d43ffbb23e3b6f062f51316c89d4771ad67eb7"
+    }
+  ]
+}

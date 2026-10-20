@@ -8,7 +8,7 @@ Skills work through provider-neutral capabilities, each with health and capabili
 
 | Capability | Covers |
 |---|---|
-| Task tracking | task identity, dependencies, readiness, claims, blockers, closure: Beads through `bd` (or `br`) commands, never by editing `.beads/` directly |
+| Task tracking | task identity, dependencies, readiness, claims, blockers, closure: through `gin-workflow task`, which runs Beads (`bd`) or, with `providers.task_tracking: markdown`, local Markdown files under `.planning/tasks/`; never by editing `.beads/` directly |
 | Workspace | isolation (worktrees) and cleanup metadata |
 | Worker dispatch | resolve role and reasoning, recheck health, circuit and capacity, dispatch, cancel, report status, collect normalized results |
 | Review | request review, terminal review state, findings |

@@ -5,13 +5,13 @@ description: Use to capture durable decisions, constraints, and lessons during w
 
 # Knowledge
 
-Knowledge lives in `.planning/knowledge/` (the configured `artifacts.knowledge`) as small Markdown records. Short facts that every session needs go in `bd remember "<fact>"`. Knowledge is looked up on demand and never copied wholesale into a stage's context.
+Knowledge lives in `.planning/knowledge/` (the configured `artifacts.knowledge`) as small Markdown records. Short facts that every session needs go in `gin-workflow task remember "<fact>"`. Knowledge is looked up on demand and never copied wholesale into a stage's context.
 
 ## Capture (during execute)
 1. Capture only reusable knowledge: compatibility constraints, environment limits, architectural decisions, counterintuitive APIs, and debugging lessons that will recur. Do not capture routine steps, transient worker state, private reasoning, or self-assessment.
-2. Search first (`grep -ril "<topic>" .planning/knowledge`, `bd memories <keyword>`) and update an existing record instead of duplicating it.
+2. Search first (`grep -ril "<topic>" .planning/knowledge`, `gin-workflow task memories <keyword>`) and update an existing record instead of duplicating it.
 3. Write `.planning/knowledge/<topic>.md` with **Context**, **Decision/Solution**, **Consequences**, **References** (paths, beads), and **Scope**.
-4. Mention the record in the bead notes (`bd update <id> --notes`). If the knowledge location is unavailable, say so in the handoff; never work around it.
+4. Mention the record in the bead notes (`gin-workflow task update <id> --notes`). If the knowledge location is unavailable, say so in the handoff; never work around it.
 
 ## Reconcile (during ship, after verification and before closing beads)
 1. Find the records related to the task.

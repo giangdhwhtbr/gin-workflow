@@ -94,7 +94,7 @@ Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or foll
 gin-workflow quick-check --changed-files N [--modules M]
 ```
 
-Decides whether a change may use the `/quick` path. It returns the rigor, the verify commands to run, and the review mode (`self_check` under `easy`, `independent` otherwise).
+Decides whether a change may use the `/quick` path. `--modules` counts the source modules the change touches; a changed module's tests and docs count as that module, not as another one. It returns the rigor, the verify commands to run, and the review mode (`self_check` under `easy`, `independent` otherwise).
 
 | Decision | Exit | When |
 |---|---|---|
@@ -183,6 +183,16 @@ gin-workflow reviewer --base SHA --implementer PROVIDER [--tier low|medium|high]
 Called by the `review` skill to pick the reviewer; you do not need to run it. Prints the review tier and the reviewer routes in order. `--tier` is the track's reasoning (default `medium`); a `low` track whose diff since `--base` changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) is reviewed at `medium`. At `low` the implementer's provider may review in a fresh session; at `medium` and `high` it is excluded unless `routing.review.require_independent` is false.
 
 Exit codes: 0 routes printed; 2 bad `--base`, no route for the tier, or no independent route.
+
+## `gin-workflow task`
+
+```
+gin-workflow task <bd arguments>
+```
+
+The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` (the default) it runs `bd` with the arguments unchanged. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update`, `close`, `reopen`, `list`, `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
+
+Exit codes: 0 ok; 1 invalid request or malformed task file (the message names the file); 127 `beads` is configured but `bd` is not installed.
 
 ## `gin-workflow usage`
 
