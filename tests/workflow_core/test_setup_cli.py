@@ -575,6 +575,48 @@ class SetupCliTests(unittest.TestCase):
             self.assertTrue((repository / ".agent-workflow/runtime/health-probe/codex").is_dir())
             self.assertTrue(probe_payload["checks_details"]["providers"]["codex.low"]["available"])
 
+    def test_doctor_probe_reports_contract_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as fake_dir:
+            repository = Path(directory)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+
+            stub_codex = repository / "fake-codex"
+            stub_codex.write_text(
+                "#!/bin/sh\nif [ \"$1\" = \"exec\" ] && [ \"$2\" = \"--help\" ]; then\n"
+                "  echo 'usage: codex exec --model MODEL --json --ephemeral --dangerously-bypass-approvals-and-sandbox --cd DIR'\n"
+                "  exit 0\nfi\nexit 0\n",
+                encoding="utf-8",
+            )
+            stub_codex.chmod(0o755)
+
+            providers_path = repository / ".agent-workflow/providers.local.yaml"
+            providers_path.write_text(
+                f"schema_version: '2.3'\nproviders:\n  codex:\n    executable: '{stub_codex.resolve()}'\n    models:\n      low: haiku\n      medium: sonnet\n      high: opus\n",
+                encoding="utf-8",
+            )
+
+            fake_orchestrator = Path(fake_dir) / "gin-orchestrator"
+            fake_orchestrator.write_text(
+                "#!/bin/sh\n"
+                "echo '{\"contract_version\": 2, \"orchestrator_version\": \"v2\"}'\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            fake_orchestrator.chmod(0o755)
+
+            probe_run = self.run_cli(
+                repository, "doctor", "--probe",
+                env={**os.environ, "PATH": f"{fake_dir}{os.pathsep}{os.environ['PATH']}"},
+            )
+            self.assertEqual(0, probe_run.returncode, probe_run.stderr)
+            probe_payload = json.loads(probe_run.stdout)
+            self.assertFalse(probe_payload["checks"]["providers"])
+            self.assertEqual(
+                "orchestrator_contract_mismatch",
+                probe_payload["checks_details"]["providers"]["codex.low"]["reason"],
+            )
+
     def test_doctor_reports_verify_commands_project_stage_and_codegraph_read_only(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
             repository = Path(directory)

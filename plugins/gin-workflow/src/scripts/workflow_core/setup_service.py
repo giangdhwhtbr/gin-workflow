@@ -507,20 +507,9 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                     }
         if providers_map:
             if probe:
-                from workflow_providers.claude_worker import claude_health
-                from workflow_providers.codex_worker import codex_health
-                from workflow_providers.antigravity_worker import antigravity_health
-                from workflow_providers.opencode_worker import opencode_health
-                from workflow_providers.native_cli import NativeCliRunner
+                from . import orchestrator_client
                 from .provider_config import PROVIDER_DEFAULT, PROVIDER_DEFAULT_PROVIDERS
 
-                runner = NativeCliRunner()
-                probe_builders = {
-                    "claude": claude_health,
-                    "codex": codex_health,
-                    "antigravity": antigravity_health,
-                    "opencode": opencode_health,
-                }
                 for provider, pconfig in providers_map.items():
                     if not isinstance(pconfig, Mapping):
                         all_providers_healthy = False
@@ -534,8 +523,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                             "reason": "executable_not_found",
                         }
                         continue
-                    builder = probe_builders.get(provider)
-                    if builder is None:
+                    if provider not in orchestrator_client.HEALTH_PROVIDERS:
                         continue
                     probe_dir = root / ".agent-workflow/runtime/health-probe" / provider
                     probe_dir.mkdir(parents=True, exist_ok=True)
@@ -544,26 +532,25 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                         for tier, target in models.items():
                             model = target.get("model") if isinstance(target, Mapping) else str(target)
                             effort = target.get("effort") if isinstance(target, Mapping) else None
-                            probe_kwargs: dict[str, Any] = {}
-                            if provider in PROVIDER_DEFAULT_PROVIDERS and model == PROVIDER_DEFAULT:
-                                health = builder(resolved_exe)
-                            else:
-                                probe_kwargs["model"] = model
-                                probe_kwargs["native_runner"] = runner
-                                probe_kwargs["workspace"] = probe_dir
-                                if provider == "codex" and effort is not None:
-                                    probe_kwargs["effort"] = effort
-                                health = builder(resolved_exe, **probe_kwargs)
-                            if not health.available:
+                            try:
+                                if provider in PROVIDER_DEFAULT_PROVIDERS and model == PROVIDER_DEFAULT:
+                                    health = orchestrator_client.health(provider, resolved_exe)
+                                else:
+                                    health = orchestrator_client.health(
+                                        provider, resolved_exe, model=model, workspace=probe_dir,
+                                        effort=effort if provider == "codex" else None)
+                            except orchestrator_client.OrchestratorError as error:
+                                health = {"available": False, "reason": str(error)}
+                            if not health["available"]:
                                 all_providers_healthy = False
                                 provider_details[f"{provider}.{tier}"] = {
                                     "available": False,
-                                    "reason": health.reason,
+                                    "reason": health["reason"],
                                 }
                             else:
                                 provider_details[f"{provider}.{tier}"] = {
                                     "available": True,
-                                    "reason": health.reason,
+                                    "reason": health["reason"],
                                 }
             else:
                 for provider, pconfig in providers_map.items():
@@ -929,10 +916,13 @@ def preset(repository: Path, *, project_stage: str | None = None, project_shape:
 def models(repository: Path, *, provider: str | None = None, **_: Any) -> dict[str, Any]:
     if not provider:
         raise SetupError("--provider is required")
-    from workflow_providers.native_cli import list_models
+    from . import orchestrator_client
 
-    return {"status": "listed", "provider": provider, "models": list_models(provider), "manual_entry": True,
-            "actions": []}
+    try:
+        listed = orchestrator_client.models(provider)
+    except orchestrator_client.OrchestratorError as error:
+        raise SetupError(str(error)) from error
+    return {"status": "listed", "provider": provider, "models": listed, "manual_entry": True, "actions": []}
 
 
 COMMANDS = {
