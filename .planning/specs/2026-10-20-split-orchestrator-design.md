@@ -1,85 +1,104 @@
 # Split gin-orchestrator out of gin-workflow
 
-Status: confirmed 2026-10-20.
+Status: revised 2026-10-20 after code review; awaiting user confirmation.
 
 ## Goal and scope
 
 gin-workflow has grown to hold two products: the lifecycle engine (gates, state,
-specs, skills, review ledger) and multi-provider orchestration (routing, worker
-dispatch, circuit breaker, cross-provider review). Split them so each can be
-installed, versioned and changed on its own:
+specs, skills, review ledger) and a multi-provider worker library (worker
+dispatch, scheduler, circuit breaker, routed workers, provider registry). Split
+them so each can be installed, versioned and changed on its own:
 
 - **gin-workflow** controls the workflow and runs standalone with Python stdlib,
   PyYAML and git. It does not require Beads (`bd`).
-- **gin-orchestrator** owns multi-agent orchestration and requires Beads.
+- **gin-orchestrator** owns the multi-provider worker library and requires Beads.
 - **gin-console** (already a separate repo) is unchanged by this epic; it reads
   both through their CLI JSON output and imports neither.
 - **gin-harness** (`~/gin-harness`) is a meta-repo holding the shared Beads
   database, the cross-project roadmap, `versions.lock` and a sync script. It
   holds no product code.
 
-In scope: the code boundary, the orchestrator CLI contract, the task-tracking
-backend interface, the release sequence, and the harness layout.
+In scope: the code boundary, the orchestrator CLI contract, the release
+sequence, and the harness layout.
 
-Out of scope (separate epics on the harness roadmap, after the split): the
+Out of scope (separate epics on the harness roadmap, after the split): wiring
+the worker library into `/execute` (a `dispatch`/`review` contract), the
 Orca-inspired improvements (gate-holding notifications, diff annotation as
 human findings, console write actions, fan-out, quota-aware routing, starting
 from an issue, `doctor --fix`), and any gin-console change.
+
+## Findings from the code (2026-10-20)
+
+These replace assumptions in the first draft.
+
+- **Dispatch today is done by the host agent, not by Python.** `/execute` and
+  `/review` tell the agent to launch workers itself, using routes from
+  `gin-workflow reviewer` (`reviewer.py`, `assignments.py`,
+  `provider_config.py`, all in `workflow_core`). No CLI command, hook or skill
+  reaches `worker_dispatch`, `worker_scheduler`, `review_coordinator`,
+  `registry`, `circuit_breaker` or the `*_worker` adapters; only tests do.
+- **The only runtime calls from `workflow_core` into `workflow_providers`** are
+  `setup doctor --probe` (`setup_service.py:510`, provider health) and
+  `setup models` (`setup_service.py:932`, `list_models`).
+- **Task tracking already has a backend switch.** `workflow_core/tasks.py`
+  routes every task query to Markdown or `bd`, and the delivery gates use it
+  (`lifecycle_cli._beads_json`). The provider classes in
+  `workflow_providers/task_tracking*.py` are used only by `registry.py`, so they
+  belong to the orchestrator side.
+- **`router.py` is lifecycle routing** (`route_next_stage`), and
+  `provider_config.py`/`assignments.py` feed `gin-workflow reviewer`. All three
+  stay in gin-workflow.
+- **`workflow_providers` imports 12 `workflow_core` modules** (`identity`,
+  `events`, `provider_config`, `models`, `router`, `executable_resolver`,
+  `assignments`, `approvals`, `manifests`, `checkout`, `atomic`, and the
+  package). The split (step 2) must resolve this reverse dependency.
 
 ## Requirements
 
 ### Boundary
 
-- gin-workflow keeps `workflow_core/` except routing, plus the review ledger,
-  evidence verification (`evidence.py`, `evidence_authority.py`), usage
-  reporting (`usage*.py`, `/report`), specs/SDD, rules, hooks and team mode.
-- `task_tracking.py` and `task_tracking_markdown.py` move from
-  `workflow_providers/` into `workflow_core/` behind a `TaskBackend` interface
-  with two implementations: `markdown` (default) and `beads`.
-- `implementation_complete` and `shipped` are derived through `TaskBackend`,
-  never by calling `bd` directly.
-- gin-orchestrator receives `workflow_providers/` (minus task tracking),
-  `router.py`, `worker_scheduler.py`, `review_coordinator.py`,
-  `provider_config.py`, `providers.local.yaml` handling, and the `orchestrate`
-  and `gin-parallel-agents` skills.
-- gin-workflow imports nothing from gin-orchestrator and vice versa. The only
-  link is the CLI contract below.
+- gin-workflow keeps all of `workflow_core/` except `worker_scheduler.py` and
+  `review_coordinator.py`, plus the review ledger, `tasks.py`/`task_markdown.py`,
+  usage reporting, specs/SDD, rules, hooks, team mode and `gin-workflow reviewer`.
+- `worker_scheduler.py` and `review_coordinator.py` move into
+  `workflow_providers/`, since only that package and its tests use them.
+- gin-orchestrator receives `workflow_providers/` (including the task-tracking
+  provider classes) and the `orchestrate` and `gin-parallel-agents` skills.
+- `workflow_core` imports nothing from `workflow_providers`. The only link is
+  the CLI contract below. A test enforces this.
 
 ### Orchestrator CLI contract (v1)
 
-gin-workflow owns the schema at `contracts/orchestrator-v1.schema.json`. Every
-command reads JSON on stdin (where it takes input) and writes JSON on stdout.
+Every command prints one JSON document on stdout and exits 0 on success.
+gin-workflow documents the contract in `docs/reference/orchestrator-contract.md`.
 
-| Command | Input | Output |
-|---|---|---|
-| `gin-orchestrator version --json` | none | `{contract_version, orchestrator_version}` |
-| `gin-orchestrator health --json` | none | per-provider health, replacing the direct health imports in `setup_service.py` |
-| `gin-orchestrator dispatch --json` | list of `WorkerRequest` | list of `WorkerResult` |
-| `gin-orchestrator review --json` | review request | review result, which gin-workflow writes to its own ledger |
+| Command | Output |
+|---|---|
+| `version --json` | `{"contract_version": 1, "orchestrator_version": "<str>"}` |
+| `health --provider P --executable PATH [--model M] [--effort E] [--workspace DIR] --json` | `{"available": bool, "reason": "<str>"}` |
+| `models --provider P --json` | list of `{"id", "label", "description", "reasoning_levels"}` |
 
-`WorkerRequest` and `WorkerResult` keep the fields of the existing dataclasses
-in `worker_dispatch.py`; the contract serializes them, it does not redesign them.
+Until the split, the commands run as `python -m workflow_providers <command>`.
+After it, as `gin-orchestrator <command>`.
 
-gin-workflow finds the executable through `executable_resolver.py`.
+### Client in gin-workflow
 
-### Execution flow
-
-- With gin-orchestrator on PATH and a matching `contract_version`, `/execute`
-  calls `dispatch`. The orchestrator owns route resolution, worktrees, retries
-  and the circuit breaker.
-- gin-workflow verifies every returned `WorkerResult` itself (commits,
-  `source_tree_hash`, test results) before accepting it. An orchestrator claim
-  is input, never evidence.
-- Without gin-orchestrator, `/execute` runs the track in the current agent, as
-  the sequential worker does today.
+- `workflow_core/orchestrator_client.py` runs the contract. It uses
+  `gin-orchestrator` from PATH when present, else the bundled
+  `python -m workflow_providers`.
+- It checks `contract_version` once per process. A different version raises
+  `OrchestratorError("orchestrator_contract_mismatch")`.
+- `setup doctor --probe` and `setup models` call the client instead of importing
+  `workflow_providers`. Their JSON output does not change.
 
 ### Configuration
 
-- `providers.task_tracking` defaults to `markdown`. `beads` is allowed only when
-  `bd` is on PATH.
-- Installing gin-orchestrator into a repo sets `providers.task_tracking: beads`.
-- Team mode requires gin-orchestrator (and so Beads). The existing check at
-  `configuration.py:187` changes its message to say so.
+- `providers.task_tracking` keeps its current behavior in this epic (unset means
+  `beads`; setup offers `markdown` when `bd` is missing). Making `markdown` the
+  default moves to step 2, together with a migration that writes `beads`
+  explicitly into existing configs.
+- Team mode keeps requiring Beads. Its error message names gin-orchestrator once
+  the split ships (step 2).
 
 ### gin-harness
 
@@ -92,18 +111,16 @@ gin-workflow finds the executable through `executable_resolver.py`.
 ### Release sequence
 
 Each step ships as its own release and leaves existing consumers working.
-The first implementation plan covers steps 1 and 2 only; steps 3 and 4 become
-separate epics on the gin-harness roadmap.
+The first implementation plan covers step 1 only; steps 2 and 3 become separate
+epics on the gin-harness roadmap.
 
-1. **gin-workflow 1.7**: move task tracking into `workflow_core`, add
-   `TaskBackend`, derive gates through it.
-2. **gin-workflow 1.8**: replace the three direct `workflow_providers` imports
-   (`review_coordinator.py`, `setup_service.py`, `worker_scheduler.py`) with
-   `orchestrator_client.py`, which calls `python -m workflow_providers ...` as a
-   subprocess inside this repo. This proves the contract before any repo split.
-3. **Split**: `git filter-repo` the orchestrator files and skills into
-   `~/gin-orchestrator`, keeping history. gin-workflow **2.0** removes them.
-4. **Harness**: add `sync.sh` and `versions.lock`, and consolidate child `.beads`
+1. **gin-workflow 1.7**: the bundled contract CLI, `orchestrator_client.py`,
+   setup switched to it, `worker_scheduler.py` and `review_coordinator.py` moved
+   into `workflow_providers/`, and the import-boundary test.
+2. **Split**: resolve the reverse imports, then `git filter-repo`
+   `workflow_providers/` and the two skills into `~/gin-orchestrator`, keeping
+   history. gin-workflow **2.0** removes them and makes `markdown` the default.
+3. **Harness**: add `sync.sh` and `versions.lock`, and consolidate child `.beads`
    into the harness via symlinks.
 
 ## User Stories
@@ -116,26 +133,24 @@ Acceptance criteria:
 - A fresh repo with only Python, PyYAML and git completes `/setup` with no Beads.
 - `discuss → plan → execute → ship` completes with markdown task tracking.
 - `implementation_complete` and `shipped` are reported from markdown tasks.
-- `/execute` runs tracks in the current agent when gin-orchestrator is absent.
 
-### US-2: Add orchestration by installing gin-orchestrator
-As a developer running several providers, I want installing gin-orchestrator to
-switch on routed workers and Beads, so that orchestration is opt-in.
+### US-2: Reach the worker library only through its CLI
+As the maintainer, I want gin-workflow to talk to the worker library only
+through a versioned CLI contract, so that the library can leave the repo
+without breaking setup.
 
 Acceptance criteria:
-- After installing gin-orchestrator, `providers.task_tracking` is `beads`.
-- `/execute` sends tracks through `gin-orchestrator dispatch` and records the
-  returned results only after gin-workflow verifies their evidence.
-- `setup`/`doctor` report provider health from `gin-orchestrator health`.
-- Team mode cannot be enabled without gin-orchestrator, and the error says so.
+- No file under `workflow_core/` imports `workflow_providers`.
+- `setup doctor --probe` and `setup models` print the same JSON as before.
+- A `gin-orchestrator` on PATH reporting another `contract_version` makes
+  `setup doctor --probe` report `orchestrator_contract_mismatch`.
 
 ### US-3: Change each project independently
-As the maintainer, I want gin-workflow and gin-orchestrator in separate repos
-joined by a versioned contract, so that I can release one without the other.
+As the maintainer, I want gin-workflow and gin-orchestrator in separate repos,
+so that I can release one without the other.
 
 Acceptance criteria:
 - Neither repo imports code from the other.
-- A contract-version mismatch holds `state` with `orchestrator_contract_mismatch`.
 - gin-orchestrator CI runs the contract tests against the gin-workflow version
   pinned in `versions.lock`.
 - gin-orchestrator's git history includes the moved files' history.
@@ -152,28 +167,23 @@ Acceptance criteria:
 
 ## Errors and compatibility
 
-- **Orchestrator missing**: run inline. If the config declares provider routing,
-  `doctor` warns that routing needs gin-orchestrator.
-- **Contract version mismatch**: `state` holds with
-  `orchestrator_contract_mismatch`. No silent fallback to inline, because that
-  would change the execution strategy without approval.
-- **Non-zero exit or output that fails the schema**: treated as a worker failure
-  and handled by the existing retry and hold path.
-- **`task_tracking: beads` without `bd`**: config validation fails with a message
-  naming the missing executable.
-- **Existing consumers on 1.x**: 1.7 and 1.8 keep behavior unchanged. 2.0
-  release notes tell routed-worker users to install gin-orchestrator; `doctor`
-  detects routing config without the orchestrator.
+- **Contract version mismatch**: `doctor --probe` marks providers unavailable
+  with reason `orchestrator_contract_mismatch`; `setup models` fails with that
+  message. No silent fallback to the bundled copy.
+- **Contract command fails** (non-zero exit or invalid JSON): `doctor` reports
+  the provider unavailable with reason `orchestrator_failed`; `setup models`
+  returns an empty list, as `list_models` does today on failure.
+- **Existing consumers on 1.x**: 1.7 changes no command output. 2.0 release
+  notes tell routed-worker users to install gin-orchestrator.
 - **Beads data**: moving `.beads` to the harness keeps existing issues and ids;
   the consolidation step backs up each child `.beads` first.
 
 ## Testing
 
-- gin-workflow: a fake orchestrator built on the existing `fakes.py`, plus JSON
-  schema tests for every contract command.
-- Both `TaskBackend` implementations pass the same gate-derivation tests.
-- Smoke tests run the lifecycle twice: inline with markdown, and through the
-  orchestrator with Beads.
-- gin-orchestrator CI pins gin-workflow from `versions.lock` and runs the
-  contract tests.
-- An import-boundary check fails if either repo imports the other.
+- Contract tests run each command through the bundled module and check its JSON.
+- Client tests use a fake `gin-orchestrator` script on PATH for the mismatch and
+  failure cases.
+- The existing `test_doctor_offline_and_opt_in_probe_behavior` and
+  `test_list_models` keep passing unchanged.
+- An import-boundary test fails if any `workflow_core` file imports
+  `workflow_providers`.
