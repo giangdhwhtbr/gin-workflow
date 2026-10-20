@@ -8,8 +8,8 @@ import inspect
 import threading
 from typing import Any, Iterable
 
-from workflow_providers.contracts import OperationStatus, WorkspaceRequest
-from workflow_providers.worker_dispatch import (
+from .contracts import OperationStatus, WorkspaceRequest
+from .worker_dispatch import (
     WorkerRequest,
     WorkerResult,
     failed_worker_result,

@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 import hashlib
 from typing import Any, Callable, Mapping
 
-from workflow_providers.contracts import (
+from .contracts import (
     OperationStatus,
     ReviewFinding,
     ReviewOutcomeRequest,
@@ -14,11 +14,11 @@ from workflow_providers.contracts import (
     ReviewStatus,
 )
 
-from .assignments import RouteCandidate
-from .identity import AcceptanceIdentity
-from .manifests import ContextRequest, create_context_manifest
-from .models import freeze, thaw
-from workflow_providers.worker_dispatch import WorkerRequest, WorkerResult
+from workflow_core.assignments import RouteCandidate
+from workflow_core.identity import AcceptanceIdentity
+from workflow_core.manifests import ContextRequest, create_context_manifest
+from workflow_core.models import freeze, thaw
+from .worker_dispatch import WorkerRequest, WorkerResult
 
 
 class ReviewCoordinationError(ValueError):

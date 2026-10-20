@@ -428,7 +428,7 @@ class ProviderRegistry:
     def build_worker_scheduler(self):
         if self.worker is None:
             raise RegistryError("worker provider requires explicit local provider configuration")
-        from workflow_core.worker_scheduler import WorkerScheduler
+        from .worker_scheduler import WorkerScheduler
 
         return WorkerScheduler(
             self.worker,

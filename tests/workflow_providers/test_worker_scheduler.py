@@ -15,7 +15,7 @@ sys.path.insert(0, str(SCRIPTS))
 from workflow_core.events import WorkflowEventStore  # noqa: E402
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
-from workflow_core.worker_scheduler import (  # noqa: E402
+from workflow_providers.worker_scheduler import (  # noqa: E402
     WorkerScheduler,
     select_execution_strategy,
 )

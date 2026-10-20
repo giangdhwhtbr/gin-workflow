@@ -9,7 +9,7 @@ sys.path.insert(0, str(SCRIPTS))
 from workflow_core.assignments import RouteCandidate  # noqa: E402
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot  # noqa: E402
 from workflow_core.manifests import ContextRequest, create_context_manifest  # noqa: E402
-from workflow_core.review_coordinator import (  # noqa: E402
+from workflow_providers.review_coordinator import (  # noqa: E402
     ReviewContext,
     ReviewCoordinationError,
     ReviewCoordinator,

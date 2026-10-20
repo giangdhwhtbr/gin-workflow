@@ -24,9 +24,9 @@ from workflow_core.manifests import ContextRequest, create_context_manifest  # n
 from workflow_core.configuration import load_effective_config  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
 from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
-from workflow_core.review_coordinator import ReviewContext, ReviewCoordinator  # noqa: E402
+from workflow_providers.review_coordinator import ReviewContext, ReviewCoordinator  # noqa: E402
 from workflow_core.router import route_next_stage  # noqa: E402
-from workflow_core.worker_scheduler import WorkerScheduler, select_execution_strategy  # noqa: E402
+from workflow_providers.worker_scheduler import WorkerScheduler, select_execution_strategy  # noqa: E402
 from workflow_providers.claude_worker import ClaudeWorkerAdapter  # noqa: E402
 from workflow_providers.contracts import (  # noqa: E402
     EvidenceCategory,
