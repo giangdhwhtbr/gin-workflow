@@ -180,11 +180,34 @@ class HarnessPackagingTests(unittest.TestCase):
         hooks = json.loads((root / "hooks/hooks.json").read_text(encoding="utf-8"))
         self.assertEqual(1, hooks.get("version"))
         pre_tool_use = hooks.get("hooks", {}).get("PreToolUse", [])
-        self.assertTrue(any(entry.get("matcher") == "bash" and entry.get("bash", "").endswith('/scripts/safety-check.sh"') for entry in pre_tool_use))
+        self.assertTrue(any(entry.get("matcher") == "bash" and "/scripts/safety-check.sh" in entry.get("bash", "") for entry in pre_tool_use))
         post_tool_use = hooks.get("hooks", {}).get("PostToolUse", [])
-        self.assertTrue(any(entry.get("matcher") == "edit|create" and entry.get("bash", "").endswith('/scripts/post-edit.sh"') for entry in post_tool_use))
+        self.assertTrue(any(entry.get("matcher") == "edit|create" and "/scripts/post-edit.sh" in entry.get("bash", "") for entry in post_tool_use))
         self.assertFalse((root / "agents").exists())
         self.assertFalse((root / "commands").exists())
+
+    def test_copilot_hook_commands_run_the_scripts_and_skip_when_missing(self):
+        # Copilot runs each entry's `bash` with the payload on stdin; exit 2 denies,
+        # and any other non-zero exit also denies, so a missing script must exit 0.
+        hooks = json.loads((self.dist / "copilot/gin-workflow/hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]
+        pre, post = hooks["PreToolUse"][0]["bash"], hooks["PostToolUse"][0]["bash"]
+        root = str(self.dist / "copilot/gin-workflow")
+
+        def run(command, payload, **env):
+            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME")}
+            return subprocess.run(["bash", "-c", command], input=json.dumps(payload), capture_output=True,
+                                  text=True, env={**base, **env})
+
+        danger = {"tool_name": "bash", "tool_input": {"command": "rm -rf " + "/"}, "cwd": "/tmp"}
+        safe = {"tool_name": "bash", "tool_input": {"command": "ls"}, "cwd": "/tmp"}
+        self.assertEqual(2, run(pre, danger, PLUGIN_ROOT=root).returncode)
+        self.assertEqual(0, run(pre, safe, PLUGIN_ROOT=root).returncode)
+        edited = run(post, {"tool_name": "edit", "tool_input": {"path": "a.txt"}}, PLUGIN_ROOT=root)
+        self.assertIn("Post-edit hook run on: a.txt", edited.stdout)
+        with tempfile.TemporaryDirectory() as home:
+            missing = run(pre, danger, COPILOT_HOME=home)
+        self.assertEqual(0, missing.returncode)
+        self.assertIn("hook skipped", missing.stderr)
 
     def test_every_skill_frontmatter_is_strict_yaml(self):
         # Copilot CLI skips a skill whose frontmatter is not valid YAML.

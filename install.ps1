@@ -173,10 +173,10 @@ function New-CopilotHooksFile {
   "version": 1,
   "hooks": {
     "PreToolUse": [
-      {"type": "command", "matcher": "bash", "bash": "\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"", "timeoutSec": 30}
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ],
     "PostToolUse": [
-      {"type": "command", "matcher": "edit|create", "bash": "\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/post-edit.sh\"", "timeoutSec": 30}
+      {"type": "command", "matcher": "edit|create", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/post-edit.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
