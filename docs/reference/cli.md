@@ -37,6 +37,8 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 
 Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--probe`, `--harness`.
 
+`doctor --probe` and `models` read provider health and model lists through the [orchestrator contract](orchestrator-contract.md).
+
 Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a required dependency is missing (for example PyYAML).
 
 ## `gin-workflow state`
