@@ -64,6 +64,9 @@ routing:
   worker:
     max_retries: 2
     timeout_seconds: 900
+verify:
+  checks:
+    test: PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests.test_all
 schema_version: '2.3'
 setup_cli_version: '2.3'
 workflow_version: '2.3'

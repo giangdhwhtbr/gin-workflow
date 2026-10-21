@@ -1,51 +1,62 @@
 ---
 name: beads-migration
-description: Move a repository's local .beads directory to the centralized vault and establish a symlink.
+description: Move a repository's .beads directory into ~/gin-harness/beads/<repo> and symlink it back.
 ---
 
-# Beads Migration Skill
+# Beads Migration
 
 Load only when the user explicitly invokes it.
 
-Use this skill when initializing or onboarding a project repository to use the concentrated Beads database structure in the Obsidian vault.
+## Inputs
 
-## Purpose
+- `<repo>`: the repository root.
+- `<target>`: the target directory, default `~/gin-harness/beads/<repo>`, where `<repo>` is the repo's directory name.
 
-To ensure that the Dolt Beads task databases of all repositories are centralized under the vault (`/home/coder/workspace/brain/.beads/`), enabling the `agent-orchestration` HTTP MCP server and Telegram bot to query and modify tasks cross-project.
+## Steps
 
-## Migration Steps
-
-1. **Verify Existing Local Database**:
-   Run the following command at the repository root to verify that a local database exists:
+1. Record the current database state in the repo. Note the database name and project id.
    ```bash
-   bd where
+   bd count
+   bd context
    ```
-   Note the database path (typically `<repo_root>/.beads/embeddeddolt`).
 
-2. **Locate vault directory**:
-   The target path in the Obsidian vault will be:
-   ```
-   /home/coder/workspace/brain/.beads/<project-name>
-   ```
-   (where `<project-name>` is the slug of the repository, e.g., `infra`, `gin-workflow`). Ensure the parent directory `/home/coder/workspace/brain/.beads/` exists.
-
-3. **Move the `.beads` directory**:
-   Run the following to move the local directory to the vault (replace `<project-name>` and `<repo_root>`):
+2. Stop if a process is working in that repo; never move a database in use.
    ```bash
-   mv <repo_root>/.beads /home/coder/workspace/brain/.beads/<project-name>
+   pgrep -af "bd |gin-workflow"
    ```
 
-4. **Create the Symlink**:
-   Create a symbolic link at the repository root pointing to the new location in the vault:
+3. Back up the database.
    ```bash
-   ln -s /home/coder/workspace/brain/.beads/<project-name> <repo_root>/.beads
+   mkdir -p ~/gin-harness/backup && cp -a <repo>/.beads ~/gin-harness/backup/<repo>-$(date +%F)
    ```
-   Verify that `.beads` is in `<repo_root>/.gitignore` so the symlink itself is not tracked by Git.
 
-5. **Verify Database Health**:
-   Run:
+4. Move and link.
    ```bash
-   bd doctor
-   bd status
+   mkdir -p ~/gin-harness/beads && mv <repo>/.beads <target> && ln -s <target> <repo>/.beads
    ```
-   Ensure the database is recognized and issue counts match the previous state.
+
+5. If `git ls-files .beads` lists files:
+   ```bash
+   git rm -r --cached .beads
+   ```
+   Add a `.beads` line (no trailing slash; `.beads/` does not match a symlink) to `.gitignore`, and commit on a feature branch, never on main/master.
+
+6. Hooks: `git config core.hooksPath` often points into `.beads/hooks`. If that directory does not exist, `mkdir -p` it. Then run `gin-workflow hooks install`.
+
+7. Cross-repo dependencies: add an `external_projects` map to `<target>/config.yaml` naming the other databases.
+   ```yaml
+   external_projects:
+     gin-workflow: ~/gin-harness/beads/gin-workflow
+     gin-harness: ~/gin-harness/.beads
+   ```
+   A providing bead carries the label `export:<capability>`; after it closes, `bd ship <capability>` marks it shipped. A needing bead declares `bd dep add <id> external:<project>:<capability>`.
+
+8. Verify: `bd count` and `bd context` match step 1, and `gin-workflow task ready` and `gin-workflow state` run.
+
+## Rollback
+
+```bash
+rm <repo>/.beads && mv <target> <repo>/.beads
+```
+
+Or restore the backup copy.

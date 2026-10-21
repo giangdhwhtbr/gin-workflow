@@ -102,8 +102,7 @@ After it, as `gin-orchestrator <command>`.
 
 ### gin-harness
 
-- `.beads/` lives in the harness. Each child repo's `.beads` is a symlink to it,
-  and each child keeps its own issue-id prefix.
+- Each child repo's `.beads` is a symlink to `~/gin-harness/beads/<repo>/`; every repo keeps its own database and issue-id prefix. A `gin-harness` database at `~/gin-harness/.beads` holds cross-project epics, and beads of different repos depend on each other through `external:<project>:<capability>` (see `2026-10-21-beads-harness-migration-design.md`).
 - Child repos are cloned as siblings into gitignored directories inside the
   harness by `scripts/sync.sh`; no git submodules.
 - `versions.lock` pins a known-good combination of child versions.
@@ -120,8 +119,8 @@ epics on the gin-harness roadmap.
 2. **Split**: resolve the reverse imports, then `git filter-repo`
    `workflow_providers/` and the two skills into `~/gin-orchestrator`, keeping
    history. gin-workflow **2.0** removes them and makes `markdown` the default.
-3. **Harness**: add `sync.sh` and `versions.lock`, and consolidate child `.beads`
-   into the harness via symlinks.
+3. **Harness**: add `sync.sh` and `versions.lock`. (The Beads move into the harness
+   ships first, per `2026-10-21-beads-harness-migration-design.md`.)
 
 ## User Stories
 
@@ -156,13 +155,12 @@ Acceptance criteria:
 - gin-orchestrator's git history includes the moved files' history.
 
 ### US-4: Track all projects from the harness
-As the maintainer, I want one Beads database in gin-harness, so that I can plan
-cross-project epics in one place.
+As the maintainer, I want every repo's Beads database kept in gin-harness, so that I can plan cross-project epics in one place.
 
 Acceptance criteria:
 - `scripts/sync.sh` clones or updates every child repo listed in `versions.lock`.
-- Running `bd` inside any child repo reads and writes the harness database.
-- Bead ids keep a distinct prefix per child repo.
+- Each child repo's `.beads` is a symlink into `~/gin-harness/beads/`, and `bd` there reads and writes that repo's own database.
+- Bead ids keep a distinct prefix per child repo; cross-repo order uses `external:` dependencies.
 - `gin-workflow state` inside a child repo finds that repo's beads.
 
 ## Errors and compatibility

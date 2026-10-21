@@ -124,6 +124,13 @@ class TestBudgetLimits(unittest.TestCase):
         self.assertIn("git pull --ff-only", text)
         self.assertNotIn("git pull &&", text)
 
+    def test_beads_migration_targets_the_harness(self):
+        text = (SRC / "skills/beads-migration/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("/home/coder/workspace/brain", text)
+        for needle in ("~/gin-harness/beads/<repo>", "cp -a", "git rm -r --cached .beads",
+                       "core.hooksPath", "bd count", "bd context", "external_projects"):
+            self.assertIn(needle, text)
+
     def test_sdd_guidance_loads_on_demand(self):
         sdd_skill = (SRC / "skills/gin-sdd/SKILL.md").resolve()
         for stage in ("discuss", "plan", "orchestrate", "execute", "review", "ship", "quick"):
