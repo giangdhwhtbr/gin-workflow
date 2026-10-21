@@ -171,6 +171,24 @@ class TestHooksRun(unittest.TestCase):
         self.assertNotEqual(0, blocked.returncode)
         self.assertIn("lint failed", blocked.stderr)
 
+    def test_real_git_push_runs_the_installed_hook(self):
+        bin_dir = self.base / "bin"
+        bin_dir.mkdir()
+        wrapper = bin_dir / "gin-workflow"
+        wrapper.write_text(f'#!/bin/sh\nexec python3 "{SCRIPTS / "gin-workflow"}" "$@"\n')
+        wrapper.chmod(0o755)
+        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+        for name, test, expected in (("ok", "true", 0), ("bad", "false", 1)):
+            root = self.repo(name, test=test)
+            remote = self.base / f"{name}.git"
+            git(self.base, "init", "-q", "--bare", str(remote))
+            git(root, "remote", "add", "origin", str(remote))
+            hooks.install(root)
+            pushed = subprocess.run(["git", "push", "-q", "origin", "HEAD:refs/heads/main"], cwd=root, env=env,
+                                    capture_output=True, text=True)
+            self.assertNotIn("unrecognized arguments", pushed.stderr)
+            self.assertEqual(expected, int(pushed.returncode != 0), pushed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
