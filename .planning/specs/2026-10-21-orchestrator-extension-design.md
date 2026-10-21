@@ -201,6 +201,49 @@ Every command prints one JSON document on stdout and exits 0 on success.
 - The build that produces `plugins/*/dist/` builds gin-orchestrator like
   gin-qa.
 
+### Documentation
+
+Docs describe gin-workflow as a single-harness lifecycle with no required
+external tools, and gin-orchestrator as the extension that adds worker
+harnesses. Each change lands in the track that changes the behavior it
+describes.
+
+- `README.md`: the dependency table lists only Python, PyYAML and git as
+  required, Beads as optional; a new "Extensions" section names gin-qa and
+  gin-orchestrator with their install commands (`./install.sh --plugin
+  gin-orchestrator` installs gin-workflow too).
+- `docs/getting-started.md`: prerequisites drop Beads from the required list;
+  setup describes the single-harness questions; a pointer to the
+  gin-orchestrator guide replaces any multi-provider step.
+- `docs/concepts/architecture.md`: the components diagram shows gin-workflow,
+  the gin-orchestrator extension and the one-way `workflow_core.ext`
+  dependency; "Provider routing" shows the front-door delegation; "Build and
+  install" covers the third plugin.
+- `docs/concepts/providers.md`: reduced to the main harness and tier models;
+  routing to other harnesses, dispatch, fallback, circuit breaker and provider
+  independence move to a new `docs/orchestrator/` guide.
+- `docs/advanced/multi-agent-routing.md`: moves to
+  `docs/orchestrator/routing.md`, rewritten for the `orchestrator:` config and
+  `/gin-orchestrator:providers`.
+- `docs/concepts/lifecycle.md`, `docs/concepts/state-model.md`: the review
+  independence rules for each mode, and `extensions.orchestrator` in state.
+- `docs/reference/cli.md`: `routes resolve`, `paths`, the delegation table,
+  and `markdown` as the default `task` backend.
+- `docs/reference/config.md`: `orchestrator:` ownership, the 2.8 migration,
+  `providers.task_tracking` default `markdown`, `orchestrator.local.yaml`.
+- `docs/reference/orchestrator-contract.md`: contract v2, capabilities, no
+  bundled fallback.
+- `docs/reference/skills.md`: `/gin-orchestrator:providers`.
+- `docs/reference/troubleshooting.md`: `orchestrator_missing`,
+  `orchestrator_contract_mismatch`, `orchestrator_failed`, and the warning for
+  an unset task backend with a `.beads` directory.
+- `docs/guides/*`, `docs/starters/*`, `docs/contributing.md`, `AGENTS.md`:
+  every statement that Beads is the default or required, or that routes work
+  to another provider without gin-orchestrator, is corrected; contributing
+  describes `plugins/gin-orchestrator/` and `tests/gin_orchestrator/`.
+- `plugins/gin-orchestrator/src/README.md` documents install, the facade
+  dependency and the contract.
+
 ### Release
 
 - Tracks land on one feature branch, or merge to `master` without a version
@@ -287,6 +330,19 @@ Acceptance criteria:
 - `gin-workflow state --format json` includes
   `extensions.orchestrator` with `available`, `version`, `contract`,
   `capabilities` and, when unavailable, `reason`.
+
+### US-6: Read docs that match the product
+As a new user, I want the docs to describe gin-workflow with one harness and
+gin-orchestrator as an extension, so that I install only what I need.
+
+Acceptance criteria:
+- `README.md` lists Beads as optional and has an "Extensions" section with
+  gin-orchestrator's install command.
+- Outside `.planning/`, no doc calls Beads the default task backend, and no
+  doc mentions `workflow_providers`.
+- Every doc that describes routing work to another harness links the
+  `docs/orchestrator/` guide.
+- Relative links in `docs/` and `README.md` resolve (checked by a test).
 
 ## Errors and compatibility
 
