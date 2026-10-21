@@ -1,6 +1,10 @@
 # Split gin-orchestrator out of gin-workflow
 
-Status: confirmed 2026-10-20 (revised after code review).
+Status: confirmed 2026-10-20 (revised after code review). Steps 2–3 are
+superseded by `2026-10-21-orchestrator-extension-design.md`: gin-orchestrator
+is an extension that depends on gin-workflow, starts as
+`plugins/gin-orchestrator/` in this repository, and the `orchestrate` and
+`gin-parallel-agents` skills stay in gin-workflow.
 
 ## Goal and scope
 
