@@ -206,4 +206,9 @@ execution_strategy:
   of Track 1's branch and the gin-console and gin-harness branches.
 - Track beads close when their tests or checks and review pass.
 - The probe beads in Track 4 must be deleted; they are not part of the evidence.
+- 2026-10-21, Track 4: child databases under `~/gin-harness/beads/` opened the
+  harness database once `~/gin-harness/.beads` existed, so all three databases
+  moved to `~/gin-beads/<repo>` (user decision). bd 1.0.5 never holds an
+  external dependency in `bd ready`; `gin-workflow-icp9.5` makes
+  `gin-workflow task ready` hold it, and Track 4's US-5 check uses that command.
 - 2026-10-21 user decision: Tracks 2–4 run directly in the main session, not through the resolved worker route, because they act on live databases outside the repo. Track 1 follows its route.

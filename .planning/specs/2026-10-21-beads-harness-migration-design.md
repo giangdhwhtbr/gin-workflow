@@ -13,8 +13,9 @@ before step 2 so the step 2 epic can be tracked in the harness.
 In scope:
 
 - Move the `.beads` directories of gin-workflow and gin-console to
-  `~/gin-harness/beads/<repo>/`, with a symlink at each repo root.
-- Create the harness database at `~/gin-harness/.beads` (prefix `gin-harness`).
+  `~/gin-beads/<repo>/`, with a symlink at each repo root.
+- Create the harness database at `~/gin-beads/gin-harness` (prefix
+  `gin-harness`), linked from `~/gin-harness/.beads`.
 - Rework the `beads-migration` skill so it takes a target directory and covers
   backup, untracking, hooks and verification.
 - Recreate the missing gin-workflow git hooks.
@@ -46,16 +47,23 @@ Out of scope: one shared database for all repos, `scripts/sync.sh`,
 ### Layout
 
 ```
-~/gin-harness/.beads/                 harness database, prefix gin-harness
-~/gin-harness/beads/gin-workflow/     was ~/gin-workflow/.beads
-~/gin-harness/beads/gin-console/      was ~/gin-console/.beads
-~/gin-workflow/.beads -> ~/gin-harness/beads/gin-workflow
-~/gin-console/.beads  -> ~/gin-harness/beads/gin-console
+~/gin-beads/gin-harness/      harness database, prefix gin-harness
+~/gin-beads/gin-workflow/     was ~/gin-workflow/.beads
+~/gin-beads/gin-console/      was ~/gin-console/.beads
+~/gin-harness/.beads  -> ~/gin-beads/gin-harness
+~/gin-workflow/.beads -> ~/gin-beads/gin-workflow
+~/gin-console/.beads  -> ~/gin-beads/gin-console
 ```
+
+Revision 2026-10-21 (Track 4): the databases first lived under
+`~/gin-harness/beads/<repo>`. Once the harness had its own `.beads`, bd in each
+child repo opened the harness database: it resolves the symlink and uses a
+`.beads` found in a parent directory of the real path. No database may sit
+under a directory with its own `.beads`, so all three moved to `~/gin-beads/`.
 
 - Each child database keeps its name, prefix, issue ids, project id and
   `sync.remote`.
-- `~/gin-harness/.gitignore` ignores `beads/` and the Dolt data under `.beads/`.
+- `~/gin-harness/.gitignore` ignores the `.beads` symlink and `backup/`.
   Each database is backed up by its own `sync.remote` or by the backup copy
   below, not by harness git.
 
@@ -63,20 +71,23 @@ Out of scope: one shared database for all repos, `scripts/sync.sh`,
 
 - Each of the three databases sets `external_projects` to map `gin-workflow`,
   `gin-console` and `gin-harness` to their database directories under
-  `~/gin-harness`.
+  `~/gin-beads`.
 - A bead that provides work to another repo carries the label
   `export:<capability>`. After it closes, `bd ship <capability>` adds
   `provides:<capability>`.
 - A bead that needs it declares `bd dep add <id> external:<project>:<capability>`
-  and stays blocked until the capability is shipped.
+  and stays blocked until the capability is shipped. bd 1.0.5 reports every
+  external dependency as resolved in `bd ready`, so `gin-workflow task ready`
+  enforces this: it holds a ready bead while any `external:<project>:<capability>`
+  has no closed `provides:<capability>` bead in that project's database.
 
 ### Migration of one repo
 
 1. Record `bd count` and `bd context` (database, project id).
 2. Stop if a `bd` or `gin-workflow` process is running for the repo.
 3. Copy `.beads` to `~/gin-harness/backup/<repo>-<YYYY-MM-DD>/` with `cp -a`.
-4. Move `.beads` to `~/gin-harness/beads/<repo>/` and create the symlink
-   `<repo>/.beads -> ~/gin-harness/beads/<repo>`.
+4. Move `.beads` to `~/gin-beads/<repo>/` and create the symlink
+   `<repo>/.beads -> ~/gin-beads/<repo>`.
 5. If git tracks files under `.beads`: `git rm -r --cached .beads`, add `.beads`
    to `.gitignore`, and commit on a feature branch.
 6. Check that `core.hooksPath` resolves to an existing directory. For
@@ -88,7 +99,7 @@ Out of scope: one shared database for all repos, `scripts/sync.sh`,
 
 - `plugins/gin-workflow/src/skills/beads-migration/SKILL.md` describes the
   steps above. The target directory is an input with the default
-  `~/gin-harness/beads/<repo>`. The vault path is removed.
+  `~/gin-beads/<repo>`. The vault path is removed.
 - The skill stays user-invoked only.
 
 ### Split spec amendment
@@ -112,12 +123,12 @@ narrowed to `sync.sh` and `versions.lock`.
 
 ### US-1: Keep every project's Beads in the harness
 As the maintainer, I want each child repo's Beads database stored under
-`~/gin-harness/beads/<repo>`, so that all task data lives in one place I can
+`~/gin-beads/<repo>`, so that all task data lives in one place I can
 back up and inspect.
 
 Acceptance criteria:
 - `~/gin-workflow/.beads` and `~/gin-console/.beads` are symlinks into
-  `~/gin-harness/beads/`.
+  `~/gin-beads/`.
 - `bd count` in each repo reports the same number as before the move (293 and
   31 at the time of writing, or the current count when the migration runs).
 - `bd context` in each repo reports the same database name and project id as
@@ -144,7 +155,7 @@ later.
 
 Acceptance criteria:
 - The skill names the target directory as an input with default
-  `~/gin-harness/beads/<repo>`, and contains no `/home/coder/workspace/brain`
+  `~/gin-beads/<repo>`, and contains no `/home/coder/workspace/brain`
   path.
 - The skill covers backup, the tracked-files check, the hooks check, and
   verification by `bd count` and `bd context`.
@@ -164,11 +175,12 @@ another, so that a cross-repo epic runs in the right order.
 
 Acceptance criteria:
 - A gin-console bead with `external:gin-workflow:<capability>` is absent from
-  `bd ready` in gin-console while the capability is not shipped.
+  `gin-workflow task ready` in gin-console while the capability is not shipped.
 - After the gin-workflow bead labelled `export:<capability>` is closed and
-  `bd ship <capability>` runs, that gin-console bead appears in `bd ready`.
-- `gin-workflow task ready` in gin-console gives the same result before and
-  after. If it does not, the gap is recorded as a follow-up bug, not fixed here.
+  `bd ship <capability>` runs, that gin-console bead appears in
+  `gin-workflow task ready`.
+- (Revised 2026-10-21: bd 1.0.5 `bd ready` lists the bead in both cases, so the
+  check uses `gin-workflow task ready`.)
 - The probe beads are deleted after the check.
 
 ## Errors and compatibility
@@ -190,5 +202,7 @@ Acceptance criteria:
   recorded as evidence.
 - `tests/workflow_core/test_token_budget.py` (or the existing skill tests)
   asserts that the `beads-migration` skill has no vault path and mentions
-  `~/gin-harness/beads/<repo>`, `bd count` and `bd context`.
+  `~/gin-beads/<repo>`, `bd count` and `bd context`.
+- `tests/workflow_core/test_tasks.py` runs real bd on two repos and checks that
+  `gin-workflow task ready` holds a bead until its external capability ships.
 - The full suite passes, and runs from the `pre-push` hook on the next push.

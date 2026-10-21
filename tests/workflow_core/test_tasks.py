@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -130,6 +131,58 @@ class TaskDispatchTests(unittest.TestCase):
             specs._bd(self.root, ["show", "nope-1"])
         with self.assertRaisesRegex(usage.UsageError, "AI usage tracking requires Beads"):
             usage._bd(self.root, ["show", epic])
+
+@unittest.skipUnless(shutil.which("bd"), "bd is not installed")
+class ExternalDependencyTests(unittest.TestCase):
+    """bd 1.0.5 counts every external:<project>:<capability> blocker as resolved; task ready holds them."""
+
+    def setUp(self):
+        self._directory = tempfile.TemporaryDirectory()
+        base = Path(self._directory.name)
+        self.provider, self.consumer = base / "prov", base / "cons"
+        for root, prefix in ((self.provider, "p"), (self.consumer, "c")):
+            root.mkdir()
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            self.bd(root, "init", "--prefix", prefix, "-q")
+        self.bd(self.consumer, "config", "set", "external_projects.prov", str(self.provider / ".beads"))
+
+    def tearDown(self):
+        self._directory.cleanup()
+
+    def bd(self, root, *args):
+        return subprocess.run(["bd", *args], cwd=root, env=ENV, check=True, capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL, timeout=60).stdout
+
+    def create(self, root, title, *extra):
+        return json.loads(self.bd(root, "create", title, "--json", *extra))["id"]
+
+    def ready(self):
+        done = gw(self.consumer, "task", "ready", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        text = gw(self.consumer, "task", "ready")
+        ids = {issue["id"] for issue in json.loads(done.stdout)}
+        self.assertEqual(ids, {issue["id"] for issue in tasks.query(self.consumer, ["ready"])})
+        return ids, text.stdout
+
+    def test_unshipped_external_dependency_is_held_until_shipped(self):
+        provides = self.create(self.provider, "api", "-l", "export:cap")
+        waiting = self.create(self.consumer, "uses api")
+        unknown = self.create(self.consumer, "uses nothing that exists")
+        free = self.create(self.consumer, "free")
+        self.bd(self.consumer, "dep", "add", waiting, "external:prov:cap")
+        self.bd(self.consumer, "dep", "add", unknown, "external:nope:cap")
+
+        ids, text = self.ready()
+        self.assertEqual({free}, ids)
+        self.assertIn(free, text)
+        self.assertNotIn(f"{waiting} ", text.split("Held")[0])
+        self.assertIn("external:prov:cap", text)
+
+        self.bd(self.provider, "close", provides, "--reason", "done")
+        self.bd(self.provider, "ship", "cap")
+        ids, _ = self.ready()
+        self.assertEqual({free, waiting}, ids)
+
 
 if __name__ == "__main__":
     unittest.main()

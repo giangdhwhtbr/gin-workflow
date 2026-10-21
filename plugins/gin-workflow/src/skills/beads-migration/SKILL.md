@@ -1,6 +1,6 @@
 ---
 name: beads-migration
-description: Move a repository's .beads directory into ~/gin-harness/beads/<repo> and symlink it back.
+description: Move a repository's .beads directory into ~/gin-beads/<repo> and symlink it back.
 ---
 
 # Beads Migration
@@ -11,7 +11,7 @@ Load only when the user explicitly invokes it.
 
 - `<root>`: the absolute path of the repository root.
 - `<name>`: the repository's directory name (`basename <root>`).
-- `<target>`: the target directory, default `~/gin-harness/beads/<repo>` with `<repo>` = `<name>`.
+- `<target>`: the target directory, default `~/gin-beads/<repo>` with `<repo>` = `<name>`. Never place it under a directory that has its own `.beads` (such as `~/gin-harness`): bd follows the symlink and opens a `.beads` found in a parent directory instead.
 
 ## Steps
 
@@ -33,7 +33,7 @@ Load only when the user explicitly invokes it.
 
 4. Move and link.
    ```bash
-   mkdir -p ~/gin-harness/beads && mv <root>/.beads <target> && ln -s <target> <root>/.beads
+   mkdir -p ~/gin-beads && mv <root>/.beads <target> && ln -s <target> <root>/.beads
    ```
    Until step 5, `git status` may show tracked `.beads` files as deleted and `.beads` as untracked.
 
@@ -48,14 +48,14 @@ Load only when the user explicitly invokes it.
 7. Cross-repo dependencies: add an `external_projects` map to `<target>/config.yaml` naming the other databases. Write absolute paths; YAML does not expand `~`.
    ```yaml
    external_projects:
-     gin-workflow: /home/<user>/gin-harness/beads/gin-workflow
-     gin-harness: /home/<user>/gin-harness/.beads
+     gin-workflow: /home/<user>/gin-beads/gin-workflow
+     gin-harness: /home/<user>/gin-beads/gin-harness
    ```
-   A providing bead carries the label `export:<capability>`; after it closes, `bd ship <capability>` marks it shipped. A needing bead declares `bd dep add <id> external:<project>:<capability>` and stays out of `bd ready` until then. Probe this once with two throwaway beads; if the path form does not resolve, try the repo root instead and record which works here.
+   A providing bead carries the label `export:<capability>`; after it closes, `bd ship <capability>` marks it shipped. A needing bead declares `bd dep add <id> external:<project>:<capability>` and stays out of `bd ready` until then. bd 1.0.5 reports every external dependency as resolved in `bd ready`; `gin-workflow task ready` holds the bead until the capability ships, so use it.
 
 8. Verify: `bd count` and `bd context` match step 1, and `gin-workflow task ready` and `gin-workflow state` run in the main checkout and in a new worktree. If anything differs, run Rollback and stop.
 
-The harness repository ignores `beads/`, `backup/` and the Dolt data under `.beads/` in its own `.gitignore`.
+The harness database follows the same rule: `~/gin-harness/.beads` is a symlink to `~/gin-beads/gin-harness`, and the harness `.gitignore` ignores `.beads` and `backup/`.
 
 ## Rollback
 

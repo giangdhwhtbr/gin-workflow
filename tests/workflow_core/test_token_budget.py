@@ -127,7 +127,7 @@ class TestBudgetLimits(unittest.TestCase):
     def test_beads_migration_targets_the_harness(self):
         text = (SRC / "skills/beads-migration/SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("/home/coder/workspace/brain", text)
-        for needle in ("~/gin-harness/beads/<repo>", "cp -a", "git rm -r --cached .beads",
+        for needle in ("~/gin-beads/<repo>", "cp -a", "git rm -r --cached .beads",
                        "core.hooksPath", "bd count", "bd context", "external_projects"):
             self.assertIn(needle, text)
         self.assertNotIn(": ~/gin-harness", text)

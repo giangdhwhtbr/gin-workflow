@@ -102,7 +102,7 @@ After it, as `gin-orchestrator <command>`.
 
 ### gin-harness
 
-- Each child repo's `.beads` is a symlink to `~/gin-harness/beads/<repo>/`; every repo keeps its own database and issue-id prefix. A `gin-harness` database at `~/gin-harness/.beads` holds cross-project epics, and beads of different repos depend on each other through `external:<project>:<capability>` (see `2026-10-21-beads-harness-migration-design.md`).
+- Each child repo's `.beads` is a symlink to `~/gin-beads/<repo>/`; every repo keeps its own database and issue-id prefix. A `gin-harness` database at `~/gin-beads/gin-harness` (linked from `~/gin-harness/.beads`) holds cross-project epics, and beads of different repos depend on each other through `external:<project>:<capability>` (see `2026-10-21-beads-harness-migration-design.md`).
 - Child repos are cloned as siblings into gitignored directories inside the
   harness by `scripts/sync.sh`; no git submodules.
 - `versions.lock` pins a known-good combination of child versions.
@@ -159,7 +159,7 @@ As the maintainer, I want every repo's Beads database kept in gin-harness, so th
 
 Acceptance criteria:
 - `scripts/sync.sh` clones or updates every child repo listed in `versions.lock`.
-- Each child repo's `.beads` is a symlink into `~/gin-harness/beads/`, and `bd` there reads and writes that repo's own database.
+- Each child repo's `.beads` is a symlink into `~/gin-beads/`, and `bd` there reads and writes that repo's own database.
 - Bead ids keep a distinct prefix per child repo; cross-repo order uses `external:` dependencies.
 - `gin-workflow state` inside a child repo finds that repo's beads.
 
