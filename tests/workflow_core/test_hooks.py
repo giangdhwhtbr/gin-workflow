@@ -123,6 +123,13 @@ class TestHooksInstall(unittest.TestCase):
         actions = setup_service.doctor(repository=self.root)["actions"]
         self.assertTrue(any("pre-commit" in a and "hooks run pre-commit" in a for a in actions), actions)
 
+    def test_install_reports_a_chained_foreign_hook_as_chained(self):
+        chained = '#!/bin/sh\nmy-tool\nexec gin-workflow hooks run pre-push\n'
+        (self.root / ".git/hooks/pre-push").write_text(chained)
+        result = hooks.install(self.root)
+        self.assertEqual(("installed", "chained"), (result["status"], result["hooks"]["pre-push"]))
+        self.assertEqual(chained, (self.root / ".git/hooks/pre-push").read_text())
+
     def test_doctor_reports_hooks_without_flipping_health(self):
         payload = setup_service.doctor(repository=self.root)
         self.assertEqual({"pre-commit": "missing", "pre-push": "missing"}, payload["checks_details"]["hooks"])

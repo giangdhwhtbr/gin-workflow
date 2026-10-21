@@ -40,7 +40,7 @@ def install(root: Path) -> dict:
         target, content = active / hook, _shim(hook)
         current = target.read_text(encoding="utf-8", errors="replace") if target.is_file() else None
         if current is not None and MARKER not in current:
-            result[hook] = "occupied"
+            result[hook] = "chained" if "gin-workflow hooks run" in current else "occupied"
         elif current == content:
             result[hook] = "unchanged"
         else:
