@@ -14,8 +14,8 @@ them so each can be installed, versioned and changed on its own:
 - **gin-orchestrator** owns the multi-provider worker library and requires Beads.
 - **gin-console** (already a separate repo) is unchanged by this epic; it reads
   both through their CLI JSON output and imports neither.
-- **gin-harness** (`~/gin-harness`) is a meta-repo holding the shared Beads
-  database, the cross-project roadmap, `versions.lock` and a sync script. It
+- **gin-harness** (`~/gin-harness`) is a meta-repo holding each repo's Beads
+  database, a harness database for cross-project epics, the cross-project roadmap, `versions.lock` and a sync script. It
   holds no product code.
 
 In scope: the code boundary, the orchestrator CLI contract, the release
@@ -173,8 +173,8 @@ Acceptance criteria:
   returns an empty list, as `list_models` does today on failure.
 - **Existing consumers on 1.x**: 1.7 changes no command output. 2.0 release
   notes tell routed-worker users to install gin-orchestrator.
-- **Beads data**: moving `.beads` to the harness keeps existing issues and ids;
-  the consolidation step backs up each child `.beads` first.
+- **Beads data**: moving `.beads` to the harness keeps existing issues and ids,
+  and each child `.beads` is backed up first (`2026-10-21-beads-harness-migration-design.md`).
 
 ## Testing
 

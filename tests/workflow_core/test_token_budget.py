@@ -130,6 +130,7 @@ class TestBudgetLimits(unittest.TestCase):
         for needle in ("~/gin-harness/beads/<repo>", "cp -a", "git rm -r --cached .beads",
                        "core.hooksPath", "bd count", "bd context", "external_projects"):
             self.assertIn(needle, text)
+        self.assertNotIn(": ~/gin-harness", text)
 
     def test_sdd_guidance_loads_on_demand(self):
         sdd_skill = (SRC / "skills/gin-sdd/SKILL.md").resolve()
