@@ -1,7 +1,7 @@
 # Move the Beads databases into gin-harness
 
 Workflow: beads-harness-migration
-Status: draft for user review.
+Status: confirmed 2026-10-21.
 
 ## Goal and scope
 
