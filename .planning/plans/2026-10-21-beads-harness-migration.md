@@ -206,3 +206,4 @@ execution_strategy:
   of Track 1's branch and the gin-console and gin-harness branches.
 - Track beads close when their tests or checks and review pass.
 - The probe beads in Track 4 must be deleted; they are not part of the evidence.
+- 2026-10-21 user decision: Tracks 2–4 run directly in the main session, not through the resolved worker route, because they act on live databases outside the repo. Track 1 follows its route.
