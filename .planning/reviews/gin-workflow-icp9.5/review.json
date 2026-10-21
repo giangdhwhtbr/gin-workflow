@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-in-progress",
+  "review_state": "review-approved",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-icp9.5",
       "checkpoint_ref": "refs/gin/review/gin-workflow-icp9.5",
       "review_base_sha": "dec85760ad1f551b9c7ffee2cfe355bf3cff2ad4",
-      "reviewed_source_sha": "82c3f1acc55c6cc1d0987f67da4d3ba03b152d49",
-      "checkpoint_sha": "82c3f1acc55c6cc1d0987f67da4d3ba03b152d49",
+      "reviewed_source_sha": "18372081c9a8deec35198e1a5c19646fe17a223e",
+      "checkpoint_sha": "18372081c9a8deec35198e1a5c19646fe17a223e",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "d83abf64ab086c5ddc903f4a791ddb8a4f3e7ee5a41f987638a6c4708d317b8e",
-      "reviewed_source_tree_hash": "d83abf64ab086c5ddc903f4a791ddb8a4f3e7ee5a41f987638a6c4708d317b8e",
+      "source_tree_hash": "6c4de1bcc5bc61366c613637838c0f268f074373c43d0c29dc686228a5ff5c0a",
+      "reviewed_source_tree_hash": "6c4de1bcc5bc61366c613637838c0f268f074373c43d0c29dc686228a5ff5c0a",
       "source_identity_status": "complete"
     }
   ],
@@ -23,17 +23,109 @@
     "allowed_generated_paths": [],
     "nested_repository_paths": []
   },
-  "active_lease": {
-    "lease_id": "7169a75821a34024aca9f0ee59469c5a",
-    "actor_role": "reviewer",
-    "actor_id": "claude-sonnet-reviewer",
-    "acquired_at": "2026-10-21T10:56:29.144971Z",
-    "expires_at": "2026-10-21T11:06:29.144971Z",
-    "current_ledger_revision": 5
+  "active_lease": null,
+  "ledger_revision": 31,
+  "next_finding_number": 8,
+  "findings": {
+    "F1": {
+      "finding_id": "F1",
+      "severity": "IMPORTANT",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F2": {
+      "finding_id": "F2",
+      "severity": "IMPORTANT",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F3": {
+      "finding_id": "F3",
+      "severity": "MINOR",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F4": {
+      "finding_id": "F4",
+      "severity": "MINOR",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F5": {
+      "finding_id": "F5",
+      "severity": "MINOR",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F6": {
+      "finding_id": "F6",
+      "severity": "SUGGESTION",
+      "status": "accepted-as-is",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F7": {
+      "finding_id": "F7",
+      "severity": "SUGGESTION",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
   },
-  "ledger_revision": 5,
-  "next_finding_number": 1,
-  "findings": {},
   "events": [
     {
       "event_id": "EV-000001",
@@ -142,6 +234,425 @@
       "payload": {},
       "previous_event_hash": "73001dac353869d9566d880f61cfffe30d3a4225663fc4b6a32c2d5f0092273f",
       "event_hash": "1370a7e4bb34c4ad9526d6ae66efc11162fbddc4bab84c3561e4fc302fe14c9f"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "lease-broken",
+      "timestamp": "2026-10-21T11:07:26.736766Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "lease_id": "7169a75821a34024aca9f0ee59469c5a",
+        "reason": "expired",
+        "replaced_by": "f18fd11adc58438a9724db825bd53972"
+      },
+      "previous_event_hash": "1370a7e4bb34c4ad9526d6ae66efc11162fbddc4bab84c3561e4fc302fe14c9f",
+      "event_hash": "bc632db74badb9113d8533adc8a1cb0a3ad2a9adc264c59d900bd0998b32b73d"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-21T11:07:26.761217Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "lease_id": "f18fd11adc58438a9724db825bd53972",
+        "actor_role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer",
+        "acquired_at": "2026-10-21T11:07:26.735879Z",
+        "expires_at": "2026-10-21T11:17:26.735879Z"
+      },
+      "previous_event_hash": "bc632db74badb9113d8533adc8a1cb0a3ad2a9adc264c59d900bd0998b32b73d",
+      "event_hash": "ecf45e1b239f6a24cf659f5509dd8839edafa04a54ba822265f34c818b8868b8"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "finding-created",
+      "timestamp": "2026-10-21T11:07:32.175749Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F1",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "ecf45e1b239f6a24cf659f5509dd8839edafa04a54ba822265f34c818b8868b8",
+      "event_hash": "d6fe80d099829198008d04bc928fd485f9c499e1438d3672c24b2e75cb992b8c"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "finding-created",
+      "timestamp": "2026-10-21T11:07:32.299394Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F2",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "d6fe80d099829198008d04bc928fd485f9c499e1438d3672c24b2e75cb992b8c",
+      "event_hash": "b5089c2249c22a75b03bb4aa6a6be21157c3dc2bccef41fc210ba1f19761a727"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "finding-created",
+      "timestamp": "2026-10-21T11:07:32.420773Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F3",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "b5089c2249c22a75b03bb4aa6a6be21157c3dc2bccef41fc210ba1f19761a727",
+      "event_hash": "2a7eab9d47e4f18aa67a157f1de9f6ba209af6da20bb088477df45f7ed481987"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "finding-created",
+      "timestamp": "2026-10-21T11:07:32.545068Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F4",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "2a7eab9d47e4f18aa67a157f1de9f6ba209af6da20bb088477df45f7ed481987",
+      "event_hash": "c5e380142a012fc18919f89f7d03638c404a8935c2434ecbc36ae3a87c532b49"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "finding-created",
+      "timestamp": "2026-10-21T11:07:32.665936Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F5",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "c5e380142a012fc18919f89f7d03638c404a8935c2434ecbc36ae3a87c532b49",
+      "event_hash": "c02368fad641db4ef0cf7ec244fd387f8b84816dc8015f813a6b05b38ba814bf"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "finding-created",
+      "timestamp": "2026-10-21T11:07:32.789298Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F6",
+        "severity": "SUGGESTION"
+      },
+      "previous_event_hash": "c02368fad641db4ef0cf7ec244fd387f8b84816dc8015f813a6b05b38ba814bf",
+      "event_hash": "b707551d2282f3dcbf1ec283a000ae0f8ba1e6965ebdf47af30964e27104974a"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "finding-created",
+      "timestamp": "2026-10-21T11:07:32.909969Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F7",
+        "severity": "SUGGESTION"
+      },
+      "previous_event_hash": "b707551d2282f3dcbf1ec283a000ae0f8ba1e6965ebdf47af30964e27104974a",
+      "event_hash": "4fee3d6e8c626f3e12a4db760d145d42639e08f0498593e0472a115caa4896c5"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-21T11:07:33.032775Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "finding_id": "F1"
+      },
+      "previous_event_hash": "4fee3d6e8c626f3e12a4db760d145d42639e08f0498593e0472a115caa4896c5",
+      "event_hash": "14c32aba13225d0184f07321aaa18b0b90d492081166c619ed05b459b8e992c1"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-21T11:07:33.157745Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "finding_id": "F2"
+      },
+      "previous_event_hash": "14c32aba13225d0184f07321aaa18b0b90d492081166c619ed05b459b8e992c1",
+      "event_hash": "f44e64a5ab951e43a4bb0b6b9ae6fd7c49d2ab3c65fdf9a9ea2bada5ead23afc"
+    },
+    {
+      "event_id": "EV-000017",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-21T11:07:33.278238Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "finding_id": "F3"
+      },
+      "previous_event_hash": "f44e64a5ab951e43a4bb0b6b9ae6fd7c49d2ab3c65fdf9a9ea2bada5ead23afc",
+      "event_hash": "12592f75bdb7ce97b224544c53ead45df6764233cc00e42968e416de52a5150d"
+    },
+    {
+      "event_id": "EV-000018",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-21T11:07:33.397455Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "finding_id": "F4"
+      },
+      "previous_event_hash": "12592f75bdb7ce97b224544c53ead45df6764233cc00e42968e416de52a5150d",
+      "event_hash": "799bb2d69323ac2264b56dc2b2e90675b7e0fe091f07c540fbd7260d5c67f45b"
+    },
+    {
+      "event_id": "EV-000019",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-21T11:07:33.518545Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "finding_id": "F5"
+      },
+      "previous_event_hash": "799bb2d69323ac2264b56dc2b2e90675b7e0fe091f07c540fbd7260d5c67f45b",
+      "event_hash": "76f54e8480257447c588ac6657f9369dfbe3c48fd933a922f3c88db700f52a8e"
+    },
+    {
+      "event_id": "EV-000020",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-21T11:07:33.641082Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "finding_id": "F7"
+      },
+      "previous_event_hash": "76f54e8480257447c588ac6657f9369dfbe3c48fd933a922f3c88db700f52a8e",
+      "event_hash": "6dda5828fc7e2435c7812402ef2f405b09c961eb9d451c8dd3479a161fd7570a"
+    },
+    {
+      "event_id": "EV-000021",
+      "action": "finding-disputed",
+      "timestamp": "2026-10-21T11:07:33.760910Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "finding_id": "F6",
+        "reason": "Text output only; the ponytail comment records the indented-children ceiling, and a title naming another held id is rare. --json and query filter by id exactly."
+      },
+      "previous_event_hash": "6dda5828fc7e2435c7812402ef2f405b09c961eb9d451c8dd3479a161fd7570a",
+      "event_hash": "32106c0ef03b2e7fce2175c0925488aad65a9f5984248b542b06681cf46bffe5"
+    },
+    {
+      "event_id": "EV-000022",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-21T11:07:34.028151Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude-main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-icp9.5",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-icp9.5",
+            "review_base_sha": "dec85760ad1f551b9c7ffee2cfe355bf3cff2ad4",
+            "reviewed_source_sha": "18372081c9a8deec35198e1a5c19646fe17a223e",
+            "checkpoint_sha": "18372081c9a8deec35198e1a5c19646fe17a223e",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "6c4de1bcc5bc61366c613637838c0f268f074373c43d0c29dc686228a5ff5c0a",
+            "reviewed_source_tree_hash": "6c4de1bcc5bc61366c613637838c0f268f074373c43d0c29dc686228a5ff5c0a",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "32106c0ef03b2e7fce2175c0925488aad65a9f5984248b542b06681cf46bffe5",
+      "event_hash": "cf5cc5bf40c108b894b5b59eb65bfa7553083e37df0714264019c51a1a9fe947"
+    },
+    {
+      "event_id": "EV-000023",
+      "action": "finding-verified",
+      "timestamp": "2026-10-21T11:10:52.828752Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F1"
+      },
+      "previous_event_hash": "cf5cc5bf40c108b894b5b59eb65bfa7553083e37df0714264019c51a1a9fe947",
+      "event_hash": "118f35b696011d761634821f5ee84fb0e6b31162e252e840c1c998443cafabf6"
+    },
+    {
+      "event_id": "EV-000024",
+      "action": "finding-verified",
+      "timestamp": "2026-10-21T11:10:52.951084Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F2"
+      },
+      "previous_event_hash": "118f35b696011d761634821f5ee84fb0e6b31162e252e840c1c998443cafabf6",
+      "event_hash": "0e281e522eea1f42a2a35678afac92a78f4852fd56dea6cf73bcef1868929d02"
+    },
+    {
+      "event_id": "EV-000025",
+      "action": "finding-verified",
+      "timestamp": "2026-10-21T11:10:53.072368Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F3"
+      },
+      "previous_event_hash": "0e281e522eea1f42a2a35678afac92a78f4852fd56dea6cf73bcef1868929d02",
+      "event_hash": "0a3194fb7844221ce826096a8726fc93e7fe9cb8b6d7d5e468c9e6fc7149731f"
+    },
+    {
+      "event_id": "EV-000026",
+      "action": "finding-verified",
+      "timestamp": "2026-10-21T11:10:53.194758Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F4"
+      },
+      "previous_event_hash": "0a3194fb7844221ce826096a8726fc93e7fe9cb8b6d7d5e468c9e6fc7149731f",
+      "event_hash": "21d63a5c4fd18a79916097f85affaf3c34393ab647b5e151854bb86b9ae84306"
+    },
+    {
+      "event_id": "EV-000027",
+      "action": "finding-verified",
+      "timestamp": "2026-10-21T11:10:53.316637Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F5"
+      },
+      "previous_event_hash": "21d63a5c4fd18a79916097f85affaf3c34393ab647b5e151854bb86b9ae84306",
+      "event_hash": "29cc703b7dcabb1a576a8765bc10e2773de0dc3c8811b057180f19cfc2515c58"
+    },
+    {
+      "event_id": "EV-000028",
+      "action": "finding-verified",
+      "timestamp": "2026-10-21T11:10:53.437878Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F7"
+      },
+      "previous_event_hash": "29cc703b7dcabb1a576a8765bc10e2773de0dc3c8811b057180f19cfc2515c58",
+      "event_hash": "98b2becd941812a8979ad1e4fd067be150baa3224636df7da37c3b95fbfe1dbb"
+    },
+    {
+      "event_id": "EV-000029",
+      "action": "finding-accepted-as-is",
+      "timestamp": "2026-10-21T11:10:53.557908Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "finding_id": "F6"
+      },
+      "previous_event_hash": "98b2becd941812a8979ad1e4fd067be150baa3224636df7da37c3b95fbfe1dbb",
+      "event_hash": "1e1ed8020080359128c4502a9e1274f4f5e75e23275d98e18a79bac7cc2858ff"
+    },
+    {
+      "event_id": "EV-000030",
+      "action": "review-approved",
+      "timestamp": "2026-10-21T11:10:53.730058Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-icp9.5",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-icp9.5",
+            "review_base_sha": "dec85760ad1f551b9c7ffee2cfe355bf3cff2ad4",
+            "reviewed_source_sha": "18372081c9a8deec35198e1a5c19646fe17a223e",
+            "checkpoint_sha": "18372081c9a8deec35198e1a5c19646fe17a223e",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "6c4de1bcc5bc61366c613637838c0f268f074373c43d0c29dc686228a5ff5c0a",
+            "reviewed_source_tree_hash": "6c4de1bcc5bc61366c613637838c0f268f074373c43d0c29dc686228a5ff5c0a",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": [
+          "F1",
+          "F2",
+          "F3",
+          "F4",
+          "F5",
+          "F6",
+          "F7"
+        ]
+      },
+      "previous_event_hash": "1e1ed8020080359128c4502a9e1274f4f5e75e23275d98e18a79bac7cc2858ff",
+      "event_hash": "19bc31620c4f267a0f31172ca87b4ee60d2181b4ccdb09d7942feec09c64e909"
+    },
+    {
+      "event_id": "EV-000031",
+      "action": "lease-released",
+      "timestamp": "2026-10-21T11:10:53.958801Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "claude-sonnet-reviewer"
+      },
+      "payload": {
+        "lease_id": "f18fd11adc58438a9724db825bd53972",
+        "released_at": "2026-10-21T11:10:53.957972Z"
+      },
+      "previous_event_hash": "19bc31620c4f267a0f31172ca87b4ee60d2181b4ccdb09d7942feec09c64e909",
+      "event_hash": "10d521b4907cf79b5117127aa2f7523833dff7714421345e61fc9a627df859ee"
     }
   ]
 }
