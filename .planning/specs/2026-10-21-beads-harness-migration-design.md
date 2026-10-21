@@ -18,11 +18,13 @@ In scope:
 - Rework the `beads-migration` skill so it takes a target directory and covers
   backup, untracking, hooks and verification.
 - Recreate the missing gin-workflow git hooks.
+- Configure `external_projects` so beads of one repo can depend on another.
 - Amend US-4 of the split spec to match this design.
 
-Out of scope: one shared database for all repos, dependencies between beads of
-different repos, `scripts/sync.sh`, `versions.lock`, and any gin-console code
-change.
+Out of scope: one shared database for all repos, `scripts/sync.sh`,
+`versions.lock`, any gin-console code change, making the ship skill run
+`bd ship`, running `/setup` in the harness, and a gin-orchestrator database
+(created with the reworked skill when that repo exists, in split step 2).
 
 ## Findings (2026-10-21)
 
@@ -57,6 +59,17 @@ change.
   Each database is backed up by its own `sync.remote` or by the backup copy
   below, not by harness git.
 
+### Cross-repo dependencies
+
+- Each of the three databases sets `external_projects` to map `gin-workflow`,
+  `gin-console` and `gin-harness` to their database directories under
+  `~/gin-harness`.
+- A bead that provides work to another repo carries the label
+  `export:<capability>`. After it closes, `bd ship <capability>` adds
+  `provides:<capability>`.
+- A bead that needs it declares `bd dep add <id> external:<project>:<capability>`
+  and stays blocked until the capability is shipped.
+
 ### Migration of one repo
 
 1. Record `bd count` and `bd context` (database, project id).
@@ -84,6 +97,16 @@ US-4 in `2026-10-20-split-orchestrator-design.md` changes from "one Beads
 database in gin-harness" to "each repo's database kept in gin-harness, plus a
 harness database for cross-project epics". The release-sequence step 3 is
 narrowed to `sync.sh` and `versions.lock`.
+
+### Working across repos
+
+- Implementation sessions start in the child repo. The gin-workflow lifecycle
+  (gates, `.planning/`, worktrees, review ledger, tests, hooks) stays per repo.
+- Roadmap and cross-repo planning sessions start in `~/gin-harness`, using its
+  database.
+- A cross-repo epic is a `gin-harness-` epic that names one epic per child repo.
+  Each child epic runs discuss, plan, execute and ship in its own repo. Ordering
+  between them uses the `export:`/`external:` dependencies above.
 
 ## User Stories
 
@@ -135,6 +158,19 @@ Acceptance criteria:
   directory that contains `pre-commit` and `pre-push`.
 - A `git push` from gin-workflow runs the `pre-push` hook.
 
+### US-5: Order work across repos
+As the maintainer, I want a bead in one repo to wait for a capability shipped in
+another, so that a cross-repo epic runs in the right order.
+
+Acceptance criteria:
+- A gin-console bead with `external:gin-workflow:<capability>` is absent from
+  `bd ready` in gin-console while the capability is not shipped.
+- After the gin-workflow bead labelled `export:<capability>` is closed and
+  `bd ship <capability>` runs, that gin-console bead appears in `bd ready`.
+- `gin-workflow task ready` in gin-console gives the same result before and
+  after. If it does not, the gap is recorded as a follow-up bug, not fixed here.
+- The probe beads are deleted after the check.
+
 ## Errors and compatibility
 
 - **Count mismatch after the move:** remove the symlink, restore the backup
@@ -150,7 +186,7 @@ Acceptance criteria:
 
 ## Testing
 
-- The migration itself is verified by the US-1 and US-2 checks, run and
+- The migration itself is verified by the US-1, US-2 and US-5 checks, run and
   recorded as evidence.
 - `tests/workflow_core/test_token_budget.py` (or the existing skill tests)
   asserts that the `beads-migration` skill has no vault path and mentions
