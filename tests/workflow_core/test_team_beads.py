@@ -78,6 +78,13 @@ class TestTeamBeadsLocal(unittest.TestCase):
         rows = json.loads(run_cli(self.root, "team", "ready", "--format", "json").stdout)["ready"]
         self.assertEqual({mine, backend}, {row["id"] for row in rows})
 
+    def test_ready_holds_an_unshipped_external_dependency(self):
+        free = create(self.root, "free", "area:backend")
+        waits = create(self.root, "waits", "area:backend")
+        bd(self.root, "dep", "add", waits, "external:nope:cap")
+        rows = json.loads(run_cli(self.root, "team", "ready", "--format", "json").stdout)["ready"]
+        self.assertEqual({free}, {row["id"] for row in rows})
+
     def test_claim_and_already_claimed(self):
         free = create(self.root, "free", "area:backend")
         result = run_cli(self.root, "team", "claim", free)

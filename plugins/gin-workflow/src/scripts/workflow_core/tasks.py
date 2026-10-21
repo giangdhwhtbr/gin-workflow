@@ -53,34 +53,59 @@ def _bd_json(executable: str, argv: Sequence[str], cwd: Path, env: Mapping[str, 
 
 def _shipped(root: Path, executable: str, ref: str) -> bool:
     """True when `external:<project>:<capability>` has a closed `provides:<capability>` bead in that project."""
-    _, project, capability = (ref.split(":", 2) + ["", ""])[:3]
+    parts = ref.split(":")
+    if len(parts) != 3 or not all(parts):
+        return False
+    _, project, capability = parts
     try:
         location = subprocess.run([executable, "config", "get", f"external_projects.{project}"], cwd=root,
                                   text=True, capture_output=True, check=False, timeout=30).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return False
-    if not project or not capability or not Path(location).is_dir():
+    directory = Path(root) / Path(location).expanduser()
+    if not location or not directory.is_dir():
         return False
     found = _bd_json(executable, ["list", "--status", "closed", "--label", f"provides:{capability}"], root,
-                     env={**os.environ, "BEADS_DIR": location})
+                     env={**os.environ, "BEADS_DIR": str(directory)})
     return bool(found)
 
 
-def held_by_external(root: Path, executable: str) -> dict[str, list[str]]:
-    """Ready beads with an unshipped external dependency, which bd 1.0.5 reports as resolved."""
+def held_by_external(root: Path, executable: str) -> dict[str, list[str]] | None:
+    """Ready beads with an unshipped external dependency, which bd 1.0.5 reports as resolved.
+
+    None when bd cannot explain its ready list: callers then fail instead of releasing held beads.
+    """
     explained = _bd_json(executable, ["ready", "--explain", "-n", "0"], root)
+    if not isinstance(explained, dict):
+        return None
+    shipped: dict[str, bool] = {}
     held: dict[str, list[str]] = {}
-    for issue in explained.get("ready", []) if isinstance(explained, dict) else []:
+    for issue in explained.get("ready") or []:
         refs = [ref for ref in issue.get("resolved_blockers") or [] if str(ref).startswith("external:")]
-        missing = [ref for ref in refs if not _shipped(root, executable, ref)]
+        for ref in refs:
+            if ref not in shipped:
+                shipped[ref] = _shipped(root, executable, ref)
+        missing = [ref for ref in refs if not shipped[ref]]
         if missing:
             held[issue["id"]] = missing
     return held
 
 
+def without_held(result: Any, held: Mapping[str, Any]) -> Any:
+    """A bd ready result (a list, or the `--explain` dict) minus the held beads."""
+    if isinstance(result, list):
+        return [issue for issue in result if not (isinstance(issue, dict) and issue.get("id") in held)]
+    if isinstance(result, dict) and isinstance(result.get("ready"), list):
+        return {**result, "ready": without_held(result["ready"], held)}
+    return result
+
+
 def _ready(executable: str, argv: Sequence[str]) -> int:
     root = Path.cwd()
     held = held_by_external(root, executable)
+    if held is None:
+        print("error: bd ready --explain failed, so external dependencies cannot be checked", file=sys.stderr)
+        return 1
     if not held:
         return subprocess.run([executable, *argv], check=False).returncode
     completed = subprocess.run([executable, *argv], text=True, capture_output=True, check=False)
@@ -89,8 +114,12 @@ def _ready(executable: str, argv: Sequence[str]) -> int:
         sys.stdout.write(completed.stdout)
         return completed.returncode
     if "--json" in argv:
-        issues = json.JSONDecoder().raw_decode(completed.stdout.lstrip())[0]
-        print(json.dumps([issue for issue in issues if issue.get("id") not in held], indent=2))
+        try:
+            issues = json.JSONDecoder().raw_decode(completed.stdout.lstrip())[0]
+        except json.JSONDecodeError:
+            print("error: bd ready printed no JSON, so external dependencies cannot be applied", file=sys.stderr)
+            return 1
+        print(json.dumps(without_held(issues, held), indent=2))
         return 0
     # ponytail: drops the text lines naming a held id; a held parent's indented children stay listed
     pattern = re.compile(r"(?<![\w.-])(" + "|".join(map(re.escape, held)) + r")(?![\w.-])")
@@ -120,9 +149,9 @@ def query(root: Path, argv: Sequence[str]) -> Any:
         result = json.loads(completed.stdout) if completed.returncode == 0 else None
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
         return None
-    if argv[:1] == ["ready"] and isinstance(result, list):
+    if argv[:1] == ["ready"]:
         held = held_by_external(root, executable)
-        result = [issue for issue in result if issue.get("id") not in held]
+        result = None if held is None else without_held(result, held)
     return result
 
 

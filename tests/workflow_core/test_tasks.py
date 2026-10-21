@@ -144,7 +144,7 @@ class ExternalDependencyTests(unittest.TestCase):
             root.mkdir()
             subprocess.run(["git", "init", "-q"], cwd=root, check=True)
             self.bd(root, "init", "--prefix", prefix, "-q")
-        self.bd(self.consumer, "config", "set", "external_projects.prov", str(self.provider / ".beads"))
+        self.bd(self.consumer, "config", "set", "external_projects.prov", "../prov/.beads")
 
     def tearDown(self):
         self._directory.cleanup()
@@ -182,6 +182,32 @@ class ExternalDependencyTests(unittest.TestCase):
         self.bd(self.provider, "ship", "cap")
         ids, _ = self.ready()
         self.assertEqual({free, waiting}, ids)
+
+
+class ExternalDependencyFailureTests(unittest.TestCase):
+    def test_unexplained_ready_fails_instead_of_releasing(self):
+        with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.shutil.which", return_value="/opt/bd"), \
+                mock.patch("workflow_core.tasks.held_by_external", return_value=None), \
+                mock.patch("workflow_core.tasks.subprocess.run",
+                           return_value=subprocess.CompletedProcess([], 0, stdout='[{"id": "x-1"}]')), \
+                mock.patch("sys.stderr"):
+            self.assertEqual(1, tasks.main(["ready"]))
+            self.assertIsNone(tasks.query(Path("."), ["ready"]))
+
+    def test_non_json_ready_output_fails_when_beads_are_held(self):
+        with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.shutil.which", return_value="/opt/bd"), \
+                mock.patch("workflow_core.tasks.held_by_external", return_value={"x-1": ["external:p:c"]}), \
+                mock.patch("workflow_core.tasks.subprocess.run",
+                           return_value=subprocess.CompletedProcess([], 0, stdout="not json", stderr="")), \
+                mock.patch("sys.stderr"):
+            self.assertEqual(1, tasks.main(["ready", "--json"]))
+
+    def test_explain_output_is_filtered_too(self):
+        explained = {"ready": [{"id": "x-1"}, {"id": "x-2"}], "blocked": []}
+        self.assertEqual({"ready": [{"id": "x-2"}], "blocked": []},
+                         tasks.without_held(explained, {"x-1": ["external:p:c"]}))
 
 
 if __name__ == "__main__":
