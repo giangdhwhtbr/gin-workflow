@@ -42,7 +42,9 @@ fi
 segments=() segment="" quote=""
 for ((i = 0; i < ${#COMMAND}; i++)); do
   c=${COMMAND:i:1}
-  if [ -n "$quote" ]; then
+  if [ "$quote" = '"' ] && [ "$c" = "\\" ]; then
+    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}
+  elif [ -n "$quote" ]; then
     [ "$c" = "$quote" ] && quote=""
   elif [ "$c" = "\\" ]; then
     segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}
@@ -56,9 +58,9 @@ done
 segments+=("$segment")
 for segment in "${segments[@]}"; do
   [[ "$segment" =~ (^|[[:space:]/])rm([[:space:]].*|$) ]] || continue
-  removal=${BASH_REMATCH[2]}
+  removal=${BASH_REMATCH[2]} before=${segment%"${BASH_REMATCH[0]}"}
   # `git rm --cached` only touches the index.
-  [[ "$segment" =~ ^[[:space:]]*git[[:space:]] && "$segment" =~ [[:space:]]--cached([[:space:]]|$) ]] && continue
+  [[ "$before" =~ ^[[:space:]]*git([[:space:]][^\"\']*)?$ && "$removal" =~ [[:space:]]--cached([[:space:]]|$) ]] && continue
   segment=$removal
   if [[ "$segment" =~ [[:space:]]-[a-zA-Z]*[rR] ]] || [[ "$segment" =~ --recursive ]]; then
     # Also catch quoted/slash forms the bare-target regex misses:
@@ -72,7 +74,7 @@ for segment in "${segments[@]}"; do
       exit 2
     fi
   fi
-done < <(printf '%s\n' "$COMMAND" | tr ';&|' '\n\n\n')
+done
 
 # 1b. The git hooks are the quality gate: never skip them.
 if [[ "$COMMAND" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify ]] || \
