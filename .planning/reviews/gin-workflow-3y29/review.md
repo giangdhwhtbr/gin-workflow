@@ -1,25 +1,29 @@
 # Code Review Ledger
 
-**Bead Status:** `review-in-progress`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000030`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `c872555`, Tree Hash: `b06face`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-3y29`
 - **Base SHA:** `a2d4e61b18d32ce474d261a9ab067193ee36df36`
-- **Reviewed SHA:** `d7c44e7f2c444c8f7d0eb7ca93a7a5fed6d2f5a8`
+- **Reviewed SHA:** `c87255533efea34b472c001b6fa8f9e8ce2b2939`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-3y29`
-- **Checkpoint SHA:** `d7c44e7f2c444c8f7d0eb7ca93a7a5fed6d2f5a8`
+- **Checkpoint SHA:** `c87255533efea34b472c001b6fa8f9e8ce2b2939`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `0ee9423f44e471f89922cea5a534ab9894ac806ff7ced03cc43809e7e22ada68`
+- **Tree Hash:** `b06face4bd4e5f2744c870cff992aac8116c64ebf8c6fccdf0d38634e99b90ee`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -92,3 +96,7 @@
 | `EV-000025` | `2026-10-21T04:50:56.916177Z` | `finding-verified` | `code-reviewer-sonnet` (reviewer) |
 | `EV-000026` | `2026-10-21T04:50:57.037442Z` | `finding-verified` | `code-reviewer-sonnet` (reviewer) |
 | `EV-000027` | `2026-10-21T04:50:57.412568Z` | `lease-released` | `code-reviewer-sonnet` (reviewer) |
+| `EV-000028` | `2026-10-21T04:55:48.226754Z` | `source-checkpoint-created` | `claude` (worker) |
+| `EV-000029` | `2026-10-21T04:55:48.360345Z` | `lease-acquired` | `code-reviewer-sonnet` (reviewer) |
+| `EV-000030` | `2026-10-21T04:55:48.548329Z` | `review-approved` | `code-reviewer-sonnet` (reviewer) |
+| `EV-000031` | `2026-10-21T04:55:48.774694Z` | `lease-released` | `code-reviewer-sonnet` (reviewer) |
