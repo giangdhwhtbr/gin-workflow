@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -66,6 +67,22 @@ class TestHooksInstall(unittest.TestCase):
         self.assertIn("hooks run pre-push", hook.read_text())
         again = hooks.install(self.root)
         self.assertEqual({"pre-commit": "unchanged", "pre-push": "unchanged"}, again["hooks"])
+
+    def test_install_keeps_the_push_connection_alive_during_pre_push(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            for name in ("GIT_SSH", "GIT_SSH_COMMAND"):
+                os.environ.pop(name, None)
+            self.assertEqual("set", hooks.install(self.root)["ssh_keepalive"])
+            self.assertEqual(hooks.SSH_KEEPALIVE, git(self.root, "config", "--local", "core.sshCommand"))
+            git(self.root, "config", "core.sshCommand", "ssh -i key")
+            self.assertEqual("kept", hooks.install(self.root)["ssh_keepalive"])
+            self.assertEqual("ssh -i key", git(self.root, "config", "core.sshCommand"))
+
+    def test_install_leaves_ssh_alone_when_the_environment_chooses_it(self):
+        with mock.patch.dict(os.environ, {"GIT_SSH": "plink"}):
+            self.assertEqual("kept", hooks.install(self.root)["ssh_keepalive"])
+        self.assertEqual("", subprocess.run(["git", "config", "core.sshCommand"], cwd=self.root,
+                                            text=True, capture_output=True).stdout)
 
     def test_foreign_hook_is_kept(self):
         foreign = self.root / ".git/hooks/pre-commit"
