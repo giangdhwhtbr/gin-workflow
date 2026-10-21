@@ -60,12 +60,12 @@ def status(root: Path) -> dict[str, str]:
 
 
 def _pushes_head(root: Path, refs: Sequence[str]) -> bool:
-    """True when a pushed ref is a non-delete branch (or `HEAD`) whose local sha is the checked-out HEAD."""
+    """True when a pushed ref is a non-delete branch (or `HEAD` pushed to a branch) whose local sha is the checked-out HEAD."""
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True,
                           check=False).stdout.strip()
     for line in refs:
         parts = line.split()
-        if len(parts) == 4 and (parts[0] == "HEAD" or parts[0].startswith("refs/heads/")) and parts[1] == head and set(parts[1]) != {"0"}:
+        if len(parts) == 4 and (parts[0] if parts[0] != "HEAD" else parts[2]).startswith("refs/heads/") and parts[1] == head and set(parts[1]) != {"0"}:
             return True
     return False
 

@@ -128,6 +128,7 @@ class TestHooksRun(unittest.TestCase):
         root = self.repo("a", test="false")
         head = git(root, "rev-parse", "HEAD")
         for ref in (f"refs/tags/v1 {head} refs/tags/v1 {ZERO}",
+                    f"HEAD {head} refs/tags/v1 {ZERO}",
                     f"(delete) {ZERO} refs/heads/x {head}",
                     f"refs/heads/other {'a' * 40} refs/heads/other {ZERO}"):
             self.assertEqual(0, hooks.run(root, "pre-push", [ref]), ref)
