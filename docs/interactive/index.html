@@ -1367,7 +1367,7 @@ stale TC-AUTH-002 (REQ-AUTH-002)`
         lang: 'bash',
         desc: 'Validates review ledgers (the quality checks ran in the git hooks), archives the SDD change into the living specs, presents four options (merge locally, push and open a PR, keep, discard), and acts only on explicit approval.',
         whenToUse: 'Once every track bead is closed (gate implementation_complete is satisfied). Merging or opening the PR needs your explicit approval; in team mode it follows the host rules.',
-        produces: 'Merge commit or PR link, removed worktree after a merge, and the epic closed after a human-confirmed merge (which marks shipped). Closed beads' review ledgers are removed on the feature branch before the merge (review-ledger.py cleanup), so the deletion lands with the merge.',
+        produces: 'Merge commit or PR link, removed worktree after a merge, and the epic closed after a human-confirmed merge (which marks shipped). The review ledgers of closed beads are removed on the feature branch before the merge (review-ledger.py cleanup), so the deletion lands with the merge.',
         exampleInput: '/gin-workflow:ship',
         exampleOutput: `1. Merge back to master locally
 2. Push and create a Pull Request
