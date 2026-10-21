@@ -258,7 +258,8 @@ assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/skills/setup/SKILL
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/skills/report/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/references/stage-contract.md"
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/scripts/gin-workflow"
-assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/hooks"
+assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/hooks/hooks.json"
+assert_contains "plugins/gin-workflow/dist/copilot/gin-workflow/hooks/hooks.json" "safety-check.sh"
 assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/agents"
 assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/commands"
 

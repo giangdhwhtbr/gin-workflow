@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src/scripts/safety-check.sh"
+POST_EDIT_SCRIPT = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src/scripts/post-edit.sh"
 
 
 def exit_code(command):
@@ -35,6 +36,24 @@ class TestPayloadWithoutJq(unittest.TestCase):
                 done = subprocess.run([str(Path(directory, "bash")), str(SCRIPT)], input=payload.encode(),
                                       env={"PATH": directory}, capture_output=True)
                 self.assertEqual(expected, done.returncode, (command, done.stderr))
+
+
+class TestCopilotPayloads(unittest.TestCase):
+    def test_safety_check_blocks_dangerous_command_from_copilot_payload(self):
+        payload = json.dumps({"tool_name": "bash", "tool_input": {"command": "rm -rf /"}, "cwd": "/tmp"})
+        done = subprocess.run(["bash", str(SCRIPT)], input=payload.encode(), capture_output=True)
+        self.assertEqual(2, done.returncode)
+
+    def test_safety_check_allows_safe_command_from_copilot_payload(self):
+        payload = json.dumps({"tool_name": "bash", "tool_input": {"command": "ls"}, "cwd": "/tmp"})
+        done = subprocess.run(["bash", str(SCRIPT)], input=payload.encode(), capture_output=True)
+        self.assertEqual(0, done.returncode)
+
+    def test_post_edit_runs_on_path_from_copilot_payload(self):
+        payload = json.dumps({"tool_name": "edit", "tool_input": {"path": "a.txt"}})
+        done = subprocess.run(["bash", str(POST_EDIT_SCRIPT)], input=payload, capture_output=True, text=True)
+        self.assertEqual(0, done.returncode)
+        self.assertIn("Post-edit hook run on: a.txt", done.stdout)
 
 
 if __name__ == "__main__":

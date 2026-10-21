@@ -272,7 +272,8 @@ try {
     Assert-Exists (Join-Path $copilotDist '.claude-plugin/plugin.json')
     Assert-Exists (Join-Path $copilotDist 'skills/setup/SKILL.md')
     Assert-Exists (Join-Path $copilotDist 'references/stage-contract.md')
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'hooks'))) 'Copilot bundle has hooks'
+    Assert-Exists (Join-Path $copilotDist 'hooks/hooks.json')
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $copilotDist 'hooks/hooks.json'))) 'safety-check.sh'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'agents'))) 'Copilot bundle has agents'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'commands'))) 'Copilot bundle has commands'
 

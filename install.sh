@@ -266,6 +266,23 @@ template_hooks_for_codex() {
 EOF
 }
 
+template_hooks_for_copilot() {
+  local dest="$1"
+  cat <<'EOF' > "$dest"
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+    ],
+    "PostToolUse": [
+      {"type": "command", "matcher": "edit|create", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/post-edit.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+    ]
+  }
+}
+EOF
+}
+
 copy_src() {
   local plugin_src_dir="$1"
   local target="$2"
@@ -353,9 +370,13 @@ install_platform() {
 
   if [ "$platform" = "copilot" ]; then
     # Copilot CLI reads the Claude layout (.claude-plugin/plugin.json,
-    # skills/<name>/SKILL.md); its hook and agent formats differ, so hooks/
-    # and agents/ are left out.
+    # skills/<name>/SKILL.md); hooks get Copilot's own format and agents/
+    # is left out.
     copy_bundle_dirs "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir"
+    if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ]; then
+      mkdir -p "$target_dir/hooks"
+      template_hooks_for_copilot "$target_dir/hooks/hooks.json"
+    fi
     mkdir -p "$(dirname "$manifest_path")"
     generate_manifest "plugins/$p_name" "$manifest_path" "false"
     return

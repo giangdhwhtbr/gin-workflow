@@ -166,6 +166,24 @@ function New-HooksFile {
     Write-Utf8File -Path $OutputPath -Content (($hooks | ConvertTo-Json -Depth 20) + "`n")
 }
 
+function New-CopilotHooksFile {
+    param([Parameter(Mandatory)][string]$OutputPath)
+    $content = @'
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+    ],
+    "PostToolUse": [
+      {"type": "command", "matcher": "edit|create", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/post-edit.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+    ]
+  }
+}
+'@ + "`n"
+    Write-Utf8File -Path $OutputPath -Content $content
+}
+
 function Convert-ClaudeAgents {
     param([Parameter(Mandatory)][string]$AgentsDirectory)
     if (-not (Test-Path -LiteralPath $AgentsDirectory -PathType Container)) {
@@ -263,9 +281,12 @@ function Install-PlatformLayout {
     }
     if ($Harness -eq 'copilot') {
         # Copilot CLI reads the Claude layout (.claude-plugin/plugin.json,
-        # skills/<name>/SKILL.md); its hook and agent formats differ, so hooks/
-        # and agents/ are left out.
+        # skills/<name>/SKILL.md); hooks get Copilot's own format and agents/
+        # is left out.
         Copy-BundleDirectories -Source (Join-Path $PluginDirectory 'src') -Destination $Destination
+        if (Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/hooks') -PathType Container) {
+            New-CopilotHooksFile -OutputPath (Join-Path $Destination 'hooks/hooks.json')
+        }
         New-PluginManifest -PluginDirectory $PluginDirectory -OutputPath $ManifestPath
         return
     }
