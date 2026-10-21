@@ -93,6 +93,10 @@ This is safe to re-run any time — for Codex it explicitly removes and re-adds 
 
 Verify the fix actually landed by checking a changed file's content inside the refreshed install directory (or, for a Python fix, importing the module from that path and exercising the fixed behavior directly) rather than assuming a successful install command means the fix is present.
 
+## `git push` exits 141 after the `pre-push` checks pass
+
+git opens the SSH connection before `pre-push` runs, so a long test run lets the server close it as idle. `gin-workflow hooks install` sets a repo-local `core.sshCommand` with `ServerAliveInterval=30` unless one is already chosen; rerun it, or add `-o ServerAliveInterval=30` to your own `core.sshCommand` or `GIT_SSH_COMMAND`.
+
 ## Workflow is held at `progress` or a gate is blocked
 
 When a task holds at `progress` or fails to advance to the next lifecycle stage, run `gin-workflow state` to diagnose the exact reason:
