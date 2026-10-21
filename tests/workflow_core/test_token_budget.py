@@ -112,6 +112,11 @@ class TestBudgetLimits(unittest.TestCase):
         self.assertIn("validate --bead-id <id> --in-history", text)
         self.assertNotIn("Re-run the tests", text)
 
+    def test_ship_cleans_ledgers_on_the_feature_branch_before_merging(self):
+        text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
+        self.assertLess(text.index("review-ledger.py cleanup"), text.index('git merge "$FEATURE_BRANCH"'))
+        self.assertLess(text.index("usage collect"), text.index("review-ledger.py cleanup"))
+
     def test_ship_merge_never_rewrites_the_local_base(self):
         text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("git pull --ff-only", text)
