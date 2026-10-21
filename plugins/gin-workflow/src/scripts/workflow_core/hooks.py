@@ -55,9 +55,9 @@ def _keep_ssh_alive(root: Path) -> str:
     configured = subprocess.run(["git", "config", "core.sshCommand"], cwd=root, capture_output=True).stdout.strip()
     if configured or os.environ.get("GIT_SSH") or os.environ.get("GIT_SSH_COMMAND"):
         return "kept"
-    subprocess.run(["git", "config", "--local", "core.sshCommand", SSH_KEEPALIVE], cwd=root, check=True,
-                   capture_output=True)
-    return "set"
+    written = subprocess.run(["git", "config", "--local", "core.sshCommand", SSH_KEEPALIVE], cwd=root,
+                             capture_output=True)
+    return "set" if written.returncode == 0 else "failed"
 
 
 def status(root: Path) -> dict[str, str]:
@@ -133,6 +133,8 @@ def main(argv: Sequence[str]) -> int:
             print(f"{hook}: {state}")
         if result.get("ssh_keepalive") == "set":
             print(f"core.sshCommand: {SSH_KEEPALIVE} (keeps the push connection open while pre-push runs)")
+        if result.get("ssh_keepalive") == "failed":
+            print("could not set core.sshCommand; a long pre-push run may drop the push connection", file=sys.stderr)
         if result["status"] == "missing":
             print(f"hooks directory {result['path']} does not exist; create it or fix core.hooksPath", file=sys.stderr)
         if result["status"] == "occupied":

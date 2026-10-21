@@ -84,6 +84,17 @@ class TestHooksInstall(unittest.TestCase):
         self.assertEqual("", subprocess.run(["git", "config", "core.sshCommand"], cwd=self.root,
                                             text=True, capture_output=True).stdout)
 
+    def test_install_reports_a_keepalive_it_cannot_write(self):
+        failing = subprocess.CompletedProcess([], 1, b"", b"")
+        real_run = subprocess.run
+        def run(argv, **kwargs):
+            return failing if argv[:3] == ["git", "config", "--local"] else real_run(argv, **kwargs)
+        with mock.patch.dict(os.environ, {}, clear=False), mock.patch.object(hooks.subprocess, "run", run):
+            for name in ("GIT_SSH", "GIT_SSH_COMMAND"):
+                os.environ.pop(name, None)
+            result = hooks.install(self.root)
+        self.assertEqual(("installed", "failed"), (result["status"], result["ssh_keepalive"]))
+
     def test_foreign_hook_is_kept(self):
         foreign = self.root / ".git/hooks/pre-commit"
         foreign.write_text("#!/bin/sh\necho mine\n")
