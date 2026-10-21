@@ -36,25 +36,25 @@ else
 fi
 
 # 1. Block destructive operations
-if [[ "$COMMAND" =~ (^|[[:space:]/])rm([[:space:]]|$) ]]; then
-  IS_RECURSIVE=false
-  if [[ "$COMMAND" =~ -[a-zA-Z]*[rR][a-zA-Z]* ]] || [[ "$COMMAND" =~ --recursive ]]; then
-    IS_RECURSIVE=true
-  fi
-
-  if [ "$IS_RECURSIVE" = true ]; then
+# Check each simple command on its own, so a flag or target elsewhere in a
+# compound command (`cd ~/x && rm y`) does not count against the removal.
+while IFS= read -r segment; do
+  [[ "$segment" =~ (^|[[:space:]/])rm([[:space:]]|$) ]] || continue
+  # `git rm --cached` only touches the index.
+  [[ "$segment" =~ ^[[:space:]]*git[[:space:]] && "$segment" =~ [[:space:]]--cached([[:space:]]|$) ]] && continue
+  if [[ "$segment" =~ [[:space:]]-[a-zA-Z]*[rR] ]] || [[ "$segment" =~ --recursive ]]; then
     # Also catch quoted/slash forms the bare-target regex misses:
     #   rm -rf "$HOME"   rm -rf "$VAR"   rm -rf ~/*   rm -rf ~/...   rm -rf $HOME/...
     quoted_re='[[:space:]]("\$HOME|"\$|~/|\$HOME/)'
-    if [[ "$COMMAND" =~ [[:space:]](\/|\/\*|\.|\.\.|\*|~|\$HOME|\$)($|[[:space:]]) ]] || \
-       [[ "$COMMAND" =~ [[:space:]](\.\/|\.\.\/) ]] || \
-       [[ "$COMMAND" =~ --no-preserve-root ]] || \
-       [[ "$COMMAND" =~ $quoted_re ]]; then
+    if [[ "$segment" =~ [[:space:]](\/|\/\*|\.|\.\.|\*|~|\$HOME|\$)($|[[:space:]]) ]] || \
+       [[ "$segment" =~ [[:space:]](\.\/|\.\.\/) ]] || \
+       [[ "$segment" =~ --no-preserve-root ]] || \
+       [[ "$segment" =~ $quoted_re ]]; then
       echo "Blocked: Dangerous recursive file removal target or option detected." >&2
       exit 2
     fi
   fi
-fi
+done < <(printf '%s\n' "$COMMAND" | tr ';&|' '\n\n\n')
 
 # 1b. The git hooks are the quality gate: never skip them.
 if [[ "$COMMAND" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify ]] || \

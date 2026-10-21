@@ -26,6 +26,19 @@ class TestNoVerifyBlocked(unittest.TestCase):
             self.assertEqual(0, exit_code(command), command)
 
 
+class TestRecursiveRemoval(unittest.TestCase):
+    def test_blocks_dangerous_targets(self):
+        for command in ("rm -rf /", "rm -rf ~", "rm -rf ~/", "rm -r .", "rm -fr ..", 'rm -rf "$HOME"', "rm --recursive $HOME",
+                        "cd /tmp && rm -rf ~/*", "ls; sudo rm -rf /", "git rm -r .", "find . -exec rm -rf ./ \\;"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_checks_each_command_of_a_compound_command_on_its_own(self):
+        for command in ("cd ~/gin-console && git rm -r --cached .beads", "cd ~/x && rm -r build",
+                        "cd /tmp/a && rm .beads && ls -R ~/", "unlink /home/u/gin-workflow/.beads && ls ~/",
+                        "rm /tmp/gin-workflow/x.txt", 'bd create --description "cd ~/x && git rm -r --cached .beads"'):
+            self.assertEqual(0, exit_code(command), command)
+
+
 class TestPayloadWithoutJq(unittest.TestCase):
     def test_python3_parses_the_payload_when_jq_is_missing(self):
         with tempfile.TemporaryDirectory() as directory:
