@@ -29,7 +29,8 @@ class TestNoVerifyBlocked(unittest.TestCase):
 class TestRecursiveRemoval(unittest.TestCase):
     def test_blocks_dangerous_targets(self):
         for command in ("rm -rf /", "rm -rf ~", "rm -rf ~/", "rm -r .", "rm -fr ..", 'rm -rf "$HOME"', "rm --recursive $HOME",
-                        "cd /tmp && rm -rf ~/*", "ls; sudo rm -rf /", "git rm -r .", "find . -exec rm -rf ./ \\;"):
+                        "cd /tmp && rm -rf ~/*", "ls; sudo rm -rf /", "git rm -r .", "find . -exec rm -rf ./ \\;",
+                        'rm -rf "a;b" ~', "echo x ; rm -rf 'a|b' /", "rm -rf a\\;b ~", "echo ok\nrm -rf ~"):
             self.assertEqual(2, exit_code(command), command)
 
     def test_checks_each_command_of_a_compound_command_on_its_own(self):

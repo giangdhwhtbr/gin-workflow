@@ -36,12 +36,30 @@ else
 fi
 
 # 1. Block destructive operations
-# Check each simple command on its own, so a flag or target elsewhere in a
-# compound command (`cd ~/x && rm y`) does not count against the removal.
-while IFS= read -r segment; do
-  [[ "$segment" =~ (^|[[:space:]/])rm([[:space:]]|$) ]] || continue
+# Check each simple command on its own, from its `rm` onward, so a flag or
+# target elsewhere in a compound command (`cd ~/x && rm y`) does not count
+# against the removal. Separators inside quotes or after a backslash do not split.
+segments=() segment="" quote=""
+for ((i = 0; i < ${#COMMAND}; i++)); do
+  c=${COMMAND:i:1}
+  if [ -n "$quote" ]; then
+    [ "$c" = "$quote" ] && quote=""
+  elif [ "$c" = "\\" ]; then
+    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}
+  elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
+    quote=$c
+  elif [[ "$c" == [\;\&\|$'\n'] ]]; then
+    segments+=("$segment"); segment=""; continue
+  fi
+  segment+=$c
+done
+segments+=("$segment")
+for segment in "${segments[@]}"; do
+  [[ "$segment" =~ (^|[[:space:]/])rm([[:space:]].*|$) ]] || continue
+  removal=${BASH_REMATCH[2]}
   # `git rm --cached` only touches the index.
   [[ "$segment" =~ ^[[:space:]]*git[[:space:]] && "$segment" =~ [[:space:]]--cached([[:space:]]|$) ]] && continue
+  segment=$removal
   if [[ "$segment" =~ [[:space:]]-[a-zA-Z]*[rR] ]] || [[ "$segment" =~ --recursive ]]; then
     # Also catch quoted/slash forms the bare-target regex misses:
     #   rm -rf "$HOME"   rm -rf "$VAR"   rm -rf ~/*   rm -rf ~/...   rm -rf $HOME/...
