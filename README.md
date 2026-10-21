@@ -7,7 +7,6 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | Start here | |
 |---|---|
 | [Getting started](docs/getting-started.md) | one feature from idea to merge with Claude Code |
-| [Interactive Simulator](docs/interactive/index.html) | visual walkthrough of team lifecycle & modernization |
 | Starters | [greenfield](docs/starters/greenfield.md), [brownfield & modernization](docs/starters/brownfield-modernize.md), [brownfield walkthrough](docs/starters/brownfield-walkthrough.md), [team roles (PM/BA/Dev/Tester)](docs/starters/team-roles.md) |
 | [Architecture](docs/concepts/architecture.md) | how the pieces fit, with flow diagrams |
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
