@@ -29,7 +29,7 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 
 ## Event store
 
-`gin-workflow record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `quick.completed`, `delivery.shipped`, `gate.waived`, and `blocker.cleared`. Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. `gin-workflow state` replays them per workflow id, together with Beads, to derive the gates. The store is local to the machine; team mode proves gates with pull requests instead. All untracked workflow state — this store, the rest of `.agent-workflow/runtime/`, `generated/effective-config.yaml`, and `providers.local.yaml` — lives in the main checkout: commands run inside a linked worktree read and write the main checkout's copy, so a gate recorded in either place is one state.
+`gin-workflow record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `quick.completed`, `delivery.shipped`, `gate.waived`, and `blocker.cleared`. Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. `gin-workflow state` replays them per workflow id, together with Beads, to derive the gates. The store is local to the machine; team mode proves gates with pull requests instead. All untracked workflow state — this store, the rest of `.agent-workflow/runtime/`, `generated/effective-config.yaml`, and `orchestrator.local.yaml` — lives in the main checkout: commands run inside a linked worktree read and write the main checkout's copy, so a gate recorded in either place is one state.
 
 ## Review ledger
 
@@ -53,7 +53,7 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
   knowledge/    durable project knowledge
 .agent-workflow/
   config.yaml              portable configuration (tracked)
-  providers.local.yaml     machine-local providers (gitignored)
+  orchestrator.local.yaml  machine-local providers (gitignored)
   generated/               resolved configuration (gitignored)
   runtime/                 events.jsonl, assignment manifests, harness override, evidence (gitignored)
   backups/                 migration backups (gitignored)

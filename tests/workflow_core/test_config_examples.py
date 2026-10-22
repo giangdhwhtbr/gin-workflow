@@ -69,12 +69,13 @@ class ConfigExampleTests(unittest.TestCase):
         for phrase in (
             "provider role",
             "reasoning tier",
-            "providers.local.yaml",
-            "health",
-            "circuit breaker",
+            "orchestrator.local.yaml",
             "privacy",
         ):
             self.assertIn(phrase, routing.lower())
+        orchestrator = (ROOT / "docs/orchestrator/README.md").read_text(encoding="utf-8")
+        for phrase in ("health", "circuit breaker"):
+            self.assertIn(phrase, orchestrator.lower())
         self.assertIn("rollback", config)
 
 

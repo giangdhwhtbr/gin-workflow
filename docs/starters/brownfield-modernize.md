@@ -11,17 +11,14 @@ This guide provides a proven step-by-step workflow using **Claude Code** and **`
 Install dependencies and run setup inside your existing repository:
 
 ```bash
-# 1. Initialize Beads task tracking
-bd init
-
-# 2. Run setup in Claude Code
+# Run setup in Claude Code (task tracking defaults to local Markdown files;
+# choose Beads in setup, after `bd init`, if you prefer it)
 /gin-workflow:setup
 ```
 
 Select:
 - **Project stage:** `brownfield`.
 - **Rigor:** `standard` (or `strict`).
-- **Provider mode:** `single` (baseline with Claude Code).
 - Configure existing test and lint commands.
 
 ---
@@ -146,4 +143,4 @@ When ready to modernize a module, run the standard guarded lifecycle:
 - **Following the whole flow with prompts per role?** See the [Brownfield Walkthrough](brownfield-walkthrough.md).
 - **Collaborating with BA, Dev, and Tester?** Read [Team Roles Guide](team-roles.md).
 - **Managing test cases and E2E automation?** See the [QA Guide](../guides/qa.md).
-- **Scale execution with multiple providers?** Check [Multi-Agent Routing](../advanced/multi-agent-routing.md).
+- **Scale execution with multiple providers?** Install the [gin-orchestrator](../orchestrator/README.md) extension.

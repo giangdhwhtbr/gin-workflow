@@ -6,17 +6,14 @@ This guide walks you through bootstrapping and developing a brand-new project fr
 
 ## 1. Prerequisites & Initialization
 
-Ensure you have Git, Python 3, and Beads installed:
+Ensure you have Git and Python 3 installed (Beads is optional):
 
 ```bash
 # 1. Initialize a new git repository
 git init my-awesome-project
 cd my-awesome-project
 
-# 2. Initialize Beads task tracking
-bd init
-
-# 3. Install the gin-workflow plugin for Claude Code
+# 2. Install the gin-workflow plugin for Claude Code
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
 ```
 
@@ -88,7 +85,7 @@ Run `/orchestrate` and `/execute` to build the foundation test-first:
 /gin-workflow:execute
 ```
 
-Claude implements each track inside an isolated Git worktree, writes tests first, conducts review, and closes each track bead.
+Claude implements each track inside an isolated Git worktree, writes tests first, conducts review, and closes each track.
 
 ### Step 3.4: Ship Foundation
 ```text
@@ -130,7 +127,7 @@ Every new feature moves through a clean, reproducible cycle:
                       Orchestrate
                 ┌─────────────────────────┐
                 │/gin-workflow:orchestrate│
-                │ creates beads & worktree│
+                │ creates tasks & worktree│
                 └──────────┬──────────────┘
                            │ orchestration-ready
                            ▼
@@ -150,7 +147,7 @@ Every new feature moves through a clean, reproducible cycle:
 
 1. **Discuss (`/gin-workflow:discuss <feature>`):** Creates a change folder `docs/changes/<epic>-<slug>/` holding `proposal.md`, `spec-delta.md`, and `design.md`, with explicit, traceable requirement IDs (`REQ-<MODULE>-001`).
 2. **Plan (`/gin-workflow:plan <feature>`):** Maps requirements to implementation tracks and files.
-3. **Orchestrate (`/gin-workflow:orchestrate <feature>`):** Sets up task beads and an isolated Git worktree.
+3. **Orchestrate (`/gin-workflow:orchestrate <feature>`):** Sets up the track tasks and an isolated Git worktree.
 4. **Execute (`/gin-workflow:execute`):** Builds the tracks test-first with independent review checkpoints.
 5. **Ship (`/gin-workflow:ship`):** Archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
 
@@ -161,4 +158,4 @@ Every new feature moves through a clean, reproducible cycle:
 - **Planning several epics?** Start from a product brief with `/gin-workflow:roadmap`.
 - **Collaborating with a team?** Read the [Team Roles Guide](team-roles.md).
 - **Need automated E2E tests?** Check out the [QA Add-on Guide](../guides/qa.md).
-- **Want to scale to multi-agent workers?** Explore [Multi-Agent Routing](../advanced/multi-agent-routing.md).
+- **Want to scale to multi-agent workers?** Install the [gin-orchestrator](../orchestrator/README.md) extension.

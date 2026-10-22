@@ -326,10 +326,11 @@ class HarnessPackagingTests(unittest.TestCase):
 
     def test_t8_provider_routing_documents_portable_and_local_boundaries(self):
         content = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")
-        self.assertIn("without ever writing a provider or model name into the plan or Beads", content)
-        self.assertIn("Concrete models come only from `.agent-workflow/providers.local.yaml`", content)
+        self.assertIn("A plan never names a concrete model", content)
+        self.assertIn("live only in `.agent-workflow/orchestrator.local.yaml`", content)
         self.assertIn("secret values are never written", content)
-        self.assertIn("provider_default", content)
+        orchestrator = (ROOT / "docs/orchestrator/README.md").read_text(encoding="utf-8")
+        self.assertIn("provider_default", orchestrator)
 
     def test_scoped_markdown_links_are_repo_relative_and_resolve(self):
         roots = [ROOT / "README.md", ROOT / "docs", ROOT / "plugins/gin-workflow/src/references"]

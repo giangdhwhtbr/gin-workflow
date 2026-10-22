@@ -1,6 +1,6 @@
 # Providers
 
-The harness you open (the main harness) plans and coordinates. Bounded work, such as an implementation track or an independent review, can run on another installed CLI: Claude Code (`claude`), Codex (`codex`), Antigravity (`agy`), or OpenCode (`opencode`). Routing decides which one, without ever writing a provider or model name into the plan or Beads. The [routing diagram](architecture.md#provider-routing) shows the flow.
+The harness you open (the main harness) plans, coordinates, and does the work: Claude Code, Codex, Antigravity, or OpenCode. gin-workflow runs the whole lifecycle in it with no other tool. Running bounded work, such as an implementation track or an independent review, on a different installed harness is the job of the gin-orchestrator extension: see [Orchestrator](../orchestrator/README.md). The [routing diagram](architecture.md#provider-routing) shows the flow.
 
 ## Capabilities
 
@@ -10,15 +10,13 @@ Skills work through provider-neutral capabilities, each with health and capabili
 |---|---|
 | Task tracking | task identity, dependencies, readiness, claims, blockers, closure: through `gin-workflow task`, which runs Beads (`bd`) or, with `providers.task_tracking: markdown`, local Markdown files under `.planning/tasks/`; never by editing `.beads/` directly |
 | Workspace | isolation (worktrees) and cleanup metadata |
-| Worker dispatch | resolve role and reasoning, recheck health, circuit and capacity, dispatch, cancel, report status, collect normalized results |
+| Worker dispatch | other harnesses only, through gin-orchestrator: resolve role and reasoning, dispatch, cancel, report status, collect results ([Orchestrator](../orchestrator/README.md)) |
 | Review | request review, terminal review state, findings |
 | Evidence | record and query evidence; decide whether acceptance evidence is complete |
 | Knowledge | search and propose knowledge; workers never write permanent knowledge |
 | Notifications | optional delivery only (for example `telegram-notify`) |
 
 Selecting a provider never authorizes a lifecycle transition; gates and approvals still apply.
-
-**OpenCode has no sandbox.** Its adapter runs `opencode run --standalone --auto --format json` in the track workspace (it has no `--cd`); `--auto` auto-approves permissions, so isolation relies on the worktree and working directory, the same trade-off as Codex's `--dangerously-bypass-approvals-and-sandbox`.
 
 ## Roles, reasoning, and model classes
 
@@ -27,41 +25,13 @@ Every implementation or review track in a plan names:
 - a **provider role**: a responsibility such as `backend`, `frontend`, `docs`, `review`, or `general`, configured under `routing.roles`;
 - a **reasoning tier**: `low` (mechanical edits, simple docs), `medium` (normal implementation), or `high` (architecture, security, migration, concurrency).
 
-Plans may also give model guidance as abstract classes: `high_reasoning`, `standard_impl` (the default), `cheap_simple`. Concrete models come only from `.agent-workflow/providers.local.yaml`, which maps each provider's `low`, `medium`, and `high` to a model ([Configuration](../reference/config.md#providerslocalyaml)).
+Plans may also give model guidance as abstract classes: `high_reasoning`, `standard_impl` (the default), `cheap_simple`. A plan never names a concrete model. Without gin-orchestrator every role resolves to the main harness (`preferred: [main_harness]`), which uses its own models, and `gin-workflow routes resolve` writes the assignment manifest `.agent-workflow/runtime/assignments/<workflow>.yaml`, which is runtime metadata, not plan or task data. Concrete executables and a model per tier for other harnesses live only in `.agent-workflow/orchestrator.local.yaml` ([Configuration](../reference/config.md#orchestratorlocalyaml)).
 
-## Resolution at orchestration
-
-`orchestrate` builds an `AssignmentRequest` (task, role, reasoning, main harness, workflow id) for every track and resolves the whole batch with `resolve_all_assignments` before writing anything durable:
-
-- the role expands to its ordered `preferred` then `fallback` providers; `main_harness` means the harness that opened the workflow, or the session override (`gin-workflow setup harness-override --harness <name>`, or `GIN_WORKFLOW_HARNESS_OVERRIDE`);
-- each candidate needs an executable and a model for the requested tier in `providers.local.yaml`;
-- if any track cannot be resolved, every diagnostic is reported and nothing is created.
-
-The result is written with `write_assignment_manifest` to `.agent-workflow/runtime/assignments/<workflow>.yaml`, which is runtime metadata, not plan or Beads data.
-
-For Antigravity and OpenCode, a tier may be `provider_default`: the manifest records the provider and omits a model, and the CLI uses its own default. An OpenCode tier can also be a verbatim `provider/model` or `provider/model#variant` string.
-
-## Dispatch and fallback
-
-At dispatch, `RoutedWorkerDispatcher` rechecks each candidate in order:
-
-1. **Health**: the CLI starts and supports the flags the adapter needs (`claude -p`, `codex exec`, `agy --print --sandbox`, `opencode run --auto --format json`). Antigravity and OpenCode with an explicit model also need proven model selection.
-2. **Circuit breaker**: infrastructure failures (quota, rate limit, authentication, service, timeout, crash, invalid model) count against a provider and model; at `circuit_breaker.failure_threshold` the circuit opens for `cooldown_seconds`, then allows `half_open_max_probes` trial runs. Task, test, review, and invalid-result failures do not count against the provider.
-3. **Capacity**: at most `concurrency.<provider>` workers at once; a task waits up to `queue.max_wait_seconds`.
-
-Fallback keeps the requested reasoning tier; it never downgrades. When no route is left before the queue deadline, the worker returns `worker_routes_unavailable` and the bead stays open. A retry reuses the same identity, and a completed task is never dispatched again. The actual route, any fallback reason, and circuit transitions are recorded as runtime events.
-
-Execution runs directly in the session for sequential plans and three or fewer tasks; workers are for more than three parallel tasks, long-running or specialized work, or independent review.
+`orchestrate` resolves the whole batch of tracks before it writes anything durable; if any track cannot be resolved, every diagnostic is reported and nothing is created. `main_harness` means the harness that opened the workflow, or the session override (`gin-workflow setup harness-override --harness <name>`, or `GIN_WORKFLOW_HARNESS_OVERRIDE`).
 
 ## Independent review
 
-Review goes through the same routing under `routing.review`. With `independence: provider` (multi-provider mode) the reviewer's provider must differ from the implementer's; with `independence: session` (single-provider mode) a fresh session of the same provider reviews with a clean context and a different actor id. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts. The reviewer's tier follows the track's reasoning; a `low` track whose diff changes more than documentation is reviewed at `medium`. A `low`-tier review accepts a fresh session of the implementer's provider. `gin-workflow reviewer` computes the tier and the route order for the `review` skill.
-
-## Worker context and results
-
-A worker receives only what its task needs: the bead and its dependency state, the approved file scope, validation intent, objective, constraints, isolation policy, expected output, workflow and retry identities, provider role, and reasoning tier. It never receives the parent transcript, private reasoning, secrets, or the concrete provider and model (the native adapter adds those at the process boundary). Missing required context fails as `context_unavailable` before dispatch.
-
-A result reports `status`, `task_id`, `summary`, `changed_files`, `commits`, `tests`, `evidence`, `blockers`, and optional `knowledge_candidates`; a malformed or mismatched result fails as `invalid_result_contract`. Worker events run `worker.requested`, any `worker.unavailable` route decisions, `worker.assigned`, `worker.started`, `worker.context_loaded`, `worker.progress_updated`, then `worker.completed`, `worker.failed`, or `worker.cancelled`.
+Review goes through `routing.review`. In single-harness mode (`provider_mode: single`, the default) `independence` is `session`: a fresh session of the main harness reviews with a clean context and a different actor id, and the implementer's session never reviews its own work. `independence: provider`, which sends the review to a different harness than the implementer's, needs gin-orchestrator; without it review falls back to `session` with a warning. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts. The reviewer's tier follows the track's reasoning; a `low` track whose diff changes more than documentation is reviewed at `medium`. `gin-workflow reviewer` computes the tier and the route order for the `review` skill.
 
 A reviewer starts with a fresh, bounded context: the diff, the confirmed requirement, acceptance criteria, test evidence, and the `gin-workflow rules` output for the reviewed files. It excludes self-assessment, persuasive summaries, and unrelated history.
 
@@ -71,4 +41,4 @@ Acceptance evidence is tied to an identity: workflow id, attempt id, task id, an
 
 ## Privacy
 
-Portable configuration, plans, bundles, and worker requests never contain executable paths, concrete models, credentials, secrets, transcripts, or private reasoning. Configuration may hold references such as `secret_ref:NAME`; each CLI's own login owns credentials, and secret values are never written to configuration, manifests, events, results, evidence, bundles, or logs.
+Portable configuration, plans, and bundles never contain executable paths, concrete models, credentials, secrets, transcripts, or private reasoning. Configuration may hold references such as `secret_ref:NAME`; each CLI's own login owns credentials, and secret values are never written to configuration, manifests, events, results, evidence, bundles, or logs.

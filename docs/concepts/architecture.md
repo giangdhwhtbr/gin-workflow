@@ -1,6 +1,6 @@
 # Architecture
 
-gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that walks a change from requirement to merge through recorded gates. Skills tell the agent what to do at each stage; a small Python CLI keeps durable state honest; Beads tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
+gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that walks a change from requirement to merge through recorded gates. Skills tell the agent what to do at each stage; a small Python CLI keeps durable state honest; a task tracker (local Markdown files, or Beads if you choose it) tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
 
 ## Components
 
@@ -21,11 +21,13 @@ flowchart LR
         CLI[gin-workflow CLI: workflow_core]
         RL[review-ledger.py: review_ledger]
     end
-    PRV[gin-orchestrator plugin: gin_orchestrator routed workers]
+    subgraph EXT["gin-orchestrator extension (optional)"]
+        ORC[gin-orchestrator CLI: gin_orchestrator routed workers]
+    end
     subgraph Repo["Your repository"]
         CFG[.agent-workflow/ config, generated, runtime/events.jsonl]
         PLN[.planning/ specs, plans, reviews, worktrees]
-        BD[(Beads: bd)]
+        TK[(Tasks: .planning/tasks or Beads)]
         GIT[(git branches and worktrees)]
     end
     CC & CX & AG & OC --> SK
@@ -33,17 +35,18 @@ flowchart LR
     SK --> REF
     SK --> CLI
     SK --> RL
-    SK --> BD
     CLI --> RUL
     CLI --> CFG
-    CLI --> BD
+    CLI --> TK
     RL --> PLN
     RL --> GIT
-    PRV --> CC & CX & AG
+    CLI -->|delegates when installed| ORC
+    ORC -->|imports only workflow_core.ext| CLI
+    ORC --> CC & CX & AG & OC
     HK -.guards.-> GIT
 ```
 
-The harness loads skills; skills call `gin-workflow` for configuration, gates, rules, specs, team mode, and usage, `review-ledger.py` for reviews, and `bd` for tasks. Nothing outside the repository holds workflow state except Beads and the harness logs that `usage collect` reads. See [State model](state-model.md) for who owns what.
+The harness loads skills; skills call `gin-workflow` for configuration, gates, rules, specs, team mode, and usage, and `review-ledger.py` for reviews; tasks go through `gin-workflow task`, which serves Markdown files or runs `bd`. `gin-orchestrator` is an optional extension: `gin-workflow` calls it through a versioned CLI contract, and it reaches back only through the facade `workflow_core.ext`; `gin-workflow` never imports it. Nothing outside the repository holds workflow state except Beads (if used) and the harness logs that `usage collect` reads. See [State model](state-model.md) for who owns what.
 
 ## Lifecycle
 
@@ -62,7 +65,7 @@ stateDiagram-v2
     progress --> execute: blocker cleared or gate waived
     note right of execute
         each track: implement, independent review,
-        usage collect, bd close
+        usage collect, task close
     end note
     note left of plan
         SDD layout: change folder and REQ-IDs
@@ -70,7 +73,7 @@ stateDiagram-v2
     end note
 ```
 
-Each arrow is a gate recorded with `gin-workflow record` or derived from Beads. `gin-workflow state` evaluates the gates and names exactly one next stage, or holds at `progress` with remedies. A process gate can be waived with a reason; a safety gate needs a follow-up bead. See [Lifecycle](lifecycle.md).
+Each arrow is a gate recorded with `gin-workflow record` or derived from the task tracker. `gin-workflow state` evaluates the gates and names exactly one next stage, or holds at `progress` with remedies. A process gate can be waived with a reason; a safety gate needs a follow-up bead. See [Lifecycle](lifecycle.md).
 
 ## One track, from claim to close
 
@@ -78,13 +81,13 @@ Each arrow is a gate recorded with `gin-workflow record` or derived from Beads. 
 sequenceDiagram
     autonumber
     participant A as Main agent (execute)
-    participant B as Beads (bd)
+    participant B as Task tracker (gin-workflow task)
     participant W as Worktree
     participant R as gin-workflow rules
     participant L as review-ledger.py
     participant V as Independent reviewer
     participant U as gin-workflow usage
-    A->>B: bd ready, bd update --status in_progress
+    A->>B: task ready, task update --status in_progress
     A->>W: work in .planning/worktrees/<id>
     A->>R: rules --files <scope>
     R-->>A: rule text for the developer
@@ -96,45 +99,46 @@ sequenceDiagram
         V->>L: verify-finding, approve
     end
     A->>U: usage collect --bead <id> --best-effort
-    A->>B: bd close <id>
+    A->>B: task close <id>
     B-->>A: dependents become ready
 ```
 
-A track closes when its tests pass and its review is approved, without waiting for a merge; that unblocks the next track. The reviewer runs on a different provider (or session) than the implementer, within `routing.review.max_cycles`. See [Lifecycle](lifecycle.md#execute-and-review).
+A track closes when its tests pass and its review is approved, without waiting for a merge; that unblocks the next track. The reviewer runs in a fresh session of the main harness, or on a different provider with gin-orchestrator, within `routing.review.max_cycles`. See [Lifecycle](lifecycle.md#execute-and-review).
 
 ## Provider routing
 
 ```mermaid
 flowchart TD
-    T[Plan track: provider role + reasoning low/medium/high] --> Q[AssignmentRequest]
-    Q --> RA[resolve_all_assignments]
-    C1[routing.roles: preferred, fallback, main_harness] --> RA
-    C2[providers.local.yaml: executable + model per tier] --> RA
-    RA -->|any track unresolved| X[stop: report every diagnostic]
-    RA --> M[write_assignment_manifest: runtime/assignments/&lt;workflow&gt;.yaml]
-    M --> D[RoutedWorkerDispatcher.dispatch]
-    D --> H{health check}
-    H -->|unhealthy| N[next candidate, same tier]
-    H --> CB{circuit breaker and capacity}
-    CB -->|open or full| N
+    T[Plan track: provider role + reasoning low/medium/high] --> F[gin-workflow routes resolve]
+    F --> Q{provider_mode multi and gin-orchestrator available?}
+    Q -->|no, or it failed: warning| MH[every route is the main harness]
+    Q -->|yes| OR[gin-orchestrator routes resolve]
+    C1[orchestrator.roles: preferred, fallback, by_tier] --> OR
+    C2[orchestrator.local.yaml: executable + model per tier] --> OR
+    OR -->|diagnostics| X[exit 2: report every diagnostic, create nothing]
+    OR --> M[gin-workflow writes runtime/assignments/&lt;workflow&gt;.yaml]
+    MH --> M
+    M --> D[gin-orchestrator dispatches a worker]
+    D --> H{health, circuit breaker, capacity}
+    H -->|unavailable| N[next candidate, same tier]
     N --> H
-    CB -->|allowed| RUN[run native CLI: claude, codex, agy, opencode]
-    N -->|none left before queue deadline| U[worker_routes_unavailable: bead stays open]
+    H -->|allowed| RUN[run native CLI: claude, codex, agy, opencode]
+    N -->|none left before queue deadline| U[worker_routes_unavailable: task stays open]
 ```
 
-Plans name roles and reasoning tiers only; concrete providers and models come from machine-local configuration at orchestration and are rechecked at dispatch. Fallback never lowers the reasoning tier. See [Providers](providers.md).
+Plans name roles and reasoning tiers only. `gin-workflow` is the front door: it resolves routes and writes the manifest, delegating the resolution (and the reviewer choice) to `gin-orchestrator` only when that extension is installed. Without it every route is the main harness. Concrete providers and models come from machine-local configuration and are rechecked at dispatch; fallback never lowers the reasoning tier. See [Providers](providers.md) and [Orchestrator](../orchestrator/README.md).
 
 ## Build and install
 
 ```mermaid
 flowchart LR
-    S[plugins/&lt;plugin&gt;/src] --> I[install.sh / install.ps1]
+    S[plugins/&lt;plugin&gt;/src: gin-workflow, gin-qa, gin-orchestrator] --> I[install.sh / install.ps1]
     I --> D1[dist/claude-code]
     I --> D2[dist/codex]
     I --> D3[dist/antigravity]
     I --> D4[dist/opencode]
     I --> D5[dist/copilot/&lt;plugin&gt;]
-    I --> LCH[~/.local/bin/gin-workflow launcher]
+    I --> LCH[~/.local/bin launchers: gin-workflow, gin-orchestrator]
     D1 --> C1[~/.claude/skills/&lt;plugin&gt;]
     D2 --> C2[codex plugin add: cached snapshot]
     D3 --> C3[agy plugin install]
@@ -143,7 +147,7 @@ flowchart LR
     MK[marketplace: claude plugin install, codex plugin add] --> C1b[harness plugin cache]
 ```
 
-The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the `gin-workflow` launcher. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
+The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Three plugins build the same way: `gin-workflow` (always), `gin-qa`, and `gin-orchestrator` (`--plugin gin-orchestrator` installs gin-workflow first when its launcher is missing). Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the launchers. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
 
 ## Usage collection
 

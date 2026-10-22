@@ -13,11 +13,13 @@ DOCS = ROOT / "docs"
 SCRIPTS = ROOT / "plugins/gin-workflow/src/scripts"
 LINK = re.compile(r"\]\(([^)\s]+)\)")
 MERMAID = re.compile(r"```mermaid\n(\S+)")
+BEADS_DEFAULT = re.compile(r"(?i)beads[^.\n]{0,40}\b(default|required)\b|\b(default|required)\b[^.\n]{0,40}beads")
 TYPES = {"flowchart", "graph", "sequenceDiagram", "stateDiagram-v2", "stateDiagram", "classDiagram", "erDiagram"}
 
 
 def pages() -> list[Path]:
-    return [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "CLAUDE.md", *sorted(DOCS.rglob("*.md"))]
+    return [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "CLAUDE.md", *sorted(DOCS.rglob("*.md")),
+            *sorted(ROOT.glob("plugins/*/src/README.md"))]
 
 
 class DocsCoverageTests(unittest.TestCase):
@@ -48,6 +50,16 @@ class DocsCoverageTests(unittest.TestCase):
     def test_mermaid_blocks_name_a_diagram_type(self):
         bad = [f"{p.relative_to(ROOT)}: {kind}" for p in pages()
                for kind in MERMAID.findall(p.read_text(encoding="utf-8")) if kind not in TYPES]
+        self.assertEqual(bad, [])
+
+    def test_no_doc_calls_beads_the_default(self):
+        bad = [f"{p.relative_to(ROOT)}:{n}: {line.strip()}" for p in pages()
+               for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+               if BEADS_DEFAULT.search(line) and "optional" not in line]
+        self.assertEqual(bad, [])
+
+    def test_no_doc_mentions_workflow_providers(self):
+        bad = [str(p.relative_to(ROOT)) for p in pages() if "workflow_providers" in p.read_text(encoding="utf-8")]
         self.assertEqual(bad, [])
 
 

@@ -31,11 +31,11 @@ A feature or migration that splits into dependent tracks, for example CSV export
 
 1. `/gin-workflow:discuss` produces the confirmed spec.
 2. `/gin-workflow:plan` gives each track its files, interfaces, test-first steps, a provider role (`backend` for A and B, `frontend` for C), and a reasoning tier.
-3. `/gin-workflow:orchestrate` resolves every route before creating anything, then creates the epic, three track beads, their dependencies, and the worktree.
+3. `/gin-workflow:orchestrate` resolves every route before creating anything, then creates the epic, three track tasks, their dependencies, and the worktree.
 4. `/gin-workflow:execute` per ready track: A first; closing A makes B ready, and so on. Each track is reviewed independently before it closes.
 5. `/gin-workflow:ship` checks every ledger and any changes after review (the quality gates already ran in the git hooks), then merges or opens the pull request with your approval.
 
-If a route is unavailable the bead stays open; fallback never lowers the reasoning tier. If orchestration reports an unresolved role or tier, it creates nothing until the plan or `providers.local.yaml` is fixed.
+Routes to other harnesses need the [gin-orchestrator](../orchestrator/README.md) extension; without it every track runs on the main harness. If a route is unavailable the task stays open; fallback never lowers the reasoning tier. If orchestration reports an unresolved role or tier, it creates nothing until the plan or `.agent-workflow/orchestrator.local.yaml` is fixed.
 
 ## Resume in-progress work
 

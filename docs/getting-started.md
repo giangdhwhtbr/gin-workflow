@@ -10,19 +10,12 @@ Every change moves through recorded quality gates:
 ## 1. Quick Prerequisites
 
 1. **Python 3** (with PyYAML) and **Git**.
-2. **Beads (`bd`)** for durable task tracking:
-   ```bash
-   brew install beads       # or: npm install -g @beads/bd
-   ```
-3. **Claude Code** and the `gin-workflow` plugin:
+2. **Claude Code** and the `gin-workflow` plugin:
    ```bash
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
    ```
-4. Initialize Beads in your repository:
-   ```bash
-   bd init
-   ```
-5. Optional: [recommended tools](guides/recommended-tools.md) such as CodeGraph, which gives agents faster code lookup.
+3. Optional: [Beads](https://github.com/gastownhall/beads) (`bd`) for task tracking (`brew install beads` or `npm install -g @beads/bd`, then `bd init` in your repository). Without it, tasks are local Markdown files.
+4. Optional: [recommended tools](guides/recommended-tools.md) such as CodeGraph, which gives agents faster code lookup.
 
 ---
 
@@ -35,9 +28,12 @@ Run setup inside Claude Code to configure your project:
 ```
 
 Setup asks simple questions to generate `.agent-workflow/config.yaml`:
+- **Project type:** stage and shape, detected from your repository.
 - **Rigor:** `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks).
-- **Provider mode:** `single` (standard baseline using Claude Code).
 - **Verify commands:** Confirms your test and build commands.
+- **Task tracking:** `markdown` (the default; local files under `.planning/tasks/`) or `beads` (needs `bd`).
+
+Everything runs in the harness you opened (`provider_mode: single`). Worker harnesses are the optional [gin-orchestrator](orchestrator/README.md) extension.
 
 Commit `.agent-workflow/config.yaml` to git.
 
@@ -61,13 +57,13 @@ Claude breaks the confirmed spec into implementation tracks in `.planning/plans/
 ```text
 /gin-workflow:orchestrate export-csv-button
 ```
-Claude creates an epic and task beads in Beads (`bd`), then creates an isolated Git worktree for clean implementation. Passes the `orchestration_ready` gate.
+Claude creates an epic and task items in your task tracker (Markdown or Beads), then creates an isolated Git worktree for clean implementation. Passes the `orchestration_ready` gate.
 
 ### Stage 4: Execute
 ```text
 /gin-workflow:execute
 ```
-Claude claims the next ready track bead, writes a failing test first, implements the solution until tests pass, and conducts an independent code review in the review ledger. Once approved, the bead closes. Repeat `/gin-workflow:execute` until all tracks are done.
+Claude claims the next ready track, writes a failing test first, implements the solution until tests pass, and conducts an independent code review in the review ledger. Once approved, the track closes. Repeat `/gin-workflow:execute` until all tracks are done.
 
 Quality checks do not need a stage: `pre-commit` runs lint and typecheck, `pre-push` runs the tests, and CI is the backstop (`gin-workflow hooks install`, see the [CLI reference](reference/cli.md#gin-workflow-hooks)).
 
@@ -82,7 +78,7 @@ Claude offers four integration options: **Merge locally**, **Push & open Pull Re
 ## 4. Helpful Shortcuts
 
 - `/gin-workflow:workflow`: Automatically detects the current state and runs whichever stage is next.
-- `/gin-workflow:quick <change>`: Fast-tracks small changes (up to 5 files in one module by default) without requiring specs or beads.
+- `/gin-workflow:quick <change>`: Fast-tracks small changes (up to 5 files in one module by default) without requiring specs or tasks.
 - `/gin-workflow:progress`: Inspects active, ready, or blocked tasks.
 
 ---
@@ -92,4 +88,4 @@ Claude offers four integration options: **Merge locally**, **Push & open Pull Re
 - 🚀 **Starting a new project?** Read the [Greenfield Project Starter](starters/greenfield.md).
 - 🔄 **Refactoring a legacy codebase?** Read the [Brownfield & Modernization Starter](starters/brownfield-modernize.md).
 - 👥 **Working in a team with BA, Dev, and Tester?** Read the [Team Roles Guide](starters/team-roles.md).
-- ⚡ **Looking for multi-agent / multi-model routing?** See [Multi-Agent Routing](advanced/multi-agent-routing.md).
+- ⚡ **Looking for multi-agent / multi-model routing?** Install the gin-orchestrator extension: see [Orchestrator](orchestrator/README.md).

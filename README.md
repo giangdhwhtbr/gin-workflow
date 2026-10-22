@@ -1,6 +1,6 @@
 # Gin Workflow (`gin-workflow`)
 
-A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and **OpenCode** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Beads tracks the work, every track gets an independent review, and nothing is merged without your approval. A `/quick` path handles small changes.
+A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and **OpenCode** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Tasks are tracked in local Markdown files or, optionally, in Beads; every track gets an independent review, and nothing is merged without your approval. A `/quick` path handles small changes.
 
 ## Documentation
 
@@ -11,8 +11,8 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | [Architecture](docs/concepts/architecture.md) | how the pieces fit, with flow diagrams |
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
 | Guides | [use cases](docs/guides/use-cases.md), [recommended tools](docs/guides/recommended-tools.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
-| Advanced | [multi-agent routing](docs/advanced/multi-agent-routing.md) |
-| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md) |
+| Orchestrator | [worker harnesses (gin-orchestrator)](docs/orchestrator/README.md), [routing and configuration](docs/orchestrator/routing.md) |
+| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md) |
 | [Contributing](docs/contributing.md) | build, test, release |
 
 ## Installation
@@ -25,12 +25,12 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | git | branches, worktrees, review checkpoints | your package manager |
 | jq | the safety hook, which blocks every shell command when `jq` is missing | `brew install jq`, `apt install jq`, or `winget install jqlang.jq` |
 | Git Bash (Windows only) | the `.sh` hook scripts | [Git for Windows](https://gitforwindows.org/) or `winget install Git.Git` |
-| [Beads](https://github.com/gastownhall/beads) (`bd`) | task tracking; optional: without it, `/setup` offers local Markdown tasks (`providers.task_tracking: markdown`) | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
+| [Beads](https://github.com/gastownhall/beads) (`bd`), optional | task tracking; without it, `/setup` offers local Markdown tasks (`providers.task_tracking: markdown`) | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
 | A harness | running the skills | Claude Code, Codex CLI, Antigravity CLI (`agy`), or OpenCode |
 
-Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; `codex`, `agy`, or `opencode` next to your main harness for multi-provider routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).
+Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; [gin-orchestrator](docs/orchestrator/README.md) with `codex`, `agy`, or `opencode` next to your main harness for worker routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).
 
-Then, in each repository: `bd init` once, and `/gin-workflow:setup` once ([getting started](docs/getting-started.md)).
+Then, in each repository, run `/gin-workflow:setup` once ([getting started](docs/getting-started.md)); if you chose Beads, run `bd init` first.
 
 ### 2. The plugin
 
@@ -42,7 +42,7 @@ Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). Th
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform all
 ```
 
-Use `--platform claude`, `codex`, `antigravity`, `opencode`, or `copilot` for one harness, and `--plugin all` to add the QA add-on. On Windows use `install.ps1` ([contributing](docs/contributing.md#windows-powershell-7)).
+Use `--platform claude`, `codex`, `antigravity`, `opencode`, or `copilot` for one harness, and `--plugin all` to add every extension. On Windows use `install.ps1` ([contributing](docs/contributing.md#windows-powershell-7)).
 
 **Claude Code marketplace:**
 
@@ -60,7 +60,16 @@ codex plugin add gin-workflow@gin-workflow-marketplace
 
 Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either — the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
 
-GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot hosts the skills only; workers and reviews still need `claude`, `codex`, `agy`, or `opencode`, and the safety hook does not run in Copilot ([troubleshooting](docs/reference/troubleshooting.md#github-copilot-cli)).
+GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot hosts the skills only; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator), and the safety hook does not run in Copilot ([troubleshooting](docs/reference/troubleshooting.md#github-copilot-cli)).
+
+## Extensions
+
+gin-workflow works alone. Two add-ons install from the same clone:
+
+| Extension | Install | Adds |
+|---|---|---|
+| gin-qa | `./install.sh --plugin gin-qa` | [QA cases and end-to-end specs](docs/guides/qa.md) |
+| gin-orchestrator | `./install.sh --plugin gin-orchestrator` (installs gin-workflow too) | [worker harnesses](docs/orchestrator/README.md): route tracks and reviews to other harnesses |
 
 ## Quickstart
 
@@ -68,7 +77,7 @@ GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and regi
 /gin-workflow:setup                         once per repository
 /gin-workflow:discuss <what you want>       confirm the design → spec
 /gin-workflow:plan <feature>                approve the plan → tracks
-/gin-workflow:orchestrate <feature>         beads, routes, worktree
+/gin-workflow:orchestrate <feature>         tasks, routes, worktree
 /gin-workflow:execute                       one track: test first, review, close
 /gin-workflow:ship                          merge, PR, keep, or discard
 ```
@@ -83,7 +92,7 @@ GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and regi
 | `discuss`, `plan`, `orchestrate`, `execute`, `ship` | the lifecycle stages |
 | `review` | independent review in the review ledger |
 | `workflow`, `progress` | route to the next stage; show status |
-| `quick` | small change without plan or beads |
+| `quick` | small change without plan or tasks |
 | `report` | AI usage per bead or epic |
 
 All skills, including the support skills and the `gin-qa` add-on: [skills reference](docs/reference/skills.md).
