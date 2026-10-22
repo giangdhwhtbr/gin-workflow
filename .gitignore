@@ -28,6 +28,7 @@ __pycache__/
 *.db
 .beads-credential-key
 .beads
+.beads.gate.lock
 .agent-workflow/providers.local.yaml
 
 # bv (beads viewer) local config and caches
