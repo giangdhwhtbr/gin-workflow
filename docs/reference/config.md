@@ -127,7 +127,7 @@ Maps lifecycle phases (`brainstorm`, `design`, `plan`, `implement`, `review`, `d
 
 ### `providers`
 
-`task_tracking`: `markdown` (default) or `beads`. `markdown` keeps one Markdown file per task under `.planning/tasks/` in the main checkout, git-ignored and local to this machine; it needs no `bd`. Team mode and `gin-workflow usage` require `beads`.
+`task_tracking`: `markdown` (the default; `beads` when `team:` is configured) or `beads`. `markdown` keeps one Markdown file per task under `.planning/tasks/` in the main checkout, git-ignored and local to this machine; it needs no `bd`. Team mode and `gin-workflow usage` require `beads`.
 
 ### `team`
 

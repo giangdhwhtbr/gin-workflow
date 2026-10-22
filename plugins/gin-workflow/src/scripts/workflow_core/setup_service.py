@@ -471,7 +471,8 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         checks["configuration"] = True
         user_cfg = require_yaml().safe_load(config.read_text(encoding="utf-8")) or {}
         providers_block = user_cfg.get("providers")
-        if (root / ".beads").is_dir() and not (isinstance(providers_block, Mapping) and "task_tracking" in providers_block):
+        backend_unset = not (isinstance(providers_block, Mapping) and "task_tracking" in providers_block)
+        if (root / ".beads").is_dir() and backend_unset and "team" not in user_cfg:
             backend_actions.append(
                 ".beads exists but providers.task_tracking is unset, so tasks use markdown; to keep Beads run "
                 "gin-workflow setup configure --set providers.task_tracking=beads --approve"
@@ -780,6 +781,10 @@ def update(
         validate_provider_local_config(provider_config)
 
     proposal = propose_migration(root, target_version=target_version)
+    old_local, new_local = root / ".agent-workflow/providers.local.yaml", root / ".agent-workflow/orchestrator.local.yaml"
+    rename_local = target_version == "2.8" and old_local.is_file() and not new_local.exists()
+    if rename_local:
+        proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(root)} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
     if provider_config is not None:
         payload["provider_configuration"] = provider_config
@@ -799,14 +804,11 @@ def update(
         prepared_config=migrated,
         additional_writes=additional_writes,
     )
-    if target_version == "2.8":
-        old_local = root / ".agent-workflow/providers.local.yaml"
-        new_local = root / ".agent-workflow/orchestrator.local.yaml"
-        if old_local.is_file() and not new_local.exists():
-            os.replace(old_local, new_local)
-            res.setdefault("actions", []).append("rename .agent-workflow/providers.local.yaml to orchestrator.local.yaml")
-            ignore_path = root / ".agent-workflow/.gitignore"
-            atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
+    if rename_local:
+        os.replace(old_local, new_local)
+        res.setdefault("actions", []).append(f"rename {old_local.relative_to(root)} to {new_local.name}")
+        ignore_path = root / ".agent-workflow/.gitignore"
+        atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
     return res
 
 
@@ -815,15 +817,12 @@ def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **
     if backup is None:
         raise SetupError("rollback requires an explicit --backup target")
     result = rollback_migration(repository, backup, dry_run=dry_run)
-    if not dry_run:
-        root = Path(repository).resolve()
-        restored_version = str(result.get("restored_version", ""))
-        if restored_version != "2.8":
-            old_local = root / ".agent-workflow/providers.local.yaml"
-            new_local = root / ".agent-workflow/orchestrator.local.yaml"
-            if new_local.is_file() and not old_local.exists():
-                os.replace(new_local, old_local)
-                result.setdefault("actions", []).append("rename .agent-workflow/orchestrator.local.yaml to providers.local.yaml")
+    root = Path(repository).resolve()
+    old_local, new_local = root / ".agent-workflow/providers.local.yaml", root / ".agent-workflow/orchestrator.local.yaml"
+    if str(result.get("restored_version", "")) != "2.8" and new_local.is_file() and not old_local.exists():
+        if not dry_run:
+            os.replace(new_local, old_local)
+        result.setdefault("actions", []).append(f"rename {new_local.relative_to(root)} to {old_local.name}")
     return result
 
 

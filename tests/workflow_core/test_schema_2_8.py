@@ -154,6 +154,12 @@ class TestSchema28(unittest.TestCase):
         }
         validate_portable_config(config)
 
+    def test_migration_rejects_a_malformed_source_config(self):
+        malformed = copy.deepcopy(LEGACY)
+        malformed["routing"]["roles"]["backend"] = "codex"
+        with self.assertRaises(ConfigValidationError):
+            migrate_config(malformed, "2.8")
+
     def test_update_renames_the_local_file_and_rollback_restores_it(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -168,6 +174,10 @@ class TestSchema28(unittest.TestCase):
             # Write providers.local.yaml
             local_bytes = b"schema_version: '2.7'\nproviders:\n  claude:\n    executable: claude\n"
             (workflow / "providers.local.yaml").write_bytes(local_bytes)
+
+            preview = setup_service.update(repo, target_version="2.8", dry_run=True)
+            self.assertIn("rename .agent-workflow/providers.local.yaml to orchestrator.local.yaml", preview["actions"])
+            self.assertTrue((workflow / "providers.local.yaml").is_file())
 
             # Run setup update --to-version 2.8 --approve
             res = setup_service.update(repo, target_version="2.8", approve=True)
@@ -187,6 +197,9 @@ class TestSchema28(unittest.TestCase):
 
             # setup rollback --backup <backup> restores providers.local.yaml and 2.7 config
             backup = Path(res["backup"])
+            preview = setup_service.rollback(repo, backup=backup, dry_run=True)
+            self.assertIn("rename .agent-workflow/orchestrator.local.yaml to providers.local.yaml", preview["actions"])
+            self.assertTrue(new_local.is_file())
             roll = setup_service.rollback(repo, backup=backup)
             self.assertEqual("rolled_back", roll["status"])
             self.assertEqual("2.7", roll["restored_version"])

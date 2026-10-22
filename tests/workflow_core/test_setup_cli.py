@@ -1016,6 +1016,20 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(res.stdout)
             self.assertTrue(any("providers.task_tracking=beads" in action for action in payload.get("actions", [])))
 
+    def test_doctor_does_not_warn_about_the_backend_in_team_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+            (repository / ".agent-workflow").mkdir()
+            (repository / ".agent-workflow/config.yaml").write_text(
+                "schema_version: '2.8'\nharness: claude\nteam:\n  host: github\n  members:\n"
+                "    a@example.com: {roles: [be_dev], login: a}\n", encoding="utf-8")
+            (repository / ".beads").mkdir()
+            res = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertFalse(any("providers.task_tracking" in action for action in payload.get("actions", [])))
+
     def test_doctor_suggests_the_2_8_migration_for_legacy_worker_routing(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

@@ -159,6 +159,8 @@ def _migration_path(source_version: str, target_version: str) -> list[tuple[str,
 def migrate_config(config: Mapping[str, Any], target_version: str) -> dict[str, Any]:
     _require_migration_target(target_version)
     source_version = str(config.get("schema_version", ""))
+    if source_version in SUPPORTED_CONFIG_VERSIONS:
+        validate_portable_config(config)
     migrated = dict(config)
     for step in _migration_path(source_version, target_version):
         migrated = _MIGRATIONS[step](migrated)
