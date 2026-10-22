@@ -126,7 +126,7 @@ touch plugins/gin-workflow/dist/claude-code/commands/stale-from-old-build.md plu
 assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_not_contains "$output_file" "gin-workflow-advanced"
 assert_contains "$output_file" "would install global Claude Code plugin to"
-assert_contains "$output_file" "would install gin-workflow launcher version 2.7 to"
+assert_contains "$output_file" "would install gin-workflow launcher version 2.8 to"
 assert_contains "$output_file" "would link gin-workflow launcher on PATH at"
 assert_not_contains "$output_file" "gin-qa"
 assert_not_exists "plugins/gin-qa/dist"
@@ -195,11 +195,11 @@ assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-qa/sr
 # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
 empty_home="$(mktemp -d)"
 HOME="$empty_home" ./install.sh --platform claude --plugin gin-orchestrator --dry-run >"$output_file"
-assert_contains "$output_file" "gin-orchestrator requires gin-workflow 2.7; installing it first."
+assert_contains "$output_file" "gin-orchestrator requires gin-workflow 2.8; installing it first."
 assert_contains "$output_file" "Processing plugin: gin-orchestrator"
 assert_contains "$output_file" "would install gin-orchestrator launcher version 0.1 to"
-assert_line_order "$output_file" "installing it first." "would install gin-workflow launcher version 2.7 to"
-assert_line_order "$output_file" "would install gin-workflow launcher version 2.7 to" "would install gin-orchestrator launcher version 0.1 to"
+assert_line_order "$output_file" "installing it first." "would install gin-workflow launcher version 2.8 to"
+assert_line_order "$output_file" "would install gin-workflow launcher version 2.8 to" "would install gin-orchestrator launcher version 0.1 to"
 assert_exists "plugins/gin-orchestrator/dist/claude-code/.claude-plugin/plugin.json"
 assert_exists "plugins/gin-orchestrator/dist/claude-code/skills/providers/SKILL.md"
 assert_exists "plugins/gin-orchestrator/dist/claude-code/scripts/gin-orchestrator"
@@ -293,22 +293,22 @@ HOME="$MOCK_HOME" ./install.sh --platform claude >/dev/null
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/skills/tech-doc/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/bead-worker.md"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-workflow@skills-dir": true'
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/gin-workflow"
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/workflow_core/cli.py"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.8/gin-workflow"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.8/workflow_core/cli.py"
 assert_exists "$MOCK_HOME/.local/bin/gin-workflow"
 launcher_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" --version)"
-if [ "$launcher_version" != "gin-workflow 2.7" ]; then
+if [ "$launcher_version" != "gin-workflow 2.8" ]; then
   echo "Unexpected launcher version: $launcher_version" >&2
   exit 1
 fi
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/rules/core.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.8/rules/core.md"
 rules_list="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" rules --list --repository "$MOCK_HOME")"
 case "$rules_list" in
   *"core (plugin, core)"*) ;;
   *) echo "Installed launcher did not list the core rule pack: $rules_list" >&2; exit 1 ;;
 esac
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/spec-delta.md"
-assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.7/templates/team/commit-msg"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.8/templates/spec-delta.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.8/templates/team/commit-msg"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/templates/proposal.md"
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" specs --help >/dev/null
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" setup models --provider claude >/dev/null
@@ -388,8 +388,8 @@ esac
 orch_home="$MOCK_HOME/orchestrator-home"
 mkdir -p "$orch_home"
 HOME="$orch_home" ./install.sh --platform claude --plugin gin-orchestrator >"$output_file" 2>&1
-assert_contains "$output_file" "gin-orchestrator requires gin-workflow 2.7; installing it first."
-assert_exists "$orch_home/.local/lib/gin-workflow/2.7/workflow_core/cli.py"
+assert_contains "$output_file" "gin-orchestrator requires gin-workflow 2.8; installing it first."
+assert_exists "$orch_home/.local/lib/gin-workflow/2.8/workflow_core/cli.py"
 assert_exists "$orch_home/.local/bin/gin-orchestrator"
 
 # Success path with the installed launchers: write cases, edit a requirement, re-pin.
@@ -446,7 +446,7 @@ assert_contains "$output_file" "missing TC-AUTH-001 qa/e2e/auth/tc-auth-001.spec
 
 for launcher in gin-workflow gin-qa gin-orchestrator; do
   case "$launcher" in
-    gin-workflow) old_version=2.1; current_version=2.7 ;;
+    gin-workflow) old_version=2.1; current_version=2.8 ;;
     gin-qa) old_version=0.3; current_version=0.4 ;;
     gin-orchestrator) old_version=0.0; current_version=0.1 ;;
   esac

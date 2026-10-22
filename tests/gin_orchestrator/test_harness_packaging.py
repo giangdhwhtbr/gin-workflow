@@ -224,7 +224,7 @@ class HarnessPackagingTests(unittest.TestCase):
         for manifest in manifests:
             with self.subTest(manifest=manifest.relative_to(ROOT)):
                 with manifest.open(encoding="utf-8") as file:
-                    self.assertEqual("1.6.0", json.load(file)["version"])
+                    self.assertEqual("2.0.0", json.load(file)["version"])
 
     def test_repository_ignores_installations_and_generated_workflow_output(self):
         ignored = (
