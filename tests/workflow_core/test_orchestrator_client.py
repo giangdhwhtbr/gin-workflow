@@ -93,6 +93,14 @@ class OrchestratorClientTests(unittest.TestCase):
                 os.environ["PATH"] = empty_dir
                 self.assertEqual([], orchestrator_client.models("codex"))
 
+    def test_models_needs_an_available_orchestrator_with_the_capability(self) -> None:
+        for kwargs in ({"contract": 1}, {"contract": 2, "capabilities": ["routes"]}):
+            with tempfile.TemporaryDirectory() as fake_dir:
+                fake_orchestrator(fake_dir, replies={"models": [{"id": "m1"}]}, **kwargs)
+                with on_path(fake_dir):
+                    self.assertEqual([], orchestrator_client.models("codex"), kwargs)
+                    self.assertEqual(0, call_count(fake_dir, "models"), kwargs)
+
 
 if __name__ == "__main__":
     unittest.main()

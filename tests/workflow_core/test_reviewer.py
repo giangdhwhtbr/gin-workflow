@@ -140,6 +140,16 @@ class RouteTests(unittest.TestCase):
                     out["warnings"],
                 )
 
+    def test_malformed_orchestrator_reply_reviews_on_the_main_harness_with_warning(self):
+        cfg = config(self.root, harness="claude", provider_mode="multi")
+        for reply in ({"routes": []}, ["codex"]):
+            with tempfile.TemporaryDirectory() as fake_dir:
+                fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": reply})
+                with on_path(fake_dir):
+                    out = route(self.root, self.base, tier="medium", implementer="claude", config=cfg)
+                    self.assertEqual("claude", out["routes"][0]["provider"], reply)
+                    self.assertIn("gin-orchestrator failed (orchestrator_failed); reviewing on the main harness",
+                                  out["warnings"])
 
 
 if __name__ == "__main__":

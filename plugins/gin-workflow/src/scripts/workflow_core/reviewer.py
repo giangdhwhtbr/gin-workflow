@@ -7,6 +7,7 @@ import json
 from pathlib import Path, PurePosixPath
 import subprocess
 import sys
+from collections.abc import Mapping
 from typing import Any, Sequence
 import uuid
 
@@ -70,6 +71,11 @@ def route(
             ])
         except orchestrator_client.OrchestratorError as error:
             warnings.append(f"gin-orchestrator failed ({error}); reviewing on the main harness")
+            orch_routes = None
+        if orch_routes is not None and not (
+            isinstance(orch_routes, list) and all(isinstance(r, Mapping) for r in orch_routes)
+        ):
+            warnings.append(f"gin-orchestrator failed ({orchestrator_client.FAILED}); reviewing on the main harness")
             orch_routes = None
 
         if orch_routes is not None:

@@ -51,7 +51,11 @@ def resolve(
             reply = None
         finally:
             tracks_file.unlink(missing_ok=True)
-        if reply is not None and not isinstance(reply, Mapping):
+        if reply is not None and not (
+            isinstance(reply, Mapping)
+            and isinstance(reply.get("diagnostics", []), list)
+            and isinstance(reply.get("routes", []), list)
+        ):
             warnings.append(f"gin-orchestrator failed ({orchestrator_client.FAILED}); routing every track to the main harness")
             reply = None
 

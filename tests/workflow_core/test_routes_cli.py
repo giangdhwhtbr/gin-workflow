@@ -213,6 +213,20 @@ class TestRoutesCLI(unittest.TestCase):
                 manifest_path = self.root / output["manifest"]
                 self.assertTrue(manifest_path.is_file())
 
+    def test_malformed_orchestrator_reply_falls_back_with_a_warning(self):
+        self._set_multi_mode()
+        for reply in (["t1"], {"routes": None}, {"diagnostics": "bad"}):
+            with tempfile.TemporaryDirectory() as fake_dir:
+                fake_orchestrator(fake_dir, contract=2, capabilities=["routes"], replies={"routes resolve": reply})
+                with on_path(fake_dir):
+                    code, output = self._resolve(
+                        "wf-bad",
+                        [{"task_id": "t1", "provider_role": "backend", "reasoning": "medium"}],
+                    )
+                    self.assertEqual(0, code, reply)
+                    self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
+                    self.assertTrue(any("orchestrator_failed" in w for w in output["warnings"]), output["warnings"])
+
     def test_missing_routes_capability_falls_back(self):
         self._set_multi_mode()
         with tempfile.TemporaryDirectory() as fake_dir:

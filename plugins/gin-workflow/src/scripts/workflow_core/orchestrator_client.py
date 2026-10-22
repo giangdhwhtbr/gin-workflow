@@ -126,11 +126,11 @@ def warning(config: Mapping[str, Any]) -> str | None:
 
 
 def models(provider: str) -> list[dict]:
-    """List models for a provider via orchestrator, returning [] on FAILED or MISSING."""
+    """List models for a provider via orchestrator; [] when it is unavailable, lacks `models`, or fails."""
+    if not status()["available"] or "models" not in status()["capabilities"]:
+        return []
     try:
         res = call(["models", "--provider", provider], timeout=60)
-        return res if isinstance(res, list) else []
-    except OrchestratorError as error:
-        if str(error) in (FAILED, MISSING):
-            return []
-        raise
+    except OrchestratorError:
+        return []
+    return res if isinstance(res, list) else []

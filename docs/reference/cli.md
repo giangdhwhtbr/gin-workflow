@@ -255,7 +255,7 @@ When `provider_mode: multi` is set, `gin-orchestrator` is available on `PATH`, a
 | `gin-workflow setup doctor --probe` | `gin-orchestrator doctor` | `doctor` |
 | `gin-workflow setup models` | `gin-orchestrator models` | `models` |
 
-In single-harness mode (`provider_mode: single`), when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, `gin-workflow` resolves for the main harness and emits a warning. Work is never blocked.
+In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise. Work is never blocked.
 
 ## `gin-qa`
 

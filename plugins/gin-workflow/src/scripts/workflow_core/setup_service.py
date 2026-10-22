@@ -727,10 +727,7 @@ def models(repository: Path, *, provider: str | None = None, **_: Any) -> dict[s
         raise SetupError("--provider is required")
     from . import orchestrator_client
 
-    try:
-        listed = orchestrator_client.models(provider)
-    except orchestrator_client.OrchestratorError as error:
-        raise SetupError(str(error)) from error
+    listed = orchestrator_client.models(provider)
     return {"status": "listed", "provider": provider, "models": listed, "manual_entry": True, "actions": []}
 
 
