@@ -87,6 +87,30 @@ class TestRoutesCLI(unittest.TestCase):
         manifest = self.root / ".agent-workflow/runtime/assignments/wf-2.yaml"
         self.assertFalse(manifest.exists())
 
+    def _resolve(self, workflow_id, tracks):
+        tracks_file = self.root / "tracks.json"
+        tracks_file.write_text(json.dumps(tracks), encoding="utf-8")
+        stdout = io.StringIO()
+        with patch("sys.stdout", stdout):
+            code = routes.main(["resolve", "--workflow-id", workflow_id, "--tracks", str(tracks_file),
+                                "--repository", str(self.root)])
+        return code, json.loads(stdout.getvalue())
+
+    def test_unsafe_workflow_id_is_a_diagnostic(self):
+        code, output = self._resolve("../evil", [{"task_id": "t1", "provider_role": "backend", "reasoning": "low"}])
+        self.assertEqual(code, 2)
+        self.assertEqual(len(output["diagnostics"]), 1)
+        self.assertTrue(output["diagnostics"][0].startswith("workflow_id: "))
+        self.assertIsNone(output["manifest"])
+
+    def test_missing_and_duplicate_task_ids_are_diagnostics(self):
+        track = {"provider_role": "backend", "reasoning": "low"}
+        code, output = self._resolve("wf-3", [{"task_id": "t1", **track}, {"task_id": "t1", **track}, track])
+        self.assertEqual(code, 2)
+        self.assertEqual(output["diagnostics"], ["t1.task_id: duplicate task_id",
+                                                 "task-3.task_id: task_id is required"])
+        self.assertFalse((self.root / ".agent-workflow/runtime/assignments/wf-3.yaml").exists())
+
     def test_paths_prints_the_library_dir(self):
         stdout = io.StringIO()
         with patch("sys.stdout", stdout):

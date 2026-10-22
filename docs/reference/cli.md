@@ -192,7 +192,7 @@ Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, or an unknown h
 gin-workflow routes resolve --workflow-id ID --tracks FILE [--repository DIR] [--json]
 ```
 
-Resolves execution routes for plan tracks: every track goes to the main harness at its tier's default model. With `--json`, outputs `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. On success, writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`. If any track has an unknown role or invalid reasoning, writes nothing, lists diagnostics, and exits 2.
+Resolves execution routes for plan tracks: every track goes to the main harness at its tier's default model. Always prints JSON (`--json` is accepted and changes nothing): `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. On success, writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`. If any track has an unknown role, invalid reasoning, or a missing or duplicate `task_id`, or the workflow id is unsafe, writes nothing, lists every diagnostic, and exits 2.
 
 Exit codes: 0 all routes resolved and manifest written; 2 unresolved tracks or invalid arguments.
 

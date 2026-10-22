@@ -30,19 +30,29 @@ def resolve(
 ) -> dict[str, Any]:
     """Every diagnostic, or the routes plus the written manifest; nothing is written on a diagnostic."""
     diagnostics = [f"{e.task_id}.{e.field}: {e.message}" for e in validate_plan_assignments(tracks, config)]
+    task_ids = [str(track.get("task_id", "")).strip() for track in tracks]
+    for index, task_id in enumerate(task_ids):
+        if not task_id:
+            diagnostics.append(f"task-{index + 1}.task_id: task_id is required")
+        elif task_id in task_ids[:index]:
+            diagnostics.append(f"{task_id}.task_id: duplicate task_id")
     entries: list[dict[str, Any]] = []
     if not diagnostics:
-        for track in tracks:
+        for task_id, track in zip(task_ids, tracks):
             try:
-                request = AssignmentRequest(str(track.get("task_id", "")), str(track.get("provider_role", "")),
+                request = AssignmentRequest(task_id, str(track.get("provider_role", "")),
                                             str(track.get("reasoning", "")), harness, workflow_id)
                 entries.append(AssignmentManifest(workflow_id, request, resolve_main_harness(request)).to_dict())
             except AssignmentResolutionError as error:
-                diagnostics.append(f"{track.get('task_id')}.route: {error}")
+                diagnostics.append(f"{task_id}.route: {error}")
     manifest = None
     if not diagnostics:
-        path = write_assignments(root, workflow_id, entries)
-        manifest = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
+        try:
+            path = write_assignments(root, workflow_id, entries)
+        except (AssignmentResolutionError, OSError) as error:
+            diagnostics.append(f"workflow_id: {error}")
+        else:
+            manifest = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
     return {"workflow_id": workflow_id, "main_harness": harness, "routes": entries if manifest else [],
             "diagnostics": diagnostics, "warnings": [], "manifest": manifest}
 
