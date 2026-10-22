@@ -12,16 +12,16 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 | Which worktree, branch, or provider route did a track use? | runtime metadata (derived, disposable) |
 | What did AI work on a bead cost? | the bead's `ai_usage` metadata |
 
-## Beads
+## Task tracker
 
-Beads (`bd`) owns task identity, priority, status (`open`, `in_progress`, `closed`), claims, dependencies, blockers, follow-ups, and closure. "What is active, blocked, or ready?" is answered from Beads (`bd ready`, `bd show`, or the `progress` skill), never from local files.
+`gin-workflow task` owns task identity, priority, status (`open`, `in_progress`, `closed`), claims, dependencies, blockers, follow-ups, and closure. It serves them from Beads (`bd`) when `providers.task_tracking: beads`, and otherwise from Markdown files under `.planning/tasks/`. "What is active, blocked, or ready?" is answered through it (`gin-workflow task ready`, `gin-workflow task show`, or the `progress` skill), never from other local files. Tasks are called beads in either backend.
 
 `orchestrate` creates two kinds of beads:
 
 - **Parent bead (epic)**: the deliverable. It stays open until a human-confirmed merge; closing it is what marks the workflow `shipped`. Merge holds belong only here.
-- **Track beads**: one per plan track (`bd create --parent <epic>`), with technical acceptance criteria only: code in scope, tests passing, review approved. A track closes as soon as those hold, which unblocks its dependents. It never waits for the parent's merge.
+- **Track beads**: one per plan track (`gin-workflow task create --parent <epic>`), with technical acceptance criteria only: code in scope, tests passing, review approved. A track closes as soon as those hold, which unblocks its dependents. It never waits for the parent's merge.
 
-`implementation_complete` is derived from Beads: every child of the epic recorded at `orchestration-ready` is closed.
+`implementation_complete` is derived from the task tracker: every child of the epic recorded at `orchestration-ready` is closed.
 
 ## Plans and specs
 

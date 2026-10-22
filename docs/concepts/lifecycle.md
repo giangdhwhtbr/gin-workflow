@@ -24,9 +24,9 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 
 ## Execute and review
 
-- The agent picks a ready bead (`bd ready`), claims it, and works in the track's worktree. It runs `gin-workflow rules --files <scope>` and follows the output, and reads the shape appendix for `project.shape`.
+- The agent picks a ready task (`gin-workflow task ready`), claims it, and works in the track's worktree. It runs `gin-workflow rules --files <scope>` and follows the output, and reads the shape appendix for `project.shape`.
 - It writes the failing test first, implements, and keeps the command output as evidence. A blocker, a plan gap, or repeated failures stop the work: the bead stays in progress with a note.
-- Work runs directly in the session for sequential plans and three or fewer tasks; routed workers are for more than three parallel tasks, long-running or specialized work, or independent review ([Providers](providers.md)).
+- Work runs directly in the session for sequential plans and three or fewer tasks; routed workers are for more than three parallel tasks, long-running or specialized work, or independent review. Workers on another harness need [gin-orchestrator](../orchestrator/README.md).
 - Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `ship` checks the approvals instead.
 - Review is independent:
   - In single-harness mode (`provider_mode: single`), review is `session`-independent: it runs on the main harness in a fresh session (`actor_id: reviewer:<harness>:session-<id>`). Self-review within the same session is forbidden. If `routing.review.independence: provider` is set without `gin-orchestrator`, review falls back to session independence on the main harness with a warning.

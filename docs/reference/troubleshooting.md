@@ -24,7 +24,7 @@ The installer prunes the Claude/Codex `agents/` and `commands/` files from the O
 
 `gin-workflow`'s `report` skill installs as `gin-workflow-report` in OpenCode. Its original id would otherwise shadow OpenCode's built-in `report` skill, so invoke it with `@gin-workflow-report`; the built-in `report` skill keeps working.
 
-OpenCode hosts the skills and can also run routed workers and reviews (`opencode run --auto --format json`); it has no sandbox, so isolation relies on the worktree. The resolver also looks in `~/.opencode/bin`, so a binary installed by OpenCode's own script is found without a `PATH` change. See [Providers](../concepts/providers.md).
+OpenCode hosts the skills and, with [gin-orchestrator](../orchestrator/README.md), can also run routed workers and reviews (`opencode run --auto --format json`); it has no sandbox, so isolation relies on the worktree. The resolver also looks in `~/.opencode/bin`, so a binary installed by OpenCode's own script is found without a `PATH` change. See [Providers](../concepts/providers.md).
 
 
 ## GitHub Copilot CLI
@@ -33,7 +33,7 @@ OpenCode hosts the skills and can also run routed workers and reviews (`opencode
 
 - **One directory per plugin.** Copilot stores a local install under the source directory's name (`~/.copilot/installed-plugins/_direct/<name>`), so each plugin is built into a directory named after it; otherwise `--plugin all` would install both into the same place.
 - **Safety and post-edit hooks.** The bundle ships `hooks/hooks.json` in Copilot's format: `safety-check` runs before the `bash` tool and `post-edit` runs after `edit`/`create`. The hook looks for the scripts in the direct-install path `~/.copilot/installed-plugins/_direct/gin-workflow` (under `$COPILOT_HOME` when set); Copilot does not set `PLUGIN_ROOT`, so set it yourself to override that path. If the scripts are not there, for example after a marketplace install, the hook prints a warning and lets the tool run instead of blocking it. The hooks are bash-only, so they do not run on Windows PowerShell.
-- **Workers and reviews.** Copilot hosts the skills only. Routed workers and reviewers run through `claude`, `codex`, `agy`, or `opencode`, so run `/setup` with one of them as `harness`.
+- **Workers and reviews.** Copilot hosts the skills only. Routed workers and reviewers ([gin-orchestrator](../orchestrator/README.md)) run through `claude`, `codex`, `agy`, or `opencode`, so run `/setup` with one of them as `harness`.
 - **Global only.** `--project` skips copilot, because Copilot plugins are installed per user.
 - **Local-path installs.** Copilot CLI warns that installs from a local path are deprecated in favor of `plugin@marketplace`; the installer still uses the local path.
 - **Telegram notifications.** The `telegram-notify` skill refers to `${PLUGIN_ROOT}/scripts/telegram.sh`, which is not resolved under Copilot.
@@ -58,7 +58,7 @@ sysctl kernel.apparmor_restrict_unprivileged_userns   # should print 0
 codex sandbox -- echo hello                            # should print "hello", not a bwrap error
 ```
 
-gin-workflow's own Codex-provider worker dispatch (`codex_worker.py`) works around this for workers it dispatches itself, by invoking `codex exec` with `--dangerously-bypass-approvals-and-sandbox` — skipping Codex's internal sandbox entirely, since gin-workflow already isolates each worker in its own git worktree. That has no effect on a Codex CLI session you run directly, or on Antigravity's `--sandbox`, which is why the sysctl fix above is what actually resolves this everywhere on an affected host.
+gin-orchestrator's Codex worker dispatch (`gin_orchestrator/codex_worker.py`) works around this for workers it dispatches itself, by invoking `codex exec` with `--dangerously-bypass-approvals-and-sandbox` — skipping Codex's internal sandbox entirely, since gin-orchestrator already isolates each worker in its own git worktree. That has no effect on a Codex CLI session you run directly, or on Antigravity's `--sandbox`, which is why the sysctl fix above is what actually resolves this everywhere on an affected host.
 
 ## Review routing reports a provider as "not available" (e.g. `claude not available`) when invoked from Codex/Antigravity
 
