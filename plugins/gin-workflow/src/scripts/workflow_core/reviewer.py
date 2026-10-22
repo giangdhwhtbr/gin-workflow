@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path, PurePosixPath
 import subprocess
 import sys
-from typing import Any, Mapping, Sequence
+from typing import Any, Sequence
+import uuid
 
-from .assignments import AssignmentRequest, AssignmentResolutionError, resolve_assignment
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
-from .provider_config import (REASONING_TIERS, ProviderLocalConfigError, ProviderModelConfig,
-                              load_provider_local_config)
+from .provider_config import (
+    DEFAULT_HARNESS_MODELS,
+    REASONING_TIERS,
+    default_provider_model_config,
+)
 
 
 class ReviewerError(Exception):
@@ -32,28 +36,58 @@ def review_tier(tier: str, changed: Sequence[str]) -> tuple[str, str | None]:
     return "medium", f"low track changes non-docs files: {', '.join(code[:3])}"
 
 
-def route(root: Path, base: str, *, tier: str, implementer: str, config: EffectiveConfig,
-          local: Mapping[str, ProviderModelConfig]) -> dict[str, Any]:
-    diff = subprocess.run(["git", "diff", "--name-only", "--no-renames", f"{base}...HEAD"], cwd=root,
-                          capture_output=True, text=True, check=False)
+def route(
+    root: Path,
+    base: str,
+    *,
+    tier: str,
+    implementer: str,
+    config: EffectiveConfig,
+) -> dict[str, Any]:
+    diff = subprocess.run(
+        ["git", "diff", "--name-only", "--no-renames", f"{base}...HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     if diff.returncode != 0:
         raise ReviewerError(f"git diff {base}...HEAD failed: {diff.stderr.strip()}")
     tier, reason = review_tier(tier, diff.stdout.splitlines())
-    try:
-        candidates = resolve_assignment(
-            AssignmentRequest("reviewer", "review", tier, config.harness or implementer), config, local)
-    except AssignmentResolutionError as error:
-        raise ReviewerError(str(error)) from error
+
+    harness = config.harness or implementer
+    if harness not in DEFAULT_HARNESS_MODELS:
+        raise ReviewerError(f"unknown harness: {harness}")
+    if tier not in REASONING_TIERS:
+        raise ReviewerError(f"unknown reasoning tier: {tier}")
+
+    target = default_provider_model_config(harness).models[tier]
+    model = target.model
+    effort = target.effort
+
+    if harness != implementer:
+        actor_id = f"reviewer:{harness}"
+    else:
+        actor_id = f"reviewer:{harness}:session-{uuid.uuid4().hex[:8]}"
+
     review = (config.get("routing") or {}).get("review") or {}
-    # `session` independence: a fresh session of the implementer's provider may review.
-    independent = (bool(review.get("require_independent", True)) and tier != "low"
-                   and review.get("independence", "provider") != "session")
-    routes = [c for c in candidates if not independent or c.provider != implementer]
-    if not routes and review.get("allow_self_review_fallback"):
-        routes = list(candidates)
-    if not routes:
-        raise ReviewerError(f"no reviewer route independent of {implementer} at tier {tier}")
-    return {"tier": tier, "reason": reason, "routes": [(c.provider, c.model, c.effort) for c in routes]}
+    independence = review.get("independence")
+    warnings: list[str] = []
+    if independence == "provider":
+        warnings.append("routing.review.independence: provider requires gin-orchestrator; running on main harness in a fresh session")
+
+    route_entry = {
+        "provider": harness,
+        "model": model,
+        "effort": effort,
+        "actor_id": actor_id,
+    }
+    return {
+        "tier": tier,
+        "reason": reason,
+        "warnings": warnings,
+        "routes": [route_entry],
+    }
 
 
 def main(arguments: Sequence[str]) -> int:
@@ -62,15 +96,33 @@ def main(arguments: Sequence[str]) -> int:
     parser.add_argument("--implementer", required=True)
     parser.add_argument("--tier", choices=REASONING_TIERS, default="medium")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args(list(arguments))
     root = args.repository.resolve()
     try:
-        out = route(root, args.base, tier=args.tier, implementer=args.implementer,
-                    config=load_effective_config(root), local=load_provider_local_config(root))
-    except (ReviewerError, ConfigValidationError, ProviderLocalConfigError) as error:
+        out = route(
+            root,
+            args.base,
+            tier=args.tier,
+            implementer=args.implementer,
+            config=load_effective_config(root),
+        )
+    except (ReviewerError, ConfigValidationError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
+
+    if args.json:
+        print(json.dumps(out))
+        return 0
+
+    for warning in out.get("warnings", []):
+        print(f"warning: {warning}", file=sys.stderr)
+
     lines = [f"tier {out['tier']}"] + ([f"reason: {out['reason']}"] if out["reason"] else [])
-    lines += [" ".join(filter(None, item)) for item in out["routes"]]
+    for r in out["routes"]:
+        parts = [r["provider"], r["model"]]
+        if r.get("effort"):
+            parts.append(r["effort"])
+        lines.append(" ".join(parts))
     print("\n".join(lines))
     return 0

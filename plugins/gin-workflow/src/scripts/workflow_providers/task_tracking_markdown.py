@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from workflow_core import task_markdown
+from workflow_core.ext import task_markdown
 
 from .contracts import (
     ProviderBase,

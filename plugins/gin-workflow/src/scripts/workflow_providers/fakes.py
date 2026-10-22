@@ -41,8 +41,7 @@ from .contracts import (
     WorkspaceRecord,
     WorkspaceRequest,
 )
-from workflow_core.identity import AcceptanceIdentity
-from workflow_core.approvals import ApprovalAction
+from workflow_core.ext import AcceptanceIdentity, ApprovalAction
 
 
 def _proposal_record(proposal: KnowledgeProposal) -> KnowledgeProposalRecord:
@@ -221,7 +220,7 @@ class FakeTaskTrackingProvider(ProviderBase):
                 "data_move approval must match sync mode and backend"
             )
         try:
-            from workflow_core.router import authorize_protected_action
+            from workflow_core.ext import authorize_protected_action
 
             authorize_protected_action(
                 ApprovalAction.DATA_MOVE,

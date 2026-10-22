@@ -12,9 +12,12 @@ import threading
 import time
 from typing import Any, Callable, Mapping
 
-from workflow_core.events import WorkflowEvent, WorkflowEventStore
-from workflow_core.identity import AcceptanceIdentity
-from workflow_core.manifests import ContextManifest
+from workflow_core.ext import (
+    AcceptanceIdentity,
+    ContextManifest,
+    WorkflowEvent,
+    WorkflowEventStore,
+)
 
 from .contracts import parse_timestamp
 

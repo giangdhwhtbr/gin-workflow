@@ -49,8 +49,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from review_ledger.cli import get_checkpoint_identity_record, get_review_identity_record
-from workflow_core.events import WorkflowEventStore
-from workflow_core.models import thaw
+from workflow_core.ext import WorkflowEventStore, thaw
 
 from .evidence import (
     CompositeEvidenceAuthority,

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -14,22 +16,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from team_fixtures import git, write  # noqa: E402
 from workflow_core import reviewer  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
-from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
 from workflow_core.reviewer import ReviewerError, is_docs, review_tier, route  # noqa: E402
 
-LOCAL = {
-    "antigravity": ProviderModelConfig("antigravity", "agy", {"low": "g-low", "medium": "g-mid", "high": "g-high"}),
-    "claude": ProviderModelConfig("claude", "claude", {"low": "haiku", "medium": "sonnet", "high": "opus"}),
-    "codex": ProviderModelConfig("codex", "codex", {"low": "luna", "medium": "sol", "high": "astra"}),
-}
 
-
-def config(root: Path, preferred=("antigravity",), fallback=("codex", "claude"), **review) -> EffectiveConfig:
-    return EffectiveConfig({
-        "schema_version": "2.3", "harness": "claude",
-        "routing": {"roles": {"review": {"preferred": list(preferred), "fallback": list(fallback)}},
-                    "review": {"require_independent": True, "allow_self_review_fallback": False, **review}},
-    }, root)
+def config(root: Path, harness: str = "claude", **review) -> EffectiveConfig:
+    return EffectiveConfig(
+        {
+            "schema_version": "2.7",
+            "harness": harness,
+            "routing": {"review": review},
+        },
+        root,
+    )
 
 
 class ReviewTierTests(unittest.TestCase):
@@ -43,8 +41,10 @@ class ReviewTierTests(unittest.TestCase):
         self.assertEqual(("low", None), review_tier("low", ["README.md", "docs/a.md"]))
 
     def test_low_with_code_or_skill_becomes_medium(self):
-        self.assertEqual(("medium", "low track changes non-docs files: src/app.py"),
-                         review_tier("low", ["README.md", "src/app.py"]))
+        self.assertEqual(
+            ("medium", "low track changes non-docs files: src/app.py"),
+            review_tier("low", ["README.md", "src/app.py"]),
+        )
         self.assertEqual("medium", review_tier("low", ["plugins/x/skills/y/SKILL.md"])[0])
 
     def test_medium_and_high_never_change_and_empty_diff_keeps_the_tier(self):
@@ -68,63 +68,47 @@ class RouteTests(unittest.TestCase):
         git(self.root, "add", path)
         git(self.root, "commit", "-q", "-m", path)
 
-    def providers(self, tier: str, implementer: str = "claude", cfg: EffectiveConfig | None = None) -> list[str]:
-        out = route(self.root, self.base, tier=tier, implementer=implementer, config=cfg or config(self.root),
-                    local=LOCAL)
-        return [f"{provider} {model}" for provider, model, _ in out["routes"]]
+    def test_reviewer_runs_on_the_main_harness_in_a_fresh_session(self):
+        out = route(self.root, self.base, tier="medium", implementer="claude", config=config(self.root, harness="claude"))
+        self.assertEqual(out["tier"], "medium")
+        self.assertEqual(len(out["routes"]), 1)
+        r = out["routes"][0]
+        self.assertEqual(r["provider"], "claude")
+        self.assertEqual(r["model"], "sonnet")
+        self.assertIsNone(r["effort"])
+        self.assertRegex(r["actor_id"], r"^reviewer:claude:session-[0-9a-f]{8}$")
 
-    def test_low_docs_review_keeps_the_implementer_provider(self):
-        self.change("docs/a.md")
-        self.assertEqual(["antigravity g-low", "codex luna", "claude haiku"], self.providers("low"))
+    def test_reviewer_of_another_implementer_is_provider_independent(self):
+        out = route(self.root, self.base, tier="medium", implementer="codex", config=config(self.root, harness="claude"))
+        self.assertEqual(len(out["routes"]), 1)
+        r = out["routes"][0]
+        self.assertEqual(r["provider"], "claude")
+        self.assertEqual(r["actor_id"], "reviewer:claude")
 
-    def test_low_track_changing_code_reviews_at_medium_without_the_implementer(self):
-        self.change("src/app.py")
-        out = route(self.root, self.base, tier="low", implementer="claude", config=config(self.root), local=LOCAL)
-        self.assertEqual(("medium", "low track changes non-docs files: src/app.py"), (out["tier"], out["reason"]))
-        self.assertEqual([("antigravity", "g-mid"), ("codex", "sol")], [r[:2] for r in out["routes"]])
+    def test_provider_independence_without_orchestrator_warns(self):
+        cfg = config(self.root, harness="claude", independence="provider")
+        out = route(self.root, self.base, tier="medium", implementer="claude", config=cfg)
+        self.assertEqual(len(out["warnings"]), 1)
+        self.assertIn("gin-orchestrator", out["warnings"][0])
 
-    def test_commits_added_to_the_base_branch_later_are_not_counted(self):
-        git(self.root, "checkout", "-q", "-b", "track")
-        self.change("docs/a.md")
-        git(self.root, "checkout", "-q", "main")
-        self.change("src/app.py")
-        git(self.root, "checkout", "-q", "track")
-        self.base = "main"
-        self.assertEqual("antigravity g-low", self.providers("low")[0])
+    def test_json_flag_prints_the_routes_document(self):
+        stdout = io.StringIO()
+        with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root, harness="claude")), \
+                mock.patch("sys.stdout", stdout):
+            code = reviewer.main([
+                "--base", self.base,
+                "--implementer", "claude",
+                "--tier", "medium",
+                "--repository", str(self.root),
+                "--json",
+            ])
+        self.assertEqual(code, 0)
+        doc = json.loads(stdout.getvalue())
+        self.assertEqual(doc["tier"], "medium")
+        self.assertEqual(len(doc["routes"]), 1)
+        self.assertEqual(doc["routes"][0]["provider"], "claude")
+        self.assertRegex(doc["routes"][0]["actor_id"], r"^reviewer:claude:session-[0-9a-f]{8}$")
 
-    def test_require_independent_false_keeps_the_implementer(self):
-        self.assertIn("claude sonnet", self.providers("medium", cfg=config(self.root, require_independent=False)))
 
-    def test_session_independence_keeps_the_implementer_provider(self):
-        self.assertIn("claude sonnet", self.providers("medium", cfg=config(self.root, independence="session")))
-        self.assertNotIn("claude sonnet", self.providers("medium", cfg=config(self.root, independence="provider")))
-
-    def test_empty_list_after_the_filter_is_an_error_unless_self_review_is_allowed(self):
-        only_codex = config(self.root, preferred=("codex",), fallback=())
-        with self.assertRaisesRegex(ReviewerError, "no reviewer route independent of codex at tier high"):
-            self.providers("high", "codex", only_codex)
-        allowed = config(self.root, preferred=("codex",), fallback=(), allow_self_review_fallback=True)
-        self.assertEqual(["codex astra"], self.providers("high", "codex", allowed))
-
-    def test_bad_base_is_an_error(self):
-        self.base = "nope"
-        with self.assertRaisesRegex(ReviewerError, r"git diff nope\.\.\.HEAD failed"):
-            self.providers("low")
-
-    def test_cli_prints_routes_and_exits_2_on_a_bad_base(self):
-        self.change("docs/a.md")
-
-        def run(base: str) -> tuple[int, str]:
-            out = io.StringIO()
-            with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root)), \
-                    mock.patch.object(reviewer, "load_provider_local_config", return_value=LOCAL), \
-                    mock.patch("sys.stdout", out), mock.patch("sys.stderr", out):
-                code = reviewer.main(["--base", base, "--implementer", "claude", "--tier", "low",
-                                      "--repository", str(self.root)])
-            return code, out.getvalue()
-
-        self.assertEqual((0, "tier low\nantigravity g-low\ncodex luna\nclaude haiku\n"),
-                         run(self.base))
-        code, text = run("nope")
-        self.assertEqual(2, code)
-        self.assertIn("git diff nope...HEAD failed", text)
+if __name__ == "__main__":
+    unittest.main()

@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 from typing import Any, Generic, Mapping, Protocol, TypeVar, runtime_checkable
 
-from workflow_core.identity import AcceptanceIdentity
+from workflow_core.ext import AcceptanceIdentity
 
 
 T = TypeVar("T")

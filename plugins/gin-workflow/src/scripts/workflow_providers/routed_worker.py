@@ -8,9 +8,12 @@ import threading
 import time
 from typing import Any
 
-from workflow_core.assignments import RouteCandidate
-from workflow_core.provider_config import PROVIDER_DEFAULT_PROVIDERS
-from workflow_core.events import WorkflowEvent, WorkflowEventStore
+from workflow_core.ext import (
+    PROVIDER_DEFAULT_PROVIDERS,
+    RouteCandidate,
+    WorkflowEvent,
+    WorkflowEventStore,
+)
 
 from .circuit_breaker import CircuitBreakerStore, FailureKind
 from .worker_dispatch import (

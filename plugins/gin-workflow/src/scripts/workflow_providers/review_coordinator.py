@@ -14,10 +14,14 @@ from .contracts import (
     ReviewStatus,
 )
 
-from workflow_core.assignments import RouteCandidate
-from workflow_core.identity import AcceptanceIdentity
-from workflow_core.manifests import ContextRequest, create_context_manifest
-from workflow_core.models import freeze, thaw
+from workflow_core.ext import (
+    AcceptanceIdentity,
+    ContextRequest,
+    RouteCandidate,
+    create_context_manifest,
+    freeze,
+    thaw,
+)
 from .worker_dispatch import WorkerRequest, WorkerResult
 
 

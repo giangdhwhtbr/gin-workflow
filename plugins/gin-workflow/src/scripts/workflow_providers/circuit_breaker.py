@@ -11,7 +11,7 @@ import threading
 import time
 from typing import Callable
 
-from workflow_core.atomic import atomic_write_text
+from workflow_core.ext import atomic_write_text
 
 
 class CircuitState(str, Enum):

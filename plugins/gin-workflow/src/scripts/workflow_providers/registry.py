@@ -7,16 +7,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from workflow_core.models import EffectiveConfig
-from workflow_core.assignments import AssignmentRequest, resolve_assignment
-from workflow_core.checkout import main_checkout
-from workflow_core.events import WorkflowEventStore
-from workflow_core.executable_resolver import resolve_harness_executable
-from workflow_core.provider_config import (
+from workflow_core.ext import (
+    AssignmentRequest,
+    EffectiveConfig,
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderModelConfig,
+    WorkflowEventStore,
+    main_checkout,
+    resolve_harness_executable,
 )
+
+from .routes import resolve_assignment
 
 from .contracts import (
     EvidenceAuthority,

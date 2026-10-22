@@ -18,7 +18,6 @@ from .provider_config import (
     DEFAULT_HARNESS_MODELS,
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
-    ProviderModelConfig,
     REASONING_TIERS,
     default_provider_model_config,
 )
@@ -152,93 +151,12 @@ def validate_plan_assignments(
     return tuple(errors)
 
 
-def resolve_assignment(
-    request: AssignmentRequest,
-    config: EffectiveConfig,
-    local: Mapping[str, ProviderModelConfig],
-) -> tuple[RouteCandidate, ...]:
-    """Resolve one role/tier without checking mutable provider availability."""
-    routing = config.get("routing", {})
-    roles = routing.get("roles", {}) if isinstance(routing, Mapping) else {}
-    role = roles.get(request.provider_role) if isinstance(roles, Mapping) else None
-    if not isinstance(role, Mapping):
-        raise AssignmentResolutionError(f"unknown provider role: {request.provider_role}")
-
-    by_tier = role.get("by_tier") or {}
-    preferred = tuple(by_tier.get(request.reasoning) or role.get("preferred", ()))
-    fallback = tuple(role.get("fallback", ()))
-    ordered: list[tuple[str, bool]] = []
-    seen: set[str] = set()
-    for alias, is_fallback in (
-        *((name, False) for name in preferred),
-        *((name, True) for name in fallback),
-    ):
-        provider = request.main_harness if alias == "main_harness" else str(alias)
-        if provider in seen:
-            continue
-        seen.add(provider)
-        ordered.append((provider, is_fallback))
-    if not ordered:
-        raise AssignmentResolutionError(f"provider role has no candidates: {request.provider_role}")
-
-    candidates: list[RouteCandidate] = []
-    errors: list[str] = []
-    for provider, is_fallback in ordered:
-        provider_config = local.get(provider)
-        if provider_config is None:
-            if config.get("provider_mode") == "single" and provider == request.main_harness and provider in DEFAULT_HARNESS_MODELS:
-                provider_config = default_provider_model_config(provider)
-            else:
-                errors.append(f"missing local provider mapping: {provider}")
-                continue
-        try:
-            target = provider_config.models[request.reasoning]
-        except KeyError:
-            errors.append(
-                f"missing {request.reasoning} reasoning model for provider: {provider}"
-            )
-            continue
-        model = getattr(target, "model", str(target))
-        effort = getattr(target, "effort", None)
-        if model == PROVIDER_DEFAULT and provider not in PROVIDER_DEFAULT_PROVIDERS:
-            errors.append("provider_default is only supported for antigravity and opencode")
-            continue
-        candidates.append(RouteCandidate(provider, str(model), is_fallback, effort=effort))
-    if errors:
-        raise AssignmentResolutionError("; ".join(errors))
-    return tuple(candidates)
-
-
-def resolve_all_assignments(
-    requests: Sequence[AssignmentRequest],
-    config: EffectiveConfig,
-    local: Mapping[str, ProviderModelConfig],
-) -> tuple[AssignmentManifest, ...]:
-    """Resolve a complete workflow batch without performing durable writes."""
-    errors = validate_plan_assignments(requests, config)
-    if errors:
-        raise AssignmentResolutionError(
-            "; ".join(f"{error.task_id}.{error.field}: {error.message}" for error in errors)
-        )
-    manifests: list[AssignmentManifest] = []
-    resolution_errors: list[str] = []
-    for request in requests:
-        if not request.workflow_id.strip():
-            resolution_errors.append(
-                f"workflow_id is required for batch assignment: {request.task_id}"
-            )
-            continue
-        try:
-            candidates = resolve_assignment(request, config, local)
-        except AssignmentResolutionError as error:
-            resolution_errors.append(f"{request.task_id}: {error}")
-        else:
-            manifests.append(
-                AssignmentManifest(request.workflow_id, request, candidates)
-            )
-    if resolution_errors:
-        raise AssignmentResolutionError("; ".join(resolution_errors))
-    return tuple(manifests)
+def resolve_main_harness(request: AssignmentRequest) -> tuple[RouteCandidate, ...]:
+    """Single-harness route: the main harness at the tier's default model."""
+    if request.main_harness not in DEFAULT_HARNESS_MODELS:
+        raise AssignmentResolutionError(f"unknown main harness: {request.main_harness}")
+    target = default_provider_model_config(request.main_harness).models[request.reasoning]
+    return (RouteCandidate(request.main_harness, target.model, False, effort=target.effort),)
 
 
 _SAFE_WORKFLOW_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
@@ -257,14 +175,18 @@ def _manifest_lock(path: Path) -> Iterator[None]:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def write_assignment_manifest(repository: Path, manifest: AssignmentManifest) -> Path:
-    """Atomically write a deterministic, disposable assignment preview."""
-    if not _SAFE_WORKFLOW_ID.fullmatch(manifest.workflow_id):
+def write_assignments(
+    repository: Path,
+    workflow_id: str,
+    entries: Sequence[Mapping[str, object]],
+) -> Path:
+    """Atomically write and merge assignment entries by task_id under runtime."""
+    if not _SAFE_WORKFLOW_ID.fullmatch(workflow_id):
         raise AssignmentResolutionError("workflow_id contains unsafe path characters")
     path = (
         main_checkout(Path(repository).resolve())
         / ".agent-workflow/runtime/assignments"
-        / f"{manifest.workflow_id}.yaml"
+        / f"{workflow_id}.yaml"
     )
     yaml = require_yaml()
     lock_path = path.with_name(f".{path.name}.lock")
@@ -283,11 +205,20 @@ def write_assignment_manifest(repository: Path, manifest: AssignmentManifest) ->
                 if not isinstance(assignment, Mapping) or not assignment.get("task_id"):
                     raise AssignmentResolutionError("existing assignment entry is invalid")
                 assignments[str(assignment["task_id"])] = assignment
-        assignments[manifest.request.task_id] = manifest.to_dict()
+        for entry in entries:
+            task_id = str(entry.get("task_id") if isinstance(entry, Mapping) else "").strip()
+            if not task_id:
+                raise AssignmentResolutionError("assignment entry requires task_id")
+            assignments[task_id] = entry
         payload = {
-            "workflow_id": manifest.workflow_id,
+            "workflow_id": workflow_id,
             "assignments": [assignments[task_id] for task_id in sorted(assignments)],
         }
         content = yaml.safe_dump(payload, sort_keys=False, allow_unicode=True)
         atomic_write_text(path, content)
     return path
+
+
+def write_assignment_manifest(repository: Path, manifest: AssignmentManifest) -> Path:
+    """Atomically write a deterministic, disposable assignment preview."""
+    return write_assignments(repository, manifest.workflow_id, [manifest.to_dict()])

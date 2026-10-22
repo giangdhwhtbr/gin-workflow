@@ -9,8 +9,7 @@ import shutil
 import subprocess
 from typing import Any, Callable, Mapping, Sequence
 
-from workflow_core.approvals import ApprovalAction
-from workflow_core.router import authorize_protected_action
+from workflow_core.ext import ApprovalAction, authorize_protected_action
 
 from .contracts import (
     ProviderBase,

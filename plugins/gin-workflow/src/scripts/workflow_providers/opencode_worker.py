@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from typing import Any, Callable, Mapping
 
-from workflow_core.provider_config import PROVIDER_DEFAULT
+from workflow_core.ext import PROVIDER_DEFAULT
 
 from .circuit_breaker import FailureKind
 from .native_cli import (

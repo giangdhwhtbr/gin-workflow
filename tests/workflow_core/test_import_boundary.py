@@ -6,6 +6,7 @@ import unittest
 
 SRC = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src"
 CORE = SRC / "scripts/workflow_core"
+PROVIDERS = SRC / "scripts/workflow_providers"
 
 
 class TestImportBoundary(unittest.TestCase):
@@ -13,7 +14,16 @@ class TestImportBoundary(unittest.TestCase):
         offenders = []
         for path in sorted(CORE.rglob("*.py")):
             for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-                if re.match(r"^\s*(from|import)\s+workflow_providers\b", line):
+                if re.match(r"^\s*(from|import)\s+(workflow_providers|gin_orchestrator)\b", line):
+                    offenders.append(f"{path.relative_to(SRC)}:{number}")
+        self.assertEqual([], offenders)
+
+    def test_worker_library_imports_only_the_facade(self):
+        offenders = []
+        for path in sorted(PROVIDERS.glob("*.py")):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                match = re.match(r"^\s*(from|import)\s+(workflow_core(?:\.\w+)?)\b", line)
+                if match and match.group(2) != "workflow_core.ext":
                     offenders.append(f"{path.relative_to(SRC)}:{number}")
         self.assertEqual([], offenders)
 

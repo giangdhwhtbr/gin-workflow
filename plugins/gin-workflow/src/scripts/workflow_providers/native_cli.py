@@ -16,7 +16,7 @@ import time
 from types import MappingProxyType
 from typing import Callable
 
-from workflow_core.executable_resolver import PROVIDER_EXE_ALIASES
+from workflow_core.ext import PROVIDER_EXE_ALIASES
 
 from .circuit_breaker import FailureKind
 from .worker_dispatch import _SECRET_VALUE, WorkerRequest

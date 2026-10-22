@@ -15,7 +15,7 @@ from .contracts import (
     ReviewStatus,
     ReviewLease,
 )
-from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot
+from workflow_core.ext import AcceptanceIdentity, RepositorySnapshot
 
 
 class ReviewLedgerProvider(ProviderBase):

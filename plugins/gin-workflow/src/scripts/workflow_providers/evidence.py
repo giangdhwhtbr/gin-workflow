@@ -26,9 +26,12 @@ from .contracts import (
     validate_evidence_details,
     validate_authoritative_evidence,
 )
-from workflow_core.events import WorkflowEvent, WorkflowEventStore
-from workflow_core.models import thaw
-from workflow_core.identity import AcceptanceIdentity
+from workflow_core.ext import (
+    AcceptanceIdentity,
+    WorkflowEvent,
+    WorkflowEventStore,
+    thaw,
+)
 
 
 EvidenceSourceResolver = Callable[[str], Mapping[str, Any] | None]

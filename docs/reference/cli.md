@@ -179,12 +179,32 @@ Exit codes: install 0 installed or chained, 1 occupied, 2 hooks directory missin
 ## `gin-workflow reviewer`
 
 ```
-gin-workflow reviewer --base SHA --implementer PROVIDER [--tier low|medium|high]
+gin-workflow reviewer --base SHA --implementer PROVIDER [--tier low|medium|high] [--repository DIR] [--json]
 ```
 
-Called by the `review` skill to pick the reviewer; you do not need to run it. Prints the review tier and the reviewer routes in order. `--tier` is the track's reasoning (default `medium`); a `low` track whose diff since `--base` changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) is reviewed at `medium`. At `low` the implementer's provider may review in a fresh session; at `medium` and `high` it is excluded unless `routing.review.require_independent` is false.
+Called by the `review` skill to pick the reviewer; you do not need to run it. Prints the review tier and the reviewer routes in order. `--tier` is the track's reasoning (default `medium`); a `low` track whose diff since `--base` changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) is reviewed at `medium`. The reviewer runs on the main harness at the tier's default model: `actor_id` is `reviewer:<harness>`, or `reviewer:<harness>:session-<id>` (a fresh session) when the harness is also the implementer. `routing.review.independence: provider` adds a warning, because only gin-orchestrator can route the review to another harness. With `--json`, prints the route document `{"tier", "reason", "warnings", "routes": [{"provider", "model", "effort", "actor_id"}]}`.
 
-Exit codes: 0 routes printed; 2 bad `--base`, no route for the tier, or no independent route.
+Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, or an unknown harness.
+
+## `gin-workflow routes`
+
+```
+gin-workflow routes resolve --workflow-id ID --tracks FILE [--repository DIR] [--json]
+```
+
+Resolves execution routes for plan tracks: every track goes to the main harness at its tier's default model. With `--json`, outputs `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. On success, writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`. If any track has an unknown role or invalid reasoning, writes nothing, lists diagnostics, and exits 2.
+
+Exit codes: 0 all routes resolved and manifest written; 2 unresolved tracks or invalid arguments.
+
+## `gin-workflow paths`
+
+```
+gin-workflow paths [--json]
+```
+
+Prints the path of the directory holding `workflow_core` (`{"lib_dir": "..."}`) for external tools and extension launchers.
+
+Exit codes: 0 ok.
 
 ## `gin-workflow task`
 
