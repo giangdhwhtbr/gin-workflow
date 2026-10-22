@@ -58,7 +58,11 @@ def _inspect_required_providers(
 
 
 def doctor_report(root: Path, config: Mapping[str, Any], *, probe: bool) -> dict[str, Any]:
-    """Generate doctor report for provider configuration and health probes."""
+    """Report provider mappings and, with probe, model health.
+
+    `config` is the effective configuration; its `harness` must already be resolved
+    (effective or detected), because `main_harness` roles are checked against it.
+    """
     root = main_checkout(Path(root).resolve())
     yaml = require_yaml()
     detected_harness = config.get("harness")

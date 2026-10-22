@@ -385,6 +385,10 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         h_exe = resolve_harness_executable(DEFAULT_HARNESS_MODELS[h]["executable"], provider=h)
     checks["harness"] = bool(h_exe)
     checks_details["harness"] = {"name": h, "executable": h_exe}
+    if not h_exe:
+        backend_actions.append(
+            f"main harness {h}: executable not found on PATH" if h else "main harness is not configured; run gin-workflow setup init"
+        )
 
     hook_actions: list[str] = []
     if checks["configuration"]:

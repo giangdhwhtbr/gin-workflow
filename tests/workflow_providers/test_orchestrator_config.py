@@ -73,6 +73,21 @@ class OrchestratorConfigTests(unittest.TestCase):
         self.assertIn("extreme", err)
         self.assertIn("codex", err)
 
+    def test_validation_reports_malformed_role_lists_as_value_errors(self):
+        config = {
+            "harness": "claude",
+            "orchestrator": {
+                "concurrency": {"codex": 1},
+                "roles": {
+                    "backend": {"preferred": "codex"},
+                    "review": {"preferred": ["codex"], "by_tier": ["codex"]},
+                },
+            },
+        }
+        with self.assertRaises(ValueError) as ctx:
+            validate_orchestrator_config(config)
+        self.assertNotIn("unknown provider 'c'", str(ctx.exception))
+
     def test_routes_resolve_from_the_orchestrator_section(self):
         legacy = {
             "schema_version": "2.7",

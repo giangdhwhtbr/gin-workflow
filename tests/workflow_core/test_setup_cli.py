@@ -435,6 +435,16 @@ class SetupCliTests(unittest.TestCase):
                 str(fake_claude.resolve()),
             )
 
+    def test_doctor_explains_a_missing_main_harness_executable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+            with mock.patch.object(setup_service, "resolve_harness_executable", return_value=None):
+                report = setup_service.doctor(repository)
+            self.assertFalse(report["checks"]["harness"])
+            self.assertIn("main harness claude: executable not found on PATH", report["actions"])
+
     def test_doctor_reports_verify_commands_project_stage_and_codegraph_read_only(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
             repository = Path(directory)

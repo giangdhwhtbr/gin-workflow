@@ -101,7 +101,7 @@ def roles(config: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def validate_orchestrator_config(config: Mapping[str, Any]) -> None:
-    """Validate the orchestrator configuration mapping, reporting all problems."""
+    """Raise ValueError naming the first schema error and every unknown role provider."""
     orchestrator = config.get("orchestrator")
     if orchestrator is None:
         return
@@ -126,12 +126,10 @@ def validate_orchestrator_config(config: Mapping[str, Any]) -> None:
         for role_name, role_def in roles_map.items():
             if not isinstance(role_def, Mapping):
                 continue
-            tiers = role_def.get("by_tier") or {}
-            all_providers: list[str] = [
-                *role_def.get("preferred", ()),
-                *role_def.get("fallback", ()),
-                *(p for tier_list in tiers.values() if isinstance(tier_list, (list, tuple)) for p in tier_list),
-            ]
+            tiers = role_def.get("by_tier")
+            lists = [role_def.get("preferred"), role_def.get("fallback"),
+                     *(tiers.values() if isinstance(tiers, Mapping) else ())]
+            all_providers = [p for items in lists if isinstance(items, list) for p in items]
             for provider in all_providers:
                 if provider not in known_providers:
                     problems.append(
