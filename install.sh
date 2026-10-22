@@ -496,7 +496,7 @@ install_launcher() {
   local launcher_target="$install_dir/$name"
   local launcher_link="${HOME}/.local/bin/$name"
   case "$name" in
-    gin-workflow) packages="workflow_core workflow_providers review_ledger" ;;
+    gin-workflow) packages="workflow_core review_ledger" ;;
     gin-qa) packages=gin_qa ;;
   esac
 

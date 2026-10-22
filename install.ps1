@@ -375,7 +375,7 @@ function Install-Launcher {
     $installDirectory = Join-Path $managedRoot $Version
     $launcherTarget = Join-Path $installDirectory $Name
     $launcherShim = Join-Path $UserHome ".local/bin/$Name.cmd"
-    $packages = if ($Name -eq 'gin-workflow') { @('workflow_core', 'workflow_providers', 'review_ledger') } else { @('gin_qa') }
+    $packages = if ($Name -eq 'gin-workflow') { @('workflow_core', 'review_ledger') } else { @('gin_qa') }
 
     if (Test-Path -LiteralPath $launcherShim) {
         if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot -Name $Name)) {

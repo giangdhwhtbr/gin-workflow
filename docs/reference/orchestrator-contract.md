@@ -1,8 +1,8 @@
 # Orchestrator contract
 
-`workflow_core` reaches the worker library (`workflow_providers`) only through this versioned CLI contract. Until the repository split the commands run as `python -m workflow_providers <command>`; after it, as `gin-orchestrator <command>`. Every command prints one JSON document on stdout and exits 0 on success.
+`workflow_core` reaches the worker library (`gin_orchestrator`, in `plugins/gin-orchestrator`) only through this versioned CLI contract. The commands run as `gin-orchestrator <command>`; from a checkout, `python -m gin_orchestrator <command>` with both `src/scripts` directories on `PYTHONPATH` is the same CLI. Every command prints one JSON document on stdout and exits 0 on success.
 
-`workflow_providers.__main__.CONTRACT_VERSION` is `1`.
+`gin_orchestrator.cli.CONTRACT_VERSION` is `1`.
 
 ## `version`
 
@@ -34,7 +34,7 @@ health --provider {claude,codex,antigravity,opencode} --executable PATH [--model
 models --provider P --json
 ```
 
-Prints the list `workflow_providers.native_cli.list_models(P)` returns:
+Prints the list `gin_orchestrator.native_cli.list_models(P)` returns:
 
 ```json
 [{"id": "opus", "label": "Opus", "description": "alias tracks the latest model", "reasoning_levels": []}]
@@ -44,6 +44,6 @@ An unknown provider prints `[]`.
 
 ## Lookup and mismatch rule
 
-The client (`workflow_core.orchestrator_client`) looks for `gin-orchestrator` on `PATH`. If it is absent, the client runs the bundled `python -m workflow_providers` with the scripts directory on `PYTHONPATH`.
+The client (`workflow_core.orchestrator_client`) looks for `gin-orchestrator` on `PATH`. If it is absent, the client raises `orchestrator_missing`; `models` then returns `[]`.
 
-Before any other command the client checks `version` once per process and compares `contract_version` with its own constant. A mismatch raises `orchestrator_contract_mismatch` and never falls back to the bundled copy; a command that cannot be run or parsed raises `orchestrator_failed`. Only a passing check is cached, so a failed check is retried on the next call.
+Before any other command the client checks `version` once per process and compares `contract_version` with its own constant. A mismatch raises `orchestrator_contract_mismatch` and never falls back; a command that cannot be run or parsed raises `orchestrator_failed`. Only a passing check is cached, so a failed check is retried on the next call.

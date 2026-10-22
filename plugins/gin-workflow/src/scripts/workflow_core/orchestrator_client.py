@@ -1,34 +1,32 @@
-"""The orchestrator CLI contract (v1), run as `gin-orchestrator` from PATH or the bundled `python -m workflow_providers`."""
+"""The orchestrator CLI contract (v1), run as `gin-orchestrator` from PATH."""
 
 from __future__ import annotations
 
 import functools
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 from typing import Any
 
 CONTRACT_VERSION = 1
+MISSING = "orchestrator_missing"
 MISMATCH = "orchestrator_contract_mismatch"
 FAILED = "orchestrator_failed"
 HEALTH_PROVIDERS = frozenset({"claude", "codex", "antigravity", "opencode"})
-_SCRIPTS = Path(__file__).resolve().parents[1]
 
 
 class OrchestratorError(Exception):
-    """The orchestrator cannot be used; the message is MISMATCH or FAILED."""
+    """The orchestrator cannot be used; the message is MISSING, MISMATCH or FAILED."""
 
 
 def _run(argv: list[str], *, timeout: float) -> Any:
     installed = shutil.which("gin-orchestrator")
-    command = [installed] if installed else [sys.executable, "-m", "workflow_providers"]
-    path = os.pathsep.join(filter(None, (str(_SCRIPTS), os.environ.get("PYTHONPATH"))))
+    if not installed:
+        raise OrchestratorError(MISSING)
     try:
-        done = subprocess.run([*command, *argv, "--json"], capture_output=True, text=True, timeout=timeout,
-                              check=False, env={**os.environ, "PYTHONPATH": path})
+        done = subprocess.run([installed, *argv, "--json"], capture_output=True, text=True, timeout=timeout,
+                              check=False)
         if done.returncode == 0:
             return json.loads(done.stdout)
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):

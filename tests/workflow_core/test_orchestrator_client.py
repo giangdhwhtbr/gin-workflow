@@ -19,9 +19,15 @@ class OrchestratorClientTests(unittest.TestCase):
     def setUp(self) -> None:
         orchestrator_client._checked.cache_clear()
 
-    def test_bundled_health_reports_unavailable_for_nonexistent(self) -> None:
-        result = orchestrator_client.health("codex", "/nonexistent")
-        self.assertFalse(result["available"])
+    def test_missing_orchestrator_raises_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as empty_dir:
+            with mock.patch.dict(os.environ, {"PATH": empty_dir}):
+                with self.assertRaises(orchestrator_client.OrchestratorError) as ctx:
+                    orchestrator_client.health("codex", "/nonexistent")
+                self.assertEqual("orchestrator_missing", str(ctx.exception))
+
+                orchestrator_client._checked.cache_clear()
+                self.assertEqual([], orchestrator_client.models("codex"))
 
     def test_contract_mismatch_raises_orchestrator_error(self) -> None:
         with tempfile.TemporaryDirectory() as fake_dir:
@@ -58,7 +64,7 @@ class OrchestratorClientTests(unittest.TestCase):
                 orchestrator_client._checked.cache_clear()
                 self.assertEqual([], orchestrator_client.models("codex"))
 
-    def test_path_orchestrator_precedence_over_bundled(self) -> None:
+    def test_path_orchestrator_serves_models(self) -> None:
         with tempfile.TemporaryDirectory() as fake_dir:
             stub = Path(fake_dir) / "gin-orchestrator"
             stub.write_text(

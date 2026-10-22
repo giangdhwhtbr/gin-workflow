@@ -20,8 +20,8 @@ flowchart LR
         HK[hooks/hooks.json: scripts/safety-check.sh, post-edit.sh]
         CLI[gin-workflow CLI: workflow_core]
         RL[review-ledger.py: review_ledger]
-        PRV[workflow_providers: routed workers]
     end
+    PRV[gin-orchestrator plugin: gin_orchestrator routed workers]
     subgraph Repo["Your repository"]
         CFG[.agent-workflow/ config, generated, runtime/events.jsonl]
         PLN[.planning/ specs, plans, reviews, worktrees]

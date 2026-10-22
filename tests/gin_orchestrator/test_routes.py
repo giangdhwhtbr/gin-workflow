@@ -1,0 +1,280 @@
+from pathlib import Path
+import tempfile
+import unittest
+
+from tests.gin_orchestrator import paths  # noqa: F401
+
+from workflow_core.assignments import (  # noqa: E402
+    AssignmentManifest,
+    AssignmentRequest,
+    AssignmentResolutionError,
+    RouteCandidate,
+    write_assignment_manifest,
+)
+from workflow_core.models import EffectiveConfig  # noqa: E402
+from workflow_core.provider_config import ProviderModelConfig  # noqa: E402
+from gin_orchestrator.routes import (  # noqa: E402
+    resolve_all_assignments,
+    resolve_assignment,
+)
+
+
+def effective(repository: Path) -> EffectiveConfig:
+    return EffectiveConfig(
+        {
+            "schema_version": "2.2",
+            "harness": "codex",
+            "routing": {
+                "roles": {
+                    "backend": {
+                        "preferred": ["claude", "claude"],
+                        "fallback": ["main_harness", "codex"],
+                    }
+                }
+            },
+        },
+        repository,
+    )
+
+
+def local():
+    return {
+        "claude": ProviderModelConfig(
+            "claude",
+            "claude",
+            {"low": "haiku", "medium": "sonnet", "high": "opus"},
+        ),
+        "codex": ProviderModelConfig(
+            "codex",
+            "codex",
+            {"low": "mini", "medium": "coding", "high": "reasoning"},
+        ),
+    }
+
+
+class ProviderRoutesTests(unittest.TestCase):
+    def test_batch_resolution_fails_before_any_manifest_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            requests = (
+                AssignmentRequest("first", "backend", "high", "codex", "wf-batch"),
+                AssignmentRequest("second", "backend", "high", "missing", "wf-batch"),
+            )
+
+            with self.assertRaisesRegex(
+                AssignmentResolutionError, "missing local provider mapping: missing"
+            ):
+                resolve_all_assignments(requests, effective(repository), local())
+
+            self.assertFalse(
+                (repository / ".agent-workflow/runtime/assignments").exists()
+            )
+
+    def test_batch_resolution_reports_all_machine_local_errors_in_task_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            requests = (
+                AssignmentRequest("first", "backend", "high", "missing-a", "wf-batch"),
+                AssignmentRequest("second", "backend", "high", "missing-b", "wf-batch"),
+            )
+            only_claude = {"claude": local()["claude"]}
+
+            with self.assertRaises(AssignmentResolutionError) as caught:
+                resolve_all_assignments(
+                    requests, effective(repository), only_claude
+                )
+
+        message = str(caught.exception)
+        self.assertLess(message.index("first"), message.index("second"))
+        self.assertIn("missing local provider mapping: missing-a", message)
+        self.assertIn("missing local provider mapping: missing-b", message)
+        self.assertIn("missing local provider mapping: codex", message)
+
+    def test_public_assignment_boundaries_reject_non_antigravity_provider_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            codex_default = {
+                **local(),
+                "codex": ProviderModelConfig(
+                    "codex", "codex", {
+                        "low": "provider_default",
+                        "medium": "provider_default",
+                        "high": "provider_default",
+                    }
+                ),
+            }
+            request = AssignmentRequest(
+                "api", "backend", "high", "codex", "wf-batch"
+            )
+
+            with self.assertRaisesRegex(
+                AssignmentResolutionError,
+                "provider_default is only supported for antigravity",
+            ):
+                resolve_assignment(request, effective(repository), codex_default)
+            with self.assertRaisesRegex(
+                AssignmentResolutionError,
+                "provider_default is only supported for antigravity",
+            ):
+                resolve_all_assignments(
+                    (request,), effective(repository), codex_default
+                )
+            with self.assertRaisesRegex(
+                AssignmentResolutionError,
+                "provider_default is only supported for antigravity",
+            ):
+                RouteCandidate("codex", "provider_default", False)
+
+    def test_batch_resolution_returns_manifests_only_after_every_route_resolves(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            requests = (
+                AssignmentRequest("first", "backend", "high", "codex", "wf-batch"),
+                AssignmentRequest("second", "backend", "medium", "codex", "wf-batch"),
+            )
+
+            manifests = resolve_all_assignments(
+                requests, effective(repository), local()
+            )
+
+        self.assertEqual(("first", "second"), tuple(item.request.task_id for item in manifests))
+        self.assertEqual(("wf-batch", "wf-batch"), tuple(item.workflow_id for item in manifests))
+
+    def test_resolver_expands_main_harness_deduplicates_and_preserves_same_tier(self):
+        with tempfile.TemporaryDirectory() as directory:
+            routes = resolve_assignment(
+                AssignmentRequest("api", "backend", "high", "codex"),
+                effective(Path(directory)),
+                local(),
+            )
+
+        self.assertEqual(
+            (("claude", "opus", False), ("codex", "reasoning", True)),
+            tuple((route.provider, route.model, route.fallback) for route in routes),
+        )
+
+    def test_resolver_by_tier_replaces_preferred_for_that_tier_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            role = {"preferred": ["claude"], "by_tier": {"low": ["codex"]}}
+            config = EffectiveConfig({"harness": "codex", "routing": {"roles": {"backend": role}}}, Path(directory))
+            low = resolve_assignment(AssignmentRequest("api", "backend", "low", "codex"), config, local())
+            high = resolve_assignment(AssignmentRequest("api", "backend", "high", "codex"), config, local())
+
+        self.assertEqual(
+            (("codex", "mini", False),),
+            tuple((route.provider, route.model, route.fallback) for route in low),
+        )
+        self.assertEqual("claude", high[0].provider)
+
+    def test_resolver_rejects_missing_role_provider_mapping_and_invalid_tier(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = effective(Path(directory))
+            with self.assertRaisesRegex(AssignmentResolutionError, "unknown provider role"):
+                resolve_assignment(AssignmentRequest("api", "frontend", "high", "codex"), config, local())
+            with self.assertRaisesRegex(AssignmentResolutionError, "missing local provider mapping"):
+                resolve_assignment(AssignmentRequest("api", "backend", "high", "codex"), config, {"claude": local()["claude"]})
+            with self.assertRaisesRegex(AssignmentResolutionError, "reasoning"):
+                resolve_assignment(AssignmentRequest("api", "backend", "extreme", "codex"), config, local())
+
+    def test_manifest_is_immutable_deterministic_and_written_under_runtime_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            request = AssignmentRequest("api-auth", "backend", "high", "codex")
+            routes = resolve_assignment(request, effective(repository), local())
+            manifest = AssignmentManifest("wf-1", request, routes)
+
+            first = write_assignment_manifest(repository, manifest)
+            content = first.read_bytes()
+            second = write_assignment_manifest(repository, manifest)
+
+            self.assertEqual(
+                repository / ".agent-workflow/runtime/assignments/wf-1.yaml",
+                first,
+            )
+            self.assertEqual(content, second.read_bytes())
+            self.assertIn(b"provider_role: backend", content)
+            self.assertIn(b"provider: claude", content)
+            self.assertIn(b"model: reasoning", content)
+            with self.assertRaises((AttributeError, TypeError)):
+                manifest.candidates[0].provider = "changed"
+
+            other_request = AssignmentRequest("ui", "backend", "medium", "codex")
+            other = AssignmentManifest(
+                "wf-1",
+                other_request,
+                resolve_assignment(other_request, effective(repository), local()),
+            )
+            write_assignment_manifest(repository, other)
+            loaded = __import__("yaml").safe_load(first.read_text(encoding="utf-8"))
+            self.assertEqual(
+                ["api-auth", "ui"],
+                [assignment["task_id"] for assignment in loaded["assignments"]],
+            )
+
+    def test_resolve_assignment_treats_main_harness_without_local_mapping_as_default_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            cfg = EffectiveConfig(
+                {
+                    "schema_version": "2.2",
+                    "harness": "claude",
+                    "provider_mode": "single",
+                    "routing": {
+                        "roles": {
+                            "backend": {
+                                "preferred": ["main_harness"],
+                            }
+                        }
+                    },
+                },
+                repository,
+            )
+            for harness, expected_model, expected_effort in (
+                ("claude", "sonnet", None),
+                ("antigravity", "provider_default", None),
+                ("opencode", "provider_default", None),
+                ("codex", "gpt-6-astra", "medium"),
+            ):
+                with self.subTest(harness=harness):
+                    request = AssignmentRequest("task-1", "backend", "medium", harness, "wf-1")
+                    candidates = resolve_assignment(request, cfg, {})
+                    self.assertEqual(1, len(candidates))
+                    self.assertEqual(harness, candidates[0].provider)
+                    self.assertEqual(expected_model, candidates[0].model)
+                    self.assertEqual(expected_effort, candidates[0].effort)
+
+    def test_resolve_assignment_falls_back_to_harness_default_even_when_other_providers_present(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            cfg = EffectiveConfig(
+                {
+                    "schema_version": "2.2",
+                    "harness": "claude",
+                    "provider_mode": "single",
+                    "routing": {
+                        "roles": {
+                            "backend": {
+                                "preferred": ["main_harness"],
+                            }
+                        }
+                    },
+                },
+                repository,
+            )
+            # local has opencode configured, but NOT claude
+            other_local = {
+                "opencode": ProviderModelConfig(
+                    provider="opencode",
+                    executable="opencode",
+                    models={"medium": "provider_default"},
+                )
+            }
+            request = AssignmentRequest("task-1", "backend", "medium", "claude", "wf-1")
+            candidates = resolve_assignment(request, cfg, other_local)
+            self.assertEqual(1, len(candidates))
+            self.assertEqual("claude", candidates[0].provider)
+            self.assertEqual("sonnet", candidates[0].model)
+
+
+if __name__ == "__main__":
+    unittest.main()

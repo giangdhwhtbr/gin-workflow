@@ -7,9 +7,10 @@ ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "plugins/gin-workflow/src"
 SCRIPTS = PLUGIN / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ROOT / "plugins/gin-orchestrator/src/scripts"))
 
 from workflow_core.configuration import require_yaml, validate_portable_config  # noqa: E402
-from workflow_providers.local_config import validate_local_config  # noqa: E402
+from gin_orchestrator.local_config import validate_local_config  # noqa: E402
 
 
 class ConfigExampleTests(unittest.TestCase):
