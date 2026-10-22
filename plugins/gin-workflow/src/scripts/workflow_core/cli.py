@@ -16,7 +16,7 @@ from .project import RIGORS, SHAPES, STAGES
 from .setup_service import COMMANDS, SetupError
 
 
-CLI_VERSION = "2.7"
+CLI_VERSION = "2.8"
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -42,7 +42,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--project-stage", choices=STAGES)
     parser.add_argument("--project-shape", choices=SHAPES)
     parser.add_argument("--rigor", choices=RIGORS)
-    parser.add_argument("--provider-mode", choices=("single", "multi"))
+    parser.add_argument("--task-tracking", choices=("markdown", "beads"))
     parser.add_argument("--monorepo", action="store_true")
     parser.add_argument("--stack-intent", default="")
     parser.add_argument("--provider", choices=("claude", "codex", "antigravity", "opencode"))

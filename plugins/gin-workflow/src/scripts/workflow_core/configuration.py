@@ -24,8 +24,8 @@ class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.7"
-SUPPORTED_SETUP_CLI_VERSION = "2.7"
+SUPPORTED_WORKFLOW_VERSION = "2.8"
+SUPPORTED_SETUP_CLI_VERSION = "2.8"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {
@@ -178,6 +178,31 @@ def _validate_portable(value: object, path: tuple[str, ...] = ()) -> None:
             )
 
 
+WORKER_ROUTING_KEYS = ("concurrency", "circuit_breaker", "queue", "worker")
+
+
+def role_providers(role: Mapping[str, Any]) -> list[str]:
+    """Every provider a routing role names: preferred, fallback, then by_tier."""
+    tiers = role.get("by_tier") or {}
+    return [*role.get("preferred", ()), *role.get("fallback", ()), *(p for tier in tiers.values() for p in tier)]
+
+
+def legacy_worker_routing(config: Mapping[str, Any]) -> bool:
+    """Whether `routing:` still holds worker routing that schema 2.8 keeps under `orchestrator:`."""
+    routing = config.get("routing")
+    if not isinstance(routing, Mapping):
+        return False
+    # simplified: the built-in worker defaults stay under routing: until gin-orchestrator owns them; they are not legacy.
+    defaults = BUILT_IN_DEFAULTS.get("routing", {})
+    if any(key in routing and routing[key] != defaults.get(key) for key in WORKER_ROUTING_KEYS):
+        return True
+    roles = routing.get("roles")
+    return isinstance(roles, Mapping) and any(
+        provider != "main_harness"
+        for role in roles.values() if isinstance(role, Mapping) for provider in role_providers(role)
+    )
+
+
 def validate_portable_config(config: Mapping[str, Any]) -> None:
     providers = config.get("providers", {})
     task_tracking = providers.get("task_tracking") if isinstance(providers, Mapping) else None
@@ -203,18 +228,24 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
             )
     routing = config.get("routing", {})
     if isinstance(routing, Mapping):
-        concurrency = routing.get("concurrency", {})
-        known_providers = set(concurrency) if isinstance(concurrency, Mapping) else set()
-        harness = config.get("harness")
-        if isinstance(harness, str) and harness:
-            known_providers.add(harness)
         roles = routing.get("roles", {})
-        if isinstance(roles, Mapping):
+        if str(config.get("schema_version")) == "2.8":
+            if legacy_worker_routing(config):
+                raise ConfigValidationError(
+                    "worker routing (routing.concurrency, queue, worker, circuit_breaker, or a role naming a "
+                    "provider other than main_harness) belongs under orchestrator:; "
+                    "run gin-workflow setup update --to-version 2.8 --approve"
+                )
+        elif isinstance(roles, Mapping):
+            concurrency = routing.get("concurrency", {})
+            known_providers = set(concurrency) if isinstance(concurrency, Mapping) else set()
+            harness = config.get("harness")
+            if isinstance(harness, str) and harness:
+                known_providers.add(harness)
             for role_name, role in roles.items():
                 if not isinstance(role, Mapping):
                     continue
-                tiers = role.get("by_tier") or {}
-                for provider in (*role.get("preferred", ()), *role.get("fallback", ()), *(p for t in tiers.values() for p in t)):
+                for provider in role_providers(role):
                     if provider != "main_harness" and provider not in known_providers:
                         raise ConfigValidationError(
                             f"unknown routing provider {provider!r} in role {role_name!r}"

@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import difflib
+import os
 from pathlib import Path
 import shutil
 from typing import Any, Iterable, Mapping
 
-from .atomic import atomic_write_many
+from .atomic import atomic_write_many, atomic_write_bytes
 from .bundles import export_bundle, verify_bundle
 from .checkout import main_checkout
-from .configuration import require_yaml, resolve_effective_config, validate_portable_config
+from .configuration import legacy_worker_routing, require_yaml, resolve_effective_config, validate_portable_config
 from .project import preset_assignments, project_settings
 from .project_detect import detect_project
 from .migrations import (
@@ -91,9 +92,11 @@ def _merged_provider_gitignore(path: Path) -> bytes:
     lines = existing.splitlines()
     if "providers.local.yaml" not in lines:
         lines.append("providers.local.yaml")
+    if "orchestrator.local.yaml" not in lines:
+        lines.append("orchestrator.local.yaml")
     if "runtime/" not in lines:
         lines.append("runtime/")
-    return (("\n".join(lines) + "\n") if lines else "providers.local.yaml\nruntime/\n").encode("utf-8")
+    return (("\n".join(lines) + "\n") if lines else "providers.local.yaml\norchestrator.local.yaml\nruntime/\n").encode("utf-8")
 
 
 
@@ -462,9 +465,21 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
     config = root / ".agent-workflow/config.yaml"
     checks["initialized"] = config.is_file()
     effective_cfg: dict[str, Any] = {}
+    backend_actions: list[str] = []
     if config.is_file():
         effective_cfg = resolve_effective_config(root, write=False).config.to_dict()
         checks["configuration"] = True
+        user_cfg = require_yaml().safe_load(config.read_text(encoding="utf-8")) or {}
+        providers_block = user_cfg.get("providers")
+        if (root / ".beads").is_dir() and not (isinstance(providers_block, Mapping) and "task_tracking" in providers_block):
+            backend_actions.append(
+                ".beads exists but providers.task_tracking is unset, so tasks use markdown; to keep Beads run "
+                "gin-workflow setup configure --set providers.task_tracking=beads --approve"
+            )
+        if str(user_cfg.get("schema_version", "")) != "2.8" and legacy_worker_routing(user_cfg):
+            backend_actions.append(
+                "worker routing under routing: is ignored; run gin-workflow setup update --to-version 2.8 --approve"
+            )
 
     provider_actions: list[str] = []
     detected_harness = effective_cfg.get("harness") or detect(root).get("harness")
@@ -613,7 +628,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             graph["suggestion"] = "codegraph index is older than HEAD; run `codegraph sync`"
         checks_details["codegraph"] = graph
 
-    actions: list[str] = [*provider_actions, *hook_actions]
+    actions: list[str] = [*provider_actions, *backend_actions, *hook_actions]
     checks["review_ledgers"] = True
     planning_dir = root / ".planning"
     if planning_dir.is_dir():
@@ -778,19 +793,38 @@ def update(
         additional_writes[root / ".agent-workflow/providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
         ignore_path = root / ".agent-workflow/.gitignore"
         additional_writes[ignore_path] = _merged_provider_gitignore(ignore_path)
-    return apply_migration(
+    res = apply_migration(
         root,
         target_version=target_version,
         prepared_config=migrated,
         additional_writes=additional_writes,
     )
+    if target_version == "2.8":
+        old_local = root / ".agent-workflow/providers.local.yaml"
+        new_local = root / ".agent-workflow/orchestrator.local.yaml"
+        if old_local.is_file() and not new_local.exists():
+            os.replace(old_local, new_local)
+            res.setdefault("actions", []).append("rename .agent-workflow/providers.local.yaml to orchestrator.local.yaml")
+            ignore_path = root / ".agent-workflow/.gitignore"
+            atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
+    return res
 
 
 def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **_: Any) -> dict[str, Any]:
     _dependencies()
     if backup is None:
         raise SetupError("rollback requires an explicit --backup target")
-    return rollback_migration(repository, backup, dry_run=dry_run)
+    result = rollback_migration(repository, backup, dry_run=dry_run)
+    if not dry_run:
+        root = Path(repository).resolve()
+        restored_version = str(result.get("restored_version", ""))
+        if restored_version != "2.8":
+            old_local = root / ".agent-workflow/providers.local.yaml"
+            new_local = root / ".agent-workflow/orchestrator.local.yaml"
+            if new_local.is_file() and not old_local.exists():
+                os.replace(new_local, old_local)
+                result.setdefault("actions", []).append("rename .agent-workflow/orchestrator.local.yaml to providers.local.yaml")
+    return result
 
 
 def export(repository: Path, *, output: Path | None, dry_run: bool = False, **_: Any) -> dict[str, Any]:
@@ -883,7 +917,7 @@ def harness_override(
 
 
 def preset(repository: Path, *, project_stage: str | None = None, project_shape: str | None = None,
-           rigor: str | None = None, provider_mode: str | None = None, monorepo: bool = False,
+           rigor: str | None = None, task_tracking: str | None = None, monorepo: bool = False,
            stack_intent: str = "", **_: Any) -> dict[str, Any]:
     from .rules import load_plugin_packs, plugin_rules_dir
     from .rules_checks import propose_packs, tool_check_report
@@ -899,7 +933,7 @@ def preset(repository: Path, *, project_stage: str | None = None, project_shape:
     try:
         assignments = preset_assignments(
             stage=stage, shape=project_shape or detected["shape"],
-            rigor=rigor or detected["suggested_rigor"], provider_mode=provider_mode or "single",
+            rigor=rigor or detected["suggested_rigor"], task_tracking=task_tracking or "markdown",
             monorepo=monorepo or detected["monorepo"], stack_intent=stack_intent,
             verify_commands=detected["verify_commands"], packages=tuple(detected["packages"]),
             rule_packs=rule_packs, layout=layout)

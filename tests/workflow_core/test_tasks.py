@@ -39,10 +39,16 @@ class TaskDispatchTests(unittest.TestCase):
         done = gw(self.root, "setup", "init", "--harness", "claude", "--non-interactive", "--approve", *sets)
         self.assertEqual(0, done.returncode, done.stdout + done.stderr)
 
-    def test_backend_defaults_to_beads_without_setup_or_setting(self):
-        self.assertEqual("beads", tasks.backend(self.root))
+    def test_backend_defaults_to_markdown(self):
         self.init()
-        self.assertEqual("beads", tasks.backend(self.root))
+        self.assertEqual("markdown", tasks.backend(self.root))
+        self.assertEqual("markdown", tasks.backend_name({}))
+
+    def test_backend_defaults_to_beads_with_a_team(self):
+        self.assertEqual("beads", tasks.backend_name({"team": {"members": {}}}))
+
+    def test_backend_without_setup_is_markdown(self):
+        self.assertEqual("markdown", tasks.backend(self.root))
 
     def test_beads_passes_argv_through_to_bd_unchanged(self):
         argv = ["update", "x-1", "--status", "in_progress", "--json"]
@@ -145,6 +151,9 @@ class ExternalDependencyTests(unittest.TestCase):
             subprocess.run(["git", "init", "-q"], cwd=root, check=True)
             self.bd(root, "init", "--prefix", prefix, "-q")
         self.bd(self.consumer, "config", "set", "external_projects.prov", "../prov/.beads")
+        (self.consumer / ".claude").mkdir(exist_ok=True)
+        gw(self.consumer, "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
+           "--set", "providers.task_tracking=beads")
 
     def tearDown(self):
         self._directory.cleanup()

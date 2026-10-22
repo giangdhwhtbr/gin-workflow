@@ -44,7 +44,7 @@ class TestSchema26(unittest.TestCase):
         self.assertEqual(("sdd", "pr"), (settings.layout, settings.spec_review))
 
     def test_preset_assignment_sets_layout_only_when_given(self):
-        common = {"stage": "greenfield", "shape": "backend", "rigor": "easy", "provider_mode": "single"}
+        common = {"stage": "greenfield", "shape": "backend", "rigor": "easy", "task_tracking": "markdown"}
         self.assertIn('artifacts.layout="sdd"', preset_assignments(**common, layout="sdd"))
         self.assertFalse(any(a.startswith("artifacts.layout") for a in preset_assignments(**common)))
 

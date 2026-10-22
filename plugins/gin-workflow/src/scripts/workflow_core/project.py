@@ -25,9 +25,9 @@ class ProjectSettings:
     rigor: str = "standard"
     stack_intent: str = ""
     packages: tuple[Mapping[str, Any], ...] = ()
-    provider_mode: str = "multi"
+    provider_mode: str = "single"
     verify_commands: Mapping[str, str] = field(default_factory=dict)
-    independence: str = "provider"
+    independence: str = "session"
     worktree: str = "parallel"
     review: str = "independent"
     review_ledger: bool = False
@@ -63,9 +63,9 @@ def project_settings(config: Mapping[str, Any]) -> ProjectSettings:
         rigor=rigor,
         stack_intent=str(project.get("stack_intent", "")),
         packages=tuple(project.get("packages", ()) or ()),
-        provider_mode=str(config.get("provider_mode", "multi")),
+        provider_mode=str(config.get("provider_mode", "single")),
         verify_commands=commands,
-        independence=str(review.get("independence", "provider")),
+        independence=str(review.get("independence", "session")),
         worktree=str(project.get("worktree", preset["worktree"])),
         review=str(project.get("review", preset["review"])),
         review_ledger=bool(project.get("review_ledger", preset["review_ledger"])),
@@ -85,20 +85,22 @@ ROLES_BY_SHAPE = {
 }
 
 
-def preset_assignments(*, stage: str, shape: str, rigor: str, provider_mode: str, monorepo: bool = False,
-                       stack_intent: str = "", verify_commands: Mapping[str, str] | None = None,
+def preset_assignments(*, stage: str, shape: str, rigor: str, task_tracking: str = "markdown",
+                       monorepo: bool = False, stack_intent: str = "",
+                       verify_commands: Mapping[str, str] | None = None,
                        packages: tuple[Mapping[str, Any], ...] | list = (),
                        rule_packs: Sequence[str] = (), layout: str = "") -> list[str]:
     """Explicit `--set` assignments for setup; skills never infer presets at runtime."""
-    if stage not in STAGES or shape not in SHAPES or rigor not in RIGORS or provider_mode not in ("single", "multi"):
-        raise ValueError(f"invalid project preset: {stage=} {shape=} {rigor=} {provider_mode=}")
+    if stage not in STAGES or shape not in SHAPES or rigor not in RIGORS or task_tracking not in ("markdown", "beads"):
+        raise ValueError(f"invalid project preset: {stage=} {shape=} {rigor=} {task_tracking=}")
     preset = RIGOR_PRESETS[rigor]
     values: dict[str, Any] = {
         "project.stage": stage, "project.shape": shape, "project.monorepo": monorepo, "project.rigor": rigor,
         "project.worktree": preset["worktree"], "project.review": preset["review"],
-        "project.review_ledger": preset["review_ledger"], "provider_mode": provider_mode,
+        "project.review_ledger": preset["review_ledger"], "provider_mode": "single",
+        "providers.task_tracking": task_tracking,
         "routing.review.max_cycles": preset["max_cycles"],
-        "routing.review.independence": "session" if provider_mode == "single" else "provider",
+        "routing.review.independence": "session",
         "quick.max_files": 5,
     }
     if stack_intent:
@@ -111,10 +113,9 @@ def preset_assignments(*, stage: str, shape: str, rigor: str, provider_mode: str
         values["artifacts.layout"] = layout
     for key in VERIFY_KEYS:
         values[f"verify.checks.{key}"] = str((verify_commands or {}).get(key, ""))
-    if provider_mode == "single":
-        for role in ROLES_BY_SHAPE[shape]:
-            values[f"routing.roles.{role}"] = {"preferred": ["main_harness"]}
-        values["routing.review.role"] = "review"
-        values["routing.review.require_independent"] = True
-        values["routing.review.allow_self_review_fallback"] = False
+    for role in ROLES_BY_SHAPE[shape]:
+        values[f"routing.roles.{role}"] = {"preferred": ["main_harness"]}
+    values["routing.review.role"] = "review"
+    values["routing.review.require_independent"] = True
+    values["routing.review.allow_self_review_fallback"] = False
     return [f"{key}={json.dumps(value)}" for key, value in values.items()]

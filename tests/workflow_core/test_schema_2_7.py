@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, calls, fake_cli, make_team_repo, path_with, run_cli  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
-from workflow_core.migrations import CURRENT_VERSION, migrate_config  # noqa: E402
+from workflow_core.migrations import migrate_config  # noqa: E402
 from workflow_core.schemas import SUPPORTED_CONFIG_VERSIONS  # noqa: E402
 from workflow_core.team import load_team, validate_team  # noqa: E402
 
@@ -22,9 +22,8 @@ RAW = yaml.safe_load(TEAM.format(host="github"))["team"]
 
 
 class TestSchema27(unittest.TestCase):
-    def test_current_version_is_2_7_and_older_versions_load(self):
-        self.assertEqual("2.7", CURRENT_VERSION)
-        self.assertEqual(("2.3", "2.4", "2.5", "2.6", "2.7"), SUPPORTED_CONFIG_VERSIONS)
+    def test_2_7_and_older_versions_load(self):
+        self.assertEqual(("2.3", "2.4", "2.5", "2.6", "2.7"), SUPPORTED_CONFIG_VERSIONS[:5])
         for version in SUPPORTED_CONFIG_VERSIONS:
             with self.subTest(version=version):
                 validate_portable_config({"schema_version": version})

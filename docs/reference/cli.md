@@ -22,7 +22,7 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | Action | What it does | Writes |
 |---|---|---|
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
-| `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--provider-mode` (plus `--monorepo`, `--stack-intent`) into `--set` assignments | no |
+| `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--stack-intent`) into `--set` assignments | no |
 | `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode`) | no |
 | `init` | First setup: validates and writes `.agent-workflow/config.yaml`, `providers.local.yaml`, and generated files; `--dry-run` previews; also writes the gin-workflow block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone), and adds a missing block on an initialized repository with `--approve` | yes |
 | `configure` | Changes portable (`--set key=value`) or local (`--provider-set key=value`) settings | yes |

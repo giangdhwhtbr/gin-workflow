@@ -293,6 +293,9 @@ class WorkflowEndToEndTests(unittest.TestCase):
             portable = yaml.safe_load(
                 (ROOT / "plugins/gin-workflow/src/examples/config.full.yaml").read_text(encoding="utf-8")
             )
+            # The worker registry reads worker routing from `routing:` until it moves to `orchestrator:`.
+            orchestrator = portable.pop("orchestrator")
+            portable["routing"].update({**orchestrator, "roles": {**portable["routing"]["roles"], **orchestrator["roles"]}})
             portable["routing"]["circuit_breaker"]["failure_threshold"] = 1
             portable["providers"] = {
                 "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",

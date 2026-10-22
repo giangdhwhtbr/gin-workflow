@@ -11,6 +11,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import calls, fake_cli, git, path_with, run_cli, write  # noqa: E402
+from workflow_core.setup_service import refresh  # noqa: E402
 
 USAGE = {"version": 1, "cost": 2.5, "models": {"m1": {"input": 1, "output": 2, "cache_read": 0, "cache_write": 0,
                                                      "cost": 2.5}},
@@ -26,6 +27,8 @@ class UsageCliTests(unittest.TestCase):
         self.repo = Path(self.tmp.name) / "repo"
         self.repo.mkdir()
         git(self.repo, "init", "-q", "-b", "main")
+        write(self.repo, ".agent-workflow/config.yaml", "schema_version: '2.8'\nproviders:\n  task_tracking: beads\n")
+        refresh(self.repo)
         self.bin = Path(self.tmp.name) / "bin"
         self.home = Path(self.tmp.name) / "home"
         self.env = {**path_with(self.bin), "CLAUDE_CONFIG_DIR": str(self.home / "claude"),

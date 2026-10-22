@@ -1,8 +1,11 @@
-schema_version: "2.7"
-workflow_version: "2.7"
-setup_cli_version: "2.7"
+schema_version: "2.8"
+workflow_version: "2.8"
+setup_cli_version: "2.8"
 harness: codex
 provider_mode: multi
+
+providers:
+  task_tracking: beads  # team mode requires Beads; markdown is the default
 
 project:
   stage: brownfield
@@ -44,6 +47,26 @@ artifacts:
 routing:
   roles:
     backend:
+      preferred: [main_harness]
+    frontend:
+      preferred: [main_harness]
+    review:
+      preferred: [main_harness]
+      require_independent: true
+    docs:
+      preferred: [main_harness]
+    general:
+      preferred: [main_harness]
+  review:
+    role: review
+    require_independent: true
+    allow_self_review_fallback: false
+    max_cycles: 2
+    independence: provider
+
+orchestrator:
+  roles:
+    backend:
       preferred: [claude]
       fallback: [main_harness]
     frontend:
@@ -73,12 +96,6 @@ routing:
     failure_threshold: 3
     cooldown_seconds: 900
     half_open_max_probes: 1
-  review:
-    role: review
-    require_independent: true
-    allow_self_review_fallback: false
-    max_cycles: 2
-    independence: provider
 
 policy:
   approval:

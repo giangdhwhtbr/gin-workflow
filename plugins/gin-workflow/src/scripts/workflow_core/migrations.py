@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -9,10 +10,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .atomic import atomic_write_many, atomic_write_bytes
-from .configuration import require_yaml, validate_portable_config
+from .configuration import WORKER_ROUTING_KEYS, require_yaml, role_providers, validate_portable_config
+from .schemas import SUPPORTED_CONFIG_VERSIONS
 
 
-CURRENT_VERSION = "2.7"
+CURRENT_VERSION = "2.8"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -90,6 +92,35 @@ def _migrate_2_6_to_2_7(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_2_7_to_2_8(config: dict[str, Any]) -> dict[str, Any]:
+    """Worker routing moves under `orchestrator:`; an unset task backend stays Beads."""
+    migrated = copy.deepcopy(dict(config))
+    routing = dict(migrated.get("routing") or {})
+    orchestrator = dict(migrated.get("orchestrator") or {})
+    for key in WORKER_ROUTING_KEYS:
+        if key in routing:
+            orchestrator[key] = routing.pop(key)
+    roles = dict(routing.get("roles") or {})
+    moved = {}
+    for name, role in roles.items():
+        if any(provider != "main_harness" for provider in role_providers(role)):
+            moved[name], roles[name] = role, {"preferred": ["main_harness"]}
+    if moved:
+        orchestrator["roles"] = {**orchestrator.get("roles", {}), **moved}
+    if roles:
+        routing["roles"] = roles
+    if orchestrator:
+        migrated["orchestrator"] = orchestrator
+        migrated.setdefault("provider_mode", "multi")
+        routing["review"] = {"independence": "provider", **(routing.get("review") or {})}
+    if routing:
+        migrated["routing"] = routing
+    migrated["providers"] = {"task_tracking": "beads", **(migrated.get("providers") or {})}
+    for field in ("schema_version", "workflow_version", "setup_cli_version"):
+        migrated[field] = "2.8"
+    return migrated
+
+
 _MIGRATIONS = {
     ("2.0", "2.1"): _migrate_2_0_to_2_1,
     ("2.1", "2.2"): _migrate_2_1_to_2_2,
@@ -98,6 +129,7 @@ _MIGRATIONS = {
     ("2.4", "2.5"): _migrate_2_4_to_2_5,
     ("2.5", "2.6"): _migrate_2_5_to_2_6,
     ("2.6", "2.7"): _migrate_2_6_to_2_7,
+    ("2.7", "2.8"): _migrate_2_7_to_2_8,
 }
 _NEXT_STEP = {source: target for source, target in _MIGRATIONS}
 
@@ -133,13 +165,14 @@ def migrate_config(config: Mapping[str, Any], target_version: str) -> dict[str, 
     for field_name in ("schema_version", "workflow_version", "setup_cli_version"):
         if str(migrated.get(field_name, "")) != target_version:
             raise MigrationError(f"migration did not produce {field_name}={target_version!r}")
-    validation_candidate = dict(migrated)
-    validation_candidate.update(
-        schema_version=CURRENT_VERSION,
-        workflow_version=CURRENT_VERSION,
-        setup_cli_version=CURRENT_VERSION,
-    )
-    validate_portable_config(validation_candidate)
+    if target_version in SUPPORTED_CONFIG_VERSIONS:
+        validation_candidate = dict(migrated)
+        validation_candidate.update(
+            schema_version=target_version,
+            workflow_version=target_version,
+            setup_cli_version=target_version,
+        )
+        validate_portable_config(validation_candidate)
     return migrated
 
 

@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from team_fixtures import calls, fake_cli, git, path_with, write  # noqa: E402
 from workflow_core import usage  # noqa: E402
 from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
+from workflow_core.setup_service import refresh  # noqa: E402
 from workflow_core.usage_logs import UsageRecord  # noqa: E402
 
 DAY = datetime(2026, 10, 4, tzinfo=timezone.utc)
@@ -103,6 +104,8 @@ class Fixture(unittest.TestCase):
         git(self.repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
         self.tree = self.repo / ".planning/worktrees/ep1"
         git(self.repo, "worktree", "add", "-q", "-b", "feat/ep1", str(self.tree))
+        write(self.repo, ".agent-workflow/config.yaml", "schema_version: '2.8'\nproviders:\n  task_tracking: beads\n")
+        refresh(self.repo)
         write(self.repo, usage.PRICES_FILE, "prices:\n  m1: {input: 1, output: 1, cache_read: 1, cache_write: 1}\n")
         store = WorkflowEventStore(self.repo / ".agent-workflow/runtime/events.jsonl")
         approved = {"action": "plan_approved", "decision": {"status": "approved"}}

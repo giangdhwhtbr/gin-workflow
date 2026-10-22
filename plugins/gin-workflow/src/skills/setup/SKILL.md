@@ -9,19 +9,20 @@ Coordinate one setup session outside the lifecycle. Do not require generated con
 
 ## Quick setup (default)
 
+Setup runs with one main harness; worker harnesses come from gin-orchestrator (`/gin-orchestrator:providers`).
+
 Ask exactly one question at a time and wait for its answer. Do not infer required answers or combine questions.
 
 1. **Project type** — Show the `project` block of `gin-workflow setup detect --format json` (stage, shape, monorepo, stack, packages); confirm or edit. Never propose `legacy` unless the user says so.
 2. **Rigor** — Suggest `suggested_rigor`. `easy`: no worktree, self-check review; `standard`: worktree for parallel work, independent review; `strict`: always a worktree, independent review with a review ledger.
-3. **Provider mode** — `single` (the current harness does everything; default) or `multi` (continue with Advanced setup groups 2–9).
-4. **Verify commands** — Confirm the detected lint, typecheck, test, build, and e2e commands; the user may edit any. On greenfield, ask for `stack_intent` instead.
-5. **Code index** — Brownfield or legacy only. When `codegraph.installed` is true and it is not `indexed`: offer `codegraph init`, and run it only on approval. When `codegraph.installed` is false: print one line suggesting CodeGraph with https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md; do not ask, install, or wait.
-6. **Task tracking** — Only when `detect` reports `beads_installed: false`: offer local Markdown tasks (`--set providers.task_tracking=markdown`; one git-ignored file per task under `.planning/tasks/`, no team mode or usage reports) or installing Beads first. Add the assignment only on approval. When Beads is installed, do not ask.
+3. **Verify commands** — Confirm the detected lint, typecheck, test, build, and e2e commands; the user may edit any. On greenfield, ask for `stack_intent` instead.
+4. **Code index** — Brownfield or legacy only. When `codegraph.installed` is true and it is not `indexed`: offer `codegraph init`, and run it only on approval. When `codegraph.installed` is false: print one line suggesting CodeGraph with https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md; do not ask, install, or wait.
+5. **Task tracking** — `markdown` (default) or `beads` (needs `bd`), passed as `--task-tracking`.
 
 Optional: a model per tier for the current harness from `gin-workflow setup models --provider <harness> --format json`. Suggest fast/cheap models for `low` and frontier models for `high`; an `agy` id suffix (`-low`/`-medium`/`-high`) matches its tier. Always allow manual entry; an empty list means manual entry. Model choices become `--provider-set` assignments. When skipped in single mode, setup defaults the harness mapping from built-in harness defaults.
 
 Then:
-1. `gin-workflow setup preset --project-stage S --project-shape X --rigor R --provider-mode M [--monorepo] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
+1. `gin-workflow setup preset --project-stage S --project-shape X --rigor R --task-tracking T [--monorepo] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
 2. Run `init --dry-run` with the harness and every assignment. Present both `configuration` and `provider_configuration`, the proposed `rule_packs` (the user may add or remove packs as an extra `--set rules.packs=[...]`), each `rule_tool_checks` item with its `suggest` snippet (suggestions only; setup never edits lint or type configs), the exact files/actions, and any validation error. Do not write on dry-run.
 3. Obtain explicit native-harness approval for the complete two-layer proposal.
 4. Run one approved `init` with the same harness and same assignments. The CLI validates both layers before any atomic write.

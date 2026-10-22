@@ -7,8 +7,8 @@ from typing import Any, Mapping
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.7"
-SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7")
+SUPPORTED_SCHEMA_VERSION = "2.8"
+SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8")
 
 _SHAPES = ["frontend", "backend", "fullstack", "library"]
 _ROLES = {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}}
@@ -70,6 +70,7 @@ CONFIG_SCHEMA: dict[str, Any] = {
         "schema_version": {"enum": list(SUPPORTED_CONFIG_VERSIONS)},
         "workflow_version": {"type": "string"},
         "setup_cli_version": {"type": "string"},
+        "orchestrator": {"type": "object"},
         "artifacts": {
             "type": "object",
             "properties": {

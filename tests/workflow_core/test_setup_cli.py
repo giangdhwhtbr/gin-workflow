@@ -27,7 +27,7 @@ class SetupCliTests(unittest.TestCase):
         )
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual("gin-workflow 2.7", result.stdout.strip())
+        self.assertEqual("gin-workflow 2.8", result.stdout.strip())
 
     def run_cli(self, repository: Path, *arguments: str,
                 env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -43,11 +43,14 @@ class SetupCliTests(unittest.TestCase):
     def test_preset_proposes_explicit_assignments(self):
         with tempfile.TemporaryDirectory() as directory:
             result = self.run_cli(Path(directory), "preset", "--project-stage", "brownfield", "--project-shape",
-                                  "frontend", "--rigor", "easy", "--provider-mode", "single")
+                                  "frontend", "--rigor", "easy", "--task-tracking", "markdown")
             self.assertEqual(0, result.returncode, result.stderr)
             payload = json.loads(result.stdout)
             self.assertEqual("proposed", payload["status"])
             self.assertIn('project.rigor="easy"', payload["assignments"])
+            self.assertIn('provider_mode="single"', payload["assignments"])
+            self.assertIn('providers.task_tracking="markdown"', payload["assignments"])
+            self.assertIn('routing.review.independence="session"', payload["assignments"])
             self.assertEqual(["core"], payload["rule_packs"])
             self.assertIn('rules.packs=["core"]', payload["assignments"])
             self.assertEqual([], payload["rule_tool_checks"])
@@ -272,9 +275,9 @@ class SetupCliTests(unittest.TestCase):
                 {
                     "harness": "codex",
                     "policy": {"mode": "guarded"},
-                    "schema_version": "2.7",
-                    "setup_cli_version": "2.7",
-                    "workflow_version": "2.7",
+                    "schema_version": "2.8",
+                    "setup_cli_version": "2.8",
+                    "workflow_version": "2.8",
                 },
                 payload["configuration"],
             )
@@ -339,7 +342,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, applied.returncode, applied.stderr)
             local = (repository / ".agent-workflow/providers.local.yaml").read_text(encoding="utf-8")
             self.assertIn("high: opus", local)
-            self.assertEqual("providers.local.yaml\nruntime/\n", (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
+            self.assertEqual("providers.local.yaml\norchestrator.local.yaml\nruntime/\n", (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
 
     def test_provider_configuration_preserves_existing_workflow_gitignore_entries(self):
         assignments = (
@@ -359,7 +362,7 @@ class SetupCliTests(unittest.TestCase):
 
             self.assertEqual(0, applied.returncode, applied.stderr)
             self.assertEqual(
-                "runtime/private.log\n# user rule\nproviders.local.yaml\nruntime/\n",
+                "runtime/private.log\n# user rule\nproviders.local.yaml\norchestrator.local.yaml\nruntime/\n",
                 ignored.read_text(encoding="utf-8"),
             )
 
@@ -392,6 +395,7 @@ class SetupCliTests(unittest.TestCase):
 
     def test_update_previews_then_applies_v2_3_routing_and_local_provider_config(self):
         arguments = (
+            "--to-version", "2.7",
             "--set", "routing.concurrency.claude=1",
             "--set", "routing.roles.backend.preferred=[claude]",
             "--provider-set", "providers.claude.executable=claude",
@@ -720,7 +724,7 @@ class SetupCliTests(unittest.TestCase):
                 "--project-stage", "brownfield",
                 "--project-shape", "fullstack",
                 "--rigor", "standard",
-                "--provider-mode", "single",
+                "--task-tracking", "markdown",
             )
             self.assertEqual(0, preset_run.returncode, preset_run.stderr)
             assignments = json.loads(preset_run.stdout)["assignments"]
@@ -756,13 +760,14 @@ class SetupCliTests(unittest.TestCase):
                 "--project-stage", "brownfield",
                 "--project-shape", "fullstack",
                 "--rigor", "standard",
-                "--provider-mode", "multi",
+                "--task-tracking", "beads",
             )
             self.assertEqual(0, preset_run.returncode, preset_run.stderr)
             assignments = json.loads(preset_run.stdout)["assignments"]
             set_flags = []
             for item in assignments:
                 set_flags.extend(["--set", item])
+            set_flags.extend(["--set", 'provider_mode="multi"'])
 
             dry = self.run_cli(repository, "init", "--dry-run", "--harness", "claude", *set_flags)
             self.assertEqual(0, dry.returncode, dry.stderr)
@@ -998,6 +1003,32 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("absent", payload_absent["checks_details"]["agents_block"])
             self.assertNotIn("agents_block", payload_absent["checks"])
             self.assertTrue(payload_absent["checks"]["configuration"])
+
+    def test_doctor_warns_when_beads_exists_and_backend_is_unset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            (workflow / "config.yaml").write_text("schema_version: '2.8'\nharness: claude\n", encoding="utf-8")
+            (repository / ".beads").mkdir()
+            res = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertTrue(any("providers.task_tracking=beads" in action for action in payload.get("actions", [])))
+
+    def test_doctor_suggests_the_2_8_migration_for_legacy_worker_routing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            (workflow / "config.yaml").write_text(
+                "schema_version: '2.7'\nharness: claude\nrouting:\n  concurrency:\n    claude: 2\n",
+                encoding="utf-8"
+            )
+            res = self.run_cli(repository, "doctor", "--format", "json")
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertTrue(any("setup update --to-version 2.8" in action for action in payload.get("actions", [])))
 
 
 if __name__ == "__main__":

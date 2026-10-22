@@ -6,16 +6,20 @@ import unittest
 
 from workflow_core.configuration import ConfigValidationError, validate_portable_config
 from workflow_core.migrations import migrate_config
-from workflow_core.project import preset_assignments, project_settings
+from workflow_core.project import ProjectSettings, preset_assignments, project_settings
 from workflow_core.setup_service import _parse_assignment, _set_nested
 
 
 class TestProjectSettings(unittest.TestCase):
     def test_missing_project_section_keeps_legacy_behavior(self):
         settings = project_settings({"schema_version": "2.3"})
-        self.assertEqual(("fullstack", "standard", "multi", "provider"),
+        self.assertEqual(("fullstack", "standard", "single", "session"),
                          (settings.shape, settings.rigor, settings.provider_mode, settings.independence))
         self.assertEqual({}, settings.verify_commands)
+        self.assertEqual("single", ProjectSettings().provider_mode)
+        self.assertEqual("session", ProjectSettings().independence)
+        self.assertEqual("single", project_settings({}).provider_mode)
+        self.assertEqual("session", project_settings({}).independence)
 
     def test_explicit_project_values_are_read(self):
         settings = project_settings({
@@ -62,7 +66,7 @@ def _apply(assignments):
 class TestPresets(unittest.TestCase):
     def test_single_provider_frontend_standard(self):
         config = _apply(preset_assignments(stage="brownfield", shape="frontend", rigor="standard",
-                                           provider_mode="single",
+                                           task_tracking="markdown",
                                            verify_commands={"lint": "pnpm run lint", "test": "pnpm run test: unit"}))
         validate_portable_config(config)
         self.assertEqual(["docs", "frontend", "general", "review"],
@@ -71,16 +75,24 @@ class TestPresets(unittest.TestCase):
         self.assertEqual("session", config["routing"]["review"]["independence"])
         self.assertEqual("pnpm run test: unit", config["verify"]["checks"]["test"])
         self.assertEqual("parallel", config["project"]["worktree"])
+        self.assertEqual("single", config["provider_mode"])
+        self.assertEqual("markdown", config["providers"]["task_tracking"])
         settings = project_settings(config)
         self.assertEqual(("frontend", "standard", "single"), (settings.shape, settings.rigor, settings.provider_mode))
 
-    def test_multi_provider_writes_no_roles_and_provider_independence(self):
-        config = _apply(preset_assignments(stage="brownfield", shape="backend", rigor="strict", provider_mode="multi"))
+    def test_preset_backend_standard_includes_single_harness_and_task_tracking(self):
+        config = _apply(preset_assignments(stage="brownfield", shape="backend", rigor="standard", task_tracking="markdown"))
         validate_portable_config(config)
-        self.assertNotIn("roles", config.get("routing", {}))
-        self.assertEqual("provider", config["routing"]["review"]["independence"])
-        self.assertEqual(("always", True), (config["project"]["worktree"], config["project"]["review_ledger"]))
+        self.assertEqual("single", config["provider_mode"])
+        self.assertEqual("session", config["routing"]["review"]["independence"])
+        self.assertEqual("markdown", config["providers"]["task_tracking"])
+        self.assertEqual(["backend", "docs", "general", "review"],
+                         sorted(config["routing"]["roles"]))
+        for role in ("backend", "docs", "general", "review"):
+            self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"][role])
 
     def test_rejects_unknown_values(self):
         with self.assertRaises(ValueError):
-            preset_assignments(stage="legacy", shape="mobile", rigor="standard", provider_mode="single")
+            preset_assignments(stage="legacy", shape="mobile", rigor="standard", task_tracking="markdown")
+        with self.assertRaises(ValueError):
+            preset_assignments(stage="brownfield", shape="backend", rigor="standard", task_tracking="invalid")

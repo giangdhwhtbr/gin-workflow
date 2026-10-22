@@ -23,22 +23,23 @@ class ConfigExampleTests(unittest.TestCase):
         validate_portable_config(portable)
         validate_provider_local_config(local)
 
-        roles = portable["routing"]["roles"]
+        roles = portable["orchestrator"]["roles"]
         self.assertEqual(["claude"], roles["backend"]["preferred"])
         self.assertEqual(["antigravity"], roles["frontend"]["preferred"])
         self.assertEqual(["main_harness"], roles["review"]["preferred"])
         self.assertIn("main_harness", roles["backend"]["fallback"])
         self.assertEqual("opus", local["providers"]["claude"]["models"]["high"])
-        self.assertIn("circuit_breaker", portable["routing"])
+        self.assertIn("circuit_breaker", portable["orchestrator"])
         self.assertEqual(2, portable["routing"]["review"]["max_cycles"])
-        self.assertEqual(3, portable["routing"]["circuit_breaker"]["failure_threshold"])
-        self.assertEqual(600, portable["routing"]["queue"]["max_wait_seconds"])
-        self.assertEqual(2, portable["routing"]["worker"]["max_retries"])
+        self.assertEqual(3, portable["orchestrator"]["circuit_breaker"]["failure_threshold"])
+        self.assertEqual(600, portable["orchestrator"]["queue"]["max_wait_seconds"])
+        self.assertEqual(2, portable["orchestrator"]["worker"]["max_retries"])
         self.assertEqual(86400, portable["policy"]["approval"]["ttl_seconds"])
+        self.assertEqual("beads", portable["providers"]["task_tracking"])  # the example shows team mode
 
     def test_setup_quick_flow_asks_five_questions_and_keeps_advanced_groups(self):
         setup = (PLUGIN / "skills/setup/SKILL.md").read_text(encoding="utf-8")
-        quick = ("Project type", "Rigor", "Provider mode", "Verify commands", "Code index")
+        quick = ("Project type", "Rigor", "Verify commands", "Code index", "Task tracking")
         positions = [setup.index(f"{index}. **{name}**") for index, name in enumerate(quick, 1)]
         self.assertEqual(sorted(positions), positions)
         for phrase in ("Ask exactly one question", "gin-workflow setup preset", "gin-workflow setup models",

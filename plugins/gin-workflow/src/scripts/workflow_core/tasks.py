@@ -17,7 +17,7 @@ from .configuration import ConfigValidationError
 
 
 def backend(root: Path) -> str:
-    """The configured `providers.task_tracking` name; `beads` when setup has not run.
+    """The configured `providers.task_tracking` name; `markdown` when setup has not run.
 
     An effective config that exists but is invalid raises ConfigValidationError instead of
     falling back, so a markdown repository never silently writes to Beads.
@@ -26,7 +26,7 @@ def backend(root: Path) -> str:
 
     root = Path(root)
     if not (main_checkout(root.resolve()) / ".agent-workflow/generated/effective-config.yaml").is_file():
-        return "beads"
+        return "markdown"
     try:
         return backend_name(load_effective_config(root))
     except OSError as error:
@@ -34,11 +34,12 @@ def backend(root: Path) -> str:
 
 
 def backend_name(config: Mapping[str, Any]) -> str:
-    """`providers.task_tracking` in an already-loaded config; `beads` when unset."""
+    """`providers.task_tracking` in an already-loaded config; `beads` when unset and team configured, else `markdown`."""
+    default = "beads" if "team" in config else "markdown"
     providers = config.get("providers", {})
-    raw = providers.get("task_tracking", "beads") if isinstance(providers, Mapping) else "beads"
+    raw = providers.get("task_tracking", default) if isinstance(providers, Mapping) else default
     name = raw.get("name", raw.get("type")) if isinstance(raw, Mapping) else raw
-    return str(name or "beads")
+    return str(name or default)
 
 
 def _bd_json(executable: str, argv: Sequence[str], cwd: Path, env: Mapping[str, str] | None = None) -> Any:
