@@ -45,10 +45,10 @@ from gin_orchestrator.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerReque
 
 class ProviderRegistryTests(unittest.TestCase):
     @staticmethod
-    def evidence_config(root):
+    def evidence_config(root, version="2.3"):
         return EffectiveConfig(
             {
-                "schema_version": "2.3",
+                "schema_version": version,
                 "providers": {
                     "task_tracking": "fake",
                     "knowledge": "fake",
@@ -203,13 +203,14 @@ class ProviderRegistryTests(unittest.TestCase):
             )
 
     def test_schema_23_registry_auto_builds_composite_evidence_authority_when_omitted(self):
-        with tempfile.TemporaryDirectory() as directory:
-            registry = ProviderRegistry.from_effective_config(
-                self.evidence_config(directory),
-            )
+        for version in ("2.3", "2.8"):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                registry = ProviderRegistry.from_effective_config(
+                    self.evidence_config(directory, version),
+                )
 
-            self.assertIsInstance(registry.evidence, FakeEvidenceProvider)
-            self.assertIsInstance(registry.evidence.authority, CompositeEvidenceAuthority)
+                self.assertIsInstance(registry.evidence, FakeEvidenceProvider)
+                self.assertIsInstance(registry.evidence.authority, CompositeEvidenceAuthority)
 
     def test_registry_wires_independent_composite_authority_and_rejects_forgery(self):
         authority = self.composite_authority()

@@ -562,10 +562,12 @@ def update(
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
     proposal = propose_migration(root, target_version=target_version)
-    old_local, new_local = root / ".agent-workflow/providers.local.yaml", root / ".agent-workflow/orchestrator.local.yaml"
+    main = main_checkout(root)
+    local_dir = main / ".agent-workflow"
+    old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
     rename_local = target_version == "2.8" and old_local.is_file() and not new_local.exists()
     if rename_local:
-        proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(root)} to {new_local.name}"]
+        proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main)} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
     if dry_run or not approve:
         return payload
@@ -581,7 +583,7 @@ def update(
     )
     if rename_local:
         os.replace(old_local, new_local)
-        res.setdefault("actions", []).append(f"rename {old_local.relative_to(root)} to {new_local.name}")
+        res.setdefault("actions", []).append(f"rename {old_local.relative_to(main)} to {new_local.name}")
         ignore_path = root / ".agent-workflow/.gitignore"
         atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
     return res
@@ -593,11 +595,13 @@ def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **
         raise SetupError("rollback requires an explicit --backup target")
     result = rollback_migration(repository, backup, dry_run=dry_run)
     root = Path(repository).resolve()
-    old_local, new_local = root / ".agent-workflow/providers.local.yaml", root / ".agent-workflow/orchestrator.local.yaml"
+    main = main_checkout(root)
+    local_dir = main / ".agent-workflow"
+    old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
     if str(result.get("restored_version", "")) != "2.8" and new_local.is_file() and not old_local.exists():
         if not dry_run:
             os.replace(new_local, old_local)
-        result.setdefault("actions", []).append(f"rename {new_local.relative_to(root)} to {old_local.name}")
+        result.setdefault("actions", []).append(f"rename {new_local.relative_to(main)} to {old_local.name}")
     return result
 
 

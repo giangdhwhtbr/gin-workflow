@@ -213,6 +213,22 @@ class TestRoutesCLI(unittest.TestCase):
                 manifest_path = self.root / output["manifest"]
                 self.assertTrue(manifest_path.is_file())
 
+    def test_role_owned_by_the_absent_orchestrator_routes_to_the_main_harness(self):
+        self._set_multi_mode()
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8")
+                          + "orchestrator:\n  roles:\n    mobile:\n      preferred:\n      - codex\n", encoding="utf-8")
+        refresh(self.root)
+        with tempfile.TemporaryDirectory() as empty_dir, on_path(empty_dir), patch.dict("os.environ", {"PATH": empty_dir}):
+            code, output = self._resolve("wf-owned", [{"task_id": "t1", "provider_role": "mobile", "reasoning": "low"},
+                                                      {"task_id": "t2", "provider_role": "nope", "reasoning": "low"}])
+            self.assertEqual(2, code)
+            self.assertEqual(["t2.provider_role: unknown provider role: nope"], output["diagnostics"])
+            code, output = self._resolve("wf-owned", [{"task_id": "t1", "provider_role": "mobile", "reasoning": "low"}])
+            self.assertEqual(0, code, output)
+            self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
+            self.assertTrue(any("orchestrator_missing" in w for w in output["warnings"]), output["warnings"])
+
     def test_malformed_orchestrator_reply_falls_back_with_a_warning(self):
         self._set_multi_mode()
         for reply in (["t1"], {"routes": None}, {"diagnostics": "bad"}):

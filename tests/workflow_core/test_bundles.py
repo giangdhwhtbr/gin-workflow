@@ -18,7 +18,7 @@ class BundleTests(unittest.TestCase):
         generated = workflow / "generated"
         generated.mkdir(parents=True)
         (generated / "effective-config.yaml").write_text(
-            "schema_version: '2.3'\nworkflow_version: '2.3'\nsetup_cli_version: '2.3'\nreferences:\n  - docs/reference.md\n  - .agent-workflow/providers.local.yaml\n  - .agent-workflow/runtime/secret.txt\n  - docs/archive.zip\n",
+            "schema_version: '2.3'\nworkflow_version: '2.3'\nsetup_cli_version: '2.3'\nreferences:\n  - docs/reference.md\n  - .agent-workflow/providers.local.yaml\n  - .agent-workflow/orchestrator.local.yaml\n  - .agent-workflow/runtime/secret.txt\n  - docs/archive.zip\n",
             encoding="utf-8",
         )
         (generated / "config-provenance.yaml").write_text(
@@ -30,10 +30,11 @@ class BundleTests(unittest.TestCase):
         (root / "docs/archive.zip").write_bytes(b"not permitted")
         (workflow / "runtime").mkdir()
         (workflow / "runtime/secret.txt").write_text("runtime-secret\n", encoding="utf-8")
-        (workflow / "providers.local.yaml").write_text(
-            "providers:\n  claude:\n    executable: claude\n    models:\n      high: opus\n",
-            encoding="utf-8",
-        )
+        for name in ("providers.local.yaml", "orchestrator.local.yaml"):
+            (workflow / name).write_text(
+                "providers:\n  claude:\n    executable: claude\n    models:\n      high: opus\n",
+                encoding="utf-8",
+            )
         return workflow
 
     def rewrite_integrity(self, output: Path, payload: dict) -> None:

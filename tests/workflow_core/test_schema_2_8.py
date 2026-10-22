@@ -160,6 +160,29 @@ class TestSchema28(unittest.TestCase):
         with self.assertRaises(ConfigValidationError):
             migrate_config(malformed, "2.8")
 
+    def test_update_from_a_linked_worktree_renames_the_main_checkout_local_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            main = Path(directory) / "main"
+            workflow = main / ".agent-workflow"
+            workflow.mkdir(parents=True)
+            yaml = setup_service.require_yaml()
+            (workflow / "config.yaml").write_text(yaml.safe_dump(LEGACY, sort_keys=True), encoding="utf-8")
+            git = lambda *args, cwd=main: subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+            git("init", "-q")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init")
+            git("add", ".agent-workflow/config.yaml")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "config")
+            linked = Path(directory) / "linked"
+            git("worktree", "add", "-q", str(linked))
+            (workflow / "providers.local.yaml").write_bytes(b"providers: {}\n")
+
+            res = setup_service.update(linked, target_version="2.8", approve=True)
+
+            self.assertIn("rename .agent-workflow/providers.local.yaml to orchestrator.local.yaml", res["actions"])
+            self.assertFalse((workflow / "providers.local.yaml").exists())
+            self.assertEqual(b"providers: {}\n", (workflow / "orchestrator.local.yaml").read_bytes())
+            self.assertIn("orchestrator.local.yaml", (linked / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
+
     def test_update_renames_the_local_file_and_rollback_restores_it(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)

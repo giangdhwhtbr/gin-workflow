@@ -60,7 +60,7 @@ def _safe_reference(root: Path, declared: str) -> tuple[str, Path] | None:
     if relative.is_absolute() or ".." in relative.parts:
         raise BundleError(f"declared reference must be repository-relative: {declared}")
     normalized = relative.as_posix()
-    if normalized == ".agent-workflow/providers.local.yaml":
+    if normalized in (".agent-workflow/providers.local.yaml", ".agent-workflow/orchestrator.local.yaml"):
         return None
     if normalized.startswith(".agent-workflow/runtime/") or normalized.startswith(
         ".agent-workflow/backups/"

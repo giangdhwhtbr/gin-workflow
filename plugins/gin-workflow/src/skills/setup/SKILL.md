@@ -17,7 +17,7 @@ Ask exactly one question at a time and wait for its answer. Do not infer require
 2. **Rigor** — Suggest `suggested_rigor`. `easy`: no worktree, self-check review; `standard`: worktree for parallel work, independent review; `strict`: always a worktree, independent review with a review ledger.
 3. **Verify commands** — Confirm the detected lint, typecheck, test, build, and e2e commands; the user may edit any. On greenfield, ask for `stack_intent` instead.
 4. **Code index** — Brownfield or legacy only. When `codegraph.installed` is true and it is not `indexed`: offer `codegraph init`, and run it only on approval. When `codegraph.installed` is false: print one line suggesting CodeGraph with https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md; do not ask, install, or wait.
-5. **Task tracking** — `markdown` (default) or `beads` (needs `bd`), passed as `--task-tracking`.
+5. **Task tracking** — `markdown` (default) or `beads` (needs Beads), passed as `--task-tracking`.
 
 Then:
 1. `gin-workflow setup preset --project-stage S --project-shape X --rigor R --task-tracking T [--monorepo] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.

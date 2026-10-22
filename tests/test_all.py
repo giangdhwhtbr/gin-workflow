@@ -21,4 +21,7 @@ def load_tests(_loader, _tests, pattern):
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
             suite.addTests(unittest.TestLoader().loadTestsFromModule(module))
+    for path in sorted(TEST_ROOT.glob(pattern or "test_*.py")):
+        if path.name != "test_all.py":
+            suite.addTests(unittest.TestLoader().loadTestsFromName(f"tests.{path.stem}"))
     return suite

@@ -4,7 +4,7 @@ The dispatcher exposes `dispatch(request)`, `cancel(worker_id)`, `status(worker_
 
 ## Launching a CLI worker
 
-Run the routed executable in the track worktree with the argv from `plugins/gin-orchestrator/src/scripts/gin_orchestrator/<provider>_worker.py`. Verify the diff and tests yourself.
+Run the routed executable in the track worktree with the argv from gin-orchestrator's `scripts/gin_orchestrator/<provider>_worker.py`. Verify the diff and tests yourself.
 
 ## Events
 

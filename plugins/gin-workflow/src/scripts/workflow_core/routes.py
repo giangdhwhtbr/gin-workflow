@@ -91,7 +91,13 @@ def resolve(
         if warn is not None:
             warnings.append(warn)
 
-    diagnostics = [f"{e.task_id}.{e.field}: {e.message}" for e in validate_plan_assignments(tracks, config)]
+    # A role the orchestrator owns routes to the main harness like any other while it is away.
+    orchestrator = config_dict.get("orchestrator")
+    orchestrator_roles = orchestrator.get("roles") if isinstance(orchestrator, Mapping) else None
+    owned = {str(t.get("task_id", "")).strip() for t in tracks
+             if isinstance(orchestrator_roles, Mapping) and t.get("provider_role") in orchestrator_roles}
+    diagnostics = [f"{e.task_id}.{e.field}: {e.message}" for e in validate_plan_assignments(tracks, config)
+                   if not (e.field == "provider_role" and e.task_id in owned)]
     task_ids = [str(track.get("task_id", "")).strip() for track in tracks]
     for index, task_id in enumerate(task_ids):
         if not task_id:
