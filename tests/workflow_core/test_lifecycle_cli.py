@@ -12,6 +12,7 @@ import unittest
 from workflow_core.cli import main as cli_main
 from workflow_core.events import WorkflowEvent, WorkflowEventStore
 from workflow_core.lifecycle_cli import main as lifecycle_main
+from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path
 
 
 class TestLifecycleCLI(unittest.TestCase):
@@ -61,6 +62,83 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertIn("evidence", data)
         self.assertIn("remedies", data)
         self.assertEqual("unmet", data["gates"]["requirement_confirmed"])
+
+    def test_state_reports_extensions_orchestrator(self):
+        import io
+        from unittest.mock import patch
+
+        expected_keys = {"available", "version", "contract", "capabilities", "reason"}
+        # Unavailable
+        with tempfile.TemporaryDirectory() as empty_dir:
+            with on_path(empty_dir):
+                import os
+                os.environ["PATH"] = empty_dir
+                with patch("sys.stdout", new=io.StringIO()) as fake_out:
+                    lifecycle_main([
+                        "state",
+                        "--repository", str(self.repo_path),
+                        "--format", "json",
+                    ])
+                data = json.loads(fake_out.getvalue())
+                self.assertIn("extensions", data)
+                self.assertIn("orchestrator", data["extensions"])
+                orch = data["extensions"]["orchestrator"]
+                self.assertEqual(expected_keys, set(orch.keys()))
+                self.assertFalse(orch["available"])
+                self.assertEqual("orchestrator_missing", orch["reason"])
+
+        # Available
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, capabilities=["health", "doctor"])
+            with on_path(fake_dir):
+                with patch("sys.stdout", new=io.StringIO()) as fake_out:
+                    lifecycle_main([
+                        "state",
+                        "--repository", str(self.repo_path),
+                        "--format", "json",
+                    ])
+                data = json.loads(fake_out.getvalue())
+                self.assertIn("extensions", data)
+                orch = data["extensions"]["orchestrator"]
+                self.assertEqual(expected_keys, set(orch.keys()))
+                self.assertTrue(orch["available"])
+                self.assertIsNone(orch["reason"])
+                self.assertEqual(2, orch["contract"])
+                self.assertEqual(["health", "doctor"], orch["capabilities"])
+
+    def test_state_warns_in_multi_mode_without_orchestrator(self):
+        import io
+        from unittest.mock import patch
+
+        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.8'\nprovider_mode: multi\n")
+        with tempfile.TemporaryDirectory() as empty_dir:
+            with on_path(empty_dir):
+                import os
+                os.environ["PATH"] = empty_dir
+                # JSON format has warnings
+                with patch("sys.stdout", new=io.StringIO()) as fake_out:
+                    lifecycle_main([
+                        "state",
+                        "--repository", str(self.repo_path),
+                        "--format", "json",
+                    ])
+                data = json.loads(fake_out.getvalue())
+                self.assertIn("warnings", data)
+                self.assertTrue(
+                    any("orchestrator_missing" in w and "./install.sh --plugin gin-orchestrator" in w for w in data["warnings"]),
+                    data["warnings"],
+                )
+
+                # Text format prints Warning: ...
+                with patch("sys.stdout", new=io.StringIO()) as fake_out:
+                    lifecycle_main([
+                        "state",
+                        "--repository", str(self.repo_path),
+                        "--format", "text",
+                    ])
+                text = fake_out.getvalue()
+                self.assertIn("Warning: orchestrator_missing; install with ./install.sh --plugin gin-orchestrator", text)
+
 
     def test_state_derives_completed_process_gates_from_matching_workflow_events(self):
         workflow_id = "two-factor"

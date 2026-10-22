@@ -12,6 +12,7 @@ from .checkout import main_checkout
 from .configuration import resolve_effective_config
 from .events import WorkflowEvent, WorkflowEventStore
 from .project import project_settings
+from . import orchestrator_client
 from .team import load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
@@ -242,8 +243,11 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "original_harness": config.original_harness if config.is_session_harness_override else None,
         "gates": gates_status,
         "evidence": list(decision.evidence),
-        "remedies": list(decision.remedies),        "project": {**project_settings(config.to_dict()).to_dict(),
+        "remedies": list(decision.remedies),
+        "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, load_team(config.to_dict()))},
+        "extensions": {"orchestrator": orchestrator_client.status()},
+        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()),) if w],
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
             for event in event_store.read_all()
@@ -406,6 +410,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             print("\nRemedies:")
             for rem in payload.get("remedies", []):
                 print(f"  - {rem}")
+            for warn in payload.get("warnings", []):
+                print(f"Warning: {warn}")
         return exit_code
 
     if command == "quick-check":

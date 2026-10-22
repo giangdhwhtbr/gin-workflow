@@ -72,3 +72,12 @@ Worktree paths, branch names, assignment manifests (`runtime/assignments/<workfl
 ## Usage summaries
 
 `gin-workflow usage collect` stores a summary in the bead's metadata under `ai_usage`: tokens and estimated cost per model and per lifecycle stage, and quality signals (reopens, bugs found later, review cycles, rejections, findings by severity, waivers). It holds aggregates only, never prompts, session ids, or log paths.
+
+## Extensions state
+
+`gin-workflow state --format json` reports the status of registered extensions under `extensions`:
+
+- `extensions.orchestrator`: `{"available": bool, "version": str | null, "contract": int | null, "capabilities": list[str], "reason": str | null}`, computed once per process via `workflow_core.orchestrator_client.status()`.
+  - When `available` is true, `contract` is 2 and `capabilities` lists supported delegation entry points (`routes`, `reviewer`, `doctor`, `models`, `health`).
+  - When `available` is false, `reason` indicates `orchestrator_missing`, `orchestrator_contract_mismatch`, or `orchestrator_failed`.
+

@@ -120,3 +120,30 @@ To resolve an unmet gate:
   ```bash
   gin-workflow unblock --clear-blocker --reason "cleared blocker reason" --actor <your-id>
   ```
+
+## Orchestrator errors and warnings (`orchestrator_missing`, `orchestrator_contract_mismatch`, `orchestrator_failed`)
+
+When `provider_mode: multi` is enabled, `gin-workflow` delegates multi-provider routing and reviews to `gin-orchestrator`. If the extension is unavailable or encounters errors:
+
+- **`orchestrator_missing`**: `gin-orchestrator` is not on `PATH`. `gin-workflow state` and `setup doctor` warn with `orchestrator_missing; install with ./install.sh --plugin gin-orchestrator`. Work is not blocked; routes resolve to the main harness. To restore worker delegation:
+  ```bash
+  ./install.sh --plugin gin-orchestrator
+  ```
+- **`orchestrator_contract_mismatch`**: The installed `gin-orchestrator` reports an unsupported contract version (contract version 2 is required). Reinstall or update with `./install.sh --plugin gin-orchestrator`.
+- **`orchestrator_failed`**: A delegated command (`routes resolve`, `reviewer`, or `doctor`) exited non-zero or output invalid JSON. `setup doctor` reports `orchestrator_failed`; `routes resolve` and `reviewer` fall back to the main harness with a warning, while `setup models` returns an empty list. Check the extension installation and logs.
+
+## `.beads` exists but `providers.task_tracking` is unset
+
+When migrating from an older configuration, `providers.task_tracking` may be unset while a `.beads` directory exists. In schema 2.8 and later, task tracking defaults to `markdown` unless explicitly configured.
+
+`setup doctor` reports:
+```
+.beads exists but providers.task_tracking is unset, so tasks use markdown; to keep Beads run gin-workflow setup configure --set providers.task_tracking=beads --approve
+```
+
+To keep using Beads as the task backend:
+```bash
+gin-workflow setup configure --set providers.task_tracking=beads --approve
+```
+To use file-based markdown tasks instead, configure `providers.task_tracking=markdown`.
+

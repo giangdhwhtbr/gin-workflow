@@ -12,6 +12,7 @@ import uuid
 
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
+from . import orchestrator_client
 from .provider_config import (
     DEFAULT_HARNESS_MODELS,
     REASONING_TIERS,
@@ -55,6 +56,36 @@ def route(
         raise ReviewerError(f"git diff {base}...HEAD failed: {diff.stderr.strip()}")
     tier, reason = review_tier(tier, diff.stdout.splitlines())
 
+    warnings: list[str] = []
+    config_dict = config.to_dict() if hasattr(config, "to_dict") else dict(config)
+
+    if orchestrator_client.delegates(config_dict, "reviewer"):
+        try:
+            orch_routes = orchestrator_client.call([
+                "reviewer",
+                "--base", base,
+                "--implementer", implementer,
+                "--tier", tier,
+                "--repository", str(root),
+            ])
+        except orchestrator_client.OrchestratorError as error:
+            warnings.append(f"gin-orchestrator failed ({error}); reviewing on the main harness")
+            orch_routes = None
+
+        if orch_routes is not None:
+            if not orch_routes:
+                raise ReviewerError("no reviewer routes available from orchestrator")
+            return {
+                "tier": tier,
+                "reason": reason,
+                "warnings": warnings,
+                "routes": list(orch_routes),
+            }
+    else:
+        warn = orchestrator_client.warning(config_dict)
+        if warn is not None:
+            warnings.append(warn)
+
     harness = config.harness or implementer
     if harness not in DEFAULT_HARNESS_MODELS:
         raise ReviewerError(f"unknown harness: {harness}")
@@ -72,7 +103,6 @@ def route(
 
     review = (config.get("routing") or {}).get("review") or {}
     independence = review.get("independence")
-    warnings: list[str] = []
     if independence == "provider":
         warnings.append("routing.review.independence: provider requires gin-orchestrator; running on main harness in a fresh session")
 

@@ -28,7 +28,10 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 - It writes the failing test first, implements, and keeps the command output as evidence. A blocker, a plan gap, or repeated failures stop the work: the bead stays in progress with a note.
 - Work runs directly in the session for sequential plans and three or fewer tasks; routed workers are for more than three parallel tasks, long-running or specialized work, or independent review ([Providers](providers.md)).
 - Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `ship` checks the approvals instead.
-- Review is independent: a different provider (or session, in single-provider mode) reviews the bounded diff and records findings and approval in the review ledger, for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
+- Review is independent:
+  - In single-harness mode (`provider_mode: single`), review is `session`-independent: it runs on the main harness in a fresh session (`actor_id: reviewer:<harness>:session-<id>`). Self-review within the same session is forbidden. If `routing.review.independence: provider` is set without `gin-orchestrator`, review falls back to session independence on the main harness with a warning.
+  - In multi-harness mode (`provider_mode: multi`) with `gin-orchestrator`, review delegates to `gin-orchestrator reviewer` and enforces provider independence, routing review to a different provider than the implementer whenever possible.
+  - Findings and approvals are recorded in the review ledger for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
 - When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks.
 - The feature branch is committed and pushed. The agent never reports "waiting for PR merge" without a real pull request link; it offers to request a pull request or to continue with the next track.
 

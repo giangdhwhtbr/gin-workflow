@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
+import tempfile
 from typing import Any, Mapping, Sequence
 
 from .assignments import (
@@ -18,6 +19,7 @@ from .assignments import (
 )
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
+from . import orchestrator_client
 from .project_detect import detect_project
 
 
@@ -29,6 +31,62 @@ def resolve(
     harness: str,
 ) -> dict[str, Any]:
     """Every diagnostic, or the routes plus the written manifest; nothing is written on a diagnostic."""
+    warnings: list[str] = []
+    config_dict = config.to_dict() if hasattr(config, "to_dict") else dict(config)
+
+    if orchestrator_client.delegates(config_dict, "routes"):
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as tf:
+            json.dump(list(tracks), tf)
+            tracks_file = Path(tf.name)
+        try:
+            reply = orchestrator_client.call([
+                "routes", "resolve",
+                "--workflow-id", workflow_id,
+                "--tracks", str(tracks_file),
+                "--main-harness", harness,
+                "--repository", str(root),
+            ])
+        except orchestrator_client.OrchestratorError as error:
+            warnings.append(f"gin-orchestrator failed ({error}); routing every track to the main harness")
+            reply = None
+        finally:
+            tracks_file.unlink(missing_ok=True)
+        if reply is not None and not isinstance(reply, Mapping):
+            warnings.append(f"gin-orchestrator failed ({orchestrator_client.FAILED}); routing every track to the main harness")
+            reply = None
+
+        if reply is not None:
+            diagnostics = list(reply.get("diagnostics", []))
+            if diagnostics:
+                return {
+                    "workflow_id": workflow_id,
+                    "main_harness": harness,
+                    "routes": [],
+                    "diagnostics": diagnostics,
+                    "warnings": warnings,
+                    "manifest": None,
+                }
+            entries = list(reply.get("routes", []))
+            manifest = None
+            try:
+                path = write_assignments(root, workflow_id, entries)
+            except (AssignmentResolutionError, OSError) as error:
+                diagnostics.append(f"workflow_id: {error}")
+            else:
+                manifest = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
+            return {
+                "workflow_id": workflow_id,
+                "main_harness": harness,
+                "routes": entries if manifest else [],
+                "diagnostics": diagnostics,
+                "warnings": warnings,
+                "manifest": manifest,
+            }
+    else:
+        warn = orchestrator_client.warning(config_dict)
+        if warn is not None:
+            warnings.append(warn)
+
     diagnostics = [f"{e.task_id}.{e.field}: {e.message}" for e in validate_plan_assignments(tracks, config)]
     task_ids = [str(track.get("task_id", "")).strip() for track in tracks]
     for index, task_id in enumerate(task_ids):
@@ -54,7 +112,7 @@ def resolve(
         else:
             manifest = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
     return {"workflow_id": workflow_id, "main_harness": harness, "routes": entries if manifest else [],
-            "diagnostics": diagnostics, "warnings": [], "manifest": manifest}
+            "diagnostics": diagnostics, "warnings": warnings, "manifest": manifest}
 
 
 def main(argv: Sequence[str]) -> int:

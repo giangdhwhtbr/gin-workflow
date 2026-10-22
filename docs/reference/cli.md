@@ -47,7 +47,7 @@ Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a requ
 gin-workflow state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 ```
 
-Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, or `waived(<reason>)`), evidence, and remedies. JSON adds the resolved `project` settings (including team mode) and the last five `recent_quick` runs.
+Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, or `waived(<reason>)`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), and the last five `recent_quick` runs.
 
 `--workflow-id` defaults to `default-workflow`. Use one id per feature (for example the plan's slug) so gates from different features do not mix.
 
@@ -243,6 +243,19 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 | Housekeeping | `cleanup` (`--bead-id` or `--all-closed`; also deletes the bead's `refs/gin/review/` refs) |
 
 `change-scope` and `reject` invalidate an active approval. `approve` requires a clean worktree.
+
+## Delegation to gin-orchestrator
+
+When `provider_mode: multi` is set, `gin-orchestrator` is available on `PATH`, and the extension lists the required capability, `gin-workflow` delegates commands:
+
+| `gin-workflow` command | Delegates to | Capability |
+|---|---|---|
+| `gin-workflow routes resolve` | `gin-orchestrator routes resolve` | `routes` |
+| `gin-workflow reviewer` | `gin-orchestrator reviewer` | `reviewer` |
+| `gin-workflow setup doctor --probe` | `gin-orchestrator doctor` | `doctor` |
+| `gin-workflow setup models` | `gin-orchestrator models` | `models` |
+
+In single-harness mode (`provider_mode: single`), when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, `gin-workflow` resolves for the main harness and emits a warning. Work is never blocked.
 
 ## `gin-qa`
 

@@ -7,83 +7,91 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
+from tests.workflow_core.orchestrator_fakes import (  # noqa: E402
+    call_count,
+    fake_orchestrator,
+    on_path,
+)
 from workflow_core import orchestrator_client  # noqa: E402
 
 
 class OrchestratorClientTests(unittest.TestCase):
-    def setUp(self) -> None:
-        orchestrator_client._checked.cache_clear()
-
-    def test_missing_orchestrator_raises_missing(self) -> None:
+    def test_status_when_missing(self) -> None:
         with tempfile.TemporaryDirectory() as empty_dir:
-            with mock.patch.dict(os.environ, {"PATH": empty_dir}):
-                with self.assertRaises(orchestrator_client.OrchestratorError) as ctx:
-                    orchestrator_client.health("codex", "/nonexistent")
-                self.assertEqual("orchestrator_missing", str(ctx.exception))
+            with on_path(empty_dir):
+                # Ensure gin-orchestrator is not found on PATH
+                os.environ["PATH"] = empty_dir
+                st = orchestrator_client.status()
+                self.assertFalse(st["available"])
+                self.assertEqual(orchestrator_client.MISSING, st["reason"])
+                self.assertIsNone(st["version"])
+                self.assertIsNone(st["contract"])
+                self.assertEqual([], st["capabilities"])
 
-                orchestrator_client._checked.cache_clear()
+    def test_status_with_contract_1_is_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=1)
+            with on_path(fake_dir):
+                st = orchestrator_client.status()
+                self.assertFalse(st["available"])
+                self.assertEqual(orchestrator_client.MISMATCH, st["reason"])
+
+    def test_status_lists_capabilities(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, capabilities=["routes", "reviewer"])
+            with on_path(fake_dir):
+                st = orchestrator_client.status()
+                self.assertTrue(st["available"])
+                self.assertIsNone(st["reason"])
+                self.assertEqual(2, st["contract"])
+                self.assertEqual(["routes", "reviewer"], st["capabilities"])
+
+    def test_delegates_only_in_multi_mode_with_the_capability(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, capabilities=["routes"])
+            with on_path(fake_dir):
+                self.assertTrue(orchestrator_client.delegates({"provider_mode": "multi"}, "routes"))
+                self.assertFalse(orchestrator_client.delegates({"provider_mode": "single"}, "routes"))
+                self.assertFalse(orchestrator_client.delegates({"provider_mode": "multi"}, "reviewer"))
+                self.assertFalse(orchestrator_client.delegates({}, "routes"))
+
+    def test_call_failure_raises_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, fail=["health"])
+            with on_path(fake_dir):
+                with self.assertRaises(orchestrator_client.OrchestratorError) as ctx:
+                    orchestrator_client.call(["health"])
+                self.assertEqual(orchestrator_client.FAILED, str(ctx.exception))
+
+    def test_status_runs_version_once(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2)
+            with on_path(fake_dir):
+                self.assertEqual(0, call_count(fake_dir, "version"))
+                orchestrator_client.status()
+                orchestrator_client.status()
+                orchestrator_client.status()
+                self.assertEqual(1, call_count(fake_dir, "version"))
+
+    def test_models_delegation(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, replies={"models": [{"id": "m1"}]})
+            with on_path(fake_dir):
+                self.assertEqual([{"id": "m1"}], orchestrator_client.models("codex"))
+
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, fail=["models"])
+            with on_path(fake_dir):
                 self.assertEqual([], orchestrator_client.models("codex"))
 
-    def test_contract_mismatch_raises_orchestrator_error(self) -> None:
-        with tempfile.TemporaryDirectory() as fake_dir:
-            stub = Path(fake_dir) / "gin-orchestrator"
-            stub.write_text(
-                "#!/bin/sh\n"
-                "echo '{\"contract_version\": 2, \"orchestrator_version\": \"x\"}'\n"
-                "exit 0\n",
-                encoding="utf-8",
-            )
-            stub.chmod(0o755)
-
-            with mock.patch.dict(os.environ, {"PATH": f"{fake_dir}{os.pathsep}{os.environ.get('PATH', '')}"}):
-                with self.assertRaises(orchestrator_client.OrchestratorError) as ctx:
-                    orchestrator_client.health("codex", "/nonexistent")
-                self.assertEqual("orchestrator_contract_mismatch", str(ctx.exception))
-
-                orchestrator_client._checked.cache_clear()
-                with self.assertRaises(orchestrator_client.OrchestratorError) as ctx:
-                    orchestrator_client.models("codex")
-                self.assertEqual("orchestrator_contract_mismatch", str(ctx.exception))
-
-    def test_command_failure_raises_failed_or_returns_empty_models(self) -> None:
-        with tempfile.TemporaryDirectory() as fake_dir:
-            stub = Path(fake_dir) / "gin-orchestrator"
-            stub.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-            stub.chmod(0o755)
-
-            with mock.patch.dict(os.environ, {"PATH": f"{fake_dir}{os.pathsep}{os.environ.get('PATH', '')}"}):
-                with self.assertRaises(orchestrator_client.OrchestratorError) as ctx:
-                    orchestrator_client.health("codex", "/nonexistent")
-                self.assertEqual("orchestrator_failed", str(ctx.exception))
-
-                orchestrator_client._checked.cache_clear()
+        with tempfile.TemporaryDirectory() as empty_dir:
+            with on_path(empty_dir):
+                os.environ["PATH"] = empty_dir
                 self.assertEqual([], orchestrator_client.models("codex"))
-
-    def test_path_orchestrator_serves_models(self) -> None:
-        with tempfile.TemporaryDirectory() as fake_dir:
-            stub = Path(fake_dir) / "gin-orchestrator"
-            stub.write_text(
-                "#!/bin/sh\n"
-                "if [ \"$1\" = \"version\" ]; then\n"
-                "  echo '{\"contract_version\": 1, \"orchestrator_version\": \"fake\"}'\n"
-                "  exit 0\n"
-                "fi\n"
-                "if [ \"$1\" = \"models\" ]; then\n"
-                "  echo '[{\"id\": \"m\"}]'\n"
-                "  exit 0\n"
-                "fi\n"
-                "exit 0\n",
-                encoding="utf-8",
-            )
-            stub.chmod(0o755)
-
-            with mock.patch.dict(os.environ, {"PATH": f"{fake_dir}{os.pathsep}{os.environ.get('PATH', '')}"}):
-                self.assertEqual([{"id": "m"}], orchestrator_client.models("codex"))
 
 
 if __name__ == "__main__":

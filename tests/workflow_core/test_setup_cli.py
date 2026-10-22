@@ -14,6 +14,7 @@ LAUNCHER = ROOT / "plugins/gin-workflow/src/scripts/gin-workflow"
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
 from workflow_core import setup_service  # noqa: E402
+from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path  # noqa: E402
 
 
 class SetupCliTests(unittest.TestCase):
@@ -762,6 +763,65 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, res.returncode, res.stderr)
             payload = json.loads(res.stdout)
             self.assertTrue(any("setup update --to-version 2.8" in action for action in payload.get("actions", [])))
+
+    def test_doctor_probe_delegates_in_multi_mode(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
+            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "provider_mode=multi").returncode)
+            prov_reply = {"codex.low": {"available": True, "reason": "ready"}}
+            fake_orchestrator(bin_dir, contract=2, capabilities=["doctor"], replies={"doctor": {"providers": prov_reply}})
+            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+            res = self.run_cli(repository, "doctor", "--probe", env=env)
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertEqual(prov_reply, payload["checks_details"]["providers"])
+            self.assertTrue(payload["checks"]["providers"])
+            self.assertTrue(payload["checks_details"]["orchestrator"]["available"])
+
+    def test_doctor_reports_orchestrator_missing_with_the_install_command(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as empty_bin:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
+            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "provider_mode=multi").returncode)
+            env = {**os.environ, "PATH": empty_bin}
+            res = self.run_cli(repository, "doctor", env=env)
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertFalse(payload["checks_details"]["orchestrator"]["available"])
+            self.assertEqual("orchestrator_missing", payload["checks_details"]["orchestrator"]["reason"])
+            self.assertTrue(any("orchestrator_missing" in a and "./install.sh --plugin gin-orchestrator" in a for a in payload.get("actions", [])))
+
+    def test_doctor_probe_failure_reports_orchestrator_failed(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
+            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "provider_mode=multi").returncode)
+            fake_orchestrator(bin_dir, contract=2, capabilities=["doctor"], fail=["doctor"])
+            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+            res = self.run_cli(repository, "doctor", "--probe", env=env)
+            payload = json.loads(res.stdout)
+            self.assertFalse(payload["checks"]["providers"])
+            self.assertEqual("orchestrator_failed", payload["checks_details"]["providers"]["reason"])
+
+    def test_models_delegates_or_returns_an_empty_list(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
+            repository = Path(directory)
+            fake_orchestrator(bin_dir, contract=2, capabilities=["models"], replies={"models": [{"id": "m1"}]})
+            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+            res = self.run_cli(repository, "models", "--provider", "codex", env=env)
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertEqual([{"id": "m1"}], payload["models"])
+
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as empty_bin:
+            repository = Path(directory)
+            env = {**os.environ, "PATH": empty_bin}
+            res = self.run_cli(repository, "models", "--provider", "codex", env=env)
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertEqual([], payload["models"])
+
 
 
 if __name__ == "__main__":

@@ -14,16 +14,18 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import git, write  # noqa: E402
+from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path  # noqa: E402
 from workflow_core import reviewer  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
 from workflow_core.reviewer import ReviewerError, is_docs, review_tier, route  # noqa: E402
 
 
-def config(root: Path, harness: str = "claude", **review) -> EffectiveConfig:
+def config(root: Path, harness: str = "claude", provider_mode: str = "single", **review) -> EffectiveConfig:
     return EffectiveConfig(
         {
-            "schema_version": "2.7",
+            "schema_version": "2.8",
             "harness": harness,
+            "provider_mode": provider_mode,
             "routing": {"review": review},
         },
         root,
@@ -108,6 +110,36 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(len(doc["routes"]), 1)
         self.assertEqual(doc["routes"][0]["provider"], "claude")
         self.assertRegex(doc["routes"][0]["actor_id"], r"^reviewer:claude:session-[0-9a-f]{8}$")
+
+    def test_multi_mode_returns_orchestrator_routes(self):
+        cfg = config(self.root, harness="claude", provider_mode="multi")
+        orch_routes = [{"provider": "codex", "model": "opus", "effort": None, "actor_id": "reviewer:codex"}]
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": orch_routes})
+            with on_path(fake_dir):
+                out = route(self.root, self.base, tier="medium", implementer="claude", config=cfg)
+                self.assertEqual(orch_routes, out["routes"])
+
+    def test_empty_orchestrator_routes_exit_2(self):
+        cfg = config(self.root, harness="claude", provider_mode="multi")
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": []})
+            with on_path(fake_dir):
+                with self.assertRaises(ReviewerError):
+                    route(self.root, self.base, tier="medium", implementer="claude", config=cfg)
+
+    def test_failing_orchestrator_reviews_on_the_main_harness_with_warning(self):
+        cfg = config(self.root, harness="claude", provider_mode="multi")
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], fail=["reviewer"])
+            with on_path(fake_dir):
+                out = route(self.root, self.base, tier="medium", implementer="claude", config=cfg)
+                self.assertEqual("claude", out["routes"][0]["provider"])
+                self.assertTrue(
+                    any("gin-orchestrator failed" in w for w in out["warnings"]),
+                    out["warnings"],
+                )
+
 
 
 if __name__ == "__main__":

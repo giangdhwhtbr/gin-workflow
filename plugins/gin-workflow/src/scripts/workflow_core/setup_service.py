@@ -24,6 +24,7 @@ from .migrations import (
 from .executable_resolver import resolve_harness_executable
 from .provider_config import DEFAULT_HARNESS_MODELS
 from . import agents_block
+from . import orchestrator_client
 from .schemas import require_jsonschema
 
 
@@ -477,6 +478,21 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             checks_details["team"] = team_detail
             checks["team"] = all(team_detail["checks"].values())
             actions.extend(f"team: {action}" for action in team_detail["actions"])
+
+        if effective.get("provider_mode") == "multi":
+            checks_details["orchestrator"] = orchestrator_client.status()
+            if probe and orchestrator_client.delegates(effective, "doctor"):
+                try:
+                    providers = orchestrator_client.call(["doctor", "--repository", str(root)])["providers"]
+                    checks_details["providers"] = providers
+                    checks["providers"] = all(v["available"] for v in providers.values())
+                except (orchestrator_client.OrchestratorError, KeyError, TypeError, AttributeError):
+                    checks["providers"] = False
+                    checks_details["providers"] = {"reason": orchestrator_client.FAILED}
+            if not checks_details["orchestrator"].get("available"):
+                warn = orchestrator_client.warning(effective)
+                if warn:
+                    actions.append(warn)
 
     healthy = all(checks.values())
     payload: dict[str, Any] = {
