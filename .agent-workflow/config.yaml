@@ -1,6 +1,5 @@
 harness: claude
-provider_mode: multi
-routing:
+orchestrator:
   circuit_breaker:
     cooldown_seconds: 900
     failure_threshold: 3
@@ -12,26 +11,17 @@ routing:
     opencode: 2
   queue:
     max_wait_seconds: 600
-  review:
-    allow_self_review_fallback: false
-    independence: session
-    max_cycles: 3
-    require_independent: true
-    role: review
   roles:
     backend:
       by_tier:
         high:
         - antigravity
         low:
-        - opencode
+        - antigravity
         medium:
-        - opencode
+        - antigravity
       fallback:
       - main_harness
-      preferred:
-      - main_harness
-    docs:
       preferred:
       - main_harness
     frontend:
@@ -39,9 +29,9 @@ routing:
         high:
         - antigravity
         low:
-        - opencode
+        - antigravity
         medium:
-        - opencode
+        - antigravity
       fallback:
       - main_harness
       preferred:
@@ -51,22 +41,45 @@ routing:
         high:
         - antigravity
         low:
-        - opencode
+        - antigravity
         medium:
-        - opencode
+        - antigravity
       fallback:
       - main_harness
-      preferred:
-      - main_harness
-    review:
       preferred:
       - main_harness
   worker:
     max_retries: 2
     timeout_seconds: 900
+provider_mode: multi
+providers:
+  task_tracking: beads
+routing:
+  review:
+    allow_self_review_fallback: false
+    independence: session
+    max_cycles: 3
+    require_independent: true
+    role: review
+  roles:
+    backend:
+      preferred:
+      - main_harness
+    docs:
+      preferred:
+      - main_harness
+    frontend:
+      preferred:
+      - main_harness
+    general:
+      preferred:
+      - main_harness
+    review:
+      preferred:
+      - main_harness
+schema_version: '2.8'
+setup_cli_version: '2.8'
 verify:
   checks:
     test: PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests.test_all
-schema_version: '2.3'
-setup_cli_version: '2.3'
-workflow_version: '2.3'
+workflow_version: '2.8'

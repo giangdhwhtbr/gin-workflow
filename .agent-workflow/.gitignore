@@ -3,3 +3,4 @@ providers.local.yaml
 generated/
 runtime/
 backups/
+orchestrator.local.yaml
