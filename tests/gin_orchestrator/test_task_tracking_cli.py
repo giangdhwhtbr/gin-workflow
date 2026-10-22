@@ -120,6 +120,33 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
             self.root, runner=lambda argv, cwd: subprocess.CompletedProcess(argv, 0, "not json", ""))
         self.assertEqual(OperationStatus.UNAVAILABLE, garbled.read_task("t-1").status)
 
+    def test_create_and_update_map_status_and_attributes_to_flags(self):
+        calls = []
+
+        def runner(argv, cwd):
+            calls.append(list(argv))
+            return subprocess.CompletedProcess(argv, 0, '{"id": "t-1", "title": "T"}', "")
+
+        provider = CliTaskTrackingProvider(self.root, runner=runner)
+        provider.create_task(TaskCreateRequest("T", status="in_progress", attributes={"priority": 1, "assignee": "a"}),
+                             idempotency_key="c")
+        provider.update_task("t-1", {"attributes": {"priority": 2}}, idempotency_key="u")
+        self.assertEqual(
+            [["gin-workflow", "task", "create", "--title=T", "--status=in_progress", "--description=",
+              "--assignee=a", "--priority=1", "--json"],
+             ["gin-workflow", "task", "update", "t-1", "--priority=2", "--json"]],
+            calls)
+
+        calls.clear()
+        for request in (TaskCreateRequest("T", status="done"), TaskCreateRequest("T", attributes={"labels": "x"})):
+            self.assertEqual(OperationStatus.INVALID, provider.create_task(request, idempotency_key="bad").status)
+        self.assertEqual([], calls)
+
+    def test_responses_without_a_task_object_are_unavailable(self):
+        for stdout in ('{"title": "T"}', '{"id": "t-1"}', '"t-1"'):
+            provider = CliTaskTrackingProvider(
+                self.root, runner=lambda argv, cwd, out=stdout: subprocess.CompletedProcess(argv, 0, out, ""))
+            self.assertEqual(OperationStatus.UNAVAILABLE, provider.read_task("t-1").status, stdout)
 
     def test_values_that_look_like_flags_are_kept(self):
         created = self.provider.create_task(TaskCreateRequest("-x", description="--force", notes=("-n",)),
@@ -131,6 +158,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         closed = self.provider.close_task(TaskClosureRequest(created.value.task_id, "-done", ("-e",)),
                                           idempotency_key="close")
         self.assertEqual(("closed", "-done"), (closed.value.status, closed.value.closure_reason))
+
 
 if __name__ == "__main__":
     unittest.main()
