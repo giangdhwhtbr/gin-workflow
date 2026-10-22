@@ -1,6 +1,5 @@
 """The facade gin-orchestrator imports. Removing a name or changing a signature raises EXT_VERSION."""
 
-from . import task_markdown
 from .approvals import ApprovalAction
 from .assignments import (
     AssignmentManifest,
@@ -65,7 +64,6 @@ __all__ = [
     "main_checkout",
     "require_yaml",
     "resolve_harness_executable",
-    "task_markdown",
     "thaw",
     "validate_instance",
     "validate_plan_assignments",

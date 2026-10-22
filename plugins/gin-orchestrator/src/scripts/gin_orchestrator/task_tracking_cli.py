@@ -1,13 +1,14 @@
-"""Task tracking over the Markdown store (`workflow_core.task_markdown`), for repositories without Beads."""
+"""Task tracking through the `gin-workflow task` CLI, so the orchestrator never touches a task backend directly."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Any, Mapping
-
-from workflow_core.ext import task_markdown
+import subprocess
+from typing import Any, Callable, Mapping, Sequence
 
 from .contracts import (
+    OperationStatus,
     ProviderBase,
     ProviderResult,
     TaskClosureRequest,
@@ -22,28 +23,126 @@ from .contracts import (
     validate_task_attributes,
     validate_task_status,
 )
-from .task_tracking import BeadsTaskTrackingProvider, _closure_note
 
 
-class MarkdownTaskTrackingProvider(ProviderBase):
-    provider_name = "markdown"
+Runner = Callable[[Sequence[str], Path], subprocess.CompletedProcess[str]]
+_EVIDENCE_PREFIX = "gin:acceptance-evidence="
+_CLOSURE_PREFIX = "gin:closure-reason="
+
+
+def _default_runner(argv: Sequence[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(argv, cwd=cwd, text=True, capture_output=True, check=False)
+
+
+def _strings(value: object) -> tuple[str, ...]:
+    if value is None or value == "":
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (list, tuple)):
+        result = []
+        for item in value:
+            candidate = (
+                item.get("id") or item.get("task_id") or item.get("depends_on_id")
+                if isinstance(item, Mapping)
+                else item
+            )
+            if candidate is not None and str(candidate).strip():
+                result.append(str(candidate))
+        return tuple(result)
+    return (str(value),)
+
+
+def _closure_note(request: TaskClosureRequest) -> str:
+    return "\n".join(
+        (
+            _EVIDENCE_PREFIX + json.dumps(list(request.acceptance_evidence), separators=(",", ":")),
+            _CLOSURE_PREFIX + json.dumps(request.closure_reason, separators=(",", ":")),
+        )
+    )
+
+
+def _closure_provenance(notes: tuple[str, ...]) -> tuple[tuple[str, ...], str]:
+    evidence: tuple[str, ...] = ()
+    reason = ""
+    for note in notes:
+        for line in note.splitlines():
+            try:
+                if line.startswith(_EVIDENCE_PREFIX):
+                    value = json.loads(line.removeprefix(_EVIDENCE_PREFIX))
+                    evidence = _strings(value)
+                elif line.startswith(_CLOSURE_PREFIX):
+                    value = json.loads(line.removeprefix(_CLOSURE_PREFIX))
+                    reason = value if isinstance(value, str) else ""
+            except json.JSONDecodeError:
+                continue
+    return evidence, reason
+
+
+def _task_record(raw: Any) -> ProviderResult[TaskRecord]:
+    if isinstance(raw, list) and len(raw) == 1:
+        raw = raw[0]
+    if isinstance(raw, dict) and isinstance(raw.get("issue"), dict):
+        raw = raw["issue"]
+    if not isinstance(raw, dict):
+        return ProviderResult.unavailable("gin-workflow task response did not contain a task object")
+    task_id = raw.get("id") or raw.get("task_id")
+    title = raw.get("title") or raw.get("name")
+    if not task_id or not title:
+        return ProviderResult.unavailable("gin-workflow task response is missing id or title")
+    known = {
+        "id", "task_id", "title", "name", "description", "status", "notes",
+        "acceptance", "acceptance_criteria", "acceptance_evidence",
+        "dependencies", "closure_reason",
+    }
+    notes = _strings(raw.get("notes"))
+    marker_evidence, marker_reason = _closure_provenance(notes)
+    return ProviderResult.success(
+        TaskRecord(
+            str(task_id),
+            str(title),
+            str(raw.get("description", "")),
+            str(raw.get("status", "open")),
+            {key: value for key, value in raw.items() if key not in known},
+            notes,
+            _strings(raw.get("acceptance_criteria") or raw.get("acceptance")),
+            _strings(raw.get("acceptance_evidence")) or marker_evidence,
+            _strings(raw.get("dependencies")),
+            str(raw.get("closure_reason") or marker_reason),
+        )
+    )
+
+
+class CliTaskTrackingProvider(ProviderBase):
+    provider_name = "gin-workflow"
     provider_type = "task_tracking"
     capabilities = frozenset(
         {"task.create", "task.read", "task.update", "task.close", "task.dependency", "task.readiness",
          "task.preflight"}
     )
 
-    def __init__(self, repository_root: Path) -> None:
+    def __init__(self, repository_root: Path, *, executable: str = "gin-workflow",
+                 runner: Runner | None = None) -> None:
         super().__init__()
         self.repository_root = Path(repository_root).resolve()
+        self.executable = executable
+        self._runner = runner or _default_runner
 
     def _run(self, *argv: str) -> ProviderResult[Any]:
-        value = task_markdown.query(self.repository_root, argv)
-        return ProviderResult.invalid(f"markdown task {argv[0]} failed") if value is None else ProviderResult.success(value)
+        try:
+            completed = self._runner([self.executable, "task", *argv, "--json"], self.repository_root)
+        except (OSError, subprocess.SubprocessError) as error:
+            return ProviderResult.unavailable(f"{self.executable} unavailable: {error}")
+        if completed.returncode:
+            return ProviderResult.invalid(f"gin-workflow task {argv[0]} failed: {completed.stderr.strip()}")
+        try:
+            return ProviderResult.success(json.loads(completed.stdout))
+        except json.JSONDecodeError as error:
+            return ProviderResult.unavailable(f"gin-workflow task {argv[0]} returned invalid JSON: {error}")
 
     def _record(self, *argv: str) -> ProviderResult[TaskRecord]:
         ran = self._run(*argv)
-        return ran if ran.value is None else BeadsTaskTrackingProvider._task(ran.value)
+        return ran if ran.value is None else _task_record(ran.value)
 
     def create_task(self, request: TaskCreateRequest, *, idempotency_key: str) -> ProviderResult[TaskRecord]:
         if not request.title.strip() or not idempotency_key:
@@ -129,7 +228,11 @@ class MarkdownTaskTrackingProvider(ProviderBase):
         return ProviderResult.success(TaskReadiness(task_id, shown.value.status == "open" and not blockers, blockers))
 
     def preflight(self) -> ProviderResult[TaskPreflight]:
-        return ProviderResult.success(TaskPreflight("markdown", "1", self.capabilities, True))
+        ran = self._run("ready")
+        if ran.status is OperationStatus.UNAVAILABLE:
+            return ran
+        return ProviderResult.success(
+            TaskPreflight("gin-workflow", "1", self.capabilities, ran.value is not None, ran.message))
 
     def sync(self, request: TaskSyncRequest, *, idempotency_key: str, **_: Any) -> ProviderResult[TaskSyncResult]:
-        return ProviderResult.unavailable("markdown task tracking has no sync; task files are local to this checkout")
+        return ProviderResult.invalid("sync is owned by the gin-workflow task backend")

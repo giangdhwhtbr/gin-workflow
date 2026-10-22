@@ -55,7 +55,6 @@ from gin_orchestrator.native_cli import (  # noqa: E402
     NativeHealth,
 )
 from gin_orchestrator.review import ReviewLedgerProvider  # noqa: E402
-from gin_orchestrator.task_tracking import BeadsTaskTrackingProvider  # noqa: E402
 from gin_orchestrator.sequential_worker import SequentialWorkerAdapter  # noqa: E402
 from gin_orchestrator.worker_dispatch import (  # noqa: E402
     REQUIRED_RESULT_FIELDS,
@@ -63,9 +62,6 @@ from gin_orchestrator.worker_dispatch import (  # noqa: E402
     WorkerRequest,
     WorkerResultContractError,
     normalize_worker_result,
-)
-from tests.gin_orchestrator.test_task_tracking_compatibility import (  # noqa: E402
-    CliFixture,
 )
 
 
@@ -630,11 +626,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
             )
             self.assertEqual((), validate_plan_assignments((plan_request,), portable))
 
-            task_cli = CliFixture("bd")
-            task_cli.task["id"] = task_id
-            task_cli.task["status"] = "in_progress"
-            task_cli.readiness_payload = [{"id": task_id}]
-            tasks = BeadsTaskTrackingProvider(repository, runner=task_cli)
+            tasks = FakeTaskTrackingProvider()
             self.assertTrue(tasks.preflight().value.healthy)
             created_task = tasks.create_task(
                 TaskCreateRequest(
@@ -646,7 +638,8 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 idempotency_key="create-e2e",
             )
             self.assertIs(OperationStatus.SUCCESS, created_task.status)
-            self.assertTrue(tasks.readiness(task_id).value.ready)
+            tracked_id = created_task.value.task_id
+            self.assertTrue(tasks.readiness(tracked_id).value.ready)
 
             worker_store = {}
             checkpoint_store = {}
@@ -812,7 +805,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
 
             closed = tasks.close_task(
                 TaskClosureRequest(
-                    task_id,
+                    tracked_id,
                     "authoritative acceptance complete",
                     tuple(record.evidence_id for record in complete.evidence),
                 ),
@@ -918,19 +911,6 @@ class WorkflowEndToEndTests(unittest.TestCase):
             with self.subTest(boundary="worker", tests=payload["tests"]):
                 with self.assertRaises(WorkerResultContractError):
                     normalize_worker_result(payload, request)
-
-        unhealthy_cli = CliFixture("bd", drift="database/jsonl mismatch")
-        unhealthy_tasks = BeadsTaskTrackingProvider(Path.cwd(), runner=unhealthy_cli)
-        unavailable = unhealthy_tasks.create_task(
-            TaskCreateRequest("must-not-mutate"), idempotency_key="unhealthy"
-        )
-        self.assertIs(OperationStatus.UNAVAILABLE, unavailable.status)
-        self.assertFalse(
-            any(
-                len(call) > 1 and call[1] == "create" and "--help" not in call
-                for call in unhealthy_cli.calls
-            )
-        )
 
         with tempfile.TemporaryDirectory() as directory:
             repository_root = Path(directory)

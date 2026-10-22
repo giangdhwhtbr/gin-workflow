@@ -27,7 +27,7 @@ from gin_orchestrator.contracts import (  # noqa: E402
 from gin_orchestrator.knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider  # noqa: E402
 from gin_orchestrator.notifications import TelegramNotificationProvider  # noqa: E402
 from gin_orchestrator.review import ReviewLedgerProvider  # noqa: E402
-from gin_orchestrator.task_tracking import BeadsTaskTrackingProvider  # noqa: E402
+from gin_orchestrator.task_tracking_cli import CliTaskTrackingProvider  # noqa: E402
 from gin_orchestrator.workspace import WorktreeWorkspaceProvider  # noqa: E402
 from gin_orchestrator.fakes import (  # noqa: E402
     FakeEvidenceProvider,
@@ -37,7 +37,6 @@ from gin_orchestrator.fakes import (  # noqa: E402
     FakeTaskTrackingProvider,
     FakeWorkspaceProvider,
 )
-from tests.gin_orchestrator.test_task_tracking_compatibility import CliFixture  # noqa: E402
 
 
 class ProviderContractTests(unittest.TestCase):
@@ -127,45 +126,11 @@ class ProviderContractTests(unittest.TestCase):
         self.assertEqual("changed", read.value.description)
 
     def test_task_providers_map_supported_fields_and_reject_unknown_attributes(self):
-        fixture = CliFixture()
-        calls = fixture.calls
-        real = BeadsTaskTrackingProvider(Path.cwd(), runner=fixture)
         request = TaskCreateRequest(
             "Task",
             status="in_progress",
             attributes={"priority": "P1", "assignee": "worker-1"},
         )
-        created = real.create_task(request, idempotency_key="create")
-        invalid_status = real.create_task(
-            TaskCreateRequest("Bad status", status="not-real"),
-            idempotency_key="bad-status",
-        )
-        invalid = real.create_task(
-            TaskCreateRequest("Bad", attributes={"labels": ["unsupported"]}),
-            idempotency_key="bad",
-        )
-        updated = real.update_task(
-            "task-1",
-            {"attributes": {"priority": "P0"}},
-            idempotency_key="update",
-        )
-
-        self.assertIs(OperationStatus.SUCCESS, created.status)
-        create_call = next(
-            call for call in calls if len(call) > 1 and call[1] == "create" and "--help" not in call
-        )
-        self.assertIn(("--status", "in_progress"), tuple(zip(create_call, create_call[1:])))
-        self.assertIn(("--priority", "P1"), tuple(zip(create_call, create_call[1:])))
-        self.assertIn(("--assignee", "worker-1"), tuple(zip(create_call, create_call[1:])))
-        self.assertIs(OperationStatus.INVALID, invalid.status)
-        self.assertIs(OperationStatus.INVALID, invalid_status.status)
-        update_call = next(
-            call for call in calls if len(call) > 1 and call[1] == "update" and "--help" not in call
-        )
-        self.assertIn(("--priority", "P0"), tuple(zip(update_call, update_call[1:])))
-        self.assertIs(OperationStatus.SUCCESS, updated.status)
-        self.assertEqual(2, len([call for call in calls if "--help" not in call and call[1] in {"create", "update"}]))
-
         fake = FakeTaskTrackingProvider()
         fake_created = fake.create_task(request, idempotency_key="create")
         fake_invalid_status = fake.create_task(
@@ -332,9 +297,15 @@ class ProviderContractTests(unittest.TestCase):
 
 
     def test_subprocess_adapters_normalize_success_invalid_unavailable_and_replay(self):
-        fixture = CliFixture()
-        task_calls = fixture.calls
-        tasks = BeadsTaskTrackingProvider(Path.cwd(), runner=fixture)
+        task_calls = []
+
+        def task_runner(argv, cwd):
+            task_calls.append(tuple(argv))
+            payload = {"id": "task-1" if argv[2] == "create" else "task-7", "title": "T",
+                       "status": "closed" if argv[2] == "update" else "open"}
+            return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
+
+        tasks = CliTaskTrackingProvider(Path.cwd(), runner=task_runner)
         self.assertIs(
             OperationStatus.INVALID,
             tasks.create_task(TaskCreateRequest(title=""), idempotency_key="bad").status,
@@ -343,17 +314,26 @@ class ProviderContractTests(unittest.TestCase):
         replayed = tasks.create_task(TaskCreateRequest("Portable providers"), idempotency_key="create")
         self.assertEqual("task-1", created.value.task_id)
         self.assertTrue(replayed.idempotent)
-        self.assertEqual(1, len([call for call in task_calls if call[1] == "create" and "--help" not in call]))
+        self.assertEqual(1, len([call for call in task_calls if call[2] == "create"]))
         updated = tasks.update_task(
             "task-7", {"status": "closed"}, idempotency_key="create"
         )
         self.assertEqual("closed", updated.value.status)
-        self.assertEqual(1, len([call for call in task_calls if call[1] == "update" and "--help" not in call]))
-        offline_tasks = BeadsTaskTrackingProvider(
-            Path.cwd(),
-            runner=lambda argv, cwd: subprocess.CompletedProcess(argv, 1, "", "offline"),
+        self.assertEqual(1, len([call for call in task_calls if call[2] == "update"]))
+        self.assertIs(
+            OperationStatus.INVALID,
+            CliTaskTrackingProvider(
+                Path.cwd(), runner=lambda argv, cwd: subprocess.CompletedProcess(argv, 1, "", "offline")
+            ).read_task("task-7").status,
         )
-        self.assertIs(OperationStatus.UNAVAILABLE, offline_tasks.read_task("task-7").status)
+
+        def missing_executable(argv, cwd):
+            raise FileNotFoundError(argv[0])
+
+        self.assertIs(
+            OperationStatus.UNAVAILABLE,
+            CliTaskTrackingProvider(Path.cwd(), runner=missing_executable).read_task("task-7").status,
+        )
 
         notification_calls = []
 

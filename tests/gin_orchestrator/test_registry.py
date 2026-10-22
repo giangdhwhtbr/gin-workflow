@@ -38,7 +38,7 @@ from gin_orchestrator.native_cli import (  # noqa: E402
 from gin_orchestrator.registry import ProviderRegistry, RegistryError  # noqa: E402
 from gin_orchestrator.routed_worker import RoutedWorkerDispatcher  # noqa: E402
 from gin_orchestrator.review import ReviewLedgerProvider  # noqa: E402
-from gin_orchestrator.task_tracking import BeadsTaskTrackingProvider  # noqa: E402
+from gin_orchestrator.task_tracking_cli import CliTaskTrackingProvider  # noqa: E402
 from gin_orchestrator.workspace import WorktreeWorkspaceProvider  # noqa: E402
 from gin_orchestrator.worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerRequest  # noqa: E402
 
@@ -604,28 +604,6 @@ class ProviderRegistryTests(unittest.TestCase):
 
             self.assertIsInstance(registry.task_tracking, FakeTaskTrackingProvider)
 
-    def test_registry_selects_bd_or_br_task_executable_without_guessing(self):
-        with tempfile.TemporaryDirectory() as directory:
-            base = {
-                "schema_version": "2.1",
-                "providers": {
-                    "task_tracking": {"name": "beads", "executable": "br"},
-                    "knowledge": "fake",
-                    "workspace": "fake",
-                    "review": "fake",
-                    "evidence": "fake",
-                    "notifications": "fake",
-                },
-            }
-            registry = ProviderRegistry.from_effective_config(
-                EffectiveConfig(base, Path(directory))
-            )
-            self.assertEqual("br", registry.task_tracking.executable)
-
-            base["providers"]["task_tracking"]["executable"] = "unknown"
-            with self.assertRaisesRegex(RegistryError, "must be bd or br"):
-                ProviderRegistry.from_effective_config(EffectiveConfig(base, Path(directory)))
-
     def test_default_registry_contains_only_the_existing_provider_integrations(self):
         with tempfile.TemporaryDirectory() as directory:
             config = EffectiveConfig(
@@ -642,7 +620,7 @@ class ProviderRegistryTests(unittest.TestCase):
 
             registry = ProviderRegistry.from_config(config)
 
-            self.assertIsInstance(registry.task_tracking, BeadsTaskTrackingProvider)
+            self.assertIsInstance(registry.task_tracking, CliTaskTrackingProvider)
             self.assertIsInstance(registry.knowledge, RepositoryKnowledgeProvider)
             self.assertIsInstance(registry.workspace, WorktreeWorkspaceProvider)
             self.assertIsInstance(registry.review, ReviewLedgerProvider)

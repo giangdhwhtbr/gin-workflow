@@ -42,11 +42,11 @@ from .notifications import TelegramNotificationProvider
 from .registry import ProviderRegistry, RegistryError
 from .review import ReviewLedgerProvider
 from .routed_worker import RoutedWorkerDispatcher, RoutedWorkerReceipt
-from .task_tracking import BeadsTaskTrackingProvider
+from .task_tracking_cli import CliTaskTrackingProvider
 from .workspace import WorktreeWorkspaceProvider
 
 __all__ = [
-    "BeadsTaskTrackingProvider",
+    "CliTaskTrackingProvider",
     "EvidenceCategory",
     "EvidenceCompleteness",
     "EvidenceProvider",

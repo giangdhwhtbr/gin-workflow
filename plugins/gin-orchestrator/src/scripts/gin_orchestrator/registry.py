@@ -45,8 +45,7 @@ from .fakes import (
 from .knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider
 from .notifications import TelegramNotificationProvider
 from .review import ReviewLedgerProvider
-from .task_tracking import BeadsTaskTrackingProvider
-from .task_tracking_markdown import MarkdownTaskTrackingProvider
+from .task_tracking_cli import CliTaskTrackingProvider
 from .workspace import WorktreeWorkspaceProvider
 from .antigravity_worker import (
     AntigravityWorkerAdapter,
@@ -126,23 +125,15 @@ class ProviderRegistry:
         if not isinstance(artifacts, Mapping):
             raise RegistryError("artifacts must be a mapping")
 
-        task_name, task_options = _entry(config, "task_tracking")
+        task_name, _ = _entry(config, "task_tracking")
         knowledge_name, _ = _entry(config, "knowledge")
         workspace_name, workspace_options = _entry(config, "workspace")
         review_name, _ = _entry(config, "review")
         evidence_name, evidence_options = _entry(config, "evidence")
         notification_name, _ = _entry(config, "notifications")
 
-        if task_name == "beads":
-            try:
-                task_tracking: TaskTrackingProvider = BeadsTaskTrackingProvider(
-                    root,
-                    executable=str(task_options.get("executable", "bd")),
-                )
-            except ValueError as error:
-                raise RegistryError(str(error)) from error
-        elif task_name == "markdown":
-            task_tracking = MarkdownTaskTrackingProvider(root)
+        if task_name in {"beads", "markdown"}:
+            task_tracking: TaskTrackingProvider = CliTaskTrackingProvider(root)
         elif task_name == "fake":
             task_tracking = FakeTaskTrackingProvider()
         else:

@@ -34,7 +34,6 @@ EXPECTED = [
     "main_checkout",
     "require_yaml",
     "resolve_harness_executable",
-    "task_markdown",
     "thaw",
     "validate_instance",
     "validate_plan_assignments",
