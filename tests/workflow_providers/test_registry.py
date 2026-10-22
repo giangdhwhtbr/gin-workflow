@@ -72,7 +72,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                     "review": "fake", "evidence": "fake", "notifications": "fake",
                 },
-                "routing": {
+                "orchestrator": {
                     "roles": {
                         "backend": {
                             "preferred": [provider],
@@ -282,7 +282,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                     "review": "fake", "evidence": "fake", "notifications": "fake",
                 },
-                "routing": {
+                "orchestrator": {
                     "roles": {
                         "backend": {"preferred": ["claude"], "fallback": []},
                         "review": {"preferred": ["claude"], "fallback": []},
@@ -313,7 +313,7 @@ class ProviderRegistryTests(unittest.TestCase):
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                         "review": "fake", "evidence": "fake", "notifications": "fake",
                     },
-                    "routing": {
+                    "orchestrator": {
                         "roles": {"backend": {"preferred": ["claude"], "fallback": ["main_harness"]}},
                         "concurrency": {"claude": 1, "codex": 1},
                         "queue": {"max_wait_seconds": 0},
@@ -499,7 +499,7 @@ class ProviderRegistryTests(unittest.TestCase):
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                         "review": "fake", "evidence": "fake", "notifications": "fake",
                     },
-                    "routing": {
+                    "orchestrator": {
                         "roles": {"backend": {"preferred": ["codex"], "fallback": []}},
                         "concurrency": {"codex": 1},
                         "queue": {"max_wait_seconds": 0},
@@ -822,7 +822,7 @@ class ProviderRegistryTests(unittest.TestCase):
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                         "review": "fake", "evidence": "fake", "notifications": "fake",
                     },
-                    "routing": {
+                    "orchestrator": {
                         "roles": {"backend": {"preferred": ["codex", "antigravity"], "fallback": []}},
                         "concurrency": {"codex": 1, "antigravity": 1},
                         "queue": {"max_wait_seconds": 0},
@@ -912,7 +912,7 @@ class ProviderRegistryTests(unittest.TestCase):
                             "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                             "review": "fake", "evidence": "fake", "notifications": "fake",
                         },
-                        "routing": {
+                        "orchestrator": {
                             "roles": {"backend": {"preferred": ["antigravity"], "fallback": []}},
                             "concurrency": {"antigravity": 1},
                             "queue": {"max_wait_seconds": 0},

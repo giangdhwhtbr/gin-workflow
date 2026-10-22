@@ -11,6 +11,7 @@ from .assignments import (
 )
 from .atomic import atomic_write_text
 from .checkout import main_checkout
+from .configuration import load_effective_config, require_yaml
 from .events import WorkflowEvent, WorkflowEventStore
 from .executable_resolver import PROVIDER_EXE_ALIASES, resolve_harness_executable
 from .identity import AcceptanceIdentity, RepositorySnapshot
@@ -28,6 +29,7 @@ from .provider_config import (
     default_provider_model_config,
 )
 from .router import authorize_protected_action
+from .schemas import SUPPORTED_CONFIG_VERSIONS, validate_instance
 
 EXT_VERSION = 1
 
@@ -50,6 +52,7 @@ __all__ = [
     "REASONING_TIERS",
     "RepositorySnapshot",
     "RouteCandidate",
+    "SUPPORTED_CONFIG_VERSIONS",
     "TierModelTarget",
     "WorkflowEvent",
     "WorkflowEventStore",
@@ -58,9 +61,12 @@ __all__ = [
     "create_context_manifest",
     "default_provider_model_config",
     "freeze",
+    "load_effective_config",
     "main_checkout",
+    "require_yaml",
     "resolve_harness_executable",
     "task_markdown",
     "thaw",
+    "validate_instance",
     "validate_plan_assignments",
 ]

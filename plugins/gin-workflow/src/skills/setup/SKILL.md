@@ -19,33 +19,15 @@ Ask exactly one question at a time and wait for its answer. Do not infer require
 4. **Code index** — Brownfield or legacy only. When `codegraph.installed` is true and it is not `indexed`: offer `codegraph init`, and run it only on approval. When `codegraph.installed` is false: print one line suggesting CodeGraph with https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md; do not ask, install, or wait.
 5. **Task tracking** — `markdown` (default) or `beads` (needs `bd`), passed as `--task-tracking`.
 
-Optional: a model per tier for the current harness from `gin-workflow setup models --provider <harness> --format json`. Suggest fast/cheap models for `low` and frontier models for `high`; an `agy` id suffix (`-low`/`-medium`/`-high`) matches its tier. Always allow manual entry; an empty list means manual entry. Model choices become `--provider-set` assignments. When skipped in single mode, setup defaults the harness mapping from built-in harness defaults.
-
 Then:
 1. `gin-workflow setup preset --project-stage S --project-shape X --rigor R --task-tracking T [--monorepo] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
-2. Run `init --dry-run` with the harness and every assignment. Present both `configuration` and `provider_configuration`, the proposed `rule_packs` (the user may add or remove packs as an extra `--set rules.packs=[...]`), each `rule_tool_checks` item with its `suggest` snippet (suggestions only; setup never edits lint or type configs), the exact files/actions, and any validation error. Do not write on dry-run.
-3. Obtain explicit native-harness approval for the complete two-layer proposal.
-4. Run one approved `init` with the same harness and same assignments. The CLI validates both layers before any atomic write.
+2. Run `init --dry-run` with the harness and every assignment. Present `configuration`, the proposed `rule_packs` (the user may add or remove packs as an extra `--set rules.packs=[...]`), each `rule_tool_checks` item with its `suggest` snippet (suggestions only; setup never edits lint or type configs), the exact files/actions, and any validation error. Do not write on dry-run.
+3. Obtain explicit native-harness approval for the proposal.
+4. Run one approved `init` with the same harness and same assignments. The CLI validates before any atomic write.
 5. When `verify.checks` is configured, run `gin-workflow hooks install` (quality checks run in `pre-commit`/`pre-push`, not in a lifecycle stage). If it reports `occupied` or `missing`, show the user the printed instruction; never overwrite a hook.
 6. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
 
-Portable answers become `--set` assignments in `.agent-workflow/config.yaml`; executable/model answers become `--provider-set` assignments in the gitignored `.agent-workflow/providers.local.yaml`.
-
-## Advanced setup
-
-Used for `/setup --advanced` or `multi` provider mode: the five quick questions above, then these groups, one at a time.
-
-1. **Main harness** — Which harness opened and will coordinate this workflow: Claude, Codex, or Antigravity?
-2. **Enabled native providers** — Which installed, already-authenticated native CLIs may execute work, and what executable name/path identifies each?
-3. **Preferred provider roles** — For each user-defined role such as backend, frontend, review, docs, or general, what is the ordered preferred provider list?
-4. **Reasoning-to-model mappings** — For every enabled provider, which model maps to `low`, `medium`, and `high`? Offer the list from `gin-workflow setup models --provider <p>`. (For Codex, each tier can also set a reasoning effort; for Antigravity, `provider_default` is allowed.)
-5. **Ordered fallbacks** — Which providers, including optional `main_harness`, may handle each role when preferred capacity is unavailable?
-6. **Provider concurrency** — What maximum concurrent worker count applies to each provider?
-7. **Queue and worker limits** — What are queue wait seconds, worker timeout seconds, and maximum retries?
-8. **Circuit breaker** — What failure threshold, cooldown seconds, and half-open probe limit should apply?
-9. **Independent review** — Which review role is used, must review differ from implementation, may self-review be a fallback, and what is the maximum cycle count (suggest 2)?
-
-Use `plugins/gin-workflow/src/examples/config.full.yaml` and `providers.local.example.yaml` as a reference, never as silently accepted answers. Credentials remain owned by each native CLI login and are never questionnaire values.
+Answers become `--set` assignments in `.agent-workflow/config.yaml`.
 
 One `/setup` invocation completes initial setup. Repeated identical `init` calls are idempotent; lifecycle stages never call setup automatically.
 

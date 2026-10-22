@@ -58,13 +58,10 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual("2.3", result.config["schema_version"])
         self.assertEqual(("claude",), result.config["routing"]["roles"]["backend"]["preferred"])
 
-    def test_built_in_defaults_include_updated_routing_and_policy_defaults(self):
+    def test_built_in_defaults_include_updated_policy_defaults_and_no_routing(self):
         with tempfile.TemporaryDirectory() as directory:
             result = resolve_effective_config(Path(directory), write=False)
-            routing = result.config["routing"]
-            self.assertEqual(3, routing["circuit_breaker"]["failure_threshold"])
-            self.assertEqual(600, routing["queue"]["max_wait_seconds"])
-            self.assertEqual(2, routing["worker"]["max_retries"])
+            self.assertNotIn("routing", result.config)
             self.assertEqual(86400, result.config["policy"]["approval"]["ttl_seconds"])
             self.assertTrue(result.config["policy"]["approval"]["bind_to_scope"])
             configuration.validate_portable_config(result.config.to_dict())

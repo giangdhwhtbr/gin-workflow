@@ -29,9 +29,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--non-interactive", action="store_true")
     parser.add_argument("--approve", action="store_true")
     parser.add_argument("--set", dest="assignments", action="append", default=[])
-    parser.add_argument(
-        "--provider-set", dest="provider_assignments", action="append", default=[]
-    )
     parser.add_argument("--to-version", dest="target_version", default=CURRENT_VERSION)
     parser.add_argument("--backup", type=Path)
     parser.add_argument("--output", type=Path)

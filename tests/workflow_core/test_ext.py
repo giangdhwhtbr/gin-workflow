@@ -21,6 +21,7 @@ EXPECTED = [
     "REASONING_TIERS",
     "RepositorySnapshot",
     "RouteCandidate",
+    "SUPPORTED_CONFIG_VERSIONS",
     "TierModelTarget",
     "WorkflowEvent",
     "WorkflowEventStore",
@@ -29,10 +30,13 @@ EXPECTED = [
     "create_context_manifest",
     "default_provider_model_config",
     "freeze",
+    "load_effective_config",
     "main_checkout",
+    "require_yaml",
     "resolve_harness_executable",
     "task_markdown",
     "thaw",
+    "validate_instance",
     "validate_plan_assignments",
 ]
 

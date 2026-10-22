@@ -22,11 +22,7 @@ from .migrations import (
     rollback_migration,
 )
 from .executable_resolver import resolve_harness_executable
-from .provider_config import (
-    DEFAULT_HARNESS_MODELS,
-    default_provider_config,
-    validate_provider_local_config,
-)
+from .provider_config import DEFAULT_HARNESS_MODELS
 from . import agents_block
 from .schemas import require_jsonschema
 
@@ -125,7 +121,6 @@ def initialize(
     dry_run: bool = False,
     harness: str | None = None,
     assignments: Iterable[str] = (),
-    provider_assignments: Iterable[str] = (),
     approve: bool = False,
     **_: Any,
 ) -> dict[str, Any]:
@@ -190,7 +185,6 @@ def initialize(
         }
 
     changes = list(assignments)
-    provider_changes = list(provider_assignments)
     if not dry_run and not approve:
         raise SetupError(
             "initial setup requires explicit --approve before writing repository configuration",
@@ -204,23 +198,6 @@ def initialize(
         path, value = _parse_assignment(assignment)
         _set_nested(config, path, value)
     validate_portable_config(config)
-    provider_config: dict[str, Any] | None = None
-    if provider_changes:
-        provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
-        for assignment in provider_changes:
-            path, value = _parse_assignment(assignment)
-            _set_nested(provider_config, path, value)
-        validate_provider_local_config(provider_config)
-
-    if config.get("provider_mode") == "single":
-        resolved_harness = harness or config.get("harness")
-        if not resolved_harness:
-            resolved_harness = detect(root).get("harness")
-        if resolved_harness and resolved_harness in DEFAULT_HARNESS_MODELS:
-            if provider_config is None:
-                provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
-            if resolved_harness not in provider_config["providers"]:
-                provider_config["providers"][resolved_harness] = default_provider_config(resolved_harness)
     resolved = resolve_effective_config(root, repository_config=config, write=False)
     agents_writes = _agents_writes(root, resolved.config.to_dict(), create=True)
     agents_actions = _agents_actions(root, agents_writes)
@@ -232,14 +209,6 @@ def initialize(
             "actions": list(INIT_ACTIONS),
             "configuration": config,
         }
-        if provider_config is not None:
-            payload["provider_configuration"] = provider_config
-            payload["actions"].extend(
-                [
-                    "create .agent-workflow/providers.local.yaml",
-                    "create .agent-workflow/.gitignore",
-                ]
-            )
         payload["actions"].extend(agents_actions)
         return payload
 
@@ -248,21 +217,11 @@ def initialize(
         resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
     }
-    if provider_config is not None:
-        writes[workflow / "providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
-        writes[workflow / ".gitignore"] = _merged_provider_gitignore(workflow / ".gitignore")
     atomic_write_many(writes)
     for relative in ("backups", "references", "runtime/evidence"):
         (workflow / relative).mkdir(parents=True, exist_ok=True)
     agents_block.write(agents_writes)
     actions = list(INIT_ACTIONS)
-    if provider_config is not None:
-        actions.extend(
-            [
-                "create .agent-workflow/providers.local.yaml",
-                "create .agent-workflow/.gitignore",
-            ]
-        )
     actions.extend(agents_actions)
     return {"status": "initialized", "repository": str(root), "actions": actions}
 
@@ -302,7 +261,6 @@ def configure(
     repository: Path,
     *,
     assignments: Iterable[str] = (),
-    provider_assignments: Iterable[str] = (),
     approve: bool = False,
     dry_run: bool = False,
     harness: str | None = None,
@@ -322,47 +280,19 @@ def configure(
         raise SetupError("repository configuration must contain a YAML mapping")
     config = {str(key): value for key, value in loaded.items()}
     changes = list(assignments)
-    provider_changes = list(provider_assignments)
     for assignment in changes:
         path, value = _parse_assignment(assignment)
         _set_nested(config, path, value)
     if harness:
         config["harness"] = harness
         changes.append(f"harness={harness}")
-    if not changes and not provider_changes:
+    if not changes:
         return {"status": "no_changes", "repository": str(root), "actions": []}
     validate_portable_config(config)
     resolved = resolve_effective_config(root, repository_config=config, write=False)
-    provider_config: dict[str, Any] | None = None
-    if provider_changes:
-        provider_path = root / ".agent-workflow/providers.local.yaml"
-        if provider_path.is_file():
-            try:
-                current_provider = yaml.safe_load(provider_path.read_text(encoding="utf-8"))
-            except (UnicodeDecodeError, yaml.YAMLError) as error:
-                raise SetupError(f"invalid provider local configuration: {error}") from error
-            if not isinstance(current_provider, Mapping):
-                raise SetupError("provider local configuration must contain a YAML mapping")
-            provider_config = {str(key): value for key, value in current_provider.items()}
-        else:
-            provider_config = {"schema_version": CURRENT_VERSION, "providers": {}}
-        for assignment in provider_changes:
-            path, value = _parse_assignment(assignment)
-            _set_nested(provider_config, path, value)
-        validate_provider_local_config(provider_config)
     actions = ["update .agent-workflow/config.yaml", "refresh generated configuration"]
-    if provider_config is not None:
-        actions.extend(
-            [
-                "update .agent-workflow/providers.local.yaml",
-                "update .agent-workflow/.gitignore",
-            ]
-        )
     if dry_run:
-        payload = {"status": "would_configure", "repository": str(root), "actions": actions}
-        if provider_config is not None:
-            payload["provider_configuration"] = provider_config
-        return payload
+        return {"status": "would_configure", "repository": str(root), "actions": actions}
     if not approve:
         raise SetupError(
             "configure requires explicit --approve before changing user-authored configuration",
@@ -373,10 +303,6 @@ def configure(
         resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
     }
-    if provider_config is not None:
-        writes[root / ".agent-workflow/providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
-        ignore_path = root / ".agent-workflow/.gitignore"
-        writes[ignore_path] = _merged_provider_gitignore(ignore_path)
     atomic_write_many(writes)
     return {"status": "configured", "repository": str(root), "actions": actions}
 
@@ -428,35 +354,6 @@ def status(repository: Path, **_: Any) -> dict[str, Any]:
     }
 
 
-def _inspect_required_providers(
-    roles: Any,
-    harness: str | None,
-) -> tuple[set[str], bool]:
-    required: set[str] = set()
-    needs_main = False
-    if not isinstance(roles, Mapping):
-        return required, needs_main
-    for role_entry in roles.values():
-        if not isinstance(role_entry, Mapping):
-            continue
-        tiers = role_entry.get("by_tier")
-        tier_lists = list(tiers.values()) if isinstance(tiers, Mapping) else []
-        for items in (role_entry.get("preferred"), role_entry.get("fallback"), *tier_lists):
-            candidates: list[str] = []
-            if isinstance(items, (list, tuple)):
-                candidates = [str(x) for x in items if x is not None]
-            elif isinstance(items, str) and items:
-                candidates = [items]
-            for cand in candidates:
-                if cand == "main_harness":
-                    needs_main = True
-                    if harness:
-                        required.add(harness)
-                else:
-                    required.add(cand)
-    return required, needs_main
-
-
 def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
@@ -482,128 +379,12 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 "worker routing under routing: is ignored; run gin-workflow setup update --to-version 2.8 --approve"
             )
 
-    provider_actions: list[str] = []
-    detected_harness = effective_cfg.get("harness") or detect(root).get("harness")
-    roles_map = effective_cfg.get("routing", {}).get("roles", {}) if isinstance(effective_cfg.get("routing"), Mapping) else {}
-    required_providers, needs_main_harness_check = _inspect_required_providers(roles_map, detected_harness)
-
-    def _missing_provider_action(provider: str, is_main: bool) -> str:
-        if is_main:
-            target = detected_harness or "configured harness"
-            return f"roles route to main_harness but no local mapping for {target}"
-        return f"roles route to {provider} but no local mapping for {provider}"
-
-    providers_file = root / ".agent-workflow/providers.local.yaml"
-    if providers_file.is_file():
-        yaml = require_yaml()
-        try:
-            p_data = yaml.safe_load(providers_file.read_text(encoding="utf-8")) or {}
-            validate_provider_local_config(p_data)
-        except Exception as error:
-            checks["configuration"] = False
-            checks_details["providers_config"] = {"valid": False, "error": str(error)}
-            p_data = {}
-        providers_map = p_data.get("providers", {}) if isinstance(p_data, Mapping) else {}
-        all_providers_healthy = True
-        provider_details: dict[str, Any] = {}
-        if required_providers or needs_main_harness_check:
-            if needs_main_harness_check and (not detected_harness or detected_harness not in providers_map):
-                all_providers_healthy = False
-                provider_actions.append(_missing_provider_action(detected_harness or "", True))
-                provider_details[f"{detected_harness or 'main_harness'}.mapping"] = {
-                    "available": False,
-                    "reason": "missing_local_provider_mapping",
-                }
-            for p in sorted(required_providers):
-                if p != detected_harness and p not in providers_map:
-                    all_providers_healthy = False
-                    provider_actions.append(_missing_provider_action(p, False))
-                    provider_details[f"{p}.mapping"] = {
-                        "available": False,
-                        "reason": "missing_local_provider_mapping",
-                    }
-        if providers_map:
-            if probe:
-                from . import orchestrator_client
-                from .provider_config import PROVIDER_DEFAULT, PROVIDER_DEFAULT_PROVIDERS
-
-                for provider, pconfig in providers_map.items():
-                    if not isinstance(pconfig, Mapping):
-                        all_providers_healthy = False
-                        continue
-                    configured_exe = str(pconfig.get("executable", ""))
-                    resolved_exe = resolve_harness_executable(configured_exe, provider=provider)
-                    if not resolved_exe:
-                        all_providers_healthy = False
-                        provider_details[f"{provider}.executable"] = {
-                            "available": False,
-                            "reason": "executable_not_found",
-                        }
-                        continue
-                    if provider not in orchestrator_client.HEALTH_PROVIDERS:
-                        continue
-                    probe_dir = root / ".agent-workflow/runtime/health-probe" / provider
-                    probe_dir.mkdir(parents=True, exist_ok=True)
-                    models = pconfig.get("models", {})
-                    if isinstance(models, Mapping):
-                        for tier, target in models.items():
-                            model = target.get("model") if isinstance(target, Mapping) else str(target)
-                            effort = target.get("effort") if isinstance(target, Mapping) else None
-                            try:
-                                if provider in PROVIDER_DEFAULT_PROVIDERS and model == PROVIDER_DEFAULT:
-                                    health = orchestrator_client.health(provider, resolved_exe)
-                                else:
-                                    health = orchestrator_client.health(
-                                        provider, resolved_exe, model=model, workspace=probe_dir,
-                                        effort=effort if provider == "codex" else None)
-                            except orchestrator_client.OrchestratorError as error:
-                                health = {"available": False, "reason": str(error)}
-                            if not health["available"]:
-                                all_providers_healthy = False
-                                provider_details[f"{provider}.{tier}"] = {
-                                    "available": False,
-                                    "reason": health["reason"],
-                                }
-                            else:
-                                provider_details[f"{provider}.{tier}"] = {
-                                    "available": True,
-                                    "reason": health["reason"],
-                                }
-            else:
-                for provider, pconfig in providers_map.items():
-                    if not isinstance(pconfig, Mapping):
-                        all_providers_healthy = False
-                        continue
-                    configured_exe = str(pconfig.get("executable", ""))
-                    resolved_exe = resolve_harness_executable(configured_exe, provider=provider)
-                    if not resolved_exe:
-                        all_providers_healthy = False
-                        provider_details[f"{provider}.executable"] = {
-                            "available": False,
-                            "reason": "executable_not_found",
-                        }
-                    else:
-                        provider_details[f"{provider}.executable"] = {
-                            "available": True,
-                            "reason": "executable_found",
-                        }
-        if providers_map or required_providers:
-            checks["providers"] = all_providers_healthy
-            if provider_details:
-                checks_details["providers"] = provider_details
-    else:
-        if required_providers or needs_main_harness_check:
-            # Deliberately flag missing file to nudge explicit setup even though runtime supports single-mode fallback.
-            checks["providers"] = False
-            checks_details["providers_config"] = {
-                "valid": False,
-                "error": f"provider local configuration does not exist: {providers_file}",
-            }
-            if needs_main_harness_check:
-                provider_actions.append(_missing_provider_action(detected_harness or "", True))
-            for p in sorted(required_providers):
-                if p != detected_harness:
-                    provider_actions.append(_missing_provider_action(p, False))
+    h = effective_cfg.get("harness") or detect(root).get("harness")
+    h_exe = None
+    if h and h in DEFAULT_HARNESS_MODELS:
+        h_exe = resolve_harness_executable(DEFAULT_HARNESS_MODELS[h]["executable"], provider=h)
+    checks["harness"] = bool(h_exe)
+    checks_details["harness"] = {"name": h, "executable": h_exe}
 
     hook_actions: list[str] = []
     if checks["configuration"]:
@@ -629,7 +410,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             graph["suggestion"] = "codegraph index is older than HEAD; run `codegraph sync`"
         checks_details["codegraph"] = graph
 
-    actions: list[str] = [*provider_actions, *backend_actions, *hook_actions]
+    actions: list[str] = [*backend_actions, *hook_actions]
     checks["review_ledgers"] = True
     planning_dir = root / ".planning"
     if planning_dir.is_dir():
@@ -741,7 +522,6 @@ def update(
     approve: bool = False,
     dry_run: bool = False,
     assignments: Iterable[str] = (),
-    provider_assignments: Iterable[str] = (),
     **_: Any,
 ) -> dict[str, Any]:
     _dependencies()
@@ -761,43 +541,18 @@ def update(
     validate_portable_config(migrated)
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
-    provider_config: dict[str, Any] | None = None
-    provider_changes = list(provider_assignments)
-    if provider_changes:
-        provider_path = root / ".agent-workflow/providers.local.yaml"
-        if provider_path.is_file():
-            try:
-                current = yaml.safe_load(provider_path.read_text(encoding="utf-8"))
-            except (UnicodeDecodeError, yaml.YAMLError) as error:
-                raise SetupError(f"invalid provider local configuration: {error}") from error
-            if not isinstance(current, Mapping):
-                raise SetupError("provider local configuration must contain a YAML mapping")
-            provider_config = {str(key): value for key, value in current.items()}
-        else:
-            provider_config = {"schema_version": target_version, "providers": {}}
-        for assignment in provider_changes:
-            path, value = _parse_assignment(assignment)
-            _set_nested(provider_config, path, value)
-        validate_provider_local_config(provider_config)
-
     proposal = propose_migration(root, target_version=target_version)
     old_local, new_local = root / ".agent-workflow/providers.local.yaml", root / ".agent-workflow/orchestrator.local.yaml"
     rename_local = target_version == "2.8" and old_local.is_file() and not new_local.exists()
     if rename_local:
         proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(root)} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
-    if provider_config is not None:
-        payload["provider_configuration"] = provider_config
     if dry_run or not approve:
         return payload
     additional_writes: dict[Path, bytes] = {
         resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
     }
-    if provider_config is not None:
-        additional_writes[root / ".agent-workflow/providers.local.yaml"] = _yaml_text(provider_config).encode("utf-8")
-        ignore_path = root / ".agent-workflow/.gitignore"
-        additional_writes[ignore_path] = _merged_provider_gitignore(ignore_path)
     res = apply_migration(
         root,
         target_version=target_version,

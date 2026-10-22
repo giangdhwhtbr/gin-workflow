@@ -55,17 +55,6 @@ BUILT_IN_DEFAULTS: dict[str, Any] = {
             "bind_to_scope": True,
         },
     },
-    "routing": {
-        "circuit_breaker": {
-            "failure_threshold": 3,
-        },
-        "queue": {
-            "max_wait_seconds": 600,
-        },
-        "worker": {
-            "max_retries": 2,
-        },
-    },
 }
 
 _COMMAND_KEYS = {
@@ -192,9 +181,7 @@ def legacy_worker_routing(config: Mapping[str, Any]) -> bool:
     routing = config.get("routing")
     if not isinstance(routing, Mapping):
         return False
-    # simplified: the built-in worker defaults stay under routing: until gin-orchestrator owns them; they are not legacy.
-    defaults = BUILT_IN_DEFAULTS.get("routing", {})
-    if any(key in routing and routing[key] != defaults.get(key) for key in WORKER_ROUTING_KEYS):
+    if any(key in routing for key in WORKER_ROUTING_KEYS):
         return True
     roles = routing.get("roles")
     return isinstance(roles, Mapping) and any(

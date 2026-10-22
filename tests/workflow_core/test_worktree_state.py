@@ -21,7 +21,6 @@ from workflow_core.configuration import (
     load_effective_config,
     resolve_effective_config,
 )
-from workflow_core.provider_config import load_provider_local_config
 from workflow_core.setup_service import harness_override
 
 
@@ -74,16 +73,12 @@ class WorktreeStateTests(unittest.TestCase):
             self.assertEqual(gates["plan_approved"], "satisfied", checkout)
         self.assertFalse((self.tree / ".agent-workflow/runtime/events.jsonl").exists())
 
-    def test_generated_and_provider_local_config_are_read_from_the_main_checkout(self):
+    def test_generated_config_is_read_from_the_main_checkout(self):
         resolve_effective_config(self.repo, repository_config={"schema_version": "2.3", "harness": "claude"})
-        (self.repo / ".agent-workflow/providers.local.yaml").write_text(
-            "schema_version: '2.3'\nproviders:\n  claude:\n    executable: claude\n"
-            "    models:\n      low: haiku\n      medium: sonnet\n      high: opus\n")
 
         config = load_effective_config(self.tree)
         self.assertEqual(config.harness, "claude")
         self.assertEqual(config.repository_root, self.tree)
-        self.assertEqual(load_provider_local_config(self.tree)["claude"].executable, "claude")
 
     def test_assignment_manifest_written_from_a_worktree_lands_in_the_main_checkout(self):
         request = AssignmentRequest("t1", "general", "medium", "claude", "wf")

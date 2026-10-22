@@ -97,29 +97,23 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
             self.assertEqual(generated_before, (workflow / "generated/effective-config.yaml").read_bytes())
 
-    def test_init_dry_run_previews_machine_local_provider_assignments_without_writing(self):
+    def test_init_writes_no_local_provider_file(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
-
             result = self.run_cli(
                 repository,
                 "init",
-                "--dry-run",
-                "--provider-set",
-                "providers.claude.executable=claude",
-                "--provider-set",
-                "providers.claude.models.low=haiku",
-                "--provider-set",
-                "providers.claude.models.medium=sonnet",
-                "--provider-set",
-                "providers.claude.models.high=opus",
+                "--approve",
                 "--non-interactive",
+                "--harness",
+                "claude",
             )
-
             self.assertEqual(0, result.returncode, result.stderr)
-            payload = json.loads(result.stdout)
-            self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
-            self.assertFalse((repository / ".agent-workflow").exists())
+            workflow = repository / ".agent-workflow"
+            self.assertTrue(workflow.is_dir())
+            self.assertTrue((workflow / "config.yaml").is_file())
+            self.assertFalse((workflow / "providers.local.yaml").exists())
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
 
     def test_init_applies_approved_configuration_atomically_in_one_call(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -317,91 +311,11 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("configured", json.loads(approved.stdout)["status"])
             self.assertIn("mode: guarded", config.read_text(encoding="utf-8"))
 
-    def test_configure_previews_then_writes_machine_local_provider_config(self):
-        assignments = (
-            "--provider-set", "providers.claude.executable=claude",
-            "--provider-set", "providers.claude.models.low=haiku",
-            "--provider-set", "providers.claude.models.medium=sonnet",
-            "--provider-set", "providers.claude.models.high=opus",
-        )
-        with tempfile.TemporaryDirectory() as directory:
-            repository = Path(directory)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
-            self.assertEqual(0, initialized.returncode, initialized.stderr)
-
-            preview = self.run_cli(repository, "configure", "--dry-run", *assignments)
-
-            self.assertEqual(0, preview.returncode, preview.stderr)
-            payload = json.loads(preview.stdout)
-            self.assertEqual("would_configure", payload["status"])
-            self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
-            self.assertFalse((repository / ".agent-workflow/providers.local.yaml").exists())
-
-            applied = self.run_cli(repository, "configure", "--approve", *assignments)
-
-            self.assertEqual(0, applied.returncode, applied.stderr)
-            local = (repository / ".agent-workflow/providers.local.yaml").read_text(encoding="utf-8")
-            self.assertIn("high: opus", local)
-            self.assertEqual("providers.local.yaml\norchestrator.local.yaml\nruntime/\n", (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8"))
-
-    def test_provider_configuration_preserves_existing_workflow_gitignore_entries(self):
-        assignments = (
-            "--provider-set", "providers.claude.executable=claude",
-            "--provider-set", "providers.claude.models.low=haiku",
-            "--provider-set", "providers.claude.models.medium=sonnet",
-            "--provider-set", "providers.claude.models.high=opus",
-        )
-        with tempfile.TemporaryDirectory() as directory:
-            repository = Path(directory)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
-            self.assertEqual(0, initialized.returncode, initialized.stderr)
-            ignored = repository / ".agent-workflow/.gitignore"
-            ignored.write_text("runtime/private.log\n# user rule\n", encoding="utf-8")
-
-            applied = self.run_cli(repository, "configure", "--approve", *assignments)
-
-            self.assertEqual(0, applied.returncode, applied.stderr)
-            self.assertEqual(
-                "runtime/private.log\n# user rule\nproviders.local.yaml\norchestrator.local.yaml\nruntime/\n",
-                ignored.read_text(encoding="utf-8"),
-            )
-
-    def test_provider_configuration_gitignore_idempotent_and_heals(self):
-        assignments = (
-            "--provider-set", "providers.claude.executable=claude",
-            "--provider-set", "providers.claude.models.low=haiku",
-            "--provider-set", "providers.claude.models.medium=sonnet",
-            "--provider-set", "providers.claude.models.high=opus",
-        )
-        with tempfile.TemporaryDirectory() as directory:
-            repository = Path(directory)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
-            self.assertEqual(0, initialized.returncode, initialized.stderr)
-            ignored = repository / ".agent-workflow/.gitignore"
-            # Simulate pre-fix repo with only providers.local.yaml
-            ignored.write_text("providers.local.yaml\n", encoding="utf-8")
-
-            applied = self.run_cli(repository, "configure", "--approve", *assignments)
-            self.assertEqual(0, applied.returncode, applied.stderr)
-            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("runtime/"))
-            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("providers.local.yaml"))
-
-            # Re-run to verify idempotence
-            applied_again = self.run_cli(repository, "configure", "--approve", *assignments)
-            self.assertEqual(0, applied_again.returncode, applied_again.stderr)
-            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("runtime/"))
-            self.assertEqual(1, ignored.read_text(encoding="utf-8").splitlines().count("providers.local.yaml"))
-
-
-    def test_update_previews_then_applies_v2_3_routing_and_local_provider_config(self):
+    def test_update_previews_then_applies_v2_3_routing(self):
         arguments = (
             "--to-version", "2.7",
             "--set", "routing.concurrency.claude=1",
             "--set", "routing.roles.backend.preferred=[claude]",
-            "--provider-set", "providers.claude.executable=claude",
-            "--provider-set", "providers.claude.models.low=haiku",
-            "--provider-set", "providers.claude.models.medium=sonnet",
-            "--provider-set", "providers.claude.models.high=opus",
         )
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
@@ -418,17 +332,13 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(preview.stdout)
             self.assertEqual("migration_available", payload["status"])
             self.assertIn("configuration", payload)
-            self.assertIn("provider_configuration", payload)
             self.assertEqual("2.7", payload["configuration"]["schema_version"])
-            self.assertEqual("opus", payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
-            self.assertFalse((workflow / "providers.local.yaml").exists())
 
             applied = self.run_cli(repository, "update", "--approve", *arguments)
 
             self.assertEqual(0, applied.returncode, applied.stderr)
             self.assertEqual("migrated", json.loads(applied.stdout)["status"])
             self.assertIn("routing:", (workflow / "config.yaml").read_text(encoding="utf-8"))
-            self.assertIn("high: opus", (workflow / "providers.local.yaml").read_text(encoding="utf-8"))
             effective = (workflow / "generated/effective-config.yaml").read_text(encoding="utf-8")
             provenance = (workflow / "generated/config-provenance.yaml").read_text(encoding="utf-8")
             self.assertIn("schema_version: '2.7'", effective)
@@ -491,134 +401,38 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("success", reset_payload["status"])
             self.assertFalse(override_file.exists())
 
-    def test_configure_promotes_scalar_model_to_mapping_for_effort_upgrade(self):
-        assignments = (
-            "--provider-set", "providers.codex.executable=codex",
-            "--provider-set", "providers.codex.models.low=gpt-6-astra",
-            "--provider-set", "providers.codex.models.medium=gpt-6-astra",
-            "--provider-set", "providers.codex.models.high=gpt-6-astra",
-        )
-        with tempfile.TemporaryDirectory() as directory:
+    def test_doctor_reports_the_main_harness_executable(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
             repository = Path(directory)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
-            self.assertEqual(0, initialized.returncode, initialized.stderr)
+            fake_claude = Path(bin_dir) / "claude"
+            fake_claude.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            fake_claude.chmod(0o755)
 
-            # First setup with scalar string
-            applied = self.run_cli(repository, "configure", "--approve", *assignments)
-            self.assertEqual(0, applied.returncode, applied.stderr)
-
-            # Now upgrade low tier to include effort=low
-            upgrade = self.run_cli(
+            initialized = self.run_cli(
                 repository,
-                "configure",
+                "init",
                 "--approve",
-                "--provider-set",
-                "providers.codex.models.low.effort=low",
+                "--non-interactive",
+                "--harness",
+                "claude",
             )
-            self.assertEqual(0, upgrade.returncode, upgrade.stderr)
-            import yaml
-            local = yaml.safe_load((repository / ".agent-workflow/providers.local.yaml").read_text(encoding="utf-8"))
-            low_target = local["providers"]["codex"]["models"]["low"]
-            self.assertEqual({"model": "gpt-6-astra", "effort": "low"}, low_target)
-
-    def test_doctor_offline_and_opt_in_probe_behavior(self):
-        with tempfile.TemporaryDirectory() as directory:
-            repository = Path(directory)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
             self.assertEqual(0, initialized.returncode, initialized.stderr)
 
-            # Doctor without providers config
-            offline = self.run_cli(repository, "doctor", "--format", "json")
-            self.assertEqual(0, offline.returncode, offline.stderr)
-            payload = json.loads(offline.stdout)
-            self.assertEqual("healthy", payload["status"])
-            self.assertTrue(payload["checks"]["repository"])
-            self.assertTrue(payload["checks"]["initialized"])
-            self.assertTrue(payload["checks"]["configuration"])
-
-            # Configure with an invalid executable
-            bad_exe_assignments = (
-                "--provider-set", "providers.codex.executable=/nonexistent/binary/codex-missing",
-                "--provider-set", "providers.codex.models.low=haiku",
-                "--provider-set", "providers.codex.models.medium=sonnet",
-                "--provider-set", "providers.codex.models.high=opus",
+            # Doctor with fake claude on PATH
+            doc = self.run_cli(
+                repository,
+                "doctor",
+                "--format",
+                "json",
+                env={**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"},
             )
-            self.run_cli(repository, "configure", "--approve", *bad_exe_assignments)
-            bad_doctor = self.run_cli(repository, "doctor", "--format", "json")
-            self.assertEqual(0, bad_doctor.returncode, bad_doctor.stderr)
-            bad_payload = json.loads(bad_doctor.stdout)
-            self.assertEqual("issues_found", bad_payload["status"])
-            self.assertFalse(bad_payload["checks"]["providers"])
-            self.assertIsInstance(bad_payload["checks"]["providers"], bool)
-            self.assertIn("providers", bad_payload["checks_details"])
-            self.assertFalse(bad_payload["checks_details"]["providers"]["codex.executable"]["available"])
-
-            # Test doctor with malformed providers.local.yaml schema
-            providers_path = repository / ".agent-workflow/providers.local.yaml"
-            providers_path.write_text("schema_version: '2.3'\nproviders:\n  codex:\n    executable: codex\n    models:\n      low:\n        model: gpt-6\n        effort: extreme\n", encoding="utf-8")
-            invalid_schema_doctor = self.run_cli(repository, "doctor", "--format", "json")
-            self.assertEqual(0, invalid_schema_doctor.returncode, invalid_schema_doctor.stderr)
-            inv_payload = json.loads(invalid_schema_doctor.stdout)
-            self.assertFalse(inv_payload["checks"]["configuration"])
-            self.assertIn("providers_config", inv_payload["checks_details"])
-            self.assertFalse(inv_payload["checks_details"]["providers_config"]["valid"])
-
-            # Test doctor --probe with valid stubbed binary
-            stub_codex = repository / "fake-codex"
-            stub_codex.write_text("#!/bin/sh\nif [ \"$1\" = \"exec\" ] && [ \"$2\" = \"--help\" ]; then\n  echo 'usage: codex exec --model MODEL --json --ephemeral --dangerously-bypass-approvals-and-sandbox --cd DIR'\n  exit 0\nfi\nexit 0\n", encoding="utf-8")
-            stub_codex.chmod(0o755)
-
-            providers_path.write_text(
-                f"schema_version: '2.3'\nproviders:\n  codex:\n    executable: '{stub_codex.resolve()}'\n    models:\n      low: haiku\n      medium: sonnet\n      high: opus\n",
-                encoding="utf-8",
-            )
-            probe_run = self.run_cli(repository, "doctor", "--probe", "--format", "json")
-            self.assertEqual(0, probe_run.returncode, probe_run.stderr)
-            probe_payload = json.loads(probe_run.stdout)
-            self.assertTrue(probe_payload["checks"]["providers"])
-            self.assertTrue((repository / ".agent-workflow/runtime/health-probe/codex").is_dir())
-            self.assertTrue(probe_payload["checks_details"]["providers"]["codex.low"]["available"])
-
-    def test_doctor_probe_reports_contract_mismatch(self):
-        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as fake_dir:
-            repository = Path(directory)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
-            self.assertEqual(0, initialized.returncode, initialized.stderr)
-
-            stub_codex = repository / "fake-codex"
-            stub_codex.write_text(
-                "#!/bin/sh\nif [ \"$1\" = \"exec\" ] && [ \"$2\" = \"--help\" ]; then\n"
-                "  echo 'usage: codex exec --model MODEL --json --ephemeral --dangerously-bypass-approvals-and-sandbox --cd DIR'\n"
-                "  exit 0\nfi\nexit 0\n",
-                encoding="utf-8",
-            )
-            stub_codex.chmod(0o755)
-
-            providers_path = repository / ".agent-workflow/providers.local.yaml"
-            providers_path.write_text(
-                f"schema_version: '2.3'\nproviders:\n  codex:\n    executable: '{stub_codex.resolve()}'\n    models:\n      low: haiku\n      medium: sonnet\n      high: opus\n",
-                encoding="utf-8",
-            )
-
-            fake_orchestrator = Path(fake_dir) / "gin-orchestrator"
-            fake_orchestrator.write_text(
-                "#!/bin/sh\n"
-                "echo '{\"contract_version\": 2, \"orchestrator_version\": \"v2\"}'\n"
-                "exit 0\n",
-                encoding="utf-8",
-            )
-            fake_orchestrator.chmod(0o755)
-
-            probe_run = self.run_cli(
-                repository, "doctor", "--probe",
-                env={**os.environ, "PATH": f"{fake_dir}{os.pathsep}{os.environ['PATH']}"},
-            )
-            self.assertEqual(0, probe_run.returncode, probe_run.stderr)
-            probe_payload = json.loads(probe_run.stdout)
-            self.assertFalse(probe_payload["checks"]["providers"])
+            self.assertEqual(0, doc.returncode, doc.stderr)
+            payload = json.loads(doc.stdout)
+            self.assertTrue(payload["checks"]["harness"])
+            self.assertEqual(payload["checks_details"]["harness"]["name"], "claude")
             self.assertEqual(
-                "orchestrator_contract_mismatch",
-                probe_payload["checks_details"]["providers"]["codex.low"]["reason"],
+                payload["checks_details"]["harness"]["executable"],
+                str(fake_claude.resolve()),
             )
 
     def test_doctor_reports_verify_commands_project_stage_and_codegraph_read_only(self):
@@ -715,111 +529,6 @@ class SetupCliTests(unittest.TestCase):
             self.assertIn("closed-bead", payload["checks_details"]["review_ledgers"]["stale_beads"])
             self.assertTrue(any("review-ledger.py cleanup --all-closed" in action for action in payload["actions"]))
 
-    def test_single_mode_init_creates_default_provider_mapping_without_provider_set(self):
-        with tempfile.TemporaryDirectory() as directory:
-            repository = Path(directory)
-            preset_run = self.run_cli(
-                repository,
-                "preset",
-                "--project-stage", "brownfield",
-                "--project-shape", "fullstack",
-                "--rigor", "standard",
-                "--task-tracking", "markdown",
-            )
-            self.assertEqual(0, preset_run.returncode, preset_run.stderr)
-            assignments = json.loads(preset_run.stdout)["assignments"]
-            set_flags = []
-            for item in assignments:
-                set_flags.extend(["--set", item])
-
-            # Dry run previews provider config
-            dry = self.run_cli(repository, "init", "--dry-run", "--harness", "claude", *set_flags)
-            self.assertEqual(0, dry.returncode, dry.stderr)
-            dry_payload = json.loads(dry.stdout)
-            self.assertIn("provider_configuration", dry_payload)
-            self.assertIn("claude", dry_payload["provider_configuration"]["providers"])
-            self.assertEqual("opus", dry_payload["provider_configuration"]["providers"]["claude"]["models"]["high"])
-            self.assertIn("create .agent-workflow/providers.local.yaml", dry_payload["actions"])
-
-            # Approved init writes providers.local.yaml
-            init_run = self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude", *set_flags)
-            self.assertEqual(0, init_run.returncode, init_run.stderr)
-            prov_file = repository / ".agent-workflow/providers.local.yaml"
-            self.assertTrue(prov_file.is_file())
-            content = prov_file.read_text(encoding="utf-8")
-            self.assertIn("high: opus", content)
-            self.assertIn("medium: sonnet", content)
-            self.assertIn("low: haiku", content)
-
-    def test_multi_mode_init_does_not_create_default_provider_mapping_without_provider_set(self):
-        with tempfile.TemporaryDirectory() as directory:
-            repository = Path(directory)
-            preset_run = self.run_cli(
-                repository,
-                "preset",
-                "--project-stage", "brownfield",
-                "--project-shape", "fullstack",
-                "--rigor", "standard",
-                "--task-tracking", "beads",
-            )
-            self.assertEqual(0, preset_run.returncode, preset_run.stderr)
-            assignments = json.loads(preset_run.stdout)["assignments"]
-            set_flags = []
-            for item in assignments:
-                set_flags.extend(["--set", item])
-            set_flags.extend(["--set", 'provider_mode="multi"'])
-
-            dry = self.run_cli(repository, "init", "--dry-run", "--harness", "claude", *set_flags)
-            self.assertEqual(0, dry.returncode, dry.stderr)
-            dry_payload = json.loads(dry.stdout)
-            self.assertNotIn("provider_configuration", dry_payload)
-            self.assertNotIn("create .agent-workflow/providers.local.yaml", dry_payload["actions"])
-
-            init_run = self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude", *set_flags)
-            self.assertEqual(0, init_run.returncode, init_run.stderr)
-            prov_file = repository / ".agent-workflow/providers.local.yaml"
-            self.assertFalse(prov_file.exists())
-
-    def test_doctor_flags_roles_route_to_main_harness_when_local_mapping_missing(self):
-        with tempfile.TemporaryDirectory() as directory:
-            repository = Path(directory)
-            self.assertEqual(
-                0,
-                self.run_cli(
-                    repository,
-                    "init",
-                    "--approve",
-                    "--non-interactive",
-                    "--harness",
-                    "claude",
-                    "--set",
-                    'provider_mode="single"',
-                    "--set",
-                    'routing.roles.backend={"preferred":["main_harness"]}',
-                ).returncode,
-            )
-            prov_file = repository / ".agent-workflow/providers.local.yaml"
-            self.assertTrue(prov_file.is_file())
-
-            # Remove providers.local.yaml
-            prov_file.unlink()
-            doc_res = self.run_cli(repository, "doctor", "--format", "json")
-            self.assertEqual(0, doc_res.returncode, doc_res.stderr)
-            doc_payload = json.loads(doc_res.stdout)
-            self.assertEqual("issues_found", doc_payload["status"])
-            self.assertFalse(doc_payload["checks"]["providers"])
-            self.assertTrue(any("roles route to main_harness but no local mapping for claude" in a for a in doc_payload["actions"]))
-
-            # Create providers.local.yaml with only codex (missing claude)
-            prov_file.write_text(
-                "schema_version: '2.3'\nproviders:\n  codex:\n    executable: codex\n    models:\n      low: mini\n      medium: coding\n      high: reasoning\n",
-                encoding="utf-8",
-            )
-            doc_res2 = self.run_cli(repository, "doctor", "--format", "json")
-            self.assertEqual(0, doc_res2.returncode, doc_res2.stderr)
-            doc_payload2 = json.loads(doc_res2.stdout)
-            self.assertFalse(doc_payload2["checks"]["providers"])
-            self.assertTrue(any("roles route to main_harness but no local mapping for claude" in a for a in doc_payload2["actions"]))
 
     def test_init_writes_agents_block_and_claude_import(self):
         with tempfile.TemporaryDirectory() as directory:

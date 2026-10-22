@@ -19,6 +19,7 @@ from workflow_core.ext import (
 )
 
 from .routes import resolve_assignment
+from .config import orchestrator_section
 
 from .contracts import (
     EvidenceAuthority,
@@ -230,17 +231,15 @@ class ProviderRegistry:
                     raise RegistryError(
                         "provider_default is only supported for antigravity and opencode"
                     )
-            routing = config.get("routing", {})
-            if not isinstance(routing, Mapping):
-                raise RegistryError("routing must be a mapping")
-            concurrency = routing.get("concurrency", {})
+            orchestrator = orchestrator_section(config)
+            concurrency = orchestrator.get("concurrency", {})
             if not isinstance(concurrency, Mapping) or not concurrency:
-                raise RegistryError("routing.concurrency is required for routed workers")
-            queue = routing.get("queue", {})
-            breaker_policy = routing.get("circuit_breaker", {})
-            worker_policy = routing.get("worker", {})
+                raise RegistryError("orchestrator.concurrency is required for routed workers")
+            queue = orchestrator.get("queue", {})
+            breaker_policy = orchestrator.get("circuit_breaker", {})
+            worker_policy = orchestrator.get("worker", {})
             if not all(isinstance(value, Mapping) for value in (queue, breaker_policy, worker_policy)):
-                raise RegistryError("routing queue, worker, and circuit_breaker must be mappings")
+                raise RegistryError("orchestrator queue, worker, and circuit_breaker must be mappings")
             runtime_root = _path(
                 state_root,
                 artifacts.get("runtime"),

@@ -15,6 +15,7 @@ from workflow_core.ext import (
     default_provider_model_config,
     validate_plan_assignments,
 )
+from .config import roles
 
 
 def resolve_assignment(
@@ -23,9 +24,8 @@ def resolve_assignment(
     local: Mapping[str, ProviderModelConfig],
 ) -> tuple[RouteCandidate, ...]:
     """Resolve one role/tier without checking mutable provider availability."""
-    routing = config.get("routing", {})
-    roles = routing.get("roles", {}) if isinstance(routing, Mapping) else {}
-    role = roles.get(request.provider_role) if isinstance(roles, Mapping) else None
+    all_roles = roles(config)
+    role = all_roles.get(request.provider_role) if isinstance(all_roles, Mapping) else None
     if not isinstance(role, Mapping):
         raise AssignmentResolutionError(f"unknown provider role: {request.provider_role}")
 

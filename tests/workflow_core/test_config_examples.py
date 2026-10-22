@@ -9,7 +9,7 @@ SCRIPTS = PLUGIN / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.configuration import require_yaml, validate_portable_config  # noqa: E402
-from workflow_core.provider_config import validate_provider_local_config  # noqa: E402
+from workflow_providers.local_config import validate_local_config  # noqa: E402
 
 
 class ConfigExampleTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class ConfigExampleTests(unittest.TestCase):
         local = self.load(PLUGIN / "examples/providers.local.example.yaml")
 
         validate_portable_config(portable)
-        validate_provider_local_config(local)
+        validate_local_config(local)
 
         roles = portable["orchestrator"]["roles"]
         self.assertEqual(["claude"], roles["backend"]["preferred"])
@@ -37,30 +37,16 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertEqual(86400, portable["policy"]["approval"]["ttl_seconds"])
         self.assertEqual("beads", portable["providers"]["task_tracking"])  # the example shows team mode
 
-    def test_setup_quick_flow_asks_five_questions_and_keeps_advanced_groups(self):
+    def test_setup_quick_flow_asks_five_questions_without_advanced_groups(self):
         setup = (PLUGIN / "skills/setup/SKILL.md").read_text(encoding="utf-8")
         quick = ("Project type", "Rigor", "Verify commands", "Code index", "Task tracking")
         positions = [setup.index(f"{index}. **{name}**") for index, name in enumerate(quick, 1)]
         self.assertEqual(sorted(positions), positions)
-        for phrase in ("Ask exactly one question", "gin-workflow setup preset", "gin-workflow setup models",
-                       "--advanced", "--provider-set", "provider_configuration", "configuration",
+        for phrase in ("Ask exactly one question", "gin-workflow setup preset", "configuration",
                        "same assignments"):
             self.assertIn(phrase, setup)
-
-        advanced = setup[setup.index("## Advanced setup"):]
-        groups = (
-            "Main harness",
-            "Enabled native providers",
-            "Preferred provider roles",
-            "Reasoning-to-model mappings",
-            "Ordered fallbacks",
-            "Provider concurrency",
-            "Queue and worker limits",
-            "Circuit breaker",
-            "Independent review",
-        )
-        positions = [advanced.index(f"{index}. **{group}**") for index, group in enumerate(groups, 1)]
-        self.assertEqual(sorted(positions), positions)
+        self.assertNotIn("## Advanced setup", setup)
+        self.assertNotIn("--provider-set", setup)
 
     def test_full_example_shows_project_profile_sections(self):
         portable = self.load(PLUGIN / "examples/config.full.yaml")
