@@ -95,7 +95,7 @@ configure --set K=V... [--local-set K=V...] [--dry-run] [--approve] [--repositor
 {"status": "configured", "actions": ["update .agent-workflow/config.yaml", "refresh generated configuration"]}
 ```
 
-`--set` keys must start with `orchestrator.`; anything else exits 2 and writes nothing. `--local-set` keys edit `.agent-workflow/orchestrator.local.yaml`. The command validates the candidate configuration first. `--dry-run` prints the actions (`status: would_configure`) and writes nothing. Without `--dry-run`, `--approve` is required: it writes `orchestrator.local.yaml` atomically, adds it to `.agent-workflow/.gitignore`, and then runs `gin-workflow setup configure --set ... --approve` so the portable keys are written and the effective configuration is refreshed.
+`--set` keys must start with `orchestrator.`; anything else exits 2 and writes nothing. `--local-set` keys edit `.agent-workflow/orchestrator.local.yaml`. The command validates the candidate configuration first. `--dry-run` prints the actions (`status: would_configure`) and writes nothing. Without `--dry-run`, `--approve` is required: it first runs `gin-workflow setup configure --set ... --approve`, which writes the portable keys and refreshes the effective configuration; only after that succeeds does it write `orchestrator.local.yaml` atomically and add it to `.agent-workflow/.gitignore`, so a rejected portable change leaves the local file untouched.
 
 ## Errors
 

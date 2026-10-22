@@ -180,5 +180,15 @@ class ContractV2Tests(unittest.TestCase):
         self.assertEqual(before, (self.root / ".agent-workflow/config.yaml").read_bytes())
 
 
+    def test_configure_reports_a_malformed_local_file(self):
+        for content in ("providers: [", "- not a mapping\n"):
+            (self.root / LOCAL_FILE).write_text(content, encoding="utf-8")
+
+            result = run("configure", "--local-set", "providers.claude.executable=claude", "--dry-run",
+                         "--repository", str(self.root), "--json")
+
+            self.assertEqual(2, result.returncode, result.stderr)
+            self.assertIn("error: invalid orchestrator.local.yaml", result.stderr)
+
 if __name__ == "__main__":
     unittest.main()

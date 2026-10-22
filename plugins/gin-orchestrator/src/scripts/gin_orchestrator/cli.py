@@ -149,8 +149,14 @@ def _configure(args: argparse.Namespace) -> dict[str, Any]:
     validate_orchestrator_config(candidate)
     local_path = main_checkout(root) / LOCAL_FILE
     yaml = require_yaml()
-    local: dict[str, Any] = (yaml.safe_load(local_path.read_text(encoding="utf-8")) or {} if local_path.is_file()
-                             else {"schema_version": str(candidate["schema_version"])})
+    local: Any = {"schema_version": str(candidate["schema_version"])}
+    if local_path.is_file():
+        try:
+            local = yaml.safe_load(local_path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError as error:
+            raise CliError(f"invalid {local_path.name}: {error}") from error
+        if not isinstance(local, dict):
+            raise CliError(f"invalid {local_path.name}: the top level must be a mapping")
     for assignment in args.local_set:
         _set_nested(local, assignment)
     if args.local_set:
