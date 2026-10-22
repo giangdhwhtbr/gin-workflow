@@ -297,7 +297,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
             }
             effective = EffectiveConfig(portable, repository)
             local_raw = yaml.safe_load(
-                (ROOT / "plugins/gin-workflow/src/examples/providers.local.example.yaml").read_text(encoding="utf-8")
+                (ROOT / "plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml").read_text(encoding="utf-8")
             )["providers"]
             local = {
                 name: ProviderModelConfig(name, entry["executable"], entry["models"])

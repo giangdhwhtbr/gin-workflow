@@ -74,6 +74,22 @@ try {
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/references/explore-case.md')
 
+    # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
+    $orchDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true }
+    Assert-Contains $orchDryRun 'gin-orchestrator requires gin-workflow 2.7; installing it first.'
+    Assert-Contains $orchDryRun 'would install gin-workflow launcher version 2.7'
+    Assert-Contains $orchDryRun 'would install gin-orchestrator launcher version 0.1'
+    Assert-True ($orchDryRun.IndexOf('installing it first.', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-workflow launcher', [StringComparison]::Ordinal)) 'gin-workflow was not installed first'
+    Assert-True ($orchDryRun.IndexOf('would install gin-workflow launcher', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-orchestrator launcher', [StringComparison]::Ordinal)) 'gin-orchestrator was installed before gin-workflow'
+    Assert-Exists (Join-Path $Root 'plugins/gin-orchestrator/dist/codex/skills/providers/SKILL.md')
+    Assert-Exists (Join-Path $Root 'plugins/gin-orchestrator/dist/codex/.codex-plugin/plugin.json')
+
+    $allDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'all'; DryRun = $true }
+    Assert-Contains $allDryRun 'Processing plugin: gin-workflow'
+    Assert-Contains $allDryRun 'Processing plugin: gin-qa'
+    Assert-Contains $allDryRun 'Processing plugin: gin-orchestrator'
+    Assert-True (-not $allDryRun.Contains('installing it first', [StringComparison]::Ordinal)) 'Plugin all installed gin-workflow twice'
+
     $opencodeDryRun = Invoke-Installer @{ Platform = 'opencode'; DryRun = $true }
     Assert-Contains $opencodeDryRun 'Configuring OpenCode skill structure for gin-workflow'
     Assert-Contains $opencodeDryRun 'would install global OpenCode skills to'
@@ -111,6 +127,12 @@ try {
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.4/gin_qa/cli.py')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.4/templates/evidence.ts')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-qa.cmd')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/templates'))) 'gin-orchestrator copied templates'
+    foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh', 'telegram.sh')) {
+        Assert-Exists (Join-Path $TestHome ".local/lib/gin-orchestrator/0.1/$scriptName")
+    }
+    Assert-Exists (Join-Path $TestHome '.local/bin/gin-orchestrator.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'
     New-Item -ItemType Directory -Path $linkProject | Out-Null
@@ -152,7 +174,8 @@ try {
 
     foreach ($launcherCase in @(
         @{ Name = 'gin-workflow'; Old = '2.1'; Current = '2.7' },
-        @{ Name = 'gin-qa'; Old = '0.3'; Current = '0.4' }
+        @{ Name = 'gin-qa'; Old = '0.3'; Current = '0.4' },
+        @{ Name = 'gin-orchestrator'; Old = '0.0'; Current = '0.1' }
     )) {
         $launcherName = $launcherCase.Name
         $managedRoot = Join-Path $TestHome ".local/lib/$launcherName"

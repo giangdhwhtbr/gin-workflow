@@ -42,6 +42,19 @@ assert_not_contains() {
   fi
 }
 
+assert_line_order() {
+  local path="$1"
+  local first="$2"
+  local second="$3"
+  local first_line second_line
+  first_line="$(grep -n -F -m1 "$first" "$path" | cut -d: -f1)"
+  second_line="$(grep -n -F -m1 "$second" "$path" | cut -d: -f1)"
+  if [ -z "$first_line" ] || [ -z "$second_line" ] || [ "$first_line" -ge "$second_line" ]; then
+    echo "Expected '$first' before '$second' in $path" >&2
+    exit 1
+  fi
+}
+
 assert_codex_hooks_schema() {
   local path="$1"
   python3 - "$path" <<'PYEOF'
@@ -90,7 +103,6 @@ assert_workflow_v22_layout() {
     "scripts/workflow_core/provider_config.py"
     "scripts/workflow_core/assignments.py"
     "examples/config.full.yaml"
-    "examples/providers.local.example.yaml"
   )
   for relative in "${required[@]}"; do
     assert_exists "$root/$relative"
@@ -100,6 +112,7 @@ assert_workflow_v22_layout() {
 rm -rf plugins/gin-workflow/dist
 rm -rf plugins/gin-workflow-advanced/dist
 rm -rf plugins/gin-qa/dist
+rm -rf plugins/gin-orchestrator/dist
 
 output_file="$(mktemp)"
 trap 'rm -f "$output_file"' EXIT
@@ -117,6 +130,7 @@ assert_contains "$output_file" "would install gin-workflow launcher version 2.7 
 assert_contains "$output_file" "would link gin-workflow launcher on PATH at"
 assert_not_contains "$output_file" "gin-qa"
 assert_not_exists "plugins/gin-qa/dist"
+assert_not_exists "plugins/gin-orchestrator/dist"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md"
@@ -177,6 +191,29 @@ assert_exists "plugins/gin-qa/dist/claude-code/templates/evidence.ts"
 assert_exists "plugins/gin-qa/dist/claude-code/templates/guidelines.md"
 assert_exists "plugins/gin-qa/dist/claude-code/scripts/gin_qa/cli.py"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-qa/src\""
+
+# gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
+empty_home="$(mktemp -d)"
+HOME="$empty_home" ./install.sh --platform claude --plugin gin-orchestrator --dry-run >"$output_file"
+assert_contains "$output_file" "gin-orchestrator requires gin-workflow 2.7; installing it first."
+assert_contains "$output_file" "Processing plugin: gin-orchestrator"
+assert_contains "$output_file" "would install gin-orchestrator launcher version 0.1 to"
+assert_line_order "$output_file" "installing it first." "would install gin-workflow launcher version 2.7 to"
+assert_line_order "$output_file" "would install gin-workflow launcher version 2.7 to" "would install gin-orchestrator launcher version 0.1 to"
+assert_exists "plugins/gin-orchestrator/dist/claude-code/.claude-plugin/plugin.json"
+assert_exists "plugins/gin-orchestrator/dist/claude-code/skills/providers/SKILL.md"
+assert_exists "plugins/gin-orchestrator/dist/claude-code/scripts/gin-orchestrator"
+assert_exists "plugins/gin-orchestrator/dist/claude-code/scripts/gin_orchestrator/cli.py"
+assert_exists "plugins/gin-orchestrator/dist/claude-code/examples/orchestrator.local.example.yaml"
+assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-orchestrator/src\""
+
+HOME="$empty_home" ./install.sh --platform claude --plugin all --dry-run >"$output_file"
+assert_contains "$output_file" "Processing plugin: gin-workflow"
+assert_contains "$output_file" "Processing plugin: gin-qa"
+assert_contains "$output_file" "Processing plugin: gin-orchestrator"
+assert_not_contains "$output_file" "installing it first"
+assert_contains "$output_file" "would install gin-orchestrator launcher version 0.1 to"
+rm -rf "$empty_home"
 
 ./install.sh --platform codex --dry-run >"$output_file"
 
@@ -329,6 +366,32 @@ if [ "$qa_version" != "gin-qa 0.4" ]; then
   exit 1
 fi
 
+# gin-workflow is already installed in MOCK_HOME, so gin-orchestrator installs alone.
+HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-orchestrator >"$output_file" 2>&1
+assert_not_contains "$output_file" "installing it first"
+assert_exists "$MOCK_HOME/.claude/skills/gin-orchestrator/skills/providers/SKILL.md"
+assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-orchestrator@skills-dir": true'
+assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py"
+assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/templates"
+# The worker library finds these gin-workflow scripts beside its package.
+for script in worktree-create.sh worktree-cleanup.sh telegram.sh; do
+  assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/$script"
+  [ -x "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/$script" ] || { echo "Expected $script to be executable" >&2; exit 1; }
+done
+orch_version="$(HOME="$MOCK_HOME" PATH="$MOCK_HOME/.local/bin:$PATH" "$MOCK_HOME/.local/bin/gin-orchestrator" version --json)"
+case "$orch_version" in
+  *'"contract": 2'*) ;;
+  *) echo "Unexpected gin-orchestrator version: $orch_version" >&2; exit 1 ;;
+esac
+
+# A HOME without gin-workflow gets it first.
+orch_home="$MOCK_HOME/orchestrator-home"
+mkdir -p "$orch_home"
+HOME="$orch_home" ./install.sh --platform claude --plugin gin-orchestrator >"$output_file" 2>&1
+assert_contains "$output_file" "gin-orchestrator requires gin-workflow 2.7; installing it first."
+assert_exists "$orch_home/.local/lib/gin-workflow/2.7/workflow_core/cli.py"
+assert_exists "$orch_home/.local/bin/gin-orchestrator"
+
 # Success path with the installed launchers: write cases, edit a requirement, re-pin.
 QA_REPO="$MOCK_HOME/qa-repo"
 mkdir -p "$QA_REPO/.agent-workflow" "$QA_REPO/docs/specs/auth" "$QA_REPO/qa/cases"
@@ -381,10 +444,11 @@ assert_contains "$QA_REPO/.gitignore" "/qa/evidence/"
 qa_e2e plan auth >"$output_file"
 assert_contains "$output_file" "missing TC-AUTH-001 qa/e2e/auth/tc-auth-001.spec.ts"
 
-for launcher in gin-workflow gin-qa; do
+for launcher in gin-workflow gin-qa gin-orchestrator; do
   case "$launcher" in
     gin-workflow) old_version=2.1; current_version=2.7 ;;
     gin-qa) old_version=0.3; current_version=0.4 ;;
+    gin-orchestrator) old_version=0.0; current_version=0.1 ;;
   esac
 
   UPGRADE_HOME="$MOCK_HOME/upgrade-home-$launcher"

@@ -19,7 +19,7 @@ class ConfigExampleTests(unittest.TestCase):
 
     def test_full_examples_validate_with_production_loaders_and_show_expected_routes(self):
         portable = self.load(PLUGIN / "examples/config.full.yaml")
-        local = self.load(PLUGIN / "examples/providers.local.example.yaml")
+        local = self.load(ROOT / "plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml")
 
         validate_portable_config(portable)
         validate_local_config(local)

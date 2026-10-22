@@ -17,7 +17,7 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 def find_script(name: str) -> Path:
     """The gin-workflow shell script `name`: beside this package when installed together, else the sibling plugin."""
     here = Path(__file__).resolve()
-    for scripts in (here.parent.parent, here.parents[4] / "gin-workflow/src/scripts"):
+    for scripts in (here.parent.parent, *(plugins / "gin-workflow/src/scripts" for plugins in here.parents[4:5])):
         if (scripts / name).is_file():
             return scripts / name
     return here.parent.parent / name

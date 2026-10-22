@@ -11,6 +11,7 @@ DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
 LAUNCHER_VERSION="2.7"
 QA_LAUNCHER_VERSION="0.4"
+ORCH_LAUNCHER_VERSION="0.1"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -24,7 +25,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --plugin)
       if [ -z "${2:-}" ]; then
-        echo "Error: --plugin requires a value (gin-workflow|gin-qa|all)" >&2
+        echo "Error: --plugin requires a value (gin-workflow|gin-qa|gin-orchestrator|all)" >&2
         exit 1
       fi
       TARGET_PLUGIN="$2"
@@ -67,15 +68,18 @@ case "$TARGET_PLUGIN" in
   gin-qa)
     PLUGINS=(gin-qa)
     ;;
+  gin-orchestrator)
+    PLUGINS=(gin-orchestrator)
+    ;;
   all)
-    PLUGINS=(gin-workflow gin-qa)
+    PLUGINS=(gin-workflow gin-qa gin-orchestrator)
     ;;
   core|advanced)
     echo "Warning: --plugin $TARGET_PLUGIN is deprecated; using gin-workflow." >&2
     PLUGINS=(gin-workflow)
     ;;
   *)
-    echo "Error: --plugin must be 'gin-workflow', 'gin-qa', or 'all' (got '$TARGET_PLUGIN')" >&2
+    echo "Error: --plugin must be 'gin-workflow', 'gin-qa', 'gin-orchestrator', or 'all' (got '$TARGET_PLUGIN')" >&2
     exit 1
     ;;
 esac
@@ -90,7 +94,7 @@ fi
 
 if [ "$UNINSTALL" = true ]; then
   echo "Uninstalling plugins..."
-  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist
+  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist
   for p_name in "${PLUGINS[@]}"; do
     rm -rf "${HOME}/.config/opencode/skills/${p_name}"
   done
@@ -489,7 +493,7 @@ is_managed_launcher_link() {
 }
 
 install_launcher() {
-  local name="$1" version="$2" packages package
+  local name="$1" version="$2" packages package script
   local source_dir="$SCRIPT_DIR/plugins/$name/src/scripts"
   local managed_root="${HOME}/.local/lib/$name"
   local install_dir="$managed_root/$version"
@@ -498,6 +502,7 @@ install_launcher() {
   case "$name" in
     gin-workflow) packages="workflow_core review_ledger" ;;
     gin-qa) packages=gin_qa ;;
+    gin-orchestrator) packages=gin_orchestrator ;;
   esac
 
   if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
@@ -516,7 +521,7 @@ install_launcher() {
     return
   fi
 
-  mkdir -p "$install_dir/templates" "$(dirname "$launcher_link")"
+  mkdir -p "$install_dir" "$(dirname "$launcher_link")"
   if [ "$name" = gin-workflow ]; then
     mkdir -p "$install_dir/rules"
   fi
@@ -528,7 +533,16 @@ install_launcher() {
   if [ "$name" = gin-workflow ]; then
     cp -rf "$source_dir/../rules/." "$install_dir/rules/"
   fi
-  cp -rf "$source_dir/../templates/." "$install_dir/templates/"
+  if [ -d "$source_dir/../templates" ]; then
+    mkdir -p "$install_dir/templates"
+    cp -rf "$source_dir/../templates/." "$install_dir/templates/"
+  fi
+  if [ "$name" = gin-orchestrator ]; then
+    # The worker library finds these gin-workflow scripts beside its package (workspace.find_script).
+    for script in worktree-create.sh worktree-cleanup.sh telegram.sh; do
+      cp -f "$SCRIPT_DIR/plugins/gin-workflow/src/scripts/$script" "$install_dir/$script"
+    done
+  fi
   chmod 755 "$launcher_target"
   ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed $name launcher version $version to $launcher_link"
@@ -689,10 +703,17 @@ install_plugin() {
   fi
 }
 
+if [[ " ${PLUGINS[*]} " == *" gin-orchestrator "* && " ${PLUGINS[*]} " != *" gin-workflow "* ]] &&
+   [ "$(readlink "${HOME}/.local/bin/gin-workflow" 2>/dev/null)" != "${HOME}/.local/lib/gin-workflow/$LAUNCHER_VERSION/gin-workflow" ]; then
+  echo "gin-orchestrator requires gin-workflow $LAUNCHER_VERSION; installing it first."
+  PLUGINS=(gin-workflow "${PLUGINS[@]}")
+fi
+
 for p_name in "${PLUGINS[@]}"; do
   case "$p_name" in
     gin-workflow) install_launcher "$p_name" "$LAUNCHER_VERSION" ;;
     gin-qa) install_launcher "$p_name" "$QA_LAUNCHER_VERSION" ;;
+    gin-orchestrator) install_launcher "$p_name" "$ORCH_LAUNCHER_VERSION" ;;
   esac
   install_plugin "$p_name"
 done

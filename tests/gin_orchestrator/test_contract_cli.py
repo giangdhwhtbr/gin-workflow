@@ -29,7 +29,9 @@ class ContractCliTests(unittest.TestCase):
         result = run("version", "--json")
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual({"contract_version": 1, "orchestrator_version": "bundled"}, json.loads(result.stdout))
+        self.assertEqual({"contract": 2, "orchestrator_version": "0.0.0", "requires_gin_workflow": ">=2.0,<3",
+                          "capabilities": ["health", "models", "routes", "reviewer", "doctor"]},
+                         json.loads(result.stdout))
 
     def test_health_reports_a_supported_stub(self):
         with tempfile.TemporaryDirectory() as directory:

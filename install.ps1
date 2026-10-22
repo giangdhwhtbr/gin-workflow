@@ -3,7 +3,7 @@
 param(
     [ValidateSet('claude', 'antigravity', 'codex', 'opencode', 'copilot', 'both', 'all')]
     [string]$Platform = 'all',
-    [ValidateSet('gin-workflow', 'gin-qa', 'all')]
+    [ValidateSet('gin-workflow', 'gin-qa', 'gin-orchestrator', 'all')]
     [string]$Plugin = 'gin-workflow',
     [switch]$Link,
     [string]$Project,
@@ -16,6 +16,7 @@ $ErrorActionPreference = 'Stop'
 
 $LauncherVersion = '2.7'
 $QaLauncherVersion = '0.4'
+$OrchLauncherVersion = '0.1'
 $ScriptRoot = $PSScriptRoot
 $UserHome = $env:HOME
 if ([string]::IsNullOrWhiteSpace($UserHome)) {
@@ -375,7 +376,11 @@ function Install-Launcher {
     $installDirectory = Join-Path $managedRoot $Version
     $launcherTarget = Join-Path $installDirectory $Name
     $launcherShim = Join-Path $UserHome ".local/bin/$Name.cmd"
-    $packages = if ($Name -eq 'gin-workflow') { @('workflow_core', 'review_ledger') } else { @('gin_qa') }
+    $packages = switch ($Name) {
+        'gin-workflow' { @('workflow_core', 'review_ledger') }
+        'gin-qa' { @('gin_qa') }
+        'gin-orchestrator' { @('gin_orchestrator') }
+    }
 
     if (Test-Path -LiteralPath $launcherShim) {
         if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot -Name $Name)) {
@@ -416,6 +421,13 @@ function Install-Launcher {
     Copy-DirectoryContent `
         -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'templates') `
         -Destination (Join-Path $installDirectory 'templates')
+    if ($Name -eq 'gin-orchestrator') {
+        # The worker library finds these gin-workflow scripts beside its package (workspace.find_script).
+        foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh', 'telegram.sh')) {
+            Copy-Item -LiteralPath (Join-Path $ScriptRoot "plugins/gin-workflow/src/scripts/$scriptName") `
+                -Destination (Join-Path $installDirectory $scriptName) -Force
+        }
+    }
 
     $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
     $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"
@@ -620,7 +632,7 @@ if (-not [string]::IsNullOrWhiteSpace($Project)) {
 }
 
 $Plugins = switch ($Plugin) {
-    'all' { @('gin-workflow', 'gin-qa') }
+    'all' { @('gin-workflow', 'gin-qa', 'gin-orchestrator') }
     default { @($Plugin) }
 }
 
@@ -628,7 +640,8 @@ if ($Uninstall) {
     foreach ($directory in @(
         (Join-Path $ScriptRoot 'plugins/gin-workflow/dist'),
         (Join-Path $ScriptRoot 'plugins/gin-workflow-advanced/dist'),
-        (Join-Path $ScriptRoot 'plugins/gin-qa/dist')
+        (Join-Path $ScriptRoot 'plugins/gin-qa/dist'),
+        (Join-Path $ScriptRoot 'plugins/gin-orchestrator/dist')
     )) {
         if (Test-Path -LiteralPath $directory) {
             Remove-Item -LiteralPath $directory -Recurse -Force
@@ -649,8 +662,22 @@ if ($Uninstall) {
     return
 }
 
+if ($Plugins -contains 'gin-orchestrator' -and $Plugins -notcontains 'gin-workflow') {
+    $workflowShim = Join-Path $UserHome '.local/bin/gin-workflow.cmd'
+    $workflowTarget = Join-Path (Join-Path (Join-Path $UserHome '.local/lib/gin-workflow') $LauncherVersion) 'gin-workflow'
+    if (-not (Test-Path -LiteralPath $workflowShim -PathType Leaf) -or
+        -not [IO.File]::ReadAllText($workflowShim).Contains("`"$workflowTarget`"", [StringComparison]::Ordinal)) {
+        Write-Output "gin-orchestrator requires gin-workflow $LauncherVersion; installing it first."
+        $Plugins = @('gin-workflow') + $Plugins
+    }
+}
+
 foreach ($name in $Plugins) {
-    $version = if ($name -eq 'gin-workflow') { $LauncherVersion } else { $QaLauncherVersion }
+    $version = switch ($name) {
+        'gin-workflow' { $LauncherVersion }
+        'gin-qa' { $QaLauncherVersion }
+        'gin-orchestrator' { $OrchLauncherVersion }
+    }
     Install-Launcher -Name $name -Version $version
     Install-Plugin -Name $name
 }

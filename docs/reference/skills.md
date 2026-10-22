@@ -1,6 +1,6 @@
 # Skills Reference
 
-Every skill is also a slash command: `/gin-workflow:<name>` (Claude Code) or the harness equivalent, and `/gin-qa:<name>` for the QA add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`); the lifecycle stages still run through the `gin-workflow` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
+Every skill is also a slash command: `/gin-workflow:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`); the lifecycle stages still run through the `gin-workflow` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
 
 ## gin-workflow: lifecycle stages
 
@@ -58,3 +58,11 @@ See [QA](../guides/qa.md).
 |---|---|
 | `cases` | Write or update test cases from specs, one block per case in `qa/cases/<capability>.md`, traced to REQ-IDs |
 | `e2e` | Write, run, and check Playwright specs for `Type: e2e` cases by exploring the running application |
+
+## gin-orchestrator (optional add-on)
+
+See the [orchestrator contract](orchestrator-contract.md).
+
+| Skill | Purpose |
+|---|---|
+| `providers` | Configure worker harnesses: which harnesses may run work, a model per tier, preferred and fallback harnesses per role and tier, concurrency, and limits |

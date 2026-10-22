@@ -44,7 +44,6 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/provider_config.py",
     "scripts/workflow_core/assignments.py",
     "examples/config.full.yaml",
-    "examples/providers.local.example.yaml",
     "rules/README.md",
     "rules/core.md",
     "rules/lean.md",

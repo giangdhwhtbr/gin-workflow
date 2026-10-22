@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Executable entry point for gin-orchestrator: load gin-workflow's facade, then run the CLI."""
+
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+SUPPORTED_EXT_VERSION = 1
+INSTALL = "./install.sh --plugin gin-orchestrator"
+
+
+def main() -> int:
+    gin_workflow = shutil.which("gin-workflow")
+    if gin_workflow is None:
+        print(f"error: gin-workflow is not on PATH; install it with {INSTALL}", file=sys.stderr)
+        return 1
+    done = subprocess.run([gin_workflow, "paths", "--json"], capture_output=True, text=True, check=False)
+    try:
+        lib_dir = json.loads(done.stdout)["lib_dir"] if done.returncode == 0 else None
+    except (json.JSONDecodeError, KeyError, TypeError):
+        lib_dir = None
+    if lib_dir is None:
+        print(f"error: gin-workflow paths failed; reinstall with {INSTALL}", file=sys.stderr)
+        return 1
+    sys.path[:0] = [str(Path(__file__).resolve().parent), lib_dir]
+    from workflow_core import ext
+    if ext.EXT_VERSION != SUPPORTED_EXT_VERSION:
+        print(f"error: gin-workflow facade EXT_VERSION {ext.EXT_VERSION}; this gin-orchestrator supports "
+              f"{SUPPORTED_EXT_VERSION}", file=sys.stderr)
+        return 1
+    from gin_orchestrator.cli import main as cli_main
+    return cli_main()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
