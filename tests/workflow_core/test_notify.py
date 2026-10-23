@@ -109,6 +109,15 @@ class TestNotify(unittest.TestCase):
         self.assertIsNotNone(warning)
         self.assertNotIn("TOKEN", warning)
 
+    def test_malformed_token_returns_warning_without_token(self) -> None:
+        self._enable_telegram()
+        for token in ("TOK\nEN", "TÖKEN"):
+            with self.subTest(token=token):
+                warning = notify.notify(self.root, "needs_input", "plan ready",
+                                        environ={"TELEGRAM_BOT_TOKEN": token, "TELEGRAM_CHAT_ID": "42"})
+                self.assertIsNotNone(warning)
+                self.assertNotIn(token, warning)
+
     def test_unknown_event_raises_value_error(self) -> None:
         with self.assertRaises(ValueError):
             notify.notify(self.root, "bogus", "x")

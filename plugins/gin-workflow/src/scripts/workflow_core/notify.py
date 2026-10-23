@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import os
 from pathlib import Path
 import sys
@@ -45,13 +46,14 @@ def notify(root: Path | str, event: str, message: str, *, environ: Mapping[str, 
         return warning
     text = f"[{main_checkout(root).name}] {event}: {message}"
     data = urllib.parse.urlencode({"chat_id": env["TELEGRAM_CHAT_ID"], "text": text}).encode()
-    request = urllib.request.Request(_API.format(token=env["TELEGRAM_BOT_TOKEN"]), data=data)
     try:
+        request = urllib.request.Request(_API.format(token=env["TELEGRAM_BOT_TOKEN"]), data=data)
         with (opener or urllib.request.urlopen)(request, timeout=10) as reply:
             status = reply.status
     except urllib.error.HTTPError as error:
         return f"telegram delivery failed (HTTP {error.code})"
-    except (urllib.error.URLError, OSError) as error:
+    except (OSError, ValueError, http.client.HTTPException) as error:
+        # The type name only: these messages can quote the URL, which holds the token.
         return f"telegram delivery failed ({type(error).__name__})"
     return None if 200 <= status < 300 else f"telegram delivery failed (HTTP {status})"
 
