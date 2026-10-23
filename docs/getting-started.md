@@ -89,4 +89,4 @@ Claude offers four integration options: **Merge locally**, **Push & open Pull Re
 - 🔄 **Refactoring a legacy codebase?** Read the [Brownfield & Modernization Starter](starters/brownfield-modernize.md).
 - 👥 **Working in a team with BA, Dev, and Tester?** Read the [Team Roles Guide](starters/team-roles.md).
 - ⚡ **Looking for multi-agent / multi-model routing?** Install the gin-orchestrator extension: see [Orchestrator](orchestrator/README.md).
-- 🎞️ **Want the whole lifecycle on slides?** Open the [ADLC deck](presentations/adlc.html).
+- 🎞️ **Want the whole lifecycle on slides?** Open the [ADLC deck](presentations/adlc.html) ([PPTX](presentations/adlc.pptx)).

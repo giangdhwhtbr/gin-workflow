@@ -5,13 +5,23 @@ from __future__ import annotations
 from pathlib import Path
 import re
 import unittest
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 LIFECYCLE = ROOT / "docs/concepts/lifecycle.md"
 DECK_HTML = ROOT / "docs/presentations/adlc.html"
-DECK_LINKS = ("presentations/adlc.html",)
+DECK_PPTX = ROOT / "docs/presentations/adlc.pptx"
+DECK_LINKS = ("presentations/adlc.html", "presentations/adlc.pptx")
 FORBIDDEN = ("codex", "antigravity", "opencode", "gemini", "sonnet", "opus", "haiku", "gpt")
 SLIDES = 17
+
+
+def pptx_slide_texts() -> list[str]:
+    """The text runs of each slide, in slide order."""
+    with zipfile.ZipFile(DECK_PPTX) as deck:
+        slides = [name for name in deck.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)]
+        slides.sort(key=lambda name: int(re.search(r"\d+", name).group()))
+        return [" ".join(re.findall(r"<a:t>([^<]*)</a:t>", deck.read(name).decode("utf-8"))) for name in slides]
 
 
 def lifecycle_names() -> set[str]:
@@ -60,6 +70,33 @@ class TestAdlcHtmlDeck(unittest.TestCase):
 
     def test_names_no_provider_or_model(self):
         self.assertEqual([], names_forbidden_word(self.html))
+
+
+class TestAdlcPptxDeck(unittest.TestCase):
+    def setUp(self):
+        self.slides = pptx_slide_texts()
+        self.text = " ".join(self.slides)
+
+    def test_shows_every_stage_and_gate(self):
+        for name in sorted(lifecycle_names()):
+            with self.subTest(name=name):
+                self.assertIn(name, self.text)
+
+    def test_has_seventeen_slides(self):
+        self.assertEqual(SLIDES, len(self.slides))
+
+    def test_is_sixteen_by_nine(self):
+        with zipfile.ZipFile(DECK_PPTX) as deck:
+            presentation = deck.read("ppt/presentation.xml").decode("utf-8")
+        size = re.search(r'<p:sldSz cx="(\d+)" cy="(\d+)"', presentation)
+        self.assertEqual(16 * int(size.group(2)), 9 * int(size.group(1)))
+
+    def test_has_no_pictures(self):
+        with zipfile.ZipFile(DECK_PPTX) as deck:
+            self.assertEqual([], [name for name in deck.namelist() if name.startswith("ppt/media/")])
+
+    def test_names_no_provider_or_model(self):
+        self.assertEqual([], names_forbidden_word(self.text))
 
 
 class TestAdlcDeckLinks(unittest.TestCase):
