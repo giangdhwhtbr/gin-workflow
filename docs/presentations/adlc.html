@@ -97,10 +97,24 @@
       gap: 16px;
     }
 
+    a {
+      color: var(--agent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    a code {
+      color: inherit;
+    }
+
     .slide-viewport {
       position: relative;
       width: 100%;
       aspect-ratio: 16 / 9;
+      container-type: inline-size;
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -112,11 +126,11 @@
       display: none;
       width: 100%;
       height: 100%;
-      padding: 40px 56px;
+      padding: 2.5cqw 4cqw;
       overflow-y: auto;
       flex-direction: column;
       justify-content: flex-start;
-      gap: 20px;
+      gap: 1.2cqw;
     }
 
     .slide.active {
@@ -130,37 +144,37 @@
     }
 
     h1 {
-      font-size: 42px;
+      font-size: 3.2cqw;
       font-weight: 800;
       letter-spacing: -0.02em;
     }
 
     h2 {
-      font-size: 32px;
+      font-size: 2.2cqw;
       font-weight: 700;
       letter-spacing: -0.01em;
       border-bottom: 2px solid var(--line);
-      padding-bottom: 12px;
+      padding-bottom: 0.6cqw;
     }
 
     .subtitle {
       font-family: var(--font-display);
-      font-size: 22px;
+      font-size: 1.35cqw;
       color: var(--muted);
       font-weight: 500;
     }
 
     p, li {
-      font-size: 16px;
-      line-height: 1.6;
+      font-size: 1.15cqw;
+      line-height: 1.5;
       color: var(--ink);
     }
 
     ul, ol {
-      padding-left: 24px;
+      padding-left: 1.8cqw;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 0.6cqw;
     }
 
     code {
@@ -175,61 +189,64 @@
     .highlight-box {
       background: var(--bg);
       border-left: 4px solid var(--agent);
-      padding: 14px 18px;
+      padding: 0.8cqw 1.2cqw;
       border-radius: 0 8px 8px 0;
-      font-size: 15px;
+      font-size: 1.1cqw;
+      line-height: 1.45;
     }
 
     .human-box {
       background: var(--human-soft);
       border-left: 4px solid var(--human);
-      padding: 14px 18px;
+      padding: 0.8cqw 1.2cqw;
       border-radius: 0 8px 8px 0;
-      font-size: 15px;
+      font-size: 1.1cqw;
+      line-height: 1.45;
     }
 
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      gap: 1.6cqw;
     }
 
     .grid-3 {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 20px;
+      gap: 1.4cqw;
     }
 
     .card {
       background: var(--bg);
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 18px 20px;
+      padding: 1cqw 1.3cqw;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 0.6cqw;
     }
 
     .card h3 {
       font-family: var(--font-display);
-      font-size: 18px;
+      font-size: 1.3cqw;
       color: var(--ink);
     }
 
     .card p, .card li {
-      font-size: 14px;
+      font-size: 1.05cqw;
+      line-height: 1.45;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 8px;
-      font-size: 14px;
+      margin-top: 0.4cqw;
+      font-size: 1.05cqw;
     }
 
     th, td {
       border: 1px solid var(--line);
-      padding: 10px 14px;
+      padding: 0.6cqw 0.9cqw;
       text-align: left;
     }
 
@@ -245,14 +262,20 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--surface);
-      padding: 8px;
+      padding: 0.5cqw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     .diagram-scroll svg {
       display: block;
-      width: 100%;
+      width: auto;
+      max-width: 100%;
+      max-height: 100%;
       height: auto;
-      min-width: 800px;
     }
 
     .controls {
@@ -346,14 +369,35 @@
       }
       .slide {
         padding: 24px 20px;
+        gap: 16px;
       }
       .grid-2, .grid-3 {
         grid-template-columns: 1fr;
+        gap: 16px;
       }
       h1 { font-size: 28px; }
-      h2 { font-size: 22px; }
+      h2 { font-size: 22px; padding-bottom: 8px; }
+      .subtitle { font-size: 16px; }
+      p, li { font-size: 15px; }
+      ul, ol { padding-left: 20px; gap: 8px; }
+      .card { padding: 14px 16px; gap: 8px; }
+      .card h3 { font-size: 16px; }
+      .card p, .card li { font-size: 14px; }
+      .highlight-box, .human-box { padding: 12px 14px; font-size: 14px; }
+      table { font-size: 13px; margin-top: 8px; }
+      th, td { padding: 8px 10px; }
+      .diagram-scroll {
+        display: block;
+        overflow-x: auto;
+        flex: none;
+        padding: 8px;
+      }
       .diagram-scroll svg {
         min-width: 680px;
+        width: 100%;
+        max-width: none;
+        max-height: none;
+        height: auto;
       }
     }
   </style>
@@ -363,16 +407,16 @@
     <div class="slide-viewport">
       <!-- Slide 1: Title -->
       <section class="slide active" id="slide-1">
-        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 24px;">
-          <div style="display: inline-block; width: fit-content; background: var(--human-soft); color: var(--human); padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 14px;">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 1.8cqw;">
+          <div style="display: inline-block; width: fit-content; background: var(--human-soft); color: var(--human); padding: 0.3cqw 0.9cqw; border-radius: 999px; font-weight: 600; font-size: 1.05cqw;">
             gin-workflow 2.1
           </div>
           <h1>The Agentic Development Lifecycle</h1>
           <p class="subtitle">From requirement to merge through recorded quality gates</p>
-          <div class="highlight-box" style="margin-top: 12px;">
+          <div class="highlight-box" style="margin-top: 0.8cqw;">
             <code>discuss</code> → <code>plan</code> → <code>orchestrate</code> → <code>execute</code> → <code>ship</code>
           </div>
-          <p style="color: var(--muted); font-size: 14px; margin-top: 8px;">
+          <p style="color: var(--muted); font-size: 1.05cqw; margin-top: 0.6cqw;">
             Navigation: Press ← / → or PageUp / PageDown or Space to navigate slides, Home / End to jump.
           </p>
         </div>
@@ -382,10 +426,10 @@
       <section class="slide" id="slide-2">
         <h2>Why an Agentic Lifecycle</h2>
         <p class="subtitle">Agents need gates, evidence, and a bounded scope</p>
-        <div class="grid-3" style="margin-top: 10px;">
+        <div class="grid-3" style="margin-top: 0.6cqw;">
           <div class="card">
             <h3>Hard Phase Boundaries</h3>
-            <p>Unconstrained agents drift, hallucinate progress, and attempt speculative rewrites. Stages enforce strict stops: one stage invocation executes exactly one stage and exits.</p>
+            <p>Agents need gates, evidence, and a bounded scope. Stages enforce strict stops: one stage invocation executes exactly one stage and exits.</p>
           </div>
           <div class="card">
             <h3>Evidence Over Assertion</h3>
@@ -569,7 +613,7 @@
           </div>
         </div>
         <div class="human-box">
-          <strong>Process waiver:</strong> <code>requirement_confirmed</code> may be waived by the agent with a stated reason when requirements are already fully established.
+          <strong>Process waiver:</strong> <code>requirement_confirmed</code> may be waived by the agent with a stated reason.
         </div>
       </section>
 
@@ -660,7 +704,7 @@
       <!-- Slide 8: Independent Review -->
       <section class="slide" id="slide-8">
         <h2>Independent Review & the Review Ledger</h2>
-        <p class="subtitle">Bounded review cycles with an immutable event ledger and checkpoint refs</p>
+        <p class="subtitle">Bounded review cycles; the review ledger is recorded by commands and never hand-edited</p>
         <div class="grid-2">
           <div class="card">
             <h3>Review Rules</h3>
@@ -737,29 +781,29 @@
           </thead>
           <tbody>
             <tr>
-              <td><strong>Tests pass</strong></td>
-              <td>Test output with 0 failures from the current tree</td>
-              <td>An earlier run</td>
+              <td>Tests pass</td>
+              <td>test output with 0 failures</td>
+              <td>an earlier run</td>
             </tr>
             <tr>
-              <td><strong>Bug fixed</strong></td>
-              <td>The original symptom's test passes: red then green</td>
-              <td>Code changed</td>
+              <td>Bug fixed</td>
+              <td>the original symptom's test passes, red then green</td>
+              <td>code changed</td>
             </tr>
             <tr>
-              <td><strong>Agent completed</strong></td>
-              <td>The git diff checked and reviewed</td>
-              <td>The agent says so</td>
+              <td>Agent completed</td>
+              <td>the diff checked</td>
+              <td>the agent says so</td>
             </tr>
             <tr>
-              <td><strong>Requirements met</strong></td>
-              <td>The spec requirement checklist explicitly verified</td>
-              <td>Tests passing alone</td>
+              <td>Requirements met</td>
+              <td>the checklist checked</td>
+              <td>tests passing</td>
             </tr>
             <tr>
-              <td><strong>Waiting for PR merge</strong></td>
-              <td>A pushed branch and a real pull request link</td>
-              <td>Uncommitted code</td>
+              <td>Waiting for PR merge</td>
+              <td>a pushed branch and a real PR link</td>
+              <td>uncommitted code</td>
             </tr>
           </tbody>
         </table>
@@ -776,9 +820,9 @@
           <div class="card">
             <h3>Hooks Architecture</h3>
             <ul>
-              <li><code>pre-commit</code>: Runs <code>lint</code> and <code>typecheck</code> from <code>verify.checks</code>. Fast feedback on staged files.</li>
+              <li><code>pre-commit</code>: Runs <code>lint</code> and <code>typecheck</code> from <code>verify.checks</code>.</li>
               <li><code>pre-push</code>: Runs <code>test</code>, plus <code>build</code> at standard rigor and <code>e2e</code> at strict rigor. Stops on first failure.</li>
-              <li><code>CI</code>: The remote backstop ensuring checks ran even if local hooks were bypassed.</li>
+              <li><code>CI</code>: The backstop for large projects: nothing in ship proves a hook ran.</li>
             </ul>
           </div>
           <div class="card">
@@ -834,7 +878,7 @@
             <ul>
               <li>Requires derived <code>implementation_complete</code> gate.</li>
               <li>Validates review ledgers in history (<code>--in-history</code>).</li>
-              <li>Ensures no untracked diff exists after the newest review approval.</li>
+              <li>Nothing but spec and review artifacts changed after the newest approval.</li>
               <li>In SDD mode: runs <code>specs lint</code> and <code>specs trace</code>.</li>
             </ul>
           </div>
@@ -875,7 +919,7 @@
             <h3>Task Tracking Ownership</h3>
             <ul>
               <li><code>gin-workflow task</code> owns status, priority, assignments, claims, blockers, and dependencies.</li>
-              <li>Markdown backend by default (<code>.planning/tasks/</code>): zero external tools needed, checked into git.</li>
+              <li>Markdown backend by default (<code>.planning/tasks/</code>): git-ignored and local to this machine, needs no <code>bd</code>.</li>
               <li>Beads (<code>bd</code>) backend: durable task graph, cross-repo dependency tracking.</li>
               <li>All commands query tasks to discover ready work (<code>gin-workflow task ready</code>).</li>
             </ul>
@@ -920,7 +964,7 @@
           </div>
           <div class="card">
             <h3>SDD Living Specs</h3>
-            <p>Maintains living capability specifications in <code>docs/specs/</code> with numbered requirements (<code>REQ-&lt;CAP&gt;-&lt;NNN&gt;</code>). Changes proposed as deltas in <code>docs/changes/</code>.</p>
+            <p>The SDD layout keeps living specs in <code>docs/specs/</code> and proposed changes in <code>docs/changes/</code>, with numbered requirements (<code>REQ-&lt;CAP&gt;-&lt;NNN&gt;</code>) that tests and beads point to.</p>
           </div>
           <div class="card">
             <h3>Team Mode</h3>
@@ -940,18 +984,19 @@
           <div class="card">
             <h3>Bounded /goal Execution</h3>
             <ul>
-              <li><code>gin-workflow goal --workflow-id &lt;id&gt;</code> prints a bounded unattended command.</li>
-              <li>Covers only tracks the agent can finish without human intervention.</li>
-              <li>Calculates a turn budget: 6 turns per track, capped at 30 turns total.</li>
-              <li>Halts automatically when ready work is completed or blocked.</li>
+              <li><code>gin-workflow goal --workflow-id &lt;id&gt;</code> prints a goal in dependency order.</li>
+              <li>The goal covers only tracks the agent can finish, leaving out <code>human-gate</code> tracks and their dependents.</li>
+              <li>Allows 6 turns per track up to 30.</li>
+              <li>Prints a <code>No goal:</code> line when no track is left.</li>
             </ul>
           </div>
           <div class="card">
             <h3>Safety Boundaries & Notifications</h3>
             <ul>
-              <li><strong>Human Gate:</strong> Tracks marked with <code>Human gate:</code> and all downstream dependents are excluded from unattended execution.</li>
-              <li><strong>One-Way Notifications:</strong> <code>gin-workflow notify --event &lt;event&gt; "&lt;msg&gt;"</code> sends Telegram alerts for lifecycle events (<code>needs_input</code>, <code>worker_finished</code>).</li>
-              <li>Notifications are strictly one-way alerts; they never substitute for user approval.</li>
+              <li><strong>Human Gate:</strong> Tracks marked with <code>Human gate:</code> and their dependents are excluded from unattended execution.</li>
+              <li><strong>Notifications:</strong> <code>gin-workflow notify --event &lt;event&gt; "&lt;msg&gt;"</code> supports <code>needs_input</code>, <code>run_finished</code>, <code>worker_finished</code>, <code>worker_failed</code>.</li>
+              <li>Notifications are off unless <code>notifications.telegram</code> is true.</li>
+              <li>A message is never approval.</li>
             </ul>
           </div>
         </div>
@@ -962,7 +1007,7 @@
         <h2>Product Family</h2>
         <p class="subtitle">Core lifecycle workflow and optional specialized extensions</p>
         <div class="diagram-scroll">
-          <svg viewBox="0 0 860 300" role="img" aria-label="Product family architecture diagram: gin-workflow core at the foundation, gin-orchestrator extending it for multi-harness routing, gin-qa integrating for testing, and gin-console requiring both workflow and orchestrator.">
+          <svg viewBox="0 0 860 300" role="img" aria-label="Product family architecture diagram: gin-workflow core at the foundation, gin-orchestrator extending it, gin-qa requiring gin-workflow, and gin-console requiring gin-workflow and gin-orchestrator.">
             <defs>
               <marker id="fam-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="var(--ink)" d="M0,0 L10,5 L0,10 z"/></marker>
             </defs>
@@ -979,9 +1024,9 @@
             <text x="640" y="220" font-family="var(--font-body)" font-size="12" fill="var(--ink)" text-anchor="middle">Worker routing, circuit breakers,</text>
             <text x="640" y="240" font-family="var(--font-body)" font-size="12" fill="var(--muted)" text-anchor="middle">multi-harness dispatch &amp; independent review</text>
 
-            <!-- Arrow workflow -> orchestrator -->
-            <line x1="390" y1="215" x2="458" y2="215" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
-            <text x="425" y="205" font-family="var(--font-mono)" font-size="11" fill="var(--muted)" text-anchor="middle">extends</text>
+            <!-- Arrow orchestrator -> workflow -->
+            <line x1="470" y1="215" x2="402" y2="215" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
+            <text x="435" y="205" font-family="var(--font-mono)" font-size="11" fill="var(--muted)" text-anchor="middle">extends</text>
 
             <!-- gin-qa box -->
             <rect x="50" y="20" width="340" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
@@ -990,17 +1035,18 @@
 
             <!-- Arrow qa -> workflow -->
             <line x1="220" y1="110" x2="220" y2="148" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
-            <text x="235" y="135" font-family="var(--font-mono)" font-size="11" fill="var(--muted)">traces</text>
+            <text x="235" y="135" font-family="var(--font-mono)" font-size="11" fill="var(--muted)">requires</text>
 
             <!-- gin-console box -->
             <rect x="470" y="20" width="340" height="90" rx="8" fill="var(--surface)" stroke="var(--human)" stroke-width="1.5"/>
-            <text x="640" y="52" font-family="var(--font-display)" font-size="16" font-weight="700" fill="var(--human)" text-anchor="middle">gin-console (dashboard)</text>
-            <text x="640" y="75" font-family="var(--font-body)" font-size="12" fill="var(--muted)" text-anchor="middle">Unified web UI for workflow &amp; orchestrator</text>
+            <text x="640" y="52" font-family="var(--font-display)" font-size="16" font-weight="700" fill="var(--human)" text-anchor="middle">gin-console</text>
+            <text x="640" y="75" font-family="var(--font-body)" font-size="12" fill="var(--muted)" text-anchor="middle">requires gin-workflow and gin-orchestrator</text>
 
             <!-- Arrow console -> orchestrator and workflow -->
             <line x1="640" y1="110" x2="640" y2="148" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
             <text x="655" y="135" font-family="var(--font-mono)" font-size="11" fill="var(--muted)">requires</text>
-            <line x1="510" y1="110" x2="360" y2="152" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#fam-ah)"/>
+            <line x1="510" y1="110" x2="360" y2="152" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
+            <text x="415" y="125" font-family="var(--font-mono)" font-size="11" fill="var(--muted)" text-anchor="middle">requires</text>
           </svg>
         </div>
       </section>
@@ -1029,10 +1075,10 @@
             </ol>
           </div>
         </div>
-        <div class="card" style="margin-top: 10px;">
+        <div class="card" style="margin-top: 0.8cqw;">
           <h3>Documentation & References</h3>
           <p>
-            Quick start: <code>docs/getting-started.md</code> · Canonical lifecycle: <code>docs/concepts/lifecycle.md</code> · CLI reference: <code>docs/reference/cli.md</code>
+            Quick start: <a href="../getting-started.md"><code>docs/getting-started.md</code></a> · Canonical lifecycle: <a href="../concepts/lifecycle.md"><code>docs/concepts/lifecycle.md</code></a> · CLI reference: <a href="../reference/cli.md"><code>docs/reference/cli.md</code></a>
           </p>
         </div>
       </section>
@@ -1104,6 +1150,14 @@
       });
 
       document.addEventListener("keydown", function (event) {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        const target = event.target;
+        const isInteractive = target && (
+          target.closest ? target.closest("button, a, input, textarea, select") :
+          /^(BUTTON|A|INPUT|TEXTAREA|SELECT)$/i.test(target.tagName)
+        );
+        if (event.key === " " && isInteractive) return;
+
         if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
           event.preventDefault();
           nextSlide();
