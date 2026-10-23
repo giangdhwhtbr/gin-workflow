@@ -210,6 +210,11 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "properties": {"max_questions": {"type": "integer", "minimum": 1}},
             "additionalProperties": False,
         },
+        "notifications": {
+            "type": "object",
+            "properties": {"telegram": {"type": "boolean"}},
+            "additionalProperties": False,
+        },
         "team": _TEAM,
         "qa": {
             "type": "object",

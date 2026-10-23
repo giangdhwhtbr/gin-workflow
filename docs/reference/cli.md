@@ -196,6 +196,16 @@ Resolves execution routes for plan tracks: every track goes to the main harness 
 
 Exit codes: 0 all routes resolved and manifest written; 2 unresolved tracks or invalid arguments.
 
+## `gin-workflow notify`
+
+```
+gin-workflow notify --event EVENT [--repository DIR] MESSAGE
+```
+
+Sends a one-way notification message to Telegram. It is a no-op unless `notifications.telegram` is true. The four supported events are `needs_input`, `run_finished`, `worker_finished`, and `worker_failed`. Credentials are read from the `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` environment variables. If delivery fails or credentials are missing, a warning is printed to stderr and the command exits 0.
+
+Exit codes: 0 message sent, disabled, or delivery warning; 2 invalid arguments or unknown event.
+
 ## `gin-workflow paths`
 
 ```

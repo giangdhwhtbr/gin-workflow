@@ -822,6 +822,29 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(res.stdout)
             self.assertEqual([], payload["models"])
 
+    def test_doctor_warns_when_telegram_is_on_without_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
+
+            base_env = {k: v for k, v in os.environ.items() if not k.startswith("TELEGRAM_")}
+            res = self.run_cli(repository, "doctor", env=base_env)
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertFalse(any("telegram_credentials_missing" in a for a in payload.get("actions", [])))
+
+            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "notifications.telegram=true").returncode)
+
+            res = self.run_cli(repository, "doctor", env=base_env)
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertTrue(any("telegram_credentials_missing" in a for a in payload.get("actions", [])))
+
+            with_creds = {**base_env, "TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"}
+            res = self.run_cli(repository, "doctor", env=with_creds)
+            self.assertEqual(0, res.returncode, res.stderr)
+            payload = json.loads(res.stdout)
+            self.assertFalse(any("telegram_credentials_missing" in a for a in payload.get("actions", [])))
 
 
 if __name__ == "__main__":

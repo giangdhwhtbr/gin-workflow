@@ -32,6 +32,7 @@ EXPECTED = [
     "freeze",
     "load_effective_config",
     "main_checkout",
+    "notify",
     "require_yaml",
     "resolve_harness_executable",
     "thaw",

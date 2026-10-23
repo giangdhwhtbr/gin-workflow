@@ -64,13 +64,16 @@ def main(arguments: Sequence[str] | None = None) -> int:
         print(f"gin-workflow {CLI_VERSION}")
         return 0
     if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team",
-                                   "usage", "reviewer", "hooks", "task", "routes", "paths", "goal"):
-        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,reviewer,hooks,routes,paths,goal} <command>",
+                                   "usage", "reviewer", "hooks", "task", "routes", "notify", "paths", "goal"):
+        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,reviewer,hooks,routes,notify,paths,goal} <command>",
               file=sys.stderr)
         return 2
     if argv[0] == "routes":
         from .routes import main as routes_main
         return routes_main(argv[1:])
+    if argv[0] == "notify":
+        from .notify import main as notify_main
+        return notify_main(argv[1:])
     if argv[0] == "paths":
         import json
         from pathlib import Path
