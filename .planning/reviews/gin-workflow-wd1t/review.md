@@ -7,23 +7,23 @@
 
 ## Review Approval
 - **Status:** Approved
-- **Approval Event ID:** `EV-000006`
+- **Approval Event ID:** `EV-000011`
 - **Source Scope Hash:** `e588797a5c46f27878b76be31555eb896240fa0a22709f46824f965f9d5a2c7a`
 - **Approved Repositories:**
-  - `gin-workflow` (SHA: `442c4fe`, Tree Hash: `7fb919a`)
+  - `gin-workflow` (SHA: `23c526e`, Tree Hash: `9792b9d`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-wd1t`
 - **Base SHA:** `e857c9573ba3f9ee8f8b36a59966829ee28bdb44`
-- **Reviewed SHA:** `442c4fe604a2a26ef422f31278f952ba4563a50f`
+- **Reviewed SHA:** `23c526ebd39c421d5dd133b38ba643c3431af3a4`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-wd1t`
-- **Checkpoint SHA:** `442c4fe604a2a26ef422f31278f952ba4563a50f`
+- **Checkpoint SHA:** `23c526ebd39c421d5dd133b38ba643c3431af3a4`
 - **Scope Hash:** `e588797a5c46f27878b76be31555eb896240fa0a22709f46824f965f9d5a2c7a`
-- **Tree Hash:** `7fb919a1ac2808a128cc42e4c9c3cf2bd163463655d0bb720d0e00307ad9dadd`
+- **Tree Hash:** `9792b9d17a460bfc2491f12faa17daf379f9b8c9e3aa47a6a66d9c9214bf4c9e`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -61,3 +61,8 @@
 | `EV-000005` | `2026-10-23T05:01:59.792689Z` | `review-started` | `reviewer:claude` (reviewer) |
 | `EV-000006` | `2026-10-23T05:02:03.025891Z` | `review-approved` | `reviewer:claude` (reviewer) |
 | `EV-000007` | `2026-10-23T05:02:03.250902Z` | `lease-released` | `reviewer:claude` (reviewer) |
+| `EV-000008` | `2026-10-23T05:20:43.255157Z` | `source-checkpoint-created` | `antigravity` (worker) |
+| `EV-000009` | `2026-10-23T05:21:02.458987Z` | `lease-acquired` | `reviewer:claude` (reviewer) |
+| `EV-000010` | `2026-10-23T05:21:02.477170Z` | `review-started` | `reviewer:claude` (reviewer) |
+| `EV-000011` | `2026-10-23T05:21:05.538129Z` | `review-approved` | `reviewer:claude` (reviewer) |
+| `EV-000012` | `2026-10-23T05:21:05.763376Z` | `lease-released` | `reviewer:claude` (reviewer) |
