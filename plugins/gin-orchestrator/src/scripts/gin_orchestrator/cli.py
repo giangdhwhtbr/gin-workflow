@@ -36,7 +36,7 @@ from .opencode_worker import opencode_health
 from .routes import resolve_assignment
 
 CONTRACT_VERSION = 2
-ORCHESTRATOR_VERSION = "0.1.0"
+ORCHESTRATOR_VERSION = "0.2.0"
 REQUIRES_GIN_WORKFLOW = ">=2.0,<3"
 CAPABILITIES = ["health", "models", "routes", "reviewer", "doctor"]
 HEALTH = {"claude": claude_health, "codex": codex_health, "antigravity": antigravity_health,
