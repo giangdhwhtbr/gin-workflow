@@ -14,7 +14,7 @@ Skills work through provider-neutral capabilities, each with health and capabili
 | Review | request review, terminal review state, findings |
 | Evidence | record and query evidence; decide whether acceptance evidence is complete |
 | Knowledge | search and propose knowledge; workers never write permanent knowledge |
-| Notifications | optional delivery only (for example `telegram-notify`) |
+| Notifications | optional delivery only (`gin-workflow notify`, behind `notifications.telegram`) |
 
 Selecting a provider never authorizes a lifecycle transition; gates and approvals still apply.
 

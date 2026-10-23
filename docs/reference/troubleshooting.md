@@ -36,7 +36,6 @@ OpenCode hosts the skills and, with [gin-orchestrator](../orchestrator/README.md
 - **Workers and reviews.** Copilot hosts the skills only. Routed workers and reviewers ([gin-orchestrator](../orchestrator/README.md)) run through `claude`, `codex`, `agy`, or `opencode`, so run `/setup` with one of them as `harness`.
 - **Global only.** `--project` skips copilot, because Copilot plugins are installed per user.
 - **Local-path installs.** Copilot CLI warns that installs from a local path are deprecated in favor of `plugin@marketplace`; the installer still uses the local path.
-- **Telegram notifications.** The `telegram-notify` skill refers to `${PLUGIN_ROOT}/scripts/telegram.sh`, which is not resolved under Copilot.
 
 ## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
 
