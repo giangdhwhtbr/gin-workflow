@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic Development Lifecycle - gin-workflow 2.1</title>
+  <style>
+    :root {
+      --font-display: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+      --bg: #eef1f4;
+      --surface: #ffffff;
+      --ink: #141c26;
+      --muted: #5b6676;
+      --line: #cfd6df;
+      --agent: #2b55c7;
+      --human: #b4530b;
+      --human-soft: #fbeadb;
+      --band-people: #f7f1ea;
+      --band-agents: #eaf0fa;
+      --band-auto: #e9ecf0;
+
+      --slide-width: 1200px;
+      --slide-height: 675px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f141b;
+        --surface: #18202b;
+        --ink: #e6ebf2;
+        --muted: #9aa6b6;
+        --line: #2c3746;
+        --agent: #7ea2ff;
+        --human: #f0a058;
+        --human-soft: #3a2616;
+        --band-people: #1c1915;
+        --band-agents: #141c2a;
+        --band-auto: #161a20;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #0f141b;
+      --surface: #18202b;
+      --ink: #e6ebf2;
+      --muted: #9aa6b6;
+      --line: #2c3746;
+      --agent: #7ea2ff;
+      --human: #f0a058;
+      --human-soft: #3a2616;
+      --band-people: #1c1915;
+      --band-agents: #141c2a;
+      --band-auto: #161a20;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #eef1f4;
+      --surface: #ffffff;
+      --ink: #141c26;
+      --muted: #5b6676;
+      --line: #cfd6df;
+      --agent: #2b55c7;
+      --human: #b4530b;
+      --human-soft: #fbeadb;
+      --band-people: #f7f1ea;
+      --band-agents: #eaf0fa;
+      --band-auto: #e9ecf0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    .deck-container {
+      width: 100%;
+      max-width: var(--slide-width);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .slide-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 40px 56px;
+      overflow-y: auto;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 20px;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    h1, h2 {
+      font-family: var(--font-display);
+      color: var(--ink);
+      line-height: 1.2;
+    }
+
+    h1 {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 12px;
+    }
+
+    .subtitle {
+      font-family: var(--font-display);
+      font-size: 22px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    p, li {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--ink);
+    }
+
+    ul, ol {
+      padding-left: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+    }
+
+    .highlight-box {
+      background: var(--bg);
+      border-left: 4px solid var(--agent);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      font-size: 15px;
+    }
+
+    .human-box {
+      background: var(--human-soft);
+      border-left: 4px solid var(--human);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      font-size: 15px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card h3 {
+      font-family: var(--font-display);
+      font-size: 18px;
+      color: var(--ink);
+    }
+
+    .card p, .card li {
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg);
+      font-family: var(--font-display);
+      font-weight: 700;
+    }
+
+    .diagram-scroll {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 8px;
+    }
+
+    .diagram-scroll svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-width: 800px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      background: var(--bg);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    button:hover {
+      border-color: var(--agent);
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--agent);
+      outline-offset: 2px;
+    }
+
+    .counter {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* Appendix A SVG Styles */
+    .band-people { fill: var(--band-people); }
+    .band-agents { fill: var(--band-agents); }
+    .band-auto { fill: var(--band-auto); }
+    .strip-people { fill: var(--human); }
+    .strip-agents { fill: var(--agent); }
+    .strip-auto { fill: var(--muted); }
+    .sep { stroke: var(--line); stroke-width: 1; }
+    .col { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+    .stage { font-family: var(--font-display); font-weight: 700; font-size: 15px; fill: var(--ink); }
+    .lane { font-family: var(--font-display); font-weight: 700; font-size: 13px; fill: var(--ink); }
+    .lane-sub { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+    .t { font-family: var(--font-body); font-size: 12px; fill: var(--ink); }
+    .t-mono { font-family: var(--font-mono); font-size: 12px; fill: var(--ink); }
+    .lbl { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+    .n-agent { fill: var(--surface); stroke: var(--agent); stroke-width: 1.5; }
+    .n-opt { fill: var(--surface); stroke: var(--agent); stroke-width: 1.5; stroke-dasharray: 5 3; }
+    .n-human { fill: var(--human-soft); stroke: var(--human); stroke-width: 1.5; }
+    .n-human-opt { fill: var(--human-soft); stroke: var(--human); stroke-width: 1.5; stroke-dasharray: 5 3; }
+    .n-hook { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; }
+    .chip { fill: var(--ink); }
+    .chip-t { font-family: var(--font-mono); font-size: 12px; fill: var(--bg); }
+    .chip-out { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+    .a { stroke: currentColor; stroke-width: 1.3; fill: none; }
+    .a-dot { stroke: currentColor; stroke-width: 1.3; fill: none; stroke-dasharray: 2 3; }
+    .a-wait { stroke: var(--human); stroke-width: 1.6; fill: none; }
+    .head { fill: currentColor; }
+    .head-wait { fill: var(--human); }
+    .gate-band { fill: var(--bg); }
+    .g-human { fill: var(--human); }
+    .g-agent { fill: var(--agent); }
+    .g-derived { fill: var(--surface); stroke: var(--agent); stroke-width: 1.6; }
+    .gate { font-family: var(--font-mono); font-size: 12px; font-weight: 600; fill: var(--ink); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide, .slide * {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .slide-viewport {
+        aspect-ratio: auto;
+        min-height: 520px;
+      }
+      .slide {
+        padding: 24px 20px;
+      }
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+      h1 { font-size: 28px; }
+      h2 { font-size: 22px; }
+      .diagram-scroll svg {
+        min-width: 680px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck-container">
+    <div class="slide-viewport">
+      <!-- Slide 1: Title -->
+      <section class="slide active" id="slide-1">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 24px;">
+          <div style="display: inline-block; width: fit-content; background: var(--human-soft); color: var(--human); padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 14px;">
+            gin-workflow 2.1
+          </div>
+          <h1>The Agentic Development Lifecycle</h1>
+          <p class="subtitle">From requirement to merge through recorded quality gates</p>
+          <div class="highlight-box" style="margin-top: 12px;">
+            <code>discuss</code> → <code>plan</code> → <code>orchestrate</code> → <code>execute</code> → <code>ship</code>
+          </div>
+          <p style="color: var(--muted); font-size: 14px; margin-top: 8px;">
+            Navigation: Press ← / → or PageUp / PageDown or Space to navigate slides, Home / End to jump.
+          </p>
+        </div>
+      </section>
+
+      <!-- Slide 2: Why an Agentic Lifecycle -->
+      <section class="slide" id="slide-2">
+        <h2>Why an Agentic Lifecycle</h2>
+        <p class="subtitle">Agents need gates, evidence, and a bounded scope</p>
+        <div class="grid-3" style="margin-top: 10px;">
+          <div class="card">
+            <h3>Hard Phase Boundaries</h3>
+            <p>Unconstrained agents drift, hallucinate progress, and attempt speculative rewrites. Stages enforce strict stops: one stage invocation executes exactly one stage and exits.</p>
+          </div>
+          <div class="card">
+            <h3>Evidence Over Assertion</h3>
+            <p>An agent claiming "tests pass" or "feature complete" is never enough. Every claim requires machine-verifiable proof: command output with zero failures, verified diffs, and clean test baselines.</p>
+          </div>
+          <div class="card">
+            <h3>Human Control at Gates</h3>
+            <p>The agent does the heavy lifting, but people maintain authority: confirming the design spec, approving the plan decomposition, and authorizing every merge, pull request, or discard.</p>
+          </div>
+        </div>
+        <div class="human-box">
+          <strong>Core principle:</strong> Mechanical checks run in git hooks at zero token cost; human judgment decides scope, architecture, and integration.
+        </div>
+      </section>
+
+      <!-- Slide 3: Swim-lane diagram -->
+      <section class="slide" id="slide-3">
+        <h2>The Lifecycle at a Glance</h2>
+        <p class="subtitle">Swim lanes across stages, gates, people, agents, and automation</p>
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 1340 690" role="img" aria-label="Swim-lane diagram of the agentic development lifecycle. Four people lanes (requester, area lead, developer, ship approver), three agent lanes (main agent, worker, reviewer), and git hooks and CI, across the stages discuss, plan, orchestrate, execute and ship, each closing with its gate.">
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+              <marker id="ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-wait" d="M0,0 L10,5 L0,10 z"/></marker>
+            </defs>
+
+            <!-- lane bands -->
+            <rect class="band-people" x="0" y="60" width="1340" height="264"/>
+            <rect class="band-agents" x="0" y="324" width="1340" height="198"/>
+            <rect class="band-auto" x="0" y="522" width="1340" height="66"/>
+            <rect class="strip-people" x="0" y="60" width="5" height="264"/>
+            <rect class="strip-agents" x="0" y="324" width="5" height="198"/>
+            <rect class="strip-auto" x="0" y="522" width="5" height="66"/>
+            <line class="sep" x1="0" y1="60" x2="1340" y2="60"/>
+            <line class="sep" x1="0" y1="126" x2="1340" y2="126"/>
+            <line class="sep" x1="0" y1="192" x2="1340" y2="192"/>
+            <line class="sep" x1="0" y1="258" x2="1340" y2="258"/>
+            <line class="sep" x1="0" y1="324" x2="1340" y2="324"/>
+            <line class="sep" x1="0" y1="390" x2="1340" y2="390"/>
+            <line class="sep" x1="0" y1="456" x2="1340" y2="456"/>
+            <line class="sep" x1="0" y1="522" x2="1340" y2="522"/>
+            <line class="sep" x1="0" y1="588" x2="1340" y2="588"/>
+
+            <!-- stage columns -->
+            <line class="col" x1="180" y1="20" x2="180" y2="588"/>
+            <line class="col" x1="380" y1="20" x2="380" y2="588"/>
+            <line class="col" x1="580" y1="20" x2="580" y2="588"/>
+            <line class="col" x1="780" y1="20" x2="780" y2="588"/>
+            <line class="col" x1="1100" y1="20" x2="1100" y2="588"/>
+            <text class="stage" x="280" y="44" text-anchor="middle">discuss</text>
+            <text class="stage" x="480" y="44" text-anchor="middle">plan</text>
+            <text class="stage" x="680" y="44" text-anchor="middle">orchestrate</text>
+            <text class="stage" x="940" y="44" text-anchor="middle">execute · per track</text>
+            <text class="stage" x="1220" y="44" text-anchor="middle">ship</text>
+
+            <!-- lane labels -->
+            <text class="lane" x="20" y="91">Requester</text><text class="lane-sub" x="20" y="107">BA / PM</text>
+            <text class="lane" x="20" y="157">Area lead</text><text class="lane-sub" x="20" y="173">owns the code area</text>
+            <text class="lane" x="20" y="223">Developer</text><text class="lane-sub" x="20" y="239">runs the stages</text>
+            <text class="lane" x="20" y="289">Ship approver</text><text class="lane-sub" x="20" y="305">team mode, e.g. QE</text>
+            <text class="lane" x="20" y="355">Main agent</text><text class="lane-sub" x="20" y="371">your harness session</text>
+            <text class="lane" x="20" y="421">Worker</text><text class="lane-sub" x="20" y="437">gin-orchestrator, optional</text>
+            <text class="lane" x="20" y="487">Reviewer</text><text class="lane-sub" x="20" y="503">fresh session or provider</text>
+            <text class="lane" x="20" y="553">Git hooks &amp; CI</text><text class="lane-sub" x="20" y="569">checks set by rigor</text>
+
+            <!-- discuss -->
+            <rect class="chip" x="200" y="210" width="80" height="30" rx="15"/><text class="chip-t" x="240" y="229" text-anchor="middle">/discuss</text>
+            <line class="a" x1="240" y1="240" x2="240" y2="335" marker-end="url(#ah)"/>
+            <text class="lbl" x="234" y="300" text-anchor="end">starts</text>
+            <rect class="n-agent" x="200" y="337" width="160" height="40" rx="6"/>
+            <text class="t" x="280" y="353" text-anchor="middle">Asks, proposes,</text><text class="t" x="280" y="368" text-anchor="middle">writes the spec</text>
+            <rect class="n-human" x="200" y="73" width="150" height="40" rx="6"/>
+            <text class="t" x="275" y="97" text-anchor="middle">Confirms the spec</text>
+            <line class="a-wait" x1="330" y1="337" x2="330" y2="115" marker-end="url(#ahw)"/>
+            <text class="lbl" x="336" y="300">questions, spec</text>
+
+            <!-- plan -->
+            <rect class="chip" x="408" y="210" width="64" height="30" rx="15"/><text class="chip-t" x="440" y="229" text-anchor="middle">/plan</text>
+            <line class="a" x1="440" y1="240" x2="440" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-agent" x="400" y="337" width="160" height="40" rx="6"/>
+            <text class="t" x="480" y="353" text-anchor="middle">Writes the plan:</text><text class="t" x="480" y="368" text-anchor="middle">tracks, role, tier</text>
+            <rect class="n-human" x="400" y="139" width="150" height="40" rx="6"/>
+            <text class="t" x="475" y="163" text-anchor="middle">Approves the plan</text>
+            <line class="a-wait" x1="530" y1="337" x2="530" y2="181" marker-end="url(#ahw)"/>
+            <text class="lbl" x="536" y="300">plan</text>
+
+            <!-- orchestrate -->
+            <rect class="chip" x="592" y="210" width="104" height="30" rx="15"/><text class="chip-t" x="644" y="229" text-anchor="middle">/orchestrate</text>
+            <line class="a" x1="644" y1="240" x2="644" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-agent" x="600" y="337" width="160" height="40" rx="6"/>
+            <text class="t" x="680" y="353" text-anchor="middle">Epic, track beads,</text><text class="t" x="680" y="368" text-anchor="middle">routes, worktree</text>
+            <rect class="chip-out" x="708" y="210" width="62" height="30" rx="15"/><text class="t-mono" x="739" y="229" text-anchor="middle">/goal</text>
+            <line class="a" x1="739" y1="337" x2="739" y2="242" marker-end="url(#ah)"/>
+            <text class="lbl" x="733" y="300" text-anchor="end">prints</text>
+
+            <!-- execute -->
+            <rect class="chip" x="790" y="210" width="80" height="30" rx="15"/><text class="chip-t" x="830" y="229" text-anchor="middle">/execute</text>
+            <line class="a" x1="830" y1="240" x2="830" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-human-opt" x="960" y="205" width="130" height="40" rx="6"/>
+            <text class="t" x="1025" y="221" text-anchor="middle">Does the</text><text class="t" x="1025" y="236" text-anchor="middle">human-gate tracks</text>
+            <rect class="n-agent" x="790" y="337" width="100" height="40" rx="6"/>
+            <text class="t" x="840" y="353" text-anchor="middle">Claims track,</text><text class="t" x="840" y="368" text-anchor="middle">tests first</text>
+            <line class="a" x1="890" y1="357" x2="968" y2="357" marker-end="url(#ah)"/>
+            <rect class="n-agent" x="970" y="337" width="120" height="40" rx="6"/>
+            <text class="t" x="1030" y="353" text-anchor="middle">Fixes findings,</text><text class="t" x="1030" y="368" text-anchor="middle">closes track</text>
+            <line class="a" x1="850" y1="377" x2="850" y2="401" marker-end="url(#ah)"/>
+            <rect class="n-opt" x="830" y="403" width="110" height="40" rx="6"/>
+            <text class="t" x="885" y="419" text-anchor="middle">Implements</text><text class="t" x="885" y="434" text-anchor="middle">routed track</text>
+            <polyline class="a" points="940,423 985,423 985,379" marker-end="url(#ah)"/>
+            <text class="lbl" x="946" y="416">result</text>
+            <line class="a" x1="1010" y1="377" x2="1010" y2="467" marker-end="url(#ah)"/>
+            <text class="lbl" x="1004" y="462" text-anchor="end">review</text>
+            <rect class="n-agent" x="950" y="469" width="118" height="40" rx="6"/>
+            <text class="t" x="1009" y="485" text-anchor="middle">Review ledger</text><text class="lbl" x="1009" y="500" text-anchor="middle">≤ max cycles</text>
+            <line class="a" x1="1060" y1="469" x2="1060" y2="379" marker-end="url(#ah)"/>
+            <text class="lbl" x="1066" y="462">verdict</text>
+            <line class="a-dot" x1="800" y1="377" x2="800" y2="533" marker-end="url(#ah)"/>
+            <text class="lbl" x="806" y="527">commit</text>
+            <rect class="n-hook" x="790" y="535" width="120" height="40" rx="6"/>
+            <text class="t" x="850" y="551" text-anchor="middle">pre-commit:</text><text class="t" x="850" y="566" text-anchor="middle">lint, typecheck</text>
+            <line class="a-dot" x1="1084" y1="377" x2="1084" y2="533" marker-end="url(#ah)"/>
+            <text class="lbl" x="1078" y="527" text-anchor="end">push</text>
+            <rect class="n-hook" x="960" y="535" width="130" height="40" rx="6"/>
+            <text class="t" x="1025" y="551" text-anchor="middle">pre-push:</text><text class="t" x="1025" y="566" text-anchor="middle">tests, build, e2e</text>
+
+            <!-- ship -->
+            <rect class="chip" x="1106" y="210" width="48" height="30" rx="15"/><text class="chip-t" x="1130" y="229" text-anchor="middle">/ship</text>
+            <line class="a" x1="1130" y1="240" x2="1130" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-human" x="1170" y="205" width="150" height="40" rx="6"/>
+            <text class="t" x="1245" y="221" text-anchor="middle">Chooses merge, PR,</text><text class="t" x="1245" y="236" text-anchor="middle">keep or discard</text>
+            <rect class="n-human-opt" x="1160" y="271" width="120" height="40" rx="6"/>
+            <text class="t" x="1220" y="295" text-anchor="middle">Approves the PR</text>
+            <rect class="n-agent" x="1140" y="337" width="170" height="40" rx="6"/>
+            <text class="t" x="1225" y="353" text-anchor="middle">Checks ledgers,</text><text class="t" x="1225" y="368" text-anchor="middle">merges, cleans up</text>
+            <line class="a-wait" x1="1296" y1="337" x2="1296" y2="247" marker-end="url(#ahw)"/>
+            <line class="a-wait" x1="1200" y1="337" x2="1200" y2="313" marker-end="url(#ahw)"/>
+            <line class="a-dot" x1="1225" y1="377" x2="1225" y2="533" marker-end="url(#ah)"/>
+            <text class="lbl" x="1231" y="527">push</text>
+            <rect class="n-hook" x="1160" y="535" width="130" height="40" rx="6"/>
+            <text class="t" x="1225" y="559" text-anchor="middle">pre-push, CI</text>
+
+            <!-- gate strip -->
+            <rect class="gate-band" x="0" y="588" width="1340" height="102"/>
+            <text class="lane" x="20" y="630">Gate</text><text class="lane-sub" x="20" y="646">closes the stage</text>
+            <rect class="g-human" x="274" y="608" width="12" height="12" transform="rotate(45 280 614)"/>
+            <text class="gate" x="280" y="644" text-anchor="middle">requirement_confirmed</text><text class="lane-sub" x="280" y="660" text-anchor="middle">recorded after you confirm</text>
+            <rect class="g-human" x="474" y="608" width="12" height="12" transform="rotate(45 480 614)"/>
+            <text class="gate" x="480" y="644" text-anchor="middle">plan_approved</text><text class="lane-sub" x="480" y="660" text-anchor="middle">recorded after you approve</text>
+            <rect class="g-agent" x="674" y="608" width="12" height="12" transform="rotate(45 680 614)"/>
+            <text class="gate" x="680" y="644" text-anchor="middle">orchestration_ready</text><text class="lane-sub" x="680" y="660" text-anchor="middle">recorded by the agent</text>
+            <rect class="g-derived" x="934" y="608" width="12" height="12" transform="rotate(45 940 614)"/>
+            <text class="gate" x="940" y="644" text-anchor="middle">implementation_complete</text><text class="lane-sub" x="940" y="660" text-anchor="middle">derived: every track closed</text>
+            <rect class="g-derived" x="1214" y="608" width="12" height="12" transform="rotate(45 1220 614)"/>
+            <text class="gate" x="1220" y="644" text-anchor="middle">shipped</text><text class="lane-sub" x="1220" y="660" text-anchor="middle">derived: epic closed</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Slide 4: Discuss -->
+      <section class="slide" id="slide-4">
+        <h2>discuss → requirement_confirmed</h2>
+        <p class="subtitle">Clarify intent before touching any code or plan</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>What the Agent Does</h3>
+            <ul>
+              <li>Runs <code>/discuss &lt;requirement&gt;</code> to explore existing architecture.</li>
+              <li>Asks clarifying questions one at a time, bounded by <code>clarify.max_questions</code> (default 8).</li>
+              <li>Proposes concrete architectural approaches with trade-offs.</li>
+              <li>Writes the confirmed design specification to <code>.planning/specs/&lt;date&gt;-&lt;topic&gt;-design.md</code>.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Human Confirmation & Gate</h3>
+            <ul>
+              <li>The agent pauses and waits for your confirmation.</li>
+              <li>You confirm the chosen design and accepted scope.</li>
+              <li>Gate recorded: <code>requirement_confirmed</code> via <code>gin-workflow record requirement-confirmed --evidence &lt;spec&gt; --actor &lt;id&gt;</code>.</li>
+              <li>The stage stops immediately. It never advances to planning automatically.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="human-box">
+          <strong>Process waiver:</strong> <code>requirement_confirmed</code> may be waived by the agent with a stated reason when requirements are already fully established.
+        </div>
+      </section>
+
+      <!-- Slide 5: Plan -->
+      <section class="slide" id="slide-5">
+        <h2>plan → plan_approved</h2>
+        <p class="subtitle">Structured decomposition into verifiable, test-first tracks</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Track Decomposition</h3>
+            <ul>
+              <li>Runs <code>/plan &lt;topic&gt;</code> from the confirmed design spec.</li>
+              <li>Produces <code>.planning/plans/&lt;date&gt;-&lt;feature&gt;.md</code> with independent tracks.</li>
+              <li>Defines file scope, public interfaces, acceptance criteria, and test-first steps.</li>
+              <li>Assigns portable provider role (e.g. <code>frontend</code>, <code>backend</code>) and reasoning tier (<code>low</code>, <code>medium</code>, <code>high</code>).</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Human Gate & Approval</h3>
+            <ul>
+              <li>Tracks with a <code>Human gate:</code> field mark required manual intervention (credentials, production access, third-party approval).</li>
+              <li>Unattended runs automatically stop before human-gate tracks.</li>
+              <li>You review the strategy and approve the plan.</li>
+              <li>Gate recorded: <code>plan_approved</code> via <code>record plan-approved --evidence &lt;plan&gt; --actor &lt;id&gt;</code>.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <strong>Portable planning:</strong> Plans never contain concrete model names, vendor IDs, or machine paths. Those are resolved locally during orchestration.
+        </div>
+      </section>
+
+      <!-- Slide 6: Orchestrate -->
+      <section class="slide" id="slide-6">
+        <h2>orchestrate → orchestration_ready</h2>
+        <p class="subtitle">Instantiate durable tasks, workspace isolation, and execution routes</p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Task Hierarchy</h3>
+            <p>Creates a Parent Bead (epic) representing the deliverable, and one Track Bead per plan track with technical acceptance criteria.</p>
+          </div>
+          <div class="card">
+            <h3>Worktree Isolation</h3>
+            <p>Creates an isolated git worktree for the feature, verifying clean test baselines before implementation begins.</p>
+          </div>
+          <div class="card">
+            <h3>Route Resolution</h3>
+            <p>Maps portable track roles and tiers to local provider execution configs, and prints the unattended <code>/goal</code> command.</p>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top: 10px;">
+          Gate recorded: <code>orchestration_ready</code> via <code>record orchestration-ready --epic &lt;epic&gt; --evidence &lt;ids; worktree; branch&gt; --actor &lt;id&gt;</code>.
+        </div>
+        <p style="font-size: 14px; color: var(--muted);">
+          Standalone beads can skip discuss and plan: record the bead directly as its own epic with description and acceptance criteria standing in for spec and plan.
+        </p>
+      </section>
+
+      <!-- Slide 7: Execute -->
+      <section class="slide" id="slide-7">
+        <h2>execute → implementation_complete</h2>
+        <p class="subtitle">Test-first implementation and independent review per track</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Execution Flow</h3>
+            <ul>
+              <li>Pick ready track: <code>gin-workflow task ready</code> and claim it.</li>
+              <li>Run <code>gin-workflow rules --files &lt;scope&gt;</code> and apply active rule packs.</li>
+              <li>Write failing test first, run it (red), implement solution, re-run test (green).</li>
+              <li>Keep command execution output as verifiable evidence.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Track Closure & Derived Gate</h3>
+            <ul>
+              <li>Conduct independent code review in the review ledger.</li>
+              <li>Collect AI usage summary: <code>gin-workflow usage collect --bead &lt;id&gt;</code>.</li>
+              <li>Close track bead: unblocks dependent downstream tracks immediately.</li>
+              <li>Gate derived: <code>implementation_complete</code> is satisfied when every child track of the epic is closed.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="human-box">
+          <strong>Not waivable:</strong> <code>implementation_complete</code> is a derived fact, not a formality. It cannot be bypassed with a waiver.
+        </div>
+      </section>
+
+      <!-- Slide 8: Independent Review -->
+      <section class="slide" id="slide-8">
+        <h2>Independent Review & the Review Ledger</h2>
+        <p class="subtitle">Bounded review cycles with an immutable event ledger and checkpoint refs</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Review Rules</h3>
+            <ul>
+              <li>Review runs inside <code>execute</code> per track; it is not a router stage.</li>
+              <li>Session or provider independence: fresh session or routed worker; self-review in the same session is forbidden.</li>
+              <li>Review ledger stored in <code>.planning/reviews/&lt;bead&gt;/</code> (<code>review.json</code> and <code>review.md</code>).</li>
+              <li>Tracks reviewed snapshot on <code>refs/gin/review/&lt;bead&gt;</code>. Commits after review invalidate approval.</li>
+              <li>Bounded at <code>routing.review.max_cycles</code>. Findings must reach terminal statuses: <code>verified</code>, <code>withdrawn</code>, <code>accepted-as-is</code>, <code>deferred-verified</code>, <code>human-waived</code>.</li>
+            </ul>
+          </div>
+          <div class="card" style="align-items: center; justify-content: center;">
+            <svg viewBox="0 0 460 270" style="width: 100%; height: auto;" role="img" aria-label="Finite state machine diagram of the review ledger: implementation-in-progress, review-requested, review-in-progress, changes-requested, blocked-human, and review-approved with labelled transition arrows.">
+              <defs>
+                <marker id="fsm-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="var(--ink)" d="M0,0 L10,5 L0,10 z"/></marker>
+                <marker id="fsm-ah-human" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="var(--human)" d="M0,0 L10,5 L0,10 z"/></marker>
+              </defs>
+              <!-- Nodes -->
+              <rect x="20" y="20" width="180" height="34" rx="6" fill="var(--surface)" stroke="var(--agent)" stroke-width="1.5"/>
+              <text x="110" y="42" font-family="var(--font-mono)" font-size="11" fill="var(--ink)" text-anchor="middle">implementation-in-progress</text>
+
+              <rect x="260" y="20" width="170" height="34" rx="6" fill="var(--surface)" stroke="var(--agent)" stroke-width="1.5"/>
+              <text x="345" y="42" font-family="var(--font-mono)" font-size="11" fill="var(--ink)" text-anchor="middle">review-requested</text>
+
+              <rect x="260" y="105" width="170" height="34" rx="6" fill="var(--surface)" stroke="var(--agent)" stroke-width="1.5"/>
+              <text x="345" y="127" font-family="var(--font-mono)" font-size="11" fill="var(--ink)" text-anchor="middle">review-in-progress</text>
+
+              <rect x="20" y="105" width="180" height="34" rx="6" fill="var(--surface)" stroke="var(--human)" stroke-width="1.5"/>
+              <text x="110" y="127" font-family="var(--font-mono)" font-size="11" fill="var(--ink)" text-anchor="middle">changes-requested</text>
+
+              <rect x="20" y="195" width="180" height="34" rx="6" fill="var(--human-soft)" stroke="var(--human)" stroke-width="1.5"/>
+              <text x="110" y="217" font-family="var(--font-mono)" font-size="11" fill="var(--human)" text-anchor="middle">blocked-human</text>
+
+              <rect x="260" y="195" width="170" height="34" rx="6" fill="var(--bg)" stroke="var(--agent)" stroke-width="2"/>
+              <text x="345" y="217" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--ink)" text-anchor="middle">review-approved</text>
+
+              <!-- Transitions -->
+              <line x1="200" y1="37" x2="252" y2="37" stroke="var(--ink)" stroke-width="1.3" marker-end="url(#fsm-ah)"/>
+              <text x="230" y="30" font-family="var(--font-body)" font-size="10" fill="var(--muted)" text-anchor="middle">worker</text>
+
+              <line x1="345" y1="54" x2="345" y2="97" stroke="var(--ink)" stroke-width="1.3" marker-end="url(#fsm-ah)"/>
+              <text x="350" y="80" font-family="var(--font-body)" font-size="10" fill="var(--muted)">reviewer</text>
+
+              <line x1="260" y1="122" x2="208" y2="122" stroke="var(--ink)" stroke-width="1.3" marker-end="url(#fsm-ah)"/>
+              <text x="234" y="115" font-family="var(--font-body)" font-size="10" fill="var(--muted)" text-anchor="middle">findings</text>
+
+              <line x1="110" y1="105" x2="110" y2="62" stroke="var(--ink)" stroke-width="1.3" marker-end="url(#fsm-ah)"/>
+              <text x="115" y="88" font-family="var(--font-body)" font-size="10" fill="var(--muted)">fix</text>
+
+              <line x1="345" y1="139" x2="345" y2="187" stroke="var(--ink)" stroke-width="1.3" marker-end="url(#fsm-ah)"/>
+              <text x="350" y="167" font-family="var(--font-body)" font-size="10" fill="var(--muted)">all terminal</text>
+
+              <line x1="280" y1="139" x2="180" y2="195" stroke="var(--human)" stroke-width="1.3" marker-end="url(#fsm-ah-human)"/>
+              <text x="245" y="165" font-family="var(--font-body)" font-size="10" fill="var(--human)">escalate</text>
+
+              <line x1="110" y1="195" x2="110" y2="147" stroke="var(--human)" stroke-width="1.3" marker-end="url(#fsm-ah-human)"/>
+              <text x="115" y="175" font-family="var(--font-body)" font-size="10" fill="var(--human)">human</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 9: Evidence Over Self-Assessment -->
+      <section class="slide" id="slide-9">
+        <h2>Evidence Over Self-Assessment</h2>
+        <p class="subtitle">No self-certification: every claim demands observable verification</p>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 25%;">Claim</th>
+              <th style="width: 45%;">Requires</th>
+              <th style="width: 30%;">Not enough</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Tests pass</strong></td>
+              <td>Test output with 0 failures from the current tree</td>
+              <td>An earlier run</td>
+            </tr>
+            <tr>
+              <td><strong>Bug fixed</strong></td>
+              <td>The original symptom's test passes: red then green</td>
+              <td>Code changed</td>
+            </tr>
+            <tr>
+              <td><strong>Agent completed</strong></td>
+              <td>The git diff checked and reviewed</td>
+              <td>The agent says so</td>
+            </tr>
+            <tr>
+              <td><strong>Requirements met</strong></td>
+              <td>The spec requirement checklist explicitly verified</td>
+              <td>Tests passing alone</td>
+            </tr>
+            <tr>
+              <td><strong>Waiting for PR merge</strong></td>
+              <td>A pushed branch and a real pull request link</td>
+              <td>Uncommitted code</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="highlight-box">
+          Handoff rule: Agents must report what changed, what was validated, what was waived with reasons, bead statuses, remaining risks, and next commands.
+        </div>
+      </section>
+
+      <!-- Slide 10: Quality Gates in Git Hooks -->
+      <section class="slide" id="slide-10">
+        <h2>Quality Gates in Git Hooks by Rigor</h2>
+        <p class="subtitle">Zero-token automated verification runs directly in your git workflow</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Hooks Architecture</h3>
+            <ul>
+              <li><code>pre-commit</code>: Runs <code>lint</code> and <code>typecheck</code> from <code>verify.checks</code>. Fast feedback on staged files.</li>
+              <li><code>pre-push</code>: Runs <code>test</code>, plus <code>build</code> at standard rigor and <code>e2e</code> at strict rigor. Stops on first failure.</li>
+              <li><code>CI</code>: The remote backstop ensuring checks ran even if local hooks were bypassed.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Rigor Presets</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Rigor</th>
+                  <th>Worktree</th>
+                  <th>Review</th>
+                  <th>Ledger</th>
+                  <th>/quick</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>easy</code></td>
+                  <td>never</td>
+                  <td>self check</td>
+                  <td>no</td>
+                  <td>allowed</td>
+                </tr>
+                <tr>
+                  <td><code>standard</code></td>
+                  <td>parallel</td>
+                  <td>independent</td>
+                  <td>no</td>
+                  <td>allowed</td>
+                </tr>
+                <tr>
+                  <td><code>strict</code></td>
+                  <td>always</td>
+                  <td>independent</td>
+                  <td>yes</td>
+                  <td>needs waiver</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="human-box">
+          <code>ship</code> verifies that ledger validation exits cleanly and no code was touched after the latest approval.
+        </div>
+      </section>
+
+      <!-- Slide 11: Ship -->
+      <section class="slide" id="slide-11">
+        <h2>ship → shipped</h2>
+        <p class="subtitle">Four explicit integration options; nothing merges without you</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Pre-Ship Verifications</h3>
+            <ul>
+              <li>Requires derived <code>implementation_complete</code> gate.</li>
+              <li>Validates review ledgers in history (<code>--in-history</code>).</li>
+              <li>Ensures no untracked diff exists after the newest review approval.</li>
+              <li>In SDD mode: runs <code>specs lint</code> and <code>specs trace</code>.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>The Four Integration Choices</h3>
+            <ol>
+              <li><strong>Merge locally:</strong> merges feature branch into base.</li>
+              <li><strong>Push & open PR:</strong> pushes branch and presents PR link.</li>
+              <li><strong>Keep branch:</strong> preserves worktree and branch for later.</li>
+              <li><strong>Discard:</strong> removes branch and worktree (typed confirmation).</li>
+            </ol>
+          </div>
+        </div>
+        <div class="human-box">
+          <strong>Explicit Human Approval:</strong> Merging locally, opening a pull request, or force-pushing each require explicit human authorization before execution.
+        </div>
+        <div class="highlight-box">
+          Gate derived: <code>shipped</code> is recorded upon closing the epic after merge, followed by worktree and review ledger cleanup.
+        </div>
+      </section>
+
+      <!-- Slide 12: Worktrees and Task Tracking -->
+      <section class="slide" id="slide-12">
+        <h2>Worktree Isolation & Task Tracking</h2>
+        <p class="subtitle">Clean working directories and durable state ownership</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Worktree Isolation</h3>
+            <ul>
+              <li>Prevents agents from dirtying your primary working directory or index.</li>
+              <li>Harness native tool preferred first; falls back to git worktrees under <code>.planning/worktrees/&lt;track&gt;</code>.</li>
+              <li>Detects existing worktrees: never nests worktree inside worktree.</li>
+              <li>Verifies project test baseline before beginning changes.</li>
+              <li>Worktree paths and branch names are disposable runtime metadata.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Task Tracking Ownership</h3>
+            <ul>
+              <li><code>gin-workflow task</code> owns status, priority, assignments, claims, blockers, and dependencies.</li>
+              <li>Markdown backend by default (<code>.planning/tasks/</code>): zero external tools needed, checked into git.</li>
+              <li>Beads (<code>bd</code>) backend: durable task graph, cross-repo dependency tracking.</li>
+              <li>All commands query tasks to discover ready work (<code>gin-workflow task ready</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 13: Knowledge & Rules -->
+      <section class="slide" id="slide-13">
+        <h2>Knowledge Capture & Rule Packs</h2>
+        <p class="subtitle">Accumulating project context and enforcing engineering standards</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Durable Project Knowledge</h3>
+            <ul>
+              <li>Captured during <code>execute</code> in <code>.planning/knowledge/&lt;topic&gt;.md</code>.</li>
+              <li>Stores reusable insights: compatibility constraints, counterintuitive APIs, environment limits, architecture decisions.</li>
+              <li>Never stores transient session thoughts or routine code steps.</li>
+              <li>Reconciled during <code>ship</code> before closing beads.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Automated Rule Packs</h3>
+            <ul>
+              <li>Injected into agent context based on files in scope (<code>gin-workflow rules --files &lt;scope&gt;</code>).</li>
+              <li>Core packs: <code>core</code> (boundaries, error handling, validation) and <code>lean</code> (reuse first, no speculative code, minimal diff).</li>
+              <li>Language and framework packs: <code>typescript</code>, <code>python</code>, <code>react</code>, <code>nextjs</code>, <code>fastapi</code>, <code>node-api</code>.</li>
+              <li>Review grades findings by rule impact (<code>critical</code>, <code>high</code>, <code>medium</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 14: Variations -->
+      <section class="slide" id="slide-14">
+        <h2>Variations: /quick, SDD & Team Mode</h2>
+        <p class="subtitle">Adaptable to small fixes, living specifications, or multi-member teams</p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>The Quick Path (/quick)</h3>
+            <p>Fast-track for small, low-risk changes (up to 5 files in one module). Skips specs, plans, and beads. Runs rigor verification and review. Never auto-commits.</p>
+          </div>
+          <div class="card">
+            <h3>SDD Living Specs</h3>
+            <p>Maintains living capability specifications in <code>docs/specs/</code> with numbered requirements (<code>REQ-&lt;CAP&gt;-&lt;NNN&gt;</code>). Changes proposed as deltas in <code>docs/changes/</code>.</p>
+          </div>
+          <div class="card">
+            <h3>Team Mode</h3>
+            <p>Opt-in collaboration with member roles, code ownership areas, and gates proven by approved pull requests (e.g. BA confirms spec, Area Lead approves plan, QE approves ship).</p>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top: 12px;">
+          Configuration driven: Layout switches via <code>artifacts.layout: sdd</code>; team mode enables via <code>team:</code> in configuration.
+        </div>
+      </section>
+
+      <!-- Slide 15: Running Unattended -->
+      <section class="slide" id="slide-15">
+        <h2>Running Unattended</h2>
+        <p class="subtitle">Bounded goal execution, human-gate boundaries, and notifications</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Bounded /goal Execution</h3>
+            <ul>
+              <li><code>gin-workflow goal --workflow-id &lt;id&gt;</code> prints a bounded unattended command.</li>
+              <li>Covers only tracks the agent can finish without human intervention.</li>
+              <li>Calculates a turn budget: 6 turns per track, capped at 30 turns total.</li>
+              <li>Halts automatically when ready work is completed or blocked.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Safety Boundaries & Notifications</h3>
+            <ul>
+              <li><strong>Human Gate:</strong> Tracks marked with <code>Human gate:</code> and all downstream dependents are excluded from unattended execution.</li>
+              <li><strong>One-Way Notifications:</strong> <code>gin-workflow notify --event &lt;event&gt; "&lt;msg&gt;"</code> sends Telegram alerts for lifecycle events (<code>needs_input</code>, <code>worker_finished</code>).</li>
+              <li>Notifications are strictly one-way alerts; they never substitute for user approval.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 16: Product Family -->
+      <section class="slide" id="slide-16">
+        <h2>Product Family</h2>
+        <p class="subtitle">Core lifecycle workflow and optional specialized extensions</p>
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 860 300" role="img" aria-label="Product family architecture diagram: gin-workflow core at the foundation, gin-orchestrator extending it for multi-harness routing, gin-qa integrating for testing, and gin-console requiring both workflow and orchestrator.">
+            <defs>
+              <marker id="fam-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path fill="var(--ink)" d="M0,0 L10,5 L0,10 z"/></marker>
+            </defs>
+
+            <!-- gin-workflow core box -->
+            <rect x="50" y="160" width="340" height="110" rx="8" fill="var(--surface)" stroke="var(--agent)" stroke-width="2"/>
+            <text x="220" y="195" font-family="var(--font-display)" font-size="16" font-weight="700" fill="var(--agent)" text-anchor="middle">gin-workflow (core)</text>
+            <text x="220" y="220" font-family="var(--font-body)" font-size="12" fill="var(--ink)" text-anchor="middle">Lifecycle stages, gates, rule packs,</text>
+            <text x="220" y="240" font-family="var(--font-body)" font-size="12" fill="var(--muted)" text-anchor="middle">task tracking, git hooks &amp; state model</text>
+
+            <!-- gin-orchestrator box -->
+            <rect x="470" y="160" width="340" height="110" rx="8" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/>
+            <text x="640" y="195" font-family="var(--font-display)" font-size="16" font-weight="700" fill="var(--ink)" text-anchor="middle">gin-orchestrator (extension)</text>
+            <text x="640" y="220" font-family="var(--font-body)" font-size="12" fill="var(--ink)" text-anchor="middle">Worker routing, circuit breakers,</text>
+            <text x="640" y="240" font-family="var(--font-body)" font-size="12" fill="var(--muted)" text-anchor="middle">multi-harness dispatch &amp; independent review</text>
+
+            <!-- Arrow workflow -> orchestrator -->
+            <line x1="390" y1="215" x2="458" y2="215" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
+            <text x="425" y="205" font-family="var(--font-mono)" font-size="11" fill="var(--muted)" text-anchor="middle">extends</text>
+
+            <!-- gin-qa box -->
+            <rect x="50" y="20" width="340" height="90" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+            <text x="220" y="52" font-family="var(--font-display)" font-size="16" font-weight="700" fill="var(--ink)" text-anchor="middle">gin-qa (add-on)</text>
+            <text x="220" y="75" font-family="var(--font-body)" font-size="12" fill="var(--muted)" text-anchor="middle">Test cases from specs &amp; Playwright e2e</text>
+
+            <!-- Arrow qa -> workflow -->
+            <line x1="220" y1="110" x2="220" y2="148" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
+            <text x="235" y="135" font-family="var(--font-mono)" font-size="11" fill="var(--muted)">traces</text>
+
+            <!-- gin-console box -->
+            <rect x="470" y="20" width="340" height="90" rx="8" fill="var(--surface)" stroke="var(--human)" stroke-width="1.5"/>
+            <text x="640" y="52" font-family="var(--font-display)" font-size="16" font-weight="700" fill="var(--human)" text-anchor="middle">gin-console (dashboard)</text>
+            <text x="640" y="75" font-family="var(--font-body)" font-size="12" fill="var(--muted)" text-anchor="middle">Unified web UI for workflow &amp; orchestrator</text>
+
+            <!-- Arrow console -> orchestrator and workflow -->
+            <line x1="640" y1="110" x2="640" y2="148" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#fam-ah)"/>
+            <text x="655" y="135" font-family="var(--font-mono)" font-size="11" fill="var(--muted)">requires</text>
+            <line x1="510" y1="110" x2="360" y2="152" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#fam-ah)"/>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Slide 17: Getting Started -->
+      <section class="slide" id="slide-17">
+        <h2>Getting Started</h2>
+        <p class="subtitle">Set up your repository and run your first change</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>One-Time Setup</h3>
+            <p>Run setup to initialize configuration and git hooks:</p>
+            <div style="background: var(--bg); padding: 8px 12px; border-radius: 6px; font-family: var(--font-mono); font-size: 13px;">
+              /setup
+            </div>
+            <p>Configures project shape, detects verification commands, and installs pre-commit / pre-push hooks.</p>
+          </div>
+          <div class="card">
+            <h3>First Feature Lifecycle</h3>
+            <ol>
+              <li><code>/discuss &lt;idea&gt;</code>: clarify requirements</li>
+              <li><code>/plan &lt;topic&gt;</code>: write test-first plan</li>
+              <li><code>/orchestrate &lt;plan&gt;</code>: setup tasks and worktree</li>
+              <li><code>/execute</code>: implement and review tracks</li>
+              <li><code>/ship</code>: choose integration and merge</li>
+            </ol>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 10px;">
+          <h3>Documentation & References</h3>
+          <p>
+            Quick start: <code>docs/getting-started.md</code> · Canonical lifecycle: <code>docs/concepts/lifecycle.md</code> · CLI reference: <code>docs/reference/cli.md</code>
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="controls">
+      <div class="btn-group">
+        <button id="prevBtn" type="button" aria-label="Previous slide">← Prev</button>
+        <button id="nextBtn" type="button" aria-label="Next slide">Next →</button>
+      </div>
+      <div class="counter" id="slideCounter">1 / 17</div>
+      <div class="btn-group">
+        <button id="themeBtn" type="button" aria-label="Toggle theme">Theme</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const totalSlides = slides.length;
+      let currentIndex = 0;
+
+      const counter = document.getElementById("slideCounter");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const themeBtn = document.getElementById("themeBtn");
+
+      function updateSlide(newIndex) {
+        if (newIndex < 0 || newIndex >= totalSlides) return;
+        slides[currentIndex].classList.remove("active");
+        currentIndex = newIndex;
+        slides[currentIndex].classList.add("active");
+        counter.textContent = (currentIndex + 1) + " / " + totalSlides;
+        slides[currentIndex].scrollTop = 0;
+      }
+
+      function nextSlide() {
+        if (currentIndex < totalSlides - 1) {
+          updateSlide(currentIndex + 1);
+        }
+      }
+
+      function prevSlide() {
+        if (currentIndex > 0) {
+          updateSlide(currentIndex - 1);
+        }
+      }
+
+      function goToSlide(index) {
+        updateSlide(index);
+      }
+
+      prevBtn.addEventListener("click", prevSlide);
+      nextBtn.addEventListener("click", nextSlide);
+
+      themeBtn.addEventListener("click", function () {
+        const root = document.documentElement;
+        const currentTheme = root.getAttribute("data-theme");
+        if (currentTheme === "dark") {
+          root.setAttribute("data-theme", "light");
+        } else if (currentTheme === "light") {
+          root.setAttribute("data-theme", "dark");
+        } else {
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          root.setAttribute("data-theme", prefersDark ? "light" : "dark");
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+          event.preventDefault();
+          nextSlide();
+        } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+          event.preventDefault();
+          prevSlide();
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          goToSlide(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          goToSlide(totalSlides - 1);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
