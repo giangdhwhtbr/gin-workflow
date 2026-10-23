@@ -26,6 +26,8 @@ class TestGoalText(unittest.TestCase):
         self.assertNotIn("e.1", text)
         self.assertIn("Or stop after 12 turns.", text)
         self.assertNotIn("human", text)
+        # A fallback from the track's route is still its route: the evaluator must not demand the primary.
+        self.assertIn("on its routed provider or a fallback from its route", text)
 
     def test_human_gate_and_its_dependents_are_left_out(self):
         tracks = [track("e.1"), track("e.2", blocked_by=["e.1"]), track("e.3", labels=["human-gate"]),

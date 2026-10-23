@@ -39,7 +39,7 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]]) -> str:
         named = ", ".join(f"{bead} ({open_tracks[bead].get('title', '')})" for bead in gates)
         return f"No goal: every open track of epic {epic} waits on a human: {named}."
     text = (f"/goal tracks {', '.join(runnable)} of epic {epic} are closed in Beads, each after tests and review "
-            f"passed, executed per /gin-workflow:execute on its routed provider.")
+            f"passed, executed per /gin-workflow:execute on its routed provider or a fallback from its route.")
     if held:
         text += f" Do not start {', '.join(bead for bead in open_tracks if bead in held)}: they need a human."
     return text + f" Or stop after {min(MAX_TURNS, TURNS_PER_TRACK * len(runnable))} turns."
