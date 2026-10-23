@@ -129,7 +129,7 @@ try {
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-qa.cmd')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/templates'))) 'gin-orchestrator copied templates'
-    foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh', 'telegram.sh')) {
+    foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh')) {
         Assert-Exists (Join-Path $TestHome ".local/lib/gin-orchestrator/0.1/$scriptName")
     }
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-orchestrator.cmd')
@@ -268,25 +268,18 @@ try {
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md'))) 'name: gin-workflow-report'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/agents'))) 'OpenCode install kept agents'
     Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/references/stage-contract.md')
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/telegram-notify/SKILL.md'))) (Join-Path $TestHome '.config/opencode/skills/gin-workflow/scripts/telegram.sh')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/hooks'))) 'OpenCode install wrote hooks'
 
     $opencodeLinkProject = Join-Path $TestRoot 'opencode-link-project'
     New-Item -ItemType Directory -Path $opencodeLinkProject | Out-Null
-    $sourceTelegram = Join-Path $Root 'plugins/gin-workflow/src/skills/telegram-notify/SKILL.md'
-    $telegramBefore = [IO.File]::ReadAllBytes($sourceTelegram)
     $sourceReport = Join-Path $Root 'plugins/gin-workflow/src/skills/report/SKILL.md'
     $reportBefore = [IO.File]::ReadAllBytes($sourceReport)
     Invoke-Installer @{ Platform = 'opencode'; Project = $opencodeLinkProject; Link = $true } | Out-Null
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-workflow-report/SKILL.md')
     Assert-True `
-        ([Convert]::ToBase64String($telegramBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceTelegram))) `
-        'Linked OpenCode install rewrote the source skill'
-    Assert-True `
         ([Convert]::ToBase64String($reportBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceReport))) `
         'Linked OpenCode install renamed the source report skill'
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $opencodeLinkProject '.opencode/skills/telegram-notify/SKILL.md'))) (Join-Path $opencodeLinkProject '.opencode/scripts/telegram.sh')
 
     $copilotDryRun = Invoke-Installer @{ Platform = 'copilot'; DryRun = $true }
     $copilotDist = Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin-workflow'

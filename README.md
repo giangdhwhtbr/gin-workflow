@@ -12,7 +12,7 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
 | Guides | [use cases](docs/guides/use-cases.md), [recommended tools](docs/guides/recommended-tools.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
 | Orchestrator | [worker harnesses (gin-orchestrator)](docs/orchestrator/README.md), [routing and configuration](docs/orchestrator/routing.md) |
-| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md) |
+| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md), [upgrading to 2.1](docs/reference/upgrade-2.1.md) |
 | [Contributing](docs/contributing.md) | build, test, release |
 
 ## Installation

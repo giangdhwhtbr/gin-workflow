@@ -62,6 +62,13 @@ class DocsCoverageTests(unittest.TestCase):
         bad = [str(p.relative_to(ROOT)) for p in pages() if "workflow_providers" in p.read_text(encoding="utf-8")]
         self.assertEqual(bad, [])
 
+    def test_no_doc_mentions_telegram_sh(self):
+        targets = sorted(set(pages()) | set(ROOT.glob("plugins/*/src/skills/**/*.md")) | set(ROOT.glob("plugins/*/src/agents/*.md")) | {ROOT / "install.sh", ROOT / "install.ps1"})
+        bad = [f"{p.relative_to(ROOT)}:{n}: {line.strip()}" for p in targets if p.exists()
+               for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+               if "telegram.sh" in line or "telegram-notify" in line]
+        self.assertEqual(bad, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -539,7 +539,7 @@ install_launcher() {
   fi
   if [ "$name" = gin-orchestrator ]; then
     # The worker library finds these gin-workflow scripts beside its package (workspace.find_script).
-    for script in worktree-create.sh worktree-cleanup.sh telegram.sh; do
+    for script in worktree-create.sh worktree-cleanup.sh; do
       cp -f "$SCRIPT_DIR/plugins/gin-workflow/src/scripts/$script" "$install_dir/$script"
     done
   fi

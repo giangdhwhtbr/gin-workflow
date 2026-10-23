@@ -1,5 +1,7 @@
 # Upgrading to gin-workflow 2.0
 
+For the 2.1 changes (Telegram off by default, `gin-workflow goal`), see [upgrading to 2.1](upgrade-2.1.md).
+
 gin-workflow 2.0 runs the whole lifecycle in one main harness with no required external tool. Two things moved out of the core:
 
 - worker harness routing now belongs to the [gin-orchestrator](../orchestrator/README.md) extension, and its configuration sits under `orchestrator:` (schema 2.8);

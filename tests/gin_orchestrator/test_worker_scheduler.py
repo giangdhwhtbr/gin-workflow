@@ -17,7 +17,7 @@ from gin_orchestrator.worker_scheduler import (  # noqa: E402
     WorkerScheduler,
     select_execution_strategy,
 )
-from gin_orchestrator.fakes import FakeTaskTrackingProvider, FakeWorkspaceProvider  # noqa: E402
+from gin_orchestrator.fakes import FakeNotificationProvider, FakeTaskTrackingProvider, FakeWorkspaceProvider  # noqa: E402
 from gin_orchestrator.claude_worker import ClaudeWorkerAdapter  # noqa: E402
 from gin_orchestrator.native_cli import NativeCliRunner  # noqa: E402
 from gin_orchestrator.contracts import TaskCreateRequest  # noqa: E402
@@ -142,6 +142,51 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertEqual((), outcome.failed)
             self.assertEqual(5, len(workspaces.workspaces))
             self.assertEqual(5, len({record.attributes["assignee"] for record in tasks.tasks.values()}))
+
+    def test_scheduler_sends_one_worker_event_per_dispatch_only_with_a_provider(self):
+        def runner(payload):
+            result = completed(payload)
+            if payload["task_id"] == "task-2":
+                result.update(status="failed", summary="broken", blockers=["x"])
+            return result
+
+        def schedule(root, **options):
+            tasks = FakeTaskTrackingProvider()
+            requests = (worker_request(1), worker_request(2))
+            for item in requests:
+                tasks.create_task(
+                    TaskCreateRequest(item.task_id), idempotency_key=f"create:{item.task_id}"
+                )
+            return WorkerScheduler(
+                WorkerDispatcher(
+                    SequentialWorkerAdapter(runner), WorkflowEventStore(root / "events.jsonl")
+                ),
+                task_tracking=tasks,
+                workspace=FakeWorkspaceProvider(root / "worktrees"),
+                max_parallel_workers=2,
+                **options,
+            ).schedule(requests)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            notifications = FakeNotificationProvider()
+            schedule(root, notifications=notifications)
+            self.assertEqual(
+                {("worker_finished", "task-1: completed"), ("worker_failed", "task-2: failed")},
+                {(sent.event, sent.message) for sent in notifications.sent},
+            )
+            self.assertEqual(2, len(notifications.sent))
+        with tempfile.TemporaryDirectory() as directory:
+            schedule(Path(directory))
+
+        class RaisingNotifications:
+            def notify(self, request, *, idempotency_key):
+                raise OSError("config unreadable")
+
+        with tempfile.TemporaryDirectory() as directory:
+            outcome = schedule(Path(directory), notifications=RaisingNotifications())
+            self.assertEqual(["task-1"], [result.task_id for result in outcome.completed])
+            self.assertEqual(["task-2"], [result.task_id for result in outcome.failed])
 
     def test_duplicate_task_request_is_rejected_before_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:

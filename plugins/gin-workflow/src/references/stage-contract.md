@@ -19,6 +19,9 @@ Valid: test/command output, review-ledger state, bead IDs, spec/plan paths. Neve
 ## Approval
 Get explicit user confirmation in the harness before `plan-approved`, production-impacting parallel work, disabling worktree isolation, or execution-strategy/scope changes. Record it before acting.
 
+## Notifications
+Before stopping to wait for the user (a confirmation, an approval, a choice, `human_decision_required`, a blocker), run `gin-workflow notify --event needs_input "<what you need>"`. It does nothing unless `notifications.telegram` is on, and a message is never approval.
+
 ## Context
 Load only the requirement, file scope, and validation intent. Look up symbols, tests, and knowledge on demand: `codegraph explore "<query>"` when `.codegraph/` exists, else grep/read. Build an artifact from `gin-workflow specs template <name>` when one exists; never invent its structure.
 

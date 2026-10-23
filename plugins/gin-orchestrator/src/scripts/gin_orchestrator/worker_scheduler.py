@@ -8,7 +8,7 @@ import inspect
 import threading
 from typing import Any, Iterable
 
-from .contracts import OperationStatus, WorkspaceRequest
+from .contracts import NotificationRequest, OperationStatus, WorkspaceRequest
 from .worker_dispatch import (
     WorkerRequest,
     WorkerResult,
@@ -90,6 +90,7 @@ class WorkerScheduler:
         max_parallel_workers: int,
         max_retries: int = 0,
         worker_timeout_seconds: float = 600.0,
+        notifications: Any | None = None,
     ) -> None:
         if max_parallel_workers < 1:
             raise ValueError("max_parallel_workers must be positive")
@@ -103,6 +104,7 @@ class WorkerScheduler:
         self.max_parallel_workers = max_parallel_workers
         self.max_retries = max_retries
         self.worker_timeout_seconds = worker_timeout_seconds
+        self.notifications = notifications
         self._claimed_tasks: set[str] = set()
         self._claim_lock = threading.Lock()
 
@@ -286,6 +288,20 @@ class WorkerScheduler:
             pass
         return timeout_result, False
 
+    def _run_and_notify(self, request: WorkerRequest) -> WorkerResult:
+        result = self._run(request)
+        if self.notifications is not None:
+            event = "worker_finished" if result.status == "completed" else "worker_failed"
+            try:
+                self.notifications.notify(
+                    NotificationRequest(event, f"{result.task_id}: {result.status}"),
+                    idempotency_key=f"{result.task_id}:{event}",
+                )
+            except Exception:
+                # Delivery is best effort: a notification failure must not lose the worker's result.
+                pass
+        return result
+
     def schedule(self, requests: Iterable[WorkerRequest]) -> ScheduleOutcome:
         selected = tuple(requests)
         if not selected:
@@ -293,7 +309,7 @@ class WorkerScheduler:
         self._validate_requests(selected)
         self._claim(selected)
         with ThreadPoolExecutor(max_workers=self.max_parallel_workers) as executor:
-            results = tuple(executor.map(self._run, selected))
+            results = tuple(executor.map(self._run_and_notify, selected))
         return ScheduleOutcome(
             tuple(result for result in results if result.status == "completed"),
             tuple(result for result in results if result.status != "completed"),

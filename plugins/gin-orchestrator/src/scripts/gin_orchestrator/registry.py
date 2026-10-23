@@ -429,4 +429,5 @@ class ProviderRegistry:
             max_parallel_workers=self.worker_max_parallel,
             max_retries=self.worker_max_retries,
             worker_timeout_seconds=self.worker_timeout_seconds,
+            notifications=self.notifications,
         )

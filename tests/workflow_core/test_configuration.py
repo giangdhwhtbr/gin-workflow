@@ -162,7 +162,7 @@ class ConfigurationTests(unittest.TestCase):
                 repository,
                 repository_config={
                     "schema_version": "2.3",
-                    "notifications": {
+                    "integrations": {
                         "credential": {"secret_ref": "env:WORKFLOW_TEST_TOKEN"}
                     },
                 },

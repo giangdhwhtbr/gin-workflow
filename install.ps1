@@ -423,7 +423,7 @@ function Install-Launcher {
         -Destination (Join-Path $installDirectory 'templates')
     if ($Name -eq 'gin-orchestrator') {
         # The worker library finds these gin-workflow scripts beside its package (workspace.find_script).
-        foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh', 'telegram.sh')) {
+        foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh')) {
             Copy-Item -LiteralPath (Join-Path $ScriptRoot "plugins/gin-workflow/src/scripts/$scriptName") `
                 -Destination (Join-Path $installDirectory $scriptName) -Force
         }

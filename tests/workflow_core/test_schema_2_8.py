@@ -236,6 +236,22 @@ class TestSchema28(unittest.TestCase):
             restored_config = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
             self.assertEqual("2.7", restored_config["schema_version"])
 
+    def test_notifications_telegram_is_an_optional_boolean(self):
+        migrated = migrate_config(LEGACY, "2.8")
+        valid = copy.deepcopy(migrated)
+        valid["notifications"] = {"telegram": True}
+        validate_portable_config(valid)
+
+        invalid_type = copy.deepcopy(migrated)
+        invalid_type["notifications"] = {"telegram": "yes"}
+        with self.assertRaises(ConfigValidationError):
+            validate_portable_config(invalid_type)
+
+        invalid_extra = copy.deepcopy(migrated)
+        invalid_extra["notifications"] = {"telegram": True, "slack": True}
+        with self.assertRaises(ConfigValidationError):
+            validate_portable_config(invalid_extra)
+
 
 if __name__ == "__main__":
     unittest.main()

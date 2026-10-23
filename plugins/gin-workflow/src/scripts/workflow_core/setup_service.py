@@ -23,6 +23,7 @@ from .migrations import (
 )
 from .executable_resolver import resolve_harness_executable
 from .provider_config import DEFAULT_HARNESS_MODELS
+from .notify import credentials_warning
 from . import agents_block
 from . import orchestrator_client
 from .schemas import require_jsonschema
@@ -493,6 +494,10 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 warn = orchestrator_client.warning(effective)
                 if warn:
                     actions.append(warn)
+
+        if isinstance(effective.get("notifications"), Mapping) and effective["notifications"].get("telegram") is True:
+            if warn := credentials_warning(os.environ):
+                actions.append(warn)
 
     healthy = all(checks.values())
     payload: dict[str, Any] = {

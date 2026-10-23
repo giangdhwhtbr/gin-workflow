@@ -260,8 +260,6 @@ assert_not_exists "plugins/gin-workflow/dist/opencode/agents"
 assert_not_exists "plugins/gin-workflow/dist/opencode/commands"
 assert_not_exists "plugins/gin-workflow/dist/opencode/hooks/hooks.json"
 assert_not_exists "plugins/gin-workflow/dist/opencode/plugin.json"
-assert_contains "plugins/gin-workflow/dist/opencode/skills/telegram-notify/SKILL.md" "$TEST_HOME/.config/opencode/skills/gin-workflow/scripts/telegram.sh"
-assert_not_contains "plugins/gin-workflow/dist/opencode/skills/telegram-notify/SKILL.md" '${PLUGIN_ROOT}'
 assert_contains "plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/opencode"
 
@@ -324,7 +322,6 @@ assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/gin-workfl
 assert_contains "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
 assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/report"
 assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/agents"
-assert_contains "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/telegram-notify/SKILL.md" "$MOCK_HOME/.config/opencode/skills/gin-workflow/scripts/telegram.sh"
 assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/references/stage-contract.md"
 assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/hooks/hooks.json"
 
@@ -334,8 +331,6 @@ mkdir -p "$opencode_link_home"
 HOME="$opencode_link_home" ./install.sh --platform opencode --link >/dev/null
 assert_exists "$opencode_link_home/.config/opencode/skills/gin-workflow/skills/setup/SKILL.md"
 assert_exists "$opencode_link_home/.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md"
-assert_contains "plugins/gin-workflow/src/skills/telegram-notify/SKILL.md" '${PLUGIN_ROOT}/scripts/telegram.sh'
-assert_contains "$opencode_link_home/.config/opencode/skills/gin-workflow/skills/telegram-notify/SKILL.md" "$opencode_link_home/.config/opencode/skills/gin-workflow/scripts/telegram.sh"
 
 # Project-level OpenCode install writes into the repository without touching the
 # repository's own .opencode/agents or .opencode/commands files.
@@ -351,7 +346,6 @@ assert_exists "$opencode_project/.opencode/agents/user-agent.md"
 assert_exists "$opencode_project/.opencode/commands/user-command.md"
 assert_exists "$opencode_project/.opencode/references/stage-contract.md"
 assert_contains "$opencode_project/.opencode/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
-assert_contains "$opencode_project/.opencode/skills/telegram-notify/SKILL.md" "$opencode_project/.opencode/scripts/telegram.sh"
 
 HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file" 2>&1
 assert_not_contains "$output_file" "gin-workflow is not installed"
@@ -374,7 +368,7 @@ assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-orchestrator@skills-dir
 assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py"
 assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/templates"
 # The worker library finds these gin-workflow scripts beside its package.
-for script in worktree-create.sh worktree-cleanup.sh telegram.sh; do
+for script in worktree-create.sh worktree-cleanup.sh; do
   assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/$script"
   [ -x "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/$script" ] || { echo "Expected $script to be executable" >&2; exit 1; }
 done

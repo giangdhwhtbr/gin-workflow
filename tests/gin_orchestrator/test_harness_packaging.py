@@ -207,10 +207,6 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertFalse((root / "commands").exists())
         # The renamed skill keeps its display name aligned with the directory id.
         self.assertIn("name: gin-workflow-report", (root / "skills/gin-workflow-report/SKILL.md").read_text(encoding="utf-8"))
-        # ${PLUGIN_ROOT} is replaced with an absolute path for shell execution.
-        telegram = (root / "skills/telegram-notify/SKILL.md").read_text(encoding="utf-8")
-        self.assertNotIn("${PLUGIN_ROOT}", telegram)
-        self.assertIn("/scripts/telegram.sh", telegram)
 
     def test_plugin_metadata_and_harness_manifests_publish_current_version(self):
         manifests = (
@@ -224,7 +220,7 @@ class HarnessPackagingTests(unittest.TestCase):
         for manifest in manifests:
             with self.subTest(manifest=manifest.relative_to(ROOT)):
                 with manifest.open(encoding="utf-8") as file:
-                    self.assertEqual("2.0.0", json.load(file)["version"])
+                    self.assertEqual("2.1.0", json.load(file)["version"])
 
     def test_repository_ignores_installations_and_generated_workflow_output(self):
         ignored = (

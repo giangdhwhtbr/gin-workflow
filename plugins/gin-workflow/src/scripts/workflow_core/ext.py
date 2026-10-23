@@ -16,6 +16,7 @@ from .executable_resolver import PROVIDER_EXE_ALIASES, resolve_harness_executabl
 from .identity import AcceptanceIdentity, RepositorySnapshot
 from .manifests import ContextManifest, ContextRequest, create_context_manifest
 from .models import EffectiveConfig, freeze, thaw
+from .notify import notify
 from .provider_config import (
     CODEX_EFFORT_VALUES,
     DEFAULT_HARNESS_MODELS,
@@ -62,6 +63,7 @@ __all__ = [
     "freeze",
     "load_effective_config",
     "main_checkout",
+    "notify",
     "require_yaml",
     "resolve_harness_executable",
     "thaw",

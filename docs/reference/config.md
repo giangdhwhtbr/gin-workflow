@@ -79,6 +79,16 @@ Rigor presets:
 
 `max_questions` (default 8): cap on clarifying questions in `/discuss` and `/roadmap`; at the cap the agent proposes splitting the scope into smaller epics or lists the rest as assumptions.
 
+### `notifications`
+
+`telegram` (boolean, optional, default off): one-way Telegram notifications for lifecycle events (`needs_input`, `run_finished`, `worker_finished`, `worker_failed`). Enable with:
+
+```bash
+gin-workflow setup configure --set notifications.telegram=true --approve
+```
+
+Credentials are read from `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the environment. `gin-workflow setup doctor` warns when `notifications.telegram` is enabled but either credential is missing.
+
 ### `artifacts`
 
 | Key | Default | Meaning |

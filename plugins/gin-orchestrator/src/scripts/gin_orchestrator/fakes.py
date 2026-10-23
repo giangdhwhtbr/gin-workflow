@@ -507,7 +507,7 @@ class FakeEvidenceProvider(ProviderBase):
 class FakeNotificationProvider(ProviderBase):
     provider_name = "fake"
     provider_type = "notifications"
-    capabilities = frozenset({"notification.send", "notification.ask"})
+    capabilities = frozenset({"notification.send"})
 
     def __init__(self, *, available: bool = True) -> None:
         super().__init__(available=available)
@@ -518,8 +518,8 @@ class FakeNotificationProvider(ProviderBase):
             return guarded
         if replay := self._replay("notify", idempotency_key, request):
             return replay
-        if not request.event or not request.message or not idempotency_key or request.timeout_seconds < 1:
-            return ProviderResult.invalid("event, message, positive timeout, and idempotency_key are required")
+        if not request.event or not request.message or not idempotency_key:
+            return ProviderResult.invalid("event, message, and idempotency_key are required")
         self.sent.append(request)
         receipt = NotificationReceipt(request.event, True)
         return self._remember("notify", idempotency_key, request, ProviderResult.success(receipt))
