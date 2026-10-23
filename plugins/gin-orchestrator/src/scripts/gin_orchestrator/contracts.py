@@ -758,16 +758,12 @@ def evaluate_evidence_completeness(
 class NotificationRequest:
     event: str
     message: str
-    wait_for_reply: bool = False
-    timeout_seconds: int = 600
-    session_id: str = ""
 
 
 @dataclass(frozen=True)
 class NotificationReceipt:
     event: str
     delivered: bool
-    reply: str = ""
 
 
 class ProviderBase:

@@ -335,36 +335,40 @@ class ProviderContractTests(unittest.TestCase):
             CliTaskTrackingProvider(Path.cwd(), runner=missing_executable).read_task("task-7").status,
         )
 
-        notification_calls = []
+        sent = []
 
-        def notification_runner(argv, cwd, env):
-            notification_calls.append(tuple(argv))
-            return subprocess.CompletedProcess(argv, 0, "", "")
+        def recording_sender(root, event, message):
+            sent.append((root, event, message))
+            return None
 
-        notifications = TelegramNotificationProvider(Path.cwd(), runner=notification_runner)
-        request = NotificationRequest("task_completed", "Done")
+        notifications = TelegramNotificationProvider(Path.cwd(), sender=recording_sender)
+        self.assertEqual(frozenset({"notification.send"}), notifications.capabilities)
         self.assertIs(
             OperationStatus.INVALID,
             notifications.notify(NotificationRequest("", ""), idempotency_key="bad").status,
         )
+        request = NotificationRequest("worker_finished", "t1: completed")
         delivered = notifications.notify(request, idempotency_key="send")
         replayed = notifications.notify(request, idempotency_key="send")
+        self.assertIs(OperationStatus.SUCCESS, delivered.status)
         self.assertTrue(delivered.value.delivered)
         self.assertTrue(replayed.idempotent)
-        self.assertEqual(1, len(notification_calls))
-        offline_notifications = TelegramNotificationProvider(
-            Path.cwd(),
-            runner=lambda argv, cwd, env: subprocess.CompletedProcess(argv, 1, "", "offline"),
+        self.assertEqual([(Path.cwd().resolve(), "worker_finished", "t1: completed")], sent)
+
+        failing = TelegramNotificationProvider(
+            Path.cwd(), sender=lambda root, event, message: "telegram delivery failed (HTTP 500)"
         )
+        unavailable = failing.notify(request, idempotency_key="offline")
+        self.assertIs(OperationStatus.UNAVAILABLE, unavailable.status)
+        self.assertIn("telegram delivery failed (HTTP 500)", str(unavailable))
+
+        def rejecting_sender(root, event, message):
+            raise ValueError("unknown event")
+
+        rejected = TelegramNotificationProvider(Path.cwd(), sender=rejecting_sender)
         self.assertIs(
-            OperationStatus.UNAVAILABLE,
-            offline_notifications.notify(request, idempotency_key="offline").status,
-        )
-        disabled = TelegramNotificationProvider(Path.cwd(), environment={})
-        self.assertIs(ProviderHealth.UNAVAILABLE, disabled.metadata.health)
-        self.assertIs(
-            OperationStatus.UNAVAILABLE,
-            disabled.notify(request, idempotency_key="disabled").status,
+            OperationStatus.INVALID,
+            rejected.notify(request, idempotency_key="rejected").status,
         )
 
     def test_knowledge_adapters_only_return_proposals_and_normalize_unavailable(self):

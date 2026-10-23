@@ -18,7 +18,7 @@ The launcher asks `gin-workflow paths --json` for gin-workflow's library directo
 
 The facade carries `EXT_VERSION`. A change that removes a name or alters a signature raises it, and the launcher exits 1 when it differs from the version this add-on supports (`error: gin-workflow facade EXT_VERSION <n>; this gin-orchestrator supports 1`). The add-on requires gin-workflow `>=2.0,<3`.
 
-The worktree and Telegram shell scripts of gin-workflow are copied next to the `gin_orchestrator` package at install time, because the worker library looks for them there.
+The worktree shell scripts of gin-workflow (`worktree-create.sh` and `worktree-cleanup.sh`) are copied next to the `gin_orchestrator` package at install time, because the worker library looks for them there.
 
 ## Contract
 

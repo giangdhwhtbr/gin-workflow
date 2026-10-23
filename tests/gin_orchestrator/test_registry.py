@@ -743,6 +743,7 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertEqual(17, scheduler.worker_timeout_seconds)
             self.assertEqual(3, scheduler.max_retries)
             self.assertEqual(2, scheduler.max_parallel_workers)
+            self.assertIs(registry.notifications, scheduler.notifications)
 
     def test_registry_health_cache_distinguishes_codex_effort_and_probes_antigravity(self):
         from types import SimpleNamespace
