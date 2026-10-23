@@ -19,7 +19,7 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
 3. Write the tracks as a JSON list of `{"task_id", "provider_role", "reasoning"}` to `.agent-workflow/runtime/routes-<workflow>.json` and run `gin-workflow routes resolve --workflow-id <workflow> --tracks <file> --json`. Exit 2 lists every diagnostic; report them all and stop. It writes the assignment manifest only when every track resolves. Concrete provider/model names never enter Beads or the plan.
 4. Distinguish Parent Bead (Deliverable) vs Track Beads (Work Units):
    - **Parent Bead (Deliverable / Epic)**: the overall deliverable. Merge holds such as "remain open until human-confirmed merge" belong only here.
-   - **Track Beads (Work Units)**: one per plan track (`gin-workflow task create --parent <epic>`). Acceptance criteria are strictly technical (in-scope code, tests, review approval). Never copy parent merge holds into tracks.
+   - **Track Beads (Work Units)**: one per plan track (`gin-workflow task create --parent <epic>`). Acceptance criteria are strictly technical (in-scope code, tests, review approval). Never copy parent merge holds into tracks. A track whose plan entry has a `Human gate:` line gets `--labels human-gate`.
 5. Mirror dependencies with `gin-workflow task dep add <blocked> <blocker>` and check `gin-workflow task ready` / `gin-workflow task show`. Each track closes after tests and review pass, which unblocks its dependents.
 6. Isolate by default: create a worktree per the `gin-worktrees` skill under `.planning/worktrees/`. Disabling isolation or running on the current branch needs explicit approval, recorded first.
 7. Production-impacting parallel work or an execution-strategy change needs explicit approval.
@@ -29,8 +29,4 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
 
 Return `orchestration_ready`. Do not begin execution.
 
-End with `Next commands:`, the ready tracks (`/gin-workflow:execute <id>`), and a Claude Code goal that runs the whole epic unattended (suggest auto mode):
-
-```
-/goal gin-workflow state --workflow-id <workflow> shows implementation_complete satisfied: every track of epic <epic> closed after tests and review passed, each executed per /gin-workflow:execute on its routed provider. Or stop after 40 turns.
-```
+End with `Next commands:`, the ready tracks (`/gin-workflow:execute <id>`), and what `gin-workflow goal --workflow-id <workflow>` prints, verbatim: a Claude Code `/goal` (suggest auto mode) over only the tracks the agent can finish unattended, or why there is none.

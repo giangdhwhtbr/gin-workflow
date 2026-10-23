@@ -206,6 +206,16 @@ Prints the path of the directory holding `workflow_core` (`{"lib_dir": "..."}`) 
 
 Exit codes: 0 ok.
 
+## `gin-workflow goal`
+
+```
+gin-workflow goal --workflow-id ID [--repository PATH]
+```
+
+Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`: its open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one, with a turn limit of 6 per track (at most 30). A standalone bead is its own single track. When no track is left for the agent, it prints a `No goal:` line naming the human-gate tracks instead.
+
+Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is unavailable.
+
 ## `gin-workflow task`
 
 ```

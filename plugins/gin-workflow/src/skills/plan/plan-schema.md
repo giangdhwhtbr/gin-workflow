@@ -60,6 +60,7 @@ execution_strategy:
 - **Files**: list of files to modify
 - **Provider role**: `backend`
 - **Reasoning**: `low` | `medium` | `high`
+- **Human gate**: omit, or what a person must do (credentials, production access, a manual or third-party approval); `/goal` runs stop before this track and its dependents
 - **Acceptance criteria**: ...
 - **Estimated complexity**: low | medium | high
 

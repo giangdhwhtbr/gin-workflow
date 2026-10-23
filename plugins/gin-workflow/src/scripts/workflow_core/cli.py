@@ -64,8 +64,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         print(f"gin-workflow {CLI_VERSION}")
         return 0
     if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team",
-                                   "usage", "reviewer", "hooks", "task", "routes", "paths"):
-        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,reviewer,hooks,routes,paths} <command>",
+                                   "usage", "reviewer", "hooks", "task", "routes", "paths", "goal"):
+        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,reviewer,hooks,routes,paths,goal} <command>",
               file=sys.stderr)
         return 2
     if argv[0] == "routes":
@@ -76,6 +76,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
         from pathlib import Path
         print(json.dumps({"lib_dir": str(Path(__file__).resolve().parents[1])}))
         return 0
+    if argv[0] == "goal":
+        from .goal import main as goal_main
+        return goal_main(argv[1:])
     if argv[0] == "task":
         from .tasks import main as tasks_main
         return tasks_main(argv[1:])
