@@ -157,7 +157,7 @@ class WorkerSchedulerTests(unittest.TestCase):
                 tasks.create_task(
                     TaskCreateRequest(item.task_id), idempotency_key=f"create:{item.task_id}"
                 )
-            WorkerScheduler(
+            return WorkerScheduler(
                 WorkerDispatcher(
                     SequentialWorkerAdapter(runner), WorkflowEventStore(root / "events.jsonl")
                 ),
@@ -178,6 +178,15 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertEqual(2, len(notifications.sent))
         with tempfile.TemporaryDirectory() as directory:
             schedule(Path(directory))
+
+        class RaisingNotifications:
+            def notify(self, request, *, idempotency_key):
+                raise OSError("config unreadable")
+
+        with tempfile.TemporaryDirectory() as directory:
+            outcome = schedule(Path(directory), notifications=RaisingNotifications())
+            self.assertEqual(["task-1"], [result.task_id for result in outcome.completed])
+            self.assertEqual(["task-2"], [result.task_id for result in outcome.failed])
 
     def test_duplicate_task_request_is_rejected_before_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:

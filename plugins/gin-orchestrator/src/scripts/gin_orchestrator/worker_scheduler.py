@@ -292,10 +292,14 @@ class WorkerScheduler:
         result = self._run(request)
         if self.notifications is not None:
             event = "worker_finished" if result.status == "completed" else "worker_failed"
-            self.notifications.notify(
-                NotificationRequest(event, f"{result.task_id}: {result.status}"),
-                idempotency_key=f"{result.task_id}:{event}",
-            )
+            try:
+                self.notifications.notify(
+                    NotificationRequest(event, f"{result.task_id}: {result.status}"),
+                    idempotency_key=f"{result.task_id}:{event}",
+                )
+            except Exception:
+                # Delivery is best effort: a notification failure must not lose the worker's result.
+                pass
         return result
 
     def schedule(self, requests: Iterable[WorkerRequest]) -> ScheduleOutcome:
