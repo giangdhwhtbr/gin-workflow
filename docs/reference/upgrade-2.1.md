@@ -22,3 +22,7 @@ The old Telegram skill and its helper script are gone. Agents send messages with
 - Each track gets 6 turns, up to 30 turns in total.
 
 If no track is left for the agent, the command prints a `No goal:` line naming the human-gate tracks. See [CLI](cli.md#gin-workflow-goal).
+
+## 2.1.1
+
+The printed goal now says a track run on a fallback from its route counts as run on its routed provider. Before, the goal named only the routed provider, so a track that ran on a fallback from its route could be judged as not meeting it. Nothing to migrate.
