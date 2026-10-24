@@ -30,7 +30,7 @@ With `providers.task_tracking: markdown`, the whole lifecycle runs without `bd`:
 - Problem statement: `bd` is a hard dependency; skills, gates, `specs`, and `usage` call it directly, so environments that cannot install it cannot use gin-workflow.
 - Success criteria: spec US-1..US-4 acceptance criteria pass as tests; the existing suite stays green.
 - Constraints: Global Constraints above.
-- Non-goals: tracking task files in git or sharing them (follow-up epic: `gin-tasks` branch + team mode on markdown); team mode and `usage` on markdown; migration between backends; Windows locking.
+- Non-goals: tracking task files in git or sharing them; team mode and `usage` on markdown; migration between backends; Windows locking.
 
 ## Approach Options
 ### Option 1: `bd`-compatible CLI subset behind one dispatcher (selected)
@@ -1799,5 +1799,4 @@ index c239bd4..a377138 100644
 
 ## Notes
 - The spec's "parameterize the existing compatibility tests" became new test modules instead, so the existing beads suites stay untouched (stricter non-regression).
-- Follow-up epic (not this plan): `gin-tasks` branch sync and team mode on markdown, built on `task_markdown`.
 - Model guidance is planning metadata, not Beads state.

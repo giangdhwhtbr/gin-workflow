@@ -6,8 +6,7 @@ Status: draft for user review.
 
 Some environments cannot install Beads (`bd`). gin-workflow must still run the full lifecycle there. Add a `markdown` task-tracking mode to the same plugin: same skills, same gates, tasks stored as local Markdown files inside the repository directory. Beads stays the default and must keep working exactly as it does today.
 
-This is the solo, local-only half of the work. Task files are not tracked by git, just as Beads' local database is not, so the mode never needs a commit on `master` or a feature branch. Sharing tasks across a team through a dedicated `gin-tasks` git branch is a separate follow-up epic that builds on this store.
-
+This is the solo, local-only half of the work. Task files are not tracked by git, just as Beads' local database is not, so the mode never needs a commit on `master` or a feature branch.
 In scope:
 - A `markdown` task-tracking provider next to the existing `beads` provider.
 - A neutral `gin-workflow task <verb>` CLI that skills and agents call instead of `bd`, routed to the configured backend.
@@ -17,7 +16,7 @@ In scope:
 
 Out of scope:
 - A separate `gin-workflow-light` plugin or a reduced skill set.
-- Tracking task files in git, and sharing them across machines or teammates (follow-up epic: `gin-tasks` branch plus team mode on markdown).
+- Tracking task files in git, and sharing them across machines or teammates.
 - Team mode with `markdown` (team mode keeps requiring Beads).
 - AI usage tracking (`gin-workflow usage`) with `markdown`; it keeps requiring Beads.
 - Migrating tasks between `beads` and `markdown`.
@@ -83,7 +82,7 @@ Acceptance criteria:
 | `beads` configured but `bd` missing | `gin-workflow task` exits 127 and names the `markdown` option. |
 | `markdown` configured and `bd` also installed | `markdown` is used; `bd` is ignored. |
 
-Compatibility: `task_tracking` defaults to `beads`. No config migration. Existing `.beads/` data is untouched. Task data in `markdown` mode lives only on this machine; back it up or move to the follow-up `gin-tasks` mode to share it.
+Compatibility: `task_tracking` defaults to `beads`. No config migration. Existing `.beads/` data is untouched. Task data in `markdown` mode lives only on this machine.
 
 ## Testing
 
