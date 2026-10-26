@@ -2,6 +2,8 @@
 
 `gin-qa` is an optional plugin that writes test cases from your specs and turns end-to-end cases into Playwright specs with recorded evidence. It needs `gin-workflow` and is not installed by default.
 
+For a beginner-friendly tutorial with prompt templates and best practices, see the [QA Guide](qa-guide.md).
+
 ## Install
 
 From a clone of this repository, or remotely:
@@ -51,4 +53,4 @@ Your project provides `@playwright/test` 1.49 or later and its Playwright config
 
 ## Commands
 
-`gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).
+`gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa). To customize guidelines or add custom metadata fields to test cases, see the [Customizing Templates Guide](customizing-templates.md).

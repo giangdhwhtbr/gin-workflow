@@ -19,7 +19,7 @@ In team mode, each area of the repository has a lead role, each track belongs to
 
 ## 2. The PM (Product Manager) Workflow
 
-PMs own the long-term plan: which epics exist, in what order, and which go into the next sprint.
+PMs own the long-term plan: which epics exist, in what order, and which go into the next sprint. For a complete handbook with prompt templates and cost reporting, see the [PM Guide](../guides/pm-guide.md).
 
 ### Step-by-Step Activities:
 1. **Build the Roadmap (`/gin-workflow:roadmap <goal>`):**
@@ -34,7 +34,7 @@ PMs own the long-term plan: which epics exist, in what order, and which go into 
 
 ## 3. The BA (Business Analyst) Workflow
 
-BAs own requirements, acceptance criteria, and business logic verification.
+BAs own requirements, acceptance criteria, and business logic verification. For a complete guide on defining living specs and attaching screenshots or mockups, see the [BA Guide](../guides/ba-guide.md).
 
 ### Step-by-Step Activities:
 1. **Clarify Requirements (`/gin-workflow:discuss <feature>` or `/gin-workflow:discuss <epic-id>` for a roadmap epic):**
@@ -50,7 +50,7 @@ BAs own requirements, acceptance criteria, and business logic verification.
 
 ## 4. The Developer & Tech Lead Workflow
 
-Developers and Tech Leads own system architecture, implementation tracks, unit testing, and code delivery.
+Developers and Tech Leads own system architecture, implementation tracks, unit testing, and code delivery. For a complete handbook on worktrees, TDD, and the review ledger, see the [Developer & Tech Lead Guide](../guides/dev-guide.md).
 
 ### Step-by-Step Activities:
 1. **Plan Architecture & Decomposition (`/gin-workflow:plan <feature>`):**
@@ -71,7 +71,7 @@ Developers and Tech Leads own system architecture, implementation tracks, unit t
 
 ## 5. The Tester / QA Workflow
 
-Testers own test case authoring, requirement coverage tracking, and automated E2E validation using the `gin-qa` add-on.
+Testers own test case authoring, requirement coverage tracking, and automated E2E validation using the `gin-qa` add-on. For a comprehensive handbook with prompt templates, see the [QA Guide](../guides/qa-guide.md).
 
 ### Step-by-Step Activities:
 1. **Generate Test Cases (`/gin-qa:cases <capability>`):**
@@ -117,8 +117,14 @@ To ensure zero friction across team members:
 
 ---
 
-## 7. Next Steps
+## 7. Next Steps & Role Handbooks
 
+- **Role Handbooks:**
+  - [PM Guide](../guides/pm-guide.md) — Roadmaps, sprint planning, and AI cost/quality governance.
+  - [BA Guide](../guides/ba-guide.md) — Living specs, change proposals, and visual assets.
+  - [Developer & Tech Lead Guide](../guides/dev-guide.md) — Planning, worktrees, TDD execution, and code review ledgers.
+  - [QA Guide](../guides/qa-guide.md) — Test cases, drift detection, and Playwright E2E automation.
+  - [Customizing Templates Guide](../guides/customizing-templates.md) — Override templates and custom metadata tags.
 - **Want the whole flow with example prompts per role?** See the [Brownfield Walkthrough](brownfield-walkthrough.md).
 - **New project setup?** See the [Greenfield Starter](greenfield.md).
 - **Modernizing an existing app?** See the [Brownfield & Modernization Starter](brownfield-modernize.md).

@@ -5,13 +5,13 @@ This walkthrough follows one team from "we inherited a legacy system" to "sprint
 
 A legacy PHP ordering system (orders, payments, inventory) is being modernized behind a new API. The team:
 
-| Person | Role | Does |
-|---|---|---|
-| Lan | `pm` | Roadmap, sprint labels, sprint report |
-| An | `ba` | Specs and user stories |
-| Binh | `be_lead` | Setup, plan, orchestrate, ship |
-| Em | `be_dev` | Implementation |
-| Chi | `qe` | Test cases, E2E, verification approval |
+| Person | Role | Handbook | Does |
+|---|---|---|---|
+| Lan | `pm` | [PM Guide](../guides/pm-guide.md) | Roadmap, sprint labels, sprint report |
+| An | `ba` | [BA Guide](../guides/ba-guide.md) | Specs and user stories |
+| Binh | `be_lead` | [Dev & Lead Guide](../guides/dev-guide.md) | Setup, plan, orchestrate, ship |
+| Em | `be_dev` | [Dev & Lead Guide](../guides/dev-guide.md) | Implementation |
+| Chi | `qe` | [QA Guide](../guides/qa-guide.md) | Test cases, E2E, verification approval |
 
 The `team:` block in `.agent-workflow/config.yaml` (written by `/gin-workflow:team-setup`):
 
@@ -239,7 +239,7 @@ Tiêu chí chấp nhận:
 -
 ```
 
-Test cases follow `qa/guidelines.md`, which `/gin-qa:cases` reads first. Example:
+Test cases follow `qa/guidelines.md`, which `/gin-qa:cases` reads first (see [Customizing Templates](../guides/customizing-templates.md)). Example:
 
 ```markdown
 - Language: Vietnamese.

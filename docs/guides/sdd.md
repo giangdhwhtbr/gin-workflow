@@ -61,4 +61,4 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 
 ## Commands
 
-See [`gin-workflow specs`](../reference/cli.md#gin-workflow-specs) for every command and its exit codes. The [QA add-on](qa.md) builds test cases from the same REQ-IDs.
+See [`gin-workflow specs`](../reference/cli.md#gin-workflow-specs) for every command and its exit codes. The [BA Guide](ba-guide.md) explains how Business Analysts define specs and attach visual mockups. The [QA add-on](qa.md) builds test cases from the same REQ-IDs.
