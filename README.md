@@ -13,7 +13,7 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | Role Handbooks | [PM](docs/guides/pm-guide.md), [BA](docs/guides/ba-guide.md), [Dev & Tech Lead](docs/guides/dev-guide.md), [QA & QE](docs/guides/qa-guide.md) |
 | Guides | [use cases](docs/guides/use-cases.md), [customizing templates](docs/guides/customizing-templates.md), [recommended tools](docs/guides/recommended-tools.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
 | Orchestrator | [worker harnesses (gin-orchestrator)](docs/orchestrator/README.md), [routing and configuration](docs/orchestrator/routing.md) |
-| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md), [upgrading to 2.1](docs/reference/upgrade-2.1.md), [ADLC deck](docs/presentations/adlc.html) ([PPTX](docs/presentations/adlc.pptx)) |
+| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md), [upgrading to 2.1](docs/reference/upgrade-2.1.md), [ADLC deck](docs/presentations/adlc.html) ([PPTX](docs/presentations/adlc.pptx)), [Modernization deck](docs/presentations/brownfield-modernization.html) ([PPTX](docs/presentations/brownfield-modernization.pptx)) |
 | [Contributing](docs/contributing.md) | build, test, release |
 
 ## Installation

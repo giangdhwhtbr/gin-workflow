@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brownfield Modernization with Spec-Driven Development - gin-workflow</title>
+  <style>
+    :root {
+      --font-display: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+      --bg: #eef1f4;
+      --surface: #ffffff;
+      --ink: #141c26;
+      --muted: #5b6676;
+      --line: #cfd6df;
+      --agent: #2b55c7;
+      --human: #b4530b;
+      --human-soft: #fbeadb;
+      --success: #15803d;
+      --success-soft: #dcfce7;
+      --band-people: #f7f1ea;
+      --band-agents: #eaf0fa;
+      --band-auto: #e9ecf0;
+
+      --slide-width: 1200px;
+      --slide-height: 675px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f141b;
+        --surface: #18202b;
+        --ink: #e6ebf2;
+        --muted: #9aa6b6;
+        --line: #2c3746;
+        --agent: #7ea2ff;
+        --human: #f0a058;
+        --human-soft: #3a2616;
+        --success: #4ade80;
+        --success-soft: #143520;
+        --band-people: #1c1915;
+        --band-agents: #141c2a;
+        --band-auto: #161a20;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #0f141b;
+      --surface: #18202b;
+      --ink: #e6ebf2;
+      --muted: #9aa6b6;
+      --line: #2c3746;
+      --agent: #7ea2ff;
+      --human: #f0a058;
+      --human-soft: #3a2616;
+      --success: #4ade80;
+      --success-soft: #143520;
+      --band-people: #1c1915;
+      --band-agents: #141c2a;
+      --band-auto: #161a20;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #eef1f4;
+      --surface: #ffffff;
+      --ink: #141c26;
+      --muted: #5b6676;
+      --line: #cfd6df;
+      --agent: #2b55c7;
+      --human: #b4530b;
+      --human-soft: #fbeadb;
+      --success: #15803d;
+      --success-soft: #dcfce7;
+      --band-people: #f7f1ea;
+      --band-agents: #eaf0fa;
+      --band-auto: #e9ecf0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    .deck-container {
+      width: 100%;
+      max-width: var(--slide-width);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .slide-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      container-type: inline-size;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 2.5cqw 4cqw;
+      overflow-y: auto;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 1.1cqw;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    h1, h2, h3 {
+      font-family: var(--font-display);
+      color: var(--ink);
+      line-height: 1.2;
+    }
+
+    h1 {
+      font-size: 3cqw;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: 2.1cqw;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 0.5cqw;
+    }
+
+    .kicker {
+      font-family: var(--font-mono);
+      font-size: 0.95cqw;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--agent);
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-family: var(--font-display);
+      font-size: 1.25cqw;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    p, li {
+      font-size: 1.1cqw;
+      line-height: 1.5;
+      color: var(--ink);
+    }
+
+    ul, ol {
+      padding-left: 1.8cqw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5cqw;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+    }
+
+    .highlight-box {
+      background: var(--bg);
+      border-left: 4px solid var(--agent);
+      padding: 0.7cqw 1.1cqw;
+      border-radius: 0 8px 8px 0;
+      font-size: 1.05cqw;
+      line-height: 1.45;
+    }
+
+    .human-box {
+      background: var(--human-soft);
+      border-left: 4px solid var(--human);
+      padding: 0.7cqw 1.1cqw;
+      border-radius: 0 8px 8px 0;
+      font-size: 1.05cqw;
+      line-height: 1.45;
+    }
+
+    .success-box {
+      background: var(--success-soft);
+      border-left: 4px solid var(--success);
+      padding: 0.7cqw 1.1cqw;
+      border-radius: 0 8px 8px 0;
+      font-size: 1.05cqw;
+      line-height: 1.45;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.4cqw;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.2cqw;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1cqw;
+    }
+
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.9cqw 1.2cqw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5cqw;
+    }
+
+    .card h3 {
+      font-size: 1.2cqw;
+      color: var(--ink);
+    }
+
+    .card p, .card li {
+      font-size: 1cqw;
+      line-height: 1.4;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.3cqw;
+      font-size: 1cqw;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 0.5cqw 0.8cqw;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg);
+      font-family: var(--font-display);
+      font-weight: 700;
+    }
+
+    .diagram-scroll {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 0.4cqw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .diagram-scroll svg {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      background: var(--bg);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    button:hover {
+      border-color: var(--agent);
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--agent);
+      outline-offset: 2px;
+    }
+
+    .counter {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    @media (max-width: 768px) {
+      .slide-viewport {
+        aspect-ratio: auto;
+        min-height: 520px;
+      }
+      .slide {
+        padding: 20px 16px;
+        gap: 14px;
+      }
+      .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      h1 { font-size: 24px; }
+      h2 { font-size: 19px; }
+      .subtitle { font-size: 14px; }
+      p, li { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck-container">
+    <div class="slide-viewport">
+
+      <!-- Slide 1: Title -->
+      <section class="slide active" id="slide-1">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 1.5cqw;">
+          <span class="kicker">gin-workflow 2.1 — Modernization Architecture</span>
+          <h1>Modernizing Brownfield Systems with Spec-Driven Development</h1>
+          <p class="subtitle">An incremental, contract-first approach for engineering teams and leadership.</p>
+          <div class="grid-3" style="margin-top: 1.2cqw;">
+            <div class="card">
+              <h3>Target Audience</h3>
+              <p>Board of Directors, Engineering Leadership, Product Managers, and Development Teams.</p>
+            </div>
+            <div class="card">
+              <h3>Core Strategy</h3>
+              <p>Strangler Fig Pattern backed by living requirements contracts (SDD layout).</p>
+            </div>
+            <div class="card">
+              <h3>Execution Engine</h3>
+              <p>6 quality-gated stages with Git worktree isolation and independent code reviews.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 2: The Brownfield Dilemma & Strategy -->
+      <section class="slide" id="slide-2">
+        <span class="kicker">Strategic Context</span>
+        <h2>The Brownfield Dilemma & Modernization Strategy</h2>
+        <p class="subtitle">Replacing legacy systems incrementally without halting ongoing business delivery.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Conventional "Big-Bang" Rewrite (High Risk)</h3>
+            <ul>
+              <li><strong>Extended Freeze:</strong> 6 to 12 months with no customer-facing releases.</li>
+              <li><strong>Implicit Requirements:</strong> Undocumented business rules buried in legacy code are missed until production rollout.</li>
+              <li><strong>Unbounded Scope:</strong> Delays compound as legacy requirements drift during the rewrite period.</li>
+              <li><strong>Binary Payoff:</strong> Complete success or catastrophic failure with zero partial rollback capability.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Incremental SDD Modernization (Controlled Risk)</h3>
+            <ul>
+              <li><strong>Continuous Delivery:</strong> Each sprint ships a working, production-ready vertical slice.</li>
+              <li><strong>Living Contracts:</strong> Requirements are codified into <code>docs/specs/</code> with verifiable scenarios.</li>
+              <li><strong>Strangler Fig Routing:</strong> Facade routers direct traffic to modernized capabilities one by one.</li>
+              <li><strong>Regression Protection:</strong> Pinned hashes ensure legacy parity before retiring old modules.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <strong>Strategic Principle:</strong> Avoid multi-month specification phases that yield no working software. Modernization delivers production value in every sprint starting from Sprint 1.
+        </div>
+      </section>
+
+      <!-- Slide 3: Strangler Fig Architecture -->
+      <section class="slide" id="slide-3">
+        <span class="kicker">Target Architecture</span>
+        <h2>Strangler Fig Architecture with Facade Routing</h2>
+        <p class="subtitle">Directing traffic from legacy monolith to modernized services behind living specs.</p>
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 940 310" xmlns="http://www.w3.org/2000/svg">
+            <!-- Client / Ingress -->
+            <rect x="20" y="110" width="130" height="70" rx="8" fill="var(--bg)" stroke="var(--ink)" stroke-width="1.5"/>
+            <text x="85" y="142" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">Clients / Users</text>
+            <text x="85" y="160" font-family="var(--font-mono)" font-size="11" fill="var(--muted)" text-anchor="middle">Web, Mobile, API</text>
+
+            <path d="M 150 145 L 210 145" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <!-- Facade Router -->
+            <rect x="210" y="80" width="150" height="130" rx="8" fill="var(--surface)" stroke="var(--agent)" stroke-width="2"/>
+            <text x="285" y="115" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--agent)" text-anchor="middle">API Facade</text>
+            <text x="285" y="135" font-family="var(--font-display)" font-size="12" font-weight="600" fill="var(--ink)" text-anchor="middle">& Reverse Proxy</text>
+            <text x="285" y="165" font-family="var(--font-mono)" font-size="10" fill="var(--muted)" text-anchor="middle">Route Rules &</text>
+            <text x="285" y="180" font-family="var(--font-mono)" font-size="10" fill="var(--muted)" text-anchor="middle">Traffic Splitter</text>
+
+            <!-- Route to Legacy -->
+            <path d="M 360 115 L 470 70" stroke="var(--human)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow-human)"/>
+            <text x="405" y="82" font-family="var(--font-mono)" font-size="10" fill="var(--human)">Legacy Routes</text>
+
+            <!-- Legacy Monolith -->
+            <rect x="470" y="30" width="220" height="85" rx="8" fill="var(--human-soft)" stroke="var(--human)" stroke-width="1.5"/>
+            <text x="580" y="60" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--human)" text-anchor="middle">Legacy Monolith (PHP/Java)</text>
+            <text x="580" y="80" font-family="var(--font-body)" font-size="11" fill="var(--ink)" text-anchor="middle">Untouched subsystems</text>
+            <text x="580" y="98" font-family="var(--font-mono)" font-size="10" fill="var(--muted)" text-anchor="middle">(Shrinking over sprints)</text>
+
+            <!-- Route to Modernized -->
+            <path d="M 360 175 L 470 220" stroke="var(--agent)" stroke-width="2" marker-end="url(#arrow-agent)"/>
+            <text x="405" y="210" font-family="var(--font-mono)" font-size="10" fill="var(--agent)">Migrated Paths</text>
+
+            <!-- Modernized Services -->
+            <rect x="470" y="180" width="220" height="95" rx="8" fill="var(--band-agents)" stroke="var(--agent)" stroke-width="1.5"/>
+            <text x="580" y="210" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--agent)" text-anchor="middle">Modernized Capability Core</text>
+            <text x="580" y="230" font-family="var(--font-mono)" font-size="11" fill="var(--ink)" text-anchor="middle">docs/specs/&lt;cap&gt;/spec.md</text>
+            <text x="580" y="250" font-family="var(--font-body)" font-size="10" fill="var(--muted)" text-anchor="middle">Living Specs • E2E Playwright Evidence</text>
+
+            <!-- Shared / Synced DB -->
+            <path d="M 690 72 L 770 120" stroke="var(--line)" stroke-width="1.5"/>
+            <path d="M 690 228 L 770 180" stroke="var(--line)" stroke-width="1.5"/>
+            <rect x="770" y="110" width="150" height="80" rx="8" fill="var(--bg)" stroke="var(--line)" stroke-width="1.5"/>
+            <text x="845" y="142" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">Data Layer</text>
+            <text x="845" y="162" font-family="var(--font-mono)" font-size="11" fill="var(--muted)" text-anchor="middle">Shared or Synced DB</text>
+
+            <!-- Definitions -->
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 1 L 8 5 L 0 9 z" fill="var(--ink)"/>
+              </marker>
+              <marker id="arrow-agent" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 1 L 8 5 L 0 9 z" fill="var(--agent)"/>
+              </marker>
+              <marker id="arrow-human" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 1 L 8 5 L 0 9 z" fill="var(--human)"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Slide 4: Automated Legacy Discovery -->
+      <section class="slide" id="slide-4">
+        <span class="kicker">Phase 0: Discovery</span>
+        <h2>Automated Discovery of Legacy Codebases</h2>
+        <p class="subtitle">Extracting architecture and boundary contracts directly from repository evidence.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>The Legacy Knowledge Gap</h3>
+            <ul>
+              <li><strong>Outdated Documentation:</strong> Wikis, READMEs, and diagrams lag years behind actual production code.</li>
+              <li><strong>Hidden Dependencies:</strong> Implicit database triggers, global variables, and undocumented endpoints.</li>
+              <li><strong>High Investigation Cost:</strong> Senior engineers spend weeks reading spaghetti code to map interfaces.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Evidence Extraction via <code>/tech-doc</code></h3>
+            <ul>
+              <li><strong>Source of Truth:</strong> Scans AST, routing tables, and schemas directly from the checked-out codebase.</li>
+              <li><strong>Structured Documentation:</strong> Generates 10 standardized modules under <code>docs/codebase/</code>:
+                <br><code>ARCHITECTURE.md</code>, <code>API.md</code>, <code>STRUCTURE.md</code>, <code>INTEGRATIONS.md</code>, <code>STACK.md</code>.
+              </li>
+              <li><strong>Zero Speculation:</strong> All findings cite exact file paths and line ranges.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <strong>Outcome:</strong> A complete, verifiable baseline of current legacy behavior generated in hours instead of weeks, ready to seed the product roadmap.
+        </div>
+      </section>
+
+      <!-- Slide 5: Roadmapping & Incremental Delivery (Concern 2) -->
+      <section class="slide" id="slide-5">
+        <span class="kicker">Roadmap Governance</span>
+        <h2>Feasible Roadmapping: Early Deliverables from Sprint 1</h2>
+        <p class="subtitle">Addressing leadership concerns on deliverable visibility and team workload allocation.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>BOD & PM Concern Addressed</h3>
+            <p><em>"Will early sprints be spent entirely on writing specifications and infrastructure setup with nothing working to demonstrate to clients?"</em></p>
+            <p><strong>Answer: No.</strong> We reject horizontal slicing (months of pure specs or pure database migrations) in favor of <strong>Thin Vertical Slices</strong>.</p>
+          </div>
+          <div class="card">
+            <h3>Vertical Slicing Execution Model</h3>
+            <ul>
+              <li><strong>Sprint 1 Pilot Slice:</strong> Extract a single self-contained capability (e.g. Auth or Payment Webhook).</li>
+              <li><strong>End-to-End Delivery:</strong> The slice progresses through all stages: <code>discuss → plan → execute → ship</code>.</li>
+              <li><strong>Working Demo:</strong> Client and stakeholders inspect a live, working API/UI at the end of Sprint 1.</li>
+              <li><strong>Repeatable Cadence:</strong> Sprints 2+ strangle subsequent modules using the established pipeline.</li>
+            </ul>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Sprint Phase</th>
+              <th>Target Epic</th>
+              <th>Legacy Impact</th>
+              <th>Demonstrable Output</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Sprint 1</strong></td>
+              <td>Auth & Token Exchange</td>
+              <td>Route auth traffic to modern adapter</td>
+              <td>Working login screen + live JWT token issuance</td>
+            </tr>
+            <tr>
+              <td><strong>Sprint 2</strong></td>
+              <td>Order Processing Core</td>
+              <td>Strangles legacy order checkout scripts</td>
+              <td>Order created via modern API, synced to legacy DB</td>
+            </tr>
+            <tr>
+              <td><strong>Sprint 3</strong></td>
+              <td>Inventory & Notifications</td>
+              <td>Retires legacy background cron workers</td>
+              <td>Event-driven inventory updates with E2E evidence</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Slide 6: Cross-Functional Team Roles -->
+      <section class="slide" id="slide-6">
+        <span class="kicker">Team Governance</span>
+        <h2>Cross-Functional Roles in the Modernization Lifecycle</h2>
+        <p class="subtitle">Structured division of responsibilities with pull-request verified quality gates.</p>
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 940 310" xmlns="http://www.w3.org/2000/svg">
+            <!-- Stage Columns -->
+            <rect x="180" y="10" width="140" height="290" fill="var(--band-auto)" opacity="0.4"/>
+            <rect x="330" y="10" width="140" height="290" fill="transparent"/>
+            <rect x="480" y="10" width="140" height="290" fill="var(--band-auto)" opacity="0.4"/>
+            <rect x="630" y="10" width="140" height="290" fill="transparent"/>
+            <rect x="780" y="10" width="140" height="290" fill="var(--band-auto)" opacity="0.4"/>
+
+            <text x="250" y="30" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">1. DISCUSS</text>
+            <text x="400" y="30" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">2. PLAN</text>
+            <text x="550" y="30" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">3. ORCHESTRATE</text>
+            <text x="700" y="30" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">4. EXECUTE</text>
+            <text x="850" y="30" font-family="var(--font-display)" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">5. SHIP</text>
+
+            <!-- Swimlanes -->
+            <!-- PM -->
+            <rect x="10" y="45" width="160" height="55" rx="6" fill="var(--human-soft)" stroke="var(--human)" stroke-width="1.2"/>
+            <text x="90" y="70" font-family="var(--font-display)" font-size="12" font-weight="700" fill="var(--human)" text-anchor="middle">PM (Product)</text>
+            <text x="90" y="86" font-family="var(--font-mono)" font-size="10" fill="var(--ink)" text-anchor="middle">/roadmap • sprint tags</text>
+
+            <rect x="190" y="55" width="120" height="38" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+            <text x="250" y="78" font-family="var(--font-body)" font-size="11" fill="var(--ink)" text-anchor="middle">Sprint Epics</text>
+
+            <!-- BA -->
+            <rect x="10" y="110" width="160" height="55" rx="6" fill="var(--band-people)" stroke="var(--human)" stroke-width="1.2"/>
+            <text x="90" y="135" font-family="var(--font-display)" font-size="12" font-weight="700" fill="var(--human)" text-anchor="middle">BA (Business)</text>
+            <text x="90" y="151" font-family="var(--font-mono)" font-size="10" fill="var(--ink)" text-anchor="middle">/discuss • specs • UI</text>
+
+            <rect x="190" y="118" width="120" height="40" rx="4" fill="var(--surface)" stroke="var(--human)" stroke-width="1.5"/>
+            <text x="250" y="136" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--human)" text-anchor="middle">spec-delta.md</text>
+            <text x="250" y="150" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Gate: confirmed</text>
+
+            <!-- Tech Lead & Dev -->
+            <rect x="10" y="175" width="160" height="55" rx="6" fill="var(--band-agents)" stroke="var(--agent)" stroke-width="1.2"/>
+            <text x="90" y="200" font-family="var(--font-display)" font-size="12" font-weight="700" fill="var(--agent)" text-anchor="middle">Tech Lead & Dev</text>
+            <text x="90" y="216" font-family="var(--font-mono)" font-size="10" fill="var(--ink)" text-anchor="middle">/plan • /execute • TDD</text>
+
+            <rect x="340" y="183" width="120" height="40" rx="4" fill="var(--surface)" stroke="var(--agent)" stroke-width="1.5"/>
+            <text x="400" y="202" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--agent)" text-anchor="middle">plan.md (Tracks)</text>
+            <text x="400" y="216" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Area scoping</text>
+
+            <rect x="490" y="183" width="120" height="40" rx="4" fill="var(--surface)" stroke="var(--agent)"/>
+            <text x="550" y="202" font-family="var(--font-mono)" font-size="10" fill="var(--agent)" text-anchor="middle">Git Worktree</text>
+            <text x="550" y="216" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Isolated branches</text>
+
+            <rect x="640" y="183" width="120" height="40" rx="4" fill="var(--surface)" stroke="var(--agent)"/>
+            <text x="700" y="202" font-family="var(--font-mono)" font-size="10" fill="var(--agent)" text-anchor="middle">TDD & Review</text>
+            <text x="700" y="216" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Review Ledger</text>
+
+            <!-- QA -->
+            <rect x="10" y="240" width="160" height="55" rx="6" fill="var(--surface)" stroke="var(--success)" stroke-width="1.2"/>
+            <text x="90" y="265" font-family="var(--font-display)" font-size="12" font-weight="700" fill="var(--success)" text-anchor="middle">QA & QE</text>
+            <text x="90" y="281" font-family="var(--font-mono)" font-size="10" fill="var(--ink)" text-anchor="middle">/gin-qa • E2E Playwright</text>
+
+            <rect x="640" y="248" width="120" height="40" rx="4" fill="var(--surface)" stroke="var(--success)"/>
+            <text x="700" y="267" font-family="var(--font-mono)" font-size="10" fill="var(--success)" text-anchor="middle">qa/cases/*.md</text>
+            <text x="700" y="281" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Drift detection</text>
+
+            <rect x="790" y="248" width="120" height="40" rx="4" fill="var(--success-soft)" stroke="var(--success)" stroke-width="1.5"/>
+            <text x="850" y="267" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--success)" text-anchor="middle">Ship Approval</text>
+            <text x="850" y="281" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Gate: ship PR</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Slide 7: Spec Verification (Concern 1) -->
+      <section class="slide" id="slide-7">
+        <span class="kicker">Quality Gate: Discuss</span>
+        <h2>How AI-Generated Specifications Are Formally Verified</h2>
+        <p class="subtitle">Eliminating hallucinations through deterministic grammar and human PR review gates.</p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>1. Deterministic Grammar</h3>
+            <p><strong>Strict EARS Syntax:</strong> Requirements must declare clear conditions using <code>SHALL</code> or <code>MUST</code> statements.</p>
+            <p><strong>GIVEN / WHEN / THEN:</strong> Each requirement requires at least one concrete test scenario.</p>
+            <p><code>specs lint</code> fails immediately if syntax or scenarios are missing.</p>
+          </div>
+          <div class="card">
+            <h3>2. Human PR Gate</h3>
+            <p><strong>Pull Request Review:</strong> Changes are proposed on <code>spec/&lt;epic&gt;</code> and submitted as a Git Pull Request.</p>
+            <p><strong>Role-Gated Approval:</strong> The <code>requirement-confirmed</code> gate requires human BA approval on GitHub/GitLab.</p>
+            <p>No code or planning can proceed until the spec PR is merged.</p>
+          </div>
+          <div class="card">
+            <h3>3. Visual Asset Grounding</h3>
+            <p><strong>Multimodal Analysis:</strong> BAs save UI screenshots into <code>docs/specs/&lt;cap&gt;/assets/</code>.</p>
+            <p>The AI Agent reads wireframes to extract input fields, validation rules, and error states directly from images.</p>
+            <p>Screenshots are linked directly into the markdown specification.</p>
+          </div>
+        </div>
+        <div class="human-box">
+          <strong>The Human-in-the-Loop Safeguard:</strong> The AI Agent proposes and structures requirements; the human Business Analyst retains sole authority to confirm and approve them.
+        </div>
+      </section>
+
+      <!-- Slide 8: Architecture Decomposition & Workspace Isolation -->
+      <section class="slide" id="slide-8">
+        <span class="kicker">Stages 2 & 3: Plan & Orchestrate</span>
+        <h2>Architectural Decomposition & Workspace Isolation</h2>
+        <p class="subtitle">Enforcing subsystem boundaries and preventing git conflicts during development.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Bounded Tracks in <code>plan.md</code></h3>
+            <ul>
+              <li><strong>Subsystem Scoping (<code>Area:</code>):</strong> Each track is strictly bound to its assigned directory (e.g. <code>Area: modern_api</code> vs <code>Area: legacy_core</code>).</li>
+              <li><strong>Boundary Protection:</strong> Code edits that touch files outside the track's declared area are automatically rejected.</li>
+              <li><strong>Requirement Mapping:</strong> Every track explicitly enumerates its target requirements: <code>Requirements: REQ-AUTH-001, REQ-AUTH-002</code>.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Automated Git Worktree Isolation</h3>
+            <ul>
+              <li><strong>Dedicated Working Directory:</strong> <code>/orchestrate</code> creates an isolated Git worktree under <code>.planning/worktrees/</code> for each track.</li>
+              <li><strong>Zero Git Collisions:</strong> Developers and parallel AI subagents build, edit, and test simultaneously without branch locking.</li>
+              <li><strong>Clean Integration:</strong> Dependencies between tracks are tracked in Beads; downstream tracks unlock automatically when upstream PRs merge.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 9: Implementation & Traceability (Concern 3) -->
+      <section class="slide" id="slide-9">
+        <span class="kicker">Stage 4: Execute</span>
+        <h2>Ensuring Code Strictly Matches Specification</h2>
+        <p class="subtitle">Guaranteed compliance through bidirectional requirement tagging and automated trace audits.</p>
+        <div class="diagram-scroll" style="height: 120px; flex: none;">
+          <svg viewBox="0 0 940 100" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="160" height="60" rx="6" fill="var(--bg)" stroke="var(--ink)" stroke-width="1.2"/>
+            <text x="100" y="45" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--agent)" text-anchor="middle">REQ-AUTH-003</text>
+            <text x="100" y="62" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Living Spec Contract</text>
+
+            <path d="M 180 50 L 260 50" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <rect x="260" y="20" width="160" height="60" rx="6" fill="var(--bg)" stroke="var(--ink)" stroke-width="1.2"/>
+            <text x="340" y="45" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--agent)" text-anchor="middle">plan.md Track</text>
+            <text x="340" y="62" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">Assigned to Engineer</text>
+
+            <path d="M 420 50 L 500 50" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <rect x="500" y="20" width="180" height="60" rx="6" fill="var(--human-soft)" stroke="var(--human)" stroke-width="1.2"/>
+            <text x="590" y="45" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--human)" text-anchor="middle">Test: # REQ-AUTH-003</text>
+            <text x="590" y="62" font-family="var(--font-body)" font-size="10" fill="var(--ink)" text-anchor="middle">TDD Failing Test First</text>
+
+            <path d="M 680 50 L 760 50" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <rect x="760" y="20" width="160" height="60" rx="6" fill="var(--success-soft)" stroke="var(--success)" stroke-width="1.5"/>
+            <text x="840" y="45" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--success)" text-anchor="middle">specs trace Gate</text>
+            <text x="840" y="62" font-family="var(--font-body)" font-size="10" fill="var(--success)" text-anchor="middle">100% Scenario Audit</text>
+          </svg>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Test-Driven Development (TDD)</h3>
+            <p>Developers claim tracks via <code>gin-workflow team claim &lt;bead&gt;</code>. Implementation code is not accepted without prior failing unit and integration tests tagged with the exact requirement ID.</p>
+          </div>
+          <div class="card">
+            <h3>Automated Gate Audit (<code>specs trace</code>)</h3>
+            <p>Prior to completion, <code>gin-workflow specs trace</code> cross-references every requirement scenario against test source files. Missing tests or untested scenarios immediately block the ship gate.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 10: Code Review & The Review Ledger -->
+      <section class="slide" id="slide-10">
+        <span class="kicker">Verification</span>
+        <h2>Independent Code Review & The Review Ledger</h2>
+        <p class="subtitle">Structured review findings with documented technical resolutions.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Independent Review Process</h3>
+            <ul>
+              <li><strong>Independent Evaluator:</strong> An isolated review agent inspects the track's git diff against architectural rules, test coverage, and security criteria.</li>
+              <li><strong>Durable Ledger:</strong> Findings are recorded in <code>.planning/reviews/&lt;bead&gt;/findings.jsonl</code> with specific line numbers and risk ratings.</li>
+              <li><strong>Bounded Cycles:</strong> Maximum review iterations are strictly enforced to prevent circular review debates.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>The Verification Protocol</h3>
+            <p>Engineers do not passively accept AI findings. Every finding requires technical verification and one of three documented dispositions:</p>
+            <ul>
+              <li><strong>Fix:</strong> Correct code and test baseline, then re-verify.</li>
+              <li><strong>Dispute:</strong> Provide technical reasoning showing current code is correct as designed.</li>
+              <li><strong>Defer:</strong> Record a formal issue or signed architectural waiver.</li>
+            </ul>
+            <p>A track cannot close with unaddressed findings in its review ledger.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 11: Focused QA & Drift Detection (Concern 4) -->
+      <section class="slide" id="slide-11">
+        <span class="kicker">Quality Engineering</span>
+        <h2>Focused QA: Preventing Test Overwhelm with gin-qa</h2>
+        <p class="subtitle">Content-hash drift detection and targeted Playwright E2E automation.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>The AI Test Generation Trap</h3>
+            <p>Unconstrained AI tools generate hundreds of trivial, low-value test cases. QA engineers become overwhelmed triaging noisy test suites, slowing down delivery.</p>
+            <div class="highlight-box">
+              <strong>The Fix:</strong> Restrict test generation strictly to formal requirements and steer test depth via team guidelines.
+            </div>
+          </div>
+          <div class="card">
+            <h3>The <code>gin-qa</code> Architecture</h3>
+            <ul>
+              <li><strong>Policy Steering (<code>qa/guidelines.md</code>):</strong> QA establishes rules: only critical user journeys receive <code>Type: e2e</code>, while edge cases use unit/integration tests.</li>
+              <li><strong>Hash-Pinned Drift Detection (<code>gin-qa cases plan</code>):</strong>
+                Test cases store the SHA hash of their requirement (<code>REQ-AUTH-001@hash</code>).
+                <br>The tool categorizes tests into:
+                <br>• <code>missing</code>: New requirements needing test cases.
+                <br>• <code>stale</code>: Requirements modified since last review.
+                <br>• <code>obsolete</code>: Deleted requirements.
+              </li>
+              <li><strong>No Duplicate Work:</strong> Unchanged test cases are untouched. QA reviews only modified deltas.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 12: Safe Integration & Living Spec Archival -->
+      <section class="slide" id="slide-12">
+        <span class="kicker">Stage 5: Ship</span>
+        <h2>Safe Integration & Living Spec Archival</h2>
+        <p class="subtitle">Atomic synchronization of living specifications and automated release packaging.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>The Ship Stage Gate</h3>
+            <ol>
+              <li><strong>Pre-Ship Verification:</strong> Runs full test suite, linting, typechecks, and <code>specs trace</code> verification.</li>
+              <li><strong>Atomic Spec Archival:</strong> <code>specs archive</code> merges requirements from <code>spec-delta.md</code> into <code>docs/specs/&lt;cap&gt;/spec.md</code>.</li>
+              <li><strong>Historical Archival:</strong> The change proposal folder moves to <code>docs/changes/archive/</code> with its full audit trail.</li>
+              <li><strong>Pull Request Integration:</strong> Opens final integration PR for QE approval (<code>team.approvals.ship: [qe]</code>).</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h3>Long-Term Architecture Health</h3>
+            <ul>
+              <li><strong>Always Up-To-Date Living Specs:</strong> <code>docs/specs/</code> remains the perpetual single source of truth for the entire application.</li>
+              <li><strong>Safe Strangling:</strong> As modern modules ship, legacy code paths are systematically disabled and cleaned up.</li>
+              <li><strong>No Documentation Debt:</strong> Requirements evolve alongside code; regression test suites preserve business logic permanently.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 13: Summary: The Modernization Blueprint -->
+      <section class="slide" id="slide-13">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 1.2cqw;">
+          <span class="kicker">Summary & Action Plan</span>
+          <h2>The Modernization Governance Blueprint</h2>
+          <p class="subtitle">Controlled, verifiable delivery designed for engineering teams and leadership.</p>
+          <div class="grid-4" style="margin-top: 0.6cqw;">
+            <div class="card">
+              <h3>1. Verifiable Specs</h3>
+              <p>Deterministic EARS grammar with mandatory GIVEN/WHEN/THEN scenarios, verified via human BA pull requests.</p>
+            </div>
+            <div class="card">
+              <h3>2. Early Value</h3>
+              <p>Vertical slicing delivers working, demonstratable software from Sprint 1 rather than multi-month specification freezes.</p>
+            </div>
+            <div class="card">
+              <h3>3. Code Parity</h3>
+              <p>Bidirectional traceability tags and <code>specs trace</code> audits ensure code strictly matches specifications.</p>
+            </div>
+            <div class="card">
+              <h3>4. Focused QA</h3>
+              <p>Hash-pinned drift detection prevents test case bloat and focuses QA on high-value business journeys.</p>
+            </div>
+          </div>
+          <div class="success-box" style="margin-top: 0.6cqw;">
+            <strong>Recommended Next Step:</strong> Execute a 2-week pilot sprint on a single bounded capability (e.g., Authentication or Order Intake) to establish baseline velocity and demonstrate production-grade delivery.
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="btn-group">
+        <button id="prevBtn" aria-label="Previous Slide">← Previous</button>
+        <button id="nextBtn" aria-label="Next Slide">Next →</button>
+      </div>
+      <div class="counter" id="slideCounter">1 / 13</div>
+      <div class="btn-group">
+        <button id="themeBtn" aria-label="Toggle Theme">Toggle Theme</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const slides = document.querySelectorAll(".slide");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const themeBtn = document.getElementById("themeBtn");
+      const counter = document.getElementById("slideCounter");
+      let currentIndex = 0;
+      const totalSlides = slides.length;
+
+      function updateSlide(newIndex) {
+        if (newIndex < 0 || newIndex >= totalSlides) return;
+        slides[currentIndex].classList.remove("active");
+        currentIndex = newIndex;
+        slides[currentIndex].classList.add("active");
+        counter.textContent = (currentIndex + 1) + " / " + totalSlides;
+        slides[currentIndex].scrollTop = 0;
+      }
+
+      function nextSlide() {
+        if (currentIndex < totalSlides - 1) updateSlide(currentIndex + 1);
+      }
+
+      function prevSlide() {
+        if (currentIndex > 0) updateSlide(currentIndex - 1);
+      }
+
+      prevBtn.addEventListener("click", prevSlide);
+      nextBtn.addEventListener("click", nextSlide);
+
+      themeBtn.addEventListener("click", function () {
+        const root = document.documentElement;
+        const currentTheme = root.getAttribute("data-theme");
+        if (currentTheme === "dark") {
+          root.setAttribute("data-theme", "light");
+        } else if (currentTheme === "light") {
+          root.setAttribute("data-theme", "dark");
+        } else {
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          root.setAttribute("data-theme", prefersDark ? "light" : "dark");
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        const target = event.target;
+        const isInteractive = target && (
+          target.closest ? target.closest("button, a, input, textarea, select") :
+          /^(BUTTON|A|INPUT|TEXTAREA|SELECT)$/i.test(target.tagName)
+        );
+        if (event.key === " " && isInteractive) return;
+
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+          event.preventDefault();
+          nextSlide();
+        } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+          event.preventDefault();
+          prevSlide();
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          updateSlide(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          updateSlide(totalSlides - 1);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

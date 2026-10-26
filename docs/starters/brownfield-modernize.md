@@ -140,6 +140,7 @@ When ready to modernize a module, run the standard guarded lifecycle:
 
 ## 7. Next Steps
 
+- **Executive & Team Presentation Deck?** Open the [Brownfield Modernization Deck](../presentations/brownfield-modernization.html) ([PPTX](../presentations/brownfield-modernization.pptx)).
 - **Following the whole flow with prompts per role?** See the [Brownfield Walkthrough](brownfield-walkthrough.md).
 - **Collaborating with BA, Dev, and Tester?** Read [Team Roles Guide](team-roles.md).
 - **Managing test cases and E2E automation?** See the [QA Guide](../guides/qa.md).
