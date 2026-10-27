@@ -800,28 +800,27 @@
       <!-- Slide 12: Token Economics & Intelligent Routing (Manager Concern) -->
       <section class="slide" id="slide-12">
         <span class="kicker">Token Economics & Governance</span>
-        <h2>Token Economics: Shift-Left Investment & Optimal Routing</h2>
-        <p class="subtitle">Preventing exponential late-phase rework costs through upfront clarity and automated model matching.</p>
-        <div class="grid-2">
+        <h2>Token Economics: The 3 Pillars of AI Budget Optimization</h2>
+        <p class="subtitle">Preventing exponential late-phase rework costs through upfront clarity, automated routing, and CLI offloading.</p>
+        <div class="grid-3">
           <div class="card">
-            <h3>Shift-Left Token Strategy (Early Clarity vs. Late Chaos)</h3>
-            <ul>
-              <li><strong>High-ROI Upfront Investment:</strong> Spending tokens during <code>discuss</code> to clarify requirements and confirm specs with the BA has the highest return on investment.</li>
-              <li><strong>The Cost of Late Ambiguity:</strong> In brownfield legacy architectures, discovering a flaw or missing requirement late in development triggers cascading changes across coupled modules.</li>
-              <li><strong>Exponential Token Waste:</strong> Late rework requires massive token expenditure on repetitive multi-file refactoring, debugging broken integration tests, circular reviews, and fixing regressions.</li>
-            </ul>
+            <h3>1. Shift-Left Investment</h3>
+            <p><strong>Early Clarity vs. Late Chaos:</strong> Spending tokens during <code>discuss</code> to clarify requirements and confirm specs delivers the highest ROI.</p>
+            <p><strong>Cascading Cost Prevention:</strong> Discovering missing logic late in brownfield systems triggers rippling changes across legacy modules, wasting tens of thousands of tokens on repetitive debug and re-review cycles.</p>
           </div>
           <div class="card">
-            <h3>Automated Complexity Analysis & Model Routing</h3>
-            <ul>
-              <li><strong>The Developer Guesswork Problem:</strong> Manually guessing models causes engineers to either pick under-powered models that fail in retry loops or over-powered models that waste budget on boilerplate.</li>
-              <li><strong>Objective Complexity Analysis:</strong> During <code>orchestrate</code>, the engine analyzes track complexity and automatically proposes the appropriate model tier and reasoning level (<code>low</code>, <code>medium</code>, <code>high</code>).</li>
-              <li><strong>Right Model for the Right Task:</strong> High-reasoning models for difficult legacy boundary decoupling; standard models for implementation; lightweight models for boilerplate.</li>
-            </ul>
+            <h3>2. Complexity Model Routing</h3>
+            <p><strong>Eliminates Guesswork:</strong> Orchestration evaluates track complexity and assigns the optimal model and reasoning tier (<code>low</code>, <code>medium</code>, <code>high</code>).</p>
+            <p><strong>Zero Trial-and-Error Waste:</strong> Prevents retry loops caused by under-powered models failing on complex decoupling, and stops budget waste from over-powered models on boilerplate.</p>
+          </div>
+          <div class="card">
+            <h3>3. Local CLI Offloading</h3>
+            <p><strong>Zero-Token Deterministic Audits:</strong> <code>specs lint</code>, <code>specs trace</code>, <code>specs hash</code>, and gate checks run via local Python CLI (0 token cost), returning compact status codes instead of reading raw code.</p>
+            <p><strong>Context Window Protection:</strong> Clean stage handoffs and isolated worktrees prevent conversation bloat, keeping tokens flat.</p>
           </div>
         </div>
         <div class="success-box">
-          <strong>Economic Principle:</strong> 1,000 tokens invested in specification clarity and correct model routing prevents 50,000+ tokens wasted in downstream legacy rework, hallucinated fixes, and retry cycles.
+          <strong>Economic Principle:</strong> 1,000 tokens invested in specification clarity, offloaded to local CLI audits, and guided by complexity routing prevents 50,000+ tokens wasted in downstream legacy rework and retry cycles.
         </div>
       </section>
 
