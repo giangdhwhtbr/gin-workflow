@@ -665,26 +665,34 @@
         </div>
       </section>
 
-      <!-- Slide 8: Architecture Decomposition & Workspace Isolation -->
+      <!-- Slide 8: Architecture Decomposition, Workspace Isolation & Model Routing -->
       <section class="slide" id="slide-8">
         <span class="kicker">Stages 2 & 3: Plan & Orchestrate</span>
-        <h2>Architectural Decomposition & Workspace Isolation</h2>
-        <p class="subtitle">Enforcing subsystem boundaries and preventing git conflicts during development.</p>
-        <div class="grid-2">
+        <h2>Architectural Decomposition, Worktrees & Model Routing</h2>
+        <p class="subtitle">Enforcing subsystem boundaries, isolating workspaces, and routing models by task complexity.</p>
+        <div class="grid-3">
           <div class="card">
             <h3>Bounded Tracks in <code>plan.md</code></h3>
             <ul>
               <li><strong>Subsystem Scoping (<code>Area:</code>):</strong> Each track is strictly bound to its assigned directory (e.g. <code>Area: modern_api</code> vs <code>Area: legacy_core</code>).</li>
               <li><strong>Boundary Protection:</strong> Code edits that touch files outside the track's declared area are automatically rejected.</li>
-              <li><strong>Requirement Mapping:</strong> Every track explicitly enumerates its target requirements: <code>Requirements: REQ-AUTH-001, REQ-AUTH-002</code>.</li>
+              <li><strong>Requirement Mapping:</strong> Every track explicitly maps to target requirements: <code>Requirements: REQ-AUTH-001</code>.</li>
             </ul>
           </div>
           <div class="card">
-            <h3>Automated Git Worktree Isolation</h3>
+            <h3>Git Worktree Isolation</h3>
             <ul>
-              <li><strong>Dedicated Working Directory:</strong> <code>/orchestrate</code> creates an isolated Git worktree under <code>.planning/worktrees/</code> for each track.</li>
-              <li><strong>Zero Git Collisions:</strong> Developers and parallel AI subagents build, edit, and test simultaneously without branch locking.</li>
-              <li><strong>Clean Integration:</strong> Dependencies between tracks are tracked in Beads; downstream tracks unlock automatically when upstream PRs merge.</li>
+              <li><strong>Dedicated Workspace:</strong> <code>/orchestrate</code> creates an isolated Git worktree under <code>.planning/worktrees/</code> for each track.</li>
+              <li><strong>Zero Git Collisions:</strong> Multiple developers or parallel AI agents build and test simultaneously without branch contention.</li>
+              <li><strong>Clean Integration:</strong> Downstream tracks unlock automatically in Beads as upstream PRs merge.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Complexity-Based Model Routing</h3>
+            <ul>
+              <li><strong>Automated Complexity Analysis:</strong> The orchestrator evaluates the algorithmic and structural difficulty of each track.</li>
+              <li><strong>Optimal Reasoning Tiers:</strong> Proposes appropriate reasoning tiers (<code>low</code>, <code>medium</code>, <code>high</code>) and models for the task.</li>
+              <li><strong>Eliminates Guesswork:</strong> Prevents developer trial-and-error, avoiding under-powered model retry loops and over-budget waste.</li>
             </ul>
           </div>
         </div>
@@ -789,8 +797,36 @@
         </div>
       </section>
 
-      <!-- Slide 12: Safe Integration & Living Spec Archival -->
+      <!-- Slide 12: Token Economics & Intelligent Routing (Manager Concern) -->
       <section class="slide" id="slide-12">
+        <span class="kicker">Token Economics & Governance</span>
+        <h2>Token Economics: Shift-Left Investment & Optimal Routing</h2>
+        <p class="subtitle">Preventing exponential late-phase rework costs through upfront clarity and automated model matching.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Shift-Left Token Strategy (Early Clarity vs. Late Chaos)</h3>
+            <ul>
+              <li><strong>High-ROI Upfront Investment:</strong> Spending tokens during <code>discuss</code> to clarify requirements and confirm specs with the BA has the highest return on investment.</li>
+              <li><strong>The Cost of Late Ambiguity:</strong> In brownfield legacy architectures, discovering a flaw or missing requirement late in development triggers cascading changes across coupled modules.</li>
+              <li><strong>Exponential Token Waste:</strong> Late rework requires massive token expenditure on repetitive multi-file refactoring, debugging broken integration tests, circular reviews, and fixing regressions.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Automated Complexity Analysis & Model Routing</h3>
+            <ul>
+              <li><strong>The Developer Guesswork Problem:</strong> Manually guessing models causes engineers to either pick under-powered models that fail in retry loops or over-powered models that waste budget on boilerplate.</li>
+              <li><strong>Objective Complexity Analysis:</strong> During <code>orchestrate</code>, the engine analyzes track complexity and automatically proposes the appropriate model tier and reasoning level (<code>low</code>, <code>medium</code>, <code>high</code>).</li>
+              <li><strong>Right Model for the Right Task:</strong> High-reasoning models for difficult legacy boundary decoupling; standard models for implementation; lightweight models for boilerplate.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="success-box">
+          <strong>Economic Principle:</strong> 1,000 tokens invested in specification clarity and correct model routing prevents 50,000+ tokens wasted in downstream legacy rework, hallucinated fixes, and retry cycles.
+        </div>
+      </section>
+
+      <!-- Slide 13: Safe Integration & Living Spec Archival -->
+      <section class="slide" id="slide-13">
         <span class="kicker">Stage 5: Ship</span>
         <h2>Safe Integration & Living Spec Archival</h2>
         <p class="subtitle">Atomic synchronization of living specifications and automated release packaging.</p>
@@ -815,8 +851,8 @@
         </div>
       </section>
 
-      <!-- Slide 13: Summary: The Modernization Blueprint -->
-      <section class="slide" id="slide-13">
+      <!-- Slide 14: Summary: The Modernization Blueprint -->
+      <section class="slide" id="slide-14">
         <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 1.2cqw;">
           <span class="kicker">Summary & Action Plan</span>
           <h2>The Modernization Governance Blueprint</h2>
@@ -853,7 +889,7 @@
         <button id="prevBtn" aria-label="Previous Slide">← Previous</button>
         <button id="nextBtn" aria-label="Next Slide">Next →</button>
       </div>
-      <div class="counter" id="slideCounter">1 / 13</div>
+      <div class="counter" id="slideCounter">1 / 14</div>
       <div class="btn-group">
         <button id="themeBtn" aria-label="Toggle Theme">Toggle Theme</button>
       </div>
