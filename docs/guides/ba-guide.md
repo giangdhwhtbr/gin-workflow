@@ -87,7 +87,7 @@ The agent executes the following steps:
 ### REQ-AUTH-005: Social Login Options
 WHEN an unauthenticated user opens the login dialog, the system SHALL display OAuth buttons for Google and GitHub.
 
-![Social Login Wireframe](assets/google-login-mockup.png)
+<!-- Wireframe asset reference: assets/google-login-mockup.png -->
 
 #### Scenario: Display social login buttons
 - GIVEN an unauthenticated user
