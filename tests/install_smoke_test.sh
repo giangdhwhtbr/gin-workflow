@@ -367,11 +367,7 @@ assert_exists "$MOCK_HOME/.claude/skills/gin-orchestrator/skills/providers/SKILL
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-orchestrator@skills-dir": true'
 assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py"
 assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/templates"
-# The worker library finds these gin-workflow scripts beside its package.
-for script in worktree-create.sh worktree-cleanup.sh; do
-  assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/$script"
-  [ -x "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/$script" ] || { echo "Expected $script to be executable" >&2; exit 1; }
-done
+assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/worktree-create.sh"
 orch_version="$(HOME="$MOCK_HOME" PATH="$MOCK_HOME/.local/bin:$PATH" "$MOCK_HOME/.local/bin/gin-orchestrator" version --json)"
 case "$orch_version" in
   *'"contract": 2'*) ;;
