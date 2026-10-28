@@ -157,7 +157,7 @@ class ProviderRegistry:
             supported_worktree_root = (root / ".planning/worktrees").resolve()
             if worktree_root.resolve() != supported_worktree_root:
                 raise RegistryError(
-                    "non-default worktree root is unsupported by worktree safety scripts"
+                    "non-default worktree root is unsupported by worktree integration"
                 )
             workspace: WorkspaceProvider = WorktreeWorkspaceProvider(
                 root, worktree_root=worktree_root

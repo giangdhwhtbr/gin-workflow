@@ -40,7 +40,7 @@ class WorktreeWorkspaceProvider(ProviderBase):
         self.worktree_root = Path(worktree_root or self.repository_root / ".planning/worktrees").resolve()
         supported_root = (self.repository_root / ".planning/worktrees").resolve()
         self._configuration_error = (
-            "non-default worktree root is unsupported by worktree safety scripts"
+            "non-default worktree root is unsupported by worktree integration"
             if self.worktree_root != supported_root
             else ""
         )
