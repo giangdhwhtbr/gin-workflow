@@ -1,7 +1,7 @@
 # Windows support: one file lock, Python worktree commands
 
 Epic: gin-workflow-eq77
-Status: draft for user review.
+Status: confirmed by the user on 2026-10-28.
 
 ## Goal and scope
 
