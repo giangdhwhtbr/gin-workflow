@@ -37,7 +37,7 @@ def create(repo: Path, track_id: str, branch: str, base_ref: str | None = None) 
     if not branch.strip():
         raise ValueError("branch is required")
     base = base_ref or _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
-    _git(repo, "worktree", "add", "-b", branch, str(target), base)
+    _git(repo, "worktree", "add", "-b", branch, "--", str(target), base)
     return target
 
 

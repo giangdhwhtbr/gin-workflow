@@ -58,6 +58,16 @@ class WorktreeTests(unittest.TestCase):
             worktrees.create(self.root, "t4", " ")
         self.assertEqual("", git(self.root, "branch", "--list", "bead/t3"))
 
+    def test_detached_checkout_defaults_to_head(self):
+        git(self.root, "checkout", "-q", "--detach")
+        path = worktrees.create(self.root, "t7", "bead/t7")
+        self.assertEqual(git(self.root, "rev-parse", "HEAD"), git(path, "rev-parse", "HEAD"))
+
+    def test_option_like_base_ref_is_not_an_option(self):
+        with self.assertRaises(RuntimeError):
+            worktrees.create(self.root, "t8", "bead/t8", "--quiet")
+        self.assertFalse((self.worktrees / "t8").exists())
+
     def test_git_failure_is_a_runtime_error(self):
         with self.assertRaises(RuntimeError):
             worktrees.create(self.root, "t5", "bead/t5", "no-such-ref")
