@@ -41,7 +41,7 @@ Change, in `tasks.main` on the Beads path: when team mode is on (`team.team_for_
 ### R3. `record` reports an unwritten gate; `orchestrate` creates beads before routes
 
 - `lifecycle_cli._record_command` catches `EventPersistenceError`, `RuntimeError`, and `OSError` from `store.append(event)` and returns `{"status": "error", "message": "<gate> not recorded for <workflow-id>: <error>"}` with exit code 1. The text output prints it as `error: …` on stderr, the JSON output as the payload, like the other record errors.
-- `plugins/gin-workflow/src/skills/orchestrate/SKILL.md`: step 3 (write the routes file and run `routes resolve`) and step 4 (create the track beads) swap places, and the routes step says to key the routes file by the real track bead ids created in the step before.
+- `plugins/gin-workflow/src/skills/orchestrate/SKILL.md`: step 3 (write the routes file and run `routes resolve`) and step 4 (create the track beads) swap places, and the routes step says to key the routes file by the real track bead ids created in the step before. `tests/workflow_core/test_assignments.py` asserted the old order (`routes resolve` before `gin-workflow task create`); it now asserts the new one. Step 2 still rejects tracks without a role or reasoning before any bead exists; when `routes resolve` fails after the beads exist, the user fixes the configuration and runs it again.
 
 ## User Stories
 
@@ -79,5 +79,5 @@ Acceptance criteria:
 
 - R1: `tests/workflow_core/test_tasks.py`, with a fake `bd` that prints `BD_ACTOR`: team mode sets the member email; `--actor` and a preset `BD_ACTOR` are kept; no team mode leaves it unset.
 - R2: `tests/workflow_core/test_team_gates.py`: the `GET /:id` regression line, a plan-schema-format plan with notes after the paths, and the existing fixture tests unchanged.
-- R3: `tests/workflow_core/test_lifecycle_cli.py`: `store.append` raising each caught error gives exit 1, the "not recorded" message, and no event.
+- R3: `tests/workflow_core/test_lifecycle_cli.py`: `store.append` raising each caught error gives exit 1, the "not recorded" message, and no event. `tests/workflow_core/test_assignments.py`: `gin-workflow task create` comes before `routes resolve` in the orchestrate skill.
 - Full suite: `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests.test_all`.
