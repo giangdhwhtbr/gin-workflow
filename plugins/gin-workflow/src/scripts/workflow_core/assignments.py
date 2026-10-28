@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 import re
 from types import MappingProxyType
-from typing import Any, Iterator, Sequence
+from typing import Any, Sequence
 
 from .atomic import atomic_write_text
 from .checkout import main_checkout
 from .configuration import require_yaml
+from .locking import file_lock
 from .models import EffectiveConfig
 from .provider_config import (
     DEFAULT_HARNESS_MODELS,
@@ -162,19 +162,6 @@ def resolve_main_harness(request: AssignmentRequest) -> tuple[RouteCandidate, ..
 _SAFE_WORKFLOW_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 
 
-@contextmanager
-def _manifest_lock(path: Path) -> Iterator[None]:
-    import fcntl
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+b") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-
-
 def write_assignments(
     repository: Path,
     workflow_id: str,
@@ -190,7 +177,7 @@ def write_assignments(
     )
     yaml = require_yaml()
     lock_path = path.with_name(f".{path.name}.lock")
-    with _manifest_lock(lock_path):
+    with file_lock(lock_path):
         assignments: dict[str, Mapping[str, object]] = {}
         if path.is_file():
             try:

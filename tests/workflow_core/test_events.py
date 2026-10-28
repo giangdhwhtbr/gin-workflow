@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import sys
@@ -187,6 +188,20 @@ class WorkflowEventTests(unittest.TestCase):
                     payload={"status": "success"},
                 )
                 with self.assertRaisesRegex(EventPersistenceError, "advisory file locking"):
+                    store.append(event)
+
+    def test_lock_timeout_becomes_event_persistence_error(self):
+        @contextmanager
+        def timed_out(path, *, exclusive):
+            raise TimeoutError("timed out after 60s waiting for lock x")
+            yield
+
+        with mock.patch("workflow_core.events.file_lock", timed_out):
+            with tempfile.TemporaryDirectory() as directory:
+                store = WorkflowEventStore(Path(directory) / "events.jsonl")
+                event = WorkflowEvent.create(event_type="worker.completed", workflow_id="wf-1",
+                                             task_id="worker-1", payload={"status": "success"})
+                with self.assertRaisesRegex(EventPersistenceError, "timed out"):
                     store.append(event)
 
 

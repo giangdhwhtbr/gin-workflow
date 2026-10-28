@@ -29,6 +29,7 @@ EXPECTED = [
     "authorize_protected_action",
     "create_context_manifest",
     "default_provider_model_config",
+    "file_lock",
     "freeze",
     "load_effective_config",
     "main_checkout",

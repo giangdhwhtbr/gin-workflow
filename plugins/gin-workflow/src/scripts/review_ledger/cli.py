@@ -4,7 +4,6 @@ import sys
 import subprocess
 import tempfile
 import uuid
-import time
 from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -20,40 +19,9 @@ from review_ledger.git_adapter import SourceCheckpoint, create_source_checkpoint
 from review_ledger.schema import EventActions
 from review_ledger.source_identity import canonicalize_scope
 from workflow_core.atomic import atomic_write_many
+from workflow_core.locking import file_lock
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot
 from review_ledger.cleanup import cleanup_review_ledgers, is_bead_closed
-
-try:
-    import fcntl as _fcntl
-except ImportError:  # Windows
-    _fcntl = None
-    import msvcrt as _msvcrt
-
-
-def _lock_stream(stream) -> None:
-    if _fcntl is not None:
-        _fcntl.flock(stream.fileno(), _fcntl.LOCK_EX)
-        return
-    stream.seek(0)
-    if not stream.read(1):
-        stream.write(bytes((0,)))
-        stream.flush()
-    while True:
-        try:
-            stream.seek(0)
-            _msvcrt.locking(stream.fileno(), _msvcrt.LK_NBLCK, 1)
-            return
-        except OSError:
-            time.sleep(0.05)
-
-
-def _unlock_stream(stream) -> None:
-    stream.seek(0)
-    if _fcntl is not None:
-        _fcntl.flock(stream.fileno(), _fcntl.LOCK_UN)
-    else:
-        _msvcrt.locking(stream.fileno(), _msvcrt.LK_UNLCK, 1)
-
 
 def dict_raise_on_duplicates(ordered_pairs):
     d = {}
@@ -87,15 +55,8 @@ def get_ledger_paths(bead_id: str, base_dir: Optional[str] = None) -> Tuple[str,
 @contextmanager
 def ledger_lock(bead_id: str, base_dir: Optional[str] = None):
     json_path, _ = get_ledger_paths(bead_id, base_dir)
-    directory = os.path.dirname(json_path)
-    os.makedirs(directory, exist_ok=True)
-    lock_path = os.path.join(directory, ".review.lock")
-    with open(lock_path, "a+b") as stream:
-        _lock_stream(stream)
-        try:
-            yield
-        finally:
-            _unlock_stream(stream)
+    with file_lock(Path(os.path.dirname(json_path)) / ".review.lock"):
+        yield
 
 
 # `workflow_id`, `attempt_id`, and `task_id` are optional acceptance-identity

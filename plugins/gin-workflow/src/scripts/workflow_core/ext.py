@@ -14,6 +14,7 @@ from .configuration import load_effective_config, require_yaml
 from .events import WorkflowEvent, WorkflowEventStore
 from .executable_resolver import PROVIDER_EXE_ALIASES, resolve_harness_executable
 from .identity import AcceptanceIdentity, RepositorySnapshot
+from .locking import file_lock
 from .manifests import ContextManifest, ContextRequest, create_context_manifest
 from .models import EffectiveConfig, freeze, thaw
 from .notify import notify
@@ -60,6 +61,7 @@ __all__ = [
     "authorize_protected_action",
     "create_context_manifest",
     "default_provider_model_config",
+    "file_lock",
     "freeze",
     "load_effective_config",
     "main_checkout",
