@@ -394,6 +394,26 @@ class TestPlanChecks(unittest.TestCase):
         self.assertEqual([1, 2], [track.number for track in plan_tracks(path)])
         self.assertEqual("frontend", plan_tracks(path)[1].area)
 
+    def test_behavior_bullets_outside_files_are_not_files(self):
+        plan = PLAN.replace("- Modify: `web/login.tsx:10-20`\n",
+                            "- Modify: `web/login.tsx:10-20`\n\n**Steps:**\n"
+                            "   - **Modify:** the row's button opens \"...\" filled from `GET /:id`, then saves\n")
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertEqual(("web/login.tsx",), plan_tracks(path)[1].files)
+        self.assertEqual([], check_plan(self.team, path))
+
+    def test_plan_schema_files_block_ignores_notes(self):
+        plan = ("# Plan: Login\n\n## Tasks\n\n### Track 1: API\n- **Area**: backend\n- **Owner**: em@corp.com\n"
+                "- **Files**:\n  - Create `services/auth/login.py`\n"
+                "  - Modify `services/auth/session.py:10-20` (the `refresh` helper next to `web/shared.ts`)\n"
+                "  - Test `tests/services/test_login.py`, `tests/services/test_session.py`\n"
+                "- **Acceptance criteria**: `web/login.tsx` is untouched\n\n## Integration\n")
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertEqual(("services/auth/login.py", "services/auth/session.py",
+                          "tests/services/test_login.py", "tests/services/test_session.py"),
+                         plan_tracks(path)[0].files)
+        self.assertEqual([], check_plan(self.team, path))
+
     def test_check_plan_findings(self):
         bad = (PLAN.replace("- Area: frontend\n", "").replace("em@corp.com", "chi@corp.com")
                .replace("`services/auth/login.py`", "`services/auth/login.py`, `web/shared.ts`"))

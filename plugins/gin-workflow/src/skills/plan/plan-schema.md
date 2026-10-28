@@ -57,7 +57,10 @@ execution_strategy:
 ## Tasks
 ### Track 1: {name}
 - **Dependencies**: none | Track N
-- **Files**: list of files to modify
+- **Files**: one entry per file, indented under this label. `team check-plan` reads files only from this block: the leading backticked paths of each entry (comma-separated), after an optional `Create`, `Modify`, `Test`, or `Delete`; notes after them are ignored.
+  - Create `path/to/new_file.py`
+  - Modify `path/to/existing.py:10-40` (what changes)
+  - Test `tests/path/test_file.py`
 - **Provider role**: `backend`
 - **Reasoning**: `low` | `medium` | `high`
 - **Human gate**: omit, or what a person must do (credentials, production access, a manual or third-party approval); `/goal` runs stop before this track and its dependents

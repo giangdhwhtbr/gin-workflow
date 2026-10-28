@@ -176,16 +176,32 @@ class Track:
 
 _TRACK = re.compile(r"^### Track (\d+):\s*(.*)$")
 _META = re.compile(r"^-\s*(?:\*\*)?(Area|Owner)(?:\*\*)?:\s*`?([^`\s]+)`?\s*$")
-_FILES_LINE = re.compile(r"^-\s*(?:\*\*)?(Create|Modify|Test|Files)(?:\*\*)?:\s*(.*)$")
-_BACKTICK = re.compile(r"`([^`]+)`")
+_FILES_LABEL = re.compile(r"^(-\s*)?(?:\*\*)?Files(?:\*\*)?:(?:\*\*)?\s*(.*)$")
+_VERB = re.compile(r"^(?:Create|Modify|Test|Delete)\b:?\s*")
+_PATH = re.compile(r"`([^`\s]+)`")
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
+def _listed_paths(text: str) -> list[str]:
+    """The leading comma-separated backticked paths of a Files entry, after an optional verb; line ranges dropped."""
+    rest = _VERB.sub("", text.strip(), count=1)
+    paths: list[str] = []
+    while token := _PATH.match(rest):
+        paths.append(re.sub(r":\d[\d,-]*$", "", token.group(1)))
+        rest = rest[token.end():].lstrip()
+        if not rest.startswith(","):
+            break
+        rest = rest[1:].lstrip()
+    return paths
+
+
 def plan_tracks(path: Path) -> list[Track]:
-    """`### Track N:` sections with their Area, Owner, and backticked file paths; fenced code is skipped."""
+    """`### Track N:` sections with their Area, Owner, and the paths listed in their Files block; fenced code is
+    skipped."""
     tracks: list[Track] = []
     current: dict[str, Any] | None = None
     fence = ""
+    files_indent: int | None = None  # indent of the open Files label; -1 when the label is not a list item
 
     def close() -> None:
         if current is not None:
@@ -198,24 +214,31 @@ def plan_tracks(path: Path) -> list[Track]:
             fence = "" if line.strip() == fence else fence
             continue
         if opener:
-            fence = opener.group(1)
+            fence, files_indent = opener.group(1), None
             continue
         heading = _TRACK.match(line)
         if heading or (current is not None and line.startswith("## ")):
             close()
             current = None if not heading else {"number": int(heading.group(1)), "title": heading.group(2).strip(),
                                                  "area": "", "owner": "", "files": []}
+            files_indent = None
             continue
         if current is None:
             continue
-        meta = _META.match(line.strip())
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip())
+        if files_indent is not None and stripped.startswith("- ") and indent > files_indent:
+            current["files"] += _listed_paths(stripped[2:])
+            continue
+        files_indent = None
+        meta = _META.match(stripped)
         if meta:
             current[meta.group(1).lower()] = meta.group(2)
             continue
-        listed = _FILES_LINE.match(line.strip())
-        if listed:
-            current["files"] += [re.sub(r":\d[\d,-]*$", "", item) for item in _BACKTICK.findall(listed.group(2))
-                                 if "/" in item or "." in item]
+        label = _FILES_LABEL.match(stripped)
+        if label:
+            files_indent = indent if label.group(1) else -1
+            current["files"] += _listed_paths(label.group(2))
     close()
     return tracks
 
