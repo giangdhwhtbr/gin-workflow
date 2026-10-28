@@ -5,10 +5,44 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import tempfile
+import time
 from typing import Mapping
 
 
+def _replace_atomic(source: Path, destination: Path) -> None:
+    """Atomic replace with retry for transient locks on Windows (antivirus / file indexing)."""
+    if os.name != "nt":
+        os.replace(source, destination)
+        return
+    for attempt in range(10):
+        try:
+            os.replace(source, destination)
+            return
+        except PermissionError:
+            if attempt == 9:
+                raise
+            time.sleep(0.05)
+
+
+def _unlink_file(path: Path) -> None:
+    """Unlink file with retry for transient locks on Windows."""
+    if os.name != "nt":
+        path.unlink(missing_ok=True)
+        return
+    for attempt in range(10):
+        try:
+            path.unlink(missing_ok=True)
+            return
+        except PermissionError:
+            if attempt == 9:
+                raise
+            time.sleep(0.05)
+
+
+
 def _fsync_directory(directory: Path) -> None:
+    if os.name == "nt":
+        return
     descriptor = os.open(directory, os.O_RDONLY)
     try:
         os.fsync(descriptor)
@@ -50,13 +84,14 @@ def atomic_write_many(files: Mapping[Path, bytes], *, mode: int = 0o600) -> None
             )
             temporary = Path(temporary_name)
             try:
-                os.fchmod(descriptor, mode)
+                if hasattr(os, "fchmod"):
+                    os.fchmod(descriptor, mode)
                 with os.fdopen(descriptor, "wb") as stream:
                     stream.write(content)
                     stream.flush()
                     os.fsync(stream.fileno())
             except BaseException:
-                temporary.unlink(missing_ok=True)
+                _unlink_file(temporary)
                 raise
             staged.append((temporary, path))
 
@@ -71,21 +106,22 @@ def atomic_write_many(files: Mapping[Path, bytes], *, mode: int = 0o600) -> None
             )
             backup = Path(backup_name)
             try:
-                os.fchmod(descriptor, path.stat().st_mode & 0o777)
+                if hasattr(os, "fchmod"):
+                    os.fchmod(descriptor, path.stat().st_mode & 0o777)
                 with path.open("rb") as source, os.fdopen(descriptor, "wb") as destination:
                     while chunk := source.read(1024 * 1024):
                         destination.write(chunk)
                     destination.flush()
                     os.fsync(destination.fileno())
             except BaseException:
-                backup.unlink(missing_ok=True)
+                _unlink_file(backup)
                 raise
             backups[path] = backup
 
         touched_directories: set[Path] = set()
         try:
             for temporary, path in staged:
-                os.replace(temporary, path)
+                _replace_atomic(temporary, path)
                 replaced.append(path)
                 touched_directories.add(path.parent)
             for directory in touched_directories:
@@ -96,9 +132,9 @@ def atomic_write_many(files: Mapping[Path, bytes], *, mode: int = 0o600) -> None
                 backup = backups[path]
                 try:
                     if backup is None:
-                        path.unlink(missing_ok=True)
+                        _unlink_file(path)
                     else:
-                        os.replace(backup, path)
+                        _replace_atomic(backup, path)
                 except BaseException as error:
                     rollback_error = rollback_error or error
             for directory in touched_directories:
@@ -119,7 +155,7 @@ def atomic_write_many(files: Mapping[Path, bytes], *, mode: int = 0o600) -> None
             raise
     finally:
         for temporary, _ in staged:
-            temporary.unlink(missing_ok=True)
+            _unlink_file(temporary)
         for backup in backups.values():
             if backup is not None and not preserve_backups:
-                backup.unlink(missing_ok=True)
+                _unlink_file(backup)

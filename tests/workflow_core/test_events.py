@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
@@ -156,6 +157,38 @@ class WorkflowEventTests(unittest.TestCase):
             parsed = [json.loads(line) for line in lines]
             self.assertEqual(20, len({item["event_id"] for item in parsed}))
             self.assertEqual(20, len(WorkflowEventStore(path).read_all()))
+
+    def test_file_lock_uses_msvcrt_on_windows(self):
+        fake_msvcrt = mock.MagicMock()
+        fake_msvcrt.LK_NBLCK = 1
+        fake_msvcrt.LK_UNLCK = 2
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake_msvcrt}):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "events.jsonl"
+                store = WorkflowEventStore(path)
+                event = WorkflowEvent.create(
+                    event_type="worker.completed",
+                    workflow_id="wf-1",
+                    task_id="worker-1",
+                    payload={"status": "success"},
+                )
+                self.assertTrue(store.append(event))
+                self.assertEqual([event], store.read_all())
+                self.assertGreaterEqual(fake_msvcrt.locking.call_count, 2)
+
+    def test_file_lock_raises_when_neither_fcntl_nor_msvcrt_is_available(self):
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": None}):
+            with tempfile.TemporaryDirectory() as directory:
+                store = WorkflowEventStore(Path(directory) / "events.jsonl")
+                event = WorkflowEvent.create(
+                    event_type="worker.completed",
+                    workflow_id="wf-1",
+                    task_id="worker-1",
+                    payload={"status": "success"},
+                )
+                with self.assertRaisesRegex(EventPersistenceError, "advisory file locking"):
+                    store.append(event)
+
 
 
 if __name__ == "__main__":

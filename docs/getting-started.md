@@ -14,6 +14,7 @@ Every change moves through recorded quality gates:
    ```bash
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
    ```
+   *(On Windows PowerShell, see the [Windows Guide](guides/windows.md) to use `install.ps1`)*
 3. Optional: [Beads](https://github.com/gastownhall/beads) (`bd`) for task tracking (`brew install beads` or `npm install -g @beads/bd`, then `bd init` in your repository). Without it, tasks are local Markdown files.
 4. Optional: [recommended tools](guides/recommended-tools.md) such as CodeGraph, which gives agents faster code lookup.
 

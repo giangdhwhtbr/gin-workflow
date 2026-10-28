@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import time
 from typing import Any, Iterator, Mapping
 
 from .atomic import atomic_write_bytes
@@ -166,15 +167,42 @@ class WorkflowEvent:
 def _file_lock(path: Path, *, exclusive: bool) -> Iterator[None]:
     try:
         import fcntl
-    except ImportError as error:  # pragma: no cover - current supported harnesses are POSIX
-        raise EventPersistenceError("event persistence requires POSIX advisory file locking") from error
+    except ImportError:
+        fcntl = None
+        try:
+            import msvcrt
+        except ImportError as error:
+            raise EventPersistenceError(
+                "event persistence requires POSIX or Windows advisory file locking"
+            ) from error
+    else:
+        msvcrt = None
+
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a+b") as stream:
-        fcntl.flock(stream.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
-        try:
-            yield
-        finally:
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        if fcntl is not None:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+            try:
+                yield
+            finally:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        else:
+            stream.seek(0)
+            if not stream.read(1):
+                stream.write(b"\0")
+                stream.flush()
+            while True:
+                try:
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError:
+                    time.sleep(0.05)
+            try:
+                yield
+            finally:
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def _decode_events(content: bytes, path: Path) -> list[WorkflowEvent]:
