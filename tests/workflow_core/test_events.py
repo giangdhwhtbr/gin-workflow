@@ -204,6 +204,15 @@ class WorkflowEventTests(unittest.TestCase):
                 with self.assertRaisesRegex(EventPersistenceError, "timed out"):
                     store.append(event)
 
+    def test_body_errors_are_not_wrapped_as_lock_failures(self):
+        from workflow_core.events import _file_lock
+
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(OSError, "from the body") as raised:
+                with _file_lock(Path(directory) / ".lock", exclusive=True):
+                    raise OSError("from the body")
+            self.assertNotIsInstance(raised.exception, EventPersistenceError)
+
 
 
 if __name__ == "__main__":
