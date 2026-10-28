@@ -402,6 +402,14 @@ class TestPlanChecks(unittest.TestCase):
         self.assertEqual(("web/login.tsx",), plan_tracks(path)[1].files)
         self.assertEqual([], check_plan(self.team, path))
 
+    def test_area_and_owner_after_a_files_block_are_metadata(self):
+        plan = PLAN.replace("**Metadata:**\n- Area: frontend\n- Owner: chi@corp.com\n\n**Files:**\n- Modify: `web/login.tsx:10-20`\n",
+                            "**Files:**\n- Modify: `web/login.tsx:10-20`\n- **Area**: frontend\n- **Owner**: chi@corp.com\n")
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertEqual((2, "frontend", "chi@corp.com", ("web/login.tsx",)),
+                         (lambda t: (t.number, t.area, t.owner, t.files))(plan_tracks(path)[1]))
+        self.assertEqual([], check_plan(self.team, path))
+
     def test_plan_schema_files_block_ignores_notes(self):
         plan = ("# Plan: Login\n\n## Tasks\n\n### Track 1: API\n- **Area**: backend\n- **Owner**: em@corp.com\n"
                 "- **Files**:\n  - Create `services/auth/login.py`\n"

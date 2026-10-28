@@ -227,14 +227,15 @@ def plan_tracks(path: Path) -> list[Track]:
             continue
         stripped = line.strip()
         indent = len(line) - len(line.lstrip())
+        meta = _META.match(stripped)
+        if meta:
+            current[meta.group(1).lower()] = meta.group(2)
+            files_indent = None
+            continue
         if files_indent is not None and stripped.startswith("- ") and indent > files_indent:
             current["files"] += _listed_paths(stripped[2:])
             continue
         files_indent = None
-        meta = _META.match(stripped)
-        if meta:
-            current[meta.group(1).lower()] = meta.group(2)
-            continue
         label = _FILES_LABEL.match(stripped)
         if label:
             files_indent = indent if label.group(1) else -1
