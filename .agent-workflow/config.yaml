@@ -1,4 +1,6 @@
 harness: claude
+notifications:
+  telegram: true
 orchestrator:
   circuit_breaker:
     cooldown_seconds: 900

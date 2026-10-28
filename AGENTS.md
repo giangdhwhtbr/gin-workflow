@@ -30,6 +30,26 @@ This repository separates responsibilities intentionally:
 - Use `bd remember` for durable project memory when needed.
 - Commit and push freely on feature/worktree branches; never commit directly to `main`/`master`. Creating a PR, merging into the base branch, or force-pushing requires explicit user approval.
 - Before ending work, follow the verification and handoff rules in `docs/concepts/lifecycle.md`.
+- Cross-repo epics with gin-console live in `../gin-harness` (see its `AGENTS.md`).
+
+## Build and Test
+
+```bash
+PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests/test_all.py   # full suite, minutes
+PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests/workflow_core/test_agents_block.py
+bash tests/install_smoke_test.sh
+./install.sh --link --platform claude   # dev install; ./install.sh --platform all refreshes every harness
+```
+
+`-k` does not narrow `tests/test_all.py` (its `load_tests` builds its own loader); run the single file. Build, install, and release steps: `docs/contributing.md`.
+
+Invariants the tests enforce:
+
+- Edit `plugins/<plugin>/src/`; `dist/` is installer output and untracked.
+- `gin-orchestrator` imports only `workflow_core.ext`; `gin-workflow` never imports it, and the core never names `gin-qa`.
+- Skills and agents reach tasks through `gin-workflow task`, not `bd`, except the Beads-only skills (`tests/test_no_direct_bd.py`).
+- Every skill appears in `docs/reference/skills.md` and every CLI subcommand has a heading in `docs/reference/cli.md` (`tests/workflow_core/test_docs_coverage.py`).
+- Size budgets for skills, agents, and references: `tests/workflow_core/test_token_budget.py`.
 
 ## Non-Interactive Shell Commands
 
