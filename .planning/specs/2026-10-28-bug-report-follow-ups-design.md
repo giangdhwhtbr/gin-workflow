@@ -1,7 +1,7 @@
 # gin-workflow 2.8 bug report follow-ups
 
 Epic: gin-workflow-5c4y
-Status: draft for user review.
+Status: confirmed by the user on 2026-10-28.
 
 ## Goal and scope
 
