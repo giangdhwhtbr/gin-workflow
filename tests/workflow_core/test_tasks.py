@@ -13,6 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import tasks  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
+from tests.workflow_core.team_fixtures import make_team_repo  # noqa: E402
 
 CLI = SCRIPTS / "gin-workflow"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
@@ -53,11 +54,12 @@ class TaskDispatchTests(unittest.TestCase):
     def test_beads_passes_argv_through_to_bd_unchanged(self):
         argv = ["update", "x-1", "--status", "in_progress", "--json"]
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.team.team_for_repo", return_value=None), \
                 mock.patch("workflow_core.tasks.shutil.which", return_value="/opt/bd"), \
                 mock.patch("workflow_core.tasks.subprocess.run",
                            return_value=subprocess.CompletedProcess([], 7)) as run:
             self.assertEqual(7, tasks.main(argv))
-        run.assert_called_once_with(["/opt/bd", *argv], check=False)
+        run.assert_called_once_with(["/opt/bd", *argv], check=False, env=None)
 
     def test_beads_query_matches_the_previous_bd_call(self):
         done = subprocess.CompletedProcess([], 0, stdout='[{"id": "x-1", "status": "closed"}]')
@@ -217,6 +219,46 @@ class ExternalDependencyFailureTests(unittest.TestCase):
         explained = {"ready": [{"id": "x-1"}, {"id": "x-2"}], "blocked": []}
         self.assertEqual({"ready": [{"id": "x-2"}], "blocked": []},
                          tasks.without_held(explained, {"x-1": ["external:p:c"]}))
+
+
+class TeamActorTests(unittest.TestCase):
+    """In team mode bd acts as the member's email, the identity `team claim` assigns."""
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.base = Path(directory.name)
+        self.bd = self.base / "bd"
+        self.bd.write_text(f"#!{sys.executable}\nimport os, pathlib\n"
+                           "pathlib.Path(__file__).with_name('actor.txt').write_text("
+                           "os.environ.get('BD_ACTOR', '<unset>'))\n", encoding="utf-8")
+        self.bd.chmod(0o755)
+        cwd = os.getcwd()
+        self.addCleanup(os.chdir, cwd)
+
+    def actor(self, argv, *, team=None, email="binh@corp.com", preset=None):
+        root = make_team_repo(self.base / f"repo-{len(list(self.base.glob('repo-*')))}", email=email, team=team)
+        os.chdir(root)
+        environ = {key: value for key, value in os.environ.items() if key != "BD_ACTOR"}
+        if preset is not None:
+            environ["BD_ACTOR"] = preset
+        with mock.patch.dict(os.environ, environ, clear=True), \
+                mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.shutil.which", return_value=str(self.bd)):
+            self.assertEqual(0, tasks.main(argv))
+        return (self.base / "actor.txt").read_text(encoding="utf-8")
+
+    def test_member_email_is_the_bd_actor(self):
+        self.assertEqual("binh@corp.com", self.actor(["close", "x-1", "--reason", "done"]))
+
+    def test_explicit_actor_is_kept(self):
+        self.assertEqual("<unset>", self.actor(["close", "x-1", "--actor", "someone"]))
+        self.assertEqual("<unset>", self.actor(["close", "x-1", "--actor=someone"]))
+        self.assertEqual("preset", self.actor(["close", "x-1"], preset="preset"))
+
+    def test_non_member_or_no_team_leaves_bd_alone(self):
+        self.assertEqual("<unset>", self.actor(["close", "x-1"], email="outsider@corp.com"))
+        self.assertEqual("<unset>", self.actor(["close", "x-1"], team="providers:\n  task_tracking: beads\n"))
 
 
 if __name__ == "__main__":
