@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from workflow_core.cli import main as cli_main
-from workflow_core.events import WorkflowEvent, WorkflowEventStore
+from workflow_core.events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from workflow_core.lifecycle_cli import main as lifecycle_main
 from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path
 
@@ -335,6 +338,18 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual(0, cli_main(args))
         events = WorkflowEventStore(self.repo_path / ".agent-workflow/runtime/events.jsonl").read_all()
         self.assertEqual(1, sum(1 for event in events if event.event_type == "approval.recorded"))
+
+    def test_record_reports_an_unwritten_gate(self):
+        args = ["record", "plan-approved", "--repository", str(self.repo_path),
+                "--evidence", "plan.md", "--actor", "user"]
+        for error in (EventPersistenceError("cannot lock events"), RuntimeError("atomic write failed"),
+                      PermissionError(13, "denied")):
+            with self.subTest(error=type(error).__name__), \
+                    mock.patch("workflow_core.lifecycle_cli.WorkflowEventStore.append", side_effect=error), \
+                    contextlib.redirect_stderr(io.StringIO()) as stderr:
+                self.assertEqual(1, cli_main(args))
+            self.assertIn("error: plan-approved not recorded for default-workflow: ", stderr.getvalue())
+        self.assertEqual("unmet", self._state_gates()["plan_approved"])
 
     def _fake_beads(self, children, epic_status="open"):
         def run(repo, argv):

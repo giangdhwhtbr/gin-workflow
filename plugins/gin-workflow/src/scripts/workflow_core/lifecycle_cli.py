@@ -10,7 +10,7 @@ from typing import Any, Mapping, Sequence
 
 from .checkout import main_checkout
 from .configuration import resolve_effective_config
-from .events import WorkflowEvent, WorkflowEventStore
+from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .project import project_settings
 from . import orchestrator_client
 from .team import load_team, summary as team_summary, team_for_repo
@@ -193,7 +193,10 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         payload=payload,
         idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}",
     )
-    appended = store.append(event)
+    try:
+        appended = store.append(event)
+    except (EventPersistenceError, RuntimeError, OSError) as error:
+        return {"status": "error", "message": f"{args.gate} not recorded for {args.workflow_id}: {error}"}, 1
     return {
         "status": "recorded" if appended else "already_recorded",
         "gate": args.gate,
