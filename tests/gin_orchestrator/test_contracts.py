@@ -404,19 +404,11 @@ class ProviderContractTests(unittest.TestCase):
             RepositoryKnowledgeProvider(root / "missing").search("anything").status,
         )
 
-    def test_worktree_adapter_normalizes_script_results_and_replay(self):
+    def test_worktree_adapter_creates_cleans_and_replays(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-
-            def runner(argv, cwd):
-                target = root / ".planning/worktrees" / argv[1]
-                if str(argv[0]).endswith("worktree-create.sh"):
-                    target.mkdir(parents=True)
-                else:
-                    target.rmdir()
-                return subprocess.CompletedProcess(argv, 0, "ok", "")
-
-            workspaces = WorktreeWorkspaceProvider(root, runner=runner)
+            root = Path(directory).resolve()
+            self._init_repo_with_commit(root)
+            workspaces = WorktreeWorkspaceProvider(root)
             self.assertIs(
                 OperationStatus.INVALID,
                 workspaces.create(WorkspaceRequest("../escape", "branch"), idempotency_key="bad").status,
@@ -432,29 +424,21 @@ class ProviderContractTests(unittest.TestCase):
             cleaned = workspaces.cleanup("track-1", idempotency_key="create")
             self.assertTrue(cleaned.value)
             self.assertFalse(created.value.path.exists())
-            offline = WorktreeWorkspaceProvider(
-                root,
-                runner=lambda argv, cwd: subprocess.CompletedProcess(argv, 1, "", "git failed"),
-            )
+
+    def test_worktree_adapter_reports_git_failure_as_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            offline = WorktreeWorkspaceProvider(Path(directory))
             self.assertIs(
                 OperationStatus.UNAVAILABLE,
                 offline.create(WorkspaceRequest("track-2", "branch"), idempotency_key="fail").status,
             )
 
-    def test_worktree_adapter_rejects_nondefault_root_before_runner_or_side_effect(self):
+    def test_worktree_adapter_rejects_nondefault_root_without_side_effect(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            calls = []
-
-            def runner(argv, cwd):
-                calls.append(tuple(argv))
-                (root / ".planning/worktrees" / argv[1]).mkdir(parents=True)
-                return subprocess.CompletedProcess(argv, 0, "ok", "")
-
             workspace = WorktreeWorkspaceProvider(
                 root,
                 worktree_root=root / ".custom/worktrees",
-                runner=runner,
             )
             result = workspace.create(
                 WorkspaceRequest("track-1", "bead/track-1"),
@@ -462,7 +446,6 @@ class ProviderContractTests(unittest.TestCase):
             )
 
             self.assertIs(OperationStatus.INVALID, result.status)
-            self.assertEqual([], calls)
             self.assertFalse((root / ".planning/worktrees/track-1").exists())
             self.assertFalse((root / ".custom/worktrees/track-1").exists())
 

@@ -19,7 +19,7 @@ git rev-parse --show-superproject-working-tree   # prints a path => submodule, t
 1. **Native tool first.** If the harness provides a worktree tool, use it. `git worktree add` alongside one creates state the harness cannot manage.
 2. **Git fallback** under `.planning/worktrees/<track-id>` (one explicit id, no wildcards or unresolved paths):
    - Verify the root is ignored: `git check-ignore -q .planning/worktrees`. If not, add it to `.gitignore` (commit it on the feature branch).
-   - New branch: `scripts/worktree-create.sh <track-id> <branch> [base-ref]` (the script validates the id and path containment, and always creates the branch).
+   - New branch: `gin-workflow worktree create <track-id> <branch> [base-ref]` (it validates the id and path containment, and always creates the branch).
    - Existing branch: `git worktree add .planning/worktrees/<track-id> <branch>` (a branch can be checked out in only one worktree, so switch the main checkout away from it first).
    - Then work from inside the new directory. Paths and branch names are runtime metadata; Beads owns status.
 3. If creation fails because of a sandbox or permission error, tell the user and, with approval, work in place.
@@ -31,4 +31,4 @@ Install with the project's own tooling: `pnpm install` / `yarn install` / `npm c
 Run the project test command (configured `verify.commands` first). If it fails, report the failures and ask whether to proceed or investigate. If it passes, report: `Worktree ready at <path>; tests passing (<N>, 0 failures)`.
 
 ## Cleanup
-Only after merge or a confirmed discard: from the main checkout (never from inside the worktree), run `scripts/worktree-cleanup.sh <track-id>`, then `git worktree prune`, then delete the branch. Keep the worktree for PR and keep-as-is outcomes.
+Only after merge or a confirmed discard: from the main checkout (never from inside the worktree), run `gin-workflow worktree cleanup <track-id>`, then `git worktree prune`, then delete the branch. Keep the worktree for PR and keep-as-is outcomes.

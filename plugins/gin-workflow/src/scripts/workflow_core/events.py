@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping
 
 from .atomic import atomic_write_bytes
+from .locking import file_lock
 from .models import WorkflowCoreError, freeze, thaw
 from .schemas import validate_workflow_event
 
@@ -164,17 +165,12 @@ class WorkflowEvent:
 
 @contextmanager
 def _file_lock(path: Path, *, exclusive: bool) -> Iterator[None]:
-    try:
-        import fcntl
-    except ImportError as error:  # pragma: no cover - current supported harnesses are POSIX
-        raise EventPersistenceError("event persistence requires POSIX advisory file locking") from error
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+b") as stream:
-        fcntl.flock(stream.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+    with ExitStack() as stack:
         try:
-            yield
-        finally:
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+            stack.enter_context(file_lock(path, exclusive=exclusive))
+        except OSError as error:
+            raise EventPersistenceError(f"cannot lock {path}: {error}") from error
+        yield
 
 
 def _decode_events(content: bytes, path: Path) -> list[WorkflowEvent]:

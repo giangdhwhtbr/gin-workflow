@@ -226,6 +226,17 @@ Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`: its
 
 Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is unavailable.
 
+## `gin-workflow worktree`
+
+```
+gin-workflow worktree create [--repository DIR] TRACK_ID BRANCH [BASE_REF]
+gin-workflow worktree cleanup [--repository DIR] TRACK_ID
+```
+
+Creates or removes the git worktree for one track at `.planning/worktrees/<track-id>` in the repository's top level. `TRACK_ID` must match `[A-Za-z0-9._-]+` and resolve inside `.planning/worktrees`. `create` makes the new branch `BRANCH` from `BASE_REF` (default: the current branch, or `HEAD` when detached) and refuses an existing directory. `cleanup` runs `git worktree remove` and succeeds without doing anything when the directory does not exist. Runs on every platform; it replaces `worktree-create.sh` and `worktree-cleanup.sh`.
+
+Exit codes: 0 created, removed, or nothing to remove; 1 invalid track id, existing directory, or git failure (message on stderr); 2 invalid arguments.
+
 ## `gin-workflow task`
 
 ```

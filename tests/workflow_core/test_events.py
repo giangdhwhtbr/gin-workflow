@@ -1,9 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
@@ -156,6 +158,61 @@ class WorkflowEventTests(unittest.TestCase):
             parsed = [json.loads(line) for line in lines]
             self.assertEqual(20, len({item["event_id"] for item in parsed}))
             self.assertEqual(20, len(WorkflowEventStore(path).read_all()))
+
+    def test_file_lock_uses_msvcrt_on_windows(self):
+        fake_msvcrt = mock.MagicMock()
+        fake_msvcrt.LK_NBLCK = 1
+        fake_msvcrt.LK_UNLCK = 2
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake_msvcrt}):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "events.jsonl"
+                store = WorkflowEventStore(path)
+                event = WorkflowEvent.create(
+                    event_type="worker.completed",
+                    workflow_id="wf-1",
+                    task_id="worker-1",
+                    payload={"status": "success"},
+                )
+                self.assertTrue(store.append(event))
+                self.assertEqual([event], store.read_all())
+                self.assertGreaterEqual(fake_msvcrt.locking.call_count, 2)
+
+    def test_file_lock_raises_when_neither_fcntl_nor_msvcrt_is_available(self):
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": None}):
+            with tempfile.TemporaryDirectory() as directory:
+                store = WorkflowEventStore(Path(directory) / "events.jsonl")
+                event = WorkflowEvent.create(
+                    event_type="worker.completed",
+                    workflow_id="wf-1",
+                    task_id="worker-1",
+                    payload={"status": "success"},
+                )
+                with self.assertRaisesRegex(EventPersistenceError, "advisory file locking"):
+                    store.append(event)
+
+    def test_lock_timeout_becomes_event_persistence_error(self):
+        @contextmanager
+        def timed_out(path, *, exclusive):
+            raise TimeoutError("timed out after 60s waiting for lock x")
+            yield
+
+        with mock.patch("workflow_core.events.file_lock", timed_out):
+            with tempfile.TemporaryDirectory() as directory:
+                store = WorkflowEventStore(Path(directory) / "events.jsonl")
+                event = WorkflowEvent.create(event_type="worker.completed", workflow_id="wf-1",
+                                             task_id="worker-1", payload={"status": "success"})
+                with self.assertRaisesRegex(EventPersistenceError, "timed out"):
+                    store.append(event)
+
+    def test_body_errors_are_not_wrapped_as_lock_failures(self):
+        from workflow_core.events import _file_lock
+
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(OSError, "from the body") as raised:
+                with _file_lock(Path(directory) / ".lock", exclusive=True):
+                    raise OSError("from the body")
+            self.assertNotIsInstance(raised.exception, EventPersistenceError)
+
 
 
 if __name__ == "__main__":

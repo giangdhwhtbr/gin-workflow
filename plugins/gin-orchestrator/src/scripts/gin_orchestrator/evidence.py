@@ -6,7 +6,6 @@ from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from dataclasses import asdict
 import json
-import fcntl
 import os
 from pathlib import Path
 import threading
@@ -30,6 +29,7 @@ from workflow_core.ext import (
     AcceptanceIdentity,
     WorkflowEvent,
     WorkflowEventStore,
+    file_lock,
     thaw,
 )
 
@@ -370,15 +370,8 @@ class FileEvidenceProvider(ProviderBase):
 
     @contextmanager
     def _file_lock(self, *, exclusive: bool):
-        self.index_path.parent.mkdir(parents=True, exist_ok=True)
-        lock_path = self.index_path.with_name(f".{self.index_path.name}.lock")
-        with lock_path.open("a+b") as handle:
-            operation = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
-            fcntl.flock(handle.fileno(), operation)
-            try:
-                yield
-            finally:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        with file_lock(self.index_path.with_name(f".{self.index_path.name}.lock"), exclusive=exclusive):
+            yield
 
     def _load(self) -> list[EvidenceRecord]:
         if not self.index_path.exists():
