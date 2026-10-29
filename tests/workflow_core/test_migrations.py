@@ -33,14 +33,14 @@ LOCAL_WITH_MODELS = {
 }
 
 
-def _write_repository(directory, config, local=None):
+def _write_repository(directory, config, local=None, local_name="orchestrator.local.yaml"):
     repository = Path(directory)
     workflow = repository / ".agent-workflow"
     workflow.mkdir()
     yaml = setup_service.require_yaml()
     (workflow / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
     if local is not None:
-        (workflow / "orchestrator.local.yaml").write_text(yaml.safe_dump(local), encoding="utf-8")
+        (workflow / local_name).write_text(yaml.safe_dump(local), encoding="utf-8")
     return repository, workflow
 
 
@@ -247,6 +247,50 @@ setup_cli_version: '2.2'
             self.assertTrue(
                 any("gin-workflow setup update --to-version 2.9 --approve" in action for action in actions), actions
             )
+
+    def test_default_update_from_2_7_renames_the_local_file_and_moves_its_tier_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = {**V28, "schema_version": "2.7", "workflow_version": "2.7", "setup_cli_version": "2.7"}
+            repository, workflow = _write_repository(directory, config, LOCAL_WITH_MODELS, "providers.local.yaml")
+            yaml = setup_service.require_yaml()
+
+            setup_service.update(repository, approve=True)
+
+            self.assertFalse((workflow / "providers.local.yaml").exists())
+            local = yaml.safe_load((workflow / "orchestrator.local.yaml").read_text(encoding="utf-8"))
+            self.assertEqual({"codex": {"executable": "codex"}, "antigravity": {"executable": "agy"}}, local["providers"])
+            written = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
+            self.assertEqual(["m1", "m2"], written["models"]["codex"]["models"])
+            self.assertEqual(["a", "b"], written["models"]["antigravity"]["models"])
+
+    def test_update_at_2_9_still_moves_leftover_local_tier_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = {**V28, "schema_version": "2.9", "workflow_version": "2.9", "setup_cli_version": "2.9"}
+            repository, workflow = _write_repository(directory, config, LOCAL_WITH_MODELS)
+            yaml = setup_service.require_yaml()
+
+            result = setup_service.update(repository, target_version="2.9", approve=True)
+
+            self.assertNotEqual("up_to_date", result["status"])
+            self.assertTrue(Path(result["backup"]).is_dir())
+            written = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
+            self.assertEqual(["m1", "m2"], written["models"]["codex"]["models"])
+            local = yaml.safe_load((workflow / "orchestrator.local.yaml").read_text(encoding="utf-8"))
+            self.assertNotIn("models", local["providers"]["codex"])
+            actions = setup_service.doctor(repository)["actions"]
+            self.assertFalse(any("--to-version 2.9 --approve" in action for action in actions), actions)
+
+    def test_rollback_restores_the_local_file_the_2_9_update_rewrote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, V28, LOCAL_WITH_MODELS)
+            local_before = (workflow / "orchestrator.local.yaml").read_bytes()
+            config_before = (workflow / "config.yaml").read_bytes()
+
+            result = setup_service.update(repository, target_version="2.9", approve=True)
+            setup_service.rollback(repository, backup=Path(result["backup"]))
+
+            self.assertEqual(local_before, (workflow / "orchestrator.local.yaml").read_bytes())
+            self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
 
 
 if __name__ == "__main__":

@@ -617,28 +617,33 @@ def update(
     main = main_checkout(root)
     local_dir = main / ".agent-workflow"
     old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
+    rename_local = target_version in ("2.8", "2.9") and old_local.is_file() and not new_local.exists()
+    local_source = old_local if rename_local else new_local
     local_actions: list[str] = []
     local_writes: dict[Path, bytes] = {}
-    if target_version == "2.9" and new_local.is_file():
-        local = _read_local_file(new_local)
+    local_backup: dict[str, bytes] = {}
+    if target_version == "2.9" and local_source.is_file():
+        local = _read_local_file(local_source)
         tiered = _local_tier_models(local)
         if tiered:
             catalog = migrated.setdefault("models", {})
             for provider, tiers in tiered.items():
                 if provider not in catalog:
                     catalog[provider] = _catalog_from_tiers(tiers)
-                    local_actions.append(f"catalog entry for {provider} from {new_local.name}")
+                    local_actions.append(f"catalog entry for {provider} from {local_source.name}")
             rewritten = copy.deepcopy(local)
             for provider in tiered:
                 rewritten["providers"][provider].pop("models")
-            local_actions.append(f"remove provider models: from {new_local.relative_to(main)}")
+            local_actions.append(f"remove provider models: from {local_source.relative_to(main)}")
             local_writes[new_local] = _yaml_text(rewritten).encode("utf-8")
+            local_backup[local_source.name] = local_source.read_bytes()
     validate_portable_config(migrated)
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
     proposal = propose_migration(root, target_version=target_version)
+    if local_actions and proposal["status"] == "up_to_date":
+        proposal["status"] = "migration_available"
     proposal["actions"] = [*proposal.get("actions", ()), *local_actions]
-    rename_local = target_version == "2.8" and old_local.is_file() and not new_local.exists()
     if rename_local:
         proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main)} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
@@ -654,9 +659,13 @@ def update(
         target_version=target_version,
         prepared_config=migrated,
         additional_writes=additional_writes,
+        backup_files=local_backup,
     )
     if rename_local:
-        os.replace(old_local, new_local)
+        if local_writes:
+            old_local.unlink()
+        else:
+            os.replace(old_local, new_local)
         res.setdefault("actions", []).append(f"rename {old_local.relative_to(main)} to {new_local.name}")
         ignore_path = root / ".agent-workflow/.gitignore"
         atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
@@ -676,6 +685,12 @@ def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **
         if not dry_run:
             os.replace(new_local, old_local)
         result.setdefault("actions", []).append(f"rename {new_local.relative_to(main)} to {old_local.name}")
+    for local in (old_local, new_local):
+        saved = Path(result["backup"]) / local.name
+        if saved.is_file():
+            if not dry_run:
+                atomic_write_bytes(local, saved.read_bytes())
+            result.setdefault("actions", []).append(f"restore {local.relative_to(main)} from validated backup")
     return result
 
 
