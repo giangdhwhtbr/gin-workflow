@@ -1,26 +1,26 @@
 # Getting Started
 
-This guide walks you through delivering a feature from initial idea to final merge using **Claude Code** and **`gin-workflow`**.
+This guide takes one feature from idea to merge using Claude Code and `gin-workflow`.
 
 Every change moves through recorded quality gates:
-**`discuss` → `plan` → `orchestrate` → `execute` → `ship`**.
+`discuss` → `plan` → `orchestrate` → `execute` → `ship`.
 
 ---
 
-## 1. Quick Prerequisites
+## Prerequisites
 
-1. **Python 3** (with PyYAML) and **Git**.
-2. **Claude Code** and the `gin-workflow` plugin:
+1. Python 3 (with PyYAML) and Git.
+2. Claude Code and the `gin-workflow` plugin:
    ```bash
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
    ```
-   *(On Windows PowerShell, see the [Windows Guide](guides/windows.md) to use `install.ps1`)*
+   On Windows PowerShell, see the [Windows guide](guides/windows.md) to use `install.ps1`.
 3. Optional: [Beads](https://github.com/gastownhall/beads) (`bd`) for task tracking (`brew install beads` or `npm install -g @beads/bd`, then `bd init` in your repository). Without it, tasks are local Markdown files.
 4. Optional: [recommended tools](guides/recommended-tools.md) such as CodeGraph, which gives agents faster code lookup.
 
 ---
 
-## 2. One-Time Setup (`/setup`)
+## One-time setup
 
 Run setup inside Claude Code to configure your project:
 
@@ -28,11 +28,11 @@ Run setup inside Claude Code to configure your project:
 /gin-workflow:setup
 ```
 
-Setup asks simple questions to generate `.agent-workflow/config.yaml`:
-- **Project type:** stage and shape, detected from your repository.
-- **Rigor:** `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks).
-- **Verify commands:** Confirms your test and build commands.
-- **Task tracking:** `markdown` (the default; local files under `.planning/tasks/`) or `beads` (needs `bd`).
+Setup asks four questions and generates `.agent-workflow/config.yaml`:
+- Project type: stage and shape, detected from your repository.
+- Rigor: `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks).
+- Verify commands: your lint, typecheck, test, and build commands.
+- Task tracking: `markdown` (the default; local files under `.planning/tasks/`) or `beads` (needs `bd`).
 
 Everything runs in the harness you opened (`provider_mode: single`). Worker harnesses are the optional [gin-orchestrator](orchestrator/README.md) extension.
 
@@ -40,54 +40,54 @@ Commit `.agent-workflow/config.yaml` to git.
 
 ---
 
-## 3. The 6-Stage Feature Workflow
+## Feature workflow
 
-### Stage 1: Discuss
+### Discuss
 ```text
 /gin-workflow:discuss Add an export-to-csv button on the user list
 ```
-Claude analyzes existing code, asks clarifying questions one at a time, proposes architectural approaches, and writes a specification to `.planning/specs/<date>-<topic>-design.md` (or `docs/changes/` in SDD mode). Confirm the design to pass the `requirement_confirmed` gate.
+Claude reads the existing code, asks clarifying questions one at a time, proposes approaches, and writes a specification to `.planning/specs/<date>-<topic>-design.md` (or `docs/changes/` in SDD mode). Confirm the design to pass the `requirement_confirmed` gate.
 
-### Stage 2: Plan
+### Plan
 ```text
 /gin-workflow:plan export-csv-button
 ```
-Claude breaks the confirmed spec into implementation tracks in `.planning/plans/` (defining files, interfaces, and test-first steps). Review the plan and approve it to pass the `plan_approved` gate.
+Claude breaks the confirmed spec into tracks in `.planning/plans/`, each with files, interfaces, and test-first steps. Approve the plan to pass the `plan_approved` gate.
 
-### Stage 3: Orchestrate
+### Orchestrate
 ```text
 /gin-workflow:orchestrate export-csv-button
 ```
-Claude creates an epic and task items in your task tracker (Markdown or Beads), then creates an isolated Git worktree for clean implementation. Passes the `orchestration_ready` gate.
+Claude creates an epic and task items in your task tracker (Markdown or Beads) and an isolated Git worktree. This passes the `orchestration_ready` gate.
 
-### Stage 4: Execute
+### Execute
 ```text
 /gin-workflow:execute
 ```
-Claude claims the next ready track, writes a failing test first, implements the solution until tests pass, and conducts an independent code review in the review ledger. Once approved, the track closes. Repeat `/gin-workflow:execute` until all tracks are done.
+Claude claims the next ready track, writes a failing test first, implements until the tests pass, and runs an independent review in the review ledger. After approval the track closes. Repeat `/gin-workflow:execute` until all tracks are done.
 
 Quality checks do not need a stage: `pre-commit` runs lint and typecheck, `pre-push` runs the tests, and CI is the backstop (`gin-workflow hooks install`, see the [CLI reference](reference/cli.md#gin-workflow-hooks)).
 
-### Stage 5: Ship
+### Ship
 ```text
 /gin-workflow:ship
 ```
-Claude offers four integration options: **Merge locally**, **Push & open Pull Request**, **Keep branch**, or **Discard**. After your approval, it integrates the work, re-tests on the merged result, removes the worktree, and closes the epic (`shipped`).
+Claude offers four options: merge locally, push and open a pull request, keep the branch, or discard. After your approval it integrates the work, re-tests the merged result, removes the worktree, and closes the epic (`shipped`).
 
 ---
 
-## 4. Helpful Shortcuts
+## Shortcuts
 
-- `/gin-workflow:workflow`: Automatically detects the current state and runs whichever stage is next.
-- `/gin-workflow:quick <change>`: Fast-tracks small changes (up to 5 files in one module by default) without requiring specs or tasks.
-- `/gin-workflow:progress`: Inspects active, ready, or blocked tasks.
+- `/gin-workflow:workflow`: detects the current state and runs the next stage.
+- `/gin-workflow:quick <change>`: handles a small change (up to 5 files in one module by default) without specs or tasks.
+- `/gin-workflow:progress`: shows active, ready, and blocked tasks.
 
 ---
 
-## 5. Tailored Starters & Guides
+## Starters and guides
 
-- 🚀 **Starting a new project?** Read the [Greenfield Project Starter](starters/greenfield.md).
-- 🔄 **Refactoring a legacy codebase?** Read the [Brownfield & Modernization Starter](starters/brownfield-modernize.md).
-- 👥 **Working in a team?** Read [Team roles](roles.md).
-- ⚡ **Looking for multi-agent / multi-model routing?** Install the gin-orchestrator extension: see [Orchestrator](orchestrator/README.md).
-- 🎞️ **Want the whole lifecycle on slides?** Open the [ADLC deck](presentations/adlc.html) ([PPTX](presentations/adlc.pptx)).
+- New project: the [greenfield starter](starters/greenfield.md).
+- Legacy codebase: the [brownfield modernization starter](starters/brownfield-modernize.md).
+- Team: [team roles](roles.md).
+- Multi-harness worker routing: the [gin-orchestrator](orchestrator/README.md) extension.
+- The lifecycle on slides: the [ADLC deck](presentations/adlc.html) ([PPTX](presentations/adlc.pptx)).

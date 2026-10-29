@@ -18,7 +18,7 @@ points; the detail below is what the presenter says aloud.
   - Wikis, READMEs, and diagrams lag years behind production.
   - Implicit database triggers, undocumented endpoints, and tangled call chains.
 - `/tech-doc` scans code trees, database schemas, and API handlers directly.
-- Output goes to `docs/codebase/` in 10 structured modules, including `ARCHITECTURE.md`, `API.md`, `STACK.md`, and `STRUCTURE.md`.
+- Output goes to `docs/codebase/` (with the SDD layout) in 10 structured modules, including `ARCHITECTURE.md`, `API.md`, `STACK.md`, and `STRUCTURE.md`.
 - Every architectural conclusion cites exact file paths and line ranges; nothing is speculative.
 - The baseline takes hours rather than weeks and seeds the product roadmap.
 
@@ -59,11 +59,11 @@ points; the detail below is what the presenter says aloud.
 
 ## 6. Bounded Tracks, Isolated Worktrees, Routed Models
 
-- Each track in `plan.md` is bound to a directory, e.g. `Area: modern_api` vs `Area: legacy_core`; edits outside the declared area are rejected.
+- Each track in `plan.md` is bound to a directory, e.g. `Area: modern_api` vs `Area: legacy_core`; a plan track that crosses areas is rejected by `gin-workflow team check-plan`.
 - Each track maps to target requirements, e.g. `Requirements: REQ-AUTH-001`.
 - `/orchestrate` creates an isolated Git worktree under `.planning/worktrees/` for each track, so developers and parallel agents build and test without branch contention.
-- Downstream tracks unlock automatically in Beads as upstream PRs merge.
-- The orchestrator evaluates each track's structural and algorithmic difficulty and proposes a reasoning tier (`low`, `medium`, `high`) and model, which removes developer trial and error.
+- Downstream tracks unlock in Beads when their upstream tracks close.
+- The plan gives each track a role and a reasoning tier (`low`, `medium`, `high`); with gin-orchestrator installed, routing maps the pair to a harness and model, which removes developer trial and error.
 
 ## 7. Code Traced Back to the Spec
 
@@ -75,7 +75,7 @@ points; the detail below is what the presenter says aloud.
 ## 8. Independent Review, Recorded in a Ledger
 
 - An isolated review agent inspects the track's diff against architecture rules, test coverage, and security criteria.
-- Findings are stored in `.planning/reviews/<bead>/findings.jsonl` with line numbers and risk ratings.
+- Findings are stored in the review ledger under `.planning/reviews/<bead>/` with line numbers and risk ratings.
 - Review iterations are capped to prevent circular debates.
 - Engineers do not passively accept AI findings; each one is verified and gets a disposition:
   - Fix: correct the code and test baseline, then re-verify.

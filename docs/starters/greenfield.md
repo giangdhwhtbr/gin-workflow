@@ -1,12 +1,12 @@
-# Greenfield Project Starter
+# Greenfield project starter
 
-This guide walks you through bootstrapping and developing a brand-new project from scratch using **Claude Code** and **`gin-workflow`**.
+This guide bootstraps a new project with Claude Code and `gin-workflow`, from an empty repository to the first feature.
 
 ---
 
-## 1. Prerequisites & Initialization
+## Prerequisites and initialization
 
-Ensure you have Git and Python 3 installed (Beads is optional):
+You need Git and Python 3; Beads is optional.
 
 ```bash
 # 1. Initialize a new git repository
@@ -25,20 +25,20 @@ gin-workflow --version
 
 ---
 
-## 2. One-Time Setup (`/gin-workflow:setup`)
+## One-time setup
 
-Inside Claude Code, run setup to configure your project foundation:
+Inside Claude Code, run setup:
 
 ```text
 /gin-workflow:setup
 ```
 
-The interactive setup will detect your environment and ask:
-- **Project stage:** Select `greenfield`.
-- **Project shape & stack:** Choose the shape (`frontend`, `backend`, `fullstack`, or `library`) and describe the technologies you intend to use (e.g., TypeScript, Python, React, FastAPI).
-- **Rigor:** Select `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks) or `strict` (always a worktree, a review ledger, and E2E/accessibility checks when configured).
-- **Provider mode:** Choose `single` (baseline with Claude Code).
-- **Verification commands:** Confirm your lint, typecheck, test, and build commands (can be updated later in `.agent-workflow/config.yaml`).
+Setup detects your environment and asks:
+- Project stage: select `greenfield`.
+- Project shape and stack: choose the shape (`frontend`, `backend`, `fullstack`, or `library`) and name the technologies you plan to use, for example TypeScript, Python, React, or FastAPI.
+- Rigor: select `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks) or `strict` (always a worktree, a review ledger, and the e2e check when configured).
+- Provider mode: `single`, where Claude Code does all the work.
+- Verification commands: confirm your lint, typecheck, test, and build commands. You can change them later in `.agent-workflow/config.yaml`.
 
 Commit the generated `.agent-workflow/config.yaml` to your repository:
 
@@ -49,27 +49,27 @@ git commit -m "chore: setup gin-workflow configuration"
 
 ---
 
-## 3. Establish the Architectural Baseline
+## Architectural baseline
 
-Before writing business features, establish your architectural foundations (folder structure, core dependencies, database connections, and CI/CD).
+Before writing business features, set up the foundations: folder structure, core dependencies, database connections, and CI.
 
-### Step 3.1: Clarify Architecture in Discuss
-Use `/discuss` to define your high-level architecture:
+### Clarify the architecture in discuss
+Use `/gin-workflow:discuss` to define the high-level architecture:
 
 ```text
 /gin-workflow:discuss Project architecture, folder structure, and tech stack foundation
 ```
 
-Claude will propose 2-3 architectural approaches, evaluate tradeoffs, and write a spec to `.planning/specs/` (with the SDD layout, a change folder under `docs/changes/`, plus an Architecture Decision Record in `docs/adr/` for an architecture decision). Review and confirm the design to record `requirement-confirmed`.
+Claude proposes 2-3 approaches, weighs the tradeoffs, and writes a spec to `.planning/specs/` (with the SDD layout, a change folder under `docs/changes/`, plus an Architecture Decision Record in `docs/adr/` for an architecture decision). Review and confirm the design to record `requirement-confirmed`.
 
-### Step 3.2: Plan Foundation Tracks
-Run `/plan` to decompose the foundation into testable tracks:
+### Plan the foundation tracks
+Run `/gin-workflow:plan` to split the foundation into testable tracks:
 
 ```text
 /gin-workflow:plan project-scaffolding
 ```
 
-Typical greenfield tracks include:
+Typical tracks:
 1. Directory structure & core configurations (`tsconfig`, linter, formatters).
 2. Database schema migrations & connection pool setup.
 3. Base application server with `/health` endpoint and logging.
@@ -77,26 +77,26 @@ Typical greenfield tracks include:
 
 Approve the plan to record `plan-approved`.
 
-### Step 3.3: Orchestrate & Execute
-Run `/orchestrate` and `/execute` to build the foundation test-first:
+### Orchestrate and execute
+Run `/gin-workflow:orchestrate` and `/gin-workflow:execute` to build the foundation test-first:
 
 ```text
 /gin-workflow:orchestrate project-scaffolding
 /gin-workflow:execute
 ```
 
-Claude implements each track inside an isolated Git worktree, writes tests first, conducts review, and closes each track.
+Claude implements each track in an isolated Git worktree, writes tests first, reviews, and closes the track.
 
-### Step 3.4: Ship Foundation
+### Ship the foundation
 ```text
 /gin-workflow:ship
 ```
 
-Choose **merge locally** to merge the baseline foundation into `master`/`main`.
+Choose merge locally to merge the foundation into `master` or `main`.
 
 ---
 
-## 4. Feature Development Flow (Spec-Driven Development)
+## Feature flow with spec-driven development
 
 For greenfield projects, setup proposes the Spec-Driven Development (SDD) layout; to set or change it, edit `.agent-workflow/config.yaml`:
 
@@ -107,7 +107,7 @@ artifacts:
   layout: sdd
 ```
 
-Every new feature moves through a clean, reproducible cycle:
+Every feature moves through the same cycle:
 
 ```text
                        Discuss
@@ -145,17 +145,17 @@ Every new feature moves through a clean, reproducible cycle:
                 └─────────────────────┘
 ```
 
-1. **Discuss (`/gin-workflow:discuss <feature>`):** Creates a change folder `docs/changes/<epic>-<slug>/` holding `proposal.md`, `spec-delta.md`, and `design.md`, with explicit, traceable requirement IDs (`REQ-<MODULE>-001`).
-2. **Plan (`/gin-workflow:plan <feature>`):** Maps requirements to implementation tracks and files.
-3. **Orchestrate (`/gin-workflow:orchestrate <feature>`):** Sets up the track tasks and an isolated Git worktree.
-4. **Execute (`/gin-workflow:execute`):** Builds the tracks test-first with independent review checkpoints.
-5. **Ship (`/gin-workflow:ship`):** Archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
+1. `/gin-workflow:discuss <feature>` creates a change folder `docs/changes/<epic>-<slug>/` holding `proposal.md`, `spec-delta.md`, and `design.md`, with traceable requirement IDs (`REQ-<MODULE>-001`).
+2. `/gin-workflow:plan <feature>` maps requirements to tracks and files.
+3. `/gin-workflow:orchestrate <feature>` sets up the track tasks and an isolated Git worktree.
+4. `/gin-workflow:execute` builds the tracks test-first with independent review checkpoints.
+5. `/gin-workflow:ship` archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
 
 ---
 
-## 5. Next Steps
+## Next steps
 
-- **Planning several epics?** Start from a product brief with `/gin-workflow:roadmap`.
-- **Collaborating with a team?** Read [Team roles](../roles.md).
-- **Need automated E2E tests?** Check out the [QA Add-on Guide](../guides/qa.md).
-- **Want to scale to multi-agent workers?** Install the [gin-orchestrator](../orchestrator/README.md) extension.
+- Several epics: start from a product brief with `/gin-workflow:roadmap`.
+- A team: [team roles](../roles.md).
+- Automated end-to-end tests: the [QA add-on](../guides/qa.md).
+- Worker harnesses: the [gin-orchestrator](../orchestrator/README.md) extension.
