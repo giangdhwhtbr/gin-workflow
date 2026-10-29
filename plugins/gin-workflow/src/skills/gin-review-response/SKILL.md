@@ -27,7 +27,7 @@ Load the open findings with `python3 review-ledger.py status --bead-id <bead-id>
 No performative agreement ("You're absolutely right!", "Great point!") and no thanks. State the fix: "Fixed: <what changed> in <location>." If your pushback was wrong: "Verified: you were right because <reason>. Fixing." Then move on.
 
 ## Re-verify and checkpoint
-- Route the revision to the original provider/model route while it is healthy; otherwise use only a same-role, same route fallback and never lower the approved route.
+- Route the revision to the same route as the implementation while it is healthy; otherwise use only a same-role fallback at that model and effort or higher, never a lower route.
 - Re-run the quality gates, then `checkpoint --repo-id <id> --commit-msg "fix: review findings"` (this commits on the feature branch), and request re-review.
 
 ## Completion

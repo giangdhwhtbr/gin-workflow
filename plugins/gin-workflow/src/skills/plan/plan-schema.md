@@ -52,8 +52,7 @@ execution_strategy:
 ```
 
 - Valid pairings are only `direct` with `workers.mode: sequential`, and `worker` with `workers.mode: parallel`.
-- Use `direct` / `sequential` for sequential work, explicitly one-agent work, work with three or fewer tasks, or work without a qualifying worker condition.
-- Use `worker` / `parallel` only for more than three independent parallel tasks, long-running work, specialized work, or an independent review.
+- Every track is dispatched to a subagent or worker at its manifest route; `mode` only schedules them: `direct` / `sequential` runs one track at a time, `worker` / `parallel` runs independent tracks together.
 - `workers.mode` declares scheduling behavior only. It never contains provider model names, commands, credentials, or implementation methodology.
 
 ## Tasks

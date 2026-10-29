@@ -2,7 +2,7 @@
 
 A worker result is accepted only when it contains every required field:
 
-- `status`: `done`, `needs_clarification`, `failed`, or `blocked`
+- `status`: `completed`, `failed`, or `cancelled`; the execute loop treats `completed` as `done` and `cancelled` as `blocked`
 - `task_id`: exactly the dispatched task identity
 - `summary`: string
 - `changed_files`: list of strings

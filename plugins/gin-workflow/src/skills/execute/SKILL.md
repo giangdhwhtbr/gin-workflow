@@ -32,10 +32,10 @@ Implement one ready work unit inside its approved scope and record evidence.
 ## 3. Worker dispatch
 Dispatch each track using this loop:
 1. `gin-workflow routes dispatch --workflow-id <w> --task-id <id> --json` gives the route.
-2. When `provider` is the main harness, spawn `gin-workflow:developer` with that `model` and `effort` and a bounded context: track text, file scope, `gin-workflow rules` output, worktree path, validation commands. Never the parent transcript or secrets. When `provider` is a provider other than the main harness, dispatch through gin-orchestrator as [worker lifecycle](references/worker-lifecycle.md) describes today, with the same route.
+2. When `provider` is the main harness, spawn `gin-workflow:developer` with that `model` and `effort` and a bounded context: track text, file scope, `gin-workflow rules` output, worktree path, validation commands. Never the parent transcript or secrets. When `provider` is a provider other than the main harness, dispatch through gin-orchestrator as [worker lifecycle](references/worker-lifecycle.md) describes, with the same route.
 3. On `done`, check the commits and command output, then request review.
-4. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise `gin-workflow notify --event needs_input` and leave the bead `in_progress` with a note.
-5. On `failed`, `routes dispatch --escalate "<reason>"` and re-dispatch in the same worktree; on exit 2, ask the user.
+4. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise `gin-workflow notify --event needs_input "<track>: <question>"` and leave the bead `in_progress` with a note.
+5. On `failed`, `gin-workflow routes dispatch --workflow-id <w> --task-id <id> --escalate "<reason>" --json` and re-dispatch in the same worktree; on exit 2, ask the user.
 6. On `blocked`, ask the user.
 Read [delegation policy](references/delegation-policy.md) and [result contract](references/result-contract.md) before dispatching.
 
