@@ -40,6 +40,6 @@ How gin-workflow writes and reviews Markdown. The `docs` rule pack is the checkl
 ## Reviewing docs
 
 - Check each claim against the code, not only the diff, and cite `file:line`.
-- A claim the code contradicts, a practice written as tool behavior, or a missing required section: `IMPORTANT` or higher.
+- A claim the code contradicts, a practice written as tool behavior, a fact restated instead of linked, copied plan wording, or a missing required section: `IMPORTANT` or higher.
 - A style rule: `MINOR`, unless it changes the meaning.
 - Do not flag quoted material, code blocks, an example that shows a banned phrase, or a section a template requires.

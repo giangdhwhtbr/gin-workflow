@@ -13,7 +13,7 @@ plugins/
       .claude-plugin/, .codex-plugin/   harness manifests
       agents/                     developer, code-reviewer, docs-writer, ...
       skills/<name>/SKILL.md      stage and support skills (each is a slash command)
-      references/                 stage-contract.md and shape-*.md, read by skills
+      references/                 stage-contract.md, shape-*.md, and docs-style.md, read by skills and agents
       rules/                      rule packs
       templates/                  spec, codebase, and team templates
       examples/                   config.full.yaml
