@@ -40,7 +40,12 @@ Style rules (spec R4), for every page this epic adds content to or edits as a wh
 - sentence case headings;
 - no promotional wording;
 - slash commands written as `/gin-workflow:<skill>` or `/gin-qa:<skill>`;
-- every CLI command named on the page exists in `docs/reference/cli.md`.
+- every CLI command named on the page exists in `docs/reference/cli.md`;
+- no em or en dashes;
+- no list items that open with a bold label (`- **Label:** text`);
+- no emoji.
+
+A fresh-context prose review (`technical-writer:prose-reviewer`) checks each restyled page. Findings under these rules are fixed; its other findings are listed in the track handoff and the page is not changed for them.
 
 Repository rules: no commits on `master`. Docs state only what the code does.
 
@@ -202,8 +207,12 @@ execution_strategy:
      - `grep -nE '^#{1,4} [0-9]+\.' docs/roles.md docs/guides/qa.md docs/guides/sdd.md`. Expected: no output.
      - `grep -nP '(?<![:\w])/(discuss|plan|orchestrate|execute|ship|review|roadmap|progress|report|tech-doc|setup|quick|workflow|migrate-specs|team-setup|cases|e2e)(?=[\s\x60)]|$)' docs/roles.md docs/guides/qa.md docs/guides/sdd.md`. Expected: no output.
      - `grep -niE 'loves|official|seamless|powerful|comprehensive|beginner-friendly|proven' docs/roles.md docs/guides/qa.md docs/guides/sdd.md`. Expected: no output.
+     - `grep -n '—\|–' docs/roles.md docs/guides/qa.md docs/guides/sdd.md`. Expected: no output. (`team-roles.md` has 5 such lines; do not carry them into `roles.md`.)
+     - `grep -nE '^\s*([-*]|[0-9]+\.) \*\*[^*]+\*\*' docs/roles.md docs/guides/qa.md docs/guides/sdd.md`. Expected: no output. (`team-roles.md` has 24 such lines; write them as plain list items or a table.)
+     - `grep -nP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' docs/roles.md docs/guides/qa.md docs/guides/sdd.md`. Expected: no output.
      - Read every heading on the three pages and confirm it is in sentence case.
      - Confirm that every `gin-workflow …` and `gin-qa …` command on the three pages has its subcommand in `docs/reference/cli.md`.
+     - Dispatch the `technical-writer:prose-reviewer` agent on the three pages. Fix its findings that fall under the style rules in Global Constraints and run the checks above again. List its other findings in the track handoff without changing the pages for them.
   9. Run `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests.workflow_core.test_docs_coverage`. Expected: `OK`. `test_relative_links_resolve` proves that no link points to a deleted page.
   10. Run `git grep -n -E "pm-guide|ba-guide|dev-guide|qa-guide|team-roles" -- . ':!.planning'`. Expected: no output.
   11. Commit: `docs: one team roles page; handbooks merged into the pages that own each topic`, with `Refs: gin-workflow-tvf5`.
@@ -265,9 +274,10 @@ execution_strategy:
      - Summary table, Living spec row: replace "New specs created by `/discuss` or `specs archive` adopt this layout." with "A new capability's spec from `specs archive`, and the specs `/gin-workflow:migrate-specs` seeds, start from it." (`template_text(root, "spec.md")` is called only in `specs_archive.py` and the migrate-specs skill.)
      - Summary table: remove the bold from the artifact cells.
   4. Check the style of the three pages:
-     - Run the three `grep` checks of Track 1 step 8 on `docs/starters/brownfield-modernize.md docs/starters/brownfield-walkthrough.md docs/guides/customizing-templates.md`. Expected: no output.
+     - Run the six `grep` checks of Track 1 step 8 on `docs/starters/brownfield-modernize.md docs/starters/brownfield-walkthrough.md docs/guides/customizing-templates.md`. Expected: no output. (Today `brownfield-modernize.md` has 1 dash line and 14 bold-label items, `customizing-templates.md` 1 and 10.)
      - Read every heading and confirm it is in sentence case.
      - Confirm that every `gin-workflow …` and `gin-qa …` subcommand on the three pages appears in `docs/reference/cli.md`.
+     - Run the prose review of Track 1 step 8 on the three pages, with the same rule for its findings.
   5. Check the job split:
      - `grep -niE 'strangler|parity|golden' docs/starters/brownfield-walkthrough.md`. Expected: only the line added in step 2.
      - `grep -niE '/gin-workflow:(setup|tech-doc)|^## .*(setup|survey)' docs/starters/brownfield-modernize.md`. Expected: no output.

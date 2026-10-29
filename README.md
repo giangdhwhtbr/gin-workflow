@@ -105,3 +105,7 @@ All skills, including the support skills and the `gin-qa` add-on: [skills refere
 ## Credits
 
 The `lean` rule pack's ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT).
+
+The lifecycle skills (discuss, plan, debugging, worktrees, review response, parallel agents) started as forks of [superpowers](https://github.com/obra/superpowers) (MIT).
+
+The documentation style rules come from [technical-writer](https://github.com/riekelt/technical-writer) (MIT).
