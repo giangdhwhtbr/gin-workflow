@@ -48,7 +48,7 @@ GitHub Copilot CLI registers `dist/copilot/<plugin>` with `copilot plugin instal
 ./install.sh --platform all                 # build and install for every detected harness
 ./install.sh --platform codex               # one harness
 ./install.sh --plugin all                   # gin-workflow, gin-qa, and gin-orchestrator
-./install.sh --plugin gin-orchestrator      # installs gin-workflow first when its launcher is missing or older
+./install.sh --plugin gin-orchestrator      # installs gin-workflow first when its launcher is missing or at another version
 ./install.sh --link --platform claude       # symlink the dev tree instead of copying
 ./install.sh --project /path/to/repo        # install harness files into one repository
 ./install.sh --dry-run                      # preview

@@ -74,7 +74,7 @@ A gate is never removed: it is satisfied, or waived on the record with `gin-work
 | Class | Gates | Waiver |
 |---|---|---|
 | Process | `requirement_confirmed`, `plan_approved`, `orchestration_ready` | the agent may waive with a stated reason |
-| Safety | `review_approved` | needs a follow-up bead (`--follow-up`); asking a person first is a convention the CLI does not check |
+| Safety | `review_approved` | needs a follow-up bead (`--follow-up`); asking a person first is a convention the CLI does not check. In [team mode](../guides/team.md) the CLI requires a team member who holds the gate's approval role when `team.approvals` sets one |
 | Not waivable | `implementation_complete`, `shipped` | facts, not formalities |
 
 `review_approved` is not a routing gate; it is classified so that skipping independent review is recorded like any other waiver. `unblock --clear-blocker` clears a recorded blocker.

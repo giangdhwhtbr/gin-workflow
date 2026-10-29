@@ -1,6 +1,6 @@
 # Architecture
 
-gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that moves a change from requirement to merge through recorded gates; GitHub Copilot CLI hosts its skills only. Skills tell the agent what to do at each stage. The `gin-workflow` Python CLI records the gates and derives the workflow state from them. A task tracker (local Markdown files, or Beads if you choose it) tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
+gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that moves a change from requirement to merge through recorded gates. GitHub Copilot CLI also loads its skills and hooks, but it cannot be the configured harness, so workers and reviews run on one of the others. Skills tell the agent what to do at each stage. The `gin-workflow` Python CLI records the gates and derives the workflow state from them. A task tracker (local Markdown files, or Beads if you choose it) tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
 
 ## Components
 
@@ -119,7 +119,7 @@ flowchart TD
     MH -->|diagnostics| X
     OR --> M[gin-workflow writes runtime/assignments/&lt;workflow&gt;.yaml]
     MH --> M
-    M --> D[gin-orchestrator dispatches a worker]
+    M -->|with gin-orchestrator| D[gin-orchestrator dispatches a worker]
     D --> H{health, circuit breaker, capacity}
     H -->|unavailable| N[next candidate, same tier]
     N --> H

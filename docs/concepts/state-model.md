@@ -55,12 +55,12 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
 .agent-workflow/
   config.yaml              portable configuration (tracked)
   orchestrator.local.yaml  machine-local providers (gitignored)
-  generated/               resolved configuration (gitignored)
+  generated/               resolved configuration
   runtime/                 events.jsonl, assignment manifests, harness override, evidence (gitignored)
-  backups/                 migration backups (gitignored)
+  backups/                 migration backups
 ```
 
-`artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
+Setup adds `providers.local.yaml`, `orchestrator.local.yaml`, and `runtime/` to `.agent-workflow/.gitignore`. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
 
 ## Runtime metadata
 
