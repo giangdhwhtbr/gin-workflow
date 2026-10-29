@@ -93,6 +93,9 @@ class ClaudeCodeTests(unittest.TestCase):
                          ("claude_code", 3, 50, 1000, 200))
         self.assertEqual(first.ts, datetime(2026, 10, 4, 10, tzinfo=timezone.utc))
         self.assertEqual(first.session_id, "s1")
+        self.assertEqual(first.role, "main")
+        subagent = next(r for r in scan.records if r.model == "claude-sonnet-5-5")
+        self.assertEqual(subagent.role, "subagent")
 
     def test_never_keeps_text(self):
         scan = claude_code_records(self.repo, self.root)
@@ -156,8 +159,8 @@ class CodexTests(unittest.TestCase):
         self.assertEqual(scan.skipped_lines, 2)
         self.assertEqual([(r.input, r.cache_read, r.output) for r in scan.records], [(200, 800, 100), (50, 200, 50)])
         first = scan.records[0]
-        self.assertEqual((first.harness, first.model, first.session_id, first.branch, first.cache_write),
-                         ("codex", "gpt-6-astra", "c1", "feat/x", 0))
+        self.assertEqual((first.harness, first.model, first.session_id, first.branch, first.cache_write, first.role),
+                         ("codex", "gpt-6-astra", "c1", "feat/x", 0, "main"))
         self.assertTrue(first.cwd.endswith("/.planning/worktrees/ep1"))
         self.assertNotIn(SECRET, repr(scan))
 

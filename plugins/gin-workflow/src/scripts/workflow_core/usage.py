@@ -186,14 +186,21 @@ def _priced_cost(records: Sequence[UsageRecord], prices: Mapping[str, Price]) ->
     return round(sum(known), 4) if known else None
 
 
+def _by_model(records: Sequence[UsageRecord], prices: Mapping[str, Price]) -> dict[str, dict[str, Any]]:
+    by_model: dict[str, dict[str, Any]] = {}
+    for model in sorted({record.model for record in records}):
+        totals = _totals(record for record in records if record.model == model)
+        by_model[model] = {**totals, "cost": cost(totals, prices.get(model))}
+    return by_model
+
+
 def summarize(by_stage: Mapping[str, Sequence[UsageRecord]], prices: Mapping[str, Price],
               quality: Mapping[str, Any], sources: Mapping[str, str], skipped: int, now: datetime,
               unattributed: Sequence[UsageRecord] | None = None) -> dict[str, Any]:
     everything = [record for records in by_stage.values() for record in records]
-    models: dict[str, dict[str, Any]] = {}
-    for model in sorted({record.model for record in everything}):
-        totals = _totals(record for record in everything if record.model == model)
-        models[model] = {**totals, "cost": cost(totals, prices.get(model))}
+    models = _by_model(everything, prices)
+    roles = {role: _by_model([record for record in everything if record.role == role], prices)
+             for role in sorted({record.role for record in everything})}
     stages = {stage: {"tokens": sum(_totals(records).values()), "cost": _priced_cost(records, prices)}
               for stage, records in sorted(by_stage.items()) if records}
     priced = [entry["cost"] for entry in models.values() if entry["cost"] is not None]
@@ -201,6 +208,7 @@ def summarize(by_stage: Mapping[str, Sequence[UsageRecord]], prices: Mapping[str
         "version": 1,
         "collected_at": now.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "models": models,
+        "roles": roles,
         "stages": stages,
         "cost": round(sum(priced), 4) if priced or not models else None,
         "unpriced": sorted(model for model, entry in models.items() if entry["cost"] is None),
@@ -287,6 +295,15 @@ def _usage_of(row: Mapping[str, Any]) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def _add_models(slots: dict[str, dict[str, Any]], by_model: Mapping[str, Mapping[str, Any]]) -> None:
+    for name, values in by_model.items():
+        slot = slots.setdefault(name, {key: 0 for key in _TOKENS} | {"cost": None})
+        for key in _TOKENS:
+            slot[key] += values.get(key, 0)
+        if values.get("cost") is not None:
+            slot["cost"] = round((slot["cost"] or 0) + values["cost"], 4)
+
+
 def report(repo: Path, *, bead: str | None = None, epic: str | None = None, since: date | None = None,
            sprint: str | None = None) -> dict[str, Any]:
     rows = _list(_bd(Path(repo), ["list", "--all", "-n", "0", "--json"]))
@@ -309,14 +326,12 @@ def report(repo: Path, *, bead: str | None = None, epic: str | None = None, sinc
     ids = {entry["bead"] for entry in beads}
     top = [entry for entry in beads if entry["parent"] not in ids]  # an epic's summary already holds its children
     models: dict[str, dict[str, Any]] = {}
+    roles: dict[str, dict[str, Any]] = {}
     stages: dict[str, dict[str, Any]] = {}
     for entry in top:
-        for name, values in (entry.get("models") or {}).items():
-            slot = models.setdefault(name, {key: 0 for key in _TOKENS} | {"cost": None})
-            for key in _TOKENS:
-                slot[key] += values.get(key, 0)
-            if values.get("cost") is not None:
-                slot["cost"] = round((slot["cost"] or 0) + values["cost"], 4)
+        _add_models(models, entry.get("models") or {})
+        for role, by_model in (entry.get("roles") or {}).items():
+            _add_models(roles.setdefault(role, {}), by_model)
         for name, values in (entry.get("stages") or {}).items():
             slot = stages.setdefault(name, {"tokens": 0, "cost": None})
             slot["tokens"] += values.get("tokens", 0)
@@ -329,7 +344,8 @@ def report(repo: Path, *, bead: str | None = None, epic: str | None = None, sinc
     unattributed = {"tokens": tokens, "cost": round(sum(priced), 4) if priced or not tokens else None}
     return {
         "beads": beads,
-        "totals": {"cost": round(sum(costs), 4) if costs or not models else None, "models": models, "stages": stages},
+        "totals": {"cost": round(sum(costs), 4) if costs or not models else None, "models": models, "roles": roles,
+                   "stages": stages},
         "unpriced": sorted({name for entry in top for name in entry.get("unpriced") or ()}),
         "unattributed": unattributed,
         "not_collected": [row["id"] for row, doc in collected if doc is None],

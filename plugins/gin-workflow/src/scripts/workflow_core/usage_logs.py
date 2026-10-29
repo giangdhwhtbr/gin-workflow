@@ -27,6 +27,7 @@ class UsageRecord:
     output: int
     cache_read: int
     cache_write: int
+    role: str = "main"
 
 
 @dataclass(frozen=True)
@@ -115,9 +116,10 @@ def claude_code_records(repo: Path, root: Path | None = None) -> SourceScan:
                     continue
                 seen.add(key)
                 branch = row.get("gitBranch")
+                role = "subagent" if row.get("isSidechain") is True else "main"
                 records.append(UsageRecord(ts, "claude_code", model, str(row.get("sessionId", "")),
                                            os.path.abspath(cwd), branch if isinstance(branch, str) else "",
-                                           tokens[0], tokens[1], tokens[2], tokens[3]))
+                                           tokens[0], tokens[1], tokens[2], tokens[3], role))
     return SourceScan(tuple(records), "ok" if matched else "not_found", skipped)
 
 
@@ -173,5 +175,5 @@ def codex_records(repo: Path, root: Path | None = None) -> SourceScan:
                     continue
                 last_total = total
                 records.append(UsageRecord(ts, "codex", model, session, os.path.abspath(cwd), branch,
-                                           max(given - cached, 0), output, cached, written))
+                                           max(given - cached, 0), output, cached, written, "main"))
     return SourceScan(tuple(records), "ok", skipped)

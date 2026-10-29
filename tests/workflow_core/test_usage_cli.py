@@ -13,8 +13,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from team_fixtures import calls, fake_cli, git, path_with, run_cli, write  # noqa: E402
 from workflow_core.setup_service import refresh  # noqa: E402
 
-USAGE = {"version": 1, "cost": 2.5, "models": {"m1": {"input": 1, "output": 2, "cache_read": 0, "cache_write": 0,
-                                                     "cost": 2.5}},
+USAGE = {"version": 1, "cost": 2.5,
+         "models": {"claude-sonnet-5-5": {"input": 1, "output": 2, "cache_read": 0, "cache_write": 0,
+                                          "cost": 2.5}},
+         "roles": {"subagent": {"claude-sonnet-5-5": {"input": 1, "output": 2, "cache_read": 0, "cache_write": 0,
+                                                      "cost": 2.5}}},
          "stages": {"execute": {"tokens": 3, "cost": 2.5}}, "unpriced": ["m9"],
          "quality": {"reopens": 1, "bugs": 0, "review_cycles": 2, "rejections": 1,
                      "findings": {"critical": 0, "important": 1, "minor": 0, "suggestion": 0}, "waivers": 0}}
@@ -76,8 +79,24 @@ class UsageCliTests(unittest.TestCase):
         text = run_cli(self.repo, "usage", "report", env=self.env).stdout
         self.assertIn("t1", text)
         self.assertIn("2.5", text)
+        self.assertIn("role subagent claude-sonnet-5-5: input=1 output=2 cache_read=0 cache_write=0 cost=2.5", text)
         self.assertIn("m9", text)
         self.assertIn("not collected: t2", text)
+
+    def test_report_renders_legacy_summary_without_roles(self):
+        legacy = {"version": 1, "cost": 1.0,
+                  "models": {"m1": {"input": 1, "output": 1, "cache_read": 0, "cache_write": 0, "cost": 1.0}},
+                  "stages": {"execute": {"tokens": 2, "cost": 1.0}}, "unpriced": [], "quality": {},
+                  "unattributed": {"tokens": 0, "cost": 0.0}}
+        fake_cli(self.bin, "bd", [
+            {"argv": ["list", "--all"], "stdout": [
+                {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+                 "closed_at": "2026-10-04T10:00:00Z", "metadata": {"ai_usage": json.dumps(legacy)}}]}
+        ])
+        done = run_cli(self.repo, "usage", "report", env=self.env)
+        self.assertEqual(done.returncode, 0)
+        self.assertNotIn("role ", done.stdout)
+        self.assertIn("model m1: input=1 output=1 cache_read=0 cache_write=0 cost=1", done.stdout)
 
     def test_report_scope_flags_are_exclusive_and_since_is_a_date(self):
         done = run_cli(self.repo, "usage", "report", "--bead", "t1", "--epic", "e1", env=self.env)
