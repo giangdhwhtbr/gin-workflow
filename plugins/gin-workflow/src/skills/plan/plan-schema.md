@@ -3,16 +3,18 @@
 ## Objective
 {What success looks like}
 
-## Model Guidance
-- `default_model_class`: `standard_impl`
-- `phase_guidance`:
-  - `brainstorm`: `high_reasoning`
-  - `design`: `high_reasoning`
-  - `plan`: `standard_impl`
-  - `implement`: `standard_impl`
-  - `review`: `high_reasoning`
-  - `docs`: `cheap_simple`
-- `override_rule`: Use `high_reasoning` for planning only when execution boundaries, dependency sequencing, or major tradeoffs are still unresolved.
+## Route Rubric
+- Choose the weakest model that can do the work.
+- Raise the model for broad context or design judgement.
+- Raise the effort for intrinsic difficulty: intricate logic, many edge cases, or long chains of steps.
+
+| Kind of work | Model | Effort |
+|---|---|---|
+| Mechanical edits, documentation, boilerplate | weakest | `low` |
+| Bounded implementation with a clear spec | middle | `medium` |
+| Cross-module change, security, migration, concurrency | strongest | `high` |
+
+Unclear requirements never raise the model or effort.
 
 ## Requirement Analysis
 - Problem statement: ...
@@ -33,7 +35,7 @@
 
 ### Recommended Approach
 - Selected option: ...
-- Reasoning: ...
+- Rationale: ...
 
 ## Scope
 - In scope: ...
@@ -50,8 +52,7 @@ execution_strategy:
 ```
 
 - Valid pairings are only `direct` with `workers.mode: sequential`, and `worker` with `workers.mode: parallel`.
-- Use `direct` / `sequential` for sequential work, explicitly one-agent work, work with three or fewer tasks, or work without a qualifying worker condition.
-- Use `worker` / `parallel` only for more than three independent parallel tasks, long-running work, specialized work, or an independent review.
+- Every track is dispatched to a subagent or worker at its manifest route; `mode` only schedules them: `direct` / `sequential` runs one track at a time, `worker` / `parallel` runs independent tracks together.
 - `workers.mode` declares scheduling behavior only. It never contains provider model names, commands, credentials, or implementation methodology.
 
 ## Tasks
@@ -62,7 +63,9 @@ execution_strategy:
   - Modify `path/to/existing.py:10-40` (what changes)
   - Test `tests/path/test_file.py`
 - **Provider role**: `backend`
-- **Reasoning**: `low` | `medium` | `high`
+- **Model:** `sonnet`
+- **Effort:** `medium`
+- **Why:** bounded change to one module with a clear spec; edge cases listed in the spec.
 - **Human gate**: omit, or what a person must do (credentials, production access, a manual or third-party approval); `/goal` runs stop before this track and its dependents
 - **Acceptance criteria**: ...
 - **Estimated complexity**: low | medium | high
@@ -80,13 +83,9 @@ execution_strategy:
 - [ ] Manual verification steps
 
 ## Notes
-- Model guidance is planning metadata, not Beads state.
-- If omitted, agents should assume `standard_impl`.
-- Use provider-neutral model classes only; do not name vendor-specific models in the plan schema.
-- Every implementation or review track must declare a portable provider role and reasoning tier.
-- Select `low` for mechanical edits, simple documentation, or predictable boilerplate.
-- Select `medium` for normal implementation with clear requirements and bounded design.
-- Select `high` for complex architecture, security, migration, or concurrency work, or other unusually constrained tasks.
-- Provider roles describe responsibility rather than filename patterns. The user may override role or reasoning before plan approval.
-- Concrete providers and models are resolved from machine-local configuration during orchestration; they never belong in the portable plan.
+- `Model:` and `Effort:` are chosen from the main harness catalog using the route rubric.
+- Omit `Effort:` when the catalog lists no efforts.
+- Unclear requirements never raise the model or effort; ask the user or return to `discuss`.
+- The user may override `Model:` and `Effort:` before plan approval.
+- Provider roles describe responsibility rather than filename patterns.
 - Deliverable merge-holds (e.g. "remain open until human-confirmed merge") apply exclusively to the Parent Bead. Individual track beads must close upon passing tests and code review to unblock downstream dependent tracks.
