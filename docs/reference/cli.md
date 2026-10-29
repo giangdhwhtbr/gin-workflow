@@ -154,7 +154,7 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
 | `whoami` | Show your member entry, roles, and areas (from `git config user.email`) |
 | `check URL --gate GATE [--plan P] [--spec S]` | Check that a pull request of this repository changes the gate's artifact and satisfies its approvals; `--gate roadmap` checks the roadmap file without recording anything |
-| `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields |
+| `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, and that the paths in each track's `Files` block stay inside its area |
 | `ready` | Ready beads in your areas |
 | `claim BEAD` | Claim a bead as yourself |
 | `reassign BEAD EMAIL` | Hand a track bead to another member. Allowed for the bead's current assignee or the lead of one of its areas; the new assignee must be allowed to own tracks in each area (`team.areas.<name>.roles`). Sets the assignee, appends a note, and pushes with shared Beads. A closed bead, a non-member, or a no-op is refused |
