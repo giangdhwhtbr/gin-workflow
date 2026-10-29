@@ -88,6 +88,21 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "type": "object",
             "additionalProperties": {"type": "string", "minLength": 1},
         },
+        "models": {
+            "type": "object",
+            "propertyNames": {"enum": ["claude", "codex", "antigravity", "opencode"]},
+            "additionalProperties": {
+                "type": "object",
+                "required": ["models"],
+                "properties": {
+                    "models": {"type": "array", "minItems": 1, "uniqueItems": True,
+                               "items": {"type": "string", "minLength": 1}},
+                    "efforts": {"type": "array", "uniqueItems": True,
+                                "items": {"type": "string", "minLength": 1}},
+                },
+                "additionalProperties": False,
+            },
+        },
         "capabilities": {"type": "object"},
         "policy": {"type": "object"},
         "routing": {
