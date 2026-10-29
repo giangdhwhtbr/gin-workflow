@@ -20,13 +20,11 @@ Most tokens come from the main session, not from workers. Three things cause thi
 There are also two vocabularies, and only one of them is used. Tracks name `Reasoning: low|medium|high`, which drives routing. `model_tiers` (`configuration.py:42`) maps phases to `high_reasoning`/`standard_impl`/`cheap_simple`, but nothing reads it, and it disagrees with "Model Guidance" in `plan-schema.md` (plan: `high_reasoning` against `standard_impl`).
 
 In scope:
-- Claude Code as the main harness.
-- The other harnesses get a catalog entry and clean agent files, but keep today's behavior otherwise.
+- Claude Code as the main harness, dispatching to native subagents.
+- gin-orchestrator routing worker tracks by the catalog, so Codex, Antigravity, OpenCode, and Claude workers run at a mapped model and effort (R10).
 
 Out of scope:
-- Subagent dispatch on Codex, Antigravity, OpenCode, and Copilot.
-- gin-orchestrator reading the catalog instead of `orchestrator.local.yaml`.
-- Mapping a plan from one harness's catalog to another's.
+- Subagent dispatch when the main harness is Codex, Antigravity, OpenCode, or Copilot. A follow-up epic, which depends on this one, covers it.
 - A team-shared override layer for configuration.
 - `/quick`, which keeps implementing in the main session.
 - The decks under `docs/presentations/`.
@@ -110,6 +108,8 @@ Removed:
 
 Manifests already written for open workflows stay valid and are not rewritten.
 
+When gin-orchestrator owns routing, `routes resolve` forwards `model` and `effort` with each track, and gin-orchestrator returns the mapped route (R10).
+
 ### R4. Execute delegates every track
 
 `execute/SKILL.md` drops the rule to execute directly for sequential work or three or fewer tasks. For each track, the main session does five things in order:
@@ -168,6 +168,19 @@ The bead notes of gin-workflow-btt3 record this table as the tool-list review.
 - writes the usual validated backup.
 
 `gin-workflow setup doctor` reports a `model_tiers` key in any layer as unsupported and names the replacement, `models`.
+
+### R10. gin-orchestrator routes by the catalog
+
+Plan values come from the main harness's catalog. When a role routes a track to another harness, gin-orchestrator maps the route by rank:
+- **Model.** The model at index `p` of a source list of length `n` maps to index `round(p·(m−1)/(n−1))`, rounded half up, of a target list of length `m`. A one-entry source list maps to index `floor((m−1)/2)`.
+- **Effort.** It keeps its name when the target harness lists it, and otherwise maps by rank the same way. It is dropped when the target lists no efforts.
+
+The other parts of gin-orchestrator change as follows:
+- **Role routing.** `orchestrator.roles.<role>.by_tier` stays. Its tier comes from the plan model's rank in the main harness's catalog: the weakest model gives `low`, the strongest gives `high`, and any other model, or the only model in a one-entry catalog, gives `medium`.
+- **`orchestrator.local.yaml`.** It keeps `executable` per provider and drops `models:`. The catalog in `config.yaml` replaces it. The 2.9 migration reads the local tiers of each provider not yet in `models`, proposes a catalog entry ordered `low`, `medium`, `high` without duplicates, shows it in the preview, and writes it, with the local `models:` removed, only with `--approve`. Doctor reports a remaining local `models:` key.
+- **Workers and review.** `WorkerRequest` (`worker_dispatch.py:349`) and each review cycle (`review_coordinator.py:61`) carry the resolved `model` and `effort` for their harness in place of `reasoning`. `model_tier` is removed, and the worker payload schema version rises. Codex still receives the effort as `-c model_reasoning_effort=<effort>` (`codex_worker.py:45`).
+- **Escalation and review.** Escalation (R4) on a worker harness moves within that harness's catalog. With `routing.review.independence: provider`, the reviewer's route is mapped by rank from the implementer's final route.
+- **Facade.** In `workflow_core/ext.py`, `AssignmentRequest` and `validate_plan_assignments` take `model` and `effort`, and `REASONING_TIERS`, `TierModelTarget`, and `CODEX_EFFORT_VALUES` are removed. `EXT_VERSION` becomes 2, and gin-orchestrator's `SUPPORTED_EXT_VERSION` becomes 2 with it.
 
 ## User Stories
 
@@ -241,22 +254,37 @@ Acceptance criteria:
 - A Claude Code record with `"isSidechain": true` is counted as `subagent`, and any other record as `main`.
 - `gin-workflow usage report` prints tokens and cost per role and model.
 
+### US-10: Worker harnesses run at a mapped route
+As the user running gin-orchestrator, I want a track routed to another harness to run at the model and effort of the same rank in that harness's catalog, so that one plan works across harnesses.
+
+Acceptance criteria:
+- With the Claude catalog `[haiku, sonnet, opus]` and an Antigravity catalog of three models, a track planned at `sonnet` routed to Antigravity runs at Antigravity's middle model.
+- An effort the target lists keeps its name; one it does not list maps by rank; with no target efforts, none is sent.
+- `by_tier` routing picks the harness from the tier derived from the plan model's rank.
+- A Codex worker receives the mapped effort as `model_reasoning_effort`.
+
+### US-11: Local tier models move into the catalog
+As the user upgrading, I want my `orchestrator.local.yaml` tier models turned into catalog entries, so that I do not re-enter them by hand.
+
+Acceptance criteria:
+- `gin-workflow setup update --to-version 2.9` previews a catalog entry per provider built from its local tiers, ordered `low` to `high` without duplicates.
+- With `--approve`, the entries are written to `config.yaml` and `models:` is removed from `orchestrator.local.yaml`; `executable` stays.
+- A provider already listed under `models` in `config.yaml` is left as it is.
+
 ## Errors and compatibility
 
 - **Old configuration.**
   - A 2.8 config with `model_tiers` keeps loading until migrated; doctor reports the key.
   - `gin-workflow setup update --to-version 2.9 --approve` removes it.
 - **Old plans and manifests.** Approved plans and manifests already written keep working. A tracks file with `reasoning` and no `model` is a diagnostic that asks for `model` and `effort`.
-- **gin-orchestrator.** When `routes` is delegated (`provider_mode: multi` with gin-orchestrator installed), gin-orchestrator still expects `reasoning`. `routes resolve` derives it from the model's position in the main harness's catalog, adds a warning that names the derivation, and does not forward the effort. The rule:
-  - The weakest model gives `low`.
-  - The strongest model gives `high`.
-  - Any other model, or the only model in a one-entry catalog, gives `medium`.
+- **gin-orchestrator version.** Both plugins move to `EXT_VERSION` 2 together, and `install.sh` installs both. An older gin-orchestrator refuses to start against the new facade with its existing `EXT_VERSION` message, rather than failing later.
 - **Catalog drift.** A harness renames or retires a model. The user edits `models.<harness>.models`; `routes resolve` then rejects plans that still name the old model, before any spawn.
 - **Documentation.** These pages change with the code:
   - `docs/concepts/providers.md`, `architecture.md`, `lifecycle.md`, `state-model.md`;
   - `docs/reference/config.md`, `cli.md`, `orchestrator-contract.md`;
   - `docs/guides/use-cases.md`;
-  - `docs/orchestrator/README.md`, `routing.md`.
+  - `docs/orchestrator/README.md`, `routing.md`;
+  - `plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml` and the `/gin-orchestrator:providers` skill.
 
   Each page drops `Reasoning`, `model_tiers`, and the abstract classes, and describes the catalog where it describes routing.
 - **gin-console.** It does not read `reasoning`, `model_tiers`, or the manifest, so it needs no change.
@@ -272,9 +300,15 @@ Acceptance criteria:
   - valid model and effort written to the manifest;
   - every diagnostic case in R3;
   - effort accepted for `claude`;
-  - the gin-orchestrator `reasoning` derivation and its warning.
+  - `model` and `effort` forwarded when routing is delegated.
+- `tests/gin_orchestrator/`:
+  - the rank mapping for model and effort, including one-entry lists and a target without efforts;
+  - the `by_tier` tier derived from rank;
+  - `WorkerRequest`, review cycles, and the Codex effort argument carrying the mapped route;
+  - escalation inside a worker harness's catalog;
+  - `SUPPORTED_EXT_VERSION` 2.
 - `tests/workflow_core/test_reviewer.py`: `--model` and `--effort`, and no `--tier`.
-- `tests/workflow_core/test_migrations.py`: 2.8 → 2.9 removes `model_tiers`, keeps the other keys, and writes a backup. Doctor reports `model_tiers`.
+- `tests/workflow_core/test_migrations.py`: 2.8 → 2.9 removes `model_tiers`, keeps the other keys, writes a backup, and turns local tier models into catalog entries (US-11). Doctor reports `model_tiers` and a remaining local `models:`.
 - An agent-file test:
   - no `model:` line under `plugins/*/src/agents/`;
   - `bead-worker` and `solution-architect` absent;
