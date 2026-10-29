@@ -15,47 +15,23 @@ class ProviderConfigCoreTests(unittest.TestCase):
         except ModuleNotFoundError as error:
             self.fail(f"provider configuration module is missing: {error}")
 
-    def test_post_init_normalizes_raw_strings_and_dicts(self):
-        module = self.provider_config()
-        config = module.ProviderModelConfig(
-            "codex",
-            "codex",
-            {
-                "low": "gpt-4o",
-                "medium": {"model": "gpt-6-astra", "effort": "medium"},
-                "high": module.TierModelTarget("gpt-6-astra", "high"),
-            },
-        )
-        self.assertEqual("gpt-4o", config.models["low"].model)
-        self.assertIsNone(config.models["low"].effort)
-        self.assertEqual("gpt-6-astra", config.models["medium"].model)
-        self.assertEqual("medium", config.models["medium"].effort)
-        self.assertEqual("high", config.models["high"].effort)
-
-    def test_tier_model_target_equality_semantics(self):
-        module = self.provider_config()
-        without_effort = module.TierModelTarget("gpt-4o")
-        with_effort = module.TierModelTarget("gpt-4o", "medium")
-
-        self.assertEqual(without_effort, "gpt-4o")
-        self.assertNotEqual(with_effort, "gpt-4o")
-        self.assertNotEqual(without_effort, with_effort)
-        self.assertEqual(with_effort, module.TierModelTarget("gpt-4o", "medium"))
-        self.assertNotEqual(with_effort, module.TierModelTarget("gpt-4o", "high"))
-
-    def test_default_provider_config_returns_valid_config_for_all_harnesses(self):
+    def test_default_executables_and_default_model_config(self):
         module = self.provider_config()
         for harness in ("claude", "antigravity", "opencode", "codex"):
             with self.subTest(harness=harness):
-                data = module.default_provider_config(harness)
-                self.assertIn("executable", data)
-                self.assertIn("models", data)
-                model_cfg = module.default_provider_model_config(harness)
-                self.assertEqual(harness, model_cfg.provider)
-                self.assertIn("medium", model_cfg.models)
+                self.assertIn(harness, module.DEFAULT_EXECUTABLES)
+                cfg = module.default_provider_model_config(harness)
+                self.assertEqual(harness, cfg.provider)
+                self.assertEqual(module.DEFAULT_EXECUTABLES[harness], cfg.executable)
 
         with self.assertRaisesRegex(module.ProviderLocalConfigError, "unknown harness"):
-            module.default_provider_config("unknown-harness")
+            module.default_provider_model_config("unknown-harness")
+
+    def test_provider_model_config_dataclass(self):
+        module = self.provider_config()
+        cfg = module.ProviderModelConfig("claude", "claude")
+        self.assertEqual("claude", cfg.provider)
+        self.assertEqual("claude", cfg.executable)
 
 
 if __name__ == "__main__":

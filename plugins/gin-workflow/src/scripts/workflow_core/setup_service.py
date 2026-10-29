@@ -23,7 +23,7 @@ from .migrations import (
     rollback_migration,
 )
 from .executable_resolver import resolve_harness_executable
-from .provider_config import DEFAULT_HARNESS_MODELS
+from .provider_config import DEFAULT_EXECUTABLES
 from .notify import credentials_warning
 from . import agents_block
 from . import orchestrator_client
@@ -434,8 +434,8 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
 
     h = effective_cfg.get("harness") or detect(root).get("harness")
     h_exe = None
-    if h and h in DEFAULT_HARNESS_MODELS:
-        h_exe = resolve_harness_executable(DEFAULT_HARNESS_MODELS[h]["executable"], provider=h)
+    if h and h in DEFAULT_EXECUTABLES:
+        h_exe = resolve_harness_executable(DEFAULT_EXECUTABLES[h], provider=h)
     checks["harness"] = bool(h_exe)
     checks_details["harness"] = {"name": h, "executable": h_exe}
     if not h_exe:
