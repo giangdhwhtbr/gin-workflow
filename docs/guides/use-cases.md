@@ -1,4 +1,4 @@
-# Use Cases
+# Use cases
 
 Four common situations and the path through the workflow for each. Commands are shown as Claude Code slash commands (`/gin-workflow:<skill>`); Codex uses `$gin-workflow:<skill>`.
 
@@ -7,7 +7,7 @@ Four common situations and the path through the workflow for each. Commands are 
 A typo, a copy change, a one-file fix with an obvious test.
 
 1. `/gin-workflow:quick <what to change>`: the agent restates the change in a few lines and waits for your confirmation.
-2. It runs `gin-workflow quick-check` with its estimate of files and modules. `escalate` or `refused` means the full lifecycle (below) is needed.
+2. It runs `gin-workflow quick-check` with its estimate of files and modules. `escalate` means the change exceeds the quick limits; use the full lifecycle (below). `refused` comes only under `strict` rigor: use the full lifecycle, or waive `requirement_confirmed` with `gin-workflow unblock` to use `/quick`.
 3. It implements (test first when behavior changes), runs the verify commands for your rigor, reviews (self check under `easy`, independent otherwise), and records `quick-completed`.
 4. You review the diff and commit.
 
@@ -31,11 +31,11 @@ A feature or migration that splits into dependent tracks, for example CSV export
 
 1. `/gin-workflow:discuss` produces the confirmed spec.
 2. `/gin-workflow:plan` gives each track its files, interfaces, test-first steps, a provider role (`backend` for A and B, `frontend` for C), and a reasoning tier.
-3. `/gin-workflow:orchestrate` resolves every route before creating anything, then creates the epic, three track tasks, their dependencies, and the worktree.
+3. `/gin-workflow:orchestrate` creates the epic and three track tasks, then resolves every route and writes the assignment manifest only when all tracks resolve. It then adds the dependencies and creates the worktree.
 4. `/gin-workflow:execute` per ready track: A first; closing A makes B ready, and so on. Each track is reviewed independently before it closes.
 5. `/gin-workflow:ship` checks every ledger and any changes after review (the quality gates already ran in the git hooks), then merges or opens the pull request with your approval.
 
-Routes to other harnesses need the [gin-orchestrator](../orchestrator/README.md) extension; without it every track runs on the main harness. If a route is unavailable the task stays open; fallback never lowers the reasoning tier. If orchestration reports an unresolved role or tier, it creates nothing until the plan or `.agent-workflow/orchestrator.local.yaml` is fixed.
+Routes to other harnesses need the [gin-orchestrator](../orchestrator/README.md) extension; without it every track runs on the main harness. If a route is unavailable the task stays open; fallback never lowers the reasoning tier. If route resolution reports an unresolved role or tier, it writes no manifest until the plan or `.agent-workflow/orchestrator.local.yaml` is fixed; the beads stay.
 
 ## Resume in-progress work
 
@@ -46,4 +46,4 @@ A session, provider, or machine stopped before the work reached a terminal state
 3. `/gin-workflow:workflow` routes to exactly one stage. Once every track is closed it selects `ship`, which fails closed when a ledger lacks terminal approval.
 4. Continue from the stage it names.
 
-When the state is held, `gin-workflow state` lists the remedies: clear a blocker, waive a process gate with a reason, or fix the missing configuration through `/setup`. Never delete a worktree to mark work done, edit runtime caches, or bypass `bd`.
+When the state is held, `gin-workflow state` lists the remedies: clear a blocker, waive a process gate with a reason, or fix the missing configuration through `/setup`. A leftover worktree or runtime cache is [runtime metadata](../concepts/state-model.md#runtime-metadata), not state, so do not use either to mark work done.

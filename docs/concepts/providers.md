@@ -4,11 +4,11 @@ The harness you open (the main harness) plans, coordinates, and does the work: C
 
 ## Capabilities
 
-Skills work through provider-neutral capabilities, each with health and capability metadata. A disabled capability holds the workflow at `progress` instead of being bypassed.
+Skills work through the provider-neutral capabilities below.
 
 | Capability | Covers |
 |---|---|
-| Task tracking | task identity, dependencies, readiness, claims, blockers, closure: through `gin-workflow task`, which runs Beads (`bd`) or, with `providers.task_tracking: markdown`, local Markdown files under `.planning/tasks/`; never by editing `.beads/` directly |
+| Task tracking | task identity, dependencies, readiness, claims, blockers, closure: through `gin-workflow task`, which serves local Markdown files under `.planning/tasks/` or, with `providers.task_tracking: beads`, runs Beads (`bd`); never by editing `.beads/` directly |
 | Workspace | isolation (worktrees) and cleanup metadata |
 | Worker dispatch | other harnesses only, through gin-orchestrator: resolve role and reasoning, dispatch, cancel, report status, collect results ([Orchestrator](../orchestrator/README.md)) |
 | Review | request review, terminal review state, findings |
@@ -22,16 +22,16 @@ Selecting a provider never authorizes a lifecycle transition; gates and approval
 
 Every implementation or review track in a plan names:
 
-- a **provider role**: a responsibility such as `backend`, `frontend`, `docs`, `review`, or `general`, configured under `routing.roles`;
-- a **reasoning tier**: `low` (mechanical edits, simple docs), `medium` (normal implementation), or `high` (architecture, security, migration, concurrency).
+- a provider role: a responsibility such as `backend`, `frontend`, `docs`, `review`, or `general`, configured under `routing.roles`;
+- a reasoning tier: `low` (mechanical edits, simple docs), `medium` (normal implementation), or `high` (architecture, security, migration, concurrency).
 
 Plans may also give model guidance as abstract classes: `high_reasoning`, `standard_impl` (the default), `cheap_simple`. A plan never names a concrete model. Without gin-orchestrator every role resolves to the main harness (`preferred: [main_harness]`), which uses its own models, and `gin-workflow routes resolve` writes the assignment manifest `.agent-workflow/runtime/assignments/<workflow>.yaml`, which is runtime metadata, not plan or task data. Concrete executables and a model per tier for other harnesses live only in `.agent-workflow/orchestrator.local.yaml` ([Configuration](../reference/config.md#orchestratorlocalyaml)).
 
-`orchestrate` resolves the whole batch of tracks before it writes anything durable; if any track cannot be resolved, every diagnostic is reported and nothing is created. `main_harness` means the harness that opened the workflow, or the session override (`gin-workflow setup harness-override --harness <name>`, or `GIN_WORKFLOW_HARNESS_OVERRIDE`).
+`gin-workflow routes resolve` resolves the whole batch of tracks at once. If any track cannot be resolved, it reports every diagnostic, exits 2, and writes no manifest; the track beads `orchestrate` already created stay. `main_harness` means the configured `harness`, or the session override (`gin-workflow setup harness-override --harness <name>`, or `GIN_WORKFLOW_HARNESS_OVERRIDE`).
 
 ## Independent review
 
-Review goes through `routing.review`. In single-harness mode (`provider_mode: single`, the default) `independence` is `session`: a fresh session of the main harness reviews with a clean context and a different actor id, and the implementer's session never reviews its own work. `independence: provider`, which sends the review to a different harness than the implementer's, needs gin-orchestrator; without it review falls back to `session` with a warning. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts. The reviewer's tier follows the track's reasoning; a `low` track whose diff changes more than documentation is reviewed at `medium`. `gin-workflow reviewer` computes the tier and the route order for the `review` skill.
+Review goes through `routing.review`. In single-harness mode (`provider_mode: single`, the default) `independence` is `session`. A fresh session of the main harness reviews with a clean context and a different actor id, and the implementer's session never reviews its own work. `independence: provider`, which sends the review to a different harness than the implementer's, needs gin-orchestrator; without it review falls back to `session` with a warning. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts. The reviewer's tier follows the track's reasoning; a `low` track whose diff changes more than documentation is reviewed at `medium`. `gin-workflow reviewer` computes the tier and the route order for the `review` skill.
 
 A reviewer starts with a fresh, bounded context: the diff, the confirmed requirement, acceptance criteria, test evidence, and the `gin-workflow rules` output for the reviewed files. It excludes self-assessment, persuasive summaries, and unrelated history.
 

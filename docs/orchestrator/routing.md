@@ -1,4 +1,4 @@
-# Routing and Configuration
+# Routing and configuration
 
 This page is part of the [gin-orchestrator](README.md) guide. It covers how roles and reasoning tiers become harnesses and models. Everything here applies only when gin-orchestrator is installed and `provider_mode: multi` is set; otherwise every route is the main harness.
 

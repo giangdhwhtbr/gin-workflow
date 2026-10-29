@@ -1,6 +1,6 @@
 # Gin Workflow (`gin-workflow`)
 
-A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and **OpenCode** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Tasks are tracked in local Markdown files or, optionally, in Beads; every track gets an independent review, and nothing is merged without your approval. A `/quick` path handles small changes.
+A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and **OpenCode** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Tasks are tracked in local Markdown files or, optionally, in Beads. Tracks get an independent review at `standard` and `strict` rigor, and nothing is merged without your approval. A `/quick` path handles small changes.
 
 ## Documentation
 
@@ -18,11 +18,11 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 
 ## Installation
 
-### 1. Dependencies
+### Dependencies
 
 | Need | For | Install |
 |---|---|---|
-| Python 3 with PyYAML | the `gin-workflow` CLI | `python3 -m pip install PyYAML` |
+| Python 3.11 or later with PyYAML | the `gin-workflow` CLI | `python3 -m pip install PyYAML` |
 | git | branches, worktrees, review checkpoints | your package manager |
 | jq, optional | the safety hook's JSON parsing; without it the hook uses `python3` | `brew install jq`, `apt install jq`, or `winget install jqlang.jq` |
 | Git Bash (Windows only) | the `.sh` hook scripts | [Git for Windows](https://gitforwindows.org/) or `winget install Git.Git` |
@@ -33,9 +33,9 @@ Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) f
 
 Then, in each repository, run `/gin-workflow:setup` once ([getting started](docs/getting-started.md)); if you chose Beads, run `bd init` first.
 
-### 2. The plugin
+### The plugin
 
-Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). The installer links it; a marketplace install alone does not ([fix](docs/reference/troubleshooting.md#gin-workflow-is-not-on-path-after-a-marketplace-install)).
+Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). The installer links it; a marketplace install alone does not ([fix](docs/reference/troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install)).
 
 **Any harness, with the launcher** (clones this repository and runs `install.sh`):
 
@@ -59,9 +59,9 @@ codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
 codex plugin add gin-workflow@gin-workflow-marketplace
 ```
 
-Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either — the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
+Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
 
-GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot hosts the skills only; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator), and the safety hook does not run in Copilot ([troubleshooting](docs/reference/troubleshooting.md#github-copilot-cli)).
+GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety and post-edit hooks, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hooks need `bash` and find their scripts only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-workflow-pathscriptssafety-checksh-not-found-hook-skipped)).
 
 ## Extensions
 

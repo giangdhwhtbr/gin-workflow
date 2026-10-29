@@ -1,10 +1,10 @@
-# Recommended Tools
+# Recommended tools
 
-gin-workflow runs with only the [required dependencies](../../README.md#1-dependencies). The tools below are optional; each one improves a specific part of the workflow, and everything falls back cleanly without them.
+gin-workflow runs with only the [required dependencies](../../README.md#dependencies). The tools below are optional, and each part of the workflow has a fallback without them.
 
 ## CodeGraph
 
-[CodeGraph](https://github.com/colbymchenry/codegraph) indexes a repository into a local graph of symbols, call edges, and files. One `codegraph explore "<symbols or question>"` returns the relevant source plus the call paths between them, replacing a loop of grep and file reads. gin-workflow agents use it when the repository has a `.codegraph/` index and fall back to grep and read otherwise.
+[CodeGraph](https://github.com/colbymchenry/codegraph) indexes a repository into a local graph of symbols, call edges, and files. One `codegraph explore "<symbols or question>"` returns the relevant source and the call paths between them, in place of a loop of grep and file reads. gin-workflow agents use it when the repository has a `.codegraph/` index and fall back to grep and read otherwise.
 
 ### Install
 
@@ -21,8 +21,8 @@ Check with `codegraph --version`.
 
 ### Configure
 
-- **Index each repository** once with `codegraph init` in its root. On a brownfield or legacy repository, `/gin-workflow:setup` offers to run it for you. The index lives in `.codegraph/`; add `.codegraph/` to the repository's `.gitignore`, because git otherwise lists the folder as untracked.
-- **Optional MCP server:** `codegraph install` adds CodeGraph's MCP tools to Claude Code, Codex, and other supported agents (one global run covers every project). gin-workflow's skills call the `codegraph` CLI, so the MCP server is not required; it adds a file watcher that keeps the index current while you edit.
+- Index each repository once with `codegraph init` in its root. On a brownfield or legacy repository, `/gin-workflow:setup` offers to run it for you. The index lives in `.codegraph/`. Add `.codegraph/` to the repository's `.gitignore`; otherwise git lists the folder as untracked.
+- Optionally, `codegraph install` adds CodeGraph's MCP tools to Claude Code, Codex, and other supported agents; one global run covers every project. gin-workflow's skills call the `codegraph` CLI, so the MCP server is not required. It adds a file watcher that keeps the index current while you edit.
 
 ### Where gin-workflow uses it
 

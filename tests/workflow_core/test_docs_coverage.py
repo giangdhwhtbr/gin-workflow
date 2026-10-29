@@ -15,6 +15,23 @@ LINK = re.compile(r"\]\(([^)\s]+)\)")
 MERMAID = re.compile(r"```mermaid\n(\S+)")
 BEADS_DEFAULT = re.compile(r"(?i)beads[^.\n]{0,40}\b(default|required)\b|\b(default|required)\b[^.\n]{0,40}beads")
 TYPES = {"flowchart", "graph", "sequenceDiagram", "stateDiagram-v2", "stateDiagram", "classDiagram", "erDiagram"}
+STYLE_RULES = (("dash", re.compile("[\u2013\u2014]")),
+               ("bold-label item", re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\*\*")),
+               ("emoji", re.compile("[\U0001F300-\U0001FAFF\u2600-\u27BF\u2B50\u2B55\uFE0F]")),
+               ("numbered heading", re.compile(r"^#{1,6}\s+\d")))
+STYLE_EXEMPT = {"docs/presentations/brownfield-modernization-script.md"}  # headings map to slide numbers
+
+
+def style_violations(text: str) -> list[str]:
+    """Mechanical docs-pack rules outside fenced code blocks, as '<line>: <rule>'."""
+    found, fenced = [], False
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced:
+            found += [f"{number}: {name}" for name, pattern in STYLE_RULES if pattern.search(line)]
+    return found
 
 
 def pages() -> list[Path]:
@@ -74,6 +91,19 @@ class DocsCoverageTests(unittest.TestCase):
                for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
                if "telegram.sh" in line or "telegram-notify" in line]
         self.assertEqual(bad, [])
+
+    def test_style_check_catches_each_rule(self):
+        sample = ("# Title\n## 2. Step\n- **Label:** text\n1. **Bold** start\n"
+                  "A \u2014 dash\nDone \u2705\n```\n## 3. In code\n```\n")
+        self.assertEqual(["2: numbered heading", "3: bold-label item", "4: bold-label item", "5: dash", "6: emoji"],
+                         style_violations(sample))
+
+    def test_pages_follow_the_mechanical_style_rules(self):
+        problems = [f"{page.relative_to(ROOT).as_posix()}:{found}"
+                    for page in [ROOT / "README.md", *sorted(DOCS.rglob("*.md"))]
+                    if page.relative_to(ROOT).as_posix() not in STYLE_EXEMPT
+                    for found in style_violations(page.read_text(encoding="utf-8"))]
+        self.assertEqual(problems, [])
 
 
 if __name__ == "__main__":

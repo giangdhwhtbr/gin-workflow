@@ -1,72 +1,63 @@
 # Using gin-workflow on Windows
 
-This guide covers native installation, configuration, and day-to-day usage of `gin-workflow` on **Windows 10 / Windows 11**.
+This guide covers native installation, configuration, and daily use of `gin-workflow` on Windows 10 and Windows 11.
 
----
+## Prerequisites
 
-## 1. Prerequisites
-
-### A. PowerShell 7+
-Install modern PowerShell (pwsh) rather than Windows PowerShell 5.1:
+### PowerShell 7
+`install.ps1` requires PowerShell 7 (`#requires -Version 7.0`), so install `pwsh` instead of Windows PowerShell 5.1:
 ```powershell
 winget install Microsoft.PowerShell
 ```
 
-### B. Python 3.10+
-Install Python from python.org or via winget:
+### Python 3.11
+
+Install Python 3.11 or later from python.org or with winget. `rules_checks.py` imports `tomllib`, which exists from 3.11, and `setup preset` and `setup doctor` load it. The launcher shim calls `python`, so it must be on `PATH`:
 ```powershell
 winget install Python.Python.3.12
 ```
-Ensure PyYAML is installed:
+Install PyYAML, which the CLI needs to read its configuration:
 ```powershell
 pip install pyyaml
 ```
 
-### C. Git for Windows
-Install Git with symlink support enabled:
+### Git for Windows
+Install Git:
 ```powershell
 winget install Git.Git
 ```
 
----
+## Environment configuration
 
-## 2. Environment Configuration
+### Developer Mode
 
-### A. Enable Developer Mode (Recommended for Symlinks)
-`gin-workflow` and `git worktrees` use symbolic links. On Windows, creating symlinks without administrator privileges requires Developer Mode:
+Only `install.ps1 -Link` creates symbolic links. Creating them without administrator privileges requires Developer Mode:
 1. Open **Windows Settings** (`Win + I`).
-2. Navigate to **System** $\rightarrow$ **For developers**.
+2. Go to **System**, then **For developers**.
 3. Toggle **Developer Mode** to **On**.
 
-Then configure Git to allow symlinks globally:
-```powershell
-git config --global core.symlinks true
-```
-
-### B. PowerShell Execution Policy
-Allow executing signed or local scripts in PowerShell:
+### Execution policy
+Allow local scripts to run in PowerShell:
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-### C. Line Endings (CRLF vs LF)
-The repository includes `.gitattributes` to enforce `LF` for repository files. If configuring Git globally:
+### Line endings
+The repository's `.gitattributes` sets `LF` for repository files and `CRLF` for `*.ps1`, `*.bat`, and `*.cmd`. To stop Git from converting line endings globally:
 ```powershell
 git config --global core.autocrlf false
 ```
 
----
+## Installation
 
-## 3. Installation
+Run `install.ps1` from the root of the cloned `gin-workflow` repository:
 
-Run the native PowerShell installer `install.ps1` from the root of the cloned `gin-workflow` repository:
-
-### Install for all AI harnesses (Claude, Antigravity, Copilot, Codex, OpenCode):
+### Install for all platforms (Claude, Antigravity, Copilot, Codex, OpenCode)
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Platform all
 ```
 
-### Install for a specific platform:
+### Install for one platform
 ```powershell
 # For Claude Code
 pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Platform claude
@@ -78,39 +69,31 @@ pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Platform antigravity
 pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Platform copilot
 ```
 
-### Install project-local into the current repository:
+### Install into the current repository
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Project .
 ```
 
----
-
-## 4. Task Tracking on Windows
+## Task tracking
 
 `gin-workflow` supports two task tracking backends:
 
-1. **Markdown (Default, Recommended for Windows)**:
-   - Zero dependencies. Tasks and epics are stored as `.planning/tasks/*.md`.
-   - Selected automatically during `/gin-workflow:setup` when `bd` is not installed.
+1. Markdown, the default. It needs no extra tools and stores tasks and epics as `.planning/tasks/*.md`. `/gin-workflow:setup` asks which backend to use and proposes Markdown by default.
+2. Beads (`bd`). Install the `bd` and `dolt` binaries for Windows and put them on `PATH`.
 
-2. **Beads (`bd`)**:
-   - If you prefer Beads, install `bd` and `dolt` binaries for Windows and ensure they are on your system `PATH`.
+## Daily use
 
----
+Inside your AI harness (Claude Code, Antigravity, and others), use the slash commands:
 
-## 5. Daily Usage & Lifecycle Commands
+- `/gin-workflow:setup`: initialize `.agent-workflow/config.yaml`.
+- `/gin-workflow:discuss`: discover requirements and write the spec.
+- `/gin-workflow:plan`: turn specs into implementation plans.
+- `/gin-workflow:orchestrate`: create worktrees and initialize tasks.
+- `/gin-workflow:execute`: implement changes and verify them with tests.
+- `/gin-workflow:review`: run independent review cycles.
+- `/gin-workflow:ship`: close out tasks and merge.
 
-Inside your AI harness (Claude Code, Antigravity, etc.), use slash commands normally:
-
-- `/gin-workflow:setup` — Initialize `.agent-workflow/config.yaml`.
-- `/gin-workflow:discuss` — Requirement discovery and spec authoring.
-- `/gin-workflow:plan` — Decompose specs into implementation plans.
-- `/gin-workflow:orchestrate` — Worktree and task initialization.
-- `/gin-workflow:execute` — Implement changes with test verification.
-- `/gin-workflow:review` — Independent review cycles.
-- `/gin-workflow:ship` — Close out tasks and merge.
-
-From PowerShell terminal, you can interact directly with the CLI:
+From a PowerShell terminal, call the CLI directly:
 ```powershell
 # Check current workflow state
 gin-workflow state
@@ -122,26 +105,26 @@ gin-workflow record requirement-confirmed --evidence "docs/specs/my-feature.md" 
 gin-workflow task list
 ```
 
----
+## Verifying the installation
 
-## 6. Verifying Your Installation
-
-Run the automated smoke test script to verify that installation, launchers, and CLI tools work cleanly on your machine:
+Run the smoke test to check the installation, launchers, and CLI:
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\tests\install_smoke_test.ps1
 ```
 
-All assertions should pass with zero exit code.
+A passing run exits with code 0.
 
----
+## Troubleshooting
 
-## 7. Troubleshooting
+### `PermissionError: [WinError 32]` or `[WinError 5]`
 
-- **`PermissionError: [WinError 32]` or `[WinError 5]`**:
-  - `gin-workflow` includes built-in retry logic for file locks and atomic file replacement on Windows.
-  - If Windows Defender or an enterprise antivirus causes slow scans during test execution, consider adding a folder exclusion for your repository's `.planning/worktrees/` directory in Windows Security.
-- **`EventPersistenceError: event persistence requires POSIX or Windows advisory file locking`**:
-  - Make sure you are running a supported CPython release where the standard library module `msvcrt` is available.
-- **Symlink creation errors (`OSError: [WinError 1314]`)**:
-  - Verify that **Developer Mode** is turned ON in Windows Settings, or run PowerShell as Administrator.
+`gin-workflow` retries file locks and atomic file replacement on Windows (`workflow_core/atomic.py`). If Windows Defender or another antivirus slows test runs, add a folder exclusion for the repository's `.planning/worktrees/` directory in Windows Security.
+
+### `EventPersistenceError: cannot lock ...: file locking requires POSIX or Windows advisory file locking`
+
+Run a CPython build that provides the standard library module `msvcrt`.
+
+### `OSError: [WinError 1314]` when creating a symlink
+
+Turn on Developer Mode in Windows Settings, or run PowerShell as Administrator. Only `install.ps1 -Link` creates symlinks.
