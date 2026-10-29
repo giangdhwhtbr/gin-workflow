@@ -9,7 +9,7 @@ from .models import ArtifactRegistry, EffectiveConfig
 
 
 ARTIFACT_NAMES = frozenset(
-    {"plans", "beads", "worktrees", "knowledge", "evidence", "runtime"}
+    {"plans", "beads", "knowledge", "evidence", "runtime"}
 )
 
 

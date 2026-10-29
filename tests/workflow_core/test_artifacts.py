@@ -18,7 +18,6 @@ class ArtifactTests(unittest.TestCase):
             configured = {
                 "plans": "custom/plans",
                 "beads": "state/beads",
-                "worktrees": "isolated/trees",
                 "knowledge": "/shared/knowledge",
                 "evidence": "audit/evidence",
                 "runtime": "runtime/state",
@@ -36,6 +35,16 @@ class ArtifactTests(unittest.TestCase):
                     expected = repository / expected
                 self.assertEqual(expected, resolve_artifact(config, name))
                 self.assertFalse(expected.exists())
+
+    def test_registry_builds_from_built_in_defaults_without_worktrees(self):
+        from workflow_core.configuration import BUILT_IN_DEFAULTS
+        from workflow_core.artifacts import build_artifact_registry
+
+        with tempfile.TemporaryDirectory() as directory:
+            config = EffectiveConfig(data=BUILT_IN_DEFAULTS, repository_root=Path(directory))
+            registry = build_artifact_registry(config)
+            self.assertNotIn("worktrees", registry.paths)
+            self.assertIn("plans", registry.paths)
 
     def test_missing_or_unknown_artifact_is_an_error_without_legacy_guessing(self):
         with tempfile.TemporaryDirectory() as directory:
