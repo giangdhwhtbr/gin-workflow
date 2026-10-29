@@ -178,7 +178,14 @@ PYEOF
 template_agents_for_claude() {
   local src="$1"
   local dest="$2"
-  sed -e 's/"view_file"/"Read"/g'               -e 's/"grep_search"/"Grep"/g'               -e 's/"list_dir"/"Glob"/g'               -e 's/"search_web"/"WebSearch"/g'               -e 's/"run_command"/"Bash"/g'               "$src" > "$dest"
+  sed -e 's/"view_file"/"Read"/g' \
+      -e 's/"grep_search"/"Grep"/g' \
+      -e 's/"list_dir"/"Glob"/g' \
+      -e 's/"search_web"/"WebSearch"/g' \
+      -e 's/"run_command"/"Bash"/g' \
+      -e 's/"replace_file_content"/"Edit"/g' \
+      -e 's/"write_to_file"/"Write"/g' \
+      "$src" > "$dest"
 }
 
 template_hooks_for_claude() {

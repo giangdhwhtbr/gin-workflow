@@ -1,7 +1,7 @@
 ---
 name: agent-researcher
 description: Investigates requirements, patterns, references, or implementation options and produces evidence suitable for planning.
-tools: ["view_file", "grep_search", "list_dir", "search_web"]
+tools: ["view_file", "grep_search", "list_dir", "search_web", "run_command"]
 ---
 
 # Agent Researcher
@@ -29,6 +29,7 @@ Before researching:
 5. Verify negative claims with authoritative sources before presenting them as facts.
 6. Do not recommend stack migrations unless the caller explicitly asks for migration research.
 7. Do not read or expose secret values.
+8. Run only read-only commands: `git log`, `git show`, `--help`, and `codegraph`. Do not run mutating commands, scripts, builds, or tests.
 
 ## Output
 
