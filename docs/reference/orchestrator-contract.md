@@ -53,25 +53,25 @@ An unknown provider prints `[]`.
 routes resolve --workflow-id W --tracks FILE --main-harness H [--repository DIR] --json
 ```
 
-`FILE` is a JSON list of tracks, each with `task_id`, `provider_role`, and `reasoning`. The command resolves every track against `orchestrator.roles` (merged over `routing.roles`) and `.agent-workflow/orchestrator.local.yaml`. It writes nothing; gin-workflow writes the assignment manifest.
+`FILE` is a JSON list of tracks, each with `task_id`, `provider_role`, `model`, and `effort`, the same fields as for [`gin-workflow routes resolve`](cli.md#gin-workflow-routes). The command checks every model and effort against the catalog of `--main-harness`. It then resolves every track against `orchestrator.roles` (merged over `routing.roles`) and the executables in `.agent-workflow/orchestrator.local.yaml`. A candidate on the main harness keeps the track's route; any other candidate gets it mapped by rank ([rank mapping](../orchestrator/routing.md#rank-mapping)). It writes nothing; gin-workflow writes the assignment manifest.
 
 ```json
 {"workflow_id": "W", "main_harness": "H", "routes": [], "diagnostics": []}
 ```
 
-Each entry of `routes` is the assignment manifest entry of one track (`task_id`, `requested`, `resolved`, `fallback`). A track that cannot be resolved adds a string to `diagnostics` (`<task_id>.<field>: <message>`) and `routes` is then `[]`. The exit code stays 0: a non-zero exit means the orchestrator itself failed, and gin-workflow then falls back to the main harness. `gin-workflow routes resolve` exits 2 when `diagnostics` is not empty.
+Each entry of `routes` is the assignment manifest entry of one track (`task_id`, `requested`, `resolved`, `fallback`, `escalations`). A track that cannot be resolved adds a string to `diagnostics` (`<task_id>.<field>: <message>`) and `routes` is then `[]`. The exit code stays 0: a non-zero exit means the orchestrator itself failed, and gin-workflow then falls back to the main harness. `gin-workflow routes resolve` exits 2 when `diagnostics` is not empty.
 
 ## `reviewer`
 
 ```
-reviewer --base B --implementer P [--tier {low,medium,high}] [--repository DIR] --json
+reviewer --base B --implementer P --model M [--effort E] [--repository DIR] --json
 ```
 
 ```json
 [{"provider": "codex", "model": "...", "effort": null, "actor_id": "reviewer:codex"}]
 ```
 
-The routes of the role named by `routing.review.role`, in order. `--tier` defaults to `medium`. Routes on the implementer's provider are dropped when three conditions hold: `routing.review.independence` is not `session`, `require_independent` is not false, and the tier is above `low`. If none are left, all candidates are used when `allow_self_review_fallback` is true, otherwise the list is `[]`. `actor_id` is `reviewer:<provider>`, plus `:session-<8 hex>` when the provider is the implementer's.
+The routes of the role named by `routing.review.role`, in order. `--model` and `--effort` are the implementer's final route in the implementer's catalog. A route on the implementer's provider keeps it; every other provider gets it mapped by rank from the implementer's catalog. Routes on the implementer's provider are dropped when three conditions hold: `routing.review.independence` is not `session`, `require_independent` is not false, and the tier of `--model` in the implementer's catalog is above `low` ([tiers](../orchestrator/routing.md#configuration)). If none are left, all candidates are used when `allow_self_review_fallback` is true, otherwise the list is `[]`. `actor_id` is `reviewer:<provider>`, plus `:session-<8 hex>` when the provider is the implementer's.
 
 ## `doctor`
 
@@ -80,10 +80,10 @@ doctor [--repository DIR] --json
 ```
 
 ```json
-{"providers": {"codex.low": {"available": true, "reason": "ready"}}}
+{"providers": {"codex.gpt-6-astra": {"available": true, "reason": "ready"}}}
 ```
 
-The provider report with model probes: one entry per mapped provider and tier, plus missing mappings and executables.
+The provider report with model probes: one `<provider>.<model>` entry per model in the catalog of each mapped provider, plus `<provider>.mapping` for a missing mapping and `<provider>.executable` for a missing executable. An invalid `orchestrator.local.yaml` adds `providers_config` (`{"valid": false, "error"}`).
 
 ## `configure`
 
@@ -103,7 +103,7 @@ Errors exit 2 with `error: <message>` on stderr, except the launcher's own three
 
 - `error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator`
 - `error: gin-workflow paths failed; reinstall with ./install.sh --plugin gin-orchestrator`
-- `error: gin-workflow facade EXT_VERSION <n>; this gin-orchestrator supports 1`
+- `error: gin-workflow facade EXT_VERSION <n>; this gin-orchestrator supports 2`
 
 ## Lookup and mismatch rule
 

@@ -4,7 +4,7 @@ gin-workflow runs the whole lifecycle in the harness you open (the main harness)
 
 ## What it adds
 
-- Routing of roles to harnesses: a plan names a role and a reasoning tier, never a harness or model. gin-orchestrator resolves each pair to an ordered list of harnesses and models ([Routing](routing.md)).
+- Routing of roles to harnesses: a plan names a role and a model and effort from the main harness's catalog, never a harness. gin-orchestrator resolves each track to an ordered list of harnesses, each at that route mapped by rank into its own catalog ([Routing](routing.md)).
 - Dispatch of workers on those harnesses, with health checks, fallback, a circuit breaker, and capacity limits.
 - Provider independence for review: the reviewer runs on a different harness than the implementer.
 - Provider health and model checks in `gin-workflow setup doctor --probe` and `setup models`.
@@ -31,7 +31,7 @@ In `multi` mode without gin-orchestrator, or when it fails, `gin-workflow` resol
 
 ## When to use workers
 
-Execution runs directly in the session for sequential plans and three or fewer tasks. Workers are for more than three parallel tasks, long-running or specialized work, or independent review. They also let simple tracks use cheaper models and architecture or security tracks use stronger ones.
+`execute` spawns a subagent for every track, on the main harness unless a role routes the track elsewhere. Worker harnesses suit parallel tracks, long-running or specialized work, and provider-independent review. Routes map by rank, so a track planned at the weakest of several main-harness models runs at the weakest model of its worker harness.
 
 ## Dispatch and fallback
 
@@ -41,9 +41,9 @@ At dispatch, `RoutedWorkerDispatcher` rechecks each candidate in order:
 2. Circuit breaker: infrastructure failures (quota, rate limit, authentication, service, timeout, crash, invalid model) count against a provider and model. At `circuit_breaker.failure_threshold` the circuit opens for `cooldown_seconds`, then allows `half_open_max_probes` trial runs. Task, test, review, and invalid-result failures do not count against the provider.
 3. Capacity: at most `concurrency.<provider>` workers at once; a task waits up to `queue.max_wait_seconds`.
 
-Fallback keeps the requested reasoning tier; it never downgrades. When no route is left before the queue deadline, the worker returns `worker_routes_unavailable` and the task stays open. A retry reuses the same identity, and a completed task is never dispatched again. The actual route, any fallback reason, and circuit transitions are recorded as runtime events.
+Fallback keeps the route's rank: every candidate runs the plan's model and effort mapped into its own catalog. Escalation (`gin-workflow routes dispatch --escalate`) moves up the catalog of the track's resolved harness. When no route is left before the queue deadline, the worker returns `worker_routes_unavailable` and the task stays open. A retry reuses the same identity, and a completed task is never dispatched again. The actual route, any fallback reason, and circuit transitions are recorded as runtime events.
 
-For Antigravity and OpenCode, a tier may be `provider_default`: the manifest records the provider and omits a model, and the CLI uses its own default. An OpenCode tier can also be a verbatim `provider/model` or `provider/model#variant` string.
+For Antigravity and OpenCode, a catalog model may be `provider_default`, which is their built-in catalog: the manifest records the provider and omits a model, and the CLI uses its own default. An OpenCode catalog model is passed verbatim to `--model`, so it can be a `provider/model` or `provider/model#variant` string.
 
 OpenCode has no sandbox. Its adapter runs `opencode run --standalone --auto --format json` in the track workspace (it has no `--cd`); `--auto` auto-approves permissions, so isolation relies on the worktree and working directory, the same trade-off as Codex's `--dangerously-bypass-approvals-and-sandbox`.
 
@@ -53,7 +53,7 @@ With `routing.review.independence: provider` and gin-orchestrator, the reviewer'
 
 ## Worker context and results
 
-A worker receives only what its task needs: the task and its dependency state, the approved file scope, validation intent, objective, constraints, isolation policy, expected output, workflow and retry identities, provider role, and reasoning tier. It never receives the parent transcript, private reasoning, secrets, or the concrete provider and model (the native adapter adds those at the process boundary). Missing required context fails as `context_unavailable` before dispatch.
+A worker receives only what its task needs: the task and its dependency state, the approved file scope, validation intent, objective, constraints, isolation policy, expected output, workflow and retry identities, provider role, and the requested `model` and `effort`, in a payload with `schema_version` `2.4`. It never receives the parent transcript, private reasoning, secrets, or the provider. The native adapter starts the CLI at the candidate's mapped model and effort; Codex gets the effort as `-c model_reasoning_effort=<effort>`. Missing required context fails as `context_unavailable` before dispatch.
 
 A result reports `status`, `task_id`, `summary`, `changed_files`, `commits`, `tests`, `evidence`, `blockers`, and optional `knowledge_candidates`; a malformed or mismatched result fails as `invalid_result_contract`. Worker events run `worker.requested`, any `worker.unavailable` route decisions, `worker.assigned`, `worker.started`, `worker.context_loaded`, `worker.progress_updated`, then `worker.completed`, `worker.failed`, or `worker.cancelled`.
 

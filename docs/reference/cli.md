@@ -47,7 +47,7 @@ Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a requ
 gin-workflow state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 ```
 
-Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, or `waived(<reason>)`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), and the last five `recent_quick` runs.
+Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, or `waived(<reason>)`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), and the last five `recent_quick` runs.
 
 `--workflow-id` defaults to `default-workflow`. Use one id per feature (for example the spec's topic slug) so gates from different features do not mix.
 
@@ -179,22 +179,36 @@ Exit codes: install 0 installed or chained, 1 occupied, 2 hooks directory missin
 ## `gin-workflow reviewer`
 
 ```
-gin-workflow reviewer --base SHA --implementer PROVIDER [--tier low|medium|high] [--repository DIR] [--json]
+gin-workflow reviewer --base SHA --implementer PROVIDER --model MODEL [--effort EFFORT] [--repository DIR] [--json]
 ```
 
-Called by the `review` skill to pick the reviewer; you do not need to run it. Prints the review tier and the reviewer routes in order. `--tier` is the track's reasoning (default `medium`); a `low` track whose diff since `--base` changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) is reviewed at `medium`. The reviewer runs on the main harness at the tier's default model: `actor_id` is `reviewer:<harness>`, or `reviewer:<harness>:session-<id>` (a fresh session) when the harness is also the implementer. `routing.review.independence: provider` adds a warning, because only gin-orchestrator can route the review to another harness. With `--json`, prints the route document `{"tier", "reason", "warnings", "routes": [{"provider", "model", "effort", "actor_id"}]}`.
+Called by the `review` skill to pick the reviewer; you do not need to run it. `--model` and `--effort` are the implementer's final route, including any escalation, in the implementer's [catalog](config.md#models); a value outside that catalog exits 2. A diff since `--base` that changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) raises the weakest model of a multi-model catalog to the next one. `reason` then reads `non-docs files changed`.
 
-Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, or an empty route list from gin-orchestrator.
+Without gin-orchestrator the reviewer runs on the main harness. It keeps the route when the main harness is the implementer; otherwise it gets the route mapped by rank from the implementer's catalog ([rank mapping](../orchestrator/routing.md#rank-mapping)). `actor_id` is `reviewer:<harness>`, or `reviewer:<harness>:session-<id>` (a fresh session) when the harness is also the implementer. `routing.review.independence: provider` adds a warning, because only gin-orchestrator can route the review to another harness. Always prints the route document `{"model", "effort", "reason", "warnings", "routes": [{"provider", "model", "effort", "actor_id"}]}`; `--json` changes nothing. `--tier` was removed in 2.9 and exits 2 as an unknown option.
+
+Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, a model or effort outside the catalog, an unknown option, or an empty route list from gin-orchestrator.
 
 ## `gin-workflow routes`
 
 ```
 gin-workflow routes resolve --workflow-id ID --tracks FILE [--repository DIR] [--json]
+gin-workflow routes dispatch --workflow-id ID --task-id ID [--escalate REASON] [--repository DIR] [--json]
 ```
 
-Resolves execution routes for plan tracks: every track goes to the main harness at its tier's default model. Always prints JSON (`--json` is accepted and changes nothing): `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. On success, writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`. If any track has an unknown role, invalid reasoning, or a missing or duplicate `task_id`, or the workflow id is unsafe, writes nothing, lists every diagnostic, and exits 2.
+Both actions always print JSON; `--json` is accepted and changes nothing.
 
-Exit codes: 0 all routes resolved and manifest written; 2 unresolved tracks or invalid arguments.
+`resolve` resolves execution routes for plan tracks. `FILE` is a JSON list of tracks, each `{"task_id", "provider_role", "model", "effort"}`, where `model` and `effort` come from the main harness's [catalog](config.md#models) and `effort` is left out or `null` when the catalog lists no efforts. Without gin-orchestrator every track goes to the main harness at its model and effort. It prints `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. On success, it writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`: per track, `requested` (role, model, effort), `resolved`, `fallback`, and `escalations`.
+
+`resolve` writes nothing, lists every diagnostic, and exits 2 when the workflow id is unsafe or any track has one of these problems:
+
+- an unknown role;
+- a missing or duplicate `task_id`;
+- a model or effort outside the catalog, or an effort for a catalog without efforts;
+- a `reasoning` field and no `model`; `model` and `effort` replace `reasoning`.
+
+`dispatch` prints the current route of one track from the manifest, `{"task_id", "provider", "model", "effort", "escalated"}`, and appends a `route.dispatched` event with that route to `runtime/events.jsonl`. `--escalate REASON` first moves the track one step up its provider's catalog: the next model at the same effort, or the next effort at the strongest model. It writes the new route and an `escalations` entry (`from`, `to`, `reason`) to the manifest. At the strongest model and highest effort it prints `{"status": "human_decision_required", ...}`, changes nothing, and exits 2.
+
+Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it, nothing left to escalate to, or invalid arguments.
 
 ## `gin-workflow notify`
 
@@ -254,7 +268,7 @@ gin-workflow usage collect --bead ID [--best-effort]
 gin-workflow usage report [--bead ID | --epic ID | --sprint NAME | --since YYYY-MM-DD]
 ```
 
-`collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. `--sprint NAME` covers the epics labelled `sprint:NAME` and their tracks. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`.
+`collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. `--sprint NAME` covers the epics labelled `sprint:NAME` and their tracks. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`. `report` prints totals per model, then per role and model (`role main <model>`, `role subagent <model>`). A Claude Code record whose log line has `"isSidechain": true` counts as `subagent`; every other record, including every Codex record, counts as `main`.
 
 Exit codes: 0 ok; 2 error. With `--best-effort`, `collect` turns any error into a `warning:` line and exits 0, so it never blocks closing a bead.
 

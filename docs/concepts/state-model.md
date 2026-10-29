@@ -25,7 +25,7 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 
 ## Plans and specs
 
-Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; plans (`.planning/plans/<date>-<feature>.md`) record the approved decomposition: tracks, file scope, interfaces, validation intent, provider roles, and reasoning tiers. They are durable inputs, not status: a plan checkbox never proves progress. With `artifacts.layout: sdd` the spec and plan live in a change folder under `artifacts.changes` and requirements carry REQ-IDs.
+Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; plans (`.planning/plans/<date>-<feature>.md`) record the approved decomposition: tracks, file scope, interfaces, validation intent, provider roles, and each track's model and effort from the model catalog. They are durable inputs, not status: a plan checkbox never proves progress. With `artifacts.layout: sdd` the spec and plan live in a change folder under `artifacts.changes` and requirements carry REQ-IDs.
 
 ## Event store
 
