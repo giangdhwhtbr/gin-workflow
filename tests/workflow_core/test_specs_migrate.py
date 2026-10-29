@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import LAUNCHER, commit_all, git, make_repo, write  # noqa: E402
 from workflow_core import specs  # noqa: E402
-from workflow_core.specs_migrate import migrate, plan_moves, sdd_report  # noqa: E402
+from workflow_core.specs_migrate import migrate, open_worktrees, plan_moves, sdd_report  # noqa: E402
 
 
 def run_cli(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -93,6 +93,10 @@ class TestMigrate(unittest.TestCase):
         self.assertEqual(0, recorded.returncode, recorded.stderr)
         with mock.patch("workflow_core.lifecycle_cli._beads_json", return_value=None):
             self.assertEqual(["wf-1"], in_flight_workflows(self.root))
+
+    def test_open_worktrees_finds_trees_under_planning_worktrees(self):
+        git(self.root, "worktree", "add", "-q", "-b", "t2", str(self.root / ".planning/worktrees/t2"))
+        self.assertEqual([(self.root / ".planning/worktrees/t2").resolve().as_posix()], open_worktrees(self.root))
 
     def test_open_worktree_refuses(self):
         git(self.root, "worktree", "add", "-q", "-b", "t1", str(self.root / ".planning/worktrees/t1"))

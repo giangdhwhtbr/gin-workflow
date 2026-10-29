@@ -66,6 +66,13 @@ class ConfigurationTests(unittest.TestCase):
             self.assertTrue(result.config["policy"]["approval"]["bind_to_scope"])
             configuration.validate_portable_config(result.config.to_dict())
 
+    def test_worktrees_artifact_has_no_default_but_a_user_value_still_validates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertNotIn("worktrees", resolve_effective_config(Path(directory), write=False).config["artifacts"])
+            result = resolve_effective_config(
+                Path(directory), repository_config={"artifacts": {"worktrees": ".custom/trees"}}, write=False)
+            configuration.validate_portable_config(result.config.to_dict())
+
     def test_lifecycle_loader_requires_one_time_setup_and_reads_generated_config(self):
         loader = getattr(configuration, "load_effective_config", None)
         self.assertIsNotNone(loader, "lifecycle generated-config loader is missing")

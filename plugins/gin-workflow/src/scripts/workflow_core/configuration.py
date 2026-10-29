@@ -35,7 +35,6 @@ BUILT_IN_DEFAULTS: dict[str, Any] = {
     "artifacts": {
         "plans": ".planning/plans",
         "beads": ".beads",
-        "worktrees": ".planning/worktrees",
         "knowledge": ".planning/knowledge",
         "evidence": ".agent-workflow/runtime/evidence",
         "runtime": ".agent-workflow/runtime",

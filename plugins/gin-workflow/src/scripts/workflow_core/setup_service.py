@@ -381,6 +381,11 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 ".beads exists but providers.task_tracking is unset, so tasks use markdown; to keep Beads run "
                 "gin-workflow setup configure --set providers.task_tracking=beads --approve"
             )
+        if "worktrees" in (effective_cfg.get("artifacts") or {}):
+            backend_actions.append(
+                "artifacts.worktrees is not supported; worktrees always live under .planning/worktrees. "
+                "Remove it from your configuration"
+            )
         if str(user_cfg.get("schema_version", "")) != "2.8" and legacy_worker_routing(user_cfg):
             backend_actions.append(
                 "worker routing under routing: is ignored; run gin-workflow setup update --to-version 2.8 --approve"

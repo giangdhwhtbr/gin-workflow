@@ -96,7 +96,6 @@ Credentials are read from `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the env
 | Key | Default | Meaning |
 |---|---|---|
 | `plans` | `.planning/plans` | approved plans |
-| `worktrees` | `.planning/worktrees` | git-fallback worktrees |
 | `knowledge` | `.planning/knowledge` | durable project knowledge |
 | `beads` | `.beads` | Beads database |
 | `runtime`, `evidence` | `.agent-workflow/runtime`, `.agent-workflow/runtime/evidence` | runtime state |
@@ -104,6 +103,8 @@ Credentials are read from `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the env
 | `specs`, `changes`, `adr`, `codebase` | `docs/specs`, `docs/changes`, `docs/adr`, `docs/codebase` | SDD folders |
 | `spec_review` | `chat` | SDD spec review: `chat` or `pr` |
 | `test_globs` | `**/test_*.py`, `**/*_test.py`, `**/*.test.*`, `**/*.spec.*`, `tests/**`, `__tests__/**` | globs that identify test files for `specs trace` |
+
+Worktrees always live under `.planning/worktrees`. `gin-workflow setup doctor` asks you to remove an `artifacts.worktrees` key when any configuration layer sets it.
 
 ### `routing`
 
