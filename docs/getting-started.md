@@ -9,7 +9,7 @@ Every change moves through recorded quality gates:
 
 ## Prerequisites
 
-1. Python 3 (with PyYAML) and Git.
+1. Python 3.11 or later (with PyYAML) and Git.
 2. Claude Code and the `gin-workflow` plugin:
    ```bash
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude

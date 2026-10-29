@@ -64,14 +64,14 @@ Each entry of `routes` is the assignment manifest entry of one track (`task_id`,
 ## `reviewer`
 
 ```
-reviewer --base B --implementer P --tier {low,medium,high} [--repository DIR] --json
+reviewer --base B --implementer P [--tier {low,medium,high}] [--repository DIR] --json
 ```
 
 ```json
 [{"provider": "codex", "model": "...", "effort": null, "actor_id": "reviewer:codex"}]
 ```
 
-The routes of the role named by `routing.review.role`, in order. Routes on the implementer's provider are dropped when three conditions hold: `routing.review.independence` is not `session`, `require_independent` is not false, and the tier is above `low`. If none are left, all candidates are used when `allow_self_review_fallback` is true, otherwise the list is `[]`. `actor_id` is `reviewer:<provider>`, plus `:session-<8 hex>` when the provider is the implementer's.
+The routes of the role named by `routing.review.role`, in order. `--tier` defaults to `medium`. Routes on the implementer's provider are dropped when three conditions hold: `routing.review.independence` is not `session`, `require_independent` is not false, and the tier is above `low`. If none are left, all candidates are used when `allow_self_review_fallback` is true, otherwise the list is `[]`. `actor_id` is `reviewer:<provider>`, plus `:session-<8 hex>` when the provider is the implementer's.
 
 ## `doctor`
 

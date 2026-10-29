@@ -27,7 +27,7 @@ This installs gin-workflow too, when it is missing. On Windows use `.\install.ps
 | `single` (default) | Every track and review runs on the main harness. gin-orchestrator is not consulted. Review independence is `session`. |
 | `multi` | `gin-workflow` delegates `routes resolve`, `reviewer`, and the `setup doctor --probe` and `setup models` provider checks to gin-orchestrator. Review independence can be `provider`, which `/gin-orchestrator:providers` sets. |
 
-In `multi` mode without gin-orchestrator, or when it fails, `gin-workflow` resolves every route to the main harness, warns, and never blocks the work ([troubleshooting](../reference/troubleshooting.md#orchestrator-errors-and-warnings-orchestrator_missing-orchestrator_contract_mismatch-orchestrator_failed)). The delegation table is in the [CLI reference](../reference/cli.md#delegation-to-gin-orchestrator); the command contract is in the [orchestrator contract](../reference/orchestrator-contract.md).
+In `multi` mode without gin-orchestrator, or when it fails, `gin-workflow` resolves every route to the main harness, warns, and never blocks the work ([troubleshooting](../reference/troubleshooting.md#orchestrator_missing-orchestrator_contract_mismatch-or-orchestrator_failed)). The delegation table is in the [CLI reference](../reference/cli.md#delegation-to-gin-orchestrator); the command contract is in the [orchestrator contract](../reference/orchestrator-contract.md).
 
 ## When to use workers
 

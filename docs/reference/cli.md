@@ -5,7 +5,7 @@ The plugin ships two command-line tools that skills call and that you can run yo
 - `gin-workflow`: repository setup, lifecycle gates, rules, specs, team mode, and usage reports.
 - `review-ledger.py`: the review ledger for one bead.
 
-The local installer (`install.sh`, `install.ps1`) links `gin-workflow` into `~/.local/bin`. A marketplace install does not; see [Troubleshooting](troubleshooting.md#gin-workflow-is-not-on-path-after-a-marketplace-install).
+The local installer (`install.sh`, `install.ps1`) links `gin-workflow` into `~/.local/bin`. A marketplace install does not; see [Troubleshooting](troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install).
 
 `gin-workflow --version` prints the CLI version. An unknown or missing command prints the command list and exits 2.
 
@@ -49,7 +49,7 @@ gin-workflow state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 
 Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, or `waived(<reason>)`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), and the last five `recent_quick` runs.
 
-`--workflow-id` defaults to `default-workflow`. Use one id per feature (for example the plan's slug) so gates from different features do not mix.
+`--workflow-id` defaults to `default-workflow`. Use one id per feature (for example the spec's topic slug) so gates from different features do not mix.
 
 Exit codes: 0 when the decision is `route`; 1 when the workflow is held or blocked.
 
@@ -71,7 +71,7 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 
 `--actor` is required unless team mode derives it from `git config user.email`. Recording the same gate with the same evidence twice reports `already_recorded`.
 
-Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, and `shipped` on anything but a standalone bead. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
+Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, `shipped` on anything but a standalone bead, and, in team mode, a team configuration or host error. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
 
 ## `gin-workflow unblock`
 

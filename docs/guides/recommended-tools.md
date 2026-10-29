@@ -1,6 +1,6 @@
 # Recommended tools
 
-gin-workflow runs with only the [required dependencies](../../README.md#1-dependencies). The tools below are optional, and each part of the workflow has a fallback without them.
+gin-workflow runs with only the [required dependencies](../../README.md#dependencies). The tools below are optional, and each part of the workflow has a fallback without them.
 
 ## CodeGraph
 
