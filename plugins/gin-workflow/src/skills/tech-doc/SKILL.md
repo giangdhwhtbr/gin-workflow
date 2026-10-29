@@ -7,14 +7,29 @@ description: On /tech-doc only, write human-readable technical documentation (fe
 
 Write durable technical documentation for onboarding, architecture review, and planning. Run only when the user asks for `/tech-doc`; other stages look code up on demand instead of reading these files.
 
-## Flow
+## Roles and routes
 
-1. **Scope**: whole repository or one subsystem (focus there, but note key outside dependencies). Confirm the target output before writing unless the request, Beads task, or approved plan already authorizes it.
-2. **Gather evidence**: when `.codegraph/` exists, start with `codegraph files` for structure and `codegraph explore "<subsystem or question>"` for symbols and call paths; otherwise use grep and read. Treat index output as hints until verified against the files. Prefer code, lockfiles, configuration, migrations, schemas, tests, and workflow files. For `API.md`, find route declarations (`codegraph explore` first; then grep the frameworks present, e.g. Express/Fastify routers, NestJS decorators, FastAPI/Flask decorators, Django `urls.py`, Rails `routes.rb`, Next.js route handlers and server actions). For `FEATURES.md`, find frontend routes and screens and the calls they make (`fetch`, axios, generated API clients, GraphQL hooks), and match each call to an endpoint by method and path. If the repository ships an OpenAPI or GraphQL schema, link it from `API.md` and still list the compact table.
-3. **Choose the shape**: default to the split set below under `.planning/codebase/` (with `project.layout: sdd`, `artifacts.codebase`, default `docs/codebase/`; a subsystem gets a `<scope-slug>/` subfolder). Start each file from `gin-workflow specs template codebase/<FILE>.md`, which honors project overrides in `.agent-workflow/templates/`. Use a single combined document only when the user asks for one, the scope is very narrow, or an approved plan says so. Do not invent alternate names (`Backend.md`, `Database.md`) when a canonical file covers the topic.
-4. **Write**: run `gin-workflow rules --files <pages to write>` and follow its output and [references/docs-style.md](../../references/docs-style.md). Clear prose with headings and short lists; Mermaid only where it clarifies architecture, data flow, or ownership; one topic per file, linking to siblings instead of repeating them.
-5. **Mark uncertainty and check completeness**: separate verified facts from inference; name what is unknown and where the answer likely lives. Every `API.md` and `FEATURES.md` row cites `file:line`; a cell without a citation is marked as inference. In `API.md` → `Completeness Check`, record the search method, the number of route declarations found, and the number of table rows, and explain any difference. In `FEATURES.md` → `Coverage Gaps`, list endpoints with no frontend caller, frontend calls with no matching endpoint, and features missing one side; serious gaps also go to `CONCERNS.md`.
-6. **Report**: the files written, and `gin-workflow setup refresh` to update the links in `AGENTS.md`.
+Pick catalog routes from `gin-workflow state --format json` under `catalog` ({harness, models weakest to strongest, efforts lowest to highest}). Refer to models by position (weakest, middle, strongest), never by name.
+
+| Role | Agent | Route | Work |
+|---|---|---|---|
+| Scout | `gin-workflow:agent-researcher` | weakest or middle model, `low` | One scout per code area. Returns evidence notes with `file:line`, tagged by the document topic they serve (stack, routes, integrations, conventions, risks, and so on), so each source file is read once. |
+| Writer | `gin-workflow:docs-writer` | by the R2 rubric: weakest for `STACK`, `STRUCTURE`, `CONVENTIONS`, `TESTING`; middle for `API`, `FEATURES`, `INTEGRATIONS`, `OVERVIEW`; strongest for `ARCHITECTURE`, `CONCERNS` | One writer per document. Writes from the scout notes and the template, and opens only cited lines. `FEATURES.md` starts after `API.md`; the other writers run in parallel. |
+| Reviewer | `gin-workflow:agent-researcher`, fresh session with a claim-verification brief | middle model, `medium` | Checks each claim against its citation and flags claims that are unbacked, wrong, or inference. Read-only. The writer fixes the findings, bounded by `routing.review.max_cycles`. |
+
+Scout notes are runtime data under `.agent-workflow/runtime/tech-doc/<run>/` and are not committed. Ambiguity goes into the document's `Inference And Uncertainty` section and is never guessed. A failed writer escalates as in execute (next model in catalog at same effort; at strongest model, next effort; at top of both, stop and ask the user).
+
+## Execution flow
+
+The main session coordinates the run, agrees scope, splits code areas, picks catalog routes, checks cross-file consistency, and reports.
+
+1. Agree scope with the user: whole repository or one subsystem. Confirm target output before writing.
+2. Index and areas: run `codegraph files` (or a directory listing without `.codegraph/`) once and split code into areas. Pick catalog routes for each unit from `gin-workflow state --format json` under `catalog`.
+3. Scout notes: spawn one `gin-workflow:agent-researcher` scout per code area at weakest or middle model and `low`. Scouts inspect files once, gathering evidence notes with `file:line` tagged by document topic (stack, routes, integrations, conventions, risks). Scouts write runtime notes to `.agent-workflow/runtime/tech-doc/<run>/`. For `API.md`, scouts note route declarations (`codegraph explore` first, then framework routers and decorators). For `FEATURES.md`, scouts note frontend routes and screens and outbound endpoint calls. If OpenAPI or GraphQL schemas exist, link them.
+4. Document shape: default to the split set below under `.planning/codebase/` (with `project.layout: sdd`, `artifacts.codebase`, default `docs/codebase/`; a subsystem gets a `<scope-slug>/` subfolder). Start each file from `gin-workflow specs template codebase/<FILE>.md`, which honors overrides in `.agent-workflow/templates/`. Use a single combined document only when requested, scope is very narrow, or an approved plan says so. Do not invent alternate names (`Backend.md`, `Database.md`).
+5. Write: spawn one `gin-workflow:docs-writer` per document at its catalog route from the roles table (`FEATURES.md` starts after `API.md`; other writers run in parallel). Run `gin-workflow rules --files <pages to write>` and give its output and [references/docs-style.md](../../references/docs-style.md) to the writer. Writers work from scout notes and templates, opening only cited lines. Write clear prose with headings and short lists; Mermaid only where it clarifies architecture, data flow, or ownership; one topic per file, linking to siblings instead of repeating them. A failed writer escalates as in execute.
+6. Review: spawn a fresh `gin-workflow:agent-researcher` reviewer per document at middle model and `medium` with a claim-verification brief. The reviewer checks each claim against citations and flags claims that are unbacked, wrong, or inference. Read-only. The writer fixes findings, bounded by `routing.review.max_cycles`. Record unresolved ambiguity in `Inference And Uncertainty`.
+7. Consistency check and report: check consistency across written files (terms, links, `FEATURES.md` against `API.md`). In `API.md` -> `Completeness Check`, record search method, route declarations found, table rows, and explain differences. In `FEATURES.md` -> `Coverage Gaps`, list unmatched endpoints and screens; serious gaps also go to `CONCERNS.md`. Run `gin-workflow setup refresh` to update links in `AGENTS.md`.
 
 ## Split documentation set
 
@@ -33,7 +48,7 @@ Write durable technical documentation for onboarding, architecture review, and p
 
 Every file starts with `Analysis Date`, `Scope`, `Evidence` (files inspected, with line numbers when available), and `Index Use` (codegraph or direct inspection), and ends with `Inference And Uncertainty` and `Follow-up` (Beads to create, or "None identified").
 
-When a column cannot apply, say so once instead of filling it: a CLI or library uses commands or public functions as the `FEATURES.md` entry point and drops the Frontend and API columns; a backend-only repository writes `—` for Frontend and lists only feature-level gaps in `Coverage Gaps`; a frontend-only repository writes no `API.md`, lists the third-party APIs it calls in `INTEGRATIONS.md`, and names the external endpoint in the API column.
+When a column cannot apply, say so once instead of filling it: a CLI or library uses commands or public functions as the `FEATURES.md` entry point and drops the Frontend and API columns; a backend-only repository writes none for Frontend and lists only feature-level gaps in `Coverage Gaps`; a frontend-only repository writes no `API.md`, lists the third-party APIs it calls in `INTEGRATIONS.md`, and names the external endpoint in the API column.
 
 These files are evidence for humans and planning, not runtime status; they never replace Beads state.
 
@@ -45,11 +60,11 @@ These files are evidence for humans and planning, not runtime status; they never
 
 ## Regrounding existing docs
 
-When the user asks to reground (re-check) pages or a docs folder, check those pages against the code instead of writing new ones. For each page:
+When the user asks to reground (re-check) pages or a docs folder, check those pages against the code instead of writing new ones. Regrounding uses the same roles (scouts, writers, reviewers), with one writer per page.
 
-1. List its factual claims: commands, flags, paths, defaults, and behavior.
-2. Check each claim against the code at HEAD and note the evidence as `file:line`, or note that nothing backs it.
-3. Fix a wrong claim, remove a claim nothing backs, or call it a convention when it describes team practice.
+1. Scouts inspect code at HEAD and record citations with `file:line` under `.agent-workflow/runtime/tech-doc/<run>/`.
+2. Writers check each factual claim against citations, fix wrong claims, remove claims nothing backs, or call team practice a convention.
+3. Reviewers verify claims and flag unbacked or inferential changes, bounded by `routing.review.max_cycles`.
 4. Report per page: claims checked, fixed, and removed, and open questions.
 
 Write only the pages in scope and only the claims you fix; add sections or restyle a page only when the request says so.
