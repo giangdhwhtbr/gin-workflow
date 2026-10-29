@@ -36,6 +36,7 @@ INIT_ACTIONS = [
     "create .agent-workflow/runtime/evidence/",
     "generate .agent-workflow/generated/effective-config.yaml",
     "generate .agent-workflow/generated/config-provenance.yaml",
+    "write .agent-workflow/.gitignore",
 ]
 
 
@@ -85,16 +86,19 @@ def _yaml_text(value: Mapping[str, Any]) -> str:
     )
 
 
+LOCAL_GITIGNORE_ENTRIES = (
+    "generated/",
+    "runtime/",
+    "backups/",
+    "orchestrator.local.yaml",
+    "providers.local.yaml",
+)
+
+
 def _merged_provider_gitignore(path: Path) -> bytes:
-    existing = path.read_text(encoding="utf-8") if path.is_file() else ""
-    lines = existing.splitlines()
-    if "providers.local.yaml" not in lines:
-        lines.append("providers.local.yaml")
-    if "orchestrator.local.yaml" not in lines:
-        lines.append("orchestrator.local.yaml")
-    if "runtime/" not in lines:
-        lines.append("runtime/")
-    return (("\n".join(lines) + "\n") if lines else "providers.local.yaml\norchestrator.local.yaml\nruntime/\n").encode("utf-8")
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    lines.extend(entry for entry in LOCAL_GITIGNORE_ENTRIES if entry not in lines)
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 
@@ -216,6 +220,7 @@ def initialize(
 
     writes = {
         config_path: config_text.encode("utf-8"),
+        workflow / ".gitignore": _merged_provider_gitignore(workflow / ".gitignore"),
         resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
     }

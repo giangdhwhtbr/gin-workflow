@@ -15,7 +15,7 @@ Installing the plugin never changes a repository. Run `/setup` once per reposito
 | `.agent-workflow/runtime/` | no | Gate events (`events.jsonl`), assignment manifests, session harness override, evidence |
 | `.agent-workflow/backups/` | no | Backups taken before a migration |
 
-Keeping the `no` rows out of git is a convention: `setup init` writes no `.gitignore` entries. gin-orchestrator, when it writes `orchestrator.local.yaml`, adds that file to `.agent-workflow/.gitignore`. The schema 2.8 migration, when it renames `providers.local.yaml`, adds `providers.local.yaml`, `orchestrator.local.yaml`, and `runtime/` to the same file.
+On first setup, `setup init` writes `.agent-workflow/.gitignore` with `generated/`, `runtime/`, `backups/`, `orchestrator.local.yaml`, and `providers.local.yaml`, and keeps any lines already in the file. `config.yaml` stays tracked. When gin-orchestrator writes `orchestrator.local.yaml`, it adds that file to `.agent-workflow/.gitignore` in the main checkout. The schema 2.8 migration, when it renames `providers.local.yaml`, adds the same five entries.
 
 Full examples ship with the plugin: `plugins/gin-workflow/src/examples/config.full.yaml` and, in gin-orchestrator, `plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml`.
 

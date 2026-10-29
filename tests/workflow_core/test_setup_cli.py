@@ -98,6 +98,36 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
             self.assertEqual(generated_before, (workflow / "generated/effective-config.yaml").read_bytes())
 
+    def test_init_writes_gitignore_with_local_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            lines = (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                ["generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml"], lines
+            )
+
+    def test_init_merges_existing_gitignore_without_duplicates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            ignore = repository / ".agent-workflow/.gitignore"
+            ignore.parent.mkdir()
+            ignore.write_text("custom.tmp\nruntime/\n", encoding="utf-8")
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            lines = ignore.read_text(encoding="utf-8").splitlines()
+            self.assertEqual("custom.tmp", lines[0])
+            self.assertEqual(1, lines.count("runtime/"))
+            self.assertEqual(
+                {"generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml"},
+                set(lines) - {"custom.tmp"},
+            )
+
+    def test_init_dry_run_writes_no_gitignore(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--dry-run", "--non-interactive").returncode)
+            self.assertFalse((repository / ".agent-workflow/.gitignore").exists())
+
     def test_init_writes_no_local_provider_file(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
@@ -241,6 +271,7 @@ class SetupCliTests(unittest.TestCase):
                     "create .agent-workflow/runtime/evidence/",
                     "generate .agent-workflow/generated/effective-config.yaml",
                     "generate .agent-workflow/generated/config-provenance.yaml",
+                    "write .agent-workflow/.gitignore",
                     "write AGENTS.md gin-workflow block",
                     "add @AGENTS.md to CLAUDE.md",
                 ],

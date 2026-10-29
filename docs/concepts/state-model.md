@@ -60,7 +60,7 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
   backups/                 migration backups
 ```
 
-`gin-workflow setup init` and `setup configure` write no `.gitignore` in `.agent-workflow/`. `gin-orchestrator configure --local-set` adds `orchestrator.local.yaml` to `.agent-workflow/.gitignore`. `setup update` to 2.8 adds `providers.local.yaml`, `orchestrator.local.yaml`, and `runtime/` when it renames `providers.local.yaml`. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
+On first setup, `gin-workflow setup init` writes `.agent-workflow/.gitignore` with the entries listed in [Configuration](../reference/config.md); `setup configure` does not touch it. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
 
 ## Runtime metadata
 
