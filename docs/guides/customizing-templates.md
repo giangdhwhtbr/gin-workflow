@@ -13,11 +13,11 @@ Override the templates gin-workflow and gin-qa write from, and the rules gin-qa 
 the plugin's templates/            ──► built-in default
 ```
 
-Whenever a command needs a template, it checks `.agent-workflow/templates/` at your repository root first. If a file with the same name exists there, it is used instead of the built-in default.
+A command that needs a template checks `.agent-workflow/templates/` at the repository root first. A file with the same name there replaces the built-in default (`template_text` in `workflow_core/specs.py`).
 
 ### Built-in templates
 
-You can inspect the exact contents of any built-in template using the CLI:
+Print any built-in template with:
 
 ```bash
 gin-workflow specs template <template-name>
@@ -42,7 +42,7 @@ Available templates:
 
 ## Spec, story, and roadmap templates
 
-To override a template for Business Analysts, create the `.agent-workflow/templates/` folder and place your customized template inside it.
+To override a template, create the `.agent-workflow/templates/` folder and put your version inside it. This example overrides the spec and user story templates.
 
 1. Create the templates directory:
    ```bash
@@ -54,7 +54,7 @@ To override a template for Business Analysts, create the `.agent-workflow/templa
    gin-workflow specs template spec.md > .agent-workflow/templates/spec.md
    ```
 
-3. Customize the template by editing `.agent-workflow/templates/spec.md`. You can add custom sections, compliance checklists, or asset guidelines:
+3. Edit `.agent-workflow/templates/spec.md`. You can add sections, compliance checklists, or asset guidelines:
 
    ```markdown
    # {{capability}}
@@ -78,7 +78,7 @@ To override a template for Business Analysts, create the `.agent-workflow/templa
    ```bash
    gin-workflow specs template user-story.md > .agent-workflow/templates/user-story.md
    ```
-   Example customized format:
+   Example format:
    ```markdown
    ### User Story: {{title}}
    AS A {{role}}
@@ -92,15 +92,17 @@ To override a template for Business Analysts, create the `.agent-workflow/templa
    - [ ] Criteria 1
    ```
 
-5. Verify the override by running `gin-workflow specs template spec.md`. It outputs your customized version from `.agent-workflow/templates/spec.md` immediately.
+5. Verify the override by running `gin-workflow specs template spec.md`. It prints your version from `.agent-workflow/templates/spec.md`.
+
+The `{{...}}` placeholders in `spec.md`, the SDD files, and the `team/*` files are filled by `gin-workflow` commands. The agent fills the story, roadmap, and epic templates, so placeholders you invent there stay as text for the agent to complete.
 
 ## Test case guidelines and fields
 
-The gin-qa add-on provides two mechanisms for customization: guidelines (`qa/guidelines.md`) and custom metadata fields.
+The gin-qa add-on is customized through the guidelines file (`qa/guidelines.md`) and extra metadata fields.
 
 ### The guidelines file
 
-On first use, `/gin-qa:cases` creates `qa/guidelines.md`. The agent reads this file before drafting test cases, and its rules override default behaviors.
+On first use, `/gin-qa:cases` creates `qa/guidelines.md`. The agent reads this file before drafting test cases, and its rules override the defaults.
 
 Edit `qa/guidelines.md` to customize:
 - Language: Enforce Vietnamese, English, or bilingual test steps.
@@ -131,7 +133,7 @@ Rules for writing test cases in this repository:
 
 ### Extra fields
 
-The gin-qa parser keeps any other `Key: value` line in a test case header. When the agent generates test cases, it includes the extra fields declared in your guidelines:
+The gin-qa parser keeps any other `Key: value` line in a test case header. The agent adds the extra fields declared in your guidelines when it writes test cases:
 
 ```markdown
 ### TC-AUTH-005: Lockout after 5 failed login attempts
@@ -155,27 +157,8 @@ Expected:
 - Notification email is sent to `test@example.com`
 ```
 
-When running `gin-qa cases export --format json`, all custom fields (`Jira`, `Severity`, `Component`, and others) are preserved in the JSON output, allowing direct integration into test management tools such as TestRail, Xray, or Allure.
+`gin-qa cases export --format json` lists every custom field (`Jira`, `Severity`, `Component`, and others) under `fields` in its JSON output.
 
 ## The end-to-end evidence fixture
 
-When running `/gin-qa:e2e`, the agent initializes the fixture file:
-```text
-qa/e2e/evidence.ts
-```
-
-This file is created once and is yours to edit. You can customize:
-- Global setup and teardown logic.
-- Automated API seeding before running UI steps.
-- Custom screenshot dimensions or masking of sensitive fields.
-- Additional browser recording configurations.
-
-## Summary
-
-| Artifact | Where it lives | Effect |
-|---|---|---|
-| QA guidelines | `qa/guidelines.md` | Sets the language, extra fields, priority rules, and locator policies for `/gin-qa:cases` and `/gin-qa:e2e`. |
-| QA extra fields | declared in `qa/guidelines.md` | Added to test cases and kept by `gin-qa cases export`. |
-| End-to-end evidence fixture | `qa/e2e/evidence.ts` | Sets how end-to-end tests run and what they record. |
-
-Template overrides are in the table under [built-in templates](#built-in-templates).
+`gin-qa e2e init`, which `/gin-qa:e2e` runs, copies the fixture to `qa/e2e/evidence.ts`. The file belongs to your repository, so edit it freely, but keep the shape of the `result.json` it writes: `gin-qa e2e check` and `gin-qa e2e export` read it.

@@ -1,15 +1,15 @@
-# AI Usage Report
+# AI usage report
 
-What did the AI work on a bead or an epic cost, and how well did it go? `gin-workflow usage` answers from the harness logs already on the machine that did the work: tokens and estimated cost per model and per lifecycle stage, next to quality signals. No telemetry service is involved.
+`gin-workflow usage` reports what the AI work on a bead or an epic cost and how it went. It reads the harness logs already on the machine that did the work and shows tokens and estimated cost per model and per lifecycle stage, next to quality signals. It reads only local files and needs Beads.
 
 ## What is measured
 
 | Source | Read from | Notes |
 |---|---|---|
 | Claude Code | `~/.claude/projects/<repo slug>*/**/*.jsonl` | includes subagents; each message counted once |
-| Codex | `~/.codex/sessions/**/rollout-*.jsonl` | includes `codex exec` reviewers; per-turn usage |
-| Antigravity | not measured | `agy` reports no token counts |
-| OpenCode | not measured | usage is not read from OpenCode sessions |
+| Codex | `~/.codex/sessions/**/rollout-*.jsonl` | per-turn usage |
+| Antigravity | not measured | no reader exists |
+| OpenCode | not measured | no reader exists |
 
 `CLAUDE_CONFIG_DIR` and `CODEX_HOME` override the log locations. Only numbers and routing fields are read (model, token counts, time, working directory, branch); prompt and response text is never read or stored. A missing log directory shows as `not_found`, and unreadable lines are counted in `skipped_lines`.
 
@@ -35,7 +35,7 @@ The summary is stored in the bead's metadata as `ai_usage` (aggregates only), an
 
 ## Prices
 
-Costs are estimates from `.agent-workflow/usage-prices.yaml`, which you track so the team shares one list (USD per million tokens):
+Costs are estimates from `.agent-workflow/usage-prices.yaml` (USD per million tokens). Committing the file so the team shares one list is a team convention, not tool behavior:
 
 ```yaml
 prices:
