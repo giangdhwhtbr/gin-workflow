@@ -20,7 +20,7 @@ from .assignments import (
     write_assignments,
 )
 from .atomic import atomic_write_text
-from .catalog import catalog_for, escalate
+from .catalog import catalog_for, escalate, route_diagnostics
 from .checkout import main_checkout
 from .configuration import ConfigValidationError, load_effective_config, require_yaml
 from .events import WorkflowEvent, WorkflowEventStore
@@ -28,6 +28,7 @@ from .locking import file_lock
 from .models import EffectiveConfig
 from . import orchestrator_client
 from .project_detect import detect_project
+from .provider_config import PROVIDER_DEFAULT
 
 
 def resolve(
@@ -203,7 +204,10 @@ def dispatch(
             return {"status": "error", "message": f"track '{task_id}' has no resolved route"}, 2
 
         provider = str(resolved.get("provider", ""))
-        model = str(resolved.get("model", ""))
+        if resolved.get("selection_mode") == "provider_default":
+            model = PROVIDER_DEFAULT
+        else:
+            model = str(resolved.get("model", ""))
         effort = resolved.get("effort")
         if effort is not None:
             effort = str(effort)
@@ -222,6 +226,9 @@ def dispatch(
             except KeyError:
                 return {"status": "error", "message": f"unknown provider harness: {provider}"}, 2
 
+            diagnostics = route_diagnostics(catalog, model, effort)
+            if diagnostics:
+                return {"status": "error", "message": f"track '{task_id}': " + "; ".join(diagnostics)}, 2
             next_route = escalate(catalog, model, effort)
             if next_route is None:
                 return {

@@ -458,6 +458,62 @@ class TestRoutesCLI(unittest.TestCase):
         self.assertEqual("human_decision_required", data["status"])
         self.assertEqual(initial_content, manifest_file.read_text(encoding="utf-8"))
 
+    def _dispatch(self, workflow_id, *extra):
+        stdout = io.StringIO()
+        with patch("sys.stdout", stdout):
+            code = routes.main([
+                "dispatch",
+                "--workflow-id", workflow_id,
+                "--task-id", "t1",
+                *extra,
+                "--repository", str(self.root),
+                "--json",
+            ])
+        return code, json.loads(stdout.getvalue())
+
+    def test_dispatch_provider_default_route_reports_provider_default(self):
+        entry = {
+            "task_id": "t1",
+            "requested": {"provider_role": "backend", "model": "sonnet", "effort": "medium"},
+            "resolved": {"provider": "antigravity", "selection_mode": "provider_default"},
+            "fallback": [],
+            "escalations": [],
+        }
+        self._write_manifest("wf-pd", [entry])
+        code, data = self._dispatch("wf-pd")
+        self.assertEqual(0, code)
+        self.assertEqual("provider_default", data["model"])
+
+    def test_dispatch_escalate_provider_default_needs_a_human_and_leaves_manifest_unchanged(self):
+        entry = {
+            "task_id": "t1",
+            "requested": {"provider_role": "backend", "model": "sonnet", "effort": "medium"},
+            "resolved": {"provider": "antigravity", "selection_mode": "provider_default"},
+            "fallback": [],
+            "escalations": [],
+        }
+        manifest_file = self._write_manifest("wf-pd-esc", [entry])
+        initial_content = manifest_file.read_text(encoding="utf-8")
+        code, data = self._dispatch("wf-pd-esc", "--escalate", "tests fail")
+        self.assertEqual(2, code)
+        self.assertEqual("human_decision_required", data["status"])
+        self.assertEqual(initial_content, manifest_file.read_text(encoding="utf-8"))
+
+    def test_dispatch_escalate_model_outside_the_catalog_is_an_error(self):
+        entry = {
+            "task_id": "t1",
+            "requested": {"provider_role": "backend", "reasoning": "high"},
+            "resolved": {"provider": "claude", "model": "claude-opus-4-1", "selection_mode": "explicit"},
+            "fallback": [],
+        }
+        manifest_file = self._write_manifest("wf-legacy-model", [entry])
+        initial_content = manifest_file.read_text(encoding="utf-8")
+        code, data = self._dispatch("wf-legacy-model", "--escalate", "tests fail")
+        self.assertEqual(2, code)
+        self.assertEqual("error", data["status"])
+        self.assertIn("not in the catalog", data["message"])
+        self.assertEqual(initial_content, manifest_file.read_text(encoding="utf-8"))
+
     def test_dispatch_escalate_codex_high_gives_xhigh(self):
         entry = {
             "task_id": "t1",

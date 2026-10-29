@@ -114,6 +114,19 @@ class RouteTests(unittest.TestCase):
             ])
         self.assertEqual(2, code)
 
+    def test_model_or_effort_outside_the_catalog_exits_2(self):
+        for model, effort in (("gpt-6-astra", None), ("sonnet", "bogus")):
+            with self.subTest(model=model, effort=effort):
+                stderr = io.StringIO()
+                args = ["--base", self.base, "--implementer", "claude", "--model", model, "--repository", str(self.root)]
+                if effort is not None:
+                    args += ["--effort", effort]
+                with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root, harness="claude")), \
+                        mock.patch("sys.stderr", stderr):
+                    code = reviewer.main(args)
+                self.assertEqual(2, code)
+                self.assertIn("not in the catalog", stderr.getvalue())
+
     def test_reviewer_of_another_implementer_is_provider_independent(self):
         out = route(self.root, self.base, model="sonnet", effort=None, implementer="codex", config=config(self.root, harness="claude"))
         self.assertEqual(len(out["routes"]), 1)

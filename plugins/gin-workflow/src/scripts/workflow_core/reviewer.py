@@ -11,7 +11,7 @@ import sys
 import uuid
 from typing import Any
 
-from .catalog import Catalog, DEFAULT_CATALOGS, catalog_for, tier_of
+from .catalog import Catalog, DEFAULT_CATALOGS, catalog_for, route_diagnostics, tier_of
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
 from . import orchestrator_client
@@ -64,6 +64,9 @@ def route(
     if harness not in DEFAULT_CATALOGS:
         raise ReviewerError(f"unknown harness: {harness}")
     catalog = catalog_for(config_dict, harness)
+    diagnostics = route_diagnostics(catalog, model, effort)
+    if diagnostics:
+        raise ReviewerError("; ".join(diagnostics))
 
     model, effort, reason = review_route(catalog, model, effort, diff.stdout.splitlines())
 

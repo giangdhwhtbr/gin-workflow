@@ -10,10 +10,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / "plugins/gin-orchestrator/src/scripts"))
 
 from workflow_core.configuration import require_yaml, validate_portable_config  # noqa: E402
-try:
-    from gin_orchestrator.local_config import validate_local_config  # noqa: E402
-except ImportError:
-    validate_local_config = None
+from gin_orchestrator.local_config import validate_local_config  # noqa: E402
 
 
 class ConfigExampleTests(unittest.TestCase):
@@ -25,8 +22,7 @@ class ConfigExampleTests(unittest.TestCase):
         local = self.load(ROOT / "plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml")
 
         validate_portable_config(portable)
-        if validate_local_config is not None:
-            validate_local_config(local)
+        validate_local_config(local)
 
         roles = portable["orchestrator"]["roles"]
         self.assertEqual(["claude"], roles["backend"]["preferred"])
