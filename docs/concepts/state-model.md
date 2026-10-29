@@ -54,13 +54,13 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
   knowledge/    durable project knowledge
 .agent-workflow/
   config.yaml              portable configuration (tracked)
-  orchestrator.local.yaml  machine-local providers (gitignored)
+  orchestrator.local.yaml  machine-local providers
   generated/               resolved configuration
-  runtime/                 events.jsonl, assignment manifests, harness override, evidence (gitignored)
+  runtime/                 events.jsonl, assignment manifests, harness override, evidence
   backups/                 migration backups
 ```
 
-Setup adds `providers.local.yaml`, `orchestrator.local.yaml`, and `runtime/` to `.agent-workflow/.gitignore`. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
+`gin-workflow setup init` and `setup configure` write no `.gitignore` in `.agent-workflow/`. `gin-orchestrator configure --local-set` adds `orchestrator.local.yaml` to `.agent-workflow/.gitignore`. `setup update` to 2.8 adds `providers.local.yaml`, `orchestrator.local.yaml`, and `runtime/` when it renames `providers.local.yaml`. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
 
 ## Runtime metadata
 
