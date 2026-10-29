@@ -14,7 +14,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$LauncherVersion = '2.8'
+$LauncherVersion = '2.9'
 $QaLauncherVersion = '0.4'
 $OrchLauncherVersion = '0.1'
 $ScriptRoot = $PSScriptRoot
