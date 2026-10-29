@@ -26,11 +26,16 @@ class TechDocSkillTests(unittest.TestCase):
         self.assertIn("Inference And Uncertainty", self.text)
 
     def test_writer_routes_for_documents(self):
-        # R11 table routes: weakest, middle, strongest
-        self.assertRegex(self.text, r"(?i)weakest.*\bSTACK\b")
-        self.assertRegex(self.text, r"(?i)middle.*\bAPI\b")
-        self.assertRegex(self.text, r"(?i)strongest.*\bARCHITECTURE\b")
-        self.assertRegex(self.text, r"(?i)strongest.*\bCONCERNS\b")
+        row = next(line for line in self.text.splitlines() if line.startswith("| Writer |"))
+        groups = dict(re.findall(r"(weakest|middle|strongest) model for ([^;|]+)", row))
+        self.assertIn("`STACK`", groups["weakest"])
+        self.assertIn("`API`", groups["middle"])
+        self.assertIn("`ARCHITECTURE`", groups["strongest"])
+        self.assertIn("`CONCERNS`", groups["strongest"])
+        self.assertNotIn("`STACK`", groups["strongest"])
+
+    def test_writers_cite_every_row(self):
+        self.assertIn("Every `API.md` and `FEATURES.md` row cites `file:line`", self.text)
 
     def test_scout_and_reviewer_routes(self):
         self.assertRegex(self.text, r"(?i)Scout.*agent-researcher.*(weakest|middle).*low")
