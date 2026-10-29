@@ -47,6 +47,12 @@ class DocsCoverageTests(unittest.TestCase):
                     dead.append(f"{page.relative_to(ROOT)} -> {target}")
         self.assertEqual(dead, [])
 
+    def test_every_docs_page_is_in_the_readme_map(self):
+        readme = ROOT / "README.md"
+        linked = {(ROOT / target.split("#", 1)[0]).resolve()
+                  for target in LINK.findall(readme.read_text(encoding="utf-8"))}
+        self.assertEqual([str(p.relative_to(ROOT)) for p in sorted(DOCS.rglob("*.md")) if p.resolve() not in linked], [])
+
     def test_mermaid_blocks_name_a_diagram_type(self):
         bad = [f"{p.relative_to(ROOT)}: {kind}" for p in pages()
                for kind in MERMAID.findall(p.read_text(encoding="utf-8")) if kind not in TYPES]
