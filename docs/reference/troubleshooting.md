@@ -2,9 +2,9 @@
 
 ## `gin-workflow: command not found` after a marketplace install
 
-Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copies the plugin but does not link the `gin-workflow` launcher that the skills call. Only the installer links it, at `~/.local/bin/gin-workflow`.
+Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copies the plugin but does not link the `gin-workflow` launcher that the skills call, or the `gin-qa` launcher of the QA add-on. Only the installer links them, at `~/.local/bin/gin-workflow` and `~/.local/bin/gin-qa`.
 
-1. Run the installer, with `--platform claude` for Claude Code; the other options are in [Contributing](../contributing.md#build-and-install-locally):
+1. Run the installer, with `--platform claude` for Claude Code and `--plugin all` to add `gin-qa`; the other options are in [Contributing](../contributing.md#build-and-install-locally):
 
    ```bash
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform codex
@@ -59,7 +59,7 @@ Fix it once per host, in an interactive terminal, because `sudo` prompts for a p
 
 ## A provider CLI that runs in your shell is reported unavailable
 
-Cause: gin-orchestrator looks for each provider executable on the `PATH` of the process that runs it, then in a fixed list: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`. A CLI reachable only through a `PATH` entry added in those files is then not found. `gin-workflow setup doctor --probe --format json` reports it under `providers` as `executable_not_found`, or as `executable_or_help_unavailable` when its `--help` cannot run.
+Cause: gin-orchestrator looks for each provider executable on the `PATH` of the process that runs it, then in a fixed list: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`. A CLI in a directory outside that list, reachable only through a `PATH` entry added in those files, is then not found. `gin-workflow setup doctor --probe --format json` reports it under `checks_details.providers` as `executable_not_found` (key `<provider>.executable`), or as `executable_or_help_unavailable` (key `<provider>.<tier>`) when its `--help` cannot run.
 
 1. Link the CLI into `/usr/local/bin`, which is on the fixed list:
 
@@ -122,15 +122,15 @@ Cause: the router holds the workflow at the `progress` stage when a blocker is r
 
 ## `orchestrator_missing`, `orchestrator_contract_mismatch`, or `orchestrator_failed`
 
-Cause: with `provider_mode: multi`, gin-workflow hands worker routing and reviews to `gin-orchestrator`, and each code says why it cannot. `orchestrator_missing`: `gin-orchestrator` is not on `PATH`. `orchestrator_contract_mismatch`: the installed `gin-orchestrator` reports a contract version other than 2. `orchestrator_failed`: `gin-orchestrator version` or a delegated command (`routes resolve`, `reviewer`, `doctor`) exited non-zero or printed invalid JSON. Work is not blocked. `gin-workflow state` and `setup doctor` warn `<code>; install with ./install.sh --plugin gin-orchestrator`, routes and reviews fall back to the main harness, and `setup models` lists no models.
+Cause: with `provider_mode: multi`, gin-workflow hands worker routing and reviews to `gin-orchestrator`; these codes say it could not, and work continues on the main harness. Before delegating, gin-workflow checks the extension. When the check fails, `gin-workflow state` and `setup doctor` warn `<code>; install with ./install.sh --plugin gin-orchestrator`. The code is `orchestrator_missing` when `gin-orchestrator` is not on `PATH`, `orchestrator_contract_mismatch` when it reports a contract version other than 2, and `orchestrator_failed` when `gin-orchestrator version` fails. When the check passes but a delegated command exits non-zero or prints invalid JSON, gin-workflow reports it per command. `routes resolve` warns `gin-orchestrator failed (orchestrator_failed); routing every track to the main harness`. `reviewer` warns `gin-orchestrator failed (orchestrator_failed); reviewing on the main harness`. `setup doctor --probe --format json` reports `"reason": "orchestrator_failed"` under `checks_details.providers`.
 
-1. Install or update the extension:
+1. For the `install with` warning, install or update the extension, then run `gin-workflow setup doctor --probe`; the warning no longer appears:
 
    ```bash
    ./install.sh --plugin gin-orchestrator
    ```
 
-2. Run `gin-workflow setup doctor --probe`; the warning no longer appears.
+2. For a delegated command that failed, run it directly in the repository to see its error, for example `gin-orchestrator doctor --json`. The command for each delegation is in the [CLI reference](cli.md#delegation-to-gin-orchestrator).
 
 ## `.beads exists but providers.task_tracking is unset, so tasks use markdown`
 
