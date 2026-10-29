@@ -1,148 +1,145 @@
 # Troubleshooting
 
-## `gin-workflow` is not on PATH after a marketplace install
+## `gin-workflow: command not found` after a marketplace install
 
-Skills call the `gin-workflow` CLI (and `gin-qa` for the QA add-on). A marketplace install (`claude plugin install`, `codex plugin add`) copies the plugin but does not link the launcher, so stages fail with `gin-workflow: command not found`. Install the launcher with the installer, which links `~/.local/bin/gin-workflow`:
+Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copies the plugin but does not link the `gin-workflow` launcher that the skills call. Only the installer links it, at `~/.local/bin/gin-workflow`.
 
-```bash
-curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform codex
-```
+1. Run the installer, with `--platform claude` for Claude Code; the other options are in [Contributing](../contributing.md#build-and-install-locally):
 
-Use `--platform claude` for Claude Code; installer options are in [Contributing](../contributing.md#build-and-install-locally). Make sure `~/.local/bin` is on `PATH`, then check with `gin-workflow --version`.
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform codex
+   ```
 
+2. If the installer warns that `~/.local/bin` is not on `PATH`, add it.
+3. Run `gin-workflow --version`; it prints `gin-workflow 2.8`.
 
 ## OpenCode does not show the gin-workflow skills
 
-OpenCode discovers global skills in `~/.config/opencode/skills`, and the installer writes the bundle to `~/.config/opencode/skills/gin-workflow` whenever `--platform opencode` (or `all`) runs. It does not need the `opencode` CLI on `PATH`. OpenCode scans nested `SKILL.md` files, so the `skills/<name>/SKILL.md` entries inside the bundle register as skills.
+Cause: the skill bundle is missing from `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers global skills. The installer writes it when `--platform` is `opencode` or `all`, and does not need the `opencode` CLI on `PATH`. The bundle layout is in [Contributing](../contributing.md#build-and-install-locally).
 
-If they are missing:
+1. Check the bundle: `ls ~/.config/opencode/skills/gin-workflow/skills`. If it is missing, run `./install.sh --platform opencode`.
+2. Reload OpenCode, then list its skills to confirm they registered.
 
-- Check the bundle exists: `ls ~/.config/opencode/skills/gin-workflow/skills`.
-- Reload OpenCode, then list skills to confirm registration.
+## Copilot does not list the gin-workflow plugin
 
-The installer prunes the Claude/Codex `agents/` and `commands/` files from the OpenCode bundle (leaving a repository's own `.opencode/agents` and `.opencode/commands` untouched) and rewrites the Codex/Antigravity `${PLUGIN_ROOT}` variable to the absolute install path, because shell commands run from the agent's working directory. OpenCode has no `PreToolUse`/`PostToolUse` hook system, so the bundle's safety and post-edit hooks do not run there; lifecycle gates are still enforced by the `gin-workflow` CLI.
+Cause: the installer registers the bundle with `copilot plugin install` only when `copilot` is on `PATH`; otherwise it prints `Copilot CLI not found; skipped registration. Run: copilot plugin install <path>`. With `--project` it skips Copilot and warns `Copilot plugins are global; --project skips copilot.`
 
-`gin-workflow`'s `report` skill installs as `gin-workflow-report` in OpenCode. Its original id would otherwise shadow OpenCode's built-in `report` skill, so invoke it with `@gin-workflow-report`; the built-in `report` skill keeps working.
+1. Run the `copilot plugin install <path>` command the installer printed, or rerun `./install.sh --platform copilot` without `--project`.
+2. Check with `copilot plugin list` and `copilot skill list`.
 
-OpenCode hosts the skills and, with [gin-orchestrator](../orchestrator/README.md), can also run routed workers and reviews (`opencode run --auto --format json`); it has no sandbox, so isolation relies on the worktree. The resolver also looks in `~/.opencode/bin`, so a binary installed by OpenCode's own script is found without a `PATH` change. See [Providers](../concepts/providers.md).
+## `gin-workflow: <path>/scripts/safety-check.sh not found, hook skipped`
 
+Cause: the Copilot bundle's `hooks/hooks.json` runs `safety-check` before the `bash` tool and `post-edit` after `edit` and `create`. Each hook looks for its script under `$PLUGIN_ROOT`, or else under `~/.copilot/installed-plugins/_direct/gin-workflow` (`$COPILOT_HOME` replaces `~/.copilot` when set). Copilot does not set `PLUGIN_ROOT`. After a marketplace install the plugin is not in the `_direct` directory, so the hook prints this warning and lets the tool run. The hooks define only a `bash` command, so they do not run on Windows PowerShell.
 
-## GitHub Copilot CLI
+1. Install with `./install.sh --platform copilot`, which installs from a local path into the `_direct` directory, or set `PLUGIN_ROOT` to the directory that holds the plugin's `scripts/`.
+2. Run a shell command in Copilot; the warning no longer appears.
 
-`--platform copilot` (or `all`) builds `plugins/<plugin>/dist/copilot/<plugin>` and registers it with `copilot plugin install <path>` when `copilot` is on `PATH`; otherwise it prints that command for you to run. Check with `copilot plugin list` and `copilot skill list`.
+## `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
 
-- **One directory per plugin.** Copilot stores a local install under the source directory's name (`~/.copilot/installed-plugins/_direct/<name>`), so each plugin is built into a directory named after it; otherwise `--plugin all` would install both into the same place.
-- **Safety and post-edit hooks.** The bundle ships `hooks/hooks.json` in Copilot's format: `safety-check` runs before the `bash` tool and `post-edit` runs after `edit`/`create`. The hook looks for the scripts in the direct-install path `~/.copilot/installed-plugins/_direct/gin-workflow` (under `$COPILOT_HOME` when set); Copilot does not set `PLUGIN_ROOT`, so set it yourself to override that path. If the scripts are not there, for example after a marketplace install, the hook prints a warning and lets the tool run instead of blocking it. The hooks are bash-only, so they do not run on Windows PowerShell.
-- **Workers and reviews.** Copilot hosts the skills only. Routed workers and reviewers ([gin-orchestrator](../orchestrator/README.md)) run through `claude`, `codex`, `agy`, or `opencode`, so run `/setup` with one of them as `harness`.
-- **Global only.** `--project` skips copilot, because Copilot plugins are installed per user.
-- **Local-path installs.** Copilot CLI warns that installs from a local path are deprecated in favor of `plugin@marketplace`; the installer still uses the local path.
+Cause: on Ubuntu 24.04 and later, AppArmor restricts unprivileged user namespaces by default (`kernel.apparmor_restrict_unprivileged_userns=1`). The Codex CLI sandbox (`bwrap`) and the Antigravity CLI sandbox (`agy --sandbox`) both need one, so every sandboxed shell action, `apply_patch` included, fails for any file in any project. The restriction belongs to the host, not to gin-workflow, Codex CLI, or Antigravity CLI. gin-orchestrator avoids it only for the Codex workers it dispatches, which run `codex exec --dangerously-bypass-approvals-and-sandbox` inside their own worktree; a Codex session you start yourself, and Antigravity, still fail.
 
-## Codex/Antigravity sandbox fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
+Fix it once per host, in an interactive terminal, because `sudo` prompts for a password:
 
-On Ubuntu 24.04+ hosts, the kernel's AppArmor policy restricts unprivileged user namespace creation by default (`kernel.apparmor_restrict_unprivileged_userns=1`). Codex CLI's sandbox (`bwrap`) and Antigravity CLI's sandbox (`agy --sandbox`, backed by `nsjail`) both need to create an unprivileged user+network namespace to isolate file/network access. When that AppArmor restriction is active and no profile grants `userns,` to the sandbox helper, namespace creation fails outright — before the sandboxed process can even read the file it's trying to edit. Every sandboxed shell action (including `apply_patch`) then fails immediately, for any file, in any project.
+1. Lift the restriction now and across reboots:
 
-This is a host/OS-level restriction, not a bug in gin-workflow, Codex CLI, or Antigravity CLI. Fix it once per host, in a real interactive terminal (`sudo` needs a TTY for the password prompt — it won't work through a piped or non-interactive shell):
+   ```bash
+   # Take effect immediately
+   sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-```bash
-# Take effect immediately
-sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+   # Persist across reboots
+   echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/99-disable-userns-restrict.conf
+   ```
 
-# Persist across reboots
-echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/99-disable-userns-restrict.conf
-```
+2. Check the result:
 
-Verify:
-```bash
-sysctl kernel.apparmor_restrict_unprivileged_userns   # should print 0
-codex sandbox -- echo hello                            # should print "hello", not a bwrap error
-```
+   ```bash
+   sysctl kernel.apparmor_restrict_unprivileged_userns   # should print 0
+   codex sandbox -- echo hello                            # should print "hello", not a bwrap error
+   ```
 
-gin-orchestrator's Codex worker dispatch (`gin_orchestrator/codex_worker.py`) works around this for workers it dispatches itself, by invoking `codex exec` with `--dangerously-bypass-approvals-and-sandbox` — skipping Codex's internal sandbox entirely, since gin-orchestrator already isolates each worker in its own git worktree. That has no effect on a Codex CLI session you run directly, or on Antigravity's `--sandbox`, which is why the sysctl fix above is what actually resolves this everywhere on an affected host.
+## A provider CLI that runs in your shell is reported unavailable
 
-## Review routing reports a provider as "not available" (e.g. `claude not available`) when invoked from Codex/Antigravity
+Cause: gin-orchestrator looks for each provider executable on the `PATH` of the process that runs it, then in a fixed list: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`. A CLI reachable only through a `PATH` entry added in those files is then not found. `gin-workflow setup doctor --probe --format json` reports it under `providers` as `executable_not_found`, or as `executable_or_help_unavailable` when its `--help` cannot run.
 
-gin-workflow's routed dispatcher (`registry.py`) health-checks a native provider by running `<executable> --help` in a subprocess with a *sanitized* environment (`native_cli.py`'s `sanitized_environment()`/`probe_help()`) — it forwards `PATH` from whatever process is running the gin-workflow script, but that process's `PATH` did not come from your interactive shell's rc file. If a provider's CLI binary is only reachable because `~/.zshrc`/`~/.bashrc` prepends a directory to `PATH` (for example, an npm global install landing in `~/.npm-global/bin`), it resolves fine in an interactive shell but fails when gin-workflow is driven by Codex or Antigravity, whose exec/sandbox environments don't source your shell rc files. The health check then can't even launch the binary, and the dispatcher reports it as unavailable — well before any quota, auth, or model issue.
+1. Link the CLI into `/usr/local/bin`, which is on the fixed list:
 
-Fix by putting the CLI binary somewhere already on the default system `PATH` (not dependent on shell rc files), e.g.:
+   ```bash
+   sudo ln -s "$(which claude)" /usr/local/bin/claude
+   ```
 
-```bash
-sudo ln -s "$(which claude)" /usr/local/bin/claude
-```
+2. Check that it runs without your shell's `PATH` changes:
 
-Verify it resolves independent of your shell's `PATH` customizations:
-```bash
-env -i PATH="/usr/local/bin:/usr/bin:/bin" claude --version
-```
+   ```bash
+   env -i PATH="/usr/local/bin:/usr/bin:/bin" claude --version
+   ```
 
-Apply the same fix for any other native provider CLI (`codex`, `agy`, `opencode`) that isn't already reachable from a minimal `PATH`.
+3. Repeat for each other provider CLI (`codex`, `agy`, `opencode`) that a minimal `PATH` cannot reach.
 
 ## A repository still hits a `gin-workflow` bug that was already fixed and shipped on `master`
 
-Harness plugin managers install `gin-workflow` by snapshotting its files into a local cache at install time (e.g. Codex's `~/.codex/plugins/cache/<marketplace>/gin-workflow/<version>/`, Claude Code's global skills directory). That snapshot is not a live view of this repository — pushing a fix to `master` does not, by itself, update any consuming repository's cached install, even when the plugin's declared version number hasn't changed. A repository on the same host can keep failing with the exact symptoms of an already-fixed bug simply because its cached snapshot predates the fix.
+Cause: each harness runs the copy of the plugin taken at install time, and the `gin-workflow` CLI runs from its copy under `~/.local/lib/gin-workflow/2.8/`. Pushing a fix to `master` updates neither, even when the plugin version is unchanged. The steps below refresh the current host only; a machine that installed through a marketplace or `remote-install.sh` reruns its own install flow from [Installation](../../README.md#installation).
 
-After shipping a fix in this repository, refresh every installed platform's cache on the host:
+1. Commit the fix. Codex installs from the `git-subdir` source in `.claude-plugin/marketplace.json`, and a git source holds only committed content.
+2. Refresh every install on the host:
 
-```bash
-./install.sh --platform all
-```
+   ```bash
+   ./install.sh --platform all
+   ```
 
-The fix must be **committed** first. Codex's marketplace registration uses a `git-subdir` source (see `.claude-plugin/marketplace.json`) that reads the plugin's tree from the repository's committed `HEAD`, not the working directory — re-running the install with only an uncommitted change staged or edited will re-register the plugin successfully but still snapshot the pre-fix content.
-
-This is safe to re-run any time — for Codex it explicitly removes and re-adds the plugin/marketplace registration (`codex plugin marketplace add`/`plugin add` are no-ops when already registered by name, and the local-source snapshot is only taken at add-time, so a plain repeat run would keep serving the stale snapshot without the explicit remove-then-add), and for Claude Code, Antigravity, and OpenCode it recopies the compiled `dist/` output into the global install location. Use `--platform codex`/`claude`/`antigravity`/`opencode` to target just one. This only refreshes installs on the current host; a consumer on a different machine (installed via the GitHub marketplace or `remote-install.sh`) needs to re-run its own install or update flow from [Installation](../../README.md#installation).
-
-Verify the fix actually landed by checking a changed file's content inside the refreshed install directory (or, for a Python fix, importing the module from that path and exercising the fixed behavior directly) rather than assuming a successful install command means the fix is present.
+   The installer replaces the CLI copy and recopies the Claude Code bundle to `~/.claude/skills/<plugin>` and the OpenCode bundle to `~/.config/opencode/skills/<plugin>`. It reruns `agy plugin install` for Antigravity. For Codex and Copilot it removes the registration and adds it again, because `codex plugin marketplace add` and `codex plugin add` do nothing for a name already registered. A harness CLI that is not on `PATH` is skipped. Use `--platform claude`, `codex`, `antigravity`, `opencode`, or `copilot` to refresh one harness.
+3. Open a changed file in the refreshed install directory and check that it has the fix. For a Python fix, import the module from `~/.local/lib/gin-workflow/2.8/` and run the fixed code.
 
 ## `git push` exits 141 after the `pre-push` checks pass
 
-git opens the SSH connection before `pre-push` runs, so a long test run lets the server close it as idle. `gin-workflow hooks install` sets a repo-local `core.sshCommand` with `ServerAliveInterval=30` unless one is already chosen; rerun it, or add `-o ServerAliveInterval=30` to your own `core.sshCommand` or `GIT_SSH_COMMAND`.
+Cause: git opens the SSH connection before `pre-push` runs, so a long test run lets the server close it as idle, and the push dies with SIGPIPE.
 
-## Workflow is held at `progress` or a gate is blocked
+1. Run `gin-workflow hooks install`. It sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` unless `core.sshCommand`, `GIT_SSH`, or `GIT_SSH_COMMAND` is already set.
+2. If you set one of them yourself, add `-o ServerAliveInterval=30` to your `core.sshCommand` or `GIT_SSH_COMMAND`.
 
-When a task holds at `progress` or fails to advance to the next lifecycle stage, run `gin-workflow state` to diagnose the exact reason:
+## `Routing Decision: hold` from `gin-workflow state`
 
-```bash
-gin-workflow state [--format text|json]
-```
+Cause: the router holds the workflow at the `progress` stage when a blocker is recorded, an approval check fails, or the capability for the next stage is disabled. `gin-workflow state` lists the reason under `Evidence:`, the fix under `Remedies:`, and each gate as `satisfied`, `waived`, or `unmet`.
 
-This displays the current decision, target stage, evidence, and per-gate statuses (`satisfied`, `waived`, or `unmet`), along with concrete remedies for any unmet gate or missing approval.
+1. Read the reason:
 
-To resolve an unmet gate:
-- For **process gates** (`requirement_confirmed`, `plan_approved`, `orchestration_ready`):
-  ```bash
-  gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id>
-  ```
-- For the **safety gate** (`review_approved`):
-  ```bash
-  gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id> --follow-up <follow-up-task-id>
-  ```
-- To **clear a task-tracking blocker**:
-  ```bash
-  gin-workflow unblock --clear-blocker --reason "cleared blocker reason" --actor <your-id>
-  ```
+   ```bash
+   gin-workflow state [--format text|json]
+   ```
 
-## Orchestrator errors and warnings (`orchestrator_missing`, `orchestrator_contract_mismatch`, `orchestrator_failed`)
+2. Apply the listed remedy. To waive a gate or clear a blocker on the record ([CLI](cli.md#gin-workflow-unblock)):
+   - a process gate (`requirement_confirmed`, `plan_approved`, `orchestration_ready`):
+     ```bash
+     gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id>
+     ```
+   - the safety gate `review_approved`, which also needs a follow-up task:
+     ```bash
+     gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id> --follow-up <follow-up-task-id>
+     ```
+   - a recorded blocker:
+     ```bash
+     gin-workflow unblock --clear-blocker --reason "cleared blocker reason" --actor <your-id>
+     ```
 
-When `provider_mode: multi` is enabled, `gin-workflow` delegates multi-provider routing and reviews to `gin-orchestrator`. If the extension is unavailable or encounters errors:
+## `orchestrator_missing`, `orchestrator_contract_mismatch`, or `orchestrator_failed`
 
-- **`orchestrator_missing`**: `gin-orchestrator` is not on `PATH`. `gin-workflow state` and `setup doctor` warn with `orchestrator_missing; install with ./install.sh --plugin gin-orchestrator`. Work is not blocked; routes resolve to the main harness. To restore worker delegation:
-  ```bash
-  ./install.sh --plugin gin-orchestrator
-  ```
-- **`orchestrator_contract_mismatch`**: The installed `gin-orchestrator` reports an unsupported contract version (contract version 2 is required). Reinstall or update with `./install.sh --plugin gin-orchestrator`.
-- **`orchestrator_failed`**: A delegated command (`routes resolve`, `reviewer`, or `doctor`) exited non-zero or output invalid JSON. `setup doctor` reports `orchestrator_failed`; `routes resolve` and `reviewer` fall back to the main harness with a warning, while `setup models` returns an empty list. Check the extension installation and logs.
+Cause: with `provider_mode: multi`, gin-workflow hands worker routing and reviews to `gin-orchestrator`, and each code says why it cannot. `orchestrator_missing`: `gin-orchestrator` is not on `PATH`. `orchestrator_contract_mismatch`: the installed `gin-orchestrator` reports a contract version other than 2. `orchestrator_failed`: `gin-orchestrator version` or a delegated command (`routes resolve`, `reviewer`, `doctor`) exited non-zero or printed invalid JSON. Work is not blocked. `gin-workflow state` and `setup doctor` warn `<code>; install with ./install.sh --plugin gin-orchestrator`, routes and reviews fall back to the main harness, and `setup models` lists no models.
 
-## `.beads` exists but `providers.task_tracking` is unset
+1. Install or update the extension:
 
-When migrating from an older configuration, `providers.task_tracking` may be unset while a `.beads` directory exists. In schema 2.8 and later, task tracking defaults to `markdown` unless explicitly configured.
+   ```bash
+   ./install.sh --plugin gin-orchestrator
+   ```
 
-`setup doctor` reports:
-```
-.beads exists but providers.task_tracking is unset, so tasks use markdown; to keep Beads run gin-workflow setup configure --set providers.task_tracking=beads --approve
-```
+2. Run `gin-workflow setup doctor --probe`; the warning no longer appears.
 
-To keep using Beads as the task backend:
+## `.beads exists but providers.task_tracking is unset, so tasks use markdown`
+
+Cause: `gin-workflow setup doctor` prints this when a `.beads` directory exists, `providers.task_tracking` is unset, and no `team:` block is configured. Tasks then use Markdown files ([`providers`](config.md#providers)).
+
+To keep Beads as the task backend:
+
 ```bash
 gin-workflow setup configure --set providers.task_tracking=beads --approve
 ```
-To use file-based markdown tasks instead, configure `providers.task_tracking=markdown`.
 
+To keep Markdown tasks, set `providers.task_tracking=markdown` the same way.
