@@ -2,25 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 import re
-from types import MappingProxyType
-from typing import Any, Sequence
+from typing import Any
 
 from .atomic import atomic_write_text
+from .catalog import DEFAULT_CATALOGS, catalog_for, route_diagnostics
 from .checkout import main_checkout
 from .configuration import require_yaml
 from .locking import file_lock
-from .models import EffectiveConfig
-from .provider_config import (
-    DEFAULT_HARNESS_MODELS,
-    PROVIDER_DEFAULT,
-    PROVIDER_DEFAULT_PROVIDERS,
-    REASONING_TIERS,
-    default_provider_model_config,
-)
+from .provider_config import PROVIDER_DEFAULT, PROVIDER_DEFAULT_PROVIDERS
 
 
 class AssignmentResolutionError(ValueError):
@@ -28,28 +21,18 @@ class AssignmentResolutionError(ValueError):
 
 
 @dataclass(frozen=True)
-class AssignmentValidationError:
-    task_id: str
-    field: str
-    message: str
-
-
-@dataclass(frozen=True)
 class AssignmentRequest:
     task_id: str
     provider_role: str
-    reasoning: str
+    model: str
+    effort: str | None
     main_harness: str
     workflow_id: str = ""
 
     def __post_init__(self) -> None:
-        for field_name in ("task_id", "provider_role", "main_harness"):
+        for field_name in ("task_id", "provider_role", "model", "main_harness"):
             if not str(getattr(self, field_name)).strip():
                 raise AssignmentResolutionError(f"{field_name} is required")
-        if self.reasoning not in REASONING_TIERS:
-            raise AssignmentResolutionError(
-                f"reasoning must be one of: {', '.join(REASONING_TIERS)}"
-            )
 
 
 @dataclass(frozen=True)
@@ -67,10 +50,6 @@ class RouteCandidate:
         if self.model == PROVIDER_DEFAULT and self.effort is not None:
             raise AssignmentResolutionError(
                 "provider_default cannot declare an effort"
-            )
-        if self.effort is not None and self.provider != "codex":
-            raise AssignmentResolutionError(
-                "effort is only supported for codex"
             )
 
     @property
@@ -93,70 +72,84 @@ class AssignmentManifest:
 
     def to_dict(self) -> dict[str, object]:
         primary, *fallbacks = self.candidates
-        def route_payload(candidate: RouteCandidate) -> dict[str, str]:
-            payload = {
+
+        def route_payload(candidate: RouteCandidate) -> dict[str, Any]:
+            payload: dict[str, Any] = {
                 "provider": candidate.provider,
                 "selection_mode": candidate.selection_mode,
             }
             if candidate.selection_mode == "explicit":
                 payload["model"] = candidate.model
-                if candidate.effort is not None:
-                    payload["effort"] = candidate.effort
+                payload["effort"] = candidate.effort
             return payload
 
         return {
             "task_id": self.request.task_id,
             "requested": {
                 "provider_role": self.request.provider_role,
-                "reasoning": self.request.reasoning,
+                "model": self.request.model,
+                "effort": self.request.effort,
             },
             "resolved": route_payload(primary),
             "fallback": [route_payload(candidate) for candidate in fallbacks],
+            "escalations": [],
         }
-
-
-def _task_value(task: Mapping[str, Any] | AssignmentRequest, field: str) -> str:
-    value = getattr(task, field) if isinstance(task, AssignmentRequest) else task.get(field, "")
-    return str(value).strip()
 
 
 def validate_plan_assignments(
     tasks: Sequence[Mapping[str, Any] | AssignmentRequest],
-    config: EffectiveConfig,
-) -> tuple[AssignmentValidationError, ...]:
-    """Return every portable role/tier error without consulting machine-local state."""
-    routing = config.get("routing", {})
+    config: Mapping[str, Any],
+) -> list[str]:
+    """Validate portable role, model, and effort guidance against the configured catalog."""
+    config_dict = config.to_dict() if hasattr(config, "to_dict") else dict(config)
+    routing = config_dict.get("routing", {}) if isinstance(config_dict, Mapping) else {}
     roles = routing.get("roles", {}) if isinstance(routing, Mapping) else {}
-    if not isinstance(roles, Mapping):
-        roles = {}
-    errors: list[AssignmentValidationError] = []
+    orchestrator = config_dict.get("orchestrator", {}) if isinstance(config_dict, Mapping) else {}
+    orchestrator_roles = orchestrator.get("roles", {}) if isinstance(orchestrator, Mapping) else {}
+    configured_roles = set(roles.keys() if isinstance(roles, Mapping) else ()) | set(
+        orchestrator_roles.keys() if isinstance(orchestrator_roles, Mapping) else ()
+    )
+
+    harness = config_dict.get("harness") or "claude"
+    try:
+        catalog = catalog_for(config_dict, harness)
+    except KeyError:
+        return [f"unknown harness: {harness}"]
+
+    errors: list[str] = []
     for index, task in enumerate(tasks):
-        if not isinstance(task, (Mapping, AssignmentRequest)):
+        if isinstance(task, AssignmentRequest):
+            task_id = task.task_id or f"task-{index + 1}"
+            role = task.provider_role
+            model = task.model
+            effort = task.effort
+            has_reasoning = False
+        elif isinstance(task, Mapping):
+            task_id = str(task.get("task_id", "")).strip() or f"task-{index + 1}"
+            role = str(task.get("provider_role", "")).strip()
+            model = task.get("model")
+            effort = task.get("effort")
+            has_reasoning = "reasoning" in task and model is None
+        else:
             raise TypeError("plan assignment tasks must be mappings or AssignmentRequest values")
-        task_id = _task_value(task, "task_id") or f"task-{index + 1}"
-        role = _task_value(task, "provider_role")
-        reasoning = _task_value(task, "reasoning")
-        if role not in roles:
-            errors.append(
-                AssignmentValidationError(task_id, "provider_role", f"unknown provider role: {role}")
-            )
-        if reasoning not in REASONING_TIERS:
-            errors.append(
-                AssignmentValidationError(
-                    task_id,
-                    "reasoning",
-                    f"reasoning must be one of: {', '.join(REASONING_TIERS)}",
-                )
-            )
-    return tuple(errors)
+
+        if role not in configured_roles:
+            errors.append(f"track {task_id}: unknown provider role: {role}")
+
+        if has_reasoning:
+            errors.append(f"track {task_id}: reasoning is replaced by model and effort")
+        else:
+            for diag in route_diagnostics(catalog, str(model or ""), effort):
+                errors.append(f"track {task_id}: {diag}")
+
+    return errors
 
 
 def resolve_main_harness(request: AssignmentRequest) -> tuple[RouteCandidate, ...]:
-    """Single-harness route: the main harness at the tier's default model."""
-    if request.main_harness not in DEFAULT_HARNESS_MODELS:
+    """Single-harness route: the main harness at the requested model and effort."""
+    if request.main_harness not in DEFAULT_CATALOGS:
         raise AssignmentResolutionError(f"unknown main harness: {request.main_harness}")
-    target = default_provider_model_config(request.main_harness).models[request.reasoning]
-    return (RouteCandidate(request.main_harness, target.model, False, effort=target.effort),)
+    return (RouteCandidate(request.main_harness, request.model, False, effort=request.effort),)
 
 
 _SAFE_WORKFLOW_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
@@ -178,7 +171,7 @@ def write_assignments(
     yaml = require_yaml()
     lock_path = path.with_name(f".{path.name}.lock")
     with file_lock(lock_path):
-        assignments: dict[str, Mapping[str, object]] = {}
+        assignments: dict[str, dict[str, object]] = {}
         if path.is_file():
             try:
                 current = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -188,18 +181,37 @@ def write_assignments(
                 ) from error
             if not isinstance(current, Mapping):
                 raise AssignmentResolutionError("existing assignment manifest must be a mapping")
-            for assignment in current.get("assignments", ()):
-                if not isinstance(assignment, Mapping) or not assignment.get("task_id"):
-                    raise AssignmentResolutionError("existing assignment entry is invalid")
-                assignments[str(assignment["task_id"])] = assignment
+            if "tracks" in current and isinstance(current["tracks"], Mapping):
+                for tid, entry in current["tracks"].items():
+                    if isinstance(entry, Mapping):
+                        d = dict(entry)
+                        d["task_id"] = tid
+                        assignments[tid] = d
+            if "assignments" in current and isinstance(current["assignments"], (list, tuple)):
+                for assignment in current["assignments"]:
+                    if isinstance(assignment, Mapping) and assignment.get("task_id"):
+                        assignments[str(assignment["task_id"])] = dict(assignment)
         for entry in entries:
             task_id = str(entry.get("task_id") if isinstance(entry, Mapping) else "").strip()
             if not task_id:
                 raise AssignmentResolutionError("assignment entry requires task_id")
-            assignments[task_id] = entry
+            assignments[task_id] = dict(entry)
+        tracks_map: dict[str, dict[str, object]] = {}
+        assignments_list: list[dict[str, object]] = []
+        for task_id in sorted(assignments):
+            entry = assignments[task_id]
+            entry.setdefault("escalations", [])
+            assignments_list.append(entry)
+            tracks_map[task_id] = {
+                "requested": entry.get("requested", {}),
+                "resolved": entry.get("resolved", {}),
+                "fallback": entry.get("fallback", []),
+                "escalations": entry.get("escalations", []),
+            }
         payload = {
             "workflow_id": workflow_id,
-            "assignments": [assignments[task_id] for task_id in sorted(assignments)],
+            "assignments": assignments_list,
+            "tracks": tracks_map,
         }
         content = yaml.safe_dump(payload, sort_keys=False, allow_unicode=True)
         atomic_write_text(path, content)

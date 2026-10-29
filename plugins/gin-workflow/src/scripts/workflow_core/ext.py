@@ -9,6 +9,15 @@ from .assignments import (
     validate_plan_assignments,
 )
 from .atomic import atomic_write_text
+from .catalog import (
+    Catalog,
+    DEFAULT_CATALOGS,
+    catalog_for,
+    escalate,
+    map_route,
+    route_diagnostics,
+    tier_of,
+)
 from .checkout import main_checkout
 from .configuration import load_effective_config, require_yaml
 from .events import WorkflowEvent, WorkflowEventStore
@@ -19,21 +28,18 @@ from .manifests import ContextManifest, ContextRequest, create_context_manifest
 from .models import EffectiveConfig, freeze, thaw
 from .notify import notify
 from .provider_config import (
-    CODEX_EFFORT_VALUES,
-    DEFAULT_HARNESS_MODELS,
+    DEFAULT_EXECUTABLES,
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderLocalConfigError,
     ProviderModelConfig,
-    REASONING_TIERS,
-    TierModelTarget,
     default_provider_model_config,
 )
 from .router import authorize_protected_action
 from .schemas import SUPPORTED_CONFIG_VERSIONS, validate_instance
 from .worktrees import cleanup as cleanup_worktree, create as create_worktree
 
-EXT_VERSION = 1
+EXT_VERSION = 2
 
 __all__ = [
     "AcceptanceIdentity",
@@ -41,37 +47,41 @@ __all__ = [
     "AssignmentManifest",
     "AssignmentRequest",
     "AssignmentResolutionError",
-    "CODEX_EFFORT_VALUES",
+    "Catalog",
     "ContextManifest",
     "ContextRequest",
-    "DEFAULT_HARNESS_MODELS",
+    "DEFAULT_CATALOGS",
+    "DEFAULT_EXECUTABLES",
     "EffectiveConfig",
     "PROVIDER_DEFAULT",
     "PROVIDER_DEFAULT_PROVIDERS",
     "PROVIDER_EXE_ALIASES",
     "ProviderLocalConfigError",
     "ProviderModelConfig",
-    "REASONING_TIERS",
     "RepositorySnapshot",
     "RouteCandidate",
     "SUPPORTED_CONFIG_VERSIONS",
-    "TierModelTarget",
     "WorkflowEvent",
     "WorkflowEventStore",
     "atomic_write_text",
     "authorize_protected_action",
+    "catalog_for",
     "cleanup_worktree",
     "create_context_manifest",
     "create_worktree",
     "default_provider_model_config",
+    "escalate",
     "file_lock",
     "freeze",
     "load_effective_config",
     "main_checkout",
+    "map_route",
     "notify",
     "require_yaml",
     "resolve_harness_executable",
+    "route_diagnostics",
     "thaw",
+    "tier_of",
     "validate_instance",
     "validate_plan_assignments",
 ]

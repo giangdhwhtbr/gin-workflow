@@ -1,24 +1,20 @@
-"""`gin-workflow reviewer` (agent-facing): the review tier and ordered reviewer routes; exit 2 when none."""
+"""`gin-workflow reviewer` (agent-facing): the review route and ordered reviewer routes; exit 2 when none."""
 
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping, Sequence
 import json
 from pathlib import Path, PurePosixPath
 import subprocess
 import sys
-from collections.abc import Mapping
-from typing import Any, Sequence
 import uuid
+from typing import Any
 
+from .catalog import Catalog, DEFAULT_CATALOGS, catalog_for, tier_of
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
 from . import orchestrator_client
-from .provider_config import (
-    DEFAULT_HARNESS_MODELS,
-    REASONING_TIERS,
-    default_provider_model_config,
-)
 
 
 class ReviewerError(Exception):
@@ -30,19 +26,25 @@ def is_docs(path: str) -> bool:
     return "skills" not in parts and (path.endswith(".md") or parts[:1] == ("docs",))
 
 
-def review_tier(tier: str, changed: Sequence[str]) -> tuple[str, str | None]:
-    """Raise a low tier to medium when the diff changes anything but documentation; never lower."""
+def review_route(
+    catalog: Catalog,
+    model: str,
+    effort: str | None,
+    changed: Sequence[str],
+) -> tuple[str, str | None, str | None]:
+    """Raise a low model to the next model when the diff changes anything but documentation."""
     code = [path for path in changed if not is_docs(path)]
-    if tier != "low" or not code:
-        return tier, None
-    return "medium", f"low track changes non-docs files: {', '.join(code[:3])}"
+    if tier_of(catalog, model) == "low" and code and len(catalog.models) > 1:
+        return (catalog.models[1], effort, "non-docs files changed")
+    return (model, effort, None)
 
 
 def route(
     root: Path,
     base: str,
     *,
-    tier: str,
+    model: str,
+    effort: str | None = None,
     implementer: str,
     config: EffectiveConfig,
 ) -> dict[str, Any]:
@@ -55,20 +57,28 @@ def route(
     )
     if diff.returncode != 0:
         raise ReviewerError(f"git diff {base}...HEAD failed: {diff.stderr.strip()}")
-    tier, reason = review_tier(tier, diff.stdout.splitlines())
 
     warnings: list[str] = []
     config_dict = config.to_dict() if hasattr(config, "to_dict") else dict(config)
+    harness = config.harness or implementer
+    if harness not in DEFAULT_CATALOGS:
+        raise ReviewerError(f"unknown harness: {harness}")
+    catalog = catalog_for(config_dict, harness)
+
+    model, effort, reason = review_route(catalog, model, effort, diff.stdout.splitlines())
 
     if orchestrator_client.delegates(config_dict, "reviewer"):
+        cmd = [
+            "reviewer",
+            "--base", base,
+            "--implementer", implementer,
+            "--model", model,
+            "--repository", str(root),
+        ]
+        if effort is not None:
+            cmd.extend(["--effort", effort])
         try:
-            orch_routes = orchestrator_client.call([
-                "reviewer",
-                "--base", base,
-                "--implementer", implementer,
-                "--tier", tier,
-                "--repository", str(root),
-            ])
+            orch_routes = orchestrator_client.call(cmd)
         except orchestrator_client.OrchestratorError as error:
             warnings.append(f"gin-orchestrator failed ({error}); reviewing on the main harness")
             orch_routes = None
@@ -82,7 +92,8 @@ def route(
             if not orch_routes:
                 raise ReviewerError("no reviewer routes available from orchestrator")
             return {
-                "tier": tier,
+                "model": model,
+                "effort": effort,
                 "reason": reason,
                 "warnings": warnings,
                 "routes": list(orch_routes),
@@ -92,73 +103,74 @@ def route(
         if warn is not None:
             warnings.append(warn)
 
-    harness = config.harness or implementer
-    if harness not in DEFAULT_HARNESS_MODELS:
-        raise ReviewerError(f"unknown harness: {harness}")
-    if tier not in REASONING_TIERS:
-        raise ReviewerError(f"unknown reasoning tier: {tier}")
+    independence = (
+        config_dict.get("routing", {}).get("review", {}).get("independence", "session")
+        if isinstance(config_dict.get("routing"), Mapping)
+        else "session"
+    )
+    if independence == "provider" and not orchestrator_client.delegates(config_dict, "reviewer"):
+        warnings.append(
+            "routing.review.independence: provider requires gin-orchestrator; falling back to same-provider session isolation"
+        )
 
-    target = default_provider_model_config(harness).models[tier]
-    model = target.model
-    effort = target.effort
-
-    if harness != implementer:
-        actor_id = f"reviewer:{harness}"
-    else:
-        actor_id = f"reviewer:{harness}:session-{uuid.uuid4().hex[:8]}"
-
-    review = (config.get("routing") or {}).get("review") or {}
-    independence = review.get("independence")
-    if independence == "provider":
-        warnings.append("routing.review.independence: provider requires gin-orchestrator; running on main harness in a fresh session")
-
-    route_entry = {
-        "provider": harness,
+    actor_id = (
+        f"reviewer:{harness}:session-{uuid.uuid4().hex[:8]}"
+        if implementer == harness
+        else f"reviewer:{harness}"
+    )
+    routes = [
+        {
+            "provider": harness,
+            "model": model,
+            "effort": effort,
+            "actor_id": actor_id,
+        }
+    ]
+    return {
         "model": model,
         "effort": effort,
-        "actor_id": actor_id,
-    }
-    return {
-        "tier": tier,
         "reason": reason,
         "warnings": warnings,
-        "routes": [route_entry],
+        "routes": routes,
     }
 
 
-def main(arguments: Sequence[str]) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="gin-workflow reviewer")
     parser.add_argument("--base", required=True)
     parser.add_argument("--implementer", required=True)
-    parser.add_argument("--tier", choices=REASONING_TIERS, default="medium")
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--effort", default=None)
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     parser.add_argument("--json", action="store_true")
-    args = parser.parse_args(list(arguments))
+
+    try:
+        args = parser.parse_args(list(argv) if argv is not None else sys.argv[1:])
+    except SystemExit as error:
+        return error.code if isinstance(error.code, int) else 2
     root = args.repository.resolve()
     try:
-        out = route(
-            root,
-            args.base,
-            tier=args.tier,
-            implementer=args.implementer,
-            config=load_effective_config(root),
-        )
-    except (ReviewerError, ConfigValidationError) as error:
+        config = load_effective_config(root)
+    except (OSError, ConfigValidationError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
-    if args.json:
-        print(json.dumps(out))
-        return 0
+    try:
+        payload = route(
+            root,
+            args.base,
+            model=args.model,
+            effort=args.effort,
+            implementer=args.implementer,
+            config=config,
+        )
+    except ReviewerError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
 
-    for warning in out.get("warnings", []):
-        print(f"warning: {warning}", file=sys.stderr)
-
-    lines = [f"tier {out['tier']}"] + ([f"reason: {out['reason']}"] if out["reason"] else [])
-    for r in out["routes"]:
-        parts = [r["provider"], r["model"]]
-        if r.get("effort"):
-            parts.append(r["effort"])
-        lines.append(" ".join(parts))
-    print("\n".join(lines))
+    print(json.dumps(payload))
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
