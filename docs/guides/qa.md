@@ -92,4 +92,4 @@ A commit pushed after the approval needs a new approval ([team mode](team.md)).
 
 ## Commands
 
-`gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa). To customize guidelines or add custom metadata fields to test cases, see the [Customizing Templates Guide](customizing-templates.md).
+`gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).

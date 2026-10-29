@@ -1,6 +1,6 @@
-# Rule Packs
+# Rule packs
 
-Rule packs are short, best-practice checklists the agent follows when it writes code and the reviewer checks when it reviews. `gin-workflow rules --files <paths>` picks the packs that apply to the files in scope; `execute` gives the output to the `developer` agent, `/quick` follows it, and `review` includes it as the reviewer's checklist.
+Rule packs are short checklists that the agent follows when it writes code and the reviewer checks when it reviews. `gin-workflow rules --files <paths>` picks the packs that apply to the files in scope; `execute` gives the output to the `developer` agent, `/quick` follows it, and `review` includes it as the reviewer's checklist.
 
 ## Packs
 
@@ -8,7 +8,7 @@ Rule packs are short, best-practice checklists the agent follows when it writes 
 |---|---|---|---|
 | `core` | core | every file | always, unless disabled |
 | `lean` | core | every file | always, unless disabled |
-| `docs` | core | `*.md` | always, unless disabled |
+| `docs` | core | `*.md` | always, unless disabled; loads when a Markdown file is in scope |
 | `typescript` | language | `*.ts`, `*.tsx`, `*.mts`, `*.cts` | via `rules.packs` |
 | `python` | language | `*.py` | via `rules.packs` |
 | `react` | framework (needs `typescript`) | `*.tsx`, `*.jsx` | via `rules.packs` |
@@ -16,7 +16,7 @@ Rule packs are short, best-practice checklists the agent follows when it writes 
 | `node-api` | framework | `*.ts`, `*.js` and variants | via `rules.packs` |
 | `fastapi` | framework (needs `python`) | `*.py` | via `rules.packs` |
 
-Setup proposes language and framework packs from what it detects (dependencies, `tsconfig.json`, `pyproject.toml`). `core` covers scope, secrets, error handling, input validation, behavior tests, reuse, naming, and single-purpose functions. `lean` asks for the shortest correct solution: reuse what exists, prefer the standard library, the platform, and installed dependencies, add nothing speculative, and never cut validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). `docs` checks that Markdown matches the code, calls practices the code does not enforce conventions, and keeps each fact on one page. It also enforces the house style: sentence-case headings, short sentences, and no dashes, bold-label list items, or emoji. Its ideas come from [technical-writer](https://github.com/riekelt/technical-writer) (MIT).
+Setup proposes language and framework packs from what it detects (dependencies, `tsconfig.json`, `pyproject.toml`). `core` covers scope, secrets, error handling, input validation, behavior tests, reuse, naming, and single-purpose functions. `lean` asks for the shortest correct solution. It says to reuse what exists, prefer the standard library, the platform, and installed dependencies, and add nothing speculative. It never allows cutting validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). `docs` checks that Markdown matches the code, calls practices the code does not enforce conventions, and keeps each fact on one page. It also checks the style: sentence-case headings, short sentences, and no dashes, bold-label list items, or emoji. Its ideas come from [technical-writer](https://github.com/riekelt/technical-writer) (MIT).
 
 ## Configure
 

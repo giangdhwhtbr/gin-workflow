@@ -1,4 +1,4 @@
-# Team Mode
+# Team mode
 
 Solo use needs nothing here: without a `team:` section in `.agent-workflow/config.yaml`, every stage behaves as described in [Lifecycle](../concepts/lifecycle.md). Team mode is opt-in. It adds member identity, gates proven by approved pull requests (GitHub) or merge requests (GitLab), areas with owners, per-member claims, and optionally a shared Beads database. For how a PM, a BA, developers, and testers split the work, see [Team roles](../roles.md).
 
@@ -6,11 +6,11 @@ Solo use needs nothing here: without a `team:` section in `.agent-workflow/confi
 
 Run `/team-setup` and answer as the lead. It asks for:
 
-- **host**: `github` or `gitlab`, and the **commit convention**: `conventional` or `none`;
-- **members**: git email, roles, and host login for each person;
-- **areas**: a name, path globs (including the area's tests), the `lead` role, and optionally the `roles` allowed to own tracks;
-- **approvals**: which roles approve `requirement_confirmed`, `ship`, and the `/roadmap` pull request (`roadmap`), and `area_lead` or roles for `plan_approved` (`[]` for none);
-- optionally **shared Beads**: a separate repository used as `team.beads_sync.remote`.
+- the host (`github` or `gitlab`) and the commit convention (`conventional` or `none`);
+- members: git email, roles, and host login for each person;
+- areas: a name, path globs (including the area's tests), the `lead` role, and optionally the `roles` allowed to own tracks;
+- approvals: which roles approve `requirement_confirmed`, `ship`, and the `/roadmap` pull request (`roadmap`), and `area_lead` or roles for `plan_approved` (`[]` for none);
+- optionally shared Beads: a separate repository used as `team.beads_sync.remote`.
 
 It writes the `team:` block with `gin-workflow setup configure`, then runs `gin-workflow team init` to generate CODEOWNERS, the pull request template, the commit-msg hook, and with `--ci` a CI workflow that checks commit messages against the convention and, when the repository variable `GIN_WORKFLOW_INSTALL` holds an install command, runs `team codeowners --check` and (SDD layout) `specs lint`. Commit those on a branch. On the host, protect the base branch: require a pull request with an approval and code-owner review.
 
@@ -45,18 +45,18 @@ The `gin-team` skill carries the exact steps.
 | `discuss` | When `requirement_confirmed` has roles, the spec goes through a pull request (`spec/<topic>`, or the SDD `pr` flow) and the gate is recorded after it merges. |
 | `plan` | Each track adds `Area:` and `Owner:` (optional only with shared Beads; reassigning a track means a new plan PR); a track's files stay inside its area. `team check-plan <plan>` must pass. With `plan_approved: area_lead`, the plan merges through a pull request approved by the area lead. |
 | `orchestrate` | Track beads get `track:<N>` and `area:<area>` labels and the owner as assignee. With shared Beads the lead orchestrates once; otherwise each member creates beads only for the tracks they own, and a dependency on someone else's track becomes an `external: <plan>#<N>` placeholder. |
-| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready`, claim it with `team claim <bead>`, and in the track worktree `team deps --bead <bead>` must pass before implementation. Branches are `feat/<topic>-t<N>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. |
+| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready`, claim it with `team claim <bead>`, and in the track worktree `team deps --bead <bead>` must pass before implementation. The `gin-team` skill names track branches `feat/<topic>-t<N>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. |
 | `ship` | When `ship` has roles in `team.approvals`, only the pull request and keep options are offered, and that role approves the latest commit of the pull request before merge (`team check --gate ship <url>`); a later push needs a new approval. GitLab needs "Reset approvals on push". Merging follows the host's rules (CODEOWNERS, branch protection). With shared Beads, `team sync` after closing beads. The old key `verification_passed` is deprecated and maps to `ship`. |
 
-**Handing a track over** (a member runs out of quota or is away): push the track branch, then the current assignee or the area lead runs `gin-workflow team reassign <bead> <email>`. The new assignee must be allowed to own tracks in the bead's areas; the bead keeps its status, gets a note `reassigned <from> -> <to> by <you>`, and with shared Beads the change is pushed. The new owner checks out the pushed branch and continues. The plan's `Owner:` field is not changed, and the review ledger travels with the branch only if it was committed.
+To hand a track over (a member runs out of quota or is away), push the track branch, then the current assignee or the area lead runs `gin-workflow team reassign <bead> <email>`. The new assignee must be allowed to own tracks in the bead's areas; the bead keeps its status, gets a note `reassigned <from> -> <to> by <you>`, and with shared Beads the change is pushed. The new owner checks out the pushed branch and continues. The plan's `Owner:` field is not changed, and the review ledger travels with the branch only if it was committed.
 
 `gin-workflow team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
 
-The lead declares a feature complete when every track pull request has merged; a member's ship covers only their own tracks.
+A member's ship covers only their own tracks. The lead declares the feature complete once every track pull request has merged (the `gin-team` skill's rule).
 
 ## Host settings
 
-- GitHub: branch protection on the integration branch, "Dismiss stale pull request approvals when new commits are pushed", and CODEOWNERS per area (`team init`).
+- GitHub: branch protection on the integration branch and CODEOWNERS per area (`team init`). Recommended: "Dismiss stale pull request approvals when new commits are pushed". The `ship` gate counts only approvals made on the latest commit either way.
 - GitLab: "Reset approvals on push" (`reset_approvals_on_push`), required for `ship`; without it the gate rejects the approval.
 
 ## CI (optional)
