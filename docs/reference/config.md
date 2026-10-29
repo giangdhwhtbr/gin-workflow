@@ -104,6 +104,8 @@ Credentials are read from `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the env
 | `spec_review` | `chat` | SDD spec review: `chat` or `pr` |
 | `test_globs` | `**/test_*.py`, `**/*_test.py`, `**/*.test.*`, `**/*.spec.*`, `tests/**`, `__tests__/**` | globs that identify test files for `specs trace` |
 
+Worktrees always live under `.planning/worktrees`. `gin-workflow setup doctor` asks you to remove an `artifacts.worktrees` key when any configuration layer sets it.
+
 ### `routing`
 
 In schema 2.8, `routing` holds single-harness roles (`preferred: [main_harness]`) and review policy. Worker routing configuration belongs under `orchestrator:`.

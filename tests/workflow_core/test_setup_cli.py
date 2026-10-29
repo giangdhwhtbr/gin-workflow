@@ -750,14 +750,17 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(res.stdout)
             self.assertFalse(any("providers.task_tracking" in action for action in payload.get("actions", [])))
 
-    def test_doctor_flags_the_ignored_artifacts_worktrees_key(self):
-        needle = "artifacts.worktrees is ignored"
-        for body, expected in (("artifacts:\n  worktrees: .custom/trees\n", True), ("", False)):
+    def test_doctor_flags_the_unsupported_artifacts_worktrees_key(self):
+        needle = "artifacts.worktrees is not supported"
+        key = "artifacts:\n  worktrees: .custom/trees\n"
+        for body, local, expected in ((key, None, True), ("", key, True), ("", None, False)):
             with tempfile.TemporaryDirectory() as directory:
                 repository = Path(directory)
                 (repository / ".agent-workflow").mkdir()
                 (repository / ".agent-workflow/config.yaml").write_text(
                     "schema_version: '2.8'\nharness: claude\n" + body, encoding="utf-8")
+                if local is not None:
+                    (repository / ".agent-workflow/local.yaml").write_text(local, encoding="utf-8")
                 res = self.run_cli(repository, "doctor", "--format", "json")
                 self.assertEqual(0, res.returncode, res.stderr)
                 actions = json.loads(res.stdout).get("actions", [])
