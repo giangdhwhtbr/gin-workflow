@@ -32,8 +32,14 @@ Before editing:
 7. Escalate out-of-scope changes instead of making them.
 
 ## Output
-Return a concise handoff with:
+Report exactly one status: `done`, `needs_clarification`, `failed`, or `blocked`, with supporting evidence:
 
+- `done`: implementation and validation succeeded. Return changed files, commits, and verification command output.
+- `needs_clarification`: requirement is ambiguous, contradictory, or missing. State the question and options before making assumptions.
+- `failed`: validation still fails after retries, or work cannot be completed. State failing tests, error output, and attempted fixes.
+- `blocked`: missing credentials, access, or external dependencies. State the missing prerequisite.
+
+Include concise handoff details:
 - `Changed`: files edited and the behavior or contract changed.
 - `Verification`: commands run with their output summary, and any checks intentionally not run.
 - `Risks`: residual uncertainty, failing checks, missing approvals, or follow-up work.

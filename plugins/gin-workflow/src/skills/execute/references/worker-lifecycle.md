@@ -1,8 +1,10 @@
 # Worker Lifecycle
 
-## Launching a CLI worker
+## Launching a worker
 
-Run the routed executable in the track worktree with the argv from gin-orchestrator's `scripts/gin_orchestrator/<provider>_worker.py`. Verify the diff and tests yourself. When it exits, run `gin-workflow notify --event worker_finished "<track>: <provider>"` (`worker_failed` on failure).
+Obtain the route from `gin-workflow routes dispatch --workflow-id <w> --task-id <id> --json`. When `provider` is another harness, run the routed executable in the track worktree with the argv from gin-orchestrator's `scripts/gin_orchestrator/<provider>_worker.py`. Verify the diff and tests. When it exits, run `gin-workflow notify --event worker_finished "<track>: <provider>"` (`worker_failed` on failure).
+
+The worker reports one status: `done`, `needs_clarification`, `failed`, or `blocked`.
 
 ## Events
 

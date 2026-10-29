@@ -1,6 +1,6 @@
 ---
 name: execute
-description: Implement and validate exactly one ready work unit, directly or through a routed worker.
+description: Implement and validate exactly one ready work unit at its manifest route.
 ---
 
 ## Before you start
@@ -22,20 +22,22 @@ Implement one ready work unit inside its approved scope and record evidence.
 - Follow the plan steps exactly, test first. Keep changes minimal and in scope.
 - Read the shape appendix for `project.shape` from `gin-workflow state --format json` (plugin `references/shape-<shape>.md`) before editing.
 - With `project.layout: sdd`, tests carry the track's REQ-IDs (the `gin-sdd` skill).
-- Run `gin-workflow rules --files <scope files>` and give its output to the `developer` agent (or follow it when executing directly). Rules never widen the scope.
+- Run `gin-workflow rules --files <scope files>` and give its output to the `developer` agent. Rules never widen the scope.
 - On a `greenfield` project, a task that sets up lint, typecheck, or test starts from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin-workflow setup doctor --format json`.
 - Validate immediately and keep the command output as evidence. Do not proceed while tests fail or acceptance criteria are unmet.
 - **Stop and ask** on a blocker, a plan gap, an unclear instruction, or repeated validation failure. Leave the bead in progress with a `gin-workflow task update <id> --notes` entry; do not guess. Failures route to the `gin-debugging` skill.
 - Scope or execution-strategy changes and production-impacting parallel work need explicit approval first.
 - Record notable decisions or risks per `gin-knowledge`.
 
-## 3. Direct vs worker dispatch
-Execute directly for sequential work, a single agent, three or fewer tasks, or no worker condition. Use a worker only for more than three parallel tasks, long-running or specialized work, independent review, or a track whose resolved route (`.agent-workflow/runtime/assignments/<workflow>.yaml`) names a provider other than the main harness; run that worker through the provider's CLI, which needs no extra approval. Without gin-orchestrator all routes are the main harness; skip the rest. When dispatching:
-- Send a bounded context (unit, scope, validation intent); never the parent transcript, model names, secrets, or private reasoning. Fail with `context_unavailable` when it is missing.
-- Re-resolve the provider role and reasoning at dispatch; recheck circuit, health, and capacity. Keep the fallback order; never downgrade the requested reasoning tier. Record the route and any fallback in runtime events only.
-- One task claim and one isolated workspace per worker; reuse the retry identity; never redispatch a completed task. If every route is unavailable, return `worker_routes_unavailable`.
-- When dispatching an implementer, use the `developer` agent.
-- Read [worker lifecycle](references/worker-lifecycle.md), [delegation policy](references/delegation-policy.md), and [result contract](references/result-contract.md) before dispatching.
+## 3. Worker dispatch
+Dispatch each track using this loop:
+1. `gin-workflow routes dispatch --workflow-id <w> --task-id <id> --json` gives the route.
+2. When `provider` is the main harness, spawn `gin-workflow:developer` with that `model` and `effort` and a bounded context: track text, file scope, `gin-workflow rules` output, worktree path, validation commands. Never the parent transcript or secrets. When `provider` is a provider other than the main harness, dispatch through gin-orchestrator as [worker lifecycle](references/worker-lifecycle.md) describes today, with the same route.
+3. On `done`, check the commits and command output, then request review.
+4. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise `gin-workflow notify --event needs_input` and leave the bead `in_progress` with a note.
+5. On `failed`, `routes dispatch --escalate "<reason>"` and re-dispatch in the same worktree; on exit 2, ask the user.
+6. On `blocked`, ask the user.
+Read [delegation policy](references/delegation-policy.md) and [result contract](references/result-contract.md) before dispatching.
 
 ## 4. Complete
 1. Request review through the `review` skill and wait for a terminal review state.

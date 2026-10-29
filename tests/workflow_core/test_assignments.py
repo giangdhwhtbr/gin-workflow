@@ -44,11 +44,11 @@ class AssignmentTests(unittest.TestCase):
         orchestrate = (plugin / "skills/orchestrate/SKILL.md").read_text(encoding="utf-8")
 
         self.assertIn("**Provider role**: `backend`", schema)
-        self.assertIn("**Reasoning**: `low` | `medium` | `high`", schema)
-        self.assertIn("complex architecture, security, migration, or concurrency", schema)
-        self.assertIn("Do not name a concrete provider or model", planning)
-        self.assertIn("provider role and reasoning", planning)
-        self.assertIn("every track has a configured role and low/medium/high reasoning", planning)
+        self.assertIn("**Model:** `sonnet`", schema)
+        self.assertIn("**Effort:** `medium`", schema)
+        self.assertIn("Cross-module change, security, migration, concurrency", schema)
+        self.assertIn("`Model:` and `Effort:`", planning)
+        self.assertIn("provider role, `Model:`, and `Effort:`", planning)
         # Track beads are created before routes resolve, so the routes file is keyed by their real ids
         self.assertLess(
             orchestrate.index("gin-workflow task create"),
