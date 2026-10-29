@@ -49,11 +49,10 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("Do not name a concrete provider or model", planning)
         self.assertIn("provider role and reasoning", planning)
         self.assertIn("every track has a configured role and low/medium/high reasoning", planning)
-        # Verify route resolution step comes before task creation in orchestrate skill
-        route_token = "routes resolve" if "routes resolve" in orchestrate else "resolve_all_assignments"
+        # Track beads are created before routes resolve, so the routes file is keyed by their real ids
         self.assertLess(
-            orchestrate.index(route_token),
             orchestrate.index("gin-workflow task create"),
+            orchestrate.index("routes resolve"),
         )
 
     def test_parent_deliverable_vs_track_bead_and_handoff_contracts(self):

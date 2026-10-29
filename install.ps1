@@ -421,13 +421,6 @@ function Install-Launcher {
     Copy-DirectoryContent `
         -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'templates') `
         -Destination (Join-Path $installDirectory 'templates')
-    if ($Name -eq 'gin-orchestrator') {
-        # The worker library finds these gin-workflow scripts beside its package (workspace.find_script).
-        foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh')) {
-            Copy-Item -LiteralPath (Join-Path $ScriptRoot "plugins/gin-workflow/src/scripts/$scriptName") `
-                -Destination (Join-Path $installDirectory $scriptName) -Force
-        }
-    }
 
     $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
     $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"

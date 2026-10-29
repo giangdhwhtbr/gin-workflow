@@ -129,9 +129,7 @@ try {
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-qa.cmd')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/templates'))) 'gin-orchestrator copied templates'
-    foreach ($scriptName in @('worktree-create.sh', 'worktree-cleanup.sh')) {
-        Assert-Exists (Join-Path $TestHome ".local/lib/gin-orchestrator/0.1/$scriptName")
-    }
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/worktree-create.sh'))) 'gin-orchestrator copied worktree scripts'
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-orchestrator.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'

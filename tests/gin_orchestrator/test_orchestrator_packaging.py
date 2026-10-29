@@ -3,13 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import re
-import shutil
-import subprocess
-import sys
-import tempfile
 import unittest
 
 from tests.gin_orchestrator import paths
@@ -48,22 +43,6 @@ class TestPackaging(unittest.TestCase):
         for link in re.findall(r"\]\(([^)]+)\)", text):
             with self.subTest(link=link):
                 self.assertTrue((skill.parent / link).resolve().is_file())
-
-    def test_find_script_resolves_beside_the_installed_package(self):
-        """The installer copies the shell scripts next to the package; `find_script` must find them there."""
-        with tempfile.TemporaryDirectory() as directory:
-            install = Path(directory) / ".local/lib/gin-orchestrator/0.1"
-            shutil.copytree(paths.ORCH_SCRIPTS / "gin_orchestrator", install / "gin_orchestrator",
-                            ignore=shutil.ignore_patterns("__pycache__"))
-            (install / "worktree-create.sh").write_text("#!/bin/sh\n", encoding="utf-8")
-            done = subprocess.run(
-                [sys.executable, "-c",
-                 "from gin_orchestrator.workspace import find_script; print(find_script('worktree-create.sh'))"],
-                env={**os.environ, "PYTHONPATH": os.pathsep.join((str(install), str(paths.CORE_SCRIPTS)))},
-                capture_output=True, text=True, check=False)
-
-            self.assertEqual(0, done.returncode, done.stderr)
-            self.assertEqual(str((install / "worktree-create.sh").resolve()), done.stdout.strip())
 
 
 if __name__ == "__main__":

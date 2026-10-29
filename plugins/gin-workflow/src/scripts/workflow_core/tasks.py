@@ -156,6 +156,17 @@ def query(root: Path, argv: Sequence[str]) -> Any:
     return result
 
 
+def _bd_env(root: Path, argv: Sequence[str]) -> dict[str, str] | None:
+    """In team mode bd acts as the member's email, as `team claim` does, unless an actor is already given."""
+    if "BD_ACTOR" in os.environ or any(arg == "--actor" or arg.startswith("--actor=") for arg in argv):
+        return None
+    from .team import current_member, team_for_repo
+
+    team = team_for_repo(root)
+    member = current_member(root, team) if team is not None else None
+    return None if member is None else {**os.environ, "BD_ACTOR": member.email}
+
+
 def main(argv: Sequence[str]) -> int:
     root = Path.cwd()
     try:
@@ -172,4 +183,4 @@ def main(argv: Sequence[str]) -> int:
         return 127
     if argv[:1] == ["ready"]:
         return _ready(executable, argv)
-    return subprocess.run([executable, *argv], check=False).returncode
+    return subprocess.run([executable, *argv], check=False, env=_bd_env(root, argv)).returncode

@@ -14,6 +14,7 @@ from .configuration import load_effective_config, require_yaml
 from .events import WorkflowEvent, WorkflowEventStore
 from .executable_resolver import PROVIDER_EXE_ALIASES, resolve_harness_executable
 from .identity import AcceptanceIdentity, RepositorySnapshot
+from .locking import file_lock
 from .manifests import ContextManifest, ContextRequest, create_context_manifest
 from .models import EffectiveConfig, freeze, thaw
 from .notify import notify
@@ -30,6 +31,7 @@ from .provider_config import (
 )
 from .router import authorize_protected_action
 from .schemas import SUPPORTED_CONFIG_VERSIONS, validate_instance
+from .worktrees import cleanup as cleanup_worktree, create as create_worktree
 
 EXT_VERSION = 1
 
@@ -58,8 +60,11 @@ __all__ = [
     "WorkflowEventStore",
     "atomic_write_text",
     "authorize_protected_action",
+    "cleanup_worktree",
     "create_context_manifest",
+    "create_worktree",
     "default_provider_model_config",
+    "file_lock",
     "freeze",
     "load_effective_config",
     "main_checkout",

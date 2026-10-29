@@ -154,7 +154,7 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
 | `whoami` | Show your member entry, roles, and areas (from `git config user.email`) |
 | `check URL --gate GATE [--plan P] [--spec S]` | Check that a pull request of this repository changes the gate's artifact and satisfies its approvals; `--gate roadmap` checks the roadmap file without recording anything |
-| `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields |
+| `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, and that the paths in each track's `Files` block stay inside its area |
 | `ready` | Ready beads in your areas |
 | `claim BEAD` | Claim a bead as yourself |
 | `reassign BEAD EMAIL` | Hand a track bead to another member. Allowed for the bead's current assignee or the lead of one of its areas; the new assignee must be allowed to own tracks in each area (`team.areas.<name>.roles`). Sets the assignee, appends a note, and pushes with shared Beads. A closed bead, a non-member, or a no-op is refused |
@@ -225,6 +225,17 @@ gin-workflow goal --workflow-id ID [--repository PATH]
 Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`: its open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one, with a turn limit of 6 per track (at most 30). A track run on a fallback from its route counts as run on its routed provider. A standalone bead is its own single track. When no track is left for the agent, it prints a `No goal:` line naming the human-gate tracks instead.
 
 Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is unavailable.
+
+## `gin-workflow worktree`
+
+```
+gin-workflow worktree create [--repository DIR] TRACK_ID BRANCH [BASE_REF]
+gin-workflow worktree cleanup [--repository DIR] TRACK_ID
+```
+
+Creates or removes the git worktree for one track at `.planning/worktrees/<track-id>` in the repository's top level. `TRACK_ID` must match `[A-Za-z0-9._-]+` and resolve inside `.planning/worktrees`. `create` makes the new branch `BRANCH` from `BASE_REF` (default: the current branch, or `HEAD` when detached) and refuses an existing directory. `cleanup` runs `git worktree remove` and succeeds without doing anything when the directory does not exist. Runs on every platform; it replaces `worktree-create.sh` and `worktree-cleanup.sh`.
+
+Exit codes: 0 created, removed, or nothing to remove; 1 invalid track id, existing directory, or git failure (message on stderr); 2 invalid arguments.
 
 ## `gin-workflow task`
 

@@ -537,12 +537,6 @@ install_launcher() {
     mkdir -p "$install_dir/templates"
     cp -rf "$source_dir/../templates/." "$install_dir/templates/"
   fi
-  if [ "$name" = gin-orchestrator ]; then
-    # The worker library finds these gin-workflow scripts beside its package (workspace.find_script).
-    for script in worktree-create.sh worktree-cleanup.sh; do
-      cp -f "$SCRIPT_DIR/plugins/gin-workflow/src/scripts/$script" "$install_dir/$script"
-    done
-  fi
   chmod 755 "$launcher_target"
   ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed $name launcher version $version to $launcher_link"
