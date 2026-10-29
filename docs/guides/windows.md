@@ -4,14 +4,15 @@ This guide covers native installation, configuration, and daily use of `gin-work
 
 ## Prerequisites
 
-### A. PowerShell 7+
+### PowerShell 7
 `install.ps1` requires PowerShell 7 (`#requires -Version 7.0`), so install `pwsh` instead of Windows PowerShell 5.1:
 ```powershell
 winget install Microsoft.PowerShell
 ```
 
-### B. Python 3
-Install Python 3 from python.org or with winget. The launcher shim calls `python`, so it must be on `PATH`:
+### Python 3.11
+
+Install Python 3.11 or later from python.org or with winget. `rules_checks.py` imports `tomllib`, which exists from 3.11, and `setup preset` and `setup doctor` load it. The launcher shim calls `python`, so it must be on `PATH`:
 ```powershell
 winget install Python.Python.3.12
 ```
@@ -20,7 +21,7 @@ Install PyYAML, which the CLI needs to read its configuration:
 pip install pyyaml
 ```
 
-### C. Git for Windows
+### Git for Windows
 Install Git:
 ```powershell
 winget install Git.Git
@@ -28,25 +29,20 @@ winget install Git.Git
 
 ## Environment configuration
 
-### A. Developer Mode for symlinks
+### Developer Mode
 
 Only `install.ps1 -Link` creates symbolic links. Creating them without administrator privileges requires Developer Mode:
 1. Open **Windows Settings** (`Win + I`).
 2. Go to **System**, then **For developers**.
 3. Toggle **Developer Mode** to **On**.
 
-Then allow symlinks in Git:
-```powershell
-git config --global core.symlinks true
-```
-
-### B. PowerShell Execution Policy
+### Execution policy
 Allow local scripts to run in PowerShell:
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-### C. Line Endings (CRLF vs LF)
+### Line endings
 The repository's `.gitattributes` sets `LF` for repository files and `CRLF` for `*.ps1`, `*.bat`, and `*.cmd`. To stop Git from converting line endings globally:
 ```powershell
 git config --global core.autocrlf false
@@ -82,7 +78,7 @@ pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Project .
 
 `gin-workflow` supports two task tracking backends:
 
-1. Markdown, the default. It needs no extra tools and stores tasks and epics as `.planning/tasks/*.md`. `/gin-workflow:setup` selects it when `bd` is not installed.
+1. Markdown, the default. It needs no extra tools and stores tasks and epics as `.planning/tasks/*.md`. `/gin-workflow:setup` asks which backend to use and proposes Markdown by default.
 2. Beads (`bd`). Install the `bd` and `dolt` binaries for Windows and put them on `PATH`.
 
 ## Daily use

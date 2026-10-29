@@ -7,7 +7,7 @@ Four common situations and the path through the workflow for each. Commands are 
 A typo, a copy change, a one-file fix with an obvious test.
 
 1. `/gin-workflow:quick <what to change>`: the agent restates the change in a few lines and waits for your confirmation.
-2. It runs `gin-workflow quick-check` with its estimate of files and modules. `escalate` or `refused` means the full lifecycle (below) is needed. Under `strict` rigor, `refused` also needs a `requirement_confirmed` waiver first.
+2. It runs `gin-workflow quick-check` with its estimate of files and modules. `escalate` means the change exceeds the quick limits; use the full lifecycle (below). `refused` comes only under `strict` rigor: use the full lifecycle, or waive `requirement_confirmed` with `gin-workflow unblock` to use `/quick`.
 3. It implements (test first when behavior changes), runs the verify commands for your rigor, reviews (self check under `easy`, independent otherwise), and records `quick-completed`.
 4. You review the diff and commit.
 
@@ -46,4 +46,4 @@ A session, provider, or machine stopped before the work reached a terminal state
 3. `/gin-workflow:workflow` routes to exactly one stage. Once every track is closed it selects `ship`, which fails closed when a ledger lacks terminal approval.
 4. Continue from the stage it names.
 
-When the state is held, `gin-workflow state` lists the remedies: clear a blocker, waive a process gate with a reason, or fix the missing configuration through `/setup`. A leftover worktree or runtime cache is derived metadata, not state, so do not use either to mark work done.
+When the state is held, `gin-workflow state` lists the remedies: clear a blocker, waive a process gate with a reason, or fix the missing configuration through `/setup`. A leftover worktree or runtime cache is [runtime metadata](../concepts/state-model.md#runtime-metadata), not state, so do not use either to mark work done.
