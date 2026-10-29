@@ -10,8 +10,38 @@ sys.path.insert(0, str(SCRIPTS))
 from workflow_core.migrations import (  # noqa: E402
     MigrationError,
     apply_migration,
+    migrate_config,
     rollback_migration,
 )
+from workflow_core import setup_service  # noqa: E402
+
+
+V28 = {"schema_version": "2.8", "workflow_version": "2.8", "setup_cli_version": "2.8", "harness": "claude"}
+LOCAL_WITH_MODELS = {
+    "schema_version": "2.8",
+    "providers": {
+        "codex": {
+            "executable": "codex",
+            "models": {
+                "low": {"model": "m1", "effort": "low"},
+                "medium": {"model": "m1", "effort": "medium"},
+                "high": {"model": "m2", "effort": "high"},
+            },
+        },
+        "antigravity": {"executable": "agy", "models": {"low": "a", "medium": "b", "high": "b"}},
+    },
+}
+
+
+def _write_repository(directory, config, local=None):
+    repository = Path(directory)
+    workflow = repository / ".agent-workflow"
+    workflow.mkdir()
+    yaml = setup_service.require_yaml()
+    (workflow / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+    if local is not None:
+        (workflow / "orchestrator.local.yaml").write_text(yaml.safe_dump(local), encoding="utf-8")
+    return repository, workflow
 
 
 class MigrationTests(unittest.TestCase):
@@ -147,6 +177,76 @@ setup_cli_version: '2.2'
             self.assertEqual("migration_available", result["status"])
             self.assertEqual(original, config.read_bytes())
             self.assertFalse((workflow / "backups").exists())
+
+
+    def test_migrates_2_8_to_2_9_dropping_model_tiers_and_keeping_routing(self):
+        routing = {"roles": {"backend": {"preferred": ["main_harness"]}}, "review": {"max_cycles": 3}}
+        config = {**V28, "model_tiers": {"plan": "high_reasoning"}, "routing": routing}
+
+        migrated = migrate_config(config, "2.9")
+
+        for field in ("schema_version", "workflow_version", "setup_cli_version"):
+            self.assertEqual("2.9", migrated[field])
+        self.assertNotIn("model_tiers", migrated)
+        self.assertEqual(routing, migrated["routing"])
+        self.assertIn("model_tiers", config)
+
+    def test_update_to_2_9_previews_catalog_entries_from_local_tiers_without_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, V28, LOCAL_WITH_MODELS)
+            config_before = (workflow / "config.yaml").read_bytes()
+            local_before = (workflow / "orchestrator.local.yaml").read_bytes()
+
+            preview = setup_service.update(repository, target_version="2.9", approve=False)
+
+            self.assertEqual(["m1", "m2"], preview["configuration"]["models"]["codex"]["models"])
+            self.assertEqual(["a", "b"], preview["configuration"]["models"]["antigravity"]["models"])
+            self.assertTrue(any("orchestrator.local.yaml" in action for action in preview["actions"]))
+            self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
+            self.assertEqual(local_before, (workflow / "orchestrator.local.yaml").read_bytes())
+            self.assertFalse((workflow / "backups").exists())
+
+    def test_update_to_2_9_moves_local_tier_models_into_the_catalog(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, V28, LOCAL_WITH_MODELS)
+            yaml = setup_service.require_yaml()
+
+            result = setup_service.update(repository, target_version="2.9", approve=True)
+
+            self.assertEqual("migrated", result["status"])
+            self.assertTrue(Path(result["backup"]).is_dir())
+            config = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
+            self.assertEqual("2.9", config["schema_version"])
+            self.assertEqual({"codex": {"models": ["m1", "m2"]}, "antigravity": {"models": ["a", "b"]}}, config["models"])
+            local = yaml.safe_load((workflow / "orchestrator.local.yaml").read_text(encoding="utf-8"))
+            self.assertEqual({"codex": {"executable": "codex"}, "antigravity": {"executable": "agy"}}, local["providers"])
+
+    def test_update_to_2_9_keeps_an_existing_catalog_entry_and_still_clears_local_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = {**V28, "models": {"codex": {"models": ["kept"]}}}
+            repository, workflow = _write_repository(directory, config, LOCAL_WITH_MODELS)
+            yaml = setup_service.require_yaml()
+
+            setup_service.update(repository, target_version="2.9", approve=True)
+
+            written = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
+            self.assertEqual(["kept"], written["models"]["codex"]["models"])
+            self.assertEqual(["a", "b"], written["models"]["antigravity"]["models"])
+            local = yaml.safe_load((workflow / "orchestrator.local.yaml").read_text(encoding="utf-8"))
+            self.assertNotIn("models", local["providers"]["codex"])
+
+    def test_doctor_reports_model_tiers_and_local_provider_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, {**V28, "model_tiers": {"plan": "high_reasoning"}})
+            actions = setup_service.doctor(repository)["actions"]
+            self.assertTrue(any("model_tiers" in action and "models:" in action for action in actions), actions)
+
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, V28, LOCAL_WITH_MODELS)
+            actions = setup_service.doctor(repository)["actions"]
+            self.assertTrue(
+                any("gin-workflow setup update --to-version 2.9 --approve" in action for action in actions), actions
+            )
 
 
 if __name__ == "__main__":

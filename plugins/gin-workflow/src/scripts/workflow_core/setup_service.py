@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import difflib
 import os
 from pathlib import Path
@@ -100,6 +101,38 @@ def _merged_provider_gitignore(path: Path) -> bytes:
     lines.extend(entry for entry in LOCAL_GITIGNORE_ENTRIES if entry not in lines)
     return ("\n".join(lines) + "\n").encode("utf-8")
 
+
+def _read_local_file(path: Path) -> dict[str, Any]:
+    yaml = require_yaml()
+    try:
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as error:
+        raise SetupError(f"invalid {path.name}: {error}") from error
+    if not isinstance(loaded, Mapping):
+        raise SetupError(f"{path.name} must contain a YAML mapping")
+    return dict(loaded)
+
+
+def _local_tier_models(local: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    """Per provider, the tier-to-model mapping that schema 2.9 moves into the `models:` catalog."""
+    providers = local.get("providers")
+    if not isinstance(providers, Mapping):
+        return {}
+    return {
+        str(name): entry["models"]
+        for name, entry in providers.items()
+        if isinstance(entry, Mapping) and isinstance(entry.get("models"), Mapping)
+    }
+
+
+def _catalog_from_tiers(tiers: Mapping[str, Any]) -> dict[str, list[str]]:
+    models: list[str] = []
+    for tier in ("low", "medium", "high"):
+        target = tiers.get(tier)
+        model = target.get("model") if isinstance(target, Mapping) else target
+        if model and str(model) not in models:
+            models.append(str(model))
+    return {"models": models}
 
 
 def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[str, Any]:
@@ -386,9 +419,17 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 "artifacts.worktrees is not supported; worktrees always live under .planning/worktrees. "
                 "Remove it from your configuration"
             )
-        if str(user_cfg.get("schema_version", "")) != "2.8" and legacy_worker_routing(user_cfg):
+        if str(user_cfg.get("schema_version", "")) not in ("2.8", "2.9") and legacy_worker_routing(user_cfg):
             backend_actions.append(
                 "worker routing under routing: is ignored; run gin-workflow setup update --to-version 2.8 --approve"
+            )
+        if "model_tiers" in effective_cfg:
+            backend_actions.append("model_tiers is ignored since schema 2.9; list models per harness under models:")
+        local_path = main_checkout(root) / ".agent-workflow/orchestrator.local.yaml"
+        if local_path.is_file() and _local_tier_models(_read_local_file(local_path)):
+            backend_actions.append(
+                "orchestrator.local.yaml lists models per provider; move them into the models: catalog with "
+                "gin-workflow setup update --to-version 2.9 --approve"
             )
 
     h = effective_cfg.get("harness") or detect(root).get("harness")
@@ -573,13 +614,30 @@ def update(
     for assignment in assignments:
         path, value = _parse_assignment(assignment)
         _set_nested(migrated, path, value)
+    main = main_checkout(root)
+    local_dir = main / ".agent-workflow"
+    old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
+    local_actions: list[str] = []
+    local_writes: dict[Path, bytes] = {}
+    if target_version == "2.9" and new_local.is_file():
+        local = _read_local_file(new_local)
+        tiered = _local_tier_models(local)
+        if tiered:
+            catalog = migrated.setdefault("models", {})
+            for provider, tiers in tiered.items():
+                if provider not in catalog:
+                    catalog[provider] = _catalog_from_tiers(tiers)
+                    local_actions.append(f"catalog entry for {provider} from {new_local.name}")
+            rewritten = copy.deepcopy(local)
+            for provider in tiered:
+                rewritten["providers"][provider].pop("models")
+            local_actions.append(f"remove provider models: from {new_local.relative_to(main)}")
+            local_writes[new_local] = _yaml_text(rewritten).encode("utf-8")
     validate_portable_config(migrated)
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
     proposal = propose_migration(root, target_version=target_version)
-    main = main_checkout(root)
-    local_dir = main / ".agent-workflow"
-    old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
+    proposal["actions"] = [*proposal.get("actions", ()), *local_actions]
     rename_local = target_version == "2.8" and old_local.is_file() and not new_local.exists()
     if rename_local:
         proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main)} to {new_local.name}"]
@@ -589,6 +647,7 @@ def update(
     additional_writes: dict[Path, bytes] = {
         resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
+        **local_writes,
     }
     res = apply_migration(
         root,
@@ -613,7 +672,7 @@ def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **
     main = main_checkout(root)
     local_dir = main / ".agent-workflow"
     old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
-    if str(result.get("restored_version", "")) != "2.8" and new_local.is_file() and not old_local.exists():
+    if str(result.get("restored_version", "")) not in ("2.8", "2.9") and new_local.is_file() and not old_local.exists():
         if not dry_run:
             os.replace(new_local, old_local)
         result.setdefault("actions", []).append(f"rename {new_local.relative_to(main)} to {old_local.name}")

@@ -337,6 +337,13 @@ class ConfigurationTests(unittest.TestCase):
         with self.assertRaises(ConfigValidationError):
             configuration.validate_portable_config(routing_invalid)
 
+    def test_model_tiers_is_rejected_at_2_9_and_still_loads_at_2_8(self):
+        with self.assertRaisesRegex(ConfigValidationError, r"models:"):
+            configuration.validate_portable_config(
+                {"schema_version": "2.9", "model_tiers": {"plan": "high_reasoning"}}
+            )
+        configuration.validate_portable_config({"schema_version": "2.8", "model_tiers": {"plan": "high_reasoning"}})
+
 
 if __name__ == "__main__":
     unittest.main()

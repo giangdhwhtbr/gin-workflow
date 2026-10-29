@@ -62,7 +62,7 @@ try {
     Assert-Exists $Installer
 
     $dryRunOutput = Invoke-Installer @{ Platform = 'codex'; DryRun = $true }
-    Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.8'
+    Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.9'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin-workflow.cmd'))) 'Dry-run wrote the launcher shim'
     Assert-True (-not $dryRunOutput.Contains('gin-qa', [StringComparison]::Ordinal)) 'Default install processed gin-qa'
@@ -76,8 +76,8 @@ try {
 
     # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
     $orchDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true }
-    Assert-Contains $orchDryRun 'gin-orchestrator requires gin-workflow 2.8; installing it first.'
-    Assert-Contains $orchDryRun 'would install gin-workflow launcher version 2.8'
+    Assert-Contains $orchDryRun 'gin-orchestrator requires gin-workflow 2.9; installing it first.'
+    Assert-Contains $orchDryRun 'would install gin-workflow launcher version 2.9'
     Assert-Contains $orchDryRun 'would install gin-orchestrator launcher version 0.1'
     Assert-True ($orchDryRun.IndexOf('installing it first.', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-workflow launcher', [StringComparison]::Ordinal)) 'gin-workflow was not installed first'
     Assert-True ($orchDryRun.IndexOf('would install gin-workflow launcher', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-orchestrator launcher', [StringComparison]::Ordinal)) 'gin-orchestrator was installed before gin-workflow'
@@ -113,10 +113,10 @@ try {
     Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.8/workflow_core/cli.py')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.8/rules/core.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.8/templates/spec-delta.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.8/templates/team/commit-msg')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/workflow_core/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/rules/core.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/templates/spec-delta.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/templates/team/commit-msg')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
 
     $qaProject = Join-Path $TestRoot 'qa-project'
@@ -165,13 +165,13 @@ try {
 
     if ($IsWindows) {
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
-        Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.8') "Unexpected launcher version: $version"
+        Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.9') "Unexpected launcher version: $version"
         $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') rules --list --repository $TestHome
         Assert-True (($rulesList | Out-String).Contains('core (plugin, core)')) "Launcher did not list the core rule pack: $rulesList"
     }
 
     foreach ($launcherCase in @(
-        @{ Name = 'gin-workflow'; Old = '2.1'; Current = '2.8' },
+        @{ Name = 'gin-workflow'; Old = '2.1'; Current = '2.9' },
         @{ Name = 'gin-qa'; Old = '0.3'; Current = '0.4' },
         @{ Name = 'gin-orchestrator'; Old = '0.0'; Current = '0.1' }
     )) {

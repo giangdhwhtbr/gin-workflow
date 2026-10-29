@@ -24,8 +24,8 @@ class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.8"
-SUPPORTED_SETUP_CLI_VERSION = "2.8"
+SUPPORTED_WORKFLOW_VERSION = "2.9"
+SUPPORTED_SETUP_CLI_VERSION = "2.9"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {
@@ -38,14 +38,6 @@ BUILT_IN_DEFAULTS: dict[str, Any] = {
         "knowledge": ".planning/knowledge",
         "evidence": ".agent-workflow/runtime/evidence",
         "runtime": ".agent-workflow/runtime",
-    },
-    "model_tiers": {
-        "brainstorm": "high_reasoning",
-        "design": "high_reasoning",
-        "plan": "high_reasoning",
-        "implement": "standard_impl",
-        "review": "high_reasoning",
-        "docs": "cheap_simple",
     },
     "capabilities": {},
     "policy": {
@@ -213,10 +205,12 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
             raise ConfigValidationError(
                 f"unsupported {field} {config[field]!r}; expected one of {SUPPORTED_CONFIG_VERSIONS!r}"
             )
+    if str(config.get("schema_version")) == "2.9" and "model_tiers" in config:
+        raise ConfigValidationError("model_tiers was removed in schema 2.9; list models per harness under models:")
     routing = config.get("routing", {})
     if isinstance(routing, Mapping):
         roles = routing.get("roles", {})
-        if str(config.get("schema_version")) == "2.8":
+        if str(config.get("schema_version")) in ("2.8", "2.9"):
             if legacy_worker_routing(config):
                 raise ConfigValidationError(
                     "worker routing (routing.concurrency, queue, worker, circuit_breaker, or a role naming a "
