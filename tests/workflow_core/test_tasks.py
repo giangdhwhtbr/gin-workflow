@@ -202,7 +202,9 @@ class ExternalDependencyTests(unittest.TestCase):
         self.bd(self.provider, "ship", "cap")
         subdirectory = self.consumer / "nested" / "deeper"
         subdirectory.mkdir(parents=True)
-        self.assertTrue(tasks._shipped(subdirectory, "bd", "external:prov:cap"))
+        done = gw(subdirectory, "task", "ready", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertIn(waiting, {issue["id"] for issue in json.loads(done.stdout)})
 
 
 class ExternalDependencyFailureTests(unittest.TestCase):
