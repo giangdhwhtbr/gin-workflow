@@ -46,7 +46,7 @@ Stages load these when needed; you can also invoke them directly.
 | `team-setup` | Set up or join team mode: members, roles, areas, approvals, conventions, hooks, shared Beads |
 | `migrate-specs` | Move a legacy `.planning` specs and plans layout into the SDD `docs/` layout |
 | `beads-migration` | Move a repository's local `.beads` directory to the central vault and link it back |
-| `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing) from repository evidence, on request only |
+| `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing) from repository evidence, or reground existing pages against the code, on request only |
 | `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics; reconcile both on re-run |
 
 ## gin-qa (optional add-on)

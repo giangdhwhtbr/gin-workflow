@@ -66,6 +66,18 @@ class TestRulePacks(unittest.TestCase):
         self.assertEqual("core", PACKS["docs"].tier)
         self.assertLessEqual(PACKS["docs"].body_chars, PACKS["docs"].body_limit)
 
+    def test_docs_writers_and_reviewer_load_docs_style(self):
+        src = ROOT / "plugins/gin-workflow/src"
+        style = (src / "references/docs-style.md").read_text(encoding="utf-8")
+        for heading in ("## Truth", "## Sentences and headings", "## Banned constructions", "## Runbooks", "## Reviewing docs"):
+            self.assertIn(heading, style)
+        for relative in ("skills/tech-doc/SKILL.md", "agents/docs-writer.md", "skills/review/SKILL.md"):
+            with self.subTest(path=relative):
+                self.assertIn("references/docs-style.md", (src / relative).read_text(encoding="utf-8"))
+        tech_doc = (src / "skills/tech-doc/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("gin-workflow rules --files", tech_doc)
+        self.assertIn("## Regrounding existing docs", tech_doc)
+
 
 if __name__ == "__main__":
     unittest.main()

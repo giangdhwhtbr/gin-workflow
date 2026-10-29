@@ -12,7 +12,7 @@ Write durable technical documentation for onboarding, architecture review, and p
 1. **Scope**: whole repository or one subsystem (focus there, but note key outside dependencies). Confirm the target output before writing unless the request, Beads task, or approved plan already authorizes it.
 2. **Gather evidence**: when `.codegraph/` exists, start with `codegraph files` for structure and `codegraph explore "<subsystem or question>"` for symbols and call paths; otherwise use grep and read. Treat index output as hints until verified against the files. Prefer code, lockfiles, configuration, migrations, schemas, tests, and workflow files. For `API.md`, find route declarations (`codegraph explore` first; then grep the frameworks present, e.g. Express/Fastify routers, NestJS decorators, FastAPI/Flask decorators, Django `urls.py`, Rails `routes.rb`, Next.js route handlers and server actions). For `FEATURES.md`, find frontend routes and screens and the calls they make (`fetch`, axios, generated API clients, GraphQL hooks), and match each call to an endpoint by method and path. If the repository ships an OpenAPI or GraphQL schema, link it from `API.md` and still list the compact table.
 3. **Choose the shape**: default to the split set below under `.planning/codebase/` (with `project.layout: sdd`, `artifacts.codebase`, default `docs/codebase/`; a subsystem gets a `<scope-slug>/` subfolder). Start each file from `gin-workflow specs template codebase/<FILE>.md`, which honors project overrides in `.agent-workflow/templates/`. Use a single combined document only when the user asks for one, the scope is very narrow, or an approved plan says so. Do not invent alternate names (`Backend.md`, `Database.md`) when a canonical file covers the topic.
-4. **Write**: clear prose with headings and short lists; Mermaid only where it clarifies architecture, data flow, or ownership; one topic per file, linking to siblings instead of repeating them.
+4. **Write**: run `gin-workflow rules --files <pages to write>` and follow its output and [references/docs-style.md](../../references/docs-style.md). Clear prose with headings and short lists; Mermaid only where it clarifies architecture, data flow, or ownership; one topic per file, linking to siblings instead of repeating them.
 5. **Mark uncertainty and check completeness**: separate verified facts from inference; name what is unknown and where the answer likely lives. Every `API.md` and `FEATURES.md` row cites `file:line`; a cell without a citation is marked as inference. In `API.md` → `Completeness Check`, record the search method, the number of route declarations found, and the number of table rows, and explain any difference. In `FEATURES.md` → `Coverage Gaps`, list endpoints with no frontend caller, frontend calls with no matching endpoint, and features missing one side; serious gaps also go to `CONCERNS.md`.
 6. **Report**: the files written, and `gin-workflow setup refresh` to update the links in `AGENTS.md`.
 
@@ -42,3 +42,14 @@ These files are evidence for humans and planning, not runtime status; they never
 - Explain rather than enumerate; highlight the top risks.
 - Back claims with concrete files and line numbers.
 - Never present guessed behavior, stale references, or index-only findings as verified facts.
+
+## Regrounding existing docs
+
+When the user asks to reground (re-check) pages or a docs folder, check those pages against the code instead of writing new ones. For each page:
+
+1. List its factual claims: commands, flags, paths, defaults, and behavior.
+2. Check each claim against the code at HEAD and note the evidence as `file:line`, or note that nothing backs it.
+3. Fix a wrong claim, remove a claim nothing backs, or call it a convention when it describes team practice.
+4. Report per page: claims checked, fixed, and removed, and open questions.
+
+Write only the pages in scope and only the claims you fix; add sections or restyle a page only when the request says so.
