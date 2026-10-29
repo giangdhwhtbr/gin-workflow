@@ -63,7 +63,7 @@ def _shipped(root: Path, executable: str, ref: str) -> bool:
                                   text=True, capture_output=True, check=False, timeout=30).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return False
-    directory = Path(root) / Path(location).expanduser()
+    directory = main_checkout(Path(root)) / Path(location).expanduser()
     if not location or not directory.is_dir():
         return False
     found = _bd_json(executable, ["list", "--status", "closed", "--label", f"provides:{capability}"], root,

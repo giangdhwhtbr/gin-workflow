@@ -194,6 +194,16 @@ class ExternalDependencyTests(unittest.TestCase):
         ids, _ = self.ready()
         self.assertEqual({free, waiting}, ids)
 
+    def test_relative_external_path_resolves_from_a_subdirectory(self):
+        provides = self.create(self.provider, "api", "-l", "export:cap")
+        waiting = self.create(self.consumer, "uses api")
+        self.bd(self.consumer, "dep", "add", waiting, "external:prov:cap")
+        self.bd(self.provider, "close", provides, "--reason", "done")
+        self.bd(self.provider, "ship", "cap")
+        subdirectory = self.consumer / "nested" / "deeper"
+        subdirectory.mkdir(parents=True)
+        self.assertTrue(tasks._shipped(subdirectory, "bd", "external:prov:cap"))
+
 
 class ExternalDependencyFailureTests(unittest.TestCase):
     def test_unexplained_ready_fails_instead_of_releasing(self):
