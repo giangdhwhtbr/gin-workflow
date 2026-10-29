@@ -5,13 +5,13 @@ This walkthrough follows one team from "we inherited a legacy system" to "sprint
 
 A legacy PHP ordering system (orders, payments, inventory) is being modernized behind a new API. The team:
 
-| Person | Role | Handbook | Does |
+| Person | Role | Reads | Does |
 |---|---|---|---|
-| Lan | `pm` | [PM Guide](../guides/pm-guide.md) | Roadmap, sprint labels, sprint report |
-| An | `ba` | [BA Guide](../guides/ba-guide.md) | Specs and user stories |
-| Binh | `be_lead` | [Dev & Lead Guide](../guides/dev-guide.md) | Setup, plan, orchestrate, ship |
-| Em | `be_dev` | [Dev & Lead Guide](../guides/dev-guide.md) | Implementation |
-| Chi | `qe` | [QA Guide](../guides/qa-guide.md) | Test cases, E2E, verification approval |
+| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, sprint labels, sprint report |
+| An | `ba` | [BA](../roles.md#ba) | Specs and user stories |
+| Binh | `be_lead` | [Developer](../roles.md#developer-and-tech-lead) | Setup, plan, orchestrate, ship |
+| Em | `be_dev` | [Developer](../roles.md#developer-and-tech-lead) | Implementation |
+| Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, verification approval |
 
 The `team:` block in `.agent-workflow/config.yaml` (written by `/gin-workflow:team-setup`):
 

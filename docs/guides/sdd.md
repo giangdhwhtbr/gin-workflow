@@ -1,8 +1,8 @@
-# Spec-Driven Development (SDD layout)
+# Spec-driven development (SDD layout)
 
 By default (`artifacts.layout: legacy`) each change gets a dated spec in `.planning/specs/` and a plan in `.planning/plans/`, and they stay where they were written. The SDD layout keeps **living specs** instead: one spec per capability that always describes current behavior, with numbered requirements that tests and beads point to. Every change proposes a delta to those specs, and shipping merges the delta in.
 
-Setup proposes `artifacts.layout: sdd` for a greenfield project. An existing repository switches with `/migrate-specs`, which moves its `.planning` specs and plans and sets the layout; `gin-workflow setup doctor` suggests it when legacy specs exist.
+Setup proposes `artifacts.layout: sdd` for a greenfield project. An existing repository switches with `/gin-workflow:migrate-specs`, which moves its `.planning` specs and plans and sets the layout; `gin-workflow setup doctor` suggests it when legacy specs exist.
 
 ## Layout
 
@@ -41,6 +41,12 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin-workflow specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
 - `gin-workflow specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `specs-README.md`).
 
+## Images and mockups
+
+As a team convention, keep screenshots, mockups and diagrams for a capability in `docs/specs/<capability>/assets/`, with names that say the screen and state (`login-form-error.png`). gin-workflow does not create or move this folder.
+
+`specs archive` copies the text of each requirement block into `docs/specs/<capability>/spec.md`, so write image paths relative to that file (`assets/login-form.png`). In the change folder's `spec-delta.md` those links do not resolve until the change ships.
+
 ## How the stages change
 
 Every `state` and `record` call for the change passes `--workflow-id <epic>`. The `gin-sdd` skill carries the exact steps.
@@ -57,8 +63,8 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 
 ## Migrating
 
-`/migrate-specs` runs `gin-workflow specs migrate --dry-run`, shows the moves, and on approval migrates on a `chore/migrate-specs` branch. Uncommitted changes always stop it; an approved but unshipped workflow or an open worktree stops it unless you accept `--force`. It can then seed living specs one capability at a time, describing current behavior only, using the `tech-doc` output when `docs/codebase` is empty.
+`/gin-workflow:migrate-specs` runs `gin-workflow specs migrate --dry-run`, shows the moves, and on approval migrates on a `chore/migrate-specs` branch. Uncommitted changes always stop it; an approved but unshipped workflow or an open worktree stops it unless you accept `--force`. It can then seed living specs one capability at a time, describing current behavior only, using the `tech-doc` output when `docs/codebase` is empty.
 
 ## Commands
 
-See [`gin-workflow specs`](../reference/cli.md#gin-workflow-specs) for every command and its exit codes. The [BA Guide](ba-guide.md) explains how Business Analysts define specs and attach visual mockups. The [QA add-on](qa.md) builds test cases from the same REQ-IDs.
+See [`gin-workflow specs`](../reference/cli.md#gin-workflow-specs) for every command and its exit codes. The [QA add-on](qa.md) builds test cases from the same REQ-IDs.

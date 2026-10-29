@@ -142,6 +142,6 @@ When ready to modernize a module, run the standard guarded lifecycle:
 
 - **Executive & Team Presentation Deck?** Open the [Brownfield Modernization Deck](../presentations/brownfield-modernization.html) ([PPTX](../presentations/brownfield-modernization.pptx)).
 - **Following the whole flow with prompts per role?** See the [Brownfield Walkthrough](brownfield-walkthrough.md).
-- **Collaborating with BA, Dev, and Tester?** Read [Team Roles Guide](team-roles.md).
+- **Collaborating with BA, Dev, and Tester?** Read [Team roles](../roles.md).
 - **Managing test cases and E2E automation?** See the [QA Guide](../guides/qa.md).
 - **Scale execution with multiple providers?** Install the [gin-orchestrator](../orchestrator/README.md) extension.
