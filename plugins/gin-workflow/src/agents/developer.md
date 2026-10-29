@@ -1,8 +1,7 @@
 ---
 name: developer
 description: Implements one assigned bead, plan track, or /quick change within its file scope, frontend or backend.
-tools: ["view_file", "grep_search", "list_dir", "run_command"]
-model: standard_impl
+tools: ["view_file", "grep_search", "list_dir", "run_command", "replace_file_content", "write_to_file"]
 ---
 
 # Developer

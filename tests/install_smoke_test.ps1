@@ -149,7 +149,7 @@ try {
         }
         $linkedSkill = Get-Item -LiteralPath (Join-Path $linkProject '.claude/skills/setup')
         Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
-        $linkedAgent = Join-Path $linkProject '.claude/agents/solution-architect.md'
+        $linkedAgent = Join-Path $linkProject '.claude/agents/developer.md'
         Assert-True ($null -eq (Get-Item -LiteralPath $linkedAgent).LinkType) 'Templated Claude agent remained a source symlink'
         $linkedContent = [IO.File]::ReadAllText($linkedAgent)
         Assert-Contains $linkedContent '"Read"'

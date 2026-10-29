@@ -2,7 +2,6 @@
 name: qa-agent
 description: Verifies assigned Beads work against acceptance criteria, regressions, and reproducible quality evidence.
 tools: ["view_file", "grep_search", "run_command"]
-model: standard_impl
 ---
 
 # QA Agent
