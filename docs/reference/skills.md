@@ -1,6 +1,6 @@
-# Skills Reference
+# Skills reference
 
-Every skill is also a slash command: `/gin-workflow:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`); the lifecycle stages still run through the `gin-workflow` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
+Every skill is also a slash command: `/gin-workflow:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `report` is `@gin-workflow-report`, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); the lifecycle stages still run through the `gin-workflow` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
 
 ## gin-workflow: lifecycle stages
 
@@ -10,7 +10,7 @@ Run these in order for a feature. `workflow` picks the next one for you.
 |---|---|---|
 | `discuss` | Clarify a requirement into a confirmed design spec before any planning, tasks, or code | `requirement_confirmed` |
 | `plan` | Turn the confirmed spec into an implementation plan with routed tracks | `plan_approved` |
-| `orchestrate` | Mirror the plan into Beads tracks, resolve provider routes, create the worktree | `orchestration_ready` |
+| `orchestrate` | Mirror the plan into Beads tracks, resolve provider routes, and prepare an isolated workspace (a worktree unless isolation is disabled with approval) | `orchestration_ready` |
 | `execute` | Implement and validate one ready track, directly or through a routed worker | track closed |
 | `review` | Request or perform an independent review recorded in the review ledger | approved ledger |
 | `ship` | Offer merge, PR, keep, or discard; run the chosen one; close beads and ledgers | `shipped` |
@@ -45,7 +45,7 @@ Stages load these when needed; you can also invoke them directly.
 |---|---|
 | `team-setup` | Set up or join team mode: members, roles, areas, approvals, conventions, hooks, shared Beads |
 | `migrate-specs` | Move a legacy `.planning` specs and plans layout into the SDD `docs/` layout |
-| `beads-migration` | Move a repository's local `.beads` directory to the central vault and link it back |
+| `beads-migration` | Move a repository's `.beads` directory into `~/gin-beads/<repo>` and symlink it back |
 | `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing) from repository evidence, or reground existing pages against the code, on request only |
 | `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics; reconcile both on re-run |
 
