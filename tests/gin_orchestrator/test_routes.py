@@ -257,6 +257,21 @@ class ProviderRoutesTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 resolve_assignment(AssignmentRequest("api", "backend", "extreme", None, "claude"), config, local())
 
+    def test_resolver_reports_unknown_providers_and_models_outside_the_catalog(self):
+        # F3
+        with tempfile.TemporaryDirectory() as directory:
+            role = {"preferred": ["gemini", "claude"]}
+            config = EffectiveConfig({"harness": "claude", "routing": {"roles": {"backend": role}}}, Path(directory))
+            with_gemini = {**local(), "gemini": ProviderModelConfig("gemini", "gemini")}
+            with self.assertRaisesRegex(AssignmentResolutionError, "unknown provider: gemini"):
+                resolve_assignment(AssignmentRequest("api", "backend", "sonnet", None, "claude"), config, with_gemini)
+            with self.assertRaisesRegex(AssignmentResolutionError, "unknown provider: nosuch"):
+                resolve_assignment(AssignmentRequest("api", "backend", "opus", None, "nosuch"),
+                                   effective(Path(directory)), local())
+            with self.assertRaisesRegex(AssignmentResolutionError, "model 'gpt-6-astra' is not in the catalog"):
+                resolve_assignment(AssignmentRequest("api", "backend", "gpt-6-astra", None, "claude"),
+                                   effective(Path(directory)), local())
+
     def test_manifest_is_immutable_deterministic_and_written_under_runtime_only(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

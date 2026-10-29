@@ -15,6 +15,7 @@ from workflow_core.ext import (
     catalog_for,
     default_provider_model_config,
     map_route,
+    route_diagnostics,
     tier_of,
     validate_plan_assignments,
 )
@@ -25,14 +26,25 @@ def resolve_assignment(
     request: AssignmentRequest,
     config: EffectiveConfig,
     local: Mapping[str, ProviderModelConfig],
+    source_harness: str | None = None,
 ) -> tuple[RouteCandidate, ...]:
-    """Resolve one role/tier without checking mutable provider availability."""
+    """Resolve one role/tier without checking mutable provider availability.
+
+    The request's model and effort are a route in `source_harness`'s catalog (default: the main
+    harness); that harness keeps the route, and every other provider gets it mapped by rank.
+    """
     all_roles = roles(config)
     role = all_roles.get(request.provider_role) if isinstance(all_roles, Mapping) else None
     if not isinstance(role, Mapping):
         raise AssignmentResolutionError(f"unknown provider role: {request.provider_role}")
 
-    source = catalog_for(config, request.main_harness)
+    source_harness = source_harness or request.main_harness
+    if source_harness not in DEFAULT_CATALOGS:
+        raise AssignmentResolutionError(f"unknown provider: {source_harness}")
+    source = catalog_for(config, source_harness)
+    diagnostics = route_diagnostics(source, request.model, request.effort)
+    if diagnostics:
+        raise AssignmentResolutionError("; ".join(diagnostics))
     tier = tier_of(source, request.model)
 
     by_tier = role.get("by_tier") or {}
@@ -62,8 +74,11 @@ def resolve_assignment(
             else:
                 errors.append(f"missing local provider mapping: {provider}")
                 continue
+        if provider not in DEFAULT_CATALOGS:
+            errors.append(f"unknown provider: {provider}")
+            continue
 
-        if provider == request.main_harness:
+        if provider == source_harness:
             model = request.model
             effort = request.effort
         else:

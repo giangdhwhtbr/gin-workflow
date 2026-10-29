@@ -71,6 +71,7 @@ class ReviewCycle:
     expected_ledger_revision: int | None = None
     implementation_session: str = ""
     reviewer_session: str = ""
+    implementation_effort: str | None = None
 
     @property
     def reviewer_route(self) -> tuple[str, str]:
@@ -141,6 +142,7 @@ class ReviewCoordinator:
         model: str,
         effort: str | None = None,
         implementation_route: tuple[str, str],
+        implementation_effort: str | None = None,
         reviewer_candidates: tuple[RouteCandidate, ...],
         context: ReviewContext,
         lease_id: str = "",
@@ -190,6 +192,7 @@ class ReviewCoordinator:
             expected_ledger_revision=expected_ledger_revision,
             implementation_session=implementation_session,
             reviewer_session=reviewer_session,
+            implementation_effort=implementation_effort,
         )
 
     def dispatch_review(
@@ -292,7 +295,7 @@ class ReviewCoordinator:
     ) -> RevisionRequest:
         preferred = (cycle.implementation_provider, cycle.implementation_model)
         selected = preferred if self.route_available(*preferred) else None
-        selected_effort = cycle.effort
+        selected_effort = cycle.implementation_effort
         fallback_used = False
         if selected is None:
             candidate = next(

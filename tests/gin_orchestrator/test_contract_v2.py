@@ -139,6 +139,47 @@ class ContractV2Tests(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("model 'gpt-6-astra' is not in the catalog; allowed: haiku, sonnet, opus", result.stderr)
 
+    def test_reviewer_maps_the_implementer_route_to_the_main_harness(self):
+        # F1: main_harness stays the configured harness; the route maps from the implementer's catalog.
+        (self.root / "a.txt").write_text("a", encoding="utf-8")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-q", "-m", "base")
+
+        result = run("reviewer", "--base", "HEAD", "--implementer", "codex", "--model", "gpt-6-astra",
+                     "--effort", "high", "--repository", str(self.root), "--json")
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([("claude", "sonnet", "high", "reviewer:claude")],
+                         [(r["provider"], r["model"], r["effort"], r["actor_id"]) for r in json.loads(result.stdout)])
+
+    def test_reviewer_with_an_unknown_implementer_exits_2_without_traceback(self):
+        # F3
+        result = run("reviewer", "--base", "base", "--implementer", "gemini", "--model", "g1",
+                     "--repository", str(self.root), "--json")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("unknown provider: gemini", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_routes_resolve_with_an_unknown_main_harness_reports_a_diagnostic(self):
+        # F3
+        result = run("routes", "resolve", "--workflow-id", "wf", "--tracks", str(self.tracks_file(TRACKS)),
+                     "--main-harness", "nosuch", "--repository", str(self.root), "--json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([], payload["routes"])
+        self.assertIn("unknown harness: nosuch", " ".join(payload["diagnostics"]))
+
+    def test_routes_resolve_validates_against_the_given_main_harness(self):
+        # F4
+        tracks = [{"task_id": "t1", "provider_role": "backend", "model": "opus", "effort": "high"}]
+        result = run("routes", "resolve", "--workflow-id", "wf", "--tracks", str(self.tracks_file(tracks)),
+                     "--main-harness", "codex", "--repository", str(self.root), "--json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([], payload["routes"])
+        self.assertIn("model 'opus' is not in the catalog", " ".join(payload["diagnostics"]))
+
     def test_supported_ext_version_matches_core(self):
         import re
         from workflow_core.ext import EXT_VERSION

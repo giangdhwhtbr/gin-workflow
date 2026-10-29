@@ -172,6 +172,26 @@ class ReviewCoordinatorTests(unittest.TestCase):
         self.assertEqual(("codex", "reasoning"), (fallback.provider, fallback.model))
         self.assertEqual(sticky.revision_identity, base.route_revision(cycle, (finding,)).revision_identity)
 
+    def test_revision_on_the_preferred_route_keeps_the_implementation_effort(self):
+        # F5: the plan effort (max) is in the main harness catalog; the Codex route carries its own effort.
+        finding = ReviewFinding("F-1", "IMPORTANT", "open", "src/api.py:12", "validate input", "unit test")
+        coordinator = ReviewCoordinator(FakeReviewProvider())
+        cycle = coordinator.request_review(
+            task_id="api",
+            cycle_number=1,
+            provider_role="backend",
+            model="opus",
+            effort="max",
+            implementation_route=("codex", "gpt-6-astra"),
+            implementation_effort="xhigh",
+            reviewer_candidates=(RouteCandidate("claude", "opus", False, effort="max"),),
+            context=self.context(),
+        )
+
+        revision = coordinator.route_revision(cycle, (finding,))
+
+        self.assertEqual(("codex", "gpt-6-astra", "xhigh"), (revision.provider, revision.model, revision.effort))
+
     def test_fourth_unresolved_cycle_requires_human_decision_and_blocks_closure(self):
         coordinator = ReviewCoordinator(FakeReviewProvider(), max_cycles=3)
 

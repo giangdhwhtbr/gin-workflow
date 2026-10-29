@@ -128,11 +128,19 @@ class RouteTests(unittest.TestCase):
                 self.assertIn("not in the catalog", stderr.getvalue())
 
     def test_reviewer_of_another_implementer_is_provider_independent(self):
-        out = route(self.root, self.base, model="sonnet", effort=None, implementer="codex", config=config(self.root, harness="claude"))
+        # F2: the implementer's route is in its own catalog and maps by rank to the main harness.
+        out = route(self.root, self.base, model="gpt-6-astra", effort="xhigh", implementer="codex",
+                    config=config(self.root, harness="claude"))
         self.assertEqual(len(out["routes"]), 1)
         r = out["routes"][0]
-        self.assertEqual(r["provider"], "claude")
+        self.assertEqual(("claude", "sonnet", "xhigh"), (r["provider"], r["model"], r["effort"]))
         self.assertEqual(r["actor_id"], "reviewer:claude")
+
+    def test_another_implementer_is_validated_against_its_own_catalog(self):
+        # F2
+        with self.assertRaisesRegex(ReviewerError, "model 'sonnet' is not in the catalog"):
+            route(self.root, self.base, model="sonnet", effort=None, implementer="codex",
+                  config=config(self.root, harness="claude"))
 
     def test_provider_independence_without_orchestrator_warns(self):
         cfg = config(self.root, harness="claude", independence="provider")
@@ -170,6 +178,21 @@ class RouteTests(unittest.TestCase):
             with on_path(fake_dir):
                 out = route(self.root, self.base, model="sonnet", effort="medium", implementer="claude", config=cfg)
                 self.assertEqual(orch_routes, out["routes"])
+
+    def test_multi_mode_passes_the_implementer_route_to_the_orchestrator(self):
+        # F2
+        cfg = config(self.root, harness="claude", provider_mode="multi")
+        orch_routes = [{"provider": "claude", "model": "sonnet", "effort": "high", "actor_id": "reviewer:claude"}]
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": orch_routes})
+            with on_path(fake_dir):
+                out = route(self.root, self.base, model="gpt-6-astra", effort="high", implementer="codex", config=cfg)
+            calls = [json.loads(line) for line in (Path(fake_dir) / ".calls").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(orch_routes, out["routes"])
+        self.assertEqual([], out["warnings"])
+        reviewer_call = next(call for call in calls if call[0] == "reviewer")
+        self.assertEqual(["gpt-6-astra", "high"], [reviewer_call[reviewer_call.index("--model") + 1],
+                                                  reviewer_call[reviewer_call.index("--effort") + 1]])
 
     def test_empty_orchestrator_routes_exit_2(self):
         cfg = config(self.root, harness="claude", provider_mode="multi")

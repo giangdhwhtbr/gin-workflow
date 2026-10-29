@@ -23,7 +23,6 @@ from workflow_core.ext import (
     load_effective_config,
     main_checkout,
     require_yaml,
-    route_diagnostics,
     tier_of,
     validate_plan_assignments,
 )
@@ -66,8 +65,9 @@ def _routes_resolve(args: argparse.Namespace) -> dict[str, Any]:
     if not isinstance(tracks, list) or not all(isinstance(track, Mapping) for track in tracks):
         raise CliError("--tracks must be a JSON list of objects")
     config = load_effective_config(root)
-    merged = EffectiveConfig({**config.to_dict(), "routing": {**(config.get("routing") or {}), "roles": roles(config)}},
-                             root)
+    # Tracks are routes in the main harness's catalog, so validate them against it.
+    merged = EffectiveConfig({**config.to_dict(), "harness": args.main_harness,
+                              "routing": {**(config.get("routing") or {}), "roles": roles(config)}}, root)
     diagnostics = list(validate_plan_assignments(tracks, merged))
     task_ids = [str(track.get("task_id", "")).strip() for track in tracks]
     for index, task_id in enumerate(task_ids):
@@ -100,22 +100,16 @@ def _reviewer(args: argparse.Namespace) -> list[dict[str, Any]]:
     root = args.repository.resolve()
     config = load_effective_config(root)
     review = (config.get("routing") or {}).get("review") or {}
-    try:
-        source = catalog_for(config, args.implementer)
-    except KeyError as error:
-        raise CliError(f"unknown implementer provider: {args.implementer}") from error
-    diagnostics = route_diagnostics(source, args.model, args.effort)
-    if diagnostics:
-        raise CliError("; ".join(diagnostics))
+    # --model/--effort are the implementer's route, in the implementer's catalog.
     request = AssignmentRequest(
         "reviewer",
         str(review.get("role", "review")),
         args.model,
         args.effort,
-        args.implementer,
+        config.harness or args.implementer,
     )
-    candidates = resolve_assignment(request, config, load_local_config(root))
-    tier = tier_of(source, args.model)
+    candidates = resolve_assignment(request, config, load_local_config(root), source_harness=args.implementer)
+    tier = tier_of(catalog_for(config, args.implementer), args.model)
     # `session` independence: a fresh session of the implementer's provider may review.
     independent = (bool(review.get("require_independent", True)) and tier != "low"
                    and review.get("independence", "session") != "session")
