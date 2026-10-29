@@ -1,7 +1,7 @@
 # Model and effort selection per track
 
 Epic: gin-workflow-btt3
-Status: draft for user review.
+Status: confirmed by the user on 2026-10-29.
 
 ## Goal and scope
 
@@ -152,7 +152,8 @@ The researcher returns findings with `file:line` evidence. The main session keep
 | `code-reviewer` | Gains `list_dir`. |
 | `bead-worker` | Deleted. It duplicates `developer`, and no skill names it. |
 | `solution-architect` | Deleted. No skill names it, and design belongs to the main session. |
-| `qa-agent`, `docs-writer` | Only the `model:` line is removed. |
+| `docs-writer` | Gains file edit and file write tools, and `run_command` limited by its prompt to read-only commands (R11). |
+| `qa-agent` | Only the `model:` line is removed. |
 
 The bead notes of gin-workflow-btt3 record this table as the tool-list review.
 
@@ -181,6 +182,22 @@ The other parts of gin-orchestrator change as follows:
 - **Workers and review.** `WorkerRequest` (`worker_dispatch.py:349`) and each review cycle (`review_coordinator.py:61`) carry the resolved `model` and `effort` for their harness in place of `reasoning`. `model_tier` is removed, and the worker payload schema version rises. Codex still receives the effort as `-c model_reasoning_effort=<effort>` (`codex_worker.py:45`).
 - **Escalation and review.** Escalation (R4) on a worker harness moves within that harness's catalog. With `routing.review.independence: provider`, the reviewer's route is mapped by rank from the implementer's final route.
 - **Facade.** In `workflow_core/ext.py`, `AssignmentRequest` and `validate_plan_assignments` take `model` and `effort`, and `REASONING_TIERS`, `TierModelTarget`, and `CODEX_EFFORT_VALUES` are removed. `EXT_VERSION` becomes 2, and gin-orchestrator's `SUPPORTED_EXT_VERSION` becomes 2 with it.
+
+### R11. Tech-doc runs as scouts, writers, and reviewers
+
+`tech-doc/SKILL.md` splits the work across three subagent roles. The main session does four things:
+- agrees the scope with the user;
+- runs `codegraph files` (or a directory listing without `.codegraph/`) once and splits the code into areas;
+- picks a catalog route for each unit;
+- checks consistency across the written files (terms, links, `FEATURES.md` against `API.md`) and reports.
+
+| Role | Agent | Route | Work |
+|---|---|---|---|
+| Scout | `gin-workflow:agent-researcher` | weakest or middle model, `low` | One scout per code area. Returns evidence notes with `file:line`, tagged by the document topic they serve (stack, routes, integrations, conventions, risks, and so on), so each source file is read once. |
+| Writer | `gin-workflow:docs-writer` | by the R2 rubric: weakest for `STACK`, `STRUCTURE`, `CONVENTIONS`, `TESTING`; middle for `API`, `FEATURES`, `INTEGRATIONS`, `OVERVIEW`; strongest for `ARCHITECTURE`, `CONCERNS` | One writer per document. Writes from the scout notes and the template, and opens only cited lines. `FEATURES.md` starts after `API.md`; the other writers run in parallel. |
+| Reviewer | `gin-workflow:agent-researcher`, fresh session with a claim-verification brief | middle model, `medium` | Checks each claim against its citation and flags claims that are unbacked, wrong, or inference. Read-only. The writer fixes the findings, bounded by `routing.review.max_cycles`. |
+
+Scout notes are runtime data under `.agent-workflow/runtime/tech-doc/<run>/` and are not committed. Ambiguity goes into the document's `Inference And Uncertainty` section and is never guessed. A failed writer escalates as in R4. Regrounding uses the same three roles, with one writer per page.
 
 ## User Stories
 
@@ -271,6 +288,15 @@ Acceptance criteria:
 - With `--approve`, the entries are written to `config.yaml` and `models:` is removed from `orchestrator.local.yaml`; `executable` stays.
 - A provider already listed under `models` in `config.yaml` is left as it is.
 
+### US-12: Tech-doc reads code with cheap scouts
+As the user documenting a legacy repository, I want scouts on a cheap model to read the code once, writers to work from their notes, and a reviewer to check the claims, so that the main session's context stays small and the docs stay grounded.
+
+Acceptance criteria:
+- `tech-doc/SKILL.md` assigns scouts per code area, one writer per document, and a reviewer per document, each at a catalog route chosen by the R11 table.
+- Scout notes live under `.agent-workflow/runtime/tech-doc/<run>/`.
+- Every reviewer finding is fixed or recorded as inference before the report, within `routing.review.max_cycles`.
+- `docs-writer` can write files and run read-only commands; `agent-researcher` can run read-only commands.
+
 ## Errors and compatibility
 
 - **Old configuration.**
@@ -314,5 +340,7 @@ Acceptance criteria:
   - `bead-worker` and `solution-architect` absent;
   - the Claude build maps the new tool names.
 - `tests/workflow_core/test_usage_logs.py` and `test_usage.py`: the sidechain record counted as `subagent`, and the report split by role.
+- A skill-content test: `tech-doc/SKILL.md` names the scout, writer, and reviewer agents and the runtime notes path; `execute/SKILL.md` no longer contains the direct-execution rule.
+- `tests/workflow_core/test_token_budget.py` still passes: the skill text added by R4, R6, and R11 stays within the existing budgets.
 - The full suite passes: `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests.test_all`.
 - By hand, after `./install.sh --platform all`: each agent in US-8 spawns on Claude Code with an explicit catalog model.
