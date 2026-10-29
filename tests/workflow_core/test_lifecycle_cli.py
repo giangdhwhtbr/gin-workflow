@@ -80,6 +80,18 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual("claude", data["catalog"]["harness"])
         self.assertEqual(["haiku", "sonnet", "opus"], data["catalog"]["models"])
 
+    def test_state_json_catalog_is_null_without_harness(self):
+        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.8'\n")
+        with mock.patch("sys.stdout", new=io.StringIO()) as fake_out:
+            exit_code = lifecycle_main([
+                "state",
+                "--repository", str(self.repo_path),
+                "--format", "json",
+            ])
+            data = json.loads(fake_out.getvalue())
+        self.assertEqual(0, exit_code)
+        self.assertIsNone(data["catalog"])
+
     def test_state_reports_extensions_orchestrator(self):
         import io
         from unittest.mock import patch

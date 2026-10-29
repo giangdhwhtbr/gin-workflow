@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
@@ -240,16 +239,10 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         else:
             gates_status[gate] = status
 
-    catalog_payload: dict[str, Any] | None = None
-    try:
-        catalog_obj = catalog_for(config.to_dict(), config.harness)
-        catalog_dict = asdict(catalog_obj)
-        catalog_payload = {
-            "harness": config.harness,
-            **{k: list(v) if isinstance(v, (tuple, list)) else v for k, v in catalog_dict.items()},
-        }
-    except KeyError:
-        catalog_payload = None
+    catalog_payload = None
+    if config.harness:
+        catalog = catalog_for(config.to_dict(), config.harness)
+        catalog_payload = {"harness": config.harness, "models": list(catalog.models), "efforts": list(catalog.efforts)}
 
     payload = {
         "stage": decision.stage,
