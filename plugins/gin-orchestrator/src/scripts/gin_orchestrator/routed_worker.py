@@ -120,7 +120,8 @@ class RoutedWorkerDispatcher:
         payload: dict[str, Any] = {
             "retry_identity": request.retry_identity,
             "acceptance_identity_key": acceptance_key,
-            "requested_tier": request.reasoning,
+            "requested_model": request.model,
+            "requested_effort": request.effort,
         }
         route_key = "none"
         if candidate is not None:

@@ -8,6 +8,7 @@ from workflow_core.ext import (
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderLocalConfigError,
+    catalog_for,
     main_checkout,
     require_yaml,
     resolve_harness_executable,
@@ -111,30 +112,23 @@ def doctor_report(root: Path, config: Mapping[str, Any], *, probe: bool) -> dict
                         continue
                     probe_dir = root / ".agent-workflow/runtime/health-probe" / provider
                     probe_dir.mkdir(parents=True, exist_ok=True)
-                    models = pconfig.get("models", {})
-                    if isinstance(models, Mapping):
-                        for tier, target in models.items():
-                            model = target.get("model") if isinstance(target, Mapping) else str(target)
-                            effort = target.get("effort") if isinstance(target, Mapping) else None
-                            try:
-                                builder = HEALTH[provider]
-                                if provider in PROVIDER_DEFAULT_PROVIDERS and model == PROVIDER_DEFAULT:
-                                    health = builder(resolved_exe)
-                                else:
-                                    kwargs: dict[str, Any] = {"model": model, "workspace": probe_dir}
-                                    if provider == "codex":
-                                        kwargs["effort"] = effort
-                                    health = builder(resolved_exe, **kwargs)
-                            except Exception as error:
-                                health_avail = False
-                                health_reason = str(error)
+                    for model in catalog_for(config, provider).models:
+                        try:
+                            builder = HEALTH[provider]
+                            if provider in PROVIDER_DEFAULT_PROVIDERS and model == PROVIDER_DEFAULT:
+                                health = builder(resolved_exe)
                             else:
-                                health_avail = getattr(health, "available", False)
-                                health_reason = getattr(health, "reason", "")
-                            provider_details[f"{provider}.{tier}"] = {
-                                "available": bool(health_avail),
-                                "reason": health_reason,
-                            }
+                                health = builder(resolved_exe, model=model, workspace=probe_dir)
+                        except Exception as error:
+                            health_avail = False
+                            health_reason = str(error)
+                        else:
+                            health_avail = getattr(health, "available", False)
+                            health_reason = getattr(health, "reason", "")
+                        provider_details[f"{provider}.{model}"] = {
+                            "available": bool(health_avail),
+                            "reason": health_reason,
+                        }
             else:
                 for provider, pconfig in providers_map.items():
                     if not isinstance(pconfig, Mapping):

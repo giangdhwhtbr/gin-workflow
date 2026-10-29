@@ -49,7 +49,8 @@ def worker_request(index, *, acceptance_identity=None):
         workflow_id="wf-1",
         retry_identity=f"wf-1:{task_id}",
         provider_role="backend",
-        reasoning="medium",
+        model="sonnet",
+        effort=None,
         acceptance_identity=acceptance_identity,
     )
 

@@ -28,8 +28,8 @@ CODEX_STUB = (
     " --dangerously-bypass-approvals-and-sandbox --cd DIR'\n  exit 0\nfi\nexit 0\n"
 )
 TRACKS = [
-    {"task_id": "t1", "provider_role": "backend", "reasoning": "high"},
-    {"task_id": "t2", "provider_role": "backend", "reasoning": "low"},
+    {"task_id": "t1", "provider_role": "backend", "model": "opus", "effort": "high"},
+    {"task_id": "t2", "provider_role": "backend", "model": "haiku", "effort": "low"},
 ]
 
 
@@ -54,17 +54,16 @@ class ContractV2Tests(unittest.TestCase):
         workflow = self.root / ".agent-workflow"
         workflow.mkdir(parents=True)
         git(self.root, "init", "-q", "-b", "main")
-        config = migrate_config(LEGACY, "2.8")
+        config = migrate_config(LEGACY, "2.9")
         config["orchestrator"]["roles"]["review"] = {"preferred": ["codex", "main_harness"]}
         (workflow / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
         self.stub = Path(self.directory.name) / "fake-codex"
         self.stub.write_text(CODEX_STUB, encoding="utf-8")
         self.stub.chmod(self.stub.stat().st_mode | stat.S_IEXEC)
-        models = {"low": "haiku", "medium": "sonnet", "high": "opus"}
         (self.root / LOCAL_FILE).write_text(yaml.safe_dump({
-            "schema_version": "2.8",
-            "providers": {"claude": {"executable": "claude", "models": models},
-                          "codex": {"executable": str(self.stub), "models": models}},
+            "schema_version": "2.9",
+            "providers": {"claude": {"executable": "claude"},
+                          "codex": {"executable": str(self.stub)}},
         }), encoding="utf-8")
         self.refresh()
 
@@ -92,7 +91,7 @@ class ContractV2Tests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         payload = json.loads(result.stdout)
-        requests = [AssignmentRequest(t["task_id"], t["provider_role"], t["reasoning"], "claude", "wf")
+        requests = [AssignmentRequest(t["task_id"], t["provider_role"], t["model"], t.get("effort"), "claude", "wf")
                     for t in TRACKS]
         expected = resolve_all_assignments(requests, load_effective_config(self.root), load_local_config(self.root))
         self.assertEqual([m.to_dict() for m in expected], payload["routes"])
@@ -101,7 +100,7 @@ class ContractV2Tests(unittest.TestCase):
         self.assertFalse((self.root / ".agent-workflow/runtime/assignments").exists())
 
     def test_routes_resolve_reports_diagnostics_with_exit_0(self):
-        tracks = [{"task_id": "t1", "provider_role": "nope", "reasoning": "high"}]
+        tracks = [{"task_id": "t1", "provider_role": "nope", "model": "opus", "effort": "high"}]
 
         result = run("routes", "resolve", "--workflow-id", "wf", "--tracks", str(self.tracks_file(tracks)),
                      "--main-harness", "claude", "--repository", str(self.root), "--json")
@@ -109,7 +108,7 @@ class ContractV2Tests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual([], payload["routes"])
-        self.assertEqual(["t1.provider_role: unknown provider role: nope"], payload["diagnostics"])
+        self.assertEqual(["track t1: unknown provider role: nope"], payload["diagnostics"])
 
     def test_reviewer_prefers_a_provider_other_than_the_implementer(self):
         (self.root / "a.txt").write_text("a", encoding="utf-8")
@@ -120,22 +119,82 @@ class ContractV2Tests(unittest.TestCase):
         git(self.root, "add", "b.py")
         git(self.root, "commit", "-q", "-m", "change")
 
-        result = run("reviewer", "--base", "base", "--implementer", "claude", "--tier", "high",
+        result = run("reviewer", "--base", "base", "--implementer", "claude", "--model", "opus",
                      "--repository", str(self.root), "--json")
 
         self.assertEqual(0, result.returncode, result.stderr)
         routes = json.loads(result.stdout)
-        self.assertEqual([("codex", "opus", None, "reviewer:codex")],
+        self.assertEqual([("codex", "gpt-6-astra", None, "reviewer:codex")],
                          [(r["provider"], r["model"], r["effort"], r["actor_id"]) for r in routes])
 
-    def test_doctor_reports_each_provider_tier(self):
+    def test_reviewer_rejects_tier_flag(self):
+        result = run("reviewer", "--base", "base", "--implementer", "claude", "--model", "opus", "--tier", "high",
+                     "--repository", str(self.root), "--json")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("unrecognized arguments: --tier", result.stderr)
+
+    def test_reviewer_rejects_a_model_outside_the_implementer_catalog(self):
+        result = run("reviewer", "--base", "base", "--implementer", "claude", "--model", "gpt-6-astra",
+                     "--repository", str(self.root), "--json")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("model 'gpt-6-astra' is not in the catalog; allowed: haiku, sonnet, opus", result.stderr)
+
+    def test_reviewer_maps_the_implementer_route_to_the_main_harness(self):
+        # F1: main_harness stays the configured harness; the route maps from the implementer's catalog.
+        (self.root / "a.txt").write_text("a", encoding="utf-8")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-q", "-m", "base")
+
+        result = run("reviewer", "--base", "HEAD", "--implementer", "codex", "--model", "gpt-6-astra",
+                     "--effort", "high", "--repository", str(self.root), "--json")
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([("claude", "sonnet", "high", "reviewer:claude")],
+                         [(r["provider"], r["model"], r["effort"], r["actor_id"]) for r in json.loads(result.stdout)])
+
+    def test_reviewer_with_an_unknown_implementer_exits_2_without_traceback(self):
+        # F3
+        result = run("reviewer", "--base", "base", "--implementer", "gemini", "--model", "g1",
+                     "--repository", str(self.root), "--json")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("unknown provider: gemini", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_routes_resolve_with_an_unknown_main_harness_reports_a_diagnostic(self):
+        # F3
+        result = run("routes", "resolve", "--workflow-id", "wf", "--tracks", str(self.tracks_file(TRACKS)),
+                     "--main-harness", "nosuch", "--repository", str(self.root), "--json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([], payload["routes"])
+        self.assertIn("unknown harness: nosuch", " ".join(payload["diagnostics"]))
+
+    def test_routes_resolve_validates_against_the_given_main_harness(self):
+        # F4
+        tracks = [{"task_id": "t1", "provider_role": "backend", "model": "opus", "effort": "high"}]
+        result = run("routes", "resolve", "--workflow-id", "wf", "--tracks", str(self.tracks_file(tracks)),
+                     "--main-harness", "codex", "--repository", str(self.root), "--json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([], payload["routes"])
+        self.assertIn("model 'opus' is not in the catalog", " ".join(payload["diagnostics"]))
+
+    def test_supported_ext_version_matches_core(self):
+        import re
+        from workflow_core.ext import EXT_VERSION
+        launcher = paths.ORCH_SCRIPTS / "gin-orchestrator"
+        content = launcher.read_text(encoding="utf-8")
+        match = re.search(r"^SUPPORTED_EXT_VERSION\s*=\s*(\d+)", content, re.MULTILINE)
+        self.assertIsNotNone(match)
+        self.assertEqual(EXT_VERSION, int(match.group(1)))
+
+    def test_doctor_reports_each_catalog_model(self):
         result = run("doctor", "--repository", str(self.root), "--json")
 
         self.assertEqual(0, result.returncode, result.stderr)
         providers = json.loads(result.stdout)["providers"]
-        for tier in ("low", "medium", "high"):
-            self.assertIn(f"codex.{tier}", providers)
-            self.assertTrue(providers[f"codex.{tier}"]["available"], providers)
+        self.assertTrue(providers["codex.gpt-6-astra"]["available"], providers)
 
     def gin_workflow_path(self) -> str:
         bin_dir = Path(self.directory.name) / "bin"

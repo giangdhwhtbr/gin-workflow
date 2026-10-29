@@ -346,8 +346,9 @@ class WorkerRequest:
     workflow_id: str
     retry_identity: str
     provider_role: str
-    reasoning: str
-    route_affinity: tuple[str, str] | tuple[str, str, str] | None = None
+    model: str
+    effort: str | None = None
+    route_affinity: tuple[str, str] | tuple[str, str, str | None] | None = None
     acceptance_identity: AcceptanceIdentity | None = None
 
     def __post_init__(self) -> None:
@@ -364,12 +365,10 @@ class WorkerRequest:
                 self.workflow_id,
                 self.retry_identity,
                 self.provider_role,
-                self.reasoning,
+                self.model,
             )
         ):
             raise ValueError("worker request identity and objective fields are required")
-        if self.reasoning not in {"low", "medium", "high"}:
-            raise ValueError("worker request reasoning must be low, medium, or high")
         if not isinstance(self.generated_manifest, ContextManifest):
             raise TypeError("generated_manifest must be a ContextManifest")
         if self.acceptance_identity is not None:
@@ -391,17 +390,9 @@ class WorkerRequest:
     def manifest_json(self) -> str:
         return self.generated_manifest.to_json()
 
-    @property
-    def model_tier(self) -> str:
-        return {
-            "low": "cheap_simple",
-            "medium": "standard_impl",
-            "high": "high_reasoning",
-        }[self.reasoning]
-
     def to_payload(self) -> dict[str, Any]:
         payload = {
-            "schema_version": "2.3",
+            "schema_version": "2.4",
             "objective": self.objective,
             "constraints": list(self.constraints),
             "generated_manifest": self.generated_manifest.to_dict(),
@@ -411,7 +402,8 @@ class WorkerRequest:
             "workflow_id": self.workflow_id,
             "retry_identity": self.retry_identity,
             "provider_role": self.provider_role,
-            "reasoning": self.reasoning,
+            "model": self.model,
+            "effort": self.effort,
         }
         if self.acceptance_identity is not None:
             payload["acceptance_identity"] = self.acceptance_identity.to_dict()

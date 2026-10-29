@@ -33,7 +33,8 @@ def request(*, task_id="task-1", workflow_id="wf-1", retry_identity="retry-1"):
         workflow_id=workflow_id,
         retry_identity=retry_identity,
         provider_role="backend",
-        reasoning="medium",
+        model="sonnet",
+        effort=None,
     )
 
 

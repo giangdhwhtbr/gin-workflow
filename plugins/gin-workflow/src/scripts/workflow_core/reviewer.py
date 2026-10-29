@@ -11,7 +11,7 @@ import sys
 import uuid
 from typing import Any
 
-from .catalog import Catalog, DEFAULT_CATALOGS, catalog_for, route_diagnostics, tier_of
+from .catalog import Catalog, DEFAULT_CATALOGS, catalog_for, map_route, route_diagnostics, tier_of
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
 from . import orchestrator_client
@@ -61,9 +61,11 @@ def route(
     warnings: list[str] = []
     config_dict = config.to_dict() if hasattr(config, "to_dict") else dict(config)
     harness = config.harness or implementer
-    if harness not in DEFAULT_CATALOGS:
-        raise ReviewerError(f"unknown harness: {harness}")
-    catalog = catalog_for(config_dict, harness)
+    for name in (harness, implementer):
+        if name not in DEFAULT_CATALOGS:
+            raise ReviewerError(f"unknown harness: {name}")
+    # --model/--effort are the implementer's route, in the implementer's catalog.
+    catalog = catalog_for(config_dict, implementer)
     diagnostics = route_diagnostics(catalog, model, effort)
     if diagnostics:
         raise ReviewerError("; ".join(diagnostics))
@@ -121,11 +123,16 @@ def route(
         if implementer == harness
         else f"reviewer:{harness}"
     )
+    route_model, route_effort = (
+        (model, effort)
+        if harness == implementer
+        else map_route(catalog, catalog_for(config_dict, harness), model, effort)
+    )
     routes = [
         {
             "provider": harness,
-            "model": model,
-            "effort": effort,
+            "model": route_model,
+            "effort": route_effort,
             "actor_id": actor_id,
         }
     ]

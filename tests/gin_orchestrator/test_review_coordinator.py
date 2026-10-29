@@ -62,7 +62,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
     def test_session_independence_accepts_same_provider_with_distinct_session(self):
         coordinator = ReviewCoordinator(FakeReviewProvider(), independence="session")
         cycle = coordinator.request_review(
-            task_id="ui", cycle_number=1, provider_role="review", reasoning="high",
+            task_id="ui", cycle_number=1, provider_role="review", model="opus", effort="high",
             implementation_route=("claude", "opus"),
             reviewer_candidates=(RouteCandidate("claude", "opus", False),),
             context=self.context(), implementation_session="impl-1", reviewer_session="rev-1")
@@ -71,7 +71,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
     def test_provider_independence_accepts_opencode_reviewer_only_for_another_implementer(self):
         coordinator = ReviewCoordinator(FakeReviewProvider(), independence="provider")
         kwargs = dict(
-            task_id="ui", cycle_number=1, provider_role="review", reasoning="high",
+            task_id="ui", cycle_number=1, provider_role="review", model="opus", effort="high",
             reviewer_candidates=(RouteCandidate("opencode", "provider_default", False),),
             context=self.context(),
         )
@@ -86,7 +86,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
             with self.subTest(reviewer_session=reviewer_session):
                 with self.assertRaises(ReviewCoordinationError):
                     coordinator.request_review(
-                        task_id="ui", cycle_number=1, provider_role="review", reasoning="high",
+                        task_id="ui", cycle_number=1, provider_role="review", model="opus", effort="high",
                         implementation_route=("claude", "opus"),
                         reviewer_candidates=(RouteCandidate("claude", "opus", False),),
                         context=self.context(), implementation_session="impl-1",
@@ -103,7 +103,8 @@ class ReviewCoordinatorTests(unittest.TestCase):
             task_id="api",
             cycle_number=1,
             provider_role="review",
-            reasoning="high",
+            model="opus",
+            effort="high",
             implementation_route=("codex", "reasoning"),
             reviewer_candidates=(
                 RouteCandidate("codex", "reasoning", False),
@@ -130,7 +131,8 @@ class ReviewCoordinatorTests(unittest.TestCase):
                 task_id="api",
                 cycle_number=1,
                 provider_role="review",
-                reasoning="high",
+                model="opus",
+                effort="high",
                 implementation_route=("codex", "reasoning"),
                 reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
                 context=self.context(),
@@ -145,7 +147,8 @@ class ReviewCoordinatorTests(unittest.TestCase):
             task_id="api",
             cycle_number=1,
             provider_role="backend",
-            reasoning="high",
+            model="opus",
+            effort="high",
             implementation_route=("claude", "opus"),
             reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
             context=self.context(),
@@ -168,6 +171,26 @@ class ReviewCoordinatorTests(unittest.TestCase):
         self.assertEqual(("claude", "opus"), (sticky.provider, sticky.model))
         self.assertEqual(("codex", "reasoning"), (fallback.provider, fallback.model))
         self.assertEqual(sticky.revision_identity, base.route_revision(cycle, (finding,)).revision_identity)
+
+    def test_revision_on_the_preferred_route_keeps_the_implementation_effort(self):
+        # F5: the plan effort (max) is in the main harness catalog; the Codex route carries its own effort.
+        finding = ReviewFinding("F-1", "IMPORTANT", "open", "src/api.py:12", "validate input", "unit test")
+        coordinator = ReviewCoordinator(FakeReviewProvider())
+        cycle = coordinator.request_review(
+            task_id="api",
+            cycle_number=1,
+            provider_role="backend",
+            model="opus",
+            effort="max",
+            implementation_route=("codex", "gpt-6-astra"),
+            implementation_effort="xhigh",
+            reviewer_candidates=(RouteCandidate("claude", "opus", False, effort="max"),),
+            context=self.context(),
+        )
+
+        revision = coordinator.route_revision(cycle, (finding,))
+
+        self.assertEqual(("codex", "gpt-6-astra", "xhigh"), (revision.provider, revision.model, revision.effort))
 
     def test_fourth_unresolved_cycle_requires_human_decision_and_blocks_closure(self):
         coordinator = ReviewCoordinator(FakeReviewProvider(), max_cycles=3)
@@ -227,7 +250,8 @@ class ReviewCoordinatorTests(unittest.TestCase):
             task_id="api",
             cycle_number=1,
             provider_role="review",
-            reasoning="high",
+            model="opus",
+            effort="high",
             implementation_route=("claude", "opus"),
             reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
             context=self.context(),
@@ -235,7 +259,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
         template = WorkerRequest(
             "placeholder", (), create_context_manifest("review", ContextRequest()),
             {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
-            REQUIRED_RESULT_FIELDS, "api", "wf", "review-1", "review", "high",
+            REQUIRED_RESULT_FIELDS, "api", "wf", "review-1", "review", "opus", effort="high",
         )
 
         execution = coordinator.dispatch_review(cycle, template)
@@ -290,7 +314,8 @@ class ReviewCoordinatorTests(unittest.TestCase):
             task_id="api",
             cycle_number=1,
             provider_role="review",
-            reasoning="high",
+            model="opus",
+            effort="high",
             implementation_route=("claude", "opus"),
             reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
             context=self.context(),
@@ -307,7 +332,8 @@ class ReviewCoordinatorTests(unittest.TestCase):
             "wf",
             "review-identity-1",
             "review",
-            "high",
+            "opus",
+            effort="high",
         )
 
         execution = coordinator.dispatch_review(cycle, template)
@@ -358,7 +384,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
                 provider = FakeReviewProvider()
                 coordinator = ReviewCoordinator(provider, worker_dispatcher=Dispatcher())
                 cycle = coordinator.request_review(
-                    task_id="api", cycle_number=1, provider_role="review", reasoning="high",
+                    task_id="api", cycle_number=1, provider_role="review", model="opus", effort="high",
                     implementation_route=("claude", "opus"),
                     reviewer_candidates=(RouteCandidate("codex", "reasoning", False),),
                     context=self.context(),
@@ -366,7 +392,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
                 template = WorkerRequest(
                     "placeholder", (), create_context_manifest("review", ContextRequest()),
                     {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
-                    REQUIRED_RESULT_FIELDS, "api", "wf", f"invalid-{index}", "review", "high",
+                    REQUIRED_RESULT_FIELDS, "api", "wf", f"invalid-{index}", "review", "opus", effort="high",
                 )
 
                 with self.assertRaises(ReviewCoordinationError):

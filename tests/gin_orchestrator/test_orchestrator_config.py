@@ -7,7 +7,6 @@ from workflow_core.ext import (  # noqa: E402
     AssignmentRequest,
     EffectiveConfig,
     ProviderModelConfig,
-    TierModelTarget,
 )
 from workflow_core.migrations import migrate_config  # noqa: E402
 from gin_orchestrator.config import (  # noqa: E402
@@ -111,25 +110,14 @@ class OrchestratorConfigTests(unittest.TestCase):
         migrated = migrate_config(legacy, "2.8")
         effective = EffectiveConfig(migrated, Path("."))
         local = {
-            "claude": ProviderModelConfig(
-                "claude",
-                "claude",
-                {"low": "haiku", "medium": "sonnet", "high": "opus"},
-            ),
-            "codex": ProviderModelConfig(
-                "codex",
-                "codex",
-                {
-                    "low": TierModelTarget("gpt-6-astra", "low"),
-                    "medium": TierModelTarget("gpt-6-astra", "medium"),
-                    "high": TierModelTarget("gpt-6-astra", "high"),
-                },
-            ),
+            "claude": ProviderModelConfig("claude", "claude"),
+            "codex": ProviderModelConfig("codex", "codex"),
         }
         request = AssignmentRequest(
             task_id="t1",
             provider_role="backend",
-            reasoning="high",
+            model="opus",
+            effort=None,
             main_harness="claude",
             workflow_id="wf-1",
         )

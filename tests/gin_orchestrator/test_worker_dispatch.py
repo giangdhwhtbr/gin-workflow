@@ -72,7 +72,8 @@ def request(
     *,
     required=(),
     provider_role="backend",
-    reasoning="high",
+    model="opus",
+    effort="high",
     acceptance_identity=None,
 ):
     manifest = create_context_manifest(
@@ -95,7 +96,8 @@ def request(
         workflow_id="wf-1",
         retry_identity=f"wf-1:{task_id}",
         provider_role=provider_role,
-        reasoning=reasoning,
+        model=model,
+        effort=effort,
         acceptance_identity=acceptance_identity,
     )
 
@@ -217,7 +219,7 @@ class WorkerTestProvenanceTests(unittest.TestCase):
         payload = request(acceptance_identity=acceptance_identity()).to_payload()
 
         self.assertEqual(acceptance_identity().to_dict(), payload["acceptance_identity"])
-        self.assertEqual("2.3", payload["schema_version"])
+        self.assertEqual("2.4", payload["schema_version"])
         self.assertNotIn("workspace_path", repr(payload["acceptance_identity"]))
         self.assertNotIn("provider", payload)
         self.assertNotIn("sk-secret123", repr(payload))
@@ -288,10 +290,10 @@ class WorkerDispatchTests(unittest.TestCase):
         self.assertNotIn("parent_context", repr(payload))
         self.assertNotIn("provider_model", repr(payload))
         self.assertNotIn("provider", payload)
-        self.assertNotIn("model", payload)
         self.assertEqual("backend", payload["provider_role"])
-        self.assertEqual("high", payload["reasoning"])
-        self.assertEqual("high_reasoning", request().model_tier)
+        self.assertEqual("opus", payload["model"])
+        self.assertEqual("high", payload["effort"])
+        self.assertEqual("2.4", payload["schema_version"])
         self.assertNotIn("sk-secret123", repr(payload))
         self.assertLessEqual(len(request().manifest_json().encode("utf-8")), 65536)
 

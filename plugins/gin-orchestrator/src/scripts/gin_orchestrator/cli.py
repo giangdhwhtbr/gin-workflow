@@ -19,9 +19,11 @@ from workflow_core.ext import (
     AssignmentResolutionError,
     EffectiveConfig,
     atomic_write_text,
+    catalog_for,
     load_effective_config,
     main_checkout,
     require_yaml,
+    tier_of,
     validate_plan_assignments,
 )
 
@@ -41,7 +43,6 @@ REQUIRES_GIN_WORKFLOW = ">=2.0,<3"
 CAPABILITIES = ["health", "models", "routes", "reviewer", "doctor"]
 HEALTH = {"claude": claude_health, "codex": codex_health, "antigravity": antigravity_health,
           "opencode": opencode_health}
-TIERS = ("low", "medium", "high")
 
 
 class CliError(Exception):
@@ -64,9 +65,10 @@ def _routes_resolve(args: argparse.Namespace) -> dict[str, Any]:
     if not isinstance(tracks, list) or not all(isinstance(track, Mapping) for track in tracks):
         raise CliError("--tracks must be a JSON list of objects")
     config = load_effective_config(root)
-    merged = EffectiveConfig({**config.to_dict(), "routing": {**(config.get("routing") or {}), "roles": roles(config)}},
-                             root)
-    diagnostics = [f"{e.task_id}.{e.field}: {e.message}" for e in validate_plan_assignments(tracks, merged)]
+    # Tracks are routes in the main harness's catalog, so validate them against it.
+    merged = EffectiveConfig({**config.to_dict(), "harness": args.main_harness,
+                              "routing": {**(config.get("routing") or {}), "roles": roles(config)}}, root)
+    diagnostics = list(validate_plan_assignments(tracks, merged))
     task_ids = [str(track.get("task_id", "")).strip() for track in tracks]
     for index, task_id in enumerate(task_ids):
         if not task_id:
@@ -78,8 +80,14 @@ def _routes_resolve(args: argparse.Namespace) -> dict[str, Any]:
         local = load_local_config(root)
         for task_id, track in zip(task_ids, tracks):
             try:
-                request = AssignmentRequest(task_id, str(track.get("provider_role", "")),
-                                            str(track.get("reasoning", "")), args.main_harness, args.workflow_id)
+                request = AssignmentRequest(
+                    task_id,
+                    str(track.get("provider_role", "")),
+                    str(track.get("model", "")),
+                    track.get("effort"),
+                    args.main_harness,
+                    args.workflow_id,
+                )
                 entries.append(AssignmentManifest(args.workflow_id, request,
                                                   resolve_assignment(request, config, local)).to_dict())
             except AssignmentResolutionError as error:
@@ -92,11 +100,18 @@ def _reviewer(args: argparse.Namespace) -> list[dict[str, Any]]:
     root = args.repository.resolve()
     config = load_effective_config(root)
     review = (config.get("routing") or {}).get("review") or {}
-    request = AssignmentRequest("reviewer", str(review.get("role", "review")), args.tier,
-                                config.harness or args.implementer)
-    candidates = resolve_assignment(request, config, load_local_config(root))
+    # --model/--effort are the implementer's route, in the implementer's catalog.
+    request = AssignmentRequest(
+        "reviewer",
+        str(review.get("role", "review")),
+        args.model,
+        args.effort,
+        config.harness or args.implementer,
+    )
+    candidates = resolve_assignment(request, config, load_local_config(root), source_harness=args.implementer)
+    tier = tier_of(catalog_for(config, args.implementer), args.model)
     # `session` independence: a fresh session of the implementer's provider may review.
-    independent = (bool(review.get("require_independent", True)) and args.tier != "low"
+    independent = (bool(review.get("require_independent", True)) and tier != "low"
                    and review.get("independence", "session") != "session")
     routes = [c for c in candidates if not independent or c.provider != args.implementer]
     if not routes and review.get("allow_self_review_fallback"):
@@ -205,7 +220,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     reviewer = commands.add_parser("reviewer")
     reviewer.add_argument("--base", required=True)
     reviewer.add_argument("--implementer", required=True)
-    reviewer.add_argument("--tier", choices=TIERS, default="medium")
+    reviewer.add_argument("--model", required=True)
+    reviewer.add_argument("--effort", default=None)
     doctor = commands.add_parser("doctor")
     configure = commands.add_parser("configure")
     configure.add_argument("--set", action="append", default=[])
