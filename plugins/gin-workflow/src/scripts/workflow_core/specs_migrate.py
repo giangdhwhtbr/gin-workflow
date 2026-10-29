@@ -70,8 +70,8 @@ def in_flight_workflows(root: Path) -> list[str]:
             and not _delivery_gate_state(Path(root), store, workflow)["shipped"]]
 
 
-def open_worktrees(root: Path, config: Mapping[str, Any]) -> list[str]:
-    base = (Path(root) / str((config.get("artifacts") or {}).get("worktrees", ".planning/worktrees"))).resolve()
+def open_worktrees(root: Path) -> list[str]:
+    base = (Path(root) / ".planning/worktrees").resolve()
     listed = _git(root, "worktree", "list", "--porcelain").stdout.splitlines()
     paths = [Path(line[len("worktree "):]).resolve() for line in listed if line.startswith("worktree ")]
     return [path.as_posix() for path in paths if path.is_relative_to(base)]
@@ -84,7 +84,7 @@ def refusals(root: Path, config: Mapping[str, Any], *, force: bool) -> list[str]
     if not force:
         found += [f"workflow {item} is approved but not shipped (use --force to migrate anyway)"
                   for item in in_flight_workflows(root)]
-        found += [f"worktree open at {item} (use --force to migrate anyway)" for item in open_worktrees(root, config)]
+        found += [f"worktree open at {item} (use --force to migrate anyway)" for item in open_worktrees(root)]
     return found
 
 

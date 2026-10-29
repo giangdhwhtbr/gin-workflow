@@ -96,7 +96,6 @@ Credentials are read from `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the env
 | Key | Default | Meaning |
 |---|---|---|
 | `plans` | `.planning/plans` | approved plans |
-| `worktrees` | `.planning/worktrees` | git-fallback worktrees |
 | `knowledge` | `.planning/knowledge` | durable project knowledge |
 | `beads` | `.beads` | Beads database |
 | `runtime`, `evidence` | `.agent-workflow/runtime`, `.agent-workflow/runtime/evidence` | runtime state |
