@@ -34,20 +34,17 @@ Out of scope:
 
 ### R2. A shared reference, `plugins/gin-workflow/src/references/docs-style.md`
 
-A condensed rewrite (not a copy) of technical-writer's style, truth and review rules, with a credit line. Sections:
-- Sentences and words: one claim per sentence, active voice with a named actor, one term per concept, numbers over adjectives, plain verbs.
-- Headings: noun phrase by default, imperative above a procedure, the verbatim symptom in a troubleshooting entry; no question headings outside a FAQ.
-- Banned constructions: one table of pattern, example and repair. It covers antithesis, importance announcements, recap sentences, throat clearing, filler, inflated, promotional and overused words, trailing participle analysis, stacked hedging, vague attribution, bold-label list items, emoji markers, assistant and production residue, and copied plan or prompt wording.
-- Formatting: tables only when items have two or more properties to compare; no heading above every paragraph.
-- Truth and sourcing: every claim traces to code, configuration, tests or a named source; inference is labelled; practices are labelled conventions; one fact, one home.
-- Document classes, each with its rule: normative (states what must be), descriptive (matches the code at HEAD), historical (dated, not updated), runbook (ordered steps someone executes), reference (complete over its scope).
-- Runbooks: troubleshooting entries start from the symptom the reader sees (the verbatim error), then cause, then fix. A migration guide has a mapping table from old to new and a rollback section.
-- Reviewing documentation: severities (a claim the code contradicts or a missing required section is IMPORTANT or higher; a style rule is MINOR unless it changes meaning), and what not to flag (quoted material, code blocks, examples that discuss a banned phrase, template-required sections).
+A condensed rewrite (not a copy) of technical-writer's style, truth and review rules, with a credit line. The `review` skill links it, so it counts toward the review stage's 12,000-character instruction budget (`tests/workflow_core/test_token_budget.py`); the review chain is 7,944 characters today, so the file stays under 3,500 characters. Sections:
+- Truth: every claim traces to code, configuration, tests or a named source; inference is labelled; practices are labelled conventions; one fact, one home; the document classes, each with its rule: normative (states what must be), descriptive (matches the code at HEAD), historical (dated, not updated), runbook (ordered steps someone executes), reference (complete over its scope).
+- Sentences and headings: conclusion first, one claim per sentence, active voice with a named actor, one term per concept, numbers over adjectives, plain verbs; headings are noun phrases by default, imperative above a procedure, the verbatim symptom in a troubleshooting entry, no question headings outside a FAQ; tables only when items have two or more properties to compare; no heading above every paragraph.
+- Banned constructions: one table of pattern and repair. It covers antithesis, importance announcements, recap sentences, throat clearing, filler, inflated and promotional words, trailing participle analysis, stacked hedging, vague attribution, dashes, bold-label list items, emoji markers, assistant residue, and copied plan or prompt wording.
+- Runbooks: a procedure is numbered steps with expected results; troubleshooting entries start from the symptom the reader sees (the verbatim error), then cause, then fix; a migration guide has a mapping table from old to new and a rollback section.
+- Reviewing docs: severities (a claim the code contradicts, a practice written as tool behavior, or a missing required section is IMPORTANT or higher; a style rule is MINOR unless it changes meaning), and what not to flag (quoted material, code blocks, examples that show a banned phrase, template-required sections).
 
 ### R3. Writers and reviewers load the rules
 
 - `skills/tech-doc/SKILL.md`: before writing, run `gin-workflow rules --files <pages to write>` and read `references/docs-style.md`.
-- `agents/docs-writer.md`: the same two steps in its guidelines.
+- `agents/docs-writer.md`: follow the rules checklist passed in the handoff and the plugin reference `references/docs-style.md`. The agent has no shell, so it asks for the checklist when none was passed.
 - `skills/review/SKILL.md`: one line in the reviewer steps: for Markdown files, check each factual claim against the code and grade findings per `references/docs-style.md`.
 
 ### R4. Regrounding mode in `/tech-doc`
@@ -64,7 +61,7 @@ The mode writes only the pages in scope; it does not add sections or restyle pag
 
 - `docs/guides/rules.md`: a `docs` row in the packs table (tier core, applies to `*.md`, always unless disabled), one sentence on what it covers, and its credit to technical-writer. The Configure example's `disabled` comment names `docs` with `core` and `lean`.
 - `docs/reference/skills.md`: the `tech-doc` row mentions the regrounding mode.
-- `plugins/gin-workflow/src/rules/README.md`: `core`, `lean` and `docs` load by default.
+- `plugins/gin-workflow/src/rules/README.md`, `docs/reference/cli.md` (`rules`) and `docs/reference/config.md` (`rules`): `core`, `lean` and `docs` load by default.
 
 ## User Stories
 
