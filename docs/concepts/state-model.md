@@ -60,7 +60,7 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
   backups/                 migration backups
 ```
 
-`gin-workflow setup init` writes `.agent-workflow/.gitignore` with the entries listed in [Configuration](../reference/config.md); `setup configure` does not touch it. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
+On first setup, `gin-workflow setup init` writes `.agent-workflow/.gitignore` with the entries listed in [Configuration](../reference/config.md); `setup configure` does not touch it. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
 
 ## Runtime metadata
 
