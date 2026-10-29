@@ -63,6 +63,11 @@ routing:
     max_cycles: 2
     independence: provider
 
+# models:
+#   claude:
+#     models: [haiku, sonnet, opus]
+#     efforts: [low, medium, high, xhigh, max]
+
 orchestrator:
   roles:
     backend:

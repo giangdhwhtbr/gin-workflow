@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
 from typing import Any, Mapping, Sequence
 
+from .catalog import catalog_for
 from .checkout import main_checkout
 from .configuration import resolve_effective_config
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
@@ -238,12 +240,24 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         else:
             gates_status[gate] = status
 
+    catalog_payload: dict[str, Any] | None = None
+    try:
+        catalog_obj = catalog_for(config.to_dict(), config.harness)
+        catalog_dict = asdict(catalog_obj)
+        catalog_payload = {
+            "harness": config.harness,
+            **{k: list(v) if isinstance(v, (tuple, list)) else v for k, v in catalog_dict.items()},
+        }
+    except KeyError:
+        catalog_payload = None
+
     payload = {
         "stage": decision.stage,
         "decision": decision.decision,
         "harness": config.harness,
         "is_session_harness_override": config.is_session_harness_override,
         "original_harness": config.original_harness if config.is_session_harness_override else None,
+        "catalog": catalog_payload,
         "gates": gates_status,
         "evidence": list(decision.evidence),
         "remedies": list(decision.remedies),
