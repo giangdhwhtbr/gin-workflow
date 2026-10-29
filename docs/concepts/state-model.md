@@ -1,10 +1,10 @@
-# State Model
+# State model
 
 Each kind of workflow state has exactly one owner. When two sources disagree, the owner wins; everything else is derived or disposable.
 
 | Question | Owner |
 |---|---|
-| What work exists, what depends on what, what is ready, who claimed it, is it done? | Beads |
+| What work exists, what depends on what, what is ready, who claimed it, is it done? | the task tracker (`gin-workflow task`) |
 | What was agreed to build? | the confirmed spec in `.planning/specs/` (SDD: the change folder and living specs) |
 | What files and tests belong to a track? | the approved plan in `.planning/plans/` (a standalone bead: its description and acceptance criteria) |
 | Was a gate confirmed, approved, waived, or recorded? | the event store, `.agent-workflow/runtime/events.jsonl` |
@@ -14,12 +14,12 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 
 ## Task tracker
 
-`gin-workflow task` owns task identity, priority, status (`open`, `in_progress`, `closed`), claims, dependencies, blockers, follow-ups, and closure. It serves them from Beads (`bd`) when `providers.task_tracking: beads`, and otherwise from Markdown files under `.planning/tasks/`. "What is active, blocked, or ready?" is answered through it (`gin-workflow task ready`, `gin-workflow task show`, or the `progress` skill), never from other local files. Tasks are called beads in either backend.
+`gin-workflow task` owns task identity, priority, status (`open`, `in_progress`, `blocked`, `deferred`, `closed`), claims, dependencies, blockers, follow-ups, and closure. It serves them from Beads (`bd`) when `providers.task_tracking: beads`, and otherwise from Markdown files under `.planning/tasks/`. "What is active, blocked, or ready?" is answered through it (`gin-workflow task ready`, `gin-workflow task show`, or the `progress` skill), never from other local files. Tasks are called beads in either backend.
 
 `orchestrate` creates two kinds of beads:
 
-- **Parent bead (epic)**: the deliverable. It stays open until a human-confirmed merge; closing it is what marks the workflow `shipped`. Merge holds belong only here.
-- **Track beads**: one per plan track (`gin-workflow task create --parent <epic>`), with technical acceptance criteria only: code in scope, tests passing, review approved. A track closes as soon as those hold, which unblocks its dependents. It never waits for the parent's merge.
+- The parent bead (epic) is the deliverable. It stays open until a human-confirmed merge; closing it is what marks the workflow `shipped`. Merge holds belong only here.
+- A track bead exists for each plan track (`gin-workflow task create --parent <epic>`), with technical acceptance criteria only: code in scope, tests passing, review approved. A track closes as soon as those hold, which unblocks its dependents. It never waits for the parent's merge.
 
 `implementation_complete` is derived from the task tracker: every child of the epic recorded at `orchestration-ready` is closed.
 
@@ -29,7 +29,7 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 
 ## Event store
 
-`gin-workflow record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `quick.completed`, `delivery.shipped`, `gate.waived`, and `blocker.cleared`. Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. `gin-workflow state` replays them per workflow id, together with Beads, to derive the gates. The store is local to the machine; team mode proves gates with pull requests instead. All untracked workflow state — this store, the rest of `.agent-workflow/runtime/`, `generated/effective-config.yaml`, and `orchestrator.local.yaml` — lives in the main checkout: commands run inside a linked worktree read and write the main checkout's copy, so a gate recorded in either place is one state.
+`gin-workflow record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `quick.completed`, `delivery.shipped`, `gate.waived`, and `blocker.cleared`. Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. `gin-workflow state` replays them per workflow id, together with the task tracker, to derive the gates. The store is local to the machine; team mode proves gates with pull requests instead. All untracked workflow state lives in the main checkout: this store, the rest of `.agent-workflow/runtime/`, `generated/effective-config.yaml`, and `orchestrator.local.yaml`. Commands run inside a linked worktree read and write the main checkout's copy, so a gate recorded in either place is one state.
 
 ## Review ledger
 
@@ -37,7 +37,7 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 
 - the reviewed source snapshot: a checkpoint commit on `refs/gin/review/<bead>` with scope and tree hashes, taken without touching your branch or index;
 - the review lease: one active reviewer at a time;
-- findings, each moving to a terminal state (`verified`, `withdrawn`, `deferred-verified`, `human-waived`);
+- findings, each moving to a terminal state (`verified`, `withdrawn`, `accepted-as-is`, `deferred-verified`, `human-waived`);
 - approval, which holds only while the tree still matches the approved snapshot; `change-scope` or new commits invalidate it.
 
 The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. Before a merge, ship runs `review-ledger.py cleanup --bead-id <bead>` on the feature branch for each closed track bead and commits the deletion, so it lands with the merge. The command removes the ledger and its `refs/gin/review/` checkpoint refs. `--all-closed` also deletes leftover refs of closed beads whose ledger is already gone; run it on a branch, not on the base.
@@ -49,35 +49,32 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
   specs/        confirmed designs
   plans/        approved plans
   reviews/      review ledgers, one folder per bead
+  tasks/        Markdown task files when providers.task_tracking is markdown (gitignored)
   worktrees/    git-fallback worktrees, one per track or epic (gitignored)
   knowledge/    durable project knowledge
 .agent-workflow/
   config.yaml              portable configuration (tracked)
-  orchestrator.local.yaml  machine-local providers (gitignored)
-  generated/               resolved configuration (gitignored)
-  runtime/                 events.jsonl, assignment manifests, harness override, evidence (gitignored)
-  backups/                 migration backups (gitignored)
+  orchestrator.local.yaml  machine-local providers
+  generated/               resolved configuration
+  runtime/                 events.jsonl, assignment manifests, harness override, evidence
+  backups/                 migration backups
 ```
 
-Paths come from `artifacts.*` ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
+`gin-workflow setup init` and `setup configure` write no `.gitignore` in `.agent-workflow/`. `gin-orchestrator configure --local-set` adds `orchestrator.local.yaml` to `.agent-workflow/.gitignore`. `setup update` to 2.8 adds `providers.local.yaml`, `orchestrator.local.yaml`, and `runtime/` when it renames `providers.local.yaml`. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
 
 ## Runtime metadata
 
-Worktree paths, branch names, assignment manifests (`runtime/assignments/<workflow>.yaml`), worker receipts, circuit-breaker state, and evidence indexes are runtime metadata. They must be reconstructible from Beads and the plan, or safe to delete. They support audit and verification but never decide whether work is pending or done:
+Worktree paths, branch names, assignment manifests (`runtime/assignments/<workflow>.yaml`), worker receipts, circuit-breaker state, and evidence indexes are runtime metadata. They must be reconstructible from the task tracker and the plan, or safe to delete. They support audit and verification but never decide whether work is pending or done:
 
 - never infer closure from a deleted worktree or branch;
-- never let a local cache override Beads;
+- never let a local cache override the task tracker;
 - repair or discard stale runtime files rather than trusting them.
 
 ## Usage summaries
 
-`gin-workflow usage collect` stores a summary in the bead's metadata under `ai_usage`: tokens and estimated cost per model and per lifecycle stage, and quality signals (reopens, bugs found later, review cycles, rejections, findings by severity, waivers). It holds aggregates only, never prompts, session ids, or log paths.
+`gin-workflow usage collect` stores a summary in the bead's metadata under `ai_usage`. It records tokens and estimated cost per model and per lifecycle stage, and quality signals (reopens, bugs found later, review cycles, rejections, findings by severity, waivers). It holds aggregates only, never prompts, session ids, or log paths.
 
 ## Extensions state
 
-`gin-workflow state --format json` reports the status of registered extensions under `extensions`:
-
-- `extensions.orchestrator`: `{"available": bool, "version": str | null, "contract": int | null, "capabilities": list[str], "reason": str | null}`, computed once per process via `workflow_core.orchestrator_client.status()`.
-  - When `available` is true, `contract` is 2 and `capabilities` lists supported delegation entry points (`routes`, `reviewer`, `doctor`, `models`, `health`).
-  - When `available` is false, `reason` indicates `orchestrator_missing`, `orchestrator_contract_mismatch`, or `orchestrator_failed`.
+`gin-workflow state --format json` reports gin-orchestrator's status under `extensions.orchestrator`. `workflow_core.orchestrator_client.status()` computes it once per process from `gin-orchestrator version`; nothing stores it. The [CLI reference](../reference/cli.md#gin-workflow-state) lists its fields, and the [orchestrator contract](../reference/orchestrator-contract.md) explains the failure reasons.
 

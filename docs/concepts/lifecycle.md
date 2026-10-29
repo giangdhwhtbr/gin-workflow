@@ -14,7 +14,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 | `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
 | `ship` | Offers merge, pull request, keep, or discard; runs the one you choose; cleans up; closes the epic | `shipped` | derived: the epic is closed |
 
-Every `record` needs `--actor <id>` (in team mode it comes from your git email). One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the plan's slug) so gates from different features do not mix; without one, `default-workflow` is used.
+Every `record` needs `--actor <id>`; in team mode the actor comes from `git config user.email`. One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the spec's topic slug) so gates from different features do not mix; without one, `default-workflow` is used.
 
 `gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing.
 
@@ -28,10 +28,7 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 - It writes the failing test first, implements, and keeps the command output as evidence. A blocker, a plan gap, or repeated failures stop the work: the bead stays in progress with a note.
 - Work runs directly in the session for sequential plans and three or fewer tasks; routed workers are for more than three parallel tasks, long-running or specialized work, or independent review. Workers on another harness need [gin-orchestrator](../orchestrator/README.md).
 - Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `ship` checks the approvals instead.
-- Review is independent:
-  - In single-harness mode (`provider_mode: single`), review is `session`-independent: it runs on the main harness in a fresh session (`actor_id: reviewer:<harness>:session-<id>`). Self-review within the same session is forbidden. If `routing.review.independence: provider` is set without `gin-orchestrator`, review falls back to session independence on the main harness with a warning.
-  - In multi-harness mode (`provider_mode: multi`) with `gin-orchestrator`, review delegates to `gin-orchestrator reviewer` and enforces provider independence, routing review to a different provider than the implementer whenever possible.
-  - Findings and approvals are recorded in the review ledger for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
+- Review is independent of the implementer's session; [Providers](providers.md#independent-review) defines session and provider independence. Findings and approvals are recorded in the review ledger for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
 - When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks.
 - The feature branch is committed and pushed. The agent never reports "waiting for PR merge" without a real pull request link; it offers to request a pull request or to continue with the next track.
 
@@ -42,7 +39,7 @@ Quality checks are mechanical, so there is no separate verification step: git ho
 1. `pre-commit` runs `lint` and `typecheck` from `verify.checks`.
 2. `pre-push` runs `test`, plus `build` at `standard` rigor and `e2e` at `strict`, when the pushed branch is the checked-out HEAD. It stops at the first failure.
 3. CI is the backstop for large projects: nothing in `ship` proves a hook ran.
-4. `ship` runs a few plain steps instead of re-running the suite: with the review ledger on, every closed track validates (`--in-history`) and `render --check` shows no drift, and nothing but spec and review artifacts changed after the newest approval; with SDD, `specs lint` and `specs trace`. A failure stops `ship` and reports; it does not retry. Failures go to `gin-debugging`.
+4. `ship` runs a few plain steps instead of re-running the suite. With the review ledger on, every closed track validates (`--in-history`), `render --check` shows no drift, and nothing but spec and review artifacts changed after the newest approval. With SDD, it runs `specs lint` and `specs trace`. A failure stops `ship` and reports; it does not retry. Failures go to `gin-debugging`.
 
 The agent still checks, per track during review, that each spec and plan requirement the track delivers is met in the code, not just the diff.
 
@@ -58,7 +55,7 @@ At handoff the agent reports what changed, what was validated and what was not, 
 
 ## Ship
 
-`ship` requires `implementation_complete` and runs the plain steps above, then offers exactly four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. After a merge it removes the worktree, deletes the branch, runs `usage collect` for the epic, closes the epic (which marks `shipped`), and cleans up the closed beads' review ledgers.
+`ship` requires `implementation_complete` and a terminal review state, and runs the plain steps above. It then offers four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. For a merge, it first runs `usage collect` for the epic and deletes the closed tracks' review ledgers in a commit on the feature branch. It then merges, removes the worktree, deletes the branch, and closes the epic, which marks `shipped`.
 
 ## The quick path
 
@@ -72,22 +69,22 @@ At handoff the agent reports what changed, what was validated and what was not, 
 
 ## Waivers
 
-A gate is never removed: it is satisfied, or waived on the record with `gin-workflow unblock`. A waiver is a `gate.waived` event bound to the current source tree.
+A gate is never removed: it is satisfied, or waived on the record with `gin-workflow unblock`. A waiver is a `gate.waived` event bound to the current scope hash.
 
 | Class | Gates | Waiver |
 |---|---|---|
 | Process | `requirement_confirmed`, `plan_approved`, `orchestration_ready` | the agent may waive with a stated reason |
-| Safety | `review_approved` | needs human approval and a follow-up bead |
+| Safety | `review_approved` | needs a follow-up bead (`--follow-up`); asking a person first is a convention the CLI does not check. In [team mode](../guides/team.md) the CLI requires a team member who holds the gate's approval role when `team.approvals` sets one |
 | Not waivable | `implementation_complete`, `shipped` | facts, not formalities |
 
 `review_approved` is not a routing gate; it is classified so that skipping independent review is recorded like any other waiver. `unblock --clear-blocker` clears a recorded blocker.
 
 ## Approvals
 
-You approve the design (confirmation), the plan, production-impacting parallel work, disabling worktree isolation, changes to scope or execution strategy, and every merge, pull request, or force-push. An approval is recorded before the action and stays valid while the approved scope is unchanged, within `policy.approval.ttl_seconds` (default 24 hours).
+You approve the design (confirmation), the plan, production-impacting parallel work, disabling worktree isolation or running on the current branch, data moves, changes to scope or execution strategy, and every merge, pull request, or force-push. An approval is recorded before the action and stays valid while the approved scope is unchanged, within `policy.approval.ttl_seconds` (default 24 hours).
 
 ## Variations
 
-- **SDD layout** (`artifacts.layout: sdd`): `discuss` writes a change folder with REQ-IDs instead of a dated spec, tests carry the REQ-IDs, and `ship` archives the change into the living specs. See [SDD](../guides/sdd.md).
-- **Team mode** (`team:` configured): gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member. See [Team mode](../guides/team.md).
-- **Rigor**: `easy` skips worktrees and uses a self check; `strict` always isolates and requires a review ledger.
+- With the SDD layout (`artifacts.layout: sdd`), `discuss` writes a change folder with REQ-IDs instead of a dated spec, tests carry the REQ-IDs, and `ship` archives the change into the living specs. See [SDD](../guides/sdd.md).
+- In team mode (`team:` configured), gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member. See [Team mode](../guides/team.md).
+- `easy` rigor skips worktrees and uses a self check; `strict` rigor always isolates and requires a review ledger.
