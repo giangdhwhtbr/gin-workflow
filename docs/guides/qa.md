@@ -1,4 +1,4 @@
-# QA Add-on (`gin-qa`)
+# QA add-on (`gin-qa`)
 
 `gin-qa` is an optional plugin that writes test cases from your specs and turns end-to-end cases into Playwright specs with recorded evidence. It needs `gin-workflow` and is not installed by default.
 
@@ -49,6 +49,47 @@ Requirements and their hashes come from the living specs, so the [SDD layout](sd
 
 Your project provides `@playwright/test` 1.49 or later and its Playwright config (`baseURL`, browsers, video, trace).
 
+## Prompts
+
+### Cover a requirement in depth
+
+> "/gin-qa:cases auth
+> Please analyze `docs/specs/auth/spec.md` and generate test cases for each requirement. Include:
+> - Happy paths (standard user flow)
+> - Negative scenarios (invalid credentials, expired tokens, locked accounts)
+> - Boundary values (empty inputs, max length passwords)
+> - Security checks (SQL injection in input fields, brute force lockout)"
+
+### Check a pull request against the cases
+
+> "The developer has submitted pull request #45.
+> Please inspect the diff against `docs/specs/auth/spec.md` and `qa/cases/auth.md`. Verify that all scenarios described in the test cases are covered by unit, integration, or E2E tests."
+
+### Diagnose an end-to-end failure
+
+> "/gin-qa:e2e auth
+> Run the E2E suite. If any test fails, inspect the screenshot in `qa/evidence/` and the ARIA snapshot, determine whether the failure is a test bug or a code regression, and propose the fix."
+
+## Team rules
+
+`/gin-qa:cases` and `/gin-qa:e2e` read `qa/guidelines.md` (`qa.guidelines`) first, and its rules override their defaults. Two example rules:
+
+- Every requirement with a `Priority: high` case has at least one `Type: e2e` case.
+- Steps start with an action verb: Navigate, Enter, Click, Verify.
+
+File format, extra fields, and end-to-end rules: [customizing templates](customizing-templates.md).
+
+## Ship approval checklist
+
+With `team.approvals.ship` listing a tester role, the tester approves the latest commit of the developer's pull request after checking:
+
+- `gin-qa cases plan` reports no `missing` and no `stale` cases.
+- `gin-qa cases check` exits 0.
+- `gin-qa e2e run` passes, and `gin-qa e2e check --run <folder>` exits 0 on its evidence.
+- The approval comment names the evidence folder (a team convention).
+
+A commit pushed after the approval needs a new approval ([team mode](team.md)).
+
 ## Commands
 
-`gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).
+`gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa). To customize guidelines or add custom metadata fields to test cases, see the [Customizing Templates Guide](customizing-templates.md).

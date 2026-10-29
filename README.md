@@ -7,12 +7,13 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | Start here | |
 |---|---|
 | [Getting started](docs/getting-started.md) | one feature from idea to merge with Claude Code |
-| Starters | [greenfield](docs/starters/greenfield.md), [brownfield & modernization](docs/starters/brownfield-modernize.md), [brownfield walkthrough](docs/starters/brownfield-walkthrough.md), [team roles (PM/BA/Dev/Tester)](docs/starters/team-roles.md) |
+| Starters | [greenfield](docs/starters/greenfield.md), [brownfield & modernization](docs/starters/brownfield-modernize.md), [brownfield walkthrough](docs/starters/brownfield-walkthrough.md) |
 | [Architecture](docs/concepts/architecture.md) | how the pieces fit, with flow diagrams |
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
-| Guides | [use cases](docs/guides/use-cases.md), [recommended tools](docs/guides/recommended-tools.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
+| [Team roles](docs/roles.md) | who owns what in a team, and what each role reads |
+| Guides | [use cases](docs/guides/use-cases.md), [customizing templates](docs/guides/customizing-templates.md), [recommended tools](docs/guides/recommended-tools.md), [Windows](docs/guides/windows.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
 | Orchestrator | [worker harnesses (gin-orchestrator)](docs/orchestrator/README.md), [routing and configuration](docs/orchestrator/routing.md) |
-| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md), [upgrading to 2.1](docs/reference/upgrade-2.1.md), [ADLC deck](docs/presentations/adlc.html) ([PPTX](docs/presentations/adlc.pptx)) |
+| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [orchestrator contract](docs/reference/orchestrator-contract.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md), [upgrading to 2.1](docs/reference/upgrade-2.1.md), [ADLC deck](docs/presentations/adlc.html) ([PPTX](docs/presentations/adlc.pptx)), [Modernization deck](docs/presentations/brownfield-modernization.html) ([PPTX](docs/presentations/brownfield-modernization.pptx), [script](docs/presentations/brownfield-modernization-script.md)) |
 | [Contributing](docs/contributing.md) | build, test, release |
 
 ## Installation
@@ -104,3 +105,7 @@ All skills, including the support skills and the `gin-qa` add-on: [skills refere
 ## Credits
 
 The `lean` rule pack's ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT).
+
+The lifecycle skills (discuss, plan, debugging, worktrees, review response, parallel agents) started as forks of [superpowers](https://github.com/obra/superpowers) (MIT).
+
+The documentation style rules come from [technical-writer](https://github.com/riekelt/technical-writer) (MIT).

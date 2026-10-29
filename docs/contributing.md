@@ -78,9 +78,11 @@ bash tests/install_smoke_test.sh
 
 `tests/test_all.py` runs every suite under `tests/workflow_core`, `tests/gin_orchestrator` (the gin-orchestrator plugin), `tests/review_ledger`, and `tests/gin_qa` (Playwright tests skip without a Playwright environment). The smoke test builds and installs into temporary homes. `tests/install_smoke_test.ps1` is the Windows counterpart.
 
+To run one file, pass its path, for example `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests/workflow_core/test_atomic.py`. `-k` does not narrow `tests/test_all.py`, because its `load_tests` builds its own loader.
+
 `tests/workflow_core/test_docs_coverage.py` keeps these docs honest: every skill must appear in [reference/skills.md](reference/skills.md), every `gin-workflow` subcommand needs a heading in [reference/cli.md](reference/cli.md), relative links must resolve (including the plugin READMEs), Mermaid blocks must name a diagram type, no page makes Beads mandatory, and none mentions the removed worker-routing key of the old schema. Adding a skill or a subcommand means documenting it.
 
-Skills stay under 6,000 characters each; the core never names `gin-qa`.
+Skills stay under 6,000 characters each; the core never names `gin-qa`. Skills and agents reach tasks through `gin-workflow task`, never `bd` directly, except the Beads-only skills (`tests/test_no_direct_bd.py`).
 
 ## Releasing
 

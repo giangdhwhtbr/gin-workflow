@@ -1,6 +1,6 @@
 # Team Mode
 
-Solo use needs nothing here: without a `team:` section in `.agent-workflow/config.yaml`, every stage behaves as described in [Lifecycle](../concepts/lifecycle.md). Team mode is opt-in. It adds member identity, gates proven by approved pull requests (GitHub) or merge requests (GitLab), areas with owners, per-member claims, and optionally a shared Beads database.
+Solo use needs nothing here: without a `team:` section in `.agent-workflow/config.yaml`, every stage behaves as described in [Lifecycle](../concepts/lifecycle.md). Team mode is opt-in. It adds member identity, gates proven by approved pull requests (GitHub) or merge requests (GitLab), areas with owners, per-member claims, and optionally a shared Beads database. For how a PM, a BA, developers, and testers split the work, see [Team roles](../roles.md).
 
 ## Enable it (lead)
 

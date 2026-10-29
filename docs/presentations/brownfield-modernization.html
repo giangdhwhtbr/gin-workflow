@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modernizing Brownfield Systems with gin-workflow & SDD</title>
+  <style>
+    :root {
+      --font-display: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+      --bg: #eef1f4;
+      --surface: #ffffff;
+      --ink: #141c26;
+      --muted: #4b5563;
+      --line: #cfd6df;
+      --agent: #2563eb;
+      --human: #9a4508;
+      --human-soft: #fbeadb;
+      --success: #15803d;
+      --success-soft: #dcfce7;
+      --band-people: #f7f1ea;
+      --band-agents: #eaf0fa;
+      --band-auto: #e9ecf0;
+
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0b0f15;
+        --surface: #141c26;
+        --ink: #f1f5f9;
+        --muted: #94a3b8;
+        --line: #263342;
+        --agent: #60a5fa;
+        --human: #fb923c;
+        --human-soft: #382314;
+        --success: #4ade80;
+        --success-soft: #12331c;
+        --band-people: #1c1815;
+        --band-agents: #121927;
+        --band-auto: #151b24;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #0b0f15;
+      --surface: #141c26;
+      --ink: #f1f5f9;
+      --muted: #94a3b8;
+      --line: #263342;
+      --agent: #60a5fa;
+      --human: #fb923c;
+      --human-soft: #382314;
+      --success: #4ade80;
+      --success-soft: #12331c;
+      --band-people: #1c1815;
+      --band-agents: #121927;
+      --band-auto: #151b24;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #eef1f4;
+      --surface: #ffffff;
+      --ink: #141c26;
+      --muted: #4b5563;
+      --line: #cfd6df;
+      --agent: #2563eb;
+      --human: #9a4508;
+      --human-soft: #fbeadb;
+      --success: #15803d;
+      --success-soft: #dcfce7;
+      --band-people: #f7f1ea;
+      --band-agents: #eaf0fa;
+      --band-auto: #e9ecf0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    .deck-container {
+      width: min(100%, calc((100vh - 100px) * 16 / 9 + 32px));
+      min-width: min(100%, 720px);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .slide-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      container-type: inline-size;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 2.8cqw 4.2cqw;
+      overflow-y: auto;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 1.6cqw;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    h1, h2, h3 {
+      font-family: var(--font-display);
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    h1 {
+      font-size: 4.4cqw;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      text-wrap: balance;
+    }
+
+    h2 {
+      font-size: 3.2cqw;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      text-wrap: balance;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 0.6cqw;
+    }
+
+    .kicker {
+      font-family: var(--font-mono);
+      font-size: 1.25cqw;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--agent);
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-family: var(--font-display);
+      font-size: 1.95cqw;
+      color: var(--muted);
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    p, li {
+      font-size: 1.8cqw;
+      line-height: 1.55;
+      color: var(--ink);
+    }
+
+    ul, ol {
+      padding-left: 2cqw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9cqw;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--bg);
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+    }
+
+    .highlight-box, .human-box, .success-box {
+      padding: 1.1cqw 1.6cqw;
+      border-radius: 8px;
+      border: 1px solid;
+      font-size: 1.75cqw;
+      line-height: 1.45;
+    }
+
+    .highlight-box {
+      background: var(--band-agents);
+      border-color: color-mix(in srgb, var(--agent) 35%, transparent);
+    }
+
+    .highlight-box strong { color: var(--agent); }
+
+    .human-box {
+      background: var(--human-soft);
+      border-color: color-mix(in srgb, var(--human) 35%, transparent);
+    }
+
+    .human-box strong { color: var(--human); }
+
+    .success-box {
+      background: var(--success-soft);
+      border-color: color-mix(in srgb, var(--success) 35%, transparent);
+    }
+
+    .success-box strong { color: var(--success); }
+
+    .card ul ul {
+      padding-left: 1.6cqw;
+      margin-top: 0.4cqw;
+      gap: 0.3cqw;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    ::selection {
+      background: color-mix(in srgb, var(--agent) 28%, transparent);
+      color: var(--ink);
+    }
+
+    .slide {
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5cqw;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.3cqw;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.1cqw;
+    }
+
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1.5cqw 1.8cqw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9cqw;
+    }
+
+    .card h3 {
+      font-size: 2.05cqw;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .card p, .card li {
+      font-size: 1.75cqw;
+      line-height: 1.45;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.4cqw;
+      font-size: 1.7cqw;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 1cqw 1.3cqw;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg);
+      font-family: var(--font-display);
+      font-weight: 700;
+    }
+
+    .diagram-scroll {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 0.6cqw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .diagram-scroll svg {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .lifecycle .band-people { fill: var(--band-people); }
+    .lifecycle .band-agents { fill: var(--band-agents); }
+    .lifecycle .band-auto { fill: var(--band-auto); }
+    .lifecycle .strip-people { fill: var(--human); }
+    .lifecycle .strip-agents { fill: var(--agent); }
+    .lifecycle .strip-auto { fill: var(--muted); }
+    .lifecycle .sep { stroke: var(--line); stroke-width: 1; }
+    .lifecycle .col { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+    .lifecycle .stage { font-family: var(--font-display); font-weight: 700; font-size: 15px; fill: var(--ink); }
+    .lifecycle .lane { font-family: var(--font-display); font-weight: 700; font-size: 13px; fill: var(--ink); }
+    .lifecycle .lane-sub { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+    .lifecycle .t { font-family: var(--font-body); font-size: 12px; fill: var(--ink); }
+    .lifecycle .t-mono { font-family: var(--font-mono); font-size: 12px; fill: var(--ink); }
+    .lifecycle .lbl { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+    .lifecycle .n-agent { fill: var(--surface); stroke: var(--agent); stroke-width: 1.5; }
+    .lifecycle .n-opt { fill: var(--surface); stroke: var(--agent); stroke-width: 1.5; stroke-dasharray: 5 3; }
+    .lifecycle .n-human { fill: var(--human-soft); stroke: var(--human); stroke-width: 1.5; }
+    .lifecycle .n-human-opt { fill: var(--human-soft); stroke: var(--human); stroke-width: 1.5; stroke-dasharray: 5 3; }
+    .lifecycle .n-hook { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; }
+    .lifecycle .chip { fill: var(--ink); }
+    .lifecycle .chip-t { font-family: var(--font-mono); font-size: 12px; fill: var(--bg); }
+    .lifecycle .chip-out { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+    .lifecycle .a { stroke: currentColor; stroke-width: 1.3; fill: none; }
+    .lifecycle .a-dot { stroke: currentColor; stroke-width: 1.3; fill: none; stroke-dasharray: 2 3; }
+    .lifecycle .a-wait { stroke: var(--human); stroke-width: 1.6; fill: none; }
+    .lifecycle .head { fill: currentColor; }
+    .lifecycle .head-wait { fill: var(--human); }
+    .lifecycle .gate-band { fill: var(--bg); }
+    .lifecycle .g-human { fill: var(--human); }
+    .lifecycle .g-agent { fill: var(--agent); }
+    .lifecycle .g-derived { fill: var(--surface); stroke: var(--agent); stroke-width: 1.6; }
+    .lifecycle .gate { font-family: var(--font-mono); font-size: 12px; font-weight: 600; fill: var(--ink); }
+    .diagram-scroll svg.lifecycle {
+      color: var(--muted);
+      width: auto;
+      max-height: 100%;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      background: var(--bg);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 16px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--agent);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--agent);
+      outline-offset: 2px;
+    }
+
+    .counter {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 768px) {
+      .slide-viewport {
+        aspect-ratio: auto;
+        min-height: 540px;
+      }
+      .slide {
+        padding: 24px 18px;
+        gap: 14px;
+      }
+      .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      h1 { font-size: 26px; }
+      h2 { font-size: 20px; }
+      .subtitle { font-size: 15px; }
+      p, li, .card p, .card li { font-size: 15px; }
+      .card h3 { font-size: 17px; }
+      .kicker { font-size: 12px; }
+      .highlight-box, .human-box, .success-box { font-size: 15px; padding: 12px 14px; }
+      table { font-size: 13px; min-width: 560px; }
+      th, td { padding: 8px 10px; }
+      .card ul ul { padding-left: 16px; }
+      .controls { padding: 8px 10px; }
+      .controls button { padding: 7px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck-container">
+    <div class="slide-viewport" aria-roledescription="carousel" aria-label="Presentation">
+
+      <!-- Slide 1: Title -->
+      <section class="slide active" id="slide-1">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 1.6cqw;">
+          <span class="kicker">gin-workflow 2.1 — Modernization Architecture</span>
+          <h1>Modernizing Brownfield Systems with gin-workflow & SDD</h1>
+          <p class="subtitle">From legacy discovery to incremental, verified delivery.</p>
+          <div class="grid-3" style="margin-top: 1cqw;">
+            <div class="card">
+              <h3>1. Evidence Discovery</h3>
+              <p>Baseline the legacy system from code, not memory.</p>
+            </div>
+            <div class="card">
+              <h3>2. Contract-First SDD</h3>
+              <p>Specs confirmed by pull request before any code is written.</p>
+            </div>
+            <div class="card">
+              <h3>3. Gated Execution</h3>
+              <p>Isolated worktrees, TDD, independent review, and trace audits.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 2: Phase 0: Automated Discovery -->
+      <section class="slide" id="slide-2">
+        <span class="kicker">Phase 0: Discovery</span>
+        <h2>Discover the Legacy System from Evidence (<code>/tech-doc</code>)</h2>
+        <p class="subtitle">Architecture and dependency baselines taken directly from the repository.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>The Knowledge Gap</h3>
+            <ul>
+              <li>Original authors are gone; rules live only in code.</li>
+              <li>Docs and diagrams lag years behind production.</li>
+              <li>Hidden triggers, endpoints, and coupling.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>What <code>/tech-doc</code> Produces</h3>
+            <ul>
+              <li>Scans code, schemas, and API handlers.</li>
+              <li>10 baseline modules in <code>docs/codebase/</code>.</li>
+              <li>Every conclusion cites a file and line range.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <strong>Outcome:</strong> A verifiable baseline of current behavior that seeds the roadmap.
+        </div>
+      </section>
+
+      <!-- Slide 3: Roadmap Sequencing & Parallel Early Sprints -->
+      <section class="slide" id="slide-3">
+        <span class="kicker">Roadmap Governance</span>
+        <h2>Sequence by Dependency, Start in Parallel</h2>
+        <p class="subtitle">Unblocked modules go first; engineering setup and spec work run side by side.</p>
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Sprint</th>
+              <th>Engineering Stream</th>
+              <th>Product &amp; Analysis Stream</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Sprint 1</strong></td>
+              <td>Run legacy in Docker; scaffold new repos; set up CI/CD &amp; proxy.</td>
+              <td>Pick the first unblocked module; confirm its spec via PR.</td>
+            </tr>
+            <tr>
+              <td><strong>Sprint 2</strong></td>
+              <td>Plan tracks, open worktrees, build the first epic with TDD.</td>
+              <td>Spec the next dependent epic.</td>
+            </tr>
+            <tr>
+              <td><strong>Sprint 3+</strong></td>
+              <td>Build the next epics; retire replaced legacy paths.</td>
+              <td>Keep living specs current via <code>spec-delta.md</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="highlight-box">
+          <strong>Rule:</strong> No code starts on an unconfirmed spec.
+        </div>
+      </section>
+
+      <!-- Slide 4: Lifecycle Swim Lanes -->
+      <section class="slide" id="slide-4">
+        <span class="kicker">Team Governance</span>
+        <h2>Who Does What, Stage by Stage</h2>
+        <div class="diagram-scroll">
+          <svg class="lifecycle" viewBox="0 0 1340 690" role="img" aria-label="Swim-lane diagram of the agentic development lifecycle. Four people lanes (requester, area lead, developer, ship approver), three agent lanes (main agent, worker, reviewer), and git hooks and CI, across the stages discuss, plan, orchestrate, execute and ship, each closing with its gate.">
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+              <marker id="ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-wait" d="M0,0 L10,5 L0,10 z"/></marker>
+            </defs>
+
+            <!-- lane bands -->
+            <rect class="band-people" x="0" y="60" width="1340" height="264"/>
+            <rect class="band-agents" x="0" y="324" width="1340" height="198"/>
+            <rect class="band-auto" x="0" y="522" width="1340" height="66"/>
+            <rect class="strip-people" x="0" y="60" width="5" height="264"/>
+            <rect class="strip-agents" x="0" y="324" width="5" height="198"/>
+            <rect class="strip-auto" x="0" y="522" width="5" height="66"/>
+            <line class="sep" x1="0" y1="60" x2="1340" y2="60"/>
+            <line class="sep" x1="0" y1="126" x2="1340" y2="126"/>
+            <line class="sep" x1="0" y1="192" x2="1340" y2="192"/>
+            <line class="sep" x1="0" y1="258" x2="1340" y2="258"/>
+            <line class="sep" x1="0" y1="324" x2="1340" y2="324"/>
+            <line class="sep" x1="0" y1="390" x2="1340" y2="390"/>
+            <line class="sep" x1="0" y1="456" x2="1340" y2="456"/>
+            <line class="sep" x1="0" y1="522" x2="1340" y2="522"/>
+            <line class="sep" x1="0" y1="588" x2="1340" y2="588"/>
+
+            <!-- stage columns -->
+            <line class="col" x1="180" y1="20" x2="180" y2="588"/>
+            <line class="col" x1="380" y1="20" x2="380" y2="588"/>
+            <line class="col" x1="580" y1="20" x2="580" y2="588"/>
+            <line class="col" x1="780" y1="20" x2="780" y2="588"/>
+            <line class="col" x1="1100" y1="20" x2="1100" y2="588"/>
+            <text class="stage" x="280" y="44" text-anchor="middle">discuss</text>
+            <text class="stage" x="480" y="44" text-anchor="middle">plan</text>
+            <text class="stage" x="680" y="44" text-anchor="middle">orchestrate</text>
+            <text class="stage" x="940" y="44" text-anchor="middle">execute · per track</text>
+            <text class="stage" x="1220" y="44" text-anchor="middle">ship</text>
+
+            <!-- lane labels -->
+            <text class="lane" x="20" y="91">Requester</text><text class="lane-sub" x="20" y="107">BA / PM</text>
+            <text class="lane" x="20" y="157">Area lead</text><text class="lane-sub" x="20" y="173">owns the code area</text>
+            <text class="lane" x="20" y="223">Developer</text><text class="lane-sub" x="20" y="239">runs the stages</text>
+            <text class="lane" x="20" y="289">Ship approver</text><text class="lane-sub" x="20" y="305">team mode, e.g. QE</text>
+            <text class="lane" x="20" y="355">Main agent</text><text class="lane-sub" x="20" y="371">your harness session</text>
+            <text class="lane" x="20" y="421">Worker</text><text class="lane-sub" x="20" y="437">gin-orchestrator, optional</text>
+            <text class="lane" x="20" y="487">Reviewer</text><text class="lane-sub" x="20" y="503">fresh session or provider</text>
+            <text class="lane" x="20" y="553">Git hooks &amp; CI</text><text class="lane-sub" x="20" y="569">checks set by rigor</text>
+
+            <!-- discuss -->
+            <rect class="chip" x="200" y="210" width="80" height="30" rx="15"/><text class="chip-t" x="240" y="229" text-anchor="middle">/discuss</text>
+            <line class="a" x1="240" y1="240" x2="240" y2="335" marker-end="url(#ah)"/>
+            <text class="lbl" x="234" y="300" text-anchor="end">starts</text>
+            <rect class="n-agent" x="200" y="337" width="160" height="40" rx="6"/>
+            <text class="t" x="280" y="353" text-anchor="middle">Asks, proposes,</text><text class="t" x="280" y="368" text-anchor="middle">writes the spec</text>
+            <rect class="n-human" x="200" y="73" width="150" height="40" rx="6"/>
+            <text class="t" x="275" y="97" text-anchor="middle">Confirms the spec</text>
+            <line class="a-wait" x1="330" y1="337" x2="330" y2="115" marker-end="url(#ahw)"/>
+            <text class="lbl" x="336" y="300">questions, spec</text>
+
+            <!-- plan -->
+            <rect class="chip" x="408" y="210" width="64" height="30" rx="15"/><text class="chip-t" x="440" y="229" text-anchor="middle">/plan</text>
+            <line class="a" x1="440" y1="240" x2="440" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-agent" x="400" y="337" width="160" height="40" rx="6"/>
+            <text class="t" x="480" y="353" text-anchor="middle">Writes the plan:</text><text class="t" x="480" y="368" text-anchor="middle">tracks, role, tier</text>
+            <rect class="n-human" x="400" y="139" width="150" height="40" rx="6"/>
+            <text class="t" x="475" y="163" text-anchor="middle">Approves the plan</text>
+            <line class="a-wait" x1="530" y1="337" x2="530" y2="181" marker-end="url(#ahw)"/>
+            <text class="lbl" x="536" y="300">plan</text>
+
+            <!-- orchestrate -->
+            <rect class="chip" x="592" y="210" width="104" height="30" rx="15"/><text class="chip-t" x="644" y="229" text-anchor="middle">/orchestrate</text>
+            <line class="a" x1="644" y1="240" x2="644" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-agent" x="600" y="337" width="160" height="40" rx="6"/>
+            <text class="t" x="680" y="353" text-anchor="middle">Epic, track beads,</text><text class="t" x="680" y="368" text-anchor="middle">routes, worktree</text>
+            <rect class="chip-out" x="708" y="210" width="62" height="30" rx="15"/><text class="t-mono" x="739" y="229" text-anchor="middle">/goal</text>
+            <line class="a" x1="739" y1="337" x2="739" y2="242" marker-end="url(#ah)"/>
+            <text class="lbl" x="733" y="300" text-anchor="end">prints</text>
+
+            <!-- execute -->
+            <rect class="chip" x="790" y="210" width="80" height="30" rx="15"/><text class="chip-t" x="830" y="229" text-anchor="middle">/execute</text>
+            <line class="a" x1="830" y1="240" x2="830" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-human-opt" x="960" y="205" width="130" height="40" rx="6"/>
+            <text class="t" x="1025" y="221" text-anchor="middle">Does the</text><text class="t" x="1025" y="236" text-anchor="middle">human-gate tracks</text>
+            <rect class="n-agent" x="790" y="337" width="100" height="40" rx="6"/>
+            <text class="t" x="840" y="353" text-anchor="middle">Claims track,</text><text class="t" x="840" y="368" text-anchor="middle">tests first</text>
+            <line class="a" x1="890" y1="357" x2="968" y2="357" marker-end="url(#ah)"/>
+            <rect class="n-agent" x="970" y="337" width="120" height="40" rx="6"/>
+            <text class="t" x="1030" y="353" text-anchor="middle">Fixes findings,</text><text class="t" x="1030" y="368" text-anchor="middle">closes track</text>
+            <line class="a" x1="850" y1="377" x2="850" y2="401" marker-end="url(#ah)"/>
+            <rect class="n-opt" x="830" y="403" width="110" height="40" rx="6"/>
+            <text class="t" x="885" y="419" text-anchor="middle">Implements</text><text class="t" x="885" y="434" text-anchor="middle">routed track</text>
+            <polyline class="a" points="940,423 985,423 985,379" marker-end="url(#ah)"/>
+            <text class="lbl" x="946" y="416">result</text>
+            <line class="a" x1="1010" y1="377" x2="1010" y2="467" marker-end="url(#ah)"/>
+            <text class="lbl" x="1004" y="462" text-anchor="end">review</text>
+            <rect class="n-agent" x="950" y="469" width="118" height="40" rx="6"/>
+            <text class="t" x="1009" y="485" text-anchor="middle">Review ledger</text><text class="lbl" x="1009" y="500" text-anchor="middle">≤ max cycles</text>
+            <line class="a" x1="1060" y1="469" x2="1060" y2="379" marker-end="url(#ah)"/>
+            <text class="lbl" x="1066" y="462">verdict</text>
+            <line class="a-dot" x1="800" y1="377" x2="800" y2="533" marker-end="url(#ah)"/>
+            <text class="lbl" x="806" y="527">commit</text>
+            <rect class="n-hook" x="790" y="535" width="120" height="40" rx="6"/>
+            <text class="t" x="850" y="551" text-anchor="middle">pre-commit:</text><text class="t" x="850" y="566" text-anchor="middle">lint, typecheck</text>
+            <line class="a-dot" x1="1084" y1="377" x2="1084" y2="533" marker-end="url(#ah)"/>
+            <text class="lbl" x="1078" y="527" text-anchor="end">push</text>
+            <rect class="n-hook" x="960" y="535" width="130" height="40" rx="6"/>
+            <text class="t" x="1025" y="551" text-anchor="middle">pre-push:</text><text class="t" x="1025" y="566" text-anchor="middle">tests, build, e2e</text>
+
+            <!-- ship -->
+            <rect class="chip" x="1106" y="210" width="48" height="30" rx="15"/><text class="chip-t" x="1130" y="229" text-anchor="middle">/ship</text>
+            <line class="a" x1="1130" y1="240" x2="1130" y2="335" marker-end="url(#ah)"/>
+            <rect class="n-human" x="1170" y="205" width="150" height="40" rx="6"/>
+            <text class="t" x="1245" y="221" text-anchor="middle">Chooses merge, PR,</text><text class="t" x="1245" y="236" text-anchor="middle">keep or discard</text>
+            <rect class="n-human-opt" x="1160" y="271" width="120" height="40" rx="6"/>
+            <text class="t" x="1220" y="295" text-anchor="middle">Approves the PR</text>
+            <rect class="n-agent" x="1140" y="337" width="170" height="40" rx="6"/>
+            <text class="t" x="1225" y="353" text-anchor="middle">Checks ledgers,</text><text class="t" x="1225" y="368" text-anchor="middle">merges, cleans up</text>
+            <line class="a-wait" x1="1296" y1="337" x2="1296" y2="247" marker-end="url(#ahw)"/>
+            <line class="a-wait" x1="1200" y1="337" x2="1200" y2="313" marker-end="url(#ahw)"/>
+            <line class="a-dot" x1="1225" y1="377" x2="1225" y2="533" marker-end="url(#ah)"/>
+            <text class="lbl" x="1231" y="527">push</text>
+            <rect class="n-hook" x="1160" y="535" width="130" height="40" rx="6"/>
+            <text class="t" x="1225" y="559" text-anchor="middle">pre-push, CI</text>
+
+            <!-- gate strip -->
+            <rect class="gate-band" x="0" y="588" width="1340" height="102"/>
+            <text class="lane" x="20" y="630">Gate</text><text class="lane-sub" x="20" y="646">closes the stage</text>
+            <rect class="g-human" x="274" y="608" width="12" height="12" transform="rotate(45 280 614)"/>
+            <text class="gate" x="280" y="644" text-anchor="middle">requirement_confirmed</text><text class="lane-sub" x="280" y="660" text-anchor="middle">recorded after you confirm</text>
+            <rect class="g-human" x="474" y="608" width="12" height="12" transform="rotate(45 480 614)"/>
+            <text class="gate" x="480" y="644" text-anchor="middle">plan_approved</text><text class="lane-sub" x="480" y="660" text-anchor="middle">recorded after you approve</text>
+            <rect class="g-agent" x="674" y="608" width="12" height="12" transform="rotate(45 680 614)"/>
+            <text class="gate" x="680" y="644" text-anchor="middle">orchestration_ready</text><text class="lane-sub" x="680" y="660" text-anchor="middle">recorded by the agent</text>
+            <rect class="g-derived" x="934" y="608" width="12" height="12" transform="rotate(45 940 614)"/>
+            <text class="gate" x="940" y="644" text-anchor="middle">implementation_complete</text><text class="lane-sub" x="940" y="660" text-anchor="middle">derived: every track closed</text>
+            <rect class="g-derived" x="1214" y="608" width="12" height="12" transform="rotate(45 1220 614)"/>
+            <text class="gate" x="1220" y="644" text-anchor="middle">shipped</text><text class="lane-sub" x="1220" y="660" text-anchor="middle">derived: epic closed</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Slide 5: Spec Verification -->
+      <section class="slide" id="slide-5">
+        <span class="kicker">Stage 1: Discuss</span>
+        <h2>How AI-Drafted Specs Get Verified</h2>
+        <p class="subtitle">Strict grammar, grounded inputs, and a human approval gate.</p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>1. Strict Grammar</h3>
+            <p>EARS <code>SHALL</code>/<code>MUST</code> statements, each with a GIVEN/WHEN/THEN scenario.</p>
+            <p><code>specs lint</code> fails on any gap.</p>
+          </div>
+          <div class="card">
+            <h3>2. Human PR Gate</h3>
+            <p>Spec changes go through a pull request that needs BA approval.</p>
+            <p>No planning until it merges.</p>
+          </div>
+          <div class="card">
+            <h3>3. Grounded in the UI</h3>
+            <p>Screenshots in <code>docs/specs/&lt;cap&gt;/assets/</code>.</p>
+            <p>The agent reads fields, rules, and error states from them.</p>
+          </div>
+        </div>
+        <div class="human-box">
+          <strong>Human in the loop:</strong> The agent drafts; the Business Analyst decides.
+        </div>
+      </section>
+
+      <!-- Slide 6: Architecture Decomposition & Workspace Isolation -->
+      <section class="slide" id="slide-6">
+        <span class="kicker">Stages 2 & 3: Plan & Orchestrate</span>
+        <h2>Bounded Tracks, Isolated Worktrees, Routed Models</h2>
+        <p class="subtitle">Each track has a fixed scope, its own workspace, and a model sized to the work.</p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Bounded Tracks</h3>
+            <ul>
+              <li>Each track owns one <code>Area:</code> directory.</li>
+              <li>Edits outside that area are rejected.</li>
+              <li>Each track maps to requirement IDs.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Worktree Isolation</h3>
+            <ul>
+              <li>One Git worktree per track.</li>
+              <li>Parallel work without branch contention.</li>
+              <li>Downstream tracks unlock as upstream merges.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Model Routing</h3>
+            <ul>
+              <li>Track complexity sets the reasoning tier.</li>
+              <li>No under-powered retry loops.</li>
+              <li>No premium models on boilerplate.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7: Implementation & Traceability -->
+      <section class="slide" id="slide-7">
+        <span class="kicker">Stage 4: Execute</span>
+        <h2>Code Traced Back to the Spec</h2>
+        <p class="subtitle">Every requirement is tagged from spec to test and audited before ship.</p>
+        <div class="diagram-scroll" style="height: 110px; flex: none;">
+          <svg viewBox="0 0 940 90" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Trace chain: requirement REQ-AUTH-003 in the living spec, to a plan.md track, to a failing test tagged REQ-AUTH-003, to the specs trace gate auditing 100% of scenarios.">
+            <rect x="20" y="15" width="160" height="60" rx="6" fill="var(--bg)" stroke="var(--ink)" stroke-width="1.2"/>
+            <text x="100" y="42" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--agent)" text-anchor="middle">REQ-AUTH-003</text>
+            <text x="100" y="60" font-family="var(--font-body)" font-size="11" fill="var(--ink)" text-anchor="middle">Living Spec Contract</text>
+
+            <path d="M 180 45 L 260 45" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <rect x="260" y="15" width="160" height="60" rx="6" fill="var(--bg)" stroke="var(--ink)" stroke-width="1.2"/>
+            <text x="340" y="42" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--agent)" text-anchor="middle">plan.md Track</text>
+            <text x="340" y="60" font-family="var(--font-body)" font-size="11" fill="var(--ink)" text-anchor="middle">Assigned to Engineer</text>
+
+            <path d="M 420 45 L 500 45" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <rect x="500" y="15" width="180" height="60" rx="6" fill="var(--band-agents)" stroke="var(--agent)" stroke-width="1.2"/>
+            <text x="590" y="42" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--agent)" text-anchor="middle">Test: # REQ-AUTH-003</text>
+            <text x="590" y="60" font-family="var(--font-body)" font-size="11" fill="var(--ink)" text-anchor="middle">TDD Failing Test First</text>
+
+            <path d="M 680 45 L 760 45" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <rect x="760" y="15" width="160" height="60" rx="6" fill="var(--success-soft)" stroke="var(--success)" stroke-width="1.5"/>
+            <text x="840" y="42" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--success)" text-anchor="middle">specs trace Gate</text>
+            <text x="840" y="60" font-family="var(--font-body)" font-size="11" fill="var(--success)" text-anchor="middle">100% Scenario Audit</text>
+
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 1 L 8 5 L 0 9 z" fill="var(--ink)"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Test First</h3>
+            <p>A failing test tagged with the requirement ID comes before any implementation.</p>
+          </div>
+          <div class="card">
+            <h3><code>specs trace</code> Gate</h3>
+            <p>Every scenario must map to a test. Gaps block ship.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 8: Code Review & The Review Ledger -->
+      <section class="slide" id="slide-8">
+        <span class="kicker">Verification</span>
+        <h2>Independent Review, Recorded in a Ledger</h2>
+        <p class="subtitle">Every finding gets a documented decision.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Independent Review</h3>
+            <ul>
+              <li>A separate reviewer agent checks the diff.</li>
+              <li>Findings are logged with line and risk.</li>
+              <li>Review cycles are capped.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Every Finding Resolved</h3>
+            <ul>
+              <li><strong>Fix:</strong> correct and re-verify.</li>
+              <li><strong>Dispute:</strong> show why the code is right.</li>
+              <li><strong>Defer:</strong> record an issue or waiver.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <strong>Rule:</strong> No track closes with open findings.
+        </div>
+      </section>
+
+      <!-- Slide 9: Evidence Over Self-Assessment -->
+      <section class="slide" id="slide-9">
+        <span class="kicker">Verification</span>
+        <h2>Evidence Over Self-Assessment</h2>
+        <p class="subtitle">No agent certifies its own work; every claim needs proof.</p>
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 26%;">Claim</th>
+              <th style="width: 44%;">Requires</th>
+              <th style="width: 30%;">Not enough</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Tests pass</strong></td><td>Test output with 0 failures</td><td>An earlier run</td></tr>
+            <tr><td><strong>Bug fixed</strong></td><td>The symptom's test goes red, then green</td><td>Code changed</td></tr>
+            <tr><td><strong>Agent completed</strong></td><td>The diff checked</td><td>The agent says so</td></tr>
+            <tr><td><strong>Requirements met</strong></td><td>The checklist checked</td><td>Tests passing</td></tr>
+            <tr><td><strong>Waiting for merge</strong></td><td>A pushed branch and a real PR link</td><td>Uncommitted code</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="highlight-box">
+          <strong>Handoff rule:</strong> Every report states what changed, what was validated, what was waived, and what risk remains.
+        </div>
+      </section>
+
+      <!-- Slide 10: Focused QA & Drift Detection -->
+      <section class="slide" id="slide-10">
+        <span class="kicker">Quality Engineering</span>
+        <h2>Focused QA with <code>gin-qa</code></h2>
+        <p class="subtitle">Test what the requirements say, and re-review only what changed.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>The Test Generation Trap</h3>
+            <p>Unconstrained AI produces hundreds of low-value tests, and QA drowns in triage.</p>
+            <div class="highlight-box">
+              <strong>The Fix:</strong> Generate tests only from formal requirements, at the depth <code>qa/guidelines.md</code> sets.
+            </div>
+          </div>
+          <div class="card">
+            <h3>Hash-Pinned Drift Detection</h3>
+            <p>Each case pins its requirement's hash. <code>gin-qa cases plan</code> reports:</p>
+            <ul>
+              <li><code>missing</code>: new requirements.</li>
+              <li><code>stale</code>: changed requirements.</li>
+              <li><code>obsolete</code>: deleted requirements.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 11: Token Economics -->
+      <section class="slide" id="slide-11">
+        <span class="kicker">Token Economics & Governance</span>
+        <h2>Token Economics: Three Levers</h2>
+        <p class="subtitle">Spend early on clarity, route by complexity, and audit locally.</p>
+        <div class="grid-3">
+          <div class="card">
+            <h3>1. Shift Left</h3>
+            <p>Clarifying specs costs far less than late rework rippling through legacy modules.</p>
+          </div>
+          <div class="card">
+            <h3>2. Complexity Routing</h3>
+            <p>The right model tier per track means fewer retries and less overspend.</p>
+          </div>
+          <div class="card">
+            <h3>3. Local CLI Audits</h3>
+            <p>Lint, trace, hash, and gate checks run locally at zero token cost.</p>
+          </div>
+        </div>
+        <div class="success-box">
+          <strong>Principle:</strong> A small token investment up front prevents large downstream rework and retry costs.
+        </div>
+      </section>
+
+      <!-- Slide 12: Safe Integration & Living Spec Archival -->
+      <section class="slide" id="slide-12">
+        <span class="kicker">Stage 5: Ship</span>
+        <h2>Ship Safely, Keep Specs Alive</h2>
+        <p class="subtitle">Release and spec update happen in one step.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>The Ship Gate</h3>
+            <ol>
+              <li>Full tests, lint, typecheck, and <code>specs trace</code>.</li>
+              <li><code>specs archive</code> merges the delta into <code>spec.md</code>.</li>
+              <li>The change folder moves to the archive.</li>
+              <li>Integration PR needs QE approval.</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h3>Long-Term Health</h3>
+            <ul>
+              <li><code>docs/specs/</code> stays the source of truth.</li>
+              <li>Legacy paths retire as modules ship.</li>
+              <li>Regression tests preserve business logic.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 13: Summary: The Modernization Blueprint -->
+      <section class="slide" id="slide-13">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 1.4cqw;">
+          <span class="kicker">Summary & Action Plan</span>
+          <h2>The Modernization Governance Blueprint</h2>
+          <p class="subtitle">Controlled, verifiable delivery for engineering teams and leadership.</p>
+          <div class="grid-4" style="margin-top: 0.6cqw;">
+            <div class="card">
+              <h3>1. Verifiable Specs</h3>
+              <p>Strict grammar, approved by BA pull request.</p>
+            </div>
+            <div class="card">
+              <h3>2. Parallel Start</h3>
+              <p>Unblocked epics first; setup and specs in parallel.</p>
+            </div>
+            <div class="card">
+              <h3>3. Code Parity</h3>
+              <p>Requirement tags and <code>specs trace</code> audits.</p>
+            </div>
+            <div class="card">
+              <h3>4. Focused QA</h3>
+              <p>Drift detection keeps tests on what changed.</p>
+            </div>
+          </div>
+          <div class="success-box" style="margin-top: 0.6cqw;">
+            <strong>Next Step:</strong> A 2-week pilot on one bounded capability, such as Authentication or Order Intake.
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="btn-group">
+        <button id="prevBtn" aria-label="Previous Slide">← Previous</button>
+        <button id="nextBtn" aria-label="Next Slide">Next →</button>
+      </div>
+      <div class="counter" id="slideCounter" aria-live="polite">1 / 13</div>
+      <div class="btn-group">
+        <button id="themeBtn">Toggle Theme</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const slides = document.querySelectorAll(".slide");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const themeBtn = document.getElementById("themeBtn");
+      const counter = document.getElementById("slideCounter");
+      let currentIndex = 0;
+      const totalSlides = slides.length;
+
+      slides.forEach(function (slide, i) {
+        const heading = slide.querySelector("h1, h2");
+        slide.setAttribute("aria-roledescription", "slide");
+        slide.setAttribute("aria-label", (i + 1) + " of " + totalSlides + (heading ? ": " + heading.textContent : ""));
+      });
+
+      function updateSlide(newIndex) {
+        if (newIndex < 0 || newIndex >= totalSlides) return;
+        slides[currentIndex].classList.remove("active");
+        currentIndex = newIndex;
+        slides[currentIndex].classList.add("active");
+        counter.textContent = (currentIndex + 1) + " / " + totalSlides;
+        slides[currentIndex].scrollTop = 0;
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = currentIndex === totalSlides - 1;
+      }
+
+      function nextSlide() {
+        if (currentIndex < totalSlides - 1) updateSlide(currentIndex + 1);
+      }
+
+      function prevSlide() {
+        if (currentIndex > 0) updateSlide(currentIndex - 1);
+      }
+
+      prevBtn.disabled = true;
+      prevBtn.addEventListener("click", prevSlide);
+      nextBtn.addEventListener("click", nextSlide);
+
+      themeBtn.addEventListener("click", function () {
+        const root = document.documentElement;
+        const currentTheme = root.getAttribute("data-theme");
+        if (currentTheme === "dark") {
+          root.setAttribute("data-theme", "light");
+        } else if (currentTheme === "light") {
+          root.setAttribute("data-theme", "dark");
+        } else {
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          root.setAttribute("data-theme", prefersDark ? "light" : "dark");
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        const target = event.target;
+        const isInteractive = target && (
+          target.closest ? target.closest("button, a, input, textarea, select") :
+          /^(BUTTON|A|INPUT|TEXTAREA|SELECT)$/i.test(target.tagName)
+        );
+        if (event.key === " " && isInteractive) return;
+
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+          event.preventDefault();
+          nextSlide();
+        } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+          event.preventDefault();
+          prevSlide();
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          updateSlide(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          updateSlide(totalSlides - 1);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

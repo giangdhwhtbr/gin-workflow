@@ -1,17 +1,20 @@
-# Brownfield Walkthrough: From Legacy Code to Sprint Delivery
+# Brownfield walkthrough: from legacy code to sprint delivery
 
 This walkthrough follows one team from "we inherited a legacy system" to "sprint work is shipped". Each stage lists who runs it, the prompt to paste, what you get, the gate or approval, and the mistakes to avoid.
+
+For the modernization strategy itself (strangler fig, parity tests, the migration cycle), see [brownfield modernization](brownfield-modernize.md).
+
 ## The scenario
 
 A legacy PHP ordering system (orders, payments, inventory) is being modernized behind a new API. The team:
 
-| Person | Role | Does |
-|---|---|---|
-| Lan | `pm` | Roadmap, sprint labels, sprint report |
-| An | `ba` | Specs and user stories |
-| Binh | `be_lead` | Setup, plan, orchestrate, ship |
-| Em | `be_dev` | Implementation |
-| Chi | `qe` | Test cases, E2E, verification approval |
+| Person | Role | Reads | Does |
+|---|---|---|---|
+| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, sprint labels, sprint report |
+| An | `ba` | [BA](../roles.md#ba) | Specs and user stories |
+| Binh | `be_lead` | [Developer](../roles.md#developer-and-tech-lead) | Setup, plan, orchestrate, ship |
+| Em | `be_dev` | [Developer](../roles.md#developer-and-tech-lead) | Implementation |
+| Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, verification approval |
 
 The `team:` block in `.agent-workflow/config.yaml` (written by `/gin-workflow:team-setup`):
 
@@ -53,7 +56,7 @@ flowchart LR
   J --> K["progress / report<br/>PM"]
 ```
 
-## 1. Setup
+## Setup
 
 **Who:** Tech Lead once per repository, then every member once on their own clone. Members do not register themselves: the lead lists every member, role, area, and approval in the `team:` block.
 
@@ -76,7 +79,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Common mistakes:** forgetting to add a member or the PM to `members` (the `roadmap` approval then fails with "role pm is held by no member"; fixing it takes another pull request); a member whose git email differs from the one in `members` (`team whoami` finds nothing); skipping the host login.
 
-## 2. Survey the legacy system
+## Survey the legacy system
 
 **Who:** Tech Lead.
 
@@ -91,7 +94,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Common mistakes:** documenting only the parts you plan to touch first; the roadmap needs the whole as-is picture to place dependencies correctly.
 
-## 3. Roadmap
+## Roadmap
 
 **Who:** PM.
 
@@ -106,7 +109,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics when you remove them from the file (it only reports them).
 
-## 4. Sprint planning
+## Sprint planning
 
 **Who:** PM.
 
@@ -115,13 +118,13 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 /gin-workflow:roadmap Label demo-rm-payments and demo-rm-orders-api for sprint 2026-s1.
 ```
 
-**You get:** the chosen epics carry the label `sprint:2026-s1`. A sprint is only a label: `bd list --label sprint:2026-s1` shows it.
+**You get:** the chosen epics carry the label `sprint:2026-s1`. A sprint is only a label: `gin-workflow task list --label sprint:2026-s1 --all` shows it.
 
 **Gate or approval:** none.
 
-**Common mistakes:** labelling an epic whose dependencies are not done; `bd ready` still hides blocked epics, so check it.
+**Common mistakes:** labelling an epic whose dependencies are not done; `gin-workflow task ready` still hides blocked epics, so check it.
 
-## 5. Discuss an epic
+## Discuss an epic
 
 **Who:** BA.
 
@@ -136,7 +139,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Common mistakes:** creating a second epic by hand; stories without acceptance criteria.
 
-## 6. Plan and orchestrate
+## Plan and orchestrate
 
 **Who:** Tech Lead.
 
@@ -152,7 +155,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Common mistakes:** a track that touches two areas; run `gin-workflow team check-plan <plan>` before asking for approval.
 
-## 7. Test cases
+## Test cases
 
 **Who:** QE.
 
@@ -167,7 +170,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Common mistakes:** writing cases before the spec is merged; they would point at requirements that can still change.
 
-## 8. Execute
+## Execute
 
 **Who:** Developer.
 
@@ -179,11 +182,11 @@ In team mode `execute` runs `gin-workflow team deps`, picks from `gin-workflow t
 
 **You get:** one track implemented test-first in the worktree, an independent review, a closed track bead, and a pushed feature branch.
 
-**Gate or approval:** `execute` refuses a `roadmap` epic that has no confirmed spec; run stage 5 first. The claim fails if a teammate already holds the track.
+**Gate or approval:** `execute` refuses a `roadmap` epic that has no confirmed spec; run [Discuss an epic](#discuss-an-epic) first. The claim fails if a teammate already holds the track.
 
 **Common mistakes:** working outside the track's file scope; closing the bead before the review finishes.
 
-## 9. E2E
+## E2E
 
 **Who:** QE.
 
@@ -198,7 +201,7 @@ In team mode `execute` runs `gin-workflow team deps`, picks from `gin-workflow t
 
 **Common mistakes:** approving before the last commit; a push after approval silently invalidates it.
 
-## 10. Ship and sprint review
+## Ship and sprint review
 
 **Who:** Tech Lead ships; PM reviews the sprint.
 
@@ -217,42 +220,13 @@ In team mode `execute` runs `gin-workflow team deps`, picks from `gin-workflow t
 
 ## Customizing outputs
 
-Every artifact starts from a template. Copy a template to `.agent-workflow/templates/<name>` and edit it; the override wins in every stage and every layout.
-
-| Template | Used by | Override file |
-|---|---|---|
-| Roadmap | `roadmap` | `.agent-workflow/templates/roadmap.md` |
-| Epic description | `roadmap` | `.agent-workflow/templates/epic.md` |
-| User story | `discuss` | `.agent-workflow/templates/user-story.md` |
-| Design spec (legacy layout) | `discuss` | `.agent-workflow/templates/design-spec.md` |
-| Proposal (SDD layout) | `discuss` | `.agent-workflow/templates/proposal.md` |
-
-Print the current text with `gin-workflow specs template <file>` (for example `user-story.md`). Example override of `user-story.md` that adds a priority and Vietnamese headings:
-
-```markdown
-### US-{{n}}: {{title}}
-Ưu tiên: {{priority}}
-Là {{role}}, tôi muốn {{goal}}, để {{benefit}}.
-REQ: {{reqs}}
-
-Tiêu chí chấp nhận:
--
-```
-
-Test cases follow `qa/guidelines.md`, which `/gin-qa:cases` reads first. Example:
-
-```markdown
-- Language: Vietnamese.
-- One user action per step.
-- `Priority: high | medium | low`.
-- Extra fields this team uses (kept and exported as-is): `Owner`, `Jira`.
-```
+Every artifact starts from a template you can override; test cases follow `qa/guidelines.md`. See [customizing templates](../guides/customizing-templates.md).
 
 ## Solo variant
 
 One person plays every role, so the flow shrinks:
 
 - No `team-setup`, no `team:` block, no pull requests for gates: you confirm in chat.
-- Stage 3: `/gin-workflow:roadmap` writes the file after you confirm it and creates the epics directly.
-- Stage 8: pick work with `bd ready` instead of `team ready`.
+- Roadmap: `/gin-workflow:roadmap` writes the file after you confirm it and creates the epics directly.
+- Execute: pick work with `gin-workflow task ready` instead of `gin-workflow team ready`.
 - Everything else is the same: `/gin-workflow:discuss <epic-id>`, `plan`, `orchestrate`, `execute`, `ship`.
