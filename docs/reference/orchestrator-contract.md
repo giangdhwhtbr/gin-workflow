@@ -6,7 +6,7 @@ gin-orchestrator imports gin-workflow only through `workflow_core.ext`; see [the
 
 ## No bundled fallback
 
-gin-workflow runs without gin-orchestrator: every role resolves to the main harness. When `provider_mode: multi` is set, the orchestrator is installed, and it lists the capability a command needs, gin-workflow delegates that command to it. In every other case, and whenever the orchestrator fails, gin-workflow resolves for the main harness and prints a warning. Nothing in gin-workflow contains worker routing.
+gin-workflow runs without gin-orchestrator: every role resolves to the main harness. When `provider_mode: multi` is set, the orchestrator is installed, and it lists the capability a command needs, gin-workflow delegates that command to it. In every other case, and whenever the orchestrator fails, gin-workflow resolves for the main harness. With `provider_mode: multi`, it also prints a warning when the orchestrator is missing, mismatched, or fails. Nothing in gin-workflow contains worker routing.
 
 ## `version`
 
@@ -71,7 +71,7 @@ reviewer --base B --implementer P --tier {low,medium,high} [--repository DIR] --
 [{"provider": "codex", "model": "...", "effort": null, "actor_id": "reviewer:codex"}]
 ```
 
-The routes of the role named by `routing.review.role`, in order. With `routing.review.independence` other than `session`, `require_independent` not false, and a tier above `low`, routes on the implementer's provider are dropped; if none are left, all candidates are used when `allow_self_review_fallback` is true, otherwise the list is `[]`. `actor_id` is `reviewer:<provider>`, plus `:session-<8 hex>` when the provider is the implementer's.
+The routes of the role named by `routing.review.role`, in order. Routes on the implementer's provider are dropped when three conditions hold: `routing.review.independence` is not `session`, `require_independent` is not false, and the tier is above `low`. If none are left, all candidates are used when `allow_self_review_fallback` is true, otherwise the list is `[]`. `actor_id` is `reviewer:<provider>`, plus `:session-<8 hex>` when the provider is the implementer's.
 
 ## `doctor`
 
@@ -95,17 +95,18 @@ configure --set K=V... [--local-set K=V...] [--dry-run] [--approve] [--repositor
 {"status": "configured", "actions": ["update .agent-workflow/config.yaml", "refresh generated configuration"]}
 ```
 
-`--set` keys must start with `orchestrator.`; anything else exits 2 and writes nothing. `--local-set` keys edit `.agent-workflow/orchestrator.local.yaml`. The command validates the candidate configuration first. `--dry-run` prints the actions (`status: would_configure`) and writes nothing. Without `--dry-run`, `--approve` is required: it first runs `gin-workflow setup configure --set ... --approve`, which writes the portable keys and refreshes the effective configuration; only after that succeeds does it write `orchestrator.local.yaml` atomically and add it to `.agent-workflow/.gitignore`, so a rejected portable change leaves the local file untouched.
+`--set` keys must start with `orchestrator.`; anything else exits 2 and writes nothing. `--local-set` keys edit `.agent-workflow/orchestrator.local.yaml`. The command validates the candidate configuration first. `--dry-run` prints the actions (`status: would_configure`) and writes nothing. Without `--dry-run`, `--approve` is required. The command first runs `gin-workflow setup configure --set ... --approve`, which writes the portable keys and refreshes the effective configuration. Only after that succeeds does it write `orchestrator.local.yaml` atomically and add it to `.agent-workflow/.gitignore`, so a rejected portable change leaves the local file untouched.
 
 ## Errors
 
-Errors exit 2 with `error: <message>` on stderr, except the launcher's own two, which exit 1:
+Errors exit 2 with `error: <message>` on stderr, except the launcher's own three, which exit 1:
 
 - `error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator`
+- `error: gin-workflow paths failed; reinstall with ./install.sh --plugin gin-orchestrator`
 - `error: gin-workflow facade EXT_VERSION <n>; this gin-orchestrator supports 1`
 
 ## Lookup and mismatch rule
 
 The client (`workflow_core.orchestrator_client`) looks for `gin-orchestrator` on `PATH`. If it is absent, the client reports `orchestrator_missing`.
 
-Before any other command the client checks `version` once per process: `contract` must equal its own constant, and the command it needs must be in `capabilities`. A mismatch reports `orchestrator_contract_mismatch`; a command that cannot be run or parsed reports `orchestrator_failed`. gin-workflow turns each reason into a warning and resolves for the main harness instead.
+Before any other command the client checks `version` once per process. A `contract` that differs from the client's own constant reports `orchestrator_contract_mismatch`; a command that cannot be run or parsed reports `orchestrator_failed`. A command missing from `capabilities` is not delegated. With `provider_mode: multi`, gin-workflow turns each reason into a warning and resolves for the main harness instead.

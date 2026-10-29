@@ -1,4 +1,4 @@
-# CLI Reference
+# CLI reference
 
 The plugin ships two command-line tools that skills call and that you can run yourself:
 
@@ -24,7 +24,7 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
 | `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--stack-intent`) into `--set` assignments | no |
 | `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode`) | no |
-| `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews; also writes the gin-workflow block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone), and adds a missing block on an initialized repository with `--approve` | yes |
+| `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes the gin-workflow block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block | yes |
 | `configure` | Changes repository configuration (`--set key=value`) | yes |
 | `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration and re-renders an existing `AGENTS.md` block (never creates one) | yes |
 | `update` | Proposes, then with `--approve` applies, a registered schema migration (`--to-version`) | yes |
@@ -71,7 +71,7 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 
 `--actor` is required unless team mode derives it from `git config user.email`. Recording the same gate with the same evidence twice reports `already_recorded`.
 
-Exit codes: 0 recorded; 1 team mode rejected the evidence; 2 usage error (missing actor, `--epic` on another gate, `shipped` on an epic with children, or the removed `verification-passed` gate: quality checks run in the git hooks). `unblock --gate verification_passed` also exits 2.
+Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, and `shipped` on anything but a standalone bead. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
 
 ## `gin-workflow unblock`
 
@@ -86,7 +86,7 @@ Waives a gate or clears a recorded blocker. A waiver is an auditable `gate.waive
 |---|---|---|
 | `requirement_confirmed`, `plan_approved`, `orchestration_ready` | process | a reason |
 | `review_approved` | safety | a reason and `--follow-up <bead>` |
-| `implementation_complete`, `shipped` | not waivable | — |
+| `implementation_complete`, `shipped` | not waivable | cannot be waived |
 
 Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or follow-up; 2 missing actor or team-mode refusal.
 
@@ -96,7 +96,7 @@ Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or foll
 gin-workflow quick-check --changed-files N [--modules M]
 ```
 
-Decides whether a change may use the `/quick` path. `--modules` counts the source modules the change touches; a changed module's tests and docs count as that module, not as another one. It returns the rigor, the verify commands to run, and the review mode (`self_check` under `easy`, `independent` otherwise).
+Decides whether a change may use the `/quick` path. `--modules` (default 1) counts the source modules the change touches; a changed module's tests and docs count as that module, not as another one. It returns the rigor, the verify commands to run, and the review mode (`self_check` under `easy`, `independent` otherwise).
 
 | Decision | Exit | When |
 |---|---|---|
@@ -121,7 +121,7 @@ Exit codes: 0 success; 2 invalid configuration or rule pack.
 gin-workflow specs <command> [options]
 ```
 
-Living specs for `artifacts.layout: sdd`. Every command except `template`, `reqs`, and `migrate` requires that layout.
+Living specs for `artifacts.layout: sdd`. Every command except `template`, `migrate`, and `reqs` without `--change` requires that layout; `migrate` requires the `legacy` layout.
 
 | Command | Purpose |
 |---|---|
@@ -153,7 +153,7 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `codeowners [--check]` | Print CODEOWNERS, or check it is up to date |
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
 | `whoami` | Show your member entry, roles, and areas (from `git config user.email`) |
-| `check URL --gate GATE [--plan P] [--spec S]` | Check that a pull request of this repository changes the gate's artifact and satisfies its approvals; `--gate roadmap` checks the roadmap file without recording anything |
+| `check URL --gate GATE [--plan P] [--spec S]` | Check a pull request of this repository against the approval policy of `GATE` (`requirement_confirmed`, `plan_approved`, `ship`, or `roadmap`). Every gate but `ship` also needs the pull request merged and changing the gate's spec, plan, or roadmap file. Nothing is recorded |
 | `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, and that the paths in each track's `Files` block stay inside its area |
 | `ready` | Ready beads in your areas |
 | `claim BEAD` | Claim a bead as yourself |
@@ -170,9 +170,9 @@ gin-workflow hooks install
 gin-workflow hooks run pre-commit|pre-push
 ```
 
-`install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`). It is idempotent, never overwrites a hook it did not write (`occupied`: add `exec gin-workflow hooks run <hook> "$@"` to your hook to chain it; a hook that already runs it is reported as `chained`), and does not create a missing hooks directory. It also sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` (`ssh_keepalive: set`) so the SSH connection git opens before `pre-push` survives a long test run; an existing `core.sshCommand`, `GIT_SSH` or `GIT_SSH_COMMAND` is left alone (`kept`); a write that fails is reported as `failed` and does not fail the install. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
+`install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`). It is idempotent and does not create a missing hooks directory. It never overwrites a hook it did not write (`occupied`: add `exec gin-workflow hooks run <hook> "$@"` to your hook to chain it); a hook that already runs it is reported as `chained`. It also sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` (`ssh_keepalive: set`), so the SSH connection git opens before `pre-push` survives a long test run. An existing `core.sshCommand`, `GIT_SSH` or `GIT_SSH_COMMAND` is left alone (`kept`); a write that fails is reported as `failed` and does not fail the install. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
 
-`run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks; `pre-push` runs `test`, plus `build` at `standard` rigor and `e2e` at `strict`, only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook.
+`run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks. `pre-push` runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. It runs them only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook.
 
 Exit codes: install 0 installed or chained, 1 occupied, 2 hooks directory missing; run 0 pass, otherwise the failing command's exit code.
 
@@ -184,7 +184,7 @@ gin-workflow reviewer --base SHA --implementer PROVIDER [--tier low|medium|high]
 
 Called by the `review` skill to pick the reviewer; you do not need to run it. Prints the review tier and the reviewer routes in order. `--tier` is the track's reasoning (default `medium`); a `low` track whose diff since `--base` changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) is reviewed at `medium`. The reviewer runs on the main harness at the tier's default model: `actor_id` is `reviewer:<harness>`, or `reviewer:<harness>:session-<id>` (a fresh session) when the harness is also the implementer. `routing.review.independence: provider` adds a warning, because only gin-orchestrator can route the review to another harness. With `--json`, prints the route document `{"tier", "reason", "warnings", "routes": [{"provider", "model", "effort", "actor_id"}]}`.
 
-Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, or an unknown harness.
+Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, or an empty route list from gin-orchestrator.
 
 ## `gin-workflow routes`
 
@@ -212,7 +212,7 @@ Exit codes: 0 message sent, disabled, or delivery warning; 2 invalid arguments o
 gin-workflow paths [--json]
 ```
 
-Prints the path of the directory holding `workflow_core` (`{"lib_dir": "..."}`) for external tools and extension launchers.
+Prints the path of the directory holding `workflow_core` (`{"lib_dir": "..."}`) for external tools and extension launchers. It always prints JSON; `--json` changes nothing.
 
 Exit codes: 0 ok.
 
@@ -222,7 +222,7 @@ Exit codes: 0 ok.
 gin-workflow goal --workflow-id ID [--repository PATH]
 ```
 
-Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`: its open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one, with a turn limit of 6 per track (at most 30). A track run on a fallback from its route counts as run on its routed provider. A standalone bead is its own single track. When no track is left for the agent, it prints a `No goal:` line naming the human-gate tracks instead.
+Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`. The goal lists the open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one. Its turn limit is 6 per track, at most 30. A track run on a fallback from its route counts as run on its routed provider. A standalone bead is its own single track. When no open track is left for the agent, it prints a `No goal:` line instead, which names the human-gate tracks when any wait.
 
 Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is unavailable.
 
@@ -233,7 +233,7 @@ gin-workflow worktree create [--repository DIR] TRACK_ID BRANCH [BASE_REF]
 gin-workflow worktree cleanup [--repository DIR] TRACK_ID
 ```
 
-Creates or removes the git worktree for one track at `.planning/worktrees/<track-id>` in the repository's top level. `TRACK_ID` must match `[A-Za-z0-9._-]+` and resolve inside `.planning/worktrees`. `create` makes the new branch `BRANCH` from `BASE_REF` (default: the current branch, or `HEAD` when detached) and refuses an existing directory. `cleanup` runs `git worktree remove` and succeeds without doing anything when the directory does not exist. Runs on every platform; it replaces `worktree-create.sh` and `worktree-cleanup.sh`.
+Creates or removes the git worktree for one track at `.planning/worktrees/<track-id>` in the repository's top level. `TRACK_ID` must match `[A-Za-z0-9._-]+` and resolve inside `.planning/worktrees`. `create` makes the new branch `BRANCH` from `BASE_REF` (default: the current branch, or `HEAD` when detached) and refuses an existing directory. `cleanup` runs `git worktree remove` and succeeds without doing anything when the directory does not exist.
 
 Exit codes: 0 created, removed, or nothing to remove; 1 invalid track id, existing directory, or git failure (message on stderr); 2 invalid arguments.
 
@@ -243,9 +243,9 @@ Exit codes: 0 created, removed, or nothing to remove; 1 invalid track id, existi
 gin-workflow task <bd arguments>
 ```
 
-The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` it runs `bd` with the arguments unchanged, except that `ready` also leaves out a bead whose `external:<project>:<capability>` dependency is not shipped yet (no closed `provides:<capability>` bead in the database `external_projects.<project>` names); bd 1.0.5 reports such dependencies as resolved. `gin-workflow team ready` applies the same check. If bd cannot explain its ready list, `ready` exits 1 rather than list beads it could not check. Write `external_projects` paths as absolute paths or relative to the repo root; `~` is expanded. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update`, `close`, `reopen`, `list`, `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
+The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` it runs `bd` with the arguments unchanged, with one exception. `ready` also leaves out a bead whose `external:<project>:<capability>` dependency is not shipped yet: no closed `provides:<capability>` bead exists in the database `external_projects.<project>` names. bd 1.0.5 reports such dependencies as resolved. `gin-workflow team ready` applies the same check. If bd cannot explain its ready list, `ready` exits 1 rather than list beads it could not check. Write `external_projects` paths as absolute paths or relative to the repo root; `~` is expanded. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update`, `close`, `reopen`, `list`, `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
 
-Exit codes: 0 ok; 1 invalid request or malformed task file (the message names the file); 127 `beads` is configured but `bd` is not installed.
+Exit codes: 0 ok; 1 invalid configuration, invalid request, or malformed task file (the message names the file); 127 `beads` is configured but `bd` is not installed. Other `bd` commands exit with `bd`'s own code.
 
 ## `gin-workflow usage`
 
@@ -273,7 +273,7 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 | Inspection | `status`, `validate` (`--in-history` for an earlier track on a shared branch), `render` (`--check` for drift) |
 | Housekeeping | `cleanup` (`--bead-id` or `--all-closed`; also deletes the bead's `refs/gin/review/` refs) |
 
-`change-scope` and `reject` invalidate an active approval. `approve` requires a clean worktree.
+`change-scope` and `reject` invalidate an active approval. `approve` refuses when the working source tree differs from the reviewed checkpoint.
 
 ## Delegation to gin-orchestrator
 
@@ -286,7 +286,7 @@ When `provider_mode: multi` is set, `gin-orchestrator` is available on `PATH`, a
 | `gin-workflow setup doctor --probe` | `gin-orchestrator doctor` | `doctor` |
 | `gin-workflow setup models` | `gin-orchestrator models` | `models` |
 
-In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise. Work is never blocked.
+In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise.
 
 ## `gin-qa`
 
