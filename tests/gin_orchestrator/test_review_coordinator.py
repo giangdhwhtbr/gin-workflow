@@ -47,7 +47,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
         self.assertIn("`reject` only invalidates an existing approval", review)
         self.assertIn("never in shell variables", review)
         self.assertIn("never stop a process you did not start", review)
-        self.assertIn("same-role, same-reasoning fallback", receiving)
+        self.assertIn("same-role fallback at that model and effort or higher", receiving)
         self.assertIn("must not close", receiving)
 
     def context(self):

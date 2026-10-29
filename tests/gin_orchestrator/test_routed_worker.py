@@ -512,16 +512,19 @@ class RoutedWorkerTests(unittest.TestCase):
                     unavailable.payload["reason"],
                 )
 
-    def test_worker_dispatch_skill_requires_route_revalidation_and_same_tier_fallback(self):
+    def test_worker_dispatch_skill_requires_route_dispatch_and_never_lowers_the_route(self):
         skill = (
             SCRIPTS.parent / "skills/execute/SKILL.md"
         ).read_text(encoding="utf-8")
         lifecycle = (
             SCRIPTS.parent / "skills/execute/references/worker-lifecycle.md"
         ).read_text(encoding="utf-8")
+        policy = (
+            SCRIPTS.parent / "skills/execute/references/delegation-policy.md"
+        ).read_text(encoding="utf-8")
 
-        self.assertIn("provider role and reasoning", skill)
-        self.assertIn("never downgrade the requested reasoning", skill)
+        self.assertIn("gin-workflow routes dispatch --workflow-id", skill)
+        self.assertIn("A requested route is never lowered", policy)
         self.assertIn("circuit", lifecycle)
         self.assertIn("capacity", lifecycle)
 
