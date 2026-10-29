@@ -1,4 +1,4 @@
-# Getting Started
+# Getting started
 
 This guide takes one feature from idea to merge using Claude Code and `gin-workflow`.
 
@@ -28,10 +28,11 @@ Run setup inside Claude Code to configure your project:
 /gin-workflow:setup
 ```
 
-Setup asks four questions and generates `.agent-workflow/config.yaml`:
+Setup asks one question at a time and generates `.agent-workflow/config.yaml`:
 - Project type: stage and shape, detected from your repository.
-- Rigor: `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks).
-- Verify commands: your lint, typecheck, test, and build commands.
+- Rigor: setup suggests `standard` for an existing codebase (Git worktrees for parallel work and independent review) and `easy` for a new one; `strict` always uses a worktree and a review ledger.
+- Verify commands: your lint, typecheck, test, build, and e2e commands (a new project is asked for its stack instead).
+- Code index: for an existing codebase, an offer to run `codegraph init` when CodeGraph is installed.
 - Task tracking: `markdown` (the default; local files under `.planning/tasks/`) or `beads` (needs `bd`).
 
 Everything runs in the harness you opened (`provider_mode: single`). Worker harnesses are the optional [gin-orchestrator](orchestrator/README.md) extension.
@@ -66,13 +67,13 @@ Claude creates an epic and task items in your task tracker (Markdown or Beads) a
 ```
 Claude claims the next ready track, writes a failing test first, implements until the tests pass, and runs an independent review in the review ledger. After approval the track closes. Repeat `/gin-workflow:execute` until all tracks are done.
 
-Quality checks do not need a stage: `pre-commit` runs lint and typecheck, `pre-push` runs the tests, and CI is the backstop (`gin-workflow hooks install`, see the [CLI reference](reference/cli.md#gin-workflow-hooks)).
+Quality checks do not need a stage: `pre-commit` runs lint and typecheck, `pre-push` runs the tests (plus the build at `standard` and `strict`, and e2e at `strict`), and CI is the backstop (`gin-workflow hooks install`, see the [CLI reference](reference/cli.md#gin-workflow-hooks)).
 
 ### Ship
 ```text
 /gin-workflow:ship
 ```
-Claude offers four options: merge locally, push and open a pull request, keep the branch, or discard. After your approval it integrates the work, re-tests the merged result, removes the worktree, and closes the epic (`shipped`).
+Claude offers four options: merge locally, push and open a pull request, keep the branch, or discard. After your approval it integrates the work, removes the worktree, and closes the epic (`shipped`). Ship runs no tests; the git hooks and CI do.
 
 ---
 

@@ -6,7 +6,7 @@ This guide bootstraps a new project with Claude Code and `gin-workflow`, from an
 
 ## Prerequisites and initialization
 
-You need Git and Python 3; Beads is optional.
+Install the [dependencies](../../README.md#dependencies) first; Beads is optional.
 
 ```bash
 # 1. Initialize a new git repository
@@ -34,11 +34,12 @@ Inside Claude Code, run setup:
 ```
 
 Setup detects your environment and asks:
-- Project stage: select `greenfield`.
-- Project shape and stack: choose the shape (`frontend`, `backend`, `fullstack`, or `library`) and name the technologies you plan to use, for example TypeScript, Python, React, or FastAPI.
-- Rigor: select `standard` (recommended: Git worktrees for parallel work, independent review, and lint, typecheck, test, and build checks) or `strict` (always a worktree, a review ledger, and the e2e check when configured).
-- Provider mode: `single`, where Claude Code does all the work.
-- Verification commands: confirm your lint, typecheck, test, and build commands. You can change them later in `.agent-workflow/config.yaml`.
+- Project type: confirm stage `greenfield`, the shape (`frontend`, `backend`, `fullstack`, or `library`), and the stack.
+- Rigor: setup suggests `easy` (no worktree, self-check review). `standard` adds worktrees for parallel work and independent review; `strict` always uses a worktree and a review ledger.
+- Stack intent: the technologies you plan to use, for example TypeScript, Python, React, or FastAPI. Setup asks this instead of verify commands, which you can add later in `.agent-workflow/config.yaml`.
+- Task tracking: `markdown` (local files) or `beads`, which needs `bd`. Markdown is the default.
+
+Everything runs in the harness you opened (`provider_mode: single`).
 
 Commit the generated `.agent-workflow/config.yaml` to your repository:
 
