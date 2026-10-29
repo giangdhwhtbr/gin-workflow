@@ -57,7 +57,7 @@ class LauncherTests(unittest.TestCase):
         result = run(f"{self.bin}{os.pathsep}{os.environ['PATH']}")
 
         self.assertEqual(1, result.returncode)
-        self.assertEqual("error: gin-workflow facade EXT_VERSION 99; this gin-orchestrator supports 1\n", result.stderr)
+        self.assertEqual("error: gin-workflow facade EXT_VERSION 99; this gin-orchestrator supports 2\n", result.stderr)
 
 
 if __name__ == "__main__":

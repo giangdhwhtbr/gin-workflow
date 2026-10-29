@@ -61,34 +61,34 @@ class ProviderRegistryTests(unittest.TestCase):
             Path(root),
         )
 
-    def antigravity_config(self, root, provider="antigravity"):
-        return EffectiveConfig(
-            {
-                "schema_version": "2.3",
-                "harness": "codex",
-                "providers": {
-                    "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                    "review": "fake", "evidence": "fake", "notifications": "fake",
+    def antigravity_config(self, root, provider="antigravity", provider_models=None):
+        data = {
+            "schema_version": "2.9",
+            "harness": "codex",
+            "providers": {
+                "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                "review": "fake", "evidence": "fake", "notifications": "fake",
+            },
+            "orchestrator": {
+                "roles": {
+                    "backend": {
+                        "preferred": [provider],
+                        "fallback": ["codex"],
+                    }
                 },
-                "orchestrator": {
-                    "roles": {
-                        "backend": {
-                            "preferred": [provider],
-                            "fallback": ["codex"],
-                        }
-                    },
-                    "concurrency": {provider: 1, "codex": 1},
-                    "queue": {"max_wait_seconds": 0},
-                    "worker": {"timeout_seconds": 17, "max_retries": 0},
-                    "circuit_breaker": {
-                        "failure_threshold": 1,
-                        "cooldown_seconds": 10,
-                        "half_open_max_probes": 1,
-                    },
+                "concurrency": {provider: 1, "codex": 1},
+                "queue": {"max_wait_seconds": 0},
+                "worker": {"timeout_seconds": 17, "max_retries": 0},
+                "circuit_breaker": {
+                    "failure_threshold": 1,
+                    "cooldown_seconds": 10,
+                    "half_open_max_probes": 1,
                 },
             },
-            Path(root),
-        )
+        }
+        if provider_models is not None:
+            data["models"] = {provider: {"models": list(provider_models)}}
+        return EffectiveConfig(data, Path(root))
 
     @staticmethod
     def composite_authority():
@@ -193,7 +193,7 @@ class ProviderRegistryTests(unittest.TestCase):
             git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
             tree = repo / ".planning/worktrees/wt1"
             git(repo, "worktree", "add", "-q", "-b", "feat/wt1", str(tree))
-            local = {"codex": ProviderModelConfig("codex", "codex", {"low": "a", "medium": "b", "high": "c"})}
+            local = {"codex": ProviderModelConfig("codex", "codex")}
             registry = ProviderRegistry.from_effective_config(
                 self.antigravity_config(tree), provider_local=local,
                 evidence_authority=self.composite_authority(),
@@ -275,8 +275,8 @@ class ProviderRegistryTests(unittest.TestCase):
     def routed_config(self, root):
         return EffectiveConfig(
             {
-                "schema_version": "2.2",
-                "harness": "codex",
+                "schema_version": "2.9",
+                "harness": "claude",
                 "providers": {
                     "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                     "review": "fake", "evidence": "fake", "notifications": "fake",
@@ -298,7 +298,7 @@ class ProviderRegistryTests(unittest.TestCase):
     def local(self):
         return {
             "claude": ProviderModelConfig(
-                "claude", "claude", {"low": "haiku", "medium": "sonnet", "high": "opus"}
+                "claude", "claude"
             )
         }
 
@@ -322,8 +322,8 @@ class ProviderRegistryTests(unittest.TestCase):
                 Path(directory),
             )
             local = {
-                "claude": ProviderModelConfig("claude", "claude", {"low": "haiku", "medium": "sonnet", "high": "opus"}),
-                "codex": ProviderModelConfig("codex", "codex", {"low": "mini", "medium": "coding", "high": "reasoning"}),
+                "claude": ProviderModelConfig("claude", "claude"),
+                "codex": ProviderModelConfig("codex", "codex"),
             }
 
             without_local = ProviderRegistry.from_effective_config(config)
@@ -358,21 +358,15 @@ class ProviderRegistryTests(unittest.TestCase):
                 root = Path(directory)
                 runner = Runner()
                 local = {
-                    "antigravity": ProviderModelConfig(
-                        "antigravity", "agy", {
-                            "low": antigravity_model,
-                            "medium": antigravity_model,
-                            "high": antigravity_model,
-                        }
-                    ),
-                    "codex": ProviderModelConfig(
-                        "codex", "codex", {
-                            "low": "mini", "medium": "coding", "high": "reasoning"
-                        }
-                    ),
+                    "antigravity": ProviderModelConfig("antigravity", "agy"),
+                    "codex": ProviderModelConfig("codex", "codex"),
                 }
+                config = self.antigravity_config(
+                    root,
+                    provider_models=[antigravity_model] if antigravity_model != "provider_default" else None,
+                )
                 registry = ProviderRegistry.from_effective_config(
-                    self.antigravity_config(root),
+                    config,
                     provider_local=local,
                     evidence_authority=self.composite_authority(),
                     native_runner=runner,
@@ -389,7 +383,7 @@ class ProviderRegistryTests(unittest.TestCase):
                 worker_request = WorkerRequest(
                     "Implement", (), create_context_manifest("execute", ContextRequest()),
                     {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
-                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "gpt-6-astra", "high",
                 )
 
                 receipt = registry.worker.dispatch(worker_request)
@@ -424,15 +418,16 @@ class ProviderRegistryTests(unittest.TestCase):
                 root = Path(directory)
                 runner = Runner()
                 local = {
-                    "opencode": ProviderModelConfig(
-                        "opencode", "opencode", {"low": model, "medium": model, "high": model}
-                    ),
-                    "codex": ProviderModelConfig(
-                        "codex", "codex", {"low": "mini", "medium": "coding", "high": "reasoning"}
-                    ),
+                    "opencode": ProviderModelConfig("opencode", "opencode"),
+                    "codex": ProviderModelConfig("codex", "codex"),
                 }
+                config = self.antigravity_config(
+                    root,
+                    "opencode",
+                    provider_models=[model] if model != "provider_default" else None,
+                )
                 registry = ProviderRegistry.from_effective_config(
-                    self.antigravity_config(root, "opencode"),
+                    config,
                     provider_local=local,
                     evidence_authority=self.composite_authority(),
                     native_runner=runner,
@@ -447,7 +442,7 @@ class ProviderRegistryTests(unittest.TestCase):
                 worker_request = WorkerRequest(
                     "Implement", (), create_context_manifest("execute", ContextRequest()),
                     {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
-                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "gpt-6-astra", "high",
                 )
 
                 receipt = registry.worker.dispatch(worker_request)
@@ -487,7 +482,7 @@ class ProviderRegistryTests(unittest.TestCase):
             codex_script.chmod(0o755)
             local = {
                 "codex": ProviderModelConfig(
-                    "codex", str(codex_script), {"low": "mini", "medium": "coding", "high": "reasoning"}
+                    "codex", str(codex_script)
                 ),
             }
             config = EffectiveConfig(
@@ -542,20 +537,17 @@ class ProviderRegistryTests(unittest.TestCase):
     def test_registry_rejects_provider_default_for_non_antigravity_injection(self):
         with tempfile.TemporaryDirectory() as directory:
             local = {
-                "codex": ProviderModelConfig(
-                    "codex", "codex", {
-                        "low": "provider_default",
-                        "medium": "provider_default",
-                        "high": "provider_default",
-                    }
-                )
+                "codex": ProviderModelConfig("codex", "codex")
             }
+            config_dict = dict(self.routed_config(directory).data)
+            config_dict["models"] = {"codex": {"models": ["provider_default"]}}
+            config = EffectiveConfig(config_dict, Path(directory))
 
             with self.assertRaisesRegex(
                 RegistryError, "provider_default is only supported for antigravity"
             ):
                 ProviderRegistry.from_effective_config(
-                    self.routed_config(directory), provider_local=local
+                    config, provider_local=local
                 )
 
     def test_builds_every_selected_fake_from_effective_config(self):
@@ -679,7 +671,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "branch": "task/api",
                     "workspace_path": str(root),
                 },
-                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "opus",
             )
 
             receipt = registry.worker.dispatch(request)
@@ -717,14 +709,14 @@ class ProviderRegistryTests(unittest.TestCase):
             )
             review = WorkerRequest(
                 "Review", (), create_context_manifest("review", ContextRequest()), {},
-                REQUIRED_RESULT_FIELDS, "rev", "wf", "try-1", "review", "high",
+                REQUIRED_RESULT_FIELDS, "rev", "wf", "try-1", "review", "sonnet",
             )
             registry.worker.collect_result(registry.worker.dispatch(review).worker_id)
             self.assertEqual([root.resolve()], [invocation.cwd for invocation in runner.invocations])
 
             implement = WorkerRequest(
                 "Implement", (), create_context_manifest("execute", ContextRequest()), {},
-                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "sonnet",
             )
             result = registry.worker.collect_result(registry.worker.dispatch(implement).worker_id)
             self.assertEqual(("worker_routes_unavailable",), result.blockers)
@@ -785,12 +777,8 @@ class ProviderRegistryTests(unittest.TestCase):
             agy_script.chmod(0o755)
 
             local = {
-                "codex": ProviderModelConfig(
-                    "codex", str(codex_script), {"low": "gpt-6-astra", "high": "gpt-6-astra"}
-                ),
-                "antigravity": ProviderModelConfig(
-                    "antigravity", str(agy_script), {"low": "gemini-3.8-flash", "high": "gemini-3.8-flash"}
-                ),
+                "codex": ProviderModelConfig("codex", str(codex_script)),
+                "antigravity": ProviderModelConfig("antigravity", str(agy_script)),
             }
             config = EffectiveConfig(
                 {
@@ -878,14 +866,13 @@ class ProviderRegistryTests(unittest.TestCase):
             try:
                 runner = _RecordingRunner()
                 local = {
-                    "antigravity": ProviderModelConfig(
-                        "antigravity", "antigravity", {"low": "gemini-3.8-flash", "high": "gemini-3.8-flash"}
-                    ),
+                    "antigravity": ProviderModelConfig("antigravity", "antigravity"),
                 }
                 config = EffectiveConfig(
                     {
-                        "schema_version": "2.3",
+                        "schema_version": "2.9",
                         "harness": "antigravity",
+                        "models": {"antigravity": {"models": ["gemini-3.8-flash"]}},
                         "providers": {
                             "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                             "review": "fake", "evidence": "fake", "notifications": "fake",
@@ -923,13 +910,82 @@ class ProviderRegistryTests(unittest.TestCase):
                 worker_request = WorkerRequest(
                     "Implement", (), create_context_manifest("execute", ContextRequest()),
                     {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
-                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "high",
+                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "gemini-3.8-flash",
                 )
                 receipt = registry.worker.dispatch(worker_request)
                 registry.worker.collect_result(receipt.worker_id)
                 self.assertEqual(str(fake_agy.resolve()), runner.invocations[1].argv[0])
             finally:
                 os.environ["PATH"] = orig_path
+
+    def test_codex_worker_built_from_request_with_xhigh_effort_sets_argv(self):
+        class _RecordingRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput(({
+                    "status": "completed",
+                    "task_id": "api",
+                    "summary": "done",
+                    "changed_files": [],
+                    "commits": [],
+                    "tests": [],
+                    "evidence": [],
+                    "blockers": [],
+                },))
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = _RecordingRunner()
+            local = {
+                "codex": ProviderModelConfig("codex", "codex"),
+            }
+            config = EffectiveConfig(
+                {
+                    "schema_version": "2.9",
+                    "harness": "codex",
+                    "providers": {
+                        "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
+                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                    },
+                    "orchestrator": {
+                        "roles": {"backend": {"preferred": ["codex"], "fallback": []}},
+                        "concurrency": {"codex": 1},
+                        "queue": {"max_wait_seconds": 0},
+                        "worker": {"timeout_seconds": 17, "max_retries": 0},
+                        "circuit_breaker": {
+                            "failure_threshold": 1,
+                            "cooldown_seconds": 10,
+                            "half_open_max_probes": 1,
+                        },
+                    },
+                },
+                root,
+            )
+            registry = ProviderRegistry.from_effective_config(
+                config,
+                provider_local=local,
+                evidence_authority=self.composite_authority(),
+                native_runner=runner,
+                worker_health={"codex": lambda candidate: True},
+            )
+            registry.workspace.create(
+                WorkspaceRequest("ws-api", "task/api"), idempotency_key="create"
+            )
+            worker_request = WorkerRequest(
+                "Implement", (), create_context_manifest("execute", ContextRequest()),
+                {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "gpt-6-astra", "xhigh",
+            )
+            receipt = registry.worker.dispatch(worker_request)
+            normalized = registry.worker.collect_result(receipt.worker_id)
+            self.assertEqual("completed", normalized.status)
+            self.assertEqual("codex", receipt.provider_name)
+            argv = runner.invocations[0].argv
+            self.assertIn("-c", argv)
+            self.assertIn("model_reasoning_effort=xhigh", argv)
 
 
 if __name__ == "__main__":

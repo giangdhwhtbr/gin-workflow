@@ -9,11 +9,13 @@ from typing import Any
 
 from workflow_core.ext import (
     AssignmentRequest,
+    DEFAULT_CATALOGS,
     EffectiveConfig,
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderModelConfig,
     WorkflowEventStore,
+    catalog_for,
     main_checkout,
     resolve_harness_executable,
 )
@@ -179,13 +181,13 @@ class ProviderRegistry:
             evidence_options.get("index") or artifacts.get("evidence"),
             ".agent-workflow/runtime/evidence",
         )
-        if evidence_authority is None and str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8"):
+        if evidence_authority is None and str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9"):
             evidence_runtime_root = _path(state_root, artifacts.get("runtime"), ".agent-workflow/runtime")
             evidence_event_store = event_store or WorkflowEventStore(
                 evidence_runtime_root / "events.jsonl"
             )
             evidence_authority = build_composite_evidence_authority(root, evidence_event_store)
-        if str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8") and not isinstance(
+        if str(config.get("schema_version", "")) in ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9") and not isinstance(
             evidence_authority,
             CompositeEvidenceAuthority,
         ):
@@ -214,10 +216,11 @@ class ProviderRegistry:
         configured_retries = 0
         configured_parallel = 1
         if provider_local is not None:
-            for provider_name, local_config in provider_local.items():
-                if provider_name not in PROVIDER_DEFAULT_PROVIDERS and any(
-                    getattr(target, "model", str(target)) == PROVIDER_DEFAULT
-                    for target in local_config.models.values()
+            for provider_name in provider_local:
+                if (
+                    provider_name in DEFAULT_CATALOGS
+                    and provider_name not in PROVIDER_DEFAULT_PROVIDERS
+                    and PROVIDER_DEFAULT in catalog_for(config, provider_name).models
                 ):
                     raise RegistryError(
                         "provider_default is only supported for antigravity and opencode"
@@ -255,7 +258,8 @@ class ProviderRegistry:
                 assignment = AssignmentRequest(
                     request.task_id,
                     request.provider_role,
-                    request.reasoning,
+                    request.model,
+                    request.effort,
                     str(config.get("harness", "")),
                 )
                 return resolve_assignment(assignment, config, provider_local)

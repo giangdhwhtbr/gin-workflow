@@ -1,32 +1,10 @@
-schema_version: "2.8"
+schema_version: "2.9"
 providers:
   claude:
     executable: claude
-    models:
-      low: haiku
-      medium: sonnet
-      high: opus
   antigravity:
     executable: agy
-    models:
-      low: gemini-3.8-flash
-      medium: gemini-3.8-flash
-      high: gemini-3.8-flash
   opencode:
     executable: opencode
-    models:
-      low: provider_default
-      medium: provider_default
-      high: provider_default
   codex:
     executable: codex
-    models:
-      low:
-        model: gpt-6-astra
-        effort: low
-      medium:
-        model: gpt-6-astra
-        effort: medium
-      high:
-        model: gpt-6-astra
-        effort: high

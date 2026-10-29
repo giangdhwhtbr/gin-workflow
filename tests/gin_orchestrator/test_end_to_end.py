@@ -231,7 +231,8 @@ def worker_request(task_id):
         workflow_id="wf-e2e",
         retry_identity=f"wf-e2e:{task_id}",
         provider_role="backend",
-        reasoning="medium",
+        model="sonnet",
+        effort=None,
     )
 
 
@@ -290,7 +291,10 @@ class WorkflowEndToEndTests(unittest.TestCase):
             portable = yaml.safe_load(
                 (ROOT / "plugins/gin-workflow/src/examples/config.full.yaml").read_text(encoding="utf-8")
             )
+            portable["harness"] = "claude"
             portable["orchestrator"]["circuit_breaker"]["failure_threshold"] = 1
+            portable["orchestrator"]["roles"]["backend"] = {"preferred": ["claude"], "fallback": ["codex"]}
+            portable["orchestrator"]["roles"]["review"] = {"preferred": ["codex"], "fallback": ["claude"]}
             portable["providers"] = {
                 "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                 "review": "fake", "evidence": "fake", "notifications": "fake",
@@ -300,12 +304,12 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 (ROOT / "plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml").read_text(encoding="utf-8")
             )["providers"]
             local = {
-                name: ProviderModelConfig(name, entry["executable"], entry["models"])
+                name: ProviderModelConfig(name, entry["executable"])
                 for name, entry in local_raw.items()
             }
-            codex_high_target = local["codex"].models["high"]
-            codex_high_model = codex_high_target.model
-            antigravity_medium_model = local["antigravity"].models["medium"].model
+            codex_high_model = "gpt-6-astra"
+            codex_high_effort = "high"
+            antigravity_medium_model = "provider_default"
             runner = FakeNativeRunner()
             events = WorkflowEventStore(repository / ".agent-workflow/runtime/events.jsonl")
             identity, authority, evidence_references = evidence_fixture("frontend")
@@ -325,7 +329,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
             router = registry.worker
             self.assertIsNotNone(router)
 
-            def routed(task_id, role, reasoning, retry):
+            def routed(task_id, role, model, retry, effort=None):
                 item = worker_request(task_id)
                 created = registry.workspace.create(
                     WorkspaceRequest(
@@ -337,7 +341,8 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 return replace(
                     item,
                     provider_role=role,
-                    reasoning=reasoning,
+                    model=model,
+                    effort=effort,
                     retry_identity=retry,
                     isolation_policy={
                         **item.isolation_policy,
@@ -345,13 +350,13 @@ class WorkflowEndToEndTests(unittest.TestCase):
                     },
                 )
 
-            backend = routed("backend", "backend", "high", "backend:first")
+            backend = routed("backend", "backend", "opus", "backend:first")
             first = router.dispatch(backend)
             self.assertEqual("failed", router.collect_result(first.worker_id).status)
             retry = router.dispatch(replace(backend, retry_identity="backend:quota-fallback"))
             self.assertEqual("completed", router.collect_result(retry.worker_id).status)
 
-            frontend = routed("frontend", "frontend", "medium", "frontend:first")
+            frontend = routed("frontend", "frontend", "sonnet", "frontend:first")
             frontend_receipt = router.dispatch(frontend)
             self.assertEqual("completed", router.collect_result(frontend_receipt.worker_id).status)
 
@@ -365,9 +370,10 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 task_id="frontend",
                 cycle_number=1,
                 provider_role="review",
-                reasoning="high",
+                model="opus",
+                effort=None,
                 implementation_route=(frontend_receipt.provider_name, frontend_receipt.model_alias),
-                reviewer_candidates=(RouteCandidate("codex", codex_high_model, False, effort=codex_high_target.effort),),
+                reviewer_candidates=(RouteCandidate("codex", codex_high_model, False, effort=codex_high_effort),),
                 context=ReviewContext(
                     approved_scope=("src/frontend.py",),
                     diff="bounded diff",
@@ -381,7 +387,8 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 replace(
                     frontend,
                     provider_role="review",
-                    reasoning="high",
+                    model="opus",
+                    effort=None,
                     retry_identity="frontend:review:1",
                 ),
             )
@@ -402,12 +409,13 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 task_id="frontend",
                 cycle_number=2,
                 provider_role="review",
-                reasoning="high",
+                model="opus",
+                effort=None,
                 implementation_route=(
                     revision_receipt.provider_name,
                     revision_receipt.model_alias,
                 ),
-                reviewer_candidates=(RouteCandidate("codex", codex_high_model, False, effort=codex_high_target.effort),),
+                reviewer_candidates=(RouteCandidate("codex", codex_high_model, False, effort=codex_high_effort),),
                 context=cycle.context,
             )
             approved_review = coordinator.dispatch_review(
@@ -415,7 +423,8 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 replace(
                     frontend,
                     provider_role="review",
-                    reasoning="high",
+                    model="opus",
+                    effort=None,
                     retry_identity="frontend:review:2",
                 ),
             )
@@ -622,9 +631,9 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 repository,
             )
             plan_request = AssignmentRequest(
-                task_id, "backend", "high", "codex", workflow_id
+                task_id, "backend", "gpt-6-astra", "high", "codex", workflow_id
             )
-            self.assertEqual((), validate_plan_assignments((plan_request,), portable))
+            self.assertEqual([], validate_plan_assignments((plan_request,), portable))
 
             tasks = FakeTaskTrackingProvider()
             self.assertTrue(tasks.preflight().value.healthy)
@@ -654,9 +663,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
             registry = ProviderRegistry.from_effective_config(
                 portable,
                 provider_local={
-                    "codex": ProviderModelConfig(
-                        "codex", "codex", {"high": "reasoning"}
-                    )
+                    "codex": ProviderModelConfig("codex", "codex")
                 },
                 native_runner=IdentityNativeRunner(),
                 worker_health={
@@ -676,7 +683,8 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 workflow_id=workflow_id,
                 retry_identity=f"{workflow_id}:{task_id}:attempt-1",
                 acceptance_identity=identity,
-                reasoning="high",
+                model="gpt-6-astra",
+                effort="high",
                 isolation_policy={
                     "mode": "isolated",
                     "workspace_id": f"ws-{task_id}",

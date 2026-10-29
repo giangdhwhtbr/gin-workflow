@@ -29,7 +29,7 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertEqual(["antigravity"], roles["frontend"]["preferred"])
         self.assertEqual(["main_harness"], roles["review"]["preferred"])
         self.assertIn("main_harness", roles["backend"]["fallback"])
-        self.assertEqual("opus", local["providers"]["claude"]["models"]["high"])
+        self.assertEqual("claude", local["providers"]["claude"]["executable"])
         self.assertIn("circuit_breaker", portable["orchestrator"])
         self.assertEqual(2, portable["routing"]["review"]["max_cycles"])
         self.assertEqual(3, portable["orchestrator"]["circuit_breaker"]["failure_threshold"])

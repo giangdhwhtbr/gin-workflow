@@ -58,7 +58,8 @@ class ReviewCycle:
     task_id: str
     cycle_number: int
     provider_role: str
-    reasoning: str
+    model: str
+    effort: str | None
     implementation_provider: str
     implementation_model: str
     reviewer_provider: str
@@ -82,12 +83,12 @@ class RevisionRequest:
     revision_identity: str
     findings: tuple[ReviewFinding, ...]
     provider_role: str
-    reasoning: str
     preferred_route: tuple[str, str]
     provider: str
     model: str
     fallback_used: bool
     status: str = "revision_required"
+    effort: str | None = None
 
 
 @dataclass(frozen=True)
@@ -137,7 +138,8 @@ class ReviewCoordinator:
         task_id: str,
         cycle_number: int,
         provider_role: str,
-        reasoning: str,
+        model: str,
+        effort: str | None = None,
         implementation_route: tuple[str, str],
         reviewer_candidates: tuple[RouteCandidate, ...],
         context: ReviewContext,
@@ -176,7 +178,8 @@ class ReviewCoordinator:
             task_id,
             cycle_number,
             provider_role,
-            reasoning,
+            model,
+            effort,
             implementation_route[0],
             implementation_route[1],
             selected.provider,
@@ -206,7 +209,8 @@ class ReviewCoordinator:
                 objective=f"Review approved implementation scope for {cycle.task_id}",
                 generated_manifest=bounded_manifest,
                 provider_role=cycle.provider_role,
-                reasoning=cycle.reasoning,
+                model=cycle.model,
+                effort=cycle.effort,
                 route_affinity=cycle.reviewer_route,
                 acceptance_identity=cycle.acceptance_identity,
             )
@@ -288,6 +292,7 @@ class ReviewCoordinator:
     ) -> RevisionRequest:
         preferred = (cycle.implementation_provider, cycle.implementation_model)
         selected = preferred if self.route_available(*preferred) else None
+        selected_effort = cycle.effort
         fallback_used = False
         if selected is None:
             candidate = next(
@@ -301,6 +306,7 @@ class ReviewCoordinator:
             )
             if candidate is not None:
                 selected = (candidate.provider, candidate.model)
+                selected_effort = candidate.effort
                 fallback_used = True
         finding_ids = ",".join(sorted(finding.finding_id for finding in findings))
         identity = hashlib.sha256(
@@ -308,16 +314,16 @@ class ReviewCoordinator:
         ).hexdigest()[:24]
         if selected is None:
             return RevisionRequest(
-                cycle.task_id,
-                f"revision-{identity}",
-                tuple(findings),
-                cycle.provider_role,
-                cycle.reasoning,
-                preferred,
-                "",
-                "",
-                False,
-                "human_decision_required",
+                task_id=cycle.task_id,
+                revision_identity=f"revision-{identity}",
+                findings=tuple(findings),
+                provider_role=cycle.provider_role,
+                preferred_route=preferred,
+                provider="",
+                model="",
+                fallback_used=False,
+                status="human_decision_required",
+                effort=None,
             )
         transitioned = self.review_provider.begin_revision(
             cycle.task_id,
@@ -330,15 +336,15 @@ class ReviewCoordinator:
                 transitioned.message or "revision transition failed"
             )
         return RevisionRequest(
-            cycle.task_id,
-            f"revision-{identity}",
-            tuple(findings),
-            cycle.provider_role,
-            cycle.reasoning,
-            preferred,
-            selected[0],
-            selected[1],
-            fallback_used,
+            task_id=cycle.task_id,
+            revision_identity=f"revision-{identity}",
+            findings=tuple(findings),
+            provider_role=cycle.provider_role,
+            preferred_route=preferred,
+            provider=selected[0],
+            model=selected[1],
+            fallback_used=fallback_used,
+            effort=selected_effort,
         )
 
     def complete_revision(self, cycle: ReviewCycle, revision: RevisionRequest) -> ReviewStatus:
