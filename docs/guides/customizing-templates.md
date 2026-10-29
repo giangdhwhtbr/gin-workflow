@@ -1,23 +1,22 @@
-# Customizing Templates Guide: BA Specs & QA Test Cases
+# Customizing templates
 
-This guide explains how to customize and override the built-in templates used by `gin-workflow` and `gin-qa`. By leveraging the template override system, teams can tailor BA specification formats, add custom metadata (such as Jira ticket IDs, severity levels, or component tags), and adapt test case conventions to match their organization's standards.
+Override the templates gin-workflow and gin-qa write from, and the rules gin-qa follows, to match your team's formats.
 
----
+## How overrides work
 
-## 1. How Template Overrides Work
-
-`gin-workflow` uses a deterministic hierarchy when looking up templates:
+`gin-workflow` looks templates up in this order:
 
 ```text
-.agent-workflow/templates/<name>   ──► Project Override (Takes highest precedence)
+.agent-workflow/templates/<name>   ──► project override (used first)
                ▲
                │ (falls back to)
-plugins/gin-workflow/src/templates/ ──► Built-in Plugin Defaults
+the plugin's templates/            ──► built-in default
 ```
 
 Whenever a command needs a template, it checks `.agent-workflow/templates/` at your repository root first. If a file with the same name exists there, it is used instead of the built-in default.
 
-### Inspecting Built-in Templates
+### Built-in templates
+
 You can inspect the exact contents of any built-in template using the CLI:
 
 ```bash
@@ -25,29 +24,37 @@ gin-workflow specs template <template-name>
 ```
 
 Available templates:
-- **BA Specs & SDD:** `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `user-story.md`, `tests.md`, `adr.md`, `specs-README.md`
-- **Team Conventions:** `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
+- Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`
+- Codebase documentation (`/gin-workflow:tech-doc`): `codebase/<FILE>.md`, for example `codebase/API.md`
+- Team conventions: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
----
+| Template | Used by | Override file |
+|---|---|---|
+| Roadmap | `/gin-workflow:roadmap` | `.agent-workflow/templates/roadmap.md` |
+| Epic description | `/gin-workflow:roadmap` | `.agent-workflow/templates/epic.md` |
+| User story | `/gin-workflow:discuss` | `.agent-workflow/templates/user-story.md` |
+| Design spec (legacy layout) | `/gin-workflow:discuss` | `.agent-workflow/templates/design-spec.md` |
+| Proposal, spec delta, design, tests (SDD layout) | `specs new`, which `/gin-workflow:discuss` runs | `.agent-workflow/templates/<file>` |
+| `spec.md` | `specs archive` (a new capability) and `/gin-workflow:migrate-specs` | `.agent-workflow/templates/spec.md` |
+| `specs-README.md` | `specs archive` and `specs migrate` | `.agent-workflow/templates/specs-README.md` |
+| `codebase/*` | `/gin-workflow:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
+| `team/*` | `gin-workflow team init` | `.agent-workflow/templates/team/<file>` |
 
-## 2. Customizing BA Specification Templates
+## Spec, story, and roadmap templates
 
 To override a template for Business Analysts, create the `.agent-workflow/templates/` folder and place your customized template inside it.
 
-### Step-by-Step Walkthrough
-
-1. **Create the templates directory:**
+1. Create the templates directory:
    ```bash
    mkdir -p .agent-workflow/templates
    ```
 
-2. **Export the default template:**
+2. Export the default template:
    ```bash
    gin-workflow specs template spec.md > .agent-workflow/templates/spec.md
    ```
 
-3. **Customize the template:**
-   Edit `.agent-workflow/templates/spec.md`. You can add custom sections, compliance checklists, or asset guidelines:
+3. Customize the template by editing `.agent-workflow/templates/spec.md`. You can add custom sections, compliance checklists, or asset guidelines:
 
    ```markdown
    # {{capability}}
@@ -67,7 +74,7 @@ To override a template for Business Analysts, create the `.agent-workflow/templa
    <!-- Living requirements will be appended or managed here -->
    ```
 
-4. **Customize User Stories (`user-story.md`):**
+4. Customize user stories in `.agent-workflow/templates/user-story.md`:
    ```bash
    gin-workflow specs template user-story.md > .agent-workflow/templates/user-story.md
    ```
@@ -85,22 +92,20 @@ To override a template for Business Analysts, create the `.agent-workflow/templa
    - [ ] Criteria 1
    ```
 
-5. **Verify the override:**
-   Run `gin-workflow specs template spec.md` — it will immediately output your customized version from `.agent-workflow/templates/spec.md`.
+5. Verify the override by running `gin-workflow specs template spec.md`. It outputs your customized version from `.agent-workflow/templates/spec.md` immediately.
 
----
+## Test case guidelines and fields
 
-## 3. Customizing QA Test Case Templates & Guidelines
+The gin-qa add-on provides two mechanisms for customization: guidelines (`qa/guidelines.md`) and custom metadata fields.
 
-The `gin-qa` add-on provides two mechanisms for customization: **Guidelines** (`qa/guidelines.md`) and **Custom Metadata Fields**.
+### The guidelines file
 
-### Mechanism A: The Rulebook (`qa/guidelines.md`)
-On first use, `/gin-qa:cases` creates `qa/guidelines.md`. The AI Agent reads this file before drafting test cases, and its rules override default behaviors.
+On first use, `/gin-qa:cases` creates `qa/guidelines.md`. The agent reads this file before drafting test cases, and its rules override default behaviors.
 
 Edit `qa/guidelines.md` to customize:
-- **Language:** Enforce Vietnamese, English, or bilingual test steps.
-- **Extra Fields:** Declare team-specific metadata tags.
-- **E2E Rules:** Define sign-in mechanisms (e.g. `storageState`), test user fixtures, or locator strategies.
+- Language: Enforce Vietnamese, English, or bilingual test steps.
+- Extra fields: Declare team-specific metadata tags.
+- End-to-end rules: Define sign-in mechanisms (such as `storageState`), test user fixtures, or locator strategies.
 
 Example `qa/guidelines.md`:
 ```markdown
@@ -124,8 +129,9 @@ Rules for writing test cases in this repository:
 - Locators: Always prefer `page.getByRole(...)` or `page.getByLabel(...)`.
 ```
 
-### Mechanism B: Custom Metadata Fields in Test Cases
-The `gin-qa` parser dynamically preserves any arbitrary `Key: Value` line in test case headers. When the AI agent generates test cases, it will include the extra fields declared in your guidelines:
+### Extra fields
+
+The gin-qa parser keeps any other `Key: value` line in a test case header. When the agent generates test cases, it includes the extra fields declared in your guidelines:
 
 ```markdown
 ### TC-AUTH-005: Lockout after 5 failed login attempts
@@ -149,11 +155,9 @@ Expected:
 - Notification email is sent to `test@example.com`
 ```
 
-When running `gin-qa cases export --format json`, all custom fields (`Jira`, `Severity`, `Component`, etc.) are preserved in the JSON output, allowing direct integration into test management tools (e.g. TestRail, Xray, Allure).
+When running `gin-qa cases export --format json`, all custom fields (`Jira`, `Severity`, `Component`, and others) are preserved in the JSON output, allowing direct integration into test management tools such as TestRail, Xray, or Allure.
 
----
-
-## 4. Customizing E2E Test Fixtures (`evidence.ts`)
+## The end-to-end evidence fixture
 
 When running `/gin-qa:e2e`, the agent initializes the fixture file:
 ```text
@@ -166,15 +170,12 @@ This file is created once and is yours to edit. You can customize:
 - Custom screenshot dimensions or masking of sensitive fields.
 - Additional browser recording configurations.
 
----
+## Summary
 
-## 5. Summary Cheat Sheet
+| Artifact | Where it lives | Effect |
+|---|---|---|
+| QA guidelines | `qa/guidelines.md` | Sets the language, extra fields, priority rules, and locator policies for `/gin-qa:cases` and `/gin-qa:e2e`. |
+| QA extra fields | declared in `qa/guidelines.md` | Added to test cases and kept by `gin-qa cases export`. |
+| End-to-end evidence fixture | `qa/e2e/evidence.ts` | Sets how end-to-end tests run and what they record. |
 
-| Artifact | Default Location | How to Customize | Effect |
-|---|---|---|---|
-| **Living Spec Template** | Built-in | Copy to `.agent-workflow/templates/spec.md` | New specs created by `/discuss` or `specs archive` adopt this layout. |
-| **User Story Template** | Built-in | Copy to `.agent-workflow/templates/user-story.md` | Changes in `/discuss` use your story & ticket fields. |
-| **Change Proposal / Delta** | Built-in | Copy to `.agent-workflow/templates/proposal.md` or `spec-delta.md` | Tailors the proposal structure in `docs/changes/`. |
-| **QA Guidelines** | `qa/guidelines.md` | Edit `qa/guidelines.md` directly | Controls language, extra test fields, priority rules, and locator policies. |
-| **QA Extra Fields** | Dynamic | Define in `qa/guidelines.md` | Added to test cases and exported to JSON without breaking CLI checks. |
-| **Playwright Evidence Fixture** | Built-in template | Edit `qa/e2e/evidence.ts` directly | Customizes how E2E tests run, record ARIA snapshots, and capture screenshots. |
+Template overrides are in the table under [built-in templates](#built-in-templates).
