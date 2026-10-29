@@ -133,6 +133,21 @@ class TestSelect(unittest.TestCase):
         self.assertEqual(["core"], self._ids({"rules": {"disabled": ["lean"]}}, ["a.py"]))
 
 
+class TestPackagedDefaults(unittest.TestCase):
+    plugin = load_plugin_packs(SCRIPTS.parent / "rules")
+
+    def _ids(self, config, files):
+        return [p.id for p in select_packs(self.plugin, [], config, files)[0]]
+
+    def test_docs_pack_loads_for_markdown_only(self):
+        self.assertEqual(["core", "docs", "lean"], self._ids({}, ["README.md"]))
+        self.assertEqual(["core", "docs", "lean"], self._ids({}, ["src/app.py", "docs/guides/rules.md"]))
+        self.assertEqual(["core", "lean"], self._ids({}, ["src/app.py"]))
+
+    def test_docs_pack_can_be_disabled(self):
+        self.assertEqual(["core", "lean"], self._ids({"rules": {"disabled": ["docs"]}}, ["README.md"]))
+
+
 class TestBudget(unittest.TestCase):
     def _packs(self, root: Path):
         line = "x" * 120
@@ -191,15 +206,22 @@ class TestCli(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(["core", "lean"], [p["id"] for p in payload["packs"]])
 
+    def test_files_adds_docs_pack_for_markdown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run(Path(tmp), "--files", "README.md", "--format", "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(["core", "docs", "lean"], [p["id"] for p in json.loads(result.stdout)["packs"]])
+
     def test_list_reports_sizes_and_impact_counts(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = self._run(Path(tmp), "--list", "--format", "json")
             self.assertEqual(0, result.returncode, result.stderr)
-            core, lean = json.loads(result.stdout)["packs"]
+            core, lean, docs = json.loads(result.stdout)["packs"]
             self.assertEqual(("core", "plugin"), (core["id"], core["source"]))
             self.assertEqual(("lean", "plugin", 1_000), (lean["id"], lean["source"], lean["limit"]))
             self.assertFalse(lean["over_limit"])
             self.assertEqual({"critical", "high", "medium"}, set(core["impacts"]))
+            self.assertEqual(("docs", "plugin", 1_500), (docs["id"], docs["source"], docs["limit"]))
 
     def test_malformed_project_rule_exits_2(self):
         with tempfile.TemporaryDirectory() as tmp:

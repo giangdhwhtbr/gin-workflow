@@ -111,7 +111,7 @@ gin-workflow rules --files PATH [PATH ...]
 gin-workflow rules --list
 ```
 
-`--files` prints the rule text for the given files: the `core` and `lean` packs, plus every enabled pack whose globs match, trimmed to the task budget (critical bullets are never trimmed). `--list` shows each pack with its source, tier, size, and impact counts. See [Configuration](config.md#rules).
+`--files` prints the rule text for the given files: the `core` and `lean` packs, `docs` when a Markdown file is given, plus every enabled pack whose globs match, trimmed to the task budget (critical bullets are never trimmed). `--list` shows each pack with its source, tier, size, and impact counts. See [Configuration](config.md#rules).
 
 Exit codes: 0 success; 2 invalid configuration or rule pack.
 

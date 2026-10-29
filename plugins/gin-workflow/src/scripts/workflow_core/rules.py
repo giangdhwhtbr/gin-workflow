@@ -16,7 +16,7 @@ TIERS = ("core", "language", "framework")
 IMPACTS = ("critical", "high", "medium")
 TASK_BUDGET = 4_000
 DEFAULT_BODY_LIMIT = 1_500
-DEFAULT_PACKS = ("core", "lean")
+DEFAULT_PACKS = ("core", "lean", "docs")
 BODY_LIMITS = {"core": 1_000, "lean": 1_000}
 _TIER_RANK = {"project": 0, "framework": 1, "language": 2, "core": 3}
 _FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
@@ -170,7 +170,7 @@ def _depth(pack: Pack, plugin: Mapping[str, Pack], seen: tuple[str, ...] = ()) -
 
 def select_packs(plugin: Mapping[str, Pack], project: Sequence[Pack], config: Mapping[str, Any],
                  files: Sequence[str]) -> tuple[list[Pack], list[str]]:
-    """Enabled packs matching `files` (+ core and lean, + requires), highest precedence first."""
+    """Enabled packs matching `files` (+ the default packs, + requires), highest precedence first."""
     packs, disabled = rules_config(config)
     warnings = [f"unknown rule pack {name!r} ignored" for name in packs if name not in plugin]
     enabled = {name for name in (*DEFAULT_PACKS, *packs) if name in plugin and name not in disabled}

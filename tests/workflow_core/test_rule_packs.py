@@ -9,7 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
-from workflow_core.rules import IMPACTS, TIERS, load_plugin_packs  # noqa: E402
+from workflow_core.rules import DEFAULT_PACKS, IMPACTS, TIERS, load_plugin_packs  # noqa: E402
 
 PACKS = load_plugin_packs(ROOT / "plugins/gin-workflow/src/rules")
 CHECK_KINDS = {"tsconfig_option", "eslint_rule", "pyproject_tool", "file_exists"}
@@ -59,6 +59,12 @@ class TestRulePacks(unittest.TestCase):
         guide = (ROOT / "docs/guides/rules.md").read_text(encoding="utf-8")
         self.assertIn("docs/guides/rules.md", readme)
         self.assertIn("https://github.com/dietrichgebert/ponytail", guide)
+
+    def test_docs_pack_is_default_and_markdown_only(self):
+        self.assertIn("docs", DEFAULT_PACKS)
+        self.assertEqual(("**/*.md",), PACKS["docs"].applies_to)
+        self.assertEqual("core", PACKS["docs"].tier)
+        self.assertLessEqual(PACKS["docs"].body_chars, PACKS["docs"].body_limit)
 
 
 if __name__ == "__main__":

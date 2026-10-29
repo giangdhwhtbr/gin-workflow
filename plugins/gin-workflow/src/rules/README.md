@@ -9,7 +9,7 @@ Best-practice packs injected by `gin-workflow rules --files <paths>` into the `d
 - Only rules that linters and type checkers cannot enforce. Enforceable rules belong in `tool_checks`.
 
 ## Precedence
-`core` and `lean` load by default; `rules.disabled` in `.agent-workflow/config.yaml` turns either off.
+`core`, `lean`, and `docs` load by default (`docs` only when a Markdown file is in scope); `rules.disabled` in `.agent-workflow/config.yaml` turns any of them off.
 Project rules (`.agent-workflow/rules/*.md`) > framework > language > core. Over the 4,000-char task budget, `medium` then `high` bullets are trimmed from the lowest precedence first; `critical` is never trimmed.
 
 ## Maintenance

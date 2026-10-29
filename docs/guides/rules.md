@@ -8,6 +8,7 @@ Rule packs are short, best-practice checklists the agent follows when it writes 
 |---|---|---|---|
 | `core` | core | every file | always, unless disabled |
 | `lean` | core | every file | always, unless disabled |
+| `docs` | core | `*.md` | always, unless disabled |
 | `typescript` | language | `*.ts`, `*.tsx`, `*.mts`, `*.cts` | via `rules.packs` |
 | `python` | language | `*.py` | via `rules.packs` |
 | `react` | framework (needs `typescript`) | `*.tsx`, `*.jsx` | via `rules.packs` |
@@ -15,14 +16,14 @@ Rule packs are short, best-practice checklists the agent follows when it writes 
 | `node-api` | framework | `*.ts`, `*.js` and variants | via `rules.packs` |
 | `fastapi` | framework (needs `python`) | `*.py` | via `rules.packs` |
 
-Setup proposes language and framework packs from what it detects (dependencies, `tsconfig.json`, `pyproject.toml`). `core` covers scope, secrets, error handling, input validation, behavior tests, reuse, naming, and single-purpose functions. `lean` asks for the shortest correct solution: reuse what exists, prefer the standard library, the platform, and installed dependencies, add nothing speculative, and never cut validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT).
+Setup proposes language and framework packs from what it detects (dependencies, `tsconfig.json`, `pyproject.toml`). `core` covers scope, secrets, error handling, input validation, behavior tests, reuse, naming, and single-purpose functions. `lean` asks for the shortest correct solution: reuse what exists, prefer the standard library, the platform, and installed dependencies, add nothing speculative, and never cut validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). `docs` checks Markdown: every statement matches the code, practices the code does not enforce are called conventions, each fact has one home, and the house style holds (sentence-case headings, short sentences, no dashes, bold-label list items, or emoji). Its ideas come from [technical-writer](https://github.com/riekelt/technical-writer) (MIT).
 
 ## Configure
 
 ```yaml
 rules:
   packs: [typescript, react]   # add packs
-  disabled: [lean]             # turn a pack off, including core or lean
+  disabled: [lean]             # turn a pack off, including core, lean, or docs
 ```
 
 Project-specific packs go in `.agent-workflow/rules/<id>.md` and take precedence over plugin packs. `gin-workflow rules --list` shows every enabled pack with its size and rule counts.

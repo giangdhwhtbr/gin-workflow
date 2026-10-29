@@ -133,7 +133,7 @@ Maps lifecycle phases (`brainstorm`, `design`, `plan`, `implement`, `review`, `d
 | `packs` | extra rule packs to enable, for example `[typescript, react]` |
 | `disabled` | packs to turn off, including the defaults |
 
-`core` and `lean` are always enabled unless disabled. Project packs live in `.agent-workflow/rules/`. Inspect the result with `gin-workflow rules --list`. See [Rule packs](../guides/rules.md).
+`core`, `lean`, and `docs` are always enabled unless disabled; `docs` applies only to Markdown files. Project packs live in `.agent-workflow/rules/`. Inspect the result with `gin-workflow rules --list`. See [Rule packs](../guides/rules.md).
 
 ### `providers`
 
