@@ -36,14 +36,10 @@ class DoctorReportTests(unittest.TestCase):
             workflow = repository / ".agent-workflow"
             workflow.mkdir()
             (repository / LOCAL_FILE).write_text(
-                "schema_version: '2.8'\n"
+                "schema_version: '2.9'\n"
                 "providers:\n"
                 "  codex:\n"
-                "    executable: /nonexistent/binary/codex-missing\n"
-                "    models:\n"
-                "      low: haiku\n"
-                "      medium: sonnet\n"
-                "      high: opus\n",
+                "    executable: /nonexistent/binary/codex-missing\n",
                 encoding="utf-8",
             )
             config = {
@@ -100,14 +96,10 @@ class DoctorReportTests(unittest.TestCase):
             stub_codex.chmod(stub_codex.stat().st_mode | stat.S_IEXEC)
 
             (repository / LOCAL_FILE).write_text(
-                f"schema_version: '2.8'\n"
+                f"schema_version: '2.9'\n"
                 f"providers:\n"
                 f"  codex:\n"
-                f"    executable: '{stub_codex.resolve()}'\n"
-                f"    models:\n"
-                f"      low: haiku\n"
-                f"      medium: sonnet\n"
-                f"      high: opus\n",
+                f"    executable: '{stub_codex.resolve()}'\n",
                 encoding="utf-8",
             )
             config = {
@@ -117,9 +109,11 @@ class DoctorReportTests(unittest.TestCase):
                     "roles": {"backend": {"preferred": ["codex"]}},
                 },
             }
+            config["models"] = {"codex": {"models": ["gpt-6-mini", "gpt-6"]}}
             report = doctor_report(repository, config, probe=True)
             self.assertIn("providers", report)
-            self.assertTrue(report["providers"]["codex.low"]["available"])
+            self.assertTrue(report["providers"]["codex.gpt-6-mini"]["available"])
+            self.assertTrue(report["providers"]["codex.gpt-6"]["available"])
             self.assertTrue(
                 (repository / ".agent-workflow/runtime/health-probe/codex").is_dir()
             )
@@ -138,14 +132,10 @@ class DoctorReportTests(unittest.TestCase):
             stub_codex.chmod(stub_codex.stat().st_mode | stat.S_IEXEC)
 
             (repository / LOCAL_FILE).write_text(
-                f"schema_version: '2.8'\n"
+                f"schema_version: '2.9'\n"
                 f"providers:\n"
                 f"  codex:\n"
-                f"    executable: '{stub_codex.resolve()}'\n"
-                f"    models:\n"
-                f"      low: haiku\n"
-                f"      medium: sonnet\n"
-                f"      high: opus\n",
+                f"    executable: '{stub_codex.resolve()}'\n",
                 encoding="utf-8",
             )
             config = {
@@ -157,7 +147,7 @@ class DoctorReportTests(unittest.TestCase):
             }
             report = doctor_report(repository, config, probe=True)
             self.assertIn("providers", report)
-            self.assertFalse(report["providers"]["codex.low"]["available"])
+            self.assertFalse(report["providers"]["codex.gpt-6-astra"]["available"])
 
 
 if __name__ == "__main__":

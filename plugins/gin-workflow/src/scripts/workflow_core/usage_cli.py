@@ -47,6 +47,10 @@ def _report_text(out: dict[str, Any]) -> str:
     for name, values in sorted(out["totals"]["models"].items()):
         tokens = " ".join(f"{key}={values[key]}" for key in ("input", "output", "cache_read", "cache_write"))
         lines.append(f"model {name}: {tokens} cost={_money(values['cost'])}")
+    for role, by_model in sorted((out["totals"].get("roles") or {}).items()):
+        for model, values in sorted(by_model.items()):
+            tokens = " ".join(f"{key}={values[key]}" for key in ("input", "output", "cache_read", "cache_write"))
+            lines.append(f"role {role} {model}: {tokens} cost={_money(values['cost'])}")
     for name, values in sorted(out["totals"]["stages"].items()):
         lines.append(f"stage {name}: tokens={values['tokens']} cost={_money(values['cost'])}")
     if out["unpriced"]:

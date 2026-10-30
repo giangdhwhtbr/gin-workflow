@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from typing import Any, Mapping, Sequence
 
+from .catalog import catalog_for
 from .checkout import main_checkout
 from .configuration import resolve_effective_config
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
@@ -238,12 +239,18 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         else:
             gates_status[gate] = status
 
+    catalog_payload = None
+    if config.harness:
+        catalog = catalog_for(config.to_dict(), config.harness)
+        catalog_payload = {"harness": config.harness, "models": list(catalog.models), "efforts": list(catalog.efforts)}
+
     payload = {
         "stage": decision.stage,
         "decision": decision.decision,
         "harness": config.harness,
         "is_session_harness_override": config.is_session_harness_override,
         "original_harness": config.original_harness if config.is_session_harness_override else None,
+        "catalog": catalog_payload,
         "gates": gates_status,
         "evidence": list(decision.evidence),
         "remedies": list(decision.remedies),

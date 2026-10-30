@@ -59,7 +59,8 @@ def request(task_id="task-1", *, route_affinity=None, acceptance_identity=None):
         workflow_id="wf-1",
         retry_identity=f"retry-{task_id}",
         provider_role="backend",
-        reasoning="high",
+        model="sonnet",
+        effort=None,
         route_affinity=route_affinity,
         acceptance_identity=acceptance_identity,
     )
@@ -437,7 +438,8 @@ class RoutedWorkerTests(unittest.TestCase):
             self.assertFalse(completed.payload["explicit_model_selection"])
             self.assertNotIn("model", completed.payload)
             for event in events.read_all():
-                self.assertEqual("high", event.payload["requested_tier"])
+                self.assertEqual("sonnet", event.payload["requested_model"])
+                self.assertIsNone(event.payload["requested_effort"])
 
     def test_explicit_antigravity_route_without_capability_uses_same_tier_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -510,16 +512,19 @@ class RoutedWorkerTests(unittest.TestCase):
                     unavailable.payload["reason"],
                 )
 
-    def test_worker_dispatch_skill_requires_route_revalidation_and_same_tier_fallback(self):
+    def test_worker_dispatch_skill_requires_route_dispatch_and_never_lowers_the_route(self):
         skill = (
             SCRIPTS.parent / "skills/execute/SKILL.md"
         ).read_text(encoding="utf-8")
         lifecycle = (
             SCRIPTS.parent / "skills/execute/references/worker-lifecycle.md"
         ).read_text(encoding="utf-8")
+        policy = (
+            SCRIPTS.parent / "skills/execute/references/delegation-policy.md"
+        ).read_text(encoding="utf-8")
 
-        self.assertIn("provider role and reasoning", skill)
-        self.assertIn("never downgrade the requested reasoning", skill)
+        self.assertIn("gin-workflow routes dispatch --workflow-id", skill)
+        self.assertIn("A requested route is never lowered", policy)
         self.assertIn("circuit", lifecycle)
         self.assertIn("capacity", lifecycle)
 

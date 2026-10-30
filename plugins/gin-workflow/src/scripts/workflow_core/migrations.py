@@ -14,7 +14,7 @@ from .configuration import WORKER_ROUTING_KEYS, require_yaml, role_providers, va
 from .schemas import SUPPORTED_CONFIG_VERSIONS
 
 
-CURRENT_VERSION = "2.8"
+CURRENT_VERSION = "2.9"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -121,6 +121,15 @@ def _migrate_2_7_to_2_8(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_2_8_to_2_9(config: dict[str, Any]) -> dict[str, Any]:
+    """Tier names give way to the per-harness model catalog under `models:`."""
+    migrated = copy.deepcopy(dict(config))
+    migrated.pop("model_tiers", None)
+    for field in ("schema_version", "workflow_version", "setup_cli_version"):
+        migrated[field] = "2.9"
+    return migrated
+
+
 _MIGRATIONS = {
     ("2.0", "2.1"): _migrate_2_0_to_2_1,
     ("2.1", "2.2"): _migrate_2_1_to_2_2,
@@ -130,6 +139,7 @@ _MIGRATIONS = {
     ("2.5", "2.6"): _migrate_2_5_to_2_6,
     ("2.6", "2.7"): _migrate_2_6_to_2_7,
     ("2.7", "2.8"): _migrate_2_7_to_2_8,
+    ("2.8", "2.9"): _migrate_2_8_to_2_9,
 }
 _NEXT_STEP = {source: target for source, target in _MIGRATIONS}
 
@@ -206,14 +216,17 @@ def apply_migration(
     dry_run: bool = False,
     prepared_config: Mapping[str, Any] | None = None,
     additional_writes: Mapping[Path, bytes] | None = None,
+    backup_files: Mapping[str, bytes] | None = None,
 ) -> dict[str, Any]:
+    """`backup_files` are originals of other files this update rewrites; they go into the backup,
+    and they make an up-to-date configuration still apply its writes."""
     root = Path(repository).resolve()
     workflow = root / ".agent-workflow"
     config_path = workflow / "config.yaml"
     original, config = _read_config(config_path)
     source_version = str(config.get("schema_version", ""))
     proposal = propose_migration(root, target_version=target_version)
-    if proposal["status"] == "up_to_date" or dry_run:
+    if dry_run or (proposal["status"] == "up_to_date" and not backup_files):
         return proposal
 
     migrated = (
@@ -243,9 +256,11 @@ def apply_migration(
             backup / "metadata.json": (
                 json.dumps(metadata, indent=2, sort_keys=True) + "\n"
             ).encode("utf-8"),
+            **{backup / name: content for name, content in (backup_files or {}).items()},
         }
     )
-    atomic_write_many({config_path: migrated_bytes, **dict(additional_writes or {})})
+    config_write = {config_path: migrated_bytes} if migrated != config else {}
+    atomic_write_many({**config_write, **dict(additional_writes or {})})
     return {**proposal, "status": "migrated", "backup": str(backup)}
 
 

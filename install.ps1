@@ -14,7 +14,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$LauncherVersion = '2.8'
+$LauncherVersion = '2.9'
 $QaLauncherVersion = '0.4'
 $OrchLauncherVersion = '0.1'
 $ScriptRoot = $PSScriptRoot
@@ -197,6 +197,8 @@ function Convert-ClaudeAgents {
         $content = $content.Replace('"list_dir"', '"Glob"')
         $content = $content.Replace('"search_web"', '"WebSearch"')
         $content = $content.Replace('"run_command"', '"Bash"')
+        $content = $content.Replace('"replace_file_content"', '"Edit"')
+        $content = $content.Replace('"write_to_file"', '"Write"')
         if ($Link -and $null -ne $agent.LinkType) {
             Remove-Item -LiteralPath $agent.FullName -Force
         }

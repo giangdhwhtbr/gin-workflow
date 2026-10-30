@@ -11,7 +11,7 @@ Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copie
    ```
 
 2. If the installer warns that `~/.local/bin` is not on `PATH`, add it.
-3. Run `gin-workflow --version`; it prints `gin-workflow 2.8`.
+3. Run `gin-workflow --version`; it prints `gin-workflow 2.9`.
 
 ## OpenCode does not show the gin-workflow skills
 
@@ -59,7 +59,7 @@ Fix it once per host, in an interactive terminal, because `sudo` prompts for a p
 
 ## A provider CLI that runs in your shell is reported unavailable
 
-Cause: gin-orchestrator looks for each provider executable on the `PATH` of the process that runs it, then in a fixed list: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`. A CLI in a directory outside that list, reachable only through a `PATH` entry added in those files, is then not found. `gin-workflow setup doctor --probe --format json` reports it under `checks_details.providers` as `executable_not_found` (key `<provider>.executable`), or as `executable_or_help_unavailable` (key `<provider>.<tier>`) when its `--help` cannot run.
+Cause: gin-orchestrator looks for each provider executable on the `PATH` of the process that runs it, then in a fixed list: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`. A CLI in a directory outside that list, reachable only through a `PATH` entry added in those files, is then not found. `gin-workflow setup doctor --probe --format json` reports it under `checks_details.providers` as `executable_not_found` (key `<provider>.executable`), or as `executable_or_help_unavailable` (key `<provider>.<model>`) when its `--help` cannot run.
 
 1. Link the CLI into `/usr/local/bin`, which is on the fixed list:
 
@@ -77,7 +77,7 @@ Cause: gin-orchestrator looks for each provider executable on the `PATH` of the 
 
 ## A repository still hits a `gin-workflow` bug that was already fixed and shipped on `master`
 
-Cause: each harness runs the copy of the plugin taken at install time, and the `gin-workflow` CLI runs from its copy under `~/.local/lib/gin-workflow/2.8/`. Pushing a fix to `master` updates neither, even when the plugin version is unchanged. The steps below refresh the current host only; a machine that installed through a marketplace or `remote-install.sh` reruns its own install flow from [Installation](../../README.md#installation).
+Cause: each harness runs the copy of the plugin taken at install time, and the `gin-workflow` CLI runs from its copy under `~/.local/lib/gin-workflow/2.9/`. Pushing a fix to `master` updates neither, even when the plugin version is unchanged. The steps below refresh the current host only; a machine that installed through a marketplace or `remote-install.sh` reruns its own install flow from [Installation](../../README.md#installation).
 
 1. Commit the fix. Codex installs from the `git-subdir` source in `.claude-plugin/marketplace.json`, and a git source holds only committed content.
 2. Refresh every install on the host:
@@ -87,7 +87,7 @@ Cause: each harness runs the copy of the plugin taken at install time, and the `
    ```
 
    The installer replaces the CLI copy and recopies the Claude Code bundle to `~/.claude/skills/<plugin>` and the OpenCode bundle to `~/.config/opencode/skills/<plugin>`. It reruns `agy plugin install` for Antigravity. For Codex and Copilot it removes the registration and adds it again, because `codex plugin marketplace add` and `codex plugin add` do nothing for a name already registered. A harness CLI that is not on `PATH` is skipped. Use `--platform claude`, `codex`, `antigravity`, `opencode`, or `copilot` to refresh one harness.
-3. Open a changed file in the refreshed install directory and check that it has the fix. For a Python fix, import the module from `~/.local/lib/gin-workflow/2.8/` and run the fixed code.
+3. Open a changed file in the refreshed install directory and check that it has the fix. For a Python fix, import the module from `~/.local/lib/gin-workflow/2.9/` and run the fixed code.
 
 ## `git push` exits 141 after the `pre-push` checks pass
 

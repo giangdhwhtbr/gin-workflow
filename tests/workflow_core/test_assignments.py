@@ -44,11 +44,11 @@ class AssignmentTests(unittest.TestCase):
         orchestrate = (plugin / "skills/orchestrate/SKILL.md").read_text(encoding="utf-8")
 
         self.assertIn("**Provider role**: `backend`", schema)
-        self.assertIn("**Reasoning**: `low` | `medium` | `high`", schema)
-        self.assertIn("complex architecture, security, migration, or concurrency", schema)
-        self.assertIn("Do not name a concrete provider or model", planning)
-        self.assertIn("provider role and reasoning", planning)
-        self.assertIn("every track has a configured role and low/medium/high reasoning", planning)
+        self.assertIn("**Model:** `sonnet`", schema)
+        self.assertIn("**Effort:** `medium`", schema)
+        self.assertIn("Cross-module change, security, migration, concurrency", schema)
+        self.assertIn("`Model:` and `Effort:`", planning)
+        self.assertIn("provider role, `Model:`, and `Effort:`", planning)
         # Track beads are created before routes resolve, so the routes file is keyed by their real ids
         self.assertLess(
             orchestrate.index("gin-workflow task create"),
@@ -77,31 +77,52 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("provider other than the main harness", execute)
         self.assertIn("/goal", orchestrate)
 
-    def test_plan_validation_reports_every_role_and_tier_error_in_task_order(self):
+    def test_plan_validation_diagnostics(self):
         with tempfile.TemporaryDirectory() as directory:
+            cfg = effective(Path(directory))
             errors = validate_plan_assignments(
                 (
-                    {"task_id": "first", "provider_role": "frontend", "reasoning": "extreme"},
-                    {"task_id": "second", "provider_role": "backend", "reasoning": "unknown"},
-                    {"task_id": "third", "provider_role": "devops", "reasoning": "high"},
+                    {"task_id": "first", "provider_role": "frontend", "model": "haiku", "effort": "low"},
+                    {"task_id": "second", "provider_role": "backend", "model": "unknown_model", "effort": "low"},
+                    {"task_id": "third", "provider_role": "backend", "model": "sonnet", "effort": "bad_effort"},
+                    {"task_id": "fourth", "provider_role": "backend", "reasoning": "high"},
                 ),
-                effective(Path(directory)),
+                cfg,
             )
 
-        self.assertEqual(
-            (
-                ("first", "provider_role", "unknown provider role: frontend"),
-                ("first", "reasoning", "reasoning must be one of: low, medium, high"),
-                ("second", "reasoning", "reasoning must be one of: low, medium, high"),
-                ("third", "provider_role", "unknown provider role: devops"),
-            ),
-            tuple((error.task_id, error.field, error.message) for error in errors),
+        self.assertIn("track first: unknown provider role: frontend", errors)
+        self.assertTrue(any("track second: model 'unknown_model' is not in the catalog" in e for e in errors), errors)
+        self.assertTrue(any("track third: effort 'bad_effort' is not in the catalog" in e for e in errors), errors)
+        self.assertIn("track fourth: reasoning is replaced by model and effort", errors)
+
+    def test_plan_validation_effort_on_antigravity_is_diagnostic(self):
+        cfg = EffectiveConfig(
+            {
+                "schema_version": "2.9",
+                "harness": "antigravity",
+                "routing": {"roles": {"backend": {}}},
+            },
+            Path("/tmp"),
         )
+        errors = validate_plan_assignments(
+            [{"task_id": "t1", "provider_role": "backend", "model": "provider_default", "effort": "low"}],
+            cfg,
+        )
+        self.assertEqual(
+            ["track t1: effort 'low' given, but the catalog lists no efforts"],
+            errors,
+        )
+
+    def test_route_candidate_accepts_high_effort_for_claude(self):
+        candidate = RouteCandidate("claude", "sonnet", False, effort="high")
+        self.assertEqual("claude", candidate.provider)
+        self.assertEqual("sonnet", candidate.model)
+        self.assertEqual("high", candidate.effort)
 
     def test_opencode_accepts_provider_default_and_records_selection_mode(self):
         candidate = RouteCandidate("opencode", "provider_default", False)
         payload = AssignmentManifest(
-            "wf-default", AssignmentRequest("api", "backend", "high", "codex"), (candidate,)
+            "wf-default", AssignmentRequest("api", "backend", "provider_default", None, "opencode"), (candidate,)
         ).to_dict()
 
         self.assertEqual(
@@ -109,7 +130,7 @@ class AssignmentTests(unittest.TestCase):
         )
 
     def test_provider_default_manifest_records_selection_mode_without_claiming_model(self):
-        request = AssignmentRequest("api", "backend", "high", "codex")
+        request = AssignmentRequest("api", "backend", "provider_default", None, "antigravity")
         payload = AssignmentManifest(
             "wf-default",
             request,
@@ -121,15 +142,15 @@ class AssignmentTests(unittest.TestCase):
             payload["resolved"],
         )
 
-    def test_resolve_main_harness_uses_the_default_tier_model(self):
-        req_claude = AssignmentRequest("t1", "backend", "medium", "claude", "wf-1")
+    def test_resolve_main_harness_uses_the_requested_model_and_effort(self):
+        req_claude = AssignmentRequest("t1", "backend", "sonnet", "medium", "claude", "wf-1")
         routes_claude = resolve_main_harness(req_claude)
         self.assertEqual(
-            (("claude", "sonnet", False, None),),
+            (("claude", "sonnet", False, "medium"),),
             tuple((r.provider, r.model, r.fallback, r.effort) for r in routes_claude),
         )
 
-        req_codex = AssignmentRequest("t2", "backend", "high", "codex", "wf-1")
+        req_codex = AssignmentRequest("t2", "backend", "gpt-6-astra", "high", "codex", "wf-1")
         routes_codex = resolve_main_harness(req_codex)
         self.assertEqual(
             (("codex", "gpt-6-astra", False, "high"),),
@@ -137,7 +158,7 @@ class AssignmentTests(unittest.TestCase):
         )
 
     def test_resolve_main_harness_rejects_an_unknown_harness(self):
-        req = AssignmentRequest("t1", "backend", "medium", "unknown-harness", "wf-1")
+        req = AssignmentRequest("t1", "backend", "sonnet", "medium", "unknown-harness", "wf-1")
         with self.assertRaisesRegex(AssignmentResolutionError, "unknown main harness: unknown-harness"):
             resolve_main_harness(req)
 

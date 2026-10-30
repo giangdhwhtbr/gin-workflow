@@ -17,7 +17,7 @@ Turn a requirement into a confirmed design. The user starts with an idea, not a 
 
 ## Steps
 
-1. **Explore context** — relevant files, docs, recent commits. If the request spans several independent subsystems, say so first and help decompose into sub-projects (each gets its own spec → plan → implementation); then discuss only the first.
+1. **Explore context** — send code lookups and behavior checks to `gin-workflow:agent-researcher` (locating code: weakest model at `low`; cross-module checks: middle model at `medium`), returning `file:line` evidence. The main session reads only the lines needed to confirm claims before writing them. If the request spans several independent subsystems, say so first and help decompose into sub-projects (each gets its own spec → plan → implementation); then discuss only the first.
 2. **Clarify** — one question per message, multiple choice when possible. `project.max_questions` (`gin-workflow state --format json`, default 8) caps your clarifying questions in total; put a question with a sensible default into the spec as an assumption instead of asking it. At the cap, stop, say the scope is too large or unclear, and propose splitting it into smaller epics or list the remaining answers as assumptions for one review. Do not number questions against the cap (no `2/8`): it is a ceiling, not a target; ask only what changes the design.
    Cover purpose, constraints, success criteria, edge cases, risks, dependencies, and assumptions.
 3. **Propose 2–3 approaches** — trade-offs, lead with your recommendation and why. Challenge assumptions that create risk. YAGNI.

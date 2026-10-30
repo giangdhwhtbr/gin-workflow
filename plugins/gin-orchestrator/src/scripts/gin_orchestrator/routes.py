@@ -6,13 +6,17 @@ from workflow_core.ext import (
     AssignmentManifest,
     AssignmentRequest,
     AssignmentResolutionError,
-    DEFAULT_HARNESS_MODELS,
+    DEFAULT_CATALOGS,
     EffectiveConfig,
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderModelConfig,
     RouteCandidate,
+    catalog_for,
     default_provider_model_config,
+    map_route,
+    route_diagnostics,
+    tier_of,
     validate_plan_assignments,
 )
 from .config import roles
@@ -22,15 +26,29 @@ def resolve_assignment(
     request: AssignmentRequest,
     config: EffectiveConfig,
     local: Mapping[str, ProviderModelConfig],
+    source_harness: str | None = None,
 ) -> tuple[RouteCandidate, ...]:
-    """Resolve one role/tier without checking mutable provider availability."""
+    """Resolve one role/tier without checking mutable provider availability.
+
+    The request's model and effort are a route in `source_harness`'s catalog (default: the main
+    harness); that harness keeps the route, and every other provider gets it mapped by rank.
+    """
     all_roles = roles(config)
     role = all_roles.get(request.provider_role) if isinstance(all_roles, Mapping) else None
     if not isinstance(role, Mapping):
         raise AssignmentResolutionError(f"unknown provider role: {request.provider_role}")
 
+    source_harness = source_harness or request.main_harness
+    if source_harness not in DEFAULT_CATALOGS:
+        raise AssignmentResolutionError(f"unknown provider: {source_harness}")
+    source = catalog_for(config, source_harness)
+    diagnostics = route_diagnostics(source, request.model, request.effort)
+    if diagnostics:
+        raise AssignmentResolutionError("; ".join(diagnostics))
+    tier = tier_of(source, request.model)
+
     by_tier = role.get("by_tier") or {}
-    preferred = tuple(by_tier.get(request.reasoning) or role.get("preferred", ()))
+    preferred = tuple(by_tier.get(tier) or role.get("preferred", ()))
     fallback = tuple(role.get("fallback", ()))
     ordered: list[tuple[str, bool]] = []
     seen: set[str] = set()
@@ -51,20 +69,22 @@ def resolve_assignment(
     for provider, is_fallback in ordered:
         provider_config = local.get(provider)
         if provider_config is None:
-            if config.get("provider_mode") == "single" and provider == request.main_harness and provider in DEFAULT_HARNESS_MODELS:
+            if config.get("provider_mode") == "single" and provider == request.main_harness and provider in DEFAULT_CATALOGS:
                 provider_config = default_provider_model_config(provider)
             else:
                 errors.append(f"missing local provider mapping: {provider}")
                 continue
-        try:
-            target = provider_config.models[request.reasoning]
-        except KeyError:
-            errors.append(
-                f"missing {request.reasoning} reasoning model for provider: {provider}"
-            )
+        if provider not in DEFAULT_CATALOGS:
+            errors.append(f"unknown provider: {provider}")
             continue
-        model = getattr(target, "model", str(target))
-        effort = getattr(target, "effort", None)
+
+        if provider == source_harness:
+            model = request.model
+            effort = request.effort
+        else:
+            target = catalog_for(config, provider)
+            model, effort = map_route(source, target, request.model, request.effort)
+
         if model == PROVIDER_DEFAULT and provider not in PROVIDER_DEFAULT_PROVIDERS:
             errors.append("provider_default is only supported for antigravity and opencode")
             continue
@@ -82,9 +102,7 @@ def resolve_all_assignments(
     """Resolve a complete workflow batch without performing durable writes."""
     errors = validate_plan_assignments(requests, config)
     if errors:
-        raise AssignmentResolutionError(
-            "; ".join(f"{error.task_id}.{error.field}: {error.message}" for error in errors)
-        )
+        raise AssignmentResolutionError("; ".join(errors))
     manifests: list[AssignmentManifest] = []
     resolution_errors: list[str] = []
     for request in requests:

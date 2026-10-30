@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Reviews code changes for correctness, plan alignment, quality, security, and risk.
-tools: ["view_file", "grep_search", "run_command"]
+tools: ["view_file", "grep_search", "list_dir", "run_command"]
 ---
 
 # Code Reviewer

@@ -31,7 +31,8 @@ def request():
         workflow_id="wf-1",
         retry_identity="retry-1",
         provider_role="backend",
-        reasoning="medium",
+        model="sonnet",
+        effort=None,
     )
 
 

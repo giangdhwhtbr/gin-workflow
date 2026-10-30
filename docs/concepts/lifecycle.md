@@ -9,7 +9,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 | Stage | Does | Closes with | Gate recorded by |
 |---|---|---|---|
 | `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/`, and waits for your confirmation | `requirement_confirmed` | `gin-workflow record requirement-confirmed --evidence <spec> --actor <id>` |
-| `plan` | Writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role and reasoning tier each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
+| `plan` | Writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role, and a model and effort from the model catalog each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
 | `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>` |
 | `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
 | `ship` | Offers merge, pull request, keep, or discard; runs the one you choose; cleans up; closes the epic | `shipped` | derived: the epic is closed |
@@ -24,9 +24,10 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 
 ## Execute and review
 
-- The agent picks a ready task (`gin-workflow task ready`), claims it, and works in the track's worktree. It runs `gin-workflow rules --files <scope>` and follows the output, and reads the shape appendix for `project.shape`.
-- It writes the failing test first, implements, and keeps the command output as evidence. A blocker, a plan gap, or repeated failures stop the work: the bead stays in progress with a note.
-- Work runs directly in the session for sequential plans and three or fewer tasks; routed workers are for more than three parallel tasks, long-running or specialized work, or independent review. Workers on another harness need [gin-orchestrator](../orchestrator/README.md).
+- The main session picks a ready task (`gin-workflow task ready`), claims it, and runs `gin-workflow rules --files <scope>`. It implements no track itself: it spawns `gin-workflow:developer` at the model and effort that `gin-workflow routes dispatch` returns. The developer gets a bounded context: track text, file scope, rules output, worktree path, and validation commands.
+- The developer follows the rules output, reads the shape appendix for `project.shape`, writes the failing test first, implements, and keeps the command output as evidence. It reports `done`, `needs_clarification`, `failed`, or `blocked`.
+- `failed` escalates one step with `gin-workflow routes dispatch --escalate`: the next model at the same effort, or the next effort at the strongest model. `needs_clarification` is answered from the spec or plan at the same route. At the top of both lists, on `blocked`, or on a question the spec and plan do not answer, the bead stays in progress with a note and you decide.
+- A track routed to another harness runs there through [gin-orchestrator](../orchestrator/README.md).
 - Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `ship` checks the approvals instead.
 - Review is independent of the implementer's session; [Providers](providers.md#independent-review) defines session and provider independence. Findings and approvals are recorded in the review ledger for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
 - When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks.

@@ -28,7 +28,7 @@ class SetupCliTests(unittest.TestCase):
         )
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual("gin-workflow 2.8", result.stdout.strip())
+        self.assertEqual("gin-workflow 2.9", result.stdout.strip())
 
     def run_cli(self, repository: Path, *arguments: str,
                 env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -301,9 +301,9 @@ class SetupCliTests(unittest.TestCase):
                 {
                     "harness": "codex",
                     "policy": {"mode": "guarded"},
-                    "schema_version": "2.8",
-                    "setup_cli_version": "2.8",
-                    "workflow_version": "2.8",
+                    "schema_version": "2.9",
+                    "setup_cli_version": "2.9",
+                    "workflow_version": "2.9",
                 },
                 payload["configuration"],
             )

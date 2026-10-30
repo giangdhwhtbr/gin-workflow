@@ -32,9 +32,9 @@ def iso(hour: float) -> str:
     return at(hour).isoformat().replace("+00:00", "Z")
 
 
-def record(model: str = "m1", stage_hour: float = 1, **tokens) -> UsageRecord:
+def record(model: str = "m1", stage_hour: float = 1, role: str = "main", **tokens) -> UsageRecord:
     values = {"input": 1000, "output": 100, "cache_read": 10000, "cache_write": 0, **tokens}
-    return UsageRecord(at(stage_hour), "claude_code", model, "s", "/r", "", **values)
+    return UsageRecord(at(stage_hour), "claude_code", model, "s", "/r", "", **values, role=role)
 
 
 class PriceTests(unittest.TestCase):
@@ -60,7 +60,7 @@ class PriceTests(unittest.TestCase):
 class SummarizeTests(unittest.TestCase):
     def test_document_shape_and_unpriced_models(self):
         prices = {"m1": usage.Price(3, 15, 0.3, 3.75)}
-        by_stage = {"execute": [record("m1"), record("m2")], "review": [record("m1")]}
+        by_stage = {"execute": [record("m1", role="main"), record("m2", role="subagent")], "review": [record("m1", role="main")]}
         quality = usage.empty_quality()
         doc = usage.summarize(by_stage, prices, quality, {"claude_code": "ok", "codex": "not_found"}, 2, at(5))
         self.assertEqual(doc["version"], 1)
@@ -68,6 +68,10 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(doc["models"]["m1"], {"input": 2000, "output": 200, "cache_read": 20000, "cache_write": 0,
                                                "cost": 0.015})
         self.assertIsNone(doc["models"]["m2"]["cost"])
+        self.assertEqual(doc["roles"]["main"]["m1"], {"input": 2000, "output": 200, "cache_read": 20000, "cache_write": 0,
+                                                      "cost": 0.015})
+        self.assertEqual(doc["roles"]["subagent"]["m2"], {"input": 1000, "output": 100, "cache_read": 10000, "cache_write": 0,
+                                                          "cost": None})
         self.assertEqual(doc["stages"]["execute"], {"tokens": 22200, "cost": 0.0075})
         self.assertEqual(doc["cost"], 0.015)
         self.assertEqual(doc["unpriced"], ["m2"])
@@ -310,6 +314,37 @@ class ReportTests(Fixture):
                          ["ep1.1"])
         one = usage.report(self.repo, bead="x1")
         self.assertEqual((one["totals"]["cost"], one["not_collected"]), (7.0, []))
+
+    def test_report_sums_roles_and_skips_beads_without_roles(self):
+        doc_with_roles = {
+            "version": 1,
+            "cost": 2.0,
+            "models": {"m1": {"input": 10, "output": 5, "cache_read": 0, "cache_write": 0, "cost": 2.0}},
+            "roles": {
+                "main": {"m1": {"input": 6, "output": 3, "cache_read": 0, "cache_write": 0, "cost": 1.2}},
+                "subagent": {"m1": {"input": 4, "output": 2, "cache_read": 0, "cache_write": 0, "cost": 0.8}},
+            },
+            "stages": {"execute": {"tokens": 15, "cost": 2.0}},
+            "unpriced": [],
+            "quality": usage.empty_quality(),
+            "unattributed": {"tokens": 0, "cost": 0.0},
+        }
+        self.rules[0]["stdout"] = [
+            {"id": "b1", "title": "B1", "issue_type": "task", "status": "closed",
+             "metadata": {"ai_usage": json.dumps(doc_with_roles)}},
+            {"id": "b2", "title": "B2", "issue_type": "task", "status": "closed",
+             "metadata": {"ai_usage": json.dumps({"version": 1, "cost": 1.0, "models": {"m1": {"input": 1, "output": 0,
+                                                   "cache_read": 0, "cache_write": 0, "cost": 1.0}},
+                                                   "stages": {"execute": {"tokens": 1, "cost": 1.0}},
+                                                   "unpriced": [], "quality": usage.empty_quality(),
+                                                   "unattributed": {"tokens": 0, "cost": 0.0}})}},
+        ]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo)
+        self.assertEqual(out["totals"]["roles"]["main"]["m1"],
+                         {"input": 6, "output": 3, "cache_read": 0, "cache_write": 0, "cost": 1.2})
+        self.assertEqual(out["totals"]["roles"]["subagent"]["m1"],
+                         {"input": 4, "output": 2, "cache_read": 0, "cache_write": 0, "cost": 0.8})
 
 
 if __name__ == "__main__":

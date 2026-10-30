@@ -287,6 +287,63 @@ class ConfigurationTests(unittest.TestCase):
             finally:
                 os.environ.pop("GIN_WORKFLOW_HARNESS_OVERRIDE", None)
 
+    def test_models_catalog_configuration_validation(self):
+        valid = {
+            "schema_version": "2.8",
+            "models": {
+                "claude": {"models": ["sonnet", "opus"]},
+            },
+        }
+        configuration.validate_portable_config(valid)
+
+        with self.assertRaisesRegex(ConfigValidationError, r"models"):
+            configuration.validate_portable_config({
+                "schema_version": "2.8",
+                "models": {"claude": {"models": ["sonnet", "sonnet"]}},
+            })
+
+        with self.assertRaisesRegex(ConfigValidationError, r"models"):
+            configuration.validate_portable_config({
+                "schema_version": "2.8",
+                "models": {"claude": {"models": [""]}},
+            })
+
+        with self.assertRaises(ConfigValidationError):
+            configuration.validate_portable_config({
+                "schema_version": "2.8",
+                "models": {"claude": {"efforts": ["low"]}},
+            })
+
+        with self.assertRaises(ConfigValidationError):
+            configuration.validate_portable_config({
+                "schema_version": "2.8",
+                "models": {"unknown": {"models": ["x"]}},
+            })
+
+        codex_valid = {
+            "schema_version": "2.8",
+            "models": {
+                "codex": {"models": ["gpt-6-astra"]},
+            },
+        }
+        configuration.validate_portable_config(codex_valid)
+
+        routing_invalid = {
+            "schema_version": "2.8",
+            "routing": {
+                "roles": {"backend": {"model": "gpt-6-astra"}},
+            },
+        }
+        with self.assertRaises(ConfigValidationError):
+            configuration.validate_portable_config(routing_invalid)
+
+    def test_model_tiers_is_rejected_at_2_9_and_still_loads_at_2_8(self):
+        with self.assertRaisesRegex(ConfigValidationError, r"models:"):
+            configuration.validate_portable_config(
+                {"schema_version": "2.9", "model_tiers": {"plan": "high_reasoning"}}
+            )
+        configuration.validate_portable_config({"schema_version": "2.8", "model_tiers": {"plan": "high_reasoning"}})
+
 
 if __name__ == "__main__":
     unittest.main()

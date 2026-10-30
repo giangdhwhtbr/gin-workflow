@@ -7,8 +7,8 @@ from typing import Any, Mapping
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.8"
-SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8")
+SUPPORTED_SCHEMA_VERSION = "2.9"
+SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9")
 
 _SHAPES = ["frontend", "backend", "fullstack", "library"]
 _ROLES = {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}}
@@ -87,6 +87,21 @@ CONFIG_SCHEMA: dict[str, Any] = {
         "model_tiers": {
             "type": "object",
             "additionalProperties": {"type": "string", "minLength": 1},
+        },
+        "models": {
+            "type": "object",
+            "propertyNames": {"enum": ["claude", "codex", "antigravity", "opencode"]},
+            "additionalProperties": {
+                "type": "object",
+                "required": ["models"],
+                "properties": {
+                    "models": {"type": "array", "minItems": 1, "uniqueItems": True,
+                               "items": {"type": "string", "minLength": 1}},
+                    "efforts": {"type": "array", "uniqueItems": True,
+                                "items": {"type": "string", "minLength": 1}},
+                },
+                "additionalProperties": False,
+            },
         },
         "capabilities": {"type": "object"},
         "policy": {"type": "object"},
