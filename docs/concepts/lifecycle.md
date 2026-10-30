@@ -18,6 +18,8 @@ Every `record` needs `--actor <id>`; in team mode the actor comes from `git conf
 
 `gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing.
 
+`/roadmap` runs before the stages and records no gate; its epics enter `/discuss <epic-id>`. With `/roadmap --milestone <id>` it plans a dated milestone: it proposes an estimate in working days for each epic and adopts open `roadmap` epics that have no parent. It sets membership and estimates only through `gin-workflow milestone move` and `gin-workflow milestone estimate`. On a re-run Beads wins, and the skill reports where the roadmap file differs. Commands and flags are in the [milestone reference](../reference/cli.md#gin-workflow-milestone).
+
 ### Standalone beads
 
 A pre-existing bead can skip discuss and plan: record it as its own epic with `record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later call. The bead's description and acceptance criteria stand in for the spec and plan, so `requirement_confirmed` and `plan_approved` count as satisfied while the bead has no children; no waiver is needed. `implementation_complete` is then the bead itself closed, and after the merge `record shipped --workflow-id <bead> --evidence <merge commit> --actor <id>` marks it shipped.
