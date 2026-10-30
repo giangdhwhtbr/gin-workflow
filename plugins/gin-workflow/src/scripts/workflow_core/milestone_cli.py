@@ -7,6 +7,7 @@ from datetime import date
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -123,9 +124,101 @@ def _show_text(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _open(beads: dict[str, dict[str, Any]], bead_id: str) -> dict[str, Any]:
+    bead = _milestone(beads, bead_id)
+    if bead.get("status") == "closed":
+        raise MilestoneError(f"{bead_id} is closed")
+    return bead
+
+
+def _check_period(start: date, end: date) -> None:
+    if start > end:
+        raise MilestoneError(f"start {start.isoformat()} is after end {end.isoformat()}")
+
+
+def _create(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
+    start, end = _date(args.start), _date(args.end)
+    _check_period(start, end)
+    meta = json.dumps({"start": start.isoformat(), "end": end.isoformat()})
+    out = _bd(root, ["create", args.title, "--type", "milestone", "--metadata", meta, "--json"], actor)
+    return json.JSONDecoder().raw_decode(out.lstrip())[0]["id"], "milestone"
+
+
+def _update(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
+    start, end = core.period(_open(beads, args.id))
+    start, end = (_date(args.start) if args.start else start), (_date(args.end) if args.end else end)
+    _check_period(start, end)
+    argv = ["update", args.id, "--set-metadata", f"start={start.isoformat()}",
+            "--set-metadata", f"end={end.isoformat()}"] + (["--title", args.title] if args.title else [])
+    _bd(root, argv, actor)
+    return f"updated {args.id}", "update"
+
+
+def _kickstart(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
+    _open(beads, args.id)
+    day = _date(args.date) if args.date else _today()
+    _bd(root, ["update", args.id, "--set-metadata", f"kickoff={day.isoformat()}"], actor)
+    return f"kickoff of {args.id} set to {day.isoformat()}", "kickoff"
+
+
+def _move(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
+    if args.to != "none":
+        _open(beads, args.to)
+    for epic in args.epics:
+        bead = beads.get(epic)
+        if bead is None:
+            raise MilestoneError(f"{epic} not found")
+        if bead.get("issue_type") != "epic":
+            raise MilestoneError(f"{epic} is not an epic")
+        parent = bead.get("parent")
+        if parent and beads.get(parent, {}).get("issue_type") != "milestone":
+            raise MilestoneError(f"{epic} is under {parent}, which is not a milestone")
+        if parent and beads[parent].get("status") == "closed":
+            raise MilestoneError(f"{epic} is in closed milestone {parent}")
+    done: list[str] = []
+    for epic in args.epics:
+        try:
+            _bd(root, ["update", epic, "--parent", "" if args.to == "none" else args.to], actor)
+        except MilestoneError as error:
+            raise MilestoneError(f"moved {', '.join(done) or 'none'}; {epic} failed: {error}") from None
+        done.append(epic)
+    return f"moved {', '.join(args.epics)} to {args.to}", "membership"
+
+
+def _estimate(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
+    if not re.fullmatch(r"[1-9][0-9]*", args.days):
+        raise MilestoneError("estimate must be a positive whole number of working days")
+    bead = beads.get(args.epic)
+    if bead is None:
+        raise MilestoneError(f"{args.epic} not found")
+    if bead.get("issue_type") != "epic":
+        raise MilestoneError(f"{args.epic} is not an epic")
+    _bd(root, ["update", args.epic, "--estimate", str(int(args.days) * core.WORKDAY_MINUTES)], actor)
+    return f"estimate of {args.epic} set to {args.days} working days", "estimate"
+
+
+def _close(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
+    _open(beads, args.id)
+    open_epics = sorted(e["id"] for e in core.epics_of(args.id, beads) if e.get("status") != "closed")
+    if open_epics:
+        raise MilestoneError("open epics: " + ", ".join(open_epics))
+    _bd(root, ["close", args.id], actor)
+    return f"closed {args.id}", "close"
+
+
+WRITES = {"create": _create, "update": _update, "kickstart": _kickstart, "move": _move,
+          "estimate": _estimate, "close": _close}
+
+
+def _write(root: Path, config: dict[str, Any], args: argparse.Namespace) -> int:
+    text, _change = WRITES[args.command](root, args, _beads(root), "")
+    print(text)
+    return 0
+
+
 def _run(args: argparse.Namespace) -> int:
     root = args.repository.resolve()
-    _config(root)
+    config = _config(root)
     if args.command == "list":
         payload = core.list_payload(_beads(root), _today(), args.all)
         print(json.dumps(payload, indent=2) if args.json else _list_text(payload))
@@ -136,7 +229,7 @@ def _run(args: argparse.Namespace) -> int:
         payload = core.show_payload(_milestone(beads, args.id), beads, start, _today())
         print(json.dumps(payload, indent=2) if args.json else _show_text(payload))
         return 0
-    raise MilestoneError(f"{args.command} is not implemented")  # Track 2 replaces this line
+    return _write(root, config, args)
 
 
 def main(arguments: Sequence[str]) -> int:
