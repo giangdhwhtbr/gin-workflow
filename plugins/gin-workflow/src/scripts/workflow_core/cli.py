@@ -17,6 +17,8 @@ from .setup_service import COMMANDS, SetupError
 
 
 CLI_VERSION = "2.9"
+TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team", "usage",
+                "reviewer", "hooks", "task", "routes", "notify", "paths", "goal", "worktree")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -63,10 +65,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv == ["--version"]:
         print(f"gin-workflow {CLI_VERSION}")
         return 0
-    if not argv or argv[0] not in ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team",
-                                   "usage", "reviewer", "hooks", "task", "routes", "notify", "paths", "goal", "worktree"):
-        print("usage: gin-workflow {setup,state,unblock,record,quick-check,rules,specs,team,usage,reviewer,hooks,routes,notify,paths,goal,worktree} <command>",
-              file=sys.stderr)
+    if not argv or argv[0] not in TOP_COMMANDS:
+        print(f"usage: gin-workflow {{{','.join(TOP_COMMANDS)}}} <command>", file=sys.stderr)
         return 2
     if argv[0] == "routes":
         from .routes import main as routes_main
