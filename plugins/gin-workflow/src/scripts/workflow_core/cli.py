@@ -17,7 +17,7 @@ from .setup_service import COMMANDS, SetupError
 
 
 CLI_VERSION = "2.9"
-TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team", "usage",
+TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
                 "reviewer", "hooks", "task", "routes", "notify", "paths", "goal", "worktree")
 
 
@@ -94,6 +94,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv[0] == "rules":
         from .rules import main as rules_main
         return rules_main(argv[1:])
+    if argv[0] == "docs":
+        from .docs_check import main as docs_main
+        return docs_main(argv[1:])
     if argv[0] == "specs":
         from .specs_cli import main as specs_main
         return specs_main(argv[1:])

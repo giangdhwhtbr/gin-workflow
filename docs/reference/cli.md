@@ -139,6 +139,28 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 
 Exit codes: 0 ok; 1 findings (lint errors, untraced requirements, archive conflicts, refused migration); 2 usage or configuration error.
 
+## `gin-workflow docs`
+
+```
+gin-workflow docs check <file>... [--template NAME] [--repository PATH] [--format text|json]
+```
+
+Checks Markdown pages against the mechanical rules of the `docs` rule pack. Fenced code blocks and inline code are not checked. The command reads no workflow configuration.
+
+| Rule | Reported when |
+|---|---|
+| `dash` | A line has an em or en dash |
+| `bold-label item` | A list item opens with bold text |
+| `emoji` | A line has an emoji |
+| `numbered heading` | A heading starts with a digit |
+| `placeholder` | A line has `{{...}}`, or `TBD` or `TODO` as a word |
+| `dead link` | A relative link points to a file that does not exist |
+| `missing section` | With `--template`, a `##` heading of the template without a placeholder is not in the page |
+
+Each finding prints as `<file>:<line>: <rule>`, or `<file>: missing section: <heading>`. `--template` resolves like `specs template`, so a project override in `.agent-workflow/templates/` applies.
+
+Exit codes: 0 no findings; 1 findings; 2 a file does not exist or is not UTF-8, or the template is unknown.
+
 ## `gin-workflow team`
 
 ```
