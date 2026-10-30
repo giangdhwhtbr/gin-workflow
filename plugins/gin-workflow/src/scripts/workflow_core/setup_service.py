@@ -11,6 +11,7 @@ from typing import Any, Iterable, Mapping
 
 from .atomic import atomic_write_many, atomic_write_bytes
 from .bundles import export_bundle, verify_bundle
+from .catalog import DEFAULT_CATALOGS
 from .checkout import main_checkout
 from .configuration import legacy_worker_routing, require_yaml, resolve_effective_config, validate_portable_config
 from .project import preset_assignments, project_settings
@@ -125,14 +126,21 @@ def _local_tier_models(local: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]
     }
 
 
-def _catalog_from_tiers(tiers: Mapping[str, Any]) -> dict[str, list[str]]:
+def _catalog_from_tiers(provider: str, tiers: Mapping[str, Any]) -> dict[str, list[str]]:
+    """Tier models in order; a tier effort carries over the provider's default effort range."""
     models: list[str] = []
+    has_effort = False
     for tier in ("low", "medium", "high"):
         target = tiers.get(tier)
         model = target.get("model") if isinstance(target, Mapping) else target
         if model and str(model) not in models:
             models.append(str(model))
-    return {"models": models}
+        has_effort = has_effort or (isinstance(target, Mapping) and target.get("effort") is not None)
+    entry = {"models": models}
+    default = DEFAULT_CATALOGS.get(provider)
+    if has_effort and default is not None and default.efforts:
+        entry["efforts"] = list(default.efforts)
+    return entry
 
 
 def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[str, Any]:
@@ -629,7 +637,7 @@ def update(
             catalog = migrated.setdefault("models", {})
             for provider, tiers in tiered.items():
                 if provider not in catalog:
-                    catalog[provider] = _catalog_from_tiers(tiers)
+                    catalog[provider] = _catalog_from_tiers(provider, tiers)
                     local_actions.append(f"catalog entry for {provider} from {local_source.name}")
             rewritten = copy.deepcopy(local)
             for provider in tiered:

@@ -53,7 +53,7 @@ def _health(args: argparse.Namespace) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     if args.model is not None:
         kwargs = {"model": args.model, "native_runner": NativeCliRunner(), "workspace": args.workspace}
-        if args.provider == "codex" and args.effort is not None:
+        if args.provider in ("claude", "codex") and args.effort is not None:
             kwargs["effort"] = args.effort
     health = HEALTH[args.provider](args.executable, **kwargs)
     return {"available": health.available, "reason": health.reason}

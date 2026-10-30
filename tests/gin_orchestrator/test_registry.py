@@ -918,7 +918,16 @@ class ProviderRegistryTests(unittest.TestCase):
             finally:
                 os.environ["PATH"] = orig_path
 
-    def test_codex_worker_built_from_request_with_xhigh_effort_sets_argv(self):
+    def test_worker_built_from_request_passes_the_mapped_effort(self):
+        cases = (
+            ("codex", "gpt-6-astra", "xhigh", ["-c", "model_reasoning_effort=xhigh"]),
+            ("claude", "opus", "max", ["--effort", "max"]),
+        )
+        for provider, model, effort, expected in cases:
+            with self.subTest(provider=provider):
+                self._assert_worker_effort(provider, model, effort, expected)
+
+    def _assert_worker_effort(self, provider, model, effort, expected):
         class _RecordingRunner:
             def __init__(self):
                 self.invocations = []
@@ -940,19 +949,19 @@ class ProviderRegistryTests(unittest.TestCase):
             root = Path(directory)
             runner = _RecordingRunner()
             local = {
-                "codex": ProviderModelConfig("codex", "codex"),
+                provider: ProviderModelConfig(provider, provider),
             }
             config = EffectiveConfig(
                 {
                     "schema_version": "2.9",
-                    "harness": "codex",
+                    "harness": provider,
                     "providers": {
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
                         "review": "fake", "evidence": "fake", "notifications": "fake",
                     },
                     "orchestrator": {
-                        "roles": {"backend": {"preferred": ["codex"], "fallback": []}},
-                        "concurrency": {"codex": 1},
+                        "roles": {"backend": {"preferred": [provider], "fallback": []}},
+                        "concurrency": {provider: 1},
                         "queue": {"max_wait_seconds": 0},
                         "worker": {"timeout_seconds": 17, "max_retries": 0},
                         "circuit_breaker": {
@@ -969,7 +978,7 @@ class ProviderRegistryTests(unittest.TestCase):
                 provider_local=local,
                 evidence_authority=self.composite_authority(),
                 native_runner=runner,
-                worker_health={"codex": lambda candidate: True},
+                worker_health={provider: lambda candidate: True},
             )
             registry.workspace.create(
                 WorkspaceRequest("ws-api", "task/api"), idempotency_key="create"
@@ -977,15 +986,15 @@ class ProviderRegistryTests(unittest.TestCase):
             worker_request = WorkerRequest(
                 "Implement", (), create_context_manifest("execute", ContextRequest()),
                 {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
-                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "gpt-6-astra", "xhigh",
+                REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", model, effort,
             )
             receipt = registry.worker.dispatch(worker_request)
             normalized = registry.worker.collect_result(receipt.worker_id)
             self.assertEqual("completed", normalized.status)
-            self.assertEqual("codex", receipt.provider_name)
+            self.assertEqual(provider, receipt.provider_name)
             argv = runner.invocations[0].argv
-            self.assertIn("-c", argv)
-            self.assertIn("model_reasoning_effort=xhigh", argv)
+            index = argv.index(expected[0])
+            self.assertEqual(expected, list(argv[index:index + 2]))
 
 
 if __name__ == "__main__":

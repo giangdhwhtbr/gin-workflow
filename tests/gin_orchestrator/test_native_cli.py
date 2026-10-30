@@ -417,6 +417,34 @@ class NativeCliTests(unittest.TestCase):
         self.assertFalse(rejected.available)
         self.assertEqual("invalid_model", rejected.reason)
 
+    def test_claude_health_verifies_effort_flag_and_probes_at_the_effort(self):
+        base_help = "usage: claude --model --output-format --allowedTools"
+
+        self.assertTrue(claude_health("claude", help_text=base_help).available)
+        missing = claude_health("claude", help_text=base_help, effort="high")
+        self.assertFalse(missing.available)
+        self.assertEqual("required_flags_unverified", missing.reason)
+
+        class _RecordingRunner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+
+        runner = _RecordingRunner()
+        probed = claude_health(
+            "claude",
+            help_text=base_help + " --effort",
+            model="opus",
+            native_runner=runner,
+            workspace=Path("/tmp/health-probe"),
+            effort="max",
+        )
+        self.assertTrue(probed.available)
+        argv = runner.invocations[0].argv
+        self.assertEqual("max", argv[argv.index("--effort") + 1])
+
     def test_antigravity_health_degrades_to_provider_default_without_model_flag(self):
         degraded = antigravity_health("agy", help_text="usage: agy --print --sandbox")
         degraded_missing_format = antigravity_health("agy", help_text="usage: agy --print --model MODEL --sandbox")

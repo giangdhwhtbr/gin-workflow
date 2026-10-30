@@ -100,7 +100,7 @@ def resolve_all_assignments(
     local: Mapping[str, ProviderModelConfig],
 ) -> tuple[AssignmentManifest, ...]:
     """Resolve a complete workflow batch without performing durable writes."""
-    errors = validate_plan_assignments(requests, config)
+    errors = validate_plan_assignments(requests, config, requests[0].main_harness if requests else None)
     if errors:
         raise AssignmentResolutionError("; ".join(errors))
     manifests: list[AssignmentManifest] = []
