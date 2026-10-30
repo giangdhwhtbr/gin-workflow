@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, fake_cli, git, make_team_repo, path_with, run_cli  # noqa: E402
 from workflow_core import team_beads  # noqa: E402
-from workflow_core.team import team_for_repo  # noqa: E402
+from workflow_core.team import TeamConfig, team_for_repo  # noqa: E402
 
 HAS_BD = shutil.which("bd") is not None
 HAS_DOLT = shutil.which("dolt") is not None
@@ -224,6 +224,23 @@ class TestTeamBeadsLocal(unittest.TestCase):
         result = run_cli(self.root, "team", "sync")
         self.assertEqual(2, result.returncode)
         self.assertIn("team.beads_sync.remote is not set", result.stderr)
+
+
+class TestPushWithoutReset(unittest.TestCase):
+    """REQ-MILESTONE-016: a rejected push keeps the local write; nothing is reset."""
+
+    def test_req_016_rejected_push_raises_and_never_resets(self):
+        rejected = subprocess.CompletedProcess([], 1, "", "rejected")
+        with mock.patch.object(team_beads, "_bd", return_value=rejected), \
+                mock.patch.object(team_beads, "reset_to_remote") as reset:
+            with self.assertRaisesRegex(team_beads.SyncConflict, "rejected"):
+                team_beads.push(Path("."), TeamConfig(beads_remote="x"))
+        reset.assert_not_called()
+
+    def test_req_016_push_without_remote_calls_nothing(self):
+        with mock.patch.object(team_beads, "_bd") as run:
+            team_beads.push(Path("."), TeamConfig())
+        run.assert_not_called()
 
 
 @unittest.skipUnless(HAS_BD and HAS_DOLT, "bd and dolt are required")

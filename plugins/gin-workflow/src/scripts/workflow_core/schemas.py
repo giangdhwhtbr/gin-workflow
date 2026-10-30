@@ -50,6 +50,7 @@ _TEAM = {
             },
             "additionalProperties": False,
         },
+        "permissions": {"type": "object", "properties": {"milestone": _ROLES}, "additionalProperties": False},
         "beads_sync": {
             "type": "object",
             "required": ["remote"],

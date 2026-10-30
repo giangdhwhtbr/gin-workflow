@@ -105,6 +105,14 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
     return {"status": "claimed", "bead": bead, "assignee": member.email}
 
 
+def push(root: Path, team: TeamConfig) -> None:
+    """Push local Beads without ever resetting them: a rejected push leaves the local write in place."""
+    if team.beads_remote:
+        pushed = _bd(root, ["dolt", "push"])
+        if pushed.returncode != 0:
+            raise SyncConflict(f"bd dolt push: {(pushed.stderr or pushed.stdout).strip()}")
+
+
 def _push(root: Path, team: TeamConfig, bead: str) -> None:
     if team.beads_remote:
         pushed = _bd(root, ["dolt", "push"])
