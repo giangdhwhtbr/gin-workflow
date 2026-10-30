@@ -1,7 +1,7 @@
 # Milestones: model, scheduler, CLI, roadmap adoption
 
 Epic: gin-workflow-6cji
-Status: draft for user review.
+Status: confirmed by the user on 2026-10-30.
 
 ## Goal and scope
 
