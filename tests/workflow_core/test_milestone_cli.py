@@ -13,12 +13,17 @@ from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from workflow_core import milestone_cli  # noqa: E402
+from team_fixtures import TEAM, make_team_repo  # noqa: E402
+from workflow_core import milestone_cli, team_beads  # noqa: E402
 
 CLI = SCRIPTS / "gin-workflow"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
        "GIT_COMMITTER_EMAIL": "t@t"}
+
+
+TEAM_TEXT = TEAM.format(host="github") + "  permissions:\n    milestone: [ba]\n"
 
 
 def gw(cwd, *argv):
@@ -304,6 +309,82 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual("", out)
         self.assertIn("providers.task_tracking: beads", err)
 
+
+
+@unittest.skipUnless(shutil.which("bd"), "bd is not installed")
+class MilestoneTeamTests(unittest.TestCase):
+    def setUp(self):
+        self._directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._directory.cleanup)
+
+    def repo(self, name, email, team=TEAM_TEXT):
+        root = make_team_repo(Path(self._directory.name) / name, email=email, team=team)
+        self.bd(root, "init", "--prefix", "t", "-q")
+        self.bd(root, "create", "M1", "--id", "t-m1", "--type", "milestone",
+                "--metadata", '{"start":"2026-11-02","end":"2026-11-04"}')
+        return root
+
+    def bd(self, root, *args):
+        return subprocess.run(["bd", *args], cwd=root, text=True, capture_output=True, check=True,
+                              stdin=subprocess.DEVNULL, timeout=60).stdout
+
+    def metadata(self, root, bead_id):
+        return json.JSONDecoder().raw_decode(self.bd(root, "show", bead_id, "--json").lstrip())[0][0].get("metadata")
+
+    def run_cli(self, root, *argv):
+        err = io.StringIO()
+        with mock.patch.object(milestone_cli, "_today", return_value=date(2026, 10, 29)), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            code = milestone_cli.main([*argv, "--repository", str(root)])
+        return code, err.getvalue()
+
+    def test_req_012_milestone_writes_need_a_permitted_role(self):
+        root = self.repo("dev", "em@corp.com")
+        code, err = self.run_cli(root, "kickstart", "t-m1")
+        self.assertEqual(2, code)
+        self.assertIn("ba", err)
+        self.assertNotIn("kickoff", self.metadata(root, "t-m1") or {})
+        self.assertEqual(0, self.run_cli(self.repo("ba", "an@corp.com"), "kickstart", "t-m1")[0])
+        open_team = self.repo("open", "em@corp.com", TEAM.format(host="github"))
+        self.assertEqual(0, self.run_cli(open_team, "kickstart", "t-m1")[0])
+
+    def test_req_016_rejected_push_keeps_the_local_write(self):
+        root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")
+        with mock.patch.object(team_beads, "sync", return_value={"status": "synced"}), \
+                mock.patch.object(team_beads, "push", side_effect=team_beads.SyncConflict("rejected")):
+            code, err = self.run_cli(root, "kickstart", "t-m1", "--date", "2026-11-16")
+        self.assertEqual(1, code)
+        self.assertIn("kickoff written locally but not pushed", err)
+        self.assertEqual("2026-11-16", self.metadata(root, "t-m1")["kickoff"])
+
+    def test_req_016_timed_out_push_keeps_the_local_write(self):
+        root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")
+        with mock.patch.object(team_beads, "sync", return_value={"status": "synced"}), \
+                mock.patch.object(team_beads, "push", side_effect=subprocess.TimeoutExpired("bd", 120)):
+            code, err = self.run_cli(root, "kickstart", "t-m1", "--date", "2026-11-16")
+        self.assertEqual(1, code)
+        self.assertIn("written locally but not pushed", err)
+        self.assertEqual("2026-11-16", self.metadata(root, "t-m1")["kickoff"])
+
+    def test_team_write_records_the_member_as_actor(self):
+        root = self.repo("ba", "an@corp.com")
+        code, err = self.run_cli(root, "create", "M2", "--start", "2026-11-02", "--end", "2026-12-18")
+        self.assertEqual(0, code, err)
+        rows = json.JSONDecoder().raw_decode(self.bd(root, "list", "--all", "--json").lstrip())[0]
+        (new,) = [row["id"] for row in rows if row["id"] != "t-m1"]
+        bead = json.JSONDecoder().raw_decode(self.bd(root, "show", new, "--json").lstrip())[0][0]
+        self.assertEqual("an@corp.com", bead["created_by"])
+
+    def test_req_016_failed_pull_writes_nothing(self):
+        root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")
+        with mock.patch.object(team_beads, "sync", side_effect=team_beads.SyncConflict("conflict")), \
+                mock.patch.object(team_beads, "push") as push:
+            code, err = self.run_cli(root, "create", "M2", "--start", "2026-12-01", "--end", "2026-12-31")
+        self.assertEqual(1, code)
+        self.assertIn("nothing written", err)
+        push.assert_not_called()
+        rows = json.JSONDecoder().raw_decode(self.bd(root, "list", "--all", "--json").lstrip())[0]
+        self.assertEqual(["t-m1"], [row["id"] for row in rows])
 
 if __name__ == "__main__":
     unittest.main()

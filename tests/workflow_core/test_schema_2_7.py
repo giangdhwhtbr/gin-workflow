@@ -14,7 +14,7 @@ from team_fixtures import TEAM, calls, fake_cli, make_team_repo, path_with, run_
 from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
 from workflow_core.migrations import migrate_config  # noqa: E402
 from workflow_core.schemas import SUPPORTED_CONFIG_VERSIONS  # noqa: E402
-from workflow_core.team import load_team, validate_team  # noqa: E402
+from workflow_core.team import load_team, summary, validate_team  # noqa: E402
 
 import yaml  # noqa: E402
 
@@ -78,6 +78,17 @@ class TestSchema27(unittest.TestCase):
         with self.assertRaisesRegex(ConfigValidationError, "role ba is held by no member"):
             validate_portable_config({"schema_version": "2.7", "team": raw})
 
+    def test_req_012_milestone_permissions_validate_and_load(self):
+        raw = {**RAW, "permissions": {"milestone": ["ba"]}}
+        validate_portable_config({"schema_version": "2.7", "team": raw})
+        self.assertEqual(["team.permissions.milestone: role pm is held by no member"],
+                         validate_team({**RAW, "permissions": {"milestone": ["pm"]}}))
+        with self.assertRaises(ConfigValidationError):
+            validate_portable_config({"schema_version": "2.7", "team": {**RAW, "permissions": {"other": ["ba"]}}})
+        team = load_team({"team": raw})
+        self.assertEqual({"milestone": ("ba",)}, team.permissions)
+        self.assertEqual({"milestone": ["ba"]}, summary(Path(tempfile.gettempdir()), team)["permissions"])
+
 
 class TestTeamIdentityAndSolo(unittest.TestCase):
     def setUp(self):
@@ -92,7 +103,8 @@ class TestTeamIdentityAndSolo(unittest.TestCase):
         make_team_repo(self.root)
         project = json.loads(run_cli(self.root, "state", "--format", "json").stdout)["project"]
         self.assertEqual({"enabled": True, "host": "github",
-                          "me": {"email": "binh@corp.com", "roles": ["be_lead", "be_dev"], "areas": ["backend"]}},
+                          "me": {"email": "binh@corp.com", "roles": ["be_lead", "be_dev"], "areas": ["backend"]},
+                          "permissions": {}},
                          project["team"])
 
     def test_whoami_and_non_member(self):

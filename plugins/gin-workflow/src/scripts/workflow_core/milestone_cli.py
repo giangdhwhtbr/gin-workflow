@@ -20,6 +20,10 @@ class MilestoneError(Exception):
     """Refused or failed request: exit 1."""
 
 
+class Denied(Exception):
+    """The git user may not write milestones: exit 2."""
+
+
 def _today() -> date:
     return date.today()
 
@@ -210,8 +214,37 @@ WRITES = {"create": _create, "update": _update, "kickstart": _kickstart, "move":
           "estimate": _estimate, "close": _close}
 
 
+def _guard(root: Path, config: dict[str, Any]) -> tuple[Any, str]:
+    """Role check and pull before a write; returns (team, actor)."""
+    from . import team as team_core
+    from . import team_beads
+
+    team = team_core.load_team(config)
+    if team is None:
+        return None, ""
+    member = team_core.current_member(root, team)
+    roles = team.permissions.get("milestone", ())
+    if roles and (member is None or not set(roles) & set(member.roles)):
+        raise Denied(f"milestone writes need one of the roles: {', '.join(roles)}")
+    if team.beads_remote:
+        try:
+            team_beads.sync(root)
+        except (team_beads.SyncConflict, team_core.TeamError, subprocess.TimeoutExpired) as error:
+            raise MilestoneError(f"pull failed, nothing written: {error}") from None
+    return team, member.email if member else ""
+
+
 def _write(root: Path, config: dict[str, Any], args: argparse.Namespace) -> int:
-    text, _change = WRITES[args.command](root, args, _beads(root), "")
+    from . import team as team_core
+    from . import team_beads
+
+    team, actor = _guard(root, config)
+    text, change = WRITES[args.command](root, args, _beads(root), actor)
+    if team is not None and team.beads_remote:
+        try:
+            team_beads.push(root, team)
+        except (team_beads.SyncConflict, team_core.TeamError, subprocess.TimeoutExpired) as error:
+            raise MilestoneError(f"{change} written locally but not pushed: {error}") from None
     print(text)
     return 0
 
@@ -241,6 +274,9 @@ def main(arguments: Sequence[str]) -> int:
         return error.code if isinstance(error.code, int) else 2
     try:
         return _run(args)
+    except Denied as error:
+        print(f"milestone error: {error}", file=sys.stderr)
+        return 2
     except (MilestoneError, ConfigValidationError, ValueError) as error:  # ValueError: CycleError, bad metadata
         print(f"milestone error: {error}", file=sys.stderr)
         return 1
