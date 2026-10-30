@@ -18,7 +18,7 @@ Every `record` needs `--actor <id>`; in team mode the actor comes from `git conf
 
 `gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing.
 
-`/roadmap` runs before the stages and records no gate; its epics enter `/discuss <epic-id>`. With `/roadmap --milestone <id>` it plans a dated milestone: it proposes an estimate in working days for each epic and adopts open `roadmap` epics that have no parent. It sets membership and estimates only through `gin-workflow milestone move` and `gin-workflow milestone estimate`. On a re-run Beads wins, and the skill reports where the roadmap file differs. Commands and flags are in the [milestone reference](../reference/cli.md#gin-workflow-milestone).
+`/roadmap` runs before the stages and records no gate; its epics enter `/discuss <epic-id>`. With `--milestone <id>` it plans a dated milestone over those epics; see the [milestone reference](../reference/cli.md#gin-workflow-milestone) and the [roadmap skill](../reference/skills.md).
 
 ### Standalone beads
 

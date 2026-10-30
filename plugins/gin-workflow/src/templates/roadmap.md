@@ -7,7 +7,8 @@ Source: {{source}}
      Depends on: epic ids from this file. Evidence: the tech-doc file and section (for example
      03-ARCHITECTURE.md#Request flow) or the product brief. The dependency graph stays acyclic.
      The milestone headings and the Milestone: and Estimate: lines are written only by /roadmap --milestone;
-     older files without them stay valid. -->
+     older files without them stay valid.
+     A plain /roadmap omits them and lists its epics under Unassigned. -->
 
 ## Goals
 

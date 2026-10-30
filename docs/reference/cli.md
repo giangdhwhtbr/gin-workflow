@@ -185,7 +185,7 @@ The write commands:
 | `create` | New milestone with a start and end date; prints its id. `--start` after `--end` is refused |
 | `update` | Change the title or either date of an open milestone |
 | `kickstart` | Set the kick-off date (default today) that the schedule starts from |
-| `move` | Put epics under a milestone, or take them out with `--to none`. Refuses a non-epic, a closed target, and an epic in a closed milestone |
+| `move` | Put epics under a milestone, or take them out with `--to none`. Refuses a non-epic, a closed target, an epic in a closed milestone, and an epic whose parent is not a milestone |
 | `estimate` | Set an epic's estimate as a positive whole number of working days (480 minutes each) |
 | `close` | Close a milestone; refused while it has open epics |
 
