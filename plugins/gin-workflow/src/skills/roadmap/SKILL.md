@@ -31,7 +31,7 @@ On `/roadmap` only. Outside the lifecycle: it records no gate. One question per 
    - existing: `gin-workflow task update <id> --title "<title>" -d "<description>"`. Never `gin-workflow task create --id` an existing id: it replaces the bead and erases its description;
    - the description comes from `gin-workflow specs template epic.md`;
    - dependencies: `gin-workflow task dep add <epic> <dependency>` for each `Depends on:` id; `gin-workflow task dep remove <epic> <dependency>` for a dependency on a `roadmap`-labelled epic that the file no longer lists (`gin-workflow task dep list <epic> --json`);
-   - an epic that is `in_progress` or closed, or adopted into a milestone while `open`: warn and leave its title, description, and dependencies unchanged;
+   - an epic that is `in_progress` or closed, or `open` and adopted into a milestone (in Beads, or in the confirmed roadmap: `milestone move` runs after this sync): warn and leave its title, description, and dependencies unchanged;
    - an epic labelled `roadmap` that the file no longer lists: report it and ask; never close or delete an epic;
    - a failing `gin-workflow task` call: stop and report which epics were synced; a re-run continues from there.
 7. **Sprint** (when asked): `gin-workflow task update <epic> --add-label sprint:<name>` for each chosen epic.
