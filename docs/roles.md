@@ -6,7 +6,7 @@ In [team mode](guides/team.md) each member holds roles, each area of the reposit
 
 | Role | Skills | Files | Branch | Approves |
 |---|---|---|---|---|
-| PM | `/gin-workflow:roadmap`, `/gin-workflow:progress`, `/gin-workflow:report` | `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) | `roadmap/<topic>` | `roadmap` |
+| PM | `/gin-workflow:roadmap`, `/gin-workflow:progress`, `/gin-workflow:report`, `gin-workflow milestone` | `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) | `roadmap/<topic>` | `roadmap` |
 | BA | `/gin-workflow:discuss`, `/gin-workflow:tech-doc`, `/gin-workflow:progress` | `.planning/specs/` (`docs/specs/` and `docs/changes/` with the SDD layout) | `spec/<topic>` (`spec/<epic>-<slug>` with the SDD layout) | `requirement_confirmed` |
 | Developer and tech lead | `/gin-workflow:plan`, `/gin-workflow:orchestrate`, `/gin-workflow:execute`, `/gin-workflow:review`, `/gin-workflow:ship` | source and test paths, `.planning/plans/` | `plan/<topic>`, then `feat/<topic>-t<N>` per track | `plan_approved` |
 | Tester | `/gin-qa:cases`, `/gin-qa:e2e`, `/gin-workflow:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's pull request | `ship` |

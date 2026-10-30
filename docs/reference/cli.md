@@ -168,11 +168,30 @@ Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuratio
 ```
 gin-workflow milestone list [--all] [--json]
 gin-workflow milestone show ID [--start YYYY-MM-DD] [--json]
+gin-workflow milestone create TITLE --start YYYY-MM-DD --end YYYY-MM-DD
+gin-workflow milestone update ID [--title TITLE] [--start YYYY-MM-DD] [--end YYYY-MM-DD]
+gin-workflow milestone kickstart ID [--date YYYY-MM-DD]
+gin-workflow milestone move EPIC... --to ID|none
+gin-workflow milestone estimate EPIC DAYS
+gin-workflow milestone close ID
 ```
 
 Dated milestones over roadmap epics, stored in Beads; they need `providers.task_tracking: beads`. `list` reports each open milestone (every milestone with `--all`) with its status, period, epic progress, and warning count, plus the number of open `roadmap` epics without a parent. `show` reports the schedule of one milestone: each epic's planned start and end in working days (Monday to Friday) from `--start`, else the kick-off date, else the start date, and its warnings (`overflow`, `late`, `unestimated`, `external_blocker`). A `list` entry whose schedule cannot be computed (a dependency cycle or a malformed date) carries `error` and keeps the other entries; its status then falls back to `planned`. `--start` is a read-only preview. `--json` prints `schema: 1`; fields are defined in the gin-console contract (`gin-harness/docs/changes/gin-harness-6s4-milestones/design.md`) and only ever added to.
 
-Exit codes: 0 ok, warnings included; 1 unknown id, dependency cycle, non-Beads tracking, or a `bd` error; 2 usage error.
+The write commands:
+
+| Command | Effect |
+|---|---|
+| `create` | New milestone with a start and end date; prints its id. `--start` after `--end` is refused |
+| `update` | Change the title or either date of an open milestone |
+| `kickstart` | Set the kick-off date (default today) that the schedule starts from |
+| `move` | Put epics under a milestone, or take them out with `--to none`. Refuses a non-epic, a closed target, and an epic in a closed milestone |
+| `estimate` | Set an epic's estimate as a positive whole number of working days (480 minutes each) |
+| `close` | Close a milestone; refused while it has open epics |
+
+Each write command first checks the team role. With `team.permissions.milestone` set, the git user must hold one of its roles, otherwise the command names the roles and exits 2. With `team.beads_sync.remote`, it pulls first and stops with `pull failed, nothing written` (exit 1) when the pull fails or times out. After the write it pushes; a rejected or timed-out push prints `<change> written locally but not pushed` and exits 1. The local write stays and is never reset. In team mode, the member's email is recorded as the Beads actor. See [Team mode](../guides/team.md).
+
+Exit codes: 0 ok, warnings included; 1 unknown id, a refused change, dependency cycle, non-Beads tracking, a failed pull or push, or a `bd` error; 2 usage error or a role that may not write milestones.
 
 ## `gin-workflow hooks`
 
@@ -268,7 +287,7 @@ Exit codes: 0 created, removed, or nothing to remove; 1 invalid track id, existi
 gin-workflow task <bd arguments>
 ```
 
-The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` it runs `bd` with the arguments unchanged, with one exception. `ready` also leaves out a bead whose `external:<project>:<capability>` dependency is not shipped yet: no closed `provides:<capability>` bead exists in the database `external_projects.<project>` names. bd 1.0.5 reports such dependencies as resolved. `gin-workflow team ready` applies the same check. If bd cannot explain its ready list, `ready` exits 1 rather than list beads it could not check. Write `external_projects` paths as absolute paths or relative to the repo root, which is the main checkout when you run from a linked worktree; `~` is expanded. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update`, `close`, `reopen`, `list`, `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
+The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` it runs `bd` with the arguments unchanged, with one exception. `ready` also leaves out a bead of type `milestone` and a bead whose `external:<project>:<capability>` dependency is not shipped yet: no closed `provides:<capability>` bead exists in the database `external_projects.<project>` names. bd 1.0.5 reports such dependencies as resolved. `gin-workflow team ready` applies the same check. If bd cannot explain its ready list, `ready` exits 1 rather than list beads it could not check. Write `external_projects` paths as absolute paths or relative to the repo root, which is the main checkout when you run from a linked worktree; `~` is expanded. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update`, `close`, `reopen`, `list`, `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
 
 Exit codes: 0 ok; 1 invalid configuration, invalid request, or malformed task file (the message names the file); 127 `beads` is configured but `bd` is not installed. Other `bd` commands exit with `bd`'s own code.
 
