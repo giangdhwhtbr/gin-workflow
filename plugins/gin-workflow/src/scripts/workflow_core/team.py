@@ -313,11 +313,11 @@ def origin_slug(root: Path) -> str:
 
 
 def _is_artifact(path: str, gate: str, changes: str) -> bool:
-    if gate == "requirement_confirmed":
-        return (path.startswith(".planning/specs/") and path.endswith(".md")) or (
-            path.startswith(f"{changes}/") and path.endswith(("/spec-delta.md", "/02-spec-delta.md")))
-    return (path.startswith(".planning/plans/") and path.endswith(".md")) or (
-        path.startswith(f"{changes}/") and path.endswith(("/plan.md", "/04-plan.md")))
+    from .specs import CHANGE_FILES
+
+    legacy, role = (".planning/specs/", "spec-delta") if gate == "requirement_confirmed" else (".planning/plans/", "plan")
+    return (path.startswith(legacy) and path.endswith(".md")) or (
+        path.startswith(f"{changes}/") and path.endswith((f"/{role}.md", f"/{CHANGE_FILES[role]}")))
 
 
 def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> str:

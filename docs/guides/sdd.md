@@ -22,7 +22,7 @@ docs/
   adr/NNNN-<slug>.md         architecture decisions (artifacts.adr)
 ```
 
-The number prefix in a change folder is its reading order. A change folder created before numbering, open or archived, keeps its unnumbered names (`proposal.md`, `spec-delta.md`), and every `specs` command reads them.
+The number prefix in a change folder is its reading order. A change folder created before numbering, open or archived, keeps its unnumbered names (`proposal.md`, `spec-delta.md`), and every `specs` command reads them. A plan written into such a folder later is still `04-plan.md`.
 
 ## Requirements
 

@@ -64,7 +64,7 @@ These files are evidence for humans and planning, not runtime status; they never
 
 When the user asks to reground (re-check) pages or a docs folder, check those pages against the code instead of writing new ones. Regrounding uses the same roles (scouts, writers, reviewers), with one writer per page.
 
-1. Scouts inspect code at HEAD and record citations with `file:line` under `.agent-workflow/runtime/tech-doc/<run>/`.
+1. Rename files from before numbering as in step 4 of the execution flow. Scouts inspect code at HEAD and record citations with `file:line` under `.agent-workflow/runtime/tech-doc/<run>/`.
 2. Writers check each factual claim against citations, fix wrong claims, remove claims nothing backs, or call team practice a convention.
 3. Reviewers verify claims and flag unbacked or inferential changes, bounded by `routing.review.max_cycles`.
 4. Report per page: claims checked, fixed, and removed, and open questions.

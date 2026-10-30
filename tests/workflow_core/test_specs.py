@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
                             make_change, make_repo, write)
-from workflow_core import specs  # noqa: E402
+from workflow_core import specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
 
@@ -157,6 +157,14 @@ class TestRepositoryCommands(unittest.TestCase):
         self.assertEqual(["REQ-AUTH-003"], [block.id for block in specs.delta_blocks(self.root, change)[0]])
         self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
         self.assertEqual("REQ-AUTH-004", specs.next_id(self.root, self.cfg, "auth")[0])
+        self.assertEqual(["REQ-AUTH-003"], [row["id"] for row in specs_reqs.requirements(
+            self.root, {}, self.cfg, change)["requirements"]])
+        write(self.root, "docs/changes/ep-1-lockout/tests.md", "| TC | REQ | type | evidence |\n|---|---|---|---|\n"
+              "| TC-1 | REQ-AUTH-003 | manual | run 1 |\n")
+        self.assertEqual(["docs/changes/ep-1-lockout/tests.md#TC-1"],
+                         specs_trace.trace(self.root, self.cfg, change)["requirements"][0]["sources"])
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta())
+        self.assertEqual([], specs.delta_blocks(self.root, change)[0])
 
     def test_project_template_overrides_plugin(self):
         write(self.root, ".agent-workflow/templates/proposal.md", "# {{title}} (team)\n\nEpic: {{epic}}\n")
