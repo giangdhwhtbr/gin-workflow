@@ -128,6 +128,10 @@ class AttributeTests(unittest.TestCase):
         self.assertEqual(self.run_one(rec(13)), {(UNATTRIBUTED, ""): 1})
         self.assertEqual(self.run_one(rec(13), collecting="other"), {(UNATTRIBUTED, ""): 1})
 
+    def test_ship_despite_another_workflow_gate_during_execution(self):
+        self.gates = self.gates[:3] + [Gate(at(5), "q1", "quick")]
+        self.assertEqual(self.run_one(rec(13), collecting="ep1"), {("ep1", "ship"): 1})
+
     def test_ship_after_a_verify_gate_recorded_before_it_was_removed(self):
         self.assertEqual(self.run_one(rec(13), collecting="ep1"), {("ep1", "ship"): 1})
 
