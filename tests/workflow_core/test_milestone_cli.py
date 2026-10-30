@@ -357,6 +357,24 @@ class MilestoneTeamTests(unittest.TestCase):
         self.assertIn("kickoff written locally but not pushed", err)
         self.assertEqual("2026-11-16", self.metadata(root, "t-m1")["kickoff"])
 
+    def test_req_016_timed_out_push_keeps_the_local_write(self):
+        root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")
+        with mock.patch.object(team_beads, "sync", return_value={"status": "synced"}), \
+                mock.patch.object(team_beads, "push", side_effect=subprocess.TimeoutExpired("bd", 120)):
+            code, err = self.run_cli(root, "kickstart", "t-m1", "--date", "2026-11-16")
+        self.assertEqual(1, code)
+        self.assertIn("written locally but not pushed", err)
+        self.assertEqual("2026-11-16", self.metadata(root, "t-m1")["kickoff"])
+
+    def test_team_write_records_the_member_as_actor(self):
+        root = self.repo("ba", "an@corp.com")
+        code, err = self.run_cli(root, "create", "M2", "--start", "2026-11-02", "--end", "2026-12-18")
+        self.assertEqual(0, code, err)
+        rows = json.JSONDecoder().raw_decode(self.bd(root, "list", "--all", "--json").lstrip())[0]
+        (new,) = [row["id"] for row in rows if row["id"] != "t-m1"]
+        bead = json.JSONDecoder().raw_decode(self.bd(root, "show", new, "--json").lstrip())[0][0]
+        self.assertEqual("an@corp.com", bead["created_by"])
+
     def test_req_016_failed_pull_writes_nothing(self):
         root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")
         with mock.patch.object(team_beads, "sync", side_effect=team_beads.SyncConflict("conflict")), \

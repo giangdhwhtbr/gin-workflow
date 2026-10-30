@@ -229,12 +229,13 @@ def _guard(root: Path, config: dict[str, Any]) -> tuple[Any, str]:
     if team.beads_remote:
         try:
             team_beads.sync(root)
-        except (team_beads.SyncConflict, team_core.TeamError) as error:
+        except (team_beads.SyncConflict, team_core.TeamError, subprocess.TimeoutExpired) as error:
             raise MilestoneError(f"pull failed, nothing written: {error}") from None
     return team, member.email if member else ""
 
 
 def _write(root: Path, config: dict[str, Any], args: argparse.Namespace) -> int:
+    from . import team as team_core
     from . import team_beads
 
     team, actor = _guard(root, config)
@@ -242,7 +243,7 @@ def _write(root: Path, config: dict[str, Any], args: argparse.Namespace) -> int:
     if team is not None and team.beads_remote:
         try:
             team_beads.push(root, team)
-        except team_beads.SyncConflict as error:
+        except (team_beads.SyncConflict, team_core.TeamError, subprocess.TimeoutExpired) as error:
             raise MilestoneError(f"{change} written locally but not pushed: {error}") from None
     print(text)
     return 0
