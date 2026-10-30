@@ -18,7 +18,7 @@ from .setup_service import COMMANDS, SetupError
 
 CLI_VERSION = "2.9"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "team", "usage",
-                "reviewer", "hooks", "task", "routes", "notify", "paths", "goal", "worktree")
+                "reviewer", "hooks", "task", "routes", "notify", "paths", "goal", "worktree", "milestone")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -100,6 +100,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv[0] == "team":
         from .team_cli import main as team_main
         return team_main(argv[1:])
+    if argv[0] == "milestone":
+        from .milestone_cli import main as milestone_main
+        return milestone_main(argv[1:])
     if argv[0] == "usage":
         from .usage_cli import main as usage_main
         return usage_main(argv[1:])
