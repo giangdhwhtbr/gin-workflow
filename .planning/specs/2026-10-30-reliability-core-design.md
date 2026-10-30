@@ -14,11 +14,13 @@ In scope:
 - The `record` guards run inside the event-store lock.
 - Events carry `schema_version`; readers ignore unknown fields.
 - `state` reads the event log once and queries the tracker once per command.
-- `execute` resumes `in_progress` beads first; a SessionStart hook reports them.
+- `execute` resumes `in_progress` beads before picking new work.
 - `task close` on a track needs an approved review ledger or an explicit waiver when `project.review_ledger` is on.
 - `ship` warns when git hooks are not installed or `verify_commands` is empty.
 
 Out of scope: event-log rotation or compaction; claim lease or TTL (team hardening epic); the `.beads.gate.lock` doc line (process hygiene epic); guarding a direct `bd close` call.
+
+Dropped from the roadmap scope: the SessionStart hook that ran `gin-workflow state` and `task list --status in_progress`. Its output would enter the context of every session, including sessions opened for unrelated work, where it costs tokens and start-up latency and invites the model to resume a track the user did not ask about. The resume step in `execute` reaches the same goal when the user runs `/execute` or `/workflow`, and `/progress` shows work in progress on demand.
 
 Current behavior this changes (paths under `plugins/gin-workflow/src/scripts/workflow_core/`):
 - `tasks.py:135-158` `query()` returns `None` for a missing `bd`, a timeout, a non-zero exit, and bad JSON alike. `lifecycle_cli.py:111-141` reads `None` as "not closed" or "not standalone", so `state` reports `unmet` and `record shipped` says "recordable only for a standalone bead".
@@ -27,7 +29,7 @@ Current behavior this changes (paths under `plugins/gin-workflow/src/scripts/wor
 - `lifecycle_cli.py:161-170` runs the already-shipped and shipped guards before `store.append` takes its lock, so two `record` calls can both pass the guard.
 - `schemas.py:268-283` sets `additionalProperties: False` on events and has no `schema_version`.
 - One `state` call reads the log 6 to 8 times and runs `bd list --parent` twice.
-- `skills/execute/SKILL.md:16` picks only from `task ready`; nothing resumes an `in_progress` bead. `hooks/hooks.json` has no SessionStart hook.
+- `skills/execute/SKILL.md:16` picks only from `task ready`; nothing resumes an `in_progress` bead.
 - `tasks.py:196` forwards `task close` to `bd` without checking the review ledger.
 - `hooks.py` has no `status` subcommand; `setup_service.py:463` skips the hook check when `verify_commands` is empty, and `hooks run` then exits 0 silently.
 
@@ -50,8 +52,6 @@ Current behavior this changes (paths under `plugins/gin-workflow/src/scripts/wor
 - New events carry `schema_version: 1`. The field is not part of the `event_id` hash, so existing ids are unchanged. The event schema drops `additionalProperties: False` and still requires the existing fields. An event without `schema_version` reads as version 1.
 
 ### Resume
-- `gin-workflow resume` prints nothing and exits 0 when the main checkout has no `effective-config.yaml`, or when there is no warning and no `in_progress` bead. Otherwise it prints at most 10 lines: the stage of the default workflow, the warnings, and one line per `in_progress` bead as `<id> <title> (<assignee>)`. Its `bd` calls use a 5 s timeout. It exits 0 on every error.
-- `hooks/hooks.json` adds a `SessionStart` hook that runs `gin-workflow resume` directly, without a shell.
 - `skills/execute/SKILL.md` gains a first step: `gin-workflow task list --status in_progress`, then resume a child of the current epic; in team mode only a bead assigned to the current member. `task ready` is used only when there is nothing to resume. The claim step becomes `gin-workflow task update <id> --claim`.
 - The markdown task backend accepts `update --claim` (status `in_progress`, assignee from git `user.email`) and `list --assignee`, so both backends take the flags the skill uses.
 
@@ -69,7 +69,7 @@ Current behavior this changes (paths under `plugins/gin-workflow/src/scripts/wor
 ### Documentation
 - `docs/concepts/lifecycle.md`: resume step, `hold` on `unknown`, close guard, ship warning.
 - `docs/concepts/state-model.md`: the `unknown` gate value, `schema_version`, `review.waived`.
-- `docs/reference/cli.md`: `resume`, `hooks status`, `task close --waive-review --actor`, `task update --claim`, `task list --assignee` (markdown backend).
+- `docs/reference/cli.md`: `hooks status`, `task close --waive-review --actor`, `task update --claim`, `task list --assignee` (markdown backend).
 
 ## User Stories
 
@@ -109,14 +109,10 @@ As a developer, I want `state` to read the log once and call `bd list --parent` 
 Acceptance criteria:
 - One `state` call invokes `WorkflowEventStore.read_all` once and `bd list --parent` at most once.
 
-### US-6: A new session resumes work in progress
-As a developer, I want a new session to show and resume the track I left in progress, so that work is not started twice or forgotten.
+### US-6: Execute resumes work in progress
+As a developer, I want `/execute` in a new session to resume the track I left in progress, so that work is not started twice or forgotten.
 
 Acceptance criteria:
-- In a repo without `effective-config.yaml`, `gin-workflow resume` prints nothing and exits 0.
-- With an `in_progress` bead, `resume` prints its id, title, and assignee in at most 10 lines.
-- With `bd` failing, `resume` prints the tracker warning and exits 0.
-- `hooks.json` has a `SessionStart` entry that runs `gin-workflow resume`.
 - `execute/SKILL.md` resumes an `in_progress` child of the epic before calling `task ready`, and claims with `--claim`.
 - On the markdown backend, `task update <id> --claim` sets `in_progress` and the assignee, and `task list --status in_progress --assignee <me>` returns it.
 
@@ -142,7 +138,6 @@ Acceptance criteria:
 - A gin-workflow install older than this change rejects events with `schema_version`. One install serves a machine and gin-console runs that install, so both upgrade together.
 - A lock timeout surfaces as `EventPersistenceError`, which `state` reports as an unreadable log (`unknown`, `hold`) and `record` reports as an error with exit 2.
 - `review.waived` is written to the workflow event log with the existing event shape; waivers and gate computation ignore it.
-- `resume` never fails a session: every exception is caught and it exits 0.
 - A direct `bd close` bypasses the close guard; the docs say so.
 
 ## Testing
@@ -153,7 +148,7 @@ Acceptance criteria:
 - US-3: a child process holding the lock makes `file_lock` raise `TimeoutError` with a short test timeout; two processes recording `shipped` leave one event.
 - US-4: the `event_id` of a fixed event is unchanged; a mixed log reads.
 - US-5: a patched `read_all` and `bd` stub count one call each.
-- US-6: `resume` output in the three cases; markdown backend `--claim` and `--assignee`.
+- US-6: markdown backend `--claim` and `--assignee`.
 - US-7: close refused, approved, and waived, with ledger fixtures.
 - US-8: `hooks status` exit codes for missing hook, empty `verify_commands`, and both present.
-- Existing suites (`tests/`) stay green; `install_smoke_test` still passes with the new `hooks.json` entry.
+- Existing suites (`tests/`) stay green.
