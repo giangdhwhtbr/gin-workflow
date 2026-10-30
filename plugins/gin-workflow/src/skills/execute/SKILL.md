@@ -42,7 +42,7 @@ Read [delegation policy](references/delegation-policy.md) and [result contract](
 ## 4. Complete
 1. Request review through the `review` skill and wait for a terminal review state.
 2. Once tests and review pass, run `gin-workflow usage collect --bead <id> --best-effort`, then close the track bead (`gin-workflow task close <id> --reason "<evidence>"`); this unblocks dependents and needs no PR or merge. If `gin-workflow state --workflow-id <id>` now shows `implementation_complete` satisfied, run `gin-workflow notify --event run_finished "<epic>: all tracks closed"`.
-3. Commit and push the feature branch, then `git push origin +refs/gin/review/<id>` (squash-merge checks fetch it). Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
+3. Commit and push the feature branch, then `python3 review-ledger.py push-refs --bead-id <id>` (squash-merge checks fetch the refs). Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
    1. Xin lệnh tạo PR từ nhánh feature đã push.
    2. Giữ nhánh feature đã push và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.
 4. Return `implementation_complete`. Do not invoke `ship`.

@@ -53,7 +53,7 @@ def _run_git(
     process = subprocess.run(
         ["git", *args],
         cwd=repo_path,
-        env=None if env is None else dict(env),
+        env={**os.environ, **(env or {}), "GIT_TERMINAL_PROMPT": "0"},
         input=input_bytes,
         capture_output=True,
         check=False,
@@ -403,9 +403,10 @@ def create_source_checkpoint(
     )
 
 
-def push_review_ref(repo_path: str, remote_name: str, task_id: str) -> None:
-    review_ref = f"refs/gin/review/{task_id}"
-    _run_git(repo_path, "push", remote_name, f"{review_ref}:{review_ref}")
+def push_review_ref(repo_path: str, review_ref: str, remote_name: str = "origin") -> None:
+    """Force-push review_ref to the remote; the ref is rewritten whenever a checkpoint is retaken."""
+    _validate_review_ref(repo_path, review_ref)
+    _run_git(repo_path, "push", remote_name, f"+{review_ref}:{review_ref}")
 
 
 def fetch_review_ref(repo_path: str, remote_name: str, task_id: str) -> str:
