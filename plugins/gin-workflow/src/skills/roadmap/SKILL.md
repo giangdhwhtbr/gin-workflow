@@ -10,7 +10,7 @@ On `/roadmap` only. Outside the lifecycle: it records no gate. One question per 
 ## Before you start
 1. If `.agent-workflow/generated/effective-config.yaml` does not exist in the main checkout (the parent of `git rev-parse --path-format=absolute --git-common-dir`), stop: tell the user to run `/setup` once and do nothing else.
 2. `gin-workflow state --format json` gives `project.stage` and `project.layout`. The roadmap file is `.planning/roadmap.md`, or `docs/roadmap.md` with `project.layout: sdd`.
-3. `brownfield` or `legacy` needs the tech-doc folder (`.planning/codebase/`, or `artifacts.codebase`, default `docs/codebase/`, with the SDD layout); if it is missing, stop and recommend `/tech-doc`. `greenfield` needs a product brief: ask for a path or the text.
+3. `brownfield` or `legacy` prefers the tech-doc folder (`.planning/codebase/`, or `artifacts.codebase`, default `docs/codebase/`, with the SDD layout). If the folder is missing, recommend `/tech-doc` once in one sentence, then ask for a product brief (a path or the text). `greenfield` needs a product brief: ask for a path or the text.
 
 ## Steps
 1. **Read** every file of the tech-doc folder, subsystem subfolders included, yourself (no subagent summaries: epic dependencies come from reading across files), or the product brief; then living specs (or `.planning/specs/`), the roadmap file if it exists, and `gin-workflow task list --label roadmap --all --json`. With `.codegraph/`, check load-bearing claims with `codegraph explore`.
