@@ -43,9 +43,9 @@ class TestMigrate(unittest.TestCase):
     def test_plan_pairs_by_slug_and_lists_skipped(self):
         plan = plan_moves(self.root, self.config, self.cfg)
         self.assertEqual([
-            {"from": ".planning/specs/2026-09-01-lonely-design.md", "to": "docs/changes/archive/2026-09-01-lonely/design.md"},
-            {"from": ".planning/specs/2026-10-01-rules-design.md", "to": "docs/changes/archive/2026-10-01-rules/design.md"},
-            {"from": ".planning/plans/2026-10-02-rules.md", "to": "docs/changes/archive/2026-10-01-rules/plan.md"},
+            {"from": ".planning/specs/2026-09-01-lonely-design.md", "to": "docs/changes/archive/2026-09-01-lonely/03-design.md"},
+            {"from": ".planning/specs/2026-10-01-rules-design.md", "to": "docs/changes/archive/2026-10-01-rules/03-design.md"},
+            {"from": ".planning/plans/2026-10-02-rules.md", "to": "docs/changes/archive/2026-10-01-rules/04-plan.md"},
             {"from": ".planning/codebase", "to": "docs/codebase"},
         ], plan["moves"])
         self.assertEqual([".planning/plans/notes.md"], plan["skipped"])
@@ -59,13 +59,13 @@ class TestMigrate(unittest.TestCase):
     def test_migrate_moves_with_git_and_switches_layout(self):
         result = run_cli(self.root, "specs", "migrate", "--format", "json")
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertTrue((self.root / "docs/changes/archive/2026-10-01-rules/plan.md").is_file())
+        self.assertTrue((self.root / "docs/changes/archive/2026-10-01-rules/04-plan.md").is_file())
         self.assertTrue((self.root / "docs/codebase/OVERVIEW.md").is_file())
         self.assertTrue((self.root / ".planning/reviews/x/review.json").is_file())
         self.assertTrue((self.root / ".planning/plans/notes.md").is_file())
         self.assertTrue((self.root / "docs/specs/README.md").is_file())
         status = git(self.root, "status", "--porcelain").splitlines()
-        self.assertIn("R  .planning/plans/2026-10-02-rules.md -> docs/changes/archive/2026-10-01-rules/plan.md", status)
+        self.assertIn("R  .planning/plans/2026-10-02-rules.md -> docs/changes/archive/2026-10-01-rules/04-plan.md", status)
         self.assertEqual("sdd", specs.sdd_config(specs.load_config(self.root))["layout"])
         again = run_cli(self.root, "specs", "migrate")
         self.assertEqual(2, again.returncode)

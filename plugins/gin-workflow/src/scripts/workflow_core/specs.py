@@ -21,7 +21,10 @@ SDD_DEFAULTS: dict[str, Any] = {
     "codebase": "docs/codebase", "spec_review": "chat", "test_globs": list(DEFAULT_TEST_GLOBS),
 }
 DELTA_SECTIONS = ("ADDED", "MODIFIED", "REMOVED")
-CHANGE_TEMPLATES = ("proposal.md", "spec-delta.md", "design.md", "tests.md")
+# Change-folder files in reading order; the template for each is `<role>.md`.
+CHANGE_FILES = {"proposal": "01-proposal.md", "spec-delta": "02-spec-delta.md", "design": "03-design.md",
+                "plan": "04-plan.md", "tests": "05-tests.md"}
+CHANGE_TEMPLATES = ("proposal", "spec-delta", "design", "tests")
 REQ_ID = re.compile(r"\bREQ-([A-Z][A-Z0-9-]*)-(\d{3,})\b")
 _FULL_ID = re.compile(r"^REQ-([A-Z][A-Z0-9-]*)-(\d{3,})$")
 _HEADING = re.compile(r"^### (REQ-[A-Z][A-Z0-9-]*-\d{3,}): (\S.*)$")
@@ -202,8 +205,14 @@ def find_change(root: Path, cfg: Mapping[str, Any], change_id: str) -> Path:
                      else f"change {change_id!r} is ambiguous: {', '.join(p.name for p in matches)}")
 
 
+def change_file(change: Path, role: str) -> Path:
+    """The numbered file; a change folder written before numbering keeps its `<role>.md`."""
+    numbered, legacy = change / CHANGE_FILES[role], change / f"{role}.md"
+    return legacy if legacy.is_file() and not numbered.is_file() else numbered
+
+
 def change_epic(change: Path) -> str:
-    proposal = change / "proposal.md"
+    proposal = change_file(change, "proposal")
     found = _EPIC_LINE.search(proposal.read_text(encoding="utf-8")) if proposal.is_file() else None
     if not found:
         raise SpecsError(f"{proposal}: missing 'Epic: <id>' line")
@@ -219,9 +228,9 @@ def shown(root: Path, path: Path) -> str:
 
 
 def delta_blocks(root: Path, change: Path) -> tuple[list[Block], list[str]]:
-    path = change / "spec-delta.md"
+    path = change_file(change, "spec-delta")
     if not path.is_file():
-        return [], [f"{shown(root, path)}: missing spec-delta.md"]
+        return [], [f"{shown(root, path)}: missing {path.name}"]
     blocks, malformed = parse_blocks(path.read_text(encoding="utf-8"))
     errors = [f"{shown(root, path)}:{line}: {message}" for line, message in malformed]
     for block in blocks:
@@ -252,7 +261,7 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
 
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
     blocks, errors = delta_blocks(root, change)
-    path = shown(root, change / "spec-delta.md")
+    path = shown(root, change_file(change, "spec-delta"))
     living = living_blocks(root, cfg)
     seen: set[str] = set()
     for block in blocks:
@@ -294,7 +303,9 @@ def _ids_in(text: str) -> set[str]:
 
 def _local_ids(tree: Path, cfg: Mapping[str, Any]) -> set[str]:
     ids: set[str] = set()
-    for pattern, base in (("*/spec.md", cfg["specs"]), ("**/spec-delta.md", cfg["changes"])):
+    patterns = (("*/spec.md", cfg["specs"]), ("**/spec-delta.md", cfg["changes"]),
+                (f"**/{CHANGE_FILES['spec-delta']}", cfg["changes"]))
+    for pattern, base in patterns:
         directory = Path(tree) / base
         if directory.is_dir():
             for path in directory.glob(pattern):
@@ -353,8 +364,8 @@ def new_change(root: Path, cfg: Mapping[str, Any], slug: str, epic: str, title: 
         raise SpecsError(f"change folder already exists: {change}")
     values = {"epic": epic, "slug": slug, "title": title or slug.replace("-", " ").capitalize(),
               "date": (today or date.today()).isoformat()}
-    atomic_write_many({change / name: render(template_text(root, name), values).encode("utf-8")
-                       for name in CHANGE_TEMPLATES}, mode=0o644)
+    atomic_write_many({change / CHANGE_FILES[role]: render(template_text(root, f"{role}.md"), values).encode("utf-8")
+                       for role in CHANGE_TEMPLATES}, mode=0o644)
     return change
 
 

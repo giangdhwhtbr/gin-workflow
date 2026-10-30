@@ -15,6 +15,6 @@ Beads: <!-- bead ids -->
 ## Checklist
 
 - [ ] Commits follow the team commit convention
-- [ ] Every changed requirement has a test or a `tests.md` row
+- [ ] Every changed requirement has a test or a `05-tests.md` row
 - [ ] `gin-workflow specs lint` passes (SDD layout)
 - [ ] Review comments resolved

@@ -303,7 +303,7 @@ Vấn đề của hệ thống legacy là "khoảng trống tri thức":
 
 /tech-doc giải quyết bằng bằng chứng:
 - Quét trực tiếp cây code, database schema và API handler.
-- Xuất ra 10 module có cấu trúc trong docs/codebase/, ví dụ ARCHITECTURE.md, API.md, STACK.md, STRUCTURE.md.
+- Xuất ra 10 module có cấu trúc trong docs/codebase/, ví dụ 03-ARCHITECTURE.md, 05-API.md, 07-STACK.md, 04-STRUCTURE.md.
 - Mọi kết luận kiến trúc đều trích dẫn đúng file và dòng, không suy đoán.
 
 Kết quả: một baseline có thể kiểm chứng, làm trong vài giờ thay vì vài tuần, dùng làm đầu vào cho roadmap.

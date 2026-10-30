@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 from .atomic import atomic_write_many
 from .checkout import main_checkout
-from .specs import specs_dir, template_text
+from .specs import CHANGE_FILES, specs_dir, template_text
 from .specs_archive import move
 
 _DESIGN = re.compile(r"^(\d{4}-\d{2}-\d{2})-(.+)-design\.md$")
@@ -45,10 +45,10 @@ def plan_moves(root: Path, config: Mapping[str, Any], cfg: Mapping[str, Any]) ->
     for slug in sorted(set(designs) | set(plans)):
         if len(designs[slug]) == 1 and len(plans[slug]) == 1:
             day = designs[slug][0][0]
-            pairs = [(designs[slug][0][1], "design.md", day), (plans[slug][0][1], "plan.md", day)]
+            pairs = [(designs[slug][0][1], CHANGE_FILES["design"], day), (plans[slug][0][1], CHANGE_FILES["plan"], day)]
         else:
-            pairs = [(path, "design.md", day) for day, path in designs[slug]]
-            pairs += [(path, "plan.md", day) for day, path in plans[slug]]
+            pairs = [(path, CHANGE_FILES["design"], day) for day, path in designs[slug]]
+            pairs += [(path, CHANGE_FILES["plan"], day) for day, path in plans[slug]]
         for source, name, day in pairs:
             moves.append({"from": source.as_posix(), "to": (archive / f"{day}-{slug}" / name).as_posix()})
     if (Path(root) / LEGACY_CODEBASE).is_dir():

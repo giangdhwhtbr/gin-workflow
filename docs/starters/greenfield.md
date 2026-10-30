@@ -146,7 +146,7 @@ Every feature moves through the same cycle:
                 └─────────────────────┘
 ```
 
-1. `/gin-workflow:discuss <feature>` creates a change folder `docs/changes/<epic>-<slug>/` holding `proposal.md`, `spec-delta.md`, and `design.md`, with traceable requirement IDs (`REQ-<MODULE>-001`).
+1. `/gin-workflow:discuss <feature>` creates a change folder `docs/changes/<epic>-<slug>/` holding `01-proposal.md`, `02-spec-delta.md`, and `03-design.md`, with traceable requirement IDs (`REQ-<MODULE>-001`).
 2. `/gin-workflow:plan <feature>` maps requirements to tracks and files.
 3. `/gin-workflow:orchestrate <feature>` sets up the track tasks and an isolated Git worktree.
 4. `/gin-workflow:execute` builds the tracks test-first with independent review checkpoints.

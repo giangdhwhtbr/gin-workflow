@@ -86,6 +86,22 @@ class TestRecordGitHub(GateCase):
                 self.assertIn(reason, result.stderr)
         self.assertEqual([], self.events())
 
+    def test_requirement_confirmed_picks_the_numbered_spec_delta(self):
+        delta = "docs/changes/ep-1-login/02-spec-delta.md"
+        write(self.root, delta, "# Spec Delta\n")
+        self.gh(gh_pr(author="binh-dev", files=["docs/changes/ep-1-login/01-proposal.md", delta],
+                      reviews=[("an-ba", "APPROVED", "c1")]))
+        result = self.record("requirement-confirmed")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(delta, self.events()[-1]["payload"]["artifact"])
+
+    def test_requirement_confirmed_picks_a_spec_delta_from_before_numbering(self):
+        delta = "docs/changes/ep-1-login/spec-delta.md"
+        write(self.root, delta, "# Spec Delta\n")
+        self.gh(gh_pr(author="binh-dev", files=[delta], reviews=[("an-ba", "APPROVED", "c1")]))
+        self.assertEqual(0, self.record("requirement-confirmed").returncode)
+        self.assertEqual(delta, self.events()[-1]["payload"]["artifact"])
+
     def test_plan_approved_needs_every_area_lead(self):
         self.gh(gh_pr(files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c")]))
         result = self.record("plan-approved")

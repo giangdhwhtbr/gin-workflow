@@ -15,7 +15,7 @@ You do not modify source code. When the caller authorizes a durable research art
 Before researching:
 
 1. Read `AGENTS.md` and `CLAUDE.md` when present.
-2. Look up repository context on demand: `codegraph explore "<symbols or question>"` when `.codegraph/` exists, else grep and read. Read `.planning/codebase/ARCHITECTURE.md` (from `/tech-doc`) when it exists and the topic needs architecture context.
+2. Look up repository context on demand: `codegraph explore "<symbols or question>"` when `.codegraph/` exists, else grep and read. Read `.planning/codebase/03-ARCHITECTURE.md` (from `/tech-doc`) when it exists and the topic needs architecture context.
 
 ## Research Rules
 

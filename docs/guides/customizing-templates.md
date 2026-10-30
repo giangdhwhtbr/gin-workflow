@@ -25,7 +25,7 @@ gin-workflow specs template <template-name>
 
 Available templates:
 - Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`
-- Codebase documentation (`/gin-workflow:tech-doc`): `codebase/<FILE>.md`, for example `codebase/API.md`
+- Codebase documentation (`/gin-workflow:tech-doc`): `codebase/<FILE>.md`, for example `codebase/05-API.md`
 - Team conventions: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
 | Template | Used by | Override file |
@@ -34,7 +34,7 @@ Available templates:
 | Epic description | `/gin-workflow:roadmap` | `.agent-workflow/templates/epic.md` |
 | User story | `/gin-workflow:discuss` | `.agent-workflow/templates/user-story.md` |
 | Design spec (legacy layout) | `/gin-workflow:discuss` | `.agent-workflow/templates/design-spec.md` |
-| Proposal, spec delta, design, tests (SDD layout) | `specs new`, which `/gin-workflow:discuss` runs | `.agent-workflow/templates/<file>` |
+| Proposal, spec delta, design, tests (SDD layout) | `specs new`, which `/gin-workflow:discuss` runs | `.agent-workflow/templates/proposal.md`, `spec-delta.md`, `design.md`, `tests.md` (unnumbered; `specs new` writes them as `01-proposal.md` and so on) |
 | `spec.md` | `specs archive` (a new capability) and `/gin-workflow:migrate-specs` | `.agent-workflow/templates/spec.md` |
 | `specs-README.md` | `specs archive` and `specs migrate` | `.agent-workflow/templates/specs-README.md` |
 | `codebase/*` | `/gin-workflow:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |

@@ -18,7 +18,7 @@ points; the detail below is what the presenter says aloud.
   - Wikis, READMEs, and diagrams lag years behind production.
   - Implicit database triggers, undocumented endpoints, and tangled call chains.
 - `/tech-doc` scans code trees, database schemas, and API handlers directly.
-- Output goes to `docs/codebase/` (with the SDD layout) in 10 structured modules, including `ARCHITECTURE.md`, `API.md`, `STACK.md`, and `STRUCTURE.md`.
+- Output goes to `docs/codebase/` (with the SDD layout) in 10 structured modules, including `03-ARCHITECTURE.md`, `05-API.md`, `07-STACK.md`, and `04-STRUCTURE.md`.
 - Every architectural conclusion cites exact file paths and line ranges; nothing is speculative.
 - The baseline takes hours rather than weeks and seeds the product roadmap.
 

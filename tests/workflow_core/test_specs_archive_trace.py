@@ -61,7 +61,7 @@ class TestArchive(unittest.TestCase):
         self.assertIn("- [billing](billing/spec.md)", (self.root / "docs/specs/README.md").read_text(encoding="utf-8"))
         self.assertEqual("docs/changes/archive/2026-10-03-ep-1-lockout", result["archived_to"])
         self.assertFalse(change.exists())
-        self.assertTrue((self.root / result["archived_to"] / "spec-delta.md").is_file())
+        self.assertTrue((self.root / result["archived_to"] / "02-spec-delta.md").is_file())
         self.assertTrue(any(line.startswith("R") for line in git(self.root, "status", "--porcelain").splitlines()))
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
 
@@ -101,12 +101,12 @@ class TestTraceAndStatus(unittest.TestCase):
         result = specs_trace.trace(self.root, self.cfg, self.change)
         self.assertEqual(["REQ-AUTH-002"], result["missing"])
         self.assertEqual(["tests/test_lockout.py"], result["requirements"][0]["sources"])
-        write(self.root, "docs/changes/ep-1-lockout/tests.md",
+        write(self.root, "docs/changes/ep-1-lockout/05-tests.md",
               "| TC | REQ | type | evidence |\n|---|---|---|---|\n| TC-1 | REQ-AUTH-002 | manual | screenshot.png |\n"
               "| TC-2 | REQ-AUTH-002 | manual | - |\n")
         result = specs_trace.trace(self.root, self.cfg, self.change)
         self.assertEqual([], result["missing"])
-        self.assertEqual(["docs/changes/ep-1-lockout/tests.md#TC-1"], result["requirements"][1]["sources"])
+        self.assertEqual(["docs/changes/ep-1-lockout/05-tests.md#TC-1"], result["requirements"][1]["sources"])
 
     def _gh(self, stdout: str, returncode: int = 0):
         return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
@@ -144,7 +144,7 @@ class TestEndToEnd(unittest.TestCase):
             commit_all(root)
             self.assertEqual(0, self.run_specs(root, "new", "lockout", "--epic", "ep-1").returncode)
             req = self.run_specs(root, "next-id", "auth").stdout.strip()
-            write(root, "docs/changes/ep-1-lockout/spec-delta.md", delta(added=ADDED_BLOCK.replace("REQ-AUTH-003", req)))
+            write(root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(added=ADDED_BLOCK.replace("REQ-AUTH-003", req)))
             self.assertEqual(0, self.run_specs(root, "lint", "--change", "ep-1", "--against", "main").returncode)
             self.assertEqual(1, self.run_specs(root, "trace", "--change", "ep-1").returncode)
             write(root, "tests/test_lockout.py", f"def test_lock():  # {req}\n    pass\n")
