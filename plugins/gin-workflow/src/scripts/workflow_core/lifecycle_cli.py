@@ -23,6 +23,7 @@ from .waivers import (
     build_waiver_event,
     classify_gate,
     collect_waivers,
+    waivers_from_events,
 )
 
 
@@ -52,16 +53,21 @@ def _resolve_scope_hash(repo_path: Path) -> str:
     return "default-scope"
 
 
-def _process_gate_state(
-    event_store: WorkflowEventStore, workflow_id: str
-) -> dict[str, bool]:
+def _read_events(store: WorkflowEventStore) -> tuple[list[WorkflowEvent] | None, str | None]:
+    try:
+        return store.read_all(), None
+    except (EventPersistenceError, OSError, ValueError) as error:
+        return None, f"event log unreadable: {error}; waivers not applied"
+
+
+def _process_gate_state(events: Sequence[WorkflowEvent], workflow_id: str) -> dict[str, bool | None]:
     """Reconstruct process gates from durable events for one workflow only."""
-    gates = {
+    gates: dict[str, bool | None] = {
         "requirement_confirmed": False,
         "plan_approved": False,
         "orchestration_ready": False,
     }
-    for event in event_store.read_all():
+    for event in events:
         if event.workflow_id != workflow_id:
             continue
         payload = event.payload if isinstance(event.payload, Mapping) else {}
@@ -80,65 +86,59 @@ def _process_gate_state(
     return gates
 
 
-def _beads_json(repo_path: Path, argv: list[str]) -> Any:
-    """Run one read-only task query on the configured backend; None when it is unavailable or fails."""
-    from .tasks import query
+def _beads_json(repo_path: Path, argv: list[str]) -> tuple[Any, str | None]:
+    """Run one read-only task query on the configured backend: (data, None), or (None, cause) when it fails."""
+    from .tasks import query_result
 
-    return query(repo_path, argv)
+    return query_result(repo_path, argv)
 
 
-def _recorded_epic(event_store: WorkflowEventStore, workflow_id: str) -> str:
+def _recorded_epic(events: Sequence[WorkflowEvent], workflow_id: str) -> str:
     epic = ""
-    for event in event_store.read_all():
+    for event in events:
         payload = event.payload if isinstance(event.payload, Mapping) else {}
         if event.workflow_id == workflow_id and event.event_type == "orchestration.ready" and payload.get("epic"):
             epic = str(payload["epic"])
     return epic
 
 
-def _delivery_gate_state(
-    repo_path: Path, event_store: WorkflowEventStore, workflow_id: str
-) -> dict[str, bool]:
+def _bead_closed(repo_path: Path, bead_id: str) -> tuple[bool, str | None]:
+    shown, cause = _beads_json(repo_path, ["show", bead_id])
+    record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
+    return isinstance(record, Mapping) and record.get("status") == "closed", cause
+
+
+def _delivery_state(
+    repo_path: Path, events: Sequence[WorkflowEvent], workflow_id: str
+) -> tuple[dict[str, bool | None], bool | None, str | None]:
     """Derive delivery gates: implementation from closed epic children, shipped from the closed epic
-    (closed only after a confirmed merge).
+    (closed only after a confirmed merge). A standalone bead recorded as its own epic has no children:
+    implementation is the bead itself closed, and shipped comes from an explicit `record shipped`.
+    A standalone bead also carries its requirement and scope, so it needs no discuss or plan gate.
 
-    A standalone bead recorded as its own epic has no children: implementation is the bead
-    itself closed, and shipped comes from an explicit `record shipped` after the merge."""
-    implemented, shipped = _implementation_and_shipped(repo_path, event_store, workflow_id)
-    return {"implementation_complete": implemented, "shipped": shipped}
-
-
-def _implementation_and_shipped(
-    repo_path: Path, event_store: WorkflowEventStore, workflow_id: str
-) -> tuple[bool, bool]:
-    epic = _recorded_epic(event_store, workflow_id)
+    Returns the gates, whether the epic is standalone, and the tracker failure; None marks a value
+    that failure left unknown."""
+    unknown: dict[str, bool | None] = {"implementation_complete": None, "shipped": None}
+    epic = _recorded_epic(events, workflow_id)
     if not epic:
-        return False, False
-    children = _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
+        return {"implementation_complete": False, "shipped": False}, False, None
+    children, cause = _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
+    if cause:
+        return unknown, None, cause
     if children == []:
-        implemented = _bead_closed(repo_path, epic)
-        return implemented, implemented and any(
-            event.workflow_id == workflow_id and event.event_type == "delivery.shipped"
-            for event in event_store.read_all()
+        closed, cause = _bead_closed(repo_path, epic)
+        if cause:
+            return unknown, True, cause
+        shipped = closed and any(
+            event.workflow_id == workflow_id and event.event_type == "delivery.shipped" for event in events
         )
-    if isinstance(children, list) and children and all(
+        return {"implementation_complete": closed, "shipped": shipped}, True, None
+    if isinstance(children, list) and all(
         isinstance(child, Mapping) and child.get("status") == "closed" for child in children
     ):
-        return True, _bead_closed(repo_path, epic)
-    return False, False
-
-
-def _standalone_requirement(repo_path: Path, event_store: WorkflowEventStore, workflow_id: str) -> bool:
-    """A standalone bead, recorded as its own epic with no children, carries its requirement and
-    scope in its description, so it needs no separate discuss or plan gate."""
-    epic = _recorded_epic(event_store, workflow_id)
-    return bool(epic) and _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"]) == []
-
-
-def _bead_closed(repo_path: Path, bead_id: str) -> bool:
-    shown = _beads_json(repo_path, ["show", bead_id])
-    record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
-    return isinstance(record, Mapping) and record.get("status") == "closed"
+        closed, cause = _bead_closed(repo_path, epic)
+        return {"implementation_complete": True, "shipped": None if cause else closed}, False, cause
+    return {"implementation_complete": False, "shipped": False}, False, None
 
 
 REMOVED_VERIFY_MESSAGE = ("the verify stage and verification_passed gate were removed; quality checks run in git hooks "
@@ -153,21 +153,34 @@ _RECORDABLE_GATES = {
 _PROCESS_GATES = ("requirement-confirmed", "plan-approved", "orchestration-ready")
 
 
+def _record_refusal(
+    repo_path: Path, events: Sequence[WorkflowEvent], args: argparse.Namespace
+) -> tuple[dict[str, Any], int] | None:
+    """The result for a record that the current events and tracker forbid or already hold, else None."""
+    if args.gate in _PROCESS_GATES and _delivery_state(repo_path, events, args.workflow_id)[0]["shipped"]:
+        return {"status": "error", "message": f"workflow {args.workflow_id} is already shipped; "
+                "pass --workflow-id <new-id> for new work"}, 2
+    if args.gate != "shipped":
+        return None
+    if any(event.workflow_id == args.workflow_id and event.event_type == "delivery.shipped" for event in events):
+        return {"status": "already_recorded", "gate": args.gate, "event_type": "delivery.shipped",
+                "workflow_id": args.workflow_id, "message": f"{args.workflow_id} is already shipped"}, 0
+    epic = _recorded_epic(events, args.workflow_id)
+    children, cause = (None, None) if not epic else _beads_json(
+        repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
+    if cause:
+        return {"status": "error", "message": f"shipped not recorded: tracker unavailable: {cause}"}, 2
+    if children != []:
+        return {"status": "error", "message": "shipped is recordable only for a standalone bead recorded as its own "
+                "epic (orchestration-ready --epic <bead>); an epic with children ships by closing it"}, 2
+    return None
+
+
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
     store = _get_event_store(Path(args.repository).resolve())
-    if args.gate in _PROCESS_GATES and _implementation_and_shipped(
-        Path(args.repository).resolve(), store, args.workflow_id
-    )[1]:
-        return {"status": "error", "message": f"workflow {args.workflow_id} is already shipped; "
-                "pass --workflow-id <new-id> for new work"}, 2
-    if args.gate == "shipped":
-        epic = _recorded_epic(store, args.workflow_id)
-        if not epic or _beads_json(Path(args.repository).resolve(), ["list", "--parent", epic, "--all", "--limit", "0"]) != []:
-            return {"status": "error", "message": "shipped is recordable only for a standalone bead recorded as its own "
-                    "epic (orchestration-ready --epic <bead>); an epic with children ships by closing it"}, 2
     actor, team_payload = args.actor, {}
     team = team_for_repo(Path(args.repository).resolve())
     if team is not None:
@@ -195,7 +208,11 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}",
     )
     try:
-        appended = store.append(event)
+        with store.transaction() as tx:
+            refusal = _record_refusal(Path(args.repository).resolve(), tx.events, args)
+            if refusal is not None:
+                return refusal
+            appended = tx.append(event)
     except (EventPersistenceError, RuntimeError, OSError) as error:
         return {"status": "error", "message": f"{args.gate} not recorded for {args.workflow_id}: {error}"}, 1
     return {
@@ -216,28 +233,36 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     workflow_id = getattr(args, "workflow_id", None) or "default-workflow"
     scope_hash = getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path)
 
+    events, log_error = _read_events(event_store)
+    if events is None:
+        gates_state: dict[str, bool | None] = {gate: None for _, gate in _STAGE_GATES}
+        causes, waivers = [log_error], {}
+    else:
+        gates_state = _process_gate_state(events, workflow_id)
+        delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id)
+        gates_state.update(delivery)
+        for gate in ("requirement_confirmed", "plan_approved"):
+            if standalone:
+                gates_state[gate] = True
+            elif standalone is None and not gates_state[gate]:
+                gates_state[gate] = None
+        causes = [f"tracker unavailable: {tracker_error}"] if tracker_error else []
+        waivers = waivers_from_events(events, workflow_id=workflow_id, scope_hash=scope_hash)
+
     state: dict[str, Any] = {
         "workflow_id": workflow_id,
         "audit_event_store": event_store,
         "scope_hash": scope_hash,
-        **_process_gate_state(event_store, workflow_id),
-        **_delivery_gate_state(repo_path, event_store, workflow_id),
+        "waivers": waivers,
+        "unknown_causes": causes,
+        **gates_state,
     }
-    if _standalone_requirement(repo_path, event_store, workflow_id):
-        state["requirement_confirmed"] = state["plan_approved"] = True
-
     decision = route_next_stage(state, config)
-
-    waivers = collect_waivers(event_store, workflow_id=workflow_id, scope_hash=scope_hash)
 
     gates_status: dict[str, str] = {}
     for stage, gate in _STAGE_GATES:
         status = _gate_status(state, gate, waivers)
-        if status == "waived" and gate in waivers:
-            waiver = waivers[gate]
-            gates_status[gate] = f"waived({waiver.reason})"
-        else:
-            gates_status[gate] = status
+        gates_status[gate] = f"waived({waivers[gate].reason})" if status == "waived" else status
 
     catalog_payload = None
     if config.harness:
@@ -257,10 +282,10 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, load_team(config.to_dict()))},
         "extensions": {"orchestrator": orchestrator_client.status()},
-        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()),) if w],
+        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes) if w],
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
-            for event in event_store.read_all()
+            for event in events or ()
             if event.workflow_id == workflow_id and event.event_type == "quick.completed"
         ][-5:],
     }

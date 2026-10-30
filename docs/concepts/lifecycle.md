@@ -16,7 +16,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 
 Every `record` needs `--actor <id>`; in team mode the actor comes from `git config user.email`. One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the spec's topic slug) so gates from different features do not mix; without one, `default-workflow` is used.
 
-`gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing.
+`gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing. It also holds when a gate is `unknown` because the task tracker or the event log cannot be read.
 
 `/roadmap` runs before the stages and records no gate; its epics enter `/discuss <epic-id>`. With `--milestone <id>` it plans a dated milestone over those epics; see the [milestone reference](../reference/cli.md#gin-workflow-milestone) and the [roadmap skill](../reference/skills.md).
 
