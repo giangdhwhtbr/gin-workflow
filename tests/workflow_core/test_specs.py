@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
                             make_change, make_repo, write)
-from workflow_core import specs, specs_reqs, specs_trace  # noqa: E402
+from workflow_core import docs_check, specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
 
@@ -206,7 +206,7 @@ class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
         with tempfile.TemporaryDirectory() as directory:
             root = make_repo(Path(directory), layout="legacy")
-            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md"):
+            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "readme.md", "runbook.md", "changelog.md"):
                 with self.subTest(name=name):
                     self.assertEqual(0, run_specs(root, "template", name).returncode)
             self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
@@ -214,6 +214,16 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("Depends on:", run_specs(root, "template", "roadmap.md").stdout)
             write(root, ".agent-workflow/templates/user-story.md", "### Story {{n}}\n")
             self.assertEqual("### Story {{n}}\n", run_specs(root, "template", "user-story.md").stdout)
+
+    def test_doc_templates_pass_docs_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            values = {"title": "Example", "version": "1.0.0", "date": "2026-10-30"}
+            for name in ("readme.md", "runbook.md", "adr.md", "changelog.md"):
+                with self.subTest(name=name):
+                    text = specs.render(specs.template_text(root, name), values)
+                    required = docs_check.required_sections(root, name)
+                    self.assertEqual([], docs_check.page_findings(root / name, text, required))
 
     def test_exit_codes_and_layout_guard(self):
         with tempfile.TemporaryDirectory() as directory:
