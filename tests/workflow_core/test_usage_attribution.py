@@ -121,21 +121,34 @@ class AttributeTests(unittest.TestCase):
     def test_workflow_without_an_epic_owns_its_records(self):
         self.assertEqual(self.run_one(rec(0.5), epic_of={}), {("wf", "discuss"): 1})
 
-    def test_after_the_last_gate_ship_while_collecting_a_verified_epic(self):
+    def test_ship_after_the_last_track_closes_while_collecting_the_epic(self):
+        self.gates = self.gates[:3]
         self.assertEqual(self.run_one(rec(13), collecting="ep1"), {("ep1", "ship"): 1})
+        self.assertEqual(self.run_one(rec(10.75), collecting="ep1"), {(UNATTRIBUTED, ""): 1})
         self.assertEqual(self.run_one(rec(13)), {(UNATTRIBUTED, ""): 1})
         self.assertEqual(self.run_one(rec(13), collecting="other"), {(UNATTRIBUTED, ""): 1})
 
+    def test_ship_despite_another_workflow_gate_during_execution(self):
+        self.gates = self.gates[:3] + [Gate(at(5), "q1", "quick")]
+        self.assertEqual(self.run_one(rec(13), collecting="ep1"), {("ep1", "ship"): 1})
+
+    def test_ship_after_a_verify_gate_recorded_before_it_was_removed(self):
+        self.assertEqual(self.run_one(rec(13), collecting="ep1"), {("ep1", "ship"): 1})
+
     def test_ship_only_while_the_epic_holds_the_latest_gate_and_until_it_closes(self):
+        self.gates = self.gates[:3]
         later = self.gates + [Gate(at(14), "wf2", "discuss")]
         self.assertEqual(self.run_one(rec(15), collecting="ep1", gates=later), {(UNATTRIBUTED, ""): 1})
         self.spans["ep1"] = BeadSpan("ep1", None, None, at(16))
         self.assertEqual(self.run_one(rec(15), collecting="ep1"), {("ep1", "ship"): 1})
         self.assertEqual(self.run_one(rec(17), collecting="ep1"), {(UNATTRIBUTED, ""): 1})
 
-    def test_not_verified_epic_does_not_take_ship(self):
+    def test_no_ship_while_a_track_is_open_or_before_any_track(self):
         self.gates = self.gates[:3]
-        self.assertEqual(self.run_one(rec(5), collecting="ep1"), {(UNATTRIBUTED, ""): 1})
+        self.spans["ep1.2"] = BeadSpan("ep1.2", "ep1", at(10.5), None)
+        self.assertEqual(self.run_one(rec(13), collecting="ep1"), {(UNATTRIBUTED, ""): 1})
+        self.assertEqual(self.run_one(rec(5), collecting="ep1", spans={"ep1": self.spans["ep1"]}),
+                         {(UNATTRIBUTED, ""): 1})
 
 
 class WorktreeListTests(unittest.TestCase):
