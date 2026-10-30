@@ -131,13 +131,14 @@ def attribute(records: Iterable[UsageRecord], *, repo: Path, spans: Mapping[str,
     gates = sorted(gates, key=lambda gate: gate.ts)
     owner_of = lambda workflow: epic_of.get(workflow, workflow)  # noqa: E731
     ship: tuple[datetime, datetime] | None = None
-    if collecting is not None and gates:
-        # Ship is the collecting epic's own work after its verification, while that is still the latest gate
-        # in the repository and until the epic closes; otherwise every verified epic would claim the same records.
-        last = gates[-1]
-        if owner_of(last.workflow_id) == collecting and last.stage == "verify":
+    if collecting is not None and gates and owner_of(gates[-1].workflow_id) == collecting:
+        # Ship is the collecting epic's own work after implementation completes (its last track closes), while
+        # the epic still holds the latest gate in the repository and until it closes; otherwise every finished
+        # epic would claim the same records.
+        tracks = [span for span in spans.values() if span.parent == collecting]
+        if tracks and all(span.end is not None for span in tracks):
             span = spans.get(collecting)
-            ship = (last.ts, span.end if span is not None and span.end is not None else now)
+            ship = (max(track.end for track in tracks), span.end if span is not None and span.end is not None else now)
     groups: dict[tuple[str, str], list[UsageRecord]] = {}
     for record in records:
         key = _key(record, repo, spans, trees, gates, owner_of, collecting, ship, now)
