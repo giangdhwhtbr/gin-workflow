@@ -421,6 +421,10 @@ def parse_args():
     p_trans_req.add_argument("--actor-id", required=True)
     p_trans_req.add_argument("--lease-id")
 
+    # Push refs
+    p_push = subparsers.add_parser("push-refs", help="Force-push every repository's review ref of a ledger to origin.")
+    p_push.add_argument("--bead-id", required=True)
+
     # Cleanup
     p_clean = subparsers.add_parser("cleanup", help="Clean up stale review ledgers and their review refs for closed or merged beads.")
     p_clean.add_argument("--repository", default=".", help="Path to repository root.")
@@ -796,6 +800,16 @@ def main():
             print(f"Total Findings: {len(proj.findings)}")
             unresolved = [fid for fid, f in proj.findings.items() if f.status not in TERMINAL_FINDING_STATUSES]
             print(f"Unresolved Findings: {len(unresolved)} ({', '.join(unresolved)})")
+
+        elif args.command == "push-refs":
+            _, proj = load_ledger(args.bead_id)
+            for repo in proj.repositories:
+                repo_path, ref = repo.get("repository_path", "."), review_ref_of(repo, args.bead_id)
+                try:
+                    push_review_ref(repo_path, ref)
+                except GitAdapterError as error:
+                    raise ValueError(f"push-refs failed for repository '{repo.get('repository_id', 'primary')}' ref {ref}: {error}") from error
+                print(f"{args.bead_id}: pushed {ref} from {repo_path}")
 
         elif args.command == "cleanup":
             repo_root = Path(args.repository).resolve()
