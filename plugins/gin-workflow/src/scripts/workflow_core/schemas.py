@@ -278,8 +278,8 @@ WORKFLOW_EVENT_SCHEMA: dict[str, Any] = {
         "payload": {"type": "object"},
         "actor": {"type": "string", "minLength": 1},
         "idempotency_key": {"type": "string", "minLength": 1},
+        "schema_version": {"type": "integer", "minimum": 1},
     },
-    "additionalProperties": False,
 }
 
 _CONTEXT_CATEGORY_SCHEMA = {"type": "array", "items": {}}
