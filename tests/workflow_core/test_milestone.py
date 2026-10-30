@@ -227,7 +227,7 @@ class PayloadTests(unittest.TestCase):
                        bead("C", parent="m2", minutes=days(1)))
         bad, good = milestone.list_payload(beads, TODAY, False)["milestones"]
         self.assertIn("not an ISO date", bad["error"])
-        self.assertEqual((None, None, None), (bad["status"], bad["finish"], bad["warnings"]))
+        self.assertEqual(("planned", None, None), (bad["status"], bad["finish"], bad["warnings"]))
         self.assertIsNone(good["error"])
         self.assertIsNotNone(good["status"])
         self.assertIsNotNone(good["finish"])

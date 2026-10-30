@@ -160,7 +160,8 @@ def list_payload(beads: Beads, today: date, include_closed: bool) -> dict[str, A
             continue
         meta = _meta(milestone)
         epics = epics_of(milestone["id"], beads)
-        entry = {"id": milestone["id"], "title": milestone.get("title", ""), "status": None,
+        entry = {"id": milestone["id"], "title": milestone.get("title", ""),
+                 "status": "closed" if milestone.get("status") == "closed" else "planned",
                  "start": meta.get("start"), "end": meta.get("end"), "kickoff": meta.get("kickoff"),
                  "finish": None, "epics": {"total": len(epics),
                                            "closed": sum(epic.get("status") == "closed" for epic in epics)},

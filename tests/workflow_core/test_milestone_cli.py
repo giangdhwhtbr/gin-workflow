@@ -164,6 +164,17 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertIn("t-m1", out)
         self.assertIn("unassigned roadmap epics: 0", out)
 
+    def test_req_011_list_text_with_bad_kickoff(self):
+        self.bd("create", "Bad", "--id", "t-bad", "--type", "milestone",
+                "--metadata", '{"start":"2026-11-02","end":"2026-11-04","kickoff":"garbage"}')
+        self.bd("create", "Good", "--id", "t-good", "--type", "milestone",
+                "--metadata", '{"start":"2026-12-01","end":"2026-12-31"}')
+        code, out, err = self.run_cli("list")
+        self.assertEqual(0, code, err)
+        self.assertIn("t-bad", out)
+        self.assertIn("t-good", out)
+        self.assertIn("error:", out)
+
     def test_usage_error_exits_2(self):
         code, _, _ = self.run_cli("show")
         self.assertEqual(2, code)
