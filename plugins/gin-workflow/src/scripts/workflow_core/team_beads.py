@@ -49,7 +49,7 @@ def ready(root: Path, team: TeamConfig, member: Member) -> list[dict[str, Any]]:
     if held is None:
         raise TeamError("bd ready --explain failed, so external dependencies cannot be checked")
     result = []
-    for issue in tasks.without_held(_bd_json(root, ["ready"]), held):
+    for issue in tasks.without_held(_bd_json(root, ["ready", "--exclude-type", "milestone"]), held):
         assignee = (issue.get("assignee") or "").lower()
         areas = {label[5:] for label in issue.get("labels") or [] if label.startswith("area:")}
         if assignee == member.email or (not assignee and (areas & mine or (not areas and not team.areas))):

@@ -175,6 +175,124 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertIn("t-good", out)
         self.assertIn("error:", out)
 
+    def show(self, bead_id):
+        return json.loads(self.bd("show", bead_id, "--json"))[0]
+
+    def seed_writes(self):
+        self.bd("create", "M1", "--id", "t-m1", "--type", "milestone",
+                "--metadata", '{"start":"2026-11-02","end":"2026-11-30"}')
+        self.bd("create", "M2", "--id", "t-m2", "--type", "milestone",
+                "--metadata", '{"start":"2026-12-01","end":"2026-12-31"}')
+        self.bd("create", "MC", "--id", "t-mc", "--type", "milestone",
+                "--metadata", '{"start":"2026-01-01","end":"2026-01-31"}')
+        self.epic("t-a", "A", "t-m1")
+        self.epic("t-ac", "AC", "t-mc")
+        self.bd("create", "task", "--id", "t-task", "--type", "task")
+        self.bd("create", "E0", "--id", "t-e0", "--type", "epic")
+        self.epic("t-x", "X", "t-e0")
+
+    def refused(self, *argv):
+        before = self.bd("list", "--all", "--limit", "0", "--json")
+        code, _, err = self.run_cli(*argv)
+        self.assertEqual(1, code, err)
+        self.assertEqual(before, self.bd("list", "--all", "--limit", "0", "--json"))
+        return err
+
+    def test_req_001_create(self):
+        code, out, err = self.run_cli("create", "M1", "--start", "2026-11-02", "--end", "2026-12-18")
+        self.assertEqual(0, code, err)
+        bead = self.show(out.strip())
+        self.assertEqual("milestone", bead["issue_type"])
+        self.assertEqual({"start": "2026-11-02", "end": "2026-12-18"}, bead["metadata"])
+        self.assertFalse(bead.get("labels"))
+        code, shown, _ = self.run_cli("show", bead["id"], "--json")
+        self.assertEqual("planned", json.loads(shown)["status"])
+
+    def test_req_001_create_refusals(self):
+        err = self.refused("create", "M1", "--start", "2026-12-18", "--end", "2026-11-02")
+        self.assertIn("2026-12-18", err)
+        self.assertIn("2026-11-02", err)
+        self.refused("create", "M1", "--start", "2026-13-01", "--end", "2026-12-18")
+
+    def test_req_002_update(self):
+        self.seed_writes()
+        code, _, err = self.run_cli("update", "t-m1", "--end", "2027-01-15")
+        self.assertEqual(0, code, err)
+        self.assertEqual({"start": "2026-11-02", "end": "2027-01-15"}, self.show("t-m1")["metadata"])
+        self.refused("update", "t-m1", "--start", "2027-02-01")
+        self.bd("close", "t-ac")
+        self.bd("close", "t-mc")
+        self.refused("update", "t-mc", "--title", "Y")
+        self.refused("update", "t-a", "--title", "X")
+
+    def test_req_003_kickstart(self):
+        self.seed_writes()
+        self.assertEqual(0, self.run_cli("kickstart", "t-m1", "--date", "2026-11-16")[0])
+        self.assertEqual("2026-11-16", self.show("t-m1")["metadata"]["kickoff"])
+        status = lambda: json.loads(self.run_cli("show", "t-m1", "--json")[1])["status"]
+        self.assertEqual("scheduled", status())
+        self.assertEqual(0, self.run_cli("kickstart", "t-m1", "--date", "2026-10-26")[0])
+        self.assertEqual("active", status())
+        self.assertEqual(0, self.run_cli("kickstart", "t-m1")[0])
+        self.assertEqual({"start": "2026-11-02", "end": "2026-11-30", "kickoff": "2026-10-29"},
+                         self.show("t-m1")["metadata"])
+        self.bd("close", "t-ac")
+        self.bd("close", "t-mc")
+        self.refused("kickstart", "t-mc")
+
+    def test_req_005_move(self):
+        self.seed_writes()
+        self.assertEqual(0, self.run_cli("move", "t-a", "--to", "t-m2")[0])
+        self.assertEqual("t-m2", self.show("t-a")["parent"])
+        self.assertEqual(0, self.run_cli("move", "t-a", "--to", "none")[0])
+        self.assertIsNone(self.show("t-a").get("parent"))
+        self.refused("move", "t-a", "t-task", "--to", "t-m1")
+        self.refused("move", "t-a", "--to", "t-task")
+        self.assertIn("t-e0", self.refused("move", "t-x", "--to", "t-m1"))
+        self.bd("close", "t-ac")
+        self.bd("close", "t-mc")
+        self.refused("move", "t-ac", "--to", "t-m2")
+        self.refused("move", "t-ac", "--to", "none")
+        self.refused("move", "t-a", "--to", "t-mc")
+        self.epic("t-b", "B", "t-m1")
+        self.bd("close", "t-b")
+        self.assertEqual(0, self.run_cli("move", "t-b", "--to", "t-m2")[0])
+
+    def test_req_005_partial_move_names_moved_and_failed(self):
+        self.seed_writes()
+        self.epic("t-b", "B", "t-m1")
+        real, calls = milestone_cli._bd, []
+
+        def flaky(root, argv, actor=""):
+            if argv[0] == "update":
+                calls.append(argv)
+                if len(calls) == 2:
+                    raise milestone_cli.MilestoneError("boom")
+            return real(root, argv, actor)
+
+        with mock.patch.object(milestone_cli, "_bd", flaky):
+            code, _, err = self.run_cli("move", "t-a", "t-b", "--to", "t-m2")
+        self.assertEqual(1, code)
+        self.assertIn("moved t-a", err)
+        self.assertIn("t-b failed", err)
+
+    def test_req_006_estimate(self):
+        self.seed_writes()
+        self.assertEqual(0, self.run_cli("estimate", "t-a", "5")[0])
+        self.assertEqual(2400, self.show("t-a")["estimated_minutes"])
+        for bad in ("0", "-1", "1.5", "x"):
+            self.assertEqual(1, self.run_cli("estimate", "t-a", bad)[0])
+            self.assertEqual(2400, self.show("t-a")["estimated_minutes"])
+        self.refused("estimate", "t-m1", "3")
+
+    def test_req_010_close(self):
+        self.seed_writes()
+        self.assertIn("t-a", self.refused("close", "t-m1"))
+        self.assertEqual("open", self.show("t-m1")["status"])
+        self.bd("close", "t-a")
+        self.assertEqual(0, self.run_cli("close", "t-m1")[0])
+        self.assertEqual("closed", self.show("t-m1")["status"])
+
     def test_usage_error_exits_2(self):
         code, _, _ = self.run_cli("show")
         self.assertEqual(2, code)

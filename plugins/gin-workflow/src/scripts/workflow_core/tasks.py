@@ -143,6 +143,8 @@ def query(root: Path, argv: Sequence[str]) -> Any:
     executable = shutil.which("bd")
     if executable is None:
         return None
+    if argv[:1] == ["ready"]:
+        argv = [*argv, "--exclude-type", "milestone"]
     try:
         completed = subprocess.run(
             [executable, *argv, "--json"], cwd=root, text=True, capture_output=True, check=False, timeout=30
@@ -182,5 +184,5 @@ def main(argv: Sequence[str]) -> int:
               "(gin-workflow setup configure --set providers.task_tracking=markdown)", file=sys.stderr)
         return 127
     if argv[:1] == ["ready"]:
-        return _ready(executable, argv)
+        return _ready(executable, [*argv, "--exclude-type", "milestone"])
     return subprocess.run([executable, *argv], check=False, env=_bd_env(root, argv)).returncode
