@@ -159,7 +159,7 @@ Checks Markdown pages against the mechanical rules of the `docs` rule pack. Fenc
 
 Each finding prints as `<file>:<line>: <rule>`, or `<file>: missing section: <heading>`. `--template` resolves like `specs template`, so a project override in `.agent-workflow/templates/` applies.
 
-Exit codes: 0 no findings; 1 findings; 2 a file does not exist or the template is unknown.
+Exit codes: 0 no findings; 1 findings; 2 a file does not exist or is not UTF-8, or the template is unknown.
 
 ## `gin-workflow team`
 

@@ -46,6 +46,12 @@ class TestPageFindings(unittest.TestCase):
         text = "# Title\n```\nA — dash {{x}} TODO [l](missing.md)\n```\nUse `{{name}}` and `TODO` and `[l](missing.md)`.\n"
         self.assertEqual([], self.findings(text))
 
+    def test_tilde_fence_is_not_checked(self):
+        self.assertEqual([], self.findings("~~~\nA — dash\n~~~\n"))
+
+    def test_uppercase_scheme_is_external(self):
+        self.assertEqual([], self.findings("[b](HTTP://example.com/x)\n"))
+
     def test_live_external_and_anchor_links_pass(self):
         self.assertEqual([], self.findings("[a](other.md#top) [b](https://example.com/x.md) [c](#local)\n"))
 
@@ -85,6 +91,14 @@ class TestCli(unittest.TestCase):
             self.assertEqual(2, unknown.returncode)
             self.assertIn("unknown template", unknown.stderr)
             self.assertFalse((root / ".agent-workflow").exists())
+
+    def test_non_utf8_file_exits_2(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "bin.md").write_bytes(b"\xff")
+            result = run_docs(root, "bin.md")
+            self.assertEqual(2, result.returncode)
+            self.assertIn("not utf-8: bin.md", result.stderr)
 
 
 if __name__ == "__main__":

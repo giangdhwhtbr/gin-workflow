@@ -24,7 +24,7 @@ def _prose(text: str) -> Iterator[tuple[int, str]]:
     """Numbered lines outside fenced code blocks."""
     fenced = False
     for number, line in enumerate(text.splitlines(), 1):
-        if line.lstrip().startswith("```"):
+        if line.lstrip().startswith(("```", "~~~")):
             fenced = not fenced
             continue
         if not fenced:
@@ -53,7 +53,7 @@ def page_findings(page: Path, text: str, required: Sequence[str] = ()) -> list[s
             found.append(f"{page}:{number}: placeholder")
         for target in LINK.findall(prose):
             path = target.split("#", 1)[0]
-            if path and not re.match(r"[a-z]+:", path) and not (page.parent / path).exists():
+            if path and not re.match(r"[a-z]+:", path, re.I) and not (page.parent / path).exists():
                 found.append(f"{page}:{number}: dead link")
     lines = {line.rstrip() for line in text.splitlines()}
     return found + [f"{page}: missing section: {heading}" for heading in required if heading not in lines]
@@ -81,8 +81,14 @@ def main(arguments: Sequence[str] | None = None) -> int:
     except specs.SpecsError as error:
         print(error, file=sys.stderr)
         return 2
-    found = [item for path in args.files
-             for item in page_findings(path, path.read_text(encoding="utf-8"), required)]
+    texts = {}
+    for path in args.files:
+        try:
+            texts[path] = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"not utf-8: {path}", file=sys.stderr)
+            return 2
+    found = [item for path in args.files for item in page_findings(path, texts[path], required)]
     if args.format == "json":
         print(json.dumps({"status": "findings" if found else "ok", "findings": found}, indent=2, sort_keys=True))
     else:
