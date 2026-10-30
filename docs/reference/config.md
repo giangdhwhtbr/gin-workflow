@@ -163,7 +163,7 @@ A configured harness entry replaces that harness's built-in entry as a whole. `m
 
 ### `team`
 
-Present only in team mode ([guide](../guides/team.md)). Keys: `host` (`github` or `gitlab`), `commit_convention` (`conventional` or `none`), `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals`, and `beads_sync.remote`. `approvals` maps a gate (`requirement_confirmed`, `plan_approved`, `ship`, `roadmap`) to a role list. `plan_approved` may be `area_lead` instead, and `roadmap` gates the `/roadmap` pull request.
+Present only in team mode ([guide](../guides/team.md)). Keys: `host` (`github` or `gitlab`), `commit_convention` (`conventional` or `none`), `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals`, and `beads_sync.remote`. `approvals` maps a gate (`requirement_confirmed`, `plan_approved`, `ship`, `roadmap`) to a role list. `plan_approved` may be `area_lead` instead, and `roadmap` gates the `/roadmap` pull request. `permissions.milestone` lists the roles allowed to run `gin-workflow milestone` writes; unset means any member. Every listed role must be held by a member. Update gin-workflow for every member before adding `permissions`, because an older version rejects the key.
 
 ### `qa`
 

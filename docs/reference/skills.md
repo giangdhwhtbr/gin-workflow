@@ -47,7 +47,7 @@ Stages load these when needed; you can also invoke them directly.
 | `migrate-specs` | Move a legacy `.planning` specs and plans layout into the SDD `docs/` layout |
 | `beads-migration` | Move a repository's `.beads` directory into `~/gin-beads/<repo>` and symlink it back |
 | `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing) from repository evidence, or reground existing pages against the code, on request only |
-| `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics; reconcile both on re-run |
+| `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics; reconcile both on re-run; `--milestone <id>` plans a dated milestone |
 
 ## gin-qa (optional add-on)
 
