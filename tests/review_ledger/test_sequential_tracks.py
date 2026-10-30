@@ -52,9 +52,9 @@ class SequentialTracks(unittest.TestCase):
         self.git("commit", "-qm", message)
         return self.git("rev-parse", "HEAD").strip()
 
-    def approve_track(self, bead, base):
+    def approve_track(self, bead, base, *init_args):
         self.ok("init", "--bead-id", bead, "--repo-id", "r", "--repo-path", ".",
-                "--review-ref", f"refs/gin/review/{bead}", "--base-sha", base, "--actor-id", "w1")
+                "--review-ref", f"refs/gin/review/{bead}", "--base-sha", base, "--actor-id", "w1", *init_args)
         self.ok("checkpoint", "--bead-id", bead, "--repo-id", "r", "--commit-msg", "cp", "--actor-id", "w1")
         self.ok("transition-requested", "--bead-id", bead, "--to", "review-requested", "--actor-id", "w1")
         lease = self.ok("start-review", "--bead-id", bead, "--actor-role", "reviewer",
@@ -87,6 +87,72 @@ class SequentialTracks(unittest.TestCase):
         self.commit("README.md", "x\n", "unrelated")
         self.git("merge", "-q", "--no-edit", feature)
         self.assertIn(commit_a, self.ok("validate", "--bead-id", "bead-a", "--in-history"))
+
+    def squash_into_main_line(self):
+        feature = self.git("branch", "--show-current").strip()
+        self.git("checkout", "-qb", "main-line", self.base)
+        self.git("merge", "-q", "--squash", feature)
+        self.git("add", "-A")
+        self.git("commit", "-qm", "squashed feature")
+        return self.git("rev-parse", "HEAD").strip()
+
+    def test_in_history_survives_a_squash_merge(self):
+        self.two_tracks()
+        squashed = self.squash_into_main_line()
+        self.assertIn(squashed, self.ok("validate", "--bead-id", "bead-b", "--in-history"))
+        result = self.ok("validate", "--bead-id", "bead-a", "--in-history")
+        self.assertIn("review base of bead-b", result)
+        self.assertIn(squashed, result)
+
+    def fresh_clone_after_squash(self, *pushed_refs):
+        origin = tempfile.mkdtemp()
+        clone = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, origin)
+        self.addCleanup(shutil.rmtree, clone)
+        subprocess.run(["git", "init", "-q", "--bare", origin], check=True)
+        self.git("remote", "add", "origin", origin)
+        self.two_tracks()
+        self.git("push", "-q", "origin", *pushed_refs)
+        self.squash_into_main_line()
+        self.git("push", "-q", "origin", "main-line")
+        subprocess.run(["git", "clone", "-q", "--no-local", "--branch", "main-line", origin, clone], check=True)
+        return clone
+
+    def validate_in(self, clone, bead):
+        return subprocess.run([sys.executable, LEDGER, "validate", "--bead-id", bead, "--in-history"],
+                              cwd=clone, capture_output=True, text=True)
+
+    def test_a_fresh_clone_fetches_the_review_bases_after_a_squash_merge(self):
+        clone = self.fresh_clone_after_squash("refs/gin/review/bead-a", "refs/gin/review/bead-b")
+        for bead in ("bead-a", "bead-b"):
+            result = self.validate_in(clone, bead)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_a_fresh_clone_names_the_review_ref_it_could_not_fetch(self):
+        clone = self.fresh_clone_after_squash("refs/gin/review/bead-a")
+        result = self.validate_in(clone, "bead-a")
+        self.assertNotEqual(0, result.returncode, result.stdout)
+        self.assertIn("refs/gin/review/bead-b", result.stderr)
+
+    def test_squash_merge_fails_when_source_changed_after_the_last_approval(self):
+        self.two_tracks()
+        self.commit("src/a.py", "a = 5\n", "unreviewed change")
+        self.squash_into_main_line()
+        for bead in ("bead-a", "bead-b"):
+            result = self.cli("validate", "--bead-id", bead, "--in-history")
+            self.assertNotEqual(0, result.returncode, result.stdout)
+            self.assertIn("no commit", result.stderr)
+
+    def test_an_earlier_ledger_does_not_vouch_for_a_later_unmerged_track(self):
+        self.commit("src/b.py", "b = 1\n", "track Y")
+        self.approve_track("bead-y", self.base)
+        moved = self.commit("src/a.py", "a = 2\n", "main moves on")
+        self.write("src/a.py", "a = 1\n")
+        self.approve_track("bead-x", moved, "--include", "src/a.py")
+        self.git("checkout", "--", "src/a.py")
+        result = self.cli("validate", "--bead-id", "bead-x", "--in-history")
+        self.assertNotEqual(0, result.returncode, result.stdout)
+        self.assertIn("bead-y (its review base", result.stderr)
 
     def test_in_history_fails_when_reviewed_source_never_reached_the_branch(self):
         self.write("src/a.py", "a = 99\n")

@@ -292,20 +292,52 @@ def find_reviewed_commit(
     """The first commit from the review base to HEAD whose source matches an approved tree hash.
 
     Sequential tracks on one branch each approve an earlier state of the branch; this proves that state
-    reached HEAD's history without requiring the working tree to still equal it.
+    reached HEAD's history without requiring the working tree to still equal it. A squash merge leaves the
+    review base off HEAD's history, so the search then starts where the two histories diverged.
     """
     root = str(_repository_root(repo_path))
     base = _resolve_commit(root, base_sha)
     head = _resolve_commit(root, "HEAD")
     try:
         _run_git(root, "merge-base", "--is-ancestor", base, head)
-    except GitAdapterError as error:
-        raise GitAdapterError(f"review base {base} is not an ancestor of HEAD") from error
-    later = _run_git(root, "rev-list", "--reverse", f"{base}..{head}").decode().split()
-    for commit in (base, *later):
+        start = base
+    except GitAdapterError:
+        try:
+            start = _run_git(root, "merge-base", base, head).decode().strip()
+        except GitAdapterError as error:
+            raise GitAdapterError(f"review base {base} is not an ancestor of HEAD and shares no history with it") from error
+    later = _run_git(root, "rev-list", "--reverse", f"{start}..{head}").decode().split()
+    for commit in (start, *later):
         if compute_commit_source_tree_hash(repository_id, root, scope, commit) == source_tree_hash:
             return commit
     raise GitAdapterError(f"no commit between review base {base} and HEAD matches the approved source tree")
+
+
+def ensure_review_commit(repo_path: str, sha: str, review_ref: str) -> None:
+    """Fetch review_ref from origin when sha is missing locally.
+
+    The checkpoint commit on that ref has the review base as its parent, so a clone without the deleted
+    feature branch of a squash merge gets the base back; an invalid ref or a failed fetch raises GitAdapterError.
+    """
+    root = str(_repository_root(repo_path))
+    try:
+        _resolve_commit(root, sha)
+        return
+    except GitAdapterError:
+        pass
+    _validate_review_ref(root, review_ref)
+    _run_git(root, "fetch", "origin", f"{review_ref}:{review_ref}")
+
+
+def is_ancestor(repo_path: str, ancestor: str, descendant: str) -> bool:
+    """Whether ancestor is reachable from descendant; an unknown commit raises GitAdapterError."""
+    root = str(_repository_root(repo_path))
+    ancestor, descendant = _resolve_commit(root, ancestor), _resolve_commit(root, descendant)
+    try:
+        _run_git(root, "merge-base", "--is-ancestor", ancestor, descendant)
+    except GitAdapterError:
+        return False
+    return True
 
 
 def create_source_checkpoint(
