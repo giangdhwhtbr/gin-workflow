@@ -31,7 +31,7 @@ health --provider {claude,codex,antigravity,opencode} --executable PATH [--model
 {"available": true, "reason": "ready"}
 ```
 
-`available` is whether the provider CLI is usable. `reason` is the short machine-readable explanation (`ready`, `executable_or_help_unavailable`, `required_flags_unverified`, `invalid_model`, and so on). Without `--model` the command only checks the executable and its help text; with `--model` it also probes the model, and `--effort` applies to `codex` only. An unknown provider exits 2 (argparse choices).
+`available` is whether the provider CLI is usable. `reason` is the short machine-readable explanation (`ready`, `executable_or_help_unavailable`, `required_flags_unverified`, `invalid_model`, and so on). Without `--model` the command only checks the executable and its help text; with `--model` it also probes the model, and `--effort` applies to `claude` and `codex`, whose help must then list the effort flag. An unknown provider exits 2 (argparse choices).
 
 ## `models`
 

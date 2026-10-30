@@ -99,8 +99,9 @@ class AssignmentManifest:
 def validate_plan_assignments(
     tasks: Sequence[Mapping[str, Any] | AssignmentRequest],
     config: Mapping[str, Any],
+    harness: str | None = None,
 ) -> list[str]:
-    """Validate portable role, model, and effort guidance against the configured catalog."""
+    """Validate portable role, model, and effort guidance against the main harness's catalog."""
     config_dict = config.to_dict() if hasattr(config, "to_dict") else dict(config)
     routing = config_dict.get("routing", {}) if isinstance(config_dict, Mapping) else {}
     roles = routing.get("roles", {}) if isinstance(routing, Mapping) else {}
@@ -110,7 +111,7 @@ def validate_plan_assignments(
         orchestrator_roles.keys() if isinstance(orchestrator_roles, Mapping) else ()
     )
 
-    harness = config_dict.get("harness") or "claude"
+    harness = harness or config_dict.get("harness") or "claude"
     try:
         catalog = catalog_for(config_dict, harness)
     except KeyError:

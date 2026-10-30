@@ -51,20 +51,21 @@ def build_claude_invocation(
     prompt: str,
     *,
     timeout_seconds: float = 900,
+    effort: str | None = None,
 ) -> NativeCliInvocation:
+    argv = [executable, "-p", "--model", model]
+    if effort is not None:
+        argv.extend(["--effort", effort])
+    argv.extend([
+        "--output-format",
+        "json",
+        "--permission-mode",
+        "acceptEdits",
+        "--allowedTools",
+        ",".join(SCOPED_BASH_ALLOWLIST),
+    ])
     return NativeCliInvocation(
-        (
-            executable,
-            "-p",
-            "--model",
-            model,
-            "--output-format",
-            "json",
-            "--permission-mode",
-            "acceptEdits",
-            "--allowedTools",
-            ",".join(SCOPED_BASH_ALLOWLIST),
-        ),
+        tuple(argv),
         workspace,
         prompt.encode("utf-8"),
         timeout_seconds,
@@ -78,12 +79,14 @@ def claude_health(
     model: str | None = None,
     native_runner: NativeCliRunner | None = None,
     workspace: Path | None = None,
+    effort: str | None = None,
 ) -> NativeHealth:
     help_text = probe_help(executable, "--help") if help_text is None else help_text
     if help_text is None:
         return NativeHealth(False, "executable_or_help_unavailable", False)
     supported = (
         "--model" in help_text and "--output-format" in help_text and "--allowedTools" in help_text
+        and (effort is None or "--effort" in help_text)
     )
     health = NativeHealth(supported, "ready" if supported else "required_flags_unverified", supported)
     if not supported or model is None or native_runner is None or workspace is None:
@@ -96,6 +99,7 @@ def claude_health(
                 workspace,
                 MODEL_PROBE_PROMPT,
                 timeout_seconds=MODEL_PROBE_TIMEOUT_SECONDS,
+                effort=effort,
             )
         )
     except NativeCliError as error:
@@ -116,6 +120,7 @@ class ClaudeWorkerAdapter(SynchronousWorkerAdapter):
         model: str | None = None,
         workspace: Path | None = None,
         timeout_seconds: float = 900,
+        effort: str | None = None,
     ) -> None:
         cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
@@ -127,6 +132,7 @@ class ClaudeWorkerAdapter(SynchronousWorkerAdapter):
                     Path(workspace),
                     prompt,
                     timeout_seconds=timeout_seconds,
+                    effort=effort,
                 ),
             )
         super().__init__(

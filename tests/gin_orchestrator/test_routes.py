@@ -102,6 +102,19 @@ class ProviderRoutesTests(unittest.TestCase):
             self.assertEqual("codex", opus_routes[0].provider)
             self.assertEqual("xhigh", opus_routes[0].effort)
 
+    def test_batch_resolution_checks_models_against_the_requests_main_harness(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cfg = EffectiveConfig(
+                {"schema_version": "2.9",
+                 "routing": {"roles": {"backend": {"preferred": ["codex"], "fallback": []}}}},
+                Path(directory),
+            )
+            requests = (AssignmentRequest("t1", "backend", "gpt-6-astra", "high", "codex", "wf-codex"),)
+
+            manifests = resolve_all_assignments(requests, cfg, local())
+
+            self.assertEqual("gpt-6-astra", manifests[0].request.model)
+
     def test_batch_resolution_fails_before_any_manifest_write(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

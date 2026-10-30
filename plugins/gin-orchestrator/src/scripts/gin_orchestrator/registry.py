@@ -306,11 +306,11 @@ class ProviderRegistry:
                     "workspace": workspace_path,
                     "timeout_seconds": timeout_seconds,
                 }
+                if candidate.provider in ("claude", "codex") and candidate.effort is not None:
+                    options["effort"] = candidate.effort
                 if candidate.provider == "claude":
                     return ClaudeWorkerAdapter(**options)
                 if candidate.provider == "codex":
-                    if candidate.effort is not None:
-                        options["effort"] = candidate.effort
                     return CodexWorkerAdapter(**options)
                 if candidate.provider == "antigravity":
                     return AntigravityWorkerAdapter(**options)
@@ -353,7 +353,7 @@ class ProviderRegistry:
                                     "native_runner": runner,
                                     "workspace": probe_workspace,
                                 }
-                                if provider == "codex" and effort is not None:
+                                if provider in ("claude", "codex") and effort is not None:
                                     probe_kwargs["effort"] = effort
                                 health_cache[key] = builder(
                                     resolved_exe,

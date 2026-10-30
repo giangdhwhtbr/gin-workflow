@@ -117,7 +117,7 @@ def resolve(
         for t in tracks
         if isinstance(orchestrator_roles, Mapping) and t.get("provider_role") in orchestrator_roles
     }
-    raw_diagnostics = validate_plan_assignments(tracks, config)
+    raw_diagnostics = validate_plan_assignments(tracks, config, harness)
     for diag in raw_diagnostics:
         if any(f"track {tid}: unknown provider role:" in diag for tid in owned):
             continue

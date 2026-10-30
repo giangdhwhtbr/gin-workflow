@@ -129,6 +129,21 @@ class TestRoutesCLI(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual("high", output["routes"][0]["resolved"]["effort"])
 
+    def test_tracks_are_checked_against_the_detected_main_harness(self):
+        cfg = self.root / ".agent-workflow/config.yaml"
+        cfg.write_text(cfg.read_text(encoding="utf-8").replace("harness: claude\n", ""), encoding="utf-8")
+        refresh(self.root)
+        with patch("workflow_core.routes.detect_project", return_value={"harness": "codex"}):
+            code, output = self._resolve("wf-codex", [
+                {"task_id": "t1", "provider_role": "backend", "model": "gpt-6-astra", "effort": "high"}])
+            self.assertEqual(code, 0, output["diagnostics"])
+            self.assertEqual(("codex", "gpt-6-astra"), (output["routes"][0]["resolved"]["provider"],
+                                                        output["routes"][0]["resolved"]["model"]))
+            code, output = self._resolve("wf-claude-model", [
+                {"task_id": "t1", "provider_role": "backend", "model": "sonnet"}])
+            self.assertEqual(code, 2)
+            self.assertIn("track t1: model 'sonnet' is not in the catalog; allowed: gpt-6-astra", output["diagnostics"])
+
     def _resolve(self, workflow_id, tracks):
         tracks_file = self.root / "tracks.json"
         tracks_file.write_text(json.dumps(tracks), encoding="utf-8")

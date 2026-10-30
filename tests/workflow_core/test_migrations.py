@@ -217,7 +217,10 @@ setup_cli_version: '2.2'
             self.assertTrue(Path(result["backup"]).is_dir())
             config = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
             self.assertEqual("2.9", config["schema_version"])
-            self.assertEqual({"codex": {"models": ["m1", "m2"]}, "antigravity": {"models": ["a", "b"]}}, config["models"])
+            self.assertEqual({
+                "codex": {"models": ["m1", "m2"], "efforts": ["low", "medium", "high", "xhigh"]},
+                "antigravity": {"models": ["a", "b"]},
+            }, config["models"])
             local = yaml.safe_load((workflow / "orchestrator.local.yaml").read_text(encoding="utf-8"))
             self.assertEqual({"codex": {"executable": "codex"}, "antigravity": {"executable": "agy"}}, local["providers"])
 
