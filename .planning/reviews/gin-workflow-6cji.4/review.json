@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-6cji.4",
       "checkpoint_ref": "refs/gin/review/gin-workflow-6cji.4",
       "review_base_sha": "890db2b72bc8086176a0050510bc63c29d7fb0c8",
-      "reviewed_source_sha": "2c0df0ea853ad4787a66fca92eb92749aeeb94a6",
-      "checkpoint_sha": "2c0df0ea853ad4787a66fca92eb92749aeeb94a6",
+      "reviewed_source_sha": "42cfe01d86fe6e06533f3e00de572c09d93ffe3c",
+      "checkpoint_sha": "42cfe01d86fe6e06533f3e00de572c09d93ffe3c",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "a04df05f6f418d077a1998700fd68cc79ac29629ce932bb31856ec43d9dbb780",
-      "reviewed_source_tree_hash": "a04df05f6f418d077a1998700fd68cc79ac29629ce932bb31856ec43d9dbb780",
+      "source_tree_hash": "ed56b3bc884a332cfae820041eb9150a76aba25aa9a73c7a6e666ea8bc042efc",
+      "reviewed_source_tree_hash": "ed56b3bc884a332cfae820041eb9150a76aba25aa9a73c7a6e666ea8bc042efc",
       "source_identity_status": "complete"
     }
   ],
@@ -24,7 +24,7 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 31,
+  "ledger_revision": 36,
   "next_finding_number": 6,
   "findings": {
     "F1": {
@@ -622,6 +622,117 @@
       },
       "previous_event_hash": "9eaed843a947f8ae9ca14f20da6cf011e6e9f15543d90155a6df00ff34224d10",
       "event_hash": "9e91ca49d1366a6f0f0c4911c3934f38b4ece294a8c3131fe1891ccf1c389054"
+    },
+    {
+      "event_id": "EV-000032",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-30T13:38:13.585284Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-6cji.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-6cji.4",
+            "review_base_sha": "890db2b72bc8086176a0050510bc63c29d7fb0c8",
+            "reviewed_source_sha": "42cfe01d86fe6e06533f3e00de572c09d93ffe3c",
+            "checkpoint_sha": "42cfe01d86fe6e06533f3e00de572c09d93ffe3c",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "ed56b3bc884a332cfae820041eb9150a76aba25aa9a73c7a6e666ea8bc042efc",
+            "reviewed_source_tree_hash": "ed56b3bc884a332cfae820041eb9150a76aba25aa9a73c7a6e666ea8bc042efc",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "9e91ca49d1366a6f0f0c4911c3934f38b4ece294a8c3131fe1891ccf1c389054",
+      "event_hash": "c129a17702a3a4584d0e16559b782ea8b95c63286fa6ae8a7af699ce9fcd00f5"
+    },
+    {
+      "event_id": "EV-000033",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-30T13:38:46.012151Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-2226fd4e"
+      },
+      "payload": {
+        "lease_id": "c441e04dcf12407ab74fdcf3bf3dd014",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-2226fd4e",
+        "acquired_at": "2026-10-30T13:38:46.011256Z",
+        "expires_at": "2026-10-30T13:48:46.011256Z"
+      },
+      "previous_event_hash": "c129a17702a3a4584d0e16559b782ea8b95c63286fa6ae8a7af699ce9fcd00f5",
+      "event_hash": "09d08cfa9c8a82c2681bc1a40a21e5ca047124b0f72ee3b08645f9699ea6dace"
+    },
+    {
+      "event_id": "EV-000034",
+      "action": "review-started",
+      "timestamp": "2026-10-30T13:38:46.031246Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-2226fd4e"
+      },
+      "payload": {},
+      "previous_event_hash": "09d08cfa9c8a82c2681bc1a40a21e5ca047124b0f72ee3b08645f9699ea6dace",
+      "event_hash": "1af3cc118b32cdec725a213cca53905121e8ea22ec05d1af81502ab3917213fa"
+    },
+    {
+      "event_id": "EV-000035",
+      "action": "review-approved",
+      "timestamp": "2026-10-30T13:39:36.310846Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-2226fd4e"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-6cji.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-6cji.4",
+            "review_base_sha": "890db2b72bc8086176a0050510bc63c29d7fb0c8",
+            "reviewed_source_sha": "42cfe01d86fe6e06533f3e00de572c09d93ffe3c",
+            "checkpoint_sha": "42cfe01d86fe6e06533f3e00de572c09d93ffe3c",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "ed56b3bc884a332cfae820041eb9150a76aba25aa9a73c7a6e666ea8bc042efc",
+            "reviewed_source_tree_hash": "ed56b3bc884a332cfae820041eb9150a76aba25aa9a73c7a6e666ea8bc042efc",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": [
+          "F1",
+          "F2",
+          "F3",
+          "F4",
+          "F5"
+        ]
+      },
+      "previous_event_hash": "1af3cc118b32cdec725a213cca53905121e8ea22ec05d1af81502ab3917213fa",
+      "event_hash": "aab41dac04c00f355f713b65c7535dbdd868f9c81d2d1dc8775dd4ccbc590e37"
+    },
+    {
+      "event_id": "EV-000036",
+      "action": "lease-released",
+      "timestamp": "2026-10-30T13:39:40.079926Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-2226fd4e"
+      },
+      "payload": {
+        "lease_id": "c441e04dcf12407ab74fdcf3bf3dd014",
+        "released_at": "2026-10-30T13:39:40.079137Z"
+      },
+      "previous_event_hash": "aab41dac04c00f355f713b65c7535dbdd868f9c81d2d1dc8775dd4ccbc590e37",
+      "event_hash": "ed6c6702c327debe9c7cd6b060105dc8b84af2e4f1098f3e35e8e7da0a597722"
     }
   ]
 }
