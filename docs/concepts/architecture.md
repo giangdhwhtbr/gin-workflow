@@ -81,6 +81,7 @@ Each arrow is a gate recorded with `gin-workflow record` or derived from the tas
 sequenceDiagram
     autonumber
     participant A as Main agent (execute)
+    participant D as Developer subagent
     participant B as Task tracker (gin-workflow task)
     participant W as Worktree
     participant R as gin-workflow rules
@@ -88,13 +89,15 @@ sequenceDiagram
     participant V as Independent reviewer
     participant U as gin-workflow usage
     A->>B: task ready, task update --status in_progress
-    A->>W: work in .planning/worktrees/<id>
     A->>R: rules --files <scope>
     R-->>A: rule text for the developer
-    A->>W: failing test, code, tests pass, commit
+    A->>D: spawn at the model and effort from routes dispatch
+    D->>W: failing test, code, tests pass, commit in .planning/worktrees/<id>
+    D-->>A: done, needs_clarification, failed, or blocked
     A->>L: init, checkpoint, transition-requested
     V->>L: start-review, add-finding or approve
     alt changes requested
+        D->>W: fix at the same route
         A->>L: fix-finding, new checkpoint
         V->>L: verify-finding, approve
     end
@@ -109,25 +112,26 @@ A track closes when its tests pass and its review is approved, without waiting f
 
 ```mermaid
 flowchart TD
-    T[Plan track: provider role + reasoning low/medium/high] --> F[gin-workflow routes resolve]
+    T[Plan track: provider role + catalog model and effort] --> F[gin-workflow routes resolve]
     F --> Q{provider_mode multi and gin-orchestrator available?}
     Q -->|no, or it failed: warning| MH[every route is the main harness]
     Q -->|yes| OR[gin-orchestrator routes resolve]
     C1[orchestrator.roles: preferred, fallback, by_tier] --> OR
-    C2[orchestrator.local.yaml: executable + model per tier] --> OR
+    C2[orchestrator.local.yaml: executable per harness] --> OR
+    C3[config.yaml models: catalog per harness] --> OR
     OR -->|diagnostics| X[exit 2: report every diagnostic, write no manifest]
     MH -->|diagnostics| X
     OR --> M[gin-workflow writes runtime/assignments/&lt;workflow&gt;.yaml]
     MH --> M
     M -->|with gin-orchestrator| D[gin-orchestrator dispatches a worker]
     D --> H{health, circuit breaker, capacity}
-    H -->|unavailable| N[next candidate, same tier]
+    H -->|unavailable| N[next candidate, route mapped by rank]
     N --> H
     H -->|allowed| RUN[run native CLI: claude, codex, agy, opencode]
     N -->|none left before queue deadline| U[worker_routes_unavailable: task stays open]
 ```
 
-Plans name roles and reasoning tiers only. `gin-workflow` resolves the routes and writes the manifest. It delegates the resolution, and the reviewer choice, to `gin-orchestrator` only when `provider_mode` is `multi` and that extension is installed. Without it every route is the main harness. Concrete providers and models come from machine-local configuration and are rechecked at dispatch; fallback never lowers the reasoning tier. See [Providers](providers.md) and [Orchestrator](../orchestrator/README.md).
+Plans name roles and routes from the main harness's model catalog, never providers. `gin-workflow` resolves the routes and writes the manifest. It delegates the resolution, and the reviewer choice, to `gin-orchestrator` only when `provider_mode` is `multi` and that extension is installed. Without it every route is the main harness. Executables come from machine-local configuration and are rechecked at dispatch. Every candidate runs the plan's route mapped by rank into its own catalog, so a fallback keeps the rank. See [Providers](providers.md) and [Orchestrator](../orchestrator/README.md).
 
 ## Build and install
 

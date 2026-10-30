@@ -10,7 +10,7 @@ Skills work through the provider-neutral capabilities below.
 |---|---|
 | Task tracking | task identity, dependencies, readiness, claims, blockers, closure: through `gin-workflow task`, which serves local Markdown files under `.planning/tasks/` or, with `providers.task_tracking: beads`, runs Beads (`bd`); never by editing `.beads/` directly |
 | Workspace | isolation (worktrees) and cleanup metadata |
-| Worker dispatch | other harnesses only, through gin-orchestrator: resolve role and reasoning, dispatch, cancel, report status, collect results ([Orchestrator](../orchestrator/README.md)) |
+| Worker dispatch | other harnesses only, through gin-orchestrator: resolve role, model, and effort, dispatch, cancel, report status, collect results ([Orchestrator](../orchestrator/README.md)) |
 | Review | request review, terminal review state, findings |
 | Evidence | record and query evidence; decide whether acceptance evidence is complete |
 | Knowledge | search and propose knowledge; workers never write permanent knowledge |
@@ -18,20 +18,22 @@ Skills work through the provider-neutral capabilities below.
 
 Selecting a provider never authorizes a lifecycle transition; gates and approvals still apply.
 
-## Roles, reasoning, and model classes
+## Roles, models, and efforts
 
 Every implementation or review track in a plan names:
 
 - a provider role: a responsibility such as `backend`, `frontend`, `docs`, `review`, or `general`, configured under `routing.roles`;
-- a reasoning tier: `low` (mechanical edits, simple docs), `medium` (normal implementation), or `high` (architecture, security, migration, concurrency).
+- a route: a `Model:` from the main harness's model catalog, an `Effort:` from the same catalog when it lists efforts, and a `Why:` line giving the reason.
 
-Plans may also give model guidance as abstract classes: `high_reasoning`, `standard_impl` (the default), `cheap_simple`. A plan never names a concrete model. Without gin-orchestrator every role resolves to the main harness (`preferred: [main_harness]`), which uses its own models, and `gin-workflow routes resolve` writes the assignment manifest `.agent-workflow/runtime/assignments/<workflow>.yaml`, which is runtime metadata, not plan or task data. Concrete executables and a model per tier for other harnesses live only in `.agent-workflow/orchestrator.local.yaml` ([Configuration](../reference/config.md#orchestratorlocalyaml)).
+The model catalog lists, per harness, its models from weakest to strongest and its efforts from lowest to highest ([`models`](../reference/config.md#models)). The `plan` skill picks the weakest model that can do the work, a stronger model for broad context or design judgement, and a higher effort for intricate logic. An unclear requirement never raises either; the planner asks you or returns to `discuss`. You can change the route of any track before you approve the plan.
 
-`gin-workflow routes resolve` resolves the whole batch of tracks at once. If any track cannot be resolved, it reports every diagnostic, exits 2, and writes no manifest; the track beads `orchestrate` already created stay. `main_harness` means the configured `harness`, or the session override (`gin-workflow setup harness-override --harness <name>`, or `GIN_WORKFLOW_HARNESS_OVERRIDE`).
+A plan never names a concrete model outside the main harness's catalog, and never a provider. Without gin-orchestrator every role resolves to the main harness (`preferred: [main_harness]`) at the track's model and effort. `gin-workflow routes resolve` writes the assignment manifest `.agent-workflow/runtime/assignments/<workflow>.yaml`, which is runtime metadata, not plan or task data. Executables for other harnesses live only in `.agent-workflow/orchestrator.local.yaml` ([Configuration](../reference/config.md#orchestratorlocalyaml)).
+
+`gin-workflow routes resolve` resolves the whole batch of tracks at once. A model or effort outside the main harness's catalog is a diagnostic that names the track, the value, and the allowed values. So is a track that still carries a reasoning tier in place of a model. If any track cannot be resolved, it reports every diagnostic, exits 2, and writes no manifest; the track beads `orchestrate` already created stay. `main_harness` means the configured `harness`, or the session override (`gin-workflow setup harness-override --harness <name>`, or `GIN_WORKFLOW_HARNESS_OVERRIDE`).
 
 ## Independent review
 
-Review goes through `routing.review`. In single-harness mode (`provider_mode: single`, the default) `independence` is `session`. A fresh session of the main harness reviews with a clean context and a different actor id, and the implementer's session never reviews its own work. `independence: provider`, which sends the review to a different harness than the implementer's, needs gin-orchestrator; without it review falls back to `session` with a warning. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts. The reviewer's tier follows the track's reasoning; a `low` track whose diff changes more than documentation is reviewed at `medium`. `gin-workflow reviewer` computes the tier and the route order for the `review` skill.
+Review goes through `routing.review`. In single-harness mode (`provider_mode: single`, the default) `independence` is `session`. A fresh session of the main harness reviews with a clean context and a different actor id, and the implementer's session never reviews its own work. `independence: provider`, which sends the review to a different harness than the implementer's, needs gin-orchestrator; without it review falls back to `session` with a warning. Self-review is allowed only when `allow_self_review_fallback` is set; otherwise running out of routes needs a human decision. A review stops at `max_cycles` and returns `human_decision_required`. A generic worker result is never treated as approval; only a terminal ledger approval counts. The reviewer runs at the implementer's final model and effort, including any escalation, read in the implementer's catalog. A reviewer on the implementer's provider keeps that route; any other provider gets it mapped by rank from the implementer's catalog ([rank mapping](../orchestrator/routing.md#rank-mapping)). When the implementer used the weakest model of a catalog with more than one model and the diff changes more than documentation, the review uses the next model. `gin-workflow reviewer` computes the route and the route order for the `review` skill.
 
 A reviewer starts with a fresh, bounded context: the diff, the confirmed requirement, acceptance criteria, test evidence, and the `gin-workflow rules` output for the reviewed files. It excludes self-assessment, persuasive summaries, and unrelated history.
 
@@ -41,4 +43,4 @@ Acceptance evidence is tied to an identity: workflow id, attempt id, task id, an
 
 ## Privacy
 
-Portable configuration, plans, and bundles never contain executable paths, concrete models, credentials, secrets, transcripts, or private reasoning. Configuration may hold references such as `secret_ref:NAME`; each CLI's own login owns credentials, and secret values are never written to configuration, manifests, events, results, evidence, bundles, or logs.
+Portable configuration, plans, and bundles never contain executable paths, credentials, secrets, transcripts, or private reasoning. In portable configuration and plans, model names appear only in the model catalog (`models.<harness>.models`) and in the `Model:` lines of a plan. Configuration may hold references such as `secret_ref:NAME`; each CLI's own login owns credentials, and secret values are never written to configuration, manifests, events, results, evidence, bundles, or logs.
