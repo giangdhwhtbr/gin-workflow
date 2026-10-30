@@ -70,6 +70,12 @@ class TaskDispatchTests(unittest.TestCase):
         run.assert_called_once_with(["/opt/bd", "show", "x-1", "--json"], cwd=self.root, text=True,
                                     capture_output=True, check=False, timeout=30)
 
+    def test_markdown_ready_is_passed_through_unchanged(self):
+        with mock.patch("workflow_core.tasks.backend", return_value="markdown"), \
+                mock.patch("workflow_core.tasks.task_markdown.main", return_value=0) as run:
+            self.assertEqual(0, tasks.main(["ready"]))
+        run.assert_called_once_with(Path.cwd(), ["ready"])
+
     def test_beads_missing_bd_explains_the_markdown_option(self):
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
                 mock.patch("workflow_core.tasks.shutil.which", return_value=None):
@@ -193,6 +199,13 @@ class ExternalDependencyTests(unittest.TestCase):
         self.bd(self.provider, "ship", "cap")
         ids, _ = self.ready()
         self.assertEqual({free, waiting}, ids)
+
+    def test_req_015_ready_lists_epics_not_milestones(self):
+        milestone = self.create(self.consumer, "M", "--type", "milestone")
+        epic = self.create(self.consumer, "E", "--type", "epic")
+        self.bd(self.consumer, "update", epic, "--parent", milestone)
+        ids, _ = self.ready()
+        self.assertEqual({epic}, ids)
 
     def test_relative_external_path_resolves_from_a_subdirectory(self):
         provides = self.create(self.provider, "api", "-l", "export:cap")

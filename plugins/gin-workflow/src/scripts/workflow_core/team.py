@@ -43,6 +43,7 @@ class TeamConfig:
     areas: Mapping[str, Area] = field(default_factory=dict)
     approvals: Mapping[str, Any] = field(default_factory=lambda: dict(DEFAULT_APPROVALS))
     beads_remote: str = ""
+    permissions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def member(self, email: str) -> Member | None:
         return self.members.get(email.strip().lower())
@@ -90,6 +91,8 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
     for gate, policy in (raw.get("approvals") or {}).items():
         if isinstance(policy, list):
             needed += [(role, f"team.approvals.{gate}") for role in policy]
+    for key, roles in (raw.get("permissions") or {}).items():
+        needed += [(role, f"team.permissions.{key}") for role in roles]
     for name, area in areas.items():
         needed.append((area.get("lead", ""), f"team.areas.{name}.lead"))
         needed += [(role, f"team.areas.{name}.roles") for role in area.get("roles", ())]
@@ -126,6 +129,7 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
         areas=areas,
         approvals=approvals,
         beads_remote=str((raw.get("beads_sync") or {}).get("remote", "")),
+        permissions={key: tuple(roles) for key, roles in (raw.get("permissions") or {}).items()},
     )
 
 
@@ -162,7 +166,8 @@ def summary(root: Path, team: TeamConfig | None) -> dict[str, Any]:
     member = current_member(root, team)
     me = None if member is None else {"email": member.email, "roles": list(member.roles),
                                       "areas": team.areas_for(member)}
-    return {"enabled": True, "host": team.host, "me": me}
+    return {"enabled": True, "host": team.host, "me": me,
+            "permissions": {key: list(roles) for key, roles in team.permissions.items()}}
 
 
 @dataclass(frozen=True)

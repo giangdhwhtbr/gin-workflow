@@ -163,6 +163,17 @@ Opt-in team mode, active when the configuration has a `team:` section.
 
 Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuration, or host error.
 
+## `gin-workflow milestone`
+
+```
+gin-workflow milestone list [--all] [--json]
+gin-workflow milestone show ID [--start YYYY-MM-DD] [--json]
+```
+
+Dated milestones over roadmap epics, stored in Beads; they need `providers.task_tracking: beads`. `list` reports each open milestone (every milestone with `--all`) with its status, period, epic progress, and warning count, plus the number of open `roadmap` epics without a parent. `show` reports the schedule of one milestone: each epic's planned start and end in working days (Monday to Friday) from `--start`, else the kick-off date, else the start date, and its warnings (`overflow`, `late`, `unestimated`, `external_blocker`). A `list` entry whose schedule cannot be computed (a dependency cycle or a malformed date) carries `error` and keeps the other entries; its status then falls back to `planned`. `--start` is a read-only preview. `--json` prints `schema: 1`; fields are defined in the gin-console contract (`gin-harness/docs/changes/gin-harness-6s4-milestones/design.md`) and only ever added to.
+
+Exit codes: 0 ok, warnings included; 1 unknown id, dependency cycle, non-Beads tracking, or a `bd` error; 2 usage error.
+
 ## `gin-workflow hooks`
 
 ```
