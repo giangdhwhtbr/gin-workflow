@@ -214,6 +214,43 @@ class WorkflowEventTests(unittest.TestCase):
             self.assertNotIsInstance(raised.exception, EventPersistenceError)
 
 
+EXPECTED_ID = "evt-4c7cb99a3834648dceaba60f2854cbccedf4340d85bc6b6724fd7a8e8d63f6f6"
+
+
+def fixed_event(**overrides):
+    values = dict(event_type="requirement.confirmed", workflow_id="wf", payload={"evidence": "s.md"},
+                  idempotency_key="k", timestamp="2026-01-01T00:00:00Z")
+    return WorkflowEvent.create(**{**values, **overrides})
+
+
+class EventSchemaVersionTests(unittest.TestCase):
+    def test_us4_new_events_carry_schema_version_and_keep_their_id(self):
+        event = fixed_event()
+        self.assertEqual(1, event.to_dict()["schema_version"])
+        self.assertEqual(EXPECTED_ID, event.event_id)
+
+    def test_us4_reader_accepts_old_events_and_unknown_fields(self):
+        old = fixed_event().to_dict()
+        del old["schema_version"]
+        newer = {**fixed_event(idempotency_key="k2").to_dict(), "schema_version": 2, "origin": "future"}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            path.write_text(json.dumps(old) + "\n" + json.dumps(newer) + "\n", encoding="utf-8")
+            self.assertEqual([1, 2], [event.schema_version for event in WorkflowEventStore(path).read_all()])
+
+
+class TransactionTests(unittest.TestCase):
+    def test_us3_transaction_appends_under_one_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = WorkflowEventStore(Path(tmp) / "events.jsonl")
+            first = fixed_event()
+            with store.transaction() as tx:
+                self.assertEqual([], tx.events)
+                self.assertTrue(tx.append(first))
+                self.assertFalse(tx.append(first))
+                self.assertEqual([first.event_id], [event.event_id for event in tx.events])
+            self.assertEqual([first.event_id], [event.event_id for event in store.read_all()])
+
 
 if __name__ == "__main__":
     unittest.main()

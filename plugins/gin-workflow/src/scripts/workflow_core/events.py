@@ -29,6 +29,7 @@ def _now() -> str:
 
 
 _TERMINAL_WORKER_EVENTS = {"worker.completed", "worker.failed", "worker.cancelled"}
+EVENT_SCHEMA_VERSION = 1
 
 
 def _deterministic_event_id(
@@ -88,6 +89,7 @@ class WorkflowEvent:
     payload: Mapping[str, Any] | None = None
     actor: str | None = None
     idempotency_key: str | None = None
+    schema_version: int = EVENT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "payload", freeze({} if self.payload is None else self.payload))
@@ -135,6 +137,7 @@ class WorkflowEvent:
             "timestamp": self.timestamp,
             "task_id": self.task_id,
             "payload": thaw(self.payload),
+            "schema_version": self.schema_version,
         }
         if self.actor is not None:
             result["actor"] = self.actor
@@ -156,6 +159,7 @@ class WorkflowEvent:
             payload=value["payload"],
             actor=value.get("actor"),
             idempotency_key=value.get("idempotency_key"),
+            schema_version=value.get("schema_version", 1),
         )
 
     @classmethod
@@ -197,6 +201,30 @@ def _decode_events(content: bytes, path: Path) -> list[WorkflowEvent]:
     return events
 
 
+class _Transaction:
+    """The events read under the store's exclusive lock, and appends made while it is held."""
+
+    def __init__(self, store: "WorkflowEventStore", content: bytes):
+        self._store = store
+        self._content = content
+        self.events = _decode_events(content, store.path)
+
+    def append(self, event: WorkflowEvent) -> bool:
+        if not isinstance(event, WorkflowEvent):
+            raise TypeError("event must be a WorkflowEvent")
+        _validate_event_mapping(event.to_dict())
+        if any(item.event_id == event.event_id for item in self.events):
+            return False
+        prefix = self._content
+        if prefix and not prefix.endswith(b"\n"):
+            prefix += b"\n"
+        content = prefix + (_canonical_json(event.to_dict()) + "\n").encode("utf-8")
+        atomic_write_bytes(self._store.path, content)
+        self._content = content
+        self.events.append(event)
+        return True
+
+
 class WorkflowEventStore:
     """JSONL store serialized through a stable sidecar advisory lock."""
 
@@ -204,21 +232,18 @@ class WorkflowEventStore:
         self.path = Path(path)
         self.lock_path = self.path.with_name(f"{self.path.name}.lock")
 
+    @contextmanager
+    def transaction(self) -> Iterator[_Transaction]:
+        """Hold the exclusive lock: read the events once, then check and append without a gap.
+        `flock` locks through two descriptors conflict even in one process, so never lock again inside."""
+        with _file_lock(self.lock_path, exclusive=True):
+            yield _Transaction(self, self.path.read_bytes() if self.path.exists() else b"")
+
     def append(self, event: WorkflowEvent) -> bool:
         if not isinstance(event, WorkflowEvent):
             raise TypeError("event must be a WorkflowEvent")
-        _validate_event_mapping(event.to_dict())
-        with _file_lock(self.lock_path, exclusive=True):
-            current = self.path.read_bytes() if self.path.exists() else b""
-            existing = _decode_events(current, self.path)
-            if any(item.event_id == event.event_id for item in existing):
-                return False
-            prefix = current
-            if prefix and not prefix.endswith(b"\n"):
-                prefix += b"\n"
-            line = (_canonical_json(event.to_dict()) + "\n").encode("utf-8")
-            atomic_write_bytes(self.path, prefix + line)
-            return True
+        with self.transaction() as tx:
+            return tx.append(event)
 
     def read_all(self) -> list[WorkflowEvent]:
         with _file_lock(self.lock_path, exclusive=False):
