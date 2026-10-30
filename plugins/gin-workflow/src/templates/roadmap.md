@@ -5,7 +5,7 @@ Source: {{source}}
 
 <!-- Written by /roadmap after the PM confirms it. One "### " block per epic; an epic id never changes once written.
      Depends on: epic ids from this file. Evidence: the tech-doc file and section (for example
-     ARCHITECTURE.md#Request flow) or the product brief. The dependency graph stays acyclic. -->
+     03-ARCHITECTURE.md#Request flow) or the product brief. The dependency graph stays acyclic. -->
 
 ## Goals
 

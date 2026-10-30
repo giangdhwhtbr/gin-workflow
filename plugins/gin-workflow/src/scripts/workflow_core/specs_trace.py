@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from typing import Any, Mapping
 
-from .specs import REQ_ID, SpecsError, delta_blocks, test_files
+from .specs import REQ_ID, SpecsError, change_file, delta_blocks, test_files
 
 
 def _tracked(root: Path) -> list[str]:
@@ -44,7 +44,7 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
             continue
         for req in {match.group(0) for match in REQ_ID.finditer(text)} & set(wanted):
             sources[req].append(relative)
-    tests_md = change / "tests.md"
+    tests_md = change_file(change, "tests")
     for case, ids, evidence in _tests_md_rows(tests_md):
         if evidence and evidence != "-":
             for req in ids & set(wanted):

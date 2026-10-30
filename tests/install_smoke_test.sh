@@ -168,7 +168,7 @@ done
 
 assert_contains 'plugins/gin-workflow/dist/claude-code/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "single combined document"
-assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
+assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "03-ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md" "codegraph"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "every file of the tech-doc folder"
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md" "never close or delete"
@@ -235,7 +235,7 @@ assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
 assert_contains 'plugins/gin-workflow/dist/codex/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
-assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "ARCHITECTURE.md"
+assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "03-ARCHITECTURE.md"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "codegraph"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/codex"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-workflow/src\""

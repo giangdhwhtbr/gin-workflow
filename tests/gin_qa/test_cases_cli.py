@@ -130,7 +130,7 @@ class TestChanges(QaCase):
         make_change(self.root, "ep-2-other", epic="ep-2", spec_delta=delta(added=ADDED_BLOCK))
         self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")), case("TC-AUTH-002", self.ref("REQ-AUTH-002")),
                          case("TC-AUTH-003", self.ref("REQ-AUTH-003")))
-        self.assertEqual(["docs/changes/ep-2-other/spec-delta.md:5: REQ-AUTH-003 is changed by both ep-1-lockout "
+        self.assertEqual(["docs/changes/ep-2-other/02-spec-delta.md:5: REQ-AUTH-003 is changed by both ep-1-lockout "
                           "and ep-2-other"], self.findings())
 
 

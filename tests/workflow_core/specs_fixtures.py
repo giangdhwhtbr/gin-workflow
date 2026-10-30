@@ -81,7 +81,7 @@ def delta(*, added: str = "", modified: str = "", removed: str = "") -> str:
 
 def make_change(root: Path, name: str = "ep-1-lockout", *, epic: str = "ep-1", spec_delta: str = "") -> Path:
     change = Path(root) / "docs/changes" / name
-    write(root, f"docs/changes/{name}/proposal.md", f"# Lockout\n\nEpic: {epic}\n")
-    write(root, f"docs/changes/{name}/spec-delta.md", spec_delta or delta(added=ADDED_BLOCK))
-    write(root, f"docs/changes/{name}/tests.md", "| TC | REQ | type | evidence |\n|---|---|---|---|\n")
+    write(root, f"docs/changes/{name}/01-proposal.md", f"# Lockout\n\nEpic: {epic}\n")
+    write(root, f"docs/changes/{name}/02-spec-delta.md", spec_delta or delta(added=ADDED_BLOCK))
+    write(root, f"docs/changes/{name}/05-tests.md", "| TC | REQ | type | evidence |\n|---|---|---|---|\n")
     return change

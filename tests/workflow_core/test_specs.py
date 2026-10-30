@@ -88,7 +88,7 @@ class TestRepositoryCommands(unittest.TestCase):
                     modified="### REQ-AUTH-002: Reject wrong password\nThe system SHALL reject.\n\n"
                              "#### Scenario: s\n- GIVEN a\n- WHEN b\n- THEN c\n",
                     removed=f"### REQ-AUTH-001: Sign in with password\n<!-- base: {base} -->\n")
-        write(self.root, "docs/changes/ep-1-lockout/spec-delta.md", bad)
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", bad)
         errors = specs.lint_change(self.root, self.cfg, change)
         self.assertTrue(any("REQ-AUTH-001 already exists" in e for e in errors), errors)
         self.assertTrue(any("REQ-AUTH-002 needs '<!-- base: <hash> -->'" in e for e in errors), errors)
@@ -104,7 +104,7 @@ class TestRepositoryCommands(unittest.TestCase):
         commit_all(self.root)
         git(self.root, "checkout", "-q", "-b", "feature")
         other = make_change(self.root, "ep-2-other", epic="ep-2")
-        self.assertEqual(["docs/changes/ep-2-other/spec-delta.md:5: REQ-AUTH-003 is already used on main"],
+        self.assertEqual(["docs/changes/ep-2-other/02-spec-delta.md:5: REQ-AUTH-003 is already used on main"],
                          [e for e in specs.lint_change(self.root, self.cfg, other, against="main") if "already used" in e])
         own = self.root / "docs/changes/ep-1-lockout"
         self.assertEqual([], specs.lint_change(self.root, self.cfg, own, against="main"))
@@ -128,7 +128,7 @@ class TestRepositoryCommands(unittest.TestCase):
         git(Path(self.tmp.name), "init", "-q", "--bare", str(remote))
         git(self.root, "remote", "add", "origin", str(remote))
         git(self.root, "checkout", "-q", "-b", "pushed")
-        write(self.root, "docs/changes/ep-5-x/spec-delta.md", delta(added=ADDED_BLOCK.replace("003", "007")))
+        write(self.root, "docs/changes/ep-5-x/02-spec-delta.md", delta(added=ADDED_BLOCK.replace("003", "007")))
         commit_all(self.root)
         git(self.root, "push", "-q", "origin", "pushed")
         git(self.root, "checkout", "-q", "main")
@@ -139,8 +139,9 @@ class TestRepositoryCommands(unittest.TestCase):
 
     def test_new_change_renders_templates_and_refuses_existing(self):
         change = specs.new_change(self.root, self.cfg, "lockout", "ep-1", "Account lockout")
-        self.assertEqual(sorted(specs.CHANGE_TEMPLATES), sorted(p.name for p in change.iterdir()))
-        proposal = (change / "proposal.md").read_text(encoding="utf-8")
+        self.assertEqual(["01-proposal.md", "02-spec-delta.md", "03-design.md", "05-tests.md"],
+                         sorted(p.name for p in change.iterdir()))
+        proposal = (change / "01-proposal.md").read_text(encoding="utf-8")
         self.assertIn("# Account lockout", proposal)
         self.assertEqual("ep-1", specs.change_epic(change))
         with self.assertRaises(SpecsError):
@@ -148,10 +149,19 @@ class TestRepositoryCommands(unittest.TestCase):
         with self.assertRaises(SpecsError):
             specs.new_change(self.root, self.cfg, "Bad Slug", "ep-1")
 
+    def test_change_folder_from_before_numbering_still_reads(self):
+        write(self.root, "docs/changes/ep-1-lockout/proposal.md", "# Lockout\n\nEpic: ep-1\n")
+        write(self.root, "docs/changes/ep-1-lockout/spec-delta.md", delta(added=ADDED_BLOCK))
+        change = specs.find_change(self.root, self.cfg, "ep-1")
+        self.assertEqual("ep-1", specs.change_epic(change))
+        self.assertEqual(["REQ-AUTH-003"], [block.id for block in specs.delta_blocks(self.root, change)[0]])
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+        self.assertEqual("REQ-AUTH-004", specs.next_id(self.root, self.cfg, "auth")[0])
+
     def test_project_template_overrides_plugin(self):
         write(self.root, ".agent-workflow/templates/proposal.md", "# {{title}} (team)\n\nEpic: {{epic}}\n")
         change = specs.new_change(self.root, self.cfg, "lockout", "ep-1", "Lockout")
-        self.assertEqual("# Lockout (team)\n\nEpic: ep-1\n", (change / "proposal.md").read_text(encoding="utf-8"))
+        self.assertEqual("# Lockout (team)\n\nEpic: ep-1\n", (change / "01-proposal.md").read_text(encoding="utf-8"))
 
     def test_renumber_rewrites_change_tests_and_bead_labels(self):
         make_change(self.root)
@@ -169,7 +179,7 @@ class TestRepositoryCommands(unittest.TestCase):
 
         with mock.patch("workflow_core.specs._bd", fake_bd):
             result = specs.renumber(self.root, self.cfg, change, "REQ-AUTH-003", "REQ-AUTH-004", against="main")
-        self.assertEqual(["docs/changes/ep-1-lockout/spec-delta.md", "tests/test_lockout.py"], result["files"])
+        self.assertEqual(["docs/changes/ep-1-lockout/02-spec-delta.md", "tests/test_lockout.py"], result["files"])
         self.assertIn("# REQ-AUTH-0030", (self.root / "tests/test_lockout.py").read_text(encoding="utf-8"))
         self.assertIn("REQ-AUTH-004", (self.root / "tests/test_lockout.py").read_text(encoding="utf-8"))
         self.assertEqual("# REQ-AUTH-003\n", (self.root / "src/app.py").read_text(encoding="utf-8"))
@@ -213,7 +223,7 @@ class TestSpecsCli(unittest.TestCase):
             self.assertEqual(64, len(json.loads(hashed.stdout)["hash"]))
             created = run_specs(root, "new", "lockout", "--epic", "ep-1")
             self.assertEqual("docs/changes/ep-1-lockout", created.stdout.strip())
-            write(root, "docs/changes/ep-1-lockout/spec-delta.md", delta(added="### REQ-AUTH-003: X\nNo statement.\n"))
+            write(root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(added="### REQ-AUTH-003: X\nNo statement.\n"))
             linted = run_specs(root, "lint", "--change", "ep-1", "--format", "json")
             self.assertEqual(1, linted.returncode)
             self.assertEqual("findings", json.loads(linted.stdout)["status"])

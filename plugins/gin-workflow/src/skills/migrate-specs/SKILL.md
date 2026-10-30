@@ -12,7 +12,7 @@ Load only when the user invokes it.
 3. On approval: `git switch -c chore/migrate-specs`, run `gin-workflow specs migrate [--force]`, then commit (`chore(specs): migrate .planning to SDD layout`). Never commit on `main`/`master`.
 4. Ask whether to seed living specs now. If yes:
    - If `artifacts.codebase` is empty, run the `tech-doc` skill first.
-   - Propose a capability list from `docs/codebase` and `docs/changes/archive/*/design.md`; the user edits it.
+   - Propose a capability list from `docs/codebase` and `docs/changes/archive/*/03-design.md`; the user edits it.
    - For each capability, one at a time: draft `docs/specs/<cap>/spec.md` from `gin-workflow specs template spec.md`, describing current behavior only, with IDs `REQ-<CAP>-001…` and at least one GIVEN/WHEN/THEN scenario each; add it to `docs/specs/README.md`; run `gin-workflow specs lint`; show the draft and wait for approval; commit.
    - Stopping midway keeps the committed capabilities.
 5. Report the branch, commits, and remaining capabilities. Merging needs the user's approval.

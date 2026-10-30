@@ -6,6 +6,9 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILL_PATH = ROOT / "plugins/gin-workflow/src/skills/tech-doc/SKILL.md"
+TEMPLATES = ROOT / "plugins/gin-workflow/src/templates/codebase"
+READING_ORDER = ["OVERVIEW", "FEATURES", "ARCHITECTURE", "STRUCTURE", "API",
+                 "INTEGRATIONS", "STACK", "CONVENTIONS", "TESTING", "CONCERNS"]
 
 
 class TechDocSkillTests(unittest.TestCase):
@@ -35,14 +38,14 @@ class TechDocSkillTests(unittest.TestCase):
         self.assertNotIn("`STACK`", groups["strongest"])
 
     def test_writers_cite_every_row(self):
-        self.assertIn("Every `API.md` and `FEATURES.md` row cites `file:line`", self.text)
+        self.assertIn("Every `05-API.md` and `02-FEATURES.md` row cites `file:line`", self.text)
 
     def test_scout_and_reviewer_routes(self):
         self.assertRegex(self.text, r"(?i)Scout.*agent-researcher.*(weakest|middle).*low")
         self.assertRegex(self.text, r"(?i)Reviewer.*agent-researcher.*middle.*medium")
 
     def test_features_after_api(self):
-        self.assertIn("`FEATURES.md` starts after `API.md`", self.text)
+        self.assertIn("`02-FEATURES.md` starts after `05-API.md`", self.text)
 
     def test_regrounding_uses_same_roles(self):
         regrounding_part = self.text.split("## Regrounding existing docs")[-1]
@@ -55,3 +58,16 @@ class TechDocSkillTests(unittest.TestCase):
     def test_no_concrete_model_names(self):
         for banned in ("sonnet", "opus", "haiku", "gpt-4", "gpt-5", "claude-3"):
             self.assertNotIn(banned, self.text.lower())
+
+    def test_templates_list_in_reading_order(self):
+        names = sorted(path.name for path in TEMPLATES.glob("*.md"))
+        self.assertEqual([f"{n:02d}-{topic}.md" for n, topic in enumerate(READING_ORDER, start=1)], names)
+
+    def test_split_set_table_lists_every_template_in_order(self):
+        rows = re.findall(r"^\| `(\d\d-[A-Z]+\.md)` \|", self.text, re.MULTILINE)
+        self.assertEqual(sorted(path.name for path in TEMPLATES.glob("*.md")), rows)
+
+    def test_unnumbered_files_are_renamed_before_writing(self):
+        self.assertIn("`OVERVIEW.md` … `CONCERNS.md`", self.text)
+        self.assertIn("renamed to their numbered names with `git mv`", self.text)
+        self.assertIn(".agent-workflow/templates/codebase/", self.text)

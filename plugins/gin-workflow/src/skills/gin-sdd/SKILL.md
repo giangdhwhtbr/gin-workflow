@@ -9,14 +9,14 @@ Applies only when `gin-workflow state --format json` reports `project.layout: sd
 
 ## discuss
 1. After the user confirms the design: `gin-workflow task create --type epic --title "<title>"` (a roadmap epic is reused as is) → `specs new <slug> --epic <epic>` creates `<changes>/<epic>-<slug>/`.
-2. Write `proposal.md`, `spec-delta.md`, and `design.md` in that folder. `proposal.md` lists `## User Stories` from `specs template user-story.md`, each with `REQ:`. Each new requirement gets its ID from `specs next-id <cap>`; a `MODIFIED` or `REMOVED` block puts the output of `specs hash <REQ-ID>` on the line after its heading, and a `REMOVED` block adds `Reason: <why>`. An architecture decision also gets `docs/adr/NNNN-<slug>.md` from `specs template adr.md`.
+2. Write `01-proposal.md`, `02-spec-delta.md`, and `03-design.md` in that folder (the number prefix is the reading order; a folder from before numbering keeps its unnumbered names, which every `specs` command still reads). `01-proposal.md` lists `## User Stories` from `specs template user-story.md`, each with `REQ:`. Each new requirement gets its ID from `specs next-id <cap>`; a `MODIFIED` or `REMOVED` block puts the output of `specs hash <REQ-ID>` on the line after its heading, and a `REMOVED` block adds `Reason: <why>`. An architecture decision also gets `docs/adr/NNNN-<slug>.md` from `specs template adr.md`.
 3. `specs lint --change <epic>` must exit 0.
 4. `project.spec_review`:
    - `chat`: the user confirms → `gin-workflow record requirement-confirmed --workflow-id <epic> --evidence <change folder> --actor <id>`.
    - `pr`: commit only the change folder on branch `spec/<epic>-<slug>` and push; ask approval, then `gh pr create --fill`; return `awaiting_spec_review` without recording. On a later run, `specs status --change <epic>`: `merged` → record `requirement-confirmed` with evidence `<pr url> <merge commit>`; `open` → report and stop; `closed` or `none` → ask the user. Implementation branches from the updated base.
 
 ## plan
-Write `<change>/plan.md`. Each track's Metadata adds `Requirements: REQ-…`; every `ADDED`/`MODIFIED` REQ in the delta belongs to at least one track. Record `plan-approved --workflow-id <epic>`.
+Write `<change>/04-plan.md`. Each track's Metadata adds `Requirements: REQ-…`; every `ADDED`/`MODIFIED` REQ in the delta belongs to at least one track. Record `plan-approved --workflow-id <epic>`.
 
 ## orchestrate
 Reuse the epic as parent. Each track bead: `gin-workflow task create --parent <epic> --spec-id <epic>-<slug> --labels req:<REQ-ID>,…` from its `Requirements:`.

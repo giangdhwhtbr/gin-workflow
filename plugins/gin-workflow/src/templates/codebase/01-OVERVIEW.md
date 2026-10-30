@@ -9,7 +9,7 @@ Index Use:
 
 ## Capabilities
 
-Summarize capabilities here; the full catalog and mapping live in [FEATURES.md](FEATURES.md).
+Summarize capabilities here; the full catalog and mapping live in [02-FEATURES.md](02-FEATURES.md).
 
 ## Primary Workflows
 
