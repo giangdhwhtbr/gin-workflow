@@ -64,4 +64,4 @@ See the [orchestrator contract](orchestrator-contract.md).
 
 | Skill | Purpose |
 |---|---|
-| `providers` | Configure worker harnesses: which harnesses may run work, a model per tier, preferred and fallback harnesses per role and tier, concurrency, and limits |
+| `providers` | Configure worker harnesses: which harnesses may run work, the model catalog of each harness, preferred and fallback harnesses per role, concurrency, and limits |

@@ -171,7 +171,7 @@ Used by the `gin-qa` add-on: `cases` (default `qa/cases`), `guidelines` (default
 
 ## `orchestrator.local.yaml`
 
-Read only by gin-orchestrator. It holds one executable per worker harness; models come from the [`models`](#models) catalog. Before schema 2.8 this file was `providers.local.yaml`; `gin-workflow setup update --to-version 2.8 --approve` renames it.
+Used by gin-orchestrator at runtime; `setup doctor` and the 2.9 migration also read it. It holds one executable per worker harness; models come from the [`models`](#models) catalog. Before schema 2.8 this file was `providers.local.yaml`; `gin-workflow setup update --to-version 2.8 --approve` renames it.
 
 ```yaml
 schema_version: "2.9"

@@ -43,4 +43,4 @@ Acceptance evidence is tied to an identity: workflow id, attempt id, task id, an
 
 ## Privacy
 
-Portable configuration, plans, and bundles never contain executable paths, credentials, secrets, transcripts, or private reasoning. Model names appear only in the model catalog (`models.<harness>.models`) and in the `Model:` lines of a plan. Configuration may hold references such as `secret_ref:NAME`; each CLI's own login owns credentials, and secret values are never written to configuration, manifests, events, results, evidence, bundles, or logs.
+Portable configuration, plans, and bundles never contain executable paths, credentials, secrets, transcripts, or private reasoning. In portable configuration and plans, model names appear only in the model catalog (`models.<harness>.models`) and in the `Model:` lines of a plan. Configuration may hold references such as `secret_ref:NAME`; each CLI's own login owns credentials, and secret values are never written to configuration, manifests, events, results, evidence, bundles, or logs.

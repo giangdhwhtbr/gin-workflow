@@ -206,9 +206,9 @@ Both actions always print JSON; `--json` is accepted and changes nothing.
 - a model or effort outside the catalog, or an effort for a catalog without efforts;
 - a `reasoning` field and no `model`; `model` and `effort` replace `reasoning`.
 
-`dispatch` prints the current route of one track from the manifest, `{"task_id", "provider", "model", "effort", "escalated"}`, and appends a `route.dispatched` event with that route to `runtime/events.jsonl`. `--escalate REASON` first moves the track one step up its provider's catalog: the next model at the same effort, or the next effort at the strongest model. It writes the new route and an `escalations` entry (`from`, `to`, `reason`) to the manifest. At the strongest model and highest effort it prints `{"status": "human_decision_required", ...}`, changes nothing, and exits 2.
+`dispatch` prints the current route of one track from the manifest, `{"task_id", "provider", "model", "effort", "escalated"}`, and appends a `route.dispatched` event with that route to `.agent-workflow/runtime/events.jsonl` in the main checkout. `--escalate REASON` first moves the track one step up its provider's catalog: the next model at the same effort, or the next effort at the strongest model. It writes the new route and an `escalations` entry (`from`, `to`, `reason`) to the manifest. At the strongest model and highest effort it prints `{"status": "human_decision_required", ...}`, changes nothing, and exits 2.
 
-Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it, nothing left to escalate to, or invalid arguments.
+Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it or without a resolved route, an invalid configuration, an unknown provider, or a manifest route outside its provider's catalog on `--escalate`, nothing left to escalate to, or invalid arguments.
 
 ## `gin-workflow notify`
 
