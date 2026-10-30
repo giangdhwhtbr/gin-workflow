@@ -30,6 +30,7 @@ from review_ledger.git_adapter import (
     create_source_checkpoint,
     find_reviewed_commit,
     GitAdapterError,
+    ensure_review_commit,
     is_ancestor,
     fetch_review_ref,
     push_review_ref,
@@ -56,6 +57,7 @@ def validate_ledger(bead_id, in_history, visited):
         base = repo.get("review_base_sha") or "HEAD"
         if recorded_hash and is_git_repo_root(repo_path) and in_history:
             try:
+                ensure_review_commit(repo_path, base, review_ref_of(repo, bead_id))
                 commit = find_reviewed_commit(repo_id, repo_path, proj.source_scope, base, recorded_hash)
                 print(f"{bead_id}: repository '{repo_id}': approved source matches commit {commit}.")
             except GitAdapterError as error:
@@ -78,6 +80,11 @@ def validate_ledger(bead_id, in_history, visited):
         raise ValueError(f"Ledger validation failed: active approval {mismatch}")
 
 
+def review_ref_of(repo, bead_id):
+    """The checkpoint ref a ledger repository records, else the default one for the bead."""
+    return repo.get("checkpoint_ref") or repo.get("review_ref") or f"refs/gin/review/{bead_id}"
+
+
 def approved_successor(repo_id, repo_path, scope, approved_hash, review_base, visited):
     """An approved ledger reviewed after this one, starting from its approved source, that validates in history.
 
@@ -91,8 +98,8 @@ def approved_successor(repo_id, repo_path, scope, approved_hash, review_base, vi
     for bead_id in sorted(candidates - visited):
         try:
             _, proj = load_ledger(bead_id)
-        except (WorkflowIntegrityError, ValueError) as error:
-            rejected.append(f"{bead_id} (unreadable ledger: {error})")
+        except (WorkflowIntegrityError, ValueError, KeyError, TypeError, AttributeError) as error:
+            rejected.append(f"{bead_id} (unreadable ledger: {error!r})")
             continue
         if proj.active_approval is None:
             continue
@@ -101,13 +108,15 @@ def approved_successor(repo_id, repo_path, scope, approved_hash, review_base, vi
             if repo.get("repository_id", "primary") != repo_id or not base:
                 continue
             try:
+                ensure_review_commit(repo_path, base, review_ref_of(repo, bead_id))
                 if compute_commit_source_tree_hash(repo_id, repo_path, scope, base) != approved_hash:
                     continue
                 if not is_ancestor(repo_path, review_base, base):
                     rejected.append(f"{bead_id} (its review base {base} is not after review base {review_base})")
                     continue
-            except GitAdapterError:
-                continue  # a base commit is gone from this clone, so it proves nothing
+            except GitAdapterError as error:
+                rejected.append(f"{bead_id} ({error})")  # e.g. its base is missing and its review ref was not pushed
+                continue
             try:
                 validate_ledger(bead_id, True, visited | {bead_id})
             except ValueError as error:

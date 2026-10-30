@@ -313,6 +313,22 @@ def find_reviewed_commit(
     raise GitAdapterError(f"no commit between review base {base} and HEAD matches the approved source tree")
 
 
+def ensure_review_commit(repo_path: str, sha: str, review_ref: str) -> None:
+    """Fetch review_ref from origin when sha is missing locally.
+
+    The checkpoint commit on that ref has the review base as its parent, so a clone without the deleted
+    feature branch of a squash merge gets the base back; an invalid ref or a failed fetch raises GitAdapterError.
+    """
+    root = str(_repository_root(repo_path))
+    try:
+        _resolve_commit(root, sha)
+        return
+    except GitAdapterError:
+        pass
+    _validate_review_ref(root, review_ref)
+    _run_git(root, "fetch", "origin", f"{review_ref}:{review_ref}")
+
+
 def is_ancestor(repo_path: str, ancestor: str, descendant: str) -> bool:
     """Whether ancestor is reachable from descendant; an unknown commit raises GitAdapterError."""
     root = str(_repository_root(repo_path))

@@ -92,6 +92,7 @@ class SequentialTracks(unittest.TestCase):
         feature = self.git("branch", "--show-current").strip()
         self.git("checkout", "-qb", "main-line", self.base)
         self.git("merge", "-q", "--squash", feature)
+        self.git("add", "-A")
         self.git("commit", "-qm", "squashed feature")
         return self.git("rev-parse", "HEAD").strip()
 
@@ -102,6 +103,36 @@ class SequentialTracks(unittest.TestCase):
         result = self.ok("validate", "--bead-id", "bead-a", "--in-history")
         self.assertIn("review base of bead-b", result)
         self.assertIn(squashed, result)
+
+    def fresh_clone_after_squash(self, *pushed_refs):
+        origin = tempfile.mkdtemp()
+        clone = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, origin)
+        self.addCleanup(shutil.rmtree, clone)
+        subprocess.run(["git", "init", "-q", "--bare", origin], check=True)
+        self.git("remote", "add", "origin", origin)
+        self.two_tracks()
+        self.git("push", "-q", "origin", *pushed_refs)
+        self.squash_into_main_line()
+        self.git("push", "-q", "origin", "main-line")
+        subprocess.run(["git", "clone", "-q", "--no-local", "--branch", "main-line", origin, clone], check=True)
+        return clone
+
+    def validate_in(self, clone, bead):
+        return subprocess.run([sys.executable, LEDGER, "validate", "--bead-id", bead, "--in-history"],
+                              cwd=clone, capture_output=True, text=True)
+
+    def test_a_fresh_clone_fetches_the_review_bases_after_a_squash_merge(self):
+        clone = self.fresh_clone_after_squash("refs/gin/review/bead-a", "refs/gin/review/bead-b")
+        for bead in ("bead-a", "bead-b"):
+            result = self.validate_in(clone, bead)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_a_fresh_clone_names_the_review_ref_it_could_not_fetch(self):
+        clone = self.fresh_clone_after_squash("refs/gin/review/bead-a")
+        result = self.validate_in(clone, "bead-a")
+        self.assertNotEqual(0, result.returncode, result.stdout)
+        self.assertIn("refs/gin/review/bead-b", result.stderr)
 
     def test_squash_merge_fails_when_source_changed_after_the_last_approval(self):
         self.two_tracks()
