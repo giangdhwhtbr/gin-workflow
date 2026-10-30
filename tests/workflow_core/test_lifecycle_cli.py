@@ -35,8 +35,11 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual(0, exit_code)
 
     def test_unknown_command_returns_error(self):
-        exit_code = cli_main(["unknown"])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            exit_code = cli_main(["unknown"])
         self.assertEqual(2, exit_code)
+        self.assertIn(",task,", stderr.getvalue())
 
     def test_state_command_returns_unmet_gate_and_remedies(self):
         exit_code = lifecycle_main([
