@@ -156,6 +156,9 @@ class StatusTests(unittest.TestCase):
     def test_parse_date_rejects_garbage(self):
         with self.assertRaisesRegex(ValueError, "not an ISO date"):
             milestone.parse_date("11/02/2026")
+        for text in ("20261102", "2026-W45-1"):
+            with self.assertRaisesRegex(ValueError, "not an ISO date"):
+                milestone.parse_date(text)
 
 
 class PayloadTests(unittest.TestCase):
@@ -218,6 +221,16 @@ class PayloadTests(unittest.TestCase):
         self.assertIn("dependency cycle", second["error"])
         self.assertIsNone(second["finish"])
         self.assertIsNone(second["warnings"])
+
+    def test_req_011_list_reports_bad_kickoff_per_entry(self):
+        beads = world(milestone_bead(kickoff="garbage"), milestone_bead("m2", start="2026-12-01", end="2026-12-31"),
+                       bead("C", parent="m2", minutes=days(1)))
+        bad, good = milestone.list_payload(beads, TODAY, False)["milestones"]
+        self.assertIn("not an ISO date", bad["error"])
+        self.assertEqual((None, None, None), (bad["status"], bad["finish"], bad["warnings"]))
+        self.assertIsNone(good["error"])
+        self.assertIsNotNone(good["status"])
+        self.assertIsNotNone(good["finish"])
 
     def test_req_011_list_reports_missing_period(self):
         beads = world(bead("m1", type="milestone"))

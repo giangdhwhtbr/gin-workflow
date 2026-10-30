@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 import math
+import re
 from typing import Any, Mapping
 
 SCHEMA = 1
@@ -17,6 +18,8 @@ class CycleError(ValueError):
 
 def parse_date(text: str) -> date:
     try:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(text)):
+            raise ValueError
         return date.fromisoformat(str(text))
     except ValueError:
         raise ValueError(f"not an ISO date (YYYY-MM-DD): {text}") from None
@@ -157,12 +160,13 @@ def list_payload(beads: Beads, today: date, include_closed: bool) -> dict[str, A
             continue
         meta = _meta(milestone)
         epics = epics_of(milestone["id"], beads)
-        entry = {"id": milestone["id"], "title": milestone.get("title", ""), "status": status(milestone, today),
+        entry = {"id": milestone["id"], "title": milestone.get("title", ""), "status": None,
                  "start": meta.get("start"), "end": meta.get("end"), "kickoff": meta.get("kickoff"),
                  "finish": None, "epics": {"total": len(epics),
                                            "closed": sum(epic.get("status") == "closed" for epic in epics)},
                  "warnings": None, "error": None}
         try:
+            entry["status"] = status(milestone, today)
             begin, _ = period(milestone)
             start = parse_date(meta["kickoff"]) if meta.get("kickoff") else begin
             plan = schedule(milestone, beads, start, today)
