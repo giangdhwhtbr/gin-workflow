@@ -25,10 +25,12 @@ from review_ledger.cli import (
 from review_ledger.events import WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection
 from review_ledger.git_adapter import (
+    compute_commit_source_tree_hash,
     compute_working_source_tree_hash,
     create_source_checkpoint,
     find_reviewed_commit,
     GitAdapterError,
+    is_ancestor,
     fetch_review_ref,
     push_review_ref,
 )
@@ -42,6 +44,77 @@ from review_ledger.source_identity import (
 
 
 from review_ledger.bead_fsm import TERMINAL_FINDING_STATUSES
+
+
+def validate_ledger(bead_id, in_history, visited):
+    """Check each repository's approved source against the working tree, or HEAD's history with in_history."""
+    _, proj = load_ledger(bead_id)
+    for repo in proj.repositories:
+        repo_id = repo.get("repository_id", "primary")
+        repo_path = repo.get("repository_path", ".")
+        recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
+        base = repo.get("review_base_sha") or "HEAD"
+        if recorded_hash and is_git_repo_root(repo_path) and in_history:
+            try:
+                commit = find_reviewed_commit(repo_id, repo_path, proj.source_scope, base, recorded_hash)
+                print(f"{bead_id}: repository '{repo_id}': approved source matches commit {commit}.")
+            except GitAdapterError as error:
+                successor, rejected = approved_successor(
+                    repo_id, repo_path, proj.source_scope, recorded_hash, base, visited
+                )
+                if successor is None:
+                    tried = f" Successors rejected: {'; '.join(rejected)}." if rejected else ""
+                    raise ValueError(f"Ledger validation failed for repository '{repo_id}': {error}.{tried}") from error
+                print(f"{bead_id}: repository '{repo_id}': approved source is the review base of {successor}.")
+        elif recorded_hash and is_git_repo_root(repo_path):
+            current_hash = compute_working_source_tree_hash(repo_id, repo_path, proj.source_scope)
+            if current_hash != recorded_hash:
+                raise ValueError(
+                    f"Ledger validation failed for repository '{repo_id}': working source tree hash '{current_hash}' "
+                    f"differs from checkpoint tree hash '{recorded_hash}'."
+                )
+    mismatch = approval_tree_mismatch(proj.active_approval, proj.repositories)
+    if mismatch:
+        raise ValueError(f"Ledger validation failed: active approval {mismatch}")
+
+
+def approved_successor(repo_id, repo_path, scope, approved_hash, review_base, visited):
+    """An approved ledger reviewed after this one, starting from its approved source, that validates in history.
+
+    A squash merge drops the commits of earlier tracks on a branch; the next track's review still proves
+    their approved source shipped, because it reviewed every change made on top of it. Returns the bead id
+    or None, and why each candidate whose review base matched was rejected.
+    """
+    planning = Path(".planning")
+    candidates = {path.parent.name for path in (*planning.glob("reviews/*/review.json"), *planning.glob("*/review.json"))}
+    rejected = []
+    for bead_id in sorted(candidates - visited):
+        try:
+            _, proj = load_ledger(bead_id)
+        except (WorkflowIntegrityError, ValueError) as error:
+            rejected.append(f"{bead_id} (unreadable ledger: {error})")
+            continue
+        if proj.active_approval is None:
+            continue
+        for repo in proj.repositories:
+            base = repo.get("review_base_sha")
+            if repo.get("repository_id", "primary") != repo_id or not base:
+                continue
+            try:
+                if compute_commit_source_tree_hash(repo_id, repo_path, scope, base) != approved_hash:
+                    continue
+                if not is_ancestor(repo_path, review_base, base):
+                    rejected.append(f"{bead_id} (its review base {base} is not after review base {review_base})")
+                    continue
+            except GitAdapterError:
+                continue  # a base commit is gone from this clone, so it proves nothing
+            try:
+                validate_ledger(bead_id, True, visited | {bead_id})
+            except ValueError as error:
+                rejected.append(f"{bead_id} ({error})")
+                continue
+            return bead_id, rejected
+    return None, rejected
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Cross-Agent Review Ledger CLI tool.")
@@ -322,7 +395,9 @@ def parse_args():
         "--in-history",
         action="store_true",
         help="Accept the approved source when a commit from the review base to HEAD matches it, "
-        "instead of the working tree (earlier tracks on a shared branch).",
+        "instead of the working tree (earlier tracks on a shared branch). After a squash merge, the search "
+        "starts where the histories diverged, and an earlier track also passes when an approved track with a later "
+        "review base started from its approved source and itself passes.",
     )
 
     # Status
@@ -691,29 +766,7 @@ def main():
                 print(f"Rendered ledger to {md_path}")
 
         elif args.command == "validate":
-            log, proj = load_ledger(args.bead_id)
-            for repo in proj.repositories:
-                repo_id = repo.get("repository_id", "primary")
-                repo_path = repo.get("repository_path", ".")
-                recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
-                if recorded_hash and is_git_repo_root(repo_path) and args.in_history:
-                    try:
-                        commit = find_reviewed_commit(
-                            repo_id, repo_path, proj.source_scope, repo.get("review_base_sha") or "HEAD", recorded_hash
-                        )
-                    except GitAdapterError as error:
-                        raise ValueError(f"Ledger validation failed for repository '{repo_id}': {error}.") from error
-                    print(f"Repository '{repo_id}': approved source matches commit {commit}.")
-                elif recorded_hash and is_git_repo_root(repo_path):
-                    current_hash = compute_working_source_tree_hash(repo_id, repo_path, proj.source_scope)
-                    if current_hash != recorded_hash:
-                        raise ValueError(
-                            f"Ledger validation failed for repository '{repo_id}': working source tree hash '{current_hash}' "
-                            f"differs from checkpoint tree hash '{recorded_hash}'."
-                        )
-            mismatch = approval_tree_mismatch(proj.active_approval, proj.repositories)
-            if mismatch:
-                raise ValueError(f"Ledger validation failed: active approval {mismatch}")
+            validate_ledger(args.bead_id, args.in_history, {args.bead_id})
             print("Ledger validation passed successfully.")
 
 
