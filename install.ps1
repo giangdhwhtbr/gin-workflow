@@ -408,6 +408,14 @@ function Install-Launcher {
         -Source (Join-Path (Split-Path -Parent $sourceDirectory) 'templates') `
         -Destination (Join-Path $installDirectory 'templates')
 
+    if ($Name -eq 'gin-workflow') {
+        $previous = $env:PYTHONPATH
+        $env:PYTHONPATH = $sourceDirectory
+        try { & python -B -m workflow_core.snapshot (Join-Path $ScriptRoot 'plugins/gin-workflow/src') $installDirectory }
+        finally { $env:PYTHONPATH = $previous }
+        if ($LASTEXITCODE) { throw 'Error: could not write the installed snapshot stamp' }
+    }
+
     $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
     $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"
     try {
