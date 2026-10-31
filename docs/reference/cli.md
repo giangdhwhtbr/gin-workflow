@@ -65,7 +65,7 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 
 | Gate | Records | Notes |
 |---|---|---|
-| `requirement-confirmed` | the user confirmed the design | evidence: spec path; team mode adds `--spec` |
+| `requirement-confirmed` | the user confirmed the design | evidence: spec path; team mode adds `--spec`. With `artifacts.layout: legacy` and an existing `.md` evidence file, the spec is linted first (`specs lint --spec`); a failing spec exits 1 with the errors and records nothing |
 | `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan` |
 | `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped` |
 | `quick-completed` | a `/quick` change finished | evidence: files and verify results |
@@ -129,7 +129,7 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 |---|---|
 | `new SLUG --epic BEAD [--title T]` | Create a change folder under `artifacts.changes` |
 | `next-id CAP` | Next free requirement id for a capability |
-| `lint [--change C] [--against REF]` | Lint the living specs, or one change's spec delta |
+| `lint [--change C] [--against REF] [--spec FILE]` | Lint the living specs, or one change's spec delta; `--spec` lints a legacy-layout design spec (every `### US-<n>:` story needs `Acceptance criteria:` with a bullet, no `{{`, `TBD`, or `TODO` outside code) |
 | `hash REQ-ID` | Print the base hash of a requirement (`<!-- base: ... -->`) |
 | `template NAME` | Print a spec template |
 | `renumber OLD NEW --change C [--against REF]` | Rename a requirement id in a change and its beads |
