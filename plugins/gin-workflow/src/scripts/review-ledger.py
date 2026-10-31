@@ -58,7 +58,12 @@ def validate_ledger(bead_id, in_history, visited):
         if recorded_hash and is_git_repo_root(repo_path) and in_history:
             try:
                 ensure_review_commit(repo_path, base, review_ref_of(repo, bead_id))
-                commit = find_reviewed_commit(repo_id, repo_path, proj.source_scope, base, recorded_hash)
+                checkpoint = repo.get("checkpoint_sha")
+                if checkpoint:
+                    ensure_review_commit(repo_path, checkpoint, review_ref_of(repo, bead_id))
+                commit = find_reviewed_commit(
+                    repo_id, repo_path, proj.source_scope, base, recorded_hash, checkpoint
+                )
                 print(f"{bead_id}: repository '{repo_id}': approved source matches commit {commit}.")
             except GitAdapterError as error:
                 successor, rejected = approved_successor(
