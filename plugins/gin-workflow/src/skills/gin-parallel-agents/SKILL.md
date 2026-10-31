@@ -12,7 +12,7 @@ Dispatch one agent per independent problem domain and let them work concurrently
 - each can be understood without the others, and
 - they share no state: no common files, resources, or ordering.
 
-Do not use it for related failures (fixing one may fix the others), exploratory debugging, work that needs whole-system understanding, or agents that would edit the same files. Production-impacting parallel work or an execution-strategy change needs explicit user approval, recorded first.
+Do not use it for related failures (fixing one may fix the others), exploratory debugging, work that needs whole-system understanding, or agents that would edit the same files. Production-impacting parallel work or an execution-strategy change needs approval (stage-contract Approvals).
 
 ## Pattern
 1. **Group** the work by what it affects, and confirm each group is dependency-ready (`gin-workflow task ready`).

@@ -95,7 +95,7 @@ To run one file, pass its path, for example `PYTHONPATH=plugins/gin-workflow/src
 
 Adding a skill or a subcommand means documenting it.
 
-`tests/workflow_core/test_token_budget.py` caps sizes: each shared `gin-*` skill at 6,000 characters, each agent at 4,000, and each stage skill with the references it links at 12,000 (`quick` at 8,000). The gin-qa and gin-orchestrator skills stay within 6,000 characters each, and the core never names `gin-qa` (`tests/gin_qa/test_packaging.py`, `tests/gin_orchestrator/test_orchestrator_packaging.py`). Skills and agents reach tasks through `gin-workflow task`, never `bd` directly, except the Beads-only skills (`tests/test_no_direct_bd.py`).
+`tests/workflow_core/test_token_budget.py` caps sizes: each shared `gin-*` skill at 6,000 characters, each agent at 4,000, and each stage skill with the references it links at 13,500 (`quick` at 8,000). The gin-qa and gin-orchestrator skills stay within 6,000 characters each, and the core never names `gin-qa` (`tests/gin_qa/test_packaging.py`, `tests/gin_orchestrator/test_orchestrator_packaging.py`). Skills and agents reach tasks through `gin-workflow task`, never `bd` directly, except the Beads-only skills (`tests/test_no_direct_bd.py`).
 
 ## Releasing
 

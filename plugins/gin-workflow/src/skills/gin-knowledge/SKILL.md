@@ -10,7 +10,7 @@ Knowledge lives in `.planning/knowledge/` (the configured `artifacts.knowledge`)
 ## Capture (during execute)
 1. Capture only reusable knowledge: compatibility constraints, environment limits, architectural decisions, counterintuitive APIs, and debugging lessons that will recur. Do not capture routine steps, transient worker state, private reasoning, or self-assessment.
 2. Search first (`grep -ril "<topic>" .planning/knowledge`, `gin-workflow task memories <keyword>`) and update an existing record instead of duplicating it.
-3. Write `.planning/knowledge/<topic>.md` with **Context**, **Decision/Solution**, **Consequences**, **References** (paths, beads), and **Scope**.
+3. Write `.planning/knowledge/<topic>.md` with **Context**, **Decision/Solution**, **Consequences**, **References** (paths, beads), and **Scope**. For an architectural decision, start from `gin-workflow specs template adr.md` and add **References** and **Scope**.
 4. Mention the record in the bead notes (`gin-workflow task update <id> --notes`). If the knowledge location is unavailable, say so in the handoff; never work around it.
 
 ## Reconcile (during ship, after verification and before closing beads)
