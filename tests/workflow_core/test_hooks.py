@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -48,6 +51,35 @@ def make_repo(base, *, lint="true", test="true", rigor="standard", extra=""):
 
 def push_ref(root):
     return f"refs/heads/main {git(root, 'rev-parse', 'HEAD')} refs/heads/main {ZERO}"
+
+
+class TestHooksStatus(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def status(self, root):
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = hooks.main(["status", "--repository", str(root)])
+        return code, json.loads(out.getvalue())
+
+    def test_us8_missing_hook_is_not_ok(self):
+        code, report = self.status(make_repo(self.tmp.name))
+        self.assertEqual(1, code)
+        self.assertEqual((False, "missing"), (report["ok"], report["hooks"]["pre-commit"]))
+        self.assertEqual(["lint", "test"], report["verify_commands"])
+
+    def test_us8_hooks_and_commands_in_place_are_ok(self):
+        root = make_repo(self.tmp.name)
+        hooks.install(root)
+        code, report = self.status(root)
+        self.assertEqual((0, True), (code, report["ok"]))
+
+    def test_us8_no_verify_commands_is_not_ok(self):
+        root = make_repo(self.tmp.name, lint="", test="")
+        hooks.install(root)
+        code, report = self.status(root)
+        self.assertEqual((1, False, []), (code, report["ok"], report["verify_commands"]))
 
 
 class TestHooksInstall(unittest.TestCase):

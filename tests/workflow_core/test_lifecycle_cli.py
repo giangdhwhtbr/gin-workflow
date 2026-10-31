@@ -9,6 +9,8 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import threading
+import time
 import unittest
 from unittest import mock
 
@@ -268,6 +270,14 @@ class TestLifecycleCLI(unittest.TestCase):
                                       "--evidence", "lint ok; 3 tests ok", "--actor", "user"]))
         self.assertEqual("lint ok; 3 tests ok", self._state_json()["recent_quick"][-1]["evidence"])
 
+    def test_state_lists_review_waivers_of_the_workflow(self):
+        store = WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl")
+        for workflow in ("default-workflow", "other"):
+            store.append(WorkflowEvent.create(event_type="review.waived", workflow_id=workflow, task_id=f"{workflow}.1",
+                                              actor="u", payload={"reason": "spike"}, idempotency_key=workflow))
+        self.assertEqual([{"task_id": "default-workflow.1", "reason": "spike", "actor": "u"}],
+                         self._state_json()["review_waivers"])
+
     def test_unblock_safety_gate_without_followup_fails(self):
         exit_code = lifecycle_main([
             "unblock",
@@ -374,7 +384,7 @@ class TestLifecycleCLI(unittest.TestCase):
         for error in (EventPersistenceError("cannot lock events"), RuntimeError("atomic write failed"),
                       PermissionError(13, "denied")):
             with self.subTest(error=type(error).__name__), \
-                    mock.patch("workflow_core.lifecycle_cli.WorkflowEventStore.append", side_effect=error), \
+                    mock.patch("workflow_core.lifecycle_cli.WorkflowEventStore.transaction", side_effect=error), \
                     contextlib.redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(1, cli_main(args))
             self.assertIn("error: plan-approved not recorded for default-workflow: ", stderr.getvalue())
@@ -383,9 +393,9 @@ class TestLifecycleCLI(unittest.TestCase):
     def _fake_beads(self, children, epic_status="open"):
         def run(repo, argv):
             if argv[:2] == ["list", "--parent"]:
-                return [{"id": f"epic.{i}", "status": status} for i, status in enumerate(children)]
+                return [{"id": f"epic.{i}", "status": status} for i, status in enumerate(children)], None
             if argv[0] == "show":
-                return [{"id": "epic", "status": epic_status}]
+                return [{"id": "epic", "status": epic_status}], None
             raise AssertionError(argv)
         return run
 
@@ -460,8 +470,8 @@ class TestLifecycleCLI(unittest.TestCase):
         self._record_orchestration()
         with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([])):
             self.assertEqual("unmet", self._state_gates()["implementation_complete"])
-        with patch("workflow_core.lifecycle_cli._beads_json", lambda repo, argv: None):
-            self.assertEqual("unmet", self._state_gates()["implementation_complete"])
+        with patch("workflow_core.lifecycle_cli._beads_json", lambda repo, argv: (None, "bd not found")):
+            self.assertEqual("unknown", self._state_gates()["implementation_complete"])
 
     def test_shipped_follows_closed_epic(self):
         from unittest.mock import patch
@@ -545,6 +555,90 @@ class TestLifecycleCLI(unittest.TestCase):
                                       "--evidence", "x", "--actor", "user"]))
         self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
                                       "--actor", "user"]))
+
+    def _state_payload(self, workflow_id="default-workflow"):
+        with mock.patch("sys.stdout", new=io.StringIO()) as out:
+            code = lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json",
+                                   "--workflow-id", workflow_id])
+        return json.loads(out.getvalue()), code
+
+    def test_us1_tracker_failure_is_unknown_and_holds(self):
+        self._record_orchestration()
+        with mock.patch("workflow_core.lifecycle_cli._beads_json", lambda repo, argv: (None, "bd not found")):
+            payload, code = self._state_payload()
+        self.assertEqual(1, code)
+        self.assertEqual(("unknown", "unknown"),
+                         (payload["gates"]["implementation_complete"], payload["gates"]["shipped"]))
+        self.assertEqual(("progress", "hold"), (payload["stage"], payload["decision"]))
+        self.assertIn("tracker unavailable: bd not found", payload["warnings"])
+        self.assertIn("tracker unavailable: bd not found", payload["remedies"])
+
+    def test_us1_unrecorded_process_gates_are_unknown_when_standalone_cannot_be_checked(self):
+        self._record_orchestration()
+        with mock.patch("workflow_core.lifecycle_cli._beads_json", lambda repo, argv: (None, "bd not found")):
+            gates = self._state_gates()
+        self.assertEqual(("unknown", "unknown", "satisfied"),
+                         (gates["requirement_confirmed"], gates["plan_approved"], gates["orchestration_ready"]))
+
+    def test_us1_record_shipped_names_the_tracker_failure(self):
+        self._record_orchestration()
+        with mock.patch("workflow_core.lifecycle_cli._beads_json", lambda repo, argv: (None, "bd not found")), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(2, cli_main(["record", "shipped", "--repository", str(self.repo_path),
+                                          "--evidence", "merge", "--actor", "user"]))
+        self.assertIn("tracker unavailable: bd not found", err.getvalue())
+        self.assertNotIn("standalone", err.getvalue())
+
+    def test_us2_corrupt_event_log_is_reported(self):
+        path = self.workflow_dir / "runtime/events.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{not json\n", encoding="utf-8")
+        payload, code = self._state_payload()
+        self.assertEqual(1, code)
+        self.assertEqual({"unknown"}, set(payload["gates"].values()))
+        self.assertEqual("hold", payload["decision"])
+        self.assertTrue(any(warning.startswith("event log unreadable: ") and warning.endswith("; waivers not applied")
+                            for warning in payload["warnings"]), payload["warnings"])
+
+    def test_us3_concurrent_record_shipped_writes_one_event(self):
+        self._record_orchestration()
+        fake = self._fake_beads([], epic_status="closed")
+
+        def slow(repo, argv):
+            time.sleep(0.2)
+            return fake(repo, argv)
+
+        codes = []
+
+        def record(evidence):
+            codes.append(cli_main(["record", "shipped", "--repository", str(self.repo_path),
+                                   "--evidence", evidence, "--actor", "user"]))
+
+        with mock.patch("workflow_core.lifecycle_cli._beads_json", slow), contextlib.redirect_stdout(io.StringIO()):
+            threads = [threading.Thread(target=record, args=(evidence,)) for evidence in ("merge-a", "merge-b")]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+        self.assertEqual([0, 0], codes)
+        events = WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").read_all()
+        self.assertEqual(1, sum(event.event_type == "delivery.shipped" for event in events))
+
+    def test_us5_state_reads_the_log_once_and_lists_children_once(self):
+        self._record_orchestration()
+        calls = []
+        fake = self._fake_beads(["closed", "open"])
+
+        def counting(repo, argv):
+            calls.append(argv[0])
+            return fake(repo, argv)
+
+        original = WorkflowEventStore.read_all
+        with mock.patch("workflow_core.lifecycle_cli._beads_json", counting), \
+                mock.patch.object(WorkflowEventStore, "read_all", autospec=True, side_effect=original) as reads:
+            self._state_payload()
+        self.assertEqual(1, reads.call_count)
+        self.assertEqual(1, calls.count("list"))
 
 
 if __name__ == "__main__":

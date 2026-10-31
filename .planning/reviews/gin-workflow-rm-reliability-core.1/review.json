@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+      "review_base_sha": "379fb530ddd99ca4878007792a16b94341a216a1",
+      "reviewed_source_sha": "e51a7be4b364fa011398bf427a2b5cca13efb3ce",
+      "checkpoint_sha": "e51a7be4b364fa011398bf427a2b5cca13efb3ce",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+      "reviewed_source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 7,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-10-30T23:39:07.591697Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+            "review_base_sha": "379fb530ddd99ca4878007792a16b94341a216a1",
+            "reviewed_source_sha": "9a5879c1a432ebb8e2ce168288893190bb09374a",
+            "checkpoint_sha": "9a5879c1a432ebb8e2ce168288893190bb09374a",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+            "reviewed_source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "c5afb8ab4fd71321601562792384f78791420cf32e64eabce2c0ad92c76cc242"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-30T23:39:07.883054Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+            "review_base_sha": "379fb530ddd99ca4878007792a16b94341a216a1",
+            "reviewed_source_sha": "e51a7be4b364fa011398bf427a2b5cca13efb3ce",
+            "checkpoint_sha": "e51a7be4b364fa011398bf427a2b5cca13efb3ce",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+            "reviewed_source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "c5afb8ab4fd71321601562792384f78791420cf32e64eabce2c0ad92c76cc242",
+      "event_hash": "c6e1ccae6310c2a615b16d167c98786844871f084418a1fdcae4f2cbdb25625e"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-10-30T23:39:08.024943Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "c6e1ccae6310c2a615b16d167c98786844871f084418a1fdcae4f2cbdb25625e",
+      "event_hash": "985b4a5c9098a825ce0e06402a1288ef39e34201d52a39cd0806c98904f5a864"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-30T23:39:42.371573Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-7caca1b3"
+      },
+      "payload": {
+        "lease_id": "f3bcc5f58bf8496294d1373d36268e28",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-7caca1b3",
+        "acquired_at": "2026-10-30T23:39:42.370784Z",
+        "expires_at": "2026-10-30T23:49:42.370784Z"
+      },
+      "previous_event_hash": "985b4a5c9098a825ce0e06402a1288ef39e34201d52a39cd0806c98904f5a864",
+      "event_hash": "558c2db2f17501818e16cc94de07aea9e9ff947e7e170c93e5b9d22deff9ab5f"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-10-30T23:39:42.387862Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-7caca1b3"
+      },
+      "payload": {},
+      "previous_event_hash": "558c2db2f17501818e16cc94de07aea9e9ff947e7e170c93e5b9d22deff9ab5f",
+      "event_hash": "83e1b2c022c2b674b5602e247d7c5b71da4cf8fd7ac17f502240ea761d490955"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-10-30T23:41:51.345427Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-7caca1b3"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.1",
+            "review_base_sha": "379fb530ddd99ca4878007792a16b94341a216a1",
+            "reviewed_source_sha": "e51a7be4b364fa011398bf427a2b5cca13efb3ce",
+            "checkpoint_sha": "e51a7be4b364fa011398bf427a2b5cca13efb3ce",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+            "reviewed_source_tree_hash": "4cf90348b42bd2069338853d416352647586fe27c53d9fb31e5a81061e5fc31f",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "83e1b2c022c2b674b5602e247d7c5b71da4cf8fd7ac17f502240ea761d490955",
+      "event_hash": "b56239460ff820cf5aaa1e0f39eb0ca46da8b7743b3457cfc898823690384fb0"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-10-30T23:41:56.033709Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-7caca1b3"
+      },
+      "payload": {
+        "lease_id": "f3bcc5f58bf8496294d1373d36268e28",
+        "released_at": "2026-10-30T23:41:56.032885Z"
+      },
+      "previous_event_hash": "b56239460ff820cf5aaa1e0f39eb0ca46da8b7743b3457cfc898823690384fb0",
+      "event_hash": "5682175e5ec6376426f35fa3f5e07bf1ff6250fceab412cda5f7ec0562e41b36"
+    }
+  ]
+}

@@ -52,7 +52,7 @@ def main(argv: Sequence[str]) -> int:
     parser.add_argument("--workflow-id", required=True)
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
-    epic = _recorded_epic(_get_event_store(args.repository), args.workflow_id)
+    epic = _recorded_epic(_get_event_store(args.repository).read_all(), args.workflow_id)
     if not epic:
         print(f"error: no epic recorded for {args.workflow_id}; run /gin-workflow:orchestrate first", file=sys.stderr)
         return 1

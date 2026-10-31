@@ -1,0 +1,420 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+      "review_base_sha": "1d8a11100b1b7dee069c6be8c967f45264e83dd5",
+      "reviewed_source_sha": "84366ea48eedef93cb14804875af8a8866b74baa",
+      "checkpoint_sha": "84366ea48eedef93cb14804875af8a8866b74baa",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "61eb211ca015a564c1d9770563603adb307547915ec5d6d195b2285c2a1d10ab",
+      "reviewed_source_tree_hash": "61eb211ca015a564c1d9770563603adb307547915ec5d6d195b2285c2a1d10ab",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 20,
+  "next_finding_number": 1,
+  "findings": {
+    "F1-stale-gate-values-troubleshooting-and-workflow-skill": {
+      "finding_id": "F1-stale-gate-values-troubleshooting-and-workflow-skill",
+      "severity": "IMPORTANT",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F2-process-gate-guard-two-bd-calls-under-lock": {
+      "finding_id": "F2-process-gate-guard-two-bd-calls-under-lock",
+      "severity": "MINOR",
+      "status": "verified",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-10-30T23:59:44.101232Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "review_base_sha": "1d8a11100b1b7dee069c6be8c967f45264e83dd5",
+            "reviewed_source_sha": "8d8332d6768c8e969ceb31c134f31ed7686c06a9",
+            "checkpoint_sha": "8d8332d6768c8e969ceb31c134f31ed7686c06a9",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "d7ef6eb36d2f2569774a0cdfd97580e233d44806535bc20bba47a1f401f3558b",
+            "reviewed_source_tree_hash": "d7ef6eb36d2f2569774a0cdfd97580e233d44806535bc20bba47a1f401f3558b",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "42314ea2617b77b65306d7b072ea36df6e5a4991c99ed701f6f984ef559edafa"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-30T23:59:44.369444Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "review_base_sha": "1d8a11100b1b7dee069c6be8c967f45264e83dd5",
+            "reviewed_source_sha": "d0e10a61488b06e54eb5d5bee278acb7654f4fe5",
+            "checkpoint_sha": "d0e10a61488b06e54eb5d5bee278acb7654f4fe5",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "d7ef6eb36d2f2569774a0cdfd97580e233d44806535bc20bba47a1f401f3558b",
+            "reviewed_source_tree_hash": "d7ef6eb36d2f2569774a0cdfd97580e233d44806535bc20bba47a1f401f3558b",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "42314ea2617b77b65306d7b072ea36df6e5a4991c99ed701f6f984ef559edafa",
+      "event_hash": "30865f818ee700810bd61d95f2dc45968daf009de208ce6105d37f077e67fab7"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-10-30T23:59:44.490286Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "30865f818ee700810bd61d95f2dc45968daf009de208ce6105d37f077e67fab7",
+      "event_hash": "0a6a74ffdca25c896218614a20d338bad563503545b485619dd7374c8a946d98"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-31T00:00:10.588907Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "lease_id": "f4d511919e9044a79fcd48e377260e05",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053",
+        "acquired_at": "2026-10-31T00:00:10.588110Z",
+        "expires_at": "2026-10-31T00:10:10.588110Z"
+      },
+      "previous_event_hash": "0a6a74ffdca25c896218614a20d338bad563503545b485619dd7374c8a946d98",
+      "event_hash": "52491b310d0b45f1e19e91fe47a864b0838178d9773f548b414b90a771ebbde0"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-10-31T00:00:10.605290Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {},
+      "previous_event_hash": "52491b310d0b45f1e19e91fe47a864b0838178d9773f548b414b90a771ebbde0",
+      "event_hash": "c809c0996805ada19754249c305228a91db260d45a04f30aa4afa8f7e1bba750"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-10-31T00:03:25.299112Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "finding_id": "F1-stale-gate-values-troubleshooting-and-workflow-skill",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "c809c0996805ada19754249c305228a91db260d45a04f30aa4afa8f7e1bba750",
+      "event_hash": "3f285d01548631d3269265bd1369138a2d55f5e8e9b639d2c5d0be0271447f9c"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-created",
+      "timestamp": "2026-10-31T00:03:25.424181Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "finding_id": "F2-process-gate-guard-two-bd-calls-under-lock",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "3f285d01548631d3269265bd1369138a2d55f5e8e9b639d2c5d0be0271447f9c",
+      "event_hash": "0845f4e7ca734ab2594269ea8c51546779dd72aa57a56f284e3125dff641ae11"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "changes-requested",
+      "timestamp": "2026-10-31T00:03:30.088308Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "to": "changes-requested"
+      },
+      "previous_event_hash": "0845f4e7ca734ab2594269ea8c51546779dd72aa57a56f284e3125dff641ae11",
+      "event_hash": "77280b9d2e3f3b2750405be7eec204a496508ab8da871e73b5b949805e2e04c2"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "lease-released",
+      "timestamp": "2026-10-31T00:03:30.314602Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "lease_id": "f4d511919e9044a79fcd48e377260e05",
+        "released_at": "2026-10-31T00:03:30.313785Z"
+      },
+      "previous_event_hash": "77280b9d2e3f3b2750405be7eec204a496508ab8da871e73b5b949805e2e04c2",
+      "event_hash": "ba18ec71468aebfc5ee119888587433389f4934e77ce37ab6664b251480ded99"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "implementation-in-progress",
+      "timestamp": "2026-10-31T00:04:19.806039Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "to": "implementation-in-progress"
+      },
+      "previous_event_hash": "ba18ec71468aebfc5ee119888587433389f4934e77ce37ab6664b251480ded99",
+      "event_hash": "3403d4399df4adba853d5c3739322ec8a67381f04a3fb7fc4434c2d91f5ac615"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-31T00:06:19.629618Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "finding_id": "F1-stale-gate-values-troubleshooting-and-workflow-skill"
+      },
+      "previous_event_hash": "3403d4399df4adba853d5c3739322ec8a67381f04a3fb7fc4434c2d91f5ac615",
+      "event_hash": "c59d5a6a707eecb0951d7de9138500e2128021d93d531181f7791ff63651987f"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "finding-fixed",
+      "timestamp": "2026-10-31T00:06:19.754656Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "finding_id": "F2-process-gate-guard-two-bd-calls-under-lock"
+      },
+      "previous_event_hash": "c59d5a6a707eecb0951d7de9138500e2128021d93d531181f7791ff63651987f",
+      "event_hash": "ec84aeef8f7cd1413fb4306f6681686f8637c5067cdbb2f8b461b6ede0dffc5a"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-10-31T00:06:20.037425Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "review_base_sha": "1d8a11100b1b7dee069c6be8c967f45264e83dd5",
+            "reviewed_source_sha": "84366ea48eedef93cb14804875af8a8866b74baa",
+            "checkpoint_sha": "84366ea48eedef93cb14804875af8a8866b74baa",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "61eb211ca015a564c1d9770563603adb307547915ec5d6d195b2285c2a1d10ab",
+            "reviewed_source_tree_hash": "61eb211ca015a564c1d9770563603adb307547915ec5d6d195b2285c2a1d10ab",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "ec84aeef8f7cd1413fb4306f6681686f8637c5067cdbb2f8b461b6ede0dffc5a",
+      "event_hash": "baa772be7505dfc5745cee4cf190925db974dc26d7bb31a3cd9ebe39f0ab351b"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "review-requested",
+      "timestamp": "2026-10-31T00:06:20.158554Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:opus"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "baa772be7505dfc5745cee4cf190925db974dc26d7bb31a3cd9ebe39f0ab351b",
+      "event_hash": "f1040d6884b0eb3de7484f2842a3cbea235916ff1a4d9ee2ae28ad84059c9a47"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "lease-acquired",
+      "timestamp": "2026-10-31T00:06:34.391692Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "lease_id": "5a745cab00fb4222a6a50d8e41723341",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053",
+        "acquired_at": "2026-10-31T00:06:34.390869Z",
+        "expires_at": "2026-10-31T00:16:34.390869Z"
+      },
+      "previous_event_hash": "f1040d6884b0eb3de7484f2842a3cbea235916ff1a4d9ee2ae28ad84059c9a47",
+      "event_hash": "f1abde7dc50e5c112c34b41a3868509cbbe5d4c22c80ee4c915004a6242b3c42"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "review-started",
+      "timestamp": "2026-10-31T00:06:34.409832Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {},
+      "previous_event_hash": "f1abde7dc50e5c112c34b41a3868509cbbe5d4c22c80ee4c915004a6242b3c42",
+      "event_hash": "1f3f675137c584b9e10644ebf25c959c050729980455296b92c7e692442b1058"
+    },
+    {
+      "event_id": "EV-000017",
+      "action": "finding-verified",
+      "timestamp": "2026-10-31T00:06:49.273400Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "finding_id": "F1-stale-gate-values-troubleshooting-and-workflow-skill"
+      },
+      "previous_event_hash": "1f3f675137c584b9e10644ebf25c959c050729980455296b92c7e692442b1058",
+      "event_hash": "b6bf415d1799e7bbadb2fcae1dfca4a9820ee676465622efaff05a315922248f"
+    },
+    {
+      "event_id": "EV-000018",
+      "action": "finding-verified",
+      "timestamp": "2026-10-31T00:06:49.400887Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "finding_id": "F2-process-gate-guard-two-bd-calls-under-lock"
+      },
+      "previous_event_hash": "b6bf415d1799e7bbadb2fcae1dfca4a9820ee676465622efaff05a315922248f",
+      "event_hash": "0e9b10923b236b0afeba4b11e6889cdc561f69242c3d7e6036c6668675313cfc"
+    },
+    {
+      "event_id": "EV-000019",
+      "action": "review-approved",
+      "timestamp": "2026-10-31T00:06:49.582927Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-reliability-core.2",
+            "review_base_sha": "1d8a11100b1b7dee069c6be8c967f45264e83dd5",
+            "reviewed_source_sha": "84366ea48eedef93cb14804875af8a8866b74baa",
+            "checkpoint_sha": "84366ea48eedef93cb14804875af8a8866b74baa",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "61eb211ca015a564c1d9770563603adb307547915ec5d6d195b2285c2a1d10ab",
+            "reviewed_source_tree_hash": "61eb211ca015a564c1d9770563603adb307547915ec5d6d195b2285c2a1d10ab",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": [
+          "F1-stale-gate-values-troubleshooting-and-workflow-skill",
+          "F2-process-gate-guard-two-bd-calls-under-lock"
+        ]
+      },
+      "previous_event_hash": "0e9b10923b236b0afeba4b11e6889cdc561f69242c3d7e6036c6668675313cfc",
+      "event_hash": "2497d463d01667dcaae39b7d8286e22a6195848dcb3721214e7da8a0e01b24ab"
+    },
+    {
+      "event_id": "EV-000020",
+      "action": "lease-released",
+      "timestamp": "2026-10-31T00:06:53.910858Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c98fd053"
+      },
+      "payload": {
+        "lease_id": "5a745cab00fb4222a6a50d8e41723341",
+        "released_at": "2026-10-31T00:06:53.910001Z"
+      },
+      "previous_event_hash": "2497d463d01667dcaae39b7d8286e22a6195848dcb3721214e7da8a0e01b24ab",
+      "event_hash": "9f2c8387f64db35f856be7d5d205536eed4a982c4f855e53e942feeb8d007d4c"
+    }
+  ]
+}

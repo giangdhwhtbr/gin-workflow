@@ -246,6 +246,23 @@ class ExternalDependencyFailureTests(unittest.TestCase):
                          tasks.without_held(explained, {"x-1": ["external:p:c"]}))
 
 
+class QueryResultTests(unittest.TestCase):
+    def run_query(self, completed=None, error=None, which="/usr/bin/bd"):
+        with mock.patch.object(tasks, "backend", return_value="beads"), \
+                mock.patch.object(tasks.shutil, "which", return_value=which), \
+                mock.patch.object(tasks.subprocess, "run", return_value=completed, side_effect=error):
+            return tasks.query_result(Path("."), ["list"])
+
+    def test_us1_query_result_names_the_cause(self):
+        self.assertEqual((None, "bd not found"), self.run_query(which=None))
+        self.assertEqual((None, "bd timed out after 30s"),
+                         self.run_query(error=subprocess.TimeoutExpired("bd", 30)))
+        self.assertEqual((None, "bd exited 3: boom"),
+                         self.run_query(subprocess.CompletedProcess([], 3, "", "boom\nmore")))
+        self.assertEqual((None, "invalid JSON from bd"), self.run_query(subprocess.CompletedProcess([], 0, "nope", "")))
+        self.assertEqual(([{"id": "a"}], None), self.run_query(subprocess.CompletedProcess([], 0, '[{"id": "a"}]', "")))
+
+
 class TeamActorTests(unittest.TestCase):
     """In team mode bd acts as the member's email, the identity `team claim` assigns."""
 

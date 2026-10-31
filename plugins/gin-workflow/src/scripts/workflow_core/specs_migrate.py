@@ -58,16 +58,16 @@ def plan_moves(root: Path, config: Mapping[str, Any], cfg: Mapping[str, Any]) ->
 
 def in_flight_workflows(root: Path) -> list[str]:
     from .events import WorkflowEventStore
-    from .lifecycle_cli import _delivery_gate_state, _process_gate_state
+    from .lifecycle_cli import _delivery_state, _process_gate_state
 
     path = main_checkout(Path(root)) / ".agent-workflow/runtime/events.jsonl"
     if not path.is_file():
         return []
-    store = WorkflowEventStore(path)
-    ids = sorted({event.workflow_id for event in store.read_all()})
+    events = WorkflowEventStore(path).read_all()
+    ids = sorted({event.workflow_id for event in events})
     return [workflow for workflow in ids
-            if _process_gate_state(store, workflow)["plan_approved"]
-            and not _delivery_gate_state(Path(root), store, workflow)["shipped"]]
+            if _process_gate_state(events, workflow)["plan_approved"]
+            and not _delivery_state(Path(root), events, workflow)[0]["shipped"]]
 
 
 def open_worktrees(root: Path) -> list[str]:

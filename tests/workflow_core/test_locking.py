@@ -59,7 +59,7 @@ class WindowsLockTests(unittest.TestCase):
 
     def test_gives_up_after_the_timeout(self):
         fake = FakeMsvcrt([busy() for _ in range(10_000)])
-        with self.windows(fake), mock.patch.object(locking, "WINDOWS_LOCK_TIMEOUT", 0.1):
+        with self.windows(fake), mock.patch.object(locking, "LOCK_TIMEOUT", 0.1):
             with self.assertRaisesRegex(TimeoutError, re.escape(str(self.path))):
                 with file_lock(self.path):
                     self.fail("lock must not be acquired")
@@ -104,6 +104,29 @@ class PosixLockTests(unittest.TestCase):
             path = Path(directory) / ".lock"
             with file_lock(path, exclusive=False), file_lock(path, exclusive=False):
                 pass
+
+    def test_us3_waiter_times_out_while_the_lock_is_held(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "x.lock"
+            held, release = threading.Event(), threading.Event()
+
+            def holder():
+                with file_lock(path):
+                    held.set()
+                    release.wait(5)
+
+            thread = threading.Thread(target=holder)
+            thread.start()
+            held.wait(5)
+            try:
+                started = time.monotonic()
+                with mock.patch.object(locking, "LOCK_TIMEOUT", 0.2), self.assertRaises(TimeoutError):
+                    with file_lock(path):
+                        pass
+                self.assertLess(time.monotonic() - started, 2)
+            finally:
+                release.set()
+                thread.join()
 
 
 class SingleImplementationTests(unittest.TestCase):

@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 from typing import Any, Sequence
 
@@ -218,6 +220,7 @@ def _parser() -> argparse.ArgumentParser:
     update.add_argument("--remove-label", action="append")
     update.add_argument("--priority", "-p")
     update.add_argument("--assignee", "-a")
+    update.add_argument("--claim", action="store_true")
 
     close = command("close")
     close.add_argument("ids", nargs="+")
@@ -230,6 +233,7 @@ def _parser() -> argparse.ArgumentParser:
     listing.add_argument("--status", "-s", action="append")
     listing.add_argument("--label", "-l", action="append")
     listing.add_argument("--parent")
+    listing.add_argument("--assignee", "-a")
     listing.add_argument("--type", "-t")
     listing.add_argument("--all", action="store_true")
     listing.add_argument("--limit", "-n", type=int, default=0)
@@ -260,6 +264,15 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _actor(root: Path) -> str:
+    """Who claims: BD_ACTOR as bd uses it, else git user.email."""
+    actor = os.environ.get("BD_ACTOR") or subprocess.run(
+        ["git", "config", "user.email"], cwd=root, text=True, capture_output=True, check=False).stdout.strip()
+    if not actor:
+        raise TaskFileError("--claim needs BD_ACTOR or git config user.email")
+    return actor
+
+
 def _execute(root: Path, args: argparse.Namespace) -> Any:
     command = args.command
     _ignore(root)
@@ -285,6 +298,7 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
                      and (not statuses or task["status"] in statuses)
                      and all(label in task["labels"] for label in labels)
                      and (not args.parent or task.get("parent") == args.parent)
+                     and (not args.assignee or task.get("assignee") == args.assignee)
                      and (not args.type or task["issue_type"] == args.type)]
             return [as_json(task) for task in found[: args.limit or None]]
         if command == "ready":
@@ -321,6 +335,13 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
             for key in ("title", "description", "status", "notes", "priority", "assignee"):
                 if getattr(args, key) is not None:
                     task[key] = getattr(args, key)
+            if args.claim:
+                actor = _actor(root)
+                if task.get("assignee") not in (None, "", actor):
+                    raise TaskFileError(f"{task['id']} is already claimed by {task['assignee']}")
+                if task["status"] == "closed":
+                    raise TaskFileError(f"{task['id']} is closed")
+                task["status"], task["assignee"] = "in_progress", actor
             if args.append_notes:
                 task["notes"] = "\n".join(filter(None, (task["notes"], args.append_notes)))
             if args.acceptance is not None:

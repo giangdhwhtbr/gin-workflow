@@ -16,7 +16,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 
 Every `record` needs `--actor <id>`; in team mode the actor comes from `git config user.email`. One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the spec's topic slug) so gates from different features do not mix; without one, `default-workflow` is used.
 
-`gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing.
+`gin-workflow state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing. It also holds when a gate is `unknown` because the task tracker or the event log cannot be read.
 
 `/roadmap` runs before the stages and records no gate; its epics enter `/discuss <epic-id>`. With `--milestone <id>` it plans a dated milestone over those epics; see the [milestone reference](../reference/cli.md#gin-workflow-milestone) and the [roadmap skill](../reference/skills.md).
 
@@ -26,13 +26,13 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 
 ## Execute and review
 
-- The main session picks a ready task (`gin-workflow task ready`), claims it, and runs `gin-workflow rules --files <scope>`. It implements no track itself: it spawns `gin-workflow:developer` at the model and effort that `gin-workflow routes dispatch` returns. The developer gets a bounded context: track text, file scope, rules output, worktree path, and validation commands.
+- The main session first resumes a track of the epic left `in_progress` (`gin-workflow task list --parent <epic> --status in_progress`); otherwise it picks a ready task (`gin-workflow task ready`), claims it (`task update <id> --claim`), and runs `gin-workflow rules --files <scope>`. It implements no track itself: it spawns `gin-workflow:developer` at the model and effort that `gin-workflow routes dispatch` returns. The developer gets a bounded context: track text, file scope, rules output, worktree path, and validation commands.
 - The developer follows the rules output, reads the shape appendix for `project.shape`, writes the failing test first, implements, and keeps the command output as evidence. It reports `done`, `needs_clarification`, `failed`, or `blocked`.
 - `failed` escalates one step with `gin-workflow routes dispatch --escalate`: the next model at the same effort, or the next effort at the strongest model. `needs_clarification` is answered from the spec or plan at the same route. At the top of both lists, on `blocked`, or on a question the spec and plan do not answer, the bead stays in progress with a note and you decide.
 - A track routed to another harness runs there through [gin-orchestrator](../orchestrator/README.md).
 - Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `ship` checks the approvals instead.
 - Review is independent of the implementer's session; [Providers](providers.md#independent-review) defines session and provider independence. Findings and approvals are recorded in the review ledger for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
-- When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks.
+- When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks. With `project.review_ledger` on, `task close` refuses a track whose ledger has no live approval unless `--waive-review` records why.
 - The feature branch is committed and pushed. The agent never reports "waiting for PR merge" without a real pull request link; it offers to request a pull request or to continue with the next track.
 
 ## Quality gates and handoff
