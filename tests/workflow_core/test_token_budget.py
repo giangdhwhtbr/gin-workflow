@@ -75,7 +75,7 @@ class TestBudgetLimits(unittest.TestCase):
     def test_each_stage_chain_within_budget(self):
         for stage in STAGES:
             with self.subTest(stage=stage):
-                self.assertLessEqual(stage_chars(SRC, stage), 13_500)
+                self.assertLessEqual(stage_chars(SRC, stage), 12_000)
 
     def test_quick_chain_within_8000(self):
         self.assertLessEqual(stage_chars(SRC, "quick"), 8_000)

@@ -2,9 +2,6 @@
 
 Shared rules for every lifecycle stage skill. One stage invocation performs one action, then stops.
 
-## Configuration
-If `.agent-workflow/generated/effective-config.yaml` is missing from the main checkout (the parent of `git rev-parse --path-format=absolute --git-common-dir`; linked worktrees have none), stop and tell the user to run `/setup` once. `capabilities: {}` is valid (all capabilities enabled). Never run setup from a lifecycle stage.
-
 ## State and gates
 - Read: `gin-workflow state --format json [--workflow-id ID]`
 - Record: `gin-workflow record <requirement-confirmed|plan-approved|orchestration-ready|shipped> --evidence <path|ids|output> --actor <id> [--workflow-id ID]` (`orchestration-ready` also takes `--epic <parent-bead>`)
