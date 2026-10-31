@@ -88,13 +88,59 @@ class SequentialTracks(unittest.TestCase):
         self.git("merge", "-q", "--no-edit", feature)
         self.assertIn(commit_a, self.ok("validate", "--bead-id", "bead-a", "--in-history"))
 
-    def squash_into_main_line(self):
+    def squash_into_main_line(self, moved=False, extra=None):
         feature = self.git("branch", "--show-current").strip()
         self.git("checkout", "-qb", "main-line", self.base)
+        if moved:
+            self.commit("README.md", "x\n", "main line moved on")
         self.git("merge", "-q", "--squash", feature)
+        if extra:
+            self.write(*extra)
         self.git("add", "-A")
         self.git("commit", "-qm", "squashed feature")
         return self.git("rev-parse", "HEAD").strip()
+
+    def test_in_history_survives_a_squash_onto_a_main_line_that_moved(self):
+        self.two_tracks()
+        squashed = self.squash_into_main_line(moved=True)
+        self.assertIn(squashed, self.ok("validate", "--bead-id", "bead-b", "--in-history"))
+        self.assertIn("review base of bead-b", self.ok("validate", "--bead-id", "bead-a", "--in-history"))
+
+    def assert_no_match(self, bead):
+        result = self.cli("validate", "--bead-id", bead, "--in-history")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("matches the approved source tree", result.stdout + result.stderr)
+
+    def test_squash_with_an_unreviewed_change_still_fails(self):
+        self.two_tracks()
+        self.squash_into_main_line(moved=True, extra=("src/b.py", "b = 99\n"))
+        self.assert_no_match("bead-b")
+
+    def test_squash_resolving_a_conflict_with_the_main_line_fails(self):
+        self.two_tracks()
+        feature = self.git("branch", "--show-current").strip()
+        self.git("checkout", "-qb", "main-line", self.base)
+        self.write("README.md", "x\n")
+        self.commit("src/b.py", "b = 7\n", "main line edits the same file")
+        subprocess.run(["git", "merge", "-q", "--squash", feature], cwd=self.repo, capture_output=True)
+        self.write("src/b.py", "b = 1\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "squashed feature")
+        self.assert_no_match("bead-b")
+
+    def test_a_checkpoint_that_does_not_hold_the_approved_tree_is_refused(self):
+        self.two_tracks()
+        squashed = self.squash_into_main_line(moved=True, extra=("src/b.py", "b = 99\n"))
+        sys.path.insert(0, SCRIPTS)
+        self.addCleanup(sys.path.remove, SCRIPTS)
+        from review_ledger.cli import load_ledger
+        from review_ledger.git_adapter import GitAdapterError, find_reviewed_commit
+
+        _, projection = load_ledger("bead-b", self.repo)
+        repo = projection.repositories[0]
+        with self.assertRaisesRegex(GitAdapterError, "does not hold the approved source tree"):
+            find_reviewed_commit("r", self.repo, projection.source_scope, repo["review_base_sha"],
+                                 repo["reviewed_source_tree_hash"], squashed)
 
     def test_in_history_survives_a_squash_merge(self):
         self.two_tracks()

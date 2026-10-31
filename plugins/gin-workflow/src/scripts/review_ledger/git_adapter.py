@@ -286,14 +286,41 @@ def compute_commit_source_tree_hash(repository_id: str, repo_path: str, scope: M
     return compute_tree_hash_for_commit(repository_id, root, canonical_scope, tree_sha)
 
 
+def _merged_with_approved(root: str, commit: str, approved_commit: str) -> str | None:
+    """Tree of commit's first parent merged with the approved checkpoint; None when the merge conflicts."""
+    process = subprocess.run(
+        ["git", "merge-tree", "--write-tree", f"{commit}^1", approved_commit],
+        cwd=root,
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        capture_output=True,
+        check=False,
+    )
+    if process.returncode == 1:
+        return None
+    if process.returncode:
+        detail = process.stderr.decode("utf-8", "replace").strip()
+        raise GitAdapterError(f"git merge-tree --write-tree failed (needs git 2.38 or later): {detail}")
+    return process.stdout.decode().split()[0]
+
+
 def find_reviewed_commit(
-    repository_id: str, repo_path: str, scope: Mapping[str, Any], base_sha: str, source_tree_hash: str
+    repository_id: str,
+    repo_path: str,
+    scope: Mapping[str, Any],
+    base_sha: str,
+    source_tree_hash: str,
+    approved_commit: str | None = None,
 ) -> str:
     """The first commit from the review base to HEAD whose source matches an approved tree hash.
 
     Sequential tracks on one branch each approve an earlier state of the branch; this proves that state
     reached HEAD's history without requiring the working tree to still equal it. A squash merge leaves the
     review base off HEAD's history, so the search then starts where the two histories diverged.
+
+    A squash merge onto a base branch that moved on after the review matches no approved tree. Given the
+    approved checkpoint commit, a commit also matches when it equals its first parent cleanly merged with
+    that checkpoint: it adds exactly the approved change to a parent the review did not cover. The
+    checkpoint counts only when its source is the approved tree and its parent is the review base.
     """
     root = str(_repository_root(repo_path))
     base = _resolve_commit(root, base_sha)
@@ -307,9 +334,22 @@ def find_reviewed_commit(
         except GitAdapterError as error:
             raise GitAdapterError(f"review base {base} is not an ancestor of HEAD and shares no history with it") from error
     later = _run_git(root, "rev-list", "--reverse", f"{start}..{head}").decode().split()
+    hashes = {}
     for commit in (start, *later):
-        if compute_commit_source_tree_hash(repository_id, root, scope, commit) == source_tree_hash:
+        hashes[commit] = compute_commit_source_tree_hash(repository_id, root, scope, commit)
+        if hashes[commit] == source_tree_hash:
             return commit
+    if approved_commit:
+        approved_commit = _resolve_commit(root, approved_commit)
+        if compute_commit_source_tree_hash(repository_id, root, scope, approved_commit) != source_tree_hash:
+            raise GitAdapterError(f"checkpoint {approved_commit} does not hold the approved source tree")
+        if _resolve_commit(root, f"{approved_commit}^1") != base:
+            raise GitAdapterError(f"checkpoint {approved_commit} is not based on review base {base}")
+        canonical_scope = canonicalize_scope(scope)
+        for commit in later:
+            merged = _merged_with_approved(root, commit, approved_commit)
+            if merged and compute_tree_hash_for_commit(repository_id, root, canonical_scope, merged) == hashes[commit]:
+                return commit
     raise GitAdapterError(f"no commit between review base {base} and HEAD matches the approved source tree")
 
 
