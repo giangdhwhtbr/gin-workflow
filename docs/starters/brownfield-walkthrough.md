@@ -103,7 +103,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 /gin-workflow:roadmap Goal: move payments and inventory out of the monolith within two quarters without downtime.
 ```
 
-**You get:** the skill reads every file of the tech-doc set, asks about goals, capacity, and constraints, proposes two or three ways to split the work, and shows the roadmap for your confirmation. After you confirm it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>`.
+**You get:** the skill reads every file of the tech-doc set, asks about goals, team and AI capacity, and constraints. It proposes two or three ways to split the work and shows the roadmap for your confirmation. After you confirm it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>`.
 
 **Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin-workflow team check <url> --gate roadmap`, then creates the epics `<prefix>-<slug>` (label `roadmap`) with their dependencies in Beads.
 
