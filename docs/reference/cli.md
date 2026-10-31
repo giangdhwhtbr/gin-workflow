@@ -47,7 +47,7 @@ Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a requ
 gin-workflow state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 ```
 
-Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), and the last five `recent_quick` runs.
+Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`.
 
 A gate reads `unknown` when `state` cannot read the task tracker or the event log. The decision is then `hold`. `warnings` and `remedies` carry the cause: `tracker unavailable: <cause>` or `event log unreadable: <error>; waivers not applied`.
 
@@ -291,7 +291,9 @@ gin-workflow task <bd arguments>
 
 The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` it runs `bd` with the arguments unchanged, with one exception. `ready` also leaves out a bead of type `milestone` and a bead whose `external:<project>:<capability>` dependency is not shipped yet: no closed `provides:<capability>` bead exists in the database `external_projects.<project>` names. bd 1.0.5 reports such dependencies as resolved. `gin-workflow team ready` applies the same check. If bd cannot explain its ready list, `ready` exits 1 rather than list beads it could not check. Write `external_projects` paths as absolute paths or relative to the repo root, which is the main checkout when you run from a linked worktree; `~` is expanded. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update`, `close`, `reopen`, `list`, `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
 
-Exit codes: 0 ok; 1 invalid configuration, invalid request, or malformed task file (the message names the file); 127 `beads` is configured but `bd` is not installed. Other `bd` commands exit with `bd`'s own code.
+`close` has one guard of its own. With `project.review_ledger: true`, closing a bead that has a parent epic (a track) needs a review ledger with a live approval. Otherwise the command names the ledger state, closes nothing, and exits 2. `--waive-review <reason> --actor <id>` records a `review.waived` event and then closes. `ship` lists those tracks. A bead without a parent, or `review_ledger: false`, closes as before. Running `bd close` directly skips the guard.
+
+Exit codes: 0 ok; 1 invalid configuration, invalid request, or malformed task file (the message names the file); 2 `close` refused by the review guard or given bad arguments; 127 `beads` is configured but `bd` is not installed. Other `bd` commands exit with `bd`'s own code.
 
 ## `gin-workflow usage`
 

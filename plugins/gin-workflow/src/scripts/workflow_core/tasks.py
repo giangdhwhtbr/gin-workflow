@@ -192,6 +192,13 @@ def main(argv: Sequence[str]) -> int:
     except ConfigValidationError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
+    if argv[:1] == ["close"]:
+        from .close_guard import check
+
+        argv, error = check(root, argv)
+        if error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
     if name == "markdown":
         return task_markdown.main(root, argv)
     executable = shutil.which("bd")

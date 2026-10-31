@@ -32,7 +32,7 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 - A track routed to another harness runs there through [gin-orchestrator](../orchestrator/README.md).
 - Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin-workflow state` has no review gate. `ship` checks the approvals instead.
 - Review is independent of the implementer's session; [Providers](providers.md#independent-review) defines session and provider independence. Findings and approvals are recorded in the review ledger for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `gin-review-response` skill; there is no silent dismissal.
-- When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks.
+- When tests pass and review approves, the agent runs `gin-workflow usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks. With `project.review_ledger` on, `task close` refuses a track whose ledger has no live approval unless `--waive-review` records why.
 - The feature branch is committed and pushed. The agent never reports "waiting for PR merge" without a real pull request link; it offers to request a pull request or to continue with the next track.
 
 ## Quality gates and handoff

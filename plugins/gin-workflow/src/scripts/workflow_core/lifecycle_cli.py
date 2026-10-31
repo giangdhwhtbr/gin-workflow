@@ -290,6 +290,11 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             for event in events or ()
             if event.workflow_id == workflow_id and event.event_type == "quick.completed"
         ][-5:],
+        "review_waivers": [
+            {"task_id": event.task_id, "reason": event.payload.get("reason", ""), "actor": event.actor}
+            for event in events or ()
+            if event.workflow_id == workflow_id and event.event_type == "review.waived"
+        ],
     }
 
     exit_code = 0 if decision.decision == "route" else 1
