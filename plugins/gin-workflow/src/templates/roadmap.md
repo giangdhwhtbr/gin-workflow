@@ -14,6 +14,8 @@ Source: {{source}}
 
 ## Constraints
 
+- AI capacity:
+
 ## Strategy
 
 ## Order
