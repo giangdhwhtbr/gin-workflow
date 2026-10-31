@@ -105,7 +105,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **You get:** the skill reads every file of the tech-doc set, asks about goals, capacity, and constraints, proposes two or three ways to split the work, and shows the roadmap for your confirmation. After you confirm it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>`.
 
-**Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin-workflow team check <url> --gate roadmap`, then creates the epics `<prefix>-rm-<slug>` (label `roadmap`) with their dependencies in Beads.
+**Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin-workflow team check <url> --gate roadmap`, then creates the epics `<prefix>-<slug>` (label `roadmap`) with their dependencies in Beads.
 
 **Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics when you remove them from the file (it only reports them).
 
@@ -115,7 +115,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Prompt**
 ```text
-/gin-workflow:roadmap Label demo-rm-payments and demo-rm-orders-api for sprint 2026-s1.
+/gin-workflow:roadmap Label demo-payments and demo-orders-api for sprint 2026-s1.
 ```
 
 **You get:** the chosen epics carry the label `sprint:2026-s1`. A sprint is only a label: `gin-workflow task list --label sprint:2026-s1 --all` shows it.
@@ -130,7 +130,7 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Prompt**
 ```text
-/gin-workflow:discuss demo-rm-payments
+/gin-workflow:discuss demo-payments
 ```
 
 **You get:** the discussion starts from the epic and its roadmap entry and reuses it (no new epic). The spec is built from the `design-spec.md` template (or `proposal.md` with the SDD layout) and has a `## User Stories` section. Every story has acceptance criteria and, with REQ-IDs, a `REQ:` line.
