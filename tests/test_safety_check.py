@@ -36,8 +36,21 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "git config 'core.hooksPath' /tmp/h"):
             self.assertEqual(2, exit_code(command), command)
 
+    def test_us2_blocks_subshell_and_group_forms(self):
+        for command in ("(git commit -n -m x)", "cd d && (git commit -a -n)", "echo $(git commit -n -m x)",
+                        "echo `git commit -n -m x`", "git commit -m x -n)", "{ git commit -n -m x; }"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_us2_blocks_git_config_env_hookspath(self):
+        for command in ("GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/x git commit",
+                        "git --config-env=core.hooksPath=FOO commit",
+                        "git --config-env core.hooksPath=FOO commit",
+                        "GIT_CONFIG_PARAMETERS=\"'core.hooksPath'='/x'\" git commit"):
+            self.assertEqual(2, exit_code(command), command)
+
     def test_us2_allows_reads_and_quoted_text(self):
-        for command in ("git commit -m 'fix -n flag'", 'git commit -m "skip -n"', "git push -n",
+        for command in ("git commit -m 'fix -n flag'", 'git commit -m "fix -n" -a', "git status",
+                        "git commit -m '$(git log -n 1)'", "(git log -n 1)", 'git commit -m "skip -n"', "git push -n",
                         "git config core.hooksPath", "git config --get core.hooksPath",
                         "git commit --amend --no-edit", "git log -n 3",
                         'bd create --description "git commit -n"'):

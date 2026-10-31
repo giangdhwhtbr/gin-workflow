@@ -86,16 +86,21 @@ if [[ "$COMMAND" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify 
 fi
 q="[\"']?"
 hooks_c_re="[[:space:]]-c[[:space:]]*${q}core\.hookspath="
+# `(`, a backtick or `{` may precede git; `)`, `;` or a backtick may follow a flag.
+git_re='(^|[[:space:]/(`{])git([[:space:]]|$)'
+commit_n_re='[[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]);`]|$)'
+config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])core\.hookspath'
 hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
 shopt -s nocasematch
 for i in "${!segments[@]}"; do
   raw=${segments[i]} bare=${bares[i]}
   # `/usr/bin/git` counts; a `git` inside quotes (bare has it as Q) does not.
-  [[ "$bare" =~ (^|[[:space:]/])git([[:space:]]|$) ]] || continue
+  [[ "$bare" =~ $git_re ]] || continue
   # -n on commit only, outside quotes: `-m 'fix -n flag'` is a message, not a flag.
-  [[ "$bare" =~ [[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]]|$) ]] && block_hooks "git commit -n"
+  [[ "$bare" =~ $commit_n_re ]] && block_hooks "git commit -n"
   # hooksPath rules read the raw segment, so a quoted key or value still matches.
   [[ "$raw" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath"
+  [[ "$raw" =~ $config_env_re ]] && block_hooks "core.hooksPath via the git config environment"
   if [[ "$raw" =~ $hooks_config_re ]]; then
     rest=${BASH_REMATCH[3]}
     [[ "$raw" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
