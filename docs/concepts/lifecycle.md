@@ -26,7 +26,7 @@ A pre-existing bead can skip discuss and plan: record it as its own epic with `r
 
 ## Execute and review
 
-- The main session picks a ready task (`gin-workflow task ready`), claims it, and runs `gin-workflow rules --files <scope>`. It implements no track itself: it spawns `gin-workflow:developer` at the model and effort that `gin-workflow routes dispatch` returns. The developer gets a bounded context: track text, file scope, rules output, worktree path, and validation commands.
+- The main session first resumes a track of the epic left `in_progress` (`gin-workflow task list --parent <epic> --status in_progress`); otherwise it picks a ready task (`gin-workflow task ready`), claims it (`task update <id> --claim`), and runs `gin-workflow rules --files <scope>`. It implements no track itself: it spawns `gin-workflow:developer` at the model and effort that `gin-workflow routes dispatch` returns. The developer gets a bounded context: track text, file scope, rules output, worktree path, and validation commands.
 - The developer follows the rules output, reads the shape appendix for `project.shape`, writes the failing test first, implements, and keeps the command output as evidence. It reports `done`, `needs_clarification`, `failed`, or `blocked`.
 - `failed` escalates one step with `gin-workflow routes dispatch --escalate`: the next model at the same effort, or the next effort at the strongest model. `needs_clarification` is answered from the spec or plan at the same route. At the top of both lists, on `blocked`, or on a question the spec and plan do not answer, the bead stays in progress with a note and you decide.
 - A track routed to another harness runs there through [gin-orchestrator](../orchestrator/README.md).
