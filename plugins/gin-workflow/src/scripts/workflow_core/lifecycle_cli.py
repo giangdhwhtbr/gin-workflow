@@ -257,8 +257,11 @@ def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEv
     except ArtifactResolutionError:
         return None
     since = ready[-1].timestamp
-    done = subprocess.run(["git", "log", f"--since={since}", "--format=%H", "--", str(knowledge)],
-                          cwd=repo_path, capture_output=True, text=True, timeout=10, check=False)
+    try:
+        done = subprocess.run(["git", "log", f"--since={since}", "--format=%H", "--", str(knowledge)],
+                              cwd=repo_path, capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
     if done.returncode or done.stdout.strip():
         return None
     shown = knowledge.relative_to(repo_path) if knowledge.is_relative_to(repo_path) else knowledge
