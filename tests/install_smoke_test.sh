@@ -297,6 +297,7 @@ assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/developer.md"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-workflow@skills-dir": true'
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.9/gin-workflow"
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.9/workflow_core/cli.py"
+assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.9/.gin-workflow-src.json"
 assert_exists "$MOCK_HOME/.local/bin/gin-workflow"
 launcher_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" --version)"
 if [ "$launcher_version" != "gin-workflow 2.9" ]; then
