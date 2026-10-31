@@ -39,7 +39,7 @@ fi
 # Check each simple command on its own, from its `rm` onward, so a flag or
 # target elsewhere in a compound command (`cd ~/x && rm y`) does not count
 # against the removal. Separators inside quotes or after a backslash do not split.
-segments=() segment="" quote=""
+segments=() bares=() segment="" bare="" quote=""
 for ((i = 0; i < ${#COMMAND}; i++)); do
   c=${COMMAND:i:1}
   if [ "$quote" = '"' ] && [ "$c" = "\\" ]; then
@@ -47,15 +47,17 @@ for ((i = 0; i < ${#COMMAND}; i++)); do
   elif [ -n "$quote" ]; then
     [ "$c" = "$quote" ] && quote=""
   elif [ "$c" = "\\" ]; then
-    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}
+    segment+=$c; bare+=$c; i=$((i + 1)); c=${COMMAND:i:1}; bare+=$c
   elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
-    quote=$c
+    quote=$c; bare+=Q
   elif [[ "$c" == [\;\&\|$'\n'] ]]; then
-    segments+=("$segment"); segment=""; continue
+    segments+=("$segment"); bares+=("$bare"); segment=""; bare=""; continue
+  else
+    bare+=$c
   fi
   segment+=$c
 done
-segments+=("$segment")
+segments+=("$segment"); bares+=("$bare")
 for segment in "${segments[@]}"; do
   [[ "$segment" =~ (^|[[:space:]/])rm([[:space:]].*|$) ]] || continue
   removal=${BASH_REMATCH[2]} before=${segment%"${BASH_REMATCH[0]}"}
@@ -77,11 +79,36 @@ for segment in "${segments[@]}"; do
 done
 
 # 1b. The git hooks are the quality gate: never skip them.
+block_hooks() { echo "Blocked: $1 skips the gin-workflow git hooks; fix the failing check instead." >&2; exit 2; }
 if [[ "$COMMAND" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify ]] || \
    [[ "$COMMAND" =~ git[[:space:]].*--no-verify.*(commit|push|merge) ]]; then
-  echo "Blocked: --no-verify skips the gin-workflow git hooks; fix the failing check instead." >&2
-  exit 2
+  block_hooks "--no-verify"
 fi
+q="[\"']?"
+hooks_c_re="[[:space:]]-c[[:space:]]*${q}core\.hookspath="
+# `(`, a backtick or `{` may precede git; `)`, `;` or a backtick may follow a flag.
+git_re='(^|[[:space:]/(`{])git([[:space:]]|$)'
+commit_n_re='[[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]);`]|$)'
+config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])core\.hookspath'
+hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
+shopt -s nocasematch
+for i in "${!segments[@]}"; do
+  raw=${segments[i]} bare=${bares[i]}
+  # `/usr/bin/git` counts; a `git` inside quotes (bare has it as Q) does not.
+  [[ "$bare" =~ $git_re ]] || continue
+  # -n on commit only, outside quotes: `-m 'fix -n flag'` is a message, not a flag.
+  [[ "$bare" =~ $commit_n_re ]] && block_hooks "git commit -n"
+  # hooksPath rules read the raw segment, so a quoted key or value still matches.
+  [[ "$raw" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath"
+  [[ "$raw" =~ $config_env_re ]] && block_hooks "core.hooksPath via the git config environment"
+  if [[ "$raw" =~ $hooks_config_re ]]; then
+    rest=${BASH_REMATCH[3]}
+    [[ "$raw" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
+    [[ "$raw" =~ [[:space:]]--get ]] && continue
+    [ -n "${rest// /}" ] && block_hooks "setting core.hooksPath"
+  fi
+done
+shopt -u nocasematch
 
 # 2. Path constraint validation for worktree executions
 # If running inside a subagent worker that has a worktree context, verify all operations stay inside it.

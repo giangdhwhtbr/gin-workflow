@@ -128,16 +128,10 @@ function New-HooksFile {
                 command = "$root/scripts/safety-check.sh"
                 timeout = 30
             }
-            PostToolUse = [ordered]@{
-                matcher = 'write_to_file|replace_file_content'
-                type = 'command'
-                command = "$root/scripts/post-edit.sh"
-            }
         }
     }
     else {
         $preMatcher = if ($Harness -eq 'claude') { 'Bash' } else { 'Bash|run_command' }
-        $postMatcher = if ($Harness -eq 'claude') { 'Write|Edit' } else { 'write_to_file|replace_file_content' }
         $hooks = [ordered]@{
             hooks = [ordered]@{
                 PreToolUse = @([ordered]@{
@@ -148,18 +142,11 @@ function New-HooksFile {
                         timeout = 30
                     })
                 })
-                PostToolUse = @([ordered]@{
-                    matcher = $postMatcher
-                    hooks = @([ordered]@{
-                        type = 'command'
-                        command = "$HooksRoot/scripts/post-edit.sh"
-                    })
-                })
             }
         }
         if ($Harness -eq 'codex') {
             $hooks = [ordered]@{
-                description = 'Gin workflow safety and post-edit hooks for Codex.'
+                description = 'Gin workflow safety hooks for Codex.'
                 hooks = $hooks.hooks
             }
         }
@@ -175,9 +162,6 @@ function New-CopilotHooksFile {
   "hooks": {
     "PreToolUse": [
       {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
-    ],
-    "PostToolUse": [
-      {"type": "command", "matcher": "edit|create", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/post-edit.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
