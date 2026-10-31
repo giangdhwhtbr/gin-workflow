@@ -157,6 +157,8 @@ def _record_refusal(
     repo_path: Path, events: Sequence[WorkflowEvent], args: argparse.Namespace
 ) -> tuple[dict[str, Any], int] | None:
     """The result for a record that the current events and tracker forbid or already hold, else None."""
+    # simplified: a hung bd can hold the lock for two 30 s queries (~LOCK_TIMEOUT);
+    # pass a shorter per-query timeout if waiters time out.
     if args.gate in _PROCESS_GATES and _delivery_state(repo_path, events, args.workflow_id)[0]["shipped"]:
         return {"status": "error", "message": f"workflow {args.workflow_id} is already shipped; "
                 "pass --workflow-id <new-id> for new work"}, 2

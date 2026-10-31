@@ -98,7 +98,7 @@ Cause: git opens the SSH connection before `pre-push` runs, so a long test run l
 
 ## `Routing Decision: hold` from `gin-workflow state`
 
-Cause: the router holds the workflow at the `progress` stage when a blocker is recorded, an approval check fails, or the capability for the next stage is disabled. `gin-workflow state` lists the reason under `Evidence:`, the fix under `Remedies:`, and each gate as `satisfied`, `waived`, or `unmet`.
+Cause: the router holds the workflow at the `progress` stage when a blocker is recorded, an approval check fails, a gate is `unknown`, or the capability for the next stage is disabled. `gin-workflow state` lists the reason under `Evidence:`, the fix under `Remedies:`, and each gate as `satisfied`, `waived`, `unmet`, or `unknown`. A gate is `unknown` when `state` cannot read the task tracker or the event log. Its remedy names the cause: `tracker unavailable: <cause>` or `event log unreadable: <error>; waivers not applied`.
 
 1. Read the reason:
 
@@ -106,7 +106,7 @@ Cause: the router holds the workflow at the `progress` stage when a blocker is r
    gin-workflow state [--format text|json]
    ```
 
-2. Apply the listed remedy. To waive a gate or clear a blocker on the record ([CLI](cli.md#gin-workflow-unblock)):
+2. Apply the listed remedy. For an `unknown` gate, restore the task tracker or the event log named in the remedy, then rerun `gin-workflow state`; do not waive that gate. To waive a gate or clear a blocker on the record ([CLI](cli.md#gin-workflow-unblock)):
    - a process gate (`requirement_confirmed`, `plan_approved`, `orchestration_ready`):
      ```bash
      gin-workflow unblock --gate <gate> --reason "stated reason" --actor <your-id>
