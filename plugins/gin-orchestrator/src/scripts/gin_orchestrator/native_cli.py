@@ -101,6 +101,15 @@ def sanitized_environment(source: Mapping[str, str] | None = None) -> dict[str, 
     return {key: value for key, value in source.items() if key in allowed or key.startswith("LC_")}
 
 
+def worktree_environment(cwd: Path) -> dict[str, str]:
+    """`WORKTREE_PATH` for a worker inside `.planning/worktrees/<id>`, so safety-check keeps it there."""
+    cwd = cwd.resolve()
+    for path in (cwd, *cwd.parents):
+        if path.parent.name == "worktrees" and path.parent.parent.name == ".planning":
+            return {"WORKTREE_PATH": str(path)}
+    return {}
+
+
 def probe_help(executable: str, *arguments: str) -> str | None:
     """Read installed CLI help without a shell or inherited secret variables."""
     try:
@@ -331,7 +340,7 @@ class NativeCliRunner:
             process = subprocess.Popen(
                 list(invocation.argv),
                 cwd=invocation.cwd,
-                env=sanitized_environment(),
+                env={**sanitized_environment(), **worktree_environment(invocation.cwd)},
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
