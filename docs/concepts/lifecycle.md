@@ -60,6 +60,8 @@ At handoff the agent reports what changed, what was validated and what was not, 
 
 `ship` requires `implementation_complete` and a terminal review state, and runs the plain steps above. It then offers four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. For a merge, it first runs `usage collect` for the epic and deletes the closed tracks' review ledgers in a commit on the feature branch. It then merges, removes the worktree, deletes the branch, and closes the epic, which marks `shipped`.
 
+`state` warns when `implementation_complete` holds and no commit has touched the knowledge directory since `orchestration.ready`; committing a knowledge record (see `gin-knowledge`) clears it.
+
 ## The quick path
 
 `/quick` is for a small, low-risk change: no spec, plan, beads, or gates. `gin-workflow quick-check --changed-files N --modules M` decides:
