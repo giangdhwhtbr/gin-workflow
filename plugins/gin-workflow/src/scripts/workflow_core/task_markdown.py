@@ -337,8 +337,10 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
                     task[key] = getattr(args, key)
             if args.claim:
                 actor = _actor(root)
-                if task["status"] == "in_progress" and task.get("assignee") not in (None, "", actor):
+                if task.get("assignee") not in (None, "", actor):
                     raise TaskFileError(f"{task['id']} is already claimed by {task['assignee']}")
+                if task["status"] == "closed":
+                    raise TaskFileError(f"{task['id']} is closed")
                 task["status"], task["assignee"] = "in_progress", actor
             if args.append_notes:
                 task["notes"] = "\n".join(filter(None, (task["notes"], args.append_notes)))

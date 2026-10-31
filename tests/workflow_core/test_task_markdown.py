@@ -47,6 +47,21 @@ class TaskMarkdownTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("already claimed by me@x", err)
 
+    def test_us6_claim_refuses_other_actors_bead_in_any_status_and_closed_beads(self):
+        task = self.q("create", "T", "--assignee", "me@x")["id"]
+        with mock.patch.dict(os.environ, {"BD_ACTOR": "other@x"}):
+            code, _, err = self.run_task("update", task, "--claim")
+            self.assertEqual(1, code)
+            self.assertIn("already claimed by me@x", err)
+        with mock.patch.dict(os.environ, {"BD_ACTOR": "me@x"}):
+            self.q("update", task, "--claim")
+            self.q("update", task, "--claim")
+            self.q("close", task)
+            code, _, err = self.run_task("update", task, "--claim")
+        self.assertEqual(1, code)
+        self.assertIn(f"{task} is closed", err)
+        self.assertEqual("closed", self.q("show", task)[0]["status"])
+
     def test_us6_claim_falls_back_to_git_user_email(self):
         subprocess.run(["git", "config", "user.email", "git@x"], cwd=self.root, check=True)
         task = self.q("create", "T")["id"]
