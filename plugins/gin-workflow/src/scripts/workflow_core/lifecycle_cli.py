@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
+from .artifacts import ArtifactResolutionError, resolve_artifact
 from .catalog import catalog_for
 from .checkout import main_checkout
 from .configuration import resolve_effective_config
@@ -244,6 +246,25 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     }, 0
 
 
+def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEvent] | None,
+                       workflow_id: str, gates: Mapping[str, bool | None]) -> str | None:
+    """Ship-time reminder: no commit touched the knowledge directory since orchestration-ready."""
+    ready = [e for e in events or () if e.workflow_id == workflow_id and e.event_type == "orchestration.ready"]
+    if not ready or not gates.get("implementation_complete"):
+        return None
+    try:
+        knowledge = resolve_artifact(config, "knowledge")
+    except ArtifactResolutionError:
+        return None
+    since = ready[-1].timestamp
+    done = subprocess.run(["git", "log", f"--since={since}", "--format=%H", "--", str(knowledge)],
+                          cwd=repo_path, capture_output=True, text=True, timeout=10, check=False)
+    if done.returncode or done.stdout.strip():
+        return None
+    shown = knowledge.relative_to(repo_path) if knowledge.is_relative_to(repo_path) else knowledge
+    return f"no commit changed {shown} since orchestration-ready ({since}); reconcile knowledge (gin-knowledge) before ship"
+
+
 def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     repo_path = Path(args.repository).resolve()
     resolved_config = resolve_effective_config(repo_path, write=False)
@@ -302,7 +323,8 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, load_team(config.to_dict()))},
         "extensions": {"orchestrator": orchestrator_client.status()},
-        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes) if w],
+        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes,
+                                 _knowledge_warning(repo_path, config, events, workflow_id, gates_state)) if w],
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
             for event in events or ()
