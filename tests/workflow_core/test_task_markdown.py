@@ -1,11 +1,13 @@
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -31,6 +33,27 @@ class TaskMarkdownTests(unittest.TestCase):
 
     def q(self, *argv):
         return task_markdown.query(self.root, argv)
+
+    def test_us6_claim_sets_in_progress_and_assignee_and_list_filters_by_it(self):
+        task = self.q("create", "T")["id"]
+        with mock.patch.dict(os.environ, {"BD_ACTOR": "me@x"}):
+            self.q("update", task, "--claim")
+        shown = self.q("show", task)[0]
+        self.assertEqual(("in_progress", "me@x"), (shown["status"], shown["assignee"]))
+        self.assertEqual([task], [r["id"] for r in self.q("list", "--status", "in_progress", "--assignee", "me@x")])
+        self.assertEqual([], self.q("list", "--status", "in_progress", "--assignee", "other@x"))
+        with mock.patch.dict(os.environ, {"BD_ACTOR": "other@x"}):
+            code, _, err = self.run_task("update", task, "--claim")
+        self.assertEqual(1, code)
+        self.assertIn("already claimed by me@x", err)
+
+    def test_us6_claim_falls_back_to_git_user_email(self):
+        subprocess.run(["git", "config", "user.email", "git@x"], cwd=self.root, check=True)
+        task = self.q("create", "T")["id"]
+        with mock.patch.dict(os.environ, {}):
+            os.environ.pop("BD_ACTOR", None)
+            self.q("update", task, "--claim")
+        self.assertEqual("git@x", self.q("show", task)[0]["assignee"])
 
     def test_create_epic_and_children_with_bd_shaped_ids_and_files(self):
         epic = self.q("create", "--type", "epic", "Epic")
