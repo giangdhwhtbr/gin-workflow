@@ -162,8 +162,7 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertEqual(1, hooks.get("version"))
         pre_tool_use = hooks.get("hooks", {}).get("PreToolUse", [])
         self.assertTrue(any(entry.get("matcher") == "bash" and "/scripts/safety-check.sh" in entry.get("bash", "") for entry in pre_tool_use))
-        post_tool_use = hooks.get("hooks", {}).get("PostToolUse", [])
-        self.assertTrue(any(entry.get("matcher") == "edit|create" and "/scripts/post-edit.sh" in entry.get("bash", "") for entry in post_tool_use))
+        self.assertNotIn("PostToolUse", hooks.get("hooks", {}))
         self.assertFalse((root / "agents").exists())
         self.assertFalse((root / "commands").exists())
 
@@ -171,7 +170,7 @@ class HarnessPackagingTests(unittest.TestCase):
         # Copilot runs each entry's `bash` with the payload on stdin; exit 2 denies,
         # and any other non-zero exit also denies, so a missing script must exit 0.
         hooks = json.loads((self.dist / "copilot/gin-workflow/hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]
-        pre, post = hooks["PreToolUse"][0]["bash"], hooks["PostToolUse"][0]["bash"]
+        pre = hooks["PreToolUse"][0]["bash"]
         root = str(self.dist / "copilot/gin-workflow")
 
         def run(command, payload, **env):
@@ -183,8 +182,6 @@ class HarnessPackagingTests(unittest.TestCase):
         safe = {"tool_name": "bash", "tool_input": {"command": "ls"}, "cwd": "/tmp"}
         self.assertEqual(2, run(pre, danger, PLUGIN_ROOT=root).returncode)
         self.assertEqual(0, run(pre, safe, PLUGIN_ROOT=root).returncode)
-        edited = run(post, {"tool_name": "edit", "tool_input": {"path": "a.txt"}}, PLUGIN_ROOT=root)
-        self.assertIn("Post-edit hook run on: a.txt", edited.stdout)
         with tempfile.TemporaryDirectory() as home:
             missing = run(pre, danger, COPILOT_HOME=home)
         self.assertEqual(0, missing.returncode)

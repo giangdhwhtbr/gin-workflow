@@ -1,4 +1,4 @@
-"""safety-check.sh blocks `--no-verify` so the gin-workflow git hooks cannot be skipped."""
+"""safety-check.sh blocks commands that skip the gin-workflow git hooks or remove broad paths."""
 
 import json
 from pathlib import Path
@@ -8,7 +8,6 @@ import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src/scripts/safety-check.sh"
-POST_EDIT_SCRIPT = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src/scripts/post-edit.sh"
 
 
 def exit_code(command):
@@ -23,6 +22,25 @@ class TestNoVerifyBlocked(unittest.TestCase):
 
     def test_allows_normal_commands(self):
         for command in ("git commit -m 'fix -n flag'", "git push -n", "git push origin main", "git status"):
+            self.assertEqual(0, exit_code(command), command)
+
+
+class TestHookBypassBlocked(unittest.TestCase):
+    def test_us2_blocks_hook_bypasses(self):
+        for command in ("git commit -n -m x", "git commit -anm x", "git commit -m x -n",
+                        "git -c core.hooksPath=/dev/null commit -m x", "git -c core.hookspath=/tmp push",
+                        "git config core.hooksPath /tmp/h", 'git config --local core.hooksPath "/tmp/h"',
+                        "git config set core.hooksPath /tmp/h", "git config --unset core.hooksPath",
+                        "cd /tmp && git commit -n -m x", "/usr/bin/git commit -n -m x",
+                        "git -c 'core.hooksPath=/x' commit -m y", 'git -c "core.hooksPath=/x" commit -m y',
+                        "git config 'core.hooksPath' /tmp/h"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_us2_allows_reads_and_quoted_text(self):
+        for command in ("git commit -m 'fix -n flag'", 'git commit -m "skip -n"', "git push -n",
+                        "git config core.hooksPath", "git config --get core.hooksPath",
+                        "git commit --amend --no-edit", "git log -n 3",
+                        'bd create --description "git commit -n"'):
             self.assertEqual(0, exit_code(command), command)
 
 
@@ -63,12 +81,6 @@ class TestCopilotPayloads(unittest.TestCase):
         payload = json.dumps({"tool_name": "bash", "tool_input": {"command": "ls"}, "cwd": "/tmp"})
         done = subprocess.run(["bash", str(SCRIPT)], input=payload.encode(), capture_output=True)
         self.assertEqual(0, done.returncode)
-
-    def test_post_edit_runs_on_path_from_copilot_payload(self):
-        payload = json.dumps({"tool_name": "edit", "tool_input": {"path": "a.txt"}})
-        done = subprocess.run(["bash", str(POST_EDIT_SCRIPT)], input=payload, capture_output=True, text=True)
-        self.assertEqual(0, done.returncode)
-        self.assertIn("Post-edit hook run on: a.txt", done.stdout)
 
 
 if __name__ == "__main__":
