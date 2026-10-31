@@ -35,12 +35,12 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 
 `review-ledger.py` keeps one ledger per bead in `.planning/reviews/<bead>/`: `review.json` (the event log, never edited by hand) and `review.md` (rendered). It owns:
 
-- the reviewed source snapshot: a checkpoint commit on `refs/gin/review/<bead>` with scope and tree hashes, taken without touching your branch or index;
+- the reviewed source snapshot: a checkpoint commit on `refs/gin/review/<bead>` with scope and tree hashes, taken without touching your branch or index. Its parent is the review base. `execute` pushes every repository's ref with `review-ledger.py push-refs` after pushing the feature branch, so a clone that never had the branch can still check the ledger after a squash merge;
 - the review lease: one active reviewer at a time;
 - findings, each moving to a terminal state (`verified`, `withdrawn`, `accepted-as-is`, `deferred-verified`, `human-waived`);
 - approval, which holds only while the tree still matches the approved snapshot; `change-scope` or new commits invalidate it.
 
-The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. Before a merge, ship runs `review-ledger.py cleanup --bead-id <bead>` on the feature branch for each closed track bead and commits the deletion, so it lands with the merge. The command removes the ledger and its `refs/gin/review/` checkpoint refs. `--all-closed` also deletes leftover refs of closed beads whose ledger is already gone; run it on a branch, not on the base.
+The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. Before a merge, ship runs `review-ledger.py cleanup --bead-id <bead>` on the feature branch for each closed track bead and commits the deletion, so it lands with the merge. The command removes the ledger, its local `refs/gin/review/` checkpoint refs, and the same refs on the repository's own `origin`. A ledger's other repositories keep the refs `push-refs` pushed from them. After a pull request merge, the ledger and its pushed ref stay until cleanup runs. `--all-closed` also deletes leftover refs of closed beads whose ledger is already gone; run it on a branch, not on the base.
 
 ## The `.planning/` and `.agent-workflow/` trees
 

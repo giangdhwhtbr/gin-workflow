@@ -8,6 +8,8 @@ import shutil
 import subprocess
 from typing import Any, Optional
 
+from review_ledger.git_adapter import GitAdapterError, _run_git
+
 
 PROTECTED_PLANNING_DIRS = frozenset({
     "plans",
@@ -197,6 +199,21 @@ def _existing_review_refs(repo_root: Path) -> set[str]:
     return set(res.stdout.split()) if res.returncode == 0 else set()
 
 
+def _remote_review_refs(repo_root: Path) -> tuple[set[str], Optional[str]]:
+    """The review refs on origin, and an error message when origin cannot be listed.
+
+    A repository without an origin remote has no remote refs and no error.
+    """
+    probe = subprocess.run(["git", "remote", "get-url", "origin"], cwd=repo_root, capture_output=True)
+    if probe.returncode:
+        return set(), None
+    try:
+        listing = _run_git(str(repo_root), "ls-remote", "origin", f"{_REVIEW_REF_PREFIX}*")
+    except GitAdapterError as error:
+        return set(), str(error)
+    return {line.split("\t")[1] for line in listing.decode("utf-8", "replace").splitlines() if "\t" in line}, None
+
+
 def _ledger_refs(bead_id: str, dir_path: Optional[Path], existing: set[str]) -> list[str]:
     """The checkpoint refs a ledger created: its default ref plus any its review.json names."""
     refs = {f"{_REVIEW_REF_PREFIX}{bead_id}"}
@@ -228,16 +245,20 @@ def cleanup_review_ledgers(
 
     candidates: list[tuple[str, Optional[Path]]] = []
     existing_refs = _existing_review_refs(repo_root)
+    remote_refs, listing_error = _remote_review_refs(repo_root)
+    remote_errors = [listing_error] if listing_error else []
+
+    def result_of(cleaned: list, skipped: list) -> dict[str, Any]:
+        result: dict[str, Any] = {"cleaned": cleaned, "skipped": skipped, "dry_run": dry_run}
+        if remote_errors:
+            result["remote_error"] = "; ".join(remote_errors)
+        return result
 
     if bead_id:
         if not _BEAD_ID_PATTERN.match(bead_id) or bead_id in (".", ".."):
             raise ValueError(f"Invalid bead_id: '{bead_id}'. Must be a valid identifier without path traversal.")
         if bead_id in PROTECTED_PLANNING_DIRS:
-            return {
-                "cleaned": [],
-                "skipped": [{"bead_id": bead_id, "path": "", "reason": f"'{bead_id}' is a protected directory"}],
-                "dry_run": dry_run,
-            }
+            return result_of([], [{"bead_id": bead_id, "path": "", "reason": f"'{bead_id}' is a protected directory"}])
 
         scoped = repo_root / ".planning" / "reviews" / bead_id
         legacy = repo_root / ".planning" / bead_id
@@ -245,14 +266,10 @@ def cleanup_review_ledgers(
             candidates.append((bead_id, scoped))
         if _is_review_dir(legacy) and bead_id not in PROTECTED_PLANNING_DIRS:
             candidates.append((bead_id, legacy))
-        if not candidates and f"{_REVIEW_REF_PREFIX}{bead_id}" in existing_refs:
+        if not candidates and f"{_REVIEW_REF_PREFIX}{bead_id}" in existing_refs | remote_refs:
             candidates.append((bead_id, None))
         if not candidates:
-            return {
-                "cleaned": [],
-                "skipped": [{"bead_id": bead_id, "path": "", "reason": "No review directory found"}],
-                "dry_run": dry_run,
-            }
+            return result_of([], [{"bead_id": bead_id, "path": "", "reason": "No review directory found"}])
     else:
         issues_cache = _load_issues_cache(repo_root)
 
@@ -274,12 +291,12 @@ def cleanup_review_ledgers(
 
         # Refs whose ledger directory is already gone.
         with_ledger = {b_id for b_id, _ in candidates}
-        for ref in sorted(existing_refs):
+        for ref in sorted(existing_refs | remote_refs):
             b_id = ref[len(_REVIEW_REF_PREFIX):]
             if b_id not in with_ledger and _BEAD_ID_PATTERN.match(b_id):
                 candidates.append((b_id, None))
 
-    cleaned: list[dict[str, str]] = []
+    cleaned: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
 
     issues_cache_ref = issues_cache if not bead_id else None
@@ -289,18 +306,29 @@ def cleanup_review_ledgers(
         path = str(dir_path) if dir_path is not None else ""
         if eligible:
             # Several directories of one bead share its refs; the first one deletes them.
-            refs = _ledger_refs(b_id, dir_path, existing_refs)
+            all_refs = _ledger_refs(b_id, dir_path, existing_refs | remote_refs)
+            refs = [ref for ref in all_refs if ref in existing_refs]
+            remote = [ref for ref in all_refs if ref in remote_refs]
             if not dry_run:
                 if dir_path is not None:
                     shutil.rmtree(dir_path)
                 for ref in refs:
                     subprocess.run(["git", "update-ref", "-d", ref], cwd=repo_root, check=True, capture_output=True)
+                if remote:
+                    try:
+                        _run_git(str(repo_root), "push", "--atomic", "origin", "--delete", *remote)
+                    except GitAdapterError as error:
+                        # Atomic: a failed push deleted nothing.
+                        remote_errors.append(str(error))
+                        remote = []
             existing_refs.difference_update(refs)
+            remote_refs.difference_update(remote)
             cleaned.append({
                 "bead_id": b_id,
                 "path": path,
                 "reason": reason,
                 "refs": refs,
+                "remote_refs": remote,
             })
         else:
             skipped.append({
@@ -309,8 +337,4 @@ def cleanup_review_ledgers(
                 "reason": reason,
             })
 
-    return {
-        "cleaned": cleaned,
-        "skipped": skipped,
-        "dry_run": dry_run,
-    }
+    return result_of(cleaned, skipped)

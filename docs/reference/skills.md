@@ -46,7 +46,7 @@ Stages load these when needed; you can also invoke them directly.
 | `team-setup` | Set up or join team mode: members, roles, areas, approvals, conventions, hooks, shared Beads |
 | `migrate-specs` | Move a legacy `.planning` specs and plans layout into the SDD `docs/` layout |
 | `beads-migration` | Move a repository's `.beads` directory into `~/gin-beads/<repo>` and symlink it back |
-| `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics; reconcile both on re-run |
+| `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics; reconcile both on re-run; `--milestone <id>` plans a dated milestone |
 
 ## gin-workflow: documentation
 
