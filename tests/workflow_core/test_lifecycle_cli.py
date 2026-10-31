@@ -270,6 +270,14 @@ class TestLifecycleCLI(unittest.TestCase):
                                       "--evidence", "lint ok; 3 tests ok", "--actor", "user"]))
         self.assertEqual("lint ok; 3 tests ok", self._state_json()["recent_quick"][-1]["evidence"])
 
+    def test_state_lists_review_waivers_of_the_workflow(self):
+        store = WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl")
+        for workflow in ("default-workflow", "other"):
+            store.append(WorkflowEvent.create(event_type="review.waived", workflow_id=workflow, task_id=f"{workflow}.1",
+                                              actor="u", payload={"reason": "spike"}, idempotency_key=workflow))
+        self.assertEqual([{"task_id": "default-workflow.1", "reason": "spike", "actor": "u"}],
+                         self._state_json()["review_waivers"])
+
     def test_unblock_safety_gate_without_followup_fails(self):
         exit_code = lifecycle_main([
             "unblock",
