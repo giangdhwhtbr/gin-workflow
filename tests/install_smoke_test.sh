@@ -73,9 +73,10 @@ hooks = data.get("hooks")
 if not isinstance(hooks, dict):
     raise SystemExit("hooks must be an object")
 
-for event_name in ("PreToolUse", "PostToolUse"):
-    if event_name not in hooks:
-        raise SystemExit(f"missing hooks.{event_name}")
+if "PreToolUse" not in hooks:
+    raise SystemExit("missing hooks.PreToolUse")
+if "PostToolUse" in hooks:
+    raise SystemExit("unexpected hooks.PostToolUse")
 PYEOF
 }
 

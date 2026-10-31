@@ -29,7 +29,7 @@ Cause: the installer registers the bundle with `copilot plugin install` only whe
 
 ## `gin-workflow: <path>/scripts/safety-check.sh not found, hook skipped`
 
-Cause: the Copilot bundle's `hooks/hooks.json` runs `safety-check` before the `bash` tool and `post-edit` after `edit` and `create`. Each hook looks for its script under `$PLUGIN_ROOT`, or else under `~/.copilot/installed-plugins/_direct/gin-workflow` (`$COPILOT_HOME` replaces `~/.copilot` when set). Copilot does not set `PLUGIN_ROOT`. After a marketplace install the plugin is not in the `_direct` directory, so the hook prints this warning and lets the tool run. The hooks define only a `bash` command, so they do not run on Windows PowerShell.
+Cause: the Copilot bundle's `hooks/hooks.json` runs `safety-check` before the `bash` tool. The hook looks for its script under `$PLUGIN_ROOT`, or else under `~/.copilot/installed-plugins/_direct/gin-workflow` (`$COPILOT_HOME` replaces `~/.copilot` when set). Copilot does not set `PLUGIN_ROOT`. After a marketplace install the plugin is not in the `_direct` directory, so the hook prints this warning and lets the tool run. The hook defines only a `bash` command, so it does not run on Windows PowerShell.
 
 1. Install with `./install.sh --platform copilot`, which installs from a local path into the `_direct` directory, or set `PLUGIN_ROOT` to the directory that holds the plugin's `scripts/`.
 2. Run a shell command in Copilot; the warning no longer appears.

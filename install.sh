@@ -205,17 +205,6 @@ template_hooks_for_claude() {
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${root_var}/scripts/post-edit.sh"
-          }
-        ]
-      }
     ]
   }
 }
@@ -232,11 +221,6 @@ template_hooks_for_antigravity() {
     "type": "command",
     "command": "\${PLUGIN_ROOT:-${default_root}}/scripts/safety-check.sh",
     "timeout": 30
-  },
-  "PostToolUse": {
-    "matcher": "write_to_file|replace_file_content",
-    "type": "command",
-    "command": "\${PLUGIN_ROOT:-${default_root}}/scripts/post-edit.sh"
   }
 }
 EOF
@@ -247,7 +231,7 @@ template_hooks_for_codex() {
   local root_var="$2"
   cat <<EOF > "$dest"
 {
-  "description": "Gin workflow safety and post-edit hooks for Codex.",
+  "description": "Gin workflow safety hooks for Codex.",
   "hooks": {
     "PreToolUse": [
       {
@@ -257,17 +241,6 @@ template_hooks_for_codex() {
             "type": "command",
             "command": "${root_var}/scripts/safety-check.sh",
             "timeout": 30
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "write_to_file|replace_file_content",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${root_var}/scripts/post-edit.sh"
           }
         ]
       }
@@ -285,9 +258,6 @@ template_hooks_for_copilot() {
   "hooks": {
     "PreToolUse": [
       {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
-    ],
-    "PostToolUse": [
-      {"type": "command", "matcher": "edit|create", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/post-edit.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
