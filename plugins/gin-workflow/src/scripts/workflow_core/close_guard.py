@@ -3,7 +3,6 @@ live approval, or with `--waive-review <reason> --actor <id>`, which records a `
 
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -38,6 +37,38 @@ def _record_waiver(root: Path, bead: str, epic: str, reason: str, actor: str) ->
                                        idempotency_key=f"{bead}:{REVIEW_WAIVED}:{reason}"))
 
 
+# Options of `bd close`, the global flags and the markdown parser that take a value in the next token.
+_VALUE_FLAGS = frozenset({"-r", "--reason", "--reason-file", "--session", "--actor", "--db", "-C", "--directory",
+                          "--dolt-auto-commit"})
+
+
+def _split(argv: Sequence[str], waiving: bool) -> tuple[list[str], list[str], str | None, str | None]:
+    """Bead ids, argv to forward, `--waive-review` value and `--actor` value; other tokens stay untouched.
+    `--waive-review` (and `--actor` with it) are the only tokens removed; flag names are exact, never abbreviated."""
+    ids, forward, waive, actor = [], ["close"], None, None
+    tokens, i = list(argv[1:]), 0
+    while i < len(tokens):
+        token, i = tokens[i], i + 1
+        name, eq, inline = token.partition("=")
+        if name == "--waive-review" or (waiving and name == "--actor"):
+            value = inline
+            if not eq and i < len(tokens):
+                value, i = tokens[i], i + 1
+            if name == "--actor":
+                actor = value
+            else:
+                waive = value
+        elif token.startswith("-"):
+            forward.append(token)
+            if not eq and token in _VALUE_FLAGS and i < len(tokens):
+                forward.append(tokens[i])
+                i += 1
+        else:
+            ids.append(token)
+            forward.append(token)
+    return ids, forward, waive, actor
+
+
 def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
     """Return the `close` argv to forward to the backend, or the error that refuses the whole close."""
     from .configuration import resolve_effective_config
@@ -45,23 +76,17 @@ def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
     from .project import project_settings
     from .tasks import query_result
 
-    parser = argparse.ArgumentParser(prog="gin-workflow task close", add_help=False, exit_on_error=False)
-    parser.add_argument("ids", nargs="*")
-    parser.add_argument("--reason", "-r")
-    parser.add_argument("--waive-review")
-    parser.add_argument("--actor")
-    try:
-        args, rest = parser.parse_known_args(list(argv[1:]))
-    except argparse.ArgumentError as error:
-        return list(argv), str(error)
-    forward = ["close", *args.ids, *([f"--reason={args.reason}"] if args.reason is not None else []),
-               *([f"--actor={args.actor}"] if args.actor and args.waive_review is None else []), *rest]
-    if args.waive_review is not None and not (args.waive_review.strip() and args.actor):
+    waiving = any(t == "--waive-review" or t.startswith("--waive-review=") for t in argv)
+    ledger = project_settings(resolve_effective_config(root, write=False).config.to_dict()).review_ledger
+    if not waiving and not ledger:
+        return list(argv), None
+    ids, forward, waive, actor = _split(argv, waiving)
+    if waiving and not (waive and waive.strip() and actor):
         return forward, "--waive-review needs a non-empty reason and --actor"
-    if not project_settings(resolve_effective_config(root, write=False).config.to_dict()).review_ledger:
+    if not ledger:
         return forward, None
     unreviewed = []
-    for bead in args.ids:
+    for bead in ids:
         shown, cause = query_result(root, ["show", bead])
         if cause:
             return forward, f"{bead}: tracker unavailable: {cause}"
@@ -70,12 +95,12 @@ def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
             state = _review_state(root, bead)
             if state:
                 unreviewed.append((bead, str(record["parent"]), state))
-    if unreviewed and args.waive_review is None:
+    if unreviewed and waive is None:
         return forward, "\n".join(f'{bead}: review ledger not approved ({state}); '
                                   f'pass --waive-review "<reason>" --actor <id>' for bead, _, state in unreviewed)
     try:
         for bead, epic, _ in unreviewed:
-            _record_waiver(root, bead, epic, args.waive_review, args.actor)
+            _record_waiver(root, bead, epic, waive, actor)
     except (EventPersistenceError, OSError) as error:
         return forward, f"review waiver not recorded: {error}"
     return forward, None

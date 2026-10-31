@@ -57,9 +57,33 @@ class CloseGuardTests(unittest.TestCase):
         self.init(ledger=True)
         self.assertIn("--waive-review needs", close_guard.check(self.root, ["close", "ep-1.1", "--waive-review", " "])[1])
 
-    def test_us7_bad_argument_returns_an_error_string(self):
+    def test_us7_every_id_is_checked_even_after_a_flag_value(self):
         self.init(ledger=True)
-        self.assertIn("expected one argument", close_guard.check(self.root, ["close", "ep-1.1", "--reason"])[1])
+        error = close_guard.check(self.root, ["close", "loose", "--reason", "x", "ep-1.1"])[1]
+        self.assertIn("ep-1.1: review ledger not approved", error)
+
+    def test_us7_dash_value_is_not_an_error(self):
+        self.init(ledger=True)
+        argv = ["close", "loose", "--reason", "-done"]
+        self.assertEqual((argv, None), close_guard.check(self.root, argv))
+
+    def test_us7_flag_without_value_is_left_to_the_backend(self):
+        self.init(ledger=True)
+        argv = ["close", "loose", "--reason"]
+        self.assertEqual((argv, None), close_guard.check(self.root, argv))
+
+    def test_us7_abbreviated_flag_is_not_waive_review(self):
+        self.init(ledger=True)
+        error = close_guard.check(self.root, ["close", "ep-1.1", "--wa=x"])[1]
+        self.assertIn("ep-1.1: review ledger not approved", error)
+
+    def test_us7_waiver_forwards_the_rest_untouched(self):
+        self.init(ledger=True)
+        with mock.patch.object(close_guard, "_record_waiver") as record:
+            result = close_guard.check(self.root, ["close", "ep-1.1", "--session", "S", "--waive-review=why",
+                                                   "--actor", "u", "--reason", "-d"])
+        self.assertEqual((["close", "ep-1.1", "--session", "S", "--reason", "-d"], None), result)
+        record.assert_called_once_with(self.root, "ep-1.1", "ep-1", "why", "u")
 
     def test_us7_standalone_bead_closes_as_today(self):
         self.init(ledger=True)
@@ -67,8 +91,10 @@ class CloseGuardTests(unittest.TestCase):
 
     def test_us7_ledger_off_closes_as_today(self):
         self.init(ledger=False)
-        self.assertEqual((["close", "ep-1.1", "--reason=done"], None),
+        self.assertEqual((["close", "ep-1.1", "--reason", "done"], None),
                          close_guard.check(self.root, ["close", "ep-1.1", "--reason", "done"]))
+        argv = ["close", "ep-1.1", "--session", "S", "--reason", "-done", "--actor=me"]
+        self.assertEqual((argv, None), close_guard.check(self.root, argv))
 
     def test_us7_approved_ledger_closes(self):
         self.init(ledger=True)
