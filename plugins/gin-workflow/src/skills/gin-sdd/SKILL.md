@@ -13,7 +13,7 @@ Applies only when `gin-workflow state --format json` reports `project.layout: sd
 3. `specs lint --change <epic>` must exit 0.
 4. `project.spec_review`:
    - `chat`: the user confirms → `gin-workflow record requirement-confirmed --workflow-id <epic> --evidence <change folder> --actor <id>`.
-   - `pr`: commit only the change folder on branch `spec/<epic>-<slug>` and push; ask approval, then `gh pr create --fill`; return `awaiting_spec_review` without recording. On a later run, `specs status --change <epic>`: `merged` → record `requirement-confirmed` with evidence `<pr url> <merge commit>`; `open` → report and stop; `closed` or `none` → ask the user. Implementation branches from the updated base.
+   - `pr`: commit only the change folder on branch `spec/<epic>-<slug>` and push; get approval (stage-contract Approvals), then `gh pr create --fill`; return `awaiting_spec_review` without recording. On a later run, `specs status --change <epic>`: `merged` → record `requirement-confirmed` with evidence `<pr url> <merge commit>`; `open` → report and stop; `closed` or `none` → ask the user. Implementation branches from the updated base.
 
 ## plan
 Write `<change>/04-plan.md`. Each track's Metadata adds `Requirements: REQ-…`; every `ADDED`/`MODIFIED` REQ in the delta belongs to at least one track. Record `plan-approved --workflow-id <epic>`.
