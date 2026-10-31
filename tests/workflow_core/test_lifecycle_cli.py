@@ -364,6 +364,28 @@ class TestLifecycleCLI(unittest.TestCase):
         for gate in ("requirement_confirmed", "plan_approved", "orchestration_ready"):
             self.assertEqual("satisfied", gates[gate])
 
+    def _record_requirement(self, evidence):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+            code = cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
+                             "--evidence", evidence, "--actor", "user"])
+        return code, stderr.getvalue()
+
+    def test_us5_requirement_confirmed_refuses_spec_without_criteria(self):
+        (self.repo_path / "spec.md").write_text("### US-7: a\n\ntext\n")
+        code, err = self._record_requirement("spec.md")
+        self.assertEqual(1, code)
+        self.assertIn("US-7", err)
+        self.assertEqual("unmet", self._state_gates()["requirement_confirmed"])
+
+    def test_us5_requirement_confirmed_records_linted_spec(self):
+        (self.repo_path / "spec.md").write_text("### US-1: a\n\nAcceptance criteria:\n- x\n")
+        self.assertEqual(0, self._record_requirement("spec.md")[0])
+        self.assertEqual("satisfied", self._state_gates()["requirement_confirmed"])
+
+    def test_us5_non_markdown_evidence_is_not_linted(self):
+        self.assertEqual(0, self._record_requirement("chat 2026-10-31")[0])
+
     def test_record_is_scoped_to_workflow_id(self):
         cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
                   "--evidence", "spec.md", "--actor", "user", "--workflow-id", "other"])
