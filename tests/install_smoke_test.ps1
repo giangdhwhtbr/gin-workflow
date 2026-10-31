@@ -114,6 +114,7 @@ try {
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/workflow_core/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/.gin-workflow-src.json')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/rules/core.md')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/templates/spec-delta.md')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/templates/team/commit-msg')

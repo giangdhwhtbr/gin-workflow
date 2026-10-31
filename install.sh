@@ -514,6 +514,9 @@ install_launcher() {
     mkdir -p "$install_dir/templates"
     cp -rf "$source_dir/../templates/." "$install_dir/templates/"
   fi
+  if [ "$name" = gin-workflow ]; then
+    PYTHONPATH="$source_dir" python3 -B -m workflow_core.snapshot "$SCRIPT_DIR/plugins/gin-workflow/src" "$install_dir"
+  fi
   chmod 755 "$launcher_target"
   ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed $name launcher version $version to $launcher_link"

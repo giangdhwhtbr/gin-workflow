@@ -71,7 +71,7 @@ Parameters mirror the shell script: `-Platform`, `-Plugin`, `-Link` (may need De
 
 ### Refreshing installs after a change
 
-Each harness keeps a snapshot of the plugin taken at install time, so a committed fix reaches a machine only after the installer runs again there: `./install.sh --platform all`. Commit first: the Codex marketplace source reads the committed tree, not your working directory. See [Troubleshooting](reference/troubleshooting.md#a-repository-still-hits-a-gin-workflow-bug-that-was-already-fixed-and-shipped-on-master).
+Each harness keeps a snapshot of the plugin taken at install time, so a committed fix reaches a machine only after the installer runs again there: `./install.sh --platform all`. Commit first: the Codex marketplace source reads the committed tree, not your working directory. `./install.sh` stamps the CLI install directory with a hash of `plugins/gin-workflow/src`; `gin-workflow setup doctor` adds an `install:` action when `src` no longer matches it. See [Troubleshooting](reference/troubleshooting.md#a-repository-still-hits-a-gin-workflow-bug-that-was-already-fixed-and-shipped-on-master).
 
 ## Tests
 
