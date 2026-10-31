@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -364,6 +365,28 @@ class TestLifecycleCLI(unittest.TestCase):
         for gate in ("requirement_confirmed", "plan_approved", "orchestration_ready"):
             self.assertEqual("satisfied", gates[gate])
 
+    def _record_requirement(self, evidence):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+            code = cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
+                             "--evidence", evidence, "--actor", "user"])
+        return code, stderr.getvalue()
+
+    def test_us5_requirement_confirmed_refuses_spec_without_criteria(self):
+        (self.repo_path / "spec.md").write_text("### US-7: a\n\ntext\n")
+        code, err = self._record_requirement("spec.md")
+        self.assertEqual(1, code)
+        self.assertIn("US-7", err)
+        self.assertEqual("unmet", self._state_gates()["requirement_confirmed"])
+
+    def test_us5_requirement_confirmed_records_linted_spec(self):
+        (self.repo_path / "spec.md").write_text("### US-1: a\n\nAcceptance criteria:\n- x\n")
+        self.assertEqual(0, self._record_requirement("spec.md")[0])
+        self.assertEqual("satisfied", self._state_gates()["requirement_confirmed"])
+
+    def test_us5_non_markdown_evidence_is_not_linted(self):
+        self.assertEqual(0, self._record_requirement("chat 2026-10-31")[0])
+
     def test_record_is_scoped_to_workflow_id(self):
         cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
                   "--evidence", "spec.md", "--actor", "user", "--workflow-id", "other"])
@@ -639,6 +662,52 @@ class TestLifecycleCLI(unittest.TestCase):
             self._state_payload()
         self.assertEqual(1, reads.call_count)
         self.assertEqual(1, calls.count("list"))
+
+    def _us6_warnings(self, complete=True, knowledge_commit=False, git_error=None):
+        self._git_repo()
+        knowledge = self.repo_path / ".planning/knowledge"
+        knowledge.mkdir(parents=True)
+        (knowledge / "note.md").write_text("n\n")
+        WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").append(WorkflowEvent.create(
+            event_type="orchestration.ready", workflow_id="default-workflow", actor="user",
+            payload={"epic": "epic"}, timestamp="2026-10-01T00:00:00Z", idempotency_key="us6"))
+        if knowledge_commit:
+            self._git("add", ".planning/knowledge")
+            subprocess.run(["git", "commit", "-q", "-m", "knowledge"], cwd=self.repo_path, check=True,
+                           env={**os.environ, "GIT_COMMITTER_DATE": "2026-10-02T00:00:00Z"})
+        delivery = {"orchestration_ready": True, "implementation_complete": complete, "shipped": False}
+        real_run = subprocess.run
+
+        def run(argv, *args, **kwargs):
+            if git_error and argv[:2] == ["git", "log"]:
+                raise git_error
+            return real_run(argv, *args, **kwargs)
+
+        with mock.patch("workflow_core.lifecycle_cli._delivery_state", return_value=(delivery, False, None)), \
+                mock.patch("workflow_core.lifecycle_cli.subprocess.run", side_effect=run), \
+                mock.patch("sys.stdout", new=io.StringIO()) as out:
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json"])
+        return json.loads(out.getvalue())["warnings"]
+
+    def test_us6_state_warns_when_knowledge_unchanged_since_orchestration(self):
+        warnings = self._us6_warnings()
+        self.assertTrue(any("reconcile knowledge" in w for w in warnings), warnings)
+
+    def test_us6_no_warning_after_knowledge_commit(self):
+        warnings = self._us6_warnings(knowledge_commit=True)
+        self.assertFalse(any("reconcile knowledge" in w for w in warnings), warnings)
+
+    def test_us6_missing_git_does_not_break_state(self):
+        warnings = self._us6_warnings(git_error=FileNotFoundError("git"))
+        self.assertFalse(any("reconcile knowledge" in w for w in warnings), warnings)
+
+    def test_us6_git_timeout_does_not_break_state(self):
+        warnings = self._us6_warnings(git_error=subprocess.TimeoutExpired("git", 10))
+        self.assertFalse(any("reconcile knowledge" in w for w in warnings), warnings)
+
+    def test_us6_no_warning_before_implementation_complete(self):
+        warnings = self._us6_warnings(complete=False)
+        self.assertFalse(any("reconcile knowledge" in w for w in warnings), warnings)
 
 
 if __name__ == "__main__":

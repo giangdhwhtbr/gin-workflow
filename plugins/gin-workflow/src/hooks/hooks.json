@@ -1,5 +1,5 @@
 {
-  "description": "Gin workflow safety and post-edit hooks for Codex.",
+  "description": "Gin workflow safety hooks.",
   "hooks": {
     "PreToolUse": [
       {
@@ -9,17 +9,6 @@
             "type": "command",
             "command": "${PLUGIN_ROOT}/scripts/safety-check.sh",
             "timeout": 30
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|write_to_file|replace_file_content",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${PLUGIN_ROOT}/scripts/post-edit.sh"
           }
         ]
       }

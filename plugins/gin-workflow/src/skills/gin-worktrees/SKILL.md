@@ -13,16 +13,16 @@ GIT_DIR=$(cd "$(git rev-parse --git-dir)" && pwd -P); GIT_COMMON=$(cd "$(git rev
 git rev-parse --show-superproject-working-tree   # prints a path => submodule, treat as a normal repo
 ```
 - `GIT_DIR != GIT_COMMON` (not a submodule): already isolated. Report "Already in isolated workspace at `<path>` on branch `<name>`" (or "detached HEAD, externally managed") and skip to step 2. Never nest worktrees.
-- Otherwise you are in a normal checkout. Isolation is the default; ask only if no preference is declared. Disabling isolation or working on the current branch needs explicit user approval, recorded before acting.
+- Otherwise you are in a normal checkout. Isolation is the default; ask only if no preference is declared. Disabling isolation or working on the current branch needs approval (stage-contract Approvals).
 
 ## 1. Create
 1. **Native tool first.** If the harness provides a worktree tool, use it. `git worktree add` alongside one creates state the harness cannot manage.
 2. **Git fallback** under `.planning/worktrees/<track-id>` (one explicit id, no wildcards or unresolved paths):
    - Verify the root is ignored: `git check-ignore -q .planning/worktrees`. If not, add it to `.gitignore` (commit it on the feature branch).
-   - New branch: `gin-workflow worktree create <track-id> <branch> [base-ref]` (it validates the id and path containment, and always creates the branch).
+   - New branch: `gin-workflow worktree create <track-id> <branch> [base-ref]` (it validates the id and path containment, and always creates the branch). `base-ref` defaults to the current branch.
    - Existing branch: `git worktree add .planning/worktrees/<track-id> <branch>` (a branch can be checked out in only one worktree, so switch the main checkout away from it first).
    - Then work from inside the new directory. Paths and branch names are runtime metadata; Beads owns status.
-3. If creation fails because of a sandbox or permission error, tell the user and, with approval, work in place.
+3. If creation fails because of a sandbox or permission error, tell the user and work in place only with approval (stage-contract Approvals).
 
 ## 2. Project setup
 Install with the project's own tooling: `pnpm install` / `yarn install` / `npm ci` (lockfile-driven), `cargo build`, `pip install -r requirements.txt` or `poetry install`/`uv sync`, `go mod download`. Skip what does not apply.

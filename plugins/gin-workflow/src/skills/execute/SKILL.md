@@ -26,7 +26,7 @@ Implement one ready work unit inside its approved scope and record evidence.
 - On a `greenfield` project, a task that sets up lint, typecheck, or test starts from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin-workflow setup doctor --format json`.
 - Validate immediately and keep the command output as evidence. Do not proceed while tests fail or acceptance criteria are unmet.
 - **Stop and ask** on a blocker, a plan gap, an unclear instruction, or repeated validation failure. Leave the bead in progress with a `gin-workflow task update <id> --notes` entry; do not guess. Failures route to the `gin-debugging` skill.
-- Scope or execution-strategy changes and production-impacting parallel work need explicit approval first.
+- Scope or execution-strategy changes and production-impacting parallel work need approval (stage-contract Approvals).
 - Record notable decisions or risks per `gin-knowledge`.
 
 ## 3. Worker dispatch
@@ -40,9 +40,9 @@ Dispatch each track using this loop:
 Read [delegation policy](references/delegation-policy.md) and [result contract](references/result-contract.md) before dispatching.
 
 ## 4. Complete
-1. Request review through the `review` skill and wait for a terminal review state.
+1. Request review through the `review` skill and wait for a terminal review state. This session is the implementer there: it runs `init`, `checkpoint`, and `transition-requested --to review-requested --actor-role worker`.
 2. Once tests and review pass, run `gin-workflow usage collect --bead <id> --best-effort`, then close the track bead (`gin-workflow task close <id> --reason "<evidence>"`); this unblocks dependents and needs no PR or merge. If `gin-workflow state --workflow-id <id>` now shows `implementation_complete` satisfied, run `gin-workflow notify --event run_finished "<epic>: all tracks closed"`.
-3. Commit and push the feature branch, then `python3 review-ledger.py push-refs --bead-id <id>` (squash-merge checks fetch the refs). Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
-   1. Xin lệnh tạo PR từ nhánh feature đã push.
-   2. Giữ nhánh feature đã push và tiếp tục chuyển sang track tiếp theo sử dụng artifact vừa sinh.
+3. Commit and push the track branch (stage-contract Git), then `python3 review-ledger.py push-refs --bead-id <id>` (squash-merge checks fetch the refs). Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
+   1. Ask for the command to create a PR from the pushed feature branch.
+   2. Keep the pushed feature branch and continue with the next track, using the artifact just produced.
 4. Return `implementation_complete`. Do not invoke `ship`.

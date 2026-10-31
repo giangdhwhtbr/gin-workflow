@@ -22,7 +22,8 @@ A fast path for a small, low-risk change. No plan, no beads, no lifecycle gates.
    - `review: independent`: one review per the `review` skill, with a fresh session or subagent.
    - `review: self_check`: re-read the diff; no debug leftovers, no secrets, and tests cover the change.
 6. If the change grew beyond the estimate, re-run `quick-check`; on `escalate`, stop and recommend the full lifecycle.
-7. `gin-workflow record quick-completed --evidence "<files>; <verify results>" --actor <id>`.
-8. Report a summary of the change and the verify output.
+7. Commit per stage-contract Git: on `main`/`master`, first `git switch -c quick/<slug>`; do not push.
+8. `gin-workflow record quick-completed --evidence "<files>; <verify results>" --actor <id>`.
+9. Report a summary of the change and the verify output.
 
-Never create plans, beads, or gates. Never commit or push; the user commits.
+Never create plans, beads, or gates.

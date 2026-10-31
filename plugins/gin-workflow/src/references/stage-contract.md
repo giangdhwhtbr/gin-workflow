@@ -2,9 +2,6 @@
 
 Shared rules for every lifecycle stage skill. One stage invocation performs one action, then stops.
 
-## Configuration
-If `.agent-workflow/generated/effective-config.yaml` is missing from the main checkout (the parent of `git rev-parse --path-format=absolute --git-common-dir`; linked worktrees have none), stop and tell the user to run `/setup` once. `capabilities: {}` is valid (all capabilities enabled). Never run setup from a lifecycle stage.
-
 ## State and gates
 - Read: `gin-workflow state --format json [--workflow-id ID]`
 - Record: `gin-workflow record <requirement-confirmed|plan-approved|orchestration-ready|shipped> --evidence <path|ids|output> --actor <id> [--workflow-id ID]` (`orchestration-ready` also takes `--epic <parent-bead>`)
@@ -16,8 +13,19 @@ Standalone bead (no plan): use `--workflow-id <bead>` on every `state` and `reco
 ## Evidence
 Valid: test/command output, review-ledger state, bead IDs, spec/plan paths. Never: self-assessment, summaries, or notification delivery.
 
-## Approval
-Get explicit user confirmation in the harness before `plan-approved`, production-impacting parallel work, disabling worktree isolation, or execution-strategy/scope changes. Record it before acting.
+## Approvals
+Get explicit user confirmation in the harness before each action below, and record it where the table says before acting. A notification is never approval.
+
+| Action | Recorded as |
+|---|---|
+| Approve a plan | `gin-workflow record plan-approved` |
+| Production-impacting parallel work | bead notes (`gin-workflow task update <id> --notes`) |
+| Disable worktree isolation, work in place, or run on the current branch | bead notes |
+| Change the execution strategy or scope | bead notes, and the plan when it changes |
+| Create a pull request | the PR link in the handoff |
+| Merge into the base branch | the merge commit in the handoff |
+| Force-push (only when the user asks) | the handoff |
+| Discard work (the user types `discard`) | the handoff |
 
 ## Notifications
 Before stopping to wait for the user (a confirmation, an approval, a choice, `human_decision_required`, a blocker), run `gin-workflow notify --event needs_input "<what you need>"`. It does nothing unless `notifications.telegram` is on, and a message is never approval.
@@ -26,4 +34,4 @@ Before stopping to wait for the user (a confirmation, an approval, a choice, `hu
 Load only the requirement, file scope, and validation intent. Look up symbols, tests, and knowledge on demand: `codegraph explore "<query>"` when `.codegraph/` exists, else grep/read. Build an artifact from `gin-workflow specs template <name>` when one exists; never invent its structure.
 
 ## Git
-Commit and push freely on feature/worktree branches; never commit directly to `main`/`master`. Creating a PR, merging into the base branch, or force-pushing requires explicit user approval.
+Commit only on a feature or worktree branch, never on `main`/`master`. `discuss` and `plan` commit on `feat/<topic>` (`<topic>` from `.planning/specs/<date>-<topic>-design.md`); SDD and team modes use their own `spec/...` branch. `execute` commits and pushes its track branch. `quick` commits on the current feature branch, or on a new `quick/<slug>` when started on `main`/`master`, and does not push. Pull requests, merges, and force-pushes follow Approvals.

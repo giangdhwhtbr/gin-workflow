@@ -16,6 +16,8 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 
 `gin-workflow task` owns task identity, priority, status (`open`, `in_progress`, `blocked`, `deferred`, `closed`), claims, dependencies, blockers, follow-ups, and closure. It serves them from Beads (`bd`) when `providers.task_tracking: beads`, and otherwise from Markdown files under `.planning/tasks/`. "What is active, blocked, or ready?" is answered through it (`gin-workflow task ready`, `gin-workflow task show`, or the `progress` skill), never from other local files. Tasks are called beads in either backend.
 
+`bd` also creates `.beads.gate.lock` in the repository root (and `embeddeddolt.gate.lock` in the Beads directory) as a lock around its writes; `.gitignore` excludes it.
+
 `orchestrate` creates two kinds of beads:
 
 - The parent bead (epic) is the deliverable. It stays open until a human-confirmed merge; closing it is what marks the workflow `shipped`. Merge holds belong only here.

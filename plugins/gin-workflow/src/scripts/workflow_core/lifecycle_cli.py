@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
+from .artifacts import ArtifactResolutionError, resolve_artifact
 from .catalog import catalog_for
 from .checkout import main_checkout
 from .configuration import resolve_effective_config
@@ -178,10 +180,28 @@ def _record_refusal(
     return None
 
 
+def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
+    """Legacy-layout spec lint for a Markdown evidence file; other evidence is not checked."""
+    from .specs import lint_design_spec
+
+    path = repo_path / evidence
+    if not evidence.endswith(".md") or not path.is_file():
+        return []
+    config = resolve_effective_config(repo_path, write=False).config.to_dict()
+    if project_settings(config).layout != "legacy":
+        return []
+    return lint_design_spec(path)
+
+
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
+    if args.gate == "requirement-confirmed":
+        errors = _spec_lint_errors(Path(args.repository).resolve(), args.evidence)
+        if errors:
+            return {"status": "rejected", "message": "requirement-confirmed refused: spec lint failed\n"
+                    + "\n".join(errors)}, 1
     store = _get_event_store(Path(args.repository).resolve())
     actor, team_payload = args.actor, {}
     team = team_for_repo(Path(args.repository).resolve())
@@ -224,6 +244,28 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "workflow_id": args.workflow_id,
         "message": f"{args.gate} recorded for {args.workflow_id}",
     }, 0
+
+
+def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEvent] | None,
+                       workflow_id: str, gates: Mapping[str, bool | None]) -> str | None:
+    """Ship-time reminder: no commit touched the knowledge directory since orchestration-ready."""
+    ready = [e for e in events or () if e.workflow_id == workflow_id and e.event_type == "orchestration.ready"]
+    if not ready or not gates.get("implementation_complete"):
+        return None
+    try:
+        knowledge = resolve_artifact(config, "knowledge")
+    except ArtifactResolutionError:
+        return None
+    since = ready[-1].timestamp
+    try:
+        done = subprocess.run(["git", "log", f"--since={since}", "--format=%H", "--", str(knowledge)],
+                              cwd=repo_path, capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if done.returncode or done.stdout.strip():
+        return None
+    shown = knowledge.relative_to(repo_path) if knowledge.is_relative_to(repo_path) else knowledge
+    return f"no commit changed {shown} since orchestration-ready ({since}); reconcile knowledge (gin-knowledge) before ship"
 
 
 def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
@@ -284,7 +326,8 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, load_team(config.to_dict()))},
         "extensions": {"orchestrator": orchestrator_client.status()},
-        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes) if w],
+        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes,
+                                 _knowledge_warning(repo_path, config, events, workflow_id, gates_state)) if w],
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
             for event in events or ()

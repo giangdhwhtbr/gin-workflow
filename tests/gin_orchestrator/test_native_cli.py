@@ -91,6 +91,17 @@ class NativeCliTests(unittest.TestCase):
         self.assertEqual("required_flags_unverified", unavailable.reason)
         self.assertFalse(prefix_only.available)
 
+    def test_us4_worker_in_worktree_gets_worktree_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            worktree = Path(directory, ".planning", "worktrees", "t-1")
+            worktree.mkdir(parents=True)
+            for cwd, expected in ((worktree, str(worktree.resolve())), (Path(directory), None)):
+                script = cwd / "worker.py"
+                script.write_text("import json, os\nprint(json.dumps({'wt': os.getenv('WORKTREE_PATH')}))\n",
+                                  encoding="utf-8")
+                output = NativeCliRunner().run(NativeCliInvocation((sys.executable, str(script)), cwd, b"", 2.0))
+                self.assertEqual(expected, output.records[0]["wt"], cwd)
+
     def test_runner_bounds_stdin_sanitizes_environment_and_parses_jsonl(self):
         with tempfile.TemporaryDirectory() as directory:
             script = Path(directory) / "worker.py"

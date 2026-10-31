@@ -40,7 +40,7 @@ remote-install.sh                 clone-and-install for curl
 
 Each harness registers differently. Claude Code gets the bundle at `~/.claude/skills/<plugin>`. Codex registers it through its plugin marketplace (`codex plugin marketplace add`, `codex plugin add`), and Antigravity through `agy plugin install`. OpenCode gets the bundle at `~/.config/opencode/skills/<plugin>`, which it scans as a global skills source.
 
-The OpenCode bundle drops the Claude/Codex `agents/` and `commands/` files, so a project install never clobbers a repository's own `.opencode/agents` or `.opencode/commands`. It rewrites the `${PLUGIN_ROOT}` variable to the absolute install path, because shell commands run from the agent's working directory. It renames `report` to `gin-workflow-report` so it does not shadow OpenCode's built-in `report` skill. It ships no `hooks/`, so the safety and post-edit hooks do not run in OpenCode; the CLI still checks the lifecycle gates.
+The OpenCode bundle drops the Claude/Codex `agents/` and `commands/` files, so a project install never clobbers a repository's own `.opencode/agents` or `.opencode/commands`. It rewrites the `${PLUGIN_ROOT}` variable to the absolute install path, because shell commands run from the agent's working directory. It renames `report` to `gin-workflow-report` so it does not shadow OpenCode's built-in `report` skill. It ships no `hooks/`, so the safety hook does not run in OpenCode; the CLI still checks the lifecycle gates.
 
 GitHub Copilot CLI registers `dist/copilot/<plugin>` with `copilot plugin install`. That bundle keeps the Claude manifest (`.claude-plugin/plugin.json`) and skills, writes `hooks/hooks.json` in Copilot's format, and drops `agents/` and `commands/`. Its directory carries the plugin name because Copilot names a local install after the source directory.
 
@@ -71,7 +71,7 @@ Parameters mirror the shell script: `-Platform`, `-Plugin`, `-Link` (may need De
 
 ### Refreshing installs after a change
 
-Each harness keeps a snapshot of the plugin taken at install time, so a committed fix reaches a machine only after the installer runs again there: `./install.sh --platform all`. Commit first: the Codex marketplace source reads the committed tree, not your working directory. See [Troubleshooting](reference/troubleshooting.md#a-repository-still-hits-a-gin-workflow-bug-that-was-already-fixed-and-shipped-on-master).
+Each harness keeps a snapshot of the plugin taken at install time, so a committed fix reaches a machine only after the installer runs again there: `./install.sh --platform all`. Commit first: the Codex marketplace source reads the committed tree, not your working directory. `./install.sh` stamps the CLI install directory with a hash of `plugins/gin-workflow/src`; `gin-workflow setup doctor` adds an `install:` action when `src` no longer matches it. See [Troubleshooting](reference/troubleshooting.md#a-repository-still-hits-a-gin-workflow-bug-that-was-already-fixed-and-shipped-on-master).
 
 ## Tests
 

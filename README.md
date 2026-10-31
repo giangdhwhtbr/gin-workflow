@@ -61,7 +61,7 @@ codex plugin add gin-workflow@gin-workflow-marketplace
 
 Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
 
-GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety and post-edit hooks, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hooks need `bash` and find their scripts only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-workflow-pathscriptssafety-checksh-not-found-hook-skipped)).
+GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hook needs `bash` and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-workflow-pathscriptssafety-checksh-not-found-hook-skipped)).
 
 ## Extensions
 
