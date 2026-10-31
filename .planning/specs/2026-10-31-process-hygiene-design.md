@@ -26,7 +26,7 @@ Out of scope: changing the default layout to `sdd`; shrinking skill size; the ro
 Current behavior this changes (`S` = `plugins/gin-workflow/src`):
 - `S/skills/execute/SKILL.md:46-47` lists the two handoff options in Vietnamese.
 - `S/skills/quick/SKILL.md:28` says "Never commit or push; the user commits", against the Git section of `S/references/stage-contract.md` and `execute/SKILL.md:45`, which commit and push the feature branch.
-- `S/skills/review/SKILL.md:15` runs `checkpoint` and `transition-requested` as `--actor-role worker`; `execute/SKILL.md:43` only says "request review through the `review` skill"; `docs/concepts/architecture.md:97` draws the orchestrator as the caller.
+- `S/skills/review/SKILL.md:15` has the implementer run `checkpoint` and `transition-requested` as `--actor-role worker`; `docs/concepts/architecture.md:97` draws the main agent running `execute` as that caller; `execute/SKILL.md:43` only says "request review through the `review` skill" and names no runner.
 - `S/skills/discuss/SKILL.md:25` says "commit it on a feature branch" without naming it; `plan` and `orchestrate` say nothing about the branch. `workflow_core/worktrees.py:39` forks a new worktree from the current branch when no base is given.
 - `S/scripts/safety-check.sh:80-81` blocks only `--no-verify` on `commit`, `push`, `merge`.
 - `S/scripts/post-edit.sh` only echoes the edited path (line 20); `S/hooks/hooks.json` wires it as a PostToolUse hook; nothing reads its output. `.planning/roadmap.md:58` plans to port it to Python.
@@ -41,8 +41,8 @@ Current behavior this changes (`S` = `plugins/gin-workflow/src`):
 
 ### Skill and doc text
 - `execute/SKILL.md` handoff options are in English with the same meaning: (1) ask for the command to create a PR from the pushed feature branch; (2) keep the pushed branch and continue with the next track using the produced artifact.
-- `stage-contract.md` Git section holds the only commit/push rule: commit on a feature or worktree branch, never on `main`/`master`; `execute` pushes its track branch, `quick` does not push. `quick` creates `quick/<slug>` when started on `main`/`master` and commits there. `execute`, `quick`, and `AGENTS.md` reference the rule instead of restating it.
-- `execute/SKILL.md` names the session running `execute` as the runner of `init`, `checkpoint`, and `transition-requested --to review-requested` (through the `review` skill, `--actor-role worker`). `architecture.md:97` shows the same actor.
+- `stage-contract.md` Git section holds the only commit/push rule: commit on a feature or worktree branch, never on `main`/`master`; `execute` pushes its track branch, `quick` does not push. `quick` creates `quick/<slug>` when started on `main`/`master` and commits there. `execute` and `quick` reference the rule instead of restating it. `AGENTS.md` keeps its sentence, because sessions in this repository read it without loading `stage-contract.md`, and names the Git section of `stage-contract.md` as canonical.
+- `execute/SKILL.md` names the session running `execute` as the runner of `init`, `checkpoint`, and `transition-requested --to review-requested` (through the `review` skill, `--actor-role worker`), the actor `architecture.md:97` already shows.
 - `discuss` commits the spec on `feat/<topic>` (`<topic>` is the spec's topic slug, as in `.planning/specs/<date>-<topic>-design.md`), creating it from the base branch if needed; `plan` commits the plan on the same branch; `orchestrate` runs `worktree create` from that branch so the worktree contains both. SDD and team modes keep their own `spec/...` branch names.
 - `stage-contract.md` has one approvals table (action → when approval is needed → what is recorded) covering: `plan-approved`, production-impacting parallel work, disabling worktree isolation or working in place, execution-strategy or scope changes, PR creation, merge into the base branch, force-push, discard/cleanup. The skills listed above reference the table and keep only stage-specific detail.
 - `docs/concepts/state-model.md` has one line naming `bd` as the writer of `.beads.gate.lock` (verified against bd 1.0.5 at execute time; if `bd` is not the writer, the line names the actual writer).
@@ -66,8 +66,8 @@ Current behavior this changes (`S` = `plugins/gin-workflow/src`):
 - `gin-workflow state --format json --workflow-id <id>` adds a warning to `warnings` when `orchestration.ready` is recorded for the workflow, `implementation_complete` is satisfied, and `git log --since=<orchestration.ready timestamp> -- <artifacts.knowledge>` is empty. The warning names the directory and the timestamp. `ship/SKILL.md` step 7 shows `state` warnings to the user before reconciling knowledge. The change to the JSON is additive.
 
 ### Installed snapshot check
-- `install.sh` and `install.ps1` write `.gin-workflow-src.json` (`{"src": "<absolute src path>", "sha256": "<hash>"}`) into each installed plugin target. The hash covers the relative path and bytes of every file under the copied `src` directories, in sorted order.
-- `setup doctor` reads that file for each installed target it knows; when `src` exists it recomputes the hash and warns "installed snapshot differs from src; run ./install.sh" on mismatch. A missing file or missing `src` skips the check without a warning or error.
+- `install.sh` and `install.ps1` write `.gin-workflow-src.json` (`{"src": "<absolute src path>", "sha256": "<hash>"}`) into the gin-workflow CLI install directory (`~/.local/lib/gin-workflow/<version>/`). The hash covers the relative path and bytes of every file under `plugins/gin-workflow/src` except `__pycache__`, in sorted order, so a stale skill and a stale CLI both show. Harness targets get no stamp: doctor could not locate them without knowing every harness's paths.
+- `setup doctor` reads the stamp next to its own `workflow_core` package; when `src` exists it recomputes the hash and warns "installed snapshot differs from src; run ./install.sh" on mismatch. A missing file or missing `src` skips the check without a warning or error.
 
 ## User Stories
 

@@ -54,10 +54,10 @@ Plan-level rules:
 - Test names carry the story id (for example `test_us2_blocks_commit_n`).
 
 Decisions this plan takes inside the spec:
-- `AGENTS.md:32` keeps its Git sentence. AGENTS.md is this repository's policy, read by sessions that never load `stage-contract.md`; the spec's "reference instead of restate" applies to the skills.
-- `architecture.md:97` already draws `A` as "Main agent (execute)" running `init, checkpoint, transition-requested`, which matches the review skill's implementer role; it needs no change.
+- `AGENTS.md:32` keeps its Git sentence and gains "(canonical: the Git section of `plugins/gin-workflow/src/references/stage-contract.md`)". AGENTS.md is this repository's policy, read by sessions that never load `stage-contract.md`. The spec says so after the 2026-10-31 amendment.
+- `architecture.md:97` already draws `A` as "Main agent (execute)" running `init, checkpoint, transition-requested`, which matches the review skill's implementer role; it needs no change (the spec's current-behavior line was corrected).
 - `.beads.gate.lock` writer: `bd` 1.0.5. `~/gin-beads/gin-workflow/embeddeddolt.gate.lock` and `gin-workflow/.beads.gate.lock` carry the same creation time to the nanosecond (2026-10-13 07:37:33.698006545), so one `bd` call created both as `<path>.gate.lock` locks.
-- The snapshot stamp is written into the CLI install directory (`~/.local/lib/gin-workflow/<version>/`), not into each harness target. The hash covers the whole `plugins/gin-workflow/src` tree, so a stale skill and a stale CLI both show; doctor finds the stamp next to its own `workflow_core` package, which it can locate without knowing harness paths.
+- The snapshot stamp is written into the CLI install directory (`~/.local/lib/gin-workflow/<version>/`), not into each harness target (the spec says so after the 2026-10-31 amendment). The hash covers the whole `plugins/gin-workflow/src` tree, so a stale skill and a stale CLI both show; doctor finds the stamp next to its own `workflow_core` package, which it can locate without knowing harness paths.
 - The `ship` skill text that shows `state` warnings lives in Track 1, so only Track 1 edits skill files.
 
 ## Execution Strategy
@@ -89,6 +89,7 @@ execution_strategy:
   - Modify `plugins/gin-workflow/src/skills/migrate-specs/SKILL.md:12,18`
   - Modify `plugins/gin-workflow/src/skills/gin-knowledge/SKILL.md:13`
   - Modify `docs/concepts/state-model.md:17`
+  - Modify `AGENTS.md:32` (canonical pointer)
 - **Provider role**: `docs`
 - **Model:** `sonnet`
 - **Effort:** `low`
@@ -138,7 +139,8 @@ Steps:
 9. `ship/SKILL.md`: step 5 starts "Before creating a PR, merging, force-pushing, or cleanup: get approval (stage-contract Approvals), and confirm ...". Step 7 replaces "Reconcile knowledge per `gin-knowledge`." with "Show each entry of `warnings` from `gin-workflow state --format json --workflow-id <id>` to the user, then reconcile knowledge per `gin-knowledge`."
 10. `gin-knowledge/SKILL.md` step 3: "Write `.planning/knowledge/<topic>.md` with **Context**, **Decision/Solution**, **Consequences**, **References** (paths, beads), and **Scope**. For an architectural decision, start from `gin-workflow specs template adr.md` and add **References** and **Scope**."
 11. `docs/concepts/state-model.md`, after line 17: "`bd` also creates `.beads.gate.lock` in the repository root (and `embeddeddolt.gate.lock` in the Beads directory) as a lock around its writes; `.gitignore` excludes it."
-12. Run `bash tests/install_smoke_test.sh` (skills are copied verbatim, so only the smoke test exercises them) and the full suite.
+12. `AGENTS.md:32`: append "(canonical: the Git section of `plugins/gin-workflow/src/references/stage-contract.md`)".
+13. Run `bash tests/install_smoke_test.sh` (skills are copied verbatim, so only the smoke test exercises them) and the full suite.
 
 ### Track 2: Safety hook and post-edit removal
 - **Dependencies**: none
@@ -149,7 +151,7 @@ Steps:
   - Modify `install.sh:200-295` (post-edit entries in the Claude, Codex, Antigravity, Copilot hook templates)
   - Modify `install.ps1:125-182` (same entries)
   - Test `tests/test_safety_check.py`
-  - Test `tests/gin_orchestrator/test_harness_packaging.py:160-170`
+  - Test `tests/gin_orchestrator/test_harness_packaging.py:165-186`
   - Modify `README.md:64`, `docs/concepts/architecture.md:20`, `docs/contributing.md:43`, `docs/reference/troubleshooting.md:32` (mention only the safety hook)
   - Modify `.planning/roadmap.md:58` (windows-parity ports only `safety-check.sh`)
 - **Provider role**: `backend`
@@ -167,7 +169,9 @@ Steps:
                        "git -c core.hooksPath=/dev/null commit -m x", "git -c core.hookspath=/tmp push",
                        "git config core.hooksPath /tmp/h", 'git config --local core.hooksPath "/tmp/h"',
                        "git config set core.hooksPath /tmp/h", "git config --unset core.hooksPath",
-                       "cd /tmp && git commit -n -m x"):
+                       "cd /tmp && git commit -n -m x", "/usr/bin/git commit -n -m x",
+                       "git -c 'core.hooksPath=/x' commit -m y", 'git -c "core.hooksPath=/x" commit -m y',
+                       "git config 'core.hooksPath' /tmp/h"):
            self.assertEqual(2, exit_code(command), command)
 
    def test_us2_allows_reads_and_quoted_text(self):
@@ -178,7 +182,7 @@ Steps:
            self.assertEqual(0, exit_code(command), command)
    ```
    Delete `POST_EDIT_SCRIPT` and `test_post_edit_runs_on_path_from_copilot_payload`. Update the module docstring to "safety-check.sh blocks commands that skip the gin-workflow git hooks or remove broad paths." Run: fails on the new block cases.
-2. In `safety-check.sh`, extend the existing segment loop (lines 42-58) to build a parallel `bares` array: the same segment with every quoted run replaced by one `Q` (append `Q` when a quote opens, append nothing while inside quotes). Then replace section 1b (lines 79-84) with:
+2. In `safety-check.sh`, extend the existing segment loop (lines 42-58) to build a parallel `bares` array, index-aligned with `segments`: the same segment with every quoted run replaced by one `Q` (append `Q` when a quote opens, append nothing while inside quotes). Then replace section 1b (lines 79-84) with the code below. It must run on bash 3.2 (macOS `/bin/bash`): no `${var,,}`; case-insensitivity comes from `nocasematch`, which applies to `[[ =~ ]]` since bash 3.1. Regexes with quote characters live in variables, as `quoted_re` already does.
    ```bash
    # 1b. The git hooks are the quality gate: never skip them.
    block_hooks() { echo "Blocked: $1 skips the gin-workflow git hooks; fix the failing check instead." >&2; exit 2; }
@@ -186,21 +190,29 @@ Steps:
       [[ "$COMMAND" =~ git[[:space:]].*--no-verify.*(commit|push|merge) ]]; then
      block_hooks "--no-verify"
    fi
-   for bare in "${bares[@]}"; do
-     lower=${bare,,}
-     [[ "$lower" =~ (^|[[:space:]])git([[:space:]]|$) ]] || continue
-     [[ "$lower" =~ [[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]]|$) ]] && block_hooks "git commit -n"
-     [[ "$lower" =~ [[:space:]]-c[[:space:]]*core\.hookspath= ]] && block_hooks "-c core.hooksPath"
-     if [[ "$lower" =~ [[:space:]]config[[:space:]](.*[[:space:]])?core\.hookspath([[:space:]]+(.*))?$ ]]; then
+   q="[\"']?"
+   hooks_c_re="[[:space:]]-c[[:space:]]*${q}core\.hookspath="
+   hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
+   shopt -s nocasematch
+   for i in "${!segments[@]}"; do
+     raw=${segments[i]} bare=${bares[i]}
+     # `/usr/bin/git` counts; a `git` inside quotes (bare has it as Q) does not.
+     [[ "$bare" =~ (^|[[:space:]/])git([[:space:]]|$) ]] || continue
+     # -n on commit only, outside quotes: `-m 'fix -n flag'` is a message, not a flag.
+     [[ "$bare" =~ [[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]]|$) ]] && block_hooks "git commit -n"
+     # hooksPath rules read the raw segment, so a quoted key or value still matches.
+     [[ "$raw" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath"
+     if [[ "$raw" =~ $hooks_config_re ]]; then
        rest=${BASH_REMATCH[3]}
-       [[ "$lower" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
-       [[ "$lower" =~ [[:space:]]--get ]] && continue
+       [[ "$raw" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
+       [[ "$raw" =~ [[:space:]]--get ]] && continue
        [ -n "${rest// /}" ] && block_hooks "setting core.hooksPath"
      fi
    done
+   shopt -u nocasematch
    ```
-   The `-n` pattern requires a single dash followed only by letters, so `--amend`, `--no-edit`, and `-m Q` do not match; `git log -n 3` passes because it has no `commit` word. Run the test file: `OK`.
-3. Delete `post-edit.sh`; remove the PostToolUse block from `hooks.json` and set its description to "Gin workflow safety hooks."; remove every post-edit entry from the hook templates in `install.sh` and `install.ps1` (and "and post-edit" from their hook descriptions). Update `test_harness_packaging.py:166` to assert that no PostToolUse entry references `post-edit.sh`.
+   The `-n` pattern requires a single dash followed only by letters, so `--amend`, `--no-edit`, and `-m Q` do not match; `git log -n 3` passes because it has no `commit` word. Known false positive, accepted: `git log --grep commit -n 1` (the word `commit` as an argument). Run the test file: `OK`. Then `grep -nE ',,|\^\^' plugins/gin-workflow/src/scripts/safety-check.sh` prints nothing (bash 3.2 has no case-conversion expansions).
+3. Delete `post-edit.sh`; remove the PostToolUse block from `hooks.json` and set its description to "Gin workflow safety hooks."; remove every post-edit entry from the hook templates in `install.sh` and `install.ps1` (and "and post-edit" from their hook descriptions). In `test_harness_packaging.py`: replace lines 165-166 with `self.assertNotIn("PostToolUse", hooks.get("hooks", {}))`; in `test_copilot_hook_commands_run_the_scripts_and_skip_when_missing`, drop the `PostToolUse` lookup (line 173) and the post-edit run and assertion (lines 185-186).
 4. Edit the four docs lines and `roadmap.md:58` to name only `safety-check.sh`.
 5. Run `bash tests/install_smoke_test.sh`, the harness packaging test, and the full suite.
 
@@ -235,6 +247,7 @@ Steps:
    ```python
    def worktree_environment(cwd: Path) -> dict[str, str]:
        """`WORKTREE_PATH` for a worker inside `.planning/worktrees/<id>`, so safety-check keeps it there."""
+       cwd = cwd.resolve()
        for path in (cwd, *cwd.parents):
            if path.parent.name == "worktrees" and path.parent.parent.name == ".planning":
                return {"WORKTREE_PATH": str(path)}
@@ -266,7 +279,10 @@ Steps:
    - `Acceptance criteria:` followed only by `-` (empty bullet, as in the template) → one error;
    - no `### US-` block → one error "no user stories";
    - `{{title}}`, `TBD`, `TODO` in prose → one error each with its line number;
-   - the same tokens inside backticks or a ``` fence → `[]`.
+   - the same tokens inside backticks or a ``` fence → `[]`;
+   - `**Acceptance criteria:**` (bold) and an indented `  - x` bullet are accepted;
+   - a `#### Notes` subheading inside a story, before or after its criteria, does not end the story;
+   - every spec under `.planning/specs/` at HEAD either lints clean or fails with exactly the one "no user stories" error (specs written before the user-story template; their gates are already recorded and never re-checked). Checked during planning: every spec from 2026-10-08 on is clean except `2026-10-08-pm-ba-roadmap-templates-design.md`, which has no stories; older specs fail only with "no user stories".
    Error format: `<path>:<line>: <message>`. Run: fails (`AttributeError`).
 2. In `specs.py`:
    ```python
@@ -291,14 +307,14 @@ Steps:
                continue
            if _PLACEHOLDER.search(re.sub(r"`[^`]*`", "", line)):
                errors.append(f"{path}:{number}: placeholder left: {line.strip()}")
-           if line.startswith("#"):
+           if re.match(r"^#{1,3} ", line):
                close()
                match = _STORY_HEADING.match(line)
                story, state = ((match.group(1), number), "") if match else (None, "")
                stories += bool(match)
-           elif story and line.strip() == "Acceptance criteria:":
+           elif story and line.strip().strip("*") == "Acceptance criteria:":
                state = "criteria"
-           elif story and state == "criteria" and re.match(r"^- \S", line):
+           elif story and state == "criteria" and re.match(r"^\s*[-*] \S", line):
                state = "bullet"
        close()
        if not stories:
@@ -444,11 +460,9 @@ Steps:
    if __name__ == "__main__":
        write_stamp(Path(sys.argv[1]), Path(sys.argv[2]))
    ```
-3. In `doctor`, before the result is returned, add:
+3. Add `from . import snapshot` to the module imports of `setup_service.py`. In `doctor`, before the result is returned, add:
    ```python
-   from .snapshot import check as snapshot_check
-
-   stale = snapshot_check(Path(__file__).absolute().parents[1])
+   stale = snapshot.check(Path(__file__).absolute().parents[1])
    checks_details["snapshot"] = {"warning": stale}
    if stale:
        actions.append(f"install: {stale}")
