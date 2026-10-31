@@ -21,8 +21,8 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
    - **Track Beads (Work Units)**: one per plan track (`gin-workflow task create --parent <epic>`). Acceptance criteria are strictly technical (in-scope code, tests, review approval). Never copy parent merge holds into tracks. A track whose plan entry has a `Human gate:` line gets `--labels human-gate`.
 4. Write the tracks as a JSON list of `{"task_id", "provider_role", "model", "effort"}`, with `task_id` the track bead id created in step 3, to `.agent-workflow/runtime/routes-<workflow>.json` and run `gin-workflow routes resolve --workflow-id <workflow> --tracks <file> --json`. Exit 2 lists every diagnostic; report them all and stop (after fixing the configuration, run it again; the beads stay). It writes the assignment manifest only when every track resolves. Concrete providers never enter Beads; the plan names only catalog models.
 5. Mirror dependencies with `gin-workflow task dep add <blocked> <blocker>` and check `gin-workflow task ready` / `gin-workflow task show`. Each track closes after tests and review pass, which unblocks its dependents.
-6. Isolate by default: create a worktree per the `gin-worktrees` skill under `.planning/worktrees/`. Disabling isolation or running on the current branch needs explicit approval, recorded first.
-7. Production-impacting parallel work or an execution-strategy change needs explicit approval.
+6. Isolate by default: from the spec and plan branch `feat/<topic>`, create a worktree per the `gin-worktrees` skill under `.planning/worktrees/`, so each track branch contains the spec and plan. Disabling isolation or running on the current branch needs approval (stage-contract Approvals).
+7. Production-impacting parallel work or an execution-strategy change needs approval (stage-contract Approvals).
 8. `gin-workflow record orchestration-ready --workflow-id <id> --epic <parent-bead> --evidence "<bead-ids>; <worktree>; <branch>" --actor <id>`. The epic lets `gin-workflow state` derive `implementation_complete` once every track is closed.
 
 ## Exit
