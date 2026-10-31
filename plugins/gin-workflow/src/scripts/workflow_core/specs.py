@@ -62,6 +62,42 @@ class Block:
         return None
 
 
+_STORY_HEADING = re.compile(r"^### (US-\d+):")
+_PLACEHOLDER = re.compile(r"\{\{|\bTBD\b|\bTODO\b")
+
+
+def lint_design_spec(path: Path) -> list[str]:
+    """Legacy design spec: user stories with acceptance criteria and no placeholder left outside code."""
+    errors, story, state, fenced = [], None, "", False
+    stories = 0
+
+    def close() -> None:
+        if story and state != "bullet":
+            errors.append(f"{path}:{story[1]}: {story[0]} has no acceptance criteria")
+
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if _PLACEHOLDER.search(re.sub(r"`[^`]*`", "", line)):
+            errors.append(f"{path}:{number}: placeholder left: {line.strip()}")
+        if re.match(r"^#{1,3} ", line):
+            close()
+            match = _STORY_HEADING.match(line)
+            story, state = ((match.group(1), number), "") if match else (None, "")
+            stories += bool(match)
+        elif story and line.strip().strip("*") == "Acceptance criteria:":
+            state = "criteria"
+        elif story and state == "criteria" and re.match(r"^\s*[-*] \S", line):
+            state = "bullet"
+    close()
+    if not stories:
+        errors.append(f"{path}:1: no user stories (### US-<n>:)")
+    return errors
+
+
 def cap_of(req_id: str) -> str:
     found = _FULL_ID.match(req_id)
     if not found:

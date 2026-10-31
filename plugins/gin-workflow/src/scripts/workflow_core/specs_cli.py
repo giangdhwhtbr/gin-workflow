@@ -25,6 +25,7 @@ def _parser() -> argparse.ArgumentParser:
     item = sub.add_parser("lint", parents=[common])
     item.add_argument("--change")
     item.add_argument("--against")
+    item.add_argument("--spec", type=Path)
     sub.add_parser("hash", parents=[common]).add_argument("req_id")
     sub.add_parser("template", parents=[common]).add_argument("name")
     item = sub.add_parser("renumber", parents=[common])
@@ -80,6 +81,9 @@ def _run(args: argparse.Namespace) -> int:
         _emit(result, args.format, "\n".join(f"{row['id']} {row['section']} {row['hash'][:8]} {row['title']}"
                                              for row in result["requirements"]))
         return 0
+    if args.command == "lint" and args.spec:
+        specs.require_layout(cfg, "legacy")
+        return _findings(specs.lint_design_spec(args.spec), args.format, "ok")
     specs.require_layout(cfg, "sdd")
     if args.command == "new":
         change = specs.new_change(root, cfg, args.slug, args.epic, args.title)

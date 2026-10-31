@@ -178,10 +178,28 @@ def _record_refusal(
     return None
 
 
+def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
+    """Legacy-layout spec lint for a Markdown evidence file; other evidence is not checked."""
+    from .specs import lint_design_spec
+
+    path = repo_path / evidence
+    if not evidence.endswith(".md") or not path.is_file():
+        return []
+    config = resolve_effective_config(repo_path, write=False).config.to_dict()
+    if project_settings(config).layout != "legacy":
+        return []
+    return lint_design_spec(path)
+
+
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
+    if args.gate == "requirement-confirmed":
+        errors = _spec_lint_errors(Path(args.repository).resolve(), args.evidence)
+        if errors:
+            return {"status": "rejected", "message": "requirement-confirmed refused: spec lint failed\n"
+                    + "\n".join(errors)}, 1
     store = _get_event_store(Path(args.repository).resolve())
     actor, team_payload = args.actor, {}
     team = team_for_repo(Path(args.repository).resolve())
