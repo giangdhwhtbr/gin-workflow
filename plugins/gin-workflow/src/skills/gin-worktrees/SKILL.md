@@ -22,7 +22,7 @@ git rev-parse --show-superproject-working-tree   # prints a path => submodule, t
    - New branch: `gin-workflow worktree create <track-id> <branch> [base-ref]` (it validates the id and path containment, and always creates the branch). `base-ref` defaults to the current branch.
    - Existing branch: `git worktree add .planning/worktrees/<track-id> <branch>` (a branch can be checked out in only one worktree, so switch the main checkout away from it first).
    - Then work from inside the new directory. Paths and branch names are runtime metadata; Beads owns status.
-3. If creation fails because of a sandbox or permission error, tell the user and, work in place only with approval (stage-contract Approvals).
+3. If creation fails because of a sandbox or permission error, tell the user and work in place only with approval (stage-contract Approvals).
 
 ## 2. Project setup
 Install with the project's own tooling: `pnpm install` / `yarn install` / `npm ci` (lockfile-driven), `cargo build`, `pip install -r requirements.txt` or `poetry install`/`uv sync`, `go mod download`. Skip what does not apply.
