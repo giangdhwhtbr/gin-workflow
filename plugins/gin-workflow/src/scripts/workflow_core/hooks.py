@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from .atomic import atomic_write_many
 from .configuration import resolve_effective_config
@@ -72,6 +73,18 @@ def status(root: Path) -> dict[str, str]:
     return out
 
 
+def status_report(root: Path) -> dict[str, Any]:
+    """What `ship` checks: every hook installed and at least one verify command to run."""
+    settings = project_settings(resolve_effective_config(Path(root), write=False).config.to_dict())
+    hooks = status(root)
+    names = [name for name, command in settings.verify_commands.items() if command]
+    for package in settings.packages:
+        checks = (package.get("verify") or {}).get("checks") or {}
+        names += [f"{package['path']}:{name}" for name, command in checks.items() if command]
+    return {"hooks": hooks, "verify_commands": sorted(names),
+            "ok": all(state == "ok" for state in hooks.values()) and bool(names)}
+
+
 def _pushes_head(root: Path, refs: Sequence[str]) -> bool:
     """True when a pushed ref is a non-delete branch (or `HEAD` pushed to a branch) whose local sha is the checked-out HEAD."""
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True,
@@ -121,12 +134,16 @@ def run(root: Path, hook: str, refs: Sequence[str] = ()) -> int:
 
 def main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="gin-workflow hooks")
-    parser.add_argument("action", choices=("install", "run"))
+    parser.add_argument("action", choices=("install", "run", "status"))
     parser.add_argument("hook", nargs="?", choices=HOOKS)
     parser.add_argument("git_args", nargs="*", help="arguments git passes to the hook (pre-push: remote name and URL); ignored")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     args = parser.parse_args(list(argv))
     root = args.repository.resolve()
+    if args.action == "status":
+        report = status_report(root)
+        print(json.dumps(report, indent=2, sort_keys=True))
+        return 0 if report["ok"] else 1
     if args.action == "install":
         result = install(root)
         for hook, state in result["hooks"].items():
