@@ -15,23 +15,11 @@ LINK = re.compile(r"\]\(([^)\s]+)\)")
 MERMAID = re.compile(r"```mermaid\n(\S+)")
 BEADS_DEFAULT = re.compile(r"(?i)beads[^.\n]{0,40}\b(default|required)\b|\b(default|required)\b[^.\n]{0,40}beads")
 TYPES = {"flowchart", "graph", "sequenceDiagram", "stateDiagram-v2", "stateDiagram", "classDiagram", "erDiagram"}
-STYLE_RULES = (("dash", re.compile("[\u2013\u2014]")),
-               ("bold-label item", re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\*\*")),
-               ("emoji", re.compile("[\U0001F300-\U0001FAFF\u2600-\u27BF\u2B50\u2B55\uFE0F]")),
-               ("numbered heading", re.compile(r"^#{1,6}\s+\d")))
+sys.path.insert(0, str(SCRIPTS))
+
+from workflow_core.docs_check import style_violations  # noqa: E402
+
 STYLE_EXEMPT = {"docs/presentations/brownfield-modernization-script.md"}  # headings map to slide numbers
-
-
-def style_violations(text: str) -> list[str]:
-    """Mechanical docs-pack rules outside fenced code blocks, as '<line>: <rule>'."""
-    found, fenced = [], False
-    for number, line in enumerate(text.splitlines(), 1):
-        if line.lstrip().startswith("```"):
-            fenced = not fenced
-            continue
-        if not fenced:
-            found += [f"{number}: {name}" for name, pattern in STYLE_RULES if pattern.search(line)]
-    return found
 
 
 def pages() -> list[Path]:

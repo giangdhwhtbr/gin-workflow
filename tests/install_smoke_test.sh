@@ -133,6 +133,7 @@ assert_not_exists "plugins/gin-qa/dist"
 assert_not_exists "plugins/gin-orchestrator/dist"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
+assert_exists "plugins/gin-workflow/dist/claude-code/skills/write-doc/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/report/SKILL.md"
 assert_not_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
