@@ -91,7 +91,7 @@ class TestMigrate(unittest.TestCase):
         recorded = run_cli(self.root, "record", "plan-approved", "--workflow-id", "wf-1", "--evidence", "p.md",
                            "--actor", "u")
         self.assertEqual(0, recorded.returncode, recorded.stderr)
-        with mock.patch("workflow_core.lifecycle_cli._beads_json", return_value=None):
+        with mock.patch("workflow_core.lifecycle_cli._beads_json", return_value=(None, "bd not found")):
             self.assertEqual(["wf-1"], in_flight_workflows(self.root))
 
     def test_open_worktrees_finds_trees_under_planning_worktrees(self):

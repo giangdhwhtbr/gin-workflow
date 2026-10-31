@@ -7,7 +7,7 @@ protects safety rather than process.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -142,7 +142,15 @@ def collect_waivers(
         events = store.read_all()
     except (EventPersistenceError, OSError, ValueError):
         return {}
+    return waivers_from_events(events, workflow_id=workflow_id, scope_hash=scope_hash)
 
+
+def waivers_from_events(
+    events: Sequence[WorkflowEvent], *, workflow_id: str, scope_hash: str
+) -> dict[str, GateWaiver]:
+    """Return the newest valid waiver per gate for one workflow and scope; a malformed payload is skipped."""
+    if not workflow_id or not scope_hash:
+        return {}
     waivers: dict[str, GateWaiver] = {}
     for event in events:
         if event.event_type != WAIVER_EVENT_TYPE or event.workflow_id != workflow_id:

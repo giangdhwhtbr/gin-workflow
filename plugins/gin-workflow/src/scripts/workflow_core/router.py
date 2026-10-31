@@ -379,16 +379,15 @@ def _capability_enabled(config: EffectiveConfig, stage: str) -> bool:
 def _gate_status(
     state: Mapping[str, Any], gate: str, waivers: Mapping[str, GateWaiver]
 ) -> str:
-    """Return 'satisfied', 'waived', or 'unmet' for a lifecycle gate."""
-    if gate in state:
-        value = state[gate]
-        if type(value) is not bool:
-            raise TypeError(f"{gate} must be a boolean")
-        if value:
-            return "satisfied"
+    """Return 'satisfied', 'waived', 'unknown', or 'unmet' for a lifecycle gate; None marks an unknown value."""
+    value = state.get(gate, False)
+    if value is not None and type(value) is not bool:
+        raise TypeError(f"{gate} must be a boolean or None")
+    if value:
+        return "satisfied"
     if gate not in NON_WAIVABLE_GATES and gate in waivers:
         return "waived"
-    return "unmet"
+    return "unknown" if value is None and gate in state else "unmet"
 
 
 def route_next_stage(
@@ -424,7 +423,9 @@ def route_next_stage(
     store = state.get("audit_event_store")
     workflow_id = state.get("workflow_id")
     scope_hash = str(state.get("scope_hash") or "")
-    if (
+    if isinstance(state.get("waivers"), Mapping):
+        waivers = state["waivers"]
+    elif (
         isinstance(store, WorkflowEventStore)
         and isinstance(workflow_id, str)
         and workflow_id
@@ -442,6 +443,14 @@ def route_next_stage(
             waiver = waivers[completed_gate]
             evidence_prefix.append(f"{completed_gate}=waived({waiver.reason})")
             continue
+        if status == "unknown":
+            causes = tuple(str(cause) for cause in state.get("unknown_causes") or ())
+            return RouteDecision(
+                "progress",
+                "hold",
+                (*evidence_prefix, f"{completed_gate}=unknown"),
+                remedies=causes or ("restore the task tracker and the event log, then rerun gin-workflow state",),
+            )
 
         evidence = (*evidence_prefix, f"{completed_gate}=false")
         if not _capability_enabled(config, stage):

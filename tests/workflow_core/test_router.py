@@ -389,6 +389,15 @@ class WorkflowRouterTests(unittest.TestCase):
         self.assertEqual("hold", result.decision)
         self.assertIn("approval:current_branch_execution=stale", result.evidence)
 
+    def test_us1_unknown_gate_holds_with_the_cause(self):
+        state = {"requirement_confirmed": True, "plan_approved": True, "orchestration_ready": True,
+                 "implementation_complete": None, "shipped": None, "waivers": {},
+                 "unknown_causes": ["tracker unavailable: bd not found"]}
+        decision = self.route(state)
+        self.assertEqual(("progress", "hold"), (decision.stage, decision.decision))
+        self.assertIn("implementation_complete=unknown", decision.evidence)
+        self.assertEqual(("tracker unavailable: bd not found",), decision.remedies)
+
     def test_completion_gates_require_boolean_values(self):
         with self.assertRaisesRegex(TypeError, "requirement_confirmed must be a boolean"):
             self.route({"requirement_confirmed": "true"})

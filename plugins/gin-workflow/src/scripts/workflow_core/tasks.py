@@ -132,30 +132,46 @@ def _ready(executable: str, argv: Sequence[str]) -> int:
     return 0
 
 
-def query(root: Path, argv: Sequence[str]) -> Any:
-    """Run one read-only query and return its JSON; None when the backend is unavailable or fails."""
+def query_result(root: Path, argv: Sequence[str]) -> tuple[Any, str | None]:
+    """Run one read-only query: (JSON, None), or (None, cause) when the backend is unavailable or fails."""
     try:
         name = backend(root)
     except ConfigValidationError:
-        return None
+        return None, "invalid backend config"
     if name == "markdown":
-        return task_markdown.query(root, argv)
+        result = task_markdown.query(root, argv)
+        return (None, "markdown task query failed") if result is None else (result, None)
     executable = shutil.which("bd")
     if executable is None:
-        return None
+        return None, "bd not found"
     if argv[:1] == ["ready"]:
         argv = [*argv, "--exclude-type", "milestone"]
     try:
         completed = subprocess.run(
             [executable, *argv, "--json"], cwd=root, text=True, capture_output=True, check=False, timeout=30
         )
-        result = json.loads(completed.stdout) if completed.returncode == 0 else None
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
-        return None
+    except subprocess.TimeoutExpired:
+        return None, "bd timed out after 30s"
+    except (OSError, subprocess.SubprocessError) as error:
+        return None, f"bd failed: {error}"
+    if completed.returncode != 0:
+        first = next((line.strip() for line in (completed.stderr or "").splitlines() if line.strip()), "")
+        return None, f"bd exited {completed.returncode}" + (f": {first}" if first else "")
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        return None, "invalid JSON from bd"
     if argv[:1] == ["ready"]:
         held = held_by_external(root, executable)
-        result = None if held is None else without_held(result, held)
-    return result
+        if held is None:
+            return None, "bd ready --explain failed"
+        result = without_held(result, held)
+    return result, None
+
+
+def query(root: Path, argv: Sequence[str]) -> Any:
+    """Run one read-only query and return its JSON; None when the backend is unavailable or fails."""
+    return query_result(root, argv)[0]
 
 
 def _bd_env(root: Path, argv: Sequence[str]) -> dict[str, str] | None:
