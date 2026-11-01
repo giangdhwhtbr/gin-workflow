@@ -361,6 +361,8 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 | Inspection | `status`, `validate` (`--in-history` for an earlier track on a shared branch or after a squash merge), `render` (`--check` for drift) |
 | Housekeeping | `push-refs` (force-pushes each repository's review ref to `origin`), `cleanup` (`--bead-id` or `--all-closed`; also deletes the bead's `refs/gin/review/` refs, locally and on `origin`) |
 
+`init --max-cycles N` caps `start-review` to N review cycles (a cycle is one `review-started` event) until `record-human-decision`; the init actor is stored as `owner` and may not start a review. `status --format json` adds `owner`, `max_cycles`, `cycles`.
+
 `change-scope` and `reject` invalidate an active approval. `approve` refuses when the working source tree differs from the reviewed checkpoint.
 
 `validate --in-history` accepts an approved source found in a commit of HEAD's history. After a squash merge, the search starts where the histories diverged. An earlier track also passes when an approved track with a later review base started from its approved source and itself passes. A review base missing locally is fetched from the ledger's review ref on `origin`.

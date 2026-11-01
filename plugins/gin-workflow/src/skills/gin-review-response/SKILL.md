@@ -31,4 +31,4 @@ No performative agreement ("You're absolutely right!", "Great point!") and no th
 - Re-run the quality gates, then `checkpoint --repo-id <id> --commit-msg "fix: review findings"` (this commits on the feature branch), and request re-review.
 
 ## Completion
-The cycle ends when every finding is terminal (`verified`, `withdrawn`, `accepted-as-is`, `deferred-verified`, `human-waived`) and the reviewer approves. The implementation bead must not close before that and before acceptance evidence is complete. At the configured maximum cycle count with unresolved findings, require a human decision.
+The cycle ends when every finding is terminal (`verified`, `withdrawn`, `accepted-as-is`, `deferred-verified`, `human-waived`) and the reviewer approves. The implementation bead must not close before that and before acceptance evidence is complete. At `routing.review.max_cycles` the ledger refuses `start-review` until `record-human-decision` is written; ask the user for that decision instead of retrying.

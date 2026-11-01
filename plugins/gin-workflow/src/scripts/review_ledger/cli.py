@@ -308,6 +308,7 @@ def initialize_ledger(
     base_dir: Optional[str] = None,
     workflow_id: Optional[str] = None,
     attempt_id: Optional[str] = None,
+    max_cycles: Optional[int] = None,
 ) -> Optional[SourceCheckpoint]:
     """Checkpoint the declared source and initialize a complete replay identity.
 
@@ -358,6 +359,9 @@ def initialize_ledger(
             repositories=payload["repositories"],
         )
     )
+    payload["owner"] = actor_id
+    if max_cycles is not None:
+        payload["max_cycles"] = max_cycles
     mutate_ledger(
         bead_id,
         "ledger-created",
@@ -702,6 +706,11 @@ def build_start_review_operations(
         raise ValueError("actor_id is required")
     if ttl_seconds <= 0:
         raise ValueError("ttl_seconds must be positive")
+    if projection.owner and actor_id == projection.owner:
+        raise LeaseError(f"reviewer {actor_id} must differ from the track owner")
+    if (projection.max_cycles is not None and projection.review_state == "review-requested"
+            and projection.cycles >= projection.max_cycles and not projection.decided_since_cycle):
+        raise LeaseError(f"max review cycles ({projection.max_cycles}) reached; record a human decision")
     current_time = now or datetime.now(timezone.utc)
     expires_at = format_utc_timestamp(current_time + timedelta(seconds=ttl_seconds))
     active = projection.active_lease
