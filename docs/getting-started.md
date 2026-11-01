@@ -88,7 +88,7 @@ Claude offers four options: merge locally, push and open a pull request, keep th
 ## Starters and guides
 
 - New project: the [greenfield starter](starters/greenfield.md).
-- Legacy codebase: the [brownfield modernization starter](starters/brownfield-modernize.md).
+- Legacy codebase: the [brownfield modernization starter](starters/brownfield-modernize.md), then the [brownfield walkthrough](starters/brownfield-walkthrough.md) for the team flow.
 - Team: [team roles](roles.md).
 - Multi-harness worker routing: the [gin-orchestrator](orchestrator/README.md) extension.
 - The lifecycle on slides: the [ADLC deck](presentations/adlc.html) ([PPTX](presentations/adlc.pptx)).

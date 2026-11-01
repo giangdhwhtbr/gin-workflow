@@ -15,7 +15,7 @@ In [team mode](guides/team.md) each member holds roles, each area of the reposit
 
 ### PM
 
-1. The Roadmap, Sprint planning, and Ship and sprint review sections of the [brownfield walkthrough](starters/brownfield-walkthrough.md)
+1. The Roadmap overview, Milestone planning, and Milestone review and spill-over sections of the [brownfield walkthrough](starters/brownfield-walkthrough.md)
 2. [AI usage report](guides/usage-report.md)
 3. [Skills reference](reference/skills.md)
 
