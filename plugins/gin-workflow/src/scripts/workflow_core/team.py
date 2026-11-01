@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
 ROADMAP = {"legacy": ".planning/roadmap.md", "sdd": "docs/roadmap.md"}
 DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead", "ship": []}
+POLICY_GATES = ("requirement_confirmed", "plan_approved", "ship")
 _WILDCARDS = re.compile(r"[*?\[]")
 
 
@@ -44,6 +45,8 @@ class TeamConfig:
     approvals: Mapping[str, Any] = field(default_factory=lambda: dict(DEFAULT_APPROVALS))
     beads_remote: str = ""
     permissions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    strict: bool = False
+    claim_ttl_hours: int = 48
 
     def member(self, email: str) -> Member | None:
         return self.members.get(email.strip().lower())
@@ -104,6 +107,10 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
         for other, other_prefix in prefixes[index + 1:]:
             if other != name and (prefix.startswith(other_prefix) or other_prefix.startswith(prefix)):
                 errors.append(f"team.areas: {name} and {other} overlap ({prefix!r} vs {other_prefix!r})")
+    if raw.get("strict"):
+        approvals = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}
+        errors += [f"team.strict: team.approvals.{gate} has no role policy" for gate in POLICY_GATES
+                   if not _has_policy(approvals.get(gate, []), areas)]
     return errors
 
 
@@ -130,6 +137,8 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
         approvals=approvals,
         beads_remote=str((raw.get("beads_sync") or {}).get("remote", "")),
         permissions={key: tuple(roles) for key, roles in (raw.get("permissions") or {}).items()},
+        strict=bool(raw.get("strict", False)),
+        claim_ttl_hours=int(raw.get("claim_ttl_hours", 48)),
     )
 
 
@@ -391,9 +400,12 @@ def gate_roles(gate: str, team: TeamConfig) -> set[str]:
     return set(policy)
 
 
+def _has_policy(policy: Any, areas: Mapping[str, Any]) -> bool:
+    return policy == "area_lead" and bool(areas) or isinstance(policy, list) and bool(policy)
+
+
 def has_policy(gate: str, team: TeamConfig) -> bool:
-    policy = team.approvals.get(gate, [])
-    return policy == "area_lead" and bool(team.areas) or isinstance(policy, list) and bool(policy)
+    return _has_policy(team.approvals.get(gate, []), team.areas)
 
 
 def can_waive(member: Member, gate: str, team: TeamConfig) -> bool:
