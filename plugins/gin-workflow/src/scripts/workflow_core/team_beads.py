@@ -44,12 +44,15 @@ def _show(root: Path, bead: str) -> dict[str, Any]:
     return data[0] if isinstance(data, list) else data
 
 
+_STAMP = "%Y-%m-%dT%H:%M:%SZ"  # lexicographic order equals time order; every lease comparison uses it
+
+
 def utc_now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(timezone.utc).strftime(_STAMP)
 
 
 def _expires(team: TeamConfig) -> str:
-    return (datetime.now(timezone.utc) + timedelta(hours=team.claim_ttl_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return (datetime.now(timezone.utc) + timedelta(hours=team.claim_ttl_hours)).strftime(_STAMP)
 
 
 def metadata_json(issue: Mapping[str, Any], key: str) -> dict[str, Any]:

@@ -98,7 +98,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertEqual(("binh@corp.com", "in_progress"), (claimed["assignee"], claimed["status"]))
         meta = team_beads.claim_of(claimed)
         self.assertEqual("binh@corp.com", meta["holder"])
-        self.assertGreater(meta["expires_at"], team_beads.utc_now())
+        self.assertAlmostEqual(48, self.lease_hours(meta), delta=0.1)
         again = run_cli(self.root, "team", "claim", free, "--format", "json")
         self.assertEqual("renewed", json.loads(again.stdout)["status"])
         self.assertTrue(json.loads(again.stdout)["advisory"])
@@ -109,6 +109,18 @@ class TestTeamBeadsLocal(unittest.TestCase):
         refused = run_cli(self.root, "team", "claim", held)
         self.assertEqual(1, refused.returncode)
         self.assertIn("already claimed by em@corp.com until 2999-01-01T00:00:00Z", refused.stdout)
+
+    def lease_hours(self, meta: dict) -> float:
+        from datetime import datetime, timezone
+        expires = datetime.strptime(meta["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return (expires - datetime.now(timezone.utc)).total_seconds() / 3600
+
+    def test_claim_ttl_hours_sets_the_lease_length(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + "  claim_ttl_hours: 6\n", encoding="utf-8")
+        bead = create(self.root, "short", "area:backend")
+        self.assertEqual(0, run_cli(self.root, "team", "claim", bead).returncode)
+        self.assertAlmostEqual(6, self.lease_hours(team_beads.claim_of(show(self.root, bead))), delta=0.1)
 
     def test_claim_refuses_an_area_the_member_may_not_own(self):
         frontend = create(self.root, "form", "area:frontend")
@@ -323,8 +335,9 @@ class TestTeamBeadsSync(unittest.TestCase):
 
     def test_member_sees_lead_beads_and_claim_is_shared(self):
         self.assertEqual("API", show(self.member, self.bead)["title"])
-        result = run_cli(self.member, "team", "claim", self.bead)
+        result = run_cli(self.member, "team", "claim", self.bead, "--format", "json")
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertFalse(json.loads(result.stdout)["advisory"])
         self.assertEqual(0, run_cli(self.lead, "team", "sync").returncode)
         self.assertEqual("em@corp.com", show(self.lead, self.bead)["assignee"])
         refused = run_cli(self.lead, "team", "claim", self.bead)
