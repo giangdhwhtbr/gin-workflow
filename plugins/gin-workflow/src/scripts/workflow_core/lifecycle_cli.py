@@ -376,7 +376,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id,
                                                               epic=shared_epic or None)
         if "shipped" in shared and standalone:
-            delivery["shipped"] = bool(delivery["implementation_complete"])
+            delivery["shipped"] = delivery["implementation_complete"]
         if shared_epic and shared_epic != recorded and standalone:
             # A childless bead found only through the tracker may be an epic still in discuss or plan;
             # its requirement and plan gates come from its `gates` metadata, not from being standalone.

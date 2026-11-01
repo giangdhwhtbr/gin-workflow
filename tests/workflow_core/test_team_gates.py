@@ -333,6 +333,20 @@ class TestSharedGates(GateCase):
         self.assertEqual("satisfied", state["gates"]["plan_approved"])
         self.assertEqual("unmet", state["gates"]["requirement_confirmed"])
 
+    def test_standalone_shipped_stays_unknown_when_the_tracker_read_fails(self):
+        # The shared-gates reads succeed (first two `bd show`); the later closed-check read fails.
+        proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["an@corp.com"], "actor": "binh@corp.com",
+                 "at": "2026-11-01T00:00:00Z"}
+        bead = [{"id": "e-1", "issue_type": "task", "status": "closed", "metadata": {"gates": json.dumps({"shipped": proof})}}]
+        self.bin.mkdir(parents=True, exist_ok=True)
+        script = self.bin / "bd"
+        script.write_text(f"#!/bin/sh\n[ \"$1\" = list ] && echo '[]' && exit 0\n"
+                          f"n=$(cat \"$0.n\" 2>/dev/null || echo 0); echo $((n+1)) > \"$0.n\"\n"
+                          f"[ $n -lt 2 ] && echo '{json.dumps(bead)}' && exit 0\necho boom >&2; exit 1\n")
+        script.chmod(0o755)
+        state = json.loads(run_cli(self.root, "state", "--workflow-id", "e-1", "--format", "json", env=self.env).stdout)
+        self.assertEqual("unknown", state["gates"]["shipped"])
+
     def test_orchestration_ready_seeds_the_epic_and_labels_it(self):
         self.gh(gh_pr(author="binh-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c1")]))
         self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open", "metadata": {}}})
