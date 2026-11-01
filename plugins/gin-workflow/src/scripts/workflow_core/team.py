@@ -282,6 +282,14 @@ def check_plan(team: TeamConfig, path: Path) -> list[str]:
                 errors.append(f"{label}: owner {track.owner} is not in team.members")
             elif track.area in team.areas and not team.eligible(member, team.areas[track.area]):
                 errors.append(f"{label}: owner {track.owner} holds no role allowed in area {track.area}")
+    listed: dict[str, list[int]] = {}
+    for track in tracks:
+        for item in track.files:
+            listed.setdefault(item, []).append(track.number)
+    for item, numbers in listed.items():
+        if len(numbers) > 1:
+            names = [str(n) for n in sorted(numbers)]
+            errors.append(f"`{item}` is listed by tracks {', '.join(names[:-1])} and {names[-1]}")
     return errors
 
 
