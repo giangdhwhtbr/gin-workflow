@@ -231,6 +231,11 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "properties": {"telegram": {"type": "boolean"}},
             "additionalProperties": False,
         },
+        "usage": {
+            "type": "object",
+            "properties": {"budget_usd": {"type": "number", "exclusiveMinimum": 0}},
+            "additionalProperties": False,
+        },
         "team": _TEAM,
         "qa": {
             "type": "object",
