@@ -22,7 +22,7 @@ Every `record` needs `--actor <id>`; in team mode the actor comes from `git conf
 
 ### Standalone beads
 
-A pre-existing bead can skip discuss and plan: claim it first (`task update <bead> --claim`, because `record` sets it `in_progress` and a claim is then refused), then record it as its own epic with `record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later call. The bead's description and acceptance criteria stand in for the spec and plan, so `requirement_confirmed` and `plan_approved` count as satisfied while the bead has no children; no waiver is needed. `implementation_complete` is then the bead itself closed, and after the merge `record shipped --workflow-id <bead> --evidence <merge commit> --actor <id>` marks it shipped.
+A pre-existing bead can skip discuss and plan: claim it first (`task update <bead> --claim`, because with the beads backend `record` sets it `in_progress` and `--claim` then refuses an unassigned bead). Then record it as its own epic with `record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later call. The bead's description and acceptance criteria stand in for the spec and plan, so `requirement_confirmed` and `plan_approved` count as satisfied while the bead has no children; no waiver is needed. `implementation_complete` is then the bead itself closed, and after the merge `record shipped --workflow-id <bead> --evidence <merge commit> --actor <id>` marks it shipped.
 
 ## Execute and review
 
