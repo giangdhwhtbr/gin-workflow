@@ -32,15 +32,15 @@ def _bd(root: Path, argv: list[str], *, actor: str = "", timeout: int = 120) -> 
                           env=env, timeout=timeout)
 
 
-def _bd_json(root: Path, argv: list[str]) -> Any:
-    completed = _bd(root, [*argv, "--json"])
+def _bd_json(root: Path, argv: list[str], *, timeout: int = 120) -> Any:
+    completed = _bd(root, [*argv, "--json"], timeout=timeout)
     if completed.returncode != 0:
         raise TeamError(f"bd {argv[0]} failed: {completed.stderr.strip()}")
     return json.loads(completed.stdout or "[]")
 
 
-def _show(root: Path, bead: str) -> dict[str, Any]:
-    data = _bd_json(root, ["show", bead])
+def _show(root: Path, bead: str, *, timeout: int = 120) -> dict[str, Any]:
+    data = _bd_json(root, ["show", bead], timeout=timeout)
     return data[0] if isinstance(data, list) else data
 
 
@@ -266,14 +266,17 @@ def write_gate(root: Path, epic: str, gate: str, proof: Mapping[str, Any], *, ac
 
 
 def epic_for(root: Path, workflow_id: str, recorded: str) -> str:
-    """The bead that shares a workflow's gates: the workflow id when it is a bead, else the recorded epic, else
-    the epic labelled workflow:<id>; "" when none exists. Raises TeamError when bd is unavailable."""
-    if _bd(root, ["show", workflow_id, "--json"]).returncode == 0:
-        return workflow_id
+    """The bead that shares a workflow's gates: the bead's id when the workflow id names one, else the recorded
+    epic, else the epic labelled workflow:<id>; "" when none exists. Raises TeamError when bd is unavailable."""
+    shown = _bd(root, ["show", workflow_id, "--json"], timeout=30)
+    if shown.returncode == 0:
+        data = json.loads(shown.stdout or "[]")
+        row = data[0] if isinstance(data, list) and data else data
+        return str(row.get("id") or workflow_id) if isinstance(row, dict) else workflow_id
     if recorded:
         return recorded
-    rows = [row for row in _bd_json(root, ["list", "--label", f"workflow:{workflow_id}", "--all", "--limit", "0"])
-            if row.get("issue_type") == "epic"]
+    rows = [row for row in _bd_json(root, ["list", "--label", f"workflow:{workflow_id}", "--all", "--limit", "0"],
+                                    timeout=30) if row.get("issue_type") == "epic"]
     return str(rows[0]["id"]) if rows else ""
 
 
@@ -281,6 +284,6 @@ def shared_gates(root: Path, workflow_id: str, recorded: str) -> tuple[str, dict
     """(epic, its `gates` metadata, None), or ("", {}, cause) when the tracker cannot answer."""
     try:
         epic = epic_for(root, workflow_id, recorded)
-        return epic, (gates_of(_show(root, epic)) if epic else {}), None
+        return epic, (gates_of(_show(root, epic, timeout=30)) if epic else {}), None
     except (TeamError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
         return "", {}, f"tracker unavailable: {error}"

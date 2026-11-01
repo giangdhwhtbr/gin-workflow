@@ -245,6 +245,9 @@ class TestRecordGitHub(GateCase):
         self.assertEqual([], self.events())
 
     def test_shipped_needs_approval_on_the_merged_pr_head(self):
+        write(self.root, ".agent-workflow/config.yaml",
+              (self.root / ".agent-workflow/config.yaml").read_text() + "providers:\n  task_tracking: beads\n")
+        resolve_effective_config(self.root)
         self.bd({"w": {"id": "w", "issue_type": "task", "status": "closed", "metadata": {}}})
         self.assertEqual(0, run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
                                     "--epic", "w", env=self.env).returncode)
@@ -252,14 +255,30 @@ class TestRecordGitHub(GateCase):
         self.assertEqual(2, sha.returncode)
         self.assertIn("shipped needs the PR URL as --evidence in team mode", sha.stderr)
         self.gh(gh_pr(state="MERGED", head="f" * 40, author="em-dev", reviews=[("dung-qe", "APPROVED", "old")]))
-        self.assertIn("missing approval from one of qe", self.record("shipped").stderr)
-        self.gh(gh_pr(state="MERGED", head="f" * 40, author="em-dev", reviews=[("dung-qe", "APPROVED", "f" * 40)]))
+        older = self.record("shipped")
+        self.assertEqual(1, older.returncode)
+        self.assertIn("missing approval from one of qe", older.stderr)
+        self.gh(gh_pr(state="MERGED", head="f" * 40, author="em-dev",
+                      reviews=[("binh-dev", "APPROVED", "old"), ("dung-qe", "APPROVED", "f" * 40)]))
         result = self.record("shipped")
         self.assertEqual(0, result.returncode, result.stderr)
         event = self.events()[-1]
         self.assertEqual(("delivery.shipped", "m" * 40, PR), (event["event_type"], event["payload"]["merge_commit"],
                                                               event["payload"]["pr_url"]))
+        self.assertEqual(["dung-qe"], [a["login"] for a in event["payload"]["approvers"]])
         self.assertNotIn("is not local HEAD", result.stderr)
+        update = next(u for u in self.bd_updates() if u[2:4] == ["w", "--set-metadata"])
+        self.assertEqual(PR, json.loads(update[4].removeprefix("gates="))["shipped"]["pr_url"])
+
+    def test_shipped_on_a_closed_unmerged_pr_gives_one_reason(self):
+        self.bd({"w": {"id": "w", "issue_type": "task", "status": "closed", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                                    "--epic", "w", env=self.env).returncode)
+        self.gh(gh_pr(state="CLOSED", head="f" * 40, author="em-dev", reviews=[("dung-qe", "APPROVED", "f" * 40)]))
+        result = self.record("shipped")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("PR is closed, not merged", result.stderr)
+        self.assertEqual(1, result.stderr.count("PR is closed"), result.stderr)
 
     def test_ship_ignores_approval_without_commit(self):
         git(self.root, "add", "-A")
@@ -357,8 +376,18 @@ class TestSharedGates(GateCase):
         root = make_team_repo(Path(self.tmp.name) / "solo", team="", extra="providers:\n  task_tracking: beads\n")
         resolve_effective_config(root)
         self.bd({})
-        run_cli(root, "record", "plan-approved", "--evidence", PLAN_PATH, "--workflow-id", "w", "--actor", "me",
-                env=self.env)
+        self.assertEqual(0, run_cli(root, "record", "plan-approved", "--evidence", PLAN_PATH, "--workflow-id", "w",
+                                    "--actor", "me", env=self.env).returncode)
+        self.assertEqual([], self.bd_updates())
+        before = len(calls(self.bin))
+        self.assertEqual(0, run_cli(root, "state", "--workflow-id", "w", "--format", "json", env=self.env).returncode)
+        self.assertEqual([], [c for c in calls(self.bin)[before:] if c[0] == "bd"])
+
+    def test_orchestration_ready_without_epic_touches_no_bead(self):
+        self.bd({})
+        result = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                         env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([], self.bd_updates())
 
 

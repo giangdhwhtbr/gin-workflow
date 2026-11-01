@@ -209,6 +209,8 @@ def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse
         if tasks_backend(repo_path) != "beads":
             return None
         if args.gate == "orchestration-ready":
+            if not epic:
+                return None
             for prior in _proven_locally(events, args.workflow_id):
                 write_gate(repo_path, epic, _SHARED_EVENTS[prior.event_type],
                            _proof(prior.payload, prior.actor, prior.timestamp), actor=actor)
@@ -354,7 +356,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id,
                                                               epic=shared_epic or None)
         if "shipped" in shared and standalone:
-            delivery["shipped"] = True
+            delivery["shipped"] = bool(delivery["implementation_complete"])
         if shared_epic and shared_epic != recorded and standalone:
             # A childless bead found only through the tracker may be an epic still in discuss or plan;
             # its requirement and plan gates come from its `gates` metadata, not from being standalone.

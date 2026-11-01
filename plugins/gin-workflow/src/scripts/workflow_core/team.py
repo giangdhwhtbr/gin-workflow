@@ -355,13 +355,15 @@ def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> st
 def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact: str = "",
                    local_head: str = "") -> list[str]:
     """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
-    policy = team.approvals.get(gate, [])
+    policy = team.approvals.get("ship" if gate == "shipped" else gate, [])
     reasons: list[str] = []
     expected, actual = origin_slug(Path(root)), repo_slug(pr.url, pr=True)
     if actual != expected:
         reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
-    if gate == "ship":
-        if pr.state not in ("open", "merged"):
+    if gate in ("ship", "shipped"):
+        if gate == "shipped" and not pr.merged:
+            reasons.append(f"PR is {pr.state}, not merged")
+        elif pr.state not in ("open", "merged"):
             reasons.append(f"PR is {pr.state}")
         if local_head and pr.head_sha != local_head:
             reasons.append(f"PR head {pr.head_sha[:12]} is not local HEAD {local_head[:12]}")
@@ -413,12 +415,11 @@ def can_waive(member: Member, gate: str, team: TeamConfig) -> bool:
     return not roles or bool(roles & set(member.roles))
 
 
-def approver_payload(pr: Any, team: TeamConfig) -> list[dict[str, Any]]:
+def approver_payload(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> list[dict[str, Any]]:
     result = []
-    for login, _commit in pr.approvals:
+    for login in _approver_roles(pr, team, on_commit=on_commit):
         member = team.by_login(login)
-        if member is not None and login.lower() != pr.author.lower():
-            result.append({"login": login, "email": member.email, "roles": list(member.roles)})
+        result.append({"login": login, "email": member.email, "roles": list(member.roles)})
     return result
 
 
@@ -445,13 +446,10 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
     if not url.startswith(("https://", "http://")):
         raise TeamError(f"{gate} needs a PR/MR URL as --evidence in team mode, got {url!r}")
     pr = fetch_pr(url, team.host, Path(root))
-    policy_gate = "ship" if gate == "shipped" else gate
-    artifact = "" if policy_gate == "ship" else resolve_artifact(
+    artifact = "" if gate in ("ship", "shipped") else resolve_artifact(
         pr, Path(root), gate, plan if gate == "plan_approved" else spec)
     head = _head(Path(root)) if gate == "ship" else ""
-    reasons = check_approval(policy_gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
-    if gate == "shipped" and not pr.merged:
-        reasons.append("PR is not merged")
+    reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
     return pr, artifact, reasons
 
 
@@ -467,7 +465,8 @@ def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, 
     if reasons:
         raise TeamRejected(reasons)
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
-                          "approvers": approver_payload(pr, team), "repository": repo_slug(pr.url, pr=True),
+                          "approvers": approver_payload(pr, team, on_commit=pr.head_sha if gate == "shipped" else None),
+                          "repository": repo_slug(pr.url, pr=True),
                           **({"artifact": artifact} if artifact else {})}
 
 
