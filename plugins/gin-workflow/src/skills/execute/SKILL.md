@@ -12,7 +12,7 @@ description: Implement and validate exactly one ready work unit at its manifest 
 Implement one ready work unit inside its approved scope and record evidence.
 
 ## 1. Select and review
-1. Require `orchestration_ready`. For a standalone or pre-existing bead, record it as its own epic instead of a plan cycle: `gin-workflow record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later `state`/`record` call for it. An epic labelled `roadmap` with no confirmed spec: refuse and recommend `/discuss <epic-id>`; never record it as its own epic.
+1. Require `orchestration_ready`. For a standalone or pre-existing bead, claim it first (`gin-workflow task update <bead> --claim`; `record` then sets it `in_progress`, which `--claim` refuses), then record it as its own epic instead of a plan cycle: `gin-workflow record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later `state`/`record` call for it. An epic labelled `roadmap` with no confirmed spec: refuse and recommend `/discuss <epic-id>`; never record it as its own epic.
 2. Resume first: `gin-workflow task list --parent <epic> --status in_progress`; if empty, use `task ready`. Claim with `task update <id> --claim`.
    With `project.team.enabled`, add `--assignee <git user.email>` to that list; `team ready` and `team claim <id>` (`gin-team` skill) replace `task ready` and `--claim`.
 3. Resolve file scope and validation intent from the plan track, or from the task description and acceptance criteria for a standalone unit. Review critically and raise concerns before starting.
