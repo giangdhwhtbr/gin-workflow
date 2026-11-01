@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
-from typing import Any
+from typing import Any, Mapping
 
 from . import tasks
-from .team import Member, TeamConfig, TeamError
+from .team import Area, Member, TeamConfig, TeamError
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
@@ -43,6 +44,41 @@ def _show(root: Path, bead: str) -> dict[str, Any]:
     return data[0] if isinstance(data, list) else data
 
 
+def utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _expires(team: TeamConfig) -> str:
+    return (datetime.now(timezone.utc) + timedelta(hours=team.claim_ttl_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def metadata_json(issue: Mapping[str, Any], key: str) -> dict[str, Any]:
+    """A JSON object stored under `metadata.<key>` (bd returns it parsed or as a string); {} when absent."""
+    metadata = issue.get("metadata") if isinstance(issue.get("metadata"), Mapping) else {}
+    value = metadata.get(key)
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def claim_of(issue: Mapping[str, Any]) -> dict[str, Any]:
+    return metadata_json(issue, "claim")
+
+
+def claim_expired(issue: Mapping[str, Any], now: str) -> bool:
+    """True when the claim lease is past, or the bead was claimed before leases existed."""
+    expires_at = str(claim_of(issue).get("expires_at") or "")
+    return expires_at < now
+
+
+def _areas_of(team: TeamConfig, issue: Mapping[str, Any]) -> list[Area]:
+    return [team.areas[name] for label in issue.get("labels") or [] if label.startswith("area:")
+            if (name := label[5:]) in team.areas]
+
+
 def ready(root: Path, team: TeamConfig, member: Member) -> list[dict[str, Any]]:
     mine = set(team.areas_for(member))
     held = tasks.held_by_external(root, shutil.which("bd") or "bd")
@@ -55,6 +91,15 @@ def ready(root: Path, team: TeamConfig, member: Member) -> list[dict[str, Any]]:
         if assignee == member.email or (not assignee and (areas & mine or (not areas and not team.areas))):
             result.append({"id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
                            "areas": sorted(areas)})
+    seen = {row["id"] for row in result}
+    now = utc_now()
+    for issue in tasks.without_held(_bd_json(root, ["list", "--status", "in_progress"]), held):
+        assignee = (issue.get("assignee") or "").lower()
+        areas = {label[5:] for label in issue.get("labels") or [] if label.startswith("area:")}
+        if issue["id"] not in seen and assignee and assignee != member.email and claim_expired(issue, now) \
+                and (areas & mine or (not areas and not team.areas)):
+            result.append({"id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
+                           "areas": sorted(areas), "expired_claim": assignee})
     return result
 
 
@@ -71,38 +116,30 @@ def sync(root: Path) -> dict[str, Any]:
     return {"status": "synced"}
 
 
-def _dolt_dir(root: Path) -> Path:
-    shown = _bd(root, ["dolt", "show"]).stdout
-    fields = dict(re.findall(r"^\s*(Database|Mode|Data):\s*(.+?)\s*$", shown, re.M))
-    if not fields.get("Mode", "").startswith("embedded") or "Data" not in fields:
-        raise TeamError("local Beads is not in embedded mode; reset it to the remote by hand")
-    return Path(fields["Data"]) / fields.get("Database", "")
-
-
-def reset_to_remote(root: Path) -> None:
-    """Drop local unpushed Beads commits; callers sync first so only the failed claim is lost."""
-    dolt = shutil.which("dolt")
-    if dolt is None:
-        raise TeamError("dolt is not installed; cannot reset local Beads to the remote")
-    directory = _dolt_dir(root)
-    for argv in (["fetch", "origin"], ["reset", "--hard", "origin/main"]):
-        completed = subprocess.run([dolt, *argv], cwd=directory, text=True, capture_output=True, check=False,
-                                   timeout=120)
-        if completed.returncode != 0:
-            raise TeamError(f"dolt {argv[0]} failed: {completed.stderr.strip()}")
-
-
 def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, Any]:
+    """Claim or renew a bead; an expired lease held by someone else is taken over with a note."""
     if team.beads_remote:
         sync(root)
-    holder = (_show(root, bead).get("assignee") or "").lower()
+    issue = _show(root, bead)
+    ineligible = [area.name for area in _areas_of(team, issue) if not team.eligible(member, area)]
+    if ineligible:
+        raise SyncConflict(f"{member.email} may not own tracks in {', '.join(ineligible)}")
+    holder = (issue.get("assignee") or "").lower()
+    expires_at = _expires(team)
+    lease = json.dumps({"holder": member.email, "expires_at": expires_at})
     if holder and holder != member.email:
-        raise SyncConflict(f"{bead} is already claimed by {holder}")
-    completed = _bd(root, ["update", bead, "--claim"], actor=member.email)
+        if not claim_expired(issue, utc_now()):
+            raise SyncConflict(f"{bead} is already claimed by {holder} until {claim_of(issue)['expires_at']}")
+        argv = ["update", bead, "--assignee", member.email, "--status", "in_progress",
+                "--append-notes", f"took over expired claim from {holder}", "--set-metadata", f"claim={lease}"]
+    else:
+        argv = ["update", bead, "--claim", "--set-metadata", f"claim={lease}"]
+    completed = _bd(root, argv, actor=member.email)
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
-    return {"status": "claimed", "bead": bead, "assignee": member.email}
+    return {"status": "renewed" if holder == member.email else "claimed", "bead": bead, "assignee": member.email,
+            "expires_at": expires_at, "advisory": not team.beads_remote}
 
 
 def push(root: Path, team: TeamConfig) -> None:
@@ -114,12 +151,13 @@ def push(root: Path, team: TeamConfig) -> None:
 
 
 def _push(root: Path, team: TeamConfig, bead: str) -> None:
-    if team.beads_remote:
-        pushed = _bd(root, ["dolt", "push"])
-        if pushed.returncode != 0:
-            reset_to_remote(root)
-            holder = (_show(root, bead).get("assignee") or "").lower() or "nobody"
-            raise SyncConflict(f"push rejected; local Beads reset to the remote; {bead} is held by {holder}")
+    """Push the local write; a rejected push syncs once and retries. Local Beads are never reset."""
+    if not team.beads_remote or _bd(root, ["dolt", "push"]).returncode == 0:
+        return
+    try:
+        sync(root)
+    except (SyncConflict, TeamError) as error:
+        raise SyncConflict(f"push rejected for {bead}; local Beads kept, run gin-workflow team sync ({error})") from error
 
 
 def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str) -> dict[str, Any]:
@@ -133,8 +171,7 @@ def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str
     if issue.get("status") == "closed":
         raise SyncConflict(f"{bead} is closed")
     holder = (issue.get("assignee") or "").lower()
-    areas = [team.areas[name] for label in issue.get("labels") or [] if label.startswith("area:")
-             if (name := label[5:]) in team.areas]
+    areas = _areas_of(team, issue)
     if holder != member.email and not any(area.lead in member.roles for area in areas):
         raise SyncConflict(f"only {holder or 'an area lead'} or the lead of its area may reassign {bead}")
     if holder == target.email:
@@ -143,7 +180,8 @@ def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str
     if ineligible:
         raise SyncConflict(f"{target.email} may not own tracks in {', '.join(ineligible)}")
     note = f"reassigned {holder or 'nobody'} -> {target.email} by {member.email}"
-    completed = _bd(root, ["update", bead, "--assignee", target.email, "--append-notes", note], actor=member.email)
+    completed = _bd(root, ["update", bead, "--assignee", target.email, "--append-notes", note,
+                           "--set-metadata", f'claim={json.dumps({"holder": target.email, "expires_at": _expires(team)})}'], actor=member.email)
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
