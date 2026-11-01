@@ -153,6 +153,21 @@ class TestRoutesCLI(unittest.TestCase):
                                 "--repository", str(self.root)])
         return code, json.loads(stdout.getvalue())
 
+    def _track(self, task_id, model):
+        return {"task_id": task_id, "provider_role": "backend", "model": model, "effort": "high"}
+
+    def test_us5_every_track_on_the_strongest_model_warns(self):
+        code, payload = self._resolve("wf-top", [self._track("t1", "opus"), self._track("t2", "opus")])
+        self.assertEqual(code, 0)
+        self.assertIn("every track routes to opus, the strongest claude model; check the plan's tiers",
+                      payload["warnings"])
+
+    def test_us5_one_track_or_mixed_models_do_not_warn(self):
+        for tracks in ([self._track("t1", "opus")], [self._track("t1", "opus"), self._track("t2", "sonnet")]):
+            code, payload = self._resolve("wf-top", tracks)
+            self.assertEqual(code, 0)
+            self.assertFalse([w for w in payload["warnings"] if "strongest" in w], tracks)
+
     def test_unsafe_workflow_id_is_a_diagnostic(self):
         code, output = self._resolve("../evil", [{"task_id": "t1", "provider_role": "backend", "model": "haiku", "effort": "low"}])
         self.assertEqual(code, 2)
