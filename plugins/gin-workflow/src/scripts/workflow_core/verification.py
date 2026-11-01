@@ -12,7 +12,7 @@ from typing import Any, Sequence
 from .checkout import main_checkout
 from .events import WorkflowEvent, WorkflowEventStore
 
-# Not `verification.passed`: that name is a legacy gate event mapped to the `verify` usage stage.
+# Not the name of the removed verification gate: usage attribution still maps that event to the `verify` stage.
 EVENT_TYPE = "checks.passed"
 WORKFLOW_ID = "checks"
 

@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-rm-cost-control.3",
       "checkpoint_ref": "refs/gin/review/gin-workflow-rm-cost-control.3",
       "review_base_sha": "827eecf3fb1fadef0b14045a9e887b6645362d70",
-      "reviewed_source_sha": "fa4bb656c1012b6d44ec8c6816c2315c188422b1",
-      "checkpoint_sha": "fa4bb656c1012b6d44ec8c6816c2315c188422b1",
+      "reviewed_source_sha": "28725fdb8213f0637fe9e958e4991149184f2ad9",
+      "checkpoint_sha": "28725fdb8213f0637fe9e958e4991149184f2ad9",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "fcb1ae9222fd356d207251e006e54d17fbf3000340134c029def735908012b06",
-      "reviewed_source_tree_hash": "fcb1ae9222fd356d207251e006e54d17fbf3000340134c029def735908012b06",
+      "source_tree_hash": "a75030b0ecb0f1c3da943db330da998b84891f4dcc408cae1072b3ece0b5f8e8",
+      "reviewed_source_tree_hash": "a75030b0ecb0f1c3da943db330da998b84891f4dcc408cae1072b3ece0b5f8e8",
       "source_identity_status": "complete"
     }
   ],
@@ -24,7 +24,7 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 7,
+  "ledger_revision": 12,
   "next_finding_number": 1,
   "findings": {},
   "events": [
@@ -181,6 +181,111 @@
       },
       "previous_event_hash": "35f8953093d7f002a65b8821b7bb5152d5157940c8f0234988d465deef1c608c",
       "event_hash": "793f22d77114b3c76f1b4491abd82032b7d139d96931a3bc70a20125fc7cacd7"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-01T04:51:44.835354Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-cost-control.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-cost-control.3",
+            "review_base_sha": "827eecf3fb1fadef0b14045a9e887b6645362d70",
+            "reviewed_source_sha": "28725fdb8213f0637fe9e958e4991149184f2ad9",
+            "checkpoint_sha": "28725fdb8213f0637fe9e958e4991149184f2ad9",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "a75030b0ecb0f1c3da943db330da998b84891f4dcc408cae1072b3ece0b5f8e8",
+            "reviewed_source_tree_hash": "a75030b0ecb0f1c3da943db330da998b84891f4dcc408cae1072b3ece0b5f8e8",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "793f22d77114b3c76f1b4491abd82032b7d139d96931a3bc70a20125fc7cacd7",
+      "event_hash": "0723df84ed4dd24bb5d7a4517e317e2cd674220ee7a8501730a4ec66558ba0c4"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-01T04:52:01.292599Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e56929a0"
+      },
+      "payload": {
+        "lease_id": "f90d39943150417dbe4392f0934ba980",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-e56929a0",
+        "acquired_at": "2026-11-01T04:52:01.291848Z",
+        "expires_at": "2026-11-01T05:02:01.291848Z"
+      },
+      "previous_event_hash": "0723df84ed4dd24bb5d7a4517e317e2cd674220ee7a8501730a4ec66558ba0c4",
+      "event_hash": "9e3b5f45294cf1282e7f277ede7fd6e64c1b59d10c21a8c1d4c3b598b6a573ae"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "review-started",
+      "timestamp": "2026-11-01T04:52:01.311072Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e56929a0"
+      },
+      "payload": {},
+      "previous_event_hash": "9e3b5f45294cf1282e7f277ede7fd6e64c1b59d10c21a8c1d4c3b598b6a573ae",
+      "event_hash": "ccb9a9e23448aa1d3738e0f477d26515a87ff56fd8898a8da281d27b438542f3"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "review-approved",
+      "timestamp": "2026-11-01T04:52:12.396363Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e56929a0"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-cost-control.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-cost-control.3",
+            "review_base_sha": "827eecf3fb1fadef0b14045a9e887b6645362d70",
+            "reviewed_source_sha": "28725fdb8213f0637fe9e958e4991149184f2ad9",
+            "checkpoint_sha": "28725fdb8213f0637fe9e958e4991149184f2ad9",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "a75030b0ecb0f1c3da943db330da998b84891f4dcc408cae1072b3ece0b5f8e8",
+            "reviewed_source_tree_hash": "a75030b0ecb0f1c3da943db330da998b84891f4dcc408cae1072b3ece0b5f8e8",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "ccb9a9e23448aa1d3738e0f477d26515a87ff56fd8898a8da281d27b438542f3",
+      "event_hash": "e39a81930f3456bf0862798ab160cd3ef0c282313f615b71db6af419822d61db"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "lease-released",
+      "timestamp": "2026-11-01T04:52:12.618803Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e56929a0"
+      },
+      "payload": {
+        "lease_id": "f90d39943150417dbe4392f0934ba980",
+        "released_at": "2026-11-01T04:52:12.618042Z"
+      },
+      "previous_event_hash": "e39a81930f3456bf0862798ab160cd3ef0c282313f615b71db6af419822d61db",
+      "event_hash": "8c652dca1069c950830e4461e3c1a233ad51e6dac3c18ed6096913fb51c9ad46"
     }
   ]
 }
