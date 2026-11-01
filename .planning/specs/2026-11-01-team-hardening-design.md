@@ -1,7 +1,7 @@
 # Team hardening: no conflicting claims, no lost Beads, proven gates
 
 Epic: gin-workflow-rm-team-hardening
-Status: draft for user review.
+Status: confirmed by the user on 2026-11-01.
 
 ## Goal and scope
 
