@@ -497,6 +497,21 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertIn("ep-1", result["warning"])
         self.assertIn("boom", result["warning"])
 
+    def test_record_orchestration_ready_warns_when_the_effective_config_is_broken(self):
+        generated = self.workflow_dir / "generated"
+        generated.mkdir()
+        (generated / "effective-config.yaml").write_text("a: [unclosed\n")
+        bin_dir = self.repo_path / "fakebin"
+        fake_cli(bin_dir, "bd", [{"argv": ["update"]}])
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, path_with(bin_dir)), contextlib.redirect_stdout(out):
+            code = cli_main(["record", "orchestration-ready", "--repository", str(self.repo_path),
+                             "--evidence", "beads", "--actor", "user", "--format", "json", "--epic", "ep-1"])
+        result = json.loads(out.getvalue())
+        self.assertEqual((0, "recorded"), (code, result["status"]))
+        self.assertIn("ep-1", result["warning"])
+        self.assertEqual([], calls(bin_dir))
+
     def test_record_orchestration_ready_without_epic_leaves_beads_alone(self):
         code, result, made = self._record_with_fake_bd({"argv": ["update"]})
         self.assertEqual((0, "recorded"), (code, result["status"]))
