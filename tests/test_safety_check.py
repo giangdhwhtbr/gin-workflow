@@ -79,7 +79,12 @@ class TestHookBypassBlocked(unittest.TestCase):
     def test_blocks_commit_after_global_options_and_value_options(self):
         for command in ("git -C . -c x=y commit -n", "git --no-pager commit -n", 'git commit --author "x" -n',
                         "git commit -F msg.txt -n", "git -C . commit -n", "git commit -an", "git commit -nm x",
-                        "git commit -am x -n", "git --git-dir=.git --work-tree . commit -n"):
+                        "git commit -am x -n", "git --git-dir=.git --work-tree . commit -n",
+                        "git commit -mdoc -n", "git commit -mm -n", "git commit -Cabc -n", 'git commit -m"a b"c -n',
+                        "git commit -tm -n", "git commit --message=fix/git -n", "git commit -mfix/git -n",
+                        'git commit --message="docs/git" -n', "git commit -m v vendor/git -n", "git commit -a git -n",
+                        'git commit -m "" -n -m "real message"', 'git commit --allow-empty-message -m "" -n',
+                        "git commit -m $'' -n", "git commit -n>/dev/null"):
             self.assertEqual(2, exit_code(command), command)
 
     def test_allows_commit_word_as_option_value_and_n_as_message(self):
