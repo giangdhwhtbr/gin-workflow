@@ -89,6 +89,19 @@ def budget_status(cost: float | None, unpriced: Sequence[str], budget: float) ->
     return "warn" if ratio >= WARN_RATIO else "ok"
 
 
+def over_budget(repo: Path, workflow_id: str) -> dict[str, Any] | None:
+    """The stop payload once the epic's stored cost reaches STOP_RATIO of the budget; None otherwise."""
+    budget = budget_usd(repo)
+    if budget is None:
+        return None
+    root = main_checkout(Path(repo).resolve())
+    epic = gates_from_events(_events(root))[1].get(workflow_id, workflow_id)
+    stored = _usage_of(_show(root, epic)) or {}
+    if budget_status(stored.get("cost"), stored.get("unpriced") or [], budget) != "stop":
+        return None
+    return {"status": "over_budget", "epic": epic, "cost": stored["cost"], "budget_usd": budget}
+
+
 def _bd(repo: Path, argv: list[str]) -> Any:
     from .configuration import ConfigValidationError
     from .tasks import backend
