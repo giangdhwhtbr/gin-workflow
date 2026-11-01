@@ -1,7 +1,7 @@
 # Cost control: enforced budgets, no wasted test reruns
 
 Epic: gin-workflow-rm-cost-control
-Status: confirmed by the user on 2026-11-01.
+Status: confirmed by the user on 2026-11-01; amended at plan time on 2026-11-01 (see Plan amendments).
 
 ## Goal and scope
 
@@ -11,7 +11,7 @@ In scope:
 - `usage.budget_usd` per epic, with a budget status written by `usage collect`.
 - `routes dispatch` refuses to dispatch when the epic is over its stop threshold.
 - `execute` collects usage after every worker returns, not only at track close.
-- Git hooks record a passing verify run against the commit tree; `gin-workflow evidence check` reports it; the reviewer reruns tests only when no matching record exists.
+- A passing `pre-push` hook run, or `gin-workflow evidence run`, is recorded against the tree it tested; `gin-workflow evidence check` reports it; the reviewer reruns tests only when no matching record exists.
 - `routes resolve` warns when every track routes to the top model of its harness catalog.
 
 Out of scope:
@@ -46,16 +46,18 @@ Current behavior this changes (`S` = `plugins/gin-workflow/src`, `W` = `S/script
 ### Dispatch stop
 - `gin-workflow routes dispatch --workflow-id <epic> --task-id <id>` reads the epic's stored `ai_usage.cost` and compares it with the current `usage.budget_usd`. When cost is at or above 120% of the budget, it prints `{"status": "over_budget", "cost": ..., "budget_usd": ...}` and exits 3, without changing the manifest.
 - Raising `usage.budget_usd` in the config lets the next dispatch proceed without another collect.
-- With no budget, no stored cost, or a null cost, dispatch behaves as today.
-- `execute/SKILL.md` runs `gin-workflow usage collect --bead <epic> --best-effort` each time a worker returns, whatever its status. On dispatch exit 3 it runs `gin-workflow notify --event needs_input`, leaves the bead `in_progress` with a note, and asks the user to raise the budget or stop. The text replaces the track-close collect at `execute/SKILL.md:44`, and the execute stage chain stays within the 12,000-character budget.
+- With no budget, no stored cost, or a null cost, dispatch behaves as today. When `bd` cannot be read, dispatch prints a warning and proceeds.
+- The workflow id maps to the epic recorded by `orchestration-ready`; without one, the workflow id is the epic.
+- `execute/SKILL.md` runs `gin-workflow usage collect --bead <epic> --best-effort` each time a worker returns, whatever its status. On dispatch exit 3 it runs `gin-workflow notify --event needs_input`, leaves the bead `in_progress` with a note, and asks the user to raise the budget or stop. The track-close collect at `execute/SKILL.md:44` stays, so each track keeps its own `ai_usage`; the execute stage chain stays within the 12,000-character budget.
 
 ### Verification evidence
-- When the `pre-commit` or `pre-push` hook's verify commands all exit 0 and `git status --porcelain --untracked-files=no` is empty, the hook appends a `verification.passed` event to the runtime event log with the tree hash it tested, the hook name, the verify command names, and the time. For `pre-push` the tree is `HEAD^{tree}`; for `pre-commit` it is the staged tree (`git write-tree`). A failure to record prints a warning and never changes the hook's exit code.
-- `gin-workflow evidence check --commit <sha> [--json]` exits 0 and prints the newest matching record when a `verification.passed` event has the commit's tree hash and includes the `test` verify command; otherwise it exits 1 and says why (no record, or no `test` command in it).
-- `review/SKILL.md` Reviewing step 3: the reviewer runs `gin-workflow evidence check --commit <reviewed commit>`, cites the record and skips rerunning the tests when it exits 0, and runs the tests when it exits 1.
+- When the `pre-push` hook's verify commands all exit 0 and `git status --porcelain --untracked-files=no` was empty before they ran, the hook appends a `checks.passed` event (workflow id `checks`) to the runtime event log of the main checkout with the tree hash it tested (`HEAD^{tree}`), the hook name, the verify command names, and the time. A failure to record prints a warning and never changes the hook's exit code. `pre-commit` records nothing: it runs `lint` and `typecheck`, never `test`.
+- `gin-workflow evidence run` runs the `pre-push` verify commands on the checked-out commit and records a pass the same way; it refuses with exit 2 when a tracked file differs from `HEAD`. The implementer runs it after `checkpoint` and before requesting review, because `execute` pushes only after review.
+- `gin-workflow evidence check [--commit <sha>] [--json]` exits 0 and prints the newest matching record when a `checks.passed` event has the tree hash of `--commit`, or of `HEAD` when no tracked file differs from it, and its commands include `test` (or `<package>:test`); otherwise it exits 1 and says why (no record, no `test` command in it, or tracked changes).
+- `review/SKILL.md`: Requesting step 1 runs `gin-workflow evidence run` after `checkpoint`; Reviewing step 3 runs `gin-workflow evidence check` in the track worktree, cites the record and skips rerunning the tests when it exits 0, and runs the tests when it exits 1.
 
 ### Top-model warning
-- `routes resolve` adds `every track routes to <model>, the strongest <harness> model; check the plan's tiers` to `warnings` when the manifest has two or more tracks and every resolved route uses the last model of its harness catalog. The check runs in `W/routes.py` after the routes are known, so it covers both the orchestrator and the main-harness paths. The exit code does not change.
+- `routes resolve` adds `every track routes to <model>, the strongest <harness> model; check the plan's tiers` to `warnings` when the manifest has two or more tracks and every resolved route uses the last model of its harness catalog, that catalog has two or more models, and no route is `provider_default`. The check runs in `W/routes.py` after the routes are known, so it covers both the orchestrator and the main-harness paths. The exit code does not change.
 
 ### Roadmap and epics
 - Done during discuss: `gin-workflow-dura` and its `.planning/roadmap.md` entry carry the four moved items; this epic's entry drops them and names the move.
@@ -89,10 +91,11 @@ Acceptance criteria:
 As a maintainer, I want the reviewer to skip rerunning tests that a hook already passed on the same tree, so that each review does not pay for a full suite twice.
 
 Acceptance criteria:
-- A passing `pre-push` on a clean tree writes a `verification.passed` event with `HEAD^{tree}`.
-- A failing hook, or a hook run with uncommitted tracked changes, writes no event.
+- A passing `pre-push` on a clean tree writes a `checks.passed` event with `HEAD^{tree}`.
+- A failing hook, a hook run with uncommitted tracked changes, or `pre-commit` writes no event.
 - `evidence check --commit <sha>` exits 0 for a commit whose tree has a record including `test`, and 1 otherwise.
-- `review/SKILL.md` tells the reviewer to run `evidence check` and to run the tests only on exit 1.
+- `evidence run` from a linked worktree writes the record the main checkout's `evidence check` finds.
+- `review/SKILL.md` tells the implementer to run `evidence run` before requesting review, and the reviewer to run `evidence check` and to run the tests only on exit 1.
 
 ### US-5: Over-strong plans are flagged
 As a plan author, I want `routes resolve` to warn when every track uses the strongest model, so that I notice a plan with no cheaper tiers.
@@ -105,17 +108,27 @@ Acceptance criteria:
 
 - `usage.budget_usd` is optional and additive; existing configs validate unchanged. Whether the schema needs a config version bump is decided in the plan from `W/schemas.py` and `docs/reference/config.md`.
 - The `budget` block in `ai_usage` is additive; gin-console reads `ai_usage` fields it knows and ignores the rest.
-- `verification.passed` is a new event type in the runtime log; readers that ignore unknown types are unaffected. The plan confirms that `state` and the event schema validation accept it.
+- `checks.passed` is a new event type in the runtime log. `verification.passed` is not reused: it is a legacy gate event that `usage_attribution` maps to the `verify` stage. The event schema accepts any `event_type`; `checks` is never a real workflow, because readers that enumerate workflows filter on gates.
 - Exit 3 from `routes dispatch` is new. Before the skill change installs, a harness running the old `execute` text treats it as an unknown failure and stops, which is safe.
 - The budget stop depends on time-span attribution, so it can be off; the 20% margin and the `warn` status come first. The user can always raise the budget.
-- Hooks run inside track worktrees; the event goes to the runtime log the hook resolves for its repository root, and `evidence check` reads the same log. The plan confirms the path from a linked worktree.
+- Hooks run inside track worktrees; the event goes to the runtime log of the main checkout (`main_checkout`), and `evidence check` reads the same log from any worktree.
 
 ## Testing
 
 - `tests/workflow_core/test_usage*.py`: budget statuses at the thresholds, `unenforceable`, no budget block for a child bead.
 - `routes dispatch` tests: exit 3 over budget, proceeds after raising the budget, unchanged with no budget or null cost.
-- `tests/workflow_core/test_hooks.py`: event written on a clean passing run, not on failure or with uncommitted changes, warning when recording fails.
-- `evidence check` tests: matching tree with `test`, matching tree without `test`, no record.
+- `tests/workflow_core/test_hooks.py`: event written on a clean passing run, not on failure, with uncommitted changes, or on `pre-commit`; warning when recording fails; `evidence check` with a matching tree with `test`, without `test`, and no record; `evidence run` refusing a dirty tree; a record from a linked worktree.
 - `routes resolve` tests for the top-model warning.
 - `tests/workflow_core/test_token_budget.py` keeps every stage chain within 12,000 characters.
 - Full suite: `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests/test_all.py`.
+
+## Plan amendments
+
+Made while writing `.planning/plans/2026-11-01-cost-control.md`, where the plan found the confirmed design could not work as written:
+- The event is `checks.passed`, not `verification.passed`, which is already a legacy gate event mapped to the `verify` usage stage.
+- Only `pre-push` records; `pre-commit` never runs `test`.
+- `gin-workflow evidence run` is added, because the branch is pushed after review and a pre-push record would not exist when the reviewer checks.
+- `evidence check` without `--commit` checks the clean working tree; the review checkpoint commit may hold only scoped files, so its tree hash can differ from the branch tree.
+- `execute` keeps the track-close collect and adds the per-worker epic collect.
+- The top-model warning needs a catalog with two or more models.
+- Dispatch proceeds with a warning when `bd` cannot be read.
