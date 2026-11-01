@@ -35,14 +35,20 @@ The summary is stored in the bead's metadata as `ai_usage` (aggregates only), an
 
 ## Prices
 
-Costs are estimates from `.agent-workflow/usage-prices.yaml` (USD per million tokens). Committing the file so the team shares one list is a team convention, not tool behavior:
+Costs are estimates in USD per million tokens. The plugin ships a catalog, `workflow_core/usage_prices_default.yaml`, checked on 2026-11-01 against the vendor pages named in each row. It uses standard-tier prices, Anthropic 5-minute cache writes, OpenAI cache writes at 1.25x input, and Google cache writes at 0 (Google bills cache storage per hour).
+
+`.agent-workflow/usage-prices.yaml` overrides a catalog row by model id and adds models the catalog lacks. Committing the file so the team shares one list is a team convention, not tool behavior:
 
 ```yaml
 prices:
   <model id>: {input: 3.0, output: 15.0, cache_read: 0.3, cache_write: 3.75}
 ```
 
-A model without a price is never guessed: its cost shows `-` and it is listed under `unpriced`.
+A model id with no exact row takes the longest row whose key it extends with `-`: `claude-sonnet-4-5-20250929` prices as `claude-sonnet-4-5`. No other fuzzy matching applies.
+
+Each model in the report carries a `price_source`: `default` (catalog), `repo` (your file) or `none`. A model with `none` is never guessed: its cost shows `-` and it is listed under `unpriced`.
+
+Prices change and the catalog is a convenience, not a billing source.
 
 ## Budget
 

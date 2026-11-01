@@ -1,20 +1,30 @@
-# Brownfield walkthrough: from legacy code to sprint delivery
+# Brownfield walkthrough: from a legacy JSP monolith to milestone delivery
 
-This walkthrough follows one team from "we inherited a legacy system" to "sprint work is shipped". Each stage lists who runs it, the prompt to paste, what you get, the gate or approval, and the mistakes to avoid.
+This walkthrough follows one team from "we inherited a legacy system" to the first milestone shipped and the next one planned. Each stage lists who runs it, the prompt to paste, what to put in the prompt, what you get, the gate or approval, and the mistakes to avoid.
 
-For the modernization strategy itself (strangler fig, parity tests, the migration cycle), see [brownfield modernization](brownfield-modernize.md).
+For the modernization strategy (strangler fig, parity tests, the migration cycle) and the repository layout, see [brownfield modernization](brownfield-modernize.md).
 
 ## The scenario
 
-A legacy PHP ordering system (orders, payments, inventory) is being modernized behind a new API. The team:
+`shop-portal` is a Java 8 JSP and Struts monolith on Oracle. The team replaces it behind a facade with a Spring Boot REST API and a React SPA, in one monorepo:
+
+| Directory | Content |
+|---|---|
+| `legacy/` | the Struts application, brought in as a git subtree |
+| `services/api/` | the Spring Boot API and the facade |
+| `apps/web/` | the React SPA |
+| `qa/` | test cases, end-to-end specs, evidence |
+
+The team:
 
 | Person | Role | Reads | Does |
 |---|---|---|---|
-| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, sprint labels, sprint report |
+| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, milestones, milestone report |
 | An | `ba` | [BA](../roles.md#ba) | Specs and user stories |
 | Binh | `be_lead` | [Developer](../roles.md#developer-and-tech-lead) | Setup, plan, orchestrate, ship |
-| Em | `be_dev` | [Developer](../roles.md#developer-and-tech-lead) | Implementation |
-| Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, verification approval |
+| Em | `be_dev` | [Developer](../roles.md#developer-and-tech-lead) | API and legacy work |
+| Hoa | `fe_dev` | [Developer](../roles.md#developer-and-tech-lead) | React SPA work |
+| Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, ship approval |
 
 The `team:` block in `.agent-workflow/config.yaml` (written by `/gin-workflow:team-setup`):
 
@@ -27,57 +37,85 @@ team:
     an@example.com: {roles: [ba], login: an-ba}
     binh@example.com: {roles: [be_lead], login: binh-dev}
     em@example.com: {roles: [be_dev], login: em-dev}
+    hoa@example.com: {roles: [fe_dev], login: hoa-dev}
     chi@example.com: {roles: [qe], login: chi-qe}
   areas:
-    legacy_core: {paths: ["legacy/**"], lead: be_lead, roles: [be_dev]}
-    modern_api: {paths: ["src/**", "tests/**"], lead: be_lead, roles: [be_dev]}
+    legacy: {paths: ["legacy/**"], lead: be_lead, roles: [be_dev]}
+    api: {paths: ["services/api/**", "qa/api/**"], lead: be_lead, roles: [be_dev]}
+    web: {paths: ["apps/web/**", "qa/web/**"], lead: be_lead, roles: [fe_dev]}
   approvals:
     requirement_confirmed: [ba, be_lead]
     plan_approved: area_lead
     ship: [qe]
     roadmap: [pm, be_lead]
+  permissions: {milestone: [pm]}
 ```
 
-A gate is never approved by the author of its pull request, so each approving role needs a second holder. Here Lan has no second `pm` and An no second `ba`, so Binh (`be_lead`) approves their roadmap and spec pull requests.
+A gate is never approved by the author of its pull request, so each approving role needs a second holder. Here Lan has no second `pm` and An no second `ba`, so Binh (`be_lead`) approves their roadmap and spec pull requests. Only Lan, the one `pm`, may run `gin-workflow milestone` writes.
 
 ## The flow at a glance
 
 ```mermaid
 flowchart LR
-  A["Setup<br/>Tech Lead"] --> B["tech-doc<br/>Tech Lead"]
+  R["Repository<br/>Tech Lead"] --> A["Setup<br/>Tech Lead"]
+  A --> B["tech-doc<br/>Tech Lead"]
   B --> C["roadmap<br/>PM"]
-  C --> D["Sprint label<br/>PM"]
+  C --> D["Milestone<br/>PM"]
   D --> E["discuss epic<br/>BA"]
   E --> F["plan + orchestrate<br/>Tech Lead"]
   F --> G["Test cases<br/>QE"]
   G --> H["execute<br/>Dev"]
   H --> I["e2e<br/>QE"]
   I --> J["ship<br/>Tech Lead"]
-  J --> K["progress / report<br/>PM"]
+  J --> K["review + spill-over<br/>PM"]
+  K -->|"next milestone"| D
 ```
 
-## Setup
+## Repository and workspace setup
+
+**Who:** Tech Lead, once.
+
+**Prompt**
+```bash
+git subtree add --prefix=legacy git@github.com:acme/shop-portal.git main
+mkdir -p services/api apps/web qa
+```
+```text
+/gin-workflow:setup
+```
+Answer `stage: brownfield`, `shape: fullstack`, `monorepo: true`.
+
+Put in the prompt: the directories above and the stack of each (Maven for the API, npm for the SPA). Setup detects `packages` only from JavaScript workspaces, so for this Maven and npm mix add a `project.packages` entry for `services/api` and one for `apps/web` yourself in `.agent-workflow/config.yaml`, each with `path`, `shape`, and `verify.checks`. The reasons for a monorepo and a subtree, and when a legacy repository stays separate, are in [repository strategy](brownfield-modernize.md#repository-strategy).
+
+**You get:** the legacy history under `legacy/`, and `.agent-workflow/config.yaml` with the project settings and your `project.packages` entries.
+
+**Gate or approval:** none.
+
+**Common mistakes:** a submodule instead of a subtree; no `project.packages` entry for a package, so its checks never run.
+
+## Setup and team setup
 
 **Who:** Tech Lead once per repository, then every member once on their own clone. Members do not register themselves: the lead lists every member, role, area, and approval in the `team:` block.
 
 **Prompt (Tech Lead)**
 ```text
-/gin-workflow:setup
 /gin-workflow:team-setup
 ```
-Answer `team-setup` as the lead. It writes the `team:` block, runs `gin-workflow team init` (add `--ci` for a CI workflow), then you commit on a branch, push, and open a pull request. Merge it.
 
 **Prompt (each member, after pulling the merged branch)**
 ```text
 /gin-workflow:team-setup
 ```
-Answer as a member. It checks `gin-workflow team whoami` finds your `git config user.email`, installs the commit-msg hook (`gin-workflow team hooks`), asks you to log in (`gh auth login` or `glab auth login`), runs `bd init --remote <remote>` when the team shares Beads, and ends with `gin-workflow setup doctor`. Nothing is written back to the repository.
 
-**You get:** `.agent-workflow/config.yaml` with the `team:` block, `.github/CODEOWNERS` (`.gitlab/CODEOWNERS` on GitLab), a pull request template, and a commit-msg hook on every clone.
+Put in the prompt: the six members with their git emails and roles, the three areas with their paths, and `permissions: {milestone: [pm]}` so only the PM changes milestones.
+
+The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin-workflow team init` (add `--ci` for a CI workflow), then you commit on a branch, push, and open a pull request. Merge it. A member answers as a member: it checks `gin-workflow team whoami` finds your `git config user.email`, installs the commit-msg hook (`gin-workflow team hooks`), asks you to log in (`gh auth login` or `glab auth login`), runs `bd init --remote <remote>` when the team shares Beads, and ends with `gin-workflow setup doctor`. Nothing is written back to the repository.
+
+**You get:** the `team:` block, `.github/CODEOWNERS` (`.gitlab/CODEOWNERS` on GitLab), a pull request template, and a commit-msg hook on every clone.
 
 **Gate or approval:** none. The lead protects the base branch on the host (pull request, one approval, "Require review from Code Owners") and, for the CI job to run `team codeowners --check`, sets the repository variable `GIN_WORKFLOW_INSTALL` (see [CI](../guides/team.md#ci-optional)).
 
-**Common mistakes:** forgetting to add a member or the PM to `members` (the `roadmap` approval then fails with "role pm is held by no member"; fixing it takes another pull request); a member whose git email differs from the one in `members` (`team whoami` finds nothing); skipping the host login.
+**Common mistakes:** forgetting a member or the PM in `members` (the `roadmap` approval then fails with "role pm is held by no member" and the fix is another pull request); a git email that differs from the one in `members` (`team whoami` finds nothing); skipping the host login.
 
 ## Survey the legacy system
 
@@ -88,41 +126,62 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 /gin-workflow:tech-doc whole repository
 ```
 
-**You get:** the tech-doc set under `.planning/codebase/` (or `docs/codebase/` with the SDD layout): overview, architecture, stack, conventions, testing, and concerns, one file per topic (`OVERVIEW`, `FEATURES`, `API`, `STACK`, `INTEGRATIONS`, `ARCHITECTURE`, `STRUCTURE`, `CONVENTIONS`, `TESTING`, `CONCERNS`).
+Put in the prompt: the entry points you know (`web.xml`, the Struts config), the database, and the modules you plan to replace first.
+
+**You get:** the tech-doc set under `.planning/codebase/` (or `docs/codebase/` with the SDD layout), one file per topic (`OVERVIEW`, `FEATURES`, `API`, `STACK`, `INTEGRATIONS`, `ARCHITECTURE`, `STRUCTURE`, `CONVENTIONS`, `TESTING`, `CONCERNS`).
 
 **Gate or approval:** none. Review it with the team; the roadmap is only as good as this survey.
 
-**Common mistakes:** documenting only the parts you plan to touch first; the roadmap needs the whole as-is picture to place dependencies correctly.
+**Common mistakes:** documenting only the parts you plan to touch first; the roadmap needs the whole as-is picture to place dependencies, such as the Oracle stored procedures the checkout JSPs call.
 
-## Roadmap
-
-**Who:** PM.
-
-**Prompt**
-```text
-/gin-workflow:roadmap Goal: move payments and inventory out of the monolith within two quarters without downtime.
-```
-
-**You get:** the skill reads every file of the tech-doc set, asks about goals, team and AI capacity, and constraints. It proposes two or three ways to split the work and shows the roadmap for your confirmation. After you confirm it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>`.
-
-**Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin-workflow team check <url> --gate roadmap`, then creates the epics `<prefix>-<slug>` (label `roadmap`) with their dependencies in Beads.
-
-**Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics when you remove them from the file (it only reports them).
-
-## Sprint planning
+## Roadmap overview
 
 **Who:** PM.
 
 **Prompt**
 ```text
-/gin-workflow:roadmap Label demo-payments and demo-orders-api for sprint 2026-s1.
+/gin-workflow:roadmap Goal: replace the catalog, cart and checkout JSP flows with the REST API and the React SPA within two quarters; the Oracle schema stays; no downtime. Non-goals: reporting screens.
 ```
 
-**You get:** the chosen epics carry the label `sprint:2026-s1`. A sprint is only a label: `gin-workflow task list --label sprint:2026-s1 --all` shows it.
+Put in the prompt: the goal and its deadline, the constraints that cannot move (here the schema and zero downtime), and the non-goals.
 
-**Gate or approval:** none.
+**You get:** the skill reads the tech-doc set, asks about goals, team and AI capacity, and constraints, proposes two or three ways to split the work, and shows the roadmap for your confirmation. After you confirm it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>` and, after the sync, one epic per item with its dependencies in Beads. Read the result as a graph:
 
-**Common mistakes:** labelling an epic whose dependencies are not done; `gin-workflow task ready` still hides blocked epics, so check it.
+```bash
+gin-workflow task graph --all
+```
+
+The gin-console Dependencies page shows the same graph. Choose what goes first from it: epics with no open blocker, and the one that unblocks the most others (here the API facade).
+
+**Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin-workflow team check <url> --gate roadmap`, then creates the epics.
+
+**Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics you remove from the file (it only reports them); starting with the epic that has the most users instead of the one that unblocks the rest.
+
+## Milestone planning
+
+**Who:** PM.
+
+**Prompt**
+```bash
+gin-workflow milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28
+```
+```text
+/gin-workflow:roadmap --milestone <id>
+```
+Use the id that `milestone create` prints. Put in the prompt: "Capacity: 2 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first."
+
+Then fix the kick-off date and read the schedule:
+
+```bash
+gin-workflow milestone kickstart <id> --date 2026-11-10
+gin-workflow milestone show <id>
+```
+
+**You get:** the chosen epics under the milestone, each with an estimate in working days, and a schedule with warnings (`overflow`, `late`, `unestimated`, `external_blocker`). A milestone is a Beads bead with a start and an end date, not a label.
+
+**Gate or approval:** `permissions.milestone: [pm]` lets only Lan write; the roadmap pull request gate of the previous stage still applies to roadmap changes.
+
+**Common mistakes:** picking an epic whose blocker sits in a later milestone (`external_blocker`); leaving epics without an estimate (`unestimated`); planning past the end date (`overflow`).
 
 ## Discuss an epic
 
@@ -130,14 +189,16 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Prompt**
 ```text
-/gin-workflow:discuss demo-payments
+/gin-workflow:discuss <epic-id>
 ```
+
+Put in the prompt: the user-visible behavior of the JSP flow you replace, its edge cases and validation rules (see [capture current behavior first](brownfield-modernize.md#capture-current-behavior-first)), and what is out of scope.
 
 **You get:** the discussion starts from the epic and its roadmap entry and reuses it (no new epic). The spec is built from the `design-spec.md` template (or `proposal.md` with the SDD layout) and has a `## User Stories` section. Every story has acceptance criteria and, with REQ-IDs, a `REQ:` line.
 
 **Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. With `requirement_confirmed: [ba, be_lead]`, Binh approves it (An cannot approve his own); the gate is recorded with the PR URL after the merge.
 
-**Common mistakes:** creating a second epic by hand; stories without acceptance criteria.
+**Common mistakes:** creating a second epic by hand; stories without acceptance criteria; skipping the legacy edge cases.
 
 ## Plan and orchestrate
 
@@ -149,11 +210,13 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 /gin-workflow:orchestrate
 ```
 
-**You get:** a plan with tracks per area and owner (`team check-plan` must pass), then track beads under the reused epic, an isolated worktree, and dependencies.
+Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria) and which tracks may run in parallel.
+
+**You get:** a plan with tracks per area and owner (`gin-workflow team check-plan <plan>` must pass), then track beads under the reused epic, an isolated worktree per track, and dependencies.
 
 **Gate or approval:** with `plan_approved: area_lead`, the area lead approves the plan pull request.
 
-**Common mistakes:** a track that touches two areas; run `gin-workflow team check-plan <plan>` before asking for approval.
+**Common mistakes:** a track that touches two areas, for example `services/api/` and `apps/web/`; run `gin-workflow team check-plan <plan>` before asking for approval.
 
 ## Test cases
 
@@ -161,10 +224,12 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 **Prompt**
 ```text
-/gin-qa:cases payments
+/gin-qa:cases catalog
 ```
 
-**You get:** `qa/cases/payments.md`, one case per scenario, each tied to a requirement and its content hash. `gin-qa cases plan` later flags cases that went stale.
+Put in the prompt: the epic, and the legacy behaviors that the new API must match.
+
+**You get:** `qa/cases/catalog.md`, one case per scenario, each tied to a requirement and its content hash. `gin-qa cases plan` later flags cases that went stale.
 
 **Gate or approval:** none.
 
@@ -172,19 +237,32 @@ Answer as a member. It checks `gin-workflow team whoami` finds your `git config 
 
 ## Execute
 
-**Who:** Developer.
+**Who:** Developer (Em for the API tracks, Hoa for the SPA tracks).
 
 **Prompt**
+```bash
+gin-workflow team ready
+gin-workflow team claim <bead>
+```
 ```text
 /gin-workflow:execute
 ```
-In team mode `execute` runs `gin-workflow team deps`, picks from `gin-workflow team ready`, and claims with `gin-workflow team claim <bead>`; run them yourself first to choose a track.
+
+Put in the prompt: the track bead to work on, if you want to choose it yourself.
+
+`team ready` lists the beads in your areas. `team claim` writes a lease of `team.claim_ttl_hours` (default 48); claim again to renew it, and an expired lease lets another member take the bead. If a member is away or out of quota, push the track branch and run:
+
+```bash
+gin-workflow team reassign <bead> hoa@example.com
+```
+
+The new assignee must be allowed to own tracks in the bead's areas, then checks out the pushed branch and continues.
 
 **You get:** one track implemented test-first in the worktree, an independent review, a closed track bead, and a pushed feature branch.
 
-**Gate or approval:** `execute` refuses a `roadmap` epic that has no confirmed spec; run [Discuss an epic](#discuss-an-epic) first. The claim fails if a teammate already holds the track.
+**Gate or approval:** `execute` refuses a `roadmap` epic that has no confirmed spec; run [Discuss an epic](#discuss-an-epic) first. The claim fails if a teammate holds a valid lease.
 
-**Common mistakes:** working outside the track's file scope; closing the bead before the review finishes.
+**Common mistakes:** working outside the track's file scope; letting a lease expire while the work continues; closing the bead before the review finishes.
 
 ## E2E
 
@@ -192,31 +270,60 @@ In team mode `execute` runs `gin-workflow team deps`, picks from `gin-workflow t
 
 **Prompt**
 ```text
-/gin-qa:e2e payments
+/gin-qa:e2e catalog
 ```
+
+Put in the prompt: the base URL of the SPA, the test accounts, and the flows to cover.
 
 **You get:** Playwright specs under `qa/e2e/`, evidence under `qa/evidence/`, and the run report.
 
-**Gate or approval:** with `ship: [qe]`, the QE approves the latest commit of the developer's pull request before it merges. A later push needs a new approval.
+**Gate or approval:** with `ship: [qe]`, Chi approves the latest commit of the developer's pull request before it merges. A later push needs a new approval.
 
 **Common mistakes:** approving before the last commit; a push after approval silently invalidates it.
 
-## Ship and sprint review
+## Ship
 
-**Who:** Tech Lead ships; PM reviews the sprint.
+**Who:** Tech Lead.
 
 **Prompt**
 ```text
 /gin-workflow:ship
-/gin-workflow:progress sprint 2026-s1
-/gin-workflow:report --sprint 2026-s1
 ```
 
-**You get:** the merged deliverable, a per-epic status of the sprint (`progress`), and a cost and usage report for the sprint's epics and their tracks (`report`).
+Put in the prompt: the epic and whether to merge now or keep the branch.
 
-**Gate or approval:** merging into the base branch needs explicit approval.
+**You get:** the merged deliverable. In team mode the gate's PR proof is written to the epic bead's `gates` metadata, so teammates see it in `gin-workflow state` without your local event store.
 
-**Common mistakes:** reading the report before `usage collect` ran on closed tracks; tracks without a summary show as `not collected`.
+**Gate or approval:** merging into the base branch needs explicit approval; Chi's approval on the latest commit is checked first.
+
+**Common mistakes:** shipping one member's track as if the feature were complete; the lead declares the epic done once every track pull request has merged.
+
+## Milestone review and spill-over
+
+**Who:** PM, on the milestone's end date.
+
+**Prompt**
+```bash
+gin-workflow milestone show <id>
+gin-workflow milestone create "M2 Cart and checkout" --start 2026-12-01 --end 2026-12-18
+gin-workflow milestone move <open-epic>... --to <next-id>
+gin-workflow milestone close <id> --reason "Catalog read path shipped; checkout epic moved to M2"
+```
+```text
+/gin-workflow:report --milestone <id>
+/gin-workflow:progress milestone <id>
+```
+```bash
+gin-workflow milestone kickstart <next-id> --date 2026-12-01
+```
+
+Put in the prompt: the milestone id, and for the report the question you need answered (cost, quality signals, or both).
+
+**You get:** `milestone show` lists the open epics and the warnings; `move` re-parents the unfinished epics and records `{from, to, at, actor}` in each epic's `milestone_moves` metadata, so the history of an epic that slipped stays readable; `close` stores your reason as the bead's close reason. `report` gives the cost and usage of the milestone's epics and their tracks, and `progress` lists the milestone's epics with `gin-workflow task list --parent <id>` and the status of each epic's tracks. Then you run `kickstart` for the next milestone, and plan it as in [Milestone planning](#milestone-planning).
+
+**Gate or approval:** `milestone close` is refused while the milestone has open epics, and `--reason` is required.
+
+**Common mistakes:** closing an unfinished epic so the milestone can close, when it should move; moving epics without a reason on the close.
 
 ## Customizing outputs
 
@@ -227,6 +334,7 @@ Every artifact starts from a template you can override; test cases follow `qa/gu
 One person plays every role, so the flow shrinks:
 
 - No `team-setup`, no `team:` block, no pull requests for gates: you confirm in chat.
+- The `milestone` commands work the same; without a `permissions` key nothing restricts them.
 - Roadmap: `/gin-workflow:roadmap` writes the file after you confirm it and creates the epics directly.
-- Execute: pick work with `gin-workflow task ready` instead of `gin-workflow team ready`.
+- Execute: pick work with `gin-workflow task ready` instead of `gin-workflow team ready`, and skip claims.
 - Everything else is the same: `/gin-workflow:discuss <epic-id>`, `plan`, `orchestrate`, `execute`, `ship`.

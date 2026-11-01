@@ -249,8 +249,17 @@ class MilestoneCliTests(unittest.TestCase):
         self.seed_writes()
         self.assertEqual(0, self.run_cli("move", "t-a", "--to", "t-m2")[0])
         self.assertEqual("t-m2", self.show("t-a")["parent"])
+        moves = self.moves("t-a")
+        self.assertEqual("t-m1", moves[-1]["from"])
+        self.assertEqual("t-m2", moves[-1]["to"])
+        self.assertEqual("unknown", moves[-1]["actor"])
+        self.assertRegex(moves[-1]["at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         self.assertEqual(0, self.run_cli("move", "t-a", "--to", "none")[0])
         self.assertIsNone(self.show("t-a").get("parent"))
+        moves = self.moves("t-a")
+        self.assertEqual(2, len(moves))
+        self.assertEqual("t-m2", moves[-1]["from"])
+        self.assertIsNone(moves[-1]["to"])
         self.refused("move", "t-a", "t-task", "--to", "t-m1")
         self.refused("move", "t-a", "--to", "t-task")
         self.assertIn("t-e0", self.refused("move", "t-x", "--to", "t-m1"))
@@ -263,13 +272,48 @@ class MilestoneCliTests(unittest.TestCase):
         self.bd("close", "t-b")
         self.assertEqual(0, self.run_cli("move", "t-b", "--to", "t-m2")[0])
 
+    def moves(self, epic):
+        stored = self.show(epic)["metadata"]["milestone_moves"]
+        return json.loads(stored) if isinstance(stored, str) else stored
+
+    def test_move_traces_each_epic_separately(self):
+        self.seed_writes()
+        self.bd("create", "B", "--id", "t-b", "--type", "epic")
+        self.assertEqual(0, self.run_cli("move", "t-a", "--to", "t-m2")[0])
+        self.assertEqual(0, self.run_cli("move", "t-a", "t-b", "--to", "t-m1")[0])
+        self.assertEqual(["t-m1", "t-m2"], [m["from"] for m in self.moves("t-a")])
+        self.assertEqual([None], [m["from"] for m in self.moves("t-b")])
+
+    def test_move_with_unreadable_trace_warns(self):
+        self.seed_writes()
+        self.bd("update", "t-a", "--set-metadata", "milestone_moves=not json")
+        code, _, err = self.run_cli("move", "t-a", "--to", "t-m2")
+        self.assertEqual(0, code)
+        self.assertIn("warning:", err)
+        self.assertEqual("t-m2", self.show("t-a")["parent"])
+
+    def test_move_trace_failure_warns_and_keeps_move(self):
+        self.seed_writes()
+        real = milestone_cli._bd
+
+        def flaky(root, argv, actor=""):
+            if "--set-metadata" in argv and argv[-1].startswith("milestone_moves="):
+                raise milestone_cli.MilestoneError("boom")
+            return real(root, argv, actor)
+
+        with mock.patch.object(milestone_cli, "_bd", flaky):
+            code, _, err = self.run_cli("move", "t-a", "--to", "t-m2")
+        self.assertEqual(0, code)
+        self.assertIn("warning: t-a moved but milestone_moves not recorded: boom", err)
+        self.assertEqual("t-m2", self.show("t-a")["parent"])
+
     def test_req_005_partial_move_names_moved_and_failed(self):
         self.seed_writes()
         self.epic("t-b", "B", "t-m1")
         real, calls = milestone_cli._bd, []
 
         def flaky(root, argv, actor=""):
-            if argv[0] == "update":
+            if argv[0] == "update" and "--parent" in argv:
                 calls.append(argv)
                 if len(calls) == 2:
                     raise milestone_cli.MilestoneError("boom")
@@ -292,11 +336,13 @@ class MilestoneCliTests(unittest.TestCase):
 
     def test_req_010_close(self):
         self.seed_writes()
-        self.assertIn("t-a", self.refused("close", "t-m1"))
+        self.assertEqual(2, self.run_cli("close", "t-m1")[0])
+        self.assertIn("t-a", self.refused("close", "t-m1", "--reason", "x"))
         self.assertEqual("open", self.show("t-m1")["status"])
         self.bd("close", "t-a")
-        self.assertEqual(0, self.run_cli("close", "t-m1")[0])
+        self.assertEqual(0, self.run_cli("close", "t-m1", "--reason", "catalog shipped")[0])
         self.assertEqual("closed", self.show("t-m1")["status"])
+        self.assertEqual("catalog shipped", self.show("t-m1")["close_reason"])
 
     def test_usage_error_exits_2(self):
         code, _, _ = self.run_cli("show")

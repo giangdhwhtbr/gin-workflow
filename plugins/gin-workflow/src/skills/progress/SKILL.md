@@ -11,7 +11,7 @@ description: Report Beads task status, blockers, open waivers, and next ready wo
 
 Read-only status report.
 
-1. Query Beads: `gin-workflow task list --status open,in_progress`, `gin-workflow task ready`, `gin-workflow task blocked`, and `gin-workflow task show <id>` for requested tasks. For a sprint: `gin-workflow task list --label sprint:<name> --all --json` gives the epics; `gin-workflow task list --parent <epic> --all --json` gives each one's tracks.
+1. Query Beads: `gin-workflow task list --status open,in_progress`, `gin-workflow task ready`, `gin-workflow task blocked`, and `gin-workflow task show <id>` for requested tasks. For a milestone: `gin-workflow task list --parent <milestone-id> --all --json` gives the epics; `gin-workflow task list --parent <epic> --all --json` gives each one's tracks.
 2. Group as Pending, Active, Complete, and Failed. Recommend active dependencies first, then ready work by priority, then root blockers.
 3. Add review status (`python3 review-ledger.py status --bead-id <id>`) and gate state (`gin-workflow state --format json`) when relevant, and recent `/quick` runs (`recent_quick` in `gin-workflow state`).
 4. Report open gate waivers (gates shown as `waived(<reason>)` by `gin-workflow state`) and check their follow-up tasks with `gin-workflow task show`, so waivers do not become a habit.

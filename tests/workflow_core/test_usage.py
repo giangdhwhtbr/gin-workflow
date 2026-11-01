@@ -41,9 +41,18 @@ class PriceTests(unittest.TestCase):
     def test_load_prices(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            self.assertEqual(usage.load_prices(repo), {})
-            write(repo, usage.PRICES_FILE, "prices:\n  m1: {input: 3, output: 15, cache_read: 0.3, cache_write: 3.75}\n")
-            self.assertEqual(usage.load_prices(repo), {"m1": usage.Price(3, 15, 0.3, 3.75)})
+            defaults = usage.load_prices(repo)
+            self.assertEqual(usage.Price(4, 20, 0.2, 5, "default"), defaults["claude-opus-5-5"])
+            for model in ("claude-fable-5-1", "claude-haiku-5-5", "gpt-5.6-sol", "gpt-6-astra", "gemini-2.5-pro"):
+                self.assertEqual("default", defaults[model].source, model)
+            write(repo, usage.PRICES_FILE, "prices:\n  claude-opus-5-5: {input: 3, output: 15, cache_read: 0.3, cache_write: 3.75}\n  m1: {input: 1, output: 2, cache_read: 0, cache_write: 0}\n")
+            prices = usage.load_prices(repo)
+            self.assertEqual(usage.Price(3, 15, 0.3, 3.75, "repo"), prices["claude-opus-5-5"])
+            self.assertEqual("repo", prices["m1"].source)
+            self.assertEqual(prices["claude-sonnet-4-5"], usage.price_for(prices, "claude-sonnet-4-5-20250929"))
+            self.assertEqual(prices["m1"], usage.price_for(prices, "m1-2"))
+            self.assertIsNone(usage.price_for(prices, "m10"))
+            self.assertIsNone(usage.price_for(prices, "codex-auto-review"))
             write(repo, usage.PRICES_FILE, "prices:\n  m1: {input: lots, output: 15, cache_read: 0, cache_write: 0}\n")
             with self.assertRaises(usage.UsageError):
                 usage.load_prices(repo)
@@ -66,12 +75,14 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(doc["version"], 1)
         self.assertEqual(doc["collected_at"], iso(5))
         self.assertEqual(doc["models"]["m1"], {"input": 2000, "output": 200, "cache_read": 20000, "cache_write": 0,
-                                               "cost": 0.015})
+                                               "cost": 0.015, "price_source": "repo"})
         self.assertIsNone(doc["models"]["m2"]["cost"])
+        self.assertEqual("none", doc["models"]["m2"]["price_source"])
+        self.assertEqual("repo", doc["models"]["m1"]["price_source"])
         self.assertEqual(doc["roles"]["main"]["m1"], {"input": 2000, "output": 200, "cache_read": 20000, "cache_write": 0,
-                                                      "cost": 0.015})
+                                                      "cost": 0.015, "price_source": "repo"})
         self.assertEqual(doc["roles"]["subagent"]["m2"], {"input": 1000, "output": 100, "cache_read": 10000, "cache_write": 0,
-                                                          "cost": None})
+                                                          "cost": None, "price_source": "none"})
         self.assertEqual(doc["stages"]["execute"], {"tokens": 22200, "cost": 0.0075})
         self.assertEqual(doc["cost"], 0.015)
         self.assertEqual(doc["unpriced"], ["m2"])
@@ -274,22 +285,22 @@ class ReportTests(Fixture):
         self.assertEqual(out["totals"]["cost"], 3.0)
         self.assertEqual(out["unattributed"], {"tokens": 5, "cost": 0.5})
 
-    def test_sprint_report_covers_labelled_epics_and_their_tracks(self):
+    def test_milestone_report_covers_its_epics_and_their_tracks(self):
         rows = self.rows()
-        rows[0]["labels"] = ["roadmap", "sprint:s1"]
-        rows.append({"id": "ep2", "title": "Next", "issue_type": "epic", "status": "open",
-                     "labels": ["sprint:s2"]})
-        rows.append({"id": "ep3", "title": "Longer name", "issue_type": "epic", "status": "open",
-                     "labels": ["sprint:s10"]})
-        rows.append({"id": "ep4", "title": "No labels", "issue_type": "epic", "status": "open", "labels": None})
+        rows.append({"id": "m1", "title": "M1", "issue_type": "milestone", "status": "open", "labels": None})
+        rows[0]["parent"] = "m1"
+        rows.append({"id": "ep2", "title": "Next", "issue_type": "epic", "status": "open", "parent": "m2"})
+        rows.append({"id": "ep4", "title": "Unassigned", "issue_type": "epic", "status": "open"})
         self.rules[0]["stdout"] = rows
         fake_cli(self.bin, "bd", self.rules)
-        out = usage.report(self.repo, sprint="s1")
+        out = usage.report(self.repo, milestone="m1")
         self.assertEqual(["ep1", "ep1.1"], [row["bead"] for row in out["beads"]])
         self.assertEqual(["ep1.2"], out["not_collected"])
         self.assertEqual(3.0, out["totals"]["cost"])
-        self.assertEqual([], usage.report(self.repo, sprint="none")["beads"])
-        self.assertEqual([], usage.report(self.repo, sprint="")["beads"])
+        with self.assertRaisesRegex(usage.UsageError, "ep4 is not a milestone"):
+            usage.report(self.repo, milestone="ep4")
+        with self.assertRaisesRegex(usage.UsageError, "m9 is not a milestone"):
+            usage.report(self.repo, milestone="m9")
 
     def test_total_is_null_when_nothing_is_priced(self):
         self.rules[0]["stdout"] = [{"id": "u1", "title": "U", "issue_type": "task", "status": "closed",

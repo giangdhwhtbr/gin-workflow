@@ -52,6 +52,21 @@ For the full sequence of stages and approvals, see [lifecycle and gates](../conc
   - Track 5: Legacy cleanup scheduled after verification.
 - Parity tests and data validation scripts run in the `pre-push` hook when the `verify.checks.test` command runs them ([configuration](../reference/config.md#verifychecks)).
 
+## Repository strategy
+
+Keep the legacy code and its replacement in one monorepo, so a facade change, a parity test, and a legacy removal land in one pull request and one history. Bring an existing legacy repository in with `git subtree`, which copies its history under a directory and leaves nothing for teammates to initialize:
+
+```bash
+git subtree add --prefix=legacy/shop git@github.com:acme/shop-legacy.git main
+git subtree pull --prefix=legacy/shop git@github.com:acme/shop-legacy.git main   # later vendor fixes
+```
+
+Git submodules are a poor fit because every checkout inside a submodule dirties the parent repository and each member must keep two commits in step. A legacy repository stays separate when another team owns its deploy pipeline, when compliance requires its history or access list to stay apart, or when it is too large to carry in every clone.
+
+Setup detects `packages` only from JavaScript workspaces; for other stacks, such as a Maven API next to an npm SPA, list each package under `project.packages` in `.agent-workflow/config.yaml` with its `path`, `shape`, and own `verify.checks`. Hooks then run a package's checks in its directory whenever the package is listed ([configuration](../reference/config.md#verifychecks)).
+
+Declare `team.areas` by path (`legacy/**`, `services/api/**`, `apps/web/**`) so every plan track stays inside one of them, as in the YAML under [Strangler fig](#strangler-fig).
+
 ## Related
 
 - [Brownfield modernization deck](../presentations/brownfield-modernization.html) ([PPTX](../presentations/brownfield-modernization.pptx)) for executive and team presentations.

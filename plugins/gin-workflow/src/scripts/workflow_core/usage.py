@@ -23,6 +23,7 @@ from .usage_attribution import (
 from .usage_logs import UsageRecord, claude_code_records, codex_records, parse_ts
 
 PRICES_FILE = ".agent-workflow/usage-prices.yaml"
+DEFAULT_PRICES = Path(__file__).with_name("usage_prices_default.yaml")
 EVENTS_FILE = ".agent-workflow/runtime/events.jsonl"
 _TOKENS = ("input", "output", "cache_read", "cache_write")
 _SEVERITIES = ("critical", "important", "minor", "suggestion")
@@ -42,26 +43,41 @@ class Price:
     output: float
     cache_read: float
     cache_write: float
+    source: str = "repo"
 
 
-def load_prices(repo: Path) -> dict[str, Price]:
-    path = Path(repo) / PRICES_FILE
-    if not path.is_file():
-        return {}
+def _parse_prices(text: str, label: str, source: str) -> dict[str, Price]:
     try:
-        loaded = require_yaml().safe_load(path.read_text(encoding="utf-8")) or {}
+        loaded = require_yaml().safe_load(text) or {}
     except Exception as error:  # yaml.YAMLError without importing yaml here
-        raise UsageError(f"{PRICES_FILE}: {error}") from error
+        raise UsageError(f"{label}: {error}") from error
     prices = loaded.get("prices", {}) if isinstance(loaded, Mapping) else None
     if not isinstance(prices, Mapping):
-        raise UsageError(f"{PRICES_FILE}: expected 'prices:' mapping model names to prices")
+        raise UsageError(f"{label}: expected 'prices:' mapping model names to prices")
     result: dict[str, Price] = {}
     for model, entry in prices.items():
         values = [entry.get(key) if isinstance(entry, Mapping) else None for key in _TOKENS]
         if any(isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0 for value in values):
-            raise UsageError(f"{PRICES_FILE}: {model} needs non-negative numbers for {', '.join(_TOKENS)}")
-        result[str(model)] = Price(*(float(value) for value in values))
+            raise UsageError(f"{label}: {model} needs non-negative numbers for {', '.join(_TOKENS)}")
+        result[str(model)] = Price(*(float(value) for value in values), source)
     return result
+
+
+def load_prices(repo: Path) -> dict[str, Price]:
+    """The shipped catalog, overridden by the repository file where both name a model."""
+    prices = _parse_prices(DEFAULT_PRICES.read_text(encoding="utf-8"), DEFAULT_PRICES.name, "default")
+    path = Path(repo) / PRICES_FILE
+    if path.is_file():
+        prices.update(_parse_prices(path.read_text(encoding="utf-8"), PRICES_FILE, "repo"))
+    return prices
+
+
+def price_for(prices: Mapping[str, Price], model: str) -> Price | None:
+    """Exact id, else the longest key that the id extends with `-<suffix>` (dated Claude ids)."""
+    if model in prices:
+        return prices[model]
+    keys = [key for key in prices if model.startswith(key + "-")]
+    return prices[max(keys, key=len)] if keys else None
 
 
 def cost(totals: Mapping[str, int], price: Price | None) -> float | None:
@@ -217,7 +233,7 @@ def _priced_cost(records: Sequence[UsageRecord], prices: Mapping[str, Price]) ->
     by_model: dict[str, list[UsageRecord]] = {}
     for record in records:
         by_model.setdefault(record.model, []).append(record)
-    costs = [cost(_totals(items), prices.get(model)) for model, items in by_model.items()]
+    costs = [cost(_totals(items), price_for(prices, model)) for model, items in by_model.items()]
     known = [value for value in costs if value is not None]
     return round(sum(known), 4) if known else None
 
@@ -226,7 +242,8 @@ def _by_model(records: Sequence[UsageRecord], prices: Mapping[str, Price]) -> di
     by_model: dict[str, dict[str, Any]] = {}
     for model in sorted({record.model for record in records}):
         totals = _totals(record for record in records if record.model == model)
-        by_model[model] = {**totals, "cost": cost(totals, prices.get(model))}
+        price = price_for(prices, model)
+        by_model[model] = {**totals, "cost": cost(totals, price), "price_source": price.source if price else "none"}
     return by_model
 
 
@@ -345,15 +362,17 @@ def _add_models(slots: dict[str, dict[str, Any]], by_model: Mapping[str, Mapping
 
 
 def report(repo: Path, *, bead: str | None = None, epic: str | None = None, since: date | None = None,
-           sprint: str | None = None) -> dict[str, Any]:
+           milestone: str | None = None) -> dict[str, Any]:
     rows = _list(_bd(Path(repo), ["list", "--all", "-n", "0", "--json"]))
     if bead:
         selected = [row for row in rows if row.get("id") == bead]
     elif epic:
         selected = [row for row in rows if row.get("id") == epic or row.get("parent") == epic]
-    elif sprint is not None:
-        epics = {row["id"] for row in rows if row.get("issue_type") == "epic"
-                 and f"sprint:{sprint}" in (row.get("labels") or ())}
+    elif milestone is not None:
+        target = next((row for row in rows if row.get("id") == milestone), None)
+        if target is None or target.get("issue_type") != "milestone":
+            raise UsageError(f"{milestone} is not a milestone")
+        epics = {row["id"] for row in rows if row.get("issue_type") == "epic" and row.get("parent") == milestone}
         selected = [row for row in rows if row.get("id") in epics or row.get("parent") in epics]
     else:
         selected = [row for row in rows if since is None or
