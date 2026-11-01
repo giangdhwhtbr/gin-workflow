@@ -149,6 +149,7 @@ def parse_args():
     p_init.add_argument("--reviewed-sha", help=argparse.SUPPRESS)
     p_init.add_argument("--actor-role", default="worker")
     p_init.add_argument("--actor-id", required=True)
+    p_init.add_argument("--max-cycles", type=int)
     p_init.add_argument(
         "--workflow-id",
         help="Optional acceptance identity workflow ID (requires --attempt-id).",
@@ -417,6 +418,7 @@ def parse_args():
     # Status
     p_stat = subparsers.add_parser("status", help="Get summary status.")
     p_stat.add_argument("--bead-id", required=True)
+    p_stat.add_argument("--format", choices=["text", "json"], default="text")
 
     # Transition Requested
     p_trans_req = subparsers.add_parser("transition-requested", help="Request a state transition.")
@@ -444,6 +446,8 @@ def main():
     
     try:
         if args.command == "init":
+            if args.max_cycles is not None and args.max_cycles < 1:
+                raise ValueError("--max-cycles must be at least 1")
             scope = {
                 "included_paths": args.included_paths,
                 "excluded_artifact_paths": args.excluded_paths,
@@ -462,6 +466,7 @@ def main():
                 actor_id=args.actor_id,
                 workflow_id=args.workflow_id,
                 attempt_id=args.attempt_id,
+                max_cycles=args.max_cycles,
             )
             if checkpoint is None:
                 print(
@@ -801,10 +806,15 @@ def main():
 
         elif args.command == "status":
             _, proj = load_ledger(args.bead_id)
-            print(f"State: {proj.review_state}")
-            print(f"Total Findings: {len(proj.findings)}")
             unresolved = [fid for fid, f in proj.findings.items() if f.status not in TERMINAL_FINDING_STATUSES]
-            print(f"Unresolved Findings: {len(unresolved)} ({', '.join(unresolved)})")
+            if args.format == "json":
+                print(json.dumps({"review_state": proj.review_state, "owner": proj.owner,
+                                  "max_cycles": proj.max_cycles, "cycles": proj.cycles,
+                                  "findings": len(proj.findings), "unresolved": unresolved}, sort_keys=True))
+            else:
+                print(f"State: {proj.review_state}")
+                print(f"Total Findings: {len(proj.findings)}")
+                print(f"Unresolved Findings: {len(unresolved)} ({', '.join(unresolved)})")
 
         elif args.command == "push-refs":
             _, proj = load_ledger(args.bead_id)

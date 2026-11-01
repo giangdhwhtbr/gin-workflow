@@ -32,5 +32,8 @@ Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` when t
 - The PR/MR uses the generated template; fill `Plan:` with the plan path and `Tracks:` with the track numbers exactly, because `team deps` on other machines reads them.
 - With `team.beads_sync`, run `team sync` after closing a bead.
 
+## review
+`init` and `start-review` take the member email from `team whoami` as `--actor-id`, so the ledger refuses the track owner as reviewer; another member (or an agent run by one) reviews. `init` passes `--max-cycles` from `routing.review.max_cycles`.
+
 ## ship
 When `team.approvals.ship` lists roles: offer only the PR and keep options, push the feature branch, open or reuse the PR, ask that role to approve the latest commit (the host approval policy, in addition to stage-contract Approvals), and before merging run `gin-workflow team check --gate ship <pr-url>`; stop if it reports reasons. A commit pushed after the approval needs a new approval. On GitLab the project must enable 'Reset approvals on push'; when the check reports `approvals still syncing`, retry. Merging follows the host rules (CODEOWNERS, branch protection). With `team.beads_sync`, run `team sync` after closing the beads. A member's ship reports only their own tracks; the lead declares the feature complete once every track PR has merged.

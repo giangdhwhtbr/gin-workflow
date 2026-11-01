@@ -192,6 +192,10 @@ class ReviewProjection:
         self.next_finding_number: int = 1
         self.review_event_id: str = ""
         self.review_event_revision: Optional[int] = None
+        self.owner: str = ""
+        self.max_cycles: Optional[int] = None
+        self.cycles: int = 0
+        self.decided_since_cycle: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -205,6 +209,10 @@ class ReviewProjection:
             "next_finding_number": self.next_finding_number,
             "review_event_id": self.review_event_id,
             "review_event_revision": self.review_event_revision,
+            "owner": self.owner,
+            "max_cycles": self.max_cycles,
+            "cycles": self.cycles,
+            "decided_since_cycle": self.decided_since_cycle,
         }
 
     @classmethod
@@ -225,6 +233,10 @@ class ReviewProjection:
         p.next_finding_number = d.get("next_finding_number", 1)
         p.review_event_id = d.get("review_event_id", "")
         p.review_event_revision = d.get("review_event_revision")
+        p.owner = d.get("owner", "")
+        p.max_cycles = d.get("max_cycles")
+        p.cycles = d.get("cycles", 0)
+        p.decided_since_cycle = d.get("decided_since_cycle", False)
         return p
 
     def apply_event(self, event: LedgerEvent):
@@ -238,6 +250,8 @@ class ReviewProjection:
             self.review_state = payload.get("review_state", "implementation-in-progress")
             self.repositories = [normalize_repository(item) for item in payload.get("repositories", [])]
             self.source_scope = payload.get("source_scope", {})
+            self.owner = str(payload.get("owner") or "")
+            self.max_cycles = payload.get("max_cycles")
 
         elif action == EventActions.REVIEW_SCOPE_ESTABLISHED:
             self.source_scope = payload.get("source_scope", {})
@@ -295,6 +309,8 @@ class ReviewProjection:
             self.review_state = "review-in-progress"
             self.review_event_id = event.event_id
             self.review_event_revision = self.ledger_revision
+            self.cycles += 1
+            self.decided_since_cycle = False
 
         elif action == EventActions.FINDING_CREATED:
             fid = payload["finding_id"]
@@ -380,6 +396,7 @@ class ReviewProjection:
                 self.findings[fid].status = "human-decision-required"
 
         elif action == EventActions.HUMAN_DECISION_RECORDED:
+            self.decided_since_cycle = True
             fid = payload["finding_id"]
             if fid in self.findings:
                 self.findings[fid].status = "human-decision-recorded"
