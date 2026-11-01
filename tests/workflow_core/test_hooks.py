@@ -16,7 +16,8 @@ from unittest import mock
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from workflow_core import hooks, setup_service  # noqa: E402
+from workflow_core import hooks, setup_service, verification  # noqa: E402
+from workflow_core.events import WorkflowEventStore  # noqa: E402
 
 CONFIG = """schema_version: "2.7"
 project:
@@ -260,3 +261,83 @@ class TestHooksRun(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPassingRunRecords(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.base = Path(os.path.realpath(self.tmp.name))
+        self.root = make_repo(self.base)
+
+    def other(self, name, **kwargs):
+        path = self.base / name
+        path.mkdir()
+        return make_repo(path, **kwargs)
+
+    def records(self, root):
+        path = root / ".agent-workflow/runtime/events.jsonl"
+        events = WorkflowEventStore(path).read_all() if path.is_file() else []
+        return [event for event in events if event.event_type == verification.EVENT_TYPE]
+
+    def test_us4_passing_pre_push_records_the_tested_tree(self):
+        self.assertEqual(0, hooks.run(self.root, "pre-push", [push_ref(self.root)]))
+        found, _ = verification.check(self.root, "HEAD")
+        self.assertEqual(found["tree"], git(self.root, "rev-parse", "HEAD^{tree}"))
+        self.assertEqual((found["hook"], found["commands"]), ("pre-push", ["test"]))
+
+    def test_us4_failing_run_records_nothing(self):
+        root = self.other("b", test="false")
+        self.assertNotEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
+        self.assertEqual([], self.records(root))
+
+    def test_us4_tracked_changes_record_nothing(self):
+        (self.root / "f.txt").write_text("y")
+        self.assertEqual(0, hooks.run(self.root, "pre-push", [push_ref(self.root)]))
+        self.assertEqual([], self.records(self.root))
+
+    def test_us4_pre_commit_records_nothing(self):
+        self.assertEqual(0, hooks.run(self.root, "pre-commit"))
+        self.assertEqual([], self.records(self.root))
+
+    def test_us4_failed_record_warns_and_keeps_the_exit_code(self):
+        err = io.StringIO()
+        with mock.patch.object(verification, "record", side_effect=OSError("disk full")), \
+                contextlib.redirect_stderr(err):
+            self.assertEqual(0, hooks.run(self.root, "pre-push", [push_ref(self.root)]))
+        self.assertIn("passing run not recorded: disk full", err.getvalue())
+
+    def test_us4_check_needs_a_test_command(self):
+        tree = git(self.root, "rev-parse", "HEAD^{tree}")
+        self.assertEqual((None, f"no passing check recorded for tree {tree}"), verification.check(self.root, "HEAD"))
+        verification.record(self.root, "pre-push", tree, ["lint"])
+        found, reason = verification.check(self.root, "HEAD")
+        self.assertIsNone(found)
+        self.assertIn("ran no test command", reason)
+        verification.record(self.root, "pre-push", tree, ["pkg:test"])
+        self.assertIsNotNone(verification.check(self.root, "HEAD")[0])
+
+    def test_us4_check_without_commit_needs_a_clean_tree(self):
+        verification.record(self.root, "pre-push", git(self.root, "rev-parse", "HEAD^{tree}"), ["test"])
+        self.assertIsNotNone(verification.check(self.root)[0])
+        (self.root / "f.txt").write_text("y")
+        found, reason = verification.check(self.root)
+        self.assertIsNone(found)
+        self.assertIn("commit them first", reason)
+
+    def test_us4_evidence_cli_run_and_check(self):
+        quiet = contextlib.redirect_stdout(io.StringIO())
+        with quiet, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(1, verification.main(["check", "--repository", str(self.root)]))
+            self.assertEqual(0, verification.main(["run", "--repository", str(self.root)]))
+            self.assertEqual(0, verification.main(["check", "--commit", "HEAD", "--repository", str(self.root)]))
+            (self.root / "f.txt").write_text("y")
+            self.assertEqual(2, verification.main(["run", "--repository", str(self.root)]))
+
+    def test_us4_record_from_a_linked_worktree_lands_in_the_main_checkout(self):
+        tree = self.base / "wt"
+        git(self.root, "worktree", "add", "-q", "-b", "track", str(tree))
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(0, verification.run(tree))
+        self.assertEqual(1, len(self.records(self.root)))
+        self.assertIsNotNone(verification.check(self.root, "HEAD")[0])
