@@ -448,6 +448,15 @@ class TestPlanChecks(unittest.TestCase):
         result = run_cli(self.root, "team", "check-plan", str(path))
         self.assertEqual(1, result.returncode)
 
+    def test_a_file_in_two_tracks_is_rejected(self):
+        plan = PLAN.replace("- Modify: `web/login.tsx:10-20`\n",
+                            "- Modify: `web/login.tsx:10-20`\n- Modify: `services/auth/login.py`\n") + \
+            "\n### Track 3: Docs\n**Metadata:**\n- Area: backend\n- Owner: em@corp.com\n\n**Files:**\n" \
+            "- Modify: `services/auth/login.py:1-5`\n"
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertIn("`services/auth/login.py` is listed by tracks 1, 2 and 3", check_plan(self.team, path))
+        self.assertEqual(1, run_cli(self.root, "team", "check-plan", str(path)).returncode)
+
 
 if __name__ == "__main__":
     unittest.main()

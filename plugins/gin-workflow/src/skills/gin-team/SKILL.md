@@ -16,7 +16,7 @@ Applies only when `gin-workflow state --format json` reports `project.team.enabl
 When `team.approvals.requirement_confirmed` lists roles, spec review is `pr`: with `project.layout: sdd` follow the `pr` flow of the `gin-sdd` skill; otherwise commit only the spec file on `spec/<topic>`, push, and open a PR after approval (stage-contract Approvals). Record `requirement-confirmed --evidence <pr-url>` once it is merged (`--spec <path>` when the PR changes several spec files).
 
 ## plan
-Each track's Metadata adds `Area: <area>` and `Owner: <member email>` (required unless `team.beads_sync` is set; reassigning a track means a new plan PR). A track's files stay inside its area; split a track that crosses areas. `team check-plan <plan>` must exit 0 before asking for approval. With `plan_approved: area_lead` (or roles), commit only the plan on `plan/<topic>`, push, and open a PR; after it merges, record `plan-approved --evidence <pr-url>` (`--plan <path>` when the PR changes several plan files).
+Each track's Metadata adds `Area: <area>` and `Owner: <member email>` (required unless `team.beads_sync` is set; reassigning a track means a new plan PR). A track's files stay inside its area; split a track that crosses areas. No file may be listed by two tracks. `team check-plan <plan>` must exit 0 before asking for approval. With `plan_approved: area_lead` (or roles), commit only the plan on `plan/<topic>`, push, and open a PR; after it merges, record `plan-approved --evidence <pr-url>` (`--plan <path>` when the PR changes several plan files).
 
 ## orchestrate
 Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` when the track has one.
