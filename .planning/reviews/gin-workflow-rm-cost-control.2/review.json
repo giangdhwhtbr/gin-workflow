@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+      "review_base_sha": "ab364f2be3e5f713916a99fed889ee6ee327ff82",
+      "reviewed_source_sha": "e5442821fc3eee695394e3a4e7484b42f263c457",
+      "checkpoint_sha": "e5442821fc3eee695394e3a4e7484b42f263c457",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+      "reviewed_source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 7,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-01T04:53:21.421540Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+            "review_base_sha": "ab364f2be3e5f713916a99fed889ee6ee327ff82",
+            "reviewed_source_sha": "a8265a3b5eb74a2136134898a8bfab3017e981d2",
+            "checkpoint_sha": "a8265a3b5eb74a2136134898a8bfab3017e981d2",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+            "reviewed_source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "8397747ef513c8fbf6bce1e818b79332e840d6701a9e4213f6232ccdd21e207d"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-01T04:53:21.780763Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+            "review_base_sha": "ab364f2be3e5f713916a99fed889ee6ee327ff82",
+            "reviewed_source_sha": "e5442821fc3eee695394e3a4e7484b42f263c457",
+            "checkpoint_sha": "e5442821fc3eee695394e3a4e7484b42f263c457",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+            "reviewed_source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "8397747ef513c8fbf6bce1e818b79332e840d6701a9e4213f6232ccdd21e207d",
+      "event_hash": "13ad8dff0789fe247da47f02c429186356e7759435061b61d23d26b542e891bf"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-01T04:53:21.910733Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "13ad8dff0789fe247da47f02c429186356e7759435061b61d23d26b542e891bf",
+      "event_hash": "b4cab25a9f4c4b28e5ea962d338112c2afc33d812977d0c62444647bfb43cbf8"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-01T04:53:52.090520Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-30e1cf82"
+      },
+      "payload": {
+        "lease_id": "c3fa3f9035164f86a13aac4948e0d71c",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-30e1cf82",
+        "acquired_at": "2026-11-01T04:53:52.089507Z",
+        "expires_at": "2026-11-01T05:03:52.089507Z"
+      },
+      "previous_event_hash": "b4cab25a9f4c4b28e5ea962d338112c2afc33d812977d0c62444647bfb43cbf8",
+      "event_hash": "ba5f5bdeb3b462bc3fc616e3c59cf7a503ac586e65a496c1d0c9f06916da5d0a"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-01T04:53:52.120891Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-30e1cf82"
+      },
+      "payload": {},
+      "previous_event_hash": "ba5f5bdeb3b462bc3fc616e3c59cf7a503ac586e65a496c1d0c9f06916da5d0a",
+      "event_hash": "d91b2f42a5b01aeb2325bb03d6ef7dba31e4b527d13c3e7ed1b88ea3f034b7e6"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-11-01T04:54:20.946516Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-30e1cf82"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-cost-control.2",
+            "review_base_sha": "ab364f2be3e5f713916a99fed889ee6ee327ff82",
+            "reviewed_source_sha": "e5442821fc3eee695394e3a4e7484b42f263c457",
+            "checkpoint_sha": "e5442821fc3eee695394e3a4e7484b42f263c457",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+            "reviewed_source_tree_hash": "7e5c1be92e346524a53d115a971073ca2f0a110aa0f70b368ff6ba57a7b0fc93",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "d91b2f42a5b01aeb2325bb03d6ef7dba31e4b527d13c3e7ed1b88ea3f034b7e6",
+      "event_hash": "7d2a5a0bf7f450db3e07bfc1194ed6bd1b3826efbf19b83d49504372ca0da9ba"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-11-01T04:54:21.200557Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-30e1cf82"
+      },
+      "payload": {
+        "lease_id": "c3fa3f9035164f86a13aac4948e0d71c",
+        "released_at": "2026-11-01T04:54:21.199361Z"
+      },
+      "previous_event_hash": "7d2a5a0bf7f450db3e07bfc1194ed6bd1b3826efbf19b83d49504372ca0da9ba",
+      "event_hash": "791000d17ad161b456f66387f11ae11fbaaf4c4fe512673c36f1faf6e2999cb7"
+    }
+  ]
+}

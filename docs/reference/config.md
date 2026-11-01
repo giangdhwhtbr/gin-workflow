@@ -97,7 +97,7 @@ Credentials are read from `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the env
 
 ### `usage`
 
-`budget_usd` (number above 0, optional): the AI spend ceiling of each epic, in USD. `gin-workflow usage collect --bead <epic>` compares the epic's cost with it and reports `ok`, `warn` (from 80%), `stop` (from 120%), or `unenforceable` (a used model has no price in `.agent-workflow/usage-prices.yaml`). See [AI usage report](../guides/usage-report.md#budget).
+`budget_usd` (number above 0, optional): the AI spend ceiling of each epic, in USD. `gin-workflow usage collect --bead <epic>` compares the epic's cost with it and reports `ok`, `warn` (from 80%), `stop` (from 120%), or `unenforceable` (a used model has no price in `.agent-workflow/usage-prices.yaml`). At `stop`, `routes dispatch` refuses the next track (exit 3) until you raise the budget. See [AI usage report](../guides/usage-report.md#budget).
 
 ### `artifacts`
 

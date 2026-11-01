@@ -26,7 +26,7 @@ from .configuration import ConfigValidationError, load_effective_config, require
 from .events import WorkflowEvent, WorkflowEventStore
 from .locking import file_lock
 from .models import EffectiveConfig
-from . import orchestrator_client
+from . import orchestrator_client, usage
 from .project_detect import detect_project
 from .provider_config import PROVIDER_DEFAULT
 
@@ -198,6 +198,14 @@ def dispatch(
     )
     if not manifest_path.is_file():
         return {"status": "error", "message": f"manifest not found: {manifest_path}"}, 2
+
+    try:
+        stop = usage.over_budget(root, workflow_id)
+    except usage.UsageError as error:
+        print(f"warning: budget not checked: {error}", file=sys.stderr)
+        stop = None
+    if stop is not None:
+        return stop, 3
 
     yaml = require_yaml()
     lock_path = manifest_path.with_name(f".{manifest_path.name}.lock")
