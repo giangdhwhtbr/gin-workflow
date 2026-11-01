@@ -1,7 +1,7 @@
 # Cost control: enforced budgets, no wasted test reruns
 
 Epic: gin-workflow-rm-cost-control
-Status: draft for user review.
+Status: confirmed by the user on 2026-11-01.
 
 ## Goal and scope
 
