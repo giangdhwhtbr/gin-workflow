@@ -46,9 +46,12 @@ for ((i = 0; i < ${#COMMAND}; i++)); do
   if [ "$quote" = '"' ] && [ "$c" = "\\" ]; then
     segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}; unq+=$c
   elif [ "$c" = "$quote" ]; then
-    # A quoted flag or word ("-n", "commit") counts as unquoted; quoted text with spaces (a message) stays Q.
-    quote="" q_text=${unq:q_start}
-    if [[ "$q_text" =~ [[:space:]] ]]; then bare+=Q; else bare+=$q_text; fi
+    # A quoted flag or word ("-n", "commit") counts as unquoted; quoted text with spaces (a message) stays Q,
+    # and so does an empty quote that is a whole word (`-m ""`), so it still counts as a word.
+    quote="" q_text=${unq:q_start} next=${COMMAND:i+1:1}
+    if [[ "$q_text" =~ [[:space:]] ]]; then bare+=Q
+    elif [ -z "$q_text" ] && [[ "$bare" =~ (^|[[:space:]])$ && "$next" =~ ^([[:space:]\;\&\|]|$) ]]; then bare+=Q
+    else bare+=$q_text; fi
   elif [ -n "$quote" ]; then
     unq+=$c
   elif [ "$c" = "\\" ]; then
@@ -102,7 +105,12 @@ q="[\"']?"
 hooks_c_re="[[:space:]]-c[[:space:]]*${q}core\.hookspath="
 # `(`, a backtick or `{` may precede git; `)`, `;` or a backtick may follow a flag.
 git_re='(^|[[:space:]/(`{])git([[:space:]]|$)'
-commit_n_re='[[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]);`]|$)'
+git_word_re='^(.*[/(`{])?git$'
+git_value_opt_re='^(-C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--attr-source)$'
+commit_n_word_re='^-[a-z]*n[a-z]*([);`<>].*)?$'
+# A short cluster takes the next word only when its first value letter ends it (`-am x`; `-mdoc` is -m doc).
+# -S, -u and -t glue their values too, so they may not precede it; nocasematch makes -s and -S one letter.
+commit_value_opt_re='^(-[^-mfcstu]*[mfc]|--(message|file|author|date|trailer|reuse-message|reedit-message|fixup|squash))$'
 config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])core\.hookspath'
 hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
 # `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval`; group 7 is the payload the shell runs. Words before
@@ -125,8 +133,22 @@ for i in "${!segments[@]}"; do
   fi
   # `/usr/bin/git` counts; a `git` inside quotes (bare has it as Q) does not.
   [[ "$bare" =~ $git_re ]] || continue
-  # -n on commit only, outside quotes: `-m 'fix -n flag'` is a message, not a flag.
-  [[ "$bare" =~ $commit_n_re ]] && block_hooks "git commit -n"
+  # -n on commit only, outside quotes: `-m 'fix -n flag'` is a message, not a flag. After each git, global
+  # options (and the value of -C, -c, --git-dir, ...) come first; the first other word is the subcommand.
+  # In a commit, the word after a value option (-m, -F, --author, ...) is that value, not a flag.
+  read -ra words <<< "$bare"
+  sub="" skip=""
+  for w in "${words[@]}"; do
+    if [ -n "$skip" ]; then skip=""
+    elif [[ "$sub" == commit ]]; then
+      # A commit's words stay its arguments (`-m fix/git -n`); a git among them can only over-block.
+      [[ "$w" =~ $commit_n_word_re ]] && block_hooks "git commit -n"
+      [[ "$w" =~ $commit_value_opt_re ]] && skip=1
+    elif [[ "$w" =~ $git_word_re ]]; then sub=git
+    elif [ "$sub" = git ]; then
+      if [[ "$w" =~ $git_value_opt_re ]]; then skip=1; elif [[ "$w" != -* ]]; then sub=$w; fi
+    fi
+  done
   # hooksPath rules read the raw segment too, so a quoted key or value with spaces still matches.
   for s in "$raw" "$bare"; do
     [[ "$s" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath"
