@@ -77,8 +77,9 @@ Epic: gin-workflow-rm-cost-control
 Milestone: gin-workflow-8w27
 Estimate: 1
 Goal: AI spend per epic has an enforced ceiling, retries happen only for transient failures, and reviewers reuse existing evidence instead of repeating work.
-Scope: `usage.budget_usd` per epic with a warning, then a stop, in `usage collect`; usage collected after every dispatch, not only at track close; retries only for transient failure kinds (quota, rate limit, service) and the prior attempt's `changed_files` passed to the next; the circuit breaker opens on the first QUOTA or AUTH failure; one constant owns the timeout and retry defaults; the reviewer calls `find_verification` and reruns tests only when evidence is missing or stale; a timed-out attempt kills its process group; `routes resolve` warns when every track is on the top model.
-Out of scope: model prices; multi-track parallel dispatch inside the `execute` skill (separate bead).
+Scope: `usage.budget_usd` per epic with a warning, then a stop enforced by `routes dispatch`; usage collected after every dispatch, not only at track close; git hooks record passing verify runs by tree hash and the reviewer reruns tests only when no matching record exists; `routes resolve` warns when every track is on the top model.
+Out of scope: model prices; multi-track parallel dispatch inside the `execute` skill (separate bead); retry and circuit-breaker rules and the timeout/retry defaults constant (moved to `gin-workflow-dura`, since `WorkerScheduler` is not wired into any production path yet); process-group kill on timeout (done on POSIX; Windows in `gin-workflow-rm-windows-parity`).
+Spec: .planning/specs/2026-11-01-cost-control-design.md
 Depends on: gin-workflow-rm-reliability-core
 Evidence: `plugins/gin-orchestrator/src/scripts/gin_orchestrator/{budget.py:1-10,worker_scheduler.py:92,182-205,232-289,circuit_breaker.py:38-46,registry.py:107,251,config.py:9-11,evidence.py:309-358}`; `workflow_core/usage.py:63-307`; `plugins/gin-workflow/src/skills/review/SKILL.md:23`.
 Risks: usage attribution by time span is heuristic, so the budget stop has error bars; warn first, stop only above a margin.
@@ -99,7 +100,7 @@ Epic: gin-workflow-dura
 Milestone: gin-workflow-8w27
 Estimate: 1
 Goal: When Codex, Antigravity, OpenCode, or Copilot is the main harness, tracks, reviews, and explorations run on workers at the catalog model and effort instead of in the main session.
-Scope: choose in `/discuss` between native subagent spawn per harness (agent file format, per-spawn model and effort, tool permissions) and handing tracks to the harness's own CLI worker through gin-orchestrator (reusing the `btt3` R10 workers); agent translation in `install.sh` for Codex, Antigravity, OpenCode (none today), and Copilot (dropped today).
+Scope: choose in `/discuss` between native subagent spawn per harness (agent file format, per-spawn model and effort, tool permissions) and handing tracks to the harness's own CLI worker through gin-orchestrator (reusing the `btt3` R10 workers); agent translation in `install.sh` for Codex, Antigravity, OpenCode (none today), and Copilot (dropped today); from cost control: retries only for transient failure kinds (quota, rate limit, service) with the prior attempt's `changed_files` passed to the next, the circuit breaker opening on the first QUOTA or AUTH failure, and one constant owning the timeout and retry defaults, applied to the dispatch path this epic wires.
 Out of scope: changes to the model catalog; Claude Code dispatch (shipped in `gin-workflow-btt3`).
 Depends on: gin-workflow-rm-cost-control
 Evidence: `.planning/specs/2026-10-29-model-effort-selection-design.md`; `install.sh:448`; closed epic `gin-workflow-btt3` (merged at 5b5e0da).
