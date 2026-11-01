@@ -3,7 +3,11 @@
 **Bead Status:** `review-approved`
 
 ## Active Lease
-*No active lease.*
+- **Lease ID:** `240cec7826534ef5b0eed9b79a7ce4b2`
+- **Actor:** `reviewer:claude:session-6c8b3c74` (reviewer)
+- **Acquired:** `2026-11-01T17:19:54.616831Z`
+- **Expires:** `2026-11-01T17:29:54.616831Z`
+- **Ledger Revision:** `21`
 
 ## Review Approval
 - **Status:** Approved
@@ -69,3 +73,4 @@
 | `EV-000018` | `2026-11-01T17:03:58.749493Z` | `finding-verified` | `reviewer:claude:session-6c8b3c74` (reviewer) |
 | `EV-000019` | `2026-11-01T17:03:59.092380Z` | `review-approved` | `reviewer:claude:session-6c8b3c74` (reviewer) |
 | `EV-000020` | `2026-11-01T17:03:59.429041Z` | `lease-released` | `reviewer:claude:session-6c8b3c74` (reviewer) |
+| `EV-000021` | `2026-11-01T17:19:54.617912Z` | `lease-acquired` | `reviewer:claude:session-6c8b3c74` (reviewer) |
