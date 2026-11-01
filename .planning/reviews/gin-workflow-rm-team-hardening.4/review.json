@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+      "review_base_sha": "8d9735d5266c5aaaa42b09c9e59649bd7fea12e6",
+      "reviewed_source_sha": "3590e39b2b68571b68cee79917ea7e3a80bfb957",
+      "checkpoint_sha": "3590e39b2b68571b68cee79917ea7e3a80bfb957",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+      "reviewed_source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 7,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-01T08:39:03.573941Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+            "review_base_sha": "8d9735d5266c5aaaa42b09c9e59649bd7fea12e6",
+            "reviewed_source_sha": "21f767bd4f77cbc74d48f9716ce6ad44d4fe9dff",
+            "checkpoint_sha": "21f767bd4f77cbc74d48f9716ce6ad44d4fe9dff",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+            "reviewed_source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        }
+      },
+      "previous_event_hash": null,
+      "event_hash": "b98247193c8d92246382c8779881eca13f44fe43b3d1915beef15fb54461a729"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-01T08:39:03.884406Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+            "review_base_sha": "8d9735d5266c5aaaa42b09c9e59649bd7fea12e6",
+            "reviewed_source_sha": "3590e39b2b68571b68cee79917ea7e3a80bfb957",
+            "checkpoint_sha": "3590e39b2b68571b68cee79917ea7e3a80bfb957",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+            "reviewed_source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "b98247193c8d92246382c8779881eca13f44fe43b3d1915beef15fb54461a729",
+      "event_hash": "804b43010f6dbe6684beabcd4081bd34633352ae074e8bfdbf90990fcf932c32"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-01T08:50:01.395142Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "804b43010f6dbe6684beabcd4081bd34633352ae074e8bfdbf90990fcf932c32",
+      "event_hash": "5c04909a44e5cb834f4a5d1fcc4d4c37c8475a44dfc3748116e4a134b8782e55"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-01T08:50:34.183118Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-ca6a34d6"
+      },
+      "payload": {
+        "lease_id": "bff244e1941e4dd7af232b05cdf1a449",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-ca6a34d6",
+        "acquired_at": "2026-11-01T08:50:34.182359Z",
+        "expires_at": "2026-11-01T09:00:34.182359Z"
+      },
+      "previous_event_hash": "5c04909a44e5cb834f4a5d1fcc4d4c37c8475a44dfc3748116e4a134b8782e55",
+      "event_hash": "7e0cf54e753654c73cb59765fc70f67f317de0faacde9c51c6827140b4d56ff6"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-01T08:50:34.201817Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-ca6a34d6"
+      },
+      "payload": {},
+      "previous_event_hash": "7e0cf54e753654c73cb59765fc70f67f317de0faacde9c51c6827140b4d56ff6",
+      "event_hash": "f875b91e7bef8a07cfad3b0de9a37ed0e1eaa3c5ec2ba429916171ee70ce42ba"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-11-01T08:50:50.561334Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-ca6a34d6"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-team-hardening.4",
+            "review_base_sha": "8d9735d5266c5aaaa42b09c9e59649bd7fea12e6",
+            "reviewed_source_sha": "3590e39b2b68571b68cee79917ea7e3a80bfb957",
+            "checkpoint_sha": "3590e39b2b68571b68cee79917ea7e3a80bfb957",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+            "reviewed_source_tree_hash": "115d410bf24037dbc48120718ab348d10d8ef1b14d6a4de46312263115f32814",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "f875b91e7bef8a07cfad3b0de9a37ed0e1eaa3c5ec2ba429916171ee70ce42ba",
+      "event_hash": "9b94ab28d1f82c6fef00263dbdddbad7e09a9236e922a5fb3d2849ef8b168de1"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-11-01T08:50:50.778772Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-ca6a34d6"
+      },
+      "payload": {
+        "lease_id": "bff244e1941e4dd7af232b05cdf1a449",
+        "released_at": "2026-11-01T08:50:50.778016Z"
+      },
+      "previous_event_hash": "9b94ab28d1f82c6fef00263dbdddbad7e09a9236e922a5fb3d2849ef8b168de1",
+      "event_hash": "748dc01491a0297f7f64790f1d470cbbb8df10cf5565ddd4574e7386f726eb71"
+    }
+  ]
+}
