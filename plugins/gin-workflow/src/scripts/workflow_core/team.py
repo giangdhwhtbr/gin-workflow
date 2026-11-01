@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
 ROADMAP = {"legacy": ".planning/roadmap.md", "sdd": "docs/roadmap.md"}
 DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead", "ship": []}
+POLICY_GATES = ("requirement_confirmed", "plan_approved", "ship")
 _WILDCARDS = re.compile(r"[*?\[]")
 
 
@@ -44,6 +45,8 @@ class TeamConfig:
     approvals: Mapping[str, Any] = field(default_factory=lambda: dict(DEFAULT_APPROVALS))
     beads_remote: str = ""
     permissions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    strict: bool = False
+    claim_ttl_hours: int = 48
 
     def member(self, email: str) -> Member | None:
         return self.members.get(email.strip().lower())
@@ -104,6 +107,10 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
         for other, other_prefix in prefixes[index + 1:]:
             if other != name and (prefix.startswith(other_prefix) or other_prefix.startswith(prefix)):
                 errors.append(f"team.areas: {name} and {other} overlap ({prefix!r} vs {other_prefix!r})")
+    if raw.get("strict"):
+        approvals = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}
+        errors += [f"team.strict: team.approvals.{gate} has no role policy" for gate in POLICY_GATES
+                   if not _has_policy(approvals.get(gate, []), areas)]
     return errors
 
 
@@ -130,6 +137,8 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
         approvals=approvals,
         beads_remote=str((raw.get("beads_sync") or {}).get("remote", "")),
         permissions={key: tuple(roles) for key, roles in (raw.get("permissions") or {}).items()},
+        strict=bool(raw.get("strict", False)),
+        claim_ttl_hours=int(raw.get("claim_ttl_hours", 48)),
     )
 
 
@@ -273,6 +282,14 @@ def check_plan(team: TeamConfig, path: Path) -> list[str]:
                 errors.append(f"{label}: owner {track.owner} is not in team.members")
             elif track.area in team.areas and not team.eligible(member, team.areas[track.area]):
                 errors.append(f"{label}: owner {track.owner} holds no role allowed in area {track.area}")
+    listed: dict[str, list[int]] = {}
+    for track in tracks:
+        for item in track.files:
+            listed.setdefault(item, []).append(track.number)
+    for item, numbers in listed.items():
+        if len(numbers) > 1:
+            names = [str(n) for n in sorted(numbers)]
+            errors.append(f"`{item}` is listed by tracks {', '.join(names[:-1])} and {names[-1]}")
     return errors
 
 
@@ -346,13 +363,15 @@ def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> st
 def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact: str = "",
                    local_head: str = "") -> list[str]:
     """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
-    policy = team.approvals.get(gate, [])
+    policy = team.approvals.get("ship" if gate == "shipped" else gate, [])
     reasons: list[str] = []
     expected, actual = origin_slug(Path(root)), repo_slug(pr.url, pr=True)
     if actual != expected:
         reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
-    if gate == "ship":
-        if pr.state not in ("open", "merged"):
+    if gate in ("ship", "shipped"):
+        if gate == "shipped" and not pr.merged:
+            reasons.append(f"PR is {pr.state}, not merged")
+        elif pr.state not in ("open", "merged"):
             reasons.append(f"PR is {pr.state}")
         if local_head and pr.head_sha != local_head:
             reasons.append(f"PR head {pr.head_sha[:12]} is not local HEAD {local_head[:12]}")
@@ -391,9 +410,12 @@ def gate_roles(gate: str, team: TeamConfig) -> set[str]:
     return set(policy)
 
 
+def _has_policy(policy: Any, areas: Mapping[str, Any]) -> bool:
+    return policy == "area_lead" and bool(areas) or isinstance(policy, list) and bool(policy)
+
+
 def has_policy(gate: str, team: TeamConfig) -> bool:
-    policy = team.approvals.get(gate, [])
-    return policy == "area_lead" and bool(team.areas) or isinstance(policy, list) and bool(policy)
+    return _has_policy(team.approvals.get(gate, []), team.areas)
 
 
 def can_waive(member: Member, gate: str, team: TeamConfig) -> bool:
@@ -401,12 +423,11 @@ def can_waive(member: Member, gate: str, team: TeamConfig) -> bool:
     return not roles or bool(roles & set(member.roles))
 
 
-def approver_payload(pr: Any, team: TeamConfig) -> list[dict[str, Any]]:
+def approver_payload(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> list[dict[str, Any]]:
     result = []
-    for login, _commit in pr.approvals:
+    for login in _approver_roles(pr, team, on_commit=on_commit):
         member = team.by_login(login)
-        if member is not None and login.lower() != pr.author.lower():
-            result.append({"login": login, "email": member.email, "roles": list(member.roles)})
+        result.append({"login": login, "email": member.email, "roles": list(member.roles)})
     return result
 
 
@@ -433,23 +454,27 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
     if not url.startswith(("https://", "http://")):
         raise TeamError(f"{gate} needs a PR/MR URL as --evidence in team mode, got {url!r}")
     pr = fetch_pr(url, team.host, Path(root))
-    artifact = "" if gate == "ship" else resolve_artifact(
+    artifact = "" if gate in ("ship", "shipped") else resolve_artifact(
         pr, Path(root), gate, plan if gate == "plan_approved" else spec)
     head = _head(Path(root)) if gate == "ship" else ""
-    return pr, artifact, check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
+    reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
+    return pr, artifact, reasons
 
 
 def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, actor: str | None = None,
                      plan: str | None = None, spec: str | None = None) -> tuple[str, dict[str, Any]]:
     """Team-mode `record`: the member's email as actor plus, for a gate with a policy, the PR proof."""
     member = require_member(root, team, actor)
-    if gate not in GATES or not has_policy(gate, team):
+    if (gate not in GATES and gate != "shipped") or not has_policy("ship" if gate == "shipped" else gate, team):
         return member.email, {}
+    if gate == "shipped" and not evidence.startswith(("https://", "http://")):
+        raise TeamError("shipped needs the PR URL as --evidence in team mode")
     pr, artifact, reasons = verify_gate(root, team, gate, evidence, plan=plan, spec=spec)
     if reasons:
         raise TeamRejected(reasons)
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
-                          "approvers": approver_payload(pr, team), "repository": repo_slug(pr.url, pr=True),
+                          "approvers": approver_payload(pr, team, on_commit=pr.head_sha if gate == "shipped" else None),
+                          "repository": repo_slug(pr.url, pr=True),
                           **({"artifact": artifact} if artifact else {})}
 
 

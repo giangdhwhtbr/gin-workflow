@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -1079,3 +1080,96 @@ class TestRecoverySubcommands(unittest.TestCase):
         self.assertEqual("review-requested", proj.review_state)
 
 
+class TestOwnerAndCycles(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.script = str(Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts/review-ledger.py")
+        subprocess.run(["git", "init", "-q", "."], cwd=self.test_dir, check=True)
+        Path(self.test_dir, "f.txt").write_text("x\n")
+        subprocess.run(["git", "add", "f.txt"], cwd=self.test_dir, check=True)
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base"],
+                       cwd=self.test_dir, check=True)
+        subprocess.run(["git", "update-ref", "refs/gin/review/bead-t", "HEAD"], cwd=self.test_dir, check=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def run_cli(self, *args):
+        return subprocess.run([sys.executable, self.script, *args], cwd=self.test_dir, capture_output=True, text=True)
+
+    def init(self, *extra):
+        return self.run_cli("init", "--bead-id", "bead-t", "--repo-id", "r", "--repo-path", ".", "--include", "f.txt",
+                            "--review-ref", "refs/gin/review/bead-t", "--base-sha", "HEAD", "--actor-id", "a@x", *extra)
+
+    def request_review(self):
+        self.run_cli("transition-requested", "--bead-id", "bead-t", "--to", "review-requested",
+                     "--actor-role", "worker", "--actor-id", "a@x")
+
+    def start(self, reviewer):
+        return self.run_cli("start-review", "--bead-id", "bead-t", "--actor-id", reviewer)
+
+    def lease_of(self, result):
+        return result.stdout.strip().split()[-1].rstrip(".")
+
+    def changes_requested(self, lease):
+        self.run_cli("transition-requested", "--bead-id", "bead-t", "--to", "changes-requested",
+                     "--actor-role", "reviewer", "--actor-id", "b@x", "--lease-id", lease)
+        self.run_cli("release-lease", "--bead-id", "bead-t", "--actor-id", "b@x", "--lease-id", lease)
+        self.run_cli("transition-requested", "--bead-id", "bead-t", "--to", "implementation-in-progress",
+                     "--actor-role", "worker", "--actor-id", "a@x")
+        self.request_review()
+
+    def test_reviewer_must_differ_from_the_owner(self):
+        self.init()
+        self.request_review()
+        refused = self.start("a@x")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("reviewer a@x must differ from the track owner", refused.stderr + refused.stdout)
+        self.assertEqual(0, self.start("b@x").returncode)
+
+    def test_max_cycles_stops_the_third_review_until_a_human_decides(self):
+        self.init("--max-cycles", "2")
+        self.request_review()
+        first = self.start("b@x")
+        self.changes_requested(self.lease_of(first))
+        second = self.start("b@x")
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.run_cli("add-finding", "--bead-id", "bead-t", "--finding-id", "F-1", "--severity", "MINOR",
+                     "--actor-id", "b@x", "--lease-id", self.lease_of(second))
+        self.run_cli("dispute-finding", "--bead-id", "bead-t", "--finding-id", "F-1", "--reason", "r",
+                     "--actor-id", "a@x", "--lease-id", self.lease_of(second))
+        from review_ledger.cli import mutate_ledger
+        mutate_ledger("bead-t", "human-decision-required", {"finding_id": "F-1"}, "reviewer", "b@x",
+                      base_dir=self.test_dir, lease_id=self.lease_of(second))
+        self.changes_requested(self.lease_of(second))
+        third = self.start("b@x")
+        self.assertEqual(1, third.returncode)
+        self.assertIn("max review cycles (2) reached; record a human decision", third.stderr + third.stdout)
+        status = json.loads(self.run_cli("status", "--bead-id", "bead-t", "--format", "json").stdout)
+        self.assertEqual(("a@x", 2, 2), (status["owner"], status["max_cycles"], status["cycles"]))
+        self.run_cli("record-human-decision", "--bead-id", "bead-t", "--finding-id", "F-1", "--question", "continue?",
+                     "--decision", "one more cycle", "--reason", "scope grew", "--actor-id", "lead@x")
+        resumed = self.start("b@x")
+        self.assertEqual(0, resumed.returncode, resumed.stderr + resumed.stdout)
+
+    def test_without_max_cycles_any_number_of_reviews_runs(self):
+        self.init()
+        self.request_review()
+        for _ in range(3):
+            started = self.start("b@x")
+            self.assertEqual(0, started.returncode, started.stderr)
+            self.changes_requested(self.lease_of(started))
+        status = json.loads(self.run_cli("status", "--bead-id", "bead-t", "--format", "json").stdout)
+        self.assertEqual((None, 3), (status["max_cycles"], status["cycles"]))
+
+    def test_legacy_ledger_without_owner_accepts_any_reviewer(self):
+        self.init()
+        from review_ledger.cli import get_ledger_paths, mutate_ledger
+        json_path, md_path = get_ledger_paths("bead-t", self.test_dir)
+        payload = json.loads(Path(json_path).read_text())["events"][0]["payload"]
+        payload.pop("owner")
+        os.remove(json_path)
+        os.remove(md_path)
+        mutate_ledger("bead-t", "ledger-created", payload, "worker", "a@x", base_dir=self.test_dir)
+        self.request_review()
+        self.assertEqual(0, self.start("a@x").returncode)

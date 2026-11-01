@@ -57,6 +57,8 @@ _TEAM = {
             "properties": {"remote": {"type": "string", "minLength": 1}},
             "additionalProperties": False,
         },
+        "strict": {"type": "boolean"},
+        "claim_ttl_hours": {"type": "integer", "minimum": 1},
     },
     "additionalProperties": False,
 }

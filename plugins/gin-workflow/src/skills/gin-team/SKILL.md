@@ -11,12 +11,13 @@ Applies only when `gin-workflow state --format json` reports `project.team.enabl
 - `record` and `unblock` take the actor from the git email; omit `--actor`.
 - A gate with roles in `team.approvals` is recorded with `--evidence <PR/MR URL>`; `record` checks that the PR is merged (open is fine for `ship`) and approved by a member holding a listed role, never by its author. Exit 1 lists the missing approvals: report them to the user. Never switch evidence or waive a gate to get past a rejection.
 - `team check --gate <gate> <url>` re-verifies a teammate's gate without recording it.
+- In team mode with Beads, `record` mirrors the proof into the epic bead; a teammate's `state --workflow-id <epic>` shows the gate without re-proving it. A `warning:` from `record` means the gate is recorded only locally: report it.
 
 ## discuss
 When `team.approvals.requirement_confirmed` lists roles, spec review is `pr`: with `project.layout: sdd` follow the `pr` flow of the `gin-sdd` skill; otherwise commit only the spec file on `spec/<topic>`, push, and open a PR after approval (stage-contract Approvals). Record `requirement-confirmed --evidence <pr-url>` once it is merged (`--spec <path>` when the PR changes several spec files).
 
 ## plan
-Each track's Metadata adds `Area: <area>` and `Owner: <member email>` (required unless `team.beads_sync` is set; reassigning a track means a new plan PR). A track's files stay inside its area; split a track that crosses areas. `team check-plan <plan>` must exit 0 before asking for approval. With `plan_approved: area_lead` (or roles), commit only the plan on `plan/<topic>`, push, and open a PR; after it merges, record `plan-approved --evidence <pr-url>` (`--plan <path>` when the PR changes several plan files).
+Each track's Metadata adds `Area: <area>` and `Owner: <member email>` (required unless `team.beads_sync` is set; reassigning a track means a new plan PR). A track's files stay inside its area; split a track that crosses areas. No file may be listed by two tracks. `team check-plan <plan>` must exit 0 before asking for approval. With `plan_approved: area_lead` (or roles), commit only the plan on `plan/<topic>`, push, and open a PR; after it merges, record `plan-approved --evidence <pr-url>` (`--plan <path>` when the PR changes several plan files).
 
 ## orchestrate
 Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` when the track has one.
@@ -25,12 +26,15 @@ Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` when t
 
 ## execute
 - `team deps` first: it closes `external:` placeholders whose track PR has merged.
-- Pick from `team ready` and claim with `team claim <bead>` instead of `bd update --status in_progress`; exit 1 means someone else holds it, so pick another.
+- Pick from `team ready` and claim with `team claim <bead>` instead of `bd update --status in_progress`; exit 1 means someone else holds an unexpired lease or you may not own its area, so pick another; `team ready` marks expired claims you may take over. Without `team.beads_sync` the claim is advisory and the output says so.
 - Out of quota or unavailable: push the branch, then the assignee (or the area lead) runs `team reassign <bead> <email>`; the new owner checks out the pushed `feat/<topic>-t<N>` branch, runs `team claim <bead>` (idempotent for the holder; it marks the bead in progress), and continues. The plan's `Owner:` is not changed.
 - In the track worktree, `team deps --bead <bead>` must exit 0 before implementation; exit 1 names the merge commit to fetch or rebase onto.
 - Branch `feat/<topic>-t<N>` (`<topic>` from the plan file name, `<N>` the track number); existing branches keep their names. Commits follow `team.commit_convention`.
 - The PR/MR uses the generated template; fill `Plan:` with the plan path and `Tracks:` with the track numbers exactly, because `team deps` on other machines reads them.
 - With `team.beads_sync`, run `team sync` after closing a bead.
 
+## review
+`init` and `start-review` take the member email from `team whoami` as `--actor-id`, so the ledger refuses the track owner as reviewer; another member (or an agent run by one) reviews. `init` passes `--max-cycles` from `project.max_cycles` in `state --format json`.
+
 ## ship
-When `team.approvals.ship` lists roles: offer only the PR and keep options, push the feature branch, open or reuse the PR, ask that role to approve the latest commit (the host approval policy, in addition to stage-contract Approvals), and before merging run `gin-workflow team check --gate ship <pr-url>`; stop if it reports reasons. A commit pushed after the approval needs a new approval. On GitLab the project must enable 'Reset approvals on push'; when the check reports `approvals still syncing`, retry. Merging follows the host rules (CODEOWNERS, branch protection). With `team.beads_sync`, run `team sync` after closing the beads. A member's ship reports only their own tracks; the lead declares the feature complete once every track PR has merged.
+When `team.approvals.ship` lists roles: offer only the PR and keep options, push the feature branch, open or reuse the PR, ask that role to approve the latest commit (the host approval policy, in addition to stage-contract Approvals), and before merging run `gin-workflow team check --gate ship <pr-url>`; stop if it reports reasons. After the merge, a standalone bead records `gin-workflow record shipped --workflow-id <bead> --evidence <pr-url>`, which checks the approval on the merged PR head; an epic with children ships by closing it as usual. A commit pushed after the approval needs a new approval. On GitLab the project must enable 'Reset approvals on push'; when the check reports `approvals still syncing`, retry. Merging follows the host rules (CODEOWNERS, branch protection). With `team.beads_sync`, run `team sync` after closing the beads. A member's ship reports only their own tracks; the lead declares the feature complete once every track PR has merged.

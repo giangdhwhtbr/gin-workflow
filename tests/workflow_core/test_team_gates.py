@@ -12,6 +12,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
+from workflow_core.configuration import resolve_effective_config  # noqa: E402
 from workflow_core.team import check_plan, load_team, plan_tracks, repo_slug  # noqa: E402
 from workflow_core.team_host import fetch_pr  # noqa: E402
 
@@ -50,6 +51,16 @@ class GateCase(unittest.TestCase):
     def events(self) -> list[dict]:
         path = self.root / ".agent-workflow/runtime/events.jsonl"
         return [json.loads(line) for line in path.read_text().splitlines()] if path.is_file() else []
+
+    def bd(self, beads: dict[str, dict]) -> None:
+        """A fake bd: `show <id> --json` answers from `beads`; `list ... --json` returns []; updates succeed."""
+        rules = [{"argv": ["show", bead], "stdout": [row]} for bead, row in beads.items()]
+        rules += [{"argv": ["show"], "exit": 1, "stderr": "not found"}, {"argv": ["list"], "stdout": []},
+                  {"argv": ["update"], "stdout": ""}]
+        fake_cli(self.bin, "bd", rules)
+
+    def bd_updates(self) -> list[list[str]]:
+        return [call for call in calls(self.bin) if call[:2] == ["bd", "update"]]
 
 
 class TestRecordGitHub(GateCase):
@@ -233,6 +244,42 @@ class TestRecordGitHub(GateCase):
         self.assertIn("unknown area nowhere", result.stderr)
         self.assertEqual([], self.events())
 
+    def test_shipped_needs_approval_on_the_merged_pr_head(self):
+        write(self.root, ".agent-workflow/config.yaml",
+              (self.root / ".agent-workflow/config.yaml").read_text() + "providers:\n  task_tracking: beads\n")
+        resolve_effective_config(self.root)
+        self.bd({"w": {"id": "w", "issue_type": "task", "status": "closed", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                                    "--epic", "w", env=self.env).returncode)
+        sha = self.record("shipped", "m" * 40)
+        self.assertEqual(2, sha.returncode)
+        self.assertIn("shipped needs the PR URL as --evidence in team mode", sha.stderr)
+        self.gh(gh_pr(state="MERGED", head="f" * 40, author="em-dev", reviews=[("dung-qe", "APPROVED", "old")]))
+        older = self.record("shipped")
+        self.assertEqual(1, older.returncode)
+        self.assertIn("missing approval from one of qe", older.stderr)
+        self.gh(gh_pr(state="MERGED", head="f" * 40, author="em-dev",
+                      reviews=[("binh-dev", "APPROVED", "old"), ("dung-qe", "APPROVED", "f" * 40)]))
+        result = self.record("shipped")
+        self.assertEqual(0, result.returncode, result.stderr)
+        event = self.events()[-1]
+        self.assertEqual(("delivery.shipped", "m" * 40, PR), (event["event_type"], event["payload"]["merge_commit"],
+                                                              event["payload"]["pr_url"]))
+        self.assertEqual(["dung-qe"], [a["login"] for a in event["payload"]["approvers"]])
+        self.assertNotIn("is not local HEAD", result.stderr)
+        update = next(u for u in self.bd_updates() if u[2:4] == ["w", "--set-metadata"])
+        self.assertEqual(PR, json.loads(update[4].removeprefix("gates="))["shipped"]["pr_url"])
+
+    def test_shipped_on_a_closed_unmerged_pr_gives_one_reason(self):
+        self.bd({"w": {"id": "w", "issue_type": "task", "status": "closed", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                                    "--epic", "w", env=self.env).returncode)
+        self.gh(gh_pr(state="CLOSED", head="f" * 40, author="em-dev", reviews=[("dung-qe", "APPROVED", "f" * 40)]))
+        result = self.record("shipped")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("PR is closed, not merged", result.stderr)
+        self.assertEqual(1, result.stderr.count("PR is closed"), result.stderr)
+
     def test_ship_ignores_approval_without_commit(self):
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "feat: x")
@@ -241,6 +288,107 @@ class TestRecordGitHub(GateCase):
         result = self.check_ship()
         self.assertEqual(1, result.returncode)
         self.assertIn("missing approval from one of qe", result.stdout)
+
+
+class TestSharedGates(GateCase):
+    """Team mode with Beads: `record` mirrors gate proofs into the epic bead; `state` reads them back."""
+
+    def setUp(self):
+        super().setUp()
+        write(self.root, ".agent-workflow/config.yaml",
+              (self.root / ".agent-workflow/config.yaml").read_text() + "providers:\n  task_tracking: beads\n")
+        resolve_effective_config(self.root)
+
+    def test_record_writes_the_proof_into_the_epic_bead(self):
+        self.gh(gh_pr(author="em-dev", files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c"),
+                                                                    ("chi-fe", "APPROVED", "c")]))
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open", "metadata": {}}})
+        result = run_cli(self.root, "record", "plan-approved", "--evidence", PR, "--workflow-id", "e-1", env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        update = self.bd_updates()[-1]
+        self.assertEqual(["bd", "update", "e-1", "--set-metadata"], update[:4])
+        gates = json.loads(update[4].removeprefix("gates="))
+        proof = gates["plan_approved"]
+        self.assertEqual((PR, "m" * 40, ["binh@corp.com", "chi@corp.com"], "binh@corp.com"),
+                         (proof["pr_url"], proof["merge_commit"], proof["approvers"], proof["actor"]))
+        self.assertRegex(proof["at"], r"^\d{4}-\d{2}-\d{2}T")
+
+    def test_state_reads_a_gate_from_the_epic_bead(self):
+        proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["binh@corp.com"], "actor": "binh@corp.com",
+                 "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"plan_approved": proof})}}})
+        state = json.loads(run_cli(self.root, "state", "--workflow-id", "e-1", "--format", "json", env=self.env).stdout)
+        self.assertEqual("satisfied", state["gates"]["plan_approved"])
+        self.assertEqual("unmet", state["gates"]["requirement_confirmed"])
+
+    def test_orchestration_ready_seeds_the_epic_and_labels_it(self):
+        self.gh(gh_pr(author="binh-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c1")]))
+        self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open", "metadata": {}}})
+        confirmed = self.record("requirement-confirmed")
+        self.assertEqual(0, confirmed.returncode, confirmed.stderr)
+        self.assertIn("warning: gate requirement_confirmed proven locally; no epic bead to share it", confirmed.stderr)
+        ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                        "--epic", "e-2", env=self.env)
+        self.assertEqual(0, ready.returncode, ready.stderr)
+        updates = self.bd_updates()
+        self.assertIn(["bd", "update", "e-2", "--add-label", "workflow:w"], updates)
+        gates = next(json.loads(u[4].removeprefix("gates=")) for u in updates if u[2] == "e-2" and u[3] == "--set-metadata")
+        self.assertEqual(PR, gates["requirement_confirmed"]["pr_url"])
+
+    def test_state_finds_the_epic_by_workflow_label(self):
+        proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["an@corp.com"], "actor": "binh@corp.com",
+                 "at": "2026-11-01T00:00:00Z"}
+        epic = {"id": "e-3", "issue_type": "epic", "status": "open", "labels": ["workflow:w"],
+                "metadata": {"gates": json.dumps({"requirement_confirmed": proof})}}
+        self.bd({"e-3": epic})
+        fake_cli(self.bin, "bd", json.loads((self.bin / "bd.json").read_text())[:-2]
+                 + [{"argv": ["list", "--label", "workflow:w"], "stdout": [epic]}, {"argv": ["list"], "stdout": []},
+                    {"argv": ["update"], "stdout": ""}])
+        state = json.loads(run_cli(self.root, "state", "--workflow-id", "w", "--format", "json", env=self.env).stdout)
+        self.assertEqual("satisfied", state["gates"]["requirement_confirmed"])
+
+    def test_state_warns_when_a_proven_gate_has_no_epic(self):
+        self.gh(gh_pr(author="binh-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c1")]))
+        self.bd({})
+        self.assertEqual(0, self.record("requirement-confirmed").returncode)
+        state = json.loads(run_cli(self.root, "state", "--workflow-id", "w", "--format", "json", env=self.env).stdout)
+        self.assertIn("gate requirement_confirmed proven locally; no epic bead to share it", state["warnings"])
+
+    def test_bead_write_failure_still_records(self):
+        self.gh(gh_pr(author="binh-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c1")]))
+        fake_cli(self.bin, "bd", [{"argv": ["show", "e-1"], "stdout": [{"id": "e-1", "metadata": {}}]},
+                                  {"argv": ["list"], "stdout": []},
+                                  {"argv": ["update"], "exit": 1, "stderr": "dolt: connection refused"}])
+        result = run_cli(self.root, "record", "requirement-confirmed", "--evidence", PR, "--workflow-id", "e-1",
+                         env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("warning: gate recorded locally; could not write it to e-1", result.stderr)
+        self.assertEqual("requirement.confirmed", self.events()[-1]["event_type"])
+
+    def test_tracker_failure_keeps_the_local_value_and_warns(self):
+        fake_cli(self.bin, "bd", [{"argv": [], "exit": 1, "stderr": "dolt: connection refused"}])
+        state = json.loads(run_cli(self.root, "state", "--workflow-id", "e-1", "--format", "json", env=self.env).stdout)
+        self.assertEqual("unmet", state["gates"]["plan_approved"])
+        self.assertTrue(any("tracker unavailable" in w for w in state["warnings"]), state["warnings"])
+
+    def test_solo_mode_never_writes_gates(self):
+        root = make_team_repo(Path(self.tmp.name) / "solo", team="", extra="providers:\n  task_tracking: beads\n")
+        resolve_effective_config(root)
+        self.bd({})
+        self.assertEqual(0, run_cli(root, "record", "plan-approved", "--evidence", PLAN_PATH, "--workflow-id", "w",
+                                    "--actor", "me", env=self.env).returncode)
+        self.assertEqual([], self.bd_updates())
+        before = len(calls(self.bin))
+        self.assertEqual(0, run_cli(root, "state", "--workflow-id", "w", "--format", "json", env=self.env).returncode)
+        self.assertEqual([], [c for c in calls(self.bin)[before:] if c[0] == "bd"])
+
+    def test_orchestration_ready_without_epic_touches_no_bead(self):
+        self.bd({})
+        result = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                         env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], self.bd_updates())
 
 
 class TestWaivers(GateCase):
@@ -447,6 +595,15 @@ class TestPlanChecks(unittest.TestCase):
                           "Track 2: missing Area:"], check_plan(self.team, path))
         result = run_cli(self.root, "team", "check-plan", str(path))
         self.assertEqual(1, result.returncode)
+
+    def test_a_file_in_two_tracks_is_rejected(self):
+        plan = PLAN.replace("- Modify: `web/login.tsx:10-20`\n",
+                            "- Modify: `web/login.tsx:10-20`\n- Modify: `services/auth/login.py`\n") + \
+            "\n### Track 3: Docs\n**Metadata:**\n- Area: backend\n- Owner: em@corp.com\n\n**Files:**\n" \
+            "- Modify: `services/auth/login.py:1-5`\n"
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertIn("`services/auth/login.py` is listed by tracks 1, 2 and 3", check_plan(self.team, path))
+        self.assertEqual(1, run_cli(self.root, "team", "check-plan", str(path)).returncode)
 
 
 if __name__ == "__main__":

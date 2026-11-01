@@ -69,11 +69,11 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 | `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan` |
 | `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped` |
 | `quick-completed` | a `/quick` change finished | evidence: files and verify results |
-| `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead |
+| `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead. Team mode with a `ship` policy: evidence is the merged PR URL, approved on its head commit by a listed role other than the author; the local HEAD is not compared |
 
-`--actor` is required unless team mode derives it from `git config user.email`. Recording the same gate with the same evidence twice reports `already_recorded`. Recording `shipped` for a workflow that already has a `shipped` event also reports `already_recorded`. The checks below and the write happen under one lock on the event store.
+`--actor` is required unless team mode derives it from `git config user.email`. Recording the same gate with the same evidence twice reports `already_recorded`. Recording `shipped` for a workflow that already has a `shipped` event also reports `already_recorded`. The checks below and the write happen under one lock on the event store. In team mode with Beads, `record` also writes the gate's PR proof into the epic bead's `gates` metadata (see `docs/concepts/state-model.md`); when that write fails, the gate stays recorded, the command exits 0, and it prints `warning: ...` to stderr (`warning` in JSON).
 
-Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, `shipped` on anything but a standalone bead, `shipped` while the task tracker cannot be read (the message names the cause), and, in team mode, a team configuration or host error. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
+Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, `shipped` on anything but a standalone bead, `shipped` while the task tracker cannot be read (the message names the cause), and, in team mode, `shipped` evidence that is not a PR URL, or a team configuration or host error. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
 
 ## `gin-workflow unblock`
 
@@ -178,10 +178,10 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
 | `whoami` | Show your member entry, roles, and areas (from `git config user.email`) |
 | `check URL --gate GATE [--plan P] [--spec S]` | Check a pull request of this repository against the approval policy of `GATE` (`requirement_confirmed`, `plan_approved`, `ship`, or `roadmap`). Every gate but `ship` also needs the pull request merged and changing the gate's spec, plan, or roadmap file. Nothing is recorded |
-| `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, and that the paths in each track's `Files` block stay inside its area |
-| `ready` | Ready beads in your areas |
-| `claim BEAD` | Claim a bead as yourself |
-| `reassign BEAD EMAIL` | Hand a track bead to another member. Allowed for the bead's current assignee or the lead of one of its areas; the new assignee must be allowed to own tracks in each area (`team.areas.<name>.roles`). Sets the assignee, appends a note, and pushes with shared Beads. A closed bead, a non-member, or a no-op is refused |
+| `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, that the paths in each track's `Files` block stay inside its area, and that no path is listed by two tracks |
+| `ready` | Ready beads in your areas, and beads held by another member whose claim lease has expired (`expired_claim`) |
+| `claim BEAD` | Claim a bead as yourself, or renew your claim. Refused when you hold no role allowed in one of its `area:` labels, or another member's lease (`claim.expires_at`, `team.claim_ttl_hours` ahead) has not expired; an expired lease is taken over with a note. Without `team.beads_sync.remote` the claim is advisory: only this machine sees it |
+| `reassign BEAD EMAIL` | Hand a track bead to another member. Allowed for the bead's current assignee or the lead of one of its areas; the new assignee must be allowed to own tracks in each area (`team.areas.<name>.roles`). Sets the assignee, appends a note, writes a fresh claim lease for the new assignee, and pushes with shared Beads. A closed bead, a non-member, or a no-op is refused |
 | `deps [--bead ID]` | Without `--bead`: close placeholders whose track PR merged, storing its merge commit. With `--bead`: exit 1 unless each external dependency's merge commit is in this workspace |
 | `sync` | Sync Beads with `team.beads_sync.remote` |
 
@@ -360,6 +360,8 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 | Findings | `add-finding`, `fix-finding`, `dispute-finding`, `request-clarification`, `provide-clarification`, `propose-deferral`, `approve-deferral`, `verify-finding`, `reopen-finding`, `withdraw-finding`, `waive-finding` |
 | Inspection | `status`, `validate` (`--in-history` for an earlier track on a shared branch or after a squash merge), `render` (`--check` for drift) |
 | Housekeeping | `push-refs` (force-pushes each repository's review ref to `origin`), `cleanup` (`--bead-id` or `--all-closed`; also deletes the bead's `refs/gin/review/` refs, locally and on `origin`) |
+
+`init --max-cycles N` caps `start-review` to N review cycles (a cycle is one `review-started` event) until `record-human-decision`; the init actor is stored as `owner` and may not start a review. `status --format json` adds `owner`, `max_cycles`, `cycles`.
 
 `change-scope` and `reject` invalidate an active approval. `approve` refuses when the working source tree differs from the reviewed checkpoint.
 

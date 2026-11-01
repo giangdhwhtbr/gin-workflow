@@ -68,7 +68,11 @@ def _run(args: argparse.Namespace) -> int:
             lines = [f"wrote {item}" for item in result["written"]]
             lines += [f"unchanged {item}" for item in result["unchanged"]]
             lines += [f"skipped {item} (no marker; --force overwrites)" for item in result["skipped"]]
-            _emit(result, args.format, "\n".join(lines))
+            gap = team_init.gate_policy_gap(team)
+            if gap:
+                lines.append(f"warning: gates without a role policy: {', '.join(gap)} (set team.approvals.<gate>, "
+                             "or team.strict: true to require one)")
+            _emit({**result, "warnings": gap}, args.format, "\n".join(lines))
             return 0
         if args.command == "hooks":
             result = team_init.install_hook(root)
@@ -103,11 +107,14 @@ def _run(args: argparse.Namespace) -> int:
     try:
         if args.command == "ready":
             rows = team_beads.ready(root, team, member)
-            _emit({"ready": rows}, args.format, "\n".join(f"{row['id']} {row['title']}" for row in rows))
+            _emit({"ready": rows}, args.format, "\n".join(
+                f"{row['id']} {row['title']}" + (f" (expired claim: {row['expired_claim']})" if row.get("expired_claim") else "")
+                for row in rows))
             return 0
         if args.command == "claim":
             result = team_beads.claim(root, team, member, args.bead)
-            _emit(result, args.format, f"claimed {args.bead}")
+            _emit(result, args.format, f"{result['status']} {args.bead}"
+                  + (" (advisory: no Beads remote, teammates cannot see this claim)" if result["advisory"] else ""))
             return 0
         if args.command == "reassign":
             result = team_beads.reassign(root, team, member, args.bead, args.email)

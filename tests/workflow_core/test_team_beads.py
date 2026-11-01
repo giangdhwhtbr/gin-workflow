@@ -39,6 +39,11 @@ def show(root: Path, bead: str) -> dict:
     return data[0] if isinstance(data, list) else data
 
 
+def claim_meta(root: Path, bead: str, holder: str, expires_at: str) -> None:
+    bd(root, "update", bead, "--set-metadata",
+       f'claim={json.dumps({"holder": holder, "expires_at": expires_at})}')
+
+
 @unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestBdHelperUnderATerminal(unittest.TestCase):
     """`bd init` waits on a terminal stdin, so the suite hung when run from a pseudo-terminal."""
@@ -91,11 +96,54 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         claimed = show(self.root, free)
         self.assertEqual(("binh@corp.com", "in_progress"), (claimed["assignee"], claimed["status"]))
+        meta = team_beads.claim_of(claimed)
+        self.assertEqual("binh@corp.com", meta["holder"])
+        self.assertAlmostEqual(48, self.lease_hours(meta), delta=0.1)
+        again = run_cli(self.root, "team", "claim", free, "--format", "json")
+        self.assertEqual("renewed", json.loads(again.stdout)["status"])
+        self.assertTrue(json.loads(again.stdout)["advisory"])
+        self.assertIn("advisory: no Beads remote", run_cli(self.root, "team", "claim", free).stdout)
         held = create(self.root, "held", "area:backend")
         bd(self.root, "update", held, "--claim", actor="em@corp.com")
+        claim_meta(self.root, held, "em@corp.com", "2999-01-01T00:00:00Z")
         refused = run_cli(self.root, "team", "claim", held)
         self.assertEqual(1, refused.returncode)
-        self.assertIn("already claimed by em@corp.com", refused.stdout)
+        self.assertIn("already claimed by em@corp.com until 2999-01-01T00:00:00Z", refused.stdout)
+
+    def lease_hours(self, meta: dict) -> float:
+        from datetime import datetime, timezone
+        expires = datetime.strptime(meta["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return (expires - datetime.now(timezone.utc)).total_seconds() / 3600
+
+    def test_claim_ttl_hours_sets_the_lease_length(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + "  claim_ttl_hours: 6\n", encoding="utf-8")
+        bead = create(self.root, "short", "area:backend")
+        self.assertEqual(0, run_cli(self.root, "team", "claim", bead).returncode)
+        self.assertAlmostEqual(6, self.lease_hours(team_beads.claim_of(show(self.root, bead))), delta=0.1)
+
+    def test_claim_refuses_an_area_the_member_may_not_own(self):
+        frontend = create(self.root, "form", "area:frontend")
+        refused = run_cli(self.root, "team", "claim", frontend)
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("binh@corp.com may not own tracks in frontend", refused.stdout)
+
+    def test_expired_claim_is_listed_and_taken_over(self):
+        held = create(self.root, "held", "area:backend")
+        bd(self.root, "update", held, "--claim", actor="em@corp.com")
+        claim_meta(self.root, held, "em@corp.com", "2000-01-01T00:00:00Z")
+        legacy = create(self.root, "legacy", "area:backend")
+        bd(self.root, "update", legacy, "--claim", actor="em@corp.com")
+        rows = json.loads(run_cli(self.root, "team", "ready", "--format", "json").stdout)["ready"]
+        self.assertEqual({held: "em@corp.com", legacy: "em@corp.com"},
+                         {row["id"]: row.get("expired_claim") for row in rows if row.get("expired_claim")})
+        self.assertIn("(expired claim: em@corp.com)", run_cli(self.root, "team", "ready").stdout)
+        result = run_cli(self.root, "team", "claim", held)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        taken = show(self.root, held)
+        self.assertEqual(("binh@corp.com", "in_progress"), (taken["assignee"], taken["status"]))
+        self.assertIn("took over expired claim from em@corp.com", taken.get("notes", ""))
+        self.assertEqual("binh@corp.com", team_beads.claim_of(taken)["holder"])
 
     def test_reassign_lead_takes_over_and_checks_eligibility(self):
         bead = create(self.root, "work", "area:backend")
@@ -227,20 +275,36 @@ class TestTeamBeadsLocal(unittest.TestCase):
 
 
 class TestPushWithoutReset(unittest.TestCase):
-    """REQ-MILESTONE-016: a rejected push keeps the local write; nothing is reset."""
+    """A rejected push retries through sync once; local Beads are never reset."""
 
     def test_req_016_rejected_push_raises_and_never_resets(self):
         rejected = subprocess.CompletedProcess([], 1, "", "rejected")
-        with mock.patch.object(team_beads, "_bd", return_value=rejected), \
-                mock.patch.object(team_beads, "reset_to_remote") as reset:
+        with mock.patch.object(team_beads, "_bd", return_value=rejected):
             with self.assertRaisesRegex(team_beads.SyncConflict, "rejected"):
                 team_beads.push(Path("."), TeamConfig(beads_remote="x"))
-        reset.assert_not_called()
+        self.assertFalse(hasattr(team_beads, "reset_to_remote"))
 
     def test_req_016_push_without_remote_calls_nothing(self):
         with mock.patch.object(team_beads, "_bd") as run:
             team_beads.push(Path("."), TeamConfig())
+            team_beads._push(Path("."), TeamConfig(), "t-1")
         run.assert_not_called()
+
+    def test_rejected_push_syncs_once_and_succeeds(self):
+        rejected = subprocess.CompletedProcess([], 1, "", "rejected")
+        with mock.patch.object(team_beads, "_bd", return_value=rejected) as run, \
+                mock.patch.object(team_beads, "sync", return_value={"status": "synced"}) as synced:
+            team_beads._push(Path("."), TeamConfig(beads_remote="x"), "t-1")
+        synced.assert_called_once()
+        self.assertEqual([["dolt", "push"]], [call.args[1] for call in run.call_args_list])
+
+    def test_rejected_push_then_conflict_keeps_local_beads(self):
+        rejected = subprocess.CompletedProcess([], 1, "", "rejected")
+        with mock.patch.object(team_beads, "_bd", return_value=rejected), \
+                mock.patch.object(team_beads, "sync", side_effect=team_beads.SyncConflict("bd dolt pull: conflict")):
+            with self.assertRaisesRegex(team_beads.SyncConflict,
+                                        "push rejected for t-1; local Beads kept, run gin-workflow team sync"):
+                team_beads._push(Path("."), TeamConfig(beads_remote="x"), "t-1")
 
 
 @unittest.skipUnless(HAS_BD and HAS_DOLT, "bd and dolt are required")
@@ -271,24 +335,25 @@ class TestTeamBeadsSync(unittest.TestCase):
 
     def test_member_sees_lead_beads_and_claim_is_shared(self):
         self.assertEqual("API", show(self.member, self.bead)["title"])
-        result = run_cli(self.member, "team", "claim", self.bead)
+        result = run_cli(self.member, "team", "claim", self.bead, "--format", "json")
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertFalse(json.loads(result.stdout)["advisory"])
         self.assertEqual(0, run_cli(self.lead, "team", "sync").returncode)
         self.assertEqual("em@corp.com", show(self.lead, self.bead)["assignee"])
         refused = run_cli(self.lead, "team", "claim", self.bead)
         self.assertEqual(1, refused.returncode)
         self.assertIn("already claimed by em@corp.com", refused.stdout)
 
-    def test_lost_race_resets_local_beads_to_the_remote(self):
+    def test_lost_race_keeps_local_beads(self):
         team = team_for_repo(self.lead)
         member = team.member("binh@corp.com")
         bd(self.member, "update", self.bead, "--claim", actor="em@corp.com")
         bd(self.member, "dolt", "push")
-        with mock.patch.object(team_beads, "sync", return_value={"status": "synced"}):
-            with self.assertRaisesRegex(team_beads.SyncConflict, f"{self.bead} is held by em@corp.com"):
+        with mock.patch.object(team_beads, "sync", side_effect=[{"status": "synced"},
+                                                                team_beads.SyncConflict("bd dolt pull: conflict")]):
+            with self.assertRaisesRegex(team_beads.SyncConflict, f"push rejected for {self.bead}; local Beads kept"):
                 team_beads.claim(self.lead, team, member, self.bead)
-        self.assertEqual("em@corp.com", show(self.lead, self.bead)["assignee"])
-        self.assertEqual(0, run_cli(self.lead, "team", "sync").returncode)
+        self.assertEqual("binh@corp.com", show(self.lead, self.bead)["assignee"])
 
 
 if __name__ == "__main__":

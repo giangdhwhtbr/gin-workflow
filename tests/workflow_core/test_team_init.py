@@ -145,7 +145,8 @@ class TestTeamDoctor(unittest.TestCase):
         root = make_team_repo(self.base / "d", extra="artifacts:\n  spec_review: pr\n")
         fake_cli(self.bin, "gh", [{"argv": ["auth", "status"], "stdout": "ok"}])
         payload = self.doctor(root)
-        self.assertEqual({"member": True, "host_cli": True, "codeowners": False, "hook": False, "spec_review": True},
+        self.assertEqual({"member": True, "host_cli": True, "codeowners": False, "hook": False, "spec_review": True,
+                          "gate_policy": True},
                          payload["checks_details"]["team"]["checks"])
         self.assertEqual(["team: run `gin-workflow team init` and commit the result",
                           "team: run `gin-workflow team init` then `gin-workflow team hooks`"],
@@ -155,6 +156,23 @@ class TestTeamDoctor(unittest.TestCase):
         run_cli(root, "team", "hooks")
         payload = self.doctor(root)
         self.assertTrue(payload["checks"]["team"], payload["checks_details"]["team"])
+
+    def test_gate_policy_check_names_missing_gates(self):
+        team = TEAM.format(host="github").replace("    ship: [qe]\n", "")
+        root = make_team_repo(self.base / "nopolicy", team=team, extra="artifacts:\n  spec_review: pr\n")
+        fake_cli(self.bin, "gh", [{"argv": ["auth", "status"], "stdout": "ok"}])
+        detail = self.doctor(root)["checks_details"]["team"]
+        self.assertFalse(detail["checks"]["gate_policy"])
+        self.assertIn("set team.approvals.<gate> to a role list or area_lead (gates without a policy: ship)",
+                      detail["actions"])
+        result = run_cli(root, "team", "init")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("warning: gates without a role policy: ship (set team.approvals.<gate>, or team.strict: "
+                         "true to require one)", result.stdout.splitlines()[-1])
+        strict = make_team_repo(self.base / "strict", team=team + "  strict: true\n")
+        failed = run_cli(strict, "state")
+        self.assertNotEqual(0, failed.returncode)  # state surfaces ConfigValidationError as a traceback (exit 1)
+        self.assertIn("team.strict: team.approvals.ship has no role policy", failed.stderr)
 
     def test_spec_review_chat_and_gitlab_note(self):
         root = make_team_repo(self.base / "g", host="gitlab")

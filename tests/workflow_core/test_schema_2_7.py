@@ -89,6 +89,24 @@ class TestSchema27(unittest.TestCase):
         self.assertEqual({"milestone": ("ba",)}, team.permissions)
         self.assertEqual({"milestone": ["ba"]}, summary(Path(tempfile.gettempdir()), team)["permissions"])
 
+    def test_strict_and_claim_ttl_hours(self):
+        validate_portable_config({"schema_version": "2.7", "team": {**RAW, "strict": True, "claim_ttl_hours": 12}})
+        with self.assertRaises(ConfigValidationError):
+            validate_portable_config({"schema_version": "2.7", "team": {**RAW, "claim_ttl_hours": 0}})
+        team = load_team({"team": RAW})
+        self.assertEqual((False, 48), (team.strict, team.claim_ttl_hours))
+        team = load_team({"team": {**RAW, "strict": True, "claim_ttl_hours": 12}})
+        self.assertEqual((True, 12), (team.strict, team.claim_ttl_hours))
+
+    def test_strict_requires_a_policy_for_every_gate(self):
+        raw = {"members": {"a@b.c": {"roles": ["dev"], "login": "a"}}, "strict": True,
+               "approvals": {"requirement_confirmed": ["dev"]}}
+        self.assertEqual(["team.strict: team.approvals.plan_approved has no role policy",
+                          "team.strict: team.approvals.ship has no role policy"], validate_team(raw))
+        self.assertEqual([], validate_team({**raw, "strict": False}))
+        self.assertEqual([], validate_team({**raw, "approvals": {"requirement_confirmed": ["dev"], "ship": ["dev"]},
+                                            "areas": {"api": {"paths": ["api/**"], "lead": "dev"}}}))
+
 
 class TestTeamIdentityAndSolo(unittest.TestCase):
     def setUp(self):
