@@ -143,6 +143,17 @@ class TestRecordGitHub(GateCase):
         self.gh(gh_pr(state="OPEN", head=head, reviews=[("dung-qe", "APPROVED", head)]))
         self.assertEqual(0, self.check_ship().returncode)
 
+    def test_check_lists_only_head_approvers_for_ship(self):
+        head = "h" * 40
+        self.gh(gh_pr(state="OPEN", head=head, reviews=[("binh-dev", "APPROVED", "old"), ("dung-qe", "APPROVED", head)]))
+
+        def approvers(gate: str) -> set[str]:
+            out = run_cli(self.root, "team", "check", PR, "--gate", gate, "--format", "json", env=self.env)
+            return {row["login"] for row in json.loads(out.stdout)["approvers"]}
+
+        self.assertEqual({"dung-qe"}, approvers("ship"))
+        self.assertEqual({"binh-dev", "dung-qe"}, approvers("roadmap"))
+
     def test_deprecated_verification_passed_key_maps_to_ship(self):
         team = TEAM.format(host="github").replace("    ship: [qe]\n", "    verification_passed: [qe]\n")
         root = make_team_repo(Path(self.tmp.name) / "legacy-repo", team=team)

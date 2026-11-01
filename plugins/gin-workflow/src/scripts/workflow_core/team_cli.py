@@ -92,7 +92,8 @@ def _run(args: argparse.Namespace) -> int:
         pr, artifact, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan,
                                                       spec=args.spec)
         payload = {"status": "rejected" if reasons else "ok", "gate": args.gate, "url": pr.url, "reasons": reasons,
-                   "approvers": team_core.approver_payload(pr, team), "artifact": artifact}
+                   "approvers": team_core.approver_payload(pr, team, on_commit=pr.head_sha if args.gate == "ship" else None),
+                   "artifact": artifact}
         _emit(payload, args.format, "\n".join(reasons) if reasons else f"ok: {args.gate} {pr.url}")
         return 1 if reasons else 0
     member = team_core.require_member(root, team)
