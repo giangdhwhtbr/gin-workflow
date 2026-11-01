@@ -3,31 +3,27 @@
 **Bead Status:** `review-approved`
 
 ## Active Lease
-- **Lease ID:** `240cec7826534ef5b0eed9b79a7ce4b2`
-- **Actor:** `reviewer:claude:session-6c8b3c74` (reviewer)
-- **Acquired:** `2026-11-01T17:19:54.616831Z`
-- **Expires:** `2026-11-01T17:29:54.616831Z`
-- **Ledger Revision:** `21`
+*No active lease.*
 
 ## Review Approval
 - **Status:** Approved
-- **Approval Event ID:** `EV-000019`
+- **Approval Event ID:** `EV-000028`
 - **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
 - **Approved Repositories:**
-  - `gin-workflow` (SHA: `e0006fa`, Tree Hash: `febe2b5`)
+  - `gin-workflow` (SHA: `42d5597`, Tree Hash: `999fb85`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-dyr1`
 - **Base SHA:** `d658fc559d999af84f85d1a471bbcbc31245b08c`
-- **Reviewed SHA:** `e0006fa07382754a97a6e6885cb22271e909c845`
+- **Reviewed SHA:** `42d55973fa2b29f43e01787bead21acc5e7d4021`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-dyr1`
-- **Checkpoint SHA:** `e0006fa07382754a97a6e6885cb22271e909c845`
+- **Checkpoint SHA:** `42d55973fa2b29f43e01787bead21acc5e7d4021`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `febe2b54e090e2ca7a38e0ab95c5a57de16c8fb3b46ee52be1fe656c007c5bdc`
+- **Tree Hash:** `999fb85315bdc26f98a0b21e2e778f0e2eafe525c7f156541ae71b96a7fe6774`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -74,3 +70,11 @@
 | `EV-000019` | `2026-11-01T17:03:59.092380Z` | `review-approved` | `reviewer:claude:session-6c8b3c74` (reviewer) |
 | `EV-000020` | `2026-11-01T17:03:59.429041Z` | `lease-released` | `reviewer:claude:session-6c8b3c74` (reviewer) |
 | `EV-000021` | `2026-11-01T17:19:54.617912Z` | `lease-acquired` | `reviewer:claude:session-6c8b3c74` (reviewer) |
+| `EV-000022` | `2026-11-01T17:19:58.363639Z` | `implementation-in-progress` | `reviewer:claude:session-6c8b3c74` (reviewer) |
+| `EV-000023` | `2026-11-01T17:19:58.510714Z` | `lease-released` | `reviewer:claude:session-6c8b3c74` (reviewer) |
+| `EV-000024` | `2026-11-01T17:21:15.737189Z` | `source-checkpoint-created` | `claude:fable-5.1:session-528a7f97` (worker) |
+| `EV-000025` | `2026-11-01T17:21:15.947775Z` | `review-requested` | `claude:fable-5.1:session-528a7f97` (worker) |
+| `EV-000026` | `2026-11-01T17:21:40.906782Z` | `lease-acquired` | `reviewer:claude:session-6c8b3c74` (reviewer) |
+| `EV-000027` | `2026-11-01T17:21:40.940096Z` | `review-started` | `reviewer:claude:session-6c8b3c74` (reviewer) |
+| `EV-000028` | `2026-11-01T17:21:50.000773Z` | `review-approved` | `reviewer:claude:session-6c8b3c74` (reviewer) |
+| `EV-000029` | `2026-11-01T17:21:50.354098Z` | `lease-released` | `reviewer:claude:session-6c8b3c74` (reviewer) |
