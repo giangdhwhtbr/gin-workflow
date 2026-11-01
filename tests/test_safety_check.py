@@ -17,7 +17,8 @@ def exit_code(command):
 class TestNoVerifyBlocked(unittest.TestCase):
     def test_blocks_no_verify_on_commit_push_merge(self):
         for command in ("git commit --no-verify -m x", "git push --no-verify", "git push origin main --no-verify",
-                        "git merge --no-verify topic", "git -C /tmp/r commit -am x --no-verify"):
+                        "git merge --no-verify topic", "git -C /tmp/r commit -am x --no-verify",
+                        'git "commit" --no-verify', "git 'push' --no-verify"):
             self.assertEqual(2, exit_code(command), command)
 
     def test_allows_normal_commands(self):
@@ -47,6 +48,23 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "git --config-env core.hooksPath=FOO commit",
                         "GIT_CONFIG_PARAMETERS=\"'core.hooksPath'='/x'\" git commit"):
             self.assertEqual(2, exit_code(command), command)
+
+    def test_blocks_quoted_flags_and_words(self):
+        for command in ('git commit "-n"', "git commit '-n' -m x", 'git "commit" -n', '"git" commit -n',
+                        'git commit -m x ""-n', 'git -c "core.hooksPath"=/x commit', 'git "config" core.hooksPath /x'):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_blocks_shell_and_eval_wrapped_commands(self):
+        for command in ('sh -c "git commit -n"', 'bash -c "git commit -n"', "zsh -c 'git commit -n'",
+                        'eval "git commit -n"', 'bash -lc "git commit -n"', 'cd x && sh -c "git commit -n"',
+                        'sh -c "bash -c \'git commit -n\'"', 'sh -c "sh -c \\"git commit -n\\""',
+                        'sh -c "rm -rf /"', 'sh -c "sh -c \'sh -c \\"sh -c ls\\"\'"'):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_allows_shell_wrapped_safe_commands_and_quoted_payloads(self):
+        for command in ('git commit -m "sh -c git commit -n"', 'bash -c "git commit -m \\"fix -n\\""',
+                        "sh -c 'git status'", 'eval "git log -n 3"'):
+            self.assertEqual(0, exit_code(command), command)
 
     def test_us2_allows_reads_and_quoted_text(self):
         for command in ("git commit -m 'fix -n flag'", 'git commit -m "fix -n" -a', "git status",

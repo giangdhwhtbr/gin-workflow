@@ -39,25 +39,30 @@ fi
 # Check each simple command on its own, from its `rm` onward, so a flag or
 # target elsewhere in a compound command (`cd ~/x && rm y`) does not count
 # against the removal. Separators inside quotes or after a backslash do not split.
-segments=() bares=() segment="" bare="" quote=""
+# `unqs` holds each segment with one layer of quoting removed (the text a shell would see).
+segments=() bares=() unqs=() segment="" bare="" unq="" quote=""
 for ((i = 0; i < ${#COMMAND}; i++)); do
   c=${COMMAND:i:1}
   if [ "$quote" = '"' ] && [ "$c" = "\\" ]; then
-    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}
+    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}; unq+=$c
+  elif [ "$c" = "$quote" ]; then
+    # A quoted flag or word ("-n", "commit") counts as unquoted; quoted text with spaces (a message) stays Q.
+    quote="" q_text=${unq:q_start}
+    if [[ "$q_text" =~ [[:space:]] ]]; then bare+=Q; else bare+=$q_text; fi
   elif [ -n "$quote" ]; then
-    [ "$c" = "$quote" ] && quote=""
+    unq+=$c
   elif [ "$c" = "\\" ]; then
-    segment+=$c; bare+=$c; i=$((i + 1)); c=${COMMAND:i:1}; bare+=$c
+    segment+=$c; bare+=$c; i=$((i + 1)); c=${COMMAND:i:1}; bare+=$c; unq+=$c
   elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
-    quote=$c; bare+=Q
+    quote=$c q_start=${#unq}
   elif [[ "$c" == [\;\&\|$'\n'] ]]; then
-    segments+=("$segment"); bares+=("$bare"); segment=""; bare=""; continue
+    segments+=("$segment"); bares+=("$bare"); unqs+=("$unq"); segment=""; bare=""; unq=""; continue
   else
-    bare+=$c
+    bare+=$c; unq+=$c
   fi
   segment+=$c
 done
-segments+=("$segment"); bares+=("$bare")
+segments+=("$segment"); bares+=("$bare"); unqs+=("$unq")
 for segment in "${segments[@]}"; do
   [[ "$segment" =~ (^|[[:space:]/])rm([[:space:]].*|$) ]] || continue
   removal=${BASH_REMATCH[2]} before=${segment%"${BASH_REMATCH[0]}"}
@@ -80,10 +85,12 @@ done
 
 # 1b. The git hooks are the quality gate: never skip them.
 block_hooks() { echo "Blocked: $1 skips the gin-workflow git hooks; fix the failing check instead." >&2; exit 2; }
-if [[ "$COMMAND" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify ]] || \
-   [[ "$COMMAND" =~ git[[:space:]].*--no-verify.*(commit|push|merge) ]]; then
-  block_hooks "--no-verify"
-fi
+for s in "$COMMAND" "${bares[*]}"; do
+  if [[ "$s" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify ]] || \
+     [[ "$s" =~ git[[:space:]].*--no-verify.*(commit|push|merge) ]]; then
+    block_hooks "--no-verify"
+  fi
+done
 q="[\"']?"
 hooks_c_re="[[:space:]]-c[[:space:]]*${q}core\.hookspath="
 # `(`, a backtick or `{` may precede git; `)`, `;` or a backtick may follow a flag.
@@ -91,22 +98,33 @@ git_re='(^|[[:space:]/(`{])git([[:space:]]|$)'
 commit_n_re='[[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]);`]|$)'
 config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])core\.hookspath'
 hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
+# `sh -c`, `bash -lc`, `zsh -c` or `eval`; the last group is the payload the shell runs.
+shell_re='(^|[[:space:]/(`{])((ba|z)?sh[[:space:]]+(-[-a-z]+[[:space:]]+)*-[a-z]*c|eval)([[:space:]]+(.*)|$)'
+depth=${SAFETY_CHECK_DEPTH:-0}
 shopt -s nocasematch
 for i in "${!segments[@]}"; do
   raw=${segments[i]} bare=${bares[i]}
+  # Check a wrapped payload as its own command. Detect on bare (a quoted message is not run), take the
+  # payload from the unquoted text; its first match is at or before the real one, so it can only over-block.
+  if [[ "$bare" =~ $shell_re ]] && [[ "${unqs[i]}" =~ $shell_re ]]; then
+    [ "$depth" -lt 3 ] || block_hooks "a command nested in sh -c or eval more than 3 levels deep"
+    SAFETY_CHECK_DEPTH=$((depth + 1)) bash "${BASH_SOURCE[0]}" "${BASH_REMATCH[6]}" "$CWD" </dev/null || exit $?
+  fi
   # `/usr/bin/git` counts; a `git` inside quotes (bare has it as Q) does not.
   [[ "$bare" =~ $git_re ]] || continue
   # -n on commit only, outside quotes: `-m 'fix -n flag'` is a message, not a flag.
   [[ "$bare" =~ $commit_n_re ]] && block_hooks "git commit -n"
-  # hooksPath rules read the raw segment, so a quoted key or value still matches.
-  [[ "$raw" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath"
-  [[ "$raw" =~ $config_env_re ]] && block_hooks "core.hooksPath via the git config environment"
-  if [[ "$raw" =~ $hooks_config_re ]]; then
-    rest=${BASH_REMATCH[3]}
-    [[ "$raw" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
-    [[ "$raw" =~ [[:space:]]--get ]] && continue
-    [ -n "${rest// /}" ] && block_hooks "setting core.hooksPath"
-  fi
+  # hooksPath rules read the raw segment too, so a quoted key or value with spaces still matches.
+  for s in "$raw" "$bare"; do
+    [[ "$s" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath"
+    [[ "$s" =~ $config_env_re ]] && block_hooks "core.hooksPath via the git config environment"
+    if [[ "$s" =~ $hooks_config_re ]]; then
+      rest=${BASH_REMATCH[3]}
+      [[ "$s" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
+      [[ "$s" =~ [[:space:]]--get ]] && continue 2
+      [ -n "${rest// /}" ] && block_hooks "setting core.hooksPath"
+    fi
+  done
 done
 shopt -u nocasematch
 
