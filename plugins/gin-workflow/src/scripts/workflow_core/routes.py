@@ -26,9 +26,29 @@ from .configuration import ConfigValidationError, load_effective_config, require
 from .events import WorkflowEvent, WorkflowEventStore
 from .locking import file_lock
 from .models import EffectiveConfig
-from . import orchestrator_client
+from . import orchestrator_client, usage
 from .project_detect import detect_project
 from .provider_config import PROVIDER_DEFAULT
+
+
+def _top_model_warning(config_dict: Mapping[str, Any], entries: Sequence[Mapping[str, Any]]) -> str | None:
+    """A warning when two or more tracks all route to the strongest model of a multi-model catalog."""
+    if len(entries) < 2:
+        return None
+    strongest: set[tuple[str, str]] = set()
+    for entry in entries:
+        resolved = entry.get("resolved") or {}
+        provider = str(resolved.get("provider", ""))
+        try:
+            models = catalog_for(config_dict, provider).models
+        except KeyError:
+            return None
+        if resolved.get("selection_mode") == "provider_default" or len(models) < 2 \
+                or resolved.get("model") != models[-1]:
+            return None
+        strongest.add((provider, models[-1]))
+    named = ", ".join(f"{model}, the strongest {provider} model" for provider, model in sorted(strongest))
+    return f"every track routes to {named}; check the plan's tiers"
 
 
 def resolve(
@@ -86,6 +106,8 @@ def resolve(
                 diagnostics.append(f"workflow_id: {error}")
             else:
                 manifest = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
+            if manifest and (warning := _top_model_warning(config_dict, entries)):
+                warnings.append(warning)
             return {
                 "workflow_id": workflow_id,
                 "main_harness": harness,
@@ -147,6 +169,8 @@ def resolve(
             diagnostics.append(f"workflow_id: {error}")
         else:
             manifest = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
+    if manifest and (warning := _top_model_warning(config_dict, entries)):
+        warnings.append(warning)
     return {
         "workflow_id": workflow_id,
         "main_harness": harness,
@@ -174,6 +198,14 @@ def dispatch(
     )
     if not manifest_path.is_file():
         return {"status": "error", "message": f"manifest not found: {manifest_path}"}, 2
+
+    try:
+        stop = usage.over_budget(root, workflow_id)
+    except usage.UsageError as error:
+        print(f"warning: budget not checked: {error}", file=sys.stderr)
+        stop = None
+    if stop is not None:
+        return stop, 3
 
     yaml = require_yaml()
     lock_path = manifest_path.with_name(f".{manifest_path.name}.lock")

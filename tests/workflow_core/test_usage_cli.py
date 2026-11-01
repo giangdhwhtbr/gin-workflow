@@ -113,5 +113,20 @@ class UsageCliTests(unittest.TestCase):
         self.assertIn("usage", done.stderr.split("{", 1)[1])
 
 
+    def test_us2_collect_prints_the_epic_budget_status(self):
+        write(self.repo, ".agent-workflow/config.yaml",
+              "schema_version: '2.8'\nproviders:\n  task_tracking: beads\nusage:\n  budget_usd: 10\n")
+        fake_cli(self.bin, "bd", [
+            {"argv": ["show", "e1"], "stdout": [{"id": "e1", "issue_type": "epic", "title": "E1",
+                                                "started_at": "2026-10-04T09:00:00Z", "closed_at": None}]},
+            {"argv": ["history", "e1"], "stdout": []},
+            {"argv": ["dep", "list", "e1"], "stdout": []},
+            {"argv": ["update"], "stdout": ""},
+        ])
+        done = run_cli(self.repo, "usage", "collect", "--bead", "e1", env=self.env)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("budget ok (0/10)", done.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

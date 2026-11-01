@@ -16,7 +16,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .checkout import main_checkout
 from .events import WorkflowEventStore
-from .configuration import require_yaml
+from .configuration import ConfigValidationError, require_yaml, resolve_effective_config
 from .usage_attribution import (
     UNATTRIBUTED, BeadSpan, Worktree, attribute, gates_from_events, review_intervals, worktrees,
 )
@@ -26,6 +26,10 @@ PRICES_FILE = ".agent-workflow/usage-prices.yaml"
 EVENTS_FILE = ".agent-workflow/runtime/events.jsonl"
 _TOKENS = ("input", "output", "cache_read", "cache_write")
 _SEVERITIES = ("critical", "important", "minor", "suggestion")
+# Budget statuses: `warn` from WARN_RATIO of the budget, `stop` from STOP_RATIO; the margin
+# above 1.0 covers the error of time-span attribution.
+WARN_RATIO = 0.8
+STOP_RATIO = 1.2
 
 
 class UsageError(Exception):
@@ -64,6 +68,38 @@ def cost(totals: Mapping[str, int], price: Price | None) -> float | None:
     if price is None:
         return None
     return round(sum(totals.get(key, 0) * getattr(price, key) for key in _TOKENS) / 1_000_000, 4)
+
+
+def budget_usd(repo: Path) -> float | None:
+    """`usage.budget_usd` from the main checkout's live config; None when unset."""
+    try:
+        config = resolve_effective_config(main_checkout(Path(repo).resolve()), write=False).config.to_dict()
+    except ConfigValidationError as error:
+        raise UsageError(f"invalid configuration: {error}") from error
+    value = (config.get("usage") or {}).get("budget_usd")
+    return None if value is None else float(value)
+
+
+def budget_status(cost: float | None, unpriced: Sequence[str], budget: float) -> str:
+    if unpriced:
+        return "unenforceable"
+    ratio = (cost or 0.0) / budget
+    if ratio >= STOP_RATIO:
+        return "stop"
+    return "warn" if ratio >= WARN_RATIO else "ok"
+
+
+def over_budget(repo: Path, workflow_id: str) -> dict[str, Any] | None:
+    """The stop payload once the epic's stored cost reaches STOP_RATIO of the budget; None otherwise."""
+    budget = budget_usd(repo)
+    if budget is None:
+        return None
+    root = main_checkout(Path(repo).resolve())
+    epic = gates_from_events(_events(root))[1].get(workflow_id, workflow_id)
+    stored = _usage_of(_show(root, epic)) or {}
+    if budget_status(stored.get("cost"), stored.get("unpriced") or [], budget) != "stop":
+        return None
+    return {"status": "over_budget", "epic": epic, "cost": stored["cost"], "budget_usd": budget}
 
 
 def _bd(repo: Path, argv: list[str]) -> Any:
@@ -280,6 +316,10 @@ def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: 
                          sum(scan.skipped_lines for scan in scans.values()), now, unattributed)
     if is_epic:
         document["children"] = children
+        budget = budget_usd(repo)
+        if budget is not None:
+            document["budget"] = {"budget_usd": budget, "cost": document["cost"],
+                                  "status": budget_status(document["cost"], document["unpriced"], budget)}
     text = json.dumps(document, sort_keys=True, separators=(",", ":"))
     _bd(repo, ["update", bead, "--set-metadata", f"ai_usage={text}"])
     return document

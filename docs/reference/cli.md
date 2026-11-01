@@ -229,9 +229,24 @@ gin-workflow hooks run pre-commit|pre-push
 
 `status` prints `{"hooks": {...}, "verify_commands": [...], "ok": ...}`: each hook's state (`ok`, `missing`, `occupied`) and the configured check names, including `<package>:<name>` for packages. It exits 1 when a hook is not `ok` or no verify command is configured; `ship` warns on that and continues.
 
-`run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks. `pre-push` runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. It runs them only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook.
+`run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks. `pre-push` runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. It runs them only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook. A passing `pre-push` on a tree with no tracked changes is recorded for [`evidence check`](#gin-workflow-evidence).
 
 Exit codes: install 0 installed or chained, 1 occupied, 2 hooks directory missing; run 0 pass, otherwise the failing command's exit code.
+
+## `gin-workflow evidence`
+
+```
+gin-workflow evidence run [--repository DIR]
+gin-workflow evidence check [--commit SHA] [--repository DIR] [--json]
+```
+
+When every `pre-push` verify command passes on a tree with no tracked changes, `hooks run pre-push` and `evidence run` append a `checks.passed` event (workflow id `checks`; payload `tree`, `hook`, `commands`) to `.agent-workflow/runtime/events.jsonl` in the main checkout. A record that cannot be written prints a warning and never changes the exit code. `pre-commit` records nothing, because it runs no `test`.
+
+`run` runs the `pre-push` verify commands on the checked-out commit. The `review` skill runs it after `checkpoint`, because the branch is pushed only after review. It refuses with exit 2 when a tracked file differs from `HEAD`.
+
+`check` finds the newest record for the tree of `--commit`, or of `HEAD` when no tracked file differs from it, whose commands include `test` or `<package>:test`. It prints the record, or why none matches; `--json` prints `{"record": {"tree", "hook", "commands", "recorded_at"} | null, "reason"}`. The reviewer reruns the tests only when it exits 1.
+
+Exit codes: `run` 0 pass, 2 tracked changes, otherwise the failing command's exit code; `check` 0 a record matches, 1 none does.
 
 ## `gin-workflow reviewer`
 
@@ -254,7 +269,7 @@ gin-workflow routes dispatch --workflow-id ID --task-id ID [--escalate REASON] [
 
 Both actions always print JSON; `--json` is accepted and changes nothing.
 
-`resolve` resolves execution routes for plan tracks. `FILE` is a JSON list of tracks, each `{"task_id", "provider_role", "model", "effort"}`, where `model` and `effort` come from the main harness's [catalog](config.md#models) and `effort` is left out or `null` when the catalog lists no efforts. Without gin-orchestrator every track goes to the main harness at its model and effort. It prints `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. On success, it writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`: per track, `requested` (role, model, effort), `resolved`, `fallback`, and `escalations`.
+`resolve` resolves execution routes for plan tracks. `FILE` is a JSON list of tracks, each `{"task_id", "provider_role", "model", "effort"}`, where `model` and `effort` come from the main harness's [catalog](config.md#models) and `effort` is left out or `null` when the catalog lists no efforts. Without gin-orchestrator every track goes to the main harness at its model and effort. It prints `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. `warnings` names the strongest model when two or more tracks all route to the last model of a catalog with two or more models; the exit code does not change. On success, it writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`: per track, `requested` (role, model, effort), `resolved`, `fallback`, and `escalations`.
 
 `resolve` writes nothing, lists every diagnostic, and exits 2 when the workflow id is unsafe or any track has one of these problems:
 
@@ -263,9 +278,9 @@ Both actions always print JSON; `--json` is accepted and changes nothing.
 - a model or effort outside the catalog, or an effort for a catalog without efforts;
 - a `reasoning` field and no `model`; `model` and `effort` replace `reasoning`.
 
-`dispatch` prints the current route of one track from the manifest, `{"task_id", "provider", "model", "effort", "escalated"}`, and appends a `route.dispatched` event with that route to `.agent-workflow/runtime/events.jsonl` in the main checkout. `--escalate REASON` first moves the track one step up its provider's catalog: the next model at the same effort, or the next effort at the strongest model. It writes the new route and an `escalations` entry (`from`, `to`, `reason`) to the manifest. At the strongest model and highest effort it prints `{"status": "human_decision_required", ...}`, changes nothing, and exits 2.
+`dispatch` prints the current route of one track from the manifest, `{"task_id", "provider", "model", "effort", "escalated"}`, and appends a `route.dispatched` event with that route to `.agent-workflow/runtime/events.jsonl` in the main checkout. `--escalate REASON` first moves the track one step up its provider's catalog: the next model at the same effort, or the next effort at the strongest model. It writes the new route and an `escalations` entry (`from`, `to`, `reason`) to the manifest. At the strongest model and highest effort it prints `{"status": "human_decision_required", ...}`, changes nothing, and exits 2. With `usage.budget_usd` set, it first reads the stored `ai_usage` of the epic (the one `orchestration-ready` recorded for the workflow, else the workflow id). At or above 120% of the budget it prints `{"status": "over_budget", "epic", "cost", "budget_usd"}`, changes nothing, and exits 3. When `bd` cannot be read it prints a warning and dispatches.
 
-Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it or without a resolved route, an invalid configuration, an unknown provider, or a manifest route outside its provider's catalog on `--escalate`, nothing left to escalate to, or invalid arguments.
+Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it or without a resolved route, an invalid configuration, an unknown provider, or a manifest route outside its provider's catalog on `--escalate`, nothing left to escalate to, or invalid arguments; 3 the epic is over budget (`dispatch`).
 
 ## `gin-workflow notify`
 
@@ -327,7 +342,7 @@ gin-workflow usage collect --bead ID [--best-effort]
 gin-workflow usage report [--bead ID | --epic ID | --sprint NAME | --since YYYY-MM-DD]
 ```
 
-`collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. `--sprint NAME` covers the epics labelled `sprint:NAME` and their tracks. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`. `report` prints totals per model, then per role and model (`role main <model>`, `role subagent <model>`). A Claude Code record whose log line has `"isSidechain": true` counts as `subagent`; every other record, including every Codex record, counts as `main`.
+`collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. `--sprint NAME` covers the epics labelled `sprint:NAME` and their tracks. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`. With `usage.budget_usd` set, collecting an epic adds `budget: {budget_usd, cost, status}` to its summary and the status to the printed line. `report` prints totals per model, then per role and model (`role main <model>`, `role subagent <model>`). A Claude Code record whose log line has `"isSidechain": true` counts as `subagent`; every other record, including every Codex record, counts as `main`.
 
 Exit codes: 0 ok; 2 error. With `--best-effort`, `collect` turns any error into a `warning:` line and exits 0, so it never blocks closing a bead.
 

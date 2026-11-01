@@ -22,7 +22,7 @@ Quality signals come from Beads and the review ledger:
 
 ## When it runs
 
-`execute` runs `gin-workflow usage collect --bead <track> --best-effort` before closing each track, and `ship` runs it for the epic before closing it. You can run it yourself at any time, from the main checkout or any of its worktrees; it recomputes the summary from scratch, so running it twice gives the same result. With `--best-effort` an error becomes a warning and never blocks closing a bead.
+`execute` runs `gin-workflow usage collect --bead <epic> --best-effort` after each worker returns and `--bead <track>` before closing each track, and `ship` runs it for the epic before closing it. You can run it yourself at any time, from the main checkout or any of its worktrees; it recomputes the summary from scratch, so running it twice gives the same result. With `--best-effort` an error becomes a warning and never blocks closing a bead.
 
 ## How usage is attributed
 
@@ -43,6 +43,28 @@ prices:
 ```
 
 A model without a price is never guessed: its cost shows `-` and it is listed under `unpriced`.
+
+## Budget
+
+Set `usage.budget_usd` in `.agent-workflow/config.yaml` to give each epic a spend ceiling in USD:
+
+```yaml
+usage:
+  budget_usd: 25
+```
+
+`usage collect --bead <epic>` then stores `budget: {budget_usd, cost, status}` in the epic's summary and prints the status:
+
+| Status | When |
+|---|---|
+| `ok` | cost below 80% of the budget |
+| `warn` | cost from 80% up to 120% |
+| `stop` | cost at or above 120%; the margin covers the error of time-span attribution |
+| `unenforceable` | a used model has no price; the output names the models and `.agent-workflow/usage-prices.yaml` |
+
+A track's summary has no budget block; the budget belongs to the epic.
+
+At `stop`, `gin-workflow routes dispatch` for the epic prints `{"status": "over_budget", ...}`, dispatches nothing, and exits 3. Raising `usage.budget_usd` lets the next dispatch proceed without another collect. `unenforceable` never stops a dispatch.
 
 ## Reading it
 
