@@ -171,7 +171,9 @@ class TestTeamDoctor(unittest.TestCase):
                          "true to require one)", result.stdout.splitlines()[-1])
         strict = make_team_repo(self.base / "strict", team=team + "  strict: true\n")
         failed = run_cli(strict, "state")
-        self.assertNotEqual(0, failed.returncode)  # state surfaces ConfigValidationError as a traceback (exit 1)
+        self.assertEqual(2, failed.returncode, failed.stderr)
+        self.assertIn("error:", failed.stderr)
+        self.assertNotIn("Traceback", failed.stderr)
         self.assertIn("team.strict: team.approvals.ship has no role policy", failed.stderr)
 
     def test_spec_review_chat_and_gitlab_note(self):

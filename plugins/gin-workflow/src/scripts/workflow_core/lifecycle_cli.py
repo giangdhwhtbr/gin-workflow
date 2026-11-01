@@ -557,6 +557,17 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
 
 def main(arguments: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if arguments is None else arguments)
+    try:
+        return _run(argv)
+    except ConfigValidationError as error:
+        if "json" in argv:
+            print(json.dumps({"status": "error", "message": str(error)}, indent=2, sort_keys=True))
+        else:
+            print(f"error: {error}", file=sys.stderr)
+        return 2
+
+
+def _run(argv: list[str]) -> int:
     if not argv:
         print("usage: gin-workflow {state,unblock,record,quick-check} ...", file=sys.stderr)
         return 2
