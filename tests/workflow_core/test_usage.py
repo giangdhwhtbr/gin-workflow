@@ -41,9 +41,18 @@ class PriceTests(unittest.TestCase):
     def test_load_prices(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            self.assertEqual(usage.load_prices(repo), {})
-            write(repo, usage.PRICES_FILE, "prices:\n  m1: {input: 3, output: 15, cache_read: 0.3, cache_write: 3.75}\n")
-            self.assertEqual(usage.load_prices(repo), {"m1": usage.Price(3, 15, 0.3, 3.75)})
+            defaults = usage.load_prices(repo)
+            self.assertEqual(usage.Price(4, 20, 0.2, 5, "default"), defaults["claude-opus-5-5"])
+            for model in ("claude-fable-5-1", "claude-haiku-5-5", "gpt-5.6-sol", "gpt-6-astra", "gemini-2.5-pro"):
+                self.assertEqual("default", defaults[model].source, model)
+            write(repo, usage.PRICES_FILE, "prices:\n  claude-opus-5-5: {input: 3, output: 15, cache_read: 0.3, cache_write: 3.75}\n  m1: {input: 1, output: 2, cache_read: 0, cache_write: 0}\n")
+            prices = usage.load_prices(repo)
+            self.assertEqual(usage.Price(3, 15, 0.3, 3.75, "repo"), prices["claude-opus-5-5"])
+            self.assertEqual("repo", prices["m1"].source)
+            self.assertEqual(prices["claude-sonnet-4-5"], usage.price_for(prices, "claude-sonnet-4-5-20250929"))
+            self.assertEqual(prices["m1"], usage.price_for(prices, "m1-2"))
+            self.assertIsNone(usage.price_for(prices, "m10"))
+            self.assertIsNone(usage.price_for(prices, "codex-auto-review"))
             write(repo, usage.PRICES_FILE, "prices:\n  m1: {input: lots, output: 15, cache_read: 0, cache_write: 0}\n")
             with self.assertRaises(usage.UsageError):
                 usage.load_prices(repo)
@@ -66,12 +75,14 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(doc["version"], 1)
         self.assertEqual(doc["collected_at"], iso(5))
         self.assertEqual(doc["models"]["m1"], {"input": 2000, "output": 200, "cache_read": 20000, "cache_write": 0,
-                                               "cost": 0.015})
+                                               "cost": 0.015, "price_source": "repo"})
         self.assertIsNone(doc["models"]["m2"]["cost"])
+        self.assertEqual("none", doc["models"]["m2"]["price_source"])
+        self.assertEqual("repo", doc["models"]["m1"]["price_source"])
         self.assertEqual(doc["roles"]["main"]["m1"], {"input": 2000, "output": 200, "cache_read": 20000, "cache_write": 0,
-                                                      "cost": 0.015})
+                                                      "cost": 0.015, "price_source": "repo"})
         self.assertEqual(doc["roles"]["subagent"]["m2"], {"input": 1000, "output": 100, "cache_read": 10000, "cache_write": 0,
-                                                          "cost": None})
+                                                          "cost": None, "price_source": "none"})
         self.assertEqual(doc["stages"]["execute"], {"tokens": 22200, "cost": 0.0075})
         self.assertEqual(doc["cost"], 0.015)
         self.assertEqual(doc["unpriced"], ["m2"])
