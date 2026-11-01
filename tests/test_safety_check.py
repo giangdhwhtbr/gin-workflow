@@ -76,6 +76,18 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "git \\\ncommit -n", "git commit \\\n-n", "git commit -m x \\\n-n"):
             self.assertEqual(2, exit_code(command), command)
 
+    def test_blocks_commit_after_global_options_and_value_options(self):
+        for command in ("git -C . -c x=y commit -n", "git --no-pager commit -n", 'git commit --author "x" -n',
+                        "git commit -F msg.txt -n", "git -C . commit -n", "git commit -an", "git commit -nm x",
+                        "git commit -am x -n", "git --git-dir=.git --work-tree . commit -n"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_allows_commit_word_as_option_value_and_n_as_message(self):
+        for command in ('git log --grep "commit" -n 5', 'git log --author "commit" -n 3', 'git commit -m "-n"',
+                        'git commit -m "-nightly"', 'git commit -m "a" -m "-n"', "git log --grep commit -n 5",
+                        "git show -n 1", "git stash list -n 2", "git commit --message=-n", "git commit -F -n"):
+            self.assertEqual(0, exit_code(command), command)
+
     def test_allows_escaped_space_inside_a_word(self):
         self.assertEqual(0, exit_code("git commit -m fix\\ -n"))
 
