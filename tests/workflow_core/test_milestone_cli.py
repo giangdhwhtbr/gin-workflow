@@ -276,6 +276,22 @@ class MilestoneCliTests(unittest.TestCase):
         stored = self.show(epic)["metadata"]["milestone_moves"]
         return json.loads(stored) if isinstance(stored, str) else stored
 
+    def test_move_traces_each_epic_separately(self):
+        self.seed_writes()
+        self.bd("create", "B", "--id", "t-b", "--type", "epic")
+        self.assertEqual(0, self.run_cli("move", "t-a", "--to", "t-m2")[0])
+        self.assertEqual(0, self.run_cli("move", "t-a", "t-b", "--to", "t-m1")[0])
+        self.assertEqual(["t-m1", "t-m2"], [m["from"] for m in self.moves("t-a")])
+        self.assertEqual([None], [m["from"] for m in self.moves("t-b")])
+
+    def test_move_with_unreadable_trace_warns(self):
+        self.seed_writes()
+        self.bd("update", "t-a", "--set-metadata", "milestone_moves=not json")
+        code, _, err = self.run_cli("move", "t-a", "--to", "t-m2")
+        self.assertEqual(0, code)
+        self.assertIn("warning:", err)
+        self.assertEqual("t-m2", self.show("t-a")["parent"])
+
     def test_move_trace_failure_warns_and_keeps_move(self):
         self.seed_writes()
         real = milestone_cli._bd

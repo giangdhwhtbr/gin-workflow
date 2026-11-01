@@ -169,14 +169,14 @@ def _kickstart(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, 
 
 def _trace_move(root: Path, bead: Mapping[str, Any], epic: str, to: str, actor: str) -> None:
     """Append {from, to, at, actor} to the epic's `milestone_moves` metadata; a failure warns, never rolls back."""
-    metadata = bead.get("metadata")
-    stored = metadata.get("milestone_moves") if isinstance(metadata, Mapping) else None
-    moves = json.loads(stored) if isinstance(stored, str) else list(stored or [])  # bd returns it parsed or as a string
-    moves.append({"from": bead.get("parent") or None, "to": None if to == "none" else to,
-                  "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "actor": actor or "unknown"})
     try:
+        metadata = bead.get("metadata")
+        stored = metadata.get("milestone_moves") if isinstance(metadata, Mapping) else None
+        moves = json.loads(stored) if isinstance(stored, str) else list(stored or [])  # bd returns it parsed or as a string
+        moves.append({"from": bead.get("parent") or None, "to": None if to == "none" else to,
+                      "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "actor": actor or "unknown"})
         _bd(root, ["update", epic, "--set-metadata", f"milestone_moves={json.dumps(moves)}"], actor)
-    except MilestoneError as error:
+    except (MilestoneError, ValueError, TypeError, AttributeError) as error:
         print(f"warning: {epic} moved but milestone_moves not recorded: {error}", file=sys.stderr)
 
 
@@ -201,7 +201,7 @@ def _move(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]]
         except MilestoneError as error:
             raise MilestoneError(f"moved {', '.join(done) or 'none'}; {epic} failed: {error}") from None
         done.append(epic)
-        _trace_move(root, bead, epic, args.to, actor)
+        _trace_move(root, beads[epic], epic, args.to, actor)
     return f"moved {', '.join(args.epics)} to {args.to}", "membership"
 
 
