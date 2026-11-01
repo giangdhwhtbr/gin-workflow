@@ -21,8 +21,8 @@ Run these in order for a feature. `workflow` picks the next one for you.
 |---|---|
 | `workflow` | Route the current state to exactly one lifecycle stage, or diagnose a held workflow |
 | `quick` | Small, low-risk change without plan or beads: confirm, implement, verify per rigor, report |
-| `progress` | Report task status, blockers, open waivers, and next ready work without changing anything |
-| `report` | Report AI usage per bead or epic (tokens, cost, quality signals) without changing anything |
+| `progress` | Report task status, blockers, open waivers, and next ready work without changing anything; for a milestone it lists the epics with `task list --parent <milestone-id>` |
+| `report` | Report AI usage per bead, epic or milestone (`--milestone <id>`: tokens, cost, quality signals) without changing anything |
 | `setup` | First-time repository configuration and requested setup maintenance |
 
 ## gin-workflow: supporting skills

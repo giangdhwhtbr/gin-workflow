@@ -285,22 +285,22 @@ class ReportTests(Fixture):
         self.assertEqual(out["totals"]["cost"], 3.0)
         self.assertEqual(out["unattributed"], {"tokens": 5, "cost": 0.5})
 
-    def test_sprint_report_covers_labelled_epics_and_their_tracks(self):
+    def test_milestone_report_covers_its_epics_and_their_tracks(self):
         rows = self.rows()
-        rows[0]["labels"] = ["roadmap", "sprint:s1"]
-        rows.append({"id": "ep2", "title": "Next", "issue_type": "epic", "status": "open",
-                     "labels": ["sprint:s2"]})
-        rows.append({"id": "ep3", "title": "Longer name", "issue_type": "epic", "status": "open",
-                     "labels": ["sprint:s10"]})
-        rows.append({"id": "ep4", "title": "No labels", "issue_type": "epic", "status": "open", "labels": None})
+        rows.append({"id": "m1", "title": "M1", "issue_type": "milestone", "status": "open", "labels": None})
+        rows[0]["parent"] = "m1"
+        rows.append({"id": "ep2", "title": "Next", "issue_type": "epic", "status": "open", "parent": "m2"})
+        rows.append({"id": "ep4", "title": "Unassigned", "issue_type": "epic", "status": "open"})
         self.rules[0]["stdout"] = rows
         fake_cli(self.bin, "bd", self.rules)
-        out = usage.report(self.repo, sprint="s1")
+        out = usage.report(self.repo, milestone="m1")
         self.assertEqual(["ep1", "ep1.1"], [row["bead"] for row in out["beads"]])
         self.assertEqual(["ep1.2"], out["not_collected"])
         self.assertEqual(3.0, out["totals"]["cost"])
-        self.assertEqual([], usage.report(self.repo, sprint="none")["beads"])
-        self.assertEqual([], usage.report(self.repo, sprint="")["beads"])
+        with self.assertRaisesRegex(usage.UsageError, "ep4 is not a milestone"):
+            usage.report(self.repo, milestone="ep4")
+        with self.assertRaisesRegex(usage.UsageError, "m9 is not a milestone"):
+            usage.report(self.repo, milestone="m9")
 
     def test_total_is_null_when_nothing_is_priced(self):
         self.rules[0]["stdout"] = [{"id": "u1", "title": "U", "issue_type": "task", "status": "closed",

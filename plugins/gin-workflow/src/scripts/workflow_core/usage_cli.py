@@ -33,7 +33,7 @@ def _parser() -> argparse.ArgumentParser:
     scope.add_argument("--bead")
     scope.add_argument("--epic")
     scope.add_argument("--since", type=_date)
-    scope.add_argument("--sprint")
+    scope.add_argument("--milestone", metavar="ID")
     return parser
 
 
@@ -77,7 +77,7 @@ def main(arguments: Sequence[str]) -> int:
                 if budget["status"] == "unenforceable":
                     text += f"; no price for {', '.join(out['unpriced'])} in {usage.PRICES_FILE}"
         else:
-            out = usage.report(root, bead=args.bead, epic=args.epic, since=args.since, sprint=args.sprint)
+            out = usage.report(root, bead=args.bead, epic=args.epic, since=args.since, milestone=args.milestone)
             text = _report_text(out)
     except usage.UsageError as error:
         if args.command == "collect" and args.best_effort:

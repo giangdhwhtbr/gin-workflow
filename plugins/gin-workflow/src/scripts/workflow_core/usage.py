@@ -362,15 +362,17 @@ def _add_models(slots: dict[str, dict[str, Any]], by_model: Mapping[str, Mapping
 
 
 def report(repo: Path, *, bead: str | None = None, epic: str | None = None, since: date | None = None,
-           sprint: str | None = None) -> dict[str, Any]:
+           milestone: str | None = None) -> dict[str, Any]:
     rows = _list(_bd(Path(repo), ["list", "--all", "-n", "0", "--json"]))
     if bead:
         selected = [row for row in rows if row.get("id") == bead]
     elif epic:
         selected = [row for row in rows if row.get("id") == epic or row.get("parent") == epic]
-    elif sprint is not None:
-        epics = {row["id"] for row in rows if row.get("issue_type") == "epic"
-                 and f"sprint:{sprint}" in (row.get("labels") or ())}
+    elif milestone is not None:
+        target = next((row for row in rows if row.get("id") == milestone), None)
+        if target is None or target.get("issue_type") != "milestone":
+            raise UsageError(f"{milestone} is not a milestone")
+        epics = {row["id"] for row in rows if row.get("issue_type") == "epic" and row.get("parent") == milestone}
         selected = [row for row in rows if row.get("id") in epics or row.get("parent") in epics]
     else:
         selected = [row for row in rows if since is None or
