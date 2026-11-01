@@ -85,13 +85,13 @@ mkdir -p services/api apps/web qa
 ```
 Answer `stage: brownfield`, `shape: fullstack`, `monorepo: true`.
 
-Put in the prompt: the directories above and the stack of each (Maven for the API, npm for the SPA). The reasons for a monorepo and a subtree, and when a legacy repository stays separate, are in [repository strategy](brownfield-modernize.md#repository-strategy).
+Put in the prompt: the directories above and the stack of each (Maven for the API, npm for the SPA). Setup detects `packages` only from JavaScript workspaces, so for this Maven and npm mix add a `project.packages` entry for `services/api` and one for `apps/web` yourself in `.agent-workflow/config.yaml`, each with `path`, `shape`, and `verify.checks`. The reasons for a monorepo and a subtree, and when a legacy repository stays separate, are in [repository strategy](brownfield-modernize.md#repository-strategy).
 
-**You get:** the legacy history under `legacy/`, and `.agent-workflow/config.yaml` with the project settings and the packages setup detected from their manifests.
+**You get:** the legacy history under `legacy/`, and `.agent-workflow/config.yaml` with the project settings and your `project.packages` entries.
 
 **Gate or approval:** none.
 
-**Common mistakes:** a submodule instead of a subtree; leaving `monorepo` off, so the checks of each package are not run in its directory.
+**Common mistakes:** a submodule instead of a subtree; no `project.packages` entry for a package, so its checks never run.
 
 ## Setup and team setup
 
@@ -311,7 +311,7 @@ gin-workflow milestone close <id> --reason "Catalog read path shipped; checkout 
 ```
 ```text
 /gin-workflow:report --milestone <id>
-/gin-workflow:progress --milestone <id>
+/gin-workflow:progress milestone <id>
 ```
 ```bash
 gin-workflow milestone kickstart <next-id> --date 2026-12-01
@@ -319,11 +319,11 @@ gin-workflow milestone kickstart <next-id> --date 2026-12-01
 
 Put in the prompt: the milestone id, and for the report the question you need answered (cost, quality signals, or both).
 
-**You get:** `milestone show` lists the open epics and the warnings; `move` re-parents the unfinished epics and records `{from, to, at, actor}` in each epic's `milestone_moves` metadata, so the history of an epic that slipped stays readable; `close` stores your reason as the bead's close reason. `report` gives the cost and usage of the milestone's epics and their tracks, and `progress` the status of each epic. Then you run `kickstart` for the next milestone, and plan it as in [Milestone planning](#milestone-planning).
+**You get:** `milestone show` lists the open epics and the warnings; `move` re-parents the unfinished epics and records `{from, to, at, actor}` in each epic's `milestone_moves` metadata, so the history of an epic that slipped stays readable; `close` stores your reason as the bead's close reason. `report` gives the cost and usage of the milestone's epics and their tracks, and `progress` lists the milestone's epics with `gin-workflow task list --parent <id>` and the status of each epic's tracks. Then you run `kickstart` for the next milestone, and plan it as in [Milestone planning](#milestone-planning).
 
 **Gate or approval:** `milestone close` is refused while the milestone has open epics, and `--reason` is required.
 
-**Common mistakes:** closing an unfinished epic so the milestone can close, when it should move; moving epics without a reason on the close; reading the report before `gin-workflow usage collect` ran on closed tracks (they show as `not collected`).
+**Common mistakes:** closing an unfinished epic so the milestone can close, when it should move; moving epics without a reason on the close.
 
 ## Customizing outputs
 

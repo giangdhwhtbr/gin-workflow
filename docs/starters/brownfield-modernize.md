@@ -63,7 +63,7 @@ git subtree pull --prefix=legacy/shop git@github.com:acme/shop-legacy.git main  
 
 Git submodules are a poor fit because every checkout inside a submodule dirties the parent repository and each member must keep two commits in step. A legacy repository stays separate when another team owns its deploy pipeline, when compliance requires its history or access list to stay apart, or when it is too large to carry in every clone.
 
-Set `monorepo: true` and let setup detect `packages`, then give each package its own `verify.checks` so a change to `services/api/` runs only that package's checks ([configuration](../reference/config.md#verifychecks)).
+Setup detects `packages` only from JavaScript workspaces; for other stacks, such as a Maven API next to an npm SPA, list each package under `project.packages` in `.agent-workflow/config.yaml` with its `path`, `shape`, and own `verify.checks`. Hooks then run a package's checks in its directory whenever the package is listed ([configuration](../reference/config.md#verifychecks)).
 
 Declare `team.areas` by path (`legacy/**`, `services/api/**`, `apps/web/**`) so every plan track stays inside one of them, as in the YAML under [Strangler fig](#strangler-fig).
 
