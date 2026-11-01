@@ -19,6 +19,7 @@ from workflow_core.cli import main as cli_main
 from workflow_core.events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from workflow_core.lifecycle_cli import main as lifecycle_main
 from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path
+from tests.workflow_core.team_fixtures import calls, fake_cli, path_with
 
 
 class TestLifecycleCLI(unittest.TestCase):
@@ -472,6 +473,34 @@ class TestLifecycleCLI(unittest.TestCase):
         args = ["record", "orchestration-ready", "--repository", str(self.repo_path),
                 "--evidence", "beads", "--actor", "user"]
         self.assertEqual(0, cli_main(args + (["--epic", epic] if epic else [])))
+
+    def _record_with_fake_bd(self, rule, *extra):
+        bin_dir = self.repo_path / "fakebin"
+        fake_cli(bin_dir, "bd", [rule])
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, path_with(bin_dir)), contextlib.redirect_stdout(out), \
+                mock.patch("workflow_core.lifecycle_cli.tasks_backend", return_value="beads"):
+            code = cli_main(["record", "orchestration-ready", "--repository", str(self.repo_path),
+                             "--evidence", "beads", "--actor", "user", "--format", "json", *extra])
+        return code, json.loads(out.getvalue()), calls(bin_dir)
+
+    def test_record_orchestration_ready_starts_the_epic_bead(self):
+        code, result, made = self._record_with_fake_bd({"argv": ["update"]}, "--epic", "ep-1")
+        self.assertEqual((0, "recorded"), (code, result["status"]))
+        self.assertNotIn("warning", result)
+        self.assertEqual([["bd", "update", "ep-1", "--status", "in_progress"]], made)
+
+    def test_record_orchestration_ready_keeps_the_gate_when_bd_fails(self):
+        code, result, _ = self._record_with_fake_bd({"argv": ["update"], "exit": 1, "stderr": "boom"},
+                                                    "--epic", "ep-1")
+        self.assertEqual((0, "recorded"), (code, result["status"]))
+        self.assertIn("ep-1", result["warning"])
+        self.assertIn("boom", result["warning"])
+
+    def test_record_orchestration_ready_without_epic_leaves_beads_alone(self):
+        code, result, made = self._record_with_fake_bd({"argv": ["update"]})
+        self.assertEqual((0, "recorded"), (code, result["status"]))
+        self.assertEqual([], made)
 
     def test_implementation_complete_derives_from_closed_epic_children(self):
         from unittest.mock import patch
