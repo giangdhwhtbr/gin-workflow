@@ -10,7 +10,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 |---|---|---|---|
 | `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/`, and waits for your confirmation | `requirement_confirmed` | `gin-workflow record requirement-confirmed --evidence <spec> --actor <id>` |
 | `plan` | Writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role, and a model and effort from the model catalog each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
-| `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>` |
+| `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>`; sets the epic bead to `in_progress` |
 | `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
 | `ship` | Offers merge, pull request, keep, or discard; runs the one you choose; cleans up; closes the epic | `shipped` | derived: the epic is closed |
 

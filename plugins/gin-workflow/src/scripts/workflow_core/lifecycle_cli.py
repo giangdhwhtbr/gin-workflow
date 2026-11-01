@@ -227,6 +227,23 @@ def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse
     return None
 
 
+def _start_epic(repo_path: Path, epic: str) -> str | None:
+    """Mark the epic bead in_progress. Returns a warning on failure; the recorded gate stands."""
+    from .configuration import ConfigValidationError
+    from .team import TeamError
+    from .team_beads import _bd
+
+    try:
+        if tasks_backend(repo_path) != "beads":
+            return None
+        done = _bd(repo_path, ["update", epic, "--status", "in_progress"], timeout=30)
+    except (ConfigValidationError, TeamError, OSError, subprocess.SubprocessError) as error:
+        return f"could not set {epic} in_progress: {error}"
+    if done.returncode != 0:
+        return f"could not set {epic} in_progress: {done.stderr.strip()}"
+    return None
+
+
 def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
     """Legacy-layout spec lint for a Markdown evidence file; other evidence is not checked."""
     from .specs import lint_design_spec
@@ -288,6 +305,9 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     warning = None
     if team is not None and appended and (team_payload or args.gate == "orchestration-ready"):
         warning = _share_gate(Path(args.repository).resolve(), prior, args, actor, team_payload)
+    if appended and args.epic:
+        started = _start_epic(Path(args.repository).resolve(), args.epic)
+        warning = "; ".join(w for w in (warning, started) if w) or None
     result = {
         "status": "recorded" if appended else "already_recorded",
         "gate": args.gate,
