@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+from datetime import date, datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -11,7 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from . import milestone as core
 
@@ -51,7 +51,9 @@ def _parser() -> argparse.ArgumentParser:
     item = sub.add_parser("estimate", parents=[common])
     item.add_argument("epic")
     item.add_argument("days")
-    sub.add_parser("close", parents=[common]).add_argument("id")
+    item = sub.add_parser("close", parents=[common])
+    item.add_argument("id")
+    item.add_argument("--reason", required=True)
     item = sub.add_parser("list", parents=[common])
     item.add_argument("--all", action="store_true")
     item.add_argument("--json", action="store_true")
@@ -165,6 +167,19 @@ def _kickstart(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, 
     return f"kickoff of {args.id} set to {day.isoformat()}", "kickoff"
 
 
+def _trace_move(root: Path, bead: Mapping[str, Any], epic: str, to: str, actor: str) -> None:
+    """Append {from, to, at, actor} to the epic's `milestone_moves` metadata; a failure warns, never rolls back."""
+    try:
+        metadata = bead.get("metadata")
+        stored = metadata.get("milestone_moves") if isinstance(metadata, Mapping) else None
+        moves = json.loads(stored) if isinstance(stored, str) else list(stored or [])  # bd returns it parsed or as a string
+        moves.append({"from": bead.get("parent") or None, "to": None if to == "none" else to,
+                      "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "actor": actor or "unknown"})
+        _bd(root, ["update", epic, "--set-metadata", f"milestone_moves={json.dumps(moves)}"], actor)
+    except (MilestoneError, ValueError, TypeError, AttributeError) as error:
+        print(f"warning: {epic} moved but milestone_moves not recorded: {error}", file=sys.stderr)
+
+
 def _move(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
     if args.to != "none":
         _open(beads, args.to)
@@ -186,6 +201,7 @@ def _move(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]]
         except MilestoneError as error:
             raise MilestoneError(f"moved {', '.join(done) or 'none'}; {epic} failed: {error}") from None
         done.append(epic)
+        _trace_move(root, beads[epic], epic, args.to, actor)
     return f"moved {', '.join(args.epics)} to {args.to}", "membership"
 
 
@@ -206,7 +222,7 @@ def _close(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]
     open_epics = sorted(e["id"] for e in core.epics_of(args.id, beads) if e.get("status") != "closed")
     if open_epics:
         raise MilestoneError("open epics: " + ", ".join(open_epics))
-    _bd(root, ["close", args.id], actor)
+    _bd(root, ["close", args.id, "--reason", args.reason], actor)
     return f"closed {args.id}", "close"
 
 

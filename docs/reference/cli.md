@@ -197,7 +197,7 @@ gin-workflow milestone update ID [--title TITLE] [--start YYYY-MM-DD] [--end YYY
 gin-workflow milestone kickstart ID [--date YYYY-MM-DD]
 gin-workflow milestone move EPIC... --to ID|none
 gin-workflow milestone estimate EPIC DAYS
-gin-workflow milestone close ID
+gin-workflow milestone close ID --reason TEXT
 ```
 
 Dated milestones over roadmap epics, stored in Beads; they need `providers.task_tracking: beads`. `list` reports each open milestone (every milestone with `--all`) with its status, period, epic progress, and warning count, plus the number of open `roadmap` epics without a parent. `show` reports the schedule of one milestone: each epic's planned start and end in working days (Monday to Friday) from `--start`, else the kick-off date, else the start date, and its warnings (`overflow`, `late`, `unestimated`, `external_blocker`). A `list` entry whose schedule cannot be computed (a dependency cycle or a malformed date) carries `error` and keeps the other entries; its status then falls back to `planned`. `--start` is a read-only preview. `--json` prints `schema: 1`; fields are defined in the gin-console contract (`gin-harness/docs/changes/gin-harness-6s4-milestones/design.md`) and only ever added to.
@@ -209,9 +209,9 @@ The write commands:
 | `create` | New milestone with a start and end date; prints its id. `--start` after `--end` is refused |
 | `update` | Change the title or either date of an open milestone |
 | `kickstart` | Set the kick-off date (default today) that the schedule starts from |
-| `move` | Put epics under a milestone, or take them out with `--to none`. Refuses a non-epic, a closed target, an epic in a closed milestone, and an epic whose parent is not a milestone |
+| `move` | Put epics under a milestone, or take them out with `--to none`. Refuses a non-epic, a closed target, an epic in a closed milestone, and an epic whose parent is not a milestone. Appends `{from, to, at, actor}` to each epic's `milestone_moves` metadata (a failed append prints a warning and keeps the move) |
 | `estimate` | Set an epic's estimate as a positive whole number of working days (480 minutes each) |
-| `close` | Close a milestone; refused while it has open epics |
+| `close` | Close a milestone with a reason (`bd close --reason`); refused while it has open epics; `--reason` missing is a usage error |
 
 Each write command first checks the team role. With `team.permissions.milestone` set, the git user must hold one of its roles, otherwise the command names the roles and exits 2. With `team.beads_sync.remote`, it pulls first and stops with `pull failed, nothing written` (exit 1) when the pull fails or times out. After the write it pushes; a rejected or timed-out push prints `<change> written locally but not pushed` and exits 1. The local write stays and is never reset. In team mode, the member's email is recorded as the Beads actor. See [Team mode](../guides/team.md).
 
