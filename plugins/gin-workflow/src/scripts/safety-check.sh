@@ -52,7 +52,11 @@ for ((i = 0; i < ${#COMMAND}; i++)); do
   elif [ -n "$quote" ]; then
     unq+=$c
   elif [ "$c" = "\\" ]; then
-    segment+=$c; bare+=$c; i=$((i + 1)); c=${COMMAND:i:1}; bare+=$c; unq+=$c
+    # `\-n` is `-n`; an escaped space (`fix\ -n`) keeps the word whole, so bare gets Q for it.
+    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}; unq+=$c
+    if [[ "$c" == [[:space:]] ]]; then bare+=Q; else bare+=$c; fi
+  elif [ "$c" = '$' ] && [[ "${COMMAND:i+1:1}" == [\'\"] ]]; then
+    : # `$'-n'` and `$"-n"` are quoted words: drop the `$`.
   elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
     quote=$c q_start=${#unq}
   elif [[ "$c" == [\;\&\|$'\n'] ]]; then
@@ -98,17 +102,23 @@ git_re='(^|[[:space:]/(`{])git([[:space:]]|$)'
 commit_n_re='[[:space:]]commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]);`]|$)'
 config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])core\.hookspath'
 hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
-# `sh -c`, `bash -lc`, `zsh -c` or `eval`; the last group is the payload the shell runs.
-shell_re='(^|[[:space:]/(`{])((ba|z)?sh[[:space:]]+(-[-a-z]+[[:space:]]+)*-[a-z]*c|eval)([[:space:]]+(.*)|$)'
+# `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval`; group 7 is the payload the shell runs. Words before
+# the `-c` flag are long options, short flags without c, or option values, so the first `-…c…` flag is the one.
+shell_re='(^|[[:space:]/(`{])((ba|z|da|k|mk)?sh([[:space:]]+(--[^[:space:]]*|-[^c[:space:]]*|[^-[:space:]][^[:space:]]*))*[[:space:]]+-[a-z]*c[a-z]*|eval)([[:space:]]+(.*)|$)'
 depth=${SAFETY_CHECK_DEPTH:-0}
 shopt -s nocasematch
 for i in "${!segments[@]}"; do
   raw=${segments[i]} bare=${bares[i]}
-  # Check a wrapped payload as its own command. Detect on bare (a quoted message is not run), take the
-  # payload from the unquoted text; its first match is at or before the real one, so it can only over-block.
-  if [[ "$bare" =~ $shell_re ]] && [[ "${unqs[i]}" =~ $shell_re ]]; then
+  # Check a wrapped payload as its own command. Detect on bare (a quoted message is not run), take payloads
+  # from the unquoted text. A quoted decoy (`X="a sh -c '"`) can match there first, so check the payload of
+  # every match: each payload is searched again, and one of them starts at the real wrapper.
+  if [[ "$bare" =~ $shell_re ]]; then
     [ "$depth" -lt 3 ] || block_hooks "a command nested in sh -c or eval more than 3 levels deep"
-    SAFETY_CHECK_DEPTH=$((depth + 1)) bash "${BASH_SOURCE[0]}" "${BASH_REMATCH[6]}" "$CWD" </dev/null || exit $?
+    payload=${unqs[i]}
+    while [[ "$payload" =~ $shell_re ]]; do
+      payload=${BASH_REMATCH[7]}
+      SAFETY_CHECK_DEPTH=$((depth + 1)) bash "${BASH_SOURCE[0]}" "$payload" "$CWD" </dev/null || exit $?
+    done
   fi
   # `/usr/bin/git` counts; a `git` inside quotes (bare has it as Q) does not.
   [[ "$bare" =~ $git_re ]] || continue

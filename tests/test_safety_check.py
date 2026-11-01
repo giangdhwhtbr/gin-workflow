@@ -58,8 +58,25 @@ class TestHookBypassBlocked(unittest.TestCase):
         for command in ('sh -c "git commit -n"', 'bash -c "git commit -n"', "zsh -c 'git commit -n'",
                         'eval "git commit -n"', 'bash -lc "git commit -n"', 'cd x && sh -c "git commit -n"',
                         'sh -c "bash -c \'git commit -n\'"', 'sh -c "sh -c \\"git commit -n\\""',
-                        'sh -c "rm -rf /"', 'sh -c "sh -c \'sh -c \\"sh -c ls\\"\'"'):
+                        'sh -c "rm -rf /"', 'sh -c "sh -c \'sh -c \\"sh -c ls\\"\'"',
+                        'bash -o pipefail -c "git commit -n"', 'dash -c "git commit -n"', 'ksh -c "git commit -n"',
+                        'bash --norc -ce "git commit -n"', 'bash -c "git commit -n -c x"'):
             self.assertEqual(2, exit_code(command), command)
+
+    def test_blocks_wrapped_command_after_a_quoted_decoy_wrapper(self):
+        for command in ("X=\"a sh -c '\" bash -c \"git commit -n\" Y=\"'\"",
+                        "X=\"a sh -c '\" bash -c \"git commit -n\"",
+                        "env X=\"a eval '\" bash -c \"git commit -n\"",
+                        "X=\"a eval '\" eval \"git commit -n\"",
+                        "X=\"a sh -c '\" bash -c \"git -c core.hooksPath=/x commit\""):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_blocks_ansi_c_quoted_and_escaped_flags(self):
+        for command in ("git commit $'-n'", 'git commit $"-n"', "git commit \\-n", "git \\commit -n"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_allows_escaped_space_inside_a_word(self):
+        self.assertEqual(0, exit_code("git commit -m fix\\ -n"))
 
     def test_allows_shell_wrapped_safe_commands_and_quoted_payloads(self):
         for command in ('git commit -m "sh -c git commit -n"', 'bash -c "git commit -m \\"fix -n\\""',
