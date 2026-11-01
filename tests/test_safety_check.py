@@ -72,7 +72,8 @@ class TestHookBypassBlocked(unittest.TestCase):
             self.assertEqual(2, exit_code(command), command)
 
     def test_blocks_ansi_c_quoted_and_escaped_flags(self):
-        for command in ("git commit $'-n'", 'git commit $"-n"', "git commit \\-n", "git \\commit -n"):
+        for command in ("git commit $'-n'", 'git commit $"-n"', "git commit \\-n", "git \\commit -n",
+                        "git \\\ncommit -n", "git commit \\\n-n", "git commit -m x \\\n-n"):
             self.assertEqual(2, exit_code(command), command)
 
     def test_allows_escaped_space_inside_a_word(self):

@@ -52,9 +52,12 @@ for ((i = 0; i < ${#COMMAND}; i++)); do
   elif [ -n "$quote" ]; then
     unq+=$c
   elif [ "$c" = "\\" ]; then
-    # `\-n` is `-n`; an escaped space (`fix\ -n`) keeps the word whole, so bare gets Q for it.
-    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}; unq+=$c
-    if [[ "$c" == [[:space:]] ]]; then bare+=Q; else bare+=$c; fi
+    # `\-n` is `-n`; an escaped space (`fix\ -n`) keeps the word whole, so bare gets Q for it;
+    # `\` + newline is a line continuation the shell drops.
+    segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}
+    if [ "$c" = $'\n' ]; then :
+    elif [[ "$c" == [[:space:]] ]]; then bare+=Q; unq+=$c
+    else bare+=$c; unq+=$c; fi
   elif [ "$c" = '$' ] && [[ "${COMMAND:i+1:1}" == [\'\"] ]]; then
     : # `$'-n'` and `$"-n"` are quoted words: drop the `$`.
   elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
