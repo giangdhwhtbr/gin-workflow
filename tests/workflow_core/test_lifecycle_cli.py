@@ -280,6 +280,27 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual([{"task_id": "default-workflow.1", "reason": "spike", "actor": "u"}],
                          self._state_json()["review_waivers"])
 
+    def test_invalid_config_exits_2_without_traceback(self):
+        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.3'\nverify: nope\n")
+
+        def run(*argv):
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = lifecycle_main([*argv, "--repository", str(self.repo_path)])
+            return code, out.getvalue(), err.getvalue()
+
+        for fmt in (["--format", "json"], ["--format=json"]):
+            code, out, err = run("state", *fmt)
+            self.assertEqual(2, code, err)
+            self.assertEqual("error", json.loads(out)["status"])
+            self.assertTrue(json.loads(out)["message"])
+        for argv in (["state"], ["record", "requirement-confirmed", "--evidence", "json", "--actor", "me"]):
+            code, out, err = run(*argv)
+            self.assertEqual(2, code, err)
+            self.assertEqual("", out)
+            self.assertIn("error:", err)
+            self.assertNotIn("Traceback", err)
+
     def test_unblock_safety_gate_without_followup_fails(self):
         exit_code = lifecycle_main([
             "unblock",
