@@ -555,19 +555,15 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
     return {**base, "decision": "allowed", "reason": "within quick limits"}, 0
 
 
+def _call(handler, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+    try:
+        return handler(args)
+    except ConfigValidationError as error:
+        return {"status": "error", "message": str(error)}, 2
+
+
 def main(arguments: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if arguments is None else arguments)
-    try:
-        return _run(argv)
-    except ConfigValidationError as error:
-        if "json" in argv:
-            print(json.dumps({"status": "error", "message": str(error)}, indent=2, sort_keys=True))
-        else:
-            print(f"error: {error}", file=sys.stderr)
-        return 2
-
-
-def _run(argv: list[str]) -> int:
     if not argv:
         print("usage: gin-workflow {state,unblock,record,quick-check} ...", file=sys.stderr)
         return 2
@@ -588,9 +584,11 @@ def _run(argv: list[str]) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
-        payload, exit_code = _state_command(args)
+        payload, exit_code = _call(_state_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
+        elif exit_code == 2 and payload.get("status") == "error":
+            print(f"error: {payload['message']}", file=sys.stderr)
         else:
             print(f"Lifecycle Stage: {payload.get('stage')}")
             print(f"Routing Decision: {payload.get('decision')}")
@@ -620,9 +618,11 @@ def _run(argv: list[str]) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
-        payload, exit_code = _quick_check_command(args)
+        payload, exit_code = _call(_quick_check_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
+        elif exit_code == 2 and payload.get("status") == "error":
+            print(f"error: {payload['message']}", file=sys.stderr)
         else:
             print(f"{payload['decision']}: {payload['reason']}")
             print(f"Rigor: {payload['rigor']}; review: {payload['review']}")
@@ -642,7 +642,7 @@ def _run(argv: list[str]) -> int:
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
 
-        payload, exit_code = _unblock_command(args)
+        payload, exit_code = _call(_unblock_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
         else:
@@ -666,7 +666,7 @@ def _run(argv: list[str]) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
-        payload, exit_code = _record_command(args)
+        payload, exit_code = _call(_record_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
         elif exit_code:
