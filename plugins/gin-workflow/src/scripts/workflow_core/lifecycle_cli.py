@@ -12,9 +12,10 @@ from typing import Any, Mapping, Sequence
 from .artifacts import ArtifactResolutionError, resolve_artifact
 from .catalog import catalog_for
 from .checkout import main_checkout
-from .configuration import resolve_effective_config
+from .configuration import ConfigValidationError, resolve_effective_config
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .project import project_settings
+from .tasks import backend as tasks_backend
 from . import orchestrator_client
 from .team import load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
@@ -111,7 +112,7 @@ def _bead_closed(repo_path: Path, bead_id: str) -> tuple[bool, str | None]:
 
 
 def _delivery_state(
-    repo_path: Path, events: Sequence[WorkflowEvent], workflow_id: str
+    repo_path: Path, events: Sequence[WorkflowEvent], workflow_id: str, epic: str | None = None
 ) -> tuple[dict[str, bool | None], bool | None, str | None]:
     """Derive delivery gates: implementation from closed epic children, shipped from the closed epic
     (closed only after a confirmed merge). A standalone bead recorded as its own epic has no children:
@@ -119,9 +120,9 @@ def _delivery_state(
     A standalone bead also carries its requirement and scope, so it needs no discuss or plan gate.
 
     Returns the gates, whether the epic is standalone, and the tracker failure; None marks a value
-    that failure left unknown."""
+    that failure left unknown. `epic` overrides the epic recorded in the local log."""
     unknown: dict[str, bool | None] = {"implementation_complete": None, "shipped": None}
-    epic = _recorded_epic(events, workflow_id)
+    epic = _recorded_epic(events, workflow_id) if epic is None else epic
     if not epic:
         return {"implementation_complete": False, "shipped": False}, False, None
     children, cause = _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
@@ -180,6 +181,50 @@ def _record_refusal(
     return None
 
 
+_SHARED_EVENTS = {"requirement.confirmed": "requirement_confirmed", "approval.recorded": "plan_approved",
+                  "delivery.shipped": "shipped"}
+
+
+def _proof(payload: Mapping[str, Any], actor: str, at: str) -> dict[str, Any]:
+    return {"pr_url": payload.get("pr_url", ""), "merge_commit": payload.get("merge_commit", ""),
+            "approvers": [a.get("email", "") for a in payload.get("approvers", []) if isinstance(a, Mapping)],
+            "actor": actor, "at": at}
+
+
+def _proven_locally(events: Sequence[WorkflowEvent], workflow_id: str) -> list[WorkflowEvent]:
+    """The workflow's events that carry a PR proof worth sharing."""
+    return [event for event in events if event.workflow_id == workflow_id and event.event_type in _SHARED_EVENTS
+            and isinstance(event.payload, Mapping) and event.payload.get("pr_url")]
+
+
+def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse.Namespace, actor: str,
+                team_payload: Mapping[str, Any]) -> str | None:
+    """Team mode with Beads: mirror the PR proof of this record (and, at orchestration-ready, the earlier ones)
+    into the epic bead. Returns a warning when nothing could be shared; the local event stays the source of truth."""
+    from .team_beads import _bd, epic_for, utc_now, write_gate
+
+    gate = args.gate.replace("-", "_")
+    epic = args.epic
+    try:
+        if tasks_backend(repo_path) != "beads":
+            return None
+        if args.gate == "orchestration-ready":
+            for prior in _proven_locally(events, args.workflow_id):
+                write_gate(repo_path, epic, _SHARED_EVENTS[prior.event_type],
+                           _proof(prior.payload, prior.actor, prior.timestamp), actor=actor)
+            labelled = _bd(repo_path, ["update", epic, "--add-label", f"workflow:{args.workflow_id}"], actor=actor)
+            if labelled.returncode != 0:
+                return f"could not label {epic} workflow:{args.workflow_id}: {labelled.stderr.strip()}"
+            return None
+        epic = epic_for(repo_path, args.workflow_id, _recorded_epic(events, args.workflow_id))
+        if not epic:
+            return f"gate {gate} proven locally; no epic bead to share it"
+        write_gate(repo_path, epic, gate, _proof(team_payload, actor, utc_now()), actor=actor)
+    except Exception as error:  # broad on purpose: the local event is already durable, sharing is best effort
+        return f"gate recorded locally; could not write it to {epic or 'the epic bead'}: {error}"
+    return None
+
+
 def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
     """Legacy-layout spec lint for a Markdown evidence file; other evidence is not checked."""
     from .specs import lint_design_spec
@@ -234,16 +279,23 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             refusal = _record_refusal(Path(args.repository).resolve(), tx.events, args)
             if refusal is not None:
                 return refusal
+            prior = list(tx.events)
             appended = tx.append(event)
     except (EventPersistenceError, RuntimeError, OSError) as error:
         return {"status": "error", "message": f"{args.gate} not recorded for {args.workflow_id}: {error}"}, 1
-    return {
+    warning = None
+    if team is not None and appended and (team_payload or args.gate == "orchestration-ready"):
+        warning = _share_gate(Path(args.repository).resolve(), prior, args, actor, team_payload)
+    result = {
         "status": "recorded" if appended else "already_recorded",
         "gate": args.gate,
         "event_type": event_type,
         "workflow_id": args.workflow_id,
         "message": f"{args.gate} recorded for {args.workflow_id}",
-    }, 0
+    }
+    if warning:
+        result["warning"] = warning
+    return result, 0
 
 
 def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEvent] | None,
@@ -273,6 +325,9 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     resolved_config = resolve_effective_config(repo_path, write=False)
     config = resolved_config.config
 
+    team = load_team(config.to_dict())
+    unshared: list[str] = []
+
     event_store = _get_event_store(repo_path)
     workflow_id = getattr(args, "workflow_id", None) or "default-workflow"
     scope_hash = getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path)
@@ -283,7 +338,27 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         causes, waivers = [log_error], {}
     else:
         gates_state = _process_gate_state(events, workflow_id)
-        delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id)
+        recorded = _recorded_epic(events, workflow_id)
+        shared_epic, shared, shared_cause = "", {}, None
+        try:
+            share = team is not None and tasks_backend(repo_path) == "beads"
+        except ConfigValidationError as error:
+            share, shared_cause = False, f"tracker unavailable: {error}"
+        if share:
+            from .team_beads import shared_gates
+
+            shared_epic, shared, shared_cause = shared_gates(repo_path, workflow_id, recorded)
+            for gate in ("requirement_confirmed", "plan_approved"):
+                if gate in shared:
+                    gates_state[gate] = True
+        delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id,
+                                                              epic=shared_epic or None)
+        if "shipped" in shared and standalone:
+            delivery["shipped"] = True
+        if shared_epic and shared_epic != recorded and standalone:
+            # A childless bead found only through the tracker may be an epic still in discuss or plan;
+            # its requirement and plan gates come from its `gates` metadata, not from being standalone.
+            standalone = False
         gates_state.update(delivery)
         for gate in ("requirement_confirmed", "plan_approved"):
             if standalone:
@@ -291,6 +366,11 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             elif standalone is None and not gates_state[gate]:
                 gates_state[gate] = None
         causes = [f"tracker unavailable: {tracker_error}"] if tracker_error else []
+        if shared_cause:
+            causes.append(shared_cause)
+        elif share and not shared_epic:
+            unshared = [f"gate {gate} proven locally; no epic bead to share it" for gate in
+                        dict.fromkeys(_SHARED_EVENTS[event.event_type] for event in _proven_locally(events, workflow_id))]
         waivers = waivers_from_events(events, workflow_id=workflow_id, scope_hash=scope_hash)
 
     state: dict[str, Any] = {
@@ -324,9 +404,9 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "evidence": list(decision.evidence),
         "remedies": list(decision.remedies),
         "project": {**project_settings(config.to_dict()).to_dict(),
-                    "team": team_summary(repo_path, load_team(config.to_dict()))},
+                    "team": team_summary(repo_path, team)},
         "extensions": {"orchestrator": orchestrator_client.status()},
-        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes,
+        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes, *unshared,
                                  _knowledge_warning(repo_path, config, events, workflow_id, gates_state)) if w],
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
@@ -560,6 +640,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             print(f"error: {payload['message']}", file=sys.stderr)
         else:
             print(payload["message"])
+            if payload.get("warning"):
+                print(f"warning: {payload['warning']}", file=sys.stderr)
         return exit_code
 
     return 2

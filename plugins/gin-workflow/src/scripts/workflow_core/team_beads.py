@@ -251,3 +251,36 @@ def deps_for(root: Path, bead: str) -> dict[str, Any]:
         else:
             ok.append(dep["id"])
     return {"bead": bead, "ok": ok, "missing": missing}
+
+
+def gates_of(issue: Mapping[str, Any]) -> dict[str, Any]:
+    return metadata_json(issue, "gates")
+
+
+def write_gate(root: Path, epic: str, gate: str, proof: Mapping[str, Any], *, actor: str) -> None:
+    """Merge one proven gate into the epic bead's `gates` metadata; other gates are kept."""
+    gates = {**gates_of(_show(root, epic)), gate: dict(proof)}
+    completed = _bd(root, ["update", epic, "--set-metadata", f"gates={json.dumps(gates, sort_keys=True)}"], actor=actor)
+    if completed.returncode != 0:
+        raise TeamError(f"bd update {epic} --set-metadata gates failed: {completed.stderr.strip()}")
+
+
+def epic_for(root: Path, workflow_id: str, recorded: str) -> str:
+    """The bead that shares a workflow's gates: the workflow id when it is a bead, else the recorded epic, else
+    the epic labelled workflow:<id>; "" when none exists. Raises TeamError when bd is unavailable."""
+    if _bd(root, ["show", workflow_id, "--json"]).returncode == 0:
+        return workflow_id
+    if recorded:
+        return recorded
+    rows = [row for row in _bd_json(root, ["list", "--label", f"workflow:{workflow_id}", "--all", "--limit", "0"])
+            if row.get("issue_type") == "epic"]
+    return str(rows[0]["id"]) if rows else ""
+
+
+def shared_gates(root: Path, workflow_id: str, recorded: str) -> tuple[str, dict[str, Any], str | None]:
+    """(epic, its `gates` metadata, None), or ("", {}, cause) when the tracker cannot answer."""
+    try:
+        epic = epic_for(root, workflow_id, recorded)
+        return epic, (gates_of(_show(root, epic)) if epic else {}), None
+    except (TeamError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
+        return "", {}, f"tracker unavailable: {error}"

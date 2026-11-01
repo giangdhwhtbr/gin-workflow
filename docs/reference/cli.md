@@ -69,11 +69,11 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 | `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan` |
 | `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped` |
 | `quick-completed` | a `/quick` change finished | evidence: files and verify results |
-| `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead |
+| `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead. Team mode with a `ship` policy: evidence is the merged PR URL, approved on its head commit by a listed role other than the author; the local HEAD is not compared |
 
-`--actor` is required unless team mode derives it from `git config user.email`. Recording the same gate with the same evidence twice reports `already_recorded`. Recording `shipped` for a workflow that already has a `shipped` event also reports `already_recorded`. The checks below and the write happen under one lock on the event store.
+`--actor` is required unless team mode derives it from `git config user.email`. Recording the same gate with the same evidence twice reports `already_recorded`. Recording `shipped` for a workflow that already has a `shipped` event also reports `already_recorded`. The checks below and the write happen under one lock on the event store. In team mode with Beads, `record` also writes the gate's PR proof into the epic bead's `gates` metadata (see `docs/concepts/state-model.md`); when that write fails, the gate stays recorded, the command exits 0, and it prints `warning: ...` to stderr (`warning` in JSON).
 
-Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, `shipped` on anything but a standalone bead, `shipped` while the task tracker cannot be read (the message names the cause), and, in team mode, a team configuration or host error. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
+Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, `shipped` on anything but a standalone bead, `shipped` while the task tracker cannot be read (the message names the cause), and, in team mode, `shipped` evidence that is not a PR URL, or a team configuration or host error. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
 
 ## `gin-workflow unblock`
 

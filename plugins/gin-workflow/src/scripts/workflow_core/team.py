@@ -445,18 +445,24 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
     if not url.startswith(("https://", "http://")):
         raise TeamError(f"{gate} needs a PR/MR URL as --evidence in team mode, got {url!r}")
     pr = fetch_pr(url, team.host, Path(root))
-    artifact = "" if gate == "ship" else resolve_artifact(
+    policy_gate = "ship" if gate == "shipped" else gate
+    artifact = "" if policy_gate == "ship" else resolve_artifact(
         pr, Path(root), gate, plan if gate == "plan_approved" else spec)
     head = _head(Path(root)) if gate == "ship" else ""
-    return pr, artifact, check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
+    reasons = check_approval(policy_gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
+    if gate == "shipped" and not pr.merged:
+        reasons.append("PR is not merged")
+    return pr, artifact, reasons
 
 
 def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, actor: str | None = None,
                      plan: str | None = None, spec: str | None = None) -> tuple[str, dict[str, Any]]:
     """Team-mode `record`: the member's email as actor plus, for a gate with a policy, the PR proof."""
     member = require_member(root, team, actor)
-    if gate not in GATES or not has_policy(gate, team):
+    if (gate not in GATES and gate != "shipped") or not has_policy("ship" if gate == "shipped" else gate, team):
         return member.email, {}
+    if gate == "shipped" and not evidence.startswith(("https://", "http://")):
+        raise TeamError("shipped needs the PR URL as --evidence in team mode")
     pr, artifact, reasons = verify_gate(root, team, gate, evidence, plan=plan, spec=spec)
     if reasons:
         raise TeamRejected(reasons)
