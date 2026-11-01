@@ -1,7 +1,7 @@
 # Team workflow guide: monorepo modernization walkthrough, milestones instead of sprints, default price catalog
 
 Workflow: team-workflow-guide
-Status: draft for user review.
+Status: confirmed by the user on 2026-11-01.
 
 ## Goal and scope
 
