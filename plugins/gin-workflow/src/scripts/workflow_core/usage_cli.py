@@ -71,6 +71,11 @@ def main(arguments: Sequence[str]) -> int:
             out = usage.collect(root, args.bead)
             text = f"{args.bead}: cost {_money(out['cost'])}; sources " + \
                 ", ".join(f"{name} {status}" for name, status in sorted(out["sources"].items()))
+            budget = out.get("budget")
+            if budget:
+                text += f"; budget {budget['status']} ({_money(budget['cost'])}/{_money(budget['budget_usd'])})"
+                if budget["status"] == "unenforceable":
+                    text += f"; no price for {', '.join(out['unpriced'])} in {usage.PRICES_FILE}"
         else:
             out = usage.report(root, bead=args.bead, epic=args.epic, since=args.since, sprint=args.sprint)
             text = _report_text(out)

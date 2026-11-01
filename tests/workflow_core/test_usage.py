@@ -347,5 +347,42 @@ class ReportTests(Fixture):
                          {"input": 4, "output": 2, "cache_read": 0, "cache_write": 0, "cost": 0.8})
 
 
+class BudgetTests(Fixture):
+    def budget(self, value):
+        write(self.repo, ".agent-workflow/config.yaml",
+              f"schema_version: '2.8'\nproviders:\n  task_tracking: beads\nusage:\n  budget_usd: {value}\n")
+
+    def test_us2_status_thresholds(self):
+        self.assertEqual(usage.budget_status(5.0, [], 10.0), "ok")
+        self.assertEqual(usage.budget_status(8.0, [], 10.0), "warn")
+        self.assertEqual(usage.budget_status(11.99, [], 10.0), "warn")
+        self.assertEqual(usage.budget_status(12.0, [], 10.0), "stop")
+        self.assertEqual(usage.budget_status(None, [], 10.0), "ok")
+
+    def test_us2_unpriced_model_makes_the_budget_unenforceable(self):
+        self.assertEqual(usage.budget_status(None, ["m9"], 10.0), "unenforceable")
+        self.assertEqual(usage.budget_status(50.0, ["m9"], 10.0), "unenforceable")
+
+    def test_us2_epic_collect_stores_the_budget_block(self):
+        self.budget(1)
+        doc = self.collect("ep1")
+        self.assertEqual(doc["budget"], {"budget_usd": 1.0, "cost": doc["cost"], "status": "ok"})
+        stored = json.loads(self.written()[-1][1])
+        self.assertEqual(stored["budget"], doc["budget"])
+
+    def test_us2_child_collect_writes_no_budget(self):
+        self.budget(1)
+        self.assertNotIn("budget", self.collect("ep1.1"))
+
+    def test_us2_no_budget_means_no_budget_block(self):
+        self.assertNotIn("budget", self.collect("ep1"))
+        self.assertIsNone(usage.budget_usd(self.repo))
+
+    def test_us2_budget_must_be_positive(self):
+        self.budget(0)
+        with self.assertRaises(usage.UsageError):
+            usage.budget_usd(self.repo)
+
+
 if __name__ == "__main__":
     unittest.main()

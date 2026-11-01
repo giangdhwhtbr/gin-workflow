@@ -44,6 +44,26 @@ prices:
 
 A model without a price is never guessed: its cost shows `-` and it is listed under `unpriced`.
 
+## Budget
+
+Set `usage.budget_usd` in `.agent-workflow/config.yaml` to give each epic a spend ceiling in USD:
+
+```yaml
+usage:
+  budget_usd: 25
+```
+
+`usage collect --bead <epic>` then stores `budget: {budget_usd, cost, status}` in the epic's summary and prints the status:
+
+| Status | When |
+|---|---|
+| `ok` | cost below 80% of the budget |
+| `warn` | cost from 80% up to 120% |
+| `stop` | cost at or above 120%; the margin covers the error of time-span attribution |
+| `unenforceable` | a used model has no price; the output names the models and `.agent-workflow/usage-prices.yaml` |
+
+A track's summary has no budget block; the budget belongs to the epic.
+
 ## Reading it
 
 ```bash
