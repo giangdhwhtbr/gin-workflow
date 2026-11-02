@@ -221,6 +221,11 @@ class TestHooksRun(unittest.TestCase):
             hooks._run_commands("pre-commit", [("test", "echo A=1; ls -l=x")], Path("."), {})
         self.assertEqual(["echo A=1; ls -l=x"], calls)
 
+    def test_env_prefix_stops_at_shell_metacharacters(self):
+        for command in ('A="x y" cmd', "A='x y' cmd", "A=$HOME cmd", "A=x;rm cmd"):
+            with self.subTest(command=command):
+                self.assertEqual((command, {}), hooks._split_env_prefix(command))
+
     def test_git_env_is_stripped(self):
         root = self.repo("a", lint='test -z "$GIT_INDEX_FILE"')
         os.environ["GIT_INDEX_FILE"] = "/nonexistent"

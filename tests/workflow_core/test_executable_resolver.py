@@ -97,6 +97,27 @@ class ExecutableResolverTests(unittest.TestCase):
                     mock.patch.object(module.os, "name", "nt"):
                 self.assertEqual(str(shim), module.resolve_harness_executable("claude", provider="claude"))
 
+    def _probe_dir_with_bare_and_cmd(self, os_name):
+        from workflow_core import executable_resolver as module
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ("claude", "claude.cmd"):
+                (Path(directory) / name).write_text("x", encoding="utf-8")
+                (Path(directory) / name).chmod(0o755)
+            with mock.patch.object(module, "COMMON_INSTALL_DIRS", (Path(directory),)), \
+                    mock.patch.dict(os.environ, {"PATH": "", "PATHEXT": ".COM;.EXE;.BAT;.CMD"}):
+                if os_name == "nt":
+                    with mock.patch.object(module.os, "name", "nt"):
+                        resolved = module.resolve_harness_executable("claude")
+                else:
+                    resolved = module.resolve_harness_executable("claude")
+            return Path(resolved).name
+
+    def test_nt_prefers_pathext_shim_over_bare_name(self):
+        self.assertEqual("claude.cmd", self._probe_dir_with_bare_and_cmd("nt"))
+
+    def test_posix_prefers_bare_name(self):
+        self.assertEqual("claude", self._probe_dir_with_bare_and_cmd("posix"))
+
     def test_us5_appdata_npm_is_probed_on_windows(self):
         from workflow_core import executable_resolver as module
         with mock.patch.dict(os.environ, {"APPDATA": r"C:\Users\x\AppData\Roaming"}):

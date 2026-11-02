@@ -65,8 +65,10 @@ def resolve_harness_executable(configured: str | None, provider: str | None = No
     candidates_to_probe = [raw, *alias_matches]
     extensions = [""]
     if os.name == "nt":
+        extensions = []
         # PATHEXT is always ;-separated; lowercase too, as Windows matches case-insensitively and the probe does not.
         extensions += [e for ext in os.environ.get("PATHEXT", "").split(";") if ext for e in (ext, ext.lower())]
+        extensions.append("")  # bare name last: on Windows it is usually the extensionless npm shell script
     for directory in COMMON_INSTALL_DIRS:
         for name in candidates_to_probe:
             for ext in extensions:

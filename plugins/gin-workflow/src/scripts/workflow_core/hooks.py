@@ -98,7 +98,7 @@ def _pushes_head(root: Path, refs: Sequence[str]) -> bool:
     return False
 
 
-_ENV_PREFIX = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(\S*)\s+")
+_ENV_PREFIX = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=([^\s\"'$`;|&<>()\\]*)\s+")
 
 
 def _split_env_prefix(command: str) -> tuple[str, dict[str, str]]:
