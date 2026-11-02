@@ -245,6 +245,16 @@ class TestWorktreeBoundary(unittest.TestCase):
             self.assertEqual(2, self.exit_code_in(directory, directory + "/missing/leaf"))
             self.assertEqual(2, self.exit_code_in(directory, "/"))
 
+    def test_a_sibling_whose_name_extends_the_worktree_path_is_outside(self):
+        with tempfile.TemporaryDirectory() as parent:
+            worktree, sibling = os.path.join(parent, "wt"), os.path.join(parent, "wt2")
+            os.mkdir(worktree)
+            os.mkdir(sibling)
+            os.mkdir(os.path.join(worktree, "sub"))
+            self.assertEqual(2, self.exit_code_in(worktree, sibling))
+            self.assertEqual(0, self.exit_code_in(worktree, worktree))
+            self.assertEqual(0, self.exit_code_in(worktree, os.path.join(worktree, "sub")))
+
 
 class TestCopilotPayloads(unittest.TestCase):
     def test_safety_check_blocks_dangerous_command_from_copilot_payload(self):

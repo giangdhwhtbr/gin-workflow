@@ -391,6 +391,14 @@ def real_path(path):
     return resolved if os.path.isdir(os.path.dirname(resolved)) else None
 
 
+def inside(path, directory):
+    """Compare path components, so `/wt2` is not inside `/wt`; paths on different drives are not inside."""
+    try:
+        return os.path.commonpath([path, directory]) == directory
+    except ValueError:
+        return False
+
+
 def check_worktree(cwd):
     """Inside a worker with a worktree context, every operation stays inside it."""
     worktree = os.environ.get("WORKTREE_PATH", "")
@@ -398,7 +406,7 @@ def check_worktree(cwd):
         return
     real_cwd = real_path(cwd or ".") or ""
     real_worktree = real_path(worktree) or ""
-    if not real_cwd or not real_worktree or not real_cwd.startswith(real_worktree):
+    if not real_cwd or not real_worktree or not inside(real_cwd, real_worktree):
         print(f"Blocked: Operation directory ({real_cwd}) is outside the assigned worktree ({real_worktree}).",
               file=sys.stderr)
         raise SystemExit(BLOCK)
