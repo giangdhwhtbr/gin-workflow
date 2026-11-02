@@ -25,6 +25,16 @@ class TestNoVerifyBlocked(unittest.TestCase):
         for command in ("git commit -m 'fix -n flag'", "git push -n", "git push origin main", "git status"):
             self.assertEqual(0, exit_code(command), command)
 
+    def test_blocks_abbreviated_no_verify(self):
+        # git accepts unambiguous prefixes of a long option: --no-veri and --no-verif are --no-verify.
+        for command in ("git commit --no-veri -m x", "git commit -m x --no-verif", "git push --no-veri",
+                        "git push origin main --no-verif"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_allows_other_no_options(self):
+        for command in ("git merge --no-ff topic", "git commit --no-verbose -m x", "git log -n 3"):
+            self.assertEqual(0, exit_code(command), command)
+
 
 class TestHookBypassBlocked(unittest.TestCase):
     def test_us2_blocks_hook_bypasses(self):
@@ -75,6 +85,29 @@ class TestHookBypassBlocked(unittest.TestCase):
         for command in ("git commit $'-n'", 'git commit $"-n"', "git commit \\-n", "git \\commit -n",
                         "git \\\ncommit -n", "git commit \\\n-n", "git commit -m x \\\n-n"):
             self.assertEqual(2, exit_code(command), command)
+
+    def test_blocks_ansi_c_escapes(self):
+        # bash decodes $'...': \x2d and \055 are `-`, \x63 is `c`.
+        for command in ("git commit $'\\x2dn'", "git commit $'\\055n'", "git commit $'\\55n'",
+                        "git commit $'\\x2d\\x2dno-verify' -m x", "git $'commit' -n", "git $'\\x63ommit' -n",
+                        "sh -c $'git commit \\x2dn'", "git commit $'\\'' $'\\x2dn'"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_allows_ansi_c_quoted_messages(self):
+        for command in ("git commit -m $'fix \\x2dn flag'", "git commit -m $'it\\'s -n'",
+                        "git commit -m $'a\\nb' -a"):
+            self.assertEqual(0, exit_code(command), command)
+
+    def test_blocks_git_alias_definitions(self):
+        # An alias can run commit under another name, so any alias defined on the command line is blocked.
+        for command in ("git -c alias.x=commit x -n", "git -c 'alias.x=commit' x", 'git -c "alias.x=commit" x',
+                        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.y GIT_CONFIG_VALUE_0=commit git y -n",
+                        "git --config-env=alias.z=A z", "git --config-env alias.z=A z"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_allows_other_config_overrides(self):
+        for command in ("git -c user.name=x commit -m y", "git -c core.editor=vim commit"):
+            self.assertEqual(0, exit_code(command), command)
 
     def test_blocks_commit_after_global_options_and_value_options(self):
         for command in ("git -C . -c x=y commit -n", "git --no-pager commit -n", 'git commit --author "x" -n',

@@ -40,15 +40,30 @@ fi
 # target elsewhere in a compound command (`cd ~/x && rm y`) does not count
 # against the removal. Separators inside quotes or after a backslash do not split.
 # `unqs` holds each segment with one layer of quoting removed (the text a shell would see).
-segments=() bares=() unqs=() segment="" bare="" unq="" quote=""
+segments=() bares=() unqs=() segment="" bare="" unq="" quote="" ansi=""
 for ((i = 0; i < ${#COMMAND}; i++)); do
   c=${COMMAND:i:1}
   if [ "$quote" = '"' ] && [ "$c" = "\\" ]; then
     segment+=$c; i=$((i + 1)); c=${COMMAND:i:1}; unq+=$c
+  elif [ -n "$ansi" ] && [ "$c" = "\\" ]; then
+    # In `$'...'` an escape is two characters (`\'` does not close the quote); both stay for the decode below.
+    segment+=$c; unq+=$c; i=$((i + 1)); c=${COMMAND:i:1}; unq+=$c
   elif [ "$c" = "$quote" ]; then
     # A quoted flag or word ("-n", "commit") counts as unquoted; quoted text with spaces (a message) stays Q,
     # and so does an empty quote that is a whole word (`-m ""`), so it still counts as a word.
     quote="" q_text=${unq:q_start} next=${COMMAND:i+1:1}
+    if [ -n "$ansi" ]; then
+      # Decode `$'\x2dn'` (`-n`) with printf %b, which differs from bash's `$'...'` in two ways: it writes
+      # octal as `\0nnn` (bash: `\nnn`), and it keeps the backslash of `\'`, `\"` and `\?`.
+      # simplified: %b also stops at `\c` (bash: a control character); a shorter word can only over-block.
+      ansi="" esc=$q_text q_text=""
+      while [[ "$esc" == *\\* ]]; do
+        q_text+=${esc%%\\*} esc=${esc#*\\}; e=${esc:0:1} esc=${esc:1}
+        case $e in [\'\"?]) q_text+=$e ;; [0-7]) q_text+="\\0$e" ;; *) q_text+="\\$e" ;; esac
+      done
+      printf -v q_text '%b' "$q_text$esc"
+      unq=${unq:0:q_start}$q_text
+    fi
     if [[ "$q_text" =~ [[:space:]] ]]; then bare+=Q
     elif [ -z "$q_text" ] && [[ "$bare" =~ (^|[[:space:]])$ && "$next" =~ ^([[:space:]\;\&\|]|$) ]]; then bare+=Q
     else bare+=$q_text; fi
@@ -62,7 +77,8 @@ for ((i = 0; i < ${#COMMAND}; i++)); do
     elif [[ "$c" == [[:space:]] ]]; then bare+=Q; unq+=$c
     else bare+=$c; unq+=$c; fi
   elif [ "$c" = '$' ] && [[ "${COMMAND:i+1:1}" == [\'\"] ]]; then
-    : # `$'-n'` and `$"-n"` are quoted words: drop the `$`.
+    # `$'-n'` and `$"-n"` are quoted words: drop the `$`; `$'...'` also decodes its escapes.
+    [ "${COMMAND:i+1:1}" = "'" ] && ansi=1
   elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
     quote=$c q_start=${#unq}
   elif [[ "$c" == [\;\&\|$'\n'] ]]; then
@@ -96,13 +112,15 @@ done
 # 1b. The git hooks are the quality gate: never skip them.
 block_hooks() { echo "Blocked: $1 skips the gin-workflow git hooks; fix the failing check instead." >&2; exit 2; }
 for s in "$COMMAND" "${bares[*]}"; do
-  if [[ "$s" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-verify ]] || \
-     [[ "$s" =~ git[[:space:]].*--no-verify.*(commit|push|merge) ]]; then
+  # git takes an unambiguous prefix of a long option: `--no-veri` and `--no-verif` are `--no-verify`.
+  if [[ "$s" =~ git[[:space:]].*(commit|push|merge)[[:space:]].*--no-veri ]] || \
+     [[ "$s" =~ git[[:space:]].*--no-veri.*(commit|push|merge) ]]; then
     block_hooks "--no-verify"
   fi
 done
 q="[\"']?"
-hooks_c_re="[[:space:]]-c[[:space:]]*${q}core\.hookspath="
+# An alias defined on the command line (`-c alias.x=commit x -n`) hides the subcommand, so block any.
+hooks_c_re="[[:space:]]-c[[:space:]]*${q}(core\.hookspath=|alias\.)"
 # `(`, a backtick or `{` may precede git; `)`, `;` or a backtick may follow a flag.
 git_re='(^|[[:space:]/(`{])git([[:space:]]|$)'
 git_word_re='^(.*[/(`{])?git$'
@@ -111,7 +129,7 @@ commit_n_word_re='^-[a-z]*n[a-z]*([);`<>].*)?$'
 # A short cluster takes the next word only when its first value letter ends it (`-am x`; `-mdoc` is -m doc).
 # -S, -u and -t glue their values too, so they may not precede it; nocasematch makes -s and -S one letter.
 commit_value_opt_re='^(-[^-mfcstu]*[mfc]|--(message|file|author|date|trailer|reuse-message|reedit-message|fixup|squash))$'
-config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])core\.hookspath'
+config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])(core\.hookspath|alias\.)'
 hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
 # `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval`; group 7 is the payload the shell runs. Words before
 # the `-c` flag are long options, short flags without c, or option values, so the first `-…c…` flag is the one.
@@ -151,8 +169,8 @@ for i in "${!segments[@]}"; do
   done
   # hooksPath rules read the raw segment too, so a quoted key or value with spaces still matches.
   for s in "$raw" "$bare"; do
-    [[ "$s" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath"
-    [[ "$s" =~ $config_env_re ]] && block_hooks "core.hooksPath via the git config environment"
+    [[ "$s" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath or -c alias.*"
+    [[ "$s" =~ $config_env_re ]] && block_hooks "core.hooksPath or an alias via the git config environment"
     if [[ "$s" =~ $hooks_config_re ]]; then
       rest=${BASH_REMATCH[3]}
       [[ "$s" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
