@@ -86,6 +86,23 @@ class ExecutableResolverTests(unittest.TestCase):
         # A custom wrapper named 'my-agy' should not be silently replaced by 'agy'
         self.assertIsNone(resolve_harness_executable("my-agy-wrapper-nonexistent", provider="antigravity"))
 
+    def test_us5_finds_cmd_shim_in_common_dir_with_pathext(self):
+        from workflow_core import executable_resolver as module
+        with tempfile.TemporaryDirectory() as directory:
+            shim = Path(directory) / "claude.cmd"
+            shim.write_text("@echo off\r\n", encoding="utf-8")
+            shim.chmod(0o755)
+            with mock.patch.object(module, "COMMON_INSTALL_DIRS", (Path(directory),)), \
+                    mock.patch.dict(os.environ, {"PATH": "", "PATHEXT": ".COM;.EXE;.BAT;.CMD"}), \
+                    mock.patch.object(module.os, "name", "nt"):
+                self.assertEqual(str(shim), module.resolve_harness_executable("claude", provider="claude"))
+
+    def test_us5_appdata_npm_is_probed_on_windows(self):
+        from workflow_core import executable_resolver as module
+        with mock.patch.dict(os.environ, {"APPDATA": r"C:\Users\x\AppData\Roaming"}):
+            self.assertIn(Path(r"C:\Users\x\AppData\Roaming") / "npm", module.common_install_dirs("nt"))
+            self.assertFalse(any(path.name == "npm" for path in module.common_install_dirs("posix")))
+
 
 if __name__ == "__main__":
     unittest.main()

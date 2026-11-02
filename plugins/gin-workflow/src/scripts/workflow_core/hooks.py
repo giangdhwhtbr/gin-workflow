@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 from typing import Any, Mapping, Sequence
@@ -97,10 +98,23 @@ def _pushes_head(root: Path, refs: Sequence[str]) -> bool:
     return False
 
 
+_ENV_PREFIX = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(\S*)\s+")
+
+
+def _split_env_prefix(command: str) -> tuple[str, dict[str, str]]:
+    """Leading NAME=value words become environment variables, as a POSIX shell would do."""
+    prefix: dict[str, str] = {}
+    while (match := _ENV_PREFIX.match(command)):
+        prefix[match.group(1)] = match.group(2)
+        command = command[match.end():]
+    return command, prefix
+
+
 def _run_commands(hook: str, commands: Sequence[tuple[str, str]], cwd: Path, env: Mapping[str, str]) -> int:
     for name, command in commands:
         print(f"gin-workflow {hook}: {name}: {command}", file=sys.stderr)
-        code = subprocess.run(command, shell=True, cwd=cwd, env=dict(env)).returncode
+        shell_command, prefix = _split_env_prefix(command)
+        code = subprocess.run(shell_command, shell=True, cwd=cwd, env={**env, **prefix}).returncode
         if code != 0:
             print(f"gin-workflow {hook}: {name} failed (exit {code})", file=sys.stderr)
             return code

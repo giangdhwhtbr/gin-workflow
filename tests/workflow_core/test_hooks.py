@@ -206,6 +206,21 @@ class TestHooksRun(unittest.TestCase):
         self.assertEqual(0, hooks.run(root, "pre-commit"))
         self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
 
+    def test_us6_env_prefix_is_split_off_the_command(self):
+        calls = []
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs["env"]))
+            return subprocess.CompletedProcess(command, 0)
+        with mock.patch.object(hooks.subprocess, "run", fake_run):
+            hooks._run_commands("pre-commit", [("test", "PYTHONPATH=src A_B=x=y python -m unittest")], Path("."), {"PATH": "p"})
+        self.assertEqual([("python -m unittest", {"PATH": "p", "PYTHONPATH": "src", "A_B": "x=y"})], calls)
+
+    def test_us6_command_without_prefix_is_unchanged(self):
+        calls = []
+        with mock.patch.object(hooks.subprocess, "run", lambda command, **kwargs: calls.append(command) or subprocess.CompletedProcess(command, 0)):
+            hooks._run_commands("pre-commit", [("test", "echo A=1; ls -l=x")], Path("."), {})
+        self.assertEqual(["echo A=1; ls -l=x"], calls)
+
     def test_git_env_is_stripped(self):
         root = self.repo("a", lint='test -z "$GIT_INDEX_FILE"')
         os.environ["GIT_INDEX_FILE"] = "/nonexistent"

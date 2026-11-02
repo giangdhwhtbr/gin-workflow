@@ -11,14 +11,15 @@ PROVIDER_EXE_ALIASES: dict[str, tuple[str, ...]] = {
     "antigravity": ("agy",),
 }
 
-COMMON_INSTALL_DIRS: tuple[Path, ...] = (
-    Path.home() / ".npm-global/bin",
-    Path.home() / ".local/bin",
-    Path.home() / ".opencode/bin",
-    Path.home() / ".local/share/pnpm",
-    Path("/usr/local/bin"),
-    Path("/home/linuxbrew/.linuxbrew/bin"),
-)
+def common_install_dirs(os_name: str = os.name) -> tuple[Path, ...]:
+    dirs = [Path.home() / ".npm-global/bin", Path.home() / ".local/bin", Path.home() / ".opencode/bin",
+            Path.home() / ".local/share/pnpm", Path("/usr/local/bin"), Path("/home/linuxbrew/.linuxbrew/bin")]
+    if os_name == "nt" and os.environ.get("APPDATA"):
+        dirs.append(Path(os.environ["APPDATA"]) / "npm")
+    return tuple(dirs)
+
+
+COMMON_INSTALL_DIRS: tuple[Path, ...] = common_install_dirs()
 
 
 def resolve_harness_executable(configured: str | None, provider: str | None = None) -> str | None:
@@ -62,10 +63,15 @@ def resolve_harness_executable(configured: str | None, provider: str | None = No
 
     # 5. Search common installation directories
     candidates_to_probe = [raw, *alias_matches]
+    extensions = [""]
+    if os.name == "nt":
+        # PATHEXT is always ;-separated; lowercase too, as Windows matches case-insensitively and the probe does not.
+        extensions += [e for ext in os.environ.get("PATHEXT", "").split(";") if ext for e in (ext, ext.lower())]
     for directory in COMMON_INSTALL_DIRS:
         for name in candidates_to_probe:
-            probe = directory / name
-            if probe.is_file() and os.access(probe, os.X_OK):
-                return os.path.abspath(str(probe))
+            for ext in extensions:
+                probe = os.path.join(directory, f"{name}{ext}")
+                if os.path.isfile(probe) and os.access(probe, os.X_OK):
+                    return os.path.abspath(probe)
 
     return None
