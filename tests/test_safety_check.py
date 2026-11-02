@@ -99,6 +99,12 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "sh -c $'git commit\\cI-n'"):
             self.assertEqual(2, exit_code(command), command)
 
+    def test_blocks_ansi_c_control_of_a_backslash_or_multibyte_character(self):
+        # \c\\ is one control character (0x1c), and \c uses the first byte of a multibyte character (ʀ: 0xca, newline).
+        for command in (r"sh -c $'true;\c\\000;git commit -n'", r"sh -c $'true;\c\\x00;git commit -n'",
+                        "sh -c $'true\\cʀ;git commit -n'"):
+            self.assertEqual(2, exit_code(command), command)
+
     def test_allows_ansi_c_quoted_messages(self):
         for command in ("git commit -m $'fix \\x2dn flag'", "git commit -m $'it\\'s -n'",
                         "git commit -m $'a\\nb' -a"):

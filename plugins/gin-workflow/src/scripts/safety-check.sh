@@ -3,6 +3,8 @@
 # Invoked by PreToolUse hook to validate running commands.
 
 set -euo pipefail
+# The parser works byte by byte, like bash's `$'\c'`; no multibyte character is a shell metacharacter.
+export LC_ALL=C
 
 # Read from stdin if not a TTY (JSON data sent by hook runner)
 if [ ! -t 0 ]; then
@@ -62,7 +64,9 @@ for ((i = 0; i < ${#COMMAND}; i++)); do
         case $e in
           [\'\"?]) q_text+=$e ;;
           [0-7]) q_text+="\\0$e" ;;
-          c) printf -v e '%d' "'${esc:0:1}"; esc=${esc:1}; printf -v e '\\0%03o' $((e & 31)); q_text+=$e ;;
+          c) # `\c\\` is the control character of one backslash.
+            if [ "${esc:0:2}" = '\\' ]; then e='\' esc=${esc:2}; else e=${esc:0:1} esc=${esc:1}; fi
+            printf -v e '%d' "'$e"; printf -v e '\\0%03o' $((e & 31)); q_text+=$e ;;
           *) q_text+="\\$e" ;;
         esac
       done
