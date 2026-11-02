@@ -46,7 +46,8 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "git config set core.hooksPath /tmp/h", "git config --unset core.hooksPath",
                         "cd /tmp && git commit -n -m x", "/usr/bin/git commit -n -m x",
                         "git -c 'core.hooksPath=/x' commit -m y", 'git -c "core.hooksPath=/x" commit -m y',
-                        "git config 'core.hooksPath' /tmp/h"):
+                        "git config 'core.hooksPath' /tmp/h",
+                        "git config core.hooksPath /x core.hooksPath"):
             self.assertEqual(2, exit_code(command), command)
 
     def test_us2_blocks_subshell_and_group_forms(self):

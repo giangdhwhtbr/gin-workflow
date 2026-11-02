@@ -56,7 +56,10 @@ COMMIT_VALUE_OPT_RE = pattern(r"^(-[^-mfcstu]*[mfc]|--(message|file|author|date|
 CONFIG_ENV_ASSIGN_RE = pattern(r"GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=", True)
 HOOKS_KEY_RE = pattern(r"core\.hookspath|alias\.", True)
 CONFIG_ENV_FLAG_RE = pattern(r"--config-env(=|\s+)(core\.hookspath|alias\.)", True)
-HOOKS_CONFIG_RE = pattern(rf"\sconfig\s(.*\s)?{QUOTE}core\.hookspath{QUOTE}(\s+(.*))?\Z", True)
+# `(.*?\s)??` prefers the first `core.hookspath`; a greedy group matched the last one, so a value followed by the
+# key again (`core.hooksPath /x core.hooksPath`) looked like a read. The outer `??` is needed too: `(.*?\s)?`
+# still enters the group and reaches the last key.
+HOOKS_CONFIG_RE = pattern(rf"\sconfig\s(.*?\s)??{QUOTE}core\.hookspath{QUOTE}(\s+(.*))?\Z", True)
 UNSET_RE = pattern(r"(--unset|\sunset\s)", True)
 GET_RE = pattern(r"\s--get", True)
 # `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval` (see `wrapped_payloads`). Words before the `-c` flag are
