@@ -1,6 +1,7 @@
 """Tests for agent definitions and installer agent templating."""
 
 from pathlib import Path
+import os
 import re
 import subprocess
 import sys
@@ -60,6 +61,7 @@ class AgentFilesTests(unittest.TestCase):
         reviewer_tools = get_tools("code-reviewer.md")
         self.assertIn("list_dir", reviewer_tools)
 
+    @unittest.skipIf(os.name == "nt", "runs the install.sh expressions through sed, a POSIX tool")
     def test_claude_template_agents_maps_tools_for_developer(self):
         install_sh = (ROOT / "install.sh").read_text(encoding="utf-8")
         m = re.search(

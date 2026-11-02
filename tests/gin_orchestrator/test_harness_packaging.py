@@ -88,6 +88,7 @@ REQUIRED_ARTIFACTS = (
 )
 
 
+@unittest.skipIf(os.name == "nt", "runs install.sh, which needs bash")
 class HarnessPackagingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

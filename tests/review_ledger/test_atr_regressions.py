@@ -34,7 +34,7 @@ class LedgerRepo(unittest.TestCase):
                  "--review-ref", f"refs/gin/review/{BEAD}", "--base-sha", self.base, "--actor-id", "w1")
 
     def tearDown(self):
-        shutil.rmtree(self.repo)
+        shutil.rmtree(self.repo, ignore_errors=True)
 
     def git(self, *args):
         return subprocess.run(["git", *args], cwd=self.repo, check=True, capture_output=True, text=True).stdout
@@ -145,7 +145,7 @@ class TestExpiredLeaseDoesNotBlockWriters(unittest.TestCase):
         }, "reviewer", "rev", base_dir=self.base)
 
     def tearDown(self):
-        shutil.rmtree(self.base)
+        shutil.rmtree(self.base, ignore_errors=True)
 
     def test_write_without_lease_succeeds_once_the_lease_expired(self):
         mutate_ledger(BEAD, "source-checkpoint-created", {"repositories": []}, "worker", "w1", base_dir=self.base)

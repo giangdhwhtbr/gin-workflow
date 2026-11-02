@@ -1,6 +1,7 @@
 """Tests for workflow_core.agents_block."""
 
 from pathlib import Path
+import os
 import stat
 import sys
 import tempfile
@@ -135,6 +136,7 @@ class AgentsBlockTests(unittest.TestCase):
             (root / "AGENTS.md").write_text(f"{agents_block.START}\nsome notes\n", encoding="utf-8")
             self.assertEqual(agents_block.status(root, {}), "invalid")
 
+    @unittest.skipIf(os.name == "nt", "checks POSIX permission bits")
     def test_new_file_mode_is_0644(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

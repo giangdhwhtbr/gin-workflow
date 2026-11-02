@@ -41,10 +41,7 @@ def file_lock(path: Path, *, exclusive: bool = True) -> Iterator[None]:
                 fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
         else:
             # simplified: Windows has no shared lock, so readers take the exclusive one; use LockFileEx for shared locks if reader contention matters.
-            stream.seek(0)
-            if not stream.read(1):
-                stream.write(b"\0")
-                stream.flush()
+            # Byte 0 is locked even past the end of the file and never read: Windows refuses a read of a byte another handle has locked.
 
             def acquire() -> None:
                 stream.seek(0)

@@ -16,9 +16,9 @@ Install Python 3.11 or later from python.org or with winget. `rules_checks.py` i
 ```powershell
 winget install Python.Python.3.12
 ```
-Install PyYAML, which the CLI needs to read its configuration:
+Install PyYAML, which the CLI needs to read its configuration, for the interpreter the shim runs (`python -m pip install pyyaml` when `py` is absent):
 ```powershell
-pip install pyyaml
+py -3 -m pip install pyyaml
 ```
 
 ### Git for Windows
@@ -84,6 +84,8 @@ The installer adds `%USERPROFILE%\.local\bin` to your user `PATH` once. Open a n
 1. Markdown, the default. It needs no extra tools and stores tasks and epics as `.planning/tasks/*.md`. `/gin-workflow:setup` asks which backend to use and proposes Markdown by default.
 2. Beads (`bd`). Install the `bd` and `dolt` binaries for Windows and put them on `PATH`.
 
+The `beads-migration` skill moves `.beads` to `~/gin-beads/<repo>` and links it back with a symlink, which is how the gin-workflow repository keeps its database. On Windows, use a junction instead, `cmd /c mklink /J .beads %USERPROFILE%\gin-beads\<repo>`, or a plain copy of the directory.
+
 ## Daily use
 
 Inside your AI harness (Claude Code, Antigravity, and others), use the slash commands:
@@ -117,6 +119,7 @@ pwsh -ExecutionPolicy Bypass -File .\tests\install_smoke_test.ps1
 ```
 
 A passing run exits with code 0.
+CI runs the same smoke test on `windows-latest` for every push and pull request.
 
 ## Troubleshooting
 
@@ -131,3 +134,7 @@ Run a CPython build that provides the standard library module `msvcrt`.
 ### `OSError: [WinError 1314]` when creating a symlink
 
 Turn on Developer Mode in Windows Settings, or run PowerShell as Administrator. Only `install.ps1 -Link` creates symlinks; when it cannot, it copies the files and prints a warning.
+
+### `argument cannot be passed safely through cmd.exe`
+
+The OpenCode and Antigravity workers pass the prompt as a command-line argument. When their CLI is only a `.cmd` shim, gin-orchestrator runs it through `cmd.exe`, which cannot carry a double quote, a percent sign, or a line break, or a command line longer than 8,191 characters. The worker then fails with this message before it starts. Route those tracks to a worker that reads the prompt from stdin, such as Claude Code or Codex.

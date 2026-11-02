@@ -26,6 +26,7 @@ class TestTeamInit(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    @unittest.skipIf(os.name == "nt", "checks POSIX permission bits")
     def test_github_files_rerun_and_codeowners(self):
         root = make_team_repo(self.base / "gh")
         result = run_cli(root, "team", "init")
@@ -86,6 +87,7 @@ class TestCommitMsgHook(unittest.TestCase):
         message.write_text(f"# comment\n{subject}\n\nbody\n")
         return subprocess.run([str(root / ".githooks/commit-msg"), str(message)], capture_output=True).returncode
 
+    @unittest.skipIf(os.name == "nt", "executes the commit-msg hook through its #!/bin/sh line, which needs POSIX")
     def test_conventional_subjects(self):
         root = make_team_repo(self.base / "c")
         run_cli(root, "team", "init")
@@ -97,6 +99,7 @@ class TestCommitMsgHook(unittest.TestCase):
             with self.subTest(subject):
                 self.assertEqual(1, self.hook(root, subject))
 
+    @unittest.skipIf(os.name == "nt", "executes the commit-msg hook through its #!/bin/sh line, which needs POSIX")
     def test_none_convention_accepts_anything(self):
         root = make_team_repo(self.base / "n", team=TEAM.format(host="github").replace(
             "team:\n", "team:\n  commit_convention: none\n"))

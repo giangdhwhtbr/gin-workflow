@@ -47,7 +47,8 @@ class WindowsLockTests(unittest.TestCase):
         with self.windows(fake), file_lock(self.path, exclusive=False):
             pass
         self.assertEqual([2, 2, 2, 0], fake.calls)
-        self.assertEqual(1, self.path.stat().st_size)
+        # Never read or written: on Windows, reading a byte another handle has locked fails with EACCES.
+        self.assertEqual(0, self.path.stat().st_size)
 
     def test_non_contention_error_raises_without_retry(self):
         fake = FakeMsvcrt([OSError(errno.EBADF, "Bad file descriptor")])

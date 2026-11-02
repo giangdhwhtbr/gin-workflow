@@ -592,6 +592,7 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertEqual([item.retry_identity], dispatch_calls)
             self.assertEqual(("timeout",), outcome.failed[0].blockers)
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_scheduler_timeout_cancels_started_native_process(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

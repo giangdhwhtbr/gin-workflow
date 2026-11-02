@@ -433,6 +433,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("success", reset_payload["status"])
             self.assertFalse(override_file.exists())
 
+    @unittest.skipIf(os.name == "nt", "needs an extensionless stub with the POSIX execute bit on PATH")
     def test_doctor_reports_the_main_harness_executable(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
             repository = Path(directory)
@@ -477,6 +478,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertFalse(report["checks"]["harness"])
             self.assertIn("main harness claude: executable not found on PATH", report["actions"])
 
+    @unittest.skipIf(os.name == "nt", "needs an extensionless stub with the POSIX execute bit on PATH")
     def test_doctor_reports_verify_commands_project_stage_and_codegraph_read_only(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
             repository = Path(directory)
@@ -517,6 +519,7 @@ class SetupCliTests(unittest.TestCase):
                      if path.is_file() and ".git" not in path.relative_to(repository).parts}
             self.assertEqual(before, after)
 
+    @unittest.skipIf(os.name == "nt", "needs an extensionless stub with the POSIX execute bit on PATH")
     def test_doctor_suggests_installing_codegraph_only_when_missing(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
             repository = Path(directory)

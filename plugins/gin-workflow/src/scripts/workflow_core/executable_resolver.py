@@ -12,8 +12,13 @@ PROVIDER_EXE_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 def common_install_dirs(os_name: str = os.name) -> tuple[Path, ...]:
-    dirs = [Path.home() / ".npm-global/bin", Path.home() / ".local/bin", Path.home() / ".opencode/bin",
-            Path.home() / ".local/share/pnpm", Path("/usr/local/bin"), Path("/home/linuxbrew/.linuxbrew/bin")]
+    try:
+        home = Path.home()
+    except RuntimeError:  # no HOME or USERPROFILE, as in a stripped child environment on Windows
+        home = None
+    dirs = [] if home is None else [home / ".npm-global/bin", home / ".local/bin", home / ".opencode/bin",
+                                    home / ".local/share/pnpm"]
+    dirs += [Path("/usr/local/bin"), Path("/home/linuxbrew/.linuxbrew/bin")]
     if os_name == "nt" and os.environ.get("APPDATA"):
         dirs.append(Path(os.environ["APPDATA"]) / "npm")
     return tuple(dirs)
@@ -67,7 +72,7 @@ def resolve_harness_executable(configured: str | None, provider: str | None = No
     if os.name == "nt":
         extensions = []
         # PATHEXT is always ;-separated; lowercase too, as Windows matches case-insensitively and the probe does not.
-        extensions += [e for ext in os.environ.get("PATHEXT", "").split(";") if ext for e in (ext, ext.lower())]
+        extensions += [e for ext in os.environ.get("PATHEXT", "").split(";") if ext for e in (ext.lower(), ext)]
         extensions.append("")  # bare name last: on Windows it is usually the extensionless npm shell script
     for directory in COMMON_INSTALL_DIRS:
         for name in candidates_to_probe:

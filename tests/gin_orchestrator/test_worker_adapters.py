@@ -143,6 +143,7 @@ class WorkerAdapterTests(unittest.TestCase):
         self.assertLess(argv.index("-c"), argv.index("-"))
 
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_started_native_worker_can_be_cancelled_and_process_is_terminated(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -196,6 +197,7 @@ class WorkerAdapterTests(unittest.TestCase):
                 time.sleep(0.01)
             self.assertIn(process_state(), (None, "Z"))
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_native_worker_failure_preserves_classified_kind_and_diagnostic_summary(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -223,6 +225,7 @@ class WorkerAdapterTests(unittest.TestCase):
             self.assertEqual(("provider_failure:invalid_model",), outcome.blockers)
             self.assertIn("not supported", outcome.summary)
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_native_worker_timeout_reports_real_changed_files_not_empty(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

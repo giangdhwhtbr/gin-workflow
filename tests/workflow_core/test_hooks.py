@@ -91,6 +91,7 @@ class TestHooksInstall(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    @unittest.skipIf(os.name == "nt", "checks POSIX permission bits")
     def test_install_is_idempotent(self):
         first = hooks.install(self.root)
         self.assertEqual("installed", first["status"])
@@ -187,6 +188,7 @@ class TestHooksRun(unittest.TestCase):
         self.assertNotEqual(0, hooks.run(self.repo("a", lint="false", test="false"), "pre-commit"))
         self.assertEqual(0, hooks.run(self.repo("b", lint="true", test="false"), "pre-commit"))
 
+    @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
     def test_pre_push_runs_test_and_stops_at_first_failure(self):
         root = self.repo("a", test="echo ran >> ran.txt; false")
         self.assertNotEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
@@ -226,6 +228,7 @@ class TestHooksRun(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual((command, {}), hooks._split_env_prefix(command))
 
+    @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
     def test_git_env_is_stripped(self):
         root = self.repo("a", lint='test -z "$GIT_INDEX_FILE"')
         os.environ["GIT_INDEX_FILE"] = "/nonexistent"
