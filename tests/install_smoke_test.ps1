@@ -113,6 +113,9 @@ try {
     Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
+    Assert-Exists (Join-Path $project '.claude/scripts/safety_check.py')
+    $claudeHook = (Get-Content -Raw -LiteralPath (Join-Path $project '.claude/hooks/hooks.json') | ConvertFrom-Json).hooks.PreToolUse[0].hooks[0].command
+    Assert-True ($claudeHook -ceq 'python "${CLAUDE_PROJECT_DIR}/.claude/scripts/safety_check.py"') "Unexpected Claude hook command: $claudeHook"
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/workflow_core/cli.py')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/.gin-workflow-src.json')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/rules/core.md')
@@ -288,7 +291,7 @@ try {
     Assert-Exists (Join-Path $copilotDist 'skills/setup/SKILL.md')
     Assert-Exists (Join-Path $copilotDist 'references/stage-contract.md')
     Assert-Exists (Join-Path $copilotDist 'hooks/hooks.json')
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $copilotDist 'hooks/hooks.json'))) 'safety-check.sh'
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $copilotDist 'hooks/hooks.json'))) '/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'agents'))) 'Copilot bundle has agents'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'commands'))) 'Copilot bundle has commands'
 

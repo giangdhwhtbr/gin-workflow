@@ -125,7 +125,7 @@ function New-HooksFile {
             PreToolUse = [ordered]@{
                 matcher = 'Bash|run_command'
                 type = 'command'
-                command = "$root/scripts/safety-check.sh"
+                command = "python `"$root/scripts/safety_check.py`""
                 timeout = 30
             }
         }
@@ -138,7 +138,7 @@ function New-HooksFile {
                     matcher = $preMatcher
                     hooks = @([ordered]@{
                         type = 'command'
-                        command = "$HooksRoot/scripts/safety-check.sh"
+                        command = "python `"$HooksRoot/scripts/safety_check.py`""
                         timeout = 30
                     })
                 })
@@ -161,7 +161,7 @@ function New-CopilotHooksFile {
   "version": 1,
   "hooks": {
     "PreToolUse": [
-      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
