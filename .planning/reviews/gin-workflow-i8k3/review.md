@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-i8k3`
 - **Base SHA:** `10710b6693108b6762eb1e991c43e8c86c9673fd`
-- **Reviewed SHA:** `b90e0bcdbb18da9ffe9f00dc378ebc318287436c`
+- **Reviewed SHA:** `e89170b6b96e4ffd194a710bbd6b7ae9e70e965b`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-i8k3`
-- **Checkpoint SHA:** `b90e0bcdbb18da9ffe9f00dc378ebc318287436c`
+- **Checkpoint SHA:** `e89170b6b96e4ffd194a710bbd6b7ae9e70e965b`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `a3a09a9bda10d34f9ff25ca994ff7c5ccf36b7641b84477dd09d8848e2cc7302`
+- **Tree Hash:** `cba11667f33d8c65f04e3670e1ef229884d8d87d1cf141274f112c3c0b9bd810`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,31 +29,31 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F1` | `CRITICAL` | `open` | 0 | - |
-| `F2` | `CRITICAL` | `open` | 0 | - |
-| `F3` | `CRITICAL` | `open` | 0 | - |
-| `F4` | `MINOR` | `open` | 0 | - |
-| `F5` | `SUGGESTION` | `open` | 0 | - |
+| `F1` | `CRITICAL` | `fixed-awaiting-verification` | 0 | - |
+| `F2` | `CRITICAL` | `fixed-awaiting-verification` | 0 | - |
+| `F3` | `CRITICAL` | `fixed-awaiting-verification` | 0 | - |
+| `F4` | `MINOR` | `disputed` | 0 | - |
+| `F5` | `SUGGESTION` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F1` (CRITICAL)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F2` (CRITICAL)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F3` (CRITICAL)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F4` (MINOR)
-- **Status:** `open`
+- **Status:** `disputed`
 - **Clarification Count:** 0
 
 ### `F5` (SUGGESTION)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -80,3 +80,10 @@
 | `EV-000018` | `2026-11-02T00:43:25.341174Z` | `changes-requested` | `reviewer:claude:session-e2ead0a8` (reviewer) |
 | `EV-000019` | `2026-11-02T00:43:25.737793Z` | `lease-released` | `reviewer:claude:session-e2ead0a8` (reviewer) |
 | `EV-000020` | `2026-11-02T00:44:14.278564Z` | `implementation-in-progress` | `claude` (worker) |
+| `EV-000021` | `2026-11-02T00:45:36.947135Z` | `finding-fixed` | `claude` (worker) |
+| `EV-000022` | `2026-11-02T00:45:37.067742Z` | `finding-fixed` | `claude` (worker) |
+| `EV-000023` | `2026-11-02T00:45:37.189688Z` | `finding-fixed` | `claude` (worker) |
+| `EV-000024` | `2026-11-02T00:45:37.309613Z` | `finding-fixed` | `claude` (worker) |
+| `EV-000025` | `2026-11-02T00:45:37.433968Z` | `finding-disputed` | `claude` (worker) |
+| `EV-000026` | `2026-11-02T00:45:58.446634Z` | `source-checkpoint-created` | `claude` (worker) |
+| `EV-000027` | `2026-11-02T00:57:17.531943Z` | `review-requested` | `claude` (worker) |

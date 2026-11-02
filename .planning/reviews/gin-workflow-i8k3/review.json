@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "implementation-in-progress",
+  "review_state": "review-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-i8k3",
       "checkpoint_ref": "refs/gin/review/gin-workflow-i8k3",
       "review_base_sha": "10710b6693108b6762eb1e991c43e8c86c9673fd",
-      "reviewed_source_sha": "b90e0bcdbb18da9ffe9f00dc378ebc318287436c",
-      "checkpoint_sha": "b90e0bcdbb18da9ffe9f00dc378ebc318287436c",
+      "reviewed_source_sha": "e89170b6b96e4ffd194a710bbd6b7ae9e70e965b",
+      "checkpoint_sha": "e89170b6b96e4ffd194a710bbd6b7ae9e70e965b",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "a3a09a9bda10d34f9ff25ca994ff7c5ccf36b7641b84477dd09d8848e2cc7302",
-      "reviewed_source_tree_hash": "a3a09a9bda10d34f9ff25ca994ff7c5ccf36b7641b84477dd09d8848e2cc7302",
+      "source_tree_hash": "cba11667f33d8c65f04e3670e1ef229884d8d87d1cf141274f112c3c0b9bd810",
+      "reviewed_source_tree_hash": "cba11667f33d8c65f04e3670e1ef229884d8d87d1cf141274f112c3c0b9bd810",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 20,
+  "ledger_revision": 27,
   "next_finding_number": 6,
   "findings": {
     "F1": {
       "finding_id": "F1",
       "severity": "CRITICAL",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F2": {
       "finding_id": "F2",
       "severity": "CRITICAL",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -58,7 +58,7 @@
     "F3": {
       "finding_id": "F3",
       "severity": "CRITICAL",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -72,7 +72,7 @@
     "F4": {
       "finding_id": "F4",
       "severity": "MINOR",
-      "status": "open",
+      "status": "disputed",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -86,7 +86,7 @@
     "F5": {
       "finding_id": "F5",
       "severity": "SUGGESTION",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -442,6 +442,120 @@
       },
       "previous_event_hash": "3a7a7a45a828c7d3137be11ac79d145f4d2cbc32d1be6b7550a0be66a829c86b",
       "event_hash": "b92903c30527c057255bfce150838e7ab2ea0c0f1f7c06db7264a516f7dcd6a7"
+    },
+    {
+      "event_id": "EV-000021",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-02T00:45:36.947135Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "F1"
+      },
+      "previous_event_hash": "b92903c30527c057255bfce150838e7ab2ea0c0f1f7c06db7264a516f7dcd6a7",
+      "event_hash": "7a93372aa8fe3f376b3be890c247b7eb1fe2859355cefb4f6d4dca75f42d007c"
+    },
+    {
+      "event_id": "EV-000022",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-02T00:45:37.067742Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "F2"
+      },
+      "previous_event_hash": "7a93372aa8fe3f376b3be890c247b7eb1fe2859355cefb4f6d4dca75f42d007c",
+      "event_hash": "0cfe28e357c292cec299d38ee86c0a9c7232c92a6aeb5d921b35d6bda15d6364"
+    },
+    {
+      "event_id": "EV-000023",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-02T00:45:37.189688Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "F3"
+      },
+      "previous_event_hash": "0cfe28e357c292cec299d38ee86c0a9c7232c92a6aeb5d921b35d6bda15d6364",
+      "event_hash": "2fb7d0c6585fbde0a446cf996603e0b3a4e9d0c6c4e3b7207ff0d822f96296d0"
+    },
+    {
+      "event_id": "EV-000024",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-02T00:45:37.309613Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "F5"
+      },
+      "previous_event_hash": "2fb7d0c6585fbde0a446cf996603e0b3a4e9d0c6c4e3b7207ff0d822f96296d0",
+      "event_hash": "bb480c5cc97e78768f6323fed5877b9c5577ba051b3578acce426d8980d38a1e"
+    },
+    {
+      "event_id": "EV-000025",
+      "action": "finding-disputed",
+      "timestamp": "2026-11-02T00:45:37.433968Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "F4",
+        "reason": "Narrowing -c alias. to the word walker loses git -c \"alias.x=commit -n\" x: a quoted value with whitespace is Q in bare; the raw-segment match catches it, same over-block as -c core.hooksPath=; commit messages containing that text go through -F"
+      },
+      "previous_event_hash": "bb480c5cc97e78768f6323fed5877b9c5577ba051b3578acce426d8980d38a1e",
+      "event_hash": "17a59fd514e1b7e01d63a7f1a54038b0b66f16f115a4b42d0a47ab6fff000a3e"
+    },
+    {
+      "event_id": "EV-000026",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-02T00:45:58.446634Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-i8k3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-i8k3",
+            "review_base_sha": "10710b6693108b6762eb1e991c43e8c86c9673fd",
+            "reviewed_source_sha": "e89170b6b96e4ffd194a710bbd6b7ae9e70e965b",
+            "checkpoint_sha": "e89170b6b96e4ffd194a710bbd6b7ae9e70e965b",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "cba11667f33d8c65f04e3670e1ef229884d8d87d1cf141274f112c3c0b9bd810",
+            "reviewed_source_tree_hash": "cba11667f33d8c65f04e3670e1ef229884d8d87d1cf141274f112c3c0b9bd810",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "17a59fd514e1b7e01d63a7f1a54038b0b66f16f115a4b42d0a47ab6fff000a3e",
+      "event_hash": "9632313de7bcb350ed89673a5508cf306c124023d8c0ad8b57088f012a5edd15"
+    },
+    {
+      "event_id": "EV-000027",
+      "action": "review-requested",
+      "timestamp": "2026-11-02T00:57:17.531943Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "9632313de7bcb350ed89673a5508cf306c124023d8c0ad8b57088f012a5edd15",
+      "event_hash": "4d8889b90d00a4a91426a7f591ae2d201f377e46d18cd5083be74f5f43f58be3"
     }
   ]
 }
