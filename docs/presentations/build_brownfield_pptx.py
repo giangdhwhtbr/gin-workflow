@@ -355,15 +355,15 @@ s = new_slide("""
 Sơ đồ swim-lane cho thấy ai làm gì ở từng stage: discuss, plan, orchestrate, execute (theo từng track) và ship. Hàng dưới cùng là gate đóng mỗi stage.
 
 Các làn:
-- Con người: Requester (BA/PM), Area lead (sở hữu vùng code), Developer (chạy các stage), Ship approver (trong team mode, ví dụ QE).
+- Con người: Requester (BA/PM), Area lead (sở hữu vùng code), Developer (sở hữu track), Ship approver (trong team mode, ví dụ QE). Vai trò nào chạy stage nào là quy ước của team (docs/roles.md); gin-workflow chỉ enforce team.areas và team.approvals.
 - Agent: Main agent (phiên làm việc của bạn), Worker (gin-orchestrator, tuỳ chọn), Reviewer (phiên hoặc provider độc lập).
 - Tự động hoá: git hooks và CI, mức kiểm tra tuỳ theo rigor.
 
 Đi theo từng stage:
-- discuss: agent hỏi, đề xuất và viết spec; BA/PM xác nhận spec → gate requirement_confirmed.
-- plan: agent viết plan gồm các track, vai trò và mức reasoning; area lead duyệt → gate plan_approved.
-- orchestrate: agent tạo epic, track bead, route và worktree → gate orchestration_ready.
-- execute: với mỗi track, agent nhận track và viết test trước; worker có thể triển khai track được route; reviewer ghi review ledger với số vòng giới hạn; agent sửa findings rồi đóng track. Track cần con người thì developer làm. pre-commit chạy lint và typecheck; pre-push chạy test, build, e2e. Gate implementation_complete tự suy ra khi mọi track đã đóng.
+- discuss: BA/PM chạy /discuss; agent hỏi, đề xuất và viết spec; BA/PM xác nhận spec → gate requirement_confirmed.
+- plan: area lead chạy /plan; agent viết plan gồm các track, vai trò và mức reasoning; area lead duyệt → gate plan_approved.
+- orchestrate: area lead chạy /orchestrate; agent tạo epic, track bead, route và worktree, rồi in lệnh /goal → gate orchestration_ready.
+- execute: developer chạy /execute cho từng track; agent nhận track và viết test trước; worker có thể triển khai track được route; reviewer ghi review ledger với số vòng giới hạn; agent sửa findings rồi đóng track. Track cần con người thì developer làm. pre-commit chạy lint và typecheck; pre-push chạy test, build, e2e. Gate implementation_complete tự suy ra khi mọi track đã đóng.
 - ship: developer chọn merge, mở PR, giữ lại hoặc huỷ; ship approver duyệt PR; agent kiểm tra ledger, merge và dọn dẹp → gate shipped.
 
 Đường nét cam là chỗ agent phải dừng chờ con người.
