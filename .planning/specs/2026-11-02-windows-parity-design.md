@@ -161,7 +161,9 @@ Acceptance criteria:
 - `taskkill` unavailable (non-standard Windows) falls back to `process.kill()` and reports the same `FailureKind.CRASH` message as today when the tree survives.
 - The env-prefix parser only recognizes the strict `NAME=value` token shape; anything else is passed to the shell unchanged, so no existing command changes meaning.
 - Config schema version stays `2.9`; no migration. `gin-console` reads `state --format json`, whose shape does not change.
-- Launcher versions bump (`install.sh` and `install.ps1` `LauncherVersion`) because the shim content and installed scripts change.
+- No launcher version bump in this epic: `is_managed_launcher_link` and `Test-ManagedLauncherShim` accept any managed version, so a 2.9 install upgrades in place; the release procedure (`docs/contributing.md`, Release step 1) bumps versions.
+- `safety_check.py` parses the command one character per byte (UTF-8 bytes mapped through latin-1), matching `LC_ALL=C` in the shell version, so `\c` of a multibyte character takes its first byte.
+- Nested `sh -c` and `eval` payloads are checked by an in-process recursive call with `depth + 1`; `SAFETY_CHECK_DEPTH` is still read as the starting depth and the "more than 3 levels deep" block is unchanged.
 
 ## Testing
 
