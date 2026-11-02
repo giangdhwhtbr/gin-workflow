@@ -708,7 +708,8 @@ def build_start_review_operations(
         raise ValueError("ttl_seconds must be positive")
     if projection.owner and actor_id == projection.owner:
         raise LeaseError(f"reviewer {actor_id} must differ from the track owner")
-    all_terminal = all(
+    # With no findings there is nothing to verify, so the cycle limit still applies (all() of nothing is True).
+    all_terminal = bool(projection.findings) and all(
         finding.status in TERMINAL_FINDING_STATUSES for finding in projection.findings.values()
     )
     if (projection.max_cycles is not None and projection.review_state == "review-requested"

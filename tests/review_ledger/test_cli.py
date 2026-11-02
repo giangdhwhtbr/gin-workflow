@@ -1182,6 +1182,14 @@ class TestOwnerAndCycles(unittest.TestCase):
         self.assertEqual(1, refused.returncode)
         self.assertIn("max review cycles (1) reached; record a human decision", refused.stderr + refused.stdout)
 
+    def test_at_max_cycles_a_review_with_no_findings_is_still_refused(self):
+        self.init("--max-cycles", "1")
+        self.request_review()
+        self.changes_requested(self.lease_of(self.start("b@x")))
+        refused = self.start("b@x")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("max review cycles (1) reached; record a human decision", refused.stderr + refused.stdout)
+
     def test_without_max_cycles_any_number_of_reviews_runs(self):
         self.init()
         self.request_review()
