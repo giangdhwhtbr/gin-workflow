@@ -343,7 +343,7 @@ def _cmd_shim_line(args: list[str]) -> str:
     Every argument is quoted so & | < > ^ ( ) stay literal; trailing backslashes are doubled so they
     cannot escape the closing quote. cmd.exe expands % and splits on quotes and newlines, and caps
     a line at 8191 characters, so such arguments are refused rather than reinterpreted."""
-    cmd_exe = os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\cmd.exe"
+    cmd_exe = (os.environ.get("SystemRoot") or r"C:\Windows") + r"\System32\cmd.exe"
     quoted = " ".join('"' + re.sub(r"(\\+)$", r"\1\1", arg) + '"' for arg in args)
     line = f'"{cmd_exe}" /d /s /v:off /c "{quoted}"'
     if any(_CMD_UNSAFE.search(arg) for arg in args) or len(line) > 8191:
@@ -371,7 +371,7 @@ class NativeCliRunner:
         popen_kwargs: dict[str, object] = {}
         if os.name == "nt":
             resolved = shutil.which(argv[0]) or argv[0]
-            if resolved.lower().endswith((".cmd", ".bat")):
+            if resolved.rstrip(" .").lower().endswith((".cmd", ".bat")):
                 argv = _cmd_shim_line([resolved, *argv[1:]])
             else:
                 argv[0] = resolved
