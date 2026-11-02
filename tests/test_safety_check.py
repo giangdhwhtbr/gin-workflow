@@ -93,6 +93,12 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "sh -c $'git commit \\x2dn'", "git commit $'\\'' $'\\x2dn'"):
             self.assertEqual(2, exit_code(command), command)
 
+    def test_blocks_ansi_c_control_characters(self):
+        # bash makes \cJ a newline and \cI a tab, so they split commands and words.
+        for command in ("sh -c $'true\\cJgit commit -n'", "eval $'true\\cJgit commit -n'",
+                        "sh -c $'git commit\\cI-n'"):
+            self.assertEqual(2, exit_code(command), command)
+
     def test_allows_ansi_c_quoted_messages(self):
         for command in ("git commit -m $'fix \\x2dn flag'", "git commit -m $'it\\'s -n'",
                         "git commit -m $'a\\nb' -a"):
@@ -102,7 +108,13 @@ class TestHookBypassBlocked(unittest.TestCase):
         # An alias can run commit under another name, so any alias defined on the command line is blocked.
         for command in ("git -c alias.x=commit x -n", "git -c 'alias.x=commit' x", 'git -c "alias.x=commit" x',
                         "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.y GIT_CONFIG_VALUE_0=commit git y -n",
-                        "git --config-env=alias.z=A z", "git --config-env alias.z=A z"):
+                        "git --config-env=alias.z=A z", "git --config-env alias.z=A z",
+                        "A=commit git --config-env  alias.z=A z -n", "A=commit git --config-env\talias.z=A z -n"):
+            self.assertEqual(2, exit_code(command), command)
+
+    def test_blocks_git_config_env_exported_in_an_earlier_command(self):
+        for command in ("export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.y GIT_CONFIG_VALUE_0=commit; git y -n",
+                        "export GIT_CONFIG_PARAMETERS=\"'alias.x'='commit'\" && git x -n"):
             self.assertEqual(2, exit_code(command), command)
 
     def test_allows_other_config_overrides(self):

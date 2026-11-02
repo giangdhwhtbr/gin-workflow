@@ -54,14 +54,19 @@ for ((i = 0; i < ${#COMMAND}; i++)); do
     quote="" q_text=${unq:q_start} next=${COMMAND:i+1:1}
     if [ -n "$ansi" ]; then
       # Decode `$'\x2dn'` (`-n`) with printf %b, which differs from bash's `$'...'` in two ways: it writes
-      # octal as `\0nnn` (bash: `\nnn`), and it keeps the backslash of `\'`, `\"` and `\?`.
-      # simplified: %b also stops at `\c` (bash: a control character); a shorter word can only over-block.
+      # octal as `\0nnn` (bash: `\nnn`), it keeps the backslash of `\'`, `\"` and `\?`, and it stops at `\c`,
+      # where bash makes `\cX` the control character X & 31 (`\cJ` is a newline, `\cI` a tab).
       ansi="" esc=$q_text q_text=""
       while [[ "$esc" == *\\* ]]; do
         q_text+=${esc%%\\*} esc=${esc#*\\}; e=${esc:0:1} esc=${esc:1}
-        case $e in [\'\"?]) q_text+=$e ;; [0-7]) q_text+="\\0$e" ;; *) q_text+="\\$e" ;; esac
+        case $e in
+          [\'\"?]) q_text+=$e ;;
+          [0-7]) q_text+="\\0$e" ;;
+          c) printf -v e '%d' "'${esc:0:1}"; esc=${esc:1}; printf -v e '\\0%03o' $((e & 31)); q_text+=$e ;;
+          *) q_text+="\\$e" ;;
+        esac
       done
-      printf -v q_text '%b' "$q_text$esc"
+      printf -v q_text '%b' "$q_text$esc" 2>/dev/null
       unq=${unq:0:q_start}$q_text
     fi
     if [[ "$q_text" =~ [[:space:]] ]]; then bare+=Q
@@ -129,13 +134,17 @@ commit_n_word_re='^-[a-z]*n[a-z]*([);`<>].*)?$'
 # A short cluster takes the next word only when its first value letter ends it (`-am x`; `-mdoc` is -m doc).
 # -S, -u and -t glue their values too, so they may not precede it; nocasematch makes -s and -S one letter.
 commit_value_opt_re='^(-[^-mfcstu]*[mfc]|--(message|file|author|date|trailer|reuse-message|reedit-message|fixup|squash))$'
-config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env[= ])(core\.hookspath|alias\.)'
+config_env_re='(GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=.*|--config-env(=|[[:space:]]+))(core\.hookspath|alias\.)'
 hooks_config_re="[[:space:]]config[[:space:]](.*[[:space:]])?${q}core\.hookspath${q}([[:space:]]+(.*))?$"
 # `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval`; group 7 is the payload the shell runs. Words before
 # the `-c` flag are long options, short flags without c, or option values, so the first `-…c…` flag is the one.
 shell_re='(^|[[:space:]/(`{])((ba|z|da|k|mk)?sh([[:space:]]+(--[^[:space:]]*|-[^c[:space:]]*|[^-[:space:]][^[:space:]]*))*[[:space:]]+-[a-z]*c[a-z]*|eval)([[:space:]]+(.*)|$)'
 depth=${SAFETY_CHECK_DEPTH:-0}
 shopt -s nocasematch
+# An exported GIT_CONFIG_* reaches a git in a later command (`export ...; git y -n`), so check the whole line.
+for s in "$COMMAND" "${bares[*]}"; do
+  [[ "$s" =~ $config_env_re ]] && block_hooks "core.hooksPath or an alias via the git config environment"
+done
 for i in "${!segments[@]}"; do
   raw=${segments[i]} bare=${bares[i]}
   # Check a wrapped payload as its own command. Detect on bare (a quoted message is not run), take payloads
@@ -170,7 +179,6 @@ for i in "${!segments[@]}"; do
   # hooksPath rules read the raw segment too, so a quoted key or value with spaces still matches.
   for s in "$raw" "$bare"; do
     [[ "$s" =~ $hooks_c_re ]] && block_hooks "-c core.hooksPath or -c alias.*"
-    [[ "$s" =~ $config_env_re ]] && block_hooks "core.hooksPath or an alias via the git config environment"
     if [[ "$s" =~ $hooks_config_re ]]; then
       rest=${BASH_REMATCH[3]}
       [[ "$s" =~ (--unset|[[:space:]]unset[[:space:]]) ]] && block_hooks "unsetting core.hooksPath"
