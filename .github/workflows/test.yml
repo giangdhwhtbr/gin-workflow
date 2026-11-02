@@ -16,6 +16,12 @@ jobs:
         with:
           python-version: "3.12"
       - run: python3 -m pip install PyYAML jsonschema
+      - name: Stub claude CLI for the smoke test
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          printf '#!/bin/sh\nexit 0\n' > "$RUNNER_TEMP/bin/claude"
+          chmod +x "$RUNNER_TEMP/bin/claude"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - run: |
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
@@ -33,6 +39,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install PyYAML jsonschema
+      - name: PyYAML for py -3, which the installed shim prefers
+        run: py -3 -m pip install PyYAML
       - run: |
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
