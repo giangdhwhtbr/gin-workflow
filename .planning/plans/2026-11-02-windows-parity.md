@@ -643,8 +643,7 @@ Steps:
 - **Model:** `opus`
 - **Effort:** `high`
 - **Why:** the Windows job cannot run locally; the implementer diagnoses failures from CI logs across every test module and must tell a POSIX-only test from a real Windows bug (which is fixed, not skipped).
-- **Human gate**: none; the implementer pushes the integration branch and reads `gh run view --log-failed`.
-- **Acceptance criteria**: spec US-7; `gh run list --branch feat/windows-parity --workflow test.yml` shows both jobs `success`; `grep -rn 'skipIf(os.name == "nt"' tests | grep -v '"nt", "' ` prints nothing.
+- **Acceptance criteria**: spec US-7 (the implementer pushes the integration branch and reads `gh run view --log-failed`; no human action is needed); `gh run list --branch feat/windows-parity --workflow test.yml` shows both jobs `success`; `grep -rn 'skipIf(os.name == "nt"' tests | grep -v '"nt", "' ` prints nothing.
 - **Estimated complexity**: high
 
 Steps:
