@@ -8,7 +8,8 @@ param(
     [switch]$Link,
     [string]$Project,
     [switch]$Uninstall,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$NoModifyPath
 )
 
 Set-StrictMode -Version Latest
@@ -23,6 +24,7 @@ if ([string]::IsNullOrWhiteSpace($UserHome)) {
     $UserHome = $HOME
 }
 $UserHome = [IO.Path]::GetFullPath($UserHome)
+$script:LinkFallbackWarned = $false
 
 function Test-Platform {
     param([Parameter(Mandatory)][string]$Name)
@@ -71,7 +73,11 @@ function Copy-DirectoryContent {
                 New-Item -ItemType SymbolicLink -Path $target -Target $item.FullName | Out-Null
             }
             catch {
-                throw "Unable to create symbolic link '$target'. Enable Windows Developer Mode or run PowerShell with suitable privileges. $($_.Exception.Message)"
+                if (-not $script:LinkFallbackWarned) {
+                    Write-Warning "Unable to create symbolic link '$target'; copying instead. Enable Windows Developer Mode or run PowerShell with suitable privileges for -Link. $($_.Exception.Message)"
+                    $script:LinkFallbackWarned = $true
+                }
+                Copy-Item -LiteralPath $item.FullName -Destination $target -Recurse -Force
             }
         }
         else {
@@ -324,7 +330,9 @@ function Test-ManagedLauncherShim {
         return $false
     }
     $content = [IO.File]::ReadAllText($Path).Replace("`r`n", "`n").Replace("`r", "`n")
-    if ($content -notmatch '\A@echo off\npython "([^"\n]+)" %\*\n?\z') {
+    $oldShape = '\A@echo off\npython "([^"\n]+)" %\*\n?\z'
+    $newShape = '\A@echo off\nwhere py >nul 2>nul\nif %errorlevel%==0 \(py -3 -X utf8 "([^"\n]+)" %\*\) else \(python -X utf8 "\1" %\*\)\n?\z'
+    if ($content -notmatch $oldShape -and $content -notmatch $newShape) {
         return $false
     }
     $candidate = $Matches[1].Replace('%USERPROFILE%', $UserHome, [StringComparison]::OrdinalIgnoreCase)
@@ -350,6 +358,57 @@ function Test-ManagedLauncherShim {
         $managed,
         [StringComparison]::OrdinalIgnoreCase
     )
+}
+
+function Get-LauncherBin {
+    return [IO.Path]::GetFullPath((Join-Path $UserHome '.local/bin')).TrimEnd('\', '/')
+}
+
+function Test-PathContains {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$PathValue, [Parameter(Mandatory)][string]$Directory)
+    foreach ($entry in ($PathValue -split [Regex]::Escape([IO.Path]::PathSeparator))) {
+        if ([string]::IsNullOrWhiteSpace($entry)) { continue }
+        try {
+            if ([IO.Path]::GetFullPath($entry).TrimEnd('\', '/').Equals($Directory, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+        }
+        catch { continue }
+    }
+    return $false
+}
+
+function Register-UserPath {
+    $launcherBin = Get-LauncherBin
+    if (-not (Test-PathContains -PathValue $env:PATH -Directory $launcherBin)) {
+        $env:PATH = "$launcherBin$([IO.Path]::PathSeparator)$env:PATH"
+    }
+    if (-not $IsWindows) {
+        Write-Warning "$launcherBin is not on PATH."
+        return
+    }
+    $userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
+    if (Test-PathContains -PathValue $userPath -Directory $launcherBin) { return }
+    if ($NoModifyPath) {
+        Write-Output "Add $launcherBin to your user PATH (install.ps1 -NoModifyPath leaves it unchanged)."
+        return
+    }
+    if ($DryRun) {
+        Write-Output "(dry-run) would add $launcherBin to the user PATH"
+        return
+    }
+    $entries = @($userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) + $launcherBin
+    [Environment]::SetEnvironmentVariable('Path', ($entries -join ';'), 'User')
+    Write-Output "Added $launcherBin to the user PATH; open a new terminal for other sessions to see it."
+}
+
+function Unregister-UserPath {
+    if (-not $IsWindows -or $NoModifyPath) { return }
+    $launcherBin = Get-LauncherBin
+    $userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
+    $entries = @($userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $kept = @($entries | Where-Object { -not (Test-PathContains -PathValue $_ -Directory $launcherBin) })
+    if ($kept.Count -eq $entries.Count) { return }
+    [Environment]::SetEnvironmentVariable('Path', ($kept -join ';'), 'User')
+    Write-Output "Removed $launcherBin from the user PATH."
 }
 
 function Install-Launcher {
@@ -384,6 +443,7 @@ function Install-Launcher {
     if ($DryRun) {
         Write-Output "(dry-run) would install $Name launcher version $Version to $launcherTarget"
         Write-Output "(dry-run) would install $Name launcher shim at $launcherShim"
+        if ($Name -eq 'gin-workflow') { Register-UserPath }
         return
     }
 
@@ -416,7 +476,7 @@ function Install-Launcher {
         if ($LASTEXITCODE) { throw 'Error: could not write the installed snapshot stamp' }
     }
 
-    $shimContent = "@echo off`r`npython `"$launcherTarget`" %*`r`n"
+    $shimContent = "@echo off`r`nwhere py >nul 2>nul`r`nif %errorlevel%==0 (py -3 -X utf8 `"$launcherTarget`" %*) else (python -X utf8 `"$launcherTarget`" %*)`r`n"
     $temporaryShim = "$launcherShim.$([guid]::NewGuid().ToString('N')).tmp"
     try {
         Write-Utf8File -Path $temporaryShim -Content $shimContent
@@ -429,27 +489,7 @@ function Install-Launcher {
     }
 
     Write-Output "Installed $Name launcher version $Version to $launcherShim"
-    if ($Name -eq 'gin-workflow') {
-        $launcherBin = [IO.Path]::GetFullPath((Split-Path -Parent $launcherShim)).TrimEnd('\', '/')
-        $pathContainsLauncher = $false
-        foreach ($entry in ($env:PATH -split [Regex]::Escape([IO.Path]::PathSeparator))) {
-            if ([string]::IsNullOrWhiteSpace($entry)) {
-                continue
-            }
-            try {
-                if ([IO.Path]::GetFullPath($entry).TrimEnd('\', '/').Equals($launcherBin, [StringComparison]::OrdinalIgnoreCase)) {
-                    $pathContainsLauncher = $true
-                    break
-                }
-            }
-            catch {
-                continue
-            }
-        }
-        if (-not $pathContainsLauncher) {
-            Write-Warning "$launcherBin is not on PATH."
-        }
-    }
+    if ($Name -eq 'gin-workflow') { Register-UserPath }
 }
 
 function Invoke-NativeCommand {
@@ -645,6 +685,7 @@ if ($Uninstall) {
             & copilot plugin uninstall $name *> $null
         }
     }
+    Unregister-UserPath
     Write-Output 'Removed generated dist output, the global OpenCode skill install, and the Copilot plugin registration. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
     return
 }

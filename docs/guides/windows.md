@@ -12,7 +12,7 @@ winget install Microsoft.PowerShell
 
 ### Python 3.11
 
-Install Python 3.11 or later from python.org or with winget. `rules_checks.py` imports `tomllib`, which exists from 3.11, and `setup preset` and `setup doctor` load it. The launcher shim calls `python`, so it must be on `PATH`:
+Install Python 3.11 or later from python.org or with winget. `rules_checks.py` imports `tomllib`, which exists from 3.11, and `setup preset` and `setup doctor` load it. The launcher shim runs `py -3` when the `py` launcher exists and `python` otherwise, so one of them must be on `PATH`:
 ```powershell
 winget install Python.Python.3.12
 ```
@@ -31,7 +31,7 @@ winget install Git.Git
 
 ### Developer Mode
 
-Only `install.ps1 -Link` creates symbolic links. Creating them without administrator privileges requires Developer Mode:
+Only `install.ps1 -Link` creates symbolic links. Creating them without administrator privileges requires Developer Mode. Without it, `-Link` prints one warning and copies the files instead:
 1. Open **Windows Settings** (`Win + I`).
 2. Go to **System**, then **For developers**.
 3. Toggle **Developer Mode** to **On**.
@@ -73,6 +73,9 @@ pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Platform copilot
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Project .
 ```
+
+### PATH
+The installer adds `%USERPROFILE%\.local\bin` to your user `PATH` once. Open a new terminal to pick it up. Pass `-NoModifyPath` to leave `PATH` unchanged; the installer then prints the folder to add. `-Uninstall` removes the entry.
 
 ## Task tracking
 
@@ -127,4 +130,4 @@ Run a CPython build that provides the standard library module `msvcrt`.
 
 ### `OSError: [WinError 1314]` when creating a symlink
 
-Turn on Developer Mode in Windows Settings, or run PowerShell as Administrator. Only `install.ps1 -Link` creates symlinks.
+Turn on Developer Mode in Windows Settings, or run PowerShell as Administrator. Only `install.ps1 -Link` creates symlinks; when it cannot, it copies the files and prints a warning.

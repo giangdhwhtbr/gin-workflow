@@ -10,7 +10,7 @@ Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copie
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform codex
    ```
 
-2. If the installer warns that `~/.local/bin` is not on `PATH`, add it.
+2. If you installed with `--no-modify-path`, add `~/.local/bin` to `PATH`.
 3. Run `gin-workflow --version`; it prints `gin-workflow 2.9`.
 
 ## OpenCode does not show the gin-workflow skills

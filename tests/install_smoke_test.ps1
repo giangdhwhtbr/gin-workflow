@@ -28,6 +28,7 @@ function Assert-Contains {
 
 function Invoke-Installer {
     param([hashtable]$Parameters)
+    if (-not $Parameters.ContainsKey('NoModifyPath') -and -not $env:GITHUB_ACTIONS) { $Parameters['NoModifyPath'] = $true }
     $output = & $Installer @Parameters 2>&1 | Out-String
     return $output
 }
@@ -165,6 +166,8 @@ try {
     }
 
     if ($IsWindows) {
+        # -Link falls back to copying without Developer Mode; either way the skill must exist.
+        Assert-Exists (Join-Path $linkProject '.claude/skills/setup/SKILL.md')
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
         Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.9') "Unexpected launcher version: $version"
         $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') rules --list --repository $TestHome
@@ -228,6 +231,24 @@ try {
         $after = [IO.File]::ReadAllBytes($shim)
         Assert-True ([Convert]::ToBase64String($before) -eq [Convert]::ToBase64String($after)) 'Foreign launcher shim was modified'
         [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
+    }
+
+    $shimText = [IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin-workflow.cmd'))
+    Assert-Contains $shimText 'py -3 -X utf8 "'
+    Assert-Contains $shimText 'else (python -X utf8 "'
+    Assert-True (-not $shimText.Contains('||')) 'shim must not chain the CLI with ||'
+    if ($IsWindows) {
+        $pathDryRun = Invoke-Installer @{ Platform = 'codex'; Project = $project; DryRun = $true; NoModifyPath = $false }
+        Assert-Contains $pathDryRun 'would add'
+        $noPathOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $true }
+        Assert-Contains $noPathOutput 'Add '
+    }
+    if ($IsWindows -and $env:GITHUB_ACTIONS) {
+        $binDir = [IO.Path]::GetFullPath((Join-Path $TestHome '.local/bin')).TrimEnd('\', '/')
+        Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $false } | Out-Null
+        Assert-True (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir) 'user PATH entry missing after install'
+        Invoke-Installer @{ Uninstall = $true; NoModifyPath = $false } | Out-Null
+        Assert-True (-not (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir)) 'user PATH entry still present after -Uninstall'
     }
 
     $mockLog = Join-Path $TestRoot 'harness-commands.log'
