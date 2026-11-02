@@ -28,6 +28,7 @@ function Assert-Contains {
 
 function Invoke-Installer {
     param([hashtable]$Parameters)
+    if (-not $Parameters.ContainsKey('NoModifyPath') -and -not $env:GITHUB_ACTIONS) { $Parameters['NoModifyPath'] = $true }
     $output = & $Installer @Parameters 2>&1 | Out-String
     return $output
 }
@@ -141,7 +142,7 @@ try {
         $sourceSnapshots[$sourceAgent.FullName] = [IO.File]::ReadAllBytes($sourceAgent.FullName)
     }
     try {
-        Invoke-Installer @{ Platform = 'claude'; Project = $linkProject; Link = $true } | Out-Null
+        $linkOutput = Invoke-Installer @{ Platform = 'claude'; Project = $linkProject; Link = $true } 3>&1 | Out-String
         foreach ($snapshot in $sourceSnapshots.GetEnumerator()) {
             $sourceAfter = [IO.File]::ReadAllBytes($snapshot.Key)
             Assert-True `
@@ -149,7 +150,13 @@ try {
                 "Linked Claude installation modified source agent $($snapshot.Key)"
         }
         $linkedSkill = Get-Item -LiteralPath (Join-Path $linkProject '.claude/skills/setup')
-        Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
+        if ($linkOutput.Contains('copying instead')) {
+            # Symlinks unavailable (Windows without Developer Mode): the copy fallback must warn exactly once.
+            Assert-True (([regex]::Matches($linkOutput, 'copying instead')).Count -eq 1) 'Link fallback warning was not emitted exactly once'
+        }
+        else {
+            Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
+        }
         $linkedAgent = Join-Path $linkProject '.claude/agents/developer.md'
         Assert-True ($null -eq (Get-Item -LiteralPath $linkedAgent).LinkType) 'Templated Claude agent remained a source symlink'
         $linkedContent = [IO.File]::ReadAllText($linkedAgent)
@@ -165,6 +172,8 @@ try {
     }
 
     if ($IsWindows) {
+        # -Link falls back to copying without Developer Mode; either way the skill must exist.
+        Assert-Exists (Join-Path $linkProject '.claude/skills/setup/SKILL.md')
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
         Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.9') "Unexpected launcher version: $version"
         $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') rules --list --repository $TestHome
@@ -228,6 +237,24 @@ try {
         $after = [IO.File]::ReadAllBytes($shim)
         Assert-True ([Convert]::ToBase64String($before) -eq [Convert]::ToBase64String($after)) 'Foreign launcher shim was modified'
         [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
+    }
+
+    $shimText = [IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin-workflow.cmd'))
+    Assert-Contains $shimText 'py -3 -X utf8 "'
+    Assert-Contains $shimText 'else (python -X utf8 "'
+    Assert-True (-not $shimText.Contains('||')) 'shim must not chain the CLI with ||'
+    if ($IsWindows) {
+        $pathDryRun = Invoke-Installer @{ Platform = 'codex'; Project = $project; DryRun = $true; NoModifyPath = $false }
+        Assert-Contains $pathDryRun 'would add'
+        $noPathOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $true }
+        Assert-Contains $noPathOutput 'Add '
+    }
+    if ($IsWindows -and $env:GITHUB_ACTIONS) {
+        $binDir = [IO.Path]::GetFullPath((Join-Path $TestHome '.local/bin')).TrimEnd('\', '/')
+        Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $false } | Out-Null
+        Assert-True (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir) 'user PATH entry missing after install'
+        Invoke-Installer @{ Uninstall = $true; NoModifyPath = $false } | Out-Null
+        Assert-True (-not (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir)) 'user PATH entry still present after -Uninstall'
     }
 
     $mockLog = Join-Path $TestRoot 'harness-commands.log'
