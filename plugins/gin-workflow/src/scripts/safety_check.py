@@ -23,12 +23,13 @@ def pattern(text, ignore_case=False):
 
 
 # Case-sensitive patterns.
-RM_RE = pattern(r"(^|[\s/])rm(\s.*|\Z)")
-GIT_RM_BEFORE_RE = pattern(r"^\s*git(\s[^\"']*)?\Z")
+# `(` or a backtick may precede rm: `$(rm -rf ~)`.
+RM_RE = pattern(r"(^|[\s/(`])rm(\s.*|\Z)")
 CACHED_RE = pattern(r"\s--cached(\s|\Z)")
 RECURSIVE_RE = pattern(r"\s-[a-zA-Z]*[rR]|--recursive")
 # Bare targets, `./` and `../`, and quoted or slash forms: rm -rf "$HOME", "$VAR", ~/*, ~/..., $HOME/...
-DANGEROUS_TARGET_RE = pattern(r'\s(/|/\*|\.|\.\.|\*|~|\$HOME|\$)(\Z|\s)|\s(\./|\.\./)|--no-preserve-root'
+# `)` or a backtick may follow a bare target: `$(rm -rf ~)`.
+DANGEROUS_TARGET_RE = pattern(r'\s(/|/\*|\.|\.\.|\*|~|\$HOME|\$)(\Z|[\s)`])|\s(\./|\.\./)|--no-preserve-root'
                               r'|\s("\$HOME|"\$|~/|\$HOME/)')
 # `git\s.*(commit|push|merge)\s.*--no-veri` or `git\s.*--no-veri.*(commit|push|merge)`, as parts found in order
 # (see `in_order`). git takes an unambiguous prefix of a long option: `--no-veri` and `--no-verif` are `--no-verify`.
@@ -282,17 +283,36 @@ def block(message):
     raise SystemExit(BLOCK)
 
 
+def is_git_subcommand(before):
+    """True when the text before a word is `git` and its global options only (`git -C x `), so the word is the
+    subcommand; `git log ` or `git log $(` is not, and neither is `git -C ` (the word is the value of -C)."""
+    words = [word for word in IFS_RE.split(before) if word]
+    # A substitution in an option value runs too: `git -C $(rm -rf ~ --cached ) status`.
+    if words[:1] != ["git"] or any(char in before for char in "$(`"):
+        return False
+    skip = False
+    for word in words[1:]:
+        if skip:
+            skip = False
+        elif GIT_VALUE_OPT_RE.search(word):
+            skip = True
+        elif not word.startswith("-"):
+            return False
+    return not skip
+
+
 def check_removal(segments):
     """Check each simple command from its `rm` onward, so a flag or target elsewhere in a compound command
     (`cd ~/x && rm y`) does not count against the removal."""
     for segment in segments:
         match = RM_RE.search(segment.raw)
+        # `git rm --cached` only touches the index; a later rm in the same segment (`git rm --cached $(rm -rf ~)`)
+        # still counts.
+        if match and is_git_subcommand(segment.raw[:match.end(1)]) and CACHED_RE.search(match.group(2)):
+            match = RM_RE.search(segment.raw, match.start(2))
         if not match:
             continue
         removal = match.group(2)
-        # `git rm --cached` only touches the index.
-        if GIT_RM_BEFORE_RE.search(segment.raw[:match.start()]) and CACHED_RE.search(removal):
-            continue
         if RECURSIVE_RE.search(removal) and DANGEROUS_TARGET_RE.search(removal):
             print("Blocked: Dangerous recursive file removal target or option detected.", file=sys.stderr)
             raise SystemExit(BLOCK)
