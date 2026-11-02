@@ -24,8 +24,6 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 |---|---|---|
 | Python 3.11 or later with PyYAML | the `gin-workflow` CLI | `python3 -m pip install PyYAML` |
 | git | branches, worktrees, review checkpoints | your package manager |
-| jq, optional | the safety hook's JSON parsing; without it the hook uses `python3` | `brew install jq`, `apt install jq`, or `winget install jqlang.jq` |
-| Git Bash (Windows only) | the `.sh` hook scripts | [Git for Windows](https://gitforwindows.org/) or `winget install Git.Git` |
 | [Beads](https://github.com/gastownhall/beads) (`bd`), optional | task tracking; without it, `/setup` offers local Markdown tasks (`providers.task_tracking: markdown`) | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
 | A harness | running the skills | Claude Code, Codex CLI, Antigravity CLI (`agy`), or OpenCode |
 
@@ -61,7 +59,7 @@ codex plugin add gin-workflow@gin-workflow-marketplace
 
 Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
 
-GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hook needs `bash` and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-workflow-pathscriptssafety-checksh-not-found-hook-skipped)).
+GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hook runs through Copilot's `bash` hook type and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-workflow-pathscriptssafety_checkpy-not-found-hook-skipped)).
 
 ## Extensions
 
