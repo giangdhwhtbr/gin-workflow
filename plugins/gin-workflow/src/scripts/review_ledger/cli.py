@@ -12,7 +12,7 @@ from typing import Dict, Any, Tuple, Optional, List
 from review_ledger.events import LedgerEvent, EventLog, WorkflowIntegrityError
 from review_ledger.projections import ReviewProjection, FindingProjection
 from review_ledger.finding_fsm import validate_finding_transition
-from review_ledger.bead_fsm import validate_bead_transition
+from review_ledger.bead_fsm import validate_bead_transition, TERMINAL_FINDING_STATUSES
 from review_ledger.lease import (LeaseError, is_lease_active, validate_lease_for_write, format_utc_timestamp)
 from review_ledger.renderer import render_review_markdown
 from review_ledger.git_adapter import SourceCheckpoint, create_source_checkpoint
@@ -708,8 +708,13 @@ def build_start_review_operations(
         raise ValueError("ttl_seconds must be positive")
     if projection.owner and actor_id == projection.owner:
         raise LeaseError(f"reviewer {actor_id} must differ from the track owner")
+    # With no findings there is nothing to verify, so the cycle limit still applies (all() of nothing is True).
+    all_terminal = bool(projection.findings) and all(
+        finding.status in TERMINAL_FINDING_STATUSES for finding in projection.findings.values()
+    )
     if (projection.max_cycles is not None and projection.review_state == "review-requested"
-            and projection.cycles >= projection.max_cycles and not projection.decided_since_cycle):
+            and projection.cycles >= projection.max_cycles and not projection.decided_since_cycle
+            and not all_terminal):
         raise LeaseError(f"max review cycles ({projection.max_cycles}) reached; record a human decision")
     current_time = now or datetime.now(timezone.utc)
     expires_at = format_utc_timestamp(current_time + timedelta(seconds=ttl_seconds))

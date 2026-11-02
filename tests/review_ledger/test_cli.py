@@ -1152,6 +1152,44 @@ class TestOwnerAndCycles(unittest.TestCase):
         resumed = self.start("b@x")
         self.assertEqual(0, resumed.returncode, resumed.stderr + resumed.stdout)
 
+    def reviewed_once_with_a_suggestion(self):
+        self.init("--max-cycles", "1")
+        self.request_review()
+        first = self.start("b@x")
+        self.run_cli("add-finding", "--bead-id", "bead-t", "--finding-id", "f1", "--severity", "SUGGESTION",
+                     "--actor-id", "b@x", "--lease-id", self.lease_of(first))
+        self.changes_requested(self.lease_of(first))
+
+    def test_at_max_cycles_a_verification_review_starts_when_every_finding_is_terminal(self):
+        self.reviewed_once_with_a_suggestion()
+        proposed = self.run_cli("propose-deferral", "--bead-id", "bead-t", "--finding-id", "f1", "--reason", "later",
+                                "--follow-up-bead-id", "x", "--follow-up-bead-title", "y", "--actor-id", "a@x")
+        self.assertEqual(0, proposed.returncode, proposed.stderr + proposed.stdout)
+        approved_deferral = self.run_cli("approve-deferral", "--bead-id", "bead-t", "--finding-id", "f1",
+                                         "--actor-id", "b@x")
+        self.assertEqual(0, approved_deferral.returncode, approved_deferral.stderr + approved_deferral.stdout)
+        second = self.start("b@x")
+        self.assertEqual(0, second.returncode, second.stderr + second.stdout)
+        approved = self.run_cli("approve", "--bead-id", "bead-t", "--actor-id", "b@x",
+                                "--lease-id", self.lease_of(second))
+        self.assertEqual(0, approved.returncode, approved.stderr + approved.stdout)
+        status = json.loads(self.run_cli("status", "--bead-id", "bead-t", "--format", "json").stdout)
+        self.assertEqual("review-approved", status["review_state"])
+
+    def test_at_max_cycles_a_review_with_an_open_finding_is_still_refused(self):
+        self.reviewed_once_with_a_suggestion()
+        refused = self.start("b@x")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("max review cycles (1) reached; record a human decision", refused.stderr + refused.stdout)
+
+    def test_at_max_cycles_a_review_with_no_findings_is_still_refused(self):
+        self.init("--max-cycles", "1")
+        self.request_review()
+        self.changes_requested(self.lease_of(self.start("b@x")))
+        refused = self.start("b@x")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("max review cycles (1) reached; record a human decision", refused.stderr + refused.stdout)
+
     def test_without_max_cycles_any_number_of_reviews_runs(self):
         self.init()
         self.request_review()
