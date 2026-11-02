@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -27,10 +27,35 @@
 - **Allowed Generated Paths:**
 
 ## Findings Summary
-*No findings recorded.*
+| Finding ID | Severity | Status | Clarification Count | Linked Bead |
+| :--- | :--- | :--- | :---: | :--- |
+| `F1` | `CRITICAL` | `open` | 0 | - |
+| `F2` | `CRITICAL` | `open` | 0 | - |
+| `F3` | `CRITICAL` | `open` | 0 | - |
+| `F4` | `MINOR` | `open` | 0 | - |
+| `F5` | `SUGGESTION` | `open` | 0 | - |
 
 ## Findings Detail
-*No detailed findings.*
+### `F1` (CRITICAL)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F2` (CRITICAL)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F3` (CRITICAL)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F4` (MINOR)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F5` (SUGGESTION)
+- **Status:** `open`
+- **Clarification Count:** 0
+
 
 ## Event Chronology
 | Event ID | Timestamp | Action | Actor |
@@ -38,3 +63,13 @@
 | `EV-000001` | `2026-11-02T00:09:17.752163Z` | `ledger-created` | `claude` (worker) |
 | `EV-000002` | `2026-11-02T00:09:17.987616Z` | `source-checkpoint-created` | `claude` (worker) |
 | `EV-000003` | `2026-11-02T00:20:39.783147Z` | `review-requested` | `claude` (worker) |
+| `EV-000004` | `2026-11-02T00:21:35.269164Z` | `lease-acquired` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000005` | `2026-11-02T00:21:35.285839Z` | `review-started` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000006` | `2026-11-02T00:26:02.872393Z` | `changes-requested` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000007` | `2026-11-02T00:26:08.503008Z` | `finding-created` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000008` | `2026-11-02T00:26:16.847989Z` | `finding-created` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000009` | `2026-11-02T00:26:16.973316Z` | `finding-created` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000010` | `2026-11-02T00:26:17.094139Z` | `finding-created` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000011` | `2026-11-02T00:26:17.214757Z` | `finding-created` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000012` | `2026-11-02T00:26:17.605339Z` | `lease-released` | `reviewer:claude:session-e2ead0a8` (reviewer) |
+| `EV-000013` | `2026-11-02T00:27:34.517564Z` | `implementation-in-progress` | `claude` (worker) |
