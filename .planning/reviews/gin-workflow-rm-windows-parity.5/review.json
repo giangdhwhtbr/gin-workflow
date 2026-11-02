@@ -1,0 +1,346 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+      "review_base_sha": "18986a8132b3a4ab45709f74bae84466a0ab2b0a",
+      "reviewed_source_sha": "812801de415e5661f47c83f569d1866ec6077aa6",
+      "checkpoint_sha": "812801de415e5661f47c83f569d1866ec6077aa6",
+      "source_scope_hash": "a7bece5db23c91b1e7d3ba8bc0f2012e2bf1481a7cffa759b37ab6d21cef18d4",
+      "source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+      "reviewed_source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      ".github/workflows/test.yml",
+      "docs/contributing.md",
+      "docs/guides/windows.md",
+      "plugins/gin-orchestrator/src/scripts/gin_orchestrator/workspace.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/executable_resolver.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/locking.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/setup_service.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/specs.py",
+      "plugins/gin-workflow/src/scripts/workflow_core/task_markdown.py",
+      "tests/gin_orchestrator/test_contract_cli.py",
+      "tests/gin_orchestrator/test_contract_v2.py",
+      "tests/gin_orchestrator/test_contracts.py",
+      "tests/gin_orchestrator/test_doctor.py",
+      "tests/gin_orchestrator/test_evidence.py",
+      "tests/gin_orchestrator/test_harness_packaging.py",
+      "tests/gin_orchestrator/test_launcher.py",
+      "tests/gin_orchestrator/test_native_cli.py",
+      "tests/gin_orchestrator/test_registry.py",
+      "tests/gin_orchestrator/test_worker_adapters.py",
+      "tests/gin_orchestrator/test_worker_scheduler.py",
+      "tests/gin_qa/qa_fixtures.py",
+      "tests/install_smoke_test.ps1",
+      "tests/review_ledger/test_acceptance_identity.py",
+      "tests/review_ledger/test_atr_regressions.py",
+      "tests/review_ledger/test_cli.py",
+      "tests/review_ledger/test_git_adapter.py",
+      "tests/review_ledger/test_integration.py",
+      "tests/review_ledger/test_review_refs.py",
+      "tests/review_ledger/test_sequential_tracks.py",
+      "tests/review_ledger/test_source_identity.py",
+      "tests/test_safety_check.py",
+      "tests/workflow_core/orchestrator_fakes.py",
+      "tests/workflow_core/team_fixtures.py",
+      "tests/workflow_core/test_agent_files.py",
+      "tests/workflow_core/test_agents_block.py",
+      "tests/workflow_core/test_artifacts.py",
+      "tests/workflow_core/test_executable_resolver.py",
+      "tests/workflow_core/test_hooks.py",
+      "tests/workflow_core/test_lifecycle_cli.py",
+      "tests/workflow_core/test_locking.py",
+      "tests/workflow_core/test_setup_cli.py",
+      "tests/workflow_core/test_task_markdown.py",
+      "tests/workflow_core/test_tasks.py",
+      "tests/workflow_core/test_team_beads.py",
+      "tests/workflow_core/test_team_gates.py",
+      "tests/workflow_core/test_team_init.py",
+      "tests/workflow_core/test_usage_logs.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 10,
+  "next_finding_number": 1,
+  "findings": {
+    "skip-whole-test-drops-platform-neutral-coverage": {
+      "finding_id": "skip-whole-test-drops-platform-neutral-coverage",
+      "severity": "MINOR",
+      "status": "deferred-verified",
+      "clarification_count": 0,
+      "deferral_reason": "Only one assertion per test is POSIX-specific; splitting them needs another Windows CI round trip, so it ships as a follow-up with the PYTHONPATH, fake-CLI, and timeout suggestions",
+      "follow_up_bead_id": "gin-workflow-myd7",
+      "follow_up_bead_title": "Windows CI: run platform-neutral assertions and fake CLIs on Windows",
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-02T07:57:52.656846Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+            "review_base_sha": "18986a8132b3a4ab45709f74bae84466a0ab2b0a",
+            "reviewed_source_sha": "aecf21bd01d6edb8f388bd58d90d2bea9c1ce4b8",
+            "checkpoint_sha": "aecf21bd01d6edb8f388bd58d90d2bea9c1ce4b8",
+            "source_scope_hash": "a7bece5db23c91b1e7d3ba8bc0f2012e2bf1481a7cffa759b37ab6d21cef18d4",
+            "source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+            "reviewed_source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            ".github/workflows/test.yml",
+            "docs/contributing.md",
+            "docs/guides/windows.md",
+            "plugins/gin-orchestrator/src/scripts/gin_orchestrator/workspace.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/executable_resolver.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/locking.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/setup_service.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/specs.py",
+            "plugins/gin-workflow/src/scripts/workflow_core/task_markdown.py",
+            "tests/gin_orchestrator/test_contract_cli.py",
+            "tests/gin_orchestrator/test_contract_v2.py",
+            "tests/gin_orchestrator/test_contracts.py",
+            "tests/gin_orchestrator/test_doctor.py",
+            "tests/gin_orchestrator/test_evidence.py",
+            "tests/gin_orchestrator/test_harness_packaging.py",
+            "tests/gin_orchestrator/test_launcher.py",
+            "tests/gin_orchestrator/test_native_cli.py",
+            "tests/gin_orchestrator/test_registry.py",
+            "tests/gin_orchestrator/test_worker_adapters.py",
+            "tests/gin_orchestrator/test_worker_scheduler.py",
+            "tests/gin_qa/qa_fixtures.py",
+            "tests/install_smoke_test.ps1",
+            "tests/review_ledger/test_acceptance_identity.py",
+            "tests/review_ledger/test_atr_regressions.py",
+            "tests/review_ledger/test_cli.py",
+            "tests/review_ledger/test_git_adapter.py",
+            "tests/review_ledger/test_integration.py",
+            "tests/review_ledger/test_review_refs.py",
+            "tests/review_ledger/test_sequential_tracks.py",
+            "tests/review_ledger/test_source_identity.py",
+            "tests/test_safety_check.py",
+            "tests/workflow_core/orchestrator_fakes.py",
+            "tests/workflow_core/team_fixtures.py",
+            "tests/workflow_core/test_agent_files.py",
+            "tests/workflow_core/test_agents_block.py",
+            "tests/workflow_core/test_artifacts.py",
+            "tests/workflow_core/test_executable_resolver.py",
+            "tests/workflow_core/test_hooks.py",
+            "tests/workflow_core/test_lifecycle_cli.py",
+            "tests/workflow_core/test_locking.py",
+            "tests/workflow_core/test_setup_cli.py",
+            "tests/workflow_core/test_task_markdown.py",
+            "tests/workflow_core/test_tasks.py",
+            "tests/workflow_core/test_team_beads.py",
+            "tests/workflow_core/test_team_gates.py",
+            "tests/workflow_core/test_team_init.py",
+            "tests/workflow_core/test_usage_logs.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "giangdhwhtbr@gmail.com"
+      },
+      "previous_event_hash": null,
+      "event_hash": "87bb69bcd5a6dbe8b6530b92aa97cb3ccd77da7304e83d01eac46666c0b63e3e"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-02T07:58:02.328000Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+            "review_base_sha": "18986a8132b3a4ab45709f74bae84466a0ab2b0a",
+            "reviewed_source_sha": "812801de415e5661f47c83f569d1866ec6077aa6",
+            "checkpoint_sha": "812801de415e5661f47c83f569d1866ec6077aa6",
+            "source_scope_hash": "a7bece5db23c91b1e7d3ba8bc0f2012e2bf1481a7cffa759b37ab6d21cef18d4",
+            "source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+            "reviewed_source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "87bb69bcd5a6dbe8b6530b92aa97cb3ccd77da7304e83d01eac46666c0b63e3e",
+      "event_hash": "4c7cc4903836260bf7f6e317065772f577b1185663b847c22a9fde85d6e518e5"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-02T07:58:35.101381Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "4c7cc4903836260bf7f6e317065772f577b1185663b847c22a9fde85d6e518e5",
+      "event_hash": "949c09206100c64639818c5fe413d278fe038590ec0d9c89465238b8588e32f1"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-02T08:07:44.234184Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c30dd92a"
+      },
+      "payload": {
+        "lease_id": "e3c12fb56e044c2c952dbe7861f56727",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-c30dd92a",
+        "acquired_at": "2026-11-02T08:07:44.233285Z",
+        "expires_at": "2026-11-02T08:17:44.233285Z"
+      },
+      "previous_event_hash": "949c09206100c64639818c5fe413d278fe038590ec0d9c89465238b8588e32f1",
+      "event_hash": "7d3af15e33cb6e4e901e614bd11f4b5c43f7bff56c899b56fa0c721102c435d2"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-02T08:07:44.255479Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c30dd92a"
+      },
+      "payload": {},
+      "previous_event_hash": "7d3af15e33cb6e4e901e614bd11f4b5c43f7bff56c899b56fa0c721102c435d2",
+      "event_hash": "91ccf8b5fdc30987cd0e5417a94cbc2ba69de370baa1ba7570d0db14c906887e"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-02T08:07:53.119993Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c30dd92a"
+      },
+      "payload": {
+        "finding_id": "skip-whole-test-drops-platform-neutral-coverage",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "91ccf8b5fdc30987cd0e5417a94cbc2ba69de370baa1ba7570d0db14c906887e",
+      "event_hash": "cfb620cdec61ecfdfa5be3faef91e9c022fd8fb0b2dec9108067ba9b14e7be8f"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "deferral-proposed",
+      "timestamp": "2026-11-02T08:07:53.258431Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "finding_id": "skip-whole-test-drops-platform-neutral-coverage",
+        "reason": "Only one assertion per test is POSIX-specific; splitting them needs another Windows CI round trip, so it ships as a follow-up with the PYTHONPATH, fake-CLI, and timeout suggestions",
+        "follow_up_bead_id": "gin-workflow-myd7",
+        "follow_up_bead_title": "Windows CI: run platform-neutral assertions and fake CLIs on Windows"
+      },
+      "previous_event_hash": "cfb620cdec61ecfdfa5be3faef91e9c022fd8fb0b2dec9108067ba9b14e7be8f",
+      "event_hash": "2e6bcaa1f4a35a29711c2e9c90ae4943d8d97bd7d37e329da8412bdd7fc6c27a"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "deferral-approved",
+      "timestamp": "2026-11-02T08:07:53.385718Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c30dd92a"
+      },
+      "payload": {
+        "finding_id": "skip-whole-test-drops-platform-neutral-coverage"
+      },
+      "previous_event_hash": "2e6bcaa1f4a35a29711c2e9c90ae4943d8d97bd7d37e329da8412bdd7fc6c27a",
+      "event_hash": "05d2447b142a5179dfb02eedee3fa2dc86d1e9c8d56cae62d86d0c586cdab9c0"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "review-approved",
+      "timestamp": "2026-11-02T08:07:54.100829Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c30dd92a"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.5",
+            "review_base_sha": "18986a8132b3a4ab45709f74bae84466a0ab2b0a",
+            "reviewed_source_sha": "812801de415e5661f47c83f569d1866ec6077aa6",
+            "checkpoint_sha": "812801de415e5661f47c83f569d1866ec6077aa6",
+            "source_scope_hash": "a7bece5db23c91b1e7d3ba8bc0f2012e2bf1481a7cffa759b37ab6d21cef18d4",
+            "source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+            "reviewed_source_tree_hash": "d2395c9d2e7c36b4ef0d77c0fa0a1d6be79f1fd6ad98b1ce69e626feebdb94c4",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "a7bece5db23c91b1e7d3ba8bc0f2012e2bf1481a7cffa759b37ab6d21cef18d4",
+        "terminal_findings": [
+          "skip-whole-test-drops-platform-neutral-coverage"
+        ]
+      },
+      "previous_event_hash": "05d2447b142a5179dfb02eedee3fa2dc86d1e9c8d56cae62d86d0c586cdab9c0",
+      "event_hash": "0951bfa2b079c8f842f2b79b2682c89faf3262c5b6ef4cfe79be693fb708b360"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "lease-released",
+      "timestamp": "2026-11-02T08:08:04.855420Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-c30dd92a"
+      },
+      "payload": {
+        "lease_id": "e3c12fb56e044c2c952dbe7861f56727",
+        "released_at": "2026-11-02T08:08:04.854677Z"
+      },
+      "previous_event_hash": "0951bfa2b079c8f842f2b79b2682c89faf3262c5b6ef4cfe79be693fb708b360",
+      "event_hash": "518186d63d15aea3b729ef2c1f5713b6ba3b2e2b0358fb304031e60ff01affd7"
+    }
+  ]
+}
