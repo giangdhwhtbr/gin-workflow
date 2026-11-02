@@ -73,6 +73,7 @@ try {
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/cases/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/references/explore-case.md')
+    Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/agents/e2e-tester.md')
 
     # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
     $orchDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true }
