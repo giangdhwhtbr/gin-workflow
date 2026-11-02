@@ -11,7 +11,7 @@ description: 'Write or update Playwright specs for `Type: e2e` test cases by exp
 2. `plan <capability> --format json` gives `e2e` (the folder), `guidelines` (a file), and the work: `missing`, `stale`, `orphan`. With TC-IDs, run `plan` and keep only those cases.
 3. Read the guidelines file (`/gin-qa:cases` creates it). Its rules (locators, sign-in, test data) override everything below.
 4. Note `git status --porcelain`. `missing` and `stale`: each case is built and checked against the running application by the procedure in [explore-case.md](references/explore-case.md), which ends with `done`, `app_defect`, or `blocked`.
-   - When the platform has subagents, give each case to one subagent, at most N at a time. Send it the `plan` row, the guidelines path, and the path of `explore-case.md`; nothing else from this conversation. Otherwise work through the cases one by one yourself.
+   - When the platform has subagents, give each case to `gin-qa:e2e-tester` at the middle model and `low` effort, at most N at a time. Send it the `plan` row, the guidelines path, and the path of `explore-case.md`; nothing else from this conversation. Otherwise work through the cases one by one yourself.
    - A failed or blocked case does not stop the others.
 5. When every case has ended, compare `git status --porcelain` with step 4: only these cases' spec files may have changed. Report any other change and ask the user before reverting it.
 6. `orphan`: list the specs and ask the user whether to delete or keep each one. Never delete on your own.
