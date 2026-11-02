@@ -21,7 +21,6 @@ from gin_orchestrator.antigravity_worker import (  # noqa: E402
 )
 from gin_orchestrator.claude_worker import build_claude_invocation, claude_health  # noqa: E402
 from gin_orchestrator.codex_worker import build_codex_invocation, codex_health  # noqa: E402
-from gin_orchestrator import native_cli  # noqa: E402
 from gin_orchestrator.native_cli import (  # noqa: E402
     FailureKind,
     NativeCliError,
@@ -427,6 +426,8 @@ class NativeCliTests(unittest.TestCase):
             "multi-line prompt": ("-p", "first line\nsecond line"),
             "env expansion": ("-p", "echo %PATH%"),
             "over 8191 chars": ("-p", "x" * 8200),
+            "double quote": ("-p", 'say "hi"'),
+            "carriage return": ("-p", "a\rb"),
         }
         with tempfile.TemporaryDirectory() as directory:
             for label, args in unsafe.items():
@@ -441,6 +442,65 @@ class NativeCliTests(unittest.TestCase):
                 self.assertIs(FailureKind.SERVICE, raised.exception.kind)
                 self.assertEqual("argument cannot be passed safely through cmd.exe", str(raised.exception))
         popen.assert_not_called()
+
+    def _run_windows(self, which_result, args, env=None):
+        """Run `claude *args` as if on Windows; return the argv handed to Popen (raises NativeCliError if refused)."""
+        seen = {}
+
+        class FakeProcess:
+            pid = 1
+            returncode = 0
+
+            def __init__(self):
+                self.stdin, self.stdout, self.stderr = io.BytesIO(), io.BytesIO(b'{"status": "ok"}\n'), io.BytesIO()
+
+            def poll(self):
+                return 0
+
+            def wait(self, timeout=None):
+                return 0
+
+        def fake_popen(argv, **kwargs):
+            seen["argv"] = argv
+            return FakeProcess()
+
+        with tempfile.TemporaryDirectory() as directory:
+            invocation = NativeCliInvocation(("claude", *args), Path(directory), b"", 2.0)
+            with mock.patch.object(native_cli.os, "name", "nt"), \
+                    mock.patch.dict(native_cli.os.environ, env or {"SystemRoot": r"C:\Win"}), \
+                    mock.patch.object(native_cli.subprocess, "Popen", fake_popen), \
+                    mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                    mock.patch.object(native_cli.shutil, "which", lambda name: which_result):
+                NativeCliRunner().run(invocation)
+        return seen["argv"]
+
+    def test_us5_windows_shim_routing_is_case_insensitive_and_ignores_trailing_dots_and_spaces(self):
+        for label, resolved in {
+            "upper CMD": r"C:\npm\claude.CMD",
+            "upper BAT": r"C:\npm\x.BAT",
+            "lower bat": r"C:\npm\x.bat",
+            "trailing dot": r"C:\npm\claude.cmd.",
+            "trailing space": r"C:\npm\x.bat ",
+        }.items():
+            with self.subTest(label):
+                argv = self._run_windows(resolved, ("-p",))
+                self.assertIsInstance(argv, str)
+                self.assertTrue(argv.startswith(r'"C:\Win\System32\cmd.exe" /d /s /v:off /c ""' + resolved))
+
+    def test_us5_windows_exe_is_spawned_directly(self):
+        resolved = r"C:\tools\claude.exe"
+        self.assertEqual([resolved, "-p"], self._run_windows(resolved, ("-p",)))
+
+    def test_us5_windows_shim_line_length_boundary(self):
+        shim = r"C:\npm\claude.cmd"
+        overhead = len(self._run_windows(shim, ("",)))  # line length with an empty argument
+        self.assertEqual(8191, len(self._run_windows(shim, ("x" * (8191 - overhead),))))
+        with self.assertRaises(NativeCliError):
+            self._run_windows(shim, ("x" * (8191 - overhead + 1),))
+
+    def test_us5_windows_shim_empty_systemroot_falls_back_to_default(self):
+        argv = self._run_windows(r"C:\npm\claude.cmd", ("-p",), env={"SystemRoot": ""})
+        self.assertTrue(argv.startswith(r'"C:\Windows\System32\cmd.exe" '))
 
     def test_us5_windows_taskkill_failure_falls_back_to_kill(self):
         taskkills: list[list[str]] = []
