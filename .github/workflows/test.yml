@@ -44,6 +44,10 @@ jobs:
       - run: |
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
-      - run: python -m unittest tests/test_all.py -v
+      - name: Unit tests, with a temp dir that has no 8.3 short name
+        run: python -m unittest tests/test_all.py -v
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - if: ${{ !cancelled() }}
         run: pwsh -NoProfile -File tests/install_smoke_test.ps1

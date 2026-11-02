@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+import os
 import json
 import multiprocessing
 import tempfile
@@ -606,6 +607,7 @@ class EvidenceProviderTests(unittest.TestCase):
                     self.assertFalse(completeness.value.complete)
                     self.assertIn(category.value, completeness.value.missing_categories)
 
+    @unittest.skipIf(os.name == "nt", "needs the POSIX fork start method of multiprocessing")
     def test_concurrent_processes_record_without_lost_updates_or_temp_leaks(self):
         with tempfile.TemporaryDirectory() as directory:
             index = Path(directory) / "evidence.json"

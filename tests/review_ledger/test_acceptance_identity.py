@@ -118,7 +118,7 @@ class LedgerIdentityRecordTests(unittest.TestCase):
         self.bead_id = "bead-identity"
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def _mutate(self, action, payload, role="worker", actor="w1"):
         return mutate_ledger(
@@ -299,7 +299,7 @@ class LegacyLedgerCompatibilityTests(unittest.TestCase):
         self.bead_id = "legacy-bead"
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def _write_legacy_ledger(self):
         legacy_repository = {
@@ -415,7 +415,7 @@ class ReviewLedgerCommandIdentityTests(unittest.TestCase):
         )
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def _cli(self, *args, expect_success=True):
         process = subprocess.run(

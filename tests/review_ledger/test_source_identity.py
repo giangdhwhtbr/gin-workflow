@@ -34,7 +34,7 @@ class TestSourceIdentity(unittest.TestCase):
         subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, check=True)
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_scope_paths_reject_absolute_and_traversal(self):
         for path in ("/absolute", "../outside", "src/../../outside", ""):

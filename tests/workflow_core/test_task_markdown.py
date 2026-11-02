@@ -184,6 +184,7 @@ class TaskMarkdownTests(unittest.TestCase):
         self.assertNotEqual(0, self.run_task("frobnicate")[0])
 
 
+    @unittest.skipIf(os.name == "nt", "':' is valid only in POSIX file names, so repo:a.b-1 is a POSIX-only id")
     def test_unsafe_explicit_ids_are_rejected(self):
         for bad in ("../../escape", "x/y", "..", ".hidden", "a..b"):
             code, _, err = self.run_task("create", "--id", bad, "T")
@@ -191,6 +192,14 @@ class TaskMarkdownTests(unittest.TestCase):
             self.assertIn("invalid task id", err)
         self.assertFalse((Path(self._directory.name) / "escape.md").exists())
         self.assertEqual("repo:a.b-1", self.q("create", "--id", "repo:a.b-1", "T")["id"])
+
+    def test_colon_id_is_rejected_on_windows(self):
+        windows_os = mock.Mock(wraps=os)
+        windows_os.name = "nt"
+        with mock.patch.object(task_markdown, "os", windows_os):
+            code, _, err = self.run_task("create", "--id", "repo:a.b-1", "T")
+        self.assertEqual((1, True), (code, "invalid task id" in err))
+        self.assertFalse((self.root / ".planning/tasks/repo:a.b-1").exists())
 
     def test_concurrent_remembers_keep_every_fact(self):
         code = f"import sys; sys.path.insert(0, {str(SCRIPTS)!r}); from pathlib import Path; " \

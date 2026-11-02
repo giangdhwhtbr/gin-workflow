@@ -475,4 +475,4 @@ def renumber(root: Path, cfg: Mapping[str, Any], change: Path, old: str, new: st
     for bead in beads:
         _bd(root, ["update", bead["id"], "--remove-label", f"req:{old}", "--add-label", f"req:{new}"])
         relabeled.append(bead["id"])
-    return {"old": old, "new": new, "files": sorted(str(p.relative_to(root)) for p in writes), "beads": relabeled}
+    return {"old": old, "new": new, "files": sorted(p.relative_to(root).as_posix() for p in writes), "beads": relabeled}

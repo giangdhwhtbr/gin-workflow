@@ -558,6 +558,24 @@ class ProviderContractTests(unittest.TestCase):
             # that the install step actually ran.
             self.assertTrue((worktree_path / "package-lock.json").is_file())
 
+    def test_worktree_adapter_bootstrap_runs_npm_from_its_path_lookup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_branch = self._init_repo_with_commit(root)
+            worktree_path = root / ".planning/worktrees/track-1"
+            subprocess.run(
+                ["git", "worktree", "add", "-q", "-b", "bead/track-1", str(worktree_path), base_branch],
+                cwd=root, check=True, capture_output=True,
+            )
+            (worktree_path / "package.json").write_text("{}", encoding="utf-8")
+            npm = r"C:\Program Files\nodejs\npm.cmd"
+            done = subprocess.CompletedProcess([npm, "install"], 0, "", "")
+            with mock.patch("gin_orchestrator.workspace.shutil.which", return_value=npm), \
+                    mock.patch("gin_orchestrator.workspace.subprocess.run", return_value=done) as run:
+                result = WorktreeWorkspaceProvider(root).bootstrap("track-1")
+            self.assertIs(OperationStatus.SUCCESS, result.status)
+            self.assertEqual([npm, "install"], run.call_args.args[0])
+
     def test_worktree_adapter_bootstrap_is_noop_without_gitmodules_or_package_json(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -153,6 +153,7 @@ class CodexTests(unittest.TestCase):
             count(500, 400, 0, 100, "2026-10-04T09:00:04Z"),
         ])
 
+    @unittest.skipIf(os.name == "nt", "asserts a '/'-separated POSIX cwd")
     def test_per_turn_records_with_uncached_input(self):
         scan = codex_records(self.repo, self.root)
         self.assertEqual(scan.status, "ok")

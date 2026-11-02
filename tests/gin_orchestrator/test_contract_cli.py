@@ -33,6 +33,7 @@ class ContractCliTests(unittest.TestCase):
                           "capabilities": ["health", "models", "routes", "reviewer", "doctor"]},
                          json.loads(result.stdout))
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_health_reports_a_supported_stub(self):
         with tempfile.TemporaryDirectory() as directory:
             stub = Path(directory) / "fake-codex"

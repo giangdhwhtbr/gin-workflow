@@ -1,4 +1,5 @@
 from dataclasses import replace
+import os
 import json
 from pathlib import Path
 import tempfile
@@ -454,6 +455,7 @@ class ProviderRegistryTests(unittest.TestCase):
                 self.assertEqual(("run", "--standalone", "--auto"), argv[1:4])
                 self.assertEqual(expect_model_flag, "--model" in argv)
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_registry_wires_real_health_probe_cached_per_provider_and_model(self):
         class _ModelAwareRunner:
             def __init__(self):
@@ -737,6 +739,7 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertEqual(2, scheduler.max_parallel_workers)
             self.assertIs(registry.notifications, scheduler.notifications)
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_registry_health_cache_distinguishes_codex_effort_and_probes_antigravity(self):
         from types import SimpleNamespace
 
@@ -834,6 +837,7 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertIn("gemini-3.8-flash", runner.invocations[2].argv)
             self.assertTrue((root / ".agent-workflow/runtime/health-probe/antigravity").is_dir())
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_registry_resolves_harness_executable_for_worker_and_health_check(self):
         from types import SimpleNamespace
         import os

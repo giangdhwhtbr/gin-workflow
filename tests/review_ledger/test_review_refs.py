@@ -86,8 +86,8 @@ class NoCredentialPrompt(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
-            shutil.rmtree(source)
-            shutil.rmtree(clone)
+            shutil.rmtree(source, ignore_errors=True)
+            shutil.rmtree(clone, ignore_errors=True)
 
 
 class Origin(unittest.TestCase):
@@ -98,8 +98,8 @@ class Origin(unittest.TestCase):
         git(self.repo, "remote", "add", "origin", self.origin)
 
     def tearDown(self):
-        shutil.rmtree(self.repo)
-        shutil.rmtree(self.origin)
+        shutil.rmtree(self.repo, ignore_errors=True)
+        shutil.rmtree(self.origin, ignore_errors=True)
 
     def remote_refs(self):
         return git(self.origin, "for-each-ref", "--format=%(refname)", "refs/gin/review/").split()
