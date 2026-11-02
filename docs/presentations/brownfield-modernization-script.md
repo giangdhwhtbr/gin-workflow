@@ -38,13 +38,13 @@ points; the detail below is what the presenter says aloud.
 ## 4. Who Does What, Stage by Stage
 
 - The swim lanes show who acts in each stage: discuss, plan, orchestrate, execute (per track), and ship; the bottom row is the gate that closes each stage.
-- People lanes: Requester (BA/PM), Area lead (owns the code area), Developer (runs the stages), Ship approver (team mode, e.g. QE).
+- People lanes: Requester (BA/PM), Area lead (owns the code area), Developer (owns a track), Ship approver (team mode, e.g. QE). Which role runs which stage is a team convention (`docs/roles.md`); gin-workflow enforces only `team.areas` and `team.approvals`.
 - Agent lanes: Main agent (your harness session), Worker (gin-orchestrator, optional), Reviewer (fresh session or provider).
 - Automation lane: git hooks and CI, with checks set by rigor.
-- discuss: the agent asks, proposes, and writes the spec; the requester confirms → `requirement_confirmed`.
-- plan: the agent writes tracks with role and tier; the area lead approves → `plan_approved`.
-- orchestrate: the agent creates the epic, track beads, routes, and worktree → `orchestration_ready`.
-- execute: per track, tests first; a worker may implement routed tracks; the reviewer records the ledger within capped cycles; humans do human-gate tracks; pre-commit runs lint and typecheck, pre-push runs tests, build, and e2e → `implementation_complete` once every track is closed.
+- discuss: the requester (BA/PM) runs `/discuss`; the agent asks, proposes, and writes the spec; the requester confirms → `requirement_confirmed`.
+- plan: the area lead runs `/plan`; the agent writes tracks with role and tier; the area lead approves → `plan_approved`.
+- orchestrate: the area lead runs `/orchestrate`; the agent creates the epic, track beads, routes, and worktree, and prints the `/goal` command → `orchestration_ready`.
+- execute: the developer runs `/execute` per track, tests first; a worker may implement routed tracks; the reviewer records the ledger within capped cycles; humans do human-gate tracks; pre-commit runs lint and typecheck, pre-push runs tests, build, and e2e → `implementation_complete` once every track is closed.
 - ship: the developer chooses merge, PR, keep, or discard; the ship approver approves the PR; the agent checks ledgers, merges, and cleans up → `shipped`.
 - Orange lines mark where the agent waits for a human.
 
