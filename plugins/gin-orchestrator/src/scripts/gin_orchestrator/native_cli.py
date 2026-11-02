@@ -336,10 +336,14 @@ _CMD_UNSAFE = re.compile(r'["%\r\n]')
 
 
 def _cmd_shim_line(args: list[str]) -> str:
-    """Windows .cmd/.bat shim: one line quoted as subprocess does for shell=True. /d skips AutoRun,
-    /s strips only the outer quote pair. cmd.exe expands % and splits on quotes and newlines,
-    and caps a line at 8191 characters, so such arguments are refused rather than reinterpreted."""
-    line = f'cmd /d /s /c "{subprocess.list2cmdline(args)}"'
+    """Windows .cmd/.bat shim: one line for System32\\cmd.exe by full path, so the current directory
+    is never searched. /d skips AutoRun, /s strips only the outer quote pair, /v:off keeps ! literal.
+    Every argument is quoted so & | < > ^ ( ) stay literal; trailing backslashes are doubled so they
+    cannot escape the closing quote. cmd.exe expands % and splits on quotes and newlines, and caps
+    a line at 8191 characters, so such arguments are refused rather than reinterpreted."""
+    cmd_exe = os.environ.get("SystemRoot", r"C:\Windows") + r"\System32\cmd.exe"
+    quoted = " ".join('"' + re.sub(r"(\\+)$", r"\1\1", arg) + '"' for arg in args)
+    line = f'"{cmd_exe}" /d /s /v:off /c "{quoted}"'
     if any(_CMD_UNSAFE.search(arg) for arg in args) or len(line) > 8191:
         raise NativeCliError(FailureKind.SERVICE, "argument cannot be passed safely through cmd.exe")
     return line

@@ -392,20 +392,31 @@ class NativeCliTests(unittest.TestCase):
             return FakeProcess()
 
         shim = r"C:\Users\John Smith\AppData\Roaming\npm\claude.cmd"
-        args = ("-p", "--allowedTools", "Bash(git status:*),Bash(ls:*)")
+        prefix = r'"C:\Win\System32\cmd.exe" /d /s /v:off /c ""C:\Users\John Smith\AppData\Roaming\npm\claude.cmd" '
+        # Every argument is quoted, so cmd.exe metacharacters stay literal; trailing backslashes are doubled
+        # so they do not escape the closing quote. /s strips only the outer quote pair, /v:off keeps ! literal.
+        cases = {
+            "tool list": (("-p", "--allowedTools", "Bash(git status:*),Bash(ls:*)"),
+                          r'"-p" "--allowedTools" "Bash(git status:*),Bash(ls:*)""'),
+            "ampersand workspace": (("--cd", r"C:\work\R&D\repo", "-p", "go!"),
+                                    r'"--cd" "C:\work\R&D\repo" "-p" "go!""'),
+            "trailing backslash": (("--cd", "C:\\dir\\"), r'"--cd" "C:\dir\\""'),
+        }
         # Build the invocation before patching os.name: pathlib cannot make a WindowsPath on POSIX.
         with tempfile.TemporaryDirectory() as directory:
-            invocation = NativeCliInvocation(("claude", *args), Path(directory), b"", 2.0)
-            with mock.patch.object(native_cli.os, "name", "nt"), \
-                    mock.patch.object(native_cli.subprocess, "Popen", fake_popen), \
-                    mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
-                    mock.patch.object(native_cli.shutil, "which", lambda name: shim if name == "claude" else None):
-                NativeCliRunner().run(invocation)
-        # One string, quoted as subprocess does for shell=True: /s strips only the outer quote pair.
-        self.assertEqual(f'cmd /d /s /c "{subprocess.list2cmdline([shim, *args])}"', seen["argv"])
-        self.assertEqual(0x200, seen["kwargs"]["creationflags"])
-        self.assertFalse(seen["kwargs"]["start_new_session"])
-        self.assertIsNone(seen["kwargs"]["preexec_fn"])
+            for label, (args, expected) in cases.items():
+                invocation = NativeCliInvocation(("claude", *args), Path(directory), b"", 2.0)
+                with self.subTest(label), \
+                        mock.patch.object(native_cli.os, "name", "nt"), \
+                        mock.patch.dict(native_cli.os.environ, {"SystemRoot": r"C:\Win"}), \
+                        mock.patch.object(native_cli.subprocess, "Popen", fake_popen), \
+                        mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                        mock.patch.object(native_cli.shutil, "which", lambda name: shim if name == "claude" else None):
+                    NativeCliRunner().run(invocation)
+                    self.assertEqual(prefix + expected, seen["argv"])
+                    self.assertEqual(0x200, seen["kwargs"]["creationflags"])
+                    self.assertFalse(seen["kwargs"]["start_new_session"])
+                    self.assertIsNone(seen["kwargs"]["preexec_fn"])
 
     def test_us5_windows_cmd_shim_refuses_arguments_cmd_would_reinterpret(self):
         popen = mock.Mock()
