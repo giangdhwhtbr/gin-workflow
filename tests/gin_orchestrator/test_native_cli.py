@@ -8,10 +8,12 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 
 
 from tests.gin_orchestrator import paths  # noqa: F401
 
+from gin_orchestrator import native_cli  # noqa: E402
 from gin_orchestrator.antigravity_worker import (  # noqa: E402
     antigravity_health,
     build_antigravity_invocation,
@@ -541,6 +543,15 @@ class NativeCliTests(unittest.TestCase):
 
         has_long = codex_health("codex", help_text=with_long_config, effort="high")
         self.assertTrue(has_long.available)
+
+    def test_us5_sanitized_environment_keeps_windows_variables_on_nt(self):
+        source = {"PATH": "p", "SYSTEMROOT": "C:\\Windows", "USERPROFILE": "C:\\Users\\x", "APPDATA": "a",
+                  "LOCALAPPDATA": "l", "TEMP": "t", "TMP": "t", "PATHEXT": ".EXE", "SECRET": "no"}
+        with mock.patch.object(native_cli.os, "name", "nt"):
+            kept = native_cli.sanitized_environment(source)
+        self.assertEqual({"PATH", "SYSTEMROOT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP", "PATHEXT"}, set(kept))
+        with mock.patch.object(native_cli.os, "name", "posix"):
+            self.assertEqual({"PATH"}, set(native_cli.sanitized_environment(source)))
 
 
 if __name__ == "__main__":
