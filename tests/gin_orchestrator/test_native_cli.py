@@ -388,22 +388,98 @@ class NativeCliTests(unittest.TestCase):
                 return 0
 
         def fake_popen(argv, **kwargs):
-            seen["argv"], seen["kwargs"] = list(argv), kwargs
+            seen["argv"], seen["kwargs"] = argv, kwargs
             return FakeProcess()
 
-        shim = r"C:\Users\x\AppData\Roaming\npm\claude.cmd"
+        shim = r"C:\Users\John Smith\AppData\Roaming\npm\claude.cmd"
+        args = ("-p", "--allowedTools", "Bash(git status:*),Bash(ls:*)")
         # Build the invocation before patching os.name: pathlib cannot make a WindowsPath on POSIX.
         with tempfile.TemporaryDirectory() as directory:
-            invocation = NativeCliInvocation(("claude", "-p"), Path(directory), b"", 2.0)
+            invocation = NativeCliInvocation(("claude", *args), Path(directory), b"", 2.0)
             with mock.patch.object(native_cli.os, "name", "nt"), \
                     mock.patch.object(native_cli.subprocess, "Popen", fake_popen), \
                     mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
                     mock.patch.object(native_cli.shutil, "which", lambda name: shim if name == "claude" else None):
                 NativeCliRunner().run(invocation)
-        self.assertEqual(["cmd", "/c", shim, "-p"], seen["argv"])
+        # One string, quoted as subprocess does for shell=True: /s strips only the outer quote pair.
+        self.assertEqual(f'cmd /d /s /c "{subprocess.list2cmdline([shim, *args])}"', seen["argv"])
         self.assertEqual(0x200, seen["kwargs"]["creationflags"])
         self.assertFalse(seen["kwargs"]["start_new_session"])
         self.assertIsNone(seen["kwargs"]["preexec_fn"])
+
+    def test_us5_windows_cmd_shim_refuses_arguments_cmd_would_reinterpret(self):
+        popen = mock.Mock()
+        shim = r"C:\Users\x\AppData\Roaming\npm\claude.cmd"
+        unsafe = {
+            "multi-line prompt": ("-p", "first line\nsecond line"),
+            "env expansion": ("-p", "echo %PATH%"),
+            "over 8191 chars": ("-p", "x" * 8200),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            for label, args in unsafe.items():
+                invocation = NativeCliInvocation(("claude", *args), Path(directory), b"", 2.0)
+                with self.subTest(label), \
+                        mock.patch.object(native_cli.os, "name", "nt"), \
+                        mock.patch.object(native_cli.subprocess, "Popen", popen), \
+                        mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                        mock.patch.object(native_cli.shutil, "which", lambda name: shim), \
+                        self.assertRaises(NativeCliError) as raised:
+                    NativeCliRunner().run(invocation)
+                self.assertIs(FailureKind.SERVICE, raised.exception.kind)
+                self.assertEqual("argument cannot be passed safely through cmd.exe", str(raised.exception))
+        popen.assert_not_called()
+
+    def test_us5_windows_taskkill_failure_falls_back_to_kill(self):
+        taskkills: list[list[str]] = []
+
+        def missing(argv, **kwargs):
+            taskkills.append(list(argv))
+            raise FileNotFoundError(argv[0])
+
+        def refused(argv, **kwargs):
+            taskkills.append(list(argv))
+            return subprocess.CompletedProcess(argv, 128, stdout=b"")
+
+        for label, fake_run in (("taskkill missing", missing), ("taskkill non-zero", refused)):
+            cancel = threading.Event()
+            taskkills.clear()
+
+            class FakeProcess:
+                pid = 4242
+                returncode = None
+                killed = False
+                taskkills_before_kill = None
+
+                def __init__(self):
+                    self.stdin, self.stdout, self.stderr = io.BytesIO(), io.BytesIO(), io.BytesIO()
+
+                def poll(self):
+                    cancel.set()
+                    return 1 if self.killed else None
+
+                def wait(self, timeout=None):
+                    if not self.killed:
+                        raise subprocess.TimeoutExpired("fake", timeout)
+                    self.returncode = 1
+                    return 1
+
+                def kill(self):
+                    self.killed = True
+                    self.taskkills_before_kill = len(taskkills)
+
+            fake = FakeProcess()
+            with self.subTest(label), tempfile.TemporaryDirectory() as directory:
+                invocation = NativeCliInvocation(("worker.exe",), Path(directory), b"", 5.0)
+                with mock.patch.object(native_cli.os, "name", "nt"), \
+                        mock.patch.object(native_cli.subprocess, "Popen", lambda argv, **kwargs: fake), \
+                        mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                        mock.patch.object(native_cli.subprocess, "run", fake_run), \
+                        mock.patch.object(native_cli.shutil, "which", lambda name: name), \
+                        self.assertRaises(NativeCliError) as raised:
+                    NativeCliRunner().run(invocation, cancel_event=cancel)
+                self.assertIs(FailureKind.CANCELLED, raised.exception.kind)
+                # Killed right after the first failed taskkill, not after the graceful grace window.
+                self.assertEqual(1, fake.taskkills_before_kill)
 
     def test_us5_windows_cancel_uses_taskkill_tree(self):
         cancel = threading.Event()

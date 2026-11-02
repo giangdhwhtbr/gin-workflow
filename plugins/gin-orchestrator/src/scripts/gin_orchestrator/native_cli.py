@@ -323,10 +323,26 @@ def _parse_records(stdout: bytes) -> tuple[Mapping[str, object], ...]:
 def _taskkill_tree(process: subprocess.Popen) -> None:
     """Windows: end the whole tree; taskkill missing or failing falls through to process.kill()."""
     try:
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL, check=False, timeout=5)
+        completed = subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, check=False, timeout=5)
     except (OSError, subprocess.SubprocessError):
         process.kill()
+        return
+    if completed.returncode:
+        process.kill()
+
+
+_CMD_UNSAFE = re.compile(r'["%\r\n]')
+
+
+def _cmd_shim_line(args: list[str]) -> str:
+    """Windows .cmd/.bat shim: one line quoted as subprocess does for shell=True. /d skips AutoRun,
+    /s strips only the outer quote pair. cmd.exe expands % and splits on quotes and newlines,
+    and caps a line at 8191 characters, so such arguments are refused rather than reinterpreted."""
+    line = f'cmd /d /s /c "{subprocess.list2cmdline(args)}"'
+    if any(_CMD_UNSAFE.search(arg) for arg in args) or len(line) > 8191:
+        raise NativeCliError(FailureKind.SERVICE, "argument cannot be passed safely through cmd.exe")
+    return line
 
 
 class NativeCliRunner:
@@ -345,12 +361,12 @@ class NativeCliRunner:
             raise NativeCliError(FailureKind.INVALID_RESULT, "native CLI input exceeds size limit")
         if cancel_event is not None and cancel_event.is_set():
             raise NativeCliError(FailureKind.CANCELLED, "native CLI invocation cancelled")
-        argv = list(invocation.argv)
+        argv: list[str] | str = list(invocation.argv)
         popen_kwargs: dict[str, object] = {}
         if os.name == "nt":
             resolved = shutil.which(argv[0]) or argv[0]
             if resolved.lower().endswith((".cmd", ".bat")):
-                argv = ["cmd", "/c", resolved, *argv[1:]]
+                argv = _cmd_shim_line([resolved, *argv[1:]])
             else:
                 argv[0] = resolved
             popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
