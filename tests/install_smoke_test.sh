@@ -192,6 +192,9 @@ assert_exists "plugins/gin-qa/dist/claude-code/.claude-plugin/plugin.json"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/cases/SKILL.md"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/SKILL.md"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/references/explore-case.md"
+assert_exists "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md"
+assert_contains "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md" '"Bash"'
+assert_not_contains "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md" '"run_command"'
 assert_exists "plugins/gin-qa/dist/claude-code/templates/evidence.ts"
 assert_exists "plugins/gin-qa/dist/claude-code/templates/guidelines.md"
 assert_exists "plugins/gin-qa/dist/claude-code/scripts/gin_qa/cli.py"
