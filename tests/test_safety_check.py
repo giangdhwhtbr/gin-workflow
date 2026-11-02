@@ -50,6 +50,15 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "git config core.hooksPath /x core.hooksPath"):
             self.assertEqual(2, exit_code(command), command)
 
+    def test_repeated_config_words_stay_linear(self):
+        # 10000 words took 15-18 s with a quadratic pattern and the cost grows with the square of the length; 15000 words
+        # stay under the 128 KB limit of one argument.
+        for command, expected in (("git" + " config" * 15000, 0), ("git" + " config" * 15000 + " core.hooksPath /x", 2),
+                                  ("git" + " config" * 15000 + " core.hooksPath", 0)):
+            done = subprocess.run([sys.executable, str(SCRIPT), command], stdin=subprocess.DEVNULL, capture_output=True,
+                                  timeout=10)
+            self.assertEqual(expected, done.returncode, command[-30:])
+
     def test_us2_blocks_subshell_and_group_forms(self):
         for command in ("(git commit -n -m x)", "cd d && (git commit -a -n)", "echo $(git commit -n -m x)",
                         "echo `git commit -n -m x`", "git commit -m x -n)", "{ git commit -n -m x; }"):
