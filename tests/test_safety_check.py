@@ -1,17 +1,17 @@
-"""safety-check.sh blocks commands that skip the gin-workflow git hooks or remove broad paths."""
+"""safety_check.py blocks commands that skip the gin-workflow git hooks or remove broad paths."""
 
 import json
 from pathlib import Path
-import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src/scripts/safety-check.sh"
+SCRIPT = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src/scripts/safety_check.py"
 
 
 def exit_code(command):
-    return subprocess.run(["bash", str(SCRIPT), command], stdin=subprocess.DEVNULL, capture_output=True).returncode
+    return subprocess.run([sys.executable, str(SCRIPT), command], stdin=subprocess.DEVNULL, capture_output=True).returncode
 
 
 class TestNoVerifyBlocked(unittest.TestCase):
@@ -176,27 +176,41 @@ class TestRecursiveRemoval(unittest.TestCase):
             self.assertEqual(0, exit_code(command), command)
 
 
-class TestPayloadWithoutJq(unittest.TestCase):
-    def test_python3_parses_the_payload_when_jq_is_missing(self):
+class TestPayloadFromStdin(unittest.TestCase):
+    def test_python_parses_the_payload_without_jq_or_bash(self):
+        # PATH holds an empty directory: no jq, bash, or other tool is needed.
         with tempfile.TemporaryDirectory() as directory:
-            for tool in ("bash", "cat", "git", "realpath", "python3"):
-                Path(directory, tool).symlink_to(shutil.which(tool))
             for command, expected in (("git commit --no-verify -m x", 2), ("git status", 0)):
                 payload = json.dumps({"tool_input": {"command": command}, "cwd": directory})
-                done = subprocess.run([str(Path(directory, "bash")), str(SCRIPT)], input=payload.encode(),
+                done = subprocess.run([sys.executable, str(SCRIPT)], input=payload.encode(),
                                       env={"PATH": directory}, capture_output=True)
                 self.assertEqual(expected, done.returncode, (command, done.stderr))
+
+
+    def test_us4_malformed_payload_is_blocked(self):
+        for payload in (b"{not json", b"[1]", b'{"tool_input": "x"}', b'{"tool_input": {"command": "ls \\ud800"}}'):
+            done = subprocess.run([sys.executable, str(SCRIPT)], input=payload, capture_output=True)
+            self.assertEqual(2, done.returncode, payload)
+            self.assertIn(b"Error: failed to parse PreToolUse hook payload as JSON.", done.stderr)
+
+
+    def test_us4_long_command_is_checked_within_the_hook_timeout(self):
+        # A heredoc that mentions git commit, push, and GIT_CONFIG_* many times must not backtrack for minutes.
+        line = "Run git commit -m x, then git push and git merge; GIT_CONFIG_KEY_0=user.name stays. " * 20
+        payload = json.dumps({"tool_input": {"command": "cat > notes.md <<'EOF'\n" + (line + "\n") * 80 + "EOF"}})
+        done = subprocess.run([sys.executable, str(SCRIPT)], input=payload.encode(), capture_output=True, timeout=10)
+        self.assertEqual(0, done.returncode, done.stderr)
 
 
 class TestCopilotPayloads(unittest.TestCase):
     def test_safety_check_blocks_dangerous_command_from_copilot_payload(self):
         payload = json.dumps({"tool_name": "bash", "tool_input": {"command": "rm -rf /"}, "cwd": "/tmp"})
-        done = subprocess.run(["bash", str(SCRIPT)], input=payload.encode(), capture_output=True)
+        done = subprocess.run([sys.executable, str(SCRIPT)], input=payload.encode(), capture_output=True)
         self.assertEqual(2, done.returncode)
 
     def test_safety_check_allows_safe_command_from_copilot_payload(self):
         payload = json.dumps({"tool_name": "bash", "tool_input": {"command": "ls"}, "cwd": "/tmp"})
-        done = subprocess.run(["bash", str(SCRIPT)], input=payload.encode(), capture_output=True)
+        done = subprocess.run([sys.executable, str(SCRIPT)], input=payload.encode(), capture_output=True)
         self.assertEqual(0, done.returncode)
 
 

@@ -200,7 +200,7 @@ template_hooks_for_claude() {
         "hooks": [
           {
             "type": "command",
-            "command": "${root_var}/scripts/safety-check.sh",
+            "command": "python3 \"${root_var}/scripts/safety_check.py\"",
             "timeout": 30
           }
         ]
@@ -219,7 +219,7 @@ template_hooks_for_antigravity() {
   "PreToolUse": {
     "matcher": "Bash|run_command",
     "type": "command",
-    "command": "\${PLUGIN_ROOT:-${default_root}}/scripts/safety-check.sh",
+    "command": "python3 \"\${PLUGIN_ROOT:-${default_root}}/scripts/safety_check.py\"",
     "timeout": 30
   }
 }
@@ -239,7 +239,7 @@ template_hooks_for_codex() {
         "hooks": [
           {
             "type": "command",
-            "command": "${root_var}/scripts/safety-check.sh",
+            "command": "python3 \"${root_var}/scripts/safety_check.py\"",
             "timeout": 30
           }
         ]
@@ -257,7 +257,7 @@ template_hooks_for_copilot() {
   "version": 1,
   "hooks": {
     "PreToolUse": [
-      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
