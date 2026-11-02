@@ -88,6 +88,7 @@ REQUIRED_ARTIFACTS = (
 )
 
 
+@unittest.skipIf(os.name == "nt", "runs install.sh, which needs bash")
 class HarnessPackagingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -161,7 +162,7 @@ class HarnessPackagingTests(unittest.TestCase):
         hooks = json.loads((root / "hooks/hooks.json").read_text(encoding="utf-8"))
         self.assertEqual(1, hooks.get("version"))
         pre_tool_use = hooks.get("hooks", {}).get("PreToolUse", [])
-        self.assertTrue(any(entry.get("matcher") == "bash" and "/scripts/safety-check.sh" in entry.get("bash", "") for entry in pre_tool_use))
+        self.assertTrue(any(entry.get("matcher") == "bash" and "/scripts/safety_check.py" in entry.get("bash", "") for entry in pre_tool_use))
         self.assertNotIn("PostToolUse", hooks.get("hooks", {}))
         self.assertFalse((root / "agents").exists())
         self.assertFalse((root / "commands").exists())

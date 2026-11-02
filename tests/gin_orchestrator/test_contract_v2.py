@@ -189,6 +189,7 @@ class ContractV2Tests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(EXT_VERSION, int(match.group(1)))
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_doctor_reports_each_catalog_model(self):
         result = run("doctor", "--repository", str(self.root), "--json")
 
@@ -203,6 +204,7 @@ class ContractV2Tests(unittest.TestCase):
             (bin_dir / "gin-workflow").symlink_to(LAUNCHER)
         return str(bin_dir)
 
+    @unittest.skipIf(os.name == "nt", "symlinks the extensionless #! launcher onto PATH, which needs POSIX")
     def test_configure_writes_orchestrator_keys_through_gin_workflow(self):
         result = run("configure", "--set", "orchestrator.concurrency.codex=2", "--local-set",
                      "providers.codex.executable=codex", "--approve", "--repository", str(self.root), "--json",

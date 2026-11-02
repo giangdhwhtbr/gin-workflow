@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${PLUGIN_ROOT}/scripts/safety-check.sh",
+            "command": "s=\"${PLUGIN_ROOT}/scripts/safety_check.py\"; if command -v python3 >/dev/null 2>&1; then exec python3 \"$s\"; fi; exec python \"$s\"",
             "timeout": 30
           }
         ]

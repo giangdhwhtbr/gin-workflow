@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import json
 from pathlib import Path
 import sys
@@ -333,6 +334,7 @@ class TestSharedGates(GateCase):
         self.assertEqual("satisfied", state["gates"]["plan_approved"])
         self.assertEqual("unmet", state["gates"]["requirement_confirmed"])
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_standalone_shipped_stays_unknown_when_the_tracker_read_fails(self):
         # The shared-gates reads succeed (first two `bd show`); the later closed-check read fails.
         proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["an@corp.com"], "actor": "binh@corp.com",

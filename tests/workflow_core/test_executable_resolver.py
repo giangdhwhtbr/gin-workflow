@@ -27,6 +27,7 @@ class ExecutableResolverTests(unittest.TestCase):
             resolved = resolve_harness_executable(str(binary))
             self.assertEqual(os.path.abspath(str(binary)), resolved)
 
+    @unittest.skipIf(os.name == "nt", "needs the POSIX execute permission bit")
     def test_returns_none_for_non_executable_or_missing_absolute_path(self):
         with tempfile.TemporaryDirectory() as directory:
             non_exec = Path(directory) / "not-executable"
@@ -42,6 +43,7 @@ class ExecutableResolverTests(unittest.TestCase):
         self.assertIsNotNone(resolved)
         self.assertTrue(os.access(resolved, os.X_OK))
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub from a ':'-separated PATH, which needs POSIX")
     def test_resolves_antigravity_literal_alias_to_agy(self):
         with tempfile.TemporaryDirectory() as directory:
             dummy_agy = Path(directory) / "agy"
@@ -85,6 +87,51 @@ class ExecutableResolverTests(unittest.TestCase):
     def test_does_not_alias_custom_wrapper_for_antigravity(self):
         # A custom wrapper named 'my-agy' should not be silently replaced by 'agy'
         self.assertIsNone(resolve_harness_executable("my-agy-wrapper-nonexistent", provider="antigravity"))
+
+    def test_us5_finds_cmd_shim_in_common_dir_with_pathext(self):
+        from workflow_core import executable_resolver as module
+        with tempfile.TemporaryDirectory() as directory:
+            shim = Path(directory) / "claude.cmd"
+            shim.write_text("@echo off\r\n", encoding="utf-8")
+            shim.chmod(0o755)
+            with mock.patch.object(module, "COMMON_INSTALL_DIRS", (Path(directory),)), \
+                    mock.patch.dict(os.environ, {"PATH": "", "PATHEXT": ".COM;.EXE;.BAT;.CMD"}), \
+                    mock.patch.object(module.os, "name", "nt"):
+                self.assertEqual(str(shim), module.resolve_harness_executable("claude", provider="claude"))
+
+    def _probe_dir_with_bare_and_cmd(self, os_name):
+        from workflow_core import executable_resolver as module
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ("claude", "claude.cmd"):
+                (Path(directory) / name).write_text("x", encoding="utf-8")
+                (Path(directory) / name).chmod(0o755)
+            with mock.patch.object(module, "COMMON_INSTALL_DIRS", (Path(directory),)), \
+                    mock.patch.dict(os.environ, {"PATH": "", "PATHEXT": ".COM;.EXE;.BAT;.CMD"}):
+                if os_name == "nt":
+                    with mock.patch.object(module.os, "name", "nt"):
+                        resolved = module.resolve_harness_executable("claude")
+                else:
+                    resolved = module.resolve_harness_executable("claude")
+            return Path(resolved).name
+
+    def test_nt_prefers_pathext_shim_over_bare_name(self):
+        self.assertEqual("claude.cmd", self._probe_dir_with_bare_and_cmd("nt"))
+
+    @unittest.skipIf(os.name == "nt", "probes in the POSIX order, which needs os.name posix")
+    def test_posix_prefers_bare_name(self):
+        self.assertEqual("claude", self._probe_dir_with_bare_and_cmd("posix"))
+
+    def test_without_a_home_directory_only_fixed_dirs_are_probed(self):
+        from workflow_core import executable_resolver as module
+        with mock.patch.object(module.Path, "home", side_effect=RuntimeError("Could not determine home directory.")):
+            self.assertEqual((Path("/usr/local/bin"), Path("/home/linuxbrew/.linuxbrew/bin")),
+                             module.common_install_dirs("posix"))
+
+    def test_us5_appdata_npm_is_probed_on_windows(self):
+        from workflow_core import executable_resolver as module
+        with mock.patch.dict(os.environ, {"APPDATA": r"C:\Users\x\AppData\Roaming"}):
+            self.assertIn(Path(r"C:\Users\x\AppData\Roaming") / "npm", module.common_install_dirs("nt"))
+            self.assertFalse(any(path.name == "npm" for path in module.common_install_dirs("posix")))
 
 
 if __name__ == "__main__":

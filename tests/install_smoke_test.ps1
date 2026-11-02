@@ -28,6 +28,7 @@ function Assert-Contains {
 
 function Invoke-Installer {
     param([hashtable]$Parameters)
+    if (-not $Parameters.ContainsKey('NoModifyPath')) { $Parameters['NoModifyPath'] = $true }
     $output = & $Installer @Parameters 2>&1 | Out-String
     return $output
 }
@@ -113,6 +114,9 @@ try {
     Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
+    Assert-Exists (Join-Path $project '.claude/scripts/safety_check.py')
+    $claudeHook = (Get-Content -Raw -LiteralPath (Join-Path $project '.claude/hooks/hooks.json') | ConvertFrom-Json).hooks.PreToolUse[0].hooks[0].command
+    Assert-True ($claudeHook -ceq 'python "${CLAUDE_PROJECT_DIR}/.claude/scripts/safety_check.py"') "Unexpected Claude hook command: $claudeHook"
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/workflow_core/cli.py')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/.gin-workflow-src.json')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/rules/core.md')
@@ -141,7 +145,7 @@ try {
         $sourceSnapshots[$sourceAgent.FullName] = [IO.File]::ReadAllBytes($sourceAgent.FullName)
     }
     try {
-        Invoke-Installer @{ Platform = 'claude'; Project = $linkProject; Link = $true } | Out-Null
+        $linkOutput = Invoke-Installer @{ Platform = 'claude'; Project = $linkProject; Link = $true } 3>&1 | Out-String
         foreach ($snapshot in $sourceSnapshots.GetEnumerator()) {
             $sourceAfter = [IO.File]::ReadAllBytes($snapshot.Key)
             Assert-True `
@@ -149,7 +153,13 @@ try {
                 "Linked Claude installation modified source agent $($snapshot.Key)"
         }
         $linkedSkill = Get-Item -LiteralPath (Join-Path $linkProject '.claude/skills/setup')
-        Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
+        if ($linkOutput.Contains('copying instead')) {
+            # Symlinks unavailable (Windows without Developer Mode): the copy fallback must warn exactly once.
+            Assert-True (([regex]::Matches($linkOutput, 'copying instead')).Count -eq 1) 'Link fallback warning was not emitted exactly once'
+        }
+        else {
+            Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
+        }
         $linkedAgent = Join-Path $linkProject '.claude/agents/developer.md'
         Assert-True ($null -eq (Get-Item -LiteralPath $linkedAgent).LinkType) 'Templated Claude agent remained a source symlink'
         $linkedContent = [IO.File]::ReadAllText($linkedAgent)
@@ -165,6 +175,8 @@ try {
     }
 
     if ($IsWindows) {
+        # -Link falls back to copying without Developer Mode; either way the skill must exist.
+        Assert-Exists (Join-Path $linkProject '.claude/skills/setup/SKILL.md')
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
         Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.9') "Unexpected launcher version: $version"
         $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') rules --list --repository $TestHome
@@ -230,6 +242,24 @@ try {
         [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
     }
 
+    $shimText = [IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin-workflow.cmd'))
+    Assert-Contains $shimText 'py -3 -X utf8 "'
+    Assert-Contains $shimText 'else (python -X utf8 "'
+    Assert-True (-not $shimText.Contains('||')) 'shim must not chain the CLI with ||'
+    if ($IsWindows) {
+        $pathDryRun = Invoke-Installer @{ Platform = 'codex'; Project = $project; DryRun = $true; NoModifyPath = $false }
+        Assert-Contains $pathDryRun 'would add'
+        $noPathOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $true }
+        Assert-Contains $noPathOutput 'Add '
+    }
+    if ($IsWindows -and $env:GITHUB_ACTIONS) {
+        $binDir = [IO.Path]::GetFullPath((Join-Path $TestHome '.local/bin')).TrimEnd('\', '/')
+        Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $false } | Out-Null
+        Assert-True (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir) 'user PATH entry missing after install'
+        Invoke-Installer @{ Uninstall = $true; NoModifyPath = $false } | Out-Null
+        Assert-True (-not (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir)) 'user PATH entry still present after -Uninstall'
+    }
+
     $mockLog = Join-Path $TestRoot 'harness-commands.log'
     $env:GIN_WORKFLOW_MOCK_LOG = $mockLog
     $mockBin = New-MockCommand -Name 'codex' -ExitCode 0
@@ -288,7 +318,7 @@ try {
     Assert-Exists (Join-Path $copilotDist 'skills/setup/SKILL.md')
     Assert-Exists (Join-Path $copilotDist 'references/stage-contract.md')
     Assert-Exists (Join-Path $copilotDist 'hooks/hooks.json')
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $copilotDist 'hooks/hooks.json'))) 'safety-check.sh'
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $copilotDist 'hooks/hooks.json'))) '/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'agents'))) 'Copilot bundle has agents'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'commands'))) 'Copilot bundle has commands'
 

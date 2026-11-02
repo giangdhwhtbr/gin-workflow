@@ -26,7 +26,7 @@ class SequentialTracks(unittest.TestCase):
         self.base = self.git("rev-parse", "HEAD").strip()
 
     def tearDown(self):
-        shutil.rmtree(self.repo)
+        shutil.rmtree(self.repo, ignore_errors=True)
 
     def git(self, *args):
         return subprocess.run(["git", *args], cwd=self.repo, check=True, capture_output=True, text=True).stdout
@@ -153,8 +153,8 @@ class SequentialTracks(unittest.TestCase):
     def fresh_clone_after_squash(self, *pushed_refs):
         origin = tempfile.mkdtemp()
         clone = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, origin)
-        self.addCleanup(shutil.rmtree, clone)
+        self.addCleanup(shutil.rmtree, origin, ignore_errors=True)
+        self.addCleanup(shutil.rmtree, clone, ignore_errors=True)
         subprocess.run(["git", "init", "-q", "--bare", origin], check=True)
         self.git("remote", "add", "origin", origin)
         self.two_tracks()

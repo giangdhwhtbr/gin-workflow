@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+import unittest
 
 from workflow_core import orchestrator_client
 
@@ -21,6 +22,8 @@ def fake_orchestrator(
     replies: Mapping[str, Any] | None = None,
 ) -> Path:
     """Write an executable gin-orchestrator script in dir."""
+    if os.name == "nt":
+        raise unittest.SkipTest("the fake gin-orchestrator runs through its #! line, which needs POSIX")
     target_dir = Path(dir).resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
     stub = target_dir / "gin-orchestrator"

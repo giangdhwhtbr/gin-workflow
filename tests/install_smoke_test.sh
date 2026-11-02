@@ -238,6 +238,7 @@ assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"descriptio
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
+assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" '"command": "python3 \"${PLUGIN_ROOT}/scripts/safety_check.py\""'
 assert_contains 'plugins/gin-workflow/dist/codex/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "03-ARCHITECTURE.md"
@@ -279,7 +280,7 @@ assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/skills/report/SKIL
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/references/stage-contract.md"
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/scripts/gin-workflow"
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/hooks/hooks.json"
-assert_contains "plugins/gin-workflow/dist/copilot/gin-workflow/hooks/hooks.json" "safety-check.sh"
+assert_contains "plugins/gin-workflow/dist/copilot/gin-workflow/hooks/hooks.json" '/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"'
 assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/agents"
 assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/commands"
 
@@ -297,6 +298,13 @@ assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/skills/tech-doc/SKILL.md"
 assert_not_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/bead-worker.md"
 assert_not_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/solution-architect.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/agents/developer.md"
+assert_exists "$MOCK_HOME/.claude/skills/gin-workflow/scripts/safety_check.py"
+assert_contains "$MOCK_HOME/.claude/skills/gin-workflow/hooks/hooks.json" '"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/safety_check.py\""'
+# No installed file names the old bash hook.
+if grep -rlF "safety-check" "$MOCK_HOME/.claude/skills/gin-workflow"; then
+  echo "Expected no installed file to reference the old safety-check script" >&2
+  exit 1
+fi
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-workflow@skills-dir": true'
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.9/gin-workflow"
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.9/workflow_core/cli.py"
@@ -308,6 +316,21 @@ if [ "$launcher_version" != "gin-workflow 2.9" ]; then
   exit 1
 fi
 assert_exists "$MOCK_HOME/.local/lib/gin-workflow/2.9/rules/core.md"
+# PATH registration: once per rc file, chosen by $SHELL, removed on --uninstall, skipped with --no-modify-path.
+path_home="$(mktemp -d)"
+HOME="$path_home" SHELL=/bin/zsh PATH="/usr/bin:/bin" ./install.sh --platform opencode >/dev/null
+HOME="$path_home" SHELL=/bin/zsh PATH="/usr/bin:/bin" ./install.sh --platform opencode >/dev/null
+assert_contains "$path_home/.zshrc" '# gin-workflow PATH'
+if [ "$(grep -c '# gin-workflow PATH' "$path_home/.zshrc")" != "1" ]; then echo "PATH block written more than once" >&2; exit 1; fi
+assert_contains "$path_home/.zshrc" 'export PATH="$HOME/.local/bin:$PATH"'
+HOME="$path_home" SHELL=/bin/zsh PATH="/usr/bin:/bin" ./install.sh --uninstall >/dev/null
+assert_not_contains "$path_home/.zshrc" '# gin-workflow PATH'
+HOME="$path_home" SHELL=/bin/bash PATH="/usr/bin:/bin" ./install.sh --platform opencode --no-modify-path >"$output_file" 2>&1
+assert_not_exists "$path_home/.bashrc"
+assert_contains "$output_file" 'export PATH="$HOME/.local/bin:$PATH"'
+HOME="$path_home" SHELL=/bin/bash PATH="/usr/bin:/bin" ./install.sh --platform opencode --dry-run >"$output_file"
+assert_contains "$output_file" "(dry-run) would add $path_home/.local/bin to PATH in $path_home/.bashrc"
+rm -rf "$path_home"
 rules_list="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-workflow" rules --list --repository "$MOCK_HOME")"
 case "$rules_list" in
   *"core (plugin, core)"*) ;;

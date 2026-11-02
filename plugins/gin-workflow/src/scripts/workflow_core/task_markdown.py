@@ -318,7 +318,8 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
             else:
                 task_id = args.id or _next_id(tasks, f"{prefix(root)}-")
                 directory = tasks_root(root) / task_id
-            if not _ID.fullmatch(task_id) or ".." in task_id:
+            # The id names a directory, and a Windows file name cannot contain ":".
+            if not _ID.fullmatch(task_id) or ".." in task_id or (os.name == "nt" and ":" in task_id):
                 raise TaskFileError(f"invalid task id: {task_id!r}")
             if task_id in tasks:
                 raise TaskFileError(f"task already exists: {task_id}")
