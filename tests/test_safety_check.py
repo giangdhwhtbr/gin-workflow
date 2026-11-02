@@ -1,10 +1,12 @@
 """safety_check.py blocks commands that skip the gin-workflow git hooks or remove broad paths."""
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src/scripts/safety_check.py"
@@ -200,6 +202,41 @@ class TestPayloadFromStdin(unittest.TestCase):
         payload = json.dumps({"tool_input": {"command": "cat > notes.md <<'EOF'\n" + (line + "\n") * 80 + "EOF"}})
         done = subprocess.run([sys.executable, str(SCRIPT)], input=payload.encode(), capture_output=True, timeout=10)
         self.assertEqual(0, done.returncode, done.stderr)
+
+    def test_long_flag_and_wrapper_runs_are_checked_in_linear_time(self):
+        for command in ("git commit -" + "n" * 40000 + "! ; git commit -n -m x", "sh " * 20000 + "; git commit -n"):
+            start = time.monotonic()
+            self.assertEqual(2, exit_code(command), command[:40])
+            self.assertLess(time.monotonic() - start, 5, command[:40])
+
+    def test_parser_errors_are_blocked(self):
+        for payload in (b"[" * 100000, b'{"tool_input": []}', b'{"tool_input": 0}', b'{"tool_input": false}'):
+            done = subprocess.run([sys.executable, str(SCRIPT)], input=payload, capture_output=True)
+            self.assertEqual(2, done.returncode, payload[:40])
+            self.assertIn(b"Error: failed to parse PreToolUse hook payload as JSON.", done.stderr)
+
+    def test_invalid_depth_is_blocked(self):
+        done = subprocess.run([sys.executable, str(SCRIPT), "ls"], stdin=subprocess.DEVNULL, capture_output=True,
+                              env={**os.environ, "SAFETY_CHECK_DEPTH": "abc"})
+        self.assertEqual(2, done.returncode)
+        self.assertIn(b"Error: SAFETY_CHECK_DEPTH", done.stderr)
+        self.assertNotIn(b"Traceback", done.stderr)
+
+
+class TestWorktreeBoundary(unittest.TestCase):
+    def exit_code_in(self, worktree, cwd):
+        payload = json.dumps({"tool_input": {"command": "ls"}, "cwd": cwd})
+        return subprocess.run([sys.executable, str(SCRIPT)], input=payload.encode(), capture_output=True,
+                              env={**os.environ, "WORKTREE_PATH": worktree}).returncode
+
+    def test_only_the_last_component_of_cwd_may_be_missing(self):
+        # GNU `realpath -q` resolves a missing last component but fails on a missing parent; `$(...)` dropped the
+        # trailing newline jq printed after the cwd.
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(0, self.exit_code_in(directory, directory + "/missing-leaf"))
+            self.assertEqual(0, self.exit_code_in(directory, directory + "\n"))
+            self.assertEqual(2, self.exit_code_in(directory, directory + "/missing/leaf"))
+            self.assertEqual(2, self.exit_code_in(directory, "/"))
 
 
 class TestCopilotPayloads(unittest.TestCase):

@@ -46,7 +46,8 @@ GIT_RE = pattern(r"(^|[\s/(`{])git(\s|\Z)", True)
 GIT_WORD_RE = pattern(r"^(.*[/(`{])?git\Z", True)
 GIT_VALUE_OPT_RE = pattern(r"^(-C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix"
                            r"|--attr-source)\Z", True)
-COMMIT_N_WORD_RE = pattern(r"^-[a-z]*n[a-z]*([);`<>].*)?\Z", True)
+# The lookahead finds the n once; `-[a-z]*n[a-z]*` retries every n of a long run and is quadratic.
+COMMIT_N_WORD_RE = pattern(r"^-(?=[a-z]*n)[a-z]*([);`<>].*)?\Z", True)
 # A short cluster takes the next word only when its first value letter ends it (`-am x`; `-mdoc` is -m doc).
 # -S, -u and -t glue their values too, so they may not precede it; ignoring case makes -s and -S one letter.
 COMMIT_VALUE_OPT_RE = pattern(r"^(-[^-mfcstu]*[mfc]|--(message|file|author|date|trailer|reuse-message"
@@ -58,11 +59,13 @@ CONFIG_ENV_FLAG_RE = pattern(r"--config-env(=|\s+)(core\.hookspath|alias\.)", Tr
 HOOKS_CONFIG_RE = pattern(rf"\sconfig\s(.*\s)?{QUOTE}core\.hookspath{QUOTE}(\s+(.*))?\Z", True)
 UNSET_RE = pattern(r"(--unset|\sunset\s)", True)
 GET_RE = pattern(r"\s--get", True)
-# `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval`; group 7 is the payload the shell runs. Words before
-# the `-c` flag are long options, short flags without c, or option values, so the first `-…c…` flag is the one.
-# `(?!-)` keeps a `--` word out of the short-flag branch: two branches matching one word backtrack exponentially.
-SHELL_RE = pattern(r"(^|[\s/(`{])((ba|z|da|k|mk)?sh(\s+(--\S*|-(?!-)[^c\s]*|[^-\s]\S*))*\s+-[a-z]*c[a-z]*|eval)"
-                   r"(\s+(.*)|\Z)", True)
+# `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval` (see `wrapped_payloads`). Words before the `-c` flag are
+# long options, short flags without c, or option values, so the first `-…c…` flag is the one.
+SHELL_NAME_RE = pattern(r"(ba|z|da|k|mk)?sh", True)
+EVAL_NAME_RE = pattern(r"eval", True)
+SHELL_OPTION_WORD_RE = pattern(r"--\S*|-(?!-)[^c\s]*|[^-\s]\S*", True)
+SHELL_C_FLAG_RE = pattern(r"-(?=[a-z]*c)[a-z]*", True)
+WORD_RE = pattern(r"\S+")
 # `read -ra` splits on the default IFS only.
 IFS_RE = re.compile("[ \t\n]+")
 
@@ -91,14 +94,17 @@ def read_input(argv):
         if raw.strip():
             try:
                 payload = json.loads(raw)
-                command = str((payload.get("tool_input") or {}).get("command") or "")
+                tool_input = payload.get("tool_input")
+                if not isinstance(tool_input, (dict, type(None))):
+                    raise ValueError("tool_input is not an object")  # jq cannot index it either
+                command = str((tool_input or {}).get("command") or "")
                 cwd = str(payload.get("cwd") or "")
                 (command + cwd).encode("utf-8")  # a lone surrogate (`\ud800`) is malformed, as jq reports it
-            except (ValueError, AttributeError):
+            except (ValueError, AttributeError, RecursionError):
                 print("Error: failed to parse PreToolUse hook payload as JSON.", file=sys.stderr)
                 raise SystemExit(BLOCK)
             # Drop NUL bytes and trailing newlines like bash `$(...)`, so `-\u0000n` reads as `-n`.
-            return command.replace("\0", "").rstrip("\n"), cwd
+            return command.replace("\0", "").rstrip("\n"), cwd.replace("\0", "").rstrip("\n")
     return (argv[1] if len(argv) > 1 else ""), (argv[2] if len(argv) > 2 else "")
 
 
@@ -242,6 +248,32 @@ def in_order(text, *parts):
     return True
 
 
+def wrapped_payloads(text):
+    r"""The payload of each wrapper, left to right, each searched for in the previous payload: group 7 of
+    `(^|[\s/(`{])((ba|z|da|k|mk)?sh(\s+(--\S*|-(?!-)[^c\s]*|[^-\s]\S*))*\s+-[a-z]*c[a-z]*|eval)(\s+(.*)|\Z)`.
+    One pass over the words: that regex rescans the rest of the text from every `sh` word, which is quadratic on
+    a long run of them."""
+    words = list(WORD_RE.finditer(text))
+    # first_flag[i]: the first word from i on that is a short flag with c, the only kind that ends the shell options.
+    first_flag = [len(words)] * (len(words) + 1)
+    for i in range(len(words) - 1, -1, -1):
+        first_flag[i] = first_flag[i + 1] if SHELL_OPTION_WORD_RE.fullmatch(words[i].group()) else i
+    i = 0
+    while i < len(words):
+        # The wrapper name starts the word or follows its last `/`, `(`, backtick or `{`.
+        name = re.split("[/(`{]", words[i].group())[-1]
+        flag = first_flag[i + 1]
+        if EVAL_NAME_RE.fullmatch(name):
+            end = i
+        elif SHELL_NAME_RE.fullmatch(name) and flag < len(words) and SHELL_C_FLAG_RE.fullmatch(words[flag].group()):
+            end = flag
+        else:
+            i += 1
+            continue
+        yield text[words[end].end():].lstrip(SPACES)
+        i = end + 1
+
+
 def block(message):
     print(f"Blocked: {message} skips the gin-workflow git hooks; fix the failing check instead.", file=sys.stderr)
     raise SystemExit(BLOCK)
@@ -319,12 +351,10 @@ def check_hooks(command, segments, cwd, depth):
         # Check a wrapped payload as its own command. Detect on bare (a quoted message is not run), take payloads
         # from the unquoted text. A quoted decoy (`X="a sh -c '"`) can match there first, so check the payload of
         # every match: each payload is searched again, and one of them starts at the real wrapper.
-        if SHELL_RE.search(segment.bare):
+        if next(wrapped_payloads(segment.bare), None) is not None:
             if depth >= MAX_DEPTH:
                 block("a command nested in sh -c or eval more than 3 levels deep")
-            payload = segment.unquoted
-            while match := SHELL_RE.search(payload):
-                payload = match.group(7) or ""
+            for payload in wrapped_payloads(segment.unquoted):
                 check(payload, cwd, depth + 1)
         # `/usr/bin/git` counts; a `git` inside quotes (bare has it as Q) does not.
         if GIT_RE.search(segment.bare):
@@ -333,9 +363,9 @@ def check_hooks(command, segments, cwd, depth):
 
 
 def real_path(path):
-    """`realpath -q`: None when the path does not exist."""
+    """GNU `realpath -q`: None when a component other than the last does not exist; the last may be missing."""
     resolved = os.path.realpath(path)
-    return resolved if os.path.exists(resolved) else None
+    return resolved if os.path.isdir(os.path.dirname(resolved)) else None
 
 
 def check_worktree(cwd):
@@ -360,7 +390,12 @@ def check(command, cwd, depth):
 
 def main(argv):
     command, cwd = read_input(argv)
-    check(to_bytes_str(command), cwd, int(os.environ.get("SAFETY_CHECK_DEPTH", "0") or 0))
+    try:
+        depth = int(os.environ.get("SAFETY_CHECK_DEPTH", "0") or 0)
+    except ValueError:
+        print("Error: SAFETY_CHECK_DEPTH must be an integer.", file=sys.stderr)
+        raise SystemExit(BLOCK)
+    check(to_bytes_str(command), cwd, depth)
     return 0
 
 
