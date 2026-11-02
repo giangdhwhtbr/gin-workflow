@@ -35,7 +35,7 @@ class TestGitAdapter(unittest.TestCase):
         subprocess.run(["git", "commit", "-m", "initial"], cwd=self.test_dir, capture_output=True, check=True)
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_working_tree_cleanliness_allows_source_and_declared_artifacts(self):
         scope = {
@@ -281,7 +281,7 @@ class TestGitAdapter(unittest.TestCase):
             listing = self._git_text("ls-tree", checkpoint.checkpoint_sha, "src/sub")
             self.assertTrue(listing.startswith("160000 commit "))
         finally:
-            shutil.rmtree(nested)
+            shutil.rmtree(nested, ignore_errors=True)
 
     def _git_bytes(self, *args):
         return subprocess.check_output(["git", *args], cwd=self.test_dir)

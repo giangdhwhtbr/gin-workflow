@@ -285,6 +285,7 @@ class NativeCliTests(unittest.TestCase):
             self.assertEqual(FailureKind.TIMEOUT, timeout_case.exception.kind)
             self.assertIn("created.txt", timeout_case.exception.changed_files)
 
+    @unittest.skipIf(os.name == "nt", "sends SIGINT to a POSIX process group")
     def test_runner_sends_graceful_stop_signal_before_force_kill(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

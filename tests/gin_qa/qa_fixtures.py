@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tests/workflow_core"))
@@ -20,6 +21,8 @@ QA_LAUNCHER = ROOT / "plugins/gin-qa/src/scripts/gin-qa"
 
 def gin_workflow_bin(base: Path, body: str = "") -> Path:
     """A bin directory whose `gin-workflow` runs this checkout's launcher (or `body` when given)."""
+    if os.name == "nt":
+        raise unittest.SkipTest("the gin-workflow stub is a #!/bin/sh script, which needs POSIX")
     bin_dir = Path(base) / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     script = bin_dir / "gin-workflow"

@@ -27,6 +27,7 @@ class ExecutableResolverTests(unittest.TestCase):
             resolved = resolve_harness_executable(str(binary))
             self.assertEqual(os.path.abspath(str(binary)), resolved)
 
+    @unittest.skipIf(os.name == "nt", "needs the POSIX execute permission bit")
     def test_returns_none_for_non_executable_or_missing_absolute_path(self):
         with tempfile.TemporaryDirectory() as directory:
             non_exec = Path(directory) / "not-executable"
@@ -42,6 +43,7 @@ class ExecutableResolverTests(unittest.TestCase):
         self.assertIsNotNone(resolved)
         self.assertTrue(os.access(resolved, os.X_OK))
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub from a ':'-separated PATH, which needs POSIX")
     def test_resolves_antigravity_literal_alias_to_agy(self):
         with tempfile.TemporaryDirectory() as directory:
             dummy_agy = Path(directory) / "agy"
@@ -115,8 +117,15 @@ class ExecutableResolverTests(unittest.TestCase):
     def test_nt_prefers_pathext_shim_over_bare_name(self):
         self.assertEqual("claude.cmd", self._probe_dir_with_bare_and_cmd("nt"))
 
+    @unittest.skipIf(os.name == "nt", "probes in the POSIX order, which needs os.name posix")
     def test_posix_prefers_bare_name(self):
         self.assertEqual("claude", self._probe_dir_with_bare_and_cmd("posix"))
+
+    def test_without_a_home_directory_only_fixed_dirs_are_probed(self):
+        from workflow_core import executable_resolver as module
+        with mock.patch.object(module.Path, "home", side_effect=RuntimeError("Could not determine home directory.")):
+            self.assertEqual((Path("/usr/local/bin"), Path("/home/linuxbrew/.linuxbrew/bin")),
+                             module.common_install_dirs("posix"))
 
     def test_us5_appdata_npm_is_probed_on_windows(self):
         from workflow_core import executable_resolver as module

@@ -41,7 +41,7 @@ class TestCLI(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_get_ledger_paths_defaults_to_reviews_subfolder(self):
         json_path, md_path = get_ledger_paths("test-bead-123", self.test_dir)
@@ -292,7 +292,7 @@ class TestReopenFinding(unittest.TestCase):
         )
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def _status(self):
         _, proj = load_ledger(self.bead_id, base_dir=self.test_dir)
@@ -409,7 +409,7 @@ class TestChangeScope(unittest.TestCase):
         )
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_scope_change_replaces_included_paths(self):
         mutate_ledger(
@@ -536,7 +536,7 @@ class TestTransitionRequestedAppliesState(unittest.TestCase):
         )
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def run_cli(self, *args):
         return subprocess.run(
@@ -700,7 +700,7 @@ class TestForcedTakeoverEndToEnd(unittest.TestCase):
         start_review(self.bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
     def test_takeover_transfers_ownership_and_leaves_an_audit_trail(self):
         with self.assertRaises(LeaseError):
             start_review(self.bead_id, "reviewer-b", base_dir=self.test_dir)
@@ -806,7 +806,7 @@ class TestResyncLeaseEndToEnd(unittest.TestCase):
         start_review(self.bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_holder_can_resync_and_keep_writing(self):
         _log, projection = resync_lease(
@@ -866,7 +866,7 @@ class TestReleaseLease(unittest.TestCase):
         )
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_released_lease_lets_the_implementer_write_without_a_lease_id(self):
         with self.assertRaisesRegex(ValueError, "Active lease exists"):
@@ -918,7 +918,7 @@ class TestRecoverySubcommands(unittest.TestCase):
         start_review(self.bead_id, "reviewer-a", base_dir=self.test_dir, requested_lease_id="lease-a")
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def _run(self, *argv):
         return subprocess.run(
@@ -1092,7 +1092,7 @@ class TestOwnerAndCycles(unittest.TestCase):
         subprocess.run(["git", "update-ref", "refs/gin/review/bead-t", "HEAD"], cwd=self.test_dir, check=True)
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def run_cli(self, *args):
         return subprocess.run([sys.executable, self.script, *args], cwd=self.test_dir, capture_output=True, text=True)

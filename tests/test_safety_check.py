@@ -203,6 +203,7 @@ class TestPayloadFromStdin(unittest.TestCase):
         done = subprocess.run([sys.executable, str(SCRIPT)], input=payload.encode(), capture_output=True, timeout=10)
         self.assertEqual(0, done.returncode, done.stderr)
 
+    @unittest.skipIf(os.name == "nt", "passes an argv over the 32,767-character Windows command line; needs POSIX ARG_MAX")
     def test_long_flag_and_wrapper_runs_are_checked_in_linear_time(self):
         for command in ("git commit -" + "n" * 40000 + "! ; git commit -n -m x", "sh " * 20000 + "; git commit -n"):
             start = time.monotonic()

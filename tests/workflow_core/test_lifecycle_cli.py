@@ -32,7 +32,7 @@ class TestLifecycleCLI(unittest.TestCase):
         (self.workflow_dir / "config.yaml").write_text("schema_version: '2.3'\n")
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_version_flag_returns_version(self):
         exit_code = cli_main(["--version"])

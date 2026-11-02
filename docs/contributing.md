@@ -82,6 +82,8 @@ bash tests/install_smoke_test.sh
 
 `tests/test_all.py` runs every suite under `tests/workflow_core`, `tests/gin_orchestrator` (the gin-orchestrator plugin), `tests/review_ledger`, and `tests/gin_qa` (Playwright tests skip without a Playwright environment), plus the other `tests/test_*.py` files. The smoke test builds and installs into temporary homes. `tests/install_smoke_test.ps1` is the Windows counterpart.
 
+CI runs the unit tests and the smoke test of each platform on `ubuntu-latest` and `windows-latest` for every push and pull request (`.github/workflows/test.yml`). The Windows job sets `PYTHONUTF8=1`; the installed `gin-workflow.cmd` shim passes `-X utf8` for the same UTF-8 mode. A test that needs a POSIX feature is marked `@unittest.skipIf(os.name == "nt", "<reason>")`, and the reason names that feature.
+
 To run one file, pass its path, for example `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests/workflow_core/test_atomic.py`. `-k` does not narrow `tests/test_all.py`, because its `load_tests` builds its own loader.
 
 `tests/workflow_core/test_docs_coverage.py` checks these docs against the code:

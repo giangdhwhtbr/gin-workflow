@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import pty
 import shutil
 import subprocess
 import sys
@@ -44,11 +43,14 @@ def claim_meta(root: Path, bead: str, holder: str, expires_at: str) -> None:
        f'claim={json.dumps({"holder": holder, "expires_at": expires_at})}')
 
 
+@unittest.skipIf(os.name == "nt", "needs a POSIX pseudo-terminal (pty)")
 @unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestBdHelperUnderATerminal(unittest.TestCase):
     """`bd init` waits on a terminal stdin, so the suite hung when run from a pseudo-terminal."""
 
     def test_bd_init_does_not_wait_on_a_terminal_stdin(self):
+        import pty
+
         master, slave = pty.openpty()
         saved = os.dup(0)
         os.dup2(slave, 0)

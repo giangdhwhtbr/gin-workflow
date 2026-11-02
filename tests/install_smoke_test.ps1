@@ -28,7 +28,7 @@ function Assert-Contains {
 
 function Invoke-Installer {
     param([hashtable]$Parameters)
-    if (-not $Parameters.ContainsKey('NoModifyPath') -and -not $env:GITHUB_ACTIONS) { $Parameters['NoModifyPath'] = $true }
+    if (-not $Parameters.ContainsKey('NoModifyPath')) { $Parameters['NoModifyPath'] = $true }
     $output = & $Installer @Parameters 2>&1 | Out-String
     return $output
 }

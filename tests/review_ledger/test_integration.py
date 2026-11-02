@@ -39,8 +39,8 @@ class TestIntegration(unittest.TestCase):
         subprocess.run(["git", "push", "origin", "master"], cwd=self.test_dir, check=True)
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir)
-        shutil.rmtree(self.remote_dir)
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+        shutil.rmtree(self.remote_dir, ignore_errors=True)
 
     def test_full_review_integration_flow(self):
         bead_id = "test-bead-999"
