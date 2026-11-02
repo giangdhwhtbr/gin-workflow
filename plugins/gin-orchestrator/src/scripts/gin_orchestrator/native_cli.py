@@ -98,6 +98,8 @@ def sanitized_environment(source: Mapping[str, str] | None = None) -> dict[str, 
         "CODEX_HOME",
         "CLAUDE_CONFIG_DIR",
     }
+    if os.name == "nt":
+        allowed |= {"SYSTEMROOT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP", "PATHEXT"}
     return {key: value for key, value in source.items() if key in allowed or key.startswith("LC_")}
 
 

@@ -86,6 +86,44 @@ class ExecutableResolverTests(unittest.TestCase):
         # A custom wrapper named 'my-agy' should not be silently replaced by 'agy'
         self.assertIsNone(resolve_harness_executable("my-agy-wrapper-nonexistent", provider="antigravity"))
 
+    def test_us5_finds_cmd_shim_in_common_dir_with_pathext(self):
+        from workflow_core import executable_resolver as module
+        with tempfile.TemporaryDirectory() as directory:
+            shim = Path(directory) / "claude.cmd"
+            shim.write_text("@echo off\r\n", encoding="utf-8")
+            shim.chmod(0o755)
+            with mock.patch.object(module, "COMMON_INSTALL_DIRS", (Path(directory),)), \
+                    mock.patch.dict(os.environ, {"PATH": "", "PATHEXT": ".COM;.EXE;.BAT;.CMD"}), \
+                    mock.patch.object(module.os, "name", "nt"):
+                self.assertEqual(str(shim), module.resolve_harness_executable("claude", provider="claude"))
+
+    def _probe_dir_with_bare_and_cmd(self, os_name):
+        from workflow_core import executable_resolver as module
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ("claude", "claude.cmd"):
+                (Path(directory) / name).write_text("x", encoding="utf-8")
+                (Path(directory) / name).chmod(0o755)
+            with mock.patch.object(module, "COMMON_INSTALL_DIRS", (Path(directory),)), \
+                    mock.patch.dict(os.environ, {"PATH": "", "PATHEXT": ".COM;.EXE;.BAT;.CMD"}):
+                if os_name == "nt":
+                    with mock.patch.object(module.os, "name", "nt"):
+                        resolved = module.resolve_harness_executable("claude")
+                else:
+                    resolved = module.resolve_harness_executable("claude")
+            return Path(resolved).name
+
+    def test_nt_prefers_pathext_shim_over_bare_name(self):
+        self.assertEqual("claude.cmd", self._probe_dir_with_bare_and_cmd("nt"))
+
+    def test_posix_prefers_bare_name(self):
+        self.assertEqual("claude", self._probe_dir_with_bare_and_cmd("posix"))
+
+    def test_us5_appdata_npm_is_probed_on_windows(self):
+        from workflow_core import executable_resolver as module
+        with mock.patch.dict(os.environ, {"APPDATA": r"C:\Users\x\AppData\Roaming"}):
+            self.assertIn(Path(r"C:\Users\x\AppData\Roaming") / "npm", module.common_install_dirs("nt"))
+            self.assertFalse(any(path.name == "npm" for path in module.common_install_dirs("posix")))
+
 
 if __name__ == "__main__":
     unittest.main()
