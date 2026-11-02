@@ -593,11 +593,28 @@ class NativeCliTests(unittest.TestCase):
                     mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
                     mock.patch.object(native_cli.subprocess, "run", fake_run), \
                     mock.patch.object(native_cli.shutil, "which", lambda name: name), \
+                    mock.patch.dict(native_cli.os.environ, {"SystemRoot": r"C:\Win"}), \
                     self.assertRaises(NativeCliError) as raised:
                 NativeCliRunner().run(invocation, cancel_event=cancel)
         self.assertIs(FailureKind.CANCELLED, raised.exception.kind)
-        self.assertIn(["taskkill", "/T", "/F", "/PID", "4242"], runs)
+        # By full path: a bare name makes CreateProcess search the current directory first.
+        self.assertIn([r"C:\Win\System32\taskkill.exe", "/T", "/F", "/PID", "4242"], runs)
         self.assertFalse(fake.killed)
+
+    def test_us5_windows_taskkill_falls_back_to_default_when_systemroot_is_empty(self):
+        runs: list[list[str]] = []
+
+        class FakeProcess:
+            pid = 7
+
+        def fake_run(argv, **kwargs):
+            runs.append(list(argv))
+            return subprocess.CompletedProcess(argv, 0)
+
+        with mock.patch.object(native_cli.subprocess, "run", fake_run), \
+                mock.patch.dict(native_cli.os.environ, {"SystemRoot": ""}):
+            native_cli._taskkill_tree(FakeProcess())
+        self.assertEqual([[r"C:\Windows\System32\taskkill.exe", "/T", "/F", "/PID", "7"]], runs)
 
     def test_codex_health_probes_configured_model_and_rejects_invalid_model(self):
         required = (
