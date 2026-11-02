@@ -35,7 +35,7 @@ Then, in each repository, run `/gin-workflow:setup` once ([getting started](docs
 
 ### The plugin
 
-Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). The installer links it; a marketplace install alone does not ([fix](docs/reference/troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install)).
+Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). The installer links it and adds `~/.local/bin` to your shell startup file (`--no-modify-path` to opt out); a marketplace install alone does not ([fix](docs/reference/troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install)).
 
 **Any harness, with the launcher** (clones this repository and runs `install.sh`):
 
