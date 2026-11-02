@@ -659,7 +659,7 @@ def update(
         proposal["status"] = "migration_available"
     proposal["actions"] = [*proposal.get("actions", ()), *local_actions]
     if rename_local:
-        proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main)} to {new_local.name}"]
+        proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main).as_posix()} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
     if dry_run or not approve:
         return payload
@@ -680,7 +680,7 @@ def update(
             old_local.unlink()
         else:
             os.replace(old_local, new_local)
-        res.setdefault("actions", []).append(f"rename {old_local.relative_to(main)} to {new_local.name}")
+        res.setdefault("actions", []).append(f"rename {old_local.relative_to(main).as_posix()} to {new_local.name}")
         ignore_path = root / ".agent-workflow/.gitignore"
         atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
     return res
@@ -698,7 +698,7 @@ def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **
     if str(result.get("restored_version", "")) not in ("2.8", "2.9") and new_local.is_file() and not old_local.exists():
         if not dry_run:
             os.replace(new_local, old_local)
-        result.setdefault("actions", []).append(f"rename {new_local.relative_to(main)} to {old_local.name}")
+        result.setdefault("actions", []).append(f"rename {new_local.relative_to(main).as_posix()} to {old_local.name}")
     for local in (old_local, new_local):
         saved = Path(result["backup"]) / local.name
         if saved.is_file():

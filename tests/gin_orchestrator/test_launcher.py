@@ -30,6 +30,7 @@ class LauncherTests(unittest.TestCase):
         self.bin = Path(self.directory.name) / "bin"
         self.bin.mkdir()
 
+    @unittest.skipIf(os.name == "nt", "symlinks the extensionless #! launcher onto PATH, which needs POSIX")
     def test_launcher_runs_with_gin_workflow_on_path(self):
         (self.bin / "gin-workflow").symlink_to(paths.CORE_SCRIPTS / "gin-workflow")
 
@@ -45,6 +46,7 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual("error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator\n",
                          result.stderr)
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_launcher_rejects_an_unsupported_ext_version(self):
         lib = Path(self.directory.name) / "lib"
         (lib / "workflow_core").mkdir(parents=True)

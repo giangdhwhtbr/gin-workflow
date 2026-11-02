@@ -263,6 +263,7 @@ class QueryResultTests(unittest.TestCase):
         self.assertEqual(([{"id": "a"}], None), self.run_query(subprocess.CompletedProcess([], 0, '[{"id": "a"}]', "")))
 
 
+@unittest.skipIf(os.name == "nt", "the fake bd runs through its #! line, which needs POSIX")
 class TeamActorTests(unittest.TestCase):
     """In team mode bd acts as the member's email, the identity `team claim` assigns."""
 

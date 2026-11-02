@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import stat
 import tempfile
 import unittest
@@ -78,6 +79,7 @@ class DoctorReportTests(unittest.TestCase):
             self.assertIn("providers_config", report)
             self.assertFalse(report["providers_config"]["valid"])
 
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_doctor_report_probe_with_valid_executable(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 if str(SCRIPTS) not in sys.path:
@@ -107,6 +108,8 @@ def write(root: Path, relative: str, text: str) -> Path:
 
 def fake_cli(bin_dir: Path, name: str, rules: list[dict]) -> Path:
     """An executable `name` on `bin_dir` answering by longest argv prefix; every call is logged to calls.log."""
+    if os.name == "nt":
+        raise unittest.SkipTest(f"the fake {name} runs through its #! line, which needs POSIX")
     bin_dir = Path(bin_dir)
     bin_dir.mkdir(parents=True, exist_ok=True)
     (bin_dir / f"{name}.json").write_text(json.dumps(rules), encoding="utf-8")

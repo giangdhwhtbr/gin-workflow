@@ -12,9 +12,15 @@ TARGET_PLUGIN="gin-workflow"
 LAUNCHER_VERSION="2.9"
 QA_LAUNCHER_VERSION="0.4"
 ORCH_LAUNCHER_VERSION="0.1"
+MODIFY_PATH=true
+PATH_MARKER='# gin-workflow PATH'
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
+    --no-modify-path)
+      MODIFY_PATH=false
+      shift
+      ;;
     --platform)
       if [ -z "${2:-}" ]; then
         echo "Error: --platform requires a value" >&2
@@ -92,6 +98,58 @@ if [ -n "$PROJECT_DIR" ]; then
   PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
 fi
 
+path_rc_file() {
+  case "$(basename "${SHELL:-}")" in
+    zsh) echo "${HOME}/.zshrc" ;;
+    bash) echo "${HOME}/.bashrc" ;;
+    *) echo "" ;;
+  esac
+}
+
+register_path() {
+  local bin="${HOME}/.local/bin" rc
+  case ":${PATH}:" in *":${bin}:"*) return ;; esac
+  rc="$(path_rc_file)"
+  if [ "$MODIFY_PATH" != true ] || [ -z "$rc" ]; then
+    echo "Add ${bin} to PATH: put 'export PATH=\"\$HOME/.local/bin:\$PATH\"' in ${rc:-your shell startup file}." >&2
+    return
+  fi
+  if [ -f "$rc" ] && grep -qF "$PATH_MARKER" "$rc"; then return; fi
+  if [ "$DRY_RUN" = true ]; then
+    echo "(dry-run) would add ${bin} to PATH in $rc"
+    return
+  fi
+  if ! printf '\n%s\nexport PATH="$HOME/.local/bin:$PATH"\n' "$PATH_MARKER" >> "$rc" 2>/dev/null; then
+    echo "Warning: could not write $rc; add 'export PATH=\"\$HOME/.local/bin:\$PATH\"' to it." >&2
+    return
+  fi
+  echo "Added ${bin} to PATH in $rc; open a new terminal or run: source $rc"
+}
+
+unregister_path() {
+  local rc
+  for rc in "${HOME}/.zshrc" "${HOME}/.bashrc"; do
+    { [ -f "$rc" ] && grep -qF "$PATH_MARKER" "$rc"; } || continue
+    python3 - "$rc" "$PATH_MARKER" <<'PYEOF'
+import sys
+path, marker = sys.argv[1], sys.argv[2]
+lines = open(path, encoding="utf-8").read().split("\n")
+out, drop_next = [], False
+for line in lines:
+    if line == marker:
+        drop_next = True
+        continue
+    if drop_next:
+        drop_next = False
+        if line == 'export PATH="$HOME/.local/bin:$PATH"':
+            continue
+    out.append(line)
+open(path, "w", encoding="utf-8").write("\n".join(out))
+PYEOF
+    echo "Removed the gin-workflow PATH block from $rc"
+  done
+}
+
 if [ "$UNINSTALL" = true ]; then
   echo "Uninstalling plugins..."
   rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist
@@ -103,6 +161,7 @@ if [ "$UNINSTALL" = true ]; then
       copilot plugin uninstall "$p_name" >/dev/null 2>&1 || true
     done
   fi
+  unregister_path
   echo "Removed generated dist output, the global OpenCode skill install, and the Copilot plugin registration. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
   exit 0
 fi
@@ -200,7 +259,7 @@ template_hooks_for_claude() {
         "hooks": [
           {
             "type": "command",
-            "command": "${root_var}/scripts/safety-check.sh",
+            "command": "python3 \"${root_var}/scripts/safety_check.py\"",
             "timeout": 30
           }
         ]
@@ -219,7 +278,7 @@ template_hooks_for_antigravity() {
   "PreToolUse": {
     "matcher": "Bash|run_command",
     "type": "command",
-    "command": "\${PLUGIN_ROOT:-${default_root}}/scripts/safety-check.sh",
+    "command": "python3 \"\${PLUGIN_ROOT:-${default_root}}/scripts/safety_check.py\"",
     "timeout": 30
   }
 }
@@ -239,7 +298,7 @@ template_hooks_for_codex() {
         "hooks": [
           {
             "type": "command",
-            "command": "${root_var}/scripts/safety-check.sh",
+            "command": "python3 \"${root_var}/scripts/safety_check.py\"",
             "timeout": 30
           }
         ]
@@ -257,7 +316,7 @@ template_hooks_for_copilot() {
   "version": 1,
   "hooks": {
     "PreToolUse": [
-      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety-check.sh\"; if [ -f \"$s\" ]; then exec \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
@@ -495,6 +554,7 @@ install_launcher() {
   if [ "$DRY_RUN" = true ]; then
     echo "(dry-run) would install $name launcher version $version to $launcher_target"
     echo "(dry-run) would link $name launcher on PATH at $launcher_link"
+    if [ "$name" = gin-workflow ]; then register_path; fi
     return
   fi
 
@@ -521,10 +581,7 @@ install_launcher() {
   ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed $name launcher version $version to $launcher_link"
   if [ "$name" = gin-workflow ]; then
-    case ":${PATH}:" in
-      *":${HOME}/.local/bin:"*) ;;
-      *) echo "Warning: ${HOME}/.local/bin is not on PATH." >&2 ;;
-    esac
+    register_path
   fi
 }
 

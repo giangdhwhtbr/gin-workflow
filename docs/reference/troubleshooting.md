@@ -10,7 +10,7 @@ Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copie
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform codex
    ```
 
-2. If the installer warns that `~/.local/bin` is not on `PATH`, add it.
+2. If you installed with `--no-modify-path`, add `~/.local/bin` to `PATH`.
 3. Run `gin-workflow --version`; it prints `gin-workflow 2.9`.
 
 ## OpenCode does not show the gin-workflow skills
@@ -27,9 +27,9 @@ Cause: the installer registers the bundle with `copilot plugin install` only whe
 1. Run the `copilot plugin install <path>` command the installer printed, or rerun `./install.sh --platform copilot` without `--project`.
 2. Check with `copilot plugin list` and `copilot skill list`.
 
-## `gin-workflow: <path>/scripts/safety-check.sh not found, hook skipped`
+## `gin-workflow: <path>/scripts/safety_check.py not found, hook skipped`
 
-Cause: the Copilot bundle's `hooks/hooks.json` runs `safety-check` before the `bash` tool. The hook looks for its script under `$PLUGIN_ROOT`, or else under `~/.copilot/installed-plugins/_direct/gin-workflow` (`$COPILOT_HOME` replaces `~/.copilot` when set). Copilot does not set `PLUGIN_ROOT`. After a marketplace install the plugin is not in the `_direct` directory, so the hook prints this warning and lets the tool run. The hook defines only a `bash` command, so it does not run on Windows PowerShell.
+Cause: the Copilot bundle's `hooks/hooks.json` runs `scripts/safety_check.py` with `python3` before the `bash` tool. The hook looks for its script under `$PLUGIN_ROOT`, or else under `~/.copilot/installed-plugins/_direct/gin-workflow` (`$COPILOT_HOME` replaces `~/.copilot` when set). Copilot does not set `PLUGIN_ROOT`. After a marketplace install the plugin is not in the `_direct` directory, so the hook prints this warning and lets the tool run. The hook defines only a `bash` command, so it does not run on Windows PowerShell.
 
 1. Install with `./install.sh --platform copilot`, which installs from a local path into the `_direct` directory, or set `PLUGIN_ROOT` to the directory that holds the plugin's `scripts/`.
 2. Run a shell command in Copilot; the warning no longer appears.
