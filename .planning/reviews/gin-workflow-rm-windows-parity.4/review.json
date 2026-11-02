@@ -1,0 +1,256 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+      "review_base_sha": "7da23a48291301ca78a94581ee6a053cfccd3fd6",
+      "reviewed_source_sha": "48132241c74dc9199ba060d749188e9161acdbd8",
+      "checkpoint_sha": "48132241c74dc9199ba060d749188e9161acdbd8",
+      "source_scope_hash": "4ded0b8019af2ad1276591c28bc71037d2507e1e47265630e6f98acef2ef73d8",
+      "source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+      "reviewed_source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "plugins/gin-orchestrator/src/scripts/gin_orchestrator/native_cli.py",
+      "tests/gin_orchestrator/test_native_cli.py"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 10,
+  "next_finding_number": 1,
+  "findings": {
+    "tests-refusal-routing-gaps": {
+      "finding_id": "tests-refusal-routing-gaps",
+      "severity": "MINOR",
+      "status": "deferred-verified",
+      "clarification_count": 0,
+      "deferral_reason": "Test coverage only; every refusal and routing branch was verified correct by the reviewer at HEAD. Ships as a follow-up with the trailing-dot and empty SystemRoot hardening",
+      "follow_up_bead_id": "gin-workflow-wzln",
+      "follow_up_bead_title": "native_cli: cover cmd.exe refusal and routing edge cases in tests; trailing-dot and empty SystemRoot hardening",
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-02T08:45:19.746400Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+            "review_base_sha": "7da23a48291301ca78a94581ee6a053cfccd3fd6",
+            "reviewed_source_sha": "c95ee3aff1a65960d4008098951b4c7567af7c04",
+            "checkpoint_sha": "c95ee3aff1a65960d4008098951b4c7567af7c04",
+            "source_scope_hash": "4ded0b8019af2ad1276591c28bc71037d2507e1e47265630e6f98acef2ef73d8",
+            "source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+            "reviewed_source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "plugins/gin-orchestrator/src/scripts/gin_orchestrator/native_cli.py",
+            "tests/gin_orchestrator/test_native_cli.py"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "giangdhwhtbr@gmail.com"
+      },
+      "previous_event_hash": null,
+      "event_hash": "a2f601b304871dd671bb1851df4d62fd15b429449695a2a7dd975ad830c9c8ae"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-02T08:45:20.052337Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+            "review_base_sha": "7da23a48291301ca78a94581ee6a053cfccd3fd6",
+            "reviewed_source_sha": "48132241c74dc9199ba060d749188e9161acdbd8",
+            "checkpoint_sha": "48132241c74dc9199ba060d749188e9161acdbd8",
+            "source_scope_hash": "4ded0b8019af2ad1276591c28bc71037d2507e1e47265630e6f98acef2ef73d8",
+            "source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+            "reviewed_source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "a2f601b304871dd671bb1851df4d62fd15b429449695a2a7dd975ad830c9c8ae",
+      "event_hash": "e359ddbfe485dd84a67e01a134846fa44f2149d16fa0be5ee2822fd66fb1010e"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-02T08:45:20.176130Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "e359ddbfe485dd84a67e01a134846fa44f2149d16fa0be5ee2822fd66fb1010e",
+      "event_hash": "1ad59bc1a7fa759528bf3d474f58e9d2836c87c3996b2f5ba8afe7a456777085"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-02T08:51:39.266303Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-b9d7a4f7"
+      },
+      "payload": {
+        "lease_id": "1a712636fff84a1da06552e0a0b9abd9",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-b9d7a4f7",
+        "acquired_at": "2026-11-02T08:51:39.265479Z",
+        "expires_at": "2026-11-02T09:01:39.265479Z"
+      },
+      "previous_event_hash": "1ad59bc1a7fa759528bf3d474f58e9d2836c87c3996b2f5ba8afe7a456777085",
+      "event_hash": "8a51b04dc46a64a3ef775f0c98f14be974ec5e32459fae6913fa8b9751e60f62"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-02T08:51:39.284240Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-b9d7a4f7"
+      },
+      "payload": {},
+      "previous_event_hash": "8a51b04dc46a64a3ef775f0c98f14be974ec5e32459fae6913fa8b9751e60f62",
+      "event_hash": "30c71ca4370b4d3a6133748136f39ce5398872a886dd25b55110865a2c4791fc"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-02T08:51:39.435791Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-b9d7a4f7"
+      },
+      "payload": {
+        "finding_id": "tests-refusal-routing-gaps",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "30c71ca4370b4d3a6133748136f39ce5398872a886dd25b55110865a2c4791fc",
+      "event_hash": "ee39e50c1cd9e2b4a0b53bbef35921dd8ef9ff72b6fcf2051dab4caae205a274"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "deferral-proposed",
+      "timestamp": "2026-11-02T08:51:39.563854Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "giangdhwhtbr@gmail.com"
+      },
+      "payload": {
+        "finding_id": "tests-refusal-routing-gaps",
+        "reason": "Test coverage only; every refusal and routing branch was verified correct by the reviewer at HEAD. Ships as a follow-up with the trailing-dot and empty SystemRoot hardening",
+        "follow_up_bead_id": "gin-workflow-wzln",
+        "follow_up_bead_title": "native_cli: cover cmd.exe refusal and routing edge cases in tests; trailing-dot and empty SystemRoot hardening"
+      },
+      "previous_event_hash": "ee39e50c1cd9e2b4a0b53bbef35921dd8ef9ff72b6fcf2051dab4caae205a274",
+      "event_hash": "20adc0768762570c2098be6d4290c8be29e3654fba403eb990133fcdf3debae7"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "deferral-approved",
+      "timestamp": "2026-11-02T08:51:39.688324Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-b9d7a4f7"
+      },
+      "payload": {
+        "finding_id": "tests-refusal-routing-gaps"
+      },
+      "previous_event_hash": "20adc0768762570c2098be6d4290c8be29e3654fba403eb990133fcdf3debae7",
+      "event_hash": "ddd1d9fc17c50e224a395a4f7e5180a31e142aabf1cd44d178b63c8c830c27c7"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "review-approved",
+      "timestamp": "2026-11-02T08:51:39.886620Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-b9d7a4f7"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-rm-windows-parity.4",
+            "review_base_sha": "7da23a48291301ca78a94581ee6a053cfccd3fd6",
+            "reviewed_source_sha": "48132241c74dc9199ba060d749188e9161acdbd8",
+            "checkpoint_sha": "48132241c74dc9199ba060d749188e9161acdbd8",
+            "source_scope_hash": "4ded0b8019af2ad1276591c28bc71037d2507e1e47265630e6f98acef2ef73d8",
+            "source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+            "reviewed_source_tree_hash": "69cc6826687d54d37789e4c9f4fe02568fba275c8c1b6ae56fbc8049b7b93fa2",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "4ded0b8019af2ad1276591c28bc71037d2507e1e47265630e6f98acef2ef73d8",
+        "terminal_findings": [
+          "tests-refusal-routing-gaps"
+        ]
+      },
+      "previous_event_hash": "ddd1d9fc17c50e224a395a4f7e5180a31e142aabf1cd44d178b63c8c830c27c7",
+      "event_hash": "83ea742a9bc5f8e0c3d1924482e10cb660bed717fde2c0cd218ed6e61944001d"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "lease-released",
+      "timestamp": "2026-11-02T08:51:40.012514Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-b9d7a4f7"
+      },
+      "payload": {
+        "lease_id": "1a712636fff84a1da06552e0a0b9abd9",
+        "released_at": "2026-11-02T08:51:40.011731Z"
+      },
+      "previous_event_hash": "83ea742a9bc5f8e0c3d1924482e10cb660bed717fde2c0cd218ed6e61944001d",
+      "event_hash": "e177aa37824c5350e83ed8c5975fe450796d20059cb5d4f42f135e024de93153"
+    }
+  ]
+}
