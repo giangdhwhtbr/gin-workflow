@@ -168,11 +168,16 @@ class TestRecursiveRemoval(unittest.TestCase):
         for command in ("rm -rf /", "rm -rf ~", "rm -rf ~/", "rm -r .", "rm -fr ..", 'rm -rf "$HOME"', "rm --recursive $HOME",
                         "cd /tmp && rm -rf ~/*", "ls; sudo rm -rf /", "git rm -r .", "find . -exec rm -rf ./ \\;",
                         'rm -rf "a;b" ~', "echo x ; rm -rf 'a|b' /", "rm -rf a\\;b ~", "echo ok\nrm -rf ~",
-                        'git diff --cached -- "a\\"b" ; rm -rf /', 'git log "x" rm -rf --cached /'):
+                        'git diff --cached -- "a\\"b" ; rm -rf /', 'git log "x" rm -rf --cached /',
+                        "echo $(rm -rf ~)", "echo `rm -rf ~`", "git log $(rm -rf ~ --cached )", "git log rm -rf --cached ~",
+                        "git -C rm -rf --cached ~", "git -C $(rm -rf ~ --cached ) status", "git -C$(rm -rf ~ --cached ) status", "git -c x=`rm -rf ~ --cached ` status",
+                        "git rm --cached $(rm -rf ~)", "git rm -r --cached x $(rm -rf ~ --cached )"):
             self.assertEqual(2, exit_code(command), command)
 
     def test_checks_each_command_of_a_compound_command_on_its_own(self):
         for command in ("cd ~/gin-console && git rm -r --cached .beads", "cd ~/x && rm -r build",
+                        "git -C ~/gin-console rm -r --cached .beads", "git -c core.quotepath=off rm -r --cached .",
+                        "x=$(rm -f tmp.txt)",
                         "cd /tmp/a && rm .beads && ls -R ~/", "unlink /home/u/gin-workflow/.beads && ls ~/",
                         "rm /tmp/gin-workflow/x.txt", 'bd create --description "cd ~/x && git rm -r --cached .beads"'):
             self.assertEqual(0, exit_code(command), command)
