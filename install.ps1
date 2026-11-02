@@ -25,6 +25,9 @@ if ([string]::IsNullOrWhiteSpace($UserHome)) {
 }
 $UserHome = [IO.Path]::GetFullPath($UserHome)
 $script:LinkFallbackWarned = $false
+if ($IsWindows) {
+    Add-Type -Namespace GinWorkflow -Name NativeMethods -MemberDefinition '[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);'
+}
 
 function Test-Platform {
     param([Parameter(Mandatory)][string]$Name)
@@ -369,11 +372,26 @@ function Test-PathContains {
     foreach ($entry in ($PathValue -split [Regex]::Escape([IO.Path]::PathSeparator))) {
         if ([string]::IsNullOrWhiteSpace($entry)) { continue }
         try {
-            if ([IO.Path]::GetFullPath($entry).TrimEnd('\', '/').Equals($Directory, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+            if ([IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($entry)).TrimEnd('\', '/').Equals($Directory, [StringComparison]::OrdinalIgnoreCase)) { return $true }
         }
         catch { continue }
     }
     return $false
+}
+
+# Read/write the user Path through the registry so %VAR% references are not expanded and lost.
+function Get-RawUserPath {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $false)
+    try { return [string]$key.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames) }
+    finally { $key.Close() }
+}
+
+function Set-RawUserPath {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+    try { $key.SetValue('Path', $Value, [Microsoft.Win32.RegistryValueKind]::ExpandString) }
+    finally { $key.Close() }
+    [GinWorkflow.NativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x1A, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]([UIntPtr]::Zero)) | Out-Null
 }
 
 function Register-UserPath {
@@ -385,7 +403,7 @@ function Register-UserPath {
         Write-Warning "$launcherBin is not on PATH."
         return
     }
-    $userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
+    $userPath = Get-RawUserPath
     if (Test-PathContains -PathValue $userPath -Directory $launcherBin) { return }
     if ($NoModifyPath) {
         Write-Output "Add $launcherBin to your user PATH (install.ps1 -NoModifyPath leaves it unchanged)."
@@ -396,18 +414,18 @@ function Register-UserPath {
         return
     }
     $entries = @($userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) + $launcherBin
-    [Environment]::SetEnvironmentVariable('Path', ($entries -join ';'), 'User')
+    Set-RawUserPath ($entries -join ';')
     Write-Output "Added $launcherBin to the user PATH; open a new terminal for other sessions to see it."
 }
 
 function Unregister-UserPath {
     if (-not $IsWindows -or $NoModifyPath) { return }
     $launcherBin = Get-LauncherBin
-    $userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
+    $userPath = Get-RawUserPath
     $entries = @($userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     $kept = @($entries | Where-Object { -not (Test-PathContains -PathValue $_ -Directory $launcherBin) })
     if ($kept.Count -eq $entries.Count) { return }
-    [Environment]::SetEnvironmentVariable('Path', ($kept -join ';'), 'User')
+    Set-RawUserPath ($kept -join ';')
     Write-Output "Removed $launcherBin from the user PATH."
 }
 

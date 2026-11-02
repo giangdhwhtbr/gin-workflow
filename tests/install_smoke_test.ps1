@@ -142,7 +142,7 @@ try {
         $sourceSnapshots[$sourceAgent.FullName] = [IO.File]::ReadAllBytes($sourceAgent.FullName)
     }
     try {
-        Invoke-Installer @{ Platform = 'claude'; Project = $linkProject; Link = $true } | Out-Null
+        $linkOutput = Invoke-Installer @{ Platform = 'claude'; Project = $linkProject; Link = $true } 3>&1 | Out-String
         foreach ($snapshot in $sourceSnapshots.GetEnumerator()) {
             $sourceAfter = [IO.File]::ReadAllBytes($snapshot.Key)
             Assert-True `
@@ -150,7 +150,13 @@ try {
                 "Linked Claude installation modified source agent $($snapshot.Key)"
         }
         $linkedSkill = Get-Item -LiteralPath (Join-Path $linkProject '.claude/skills/setup')
-        Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
+        if ($linkOutput.Contains('copying instead')) {
+            # Symlinks unavailable (Windows without Developer Mode): the copy fallback must warn exactly once.
+            Assert-True (([regex]::Matches($linkOutput, 'copying instead')).Count -eq 1) 'Link fallback warning was not emitted exactly once'
+        }
+        else {
+            Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
+        }
         $linkedAgent = Join-Path $linkProject '.claude/agents/developer.md'
         Assert-True ($null -eq (Get-Item -LiteralPath $linkedAgent).LinkType) 'Templated Claude agent remained a source symlink'
         $linkedContent = [IO.File]::ReadAllText($linkedAgent)
