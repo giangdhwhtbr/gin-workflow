@@ -91,8 +91,8 @@ execution_strategy:
   - Modify `docs/reference/skills.md:66` (one sentence after the gin-qa table)
   - Modify `docs/guides/qa.md:46` (the parallel sentence names the agent and route)
   - Modify `plugins/gin-qa/plugin.meta.json:3`, `plugins/gin-qa/src/.claude-plugin/plugin.json:3`, `plugins/gin-qa/src/.codex-plugin/plugin.json:3` (version 0.5.0)
-  - Test `tests/install_smoke_test.sh:190-194` (version 0.5, agent asserts)
-  - Test `tests/install_smoke_test.ps1:71-74` (version 0.5, agent assert)
+  - Test `tests/install_smoke_test.sh:194` (agent asserts)
+  - Test `tests/install_smoke_test.ps1:74` (agent assert)
   - Test `tests/gin_qa/test_packaging.py` (unchanged; proves manifests and budgets)
 - **Provider role**: `docs`
 - **Model:** `sonnet`
@@ -107,13 +107,7 @@ execution_strategy:
 
 #### Steps
 
-1. **Failing smoke test first.** Edit `tests/install_smoke_test.sh`. Line 190 becomes:
-
-   ```bash
-   assert_contains "$output_file" "would install gin-qa launcher version 0.5 to"
-   ```
-
-   After line 194 (`assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/references/explore-case.md"`) insert:
+1. **Failing smoke test first.** Edit `tests/install_smoke_test.sh`. Line 190 (`launcher version 0.4`) stays: that string comes from `QA_LAUNCHER_VERSION` in `install.sh:13` and `install.ps1:18`, which is independent of the plugin manifest version (gin-workflow's launcher is 2.9 while its manifest is 2.1.1) and out of scope. After line 194 (`assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/references/explore-case.md"`) insert:
 
    ```bash
    assert_exists "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md"
@@ -121,19 +115,13 @@ execution_strategy:
    assert_not_contains "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md" '"run_command"'
    ```
 
-   Edit `tests/install_smoke_test.ps1`. Line 71 becomes:
-
-   ```powershell
-       Assert-Contains $qaDryRun 'would install gin-qa launcher version 0.5'
-   ```
-
-   After line 74 (`Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/references/explore-case.md')`) insert:
+   Edit `tests/install_smoke_test.ps1`. Line 71 (`launcher version 0.4`) stays for the same reason. After line 74 (`Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/references/explore-case.md')`) insert:
 
    ```powershell
        Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/agents/e2e-tester.md')
    ```
 
-   Run `bash tests/install_smoke_test.sh`. Expected: exit 1 with `Expected '/tmp/.../install.out' to contain pattern: would install gin-qa launcher version 0.5 to` on stderr (the exact temp path varies). `pwsh` is not installed on this machine and there is no Windows CI yet, so the `.ps1` change is proven by review only.
+   Run `bash tests/install_smoke_test.sh`. Expected: exit 1 with `Expected path to exist: plugins/gin-qa/dist/claude-code/agents/e2e-tester.md` on stderr. `pwsh` is not installed on this machine and there is no Windows CI yet, so the `.ps1` change is proven by review only.
 
 2. **Version bump.** In `plugins/gin-qa/plugin.meta.json`, `plugins/gin-qa/src/.claude-plugin/plugin.json`, and `plugins/gin-qa/src/.codex-plugin/plugin.json`, change `"version": "0.4.0"` to `"version": "0.5.0"`. Run `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest tests.gin_qa.test_packaging`. Expected: `OK`. Run `bash tests/install_smoke_test.sh`. Expected: exit 1 with `Expected path to exist: plugins/gin-qa/dist/claude-code/agents/e2e-tester.md`.
 

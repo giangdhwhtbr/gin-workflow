@@ -40,7 +40,7 @@ The file stays under the 4,000-token budget that `tests/workflow_core/test_token
 `tests/install_smoke_test.sh` adds `assert_exists "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md"` next to the gin-qa asserts at lines 191-196, and a check that the installed copy names `"Bash"` rather than `"run_command"` (the Claude tool mapping ran). `tests/install_smoke_test.ps1` adds the matching existence assert for its gin-qa platform.
 
 ### R5. Version
-gin-qa goes to `0.5.0` in `plugins/gin-qa/plugin.meta.json`, `src/.claude-plugin/plugin.json`, and `src/.codex-plugin/plugin.json`. The launcher-version asserts move to `0.5`: `tests/install_smoke_test.sh:190` and `tests/install_smoke_test.ps1:71`.
+gin-qa goes to `0.5.0` in `plugins/gin-qa/plugin.meta.json`, `src/.claude-plugin/plugin.json`, and `src/.codex-plugin/plugin.json`. The launcher-version asserts (`tests/install_smoke_test.sh:190`, `tests/install_smoke_test.ps1:71`) stay at `0.4`: that string comes from `QA_LAUNCHER_VERSION` in the installers, which is independent of the manifest version and out of scope.
 
 ## User Stories
 
