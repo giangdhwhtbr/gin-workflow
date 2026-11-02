@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import signal
@@ -8,6 +9,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 
 
 from tests.gin_orchestrator import paths  # noqa: F401
@@ -18,6 +20,7 @@ from gin_orchestrator.antigravity_worker import (  # noqa: E402
 )
 from gin_orchestrator.claude_worker import build_claude_invocation, claude_health  # noqa: E402
 from gin_orchestrator.codex_worker import build_codex_invocation, codex_health  # noqa: E402
+from gin_orchestrator import native_cli  # noqa: E402
 from gin_orchestrator.native_cli import (  # noqa: E402
     FailureKind,
     NativeCliError,
@@ -367,6 +370,85 @@ class NativeCliTests(unittest.TestCase):
                 runner.run(NativeCliInvocation((sys.executable, str(secret_bearing)), root, b"", 1))
             self.assertNotIn("sk-abcdef1234567890", str(secret_case.exception))
             self.assertIn("[REDACTED]", str(secret_case.exception))
+
+    def test_us5_windows_spawn_resolves_cmd_shim_through_cmd_and_new_process_group(self):
+        seen = {}
+
+        class FakeProcess:
+            pid = 4242
+            returncode = 0
+
+            def __init__(self):
+                self.stdin, self.stdout, self.stderr = io.BytesIO(), io.BytesIO(b'{"status": "ok"}\n'), io.BytesIO()
+
+            def poll(self):
+                return 0
+
+            def wait(self, timeout=None):
+                return 0
+
+        def fake_popen(argv, **kwargs):
+            seen["argv"], seen["kwargs"] = list(argv), kwargs
+            return FakeProcess()
+
+        shim = r"C:\Users\x\AppData\Roaming\npm\claude.cmd"
+        # Build the invocation before patching os.name: pathlib cannot make a WindowsPath on POSIX.
+        with tempfile.TemporaryDirectory() as directory:
+            invocation = NativeCliInvocation(("claude", "-p"), Path(directory), b"", 2.0)
+            with mock.patch.object(native_cli.os, "name", "nt"), \
+                    mock.patch.object(native_cli.subprocess, "Popen", fake_popen), \
+                    mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                    mock.patch.object(native_cli.shutil, "which", lambda name: shim if name == "claude" else None):
+                NativeCliRunner().run(invocation)
+        self.assertEqual(["cmd", "/c", shim, "-p"], seen["argv"])
+        self.assertEqual(0x200, seen["kwargs"]["creationflags"])
+        self.assertFalse(seen["kwargs"]["start_new_session"])
+        self.assertIsNone(seen["kwargs"]["preexec_fn"])
+
+    def test_us5_windows_cancel_uses_taskkill_tree(self):
+        cancel = threading.Event()
+        runs: list[list[str]] = []
+
+        class FakeProcess:
+            pid = 4242
+            returncode = None
+            killed = False
+
+            def __init__(self):
+                self.stdin, self.stdout, self.stderr = io.BytesIO(), io.BytesIO(), io.BytesIO()
+
+            def poll(self):
+                cancel.set()  # first poll: the worker is running, then cancellation arrives
+                return 1 if runs else None  # dead once taskkill ran
+
+            def wait(self, timeout=None):
+                if not runs:
+                    raise subprocess.TimeoutExpired("fake", timeout)
+                self.returncode = 1
+                return 1
+
+            def kill(self):
+                self.killed = True
+
+        fake = FakeProcess()
+
+        def fake_run(argv, **kwargs):
+            runs.append(list(argv))
+            return subprocess.CompletedProcess(argv, 0, stdout=b"")
+
+        # _workspace_changed_files also goes through the patched subprocess.run, hence assertIn.
+        with tempfile.TemporaryDirectory() as directory:
+            invocation = NativeCliInvocation(("worker.exe",), Path(directory), b"", 5.0)
+            with mock.patch.object(native_cli.os, "name", "nt"), \
+                    mock.patch.object(native_cli.subprocess, "Popen", lambda argv, **kwargs: fake), \
+                    mock.patch.object(native_cli.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                    mock.patch.object(native_cli.subprocess, "run", fake_run), \
+                    mock.patch.object(native_cli.shutil, "which", lambda name: name), \
+                    self.assertRaises(NativeCliError) as raised:
+                NativeCliRunner().run(invocation, cancel_event=cancel)
+        self.assertIs(FailureKind.CANCELLED, raised.exception.kind)
+        self.assertIn(["taskkill", "/T", "/F", "/PID", "4242"], runs)
+        self.assertFalse(fake.killed)
 
     def test_codex_health_probes_configured_model_and_rejects_invalid_model(self):
         required = (

@@ -320,6 +320,15 @@ def _parse_records(stdout: bytes) -> tuple[Mapping[str, object], ...]:
     return tuple(dict(value) for value in values)
 
 
+def _taskkill_tree(process: subprocess.Popen) -> None:
+    """Windows: end the whole tree; taskkill missing or failing falls through to process.kill()."""
+    try:
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, check=False, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        process.kill()
+
+
 class NativeCliRunner:
     def __init__(self, *, max_stdin_bytes: int = 65_536) -> None:
         if max_stdin_bytes < 1:
@@ -336,9 +345,18 @@ class NativeCliRunner:
             raise NativeCliError(FailureKind.INVALID_RESULT, "native CLI input exceeds size limit")
         if cancel_event is not None and cancel_event.is_set():
             raise NativeCliError(FailureKind.CANCELLED, "native CLI invocation cancelled")
+        argv = list(invocation.argv)
+        popen_kwargs: dict[str, object] = {}
+        if os.name == "nt":
+            resolved = shutil.which(argv[0]) or argv[0]
+            if resolved.lower().endswith((".cmd", ".bat")):
+                argv = ["cmd", "/c", resolved, *argv[1:]]
+            else:
+                argv[0] = resolved
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         try:
             process = subprocess.Popen(
-                list(invocation.argv),
+                argv,
                 cwd=invocation.cwd,
                 env={**sanitized_environment(), **worktree_environment(invocation.cwd)},
                 stdin=subprocess.PIPE,
@@ -348,6 +366,7 @@ class NativeCliRunner:
                 start_new_session=os.name == "posix",
                 preexec_fn=(_restore_default_sigint if os.name == "posix"
                             and signal.getsignal(signal.SIGINT) == signal.SIG_IGN else None),
+                **popen_kwargs,
             )
         except FileNotFoundError as error:
             raise NativeCliError(FailureKind.SERVICE, "native CLI executable unavailable") from error
@@ -412,7 +431,7 @@ class NativeCliRunner:
                 if os.name == "posix":
                     os.killpg(process.pid, signal.SIGINT)
                 else:
-                    process.terminate()
+                    _taskkill_tree(process)
             except ProcessLookupError:
                 pass
             if wait_until_dead(GRACEFUL_STOP_GRACE_SECONDS):
@@ -425,7 +444,7 @@ class NativeCliRunner:
                 if os.name == "posix":
                     os.killpg(process.pid, signal.SIGTERM)
                 else:
-                    process.terminate()
+                    _taskkill_tree(process)
             except ProcessLookupError:
                 pass
             if not wait_until_dead(0.2):
