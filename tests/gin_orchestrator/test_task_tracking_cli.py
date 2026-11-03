@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -18,6 +19,7 @@ from gin_orchestrator.contracts import (  # noqa: E402
     TaskSyncRequest,
 )
 from gin_orchestrator.registry import ProviderRegistry  # noqa: E402
+from gin_orchestrator import task_tracking_cli  # noqa: E402
 from gin_orchestrator.task_tracking_cli import CliTaskTrackingProvider  # noqa: E402
 
 
@@ -54,7 +56,6 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual("gin-workflow", tool.call_args[0][0])
         self.assertEqual(["/cfg/gin-workflow", "task"], calls[0][:2])
 
-    @unittest.skipIf(os.name == "nt", "close_task sends quoted JSON notes through the gin-workflow .cmd shim, which cmd.exe mangles; see gin-workflow-gscr")
     def test_same_contract_scenario_as_the_fake_provider(self):
         provider = self.provider
         dependency = provider.create_task(TaskCreateRequest("dependency"), idempotency_key="dep")
@@ -85,7 +86,6 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual(("tests:0", "review:approved"), closed.value.acceptance_evidence)
         self.assertEqual("accepted", closed.value.closure_reason)
 
-    @unittest.skipIf(os.name == "nt", "close_task sends quoted JSON notes through the gin-workflow .cmd shim, which cmd.exe mangles; see gin-workflow-gscr")
     def test_closed_provenance_survives_a_new_provider_and_mismatch_is_invalid(self):
         task = self.provider.create_task(TaskCreateRequest("T"), idempotency_key="c").value.task_id
         request = TaskClosureRequest(task, "accepted", ("tests:0",))
@@ -167,7 +167,6 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
                 self.root, runner=lambda argv, cwd, out=stdout: subprocess.CompletedProcess(argv, 0, out, ""))
             self.assertEqual(OperationStatus.UNAVAILABLE, provider.read_task("t-1").status, stdout)
 
-    @unittest.skipIf(os.name == "nt", "close_task sends quoted JSON notes through the gin-workflow .cmd shim, which cmd.exe mangles; see gin-workflow-gscr")
     def test_values_that_look_like_flags_are_kept(self):
         created = self.provider.create_task(TaskCreateRequest("-x", description="--force", notes=("-n",)),
                                             idempotency_key="c")
@@ -183,3 +182,45 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NativeArgvTests(unittest.TestCase):
+    REST = ["task", "update", "t-1", '--append-notes=a "b"\nc', "--json"]
+
+    def _argv(self, text):
+        with tempfile.TemporaryDirectory() as tmp:
+            shim = os.path.join(tmp, "gin-workflow.cmd")
+            with open(shim, "w", encoding="utf-8", newline="") as handle:
+                handle.write(text)
+            with mock.patch.object(task_tracking_cli.os, "name", "nt"), \
+                    mock.patch.object(task_tracking_cli.shutil, "which", return_value=shim):
+                return task_tracking_cli._native_argv(["gin-workflow", *self.REST]), shim, tmp
+
+    def test_shims_run_the_launcher_directly(self):
+        target = "C:\\x\\gin-workflow"
+        shapes = {
+            "install.ps1": '@echo off\r\nwhere py >nul 2>nul\r\nif %%errorlevel%%==0 (py -3 -X utf8 "%s" %%*) else (python -X utf8 "%s" %%*)\r\n' % (target, target),
+            "older": '@echo off\npython "%s" %%*\n' % target,
+            "fixture": '@"%s" "%s" %%*\r\n' % (sys.executable, target),
+        }
+        for name, text in shapes.items():
+            with self.subTest(shape=name):
+                argv, _, _ = self._argv(text)
+                self.assertEqual(argv, [sys.executable, "-X", "utf8", target, *self.REST])
+
+    def test_dp0_expands_to_the_shim_directory(self):
+        argv, _, tmp = self._argv('@"%s" "%%~dp0stub.py" %%*\r\n' % sys.executable)
+        self.assertEqual(argv, [sys.executable, "-X", "utf8", tmp + os.sep + "stub.py", *self.REST])
+
+    def test_cmd_without_target_falls_back(self):
+        argv, shim, _ = self._argv("@echo off\r\n")
+        self.assertEqual(argv, [shim, *self.REST])
+
+    def test_non_shim_executable_on_nt(self):
+        with mock.patch.object(task_tracking_cli.os, "name", "nt"), \
+                mock.patch.object(task_tracking_cli.shutil, "which", return_value="C:\\bin\\gin-workflow.exe"):
+            self.assertEqual(task_tracking_cli._native_argv(["gin-workflow", *self.REST]), ["C:\\bin\\gin-workflow.exe", *self.REST])
+
+    @unittest.skipIf(os.name == "nt", "POSIX passthrough")
+    def test_posix_unchanged(self):
+        self.assertEqual(task_tracking_cli._native_argv(["gin-workflow", *self.REST]), ["gin-workflow", *self.REST])

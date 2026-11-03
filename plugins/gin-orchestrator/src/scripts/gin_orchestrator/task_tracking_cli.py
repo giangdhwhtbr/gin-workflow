@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import re
+import shutil
 import subprocess
+import sys
 from typing import Any, Callable, Mapping, Sequence
 
 from workflow_core.ext import tool
@@ -32,8 +36,31 @@ _EVIDENCE_PREFIX = "gin:acceptance-evidence="
 _CLOSURE_PREFIX = "gin:closure-reason="
 
 
+_SHIM_TARGET = re.compile(r'"([^"\r\n]+)" %\*')
+
+
+def _native_argv(argv: Sequence[str]) -> list[str]:
+    """Windows: a .cmd/.bat shim runs through cmd.exe, which re-parses quotes and cannot carry a newline,
+    so run the Python launcher it wraps directly; anything else runs as given."""
+    if os.name != "nt":
+        return list(argv)
+    resolved = shutil.which(argv[0]) or argv[0]
+    if not resolved.rstrip(" .").lower().endswith((".cmd", ".bat")):
+        return [resolved, *argv[1:]]
+    try:
+        with open(resolved, encoding="utf-8", errors="replace") as handle:
+            found = _SHIM_TARGET.search(handle.read())
+    except OSError:
+        found = None
+    if found is None:
+        return [resolved, *argv[1:]]
+    target = found.group(1).replace("%~dp0", os.path.dirname(resolved) + os.sep)
+    # simplified: runs the launcher with this interpreter instead of the shim's `py -3`/`python`; swap in the shim's interpreter if a machine keeps gin-workflow on a different Python.
+    return [sys.executable, "-X", "utf8", target, *argv[1:]]
+
+
 def _default_runner(argv: Sequence[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(argv, cwd=cwd, text=True, capture_output=True, check=False)
+    return subprocess.run(_native_argv(argv), cwd=cwd, text=True, capture_output=True, check=False)
 
 
 def _strings(value: object) -> tuple[str, ...]:
