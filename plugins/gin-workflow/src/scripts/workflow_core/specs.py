@@ -8,12 +8,12 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import shutil
 import subprocess
 from typing import Any, Mapping, Sequence
 
 from .atomic import atomic_write_many
 from .configuration import resolve_effective_config
+from .executables import tool
 
 DEFAULT_TEST_GLOBS = ("**/test_*.py", "**/*_test.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**")
 SDD_DEFAULTS: dict[str, Any] = {
@@ -427,7 +427,7 @@ def _bd(root: Path, argv: Sequence[str]) -> Any:
         if value is None:
             raise SpecsError(f"task {' '.join(argv)} failed")
         return value
-    executable = shutil.which("bd")
+    executable = tool("bd", root)
     if executable is None:
         raise SpecsError("bd is not installed")
     completed = subprocess.run([executable, *argv], cwd=root, text=True, capture_output=True, check=False)

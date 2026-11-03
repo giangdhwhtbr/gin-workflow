@@ -41,6 +41,7 @@ class DispatchBudgetTests(unittest.TestCase):
     def config(self, extra=""):
         write(self.root, ".agent-workflow/config.yaml", CONFIG + extra)
         refresh(self.root)  # `bd` is used only when the generated config names Beads
+        (self.root / ".agent-workflow/executables.local.yaml").unlink()  # else refresh pins the host bd
 
     def stored(self, ai_usage):
         fake_cli(self.bin, "bd", [{"argv": ["show", "ep1"], "stdout": [

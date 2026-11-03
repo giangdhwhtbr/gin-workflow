@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import re
 import shutil
@@ -9,6 +8,7 @@ import subprocess
 from typing import Any, Optional
 
 from review_ledger.git_adapter import GitAdapterError, _run_git
+from workflow_core.executables import tool
 
 
 PROTECTED_PLANNING_DIRS = frozenset({
@@ -29,21 +29,6 @@ PROTECTED_PLANNING_DIRS = frozenset({
 
 _BEAD_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
 _REVIEW_REF_PREFIX = "refs/gin/review/"
-
-
-def _find_bd_executable() -> Optional[str]:
-    candidate = shutil.which("bd")
-    if candidate:
-        return candidate
-    common_paths = [
-        "/home/linuxbrew/.linuxbrew/bin/bd",
-        "/usr/local/bin/bd",
-        str(Path.home() / ".cargo" / "bin" / "bd"),
-    ]
-    for p in common_paths:
-        if os.path.isfile(p) and os.access(p, os.X_OK):
-            return p
-    return None
 
 
 def _load_issues_cache(repo_root: Path) -> dict[str, str]:
@@ -69,7 +54,7 @@ def _query_beads_status(
     repo_root: Path,
     issues_cache: Optional[dict[str, str]] = None,
 ) -> tuple[Optional[str], str]:
-    bd_bin = _find_bd_executable()
+    bd_bin = tool("bd", repo_root)
     if bd_bin:
         try:
             res = subprocess.run(
