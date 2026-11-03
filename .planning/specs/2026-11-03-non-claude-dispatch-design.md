@@ -16,13 +16,13 @@ When Codex, Antigravity, OpenCode, or Copilot is the main harness, tracks, revie
      - `route.provider != main_harness` (cross-provider route), or
      - `main_harness` is `codex`, `opencode`, or `copilot` (whose in-session subagent tools do not accept per-spawn catalog `model` and `effort` arguments), or
      - `main_harness` is `antigravity` with an explicit `route.model != "provider_default"` or `route.effort is not None`.
-   - When `gin-orchestrator` is not installed (`orchestrator_missing`), skills fall back to the main harness's native subagent (`Antigravity` `invoke_subagent`, `OpenCode`/`Copilot` custom agent) or in-session execution with a warning, matching the existing no-bundled-fallback contract.
+   - When `gin-orchestrator` is not installed, mismatched, or lacks the `"dispatch"` capability (`orchestrator_missing` / `orchestrator_contract_mismatch` / `orchestrator_failed`), skills fall back to the main harness's native subagent (`Antigravity` `invoke_subagent`, `OpenCode`/`Copilot` custom agent) or in-session execution with a warning, matching the existing no-bundled-fallback contract.
 2. **GitHub Copilot (`copilot`) harness and CLI worker support**:
    - Add `"copilot"` to `SUPPORTED_HARNESSES`, `DEFAULT_CATALOGS` (`Catalog(("provider_default",), ())`), `DEFAULT_EXECUTABLES` (`"copilot": "copilot"`), `PROVIDER_DEFAULT_PROVIDERS`, `CONFIG_SCHEMA["properties"]["models"]["propertyNames"]["enum"]`, `cli.py`, `project_detect.py`, and `setup_service.py`.
-   - Add `copilot_worker.py` (`CopilotWorkerAdapter`, `copilot_health`, `build_copilot_invocation`) in `gin_orchestrator` and register `"copilot"` in `registry.py`, `cli.py`, `doctor.py`, and `native_cli.py`.
+   - Add `copilot_worker.py` (`CopilotWorkerAdapter`, `copilot_health`, `build_copilot_invocation`) in `gin_orchestrator` and register `"copilot"` in `registry.py`, `cli.py`, `doctor.py`, and `native_cli.py`, including JSONL parsing for Copilot's `{"type": "assistant.message", "data": {"content": "..."}}` records.
 3. **Agent translation in `install.sh` and `install.ps1` for Codex, Antigravity, OpenCode, and Copilot**:
    - Keep `plugins/gin-workflow/src/agents/*.md` and `plugins/gin-qa/src/agents/e2e-tester.md` in their canonical Antigravity tool vocabulary (`view_file`, `grep_search`, `list_dir`, `search_web`, `run_command`, `replace_file_content`, `write_to_file`).
-   - Package `agents/*.md` for `antigravity` (as-is), `codex` (stripping the `tools:` frontmatter line), `opencode` (with OpenCode frontmatter and `gin-workflow-` filename prefix in `${OPENCODE_CONFIG_DIR}/agents/`), and `copilot` (translating `tools:` to Copilot tool aliases in `plugins/<plugin>/dist/copilot/<plugin>/agents/*.md`), alongside `claude-code`.
+   - Package `agents/*.md` for `antigravity` (as-is), `codex` (stripping the `tools:` frontmatter line), `opencode` (with OpenCode frontmatter and `<plugin>-<agent>.md` filename prefix in `dist/opencode/agents/` and `~/.config/opencode/agents/`), and `copilot` (translating `tools:` to Copilot tool names in `plugins/<plugin>/dist/copilot/<plugin>/agents/*.md`), alongside `claude-code`.
 4. **Cost-control items moved from `gin-workflow-rm-cost-control` and wired into `gin-orchestrator dispatch`**:
    - Single constant `ORCHESTRATOR_DEFAULTS` in `gin_orchestrator/config.py` owning timeout (`timeout_seconds: 900.0`), retry (`max_retries: 2`), queue (`max_wait_seconds: 600`), and circuit breaker (`failure_threshold: 3`) defaults across `registry.py`, `worker_scheduler.py`, and worker adapters.
    - Circuit breaker opening immediately on the first `QUOTA` or `AUTH` failure in `gin_orchestrator/circuit_breaker.py`.
@@ -40,13 +40,14 @@ When Codex, Antigravity, OpenCode, or Copilot is the main harness, tracks, revie
 2. `workflow_core/provider_config.py`: Add `"copilot": "copilot"` to `DEFAULT_EXECUTABLES` and include `"copilot"` in `PROVIDER_DEFAULT_PROVIDERS`.
 3. `workflow_core/configuration.py`, `workflow_core/schemas.py`, `workflow_core/cli.py`, `workflow_core/project_detect.py`, and `workflow_core/setup_service.py`:
    - Include `"copilot"` in `SUPPORTED_HARNESSES`, `CONFIG_SCHEMA["properties"]["models"]["propertyNames"]["enum"]`, CLI `--harness`/`--provider` choices, and `detect_project()` provider binary checks.
-   - In `setup_service.py:detect()`, add `("copilot", ".github/copilot")` (or `.github/agents`) marker detection.
-   - Update `registry.py:226`, `assignments.py:48`, and `gin_orchestrator/routes.py:90` error messages from `"antigravity and opencode"` to `"antigravity, opencode, and copilot"`.
-4. `gin_orchestrator/copilot_worker.py`:
+   - In `setup_service.py:detect()`, add `("copilot", ".github/agents")` marker detection.
+   - Update `registry.py:226`, `assignments.py:48`, and `gin_orchestrator/routes.py:89` error messages from `"antigravity and opencode"` to `"antigravity, opencode, and copilot"`.
+4. `gin_orchestrator/copilot_worker.py` and `native_cli.py`:
    - Follow the exact signature convention of existing worker bridges:
      `build_copilot_invocation(executable: str, model: str, workspace: Path, prompt: str, *, timeout_seconds: float = 900, effort: str | None = None, agent: str | None = None) -> NativeCliInvocation`.
    - Build argv: `[executable, "-p", prompt, "--allow-all-tools", "--no-ask-user", "--output-format", "json", "--add-dir", str(resolved_workspace)]`, appending `["--model", model]` when `model and model != PROVIDER_DEFAULT`, `["--reasoning-effort", effort]` when `effort` is set, and `["--agent", agent]` when `agent` is set.
-   - Set `env_extra` on `NativeCliInvocation` (an optional `Mapping[str, str] = ()` field merged into the child process env in `NativeCliRunner.run`) with any present keys from `("COPILOT_HOME", "GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN", "GH_HOST", "COPILOT_GH_HOST")` so GitHub tokens are exposed only to `copilot` worker invocations and never to other providers or `probe_help`.
+   - Add `env_extra: Mapping[str, str] = field(default_factory=dict, repr=False)` to `NativeCliInvocation` (`native_cli.py`), frozen via `MappingProxyType(dict(self.env_extra))` in `__post_init__` and merged into `process` `env` in `NativeCliRunner.run`. `build_copilot_invocation` populates `env_extra` with any present keys from `("COPILOT_HOME", "GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN", "GH_HOST", "COPILOT_GH_HOST")` so GitHub tokens are exposed only to `copilot` worker invocations, never to other providers or `probe_help`, and never appear in `repr(invocation)`.
+   - In `native_cli.py:direct_worker_result()` and `_diagnostic_from_stdout()`, inspect nested `record.get("data")` mappings (specifically `data.get("content")` and `data.get("message")`) because `copilot --output-format json` emits JSONL records shaped `{"type": "assistant.message", "data": {"content": "...", "model": "..."}}` and `{"type": "result", "exitCode": 0, "usage": {...}}`.
    - `copilot_health(executable: str, *, help_text: str | None = None, model: str | None = None, native_runner: NativeCliRunner | None = None, workspace: Path | None = None, effort: str | None = None) -> NativeHealth`:
      - Verify `probe_help(executable, "--help")` contains `--prompt`, `--allow-all-tools`, and `--output-format` as required flags, and `--model` (plus `--reasoning-effort` when `effort is not None`) for `supports_model_selection`.
      - When `model` is set and `model != PROVIDER_DEFAULT` and `native_runner` and `workspace` are provided, run `MODEL_PROBE_PROMPT` and return `NativeHealth(False, "invalid_model", supported)` on `FailureKind.INVALID_MODEL`.
@@ -58,7 +59,11 @@ When Codex, Antigravity, OpenCode, or Copilot is the main harness, tracks, revie
 6. `gin_orchestrator/{registry.py,cli.py,doctor.py,native_cli.py}`:
    - Register `"copilot"` in `ProviderRegistry.factory`, `health_builders`, `health_for`, `cli.py:HEALTH`, and `doctor.py:HEALTH`.
    - Pass `effort` in `registry.py` and `cli.py:_health` when `effort is not None` for `("claude", "codex", "antigravity", "copilot")`.
-   - Pass `agent=request.agent` in `ProviderRegistry.factory` when `request.agent` is set and the target provider is in `("claude", "antigravity", "opencode", "copilot")`.
+   - Map `request.agent` (canonical agent stem such as `"developer"`, `"code-reviewer"`, `"agent-researcher"`, `"docs-writer"`, `"qa-agent"`, or `"gin-workflow:developer"`) per target provider inside `ProviderRegistry.factory`:
+     - `claude`: `"gin-workflow:<stem>"` (preserving an explicit `"<plugin>:<stem>"` prefix if given)
+     - `opencode`: `"gin-workflow-<stem>"` (preserving an explicit `"gin-qa-<stem>"` prefix if given)
+     - `antigravity` and `copilot`: `"<stem>"`
+     - `codex`: omitted (`codex exec` has no `--agent` flag).
    - In `native_cli.py:list_models("copilot")`, run `[executable, "help", "config"]` and parse the documented model IDs under the `model` configuration section.
 
 ### R2: Agent Translation in `install.sh` and `install.ps1`
@@ -67,11 +72,11 @@ When Codex, Antigravity, OpenCode, or Copilot is the main harness, tracks, revie
 2. **Codex (`codex`)**:
    - Add `template_agents_for_codex` (`install.sh`) and `Convert-CodexAgents` (`install.ps1`) to strip the `tools:` frontmatter line from `plugins/<plugin>/dist/codex/agents/*.md` while preserving `name:` and `description:`.
 3. **OpenCode (`opencode`)**:
-   - Add `template_agents_for_opencode` (`install.sh`) and `Convert-OpenCodeAgents` (`install.ps1`) to build `plugins/<plugin>/dist/opencode/agents/gin-workflow-<agent>.md` (or `gin-qa-<agent>.md`) with OpenCode frontmatter (`description:` and `mode: subagent`, omitting `name:` and `tools:`).
-   - Using the `<plugin>-<agent>.md` prefix in `dist/opencode/agents/` and `${OPENCODE_CONFIG_DIR}/agents/` prevents colliding with a user's own `.opencode/agents/*.md` files. Record installed agent paths in the OpenCode install manifest for clean uninstall.
+   - Add `template_agents_for_opencode` (`install.sh`) and `Convert-OpenCodeAgents` (`install.ps1`) inside `install_opencode_bundle` / `Install-OpenCodeBundle` to write `agents/<plugin>-<stem>.md` (e.g. `agents/gin-workflow-developer.md`, `agents/gin-qa-e2e-tester.md`) into the OpenCode bundle (`plugins/<plugin>/dist/opencode/agents/` for global builds, or `$PROJECT_DIR/.opencode/agents/` for `--project` installs) with OpenCode frontmatter (`description:` and `mode: subagent`, omitting `name:` and `tools:`).
+   - During global OpenCode installation (`install_plugin` in `install.sh` and `Install-Plugin` in `install.ps1`), also copy `dist/opencode/agents/<plugin>-*.md` into `${HOME}/.config/opencode/agents/` (and remove `${HOME}/.config/opencode/agents/${p_name}-*.md` on `--uninstall`). The `<plugin>-` filename prefix prevents colliding with any user-created `.opencode/agents/*.md` or `~/.config/opencode/agents/*.md` files.
 4. **Copilot (`copilot`)**:
    - Update `install_platform "copilot"` (`install.sh` and `install.ps1`) to copy and translate `agents/*.md` into `plugins/<plugin>/dist/copilot/<plugin>/agents/*.md`.
-   - Add `template_agents_for_copilot` (`install.sh`) and `Convert-CopilotAgents` (`install.ps1`) to map canonical tool names in `tools:` to deduplicated Copilot tool aliases (`view_file -> read`, `grep_search`/`list_dir` -> `search`, `search_web -> fetch`, `run_command -> bash`, `replace_file_content`/`write_to_file` -> `edit`).
+   - Add `template_agents_for_copilot` (`install.sh`) and `Convert-CopilotAgents` (`install.ps1`) to map canonical tool names in `tools:` to deduplicated Copilot tool names (`view_file -> view`, `grep_search -> grep`, `list_dir -> glob`, `search_web -> web_fetch`, `run_command -> bash`, `replace_file_content`/`write_to_file` -> `edit`).
 
 ### R3: Single Timeout/Retry Default Constant, Immediate QUOTA/AUTH Circuit Breaker, and Transient Retries with `changed_files`
 1. **Single constant for timeout and retry defaults (`ORCHESTRATOR_DEFAULTS`)**:
@@ -83,7 +88,7 @@ When Codex, Antigravity, OpenCode, or Copilot is the main harness, tracks, revie
          "worker": {"max_retries": 2, "timeout_seconds": 900.0},
      }
      ```
-   - Remove hardcoded duplicate fallback literals in `gin_orchestrator/registry.py` (`ProviderRegistry` defaults at lines 107–108, `from_effective_config` at lines 215–216, 244, 250–252, 374) and `gin_orchestrator/worker_scheduler.py` (`WorkerScheduler.__init__` defaults at lines 91–92), referencing `ORCHESTRATOR_DEFAULTS` instead.
+   - Remove hardcoded duplicate fallback literals in `gin_orchestrator/registry.py` (`ProviderRegistry` defaults at lines 107–108, `from_effective_config` at lines 215–216, 244, 250–252, 374), `gin_orchestrator/worker_scheduler.py` (`WorkerScheduler.__init__` defaults at lines 91–92), and worker adapters (`claude_worker.py`, `codex_worker.py`, `antigravity_worker.py`, `opencode_worker.py`, `copilot_worker.py`), referencing `ORCHESTRATOR_DEFAULTS` instead.
 2. **Circuit breaker opens on first `QUOTA` or `AUTH` failure**:
    - In `gin_orchestrator/circuit_breaker.py`, define `IMMEDIATE_OPEN_FAILURE_KINDS = frozenset({FailureKind.QUOTA, FailureKind.AUTH})`.
    - In `CircuitBreakerStore.record_failure()`, transition `state` to `CircuitState.OPEN` when `state is CircuitState.HALF_OPEN or kind in IMMEDIATE_OPEN_FAILURE_KINDS or failures >= self.failure_threshold`.
@@ -99,16 +104,19 @@ When Codex, Antigravity, OpenCode, or Copilot is the main harness, tracks, revie
 1. **`gin-orchestrator dispatch` subcommand (`gin_orchestrator/cli.py`)**:
    - Add `"dispatch"` to `CAPABILITIES` in `gin_orchestrator/cli.py`.
    - Add subcommand `gin-orchestrator dispatch` accepting:
-     `--workflow-id <id>`, `--task-id <id>`, `--role <provider_role>`, `--model <model>`, `[--effort <effort>]`, `--workspace <path>`, `--objective <text>` (or `--objective-file <path>`), repeatable `--constraint <text>`, `--agent <name>`, `--provider <provider>` (optional route affinity), and `[--repository <dir>] [--json]`.
-   - `_dispatch(args)`:
-     - Load `config = load_effective_config(root)` and `local = load_local_config(root)`.
-     - Allow single-provider CLI worker dispatch even when `orchestrator.concurrency` is not configured in `config.yaml` by defaulting `concurrency` in `ProviderRegistry.from_effective_config` to `{p: 1 for p in provider_local}` when `orchestrator.concurrency` is empty.
-     - Extend `workspace_for(request)` in `registry.py` so that when `request.isolation_policy.get("mode") == "direct"` and `workspace_path` is an existing directory inside `root` or `worktree_root`, it returns `Path(workspace_path).resolve()` without requiring `workspace.isolate(workspace_id)`. This allows `execute` (which already created the track worktree), `review`, `discuss`, `plan`, and `tech-doc` to pass `--workspace <path>` directly without double-creating worktrees or re-claiming beads in `WorkerScheduler._prepare()`.
-     - Build `WorkerRequest` with `create_context_manifest("execute", ContextRequest())`, `isolation_policy={"mode": "direct", "workspace_path": str(args.workspace.resolve())}`, `route_affinity=(args.provider, args.model, args.effort or "")` when `--provider` is given, and `agent=args.agent`.
+     `--workflow-id <id>`, `--task-id <id>`, `--role <provider_role>`, `--model <model>`, `[--effort <effort>]`, `--workspace <path>`, `--objective <text>` (or `--objective-file <path>`), repeatable `--constraint <text>`, `--stage <stage>` (default `"execute"`), `--agent <stem>`, `--provider <provider>` (optional route affinity), and `[--repository <dir>] [--json]`.
+   - `_dispatch(args)` handles both `provider_mode: multi` (with `.agent-workflow/orchestrator.local.yaml`) and single-harness default configurations (where `.agent-workflow/orchestrator.local.yaml` or `orchestrator.concurrency` may not exist yet):
+     - Load `config = load_effective_config(root)`.
+     - Load `local = load_local_config(root)` if `.agent-workflow/orchestrator.local.yaml` exists; otherwise synthesize `local = default_provider_model_config((args.provider or config.harness or "claude",))` from `DEFAULT_EXECUTABLES` so single-harness Codex, Antigravity, OpenCode, and Copilot users can run `gin-orchestrator dispatch` without manually creating `orchestrator.local.yaml`.
+     - If `config.get("orchestrator", {}).get("concurrency")` is not set, inject a synthetic `orchestrator.concurrency = {p: 1 for p in local}` into the `EffectiveConfig` passed to `ProviderRegistry.from_effective_config` inside `_dispatch()` (keeping `ProviderRegistry.from_effective_config`'s strict `orchestrator.concurrency is required` check intact for direct library callers).
+     - Extend `workspace_for(request)` in `registry.py` so that when `request.isolation_policy.get("mode") == "direct"`, `workspace_path` is validated by stage/role:
+       - For implementation (`request.provider_role not in ("review", "research", "docs")` and `stage == "execute"`), `workspace_path` must resolve to an existing directory inside `worktree_root` (`.planning/worktrees/<id>`), preventing an implementation worker from mutating the main checkout.
+       - For read-only or non-worktree roles (`review`, `research`, `docs`, or stages `review`, `discuss`, `plan`, `tech-doc`), `workspace_path` may resolve to `root` or `worktree_root`.
+     - Build `WorkerRequest` with `create_context_manifest(args.stage, ContextRequest())`, `isolation_policy={"mode": "direct", "workspace_path": str(args.workspace.resolve())}`, `route_affinity=(args.provider, args.model, args.effort or "")` when `--provider` is given, and `agent=args.agent`.
      - Run `run_with_retries(registry.worker, worker_request, max_retries=registry.worker_max_retries, worker_timeout_seconds=registry.worker_timeout_seconds)`.
      - Print the `WorkerResult` dictionary as JSON (`status`, `task_id`, `summary`, `changed_files`, `commits`, `tests`, `evidence`, `blockers`, `knowledge_candidates`) and exit `0` when `result.status == "completed"` (or `1` when `result.status in {"failed", "cancelled"}`).
 2. **Stage skill, reference, and docs updates within token budget**:
-   - Update `plugins/gin-workflow/src/skills/execute/references/worker-lifecycle.md` to replace the manual `<provider>_worker.py` argv instruction with `gin-orchestrator dispatch`, while trimming prose by ~250 characters so the `execute` stage chain (`11,994` chars today) drops below `11,850` chars.
+   - Update `plugins/gin-workflow/src/skills/execute/references/worker-lifecycle.md` to replace the manual `<provider>_worker.py` argv instruction with `gin-orchestrator dispatch`, while trimming prose in `worker-lifecycle.md` (~250 chars) and `review/SKILL.md` (~150 chars) so both `execute` (`11,994` chars today) and `review` (`11,824` chars today) stay well below the `12,000`-character ceiling.
    - Update `execute/SKILL.md`, `review/SKILL.md`, `discuss/SKILL.md`, `plan/SKILL.md`, and `tech-doc/SKILL.md` concisely so non-Claude main harnesses and cross-provider routes use `gin-orchestrator dispatch` when native subagent spawn cannot set the catalog `model` and `effort`, keeping every stage in `STAGES` `<= 12,000` characters (`tests/workflow_core/test_token_budget.py`).
    - Document `gin-orchestrator dispatch` and `"copilot"` in `docs/reference/orchestrator-contract.md`, `docs/reference/cli.md`, `docs/orchestrator/README.md`, and `docs/concepts/providers.md`.
 
@@ -119,16 +127,16 @@ As a developer running `gin-workflow` on Codex, Antigravity, OpenCode, or Copilo
 
 Acceptance criteria:
 - When `main_harness` is `antigravity` and the resolved route uses `model: "provider_default"` with `effort: null`, the stage can spawn `invoke_subagent(TypeName="<role>", Model="inherit")`.
-- When `main_harness` is `codex`, `opencode`, or `copilot`, or when `route.provider != main_harness`, or when `antigravity` has an explicit model/effort, the stage dispatches the work via `gin-orchestrator dispatch` at the resolved `provider`, `model`, and `effort`.
+- When `main_harness` is `codex`, `opencode`, or `copilot`, or when `route.provider != main_harness`, or when `antigravity` has an explicit model/effort, the stage dispatches the work via `gin-orchestrator dispatch` at the resolved `provider`, `model`, and `effort`, even in `provider_mode: single` without `.agent-workflow/orchestrator.local.yaml`.
 - `gin-orchestrator dispatch` returns a structured JSON `WorkerResult` with `status` in `{"completed", "failed", "cancelled"}` and exits `0` on `"completed"`.
 
 ### US-2: Full Copilot Harness and Translated Agents Across All Platforms
 As a user installing `gin-workflow` for Claude, Codex, Antigravity, OpenCode, or Copilot, I want `install.sh` and `install.ps1` to package translated agent files for every platform and support `copilot` as a first-class harness and worker provider, so that custom agents and routes work out of the box on all 5 platforms.
 
 Acceptance criteria:
-- `install.sh` and `install.ps1` produce platform-appropriate `agents/*.md` in `plugins/<plugin>/dist/{claude-code,antigravity,codex,opencode}` and `plugins/<plugin>/dist/copilot/<plugin>/agents/`, and install prefixed OpenCode agents (`gin-workflow-*.md`) into `${OPENCODE_CONFIG_DIR}/agents/`.
+- `install.sh` and `install.ps1` produce platform-appropriate `agents/*.md` in `plugins/<plugin>/dist/{claude-code,antigravity,codex,opencode}` and `plugins/<plugin>/dist/copilot/<plugin>/agents/`, and install prefixed OpenCode agents (`gin-workflow-*.md`, `gin-qa-*.md`) into `~/.config/opencode/agents/`.
 - `gin-workflow routes resolve --harness copilot` and `gin-orchestrator health --provider copilot` succeed without `unknown harness` or `unknown provider` errors.
-- `build_copilot_invocation` passes `-p <prompt> --allow-all-tools --no-ask-user --output-format json --add-dir <workspace>` along with optional `--model`, `--reasoning-effort`, and `--agent`.
+- `build_copilot_invocation` passes `-p <prompt> --allow-all-tools --no-ask-user --output-format json --add-dir <workspace>` along with optional `--model`, `--reasoning-effort`, and `--agent`, and `direct_worker_result` parses Copilot's `{"type": "assistant.message", "data": {"content": "..."}}` JSONL output.
 
 ### US-3: Cost-Controlled Retries, Circuit Breaker, and Unified Defaults
 As a workflow operator, I want worker dispatch to use one constant for timeout/retry defaults, open the circuit breaker on the first `QUOTA` or `AUTH` failure, and retry only transient failures (`quota`, `rate_limit`, `service`) with the prior attempt's `changed_files` passed to the next attempt, so that permanent failures do not waste tokens or corrupt worktrees.
@@ -151,13 +159,13 @@ Acceptance criteria:
 
 - **Unit tests for `copilot` harness & worker**:
   - Test `DEFAULT_CATALOGS["copilot"]`, `routes resolve`, and `CONFIG_SCHEMA` validation with `models.copilot`.
-  - Test `build_copilot_invocation`, `copilot_health`, `CopilotWorkerAdapter`, and `list_models("copilot")` in `tests/gin_orchestrator/`.
+  - Test `build_copilot_invocation`, `copilot_health`, `CopilotWorkerAdapter`, `direct_worker_result` with a real Copilot JSONL fixture (`assistant.message` -> `data.content`), and `list_models("copilot")` in `tests/gin_orchestrator/`.
 - **Packaging & installer tests**:
   - Update `tests/gin_orchestrator/test_harness_packaging.py` (updating `opencode_removed` and `copilot_removed` assertions) and `tests/install_smoke_test.{sh,ps1}` to verify translated `agents/*.md` across `claude-code`, `antigravity`, `codex`, `opencode`, and `copilot`.
 - **Cost-control & dispatch tests**:
   - Test `ORCHESTRATOR_DEFAULTS` propagation to `ProviderRegistry` and `WorkerScheduler`.
   - Test `CircuitBreakerStore.record_failure()` opening immediately on the first `QUOTA` or `AUTH` failure when `failure_threshold=3`, while requiring 3 failures for `RATE_LIMIT` / `SERVICE` / `TIMEOUT`.
   - Update `tests/gin_orchestrator/test_worker_scheduler.py` to verify `WorkerScheduler` retries only `provider_failure:quota`, `provider_failure:rate_limit`, and `provider_failure:service` and passes `prior_changed_files` into the next attempt's `WorkerRequest` payload.
-  - Test `gin-orchestrator dispatch` CLI end-to-end with direct workspace mode and stubbed runner.
+  - Test `gin-orchestrator dispatch` CLI end-to-end with direct workspace mode (both with and without `orchestrator.local.yaml`, enforcing worktree safety for `execute` and allowing `root` for `review`/`discuss`/`plan`).
 - **Token budget and docs tests**:
   - Run `python3 tests/test_all.py` including `tests/workflow_core/test_token_budget.py` and CLI reference heading checks.
