@@ -20,6 +20,21 @@ from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta,
 QA_LAUNCHER = ROOT / "plugins/gin-qa/src/scripts/gin-qa"
 
 
+def python_stub(bin_dir: Path, name: str, body: str) -> Path:
+    """`name` on `bin_dir` running the Python `body` (its first line is a `#!` shebang): on nt a .cmd wrapper."""
+    bin_dir = Path(bin_dir)
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        (bin_dir / f"{name}.py").write_text(body, encoding="utf-8")
+        path = bin_dir / f"{name}.cmd"
+        path.write_text(f'@"{sys.executable}" "%~dp0{name}.py" %*\r\n', encoding="utf-8", newline="")
+        return path
+    path = bin_dir / name
+    path.write_text(body, encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
 def gin_workflow_bin(base: Path, body: str = "") -> Path:
     """A bin directory whose `gin-workflow` runs this checkout's launcher (or `body` when given)."""
     bin_dir = Path(base) / "bin"

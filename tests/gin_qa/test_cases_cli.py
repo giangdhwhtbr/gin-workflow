@@ -181,7 +181,8 @@ class TestStructure(QaCase):
 
 class TestIdsAndExport(QaCase):
     def test_next_id_never_reuses_a_number(self):
-        self.assertEqual("TC-AUTH-001\n", qa(self.root, self.bin, "next-id", "auth").stdout)
+        first = qa(self.root, self.bin, "next-id", "auth")
+        self.assertEqual("TC-AUTH-001\n", first.stdout, first.stderr)
         self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")), case("TC-AUTH-002", self.ref("REQ-AUTH-002")))
         self.assertEqual("TC-AUTH-003\n", qa(self.root, self.bin, "next-id", "auth").stdout)
         commit_all(self.root)

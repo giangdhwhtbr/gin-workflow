@@ -78,7 +78,8 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual(("tests pass",), created.value.acceptance_criteria)
         self.assertTrue(replayed_edge.idempotent)
         self.assertEqual((dependency.value.task_id,), blocked.value.blockers)
-        self.assertTrue(ready.value.ready)
+        self.assertTrue(ready.value.ready, ready.value)
+        self.assertIsNotNone(closed.value, closed.message)
         self.assertEqual("closed", closed.value.status)
         self.assertEqual(("tests:0", "review:approved"), closed.value.acceptance_evidence)
         self.assertEqual("accepted", closed.value.closure_reason)
@@ -173,6 +174,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual("-a", updated.value.attributes["assignee"])
         closed = self.provider.close_task(TaskClosureRequest(created.value.task_id, "-done", ("-e",)),
                                           idempotency_key="close")
+        self.assertIsNotNone(closed.value, closed.message)
         self.assertEqual(("closed", "-done"), (closed.value.status, closed.value.closure_reason))
 
 
