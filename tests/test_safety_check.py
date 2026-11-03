@@ -50,6 +50,15 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "git config core.hooksPath /x core.hooksPath"):
             self.assertEqual(2, exit_code(command), command)
 
+    def test_repeated_config_words_stay_linear(self):
+        # 10000 words took 15-18 s with a quadratic pattern and the cost grows with the square of the length; 15000 words
+        # stay under the 128 KB limit of one argument.
+        for command, expected in (("git" + " config" * 15000, 0), ("git" + " config" * 15000 + " core.hooksPath /x", 2),
+                                  ("git" + " config" * 15000 + " core.hooksPath", 0)):
+            done = subprocess.run([sys.executable, str(SCRIPT), command], stdin=subprocess.DEVNULL, capture_output=True,
+                                  timeout=10)
+            self.assertEqual(expected, done.returncode, command[-30:])
+
     def test_us2_blocks_subshell_and_group_forms(self):
         for command in ("(git commit -n -m x)", "cd d && (git commit -a -n)", "echo $(git commit -n -m x)",
                         "echo `git commit -n -m x`", "git commit -m x -n)", "{ git commit -n -m x; }"):
@@ -244,6 +253,16 @@ class TestWorktreeBoundary(unittest.TestCase):
             self.assertEqual(0, self.exit_code_in(directory, directory + "\n"))
             self.assertEqual(2, self.exit_code_in(directory, directory + "/missing/leaf"))
             self.assertEqual(2, self.exit_code_in(directory, "/"))
+
+    def test_a_sibling_whose_name_extends_the_worktree_path_is_outside(self):
+        with tempfile.TemporaryDirectory() as parent:
+            worktree, sibling = os.path.join(parent, "wt"), os.path.join(parent, "wt2")
+            os.mkdir(worktree)
+            os.mkdir(sibling)
+            os.mkdir(os.path.join(worktree, "sub"))
+            self.assertEqual(2, self.exit_code_in(worktree, sibling))
+            self.assertEqual(0, self.exit_code_in(worktree, worktree))
+            self.assertEqual(0, self.exit_code_in(worktree, os.path.join(worktree, "sub")))
 
 
 class TestCopilotPayloads(unittest.TestCase):

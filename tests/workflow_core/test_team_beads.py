@@ -14,7 +14,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import TEAM, fake_cli, git, make_team_repo, path_with, run_cli  # noqa: E402
+from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with, run_cli  # noqa: E402
 from workflow_core import team_beads  # noqa: E402
 from workflow_core.team import TeamConfig, team_for_repo  # noqa: E402
 
@@ -70,7 +70,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = make_team_repo(Path(self.tmp.name) / "repo")
         git(self.root, "commit", "-q", "--allow-empty", "-m", "base")
-        bd(self.root, "init", "--prefix", "t", "-q")
+        init_beads(self.root)
 
     def tearDown(self):
         self.tmp.cleanup()

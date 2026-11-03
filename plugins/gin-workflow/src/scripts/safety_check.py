@@ -57,10 +57,20 @@ COMMIT_VALUE_OPT_RE = pattern(r"^(-[^-mfcstu]*[mfc]|--(message|file|author|date|
 CONFIG_ENV_ASSIGN_RE = pattern(r"GIT_CONFIG_(KEY_[0-9]+|PARAMETERS)=", True)
 HOOKS_KEY_RE = pattern(r"core\.hookspath|alias\.", True)
 CONFIG_ENV_FLAG_RE = pattern(r"--config-env(=|\s+)(core\.hookspath|alias\.)", True)
-# `(.*?\s)??` prefers the first `core.hookspath`; a greedy group matched the last one, so a value followed by the
-# key again (`core.hooksPath /x core.hooksPath`) looked like a read. The outer `??` is needed too: `(.*?\s)?`
-# still enters the group and reaches the last key.
-HOOKS_CONFIG_RE = pattern(rf"\sconfig\s(.*?\s)??{QUOTE}core\.hookspath{QUOTE}(\s+(.*))?\Z", True)
+# `git config ... core.hooksPath [value]`: the first ` config ` word, then the first `core.hookspath` key after it
+# that starts a word and ends one. Two searches, each linear; one pattern spanning both retried every ` config `
+# against the rest of the text and was quadratic on a long run of `config` words. The first key is the one that
+# counts: a value followed by the key again (`core.hooksPath /x core.hooksPath`) is still a write.
+CONFIG_WORD_RE = pattern(r"\sconfig\s", True)
+HOOKS_KEY_VALUE_RE = pattern(rf"(?<=\s){QUOTE}core\.hookspath{QUOTE}(\s+(.*))?\Z", True)
+
+
+def hooks_config_match(text):
+    """The match for the key after the first ` config ` word; group 2 is the text after the key."""
+    config = CONFIG_WORD_RE.search(text)
+    return HOOKS_KEY_VALUE_RE.search(text, config.end()) if config else None
+
+
 UNSET_RE = pattern(r"(--unset|\sunset\s)", True)
 GET_RE = pattern(r"\s--get", True)
 # `sh -c`, `bash -o pipefail -lc`, `dash -c` or `eval` (see `wrapped_payloads`). Words before the `-c` flag are
@@ -349,13 +359,13 @@ def check_hooks_path(segment):
     for text in (segment.raw, segment.bare):
         if HOOKS_C_RE.search(text):
             block("-c core.hooksPath or -c alias.*")
-        match = HOOKS_CONFIG_RE.search(text)
+        match = hooks_config_match(text)
         if match:
             if UNSET_RE.search(text):
                 block("unsetting core.hooksPath")
             if GET_RE.search(text):
                 return
-            if (match.group(3) or "").replace(" ", ""):
+            if (match.group(2) or "").replace(" ", ""):
                 block("setting core.hooksPath")
 
 
@@ -391,6 +401,14 @@ def real_path(path):
     return resolved if os.path.isdir(os.path.dirname(resolved)) else None
 
 
+def inside(path, directory):
+    """Compare path components, so `/wt2` is not inside `/wt`; paths on different drives are not inside."""
+    try:
+        return os.path.commonpath([path, directory]) == directory
+    except ValueError:
+        return False
+
+
 def check_worktree(cwd):
     """Inside a worker with a worktree context, every operation stays inside it."""
     worktree = os.environ.get("WORKTREE_PATH", "")
@@ -398,7 +416,7 @@ def check_worktree(cwd):
         return
     real_cwd = real_path(cwd or ".") or ""
     real_worktree = real_path(worktree) or ""
-    if not real_cwd or not real_worktree or not real_cwd.startswith(real_worktree):
+    if not real_cwd or not real_worktree or not inside(real_cwd, real_worktree):
         print(f"Blocked: Operation directory ({real_cwd}) is outside the assigned worktree ({real_worktree}).",
               file=sys.stderr)
         raise SystemExit(BLOCK)

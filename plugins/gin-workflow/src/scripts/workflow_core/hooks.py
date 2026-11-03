@@ -144,6 +144,17 @@ def verify(root: Path, hook: str) -> int:
         return 0
     # Taken before the commands run, so the record names the tree they tested.
     tree = verification.clean_tree(root) if hook == "pre-push" else None
+    if tree:
+        try:
+            proven, _ = verification.check(root, "HEAD")
+        except Exception as error:  # an unreadable record file never blocks the hook; the commands run
+            print(f"gin-workflow {hook}: earlier runs not readable: {error}", file=sys.stderr)
+            proven = None
+        expected = {name for _, commands in scoped for name, _ in commands}
+        if proven and expected <= set(proven["commands"]):
+            print(f"gin-workflow {hook}: {', '.join(sorted(expected))} already passed on this tree "
+                  f"(recorded {proven['recorded_at']}); nothing to rerun", file=sys.stderr)
+            return 0
     env = {key: value for key, value in os.environ.items() if key not in _GIT_ENV}
     for cwd, commands in scoped:
         code = _run_commands(hook, commands, cwd, env)
