@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
-import shutil
 import subprocess
 from typing import Any, Callable
 
 from .executable_resolver import PROVIDER_EXE_ALIASES
+from .executables import tool
 
 FRONTEND_JS = {"react", "vue", "svelte", "next", "nuxt", "@angular/core", "solid-js", "preact", "astro"}
 BACKEND_JS = {"express", "@nestjs/core", "fastify", "koa", "hono"}
@@ -167,7 +167,7 @@ def _codegraph(root: Path, which: Callable[[str], str | None]) -> dict[str, bool
     return {"installed": which("codegraph") is not None, "indexed": indexed, "stale": stale}
 
 
-def detect_project(root: Path, *, which: Callable[[str], str | None] = shutil.which) -> dict[str, Any]:
+def detect_project(root: Path, *, which: Callable[[str], str | None] = tool) -> dict[str, Any]:
     root = Path(root).resolve()
     manifests = [n for n in ("package.json", "pyproject.toml", "requirements.txt", "go.mod", "Cargo.toml") if (root / n).is_file()]
     shape: str | None = None
