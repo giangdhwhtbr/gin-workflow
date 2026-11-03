@@ -153,7 +153,6 @@ class CodexTests(unittest.TestCase):
             count(500, 400, 0, 100, "2026-10-04T09:00:04Z"),
         ])
 
-    @unittest.skipIf(os.name == "nt", "asserts a '/'-separated POSIX cwd")
     def test_per_turn_records_with_uncached_input(self):
         scan = codex_records(self.repo, self.root)
         self.assertEqual(scan.status, "ok")
@@ -162,7 +161,7 @@ class CodexTests(unittest.TestCase):
         first = scan.records[0]
         self.assertEqual((first.harness, first.model, first.session_id, first.branch, first.cache_write, first.role),
                          ("codex", "gpt-6-astra", "c1", "feat/x", 0, "main"))
-        self.assertTrue(first.cwd.endswith("/.planning/worktrees/ep1"))
+        self.assertEqual(Path(first.cwd).parts[-3:], (".planning", "worktrees", "ep1"))
         self.assertNotIn(SECRET, repr(scan))
 
     def test_missing_root_and_env_root(self):

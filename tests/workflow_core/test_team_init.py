@@ -26,13 +26,13 @@ class TestTeamInit(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    @unittest.skipIf(os.name == "nt", "checks POSIX permission bits")
     def test_github_files_rerun_and_codeowners(self):
         root = make_team_repo(self.base / "gh")
         result = run_cli(root, "team", "init")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([f"wrote {item}" for item in GITHUB], result.stdout.splitlines())
-        self.assertEqual(0o755, (root / ".githooks/commit-msg").stat().st_mode & 0o777)
+        if os.name != "nt":  # POSIX permission bits
+            self.assertEqual(0o755, (root / ".githooks/commit-msg").stat().st_mode & 0o777)
         self.assertEqual([f"unchanged {item}" for item in GITHUB], run_cli(root, "team", "init").stdout.splitlines())
         owners = (root / ".github/CODEOWNERS").read_text()
         for line in ("/services/** @binh-dev", "/tests/services/** @binh-dev", "/web/** @chi-fe",
