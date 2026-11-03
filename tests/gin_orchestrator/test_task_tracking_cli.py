@@ -180,9 +180,6 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual(("closed", "-done"), (closed.value.status, closed.value.closure_reason))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class NativeArgvTests(unittest.TestCase):
     REST = ["task", "update", "t-1", '--append-notes=a "b"\nc', "--json"]
@@ -221,6 +218,10 @@ class NativeArgvTests(unittest.TestCase):
                 mock.patch.object(task_tracking_cli.shutil, "which", return_value="C:\\bin\\gin-workflow.exe"):
             self.assertEqual(task_tracking_cli._native_argv(["gin-workflow", *self.REST]), ["C:\\bin\\gin-workflow.exe", *self.REST])
 
-    @unittest.skipIf(os.name == "nt", "POSIX passthrough")
+    @unittest.skipUnless(os.name == "posix", "POSIX passthrough")
     def test_posix_unchanged(self):
         self.assertEqual(task_tracking_cli._native_argv(["gin-workflow", *self.REST]), ["gin-workflow", *self.REST])
+
+
+if __name__ == "__main__":
+    unittest.main()
