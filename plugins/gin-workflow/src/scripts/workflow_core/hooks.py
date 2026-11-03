@@ -145,7 +145,11 @@ def verify(root: Path, hook: str) -> int:
     # Taken before the commands run, so the record names the tree they tested.
     tree = verification.clean_tree(root) if hook == "pre-push" else None
     if tree:
-        proven, _ = verification.check(root, "HEAD")
+        try:
+            proven, _ = verification.check(root, "HEAD")
+        except Exception as error:  # an unreadable record file never blocks the hook; the commands run
+            print(f"gin-workflow {hook}: earlier runs not readable: {error}", file=sys.stderr)
+            proven = None
         expected = {name for _, commands in scoped for name, _ in commands}
         if proven and expected <= set(proven["commands"]):
             print(f"gin-workflow {hook}: {', '.join(sorted(expected))} already passed on this tree "
