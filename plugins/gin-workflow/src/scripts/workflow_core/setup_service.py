@@ -6,7 +6,6 @@ import copy
 import difflib
 import os
 from pathlib import Path
-import shutil
 from typing import Any, Iterable, Mapping
 
 from .atomic import atomic_write_many, atomic_write_bytes
@@ -16,6 +15,7 @@ from .checkout import main_checkout
 from .configuration import legacy_worker_routing, require_yaml, resolve_effective_config, validate_portable_config
 from .project import preset_assignments, project_settings
 from .project_detect import detect_project
+from .executables import detect as detect_tools, doctor_report as executables_report, tool, write_local
 from .migrations import (
     CURRENT_VERSION,
     apply_migration,
@@ -40,6 +40,7 @@ INIT_ACTIONS = [
     "generate .agent-workflow/generated/effective-config.yaml",
     "generate .agent-workflow/generated/config-provenance.yaml",
     "write .agent-workflow/.gitignore",
+    "write .agent-workflow/executables.local.yaml",
 ]
 
 
@@ -95,6 +96,7 @@ LOCAL_GITIGNORE_ENTRIES = (
     "backups/",
     "orchestrator.local.yaml",
     "providers.local.yaml",
+    "executables.local.yaml",
 )
 
 
@@ -158,7 +160,7 @@ def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[st
         "detected_harnesses": detected,
         "harness": selected,
         "project": detect_project(root),
-        "beads_installed": shutil.which("bd") is not None,
+        "beads_installed": tool("bd", root) is not None,
         "actions": [],
     }
 
@@ -267,6 +269,7 @@ def initialize(
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
     }
     atomic_write_many(writes)
+    write_local(root, detect_tools(root=root))
     for relative in ("backups", "references", "runtime/evidence"):
         (workflow / relative).mkdir(parents=True, exist_ok=True)
     agents_block.write(agents_writes)
@@ -373,7 +376,10 @@ def refresh(repository: Path, *, dry_run: bool = False, **_: Any) -> dict[str, A
     actions = [
         "generate .agent-workflow/generated/effective-config.yaml",
         "generate .agent-workflow/generated/config-provenance.yaml",
+        "write .agent-workflow/executables.local.yaml",
     ]
+    if not dry_run:
+        write_local(root, detect_tools(root=root))
     if writes:
         actions.append("update AGENTS.md gin-workflow block")
     return {
@@ -451,6 +457,12 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         backend_actions.append(
             f"main harness {h}: executable not found on PATH" if h else "main harness is not configured; run gin-workflow setup init"
         )
+
+    require_bd = (effective_cfg.get("providers") or {}).get("task_tracking") == "beads"
+    ok, details, exe_actions = executables_report(root, require_bd=require_bd)
+    checks["executables"] = ok
+    checks_details["executables"] = details
+    backend_actions.extend(exe_actions)
 
     hook_actions: list[str] = []
     if checks["configuration"]:

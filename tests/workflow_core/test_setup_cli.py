@@ -104,8 +104,11 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
             lines = (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8").splitlines()
             self.assertEqual(
-                ["generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml"], lines
+                ["generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml",
+                 "executables.local.yaml"], lines
             )
+            written = repository / ".agent-workflow/executables.local.yaml"
+            self.assertIn("git:", written.read_text(encoding="utf-8"))
 
     def test_init_merges_existing_gitignore_without_duplicates(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -118,7 +121,8 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("custom.tmp", lines[0])
             self.assertEqual(1, lines.count("runtime/"))
             self.assertEqual(
-                {"generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml"},
+                {"generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml",
+                 "executables.local.yaml"},
                 set(lines) - {"custom.tmp"},
             )
 
@@ -272,6 +276,7 @@ class SetupCliTests(unittest.TestCase):
                     "generate .agent-workflow/generated/effective-config.yaml",
                     "generate .agent-workflow/generated/config-provenance.yaml",
                     "write .agent-workflow/.gitignore",
+                    "write .agent-workflow/executables.local.yaml",
                     "write AGENTS.md gin-workflow block",
                     "add @AGENTS.md to CLAUDE.md",
                 ],
@@ -468,6 +473,42 @@ class SetupCliTests(unittest.TestCase):
                 str(fake_claude.resolve()),
             )
 
+    def test_refresh_rewrites_executables_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            target = repository / ".agent-workflow/executables.local.yaml"
+            gone = str(repository / "gone" / "bd")
+            target.write_text(f"executables:\n  bd: {gone}\n", encoding="utf-8")
+            self.assertEqual(0, self.run_cli(repository, "refresh").returncode)
+            self.assertNotIn(gone, target.read_text(encoding="utf-8"))
+
+    def test_doctor_reports_stale_and_missing_executables(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            target = repository / ".agent-workflow/executables.local.yaml"
+            target.write_text(f"executables:\n  gh: {repository / 'gone' / 'gh'}\n", encoding="utf-8")
+            report = json.loads(self.run_cli(repository, "doctor", "--format", "json").stdout)
+            self.assertFalse(report["checks"]["executables"])
+            self.assertEqual(["gh"], report["checks_details"]["executables"]["stale"])
+            self.assertTrue(any("setup refresh" in action for action in report["actions"]))
+            self.assertEqual(0, self.run_cli(repository, "refresh").returncode)
+            report = json.loads(self.run_cli(repository, "doctor", "--format", "json").stdout)
+            self.assertTrue(report["checks"]["executables"])
+
+    def test_doctor_lists_missing_optional_tools_without_failing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            (repository / ".agent-workflow/executables.local.yaml").unlink()
+            python_dir = os.path.dirname(sys.executable)
+            report = json.loads(self.run_cli(
+                repository, "doctor", "--format", "json", env={**os.environ, "PATH": python_dir}
+            ).stdout)
+            self.assertIn("glab", report["checks_details"]["executables"]["missing"])
+            self.assertTrue(report["checks"]["executables"])
+
     def test_doctor_explains_a_missing_main_harness_executable(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
@@ -524,9 +565,11 @@ class SetupCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
             repository = Path(directory)
             subprocess.run(["git", "init"], cwd=repository, check=True, capture_output=True)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
-            self.assertEqual(0, initialized.returncode, initialized.stderr)
             git_dir = str(Path(shutil.which("git")).parent)
+            # init with only git on PATH, so executables.local.yaml records no codegraph path
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive",
+                                       env={**os.environ, "PATH": git_dir})
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
             missing = self.run_cli(repository, "doctor", env={**os.environ, "PATH": git_dir})
             self.assertEqual(0, missing.returncode, missing.stderr)
             graph = json.loads(missing.stdout)["checks_details"]["codegraph"]

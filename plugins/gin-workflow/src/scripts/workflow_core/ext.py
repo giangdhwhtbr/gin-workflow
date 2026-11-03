@@ -20,6 +20,7 @@ from .catalog import (
 )
 from .checkout import main_checkout
 from .configuration import load_effective_config, require_yaml
+from .executables import KNOWN_TOOLS, tool
 from .events import WorkflowEvent, WorkflowEventStore
 from .executable_resolver import PROVIDER_EXE_ALIASES, resolve_harness_executable
 from .identity import AcceptanceIdentity, RepositorySnapshot
@@ -53,6 +54,7 @@ __all__ = [
     "DEFAULT_CATALOGS",
     "DEFAULT_EXECUTABLES",
     "EffectiveConfig",
+    "KNOWN_TOOLS",
     "PROVIDER_DEFAULT",
     "PROVIDER_DEFAULT_PROVIDERS",
     "PROVIDER_EXE_ALIASES",
@@ -81,6 +83,7 @@ __all__ = [
     "resolve_harness_executable",
     "route_diagnostics",
     "thaw",
+    "tool",
     "tier_of",
     "validate_instance",
     "validate_plan_assignments",
