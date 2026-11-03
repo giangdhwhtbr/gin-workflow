@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python3 -m pip install PyYAML jsonschema
+      - run: python3 -m pip install PyYAML jsonschema pytest pytest-xdist
       - name: Stub claude CLI for the smoke test
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
@@ -23,9 +23,7 @@ jobs:
       - run: |
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
-      - run: python3 -m unittest tests/test_all.py -v
-        env:
-          PYTHONPATH: plugins/gin-workflow/src/scripts
+      - run: python3 -m pytest -n auto
       - run: python3 -m pip install -r requirements-docs.txt
       - run: mkdocs build --strict
       - if: ${{ !cancelled() }}
@@ -40,17 +38,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install PyYAML jsonschema
+      - run: python -m pip install PyYAML jsonschema pytest pytest-xdist
       - name: PyYAML for py -3, which the installed shim prefers
         run: py -3 -m pip install PyYAML
       - run: |
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
       - name: Unit tests, with a temp dir that has no 8.3 short name
-        run: python -m unittest tests/test_all.py -v
+        run: python -m pytest -n auto
         env:
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
-          PYTHONPATH: plugins/gin-workflow/src/scripts
       - if: ${{ !cancelled() }}
         run: pwsh -NoProfile -File tests/install_smoke_test.ps1
