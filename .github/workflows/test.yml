@@ -4,12 +4,10 @@ on:
   pull_request:
 permissions:
   contents: read
-env:
-  PYTHONPATH: plugins/gin-workflow/src/scripts
 jobs:
   linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,11 +24,13 @@ jobs:
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
       - run: python3 -m unittest tests/test_all.py -v
+        env:
+          PYTHONPATH: plugins/gin-workflow/src/scripts
       - if: ${{ !cancelled() }}
         run: bash tests/install_smoke_test.sh
   windows:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     env:
       PYTHONUTF8: "1"
     steps:
@@ -49,5 +49,6 @@ jobs:
         env:
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
+          PYTHONPATH: plugins/gin-workflow/src/scripts
       - if: ${{ !cancelled() }}
         run: pwsh -NoProfile -File tests/install_smoke_test.ps1
