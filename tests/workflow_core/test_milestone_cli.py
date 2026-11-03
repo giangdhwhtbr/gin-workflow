@@ -15,7 +15,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import TEAM, make_team_repo  # noqa: E402
+from team_fixtures import TEAM, init_beads, make_team_repo  # noqa: E402
 from workflow_core import milestone_cli, team_beads  # noqa: E402
 
 CLI = SCRIPTS / "gin-workflow"
@@ -60,8 +60,7 @@ class MilestoneCliTests(unittest.TestCase):
         self._directory = tempfile.TemporaryDirectory()
         self.addCleanup(self._directory.cleanup)
         self.root = self.copy_template(self.beads_template, "repo")
-        subprocess.run(["bd", "init", "--prefix", "t", "-q"], cwd=self.root, check=True, capture_output=True,
-                       stdin=subprocess.DEVNULL, timeout=60)
+        init_beads(self.root)
 
     def copy_template(self, template, name):
         root = Path(self._directory.name) / name
@@ -365,7 +364,7 @@ class MilestoneTeamTests(unittest.TestCase):
 
     def repo(self, name, email, team=TEAM_TEXT):
         root = make_team_repo(Path(self._directory.name) / name, email=email, team=team)
-        self.bd(root, "init", "--prefix", "t", "-q")
+        init_beads(root)
         self.bd(root, "create", "M1", "--id", "t-m1", "--type", "milestone",
                 "--metadata", '{"start":"2026-11-02","end":"2026-11-04"}')
         return root

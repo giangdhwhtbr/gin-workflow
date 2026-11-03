@@ -13,7 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import tasks  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
-from tests.workflow_core.team_fixtures import make_team_repo  # noqa: E402
+from tests.workflow_core.team_fixtures import init_beads, make_team_repo  # noqa: E402
 
 CLI = SCRIPTS / "gin-workflow"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
@@ -157,7 +157,7 @@ class ExternalDependencyTests(unittest.TestCase):
         for root, prefix in ((self.provider, "p"), (self.consumer, "c")):
             root.mkdir()
             subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-            self.bd(root, "init", "--prefix", prefix, "-q")
+            init_beads(root, prefix)
         self.bd(self.consumer, "config", "set", "external_projects.prov", "../prov/.beads")
         (self.consumer / ".claude").mkdir(exist_ok=True)
         gw(self.consumer, "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
