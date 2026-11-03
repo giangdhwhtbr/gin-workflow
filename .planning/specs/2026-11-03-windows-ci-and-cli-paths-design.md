@@ -70,7 +70,8 @@ Each `shutil.which("<name>")` below becomes `tool("<name>")` (with the repositor
 - `gh`/`glab`: `workflow_core/team_host.py:36` (`_run`), `workflow_core/specs_trace.py:61`.
 - `gin-workflow`: `gin_orchestrator/cli.py:187`, the `gin-orchestrator` launcher `main()`, `gin_qa/reqs.py:35`. `gin_orchestrator/task_tracking_cli.py:124` keeps its `executable="gin-workflow"` default but resolves it with `tool` when the caller passes none.
 - `gin-orchestrator`: `workflow_core/orchestrator_client.py:26` and `:48`.
-- `npm`: `gin_orchestrator/workspace.py:171`; `npx`: `gin_qa/e2e.py:175`.
+- `npm`: `gin_orchestrator/workspace.py:171`.
+- Amended 2026-11-03 after CI: gin-qa (`gin_qa/reqs.py`, `gin_qa/e2e.py`) stays on `shutil.which`. Its launcher imports nothing from gin-workflow and the installed copy has no `workflow_core` on `sys.path`, so an import of `workflow_core.ext` broke the installed `gin-qa`. gin-qa needs the `gin-workflow` CLI on `PATH`, not its library.
 - `codegraph`: `workflow_core/project_detect.py:167`. `detect_project` keeps its injectable `which` parameter (`project_detect.py:170`); its default becomes `tool`.
 
 `git` call sites are unchanged (out of scope).

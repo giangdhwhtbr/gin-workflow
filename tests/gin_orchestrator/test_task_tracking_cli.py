@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -34,7 +35,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         (self.root / ".claude").mkdir()
         subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i"],
                        cwd=self.root, check=True)
-        subprocess.run(["gin-workflow", "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
+        subprocess.run([shutil.which("gin-workflow"), "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
                         "--set", "providers.task_tracking=markdown"], cwd=self.root, check=True, capture_output=True)
         self.provider = CliTaskTrackingProvider(self.root)
 

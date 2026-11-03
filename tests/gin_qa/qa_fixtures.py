@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -48,7 +49,7 @@ def qa(root: Path, bin_dir: Path | None, *args: str, group: str = "cases",
 
 
 def hash8(root: Path, bin_dir: Path, req: str) -> str:
-    result = subprocess.run([str(bin_dir / "gin-workflow"), "specs", "reqs", "--repository", str(root),
+    result = subprocess.run([shutil.which("gin-workflow", path=str(bin_dir)), "specs", "reqs", "--repository", str(root),
                              "--format", "json"], capture_output=True, text=True, check=True)
     rows = [row for row in json.loads(result.stdout)["requirements"] if row["id"] == req]
     return rows[-1]["hash"][:8]

@@ -204,7 +204,7 @@ executables:
   bd: /home/me/.local/bin/bd
 ```
 
-A configured path is used while it is an executable file; otherwise the command falls back to `PATH`. A missing or invalid file never fails a command. `setup doctor` reports `stale`, `unconfigured`, `missing`, and `problems` under `checks_details.executables`. The file is not committed and is not exported in bundles.
+A configured path is used while it is an executable file; otherwise the command falls back to `PATH`. A missing or invalid file never fails a command. `setup doctor` reports `stale`, `unconfigured`, `missing`, and `problems` under `checks_details.executables`. The file is not committed and is not exported in bundles. gin-qa does not read it: it imports nothing from gin-workflow and finds `gin-workflow` and `npx` on `PATH`.
 
 ## `usage-prices.yaml`
 

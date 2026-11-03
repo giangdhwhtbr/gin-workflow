@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -107,7 +108,7 @@ class TestChanges(QaCase):
                          case("TC-AUTH-003", self.ref("REQ-AUTH-003")))
         self.assertEqual([], self.findings())
         commit_all(self.root)
-        result = subprocess.run([str(self.bin / "gin-workflow"), "specs", "archive", "--change", "ep-1",
+        result = subprocess.run([shutil.which("gin-workflow", path=str(self.bin)), "specs", "archive", "--change", "ep-1",
                                  "--repository", str(self.root)], capture_output=True, text=True)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual([], self.findings())
