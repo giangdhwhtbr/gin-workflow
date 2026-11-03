@@ -96,7 +96,8 @@ def beads_seed(prefix: str = "t") -> Path:
 
 
 def init_beads(root: Path, prefix: str = "t") -> None:
-    """What `bd init --prefix <prefix> -q` leaves in `root`, from the seed."""
+    """The `.beads` directory `bd init --prefix <prefix> -q` creates, copied from the seed (not the CLAUDE.md,
+    AGENTS.md, .claude and .agents files or the .git/info/exclude entries bd init also writes)."""
     shutil.copytree(beads_seed(prefix), Path(root) / ".beads")
 
 
