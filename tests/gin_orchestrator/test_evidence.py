@@ -2,7 +2,8 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import os
 import json
-import multiprocessing
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -125,19 +126,26 @@ class StaticEvidenceAuthority:
 
 
 
-def _record_from_process(index_path, evidence_id, start, outcomes):
-    start.wait()
-    result = FileEvidenceProvider(Path(index_path)).record(
-        EvidenceRecord(
-            evidence_id=evidence_id,
-            task_id="task-concurrent",
-            category=EvidenceCategory.TESTS,
-            outcome="passed",
-            reference=evidence_id,
-        ),
-        idempotency_key=evidence_id,
-    )
-    outcomes.put(result.status.value)
+# Child for the concurrency test: imports first, then waits for stdin to close so all children record at once.
+_RECORD_CHILD = """
+import sys
+from pathlib import Path
+from gin_orchestrator.contracts import EvidenceCategory, EvidenceRecord
+from gin_orchestrator.evidence import FileEvidenceProvider
+sys.stdin.read()
+index_path, evidence_id = sys.argv[1:]
+result = FileEvidenceProvider(Path(index_path)).record(
+    EvidenceRecord(
+        evidence_id=evidence_id,
+        task_id="task-concurrent",
+        category=EvidenceCategory.TESTS,
+        outcome="passed",
+        reference=evidence_id,
+    ),
+    idempotency_key=evidence_id,
+)
+print(result.status.value)
+"""
 
 
 class EvidenceProviderTests(unittest.TestCase):
@@ -607,28 +615,35 @@ class EvidenceProviderTests(unittest.TestCase):
                     self.assertFalse(completeness.value.complete)
                     self.assertIn(category.value, completeness.value.missing_categories)
 
-    @unittest.skipIf(os.name == "nt", "needs the POSIX fork start method of multiprocessing")
     def test_concurrent_processes_record_without_lost_updates_or_temp_leaks(self):
         with tempfile.TemporaryDirectory() as directory:
             index = Path(directory) / "evidence.json"
-            context = multiprocessing.get_context("fork")
-            start = context.Event()
-            outcomes = context.Queue()
+            environment = {
+                **os.environ,
+                "PYTHONPATH": os.pathsep.join(str(path) for path in (paths.CORE_SCRIPTS, paths.ORCH_SCRIPTS)),
+            }
             processes = [
-                context.Process(
-                    target=_record_from_process,
-                    args=(str(index), f"evidence-{number}", start, outcomes),
+                subprocess.Popen(
+                    [sys.executable, "-c", _RECORD_CHILD, str(index), f"evidence-{number}"],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    env=environment,
                 )
                 for number in range(12)
             ]
             for process in processes:
-                process.start()
-            start.set()
+                process.stdin.close()
             for process in processes:
-                process.join(timeout=10)
+                process.wait(timeout=60)
+            outputs = []
+            for process in processes:
+                with process.stdout:
+                    outputs.append(process.stdout.read().strip())
 
-            self.assertTrue(all(process.exitcode == 0 for process in processes))
-            self.assertEqual(["success"] * 12, sorted(outcomes.get() for _ in processes))
+            self.assertEqual([0] * 12, [process.returncode for process in processes], outputs)
+            self.assertEqual(["success"] * 12, sorted(outputs))
             queried = FileEvidenceProvider(index).query(
                 EvidenceQuery(task_id="task-concurrent")
             )
