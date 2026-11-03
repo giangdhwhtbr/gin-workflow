@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 if str(SCRIPTS) not in sys.path:
@@ -62,8 +61,8 @@ import json, sys
 from pathlib import Path
 here = Path(__file__).resolve().parent
 with open(here / "calls.log", "a", encoding="utf-8") as log:
-    log.write(json.dumps([Path(sys.argv[0]).name, *sys.argv[1:]]) + "\\n")
-rules = json.loads((here / (Path(sys.argv[0]).name + ".json")).read_text(encoding="utf-8"))
+    log.write(json.dumps([Path(sys.argv[0]).stem, *sys.argv[1:]]) + "\\n")
+rules = json.loads((here / (Path(sys.argv[0]).stem + ".json")).read_text(encoding="utf-8"))
 argv = sys.argv[1:]
 best = None
 for rule in rules:
@@ -108,11 +107,14 @@ def write(root: Path, relative: str, text: str) -> Path:
 
 def fake_cli(bin_dir: Path, name: str, rules: list[dict]) -> Path:
     """An executable `name` on `bin_dir` answering by longest argv prefix; every call is logged to calls.log."""
-    if os.name == "nt":
-        raise unittest.SkipTest(f"the fake {name} runs through its #! line, which needs POSIX")
     bin_dir = Path(bin_dir)
     bin_dir.mkdir(parents=True, exist_ok=True)
     (bin_dir / f"{name}.json").write_text(json.dumps(rules), encoding="utf-8")
+    if os.name == "nt":
+        (bin_dir / f"{name}.py").write_text(FAKE.format(python=sys.executable), encoding="utf-8")
+        path = bin_dir / f"{name}.cmd"
+        path.write_text(f'@"{sys.executable}" "%~dp0{name}.py" %*\r\n', encoding="utf-8", newline="")
+        return path
     path = bin_dir / name
     path.write_text(FAKE.format(python=sys.executable), encoding="utf-8")
     path.chmod(0o755)

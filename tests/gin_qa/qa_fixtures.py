@@ -21,18 +21,27 @@ QA_LAUNCHER = ROOT / "plugins/gin-qa/src/scripts/gin-qa"
 
 def gin_workflow_bin(base: Path, body: str = "") -> Path:
     """A bin directory whose `gin-workflow` runs this checkout's launcher (or `body` when given)."""
-    if os.name == "nt":
-        raise unittest.SkipTest("the gin-workflow stub is a #!/bin/sh script, which needs POSIX")
     bin_dir = Path(base) / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        script = bin_dir / "gin-workflow.cmd"
+        script.write_text(body or f'@"{sys.executable}" "{LAUNCHER}" %*\r\n', encoding="utf-8", newline="")
+        return bin_dir
     script = bin_dir / "gin-workflow"
     script.write_text(body or f'#!/bin/sh\nexec "{sys.executable}" "{LAUNCHER}" "$@"\n', encoding="utf-8")
     script.chmod(0o755)
     return bin_dir
 
 
+def failing_stub(stderr: str, code: int) -> str:
+    """A `gin-workflow` stub body that prints `stderr` and exits `code`."""
+    if os.name == "nt":
+        return f'@echo {stderr} 1>&2\r\n@exit {code}\r\n'
+    return f'#!/bin/sh\necho "{stderr}" >&2\nexit {code}\n'
+
+
 def qa(root: Path, bin_dir: Path | None, *args: str, group: str = "cases",
-       path: str = "/usr/bin:/bin") -> subprocess.CompletedProcess[str]:
+       path: str = os.defpath) -> subprocess.CompletedProcess[str]:
     search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
     return subprocess.run([sys.executable, str(QA_LAUNCHER), group, *args, "--repository", str(root)],
                           capture_output=True, text=True, env={**os.environ, "PATH": search})

@@ -12,7 +12,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
-from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, cases_file, commit_all, delta, gin_workflow_bin,  # noqa: E402
+from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, cases_file, commit_all, delta, failing_stub, gin_workflow_bin,  # noqa: E402
                          hash8, make_change, make_repo, qa, write)
 from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
 
@@ -244,7 +244,7 @@ class TestLegacyAndEnvironment(unittest.TestCase):
         result = qa(root, None, "check")
         self.assertEqual(2, result.returncode)
         self.assertIn("gin-workflow is not on PATH", result.stderr)
-        old = gin_workflow_bin(self.base / "old", "#!/bin/sh\necho \"error: argument command: invalid choice: 'reqs'\" >&2\nexit 2\n")
+        old = gin_workflow_bin(self.base / "old", failing_stub("error: argument command: invalid choice: 'reqs'", 2))
         result = qa(root, old, "check")
         self.assertEqual(2, result.returncode)
         self.assertIn("no `specs reqs`; reinstall a newer gin-workflow", result.stderr)
