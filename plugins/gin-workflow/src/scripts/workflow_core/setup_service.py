@@ -6,7 +6,6 @@ import copy
 import difflib
 import os
 from pathlib import Path
-import shutil  # noqa: F401  tests patch workflow_core.setup_service.shutil.which
 from typing import Any, Iterable, Mapping
 
 from .atomic import atomic_write_many, atomic_write_bytes

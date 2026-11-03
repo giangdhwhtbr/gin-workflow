@@ -12,12 +12,17 @@ from .checkout import main_checkout
 from .configuration import require_yaml
 
 KNOWN_TOOLS = ("git", "bd", "gh", "glab", "npm", "npx", "gin-workflow", "gin-orchestrator", "codegraph")
-OPTIONAL_TOOLS = frozenset({"glab", "npx", "codegraph", "gin-orchestrator"})
 LOCAL_FILE = ".agent-workflow/executables.local.yaml"
 
 
 def _is_executable(path: str) -> bool:
     return os.path.isfile(path) and os.access(path, os.X_OK)
+
+
+@functools.lru_cache(maxsize=None)
+def _base(root: Path | None) -> Path:
+    """The main checkout that owns `root`; cached so each tool() call costs no git subprocess."""
+    return main_checkout((Path(root) if root else Path.cwd()).resolve())
 
 
 @functools.lru_cache(maxsize=None)
@@ -46,26 +51,25 @@ def _load(root: Path) -> tuple[dict[str, str], tuple[str, ...]]:
 
 
 def clear_cache() -> None:
+    _base.cache_clear()
     _load.cache_clear()
 
 
 def read_local(root: Path) -> tuple[dict[str, str], list[str]]:
-    found, problems = _load(main_checkout(Path(root).resolve()))
+    found, problems = _load(_base(root))
     return dict(found), list(problems)
 
 
 def tool(name: str, root: Path | None = None) -> str | None:
     """The configured path of `name` while it is an executable file, else the PATH lookup."""
-    base = main_checkout((Path(root) if root else Path.cwd()).resolve())
-    configured = _load(base)[0].get(name)
+    configured = _load(_base(root))[0].get(name)
     if configured and _is_executable(configured):
         return configured
     return shutil.which(name)
 
 
 def detect(names: Iterable[str] = KNOWN_TOOLS, root: Path | None = None) -> dict[str, str]:
-    base = main_checkout((Path(root) if root else Path.cwd()).resolve())
-    current = _load(base)[0]
+    current = _load(_base(root))[0]
     found: dict[str, str] = {}
     for name in names:
         keep = current.get(name)
@@ -76,7 +80,7 @@ def detect(names: Iterable[str] = KNOWN_TOOLS, root: Path | None = None) -> dict
 
 
 def write_local(root: Path, found: Mapping[str, str]) -> Path:
-    path = main_checkout(Path(root).resolve()) / LOCAL_FILE
+    path = _base(root) / LOCAL_FILE
     lines = ['schema_version: "2.9"', "executables:"] + [f"  {k}: {v}" for k, v in found.items()]
     atomic_write_text(path, "\n".join(lines) + "\n")
     clear_cache()
@@ -84,7 +88,7 @@ def write_local(root: Path, found: Mapping[str, str]) -> Path:
 
 
 def doctor_report(root: Path, *, require_bd: bool) -> tuple[bool, dict[str, Any], list[str]]:
-    base = main_checkout(Path(root).resolve())
+    base = _base(root)
     configured, problems = read_local(base)
     stale = sorted(n for n, p in configured.items() if not _is_executable(p))
     unconfigured = [n for n in KNOWN_TOOLS if n not in configured]

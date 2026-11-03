@@ -167,8 +167,10 @@ def _codegraph(root: Path, which: Callable[[str], str | None]) -> dict[str, bool
     return {"installed": which("codegraph") is not None, "indexed": indexed, "stale": stale}
 
 
-def detect_project(root: Path, *, which: Callable[[str], str | None] = tool) -> dict[str, Any]:
+def detect_project(root: Path, *, which: Callable[[str], str | None] | None = None) -> dict[str, Any]:
     root = Path(root).resolve()
+    if which is None:
+        which = lambda name: tool(name, root)  # noqa: E731
     manifests = [n for n in ("package.json", "pyproject.toml", "requirements.txt", "go.mod", "Cargo.toml") if (root / n).is_file()]
     shape: str | None = None
     commands, stack, pm, packages = _empty_commands(), [], "", []

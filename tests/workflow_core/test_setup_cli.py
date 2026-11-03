@@ -565,9 +565,11 @@ class SetupCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
             repository = Path(directory)
             subprocess.run(["git", "init"], cwd=repository, check=True, capture_output=True)
-            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive")
-            self.assertEqual(0, initialized.returncode, initialized.stderr)
             git_dir = str(Path(shutil.which("git")).parent)
+            # init with only git on PATH, so executables.local.yaml records no codegraph path
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive",
+                                       env={**os.environ, "PATH": git_dir})
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
             missing = self.run_cli(repository, "doctor", env={**os.environ, "PATH": git_dir})
             self.assertEqual(0, missing.returncode, missing.stderr)
             graph = json.loads(missing.stdout)["checks_details"]["codegraph"]

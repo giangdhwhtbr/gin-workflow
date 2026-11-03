@@ -106,7 +106,7 @@ class TaskDispatchTests(unittest.TestCase):
         from workflow_core import setup_service
 
         for found, expected in (("/opt/bd", True), (None, False)):
-            with mock.patch("workflow_core.setup_service.shutil.which", return_value=found):
+            with mock.patch("workflow_core.executables.shutil.which", return_value=found):
                 self.assertIs(expected, setup_service.detect(self.root)["beads_installed"])
 
     def test_team_mode_rejects_markdown_task_tracking(self):
