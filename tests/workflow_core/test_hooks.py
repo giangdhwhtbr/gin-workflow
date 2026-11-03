@@ -310,7 +310,7 @@ class TestPassingRunRecords(unittest.TestCase):
         self.assertEqual((found["hook"], found["commands"]), ("pre-push", ["test"]))
 
     def test_pre_push_skips_commands_already_proven_on_the_tree(self):
-        root = self.other("b", test="echo run >> ran.txt")
+        root = self.other("b", test="echo run>> ran.txt")
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
             self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
@@ -322,7 +322,7 @@ class TestPassingRunRecords(unittest.TestCase):
         self.assertEqual("run\n", (root / "ran.txt").read_text())
 
     def test_pre_push_reruns_when_the_record_lacks_a_configured_command(self):
-        root = self.other("b", test="echo run >> ran.txt")
+        root = self.other("b", test="echo run>> ran.txt")
         verification.record(root, "pre-push", git(root, "rev-parse", "HEAD^{tree}"), ["pkg:test"])
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
@@ -330,7 +330,7 @@ class TestPassingRunRecords(unittest.TestCase):
         self.assertEqual(2, len(self.records(root)))
 
     def test_pre_push_reruns_on_a_different_tree(self):
-        root = self.other("b", test="echo run >> ran.txt")
+        root = self.other("b", test="echo run>> ran.txt")
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
             (root / "f.txt").write_text("z")
@@ -340,7 +340,7 @@ class TestPassingRunRecords(unittest.TestCase):
         self.assertEqual(2, len(self.records(root)))
 
     def test_pre_push_runs_when_the_record_file_is_unreadable(self):
-        root = self.other("b", test="echo run >> ran.txt")
+        root = self.other("b", test="echo run>> ran.txt")
         events = root / ".agent-workflow/runtime/events.jsonl"
         events.parent.mkdir(parents=True)
         events.write_text("not json\n")

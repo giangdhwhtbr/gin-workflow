@@ -28,7 +28,7 @@ def pages() -> list[Path]:
 def unlisted_pages(readme: str, docs_pages: list[Path]) -> list[str]:
     """Docs pages the README map does not link; translations (`*.vi.md`) are exempt."""
     linked = {(ROOT / target.split("#", 1)[0]).resolve() for target in LINK.findall(readme)}
-    return [str(p.relative_to(ROOT)) for p in docs_pages
+    return [p.relative_to(ROOT).as_posix() for p in docs_pages
             if not p.name.endswith(".vi.md") and p.resolve() not in linked]
 
 
