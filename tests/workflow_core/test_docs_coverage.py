@@ -25,6 +25,13 @@ def pages() -> list[Path]:
             *sorted(ROOT.glob("plugins/*/src/README.md"))]
 
 
+def unlisted_pages(readme: str, docs_pages: list[Path]) -> list[str]:
+    """Docs pages the README map does not link; translations (`*.vi.md`) are exempt."""
+    linked = {(ROOT / target.split("#", 1)[0]).resolve() for target in LINK.findall(readme)}
+    return [str(p.relative_to(ROOT)) for p in docs_pages
+            if not p.name.endswith(".vi.md") and p.resolve() not in linked]
+
+
 class DocsCoverageTests(unittest.TestCase):
     def test_every_skill_is_in_the_skills_reference(self):
         text = (DOCS / "reference/skills.md").read_text(encoding="utf-8")
@@ -51,10 +58,12 @@ class DocsCoverageTests(unittest.TestCase):
         self.assertEqual(dead, [])
 
     def test_every_docs_page_is_in_the_readme_map(self):
-        readme = ROOT / "README.md"
-        linked = {(ROOT / target.split("#", 1)[0]).resolve()
-                  for target in LINK.findall(readme.read_text(encoding="utf-8"))}
-        self.assertEqual([str(p.relative_to(ROOT)) for p in sorted(DOCS.rglob("*.md")) if p.resolve() not in linked], [])
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertEqual(unlisted_pages(readme, sorted(DOCS.rglob("*.md"))), [])
+
+    def test_translations_are_exempt_from_the_readme_map(self):
+        pages_ = [DOCS / "guides/qa.vi.md", DOCS / "guides/missing.md"]
+        self.assertEqual(unlisted_pages("[qa](docs/guides/qa.md)", pages_), ["docs/guides/missing.md"])
 
     def test_mermaid_blocks_name_a_diagram_type(self):
         bad = [f"{p.relative_to(ROOT)}: {kind}" for p in pages()

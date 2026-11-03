@@ -43,3 +43,6 @@ __pycache__/
 
 # CodeGraph index: machine-local database and daemon files
 .codegraph/
+
+# MkDocs output
+/site/

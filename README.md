@@ -4,6 +4,8 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 
 ## Documentation
 
+Read it on the [documentation site](https://giangdhwhtbr.github.io/gin-workflow/) in English or Vietnamese, or start from the [home page](docs/index.md) in this repository:
+
 | Start here | |
 |---|---|
 | [Getting started](docs/getting-started.md) | one feature from idea to merge with Claude Code |

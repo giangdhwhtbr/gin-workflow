@@ -26,6 +26,8 @@ jobs:
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
       - run: python3 -m unittest tests/test_all.py -v
+      - run: python3 -m pip install -r requirements-docs.txt
+      - run: mkdocs build --strict
       - if: ${{ !cancelled() }}
         run: bash tests/install_smoke_test.sh
   windows:

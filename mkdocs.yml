@@ -1,0 +1,115 @@
+site_name: gin-workflow
+site_url: https://giangdhwhtbr.github.io/gin-workflow/
+site_description: A workflow plugin that takes a change from requirement to merge through recorded gates.
+repo_url: https://github.com/giangdhwhtbr/gin-workflow
+repo_name: giangdhwhtbr/gin-workflow
+edit_uri: edit/master/docs/
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: vi
+          name: Tiếng Việt
+          build: true
+          nav_translations:
+            Home: Trang chủ
+            Getting started: Bắt đầu
+            Team roles: Vai trò trong nhóm
+            Starters: Khởi đầu
+            Concepts: Khái niệm
+            Guides: Hướng dẫn
+            Orchestrator: Điều phối
+            Reference: Tham chiếu
+            Contributing: Đóng góp
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    unrecognized_links: warn
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Team roles: roles.md
+  - Starters:
+      - Greenfield: starters/greenfield.md
+      - Brownfield and modernization: starters/brownfield-modernize.md
+      - Brownfield walkthrough: starters/brownfield-walkthrough.md
+  - Concepts:
+      - Architecture: concepts/architecture.md
+      - Lifecycle and gates: concepts/lifecycle.md
+      - State model: concepts/state-model.md
+      - Providers and routing: concepts/providers.md
+  - Guides:
+      - Use cases: guides/use-cases.md
+      - Customizing templates: guides/customizing-templates.md
+      - Recommended tools: guides/recommended-tools.md
+      - Windows: guides/windows.md
+      - Rule packs: guides/rules.md
+      - SDD living specs: guides/sdd.md
+      - Team mode: guides/team.md
+      - QA add-on: guides/qa.md
+      - AI usage report: guides/usage-report.md
+  - Orchestrator:
+      - Worker harnesses: orchestrator/README.md
+      - Routing and configuration: orchestrator/routing.md
+  - Reference:
+      - Skills: reference/skills.md
+      - CLI: reference/cli.md
+      - Configuration: reference/config.md
+      - Troubleshooting: reference/troubleshooting.md
+      - Orchestrator contract: reference/orchestrator-contract.md
+  - Contributing: contributing.md
