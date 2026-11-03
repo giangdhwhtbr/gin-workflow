@@ -13,6 +13,8 @@ import subprocess
 import sys
 from typing import Any
 
+from workflow_core.ext import tool
+
 from . import cases as tc
 from .reqs import Effective, QaError
 
@@ -172,7 +174,7 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
     """Runs the selected specs into a new evidence folder. Returns (folder, Playwright exit, check findings)."""
     if not (root / eff.e2e_dir / FIXTURE).is_file():
         raise QaError(f"{eff.e2e_dir}/{FIXTURE} is missing; run `gin-qa e2e init`")
-    npx = shutil.which("npx")
+    npx = tool("npx", root)
     if npx is None:
         raise QaError("npx is not on PATH; install Node.js")
     if _playwright(root) is None:

@@ -38,6 +38,21 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
                         "--set", "providers.task_tracking=markdown"], cwd=self.root, check=True, capture_output=True)
         self.provider = CliTaskTrackingProvider(self.root)
 
+    def test_default_executable_comes_from_tool_for_the_repository(self):
+        calls = []
+
+        def runner(argv, cwd):
+            calls.append(list(argv))
+            return subprocess.CompletedProcess(argv, 1, "", "stub")
+
+        with mock.patch("gin_orchestrator.task_tracking_cli.tool", return_value="/cfg/gin-workflow") as tool:
+            provider = CliTaskTrackingProvider(self.root, runner=runner)
+            provider.readiness("t1")
+
+        tool.assert_called_once()
+        self.assertEqual("gin-workflow", tool.call_args[0][0])
+        self.assertEqual(["/cfg/gin-workflow", "task"], calls[0][:2])
+
     def test_same_contract_scenario_as_the_fake_provider(self):
         provider = self.provider
         dependency = provider.create_task(TaskCreateRequest("dependency"), idempotency_key="dep")
@@ -101,7 +116,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
 
         provider = CliTaskTrackingProvider(self.root, runner=runner)
         self.assertEqual("t-1", provider.read_task("t-1").value.task_id)
-        self.assertEqual([(["gin-workflow", "task", "show", "t-1", "--json"], self.root.resolve())], calls)
+        self.assertEqual([([provider.executable, "task", "show", "t-1", "--json"], self.root.resolve())], calls)
 
     def test_failures_are_reported_not_raised(self):
         failing = CliTaskTrackingProvider(
@@ -132,9 +147,9 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
                              idempotency_key="c")
         provider.update_task("t-1", {"attributes": {"priority": 2}}, idempotency_key="u")
         self.assertEqual(
-            [["gin-workflow", "task", "create", "--title=T", "--status=in_progress", "--description=",
+            [[provider.executable, "task", "create", "--title=T", "--status=in_progress", "--description=",
               "--assignee=a", "--priority=1", "--json"],
-             ["gin-workflow", "task", "update", "t-1", "--priority=2", "--json"]],
+             [provider.executable, "task", "update", "t-1", "--priority=2", "--json"]],
             calls)
 
         calls.clear()

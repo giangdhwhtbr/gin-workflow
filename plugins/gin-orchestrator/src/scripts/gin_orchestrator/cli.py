@@ -7,7 +7,6 @@ import argparse
 from collections.abc import Mapping
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 from typing import Any, Sequence
@@ -24,6 +23,7 @@ from workflow_core.ext import (
     main_checkout,
     require_yaml,
     tier_of,
+    tool,
     validate_plan_assignments,
 )
 
@@ -184,7 +184,7 @@ def _configure(args: argparse.Namespace) -> dict[str, Any]:
         raise CliError("configure requires explicit --approve before changing configuration")
     # Portable keys first: gin-workflow may reject them, and then nothing local was written.
     if args.set:
-        gin_workflow = shutil.which("gin-workflow")
+        gin_workflow = tool("gin-workflow", root)
         if gin_workflow is None:
             raise CliError("gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator")
         done = subprocess.run([gin_workflow, "setup", "configure", *(a for s in args.set for a in ("--set", s)),
