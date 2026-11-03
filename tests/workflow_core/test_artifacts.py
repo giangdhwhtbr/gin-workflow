@@ -29,7 +29,7 @@ class ArtifactTests(unittest.TestCase):
             )
 
             self.assertEqual(repository / "custom/plans", resolve_artifact(config, "plans"))
-            self.assertEqual(Path("/shared/knowledge"), resolve_artifact(config, "knowledge"))
+            self.assertEqual(Path(shared), resolve_artifact(config, "knowledge"))
             for name, raw_path in configured.items():
                 expected = Path(raw_path)
                 if not expected.is_absolute():
