@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import atexit
+import functools
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
@@ -78,6 +82,22 @@ sys.stdout.write(out if isinstance(out, str) else json.dumps(out))
 sys.stderr.write(best.get("stderr", ""))
 sys.exit(best.get("exit", 0))
 """
+
+
+@functools.lru_cache(maxsize=None)
+def beads_seed(prefix: str = "t") -> Path:
+    """A `.beads` directory initialised once per prefix; `bd init` costs about 3 s, a copy a few ms."""
+    seed = Path(tempfile.mkdtemp(prefix="beads-seed-"))
+    atexit.register(shutil.rmtree, seed, ignore_errors=True)
+    subprocess.run(["git", "init", "-q"], cwd=seed, check=True)
+    subprocess.run(["bd", "init", "--prefix", prefix, "-q"], cwd=seed, check=True, capture_output=True,
+                   stdin=subprocess.DEVNULL, timeout=60)
+    return seed / ".beads"
+
+
+def init_beads(root: Path, prefix: str = "t") -> None:
+    """What `bd init --prefix <prefix> -q` leaves in `root`, from the seed."""
+    shutil.copytree(beads_seed(prefix), Path(root) / ".beads")
 
 
 def git(root: Path, *args: str) -> str:
