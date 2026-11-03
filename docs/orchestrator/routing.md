@@ -55,7 +55,7 @@ providers:
     executable: codex
 ```
 
-A full example ships with the plugin: `plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml`. Before schema 2.8 this file was `providers.local.yaml` and the worker keys sat under `routing`; `gin-workflow setup update --to-version 2.8 --approve` moves them ([upgrade notes](../reference/upgrade-2.0.md), [2.1](../reference/upgrade-2.1.md)). The schema 2.9 migration moves tier `models:` from this file into the catalog ([Versions and migration](../reference/config.md#versions-and-migration)).
+A full example ships with the plugin: `plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml`. Before schema 2.8 this file was `providers.local.yaml` and the worker keys sat under `routing`; `gin-workflow setup update --to-version 2.8 --approve` moves them. The schema 2.9 migration moves tier `models:` from this file into the catalog ([Versions and migration](../reference/config.md#versions-and-migration)).
 
 ## Rank mapping
 

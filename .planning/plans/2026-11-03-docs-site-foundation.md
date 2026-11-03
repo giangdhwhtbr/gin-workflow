@@ -94,6 +94,7 @@ execution_strategy:
   - Modify `docs/guides/recommended-tools.md:3,31` (absolute GitHub URLs)
   - Modify `docs/orchestrator/README.md:21` (absolute GitHub URL)
   - Modify `docs/reference/orchestrator-contract.md:5` (absolute GitHub URL)
+  - Modify `docs/reference/troubleshooting.md:80`, `docs/starters/greenfield.md:9` (absolute GitHub URLs)
   - Modify `tests/workflow_core/test_docs_coverage.py:22,89-94` (remove `STYLE_EXEMPT`)
   - Test `tests/workflow_core/test_docs_coverage.py`
 - **Provider role**: `docs`
@@ -116,11 +117,13 @@ Steps:
    ```
 3. Delete `docs/getting-started.md:94` (`- The lifecycle on slides: the [ADLC deck](presentations/adlc.html) ([PPTX](presentations/adlc.pptx)).`) and `docs/starters/brownfield-modernize.md:72` (`- [Brownfield modernization deck](../presentations/brownfield-modernization.html) ([PPTX](../presentations/brownfield-modernization.pptx)) for executive and team presentations.`). The surrounding lists keep their other bullets.
 4. `docs/orchestrator/routing.md:58`: replace `moves them ([upgrade notes](../reference/upgrade-2.0.md), [2.1](../reference/upgrade-2.1.md)). The schema 2.9 migration` with `moves them. The schema 2.9 migration`.
-5. Rewrite the four links that leave `docs/`:
+5. Rewrite the six links that leave `docs/`:
    - `docs/guides/recommended-tools.md:3`: `[required dependencies](../../README.md#dependencies)` becomes `[required dependencies](https://github.com/giangdhwhtbr/gin-workflow/blob/master/README.md#dependencies)`.
    - `docs/guides/recommended-tools.md:31`: `[stage contract](../../plugins/gin-workflow/src/references/stage-contract.md)` becomes `[stage contract](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-workflow/src/references/stage-contract.md)`.
    - `docs/orchestrator/README.md:21`: `[plugin README](../../plugins/gin-orchestrator/src/README.md)` becomes `[plugin README](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-orchestrator/src/README.md)`.
    - `docs/reference/orchestrator-contract.md:5`: `[the plugin README](../../plugins/gin-orchestrator/src/README.md)` becomes `[the plugin README](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-orchestrator/src/README.md)`.
+   - `docs/reference/troubleshooting.md:80`: `[Installation](../../README.md#installation)` becomes `[Installation](https://github.com/giangdhwhtbr/gin-workflow/blob/master/README.md#installation)`.
+   - `docs/starters/greenfield.md:9`: `[dependencies](../../README.md#dependencies)` becomes `[dependencies](https://github.com/giangdhwhtbr/gin-workflow/blob/master/README.md#dependencies)`.
 6. `tests/workflow_core/test_docs_coverage.py`: delete line 22 (`STYLE_EXEMPT = {...}`) and the blank line after it, and replace lines 89 to 94 with:
    ```python
        def test_pages_follow_the_mechanical_style_rules(self):

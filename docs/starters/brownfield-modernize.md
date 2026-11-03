@@ -69,7 +69,6 @@ Declare `team.areas` by path (`legacy/**`, `services/api/**`, `apps/web/**`) so 
 
 ## Related
 
-- [Brownfield modernization deck](../presentations/brownfield-modernization.html) ([PPTX](../presentations/brownfield-modernization.pptx)) for executive and team presentations.
 - [Brownfield walkthrough](brownfield-walkthrough.md) for the end-to-end flow with prompts.
 - [Team roles](../roles.md) for role ownership and reading paths.
 - [QA add-on](../guides/qa.md) for test cases and end-to-end automation.

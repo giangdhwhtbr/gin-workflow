@@ -13,7 +13,7 @@ A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and *
 | [Team roles](docs/roles.md) | who owns what in a team, and what each role reads |
 | Guides | [use cases](docs/guides/use-cases.md), [customizing templates](docs/guides/customizing-templates.md), [recommended tools](docs/guides/recommended-tools.md), [Windows](docs/guides/windows.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
 | Orchestrator | [worker harnesses (gin-orchestrator)](docs/orchestrator/README.md), [routing and configuration](docs/orchestrator/routing.md) |
-| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [orchestrator contract](docs/reference/orchestrator-contract.md), [upgrading to 2.0](docs/reference/upgrade-2.0.md), [upgrading to 2.1](docs/reference/upgrade-2.1.md), [ADLC deck](docs/presentations/adlc.html) ([PPTX](docs/presentations/adlc.pptx)), [Modernization deck](docs/presentations/brownfield-modernization.html) ([PPTX](docs/presentations/brownfield-modernization.pptx), [script](docs/presentations/brownfield-modernization-script.md)) |
+| Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [orchestrator contract](docs/reference/orchestrator-contract.md) |
 | [Contributing](docs/contributing.md) | build, test, release |
 
 ## Installation

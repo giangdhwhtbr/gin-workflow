@@ -77,7 +77,7 @@ Cause: gin-orchestrator looks for each provider executable on the `PATH` of the 
 
 ## A repository still hits a `gin-workflow` bug that was already fixed and shipped on `master`
 
-Cause: each harness runs the copy of the plugin taken at install time, and the `gin-workflow` CLI runs from its copy under `~/.local/lib/gin-workflow/2.9/`. Pushing a fix to `master` updates neither, even when the plugin version is unchanged. The steps below refresh the current host only; a machine that installed through a marketplace or `remote-install.sh` reruns its own install flow from [Installation](../../README.md#installation).
+Cause: each harness runs the copy of the plugin taken at install time, and the `gin-workflow` CLI runs from its copy under `~/.local/lib/gin-workflow/2.9/`. Pushing a fix to `master` updates neither, even when the plugin version is unchanged. The steps below refresh the current host only; a machine that installed through a marketplace or `remote-install.sh` reruns its own install flow from [Installation](https://github.com/giangdhwhtbr/gin-workflow/blob/master/README.md#installation).
 
 1. Commit the fix. Codex installs from the `git-subdir` source in `.claude-plugin/marketplace.json`, and a git source holds only committed content.
 2. Refresh every install on the host:

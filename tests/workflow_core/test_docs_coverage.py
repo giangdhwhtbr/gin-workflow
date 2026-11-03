@@ -19,8 +19,6 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core.docs_check import style_violations  # noqa: E402
 
-STYLE_EXEMPT = {"docs/presentations/brownfield-modernization-script.md"}  # headings map to slide numbers
-
 
 def pages() -> list[Path]:
     return [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "CLAUDE.md", *sorted(DOCS.rglob("*.md")),
@@ -89,7 +87,6 @@ class DocsCoverageTests(unittest.TestCase):
     def test_pages_follow_the_mechanical_style_rules(self):
         problems = [f"{page.relative_to(ROOT).as_posix()}:{found}"
                     for page in [ROOT / "README.md", *sorted(DOCS.rglob("*.md"))]
-                    if page.relative_to(ROOT).as_posix() not in STYLE_EXEMPT
                     for found in style_violations(page.read_text(encoding="utf-8"))]
         self.assertEqual(problems, [])
 

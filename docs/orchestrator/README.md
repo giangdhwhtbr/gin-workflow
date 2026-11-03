@@ -18,7 +18,7 @@ From a gin-workflow clone:
 ./install.sh --plugin gin-orchestrator
 ```
 
-This installs gin-workflow too, when it is missing. On Windows use `.\install.ps1 -Plugin gin-orchestrator`. Then, in each repository, run `/gin-orchestrator:providers` once. It writes the `orchestrator:` section of `.agent-workflow/config.yaml` and `.agent-workflow/orchestrator.local.yaml`, turns on `provider_mode: multi`, and probes each harness ([Routing](routing.md#setting-it-up)). Details of the install and of the dependency on gin-workflow: the [plugin README](../../plugins/gin-orchestrator/src/README.md).
+This installs gin-workflow too, when it is missing. On Windows use `.\install.ps1 -Plugin gin-orchestrator`. Then, in each repository, run `/gin-orchestrator:providers` once. It writes the `orchestrator:` section of `.agent-workflow/config.yaml` and `.agent-workflow/orchestrator.local.yaml`, turns on `provider_mode: multi`, and probes each harness ([Routing](routing.md#setting-it-up)). Details of the install and of the dependency on gin-workflow: the [plugin README](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-orchestrator/src/README.md).
 
 ## Single and multi mode
 

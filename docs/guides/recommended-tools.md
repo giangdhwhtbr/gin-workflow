@@ -1,6 +1,6 @@
 # Recommended tools
 
-gin-workflow runs with only the [required dependencies](../../README.md#dependencies). The tools below are optional, and each part of the workflow has a fallback without them.
+gin-workflow runs with only the [required dependencies](https://github.com/giangdhwhtbr/gin-workflow/blob/master/README.md#dependencies). The tools below are optional, and each part of the workflow has a fallback without them.
 
 ## CodeGraph
 
@@ -28,7 +28,7 @@ Check with `codegraph --version`.
 
 | Where | How |
 |---|---|
-| Every lifecycle stage ([stage contract](../../plugins/gin-workflow/src/references/stage-contract.md)) | looks up symbols, tests, and knowledge with `codegraph explore` before grep |
+| Every lifecycle stage ([stage contract](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-workflow/src/references/stage-contract.md)) | looks up symbols, tests, and knowledge with `codegraph explore` before grep |
 | `agent-researcher`, `developer`, `docs-writer` agents | look up related code with `codegraph explore` |
 | `code-reviewer` agent | looks up callers; runs `codegraph impact` / `codegraph callers` on changed public symbols |
 | `/gin-workflow:tech-doc` | `codegraph files` for structure, `codegraph explore` for subsystems |

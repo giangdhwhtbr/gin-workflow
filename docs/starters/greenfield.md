@@ -6,7 +6,7 @@ This guide bootstraps a new project with Claude Code and `gin-workflow`, from an
 
 ## Prerequisites and initialization
 
-Install the [dependencies](../../README.md#dependencies) first; Beads is optional.
+Install the [dependencies](https://github.com/giangdhwhtbr/gin-workflow/blob/master/README.md#dependencies) first; Beads is optional.
 
 ```bash
 # 1. Initialize a new git repository

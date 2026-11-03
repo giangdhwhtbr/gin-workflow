@@ -2,7 +2,7 @@
 
 gin-workflow reaches gin-orchestrator (`plugins/gin-orchestrator`) only through this versioned CLI contract. The commands run as `gin-orchestrator <command> ... --json`; from a checkout, `python -m gin_orchestrator <command>` with both `src/scripts` directories on `PYTHONPATH` is the same CLI. Every command prints one JSON document on stdout and exits 0 on success. This is contract version **2**.
 
-gin-orchestrator imports gin-workflow only through `workflow_core.ext`; see [the plugin README](../../plugins/gin-orchestrator/src/README.md). gin-workflow never imports gin-orchestrator.
+gin-orchestrator imports gin-workflow only through `workflow_core.ext`; see [the plugin README](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-orchestrator/src/README.md). gin-workflow never imports gin-orchestrator.
 
 ## No bundled fallback
 

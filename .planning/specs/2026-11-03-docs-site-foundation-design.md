@@ -57,7 +57,7 @@ Deleted, with every link to them removed and the surrounding sentence or list it
 
 ### R5. Links that leave `docs/`
 
-The site contains only `docs/`, so the four relative links into the repository root are rewritten as absolute `https://github.com/giangdhwhtbr/gin-workflow/blob/master/...` URLs: `docs/orchestrator/README.md` and `docs/reference/orchestrator-contract.md` to `plugins/gin-orchestrator/src/README.md`, `docs/guides/recommended-tools.md` to `plugins/gin-workflow/src/references/stage-contract.md` and to `README.md#dependencies`. `test_relative_links_resolve` skips `https:` links, and `mkdocs build --strict` no longer warns about them.
+The site contains only `docs/`, so the six relative links into the repository root are rewritten as absolute `https://github.com/giangdhwhtbr/gin-workflow/blob/master/...` URLs: `docs/orchestrator/README.md` and `docs/reference/orchestrator-contract.md` to `plugins/gin-orchestrator/src/README.md`, `docs/guides/recommended-tools.md` to `plugins/gin-workflow/src/references/stage-contract.md` and to `README.md#dependencies`, `docs/starters/greenfield.md` to `README.md#dependencies`, `docs/reference/troubleshooting.md` to `README.md#installation`. `test_relative_links_resolve` skips `https:` links, and `mkdocs build --strict` no longer warns about them.
 
 ### R6. Tests and pull-request CI
 
