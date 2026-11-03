@@ -81,7 +81,7 @@ python3 -m pytest -n auto
 bash tests/install_smoke_test.sh
 ```
 
-`python3 -m pytest -n auto` runs every test under `tests/` (`testpaths` in `pytest.ini`) on one worker process per CPU core. Playwright tests under `tests/gin_qa` skip without a Playwright environment. `pytest.ini` puts the repository root and `plugins/gin-workflow/src/scripts` on `sys.path` and uses `--import-mode=importlib`, so test files with the same name in two directories both load, and `tests/` never shadows the `gin_orchestrator` package. The smoke test builds and installs into temporary homes. `tests/install_smoke_test.ps1` is the Windows counterpart.
+`python3 -m pytest -n auto` runs every test under `tests/` (`testpaths` in `pytest.ini`) on one worker process per available CPU. Playwright tests under `tests/gin_qa` skip without a Playwright environment. `pytest.ini` puts the repository root and `plugins/gin-workflow/src/scripts` on `sys.path` and uses `--import-mode=importlib`, so test files with the same name in two directories both load, and `tests/` never shadows the `gin_orchestrator` package. The smoke test builds and installs into temporary homes. `tests/install_smoke_test.ps1` is the Windows counterpart.
 
 CI runs the unit tests and the smoke test of each platform on `ubuntu-latest` and `windows-latest` for every push and pull request (`.github/workflows/test.yml`). The Windows job sets `PYTHONUTF8=1`; the installed `gin-workflow.cmd` shim passes `-X utf8` for the same UTF-8 mode. A test that needs a POSIX feature is marked `@unittest.skipIf(os.name == "nt", "<reason>")`, and the reason names that feature.
 

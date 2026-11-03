@@ -22,17 +22,13 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME does not match plugins/gin-workflow/plugin.meta.json version $version"; exit 1
           fi
       - name: Install test dependencies
-        run: python3 -m pip install PyYAML jsonschema
+        run: python3 -m pip install PyYAML jsonschema pytest pytest-xdist
       - name: Git identity for tests
         run: |
           git config --global user.name "ci"
           git config --global user.email "ci@example.com"
       - name: Tests
-        # tests/test_all.py, as in test.yml: `discover -s tests` puts tests/ on
-        # sys.path, so tests/gin_orchestrator shadows the real gin_orchestrator package.
-        env:
-          PYTHONPATH: plugins/gin-workflow/src/scripts
-        run: python3 -m unittest tests/test_all.py -v
+        run: python3 -m pytest -n auto
       - name: Package the release
         if: startsWith(github.ref, 'refs/tags/')
         run: |
