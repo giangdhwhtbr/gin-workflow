@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
-import shutil
 import subprocess
 from typing import Sequence
 
-from workflow_core.ext import cleanup_worktree, create_worktree
+from workflow_core.ext import cleanup_worktree, create_worktree, tool
 
 from .contracts import ProviderBase, ProviderResult, WorkspaceRecord, WorkspaceRequest
 
@@ -167,8 +166,7 @@ class WorktreeWorkspaceProvider(ProviderBase):
             install_argv = ["ci"] if (path / "package-lock.json").is_file() else ["install"]
             try:
                 completed = subprocess.run(
-                    # Windows installs npm as npm.cmd, which only a PATHEXT lookup finds.
-                    [shutil.which("npm") or "npm", *install_argv],
+                    [tool("npm", path) or "npm", *install_argv],
                     cwd=path,
                     text=True,
                     capture_output=True,

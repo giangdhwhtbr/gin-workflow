@@ -6,9 +6,10 @@ from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import posixpath
-import shutil
 import subprocess
 from typing import Any
+
+from workflow_core.ext import tool
 
 DEFAULT_CASES = "qa/cases"
 DEFAULT_GUIDELINES = "qa/guidelines.md"
@@ -32,7 +33,7 @@ class Effective:
 
 
 def specs_reqs(root: Path, change: str | None = None) -> dict[str, Any]:
-    executable = shutil.which("gin-workflow")
+    executable = tool("gin-workflow", root)
     if executable is None:
         raise QaError("gin-workflow is not on PATH; install gin-workflow first")
     if not (root / ".agent-workflow/config.yaml").is_file():

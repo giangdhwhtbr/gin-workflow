@@ -570,7 +570,7 @@ class ProviderContractTests(unittest.TestCase):
             (worktree_path / "package.json").write_text("{}", encoding="utf-8")
             npm = r"C:\Program Files\nodejs\npm.cmd"
             done = subprocess.CompletedProcess([npm, "install"], 0, "", "")
-            with mock.patch("gin_orchestrator.workspace.shutil.which", return_value=npm), \
+            with mock.patch("gin_orchestrator.workspace.tool", return_value=npm), \
                     mock.patch("gin_orchestrator.workspace.subprocess.run", return_value=done) as run:
                 result = WorktreeWorkspaceProvider(root).bootstrap("track-1")
             self.assertIs(OperationStatus.SUCCESS, result.status)

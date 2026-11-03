@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 from typing import Any, Callable, Mapping, Sequence
 
+from workflow_core.ext import tool
+
 from .contracts import (
     OperationStatus,
     ProviderBase,
@@ -121,11 +123,11 @@ class CliTaskTrackingProvider(ProviderBase):
          "task.preflight"}
     )
 
-    def __init__(self, repository_root: Path, *, executable: str = "gin-workflow",
+    def __init__(self, repository_root: Path, *, executable: str | None = None,
                  runner: Runner | None = None) -> None:
         super().__init__()
         self.repository_root = Path(repository_root).resolve()
-        self.executable = executable
+        self.executable = executable or tool("gin-workflow", self.repository_root) or "gin-workflow"
         self._runner = runner or _default_runner
 
     def _run(self, *argv: str) -> ProviderResult[Any]:

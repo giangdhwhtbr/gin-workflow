@@ -12,6 +12,7 @@ INSTALL = "./install.sh --plugin gin-orchestrator"
 
 
 def main() -> int:
+    # bootstrap: workflow_core (and its tool()) is not importable until this lookup succeeds
     gin_workflow = shutil.which("gin-workflow")
     if gin_workflow is None:
         print(f"error: gin-workflow is not on PATH; install it with {INSTALL}", file=sys.stderr)
