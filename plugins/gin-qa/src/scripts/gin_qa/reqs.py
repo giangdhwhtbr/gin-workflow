@@ -9,7 +9,7 @@ import posixpath
 import subprocess
 from typing import Any
 
-from workflow_core.ext import tool
+import shutil
 
 DEFAULT_CASES = "qa/cases"
 DEFAULT_GUIDELINES = "qa/guidelines.md"
@@ -33,7 +33,7 @@ class Effective:
 
 
 def specs_reqs(root: Path, change: str | None = None) -> dict[str, Any]:
-    executable = tool("gin-workflow", root)
+    executable = shutil.which("gin-workflow")  # gin-qa shells out to gin-workflow; it imports none of it
     if executable is None:
         raise QaError("gin-workflow is not on PATH; install gin-workflow first")
     if not (root / ".agent-workflow/config.yaml").is_file():

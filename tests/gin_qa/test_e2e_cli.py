@@ -15,7 +15,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
-from qa_fixtures import AUTH_SPEC, QA_LAUNCHER, case, cases_file, gin_workflow_bin, make_repo, qa, write  # noqa: E402
+from qa_fixtures import AUTH_SPEC, QA_LAUNCHER, TOOLS_PATH, case, cases_file, gin_workflow_bin, make_repo, python_stub, qa, write  # noqa: E402
 from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
 
 FAKE_NPX = textwrap.dedent('''\
@@ -61,7 +61,7 @@ class E2eCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def e2e(self, *args: str, path: str = "/usr/bin:/bin"):
+    def e2e(self, *args: str, path: str = TOOLS_PATH):
         return qa(self.root, self.bin, *args, group="e2e", path=path)
 
     def run_json(self, *args: str) -> dict:
@@ -177,15 +177,13 @@ class TestRunAndEvidence(E2eCase):
     def setUp(self):
         super().setUp()
         self.npx = self.base / "npx-bin"
-        self.npx.mkdir()
-        (self.npx / "npx").write_text(FAKE_NPX)
-        (self.npx / "npx").chmod(0o755)
+        python_stub(self.npx, "npx", FAKE_NPX)
         self.assertEqual(0, self.e2e("init").returncode)
         write(self.root, "node_modules/@playwright/test/package.json", "{}")
         self.write_spec()
 
     def run_e2e(self, *args: str):
-        return self.e2e("run", *args, "--format", "json", path=f"{self.npx}:/usr/bin:/bin")
+        return self.e2e("run", *args, "--format", "json", path=os.pathsep.join([str(self.npx), TOOLS_PATH]))
 
     def test_run_records_the_selection_and_checks_the_evidence(self):
         result = self.run_e2e("TC-AUTH-001")
@@ -208,7 +206,7 @@ class TestRunAndEvidence(E2eCase):
         self.assertRegex(json.loads(self.run_e2e().stdout)["run"], r"^qa/evidence/[0-9T-]+-2$")
 
     def test_concurrent_runs_keep_separate_complete_evidence(self):
-        env = {**os.environ, "PATH": f"{self.bin}:{self.npx}:/usr/bin:/bin"}
+        env = {**os.environ, "PATH": os.pathsep.join([str(self.bin), str(self.npx), TOOLS_PATH])}
         command = [sys.executable, str(QA_LAUNCHER), "e2e", "run", "--format", "json", "--repository", str(self.root)]
         procs = [subprocess.Popen(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
                  for _ in range(3)]
@@ -236,7 +234,7 @@ class TestRunAndEvidence(E2eCase):
         ]
         for targets, path, message in cases:
             with self.subTest(message=message):
-                result = self.e2e("run", *targets, path=path or f"{self.npx}:/usr/bin:/bin")
+                result = self.e2e("run", *targets, path=path or os.pathsep.join([str(self.npx), TOOLS_PATH]))
                 self.assertEqual(2, result.returncode)
                 self.assertIn(message, result.stderr)
         (self.root / "node_modules/@playwright/test/package.json").unlink()
