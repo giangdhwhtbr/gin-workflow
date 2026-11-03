@@ -635,12 +635,11 @@ class EvidenceProviderTests(unittest.TestCase):
             ]
             for process in processes:
                 process.stdin.close()
-            for process in processes:
-                process.wait(timeout=60)
             outputs = []
             for process in processes:
                 with process.stdout:
                     outputs.append(process.stdout.read().strip())
+                process.wait(timeout=60)
 
             self.assertEqual([0] * 12, [process.returncode for process in processes], outputs)
             self.assertEqual(["success"] * 12, sorted(outputs))
