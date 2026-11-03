@@ -10,13 +10,13 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 import json
 from pathlib import Path
-import shutil
 import subprocess
 from typing import Any, Iterable, Mapping, Sequence
 
 from .checkout import main_checkout
 from .events import WorkflowEventStore
 from .configuration import ConfigValidationError, require_yaml, resolve_effective_config
+from .executables import tool
 from .usage_attribution import (
     UNATTRIBUTED, BeadSpan, Worktree, attribute, gates_from_events, review_intervals, worktrees,
 )
@@ -128,7 +128,7 @@ def _bd(repo: Path, argv: list[str]) -> Any:
         raise UsageError(str(error)) from error
     if name == "markdown":
         raise UsageError("AI usage tracking requires Beads (providers.task_tracking: beads)")
-    executable = shutil.which("bd")
+    executable = tool("bd", repo)
     if executable is None:
         raise UsageError("bd is not installed")
     try:

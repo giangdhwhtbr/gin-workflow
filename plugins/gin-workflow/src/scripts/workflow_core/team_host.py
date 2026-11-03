@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
-import shutil
 import subprocess
 from typing import Any
 from urllib.parse import urlparse
+from .executables import tool
 
 _EXECUTABLE = {"github": "gh", "gitlab": "glab"}
 _LOGIN_FIX = {"github": "gh auth login", "gitlab": "glab auth login"}
@@ -33,7 +33,7 @@ class PrInfo:
 
 
 def _run(host: str, argv: list[str], cwd: Path) -> Any:
-    executable = shutil.which(_EXECUTABLE[host])
+    executable = tool(_EXECUTABLE[host], cwd)
     if executable is None:
         raise HostUnavailable(f"{_EXECUTABLE[host]} is not installed; install it, then run {_LOGIN_FIX[host]}")
     try:

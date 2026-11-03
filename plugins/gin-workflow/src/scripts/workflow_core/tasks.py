@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 from typing import Any, Mapping, Sequence
@@ -14,6 +13,7 @@ from typing import Any, Mapping, Sequence
 from . import task_markdown
 from .checkout import main_checkout
 from .configuration import ConfigValidationError
+from .executables import tool
 
 
 def backend(root: Path) -> str:
@@ -141,7 +141,7 @@ def query_result(root: Path, argv: Sequence[str]) -> tuple[Any, str | None]:
     if name == "markdown":
         result = task_markdown.query(root, argv)
         return (None, "markdown task query failed") if result is None else (result, None)
-    executable = shutil.which("bd")
+    executable = tool("bd", root)
     if executable is None:
         return None, "bd not found"
     if argv[:1] == ["ready"]:
@@ -201,7 +201,7 @@ def main(argv: Sequence[str]) -> int:
             return 2
     if name == "markdown":
         return task_markdown.main(root, argv)
-    executable = shutil.which("bd")
+    executable = tool("bd", root)
     if executable is None:
         print("error: bd is not installed; install Beads or set providers.task_tracking: markdown "
               "(gin-workflow setup configure --set providers.task_tracking=markdown)", file=sys.stderr)
