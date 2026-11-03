@@ -554,6 +554,16 @@ class TestRecordGitLab(GateCase):
         self.assertEqual(2, self.record("requirement-confirmed", "https://gitlab.corp.com/group/app").returncode)
 
 
+class TestHostCliResolution(GateCase):
+    def test_host_runs_the_cli_that_tool_resolves(self):
+        fake = fake_cli(self.bin, "gh", [{"argv": ["pr", "view", PR], "stdout": gh_pr()}])
+        with mock.patch("workflow_core.team_host.tool", return_value=str(fake)) as tool, \
+                mock.patch("shutil.which", return_value=None):
+            pr = fetch_pr(PR, "github", self.root)
+        self.assertEqual("merged", pr.state)
+        tool.assert_called_once_with("gh", self.root)
+
+
 class TestPlanChecks(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

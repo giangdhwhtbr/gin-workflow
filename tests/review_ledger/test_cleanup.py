@@ -17,6 +17,7 @@ sys.path.insert(
     ),
 )
 
+from review_ledger import cleanup
 from review_ledger.cleanup import cleanup_review_ledgers, is_bead_closed
 
 
@@ -370,3 +371,6 @@ class TestReviewRefCleanup(unittest.TestCase):
         self.assertEqual(["refs/gin/review/o-open", "refs/gin/review/o-unknown"], self.refs())
         self.assertEqual({"l-closed", "o-closed"}, {item["bead_id"] for item in result["cleaned"]})
         self.assertEqual({"o-open", "o-unknown"}, {item["bead_id"] for item in result["skipped"]})
+
+    def test_bd_is_resolved_through_tool_not_a_hard_coded_search(self):
+        self.assertFalse(hasattr(cleanup, "_find_bd_executable"))

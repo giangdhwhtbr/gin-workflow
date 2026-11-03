@@ -8,12 +8,12 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
 from . import milestone as core
+from .executables import tool
 
 
 class MilestoneError(Exception):
@@ -77,7 +77,7 @@ def _config(root: Path) -> dict[str, Any]:
 
 
 def _bd(root: Path, argv: list[str], actor: str = "") -> str:
-    executable = shutil.which("bd")
+    executable = tool("bd", root)
     if executable is None:
         raise MilestoneError("bd is not installed")
     env = {**os.environ, "BD_ACTOR": actor} if actor else None

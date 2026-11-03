@@ -32,6 +32,7 @@ class UsageCliTests(unittest.TestCase):
         git(self.repo, "init", "-q", "-b", "main")
         write(self.repo, ".agent-workflow/config.yaml", "schema_version: '2.8'\nproviders:\n  task_tracking: beads\n")
         refresh(self.repo)
+        (self.repo / ".agent-workflow/executables.local.yaml").unlink()  # else refresh pins the host bd
         self.bin = Path(self.tmp.name) / "bin"
         self.home = Path(self.tmp.name) / "home"
         self.env = {**path_with(self.bin), "CLAUDE_CONFIG_DIR": str(self.home / "claude"),

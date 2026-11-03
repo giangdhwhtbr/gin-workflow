@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
@@ -66,6 +67,15 @@ class OrchestratorClientTests(unittest.TestCase):
                 with self.assertRaises(orchestrator_client.OrchestratorError) as ctx:
                     orchestrator_client.call(["health"])
                 self.assertEqual(orchestrator_client.FAILED, str(ctx.exception))
+
+    def test_status_reports_the_orchestrator_that_tool_resolves(self) -> None:
+        orchestrator_client.status.cache_clear()
+        self.addCleanup(orchestrator_client.status.cache_clear)
+        with tempfile.TemporaryDirectory() as fake_dir:
+            fake = fake_orchestrator(fake_dir, contract=2)
+            with mock.patch("workflow_core.orchestrator_client.tool", return_value=str(fake)) as tool:
+                self.assertTrue(orchestrator_client.status()["available"])
+            tool.assert_called_once_with("gin-orchestrator")
 
     def test_status_runs_version_once(self) -> None:
         with tempfile.TemporaryDirectory() as fake_dir:

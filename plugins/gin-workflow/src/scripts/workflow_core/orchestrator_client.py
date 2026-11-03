@@ -6,9 +6,9 @@ from collections.abc import Mapping, Sequence
 import functools
 import json
 from pathlib import Path
-import shutil
 import subprocess
 from typing import Any
+from .executables import tool
 
 CONTRACT_VERSION = 2
 MISSING = "orchestrator_missing"
@@ -23,7 +23,7 @@ class OrchestratorError(Exception):
 
 def call(argv: Sequence[str], *, timeout: float = 120) -> Any:
     """Run gin-orchestrator argv --json, returning decoded JSON or raising OrchestratorError."""
-    installed = shutil.which("gin-orchestrator")
+    installed = tool("gin-orchestrator")
     if not installed:
         raise OrchestratorError(MISSING)
     args = [installed, *(a for a in argv if a != "--json"), "--json"]
@@ -45,7 +45,7 @@ def call(argv: Sequence[str], *, timeout: float = 120) -> Any:
 @functools.cache
 def status() -> dict[str, Any]:
     """Report orchestrator availability, cached per process."""
-    installed = shutil.which("gin-orchestrator")
+    installed = tool("gin-orchestrator")
     if not installed:
         return {
             "available": False,
