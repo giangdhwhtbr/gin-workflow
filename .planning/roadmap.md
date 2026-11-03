@@ -1,7 +1,7 @@
 # Roadmap: Workflow audit — reliable, cross-platform, team-safe gin-workflow
 
 Date: 2026-10-30
-Source: Solution-architect audit of this repository on 2026-10-30 (five researcher passes over the gate engine, Windows portability, team mode, orchestrator dispatch, and ADLC practice; high-severity claims verified at the cited lines), plus the two epics already open in Beads.
+Source: Solution-architect audit of this repository on 2026-10-30 (five researcher passes over the gate engine, Windows portability, team mode, orchestrator dispatch, and ADLC practice; high-severity claims verified at the cited lines), plus the two epics already open in Beads. QA process epics added on 2026-11-03 from the /discuss session with the testers' questions (templates, per-type files, results, bugs, Excel report) verified against `plugins/gin-qa` and gin-console's `qa/`.
 
 <!-- Written by /roadmap after the PM confirms it. One "### " block per epic; an epic id never changes once written.
      Depends on: epic ids from this file. Evidence: the tech-doc file and section (for example
@@ -15,6 +15,7 @@ Source: Solution-architect audit of this repository on 2026-10-30 (five research
 - AI spend per epic has an enforced ceiling; retries and reviews do not multiply cost without cause.
 - Skills agree with each other and with the CLI; no hard-coded locale or shell.
 - PMs plan dated milestones over roadmap epics and gin-console shows them.
+- Testers write cases per capability and type, record manual and automated results in the case files, file bugs linked to the work, and get one consolidated report.
 
 ## Constraints
 
@@ -23,10 +24,13 @@ Source: Solution-architect audit of this repository on 2026-10-30 (five research
 - Windows CI runs on `windows-latest`; no WSL or Git Bash assumption in the tested path.
 - No `/tech-doc` pass precedes this roadmap; evidence points at verified `file:line` sites instead.
 - Beads dependencies record technical blocking only; the wave order below is scheduling, expressed later through milestones.
+- AI capacity: one person building with AI agents, one Claude Max account.
 
 ## Strategy
 
 Risk first, then fan out. The milestone epic goes first because `/roadmap --milestone` is what later attaches every epic here to a dated milestone. Reliability core is the foundation the three platform/team/cost epics build on (tracker-unavailable state, lock timeout, event schema version, resume protocol). Windows parity, team hardening, and cost control are independent of each other and run in parallel once the core ships. Process hygiene touches only skills and docs, so it ships early to reduce rebases. Non-Claude dispatch follows cost control because both edit the orchestrator dispatch path and new workers should inherit the budget and retry rules once.
+
+QA process: the case-folder epic defines the file layout and the single `cases result` write path, so it goes first; test types, manual runs, and the report only read or write through it and run in parallel after it; the setup prompt comes last because it generates the process the manual-runs epic defines; the Playwright scaffold touches only `e2e init` and runs alongside the first epic.
 
 ## Order
 
@@ -47,6 +51,23 @@ flowchart LR
 | 3 | `gin-workflow-dura` |
 
 After `gin-workflow-6cji` ships: `gin-workflow milestone create`, then `/roadmap --milestone <id>` adopts the epics of this file with estimates.
+
+QA process milestone `gin-workflow-o2nc`:
+
+```mermaid
+flowchart LR
+    Q1[qa-case-folders] --> Q2[qa-test-types]
+    Q1 --> Q3[qa-manual-bugs] --> Q5[qa-setup]
+    Q1 --> Q4[qa-report]
+    Q1 --> Q5
+    Q6[qa-playwright-scaffold]
+```
+
+| Wave | Epics |
+|---|---|
+| 1 | `gin-workflow-qa-case-folders`, `gin-workflow-qa-playwright-scaffold` |
+| 2 | `gin-workflow-qa-test-types`, `gin-workflow-qa-manual-bugs`, `gin-workflow-qa-report` |
+| 3 | `gin-workflow-qa-setup` |
 
 ## Milestone: Workflow audit phase 2
 
@@ -105,6 +126,74 @@ Out of scope: changes to the model catalog; Claude Code dispatch (shipped in `gi
 Depends on: gin-workflow-rm-cost-control
 Evidence: `.planning/specs/2026-10-29-model-effort-selection-design.md`; `install.sh:448`; closed epic `gin-workflow-btt3` (merged at 5b5e0da).
 Risks: agent formats differ per harness and need research; both this epic and cost control edit the orchestrator dispatch path, hence the ordering.
+
+## Milestone: QA process
+
+### Case folders per capability, per-type files, recorded results
+Epic: gin-workflow-qa-case-folders
+Milestone: gin-workflow-o2nc
+Estimate: 1
+Goal: Test cases live in `qa/cases/<capability>/<type>.md`, the file name sets the type, each case carries its latest `Result`, `Run`, and `Bug`, and one CLI command writes them.
+Scope: `cases.py` loads the folder layout and still parses flat `<cap>.md`; `next-id` counts across a capability's files and their git history; `Result`, `Run`, `Bug` are left out of `hash8` and of `fields` in export, and `check` accepts only `passed`, `failed`, `blocked`, `not run`; `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <bead>]` is the only write path; `e2e run` calls it per case of the run (worst result across Playwright projects); `templates/qa-readme.md` describes the `qa/` tree and is written next to `guidelines.md` on first `/gin-qa:cases`; the `cases` skill, `docs/guides/qa.md`, and `docs/guides/customizing-templates.md` follow.
+Out of scope: runners for non-e2e types; a manual-run skill; the report.
+Depends on:
+Evidence: `plugins/gin-qa/src/scripts/gin_qa/cases.py:118-136` (one file per capability, stem must match the TC prefix); `cases.py:171-177` (`hash8` includes extra fields); `e2e.py:171-200` (end of `run`); gin-console `qa/cases/milestone-ui.md` (55 e2e and 11 api cases in one file).
+Risks: a flat file and a folder for the same capability at once (`check` reports it); `e2e run` now edits committed files.
+
+### Automated test types beyond e2e
+Epic: gin-workflow-qa-test-types
+Milestone: gin-workflow-o2nc
+Estimate: 2
+Goal: `api`, `integration`, and `unit` cases get the same path as e2e cases: planned, pinned, run, checked, and their results recorded.
+Scope: `qa/guidelines.md` declares per type the test globs, the `TC-ID@hash8` marker, and the run command; `gin-qa tests plan|pin|check` generalize the marker scanning of `e2e.py` to any glob; `gin-qa tests run --type <t>` runs the declared command with JUnit XML output and maps test names containing a TC-ID to `gin-qa cases result`; skill `/gin-qa:tests <capability> --type <t>` writes the missing tests from the project's own pattern.
+Out of scope: Playwright specifics (they stay in `e2e`); performance or load tests.
+Depends on: gin-workflow-qa-case-folders
+Evidence: `plugins/gin-qa/src/scripts/gin_qa/e2e.py:39-41` (only `Type: e2e` is selected); `e2e.py:54-90` (`plan`, `check_specs`); gin-console `qa/guidelines.md` (api cases are backend pytest with fakes, with no runner or skill).
+Risks: JUnit test-name conventions differ per runner; pytest with fakes depends on the project's conftest.
+
+### Manual runs and bug logging
+Epic: gin-workflow-qa-manual-bugs
+Milestone: gin-workflow-o2nc
+Estimate: 1
+Goal: A tester walks the manual cases of a capability, records passed, failed, or blocked, and files a bug bead linked to the work it came from.
+Scope: skill `/gin-qa:run <capability>` over the `manual.md` cases, one case per step, writing through `gin-qa cases result`; on a failure it creates `gin-workflow task create -t bug` with the steps, expected, actual, and evidence, `--deps discovered-from:<epic of the REQ>`, an optional `--external-ref` for the team's tracker, and records `--bug`; the tester row of `docs/roles.md` and a process section in `docs/guides/qa.md`.
+Out of scope: syncing bugs to Jira or Notion; test cycles or runs as beads.
+Depends on: gin-workflow-qa-case-folders
+Evidence: `bd create --type bug --deps discovered-from:<id>`; `docs/guides/usage-report.md:19` (bugs counted by `discovered-from`); `docs/roles.md` (tester row lists `/gin-qa:cases`, `/gin-qa:e2e`, `/gin-workflow:progress` only).
+Risks: in the legacy layout a `Source:` path may have no bead, so the bug gets no `discovered-from`.
+
+### Consolidated xlsx report
+Epic: gin-workflow-qa-report
+Milestone: gin-workflow-o2nc
+Estimate: 1
+Goal: One workbook for every capability with counts per capability, type, priority, and result, and charts of them.
+Scope: `gin-qa report --format xlsx --out <path>` built from the `cases export` data; a `Summary` sheet with bar and pie charts, a `Cases` sheet with the extra fields as columns, one sheet per capability; `openpyxl` as an optional dependency with an exit-2 message naming the install command when missing.
+Out of scope: filling a project's own Excel template (openpyxl drops existing charts on save); trend history across runs.
+Depends on: gin-workflow-qa-case-folders
+Evidence: `plugins/gin-qa/src/scripts/gin_qa/cli.py` (`export` is JSON only); `docs/guides/qa.md` ("feeds your own report tooling").
+Risks: the first third-party dependency in gin-qa; chart styling expectations from the testers' current templates.
+
+### Project QA setup prompt
+Epic: gin-workflow-qa-setup
+Milestone: gin-workflow-o2nc
+Estimate: 1
+Goal: A new project gets `qa/guidelines.md`, `qa/README.md`, and a thin project-local process skill from one interview, all of it passing `gin-qa cases check`.
+Scope: skill `/gin-qa:setup` asking the test types, file layout, bug tracker, and report expectations; it writes the guidelines sections (`Types`, `Automated types`, `Manual runs`, `Bugs`), the README, and `.claude/skills/<project>-qa/SKILL.md` holding process only, with data always read through the gin-qa CLI; it runs `gin-qa cases check` at the end.
+Out of scope: generated skill folders for harnesses other than Claude Code (documented, not generated).
+Depends on: gin-workflow-qa-case-folders, gin-workflow-qa-manual-bugs
+Evidence: `docs/guides/customizing-templates.md:99-160` (guidelines and extra fields); `install.sh:668,682` (skills install per user; no project-local mechanism).
+Risks: generated skills drift from plugin behavior; keeping them process-only limits it.
+
+### Playwright scaffold in e2e init
+Epic: gin-workflow-qa-playwright-scaffold
+Milestone: gin-workflow-o2nc
+Estimate: 1
+Goal: `gin-qa e2e init` leaves a runnable `playwright.config.ts` that follows Playwright practice and finds specs under `qa/e2e`.
+Scope: `templates/playwright.config.ts` (testDir from `qa.e2e`, `baseURL` from `E2E_BASE_URL`, `retries` and `forbidOnly` on CI, `trace: 'on-first-retry'`, `list` and `junit` reporters, a chromium project, a commented `webServer` block, `testIdAttribute`); `init` writes it when none exists and hints the `e2e` npm script; `/gin-qa:e2e` skips the URL question when the config sets `baseURL`.
+Out of scope: page objects, auth setup projects, API stub helpers.
+Depends on:
+Evidence: `plugins/gin-qa/src/scripts/gin_qa/e2e.py:125-142` (`init` writes only the fixture and the ignore entry); gin-console `playwright.config.ts` and `qa/e2e/support/api.ts` (written by hand).
+Risks: a project with an existing config gets nothing, by design (`init` never overwrites).
 
 ## Unassigned
 
