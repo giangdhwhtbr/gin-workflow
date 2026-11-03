@@ -29,8 +29,43 @@ jobs:
           git config --global user.email "ci@example.com"
       - name: Tests
         run: python3 -m unittest discover -s tests -v
+      - name: Package the release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          prefix="gin-workflow-$GITHUB_REF_NAME"
+          paths="plugins scripts install.sh install.ps1 remote-install.sh README.md LICENSE docs"
+          git archive --format=tar.gz --prefix="$prefix/" -o "$prefix.tar.gz" "$GITHUB_REF_NAME" $paths
+          git archive --format=zip --prefix="$prefix/" -o "$prefix.zip" "$GITHUB_REF_NAME" $paths
+          tar -tzf "$prefix.tar.gz" | grep -q "^$prefix/install.sh$"
       - name: Create the release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag "gin-workflow-$GITHUB_REF_NAME.tar.gz" "gin-workflow-$GITHUB_REF_NAME.zip"
+  pages:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -m pip install -r requirements-docs.txt
+      - run: mkdocs build --strict
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

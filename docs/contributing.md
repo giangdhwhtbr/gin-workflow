@@ -99,12 +99,25 @@ Adding a skill or a subcommand means documenting it.
 
 `tests/workflow_core/test_token_budget.py` caps sizes: each shared `gin-*` skill at 6,000 characters, each agent at 4,000, and each stage skill with the references it links at 12,000 (`quick` at 8,000). The gin-qa and gin-orchestrator skills stay within 6,000 characters each, and the core never names `gin-qa` (`tests/gin_qa/test_packaging.py`, `tests/gin_orchestrator/test_orchestrator_packaging.py`). Skills and agents reach tasks through `gin-workflow task`, never `bd` directly, except the Beads-only skills (`tests/test_no_direct_bd.py`).
 
+## Documentation site
+
+`mkdocs.yml` builds `docs/` into the site at `https://giangdhwhtbr.github.io/gin-workflow/`. Preview it locally:
+
+```bash
+python3 -m pip install -r requirements-docs.txt
+mkdocs serve
+```
+
+`mkdocs build --strict` runs in CI (`test.yml`) and fails on a broken link or a page missing from `nav`, so add every new page under `docs/` to `nav` in `mkdocs.yml` and to the documentation table in `README.md`. A Vietnamese translation sits next to its source as `<page>.vi.md`; a page without one shows the English text under the `vi` language.
+
+Publishing needs GitHub Pages enabled once, in the repository settings under Pages, with source "GitHub Actions". The `pages` job of `release.yml` fails until that is done.
+
 ## Releasing
 
 1. Bump the plugin version in `plugins/<plugin>/plugin.meta.json`, `src/.claude-plugin/plugin.json`, and `src/.codex-plugin/plugin.json`; for `gin-orchestrator` also `ORCHESTRATOR_VERSION` in `src/scripts/gin_orchestrator/cli.py`. When a CLI changed, also bump its launcher version: `LAUNCHER_VERSION`, `QA_LAUNCHER_VERSION`, or `ORCH_LAUNCHER_VERSION` in `install.sh`, the matching `$LauncherVersion`, `$QaLauncherVersion`, or `$OrchLauncherVersion` in `install.ps1`, and the version the CLI prints (`CLI_VERSION` in `workflow_core/cli.py`, `VERSION` in `gin_qa/cli.py`). Then update the version assertions in `tests/install_smoke_test.sh`, `tests/install_smoke_test.ps1`, `tests/gin_orchestrator/test_harness_packaging.py`, and, for `gin-orchestrator`, `test_orchestrator_packaging.py`, `test_contract_cli.py`, and `test_contract_v2.py`.
 2. Run the tests and the smoke test.
 3. Merge to `master` with approval and push.
-4. Tag the merge commit `vX.Y.Z` (the `gin-workflow` version) and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`, runs the full test suite, then creates the GitHub release with generated notes. `gin-qa` and `gin-orchestrator` ship in the same release under their own versions.
+4. Tag the merge commit `vX.Y.Z` (the `gin-workflow` version) and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`, runs the full test suite, creates the GitHub release with generated notes and the installable source tree attached as `gin-workflow-vX.Y.Z.tar.gz` and `.zip`, then deploys the documentation site. Running the workflow by hand (`workflow_dispatch`) runs the tests and redeploys the site without creating a release. `gin-qa` and `gin-orchestrator` ship in the same release under their own versions.
 5. Reinstall on each machine (`./install.sh --platform all`); marketplace users update through their harness.
 
 ## Benchmarks
