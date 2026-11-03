@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -10,10 +11,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import yaml
 
 from tests.gin_orchestrator import paths
+from gin_orchestrator import cli as orchestrator_cli  # noqa: E402
 from workflow_core.assignments import AssignmentRequest  # noqa: E402
 from workflow_core.configuration import load_effective_config  # noqa: E402
 from workflow_core.migrations import migrate_config  # noqa: E402
@@ -240,6 +243,14 @@ class ContractV2Tests(unittest.TestCase):
         self.assertIn("orchestrator.", result.stderr)
         self.assertEqual(before, (self.root / ".agent-workflow/config.yaml").read_bytes())
 
+
+    def test_configure_without_gin_workflow_on_path_is_a_cli_error(self):
+        args = argparse.Namespace(repository=self.root, set=["orchestrator.concurrency.codex=2"], local_set=[],
+                                  dry_run=False, approve=True)
+
+        with mock.patch("gin_orchestrator.cli.tool", return_value=None):
+            with self.assertRaisesRegex(orchestrator_cli.CliError, "gin-workflow is not on PATH"):
+                orchestrator_cli._configure(args)
 
     def test_configure_reports_a_malformed_local_file(self):
         for content in ("providers: [", "- not a mapping\n"):

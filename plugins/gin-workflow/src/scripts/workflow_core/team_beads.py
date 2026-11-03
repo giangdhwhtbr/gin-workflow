@@ -7,11 +7,11 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 from typing import Any, Mapping
 
 from . import tasks
+from .executables import tool
 from .team import Area, Member, TeamConfig, TeamError
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
@@ -24,7 +24,7 @@ class SyncConflict(Exception):
 
 
 def _bd(root: Path, argv: list[str], *, actor: str = "", timeout: int = 120) -> subprocess.CompletedProcess:
-    executable = shutil.which("bd")
+    executable = tool("bd", root)
     if executable is None:
         raise TeamError("bd is not installed")
     env = {**os.environ, "BD_ACTOR": actor} if actor else None
@@ -84,7 +84,7 @@ def _areas_of(team: TeamConfig, issue: Mapping[str, Any]) -> list[Area]:
 
 def ready(root: Path, team: TeamConfig, member: Member) -> list[dict[str, Any]]:
     mine = set(team.areas_for(member))
-    held = tasks.held_by_external(root, shutil.which("bd") or "bd")
+    held = tasks.held_by_external(root, tool("bd", root) or "bd")
     if held is None:
         raise TeamError("bd ready --explain failed, so external dependencies cannot be checked")
     result = []

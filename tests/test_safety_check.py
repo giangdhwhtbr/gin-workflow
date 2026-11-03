@@ -50,6 +50,7 @@ class TestHookBypassBlocked(unittest.TestCase):
                         "git config core.hooksPath /x core.hooksPath"):
             self.assertEqual(2, exit_code(command), command)
 
+    @unittest.skipIf(os.name == "nt", "passes a 120,000-character argv over the 32,767-character Windows command line; needs POSIX ARG_MAX")
     def test_repeated_config_words_stay_linear(self):
         # 10000 words took 15-18 s with a quadratic pattern and the cost grows with the square of the length; 15000 words
         # stay under the 128 KB limit of one argument.

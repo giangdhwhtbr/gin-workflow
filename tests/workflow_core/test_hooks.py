@@ -91,13 +91,13 @@ class TestHooksInstall(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    @unittest.skipIf(os.name == "nt", "checks POSIX permission bits")
     def test_install_is_idempotent(self):
         first = hooks.install(self.root)
         self.assertEqual("installed", first["status"])
         self.assertEqual({"pre-commit": "installed", "pre-push": "installed"}, first["hooks"])
         hook = self.root / ".git/hooks/pre-push"
-        self.assertEqual(0o755, hook.stat().st_mode & 0o777)
+        if os.name != "nt":  # POSIX permission bits
+            self.assertEqual(0o755, hook.stat().st_mode & 0o777)
         self.assertIn("hooks run pre-push", hook.read_text())
         again = hooks.install(self.root)
         self.assertEqual({"pre-commit": "unchanged", "pre-push": "unchanged"}, again["hooks"])

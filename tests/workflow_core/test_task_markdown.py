@@ -184,13 +184,15 @@ class TaskMarkdownTests(unittest.TestCase):
         self.assertNotEqual(0, self.run_task("frobnicate")[0])
 
 
-    @unittest.skipIf(os.name == "nt", "':' is valid only in POSIX file names, so repo:a.b-1 is a POSIX-only id")
     def test_unsafe_explicit_ids_are_rejected(self):
         for bad in ("../../escape", "x/y", "..", ".hidden", "a..b"):
             code, _, err = self.run_task("create", "--id", bad, "T")
             self.assertEqual(1, code, bad)
             self.assertIn("invalid task id", err)
         self.assertFalse((Path(self._directory.name) / "escape.md").exists())
+
+    @unittest.skipIf(os.name == "nt", "':' is valid only in POSIX file names, so repo:a.b-1 is a POSIX-only id")
+    def test_colon_id_is_accepted_on_posix(self):
         self.assertEqual("repo:a.b-1", self.q("create", "--id", "repo:a.b-1", "T")["id"])
 
     def test_colon_id_is_rejected_on_windows(self):

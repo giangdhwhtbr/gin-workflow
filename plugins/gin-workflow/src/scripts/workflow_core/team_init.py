@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-import shutil
 import subprocess
 from typing import Any, Mapping
 
 from .atomic import atomic_write_many
+from .executables import tool
 from .specs import render, sdd_config, template_text
 from .team import POLICY_GATES, TeamConfig
 
@@ -127,10 +127,12 @@ def install_hook(root: Path) -> dict[str, Any]:
 
 
 def _ok(argv: list[str], root: Path) -> bool:
-    if shutil.which(argv[0]) is None:
+    executable = tool(argv[0], root)
+    if executable is None:
         return False
     try:
-        return subprocess.run(argv, cwd=root, capture_output=True, check=False, timeout=30).returncode == 0
+        return subprocess.run([executable, *argv[1:]], cwd=root, capture_output=True, check=False,
+                              timeout=30).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -157,8 +159,9 @@ def doctor_report(root: Path, team: TeamConfig, config: Mapping[str, Any]) -> di
     if has_policy("requirement_confirmed", team):
         checks["spec_review"] = sdd_config(config)["spec_review"] == "pr"
     if team.beads_remote:
-        listed = subprocess.run(["bd", "dolt", "remote", "list"], cwd=root, text=True, capture_output=True,
-                                check=False) if shutil.which("bd") else None
+        bd = tool("bd", root)
+        listed = subprocess.run([bd, "dolt", "remote", "list"], cwd=root, text=True, capture_output=True,
+                                check=False) if bd else None
         checks["beads_remote"] = bool(listed and team.beads_remote in listed.stdout)
         if team.beads_remote.startswith("git+"):
             checks["beads_remote"] = checks["beads_remote"] and _ok(

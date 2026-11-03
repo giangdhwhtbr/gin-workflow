@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -13,14 +12,14 @@ from workflow_core.models import EffectiveConfig  # noqa: E402
 
 
 class ArtifactTests(unittest.TestCase):
-    @unittest.skipIf(os.name == "nt", "'/shared/knowledge' is an absolute path only on POSIX")
     def test_returns_only_each_explicitly_configured_artifact_path(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
+            shared = str(Path(directory).anchor) + "shared/knowledge"
             configured = {
                 "plans": "custom/plans",
                 "beads": "state/beads",
-                "knowledge": "/shared/knowledge",
+                "knowledge": shared,
                 "evidence": "audit/evidence",
                 "runtime": "runtime/state",
             }
@@ -30,7 +29,7 @@ class ArtifactTests(unittest.TestCase):
             )
 
             self.assertEqual(repository / "custom/plans", resolve_artifact(config, "plans"))
-            self.assertEqual(Path("/shared/knowledge"), resolve_artifact(config, "knowledge"))
+            self.assertEqual(Path(shared), resolve_artifact(config, "knowledge"))
             for name, raw_path in configured.items():
                 expected = Path(raw_path)
                 if not expected.is_absolute():

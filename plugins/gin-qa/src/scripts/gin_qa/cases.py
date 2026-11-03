@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import hashlib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 
@@ -22,7 +22,7 @@ class Case:
     id: str
     cap: str
     title: str
-    path: Path
+    path: PurePosixPath  # repository-relative, '/'-separated on every platform
     line: int
     fields: dict[str, str] = field(default_factory=dict)
     field_lines: dict[str, int] = field(default_factory=dict)
@@ -32,7 +32,7 @@ class Case:
     expected: list[str] = field(default_factory=list)
 
 
-def _parse_block(path: Path, lines: list[str], start: int, end: int, errors: list[str]) -> Case | None:
+def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, errors: list[str]) -> Case | None:
     found = _HEADING.match(lines[start])
     where = f"{path}:{start + 1}"
     if not found:
@@ -94,7 +94,7 @@ def parse_file(path: Path, shown: str) -> tuple[list[Case], list[str]]:
     errors: list[str] = []
     for start in starts:
         end = next((index for index in ends if index > start), len(lines))
-        case = _parse_block(Path(shown), lines, start, end, errors)
+        case = _parse_block(PurePosixPath(shown), lines, start, end, errors)
         if case is not None:
             cases.append(case)
     return cases, errors

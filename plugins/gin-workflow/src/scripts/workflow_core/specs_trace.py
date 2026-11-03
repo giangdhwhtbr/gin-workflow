@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import shutil
 import subprocess
 from typing import Any, Mapping
 
 from .specs import REQ_ID, SpecsError, change_file, delta_blocks, test_files
+from .executables import tool
 
 
 def _tracked(root: Path) -> list[str]:
@@ -58,7 +58,7 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
 def status(root: Path, change: Path) -> dict[str, Any]:
     branch = f"spec/{change.name}"
     record = "gin-workflow record requirement-confirmed --workflow-id <epic> --evidence <pr-url> --actor <id>"
-    executable = shutil.which("gh")
+    executable = tool("gh", root)
     if executable is None:
         return {"change": change.name, "branch": branch, "status": "gh_unavailable",
                 "message": f"gh unavailable; check the PR for {branch} by hand, then: {record}"}

@@ -173,10 +173,13 @@ class Fixture(unittest.TestCase):
             {"argv": ["dep", "list", "ep1", "--direction=up", "--type", "discovered-from"], "stdout": []},
             {"argv": ["update"], "stdout": ""},
         ]
-        fake_cli(self.bin, "bd", self.rules)
+        fake = fake_cli(self.bin, "bd", self.rules)
         patcher = mock.patch.dict(os.environ, path_with(self.bin))
         patcher.start()
         self.addCleanup(patcher.stop)
+        resolved = mock.patch("workflow_core.usage.tool", return_value=str(fake))
+        resolved.start()
+        self.addCleanup(resolved.stop)
 
     def collect(self, bead: str) -> dict:
         return usage.collect(self.repo, bead, now=at(14), claude_root=self.claude, codex_root=self.codex)
@@ -252,7 +255,8 @@ class CollectTests(Fixture):
         self.assertEqual(doc["stages"], {"execute": {"tokens": 110, "cost": 0.0001}})
 
     def test_missing_bd_is_a_usage_error(self):
-        with mock.patch.dict(os.environ, {"PATH": str(Path(self.tmp.name) / "none")}):
+        with mock.patch.dict(os.environ, {"PATH": str(Path(self.tmp.name) / "none")}), \
+                mock.patch("workflow_core.usage.tool", return_value=None):
             with self.assertRaises(usage.UsageError):
                 self.collect("ep1.1")
 

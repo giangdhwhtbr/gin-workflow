@@ -13,7 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import tasks  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
-from tests.workflow_core.team_fixtures import init_beads, make_team_repo  # noqa: E402
+from tests.workflow_core.team_fixtures import fake_cli, init_beads, make_team_repo  # noqa: E402
 
 CLI = SCRIPTS / "gin-workflow"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
@@ -55,7 +55,7 @@ class TaskDispatchTests(unittest.TestCase):
         argv = ["update", "x-1", "--status", "in_progress", "--json"]
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
                 mock.patch("workflow_core.team.team_for_repo", return_value=None), \
-                mock.patch("workflow_core.tasks.shutil.which", return_value="/opt/bd"), \
+                mock.patch("workflow_core.tasks.tool", return_value="/opt/bd"), \
                 mock.patch("workflow_core.tasks.subprocess.run",
                            return_value=subprocess.CompletedProcess([], 7)) as run:
             self.assertEqual(7, tasks.main(argv))
@@ -64,11 +64,22 @@ class TaskDispatchTests(unittest.TestCase):
     def test_beads_query_matches_the_previous_bd_call(self):
         done = subprocess.CompletedProcess([], 0, stdout='[{"id": "x-1", "status": "closed"}]')
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
-                mock.patch("workflow_core.tasks.shutil.which", return_value="/opt/bd"), \
+                mock.patch("workflow_core.tasks.tool", return_value="/opt/bd"), \
                 mock.patch("workflow_core.tasks.subprocess.run", return_value=done) as run:
             self.assertEqual([{"id": "x-1", "status": "closed"}], tasks.query(self.root, ["show", "x-1"]))
         run.assert_called_once_with(["/opt/bd", "show", "x-1", "--json"], cwd=self.root, text=True,
                                     capture_output=True, check=False, timeout=30)
+
+    def test_beads_runs_the_bd_that_tool_resolves_when_bd_is_off_path(self):
+        fake = fake_cli(Path(self._directory.name) / "bin", "bd", [
+            {"argv": ["ready", "--explain"], "stdout": {"ready": []}},
+            {"argv": ["ready", "--exclude-type", "milestone"], "stdout": []},
+        ])
+        with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.tool", return_value=str(fake)) as tool, \
+                mock.patch("shutil.which", return_value=None):
+            self.assertEqual([], tasks.query(self.root, ["ready"]))
+        tool.assert_called_once_with("bd", self.root)
 
     def test_markdown_ready_is_passed_through_unchanged(self):
         with mock.patch("workflow_core.tasks.backend", return_value="markdown"), \
@@ -78,7 +89,7 @@ class TaskDispatchTests(unittest.TestCase):
 
     def test_beads_missing_bd_explains_the_markdown_option(self):
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
-                mock.patch("workflow_core.tasks.shutil.which", return_value=None):
+                mock.patch("workflow_core.tasks.tool", return_value=None):
             self.assertIsNone(tasks.query(self.root, ["show", "x"]))
             with mock.patch("sys.stderr") as stderr:
                 self.assertEqual(127, tasks.main(["ready"]))
@@ -121,7 +132,7 @@ class TaskDispatchTests(unittest.TestCase):
         config = self.root / ".agent-workflow/generated/effective-config.yaml"
         config.write_text(config.read_text(encoding="utf-8") + "team:\n  host: github\n  members: {}\n",
                           encoding="utf-8")
-        with mock.patch("workflow_core.tasks.shutil.which") as which, \
+        with mock.patch("workflow_core.tasks.tool") as which, \
                 mock.patch("workflow_core.tasks.Path.cwd", return_value=self.root), \
                 mock.patch("sys.stderr") as stderr:
             self.assertEqual(1, tasks.main(["ready"]))
@@ -223,7 +234,7 @@ class ExternalDependencyTests(unittest.TestCase):
 class ExternalDependencyFailureTests(unittest.TestCase):
     def test_unexplained_ready_fails_instead_of_releasing(self):
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
-                mock.patch("workflow_core.tasks.shutil.which", return_value="/opt/bd"), \
+                mock.patch("workflow_core.tasks.tool", return_value="/opt/bd"), \
                 mock.patch("workflow_core.tasks.held_by_external", return_value=None), \
                 mock.patch("workflow_core.tasks.subprocess.run",
                            return_value=subprocess.CompletedProcess([], 0, stdout='[{"id": "x-1"}]')), \
@@ -233,7 +244,7 @@ class ExternalDependencyFailureTests(unittest.TestCase):
 
     def test_non_json_ready_output_fails_when_beads_are_held(self):
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
-                mock.patch("workflow_core.tasks.shutil.which", return_value="/opt/bd"), \
+                mock.patch("workflow_core.tasks.tool", return_value="/opt/bd"), \
                 mock.patch("workflow_core.tasks.held_by_external", return_value={"x-1": ["external:p:c"]}), \
                 mock.patch("workflow_core.tasks.subprocess.run",
                            return_value=subprocess.CompletedProcess([], 0, stdout="not json", stderr="")), \
@@ -249,7 +260,7 @@ class ExternalDependencyFailureTests(unittest.TestCase):
 class QueryResultTests(unittest.TestCase):
     def run_query(self, completed=None, error=None, which="/usr/bin/bd"):
         with mock.patch.object(tasks, "backend", return_value="beads"), \
-                mock.patch.object(tasks.shutil, "which", return_value=which), \
+                mock.patch.object(tasks, "tool", return_value=which), \
                 mock.patch.object(tasks.subprocess, "run", return_value=completed, side_effect=error):
             return tasks.query_result(Path("."), ["list"])
 
@@ -287,7 +298,7 @@ class TeamActorTests(unittest.TestCase):
             environ["BD_ACTOR"] = preset
         with mock.patch.dict(os.environ, environ, clear=True), \
                 mock.patch("workflow_core.tasks.backend", return_value="beads"), \
-                mock.patch("workflow_core.tasks.shutil.which", return_value=str(self.bd)):
+                mock.patch("workflow_core.tasks.tool", return_value=str(self.bd)):
             self.assertEqual(0, tasks.main(argv))
         return (self.base / "actor.txt").read_text(encoding="utf-8")
 

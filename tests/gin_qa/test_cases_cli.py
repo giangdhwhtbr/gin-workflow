@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,7 +13,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
-from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, cases_file, commit_all, delta, gin_workflow_bin,  # noqa: E402
+from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, cases_file, commit_all, delta, failing_stub, gin_workflow_bin,  # noqa: E402
                          hash8, make_change, make_repo, qa, write)
 from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
 
@@ -107,7 +108,7 @@ class TestChanges(QaCase):
                          case("TC-AUTH-003", self.ref("REQ-AUTH-003")))
         self.assertEqual([], self.findings())
         commit_all(self.root)
-        result = subprocess.run([str(self.bin / "gin-workflow"), "specs", "archive", "--change", "ep-1",
+        result = subprocess.run([shutil.which("gin-workflow", path=str(self.bin)), "specs", "archive", "--change", "ep-1",
                                  "--repository", str(self.root)], capture_output=True, text=True)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual([], self.findings())
@@ -180,7 +181,8 @@ class TestStructure(QaCase):
 
 class TestIdsAndExport(QaCase):
     def test_next_id_never_reuses_a_number(self):
-        self.assertEqual("TC-AUTH-001\n", qa(self.root, self.bin, "next-id", "auth").stdout)
+        first = qa(self.root, self.bin, "next-id", "auth")
+        self.assertEqual("TC-AUTH-001\n", first.stdout, first.stderr)
         self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")), case("TC-AUTH-002", self.ref("REQ-AUTH-002")))
         self.assertEqual("TC-AUTH-003\n", qa(self.root, self.bin, "next-id", "auth").stdout)
         commit_all(self.root)
@@ -244,7 +246,7 @@ class TestLegacyAndEnvironment(unittest.TestCase):
         result = qa(root, None, "check")
         self.assertEqual(2, result.returncode)
         self.assertIn("gin-workflow is not on PATH", result.stderr)
-        old = gin_workflow_bin(self.base / "old", "#!/bin/sh\necho \"error: argument command: invalid choice: 'reqs'\" >&2\nexit 2\n")
+        old = gin_workflow_bin(self.base / "old", failing_stub("error: argument command: invalid choice: 'reqs'", 2))
         result = qa(root, old, "check")
         self.assertEqual(2, result.returncode)
         self.assertIn("no `specs reqs`; reinstall a newer gin-workflow", result.stderr)

@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -34,10 +35,26 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         (self.root / ".claude").mkdir()
         subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i"],
                        cwd=self.root, check=True)
-        subprocess.run(["gin-workflow", "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
+        subprocess.run([shutil.which("gin-workflow"), "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
                         "--set", "providers.task_tracking=markdown"], cwd=self.root, check=True, capture_output=True)
         self.provider = CliTaskTrackingProvider(self.root)
 
+    def test_default_executable_comes_from_tool_for_the_repository(self):
+        calls = []
+
+        def runner(argv, cwd):
+            calls.append(list(argv))
+            return subprocess.CompletedProcess(argv, 1, "", "stub")
+
+        with mock.patch("gin_orchestrator.task_tracking_cli.tool", return_value="/cfg/gin-workflow") as tool:
+            provider = CliTaskTrackingProvider(self.root, runner=runner)
+            provider.readiness("t1")
+
+        tool.assert_called_once()
+        self.assertEqual("gin-workflow", tool.call_args[0][0])
+        self.assertEqual(["/cfg/gin-workflow", "task"], calls[0][:2])
+
+    @unittest.skipIf(os.name == "nt", "close_task sends quoted JSON notes through the gin-workflow .cmd shim, which cmd.exe mangles; see gin-workflow-gscr")
     def test_same_contract_scenario_as_the_fake_provider(self):
         provider = self.provider
         dependency = provider.create_task(TaskCreateRequest("dependency"), idempotency_key="dep")
@@ -62,11 +79,13 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual(("tests pass",), created.value.acceptance_criteria)
         self.assertTrue(replayed_edge.idempotent)
         self.assertEqual((dependency.value.task_id,), blocked.value.blockers)
-        self.assertTrue(ready.value.ready)
+        self.assertTrue(ready.value.ready, ready.value)
+        self.assertIsNotNone(closed.value, closed.message)
         self.assertEqual("closed", closed.value.status)
         self.assertEqual(("tests:0", "review:approved"), closed.value.acceptance_evidence)
         self.assertEqual("accepted", closed.value.closure_reason)
 
+    @unittest.skipIf(os.name == "nt", "close_task sends quoted JSON notes through the gin-workflow .cmd shim, which cmd.exe mangles; see gin-workflow-gscr")
     def test_closed_provenance_survives_a_new_provider_and_mismatch_is_invalid(self):
         task = self.provider.create_task(TaskCreateRequest("T"), idempotency_key="c").value.task_id
         request = TaskClosureRequest(task, "accepted", ("tests:0",))
@@ -101,7 +120,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
 
         provider = CliTaskTrackingProvider(self.root, runner=runner)
         self.assertEqual("t-1", provider.read_task("t-1").value.task_id)
-        self.assertEqual([(["gin-workflow", "task", "show", "t-1", "--json"], self.root.resolve())], calls)
+        self.assertEqual([([provider.executable, "task", "show", "t-1", "--json"], self.root.resolve())], calls)
 
     def test_failures_are_reported_not_raised(self):
         failing = CliTaskTrackingProvider(
@@ -132,9 +151,9 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
                              idempotency_key="c")
         provider.update_task("t-1", {"attributes": {"priority": 2}}, idempotency_key="u")
         self.assertEqual(
-            [["gin-workflow", "task", "create", "--title=T", "--status=in_progress", "--description=",
+            [[provider.executable, "task", "create", "--title=T", "--status=in_progress", "--description=",
               "--assignee=a", "--priority=1", "--json"],
-             ["gin-workflow", "task", "update", "t-1", "--priority=2", "--json"]],
+             [provider.executable, "task", "update", "t-1", "--priority=2", "--json"]],
             calls)
 
         calls.clear()
@@ -148,6 +167,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
                 self.root, runner=lambda argv, cwd, out=stdout: subprocess.CompletedProcess(argv, 0, out, ""))
             self.assertEqual(OperationStatus.UNAVAILABLE, provider.read_task("t-1").status, stdout)
 
+    @unittest.skipIf(os.name == "nt", "close_task sends quoted JSON notes through the gin-workflow .cmd shim, which cmd.exe mangles; see gin-workflow-gscr")
     def test_values_that_look_like_flags_are_kept(self):
         created = self.provider.create_task(TaskCreateRequest("-x", description="--force", notes=("-n",)),
                                             idempotency_key="c")
@@ -157,6 +177,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         self.assertEqual("-a", updated.value.attributes["assignee"])
         closed = self.provider.close_task(TaskClosureRequest(created.value.task_id, "-done", ("-e",)),
                                           idempotency_key="close")
+        self.assertIsNotNone(closed.value, closed.message)
         self.assertEqual(("closed", "-done"), (closed.value.status, closed.value.closure_reason))
 
 

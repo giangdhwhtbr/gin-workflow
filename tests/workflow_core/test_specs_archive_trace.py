@@ -112,7 +112,7 @@ class TestTraceAndStatus(unittest.TestCase):
         return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
 
     def test_status_states(self):
-        with mock.patch("workflow_core.specs_trace.shutil.which", return_value=None):
+        with mock.patch("workflow_core.specs_trace.tool", return_value=None):
             self.assertEqual("gh_unavailable", specs_trace.status(self.root, self.change)["status"])
         cases = [("[]", {"status": "none"}),
                  ('[{"url": "u", "state": "OPEN", "mergeCommit": null}]', {"status": "open", "url": "u"}),
@@ -121,12 +121,12 @@ class TestTraceAndStatus(unittest.TestCase):
                  ('[{"url": "u", "state": "CLOSED", "mergeCommit": null}]', {"status": "closed", "url": "u"})]
         for stdout, expected in cases:
             with self.subTest(stdout=stdout), \
-                    mock.patch("workflow_core.specs_trace.shutil.which", return_value="/usr/bin/gh"), \
+                    mock.patch("workflow_core.specs_trace.tool", return_value="/usr/bin/gh"), \
                     mock.patch("workflow_core.specs_trace.subprocess.run", return_value=self._gh(stdout)) as run:
                 result = specs_trace.status(self.root, self.change)
                 self.assertEqual({"change": "ep-1-lockout", "branch": "spec/ep-1-lockout", **expected}, result)
                 self.assertIn("spec/ep-1-lockout", run.call_args.args[0])
-        with mock.patch("workflow_core.specs_trace.shutil.which", return_value="/usr/bin/gh"), \
+        with mock.patch("workflow_core.specs_trace.tool", return_value="/usr/bin/gh"), \
                 mock.patch("workflow_core.specs_trace.subprocess.run", return_value=self._gh("", 1)):
             with self.assertRaises(specs.SpecsError):
                 specs_trace.status(self.root, self.change)
