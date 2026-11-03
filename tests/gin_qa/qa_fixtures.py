@@ -20,6 +20,10 @@ from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta,
 QA_LAUNCHER = ROOT / "plugins/gin-qa/src/scripts/gin-qa"
 
 
+# What a gin-qa child may find besides the fakes: git (gin-qa reads history) and the system defaults.
+TOOLS_PATH = os.pathsep.join([os.path.dirname(shutil.which("git") or "/usr/bin"), os.defpath])
+
+
 def python_stub(bin_dir: Path, name: str, body: str) -> Path:
     """`name` on `bin_dir` running the Python `body` (its first line is a `#!` shebang): on nt a .cmd wrapper."""
     bin_dir = Path(bin_dir)
@@ -57,7 +61,7 @@ def failing_stub(stderr: str, code: int) -> str:
 
 
 def qa(root: Path, bin_dir: Path | None, *args: str, group: str = "cases",
-       path: str = os.defpath) -> subprocess.CompletedProcess[str]:
+       path: str = TOOLS_PATH) -> subprocess.CompletedProcess[str]:
     search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
     return subprocess.run([sys.executable, str(QA_LAUNCHER), group, *args, "--repository", str(root)],
                           capture_output=True, text=True, env={**os.environ, "PATH": search})
