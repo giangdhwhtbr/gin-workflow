@@ -1,4 +1,4 @@
-"""`gin-qa cases`, `gin-qa e2e`, and `gin-qa report`: exit 0 ok, 1 findings, 2 usage or environment error."""
+"""`gin-qa cases`, `gin-qa e2e`, `gin-qa tests`, and `gin-qa report`: exit 0 ok, 1 findings, 2 usage or environment error."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import sys
 from typing import Any, Sequence
 
 from . import cases as tc
-from . import e2e, report
+from . import e2e, report, tests
 from .reqs import Effective, QaError, resolve, specs_reqs
 
-VERSION = "0.7"
+VERSION = "0.8"
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -50,6 +50,23 @@ def _e2e_parser() -> argparse.ArgumentParser:
     sub.add_parser("run", parents=[common]).add_argument("targets", nargs="*", metavar="TC-ID|capability")
     sub.add_parser("check", parents=[common]).add_argument("--run", dest="folder")
     sub.add_parser("export", parents=[common]).add_argument("--run", dest="folder", required=True)
+    return parser
+
+
+def _tests_parser() -> argparse.ArgumentParser:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--format", choices=("text", "json"), default="text")
+    parser = argparse.ArgumentParser(prog="gin-qa tests")
+    sub = parser.add_subparsers(dest="command", required=True)
+    item = sub.add_parser("plan", parents=[common])
+    item.add_argument("capability", nargs="?")
+    item.add_argument("--type", dest="kind")
+    sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
+    sub.add_parser("check", parents=[common]).add_argument("--type", dest="kind")
+    item = sub.add_parser("run", parents=[common])
+    item.add_argument("--type", dest="kind", required=True)
+    item.add_argument("targets", nargs="*", metavar="TC-ID|capability")
     return parser
 
 
@@ -219,6 +236,25 @@ def _run_e2e(args: argparse.Namespace) -> int:
     return code or (1 if errors else 0)
 
 
+def _run_tests(args: argparse.Namespace) -> int:
+    root = args.repository.resolve()
+    eff = resolve(specs_reqs(root))
+    if args.command == "plan":
+        work = tests.plan(root, eff, args.capability, args.kind)
+        lines = [f"{kind} {row['tc']} {row['type']}" + (f" {row['file']}:{row['line']}" if "file" in row else "")
+                 for kind in ("missing", "stale", "orphan") for row in work[kind]]
+        _emit({"guidelines": eff.guidelines, **work}, args.format, "\n".join(lines) or "nothing to do")
+        return 0
+    if args.command == "pin":
+        return _findings(tests.pin(root, eff, args.ids), args.format, f"pinned {' '.join(args.ids)}")
+    if args.command == "check":
+        return _findings(tests.check(root, eff, args.kind), args.format, "ok")
+    folder, code, errors, recorded = tests.run(root, eff, args.kind, args.targets)
+    _emit({"run": folder, "exit": code, "findings": errors, "recorded": recorded}, args.format,
+          "\n".join([*errors, *(f"{row['tc']} {row['result']}" for row in recorded), f"run: {folder}"]))
+    return code or (1 if errors else 0)
+
+
 def _report_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gin-qa report")
     parser.add_argument("capability", nargs="?")
@@ -242,10 +278,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if argv[:1] == ["--version"]:
         print(f"gin-qa {VERSION}")
         return 0
-    groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "report": (_report_parser, _run_report)}
+    groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "tests": (_tests_parser, _run_tests),
+              "report": (_report_parser, _run_report)}
     if not argv or argv[0] not in groups:
         print("usage: gin-qa cases {plan,next-id,pin,result,split,check,export} ...\n"
               "       gin-qa e2e {init,plan,pin,run,check,export} ...\n"
+              "       gin-qa tests {plan,pin,check,run} ...\n"
               "       gin-qa report [capability] [--out DIR]", file=sys.stderr)
         return 2
     make, run = groups[argv[0]]

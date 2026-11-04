@@ -36,6 +36,19 @@ def evidence_root(eff: Effective) -> str:
     return (PurePosixPath(eff.e2e_dir).parent / "evidence").as_posix()
 
 
+def new_run_folder(root: Path, eff: Effective, suffix: str = "") -> str:
+    """Creates `<evidence root>/<UTC stamp><suffix>`, with `-2`, `-3`, ... when another run took the name."""
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S") + suffix
+    folder, number = f"{evidence_root(eff)}/{stamp}", 2
+    (root / evidence_root(eff)).mkdir(parents=True, exist_ok=True)
+    while True:
+        try:
+            (root / folder).mkdir()
+            return folder
+        except FileExistsError:  # another run started in the same second
+            folder, number = f"{evidence_root(eff)}/{stamp}-{number}", number + 1
+
+
 def spec_path(eff: Effective, case: tc.Case) -> str:
     return f"{eff.e2e_dir}/{case.cap}/{case.id.lower()}.spec.ts"
 
@@ -245,15 +258,7 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
     specs = _selected(root, eff, targets)
     if not specs:
         raise QaError(f"no e2e specs under {eff.e2e_dir}; write them with /gin-qa:e2e")
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
-    folder, suffix = f"{evidence_root(eff)}/{stamp}", 2
-    (root / evidence_root(eff)).mkdir(parents=True, exist_ok=True)
-    while True:
-        try:
-            (root / folder).mkdir()
-            break
-        except FileExistsError:  # another run started in the same second
-            folder, suffix = f"{evidence_root(eff)}/{stamp}-{suffix}", suffix + 1
+    folder = new_run_folder(root, eff)
     record = {"started": datetime.now(timezone.utc).isoformat(), "specs": specs, "playwright_exit": None}
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     # Each run gets its own Playwright output folder: the shared default is wiped when a run starts.
