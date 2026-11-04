@@ -1,4 +1,4 @@
-"""`gin-qa cases` and `gin-qa e2e`: exit 0 ok, 1 findings, 2 usage or environment error."""
+"""`gin-qa cases`, `gin-qa e2e`, and `gin-qa report`: exit 0 ok, 1 findings, 2 usage or environment error."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import sys
 from typing import Any, Sequence
 
 from . import cases as tc
-from . import e2e
+from . import e2e, report
 from .reqs import Effective, QaError, resolve, specs_reqs
 
-VERSION = "0.6"
+VERSION = "0.7"
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -219,21 +219,42 @@ def _run_e2e(args: argparse.Namespace) -> int:
     return code or (1 if errors else 0)
 
 
+def _report_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="gin-qa report")
+    parser.add_argument("capability", nargs="?")
+    parser.add_argument("--out", help="report folder, relative to the repository; must be missing or empty")
+    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    return parser
+
+
+def _run_report(args: argparse.Namespace) -> int:
+    root = args.repository.resolve()
+    payload = report.build(root, resolve(specs_reqs(root)), args.capability, args.out)
+    for run in payload["missing_evidence"]:
+        print(f"gin-qa: evidence not found: {run}", file=sys.stderr)
+    _emit(payload, args.format, payload["report"])
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv[:1] == ["--version"]:
         print(f"gin-qa {VERSION}")
         return 0
-    if argv[:1] not in (["cases"], ["e2e"]):
+    groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "report": (_report_parser, _run_report)}
+    if not argv or argv[0] not in groups:
         print("usage: gin-qa cases {plan,next-id,pin,result,split,check,export} ...\n"
-              "       gin-qa e2e {init,plan,pin,run,check,export} ...", file=sys.stderr)
+              "       gin-qa e2e {init,plan,pin,run,check,export} ...\n"
+              "       gin-qa report [capability] [--out DIR]", file=sys.stderr)
         return 2
+    make, run = groups[argv[0]]
     try:
-        args = (_parser() if argv[0] == "cases" else _e2e_parser()).parse_args(argv[1:])
+        args = make().parse_args(argv[1:])
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
     try:
-        return _run(args) if argv[0] == "cases" else _run_e2e(args)
+        return run(args)
     except (QaError, ValueError, OSError) as error:
         print(f"gin-qa error: {error}", file=sys.stderr)
         return 2
