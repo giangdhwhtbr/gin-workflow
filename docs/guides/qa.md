@@ -73,12 +73,12 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
 
   ### api
   - Tests: `backend/tests/**/test_*.py`
-  - Run: `uv run --directory backend pytest {files} --junitxml={junit}`
+  - Run: `uv run --project backend pytest {files} --junitxml={junit}`
   ```
 
-  `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root, without a shell.
-- A test has a comment line `TC: <TC-ID>@<hash8>` and a name holding the TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` and `check` compare the marker with the case, as `gin-qa e2e` does with a spec's header; `gin-qa tests pin` updates it.
-- `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `qa/evidence/<UTC time>-<type>/` (`run.json` and `junit.xml`) and records each case's result: `failed` when a test named after it failed or errored, `blocked` when it was skipped or none ran, otherwise `passed`.
+  `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root, without a shell. `{files}` paths are relative to that root, so a runner option that changes folder (`uv run --directory`, `pnpm -C`) cannot take `{files}`.
+- A test carries the marker `TC: <TC-ID>@<hash8>`, by convention in a comment line above it, and a name holding the TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` and `check` compare the marker with the case, as `gin-qa e2e` does with a spec's header; `gin-qa tests pin` updates it.
+- `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `qa/evidence/<UTC time>-<type>/` and records each case's result in its case file. The [CLI reference](../reference/cli.md#gin-qa-tests) gives the result rules. Only `gin-qa e2e init` git-ignores `qa/evidence/`; without e2e, add it to `.gitignore`.
 
 ## Report: `/gin-qa:report`
 

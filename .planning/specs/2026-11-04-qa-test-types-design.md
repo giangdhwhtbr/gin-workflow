@@ -27,7 +27,7 @@ Declaration
 
   ### api
   - Tests: `backend/tests/**/test_*.py`
-  - Run: `uv run --directory backend pytest {files} --junitxml={junit}`
+  - Run: `uv run --project backend pytest {files} --junitxml={junit}`
   ```
 - `<type>` matches the case type pattern (`cases.TYPE`). `e2e` and `manual` cannot be declared. A type with no subsection is not automated, and its cases get no findings from `gin-qa tests`.
 - Globs use `cases.glob_regex` and are relative to the repository root.
