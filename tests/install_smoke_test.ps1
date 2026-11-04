@@ -97,7 +97,7 @@ try {
     Assert-Contains $opencodeDryRun 'would install global OpenCode skills to'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md')
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist/opencode/agents'))) 'OpenCode dry-run kept agents'
+    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/agents/gin-workflow-developer.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist/opencode/hooks'))) 'OpenCode dry-run wrote hooks'
 
     $project = Join-Path $TestRoot 'project'
@@ -111,6 +111,7 @@ try {
     Assert-Exists (Join-Path $project '.opencode/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.opencode/skills/gin-workflow-report/SKILL.md')
     Assert-Exists (Join-Path $project '.opencode/agents/user-agent.md')
+    Assert-Exists (Join-Path $project '.opencode/agents/gin-workflow-developer.md')
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-workflow-report/SKILL.md'))) 'name: gin-workflow-report'
     Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
@@ -296,7 +297,8 @@ try {
     Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md')
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md'))) 'name: gin-workflow-report'
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/agents'))) 'OpenCode install kept agents'
+    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/agents/gin-workflow-developer.md')
+    Assert-Exists (Join-Path $TestHome '.config/opencode/agents/gin-workflow-developer.md')
     Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/references/stage-contract.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/hooks'))) 'OpenCode install wrote hooks'
 
@@ -320,7 +322,7 @@ try {
     Assert-Exists (Join-Path $copilotDist 'references/stage-contract.md')
     Assert-Exists (Join-Path $copilotDist 'hooks/hooks.json')
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $copilotDist 'hooks/hooks.json'))) '/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"'
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'agents'))) 'Copilot bundle has agents'
+    Assert-Exists (Join-Path $copilotDist 'agents/developer.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $copilotDist 'commands'))) 'Copilot bundle has commands'
 
     Set-Content -LiteralPath $mockLog -Value '' -NoNewline
@@ -336,6 +338,11 @@ try {
     $copilotAllLog = [IO.File]::ReadAllText($mockLog)
     Assert-Contains $copilotAllLog "plugin install $copilotDist"
     Assert-Contains $copilotAllLog "plugin install $(Join-Path $Root 'plugins/gin-qa/dist/copilot/gin-qa')"
+    $qaCopilotDev = Join-Path $Root 'plugins/gin-qa/dist/copilot/gin-qa/agents/e2e-tester.md'
+    Assert-Exists $qaCopilotDev
+    $qaCopilotDevText = [IO.File]::ReadAllText($qaCopilotDev)
+    Assert-Contains $qaCopilotDevText '"bash", "edit"]'
+    Assert-True (-not $qaCopilotDevText.Contains('"edit", "edit"', [StringComparison]::Ordinal)) 'Copilot agent has duplicate edit tool'
 
     $copilotProject = Join-Path $TestRoot 'copilot-project'
     New-Item -ItemType Directory -Path $copilotProject | Out-Null
@@ -345,6 +352,7 @@ try {
     Set-Content -LiteralPath $mockLog -Value '' -NoNewline
     & $Installer -Uninstall | Out-Null
     Assert-Contains ([IO.File]::ReadAllText($mockLog)) 'plugin uninstall gin-workflow'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/agents/gin-workflow-developer.md'))) 'OpenCode global agent still present after uninstall'
     # Later blocks run without the stub.
     Remove-Item -LiteralPath (Join-Path $TestRoot "mock-bin/$(if ($IsWindows) { 'copilot.cmd' } else { 'copilot' })") -Force
     $env:PATH = $OriginalPath

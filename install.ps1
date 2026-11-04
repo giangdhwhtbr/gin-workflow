@@ -199,6 +199,87 @@ function Convert-ClaudeAgents {
     }
 }
 
+function Convert-CodexAgents {
+    param([Parameter(Mandatory)][string]$AgentsDirectory)
+    if (-not (Test-Path -LiteralPath $AgentsDirectory -PathType Container)) {
+        return
+    }
+    foreach ($agent in Get-ChildItem -LiteralPath $AgentsDirectory -Filter '*.md' -File) {
+        $content = [IO.File]::ReadAllText($agent.FullName)
+        $content = [regex]::Replace($content, '(?m)^tools:.*\r?\n', '')
+        if ($Link -and $null -ne $agent.LinkType) {
+            Remove-Item -LiteralPath $agent.FullName -Force
+        }
+        Write-Utf8File -Path $agent.FullName -Content $content
+    }
+}
+
+function Convert-CopilotAgents {
+    param([Parameter(Mandatory)][string]$AgentsDirectory)
+    if (-not (Test-Path -LiteralPath $AgentsDirectory -PathType Container)) {
+        return
+    }
+    foreach ($agent in Get-ChildItem -LiteralPath $AgentsDirectory -Filter '*.md' -File) {
+        $content = Get-Content -LiteralPath $agent.FullName -Raw
+        $content = [regex]::Replace($content, '(?m)^tools:.*$', {
+            param($match)
+            $toolsLine = $match.Value
+            $toolsLine = $toolsLine.Replace('"view_file"', '"view"')
+            $toolsLine = $toolsLine.Replace('"grep_search"', '"grep"')
+            $toolsLine = $toolsLine.Replace('"list_dir"', '"glob"')
+            $toolsLine = $toolsLine.Replace('"search_web"', '"web_fetch"')
+            $toolsLine = $toolsLine.Replace('"run_command"', '"bash"')
+            $toolsLine = $toolsLine.Replace('"replace_file_content"', '"edit"')
+            $toolsLine = $toolsLine.Replace('"write_to_file"', '"edit"')
+            while ($toolsLine -match '"edit",\s*"edit"') {
+                $toolsLine = [regex]::Replace($toolsLine, '"edit",\s*"edit"', '"edit"')
+            }
+            return $toolsLine
+        })
+        if ($Link -and $null -ne $agent.LinkType) {
+            Remove-Item -LiteralPath $agent.FullName -Force
+        }
+        Write-Utf8File -Path $agent.FullName -Content $content
+    }
+}
+
+function Convert-OpenCodeAgents {
+    param(
+        [Parameter(Mandatory)][string]$SourceDirectory,
+        [Parameter(Mandatory)][string]$DestinationDirectory,
+        [Parameter(Mandatory)][string]$PluginName
+    )
+    $sourceAgents = Join-Path $SourceDirectory 'agents'
+    if (-not (Test-Path -LiteralPath $sourceAgents -PathType Container)) {
+        return
+    }
+    $destAgents = Join-Path $DestinationDirectory 'agents'
+    New-Directory $destAgents
+    foreach ($agent in Get-ChildItem -LiteralPath $sourceAgents -Filter '*.md' -File) {
+        $stem = [IO.Path]::GetFileNameWithoutExtension($agent.Name)
+        $content = [IO.File]::ReadAllText($agent.FullName)
+        $match = [regex]::Match($content, '(?s)\A---\r?\n(.*?)\r?\n---\r?\n(.*)\z')
+        if ($match.Success) {
+            $fm = $match.Groups[1].Value
+            $body = $match.Groups[2].Value
+            $lines = @()
+            foreach ($line in $fm -split '\r?\n') {
+                if ($line -match '^name:' -or $line -match '^tools:') {
+                    continue
+                }
+                $lines += $line
+            }
+            $lines += 'mode: subagent'
+            $newFm = $lines -join "`n"
+            $newContent = "---`n$newFm`n---`n$body"
+        }
+        else {
+            $newContent = $content
+        }
+        Write-Utf8File -Path (Join-Path $destAgents "$PluginName-$stem.md") -Content $newContent
+    }
+}
+
 function Copy-BundleDirectories {
     param(
         [Parameter(Mandatory)][string]$Source,
@@ -219,12 +300,15 @@ function Install-OpenCodeBundle {
     param(
         [Parameter(Mandatory)][string]$Source,
         [Parameter(Mandatory)][string]$Destination,
-        [Parameter(Mandatory)][string]$InstallRoot
+        [Parameter(Mandatory)][string]$InstallRoot,
+        [Parameter(Mandatory)][string]$PluginName
     )
     # OpenCode loads skills, references, scripts, rules, and templates. It has no
-    # use for the Claude/Codex agents/ and commands/ files, and copying them would
-    # risk clobbering a repository's own .opencode/agents or .opencode/commands.
+    # use for the Claude/Codex commands/ files, and copying them would risk
+    # clobbering a repository's own .opencode/commands. Agents are translated
+    # into namespaced subagents (<plugin>-<agent>.md).
     Copy-BundleDirectories -Source $Source -Destination $Destination -LinkFiles
+    Convert-OpenCodeAgents -SourceDirectory $Source -DestinationDirectory $Destination -PluginName $PluginName
 
     # OpenCode selects a skill by its directory id; keep `name` aligned with the
     # renamed `report` directory (id `gin-workflow-report`).
@@ -272,14 +356,25 @@ function Install-PlatformLayout {
         [string]$InstallRoot
     )
     if ($Harness -eq 'opencode') {
-        Install-OpenCodeBundle -Source (Join-Path $PluginDirectory 'src') -Destination $Destination -InstallRoot $InstallRoot
+        Install-OpenCodeBundle `
+            -Source (Join-Path $PluginDirectory 'src') `
+            -Destination $Destination `
+            -InstallRoot $InstallRoot `
+            -PluginName (Split-Path -Leaf $PluginDirectory)
         return
     }
     if ($Harness -eq 'copilot') {
         # Copilot CLI reads the Claude layout (.claude-plugin/plugin.json,
-        # skills/<name>/SKILL.md); hooks get Copilot's own format and agents/
-        # is left out.
+        # skills/<name>/SKILL.md); hooks get Copilot's own format and agents get
+        # Copilot tool names.
         Copy-BundleDirectories -Source (Join-Path $PluginDirectory 'src') -Destination $Destination
+        if (Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/agents') -PathType Container) {
+            Copy-DirectoryContent `
+                -Source (Join-Path $PluginDirectory 'src/agents') `
+                -Destination (Join-Path $Destination 'agents') `
+                -AsLink:$Link
+            Convert-CopilotAgents -AgentsDirectory (Join-Path $Destination 'agents')
+        }
         if (Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/hooks') -PathType Container) {
             New-CopilotHooksFile -OutputPath (Join-Path $Destination 'hooks/hooks.json')
         }
@@ -292,6 +387,9 @@ function Install-PlatformLayout {
     }
     if ($Harness -eq 'claude') {
         Convert-ClaudeAgents -AgentsDirectory (Join-Path $Destination 'agents')
+    }
+    if ($Harness -eq 'codex') {
+        Convert-CodexAgents -AgentsDirectory (Join-Path $Destination 'agents')
     }
     if (-not [string]::IsNullOrWhiteSpace($ManifestPath)) {
         New-PluginManifest `
@@ -640,6 +738,15 @@ function Install-Plugin {
         else {
             Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
         }
+        $sourceAgents = Join-Path $source 'agents'
+        if (Test-Path -LiteralPath $sourceAgents -PathType Container) {
+            $destAgents = Join-Path $UserHome '.config/opencode/agents'
+            New-Directory $destAgents
+            Get-ChildItem -LiteralPath $destAgents -Filter "$Name-*.md" -File -ErrorAction SilentlyContinue | Remove-Item -Force
+            foreach ($agent in Get-ChildItem -LiteralPath $sourceAgents -Filter "$Name-*.md" -File) {
+                Copy-Item -LiteralPath $agent.FullName -Destination (Join-Path $destAgents $agent.Name) -Force
+            }
+        }
         Write-Output "Successfully installed $Name globally in OpenCode!"
     }
     if ((Test-Platform 'antigravity') -and (Get-Command agy -ErrorAction SilentlyContinue)) {
@@ -696,6 +803,10 @@ if ($Uninstall) {
         $opencodeSkills = Join-Path $UserHome ".config/opencode/skills/$name"
         if (Test-Path -LiteralPath $opencodeSkills) {
             Remove-Item -LiteralPath $opencodeSkills -Recurse -Force
+        }
+        $opencodeAgents = Join-Path $UserHome '.config/opencode/agents'
+        if (Test-Path -LiteralPath $opencodeAgents -PathType Container) {
+            Get-ChildItem -LiteralPath $opencodeAgents -Filter "$name-*.md" -File | Remove-Item -Force
         }
     }
     if (Get-Command copilot -ErrorAction SilentlyContinue) {
