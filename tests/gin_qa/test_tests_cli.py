@@ -205,6 +205,14 @@ class TestPlanPinCheck(TestsCase):
             "TC-AUTH-003: not a test case of a declared automated type",
         ], result.stdout.splitlines())
 
+    def test_pin_keeps_crlf_line_endings(self):
+        path = self.write_test("TC-AUTH-001", pinned="00000000")
+        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+        self.assertEqual(0, self.gin_tests("pin", "TC-AUTH-001").returncode)
+        now = self.tc_hash("TC-AUTH-001")
+        self.assertEqual(f"# TC: TC-AUTH-001@{now}\r\ndef test_tc_auth_001():\r\n    pass\r\n".encode(),
+                         path.read_bytes())
+
     def test_pin_writes_all_or_nothing_when_a_file_is_not_utf8(self):
         good = self.write_test("TC-AUTH-001", pinned="00000000")
         bad = self.root / "backend/tests/test_bad.py"

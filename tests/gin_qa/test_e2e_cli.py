@@ -128,6 +128,16 @@ class TestInitPlanPin(E2eCase):
                          self.e2e("pin", "TC-AUTH-001").stdout)
 
 
+    def test_pin_keeps_crlf_line_endings(self):
+        spec = self.write_spec(pinned="00000000")
+        body = spec.read_text().split("\n", 1)[1].replace("\n", "\r\n")
+        spec.write_bytes(f"// TC: TC-AUTH-001@00000000\r\n{body}".encode())
+        self.assertEqual(0, self.e2e("pin", "TC-AUTH-001").returncode)
+        self.assertEqual(f"// TC: TC-AUTH-001@{self.tc_hash()}\r\n{body}".encode(), spec.read_bytes())
+        spec.write_bytes(body.encode())
+        self.assertEqual(0, self.e2e("pin", "TC-AUTH-001").returncode)
+        self.assertEqual(f"// TC: TC-AUTH-001@{self.tc_hash()}\r\n{body}".encode(), spec.read_bytes())
+
 class TestInitConfig(E2eCase):
     HINT = 'add "e2e": "playwright test" to the package.json scripts'
 

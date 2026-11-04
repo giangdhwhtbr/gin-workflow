@@ -123,12 +123,14 @@ def pin(root: Path, eff: Effective, ids: list[str]) -> list[str]:
     if errors:
         return errors
     for path, header in edits.items():
-        lines = path.read_text(encoding="utf-8").split("\n")
-        if HEADER.match(lines[0]):
-            lines[0] = header
+        with path.open(encoding="utf-8", newline="") as file:
+            lines = file.read().split("\n")
+        ending = "\r" if lines[0].endswith("\r") else ""
+        if HEADER.match(lines[0].removesuffix("\r")):
+            lines[0] = header + ending
         else:
-            lines.insert(0, header)
-        path.write_text("\n".join(lines), encoding="utf-8")
+            lines.insert(0, header + ending)
+        tc.write_atomic(path, "\n".join(lines))
     return []
 
 
