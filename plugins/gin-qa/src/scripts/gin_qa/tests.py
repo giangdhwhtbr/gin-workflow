@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shlex
 from typing import Any
@@ -78,6 +78,8 @@ def declared(root: Path, eff: Effective) -> tuple[dict[str, AutomatedType], list
         globs = _BACKTICKED.findall(items.get("Tests", ""))
         if not globs:
             problems.append("needs a '- Tests:' line with one or more backticked globs")
+        problems += [f"Tests glob `{g}` must be relative to the repository root, without '..'" for g in globs
+                     if PurePosixPath(g).is_absolute() or PureWindowsPath(g).is_absolute() or ".." in g.split("/")]
         commands = _BACKTICKED.findall(items.get("Run", ""))
         if len(commands) != 1:
             problems.append("needs a '- Run:' line with one backticked command")
@@ -146,7 +148,8 @@ def plan(root: Path, eff: Effective, capability: str | None = None, only: str | 
                 continue
             where = {"file": mark.path, "line": mark.line}
             if case is None or case.type != name:
-                orphan.append({"tc": mark.tc, "type": name, **where})
+                if not any((row["tc"], row["file"], row["line"]) == (mark.tc, mark.path, mark.line) for row in orphan):
+                    orphan.append({"tc": mark.tc, "type": name, **where})
                 continue
             if mark.pinned != tc.hash8(case):
                 stale.append({**_row(case, name), **where, "pinned": mark.pinned})
@@ -190,10 +193,19 @@ def pin(root: Path, eff: Effective, ids: list[str]) -> list[str]:
             edits.setdefault(mark.path, []).append((mark.line, case_id, tc.hash8(case)))
     if errors:
         return errors
+    texts: dict[str, str] = {}
     for rel, changes in edits.items():
-        lines = (root / rel).read_text(encoding="utf-8").split("\n")
+        try:
+            lines = (root / rel).read_text(encoding="utf-8").split("\n")
+        except UnicodeDecodeError:
+            errors.append(f"{rel}: not UTF-8 text")
+            continue
         for number, case_id, value in changes:
             lines[number - 1] = re.sub(rf"\bTC: {re.escape(case_id)}@[0-9a-f]{{8}}\b", f"TC: {case_id}@{value}",
                                        lines[number - 1])
-        tc.write_atomic(root / rel, "\n".join(lines))
+        texts[rel] = "\n".join(lines)
+    if errors:
+        return errors
+    for rel, text in texts.items():
+        tc.write_atomic(root / rel, text)
     return []

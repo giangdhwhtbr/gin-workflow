@@ -67,18 +67,16 @@ class TestsCase(unittest.TestCase):
         write(self.root, f"qa/cases/auth/{tc_id}-x.{kind}.md",
               case_file(tc_id, "REQ: REQ-AUTH-001@00000000", title=tc_id))
 
-    def tests(self, *args: str):
+    def gin_tests(self, *args: str):
         return qa(self.root, self.bin, *args, group="tests")
 
     def run_json(self, *args: str) -> dict:
-        result = self.tests(*args, "--format", "json")
+        result = self.gin_tests(*args, "--format", "json")
         self.assertIn(result.returncode, (0, 1), result.stderr)
         return json.loads(result.stdout)
 
     def tc_hash(self, tc_id: str) -> str:
-        path = next((self.root / "qa/cases/auth").glob(f"{tc_id}-*.md"), None)
-        if path is None:
-            return "00000000"  # a marker for a case that does not exist
+        path = next((self.root / "qa/cases/auth").glob(f"{tc_id}-*.md"))
         found, _ = parse_case_file(path, path.relative_to(self.root).as_posix())
         return case_hash8(found[0])
 
@@ -113,8 +111,12 @@ class TestDeclaration(TestsCase):
             ### api
             - Tests: `a/*.py`
             - Run: `pytest --junitxml={junit}`
+
+            ### lib
+            - Tests: `/abs/*.py` `C:/x/*.py` `../up/*.py` `a/../b/*.py`
+            - Run: `pytest --junitxml={junit}`
             """))
-        result = self.tests("check")
+        result = self.gin_tests("check")
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertEqual([
             "qa/guidelines.md:3: api: Run needs {junit}",
@@ -122,24 +124,26 @@ class TestDeclaration(TestsCase):
             "qa/guidelines.md:11: unit: needs a '- Tests:' line with one or more backticked globs",
             "qa/guidelines.md:11: unit: {files} must be a whole argument",
             "qa/guidelines.md:14: api: declared twice (first at line 3)",
+            *[f"qa/guidelines.md:18: lib: Tests glob `{g}` must be relative to the repository root, without '..'"
+              for g in ("/abs/*.py", "C:/x/*.py", "../up/*.py", "a/../b/*.py")],
         ], result.stdout.splitlines())
         for args in (("plan",), ("pin", "TC-AUTH-001"), ("run", "--type", "api")):
             with self.subTest(args=args):
-                result = self.tests(*args)
+                result = self.gin_tests(*args)
                 self.assertEqual(2, result.returncode, result.stdout)
                 self.assertIn("gin-qa tests check", result.stderr)
 
     def test_no_declared_type_means_nothing_to_do(self):
         self.guidelines.write_text("# Test case guidelines\n\n## Automated types\n\nNone yet.\n")
-        result = self.tests("check")
+        result = self.gin_tests("check")
         self.assertEqual((0, "ok\n"), (result.returncode, result.stdout))
         payload = self.run_json("plan")
         self.assertEqual(({}, [], [], []), (payload["types"], payload["missing"], payload["stale"], payload["orphan"]))
         self.guidelines.unlink()
-        self.assertEqual("ok\n", self.tests("check").stdout)
+        self.assertEqual("ok\n", self.gin_tests("check").stdout)
         for args in (("run", "--type", "api"), ("plan", "--type", "api")):
             with self.subTest(args=args):
-                result = self.tests(*args)
+                result = self.gin_tests(*args)
                 self.assertEqual(2, result.returncode)
                 self.assertIn("--type api: not declared", result.stderr)
 
@@ -153,7 +157,9 @@ class TestPlanPinCheck(TestsCase):
         self.assertEqual(("qa/guidelines.md", "api", self.tc_hash("TC-AUTH-001")),
                          (payload["guidelines"], payload["missing"][0]["type"], payload["missing"][0]["hash8"]))
         self.write_test("TC-AUTH-001", pinned="00000000")
-        self.write_test("TC-AUTH-002", "TC-AUTH-003", "TC-AUTH-009", name="sub/test_more.py")
+        self.write_test("TC-AUTH-002", "TC-AUTH-003", name="sub/test_more.py")
+        with (self.root / "backend/tests/sub/test_more.py").open("a") as more:
+            more.write("\n# TC: TC-AUTH-009@00000000\ndef test_tc_auth_009():\n    pass\n")
         write(self.root, "backend/other/test_x.py", "# TC: TC-AUTH-009@00000000\n")
         payload = self.run_json("plan", "auth", "--type", "api")
         self.assertEqual([], payload["missing"])
@@ -178,25 +184,41 @@ class TestPlanPinCheck(TestsCase):
     def test_pin_rewrites_every_marker_of_the_case(self):
         first = self.write_test("TC-AUTH-001", pinned="00000000")
         second = write(self.root, "backend/tests/test_other.py", "x = 1  -- TC: TC-AUTH-001@11111111\n")
-        result = self.tests("pin", "TC-AUTH-001", "TC-AUTH-009")
+        result = self.gin_tests("pin", "TC-AUTH-001", "TC-AUTH-009")
         self.assertEqual((1, "TC-AUTH-009: not a test case of a declared automated type\n"),
                          (result.returncode, result.stdout))
         self.assertIn("TC-AUTH-001@00000000", first.read_text())
-        self.assertEqual(0, self.tests("pin", "TC-AUTH-001").returncode)
+        self.assertEqual(0, self.gin_tests("pin", "TC-AUTH-001").returncode)
         now = self.tc_hash("TC-AUTH-001")
         self.assertTrue(first.read_text().startswith(f"# TC: TC-AUTH-001@{now}\ndef test_tc_auth_001():"))
         self.assertEqual(f"x = 1  -- TC: TC-AUTH-001@{now}\n", second.read_text())
         self.assertEqual([], self.run_json("plan")["stale"])
-        result = self.tests("pin", "TC-AUTH-002", "TC-AUTH-003")
+        result = self.gin_tests("pin", "TC-AUTH-002", "TC-AUTH-003")
         self.assertEqual([
             "TC-AUTH-002: no 'TC: TC-AUTH-002@<hash8>' marker in the api tests",
             "TC-AUTH-003: not a test case of a declared automated type",
         ], result.stdout.splitlines())
 
+    def test_pin_writes_all_or_nothing_when_a_file_is_not_utf8(self):
+        good = self.write_test("TC-AUTH-001", pinned="00000000")
+        bad = self.root / "backend/tests/test_bad.py"
+        bad.write_bytes(b"# TC: TC-AUTH-002@00000000 \xff\n")
+        result = self.gin_tests("pin", "TC-AUTH-001", "TC-AUTH-002")
+        self.assertEqual((1, "backend/tests/test_bad.py: not UTF-8 text\n"), (result.returncode, result.stdout))
+        self.assertIn("TC-AUTH-001@00000000", good.read_text())
+
+    def test_an_orphan_under_two_overlapping_types_is_reported_once(self):
+        self.guidelines.write_text(GUIDELINES + "\n### unit\n- Tests: `backend/tests/*.py`\n"
+                                                "- Run: `fake-runner --junitxml={junit}`\n")
+        write(self.root, "backend/tests/test_x.py", "# TC: TC-AUTH-009@00000000\n")
+        orphans = self.run_json("plan")["orphan"]
+        self.assertEqual([("TC-AUTH-009", "backend/tests/test_x.py", 1)],
+                         [(row["tc"], row["file"], row["line"]) for row in orphans])
+
     def test_check_reports_missing_stale_and_orphan(self):
         self.write_test("TC-AUTH-001", pinned="00000000")
         gone = self.write_test("TC-AUTH-009", name="test_gone.py", pinned="00000000")
-        result = self.tests("check")
+        result = self.gin_tests("check")
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertEqual([
             "qa/cases/auth/TC-AUTH-002-x.api.md:1: TC-AUTH-002 has no test of type api; "
@@ -207,7 +229,7 @@ class TestPlanPinCheck(TestsCase):
         ], result.stdout.splitlines())
         self.write_test("TC-AUTH-001", "TC-AUTH-002")
         gone.unlink()
-        result = self.tests("check", "--type", "api")
+        result = self.gin_tests("check", "--type", "api")
         self.assertEqual((0, "ok\n"), (result.returncode, result.stdout))
 
 
