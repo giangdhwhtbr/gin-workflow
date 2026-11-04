@@ -204,8 +204,37 @@ def _selected(root: Path, eff: Effective, targets: list[str]) -> list[str]:
     return list(dict.fromkeys(chosen))
 
 
-def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[str]]:
-    """Runs the selected specs into a new evidence folder. Returns (folder, Playwright exit, check findings)."""
+def _outcome(run_dir: Path, case_id: str) -> str:
+    """The worst status over the case's result folders: failed, then blocked (no valid result.json), then passed."""
+    statuses = [((_result(folder / "result.json")[0] or {}).get("status", "blocked")
+                 if _contained(run_dir, folder) else "blocked")
+                for folder in _result_folders(run_dir / case_id.lower())]
+    return next((worst for worst in ("failed", "blocked") if worst in statuses), "passed" if statuses else "blocked")
+
+
+def _record(root: Path, eff: Effective, folder: str, specs: list[str]) -> tuple[list[dict[str, str]], list[str]]:
+    recorded: list[dict[str, str]] = []
+    errors: list[str] = []
+    for spec in specs:
+        match = HEADER.match((root / spec).read_text(encoding="utf-8").split("\n", 1)[0]) \
+            if (root / spec).is_file() else None
+        if match is None:
+            continue  # check_run reports the missing header
+        case_id, status = match.group(1), _outcome(root / folder, match.group(1))
+        try:
+            tc.record_result(root, eff.cases_dir, case_id, status, run=folder)
+        except ValueError as error:
+            errors.append(f"{case_id}: result not recorded: {error}")
+            continue
+        recorded.append({"tc": case_id, "result": status})
+    return recorded, errors
+
+
+def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[str], list[dict[str, str]]]:
+    """Runs the selected specs into a new evidence folder.
+
+    Returns (folder, Playwright exit, findings, recorded results).
+    """
     if not (root / eff.e2e_dir / FIXTURE).is_file():
         raise QaError(f"{eff.e2e_dir}/{FIXTURE} is missing; run `gin-qa e2e init`")
     npx = shutil.which("npx")
@@ -233,7 +262,9 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
                             env={**os.environ, "GIN_QA_RUN_DIR": str(root / folder)})
     record["playwright_exit"] = result.returncode
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-    return folder, result.returncode, check_run(root, eff, folder)
+    findings = check_run(root, eff, folder)
+    recorded, problems = _record(root, eff, folder, specs)
+    return folder, result.returncode, findings + problems, recorded
 
 
 def _run_folder(root: Path, eff: Effective, folder: str) -> tuple[Path, dict[str, Any]]:

@@ -213,9 +213,9 @@ def _run_e2e(args: argparse.Namespace) -> int:
             f"{row['id']} {' '.join(result['status'] for result in row['results']) or 'not run'}"
             for row in payload["cases"]))
         return 0
-    folder, code, errors = e2e.run(root, eff, args.targets)
-    _emit({"run": folder, "playwright_exit": code, "findings": errors}, args.format,
-          "\n".join([*errors, f"run: {folder}"]))
+    folder, code, errors, recorded = e2e.run(root, eff, args.targets)
+    _emit({"run": folder, "playwright_exit": code, "findings": errors, "recorded": recorded}, args.format,
+          "\n".join([*errors, *(f"{row['tc']} {row['result']}" for row in recorded), f"run: {folder}"]))
     return code or (1 if errors else 0)
 
 

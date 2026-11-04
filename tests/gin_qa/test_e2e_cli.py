@@ -262,6 +262,31 @@ class TestRunAndEvidence(E2eCase):
         self.assertNotEqual(payload["run"], json.loads(self.run_e2e("auth").stdout)["run"])
         self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
 
+    def case_lines(self) -> str:
+        return self.cases.read_text().split("### TC-AUTH-002")[0]
+
+    def test_run_records_the_result_and_run_folder(self):
+        payload = json.loads(self.run_e2e().stdout)
+        self.assertEqual([{"tc": "TC-AUTH-001", "result": "passed"}], payload["recorded"])
+        self.assertIn(f"Priority: high\nResult: passed\nRun: {payload['run']}\n", self.case_lines())
+        self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
+
+    def test_worst_result_over_projects_and_missing_results(self):
+        (self.root / ".fake-skip").write_text("TC-AUTH-001")
+        payload = json.loads(self.run_e2e().stdout)
+        self.assertEqual([{"tc": "TC-AUTH-001", "result": "blocked"}], payload["recorded"])
+        (self.root / ".fake-skip").unlink()
+        folder = json.loads(self.run_e2e().stdout)["run"]
+        case_dir = self.root / folder / "tc-auth-001"
+        data = json.loads((case_dir / "result.json").read_text())
+        for project, status in (("chromium", "passed"), ("mobile", "failed")):
+            (case_dir / project).mkdir()
+            (case_dir / project / "result.json").write_text(json.dumps({**data, "status": status}))
+        for name in ("result.json", "01.png", "01.aria.yml"):
+            (case_dir / name).unlink()
+        from gin_qa import e2e as e2e_module
+        self.assertEqual("failed", e2e_module._outcome(self.root / folder, "TC-AUTH-001"))
+
     def test_a_taken_folder_moves_to_the_next_suffix(self):
         now = datetime.now(timezone.utc)
         for moment in (now, now + timedelta(seconds=1)):
