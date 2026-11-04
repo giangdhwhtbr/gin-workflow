@@ -66,9 +66,9 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
 
 `/gin-qa:report [capability]` runs `gin-qa report` and writes one folder you can zip and send:
 
-- The folder is `qa/evidence/report-<UTC time>/`; `--out <dir>` picks another, which must be missing or empty. It holds `index.html` and a copy of each e2e screenshot the report shows, so it opens offline from any location. `qa/evidence/` is git-ignored, so reports stay out of git.
+- The folder is `qa/evidence/report-<UTC time>/`; `--out <dir>` picks another, which must be missing or empty. It holds `index.html` and a copy of each e2e screenshot the report shows, so it opens offline from any location. `gin-qa e2e init` git-ignores `qa/evidence/`, so reports stay out of git.
 - The page counts cases per capability, type, priority, and result in four bar charts; a click on a bar filters the case table. The table has a search over ID and title and one filter per chart.
-- A click on a case opens its fields, preconditions, test data, steps, expected results, result, run, and bug, and for an e2e case each step of its latest run per Playwright project: status, URL, error, and screenshot.
+- A click on a case opens its fields, preconditions, test data, steps, expected results, result, run, and bug, and for an e2e case each step of the run its `Run` line names, per Playwright project: status, URL, error, and screenshot.
 - Each case shows the run its `Run` line names. When that folder is gone, the case shows `evidence not found: <run>` and the command lists the run under `missing_evidence`. A `Run` outside `qa/evidence/`, such as a manual run reference, is shown as text.
 
 ## Prompts
