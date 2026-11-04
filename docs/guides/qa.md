@@ -57,10 +57,10 @@ Requirements and their hashes come from the living specs, so the [SDD layout](sd
 
 A failure asks for what happened, evidence references, and an optional external tracker reference, then runs `gin-qa cases bug`:
 
-- The bug is a bead filed through `gin-workflow task create`, linked to the case's epic with `discovered-from`, so the [usage report](../reference/cli.md#gin-workflow-usage) of that epic counts it.
-- The epic comes from the spec named in `Source:` (legacy layout): its `Epic:` line, or the epic recorded at `orchestration-ready` for its `Workflow:` id. In the SDD layout it comes from the change that holds the first of the case's REQs that is in a change; a REQ already archived into the living spec has none. With no epic, the skill offers the epics of the repository to pick from.
+- The bug is a bead filed through `gin-workflow task create`, linked to the case's epic with `discovered-from`. `gin-workflow usage collect` on that epic counts it in `quality.bugs`, and the [usage report](../reference/cli.md#gin-workflow-usage) shows the count from the last collect.
+- The epic comes from the case's spec or change; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for the lookup. With no epic, the skill offers the open epics of the repository to pick from.
 - The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.
-- When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence are not added to it. A closed bug, or a value that is not a readable bead, gets a new bug that names it as the previous bug.
+- When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence are not added to it. A closed bug gets a new bug that names it as the previous bug; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for other values.
 - Teams that track bugs in Jira or Linear file the ticket there and pass its key with `--external-ref`; the flag only records the key on the bead.
 - Priority follows the case: `high` → 1, `medium` → 2, `low` → 3, none → 2.
 
