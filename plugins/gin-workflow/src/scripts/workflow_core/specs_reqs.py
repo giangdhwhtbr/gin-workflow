@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from .specs import (Block, SpecsError, block_hash, change_file, changes_dir, delta_blocks, living_files,
+from .specs import (Block, SpecsError, block_hash, change_epic, change_file, changes_dir, delta_blocks, living_files,
                     parse_blocks, shown)
 
 _STEPS = ("GIVEN", "WHEN", "THEN")
@@ -28,9 +28,9 @@ def scenarios(block: Block) -> list[dict[str, Any]]:
     return found
 
 
-def _row(root: Path, path: Path, block: Block, change: str | None) -> dict[str, Any]:
+def _row(root: Path, path: Path, block: Block, change: str | None, epic: str | None = None) -> dict[str, Any]:
     return {"id": block.id, "title": block.title, "capability": block.cap,
-            "section": "LIVING" if change is None else block.section, "change": change,
+            "section": "LIVING" if change is None else block.section, "change": change, "epic": epic,
             "hash": block_hash(block.text), "source": f"{shown(root, path)}:{block.start + 1}",
             "scenarios": scenarios(block)}
 
@@ -47,7 +47,11 @@ def _delta_rows(root: Path, change: Path) -> list[dict[str, Any]]:
     blocks, errors = delta_blocks(root, change)
     if errors:
         raise SpecsError("; ".join(errors))
-    return [_row(root, change_file(change, "spec-delta"), block, change.name) for block in blocks]
+    try:
+        epic: str | None = change_epic(change)
+    except SpecsError:  # a proposal without an `Epic:` line
+        epic = None
+    return [_row(root, change_file(change, "spec-delta"), block, change.name, epic) for block in blocks]
 
 
 def requirements(root: Path, config: Mapping[str, Any], cfg: Mapping[str, Any],

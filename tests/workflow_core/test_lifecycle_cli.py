@@ -87,6 +87,21 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual("claude", data["catalog"]["harness"])
         self.assertEqual(["haiku", "sonnet", "opus"], data["catalog"]["models"])
 
+    def test_state_json_names_the_epic_recorded_at_orchestration_ready(self):
+        def epic(workflow_id: str):
+            with mock.patch("sys.stdout", new=io.StringIO()) as out:
+                lifecycle_main(["state", "--workflow-id", workflow_id, "--repository", str(self.repo_path),
+                                "--format", "json"])
+            return json.loads(out.getvalue())["epic"]
+
+        self.assertIsNone(epic("wf"))
+        with mock.patch("sys.stdout", new=io.StringIO()), mock.patch("sys.stderr", new=io.StringIO()):
+            self.assertEqual(0, cli_main(["record", "orchestration-ready", "--workflow-id", "wf", "--epic", "ep-9",
+                                          "--evidence", "beads", "--actor", "user",
+                                          "--repository", str(self.repo_path)]))
+        self.assertEqual("ep-9", epic("wf"))
+        self.assertIsNone(epic("other"))
+
     def test_state_json_catalog_is_null_without_harness(self):
         (self.workflow_dir / "config.yaml").write_text("schema_version: '2.8'\n")
         with mock.patch("sys.stdout", new=io.StringIO()) as fake_out:

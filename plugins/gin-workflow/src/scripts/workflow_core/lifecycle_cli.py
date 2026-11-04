@@ -423,6 +423,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "original_harness": config.original_harness if config.is_session_harness_override else None,
         "catalog": catalog_payload,
         "gates": gates_status,
+        "epic": _recorded_epic(events or (), workflow_id) or None,
         "evidence": list(decision.evidence),
         "remedies": list(decision.remedies),
         "project": {**project_settings(config.to_dict()).to_dict(),

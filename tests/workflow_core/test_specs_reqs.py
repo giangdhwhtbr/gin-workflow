@@ -47,12 +47,21 @@ class TestSpecsReqs(unittest.TestCase):
         first = payload["requirements"][0]
         self.assertEqual(
             {"id": "REQ-AUTH-001", "title": "Sign in with password", "capability": "auth", "section": "LIVING",
-             "change": None, "source": "docs/specs/auth/spec.md:9",
+             "change": None, "epic": None, "source": "docs/specs/auth/spec.md:9",
              "scenarios": [{"title": "valid password", "given": ["a registered user"],
                             "when": ["they submit the right password"], "then": ["they are signed in"]}]},
             {key: value for key, value in first.items() if key != "hash"})
         self.assertRegex(first["hash"], "^[0-9a-f]{64}$")
         self.assertEqual(["REQ-AUTH-001", "REQ-AUTH-002"], [row["id"] for row in payload["requirements"]])
+
+    def test_change_rows_carry_the_epic_of_their_proposal(self):
+        make_change(self.root, spec_delta=delta(added=ADDED_BLOCK))
+        make_change(self.root, "ep-2-audit", epic="ep-2", spec_delta=delta(added=ADDED_BLOCK.replace("003", "004")))
+        proposal = self.root / "docs/changes/ep-2-audit/01-proposal.md"
+        proposal.write_text(proposal.read_text(encoding="utf-8").replace("Epic: ep-2\n", ""), encoding="utf-8")
+        rows = {row["id"]: row["epic"] for row in self.payload()["requirements"]}
+        self.assertEqual({"REQ-AUTH-001": None, "REQ-AUTH-002": None, "REQ-AUTH-003": "ep-1", "REQ-AUTH-004": None},
+                         rows)
 
     def test_and_bullets_continue_the_previous_step(self):
         write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC.replace(

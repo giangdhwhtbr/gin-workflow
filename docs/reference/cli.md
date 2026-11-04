@@ -47,7 +47,7 @@ Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a requ
 gin-workflow state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 ```
 
-Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`.
+Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, `epic` (the epic recorded at `orchestration-ready` for the workflow id, or `null`), and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`.
 
 A gate reads `unknown` when `state` cannot read the task tracker or the event log. The decision is then `hold`. `warnings` and `remedies` carry the cause: `tracker unavailable: <cause>` or `event log unreadable: <error>; waivers not applied`.
 
@@ -136,7 +136,7 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 | `archive --change C` | Merge a change's spec delta into the living specs and archive the change |
 | `trace --change C` | Show which tests and sources cover each requirement |
 | `status --change C` | Show a change's review status, URL, and merge commit |
-| `reqs [--change C]` | List requirements with section and hash |
+| `reqs [--change C]` | List requirements with section, hash, and the epic of the change that holds them |
 | `migrate [--dry-run] [--force]` | Move `legacy` layout artifacts into the SDD layout |
 
 Exit codes: 0 ok; 1 findings (lint errors, untraced requirements, archive conflicts, refused migration); 2 usage or configuration error.
