@@ -48,7 +48,7 @@ def e2e_cases(root: Path, eff: Effective) -> dict[str, tc.Case]:
 def load_specs(root: Path, eff: Effective) -> list[Spec]:
     base = root / eff.e2e_dir
     found: list[Spec] = []
-    for path in sorted(base.glob("*/*.spec.ts")) if base.is_dir() else []:
+    for path in sorted(base.glob("*/*.spec.ts"), key=lambda path: path.parts) if base.is_dir() else []:
         first = path.read_text(encoding="utf-8").split("\n", 1)[0]
         match = HEADER.match(first)
         found.append(Spec(path.relative_to(root).as_posix(), *(match.groups() if match else (None, None))))
@@ -311,7 +311,7 @@ def _result_folders(case_dir: Path) -> list[Path]:
     """Where a case's results live: the case folder (unnamed Playwright project) and every subfolder (one per named
     project, symlinks included so they are reported). Every one must hold a result.json: the case folder itself
     when it holds any file (evidence of an unnamed project) or nothing else, each subfolder always."""
-    entries = sorted(case_dir.iterdir()) if case_dir.is_dir() else []
+    entries = sorted(case_dir.iterdir(), key=lambda path: path.parts) if case_dir.is_dir() else []
     subfolders = [entry for entry in entries if entry.is_symlink() or entry.is_dir()]
     own = [case_dir] if len(subfolders) < len(entries) or not subfolders else []
     return own + subfolders

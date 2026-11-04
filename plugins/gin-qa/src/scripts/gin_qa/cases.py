@@ -160,7 +160,7 @@ def parse_path(root: Path, cases_dir: str, path: Path) -> tuple[list[Case], list
 def case_files(root: Path, cases_dir: str) -> list[Path]:
     """Flat `<cases>/<capability>.md` files and per-case `<cases>/<capability>/*.md` files."""
     base = root / cases_dir
-    return sorted([*base.glob("*.md"), *base.glob("*/*.md")]) if base.is_dir() else []
+    return sorted([*base.glob("*.md"), *base.glob("*/*.md")], key=lambda path: path.parts) if base.is_dir() else []
 
 
 def load(root: Path, cases_dir: str) -> tuple[list[Case], list[str]]:
