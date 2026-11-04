@@ -205,17 +205,17 @@ class ProviderRoutesTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 AssignmentResolutionError,
-                "provider_default is only supported for antigravity and opencode",
+                "provider_default is only supported for",
             ):
                 resolve_assignment(request, cfg, local())
             with self.assertRaisesRegex(
                 AssignmentResolutionError,
-                "provider_default is only supported for antigravity and opencode",
+                "provider_default is only supported for",
             ):
                 resolve_all_assignments((request,), cfg, local())
             with self.assertRaisesRegex(
                 AssignmentResolutionError,
-                "provider_default is only supported for antigravity and opencode",
+                "provider_default is only supported for antigravity, opencode, and copilot",
             ):
                 RouteCandidate("codex", "provider_default", False)
 

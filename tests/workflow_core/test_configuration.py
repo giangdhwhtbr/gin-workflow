@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
@@ -343,6 +344,37 @@ class ConfigurationTests(unittest.TestCase):
                 {"schema_version": "2.9", "model_tiers": {"plan": "high_reasoning"}}
             )
         configuration.validate_portable_config({"schema_version": "2.8", "model_tiers": {"plan": "high_reasoning"}})
+
+    def test_copilot_harness_configuration_and_detection(self):
+        copilot_config = {
+            "schema_version": "2.9",
+            "harness": "copilot",
+            "models": {
+                "copilot": {"models": ["claude-sonnet-4.5"]},
+            },
+        }
+        configuration.validate_portable_config(copilot_config)
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            result = resolve_effective_config(
+                repo,
+                repository_config=copilot_config,
+                write=False,
+            )
+            self.assertEqual("copilot", result.config["harness"])
+            self.assertEqual(["claude-sonnet-4.5"], list(result.config["models"]["copilot"]["models"]))
+
+            # Session harness override accepts copilot
+            with patch.dict(os.environ, {"GIN_WORKFLOW_HARNESS": "copilot"}):
+                self.assertEqual("copilot", configuration.get_session_harness_override(repo))
+
+            # setup_service.detect finds .github/agents marker as copilot
+            from workflow_core import setup_service
+            agents_marker = repo / ".github/agents"
+            agents_marker.mkdir(parents=True)
+            detected = setup_service.detect(repo)
+            self.assertIn("copilot", detected["detected_harnesses"])
+            self.assertEqual("copilot", detected["harness"])
 
 
 if __name__ == "__main__":

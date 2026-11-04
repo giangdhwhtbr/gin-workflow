@@ -199,7 +199,7 @@ def detect_project(root: Path, *, which: Callable[[str], str | None] | None = No
             shape = _combine([p["shape"] for p in packages])
     stage = "greenfield" if not manifests and _source_count(root) < 5 else "brownfield"
     providers = {provider: which(PROVIDER_EXE_ALIASES.get(provider, (provider,))[0])
-                 for provider in ("claude", "codex", "antigravity", "opencode")}
+                 for provider in ("claude", "codex", "antigravity", "opencode", "copilot")}
     return {
         "stage": stage,
         "shape": shape or "fullstack",

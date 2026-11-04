@@ -12,9 +12,10 @@ DEFAULT_EXECUTABLES: Mapping[str, str] = MappingProxyType({
     "codex": "codex",
     "antigravity": "agy",
     "opencode": "opencode",
+    "copilot": "copilot",
 })
 PROVIDER_DEFAULT = "provider_default"
-PROVIDER_DEFAULT_PROVIDERS = frozenset({"antigravity", "opencode"})
+PROVIDER_DEFAULT_PROVIDERS = frozenset({"antigravity", "opencode", "copilot"})
 
 
 class ProviderLocalConfigError(ValueError):

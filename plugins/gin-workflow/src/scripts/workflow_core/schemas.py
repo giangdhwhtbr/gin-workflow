@@ -93,7 +93,7 @@ CONFIG_SCHEMA: dict[str, Any] = {
         },
         "models": {
             "type": "object",
-            "propertyNames": {"enum": ["claude", "codex", "antigravity", "opencode"]},
+            "propertyNames": {"enum": ["claude", "codex", "antigravity", "opencode", "copilot"]},
             "additionalProperties": {
                 "type": "object",
                 "required": ["models"],

@@ -16,6 +16,7 @@ DEFAULT_CATALOGS: Mapping[str, Catalog] = MappingProxyType({
     "codex": Catalog(("gpt-6-astra",), ("low", "medium", "high", "xhigh")),
     "antigravity": Catalog(("provider_default",), ()),
     "opencode": Catalog(("provider_default",), ()),
+    "copilot": Catalog(("provider_default",), ()),
 })
 
 

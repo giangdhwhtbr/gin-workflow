@@ -25,6 +25,13 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             catalog_for({}, "unknown_harness")
 
+    def test_default_catalogs_match_spec(self):
+        self.assertEqual(
+            DEFAULT_CATALOGS["copilot"],
+            Catalog(("provider_default",), ()),
+        )
+        self.assertFalse(bool(DEFAULT_CATALOGS["copilot"].efforts))
+
     def test_route_diagnostics(self):
         claude = DEFAULT_CATALOGS["claude"]
         antigravity = DEFAULT_CATALOGS["antigravity"]
