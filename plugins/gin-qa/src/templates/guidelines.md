@@ -42,4 +42,6 @@ How `/gin-qa:run` names and schedules manual runs.
 ## Bugs
 
 - Tracker: Beads. `gin-qa cases bug` files each failed manual case as a bug bead linked to the case's epic.
-- External reference: none (`optional`, or `required` with an optional pattern as a regular expression, such as ``required, pattern `PROJ-\d+` ``; `/gin-qa:run` then asks for it on each failure).
+- External reference: none
+
+The external reference line takes `none`, `optional`, or `required`, and `required` may name a pattern as a regular expression, such as ``required, pattern `PROJ-\d+` ``. With `required`, `/gin-qa:run` asks for the reference on each failure.
