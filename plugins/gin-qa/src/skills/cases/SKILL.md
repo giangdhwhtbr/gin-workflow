@@ -22,4 +22,4 @@ description: Write or update test cases from gin-workflow specs, one file per ca
 
 Legacy layout (no REQ-IDs): cases use `Source: <spec path>#<heading>` instead of `REQ:`; `plan` has no work list and `check` covers structure and IDs only.
 
-Reports and other formats: `export --format json` lists every case with its fields, `result`, `run`, `bug`, and `test_data`; build them from that.
+An HTML report: `/gin-qa:report`. Other formats: `export --format json` lists every case with its fields, `result`, `run`, `bug`, and `test_data`; build them from that.
