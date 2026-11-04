@@ -69,6 +69,7 @@ def load_specs(root: Path, eff: Effective) -> list[Spec]:
 
 
 def plan(root: Path, eff: Effective, capability: str | None) -> dict[str, list[dict[str, Any]]]:
+    capability = tc.capability_arg(capability)
     cases = e2e_cases(root, eff)
     specs = {spec.path: spec for spec in load_specs(root, eff)}
     missing: list[dict[str, Any]] = []

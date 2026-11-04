@@ -190,6 +190,14 @@ def load(root: Path, cases_dir: str) -> tuple[list[Case], list[str]]:
     return cases, errors
 
 
+def capability_arg(value: str | None) -> str | None:
+    """`value`, refused when it is a TC-ID rather than a capability."""
+    found = TC_ID.fullmatch(value or "")
+    if found:
+        raise ValueError(f"{value}: a TC-ID, not a capability; pass its capability, for example `{found.group(1).lower()}`")
+    return value
+
+
 def next_id(root: Path, cases_dir: str, cap: str) -> str:
     """One past the highest number in the flat file, the case file names, or their git history: never reused."""
     path, folder = root / cases_dir / f"{cap}.md", root / cases_dir / cap

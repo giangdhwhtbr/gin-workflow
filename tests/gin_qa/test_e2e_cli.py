@@ -92,6 +92,12 @@ class TestInitPlanPin(E2eCase):
         self.assertEqual("// edited by QA\n", fixture.read_text())
         self.assertEqual(1, (self.root / ".gitignore").read_text().splitlines().count("/qa/evidence/"))
 
+    def test_plan_rejects_a_tc_id_as_the_capability(self):
+        result = self.e2e("plan", "TC-AUTH-001")
+        self.assertEqual((2, ""), (result.returncode, result.stdout))
+        self.assertIn("TC-AUTH-001: a TC-ID, not a capability; pass its capability, for example `auth`",
+                      result.stderr)
+
     def test_plan_lists_missing_stale_and_orphan_e2e_cases_only(self):
         self.assertEqual(["TC-AUTH-001"], [row["tc"] for row in self.run_json("plan")["missing"]])
         self.write_spec(pinned="00000000")
