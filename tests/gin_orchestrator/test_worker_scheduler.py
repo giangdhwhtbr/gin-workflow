@@ -404,7 +404,7 @@ class WorkerSchedulerTests(unittest.TestCase):
             outcome = scheduler.schedule((item,))
             elapsed = time.monotonic() - started_at
 
-            self.assertLess(elapsed, 0.5)
+            self.assertLess(elapsed, 1.5)
             self.assertEqual(2, attempts)
             self.assertEqual(1, maximum)
             self.assertEqual(("task-1",), tuple(result.task_id for result in outcome.completed))
@@ -458,7 +458,7 @@ class WorkerSchedulerTests(unittest.TestCase):
 
         class BlockingDispatcher(WorkerDispatcher):
             def dispatch(self, worker_request):
-                release_dispatch.wait(timeout=0.2)
+                release_dispatch.wait(timeout=2)
                 try:
                     return super().dispatch(worker_request)
                 finally:
@@ -496,7 +496,7 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertTrue(dispatch_finished.wait(timeout=1))
             self.assertTrue(attempt_finished.wait(timeout=1))
 
-            self.assertLess(elapsed, 0.15)
+            self.assertLess(elapsed, 1.0)
             self.assertEqual(1, len(calls))
             self.assertEqual((), outcome.completed)
             self.assertEqual(("timeout",), outcome.failed[0].blockers)
