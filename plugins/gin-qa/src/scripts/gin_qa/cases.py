@@ -8,11 +8,12 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 
-TC_ID = re.compile(r"\bTC-([A-Z][A-Z0-9-]*)-(\d{3,})\b")
-_FIELD = re.compile(r"^(?:- )?(\*\*)?([A-Za-z][A-Za-z0-9 _-]*):(?(1)\*\*)\s*(\S.*)$")
+TC_ID = re.compile(r"\bTC-([A-Z][A-Z0-9-]*?)-(\d{3,})\b")  # lazy: TC-AUTH-005-2024-tax is TC-AUTH-005
+_FIELD = re.compile(r"^(?:- )?(\*\*)?([A-Za-z][A-Za-z0-9 _-]*):(?(1)\*\*|(?!\*\*))\s*(\S.*)$")
+_SECTION = re.compile(r"^(\*\*)?([A-Za-z][A-Za-z ]*):(?(1)\*\*)$")
 _REQ_ITEM = re.compile(r"^(REQ-[A-Z][A-Z0-9-]*-\d{3,})@([0-9a-f]{8})$")
 _STEP = re.compile(r"^(\d+)\. (\S.*)$")
-_CASE_FILE = re.compile(r"^(TC-[A-Z][A-Z0-9-]*-\d{3,})(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?\.([a-z][a-z0-9-]*)\.md$")
+_CASE_FILE = re.compile(r"^(TC-[A-Z][A-Z0-9-]*?-\d{3,})(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?\.([a-z][a-z0-9-]*)\.md$")
 TYPE = re.compile(r"^[a-z][a-z0-9-]*$")
 SECTIONS = ("Preconditions", "Test data", "Steps", "Expected")
 RESULTS = ("passed", "failed", "blocked", "not run")
@@ -55,8 +56,8 @@ def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, er
         line, at = lines[index], f"{path}:{index + 1}"
         if not line.strip():
             continue
-        label = line.strip().removeprefix("**").removesuffix("**")
-        name = label[:-1] if label.endswith(":") else ""
+        label = _SECTION.match(line.strip())
+        name = label.group(2) if label else ""
         if name in SECTIONS:
             if name in seen or (seen and SECTIONS.index(name) < SECTIONS.index(seen[-1])):
                 errors.append(f"{at}: {case.id}: sections must appear once, in the order " + ", ".join(SECTIONS))
@@ -128,7 +129,8 @@ def parse_case_file(path: Path, shown: str) -> tuple[list[Case], list[str]]:
     heads = [index for index, line in enumerate(lines) if line.startswith("#")]
     if len(heads) != 1:
         return [], [f"{shown}: holds {len(heads)} headings; a case file holds one '# TC-<CAP>-<NNN>: <title>'"]
-    errors: list[str] = []
+    errors = [f"{shown}:{index + 1}: text before the case heading" for index in range(heads[0])
+              if lines[index].strip()][:1]
     case = _parse_block(PurePosixPath(shown), lines, heads[0], len(lines), errors, "#")
     if case is None:
         return [], errors

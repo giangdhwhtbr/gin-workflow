@@ -217,7 +217,7 @@ class TestCaseFiles(QaCase):
 
     def test_per_case_files_load_with_type_from_the_name(self):
         self.put("auth/TC-AUTH-001-sign-in.e2e.md", case_file("TC-AUTH-001", self.ref("REQ-AUTH-001"), title="Login"))
-        self.put("auth/TC-AUTH-002.manual.md", case_file("TC-AUTH-002", self.ref("REQ-AUTH-002"), bold=False))
+        self.put("auth/TC-AUTH-002-2024-tax.manual.md", case_file("TC-AUTH-002", self.ref("REQ-AUTH-002"), bold=False))
         self.assertEqual([], self.findings())
         rows = {row["id"]: row for row in self.run_json("export")["cases"]}
         self.assertEqual(("e2e", "qa/cases/auth/TC-AUTH-001-sign-in.e2e.md", 1, "Login"),
@@ -258,10 +258,10 @@ class TestCaseFiles(QaCase):
         ], self.findings())
 
     def test_next_id_counts_file_names_and_their_history(self):
-        self.put("auth/TC-AUTH-004-old.e2e.md", case_file("TC-AUTH-004", self.ref("REQ-AUTH-001")))
+        self.put("auth/TC-AUTH-004-2024-old.e2e.md", case_file("TC-AUTH-004", self.ref("REQ-AUTH-001")))
         self.assertEqual("TC-AUTH-005\n", qa(self.root, self.bin, "next-id", "auth").stdout)
         commit_all(self.root)
-        (self.root / "qa/cases/auth/TC-AUTH-004-old.e2e.md").unlink()
+        (self.root / "qa/cases/auth/TC-AUTH-004-2024-old.e2e.md").unlink()
         self.assertEqual("TC-AUTH-005\n", qa(self.root, self.bin, "next-id", "auth").stdout)
         self.assertEqual("TC-USER-AUTH-001\n", qa(self.root, self.bin, "next-id", "user-auth").stdout)
 
@@ -284,6 +284,21 @@ class TestReadableFormat(unittest.TestCase):
             found, errors = parse_case_file(path, f"qa/cases/auth/{name}")
         self.assertEqual([], errors)
         return found[0]
+
+    def errors(self, body: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "TC-AUTH-001.e2e.md"
+            path.write_text(body, encoding="utf-8")
+            return parse_case_file(path, "TC-AUTH-001.e2e.md")[1]
+
+    def test_text_before_the_heading_and_unbalanced_bold_are_findings(self):
+        body = case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000")
+        self.assertEqual(["TC-AUTH-001.e2e.md:1: text before the case heading"], self.errors("Type: manual\n" + body))
+        self.assertEqual(["TC-AUTH-001.e2e.md:4: TC-AUTH-001: expected 'Key: value' before Preconditions/Steps"],
+                         self.errors(body.replace("- **Priority:** high", "Priority:** high")))
+        for label in ("**Steps:", "Steps:**"):
+            self.assertIn("TC-AUTH-001.e2e.md:1: TC-AUTH-001: needs at least one Steps item",
+                          self.errors(body.replace("**Steps:**", label)))
 
     def test_bold_and_plain_forms_parse_alike_and_hash_alike(self):
         bold = self.parse(case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000", extra="Owner: qa\n"))
