@@ -86,7 +86,7 @@ def resolve_assignment(
             model, effort = map_route(source, target, request.model, request.effort)
 
         if model == PROVIDER_DEFAULT and provider not in PROVIDER_DEFAULT_PROVIDERS:
-            errors.append("provider_default is only supported for antigravity and opencode")
+            errors.append("provider_default is only supported for antigravity, opencode, and copilot")
             continue
         candidates.append(RouteCandidate(provider, str(model), is_fallback, effort=effort))
     if errors:

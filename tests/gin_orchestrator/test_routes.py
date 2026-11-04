@@ -205,17 +205,17 @@ class ProviderRoutesTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 AssignmentResolutionError,
-                "provider_default is only supported for antigravity and opencode",
+                "provider_default is only supported for antigravity, opencode, and copilot",
             ):
                 resolve_assignment(request, cfg, local())
             with self.assertRaisesRegex(
                 AssignmentResolutionError,
-                "provider_default is only supported for antigravity and opencode",
+                "provider_default is only supported for antigravity, opencode, and copilot",
             ):
                 resolve_all_assignments((request,), cfg, local())
             with self.assertRaisesRegex(
                 AssignmentResolutionError,
-                "provider_default is only supported for antigravity and opencode",
+                "provider_default is only supported for antigravity, opencode, and copilot",
             ):
                 RouteCandidate("codex", "provider_default", False)
 
@@ -342,6 +342,7 @@ class ProviderRoutesTests(unittest.TestCase):
                 ("claude", "sonnet", "medium"),
                 ("antigravity", "provider_default", None),
                 ("opencode", "provider_default", None),
+                ("copilot", "provider_default", None),
                 ("codex", "gpt-6-astra", "medium"),
             ):
                 with self.subTest(harness=harness):

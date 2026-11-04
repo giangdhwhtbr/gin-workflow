@@ -155,6 +155,7 @@ if [ "$UNINSTALL" = true ]; then
   rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist
   for p_name in "${PLUGINS[@]}"; do
     rm -rf "${HOME}/.config/opencode/skills/${p_name}"
+    rm -f "${HOME}/.config/opencode/agents/${p_name}-"*.md
   done
   if command -v copilot &> /dev/null; then
     for p_name in "${PLUGINS[@]}"; do
@@ -245,6 +246,62 @@ template_agents_for_claude() {
       -e 's/"replace_file_content"/"Edit"/g' \
       -e 's/"write_to_file"/"Write"/g' \
       "$src" > "$dest"
+}
+
+template_agents_for_codex() {
+  local src="$1"
+  local dest="$2"
+  sed -e '/^tools:/d' "$src" > "$dest"
+}
+
+template_agents_for_copilot() {
+  local src="$1"
+  local dest="$2"
+  sed -e '/^tools:/ {' \
+      -e 's/"view_file"/"view"/g' \
+      -e 's/"grep_search"/"grep"/g' \
+      -e 's/"list_dir"/"glob"/g' \
+      -e 's/"search_web"/"web_fetch"/g' \
+      -e 's/"run_command"/"bash"/g' \
+      -e 's/"replace_file_content"/"edit"/g' \
+      -e 's/"write_to_file"/"edit"/g' \
+      -e ':a' \
+      -e 's/"edit",[[:space:]]*"edit"/"edit"/g' \
+      -e 'ta' \
+      -e '}' "$src" > "$dest"
+}
+
+template_agents_for_opencode() {
+  local src_dir="$1"
+  local target_dir="$2"
+  local plugin_name="$3"
+  local f stem
+  [ -d "$src_dir/agents" ] || return 0
+  mkdir -p "$target_dir/agents"
+  for f in "$src_dir/agents"/*.md; do
+    [ -e "$f" ] || continue
+    stem="$(basename "$f" .md)"
+    awk '
+      BEGIN { in_fm = 0 }
+      NR == 1 && /^---$/ {
+        in_fm = 1
+        print
+        next
+      }
+      in_fm && /^---$/ {
+        print "mode: subagent"
+        print
+        in_fm = 0
+        next
+      }
+      in_fm {
+        if (/^name:/ || /^tools:/) next
+        print
+        next
+      }
+      { print }
+    ' "$f" > "$target_dir/agents/${plugin_name}-${stem}.md"
+  done
 }
 
 template_hooks_for_claude() {
@@ -404,15 +461,22 @@ install_platform() {
   local install_root="${7:-}"
 
   if [ "$platform" = "opencode" ]; then
-    install_opencode_bundle "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir" "$install_root"
+    install_opencode_bundle "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir" "$install_root" "$p_name"
     return
   fi
 
   if [ "$platform" = "copilot" ]; then
     # Copilot CLI reads the Claude layout (.claude-plugin/plugin.json,
-    # skills/<name>/SKILL.md); hooks get Copilot's own format and agents/
-    # is left out.
+    # skills/<name>/SKILL.md); hooks get Copilot's own format and agents get
+    # Copilot tool names.
     copy_bundle_dirs "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir"
+    if [ -d "$SCRIPT_DIR/plugins/$p_name/src/agents" ]; then
+      mkdir -p "$target_dir/agents"
+      for f in "$SCRIPT_DIR/plugins/$p_name/src/agents"/*.md; do
+        [ -e "$f" ] || continue
+        template_agents_for_copilot "$f" "$target_dir/agents/$(basename "$f")"
+      done
+    fi
     if [ -d "$SCRIPT_DIR/plugins/$p_name/src/hooks" ]; then
       mkdir -p "$target_dir/hooks"
       template_hooks_for_copilot "$target_dir/hooks/hooks.json"
@@ -437,6 +501,16 @@ install_platform() {
       local tmp_file
       tmp_file=$(mktemp)
       template_agents_for_claude "$f" "$tmp_file"
+      mv "$tmp_file" "$f"
+    done
+  fi
+  if [ "$platform" = "codex" ]; then
+    for f in "$target_dir/agents"/*.md; do
+      [ -e "$f" ] || continue
+      local tmp_file
+      tmp_file=$(mktemp)
+      template_agents_for_codex "$f" "$tmp_file"
+      rm -f "$f"
       mv "$tmp_file" "$f"
     done
   fi
@@ -478,12 +552,17 @@ install_opencode_bundle() {
   local src="$1"
   local target="$2"
   local install_root="$3"
+  local plugin_name="${4:-}"
   local file
 
   # OpenCode loads skills, references, scripts, rules, and templates. It has no
-  # use for the Claude/Codex agents/ and commands/ files, and copying them would
-  # risk clobbering a repository's own .opencode/agents or .opencode/commands.
+  # use for the Claude/Codex commands/ files, and copying them would risk
+  # clobbering a repository's own .opencode/commands. Agents are translated
+  # into namespaced subagents (<plugin>-<agent>.md).
   copy_bundle_dirs "$src" "$target"
+  if [ -n "$plugin_name" ]; then
+    template_agents_for_opencode "$src" "$target" "$plugin_name"
+  fi
 
   # OpenCode selects a skill by its directory id, so keep the display `name`
   # aligned with the renamed `report` directory (id `gin-workflow-report`).
@@ -700,6 +779,11 @@ install_plugin() {
       ln -sf "$SCRIPT_DIR/$dist_dir/opencode" "$opencode_install_dir"
     else
       cp -rf "$dist_dir/opencode" "$opencode_install_dir"
+    fi
+    if [ -d "$dist_dir/opencode/agents" ]; then
+      mkdir -p "${HOME}/.config/opencode/agents"
+      rm -f "${HOME}/.config/opencode/agents/${p_name}-"*.md
+      cp -rf "$dist_dir/opencode/agents/${p_name}-"*.md "${HOME}/.config/opencode/agents/"
     fi
     echo "Successfully installed $p_name globally in OpenCode!"
   fi

@@ -47,7 +47,7 @@ class OrchestratorConfigTests(unittest.TestCase):
         self.assertEqual(section["concurrency"], {"claude": 2})
         self.assertEqual(section["circuit_breaker"]["failure_threshold"], 5)
         self.assertEqual(section["queue"], {"max_wait_seconds": 600})
-        self.assertEqual(section["worker"], {"max_retries": 2})
+        self.assertEqual(section["worker"], {"max_retries": 2, "timeout_seconds": 900.0})
 
     def test_validation_reports_unknown_provider_and_bad_tier(self):
         config = {

@@ -18,6 +18,7 @@ from .antigravity_worker import antigravity_health
 from .claude_worker import claude_health
 from .codex_worker import codex_health
 from .config import roles
+from .copilot_worker import copilot_health
 from .local_config import LOCAL_FILE, validate_local_config
 from .opencode_worker import opencode_health
 
@@ -26,6 +27,7 @@ HEALTH = {
     "codex": codex_health,
     "antigravity": antigravity_health,
     "opencode": opencode_health,
+    "copilot": copilot_health,
 }
 
 

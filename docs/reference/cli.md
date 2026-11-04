@@ -377,8 +377,9 @@ When `provider_mode: multi` is set, `gin-orchestrator` is available on `PATH`, a
 | `gin-workflow reviewer` | `gin-orchestrator reviewer` | `reviewer` |
 | `gin-workflow setup doctor --probe` | `gin-orchestrator doctor` | `doctor` |
 | `gin-workflow setup models` | `gin-orchestrator models` | `models` |
+| Worker execution (`execute`, `review`) | `gin-orchestrator dispatch` | `dispatch` |
 
-In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise.
+In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. Stage worker execution delegates cross-harness tasks to `gin-orchestrator dispatch` when available, falling back to native subagents on the main harness. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise.
 
 ## `gin-qa`
 

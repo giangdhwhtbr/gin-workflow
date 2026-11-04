@@ -350,10 +350,15 @@ class WorkerRequest:
     effort: str | None = None
     route_affinity: tuple[str, str] | tuple[str, str, str | None] | None = None
     acceptance_identity: AcceptanceIdentity | None = None
+    prior_changed_files: tuple[str, ...] = ()
+    agent: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "constraints", tuple(self.constraints))
         object.__setattr__(self, "expected_output", tuple(self.expected_output))
+        object.__setattr__(
+            self, "prior_changed_files", tuple(str(f) for f in self.prior_changed_files)
+        )
         if self.route_affinity is not None:
             if len(self.route_affinity) not in (2, 3) or not all(self.route_affinity[:2]):
                 raise ValueError("route_affinity requires provider and model")
@@ -405,6 +410,10 @@ class WorkerRequest:
             "model": self.model,
             "effort": self.effort,
         }
+        if self.prior_changed_files:
+            payload["prior_changed_files"] = list(self.prior_changed_files)
+        if self.agent is not None:
+            payload["agent"] = self.agent
         if self.acceptance_identity is not None:
             payload["acceptance_identity"] = self.acceptance_identity.to_dict()
         return payload
@@ -423,6 +432,25 @@ class WorkerResult:
     knowledge_candidates: tuple[Mapping[str, Any], ...] = ()
     acceptance_identity: AcceptanceIdentity | None = None
     schema_version: str = "2.3"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "task_id": self.task_id,
+            "summary": self.summary,
+            "changed_files": list(self.changed_files),
+            "commits": list(self.commits),
+            "tests": [t.to_dict() if hasattr(t, "to_dict") else dict(t) for t in self.tests],
+            "evidence": [dict(e) for e in self.evidence],
+            "blockers": list(self.blockers),
+            "knowledge_candidates": [dict(k) for k in self.knowledge_candidates],
+            "acceptance_identity": (
+                None
+                if self.acceptance_identity is None
+                else self.acceptance_identity.to_dict()
+            ),
+            "schema_version": self.schema_version,
+        }
 
 
 @dataclass(frozen=True)

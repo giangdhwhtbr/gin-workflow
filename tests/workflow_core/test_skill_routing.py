@@ -80,3 +80,18 @@ class SkillRoutingTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             with self.subTest(file=path.name):
                 self.assertIn("routes dispatch", text)
+
+    def test_skills_reference_orchestrator_dispatch(self):
+        paths = [
+            SRC / "skills/execute/references/worker-lifecycle.md",
+            SRC / "skills/execute/SKILL.md",
+            SRC / "skills/review/SKILL.md",
+            SRC / "skills/discuss/SKILL.md",
+            SRC / "skills/plan/SKILL.md",
+            SRC / "skills/tech-doc/SKILL.md",
+        ]
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(file=path.name):
+                self.assertIn("gin-orchestrator dispatch", text)
+

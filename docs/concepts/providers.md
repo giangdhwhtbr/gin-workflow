@@ -1,6 +1,6 @@
 # Providers
 
-The harness you open (the main harness) plans, coordinates, and does the work: Claude Code, Codex, Antigravity, or OpenCode. gin-workflow runs the whole lifecycle in it with no other tool. Running bounded work, such as an implementation track or an independent review, on a different installed harness is the job of the gin-orchestrator extension: see [Orchestrator](../orchestrator/README.md). The [routing diagram](architecture.md#provider-routing) shows the flow.
+The harness you open (the main harness) plans, coordinates, and does the work: Claude Code, Codex, Antigravity, OpenCode, or GitHub Copilot CLI (`copilot`). gin-workflow runs the whole lifecycle in it with no other tool. Running bounded work, such as an implementation track or an independent review, on a different installed harness is the job of the gin-orchestrator extension: see [Orchestrator](../orchestrator/README.md). The [routing diagram](architecture.md#provider-routing) shows the flow.
 
 ## Capabilities
 
@@ -10,7 +10,7 @@ Skills work through the provider-neutral capabilities below.
 |---|---|
 | Task tracking | task identity, dependencies, readiness, claims, blockers, closure: through `gin-workflow task`, which serves local Markdown files under `.planning/tasks/` or, with `providers.task_tracking: beads`, runs Beads (`bd`); never by editing `.beads/` directly |
 | Workspace | isolation (worktrees) and cleanup metadata |
-| Worker dispatch | other harnesses only, through gin-orchestrator: resolve role, model, and effort, dispatch, cancel, report status, collect results ([Orchestrator](../orchestrator/README.md)) |
+| Worker dispatch | other harnesses only, through `gin-orchestrator dispatch`: resolve role, model, and effort, dispatch, cancel, report status, collect results ([Orchestrator](../orchestrator/README.md)) |
 | Review | request review, terminal review state, findings |
 | Evidence | record and query evidence; decide whether acceptance evidence is complete |
 | Knowledge | search and propose knowledge; workers never write permanent knowledge |

@@ -149,7 +149,13 @@ def _catalog_from_tiers(provider: str, tiers: Mapping[str, Any]) -> dict[str, li
 def detect(repository: Path, *, harness: str | None = None, **_: Any) -> dict[str, Any]:
     root = Path(repository).resolve()
     detected = []
-    for name, marker in (("claude", ".claude"), ("codex", ".codex"), ("antigravity", ".agents"), ("opencode", ".opencode")):
+    for name, marker in (
+        ("claude", ".claude"),
+        ("codex", ".codex"),
+        ("antigravity", ".agents"),
+        ("opencode", ".opencode"),
+        ("copilot", ".github/agents"),
+    ):
         if (root / marker).exists():
             detected.append(name)
     selected = harness or (detected[0] if len(detected) == 1 else None)

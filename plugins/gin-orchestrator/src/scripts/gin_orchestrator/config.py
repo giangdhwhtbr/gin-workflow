@@ -8,7 +8,7 @@ from workflow_core.ext import validate_instance
 ORCHESTRATOR_DEFAULTS: Mapping[str, Mapping[str, Any]] = {
     "circuit_breaker": {"failure_threshold": 3},
     "queue": {"max_wait_seconds": 600},
-    "worker": {"max_retries": 2},
+    "worker": {"max_retries": 2, "timeout_seconds": 900.0},
 }
 
 ORCHESTRATOR_SCHEMA: Mapping[str, Any] = {

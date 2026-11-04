@@ -45,7 +45,7 @@ class RouteCandidate:
     def __post_init__(self) -> None:
         if self.model == PROVIDER_DEFAULT and self.provider not in PROVIDER_DEFAULT_PROVIDERS:
             raise AssignmentResolutionError(
-                "provider_default is only supported for antigravity and opencode"
+                "provider_default is only supported for antigravity, opencode, and copilot"
             )
         if self.model == PROVIDER_DEFAULT and self.effort is not None:
             raise AssignmentResolutionError(

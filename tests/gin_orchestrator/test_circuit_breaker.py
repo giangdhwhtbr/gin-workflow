@@ -111,6 +111,17 @@ class CircuitBreakerTests(unittest.TestCase):
             self.assertEqual(CircuitState.OPEN, restored.state("codex", "gpt-6-astra", effort="high").state)
             self.assertEqual(CircuitState.CLOSED, restored.state("codex", "gpt-6-astra", effort="low").state)
 
+    def test_quota_and_auth_open_circuit_immediately_when_threshold_above_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = CircuitBreakerStore(Path(directory) / "state.json", failure_threshold=3)
+            for idx, kind in enumerate((FailureKind.QUOTA, FailureKind.AUTH)):
+                record = store.record_failure("claude", f"model-{idx}", kind)
+                self.assertEqual(CircuitState.OPEN, record.state)
+                self.assertEqual(1, record.failures)
+            r1 = store.record_failure("claude", "rate-model", FailureKind.RATE_LIMIT)
+            self.assertEqual(CircuitState.CLOSED, r1.state)
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -16,7 +16,7 @@ version --json
 
 ```json
 {"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=2.0,<3",
- "capabilities": ["health", "models", "routes", "reviewer", "doctor"]}
+ "capabilities": ["health", "models", "routes", "reviewer", "doctor", "dispatch"]}
 ```
 
 `capabilities` lists the commands gin-workflow may delegate. `configure` is not listed: it is run by a person through the `providers` skill, never by gin-workflow.
@@ -24,14 +24,14 @@ version --json
 ## `health`
 
 ```
-health --provider {claude,codex,antigravity,opencode} --executable PATH [--model M] [--effort E] [--workspace DIR] --json
+health --provider {claude,codex,antigravity,opencode,copilot} --executable PATH [--model M] [--effort E] [--workspace DIR] --json
 ```
 
 ```json
 {"available": true, "reason": "ready"}
 ```
 
-`available` is whether the provider CLI is usable. `reason` is the short machine-readable explanation (`ready`, `executable_or_help_unavailable`, `required_flags_unverified`, `invalid_model`, and so on). Without `--model` the command only checks the executable and its help text; with `--model` it also probes the model, and `--effort` applies to `claude` and `codex`, whose help must then list the effort flag. An unknown provider exits 2 (argparse choices).
+`available` is whether the provider CLI is usable. `reason` is the short machine-readable explanation (`ready`, `executable_or_help_unavailable`, `required_flags_unverified`, `invalid_model`, and so on). Without `--model` the command only checks the executable and its help text; with `--model` it also probes the model, and `--effort` applies to `claude`, `codex`, `antigravity`, and `copilot`, whose help must then list the effort flag. An unknown provider exits 2 (argparse choices).
 
 ## `models`
 
@@ -96,6 +96,18 @@ configure --set K=V... [--local-set K=V...] [--dry-run] [--approve] [--repositor
 ```
 
 `--set` keys must start with `orchestrator.`; anything else exits 2 and writes nothing. `--local-set` keys edit `.agent-workflow/orchestrator.local.yaml`. The command validates the candidate configuration first. `--dry-run` prints the actions (`status: would_configure`) and writes nothing. Without `--dry-run`, `--approve` is required. The command first runs `gin-workflow setup configure --set ... --approve`, which writes the portable keys and refreshes the effective configuration. Only after that succeeds does it write `orchestrator.local.yaml` atomically and add it to `.agent-workflow/.gitignore`, so a rejected portable change leaves the local file untouched.
+
+## `dispatch`
+
+```
+dispatch --workflow-id ID --task-id ID --role ROLE --model M [--effort E] --workspace DIR (--objective TEXT | --objective-file FILE) [--constraint TEXT...] [--stage {execute,discuss,plan,review,tech-doc}] [--agent AGENT] [--provider PROVIDER] [--repository DIR] --json
+```
+
+```json
+{"acceptance_identity": null, "blockers": [], "changed_files": [], "commits": [], "evidence": [], "knowledge_candidates": [], "schema_version": "1.0", "status": "completed", "summary": "...", "task_id": "ID", "tests": []}
+```
+
+Dispatches a worker task through the provider CLI. The command resolves route affinity, executes the worker adapter under retry and circuit-breaker policies, and returns the worker result dictionary. For `--stage execute`, the workspace must be located within the repository worktree directory. For stages `discuss`, `plan`, `review`, and `tech-doc`, the workspace may be the repository root or a worktree path. If worker execution does not complete with status `completed`, the command exits 1.
 
 ## Errors
 

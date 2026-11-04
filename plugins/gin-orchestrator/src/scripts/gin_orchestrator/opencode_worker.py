@@ -9,6 +9,7 @@ from typing import Any, Callable, Mapping
 from workflow_core.ext import PROVIDER_DEFAULT
 
 from .circuit_breaker import FailureKind
+from .config import ORCHESTRATOR_DEFAULTS
 from .native_cli import (
     MODEL_PROBE_PROMPT,
     MODEL_PROBE_TIMEOUT_SECONDS,
@@ -29,13 +30,16 @@ def build_opencode_invocation(
     workspace: Path,
     prompt: str,
     *,
-    timeout_seconds: float = 900,
+    timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
+    agent: str | None = None,
 ) -> NativeCliInvocation:
     # OpenCode has no --cd/--add-dir: the process cwd is the workspace.
     resolved_workspace = Path(workspace).resolve()
     argv = [executable, "run", "--standalone", "--auto", "--format", "json"]
     if model and model != PROVIDER_DEFAULT:
         argv.extend(["--model", model])
+    if agent is not None:
+        argv.extend(["--agent", agent])
     argv.append(prompt)
     return NativeCliInvocation(tuple(argv), resolved_workspace, b"", timeout_seconds)
 
@@ -89,7 +93,8 @@ class OpenCodeWorkerAdapter(SynchronousWorkerAdapter):
         executable: str | None = None,
         model: str | None = None,
         workspace: Path | None = None,
-        timeout_seconds: float = 900,
+        timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
+        agent: str | None = None,
     ) -> None:
         cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
@@ -101,6 +106,7 @@ class OpenCodeWorkerAdapter(SynchronousWorkerAdapter):
                     Path(workspace),
                     prompt,
                     timeout_seconds=timeout_seconds,
+                    agent=agent,
                 ),
             )
         super().__init__(

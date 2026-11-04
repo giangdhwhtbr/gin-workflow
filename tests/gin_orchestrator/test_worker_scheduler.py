@@ -213,7 +213,7 @@ class WorkerSchedulerTests(unittest.TestCase):
             attempts[task_id] = attempts.get(task_id, 0) + 1
             if task_id == "task-2" and attempts[task_id] == 1:
                 failed = completed(payload)
-                failed.update(status="failed", summary="temporary", blockers=["timeout"])
+                failed.update(status="failed", summary="temporary", blockers=["provider_failure:rate_limit"])
                 return failed
             return completed(payload)
 
@@ -252,7 +252,7 @@ class WorkerSchedulerTests(unittest.TestCase):
                 acceptance_identity=payload["acceptance_identity"],
             )
             if len(observed_attempts) == 1:
-                result.update(status="failed", summary="retry", blockers=["temporary"])
+                result.update(status="failed", summary="retry", blockers=["provider_failure:service"])
             return result
 
         with tempfile.TemporaryDirectory() as directory:
@@ -377,7 +377,7 @@ class WorkerSchedulerTests(unittest.TestCase):
             if attempt == 1:
                 termination_requested.wait(timeout=2)
                 outcome = completed(payload)
-                outcome.update(status="failed", summary="stopped", blockers=["timeout"])
+                outcome.update(status="failed", summary="stopped", blockers=["provider_failure:service"])
             else:
                 outcome = completed(payload)
             with lock:
@@ -675,6 +675,125 @@ class WorkerSchedulerTests(unittest.TestCase):
             self.assertEqual(1, len(outcomes))
             self.assertEqual(1, len(errors))
             self.assertIn("already claimed", str(errors[0]))
+
+    def test_non_transient_blockers_are_not_retried(self):
+        for blocker in (
+            "timeout",
+            "provider_failure:auth",
+            "provider_failure:crash",
+            "invalid_result_contract",
+        ):
+            attempts = 0
+
+            def runner(payload):
+                nonlocal attempts
+                attempts += 1
+                result = completed(payload)
+                result.update(status="failed", summary="fatal", blockers=[blocker])
+                return result
+
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                tasks = FakeTaskTrackingProvider()
+                item = worker_request(1)
+                tasks.create_task(TaskCreateRequest(item.task_id), idempotency_key="create")
+                scheduler = WorkerScheduler(
+                    WorkerDispatcher(
+                        SequentialWorkerAdapter(runner),
+                        WorkflowEventStore(root / "events.jsonl"),
+                    ),
+                    task_tracking=tasks,
+                    workspace=FakeWorkspaceProvider(root / "worktrees"),
+                    max_parallel_workers=1,
+                    max_retries=2,
+                )
+                outcome = scheduler.schedule((item,))
+                self.assertEqual(1, attempts, f"blocker {blocker} should not be retried")
+                self.assertEqual(1, len(outcome.failed))
+                self.assertEqual((), outcome.completed)
+
+    def test_transient_blockers_are_retried_and_forward_prior_changed_files(self):
+        for transient_blocker in (
+            "provider_failure:quota",
+            "provider_failure:rate_limit",
+            "provider_failure:service",
+        ):
+            recorded_payloads = []
+
+            def runner(payload):
+                recorded_payloads.append(dict(payload))
+                result = completed(payload)
+                if len(recorded_payloads) == 1:
+                    result.update(
+                        status="failed",
+                        summary="transient fail 1",
+                        blockers=[transient_blocker],
+                        changed_files=["src/partial.py"],
+                    )
+                elif len(recorded_payloads) == 2:
+                    result.update(
+                        status="failed",
+                        summary="transient fail 2",
+                        blockers=[transient_blocker],
+                        changed_files=["src/replaced.py"],
+                    )
+                else:
+                    result.update(status="completed", changed_files=["src/final.py"])
+                return result
+
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                tasks = FakeTaskTrackingProvider()
+                item = worker_request(1)
+                tasks.create_task(TaskCreateRequest(item.task_id), idempotency_key="create")
+                scheduler = WorkerScheduler(
+                    WorkerDispatcher(
+                        SequentialWorkerAdapter(runner),
+                        WorkflowEventStore(root / "events.jsonl"),
+                    ),
+                    task_tracking=tasks,
+                    workspace=FakeWorkspaceProvider(root / "worktrees"),
+                    max_parallel_workers=1,
+                    max_retries=2,
+                )
+                outcome = scheduler.schedule((item,))
+                self.assertEqual(3, len(recorded_payloads))
+                self.assertNotIn("prior_changed_files", recorded_payloads[0])
+                self.assertEqual(["src/partial.py"], recorded_payloads[1].get("prior_changed_files"))
+                self.assertEqual(["src/replaced.py"], recorded_payloads[2].get("prior_changed_files"))
+                self.assertEqual(1, len(outcome.completed))
+                self.assertEqual((), outcome.failed)
+
+    def test_run_with_retries_standalone(self):
+        from gin_orchestrator.worker_scheduler import run_with_retries
+
+        attempts = 0
+
+        def flaky(payload):
+            nonlocal attempts
+            attempts += 1
+            result = completed(payload)
+            if attempts == 1:
+                result.update(
+                    status="failed",
+                    summary="rate limit",
+                    blockers=["provider_failure:rate_limit"],
+                    changed_files=["file1.py"],
+                )
+            else:
+                result.update(status="completed")
+            return result
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dispatcher = WorkerDispatcher(
+                SequentialWorkerAdapter(flaky),
+                WorkflowEventStore(root / "events.jsonl"),
+            )
+            item = worker_request(1)
+            result = run_with_retries(dispatcher, item, max_retries=1, worker_timeout_seconds=1.0)
+            self.assertEqual("completed", result.status)
+            self.assertEqual(2, attempts)
 
 
 if __name__ == "__main__":

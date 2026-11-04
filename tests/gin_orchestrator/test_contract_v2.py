@@ -85,7 +85,7 @@ class ContractV2Tests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual({"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=2.0,<3",
-                          "capabilities": ["health", "models", "routes", "reviewer", "doctor"]},
+                          "capabilities": ["health", "models", "routes", "reviewer", "doctor", "dispatch"]},
                          json.loads(result.stdout))
 
     def test_routes_resolve_matches_the_library(self):

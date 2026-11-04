@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
@@ -31,11 +31,17 @@ class NativeCliInvocation:
     stdin: bytes
     timeout_seconds: float
     idle_timeout_seconds: float | None = None
+    env_extra: Mapping[str, str] = field(default_factory=dict, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "argv", tuple(str(item) for item in self.argv))
         object.__setattr__(self, "cwd", Path(self.cwd).resolve())
         object.__setattr__(self, "stdin", bytes(self.stdin))
+        object.__setattr__(
+            self,
+            "env_extra",
+            MappingProxyType({str(k): str(v) for k, v in dict(self.env_extra).items()}),
+        )
         if not self.argv or self.timeout_seconds <= 0:
             raise ValueError("native CLI requires argv and positive timeout")
         if self.idle_timeout_seconds is not None and self.idle_timeout_seconds <= 0:
@@ -167,6 +173,9 @@ def direct_worker_result(output: NativeCliOutput) -> Mapping[str, object]:
         if required.issubset(record):
             return record
         candidates = [record.get(field) for field in ("result", "response", "text")]
+        data = record.get("data")
+        if isinstance(data, Mapping):
+            candidates.extend([data.get("content"), data.get("message"), data.get("text")])
         item = record.get("item")
         if isinstance(item, Mapping):
             candidates.append(item.get("text"))
@@ -214,6 +223,7 @@ def classify_native_failure(stderr: str) -> FailureKind:
             "no access to",
             "not recognized",
             "model unavailable",
+            "not available",
         )
     ):
         return FailureKind.INVALID_MODEL
@@ -246,6 +256,12 @@ def _diagnostic_from_stdout(stdout: bytes) -> str | None:
     for record in reversed(records):
         if not isinstance(record, Mapping):
             continue
+        data = record.get("data")
+        if isinstance(data, Mapping):
+            for field in ("error", "message", "detail", "reason"):
+                inner = data.get(field)
+                if isinstance(inner, str) and inner.strip():
+                    return inner.strip()
         for field in ("error", "message", "detail", "reason"):
             value = record.get(field)
             if isinstance(value, str) and value.strip():
@@ -385,7 +401,7 @@ class NativeCliRunner:
             process = subprocess.Popen(
                 argv,
                 cwd=invocation.cwd,
-                env={**sanitized_environment(), **worktree_environment(invocation.cwd)},
+                env={**sanitized_environment(), **worktree_environment(invocation.cwd), **invocation.env_extra},
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -556,7 +572,12 @@ class NativeCliRunner:
 
 
 _CLAUDE_ALIASES = (("opus", "Claude Opus (latest)"), ("sonnet", "Claude Sonnet (latest)"), ("haiku", "Claude Haiku (latest)"))
-_LIST_COMMANDS = {"codex": ("debug", "models"), "antigravity": ("models",), "opencode": ("models",)}
+_LIST_COMMANDS = {
+    "codex": ("debug", "models"),
+    "antigravity": ("models",),
+    "opencode": ("models",),
+    "copilot": ("help", "config"),
+}
 _LEVEL_SUFFIX = re.compile(r"-(low|medium|high)$")
 
 
@@ -597,6 +618,22 @@ def list_models(
     if provider == "opencode":
         return [{"id": line.strip(), "label": line.strip(), "description": "", "reasoning_levels": []}
                 for line in completed.stdout.splitlines() if line.strip()]
+    if provider == "copilot":
+        in_model_block = False
+        models = []
+        for line in completed.stdout.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("`model`:"):
+                in_model_block = True
+                continue
+            if in_model_block:
+                if stripped.startswith("`") and stripped.endswith(":"):
+                    break
+                match = re.match(r'^-\s+"([^"]+)"', stripped)
+                if match:
+                    model_id = match.group(1)
+                    models.append({"id": model_id, "label": model_id, "description": "", "reasoning_levels": []})
+        return models
     models = []
     for line in completed.stdout.splitlines():
         if "\t" not in line:

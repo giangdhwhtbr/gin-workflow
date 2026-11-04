@@ -267,14 +267,14 @@ assert_exists "plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md"
 assert_not_exists "plugins/gin-workflow/dist/opencode/skills/report"
 assert_exists "plugins/gin-workflow/dist/opencode/references/stage-contract.md"
-assert_not_exists "plugins/gin-workflow/dist/opencode/agents"
+assert_exists "plugins/gin-workflow/dist/opencode/agents/gin-workflow-developer.md"
 assert_not_exists "plugins/gin-workflow/dist/opencode/commands"
 assert_not_exists "plugins/gin-workflow/dist/opencode/hooks/hooks.json"
 assert_not_exists "plugins/gin-workflow/dist/opencode/plugin.json"
 assert_contains "plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/opencode"
 
-./install.sh --platform copilot --dry-run >"$output_file"
+./install.sh --platform copilot --plugin all --dry-run >"$output_file"
 
 assert_contains "$output_file" "Configuring Copilot plugin structure for gin-workflow"
 assert_contains "$output_file" "(dry-run) would install Copilot plugin from $ROOT_DIR/plugins/gin-workflow/dist/copilot/gin-workflow"
@@ -286,8 +286,12 @@ assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/references/stage-c
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/scripts/gin-workflow"
 assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/hooks/hooks.json"
 assert_contains "plugins/gin-workflow/dist/copilot/gin-workflow/hooks/hooks.json" '/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"'
-assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/agents"
+assert_exists "plugins/gin-workflow/dist/copilot/gin-workflow/agents/developer.md"
+assert_contains "plugins/gin-workflow/dist/copilot/gin-workflow/agents/developer.md" '"view", "grep", "glob", "bash", "edit"'
 assert_not_exists "plugins/gin-workflow/dist/copilot/gin-workflow/commands"
+assert_exists "plugins/gin-qa/dist/copilot/gin-qa/agents/e2e-tester.md"
+assert_contains "plugins/gin-qa/dist/copilot/gin-qa/agents/e2e-tester.md" '"bash", "edit"]'
+assert_not_contains "plugins/gin-qa/dist/copilot/gin-qa/agents/e2e-tester.md" '"edit", "edit"'
 
 # Test actual installation with a mocked HOME
 echo "Running mock HOME global installation test..."
@@ -357,7 +361,8 @@ assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/tech-doc/S
 assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md"
 assert_contains "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
 assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/skills/report"
-assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/agents"
+assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/agents/gin-workflow-developer.md"
+assert_exists "$MOCK_HOME/.config/opencode/agents/gin-workflow-developer.md"
 assert_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/references/stage-contract.md"
 assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin-workflow/hooks/hooks.json"
 
@@ -379,6 +384,7 @@ assert_exists "$opencode_project/.opencode/skills/setup/SKILL.md"
 assert_exists "$opencode_project/.opencode/skills/gin-workflow-report/SKILL.md"
 assert_not_exists "$opencode_project/.opencode/skills/report"
 assert_exists "$opencode_project/.opencode/agents/user-agent.md"
+assert_exists "$opencode_project/.opencode/agents/gin-workflow-developer.md"
 assert_exists "$opencode_project/.opencode/commands/user-command.md"
 assert_exists "$opencode_project/.opencode/references/stage-contract.md"
 assert_contains "$opencode_project/.opencode/skills/gin-workflow-report/SKILL.md" "name: gin-workflow-report"
@@ -541,8 +547,10 @@ uninstall_home="$MOCK_HOME/uninstall-home"
 mkdir -p "$uninstall_home"
 HOME="$uninstall_home" ./install.sh --platform opencode >/dev/null
 assert_exists "$uninstall_home/.config/opencode/skills/gin-workflow/skills/setup/SKILL.md"
+assert_exists "$uninstall_home/.config/opencode/agents/gin-workflow-developer.md"
 HOME="$uninstall_home" ./install.sh --uninstall >/dev/null
 assert_not_exists "$uninstall_home/.config/opencode/skills/gin-workflow"
+assert_not_exists "$uninstall_home/.config/opencode/agents/gin-workflow-developer.md"
 
 
 # Copilot: registration through a stub CLI, re-install, skip without the CLI,

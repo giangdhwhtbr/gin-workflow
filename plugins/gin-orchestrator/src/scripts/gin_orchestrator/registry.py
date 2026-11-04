@@ -14,6 +14,7 @@ from workflow_core.ext import (
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderModelConfig,
+    RouteCandidate,
     WorkflowEventStore,
     catalog_for,
     main_checkout,
@@ -21,7 +22,7 @@ from workflow_core.ext import (
 )
 
 from .routes import resolve_assignment
-from .config import orchestrator_section
+from .config import ORCHESTRATOR_DEFAULTS, orchestrator_section
 
 from .contracts import (
     EvidenceAuthority,
@@ -54,6 +55,7 @@ from .antigravity_worker import (
     antigravity_health,
 )
 from .opencode_worker import OpenCodeWorkerAdapter, opencode_health
+from .copilot_worker import CopilotWorkerAdapter, copilot_health
 from .circuit_breaker import CircuitBreakerStore
 from .claude_worker import ClaudeWorkerAdapter, claude_health
 from .codex_worker import CodexWorkerAdapter, codex_health
@@ -63,6 +65,27 @@ from .routed_worker import RoutedWorkerDispatcher, WorkspaceUnavailableError
 
 class RegistryError(ValueError):
     """Raised when effective configuration selects an unknown provider."""
+
+
+def _resolve_worker_agent(provider: str, agent: str | None) -> str | None:
+    if not agent or not agent.strip():
+        return None
+    raw = agent.strip()
+    if provider == "codex":
+        return None
+    if ":" in raw:
+        plugin_prefix, stem = raw.split(":", 1)
+    elif raw.startswith("gin-workflow-"):
+        plugin_prefix, stem = "gin-workflow", raw[len("gin-workflow-"):]
+    elif raw.startswith("gin-qa-"):
+        plugin_prefix, stem = "gin-qa", raw[len("gin-qa-"):]
+    else:
+        plugin_prefix, stem = "gin-workflow", raw
+    if provider == "claude":
+        return f"{plugin_prefix}:{stem}"
+    if provider == "opencode":
+        return f"{plugin_prefix}-{stem}"
+    return stem
 
 
 _DEFAULTS = {
@@ -104,8 +127,8 @@ class ProviderRegistry:
     evidence: EvidenceProvider
     notifications: NotificationProvider
     worker: RoutedWorkerDispatcher | None = None
-    worker_timeout_seconds: float = 600.0
-    worker_max_retries: int = 0
+    worker_timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"])
+    worker_max_retries: int = int(ORCHESTRATOR_DEFAULTS["worker"]["max_retries"])
     worker_max_parallel: int = 1
 
     @classmethod
@@ -212,8 +235,8 @@ class ProviderRegistry:
             raise RegistryError(f"unknown notifications provider: {notification_name}")
 
         worker = None
-        configured_timeout = 600.0
-        configured_retries = 0
+        configured_timeout = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"])
+        configured_retries = int(ORCHESTRATOR_DEFAULTS["worker"]["max_retries"])
         configured_parallel = 1
         if provider_local is not None:
             for provider_name in provider_local:
@@ -223,7 +246,7 @@ class ProviderRegistry:
                     and PROVIDER_DEFAULT in catalog_for(config, provider_name).models
                 ):
                     raise RegistryError(
-                        "provider_default is only supported for antigravity and opencode"
+                        "provider_default is only supported for antigravity, opencode, and copilot"
                     )
             orchestrator = orchestrator_section(config)
             concurrency = orchestrator.get("concurrency", {})
@@ -241,30 +264,89 @@ class ProviderRegistry:
             )
             breakers = CircuitBreakerStore(
                 runtime_root / "circuit-breakers.json",
-                failure_threshold=int(breaker_policy.get("failure_threshold", 1)),
+                failure_threshold=int(
+                    breaker_policy.get(
+                        "failure_threshold",
+                        ORCHESTRATOR_DEFAULTS["circuit_breaker"]["failure_threshold"],
+                    )
+                ),
                 cooldown_seconds=float(breaker_policy.get("cooldown_seconds", 900)),
                 half_open_max_probes=int(breaker_policy.get("half_open_max_probes", 1)),
             )
             events = event_store or WorkflowEventStore(runtime_root / "events.jsonl")
             runner = native_runner or NativeCliRunner()
-            timeout_seconds = float(worker_policy.get("timeout_seconds", 900))
+            timeout_seconds = float(
+                worker_policy.get(
+                    "timeout_seconds",
+                    ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"],
+                )
+            )
             configured_timeout = timeout_seconds
-            configured_retries = int(worker_policy.get("max_retries", 0))
+            configured_retries = int(
+                worker_policy.get(
+                    "max_retries",
+                    ORCHESTRATOR_DEFAULTS["worker"]["max_retries"],
+                )
+            )
             configured_parallel = sum(int(limit) for limit in concurrency.values())
             health_overrides = dict(worker_health or {})
             health_cache: dict[str, Any] = {}
 
             def resolver(request):
+                main_harness = str(config.get("harness", ""))
+                is_direct = request.isolation_policy.get("mode") == "direct"
+                source_harness = main_harness or ("claude" if is_direct else "")
+                affinity = request.route_affinity
+                if is_direct and affinity is not None and len(affinity) >= 1:
+                    source_harness = str(affinity[0])
                 assignment = AssignmentRequest(
                     request.task_id,
                     request.provider_role,
                     request.model,
                     request.effort,
-                    str(config.get("harness", "")),
+                    source_harness,
                 )
-                return resolve_assignment(assignment, config, provider_local)
+                candidates = list(resolve_assignment(assignment, config, provider_local))
+                if is_direct and affinity is not None and len(affinity) >= 2:
+                    aff_provider = str(affinity[0])
+                    aff_model = str(affinity[1])
+                    aff_effort = affinity[2] if len(affinity) > 2 and affinity[2] else None
+                    if not any(
+                        c.provider == aff_provider and c.model == aff_model and (c.effort == aff_effort if aff_effort is not None else True)
+                        for c in candidates
+                    ):
+                        candidates.insert(
+                            0,
+                            RouteCandidate(aff_provider, aff_model, False, effort=aff_effort or request.effort),
+                        )
+                return tuple(candidates)
 
             def workspace_for(request) -> Path:
+                if request.isolation_policy.get("mode") == "direct":
+                    raw_supplied = request.isolation_policy.get("workspace_path")
+                    if not raw_supplied:
+                        raise WorkspaceUnavailableError("direct workspace mode requires workspace_path")
+                    supplied_path = Path(str(raw_supplied))
+                    resolved = supplied_path.resolve()
+                    supported_worktree_root = worktree_root.resolve()
+                    supported_repo_root = root.resolve()
+                    if supplied_path.is_symlink() or not resolved.is_dir():
+                        raise WorkspaceUnavailableError("direct workspace_path must be an existing non-symlink directory")
+                    stage = getattr(request.generated_manifest, "stage", "execute")
+                    if stage == "execute":
+                        if not resolved.is_relative_to(supported_worktree_root):
+                            raise WorkspaceUnavailableError("direct execute workspace violates worktree root safety")
+                    else:
+                        read_only_stages = frozenset({"discuss", "plan", "review", "tech-doc"})
+                        read_only_roles = frozenset({"review", "research"})
+                        if stage in read_only_stages or request.provider_role in read_only_roles:
+                            if not (resolved.is_relative_to(supported_repo_root) or resolved.is_relative_to(supported_worktree_root)):
+                                raise WorkspaceUnavailableError("direct workspace_path must reside inside repository or worktree root")
+                        else:
+                            if not resolved.is_relative_to(supported_worktree_root):
+                                raise WorkspaceUnavailableError("direct execute workspace violates worktree root safety")
+                    return resolved
+
                 workspace_id = str(request.isolation_policy.get("workspace_id", ""))
                 if not workspace_id and request.provider_role == "review":
                     return root.resolve()
@@ -306,8 +388,11 @@ class ProviderRegistry:
                     "workspace": workspace_path,
                     "timeout_seconds": timeout_seconds,
                 }
-                if candidate.provider in ("claude", "codex") and candidate.effort is not None:
+                if candidate.provider in ("claude", "codex", "antigravity", "copilot") and candidate.effort is not None:
                     options["effort"] = candidate.effort
+                resolved_agent = _resolve_worker_agent(candidate.provider, getattr(request, "agent", None))
+                if resolved_agent is not None:
+                    options["agent"] = resolved_agent
                 if candidate.provider == "claude":
                     return ClaudeWorkerAdapter(**options)
                 if candidate.provider == "codex":
@@ -316,6 +401,8 @@ class ProviderRegistry:
                     return AntigravityWorkerAdapter(**options)
                 if candidate.provider == "opencode":
                     return OpenCodeWorkerAdapter(**options)
+                if candidate.provider == "copilot":
+                    return CopilotWorkerAdapter(**options)
                 raise RegistryError(f"unsupported native worker provider: {candidate.provider}")
 
             health_builders = {
@@ -323,6 +410,7 @@ class ProviderRegistry:
                 "codex": codex_health,
                 "antigravity": antigravity_health,
                 "opencode": opencode_health,
+                "copilot": copilot_health,
             }
 
             def health_for(provider: str):
@@ -342,7 +430,7 @@ class ProviderRegistry:
                             resolve_harness_executable(local.executable, provider=provider)
                             or local.executable
                         )
-                        if provider in ("claude", "codex", "antigravity", "opencode"):
+                        if provider in ("claude", "codex", "antigravity", "opencode", "copilot"):
                             if provider in PROVIDER_DEFAULT_PROVIDERS and _candidate.model == PROVIDER_DEFAULT:
                                 health_cache[key] = builder(resolved_exe)
                             else:
@@ -353,7 +441,7 @@ class ProviderRegistry:
                                     "native_runner": runner,
                                     "workspace": probe_workspace,
                                 }
-                                if provider in ("claude", "codex") and effort is not None:
+                                if provider in ("claude", "codex", "antigravity", "copilot") and effort is not None:
                                     probe_kwargs["effort"] = effort
                                 health_cache[key] = builder(
                                     resolved_exe,
@@ -371,7 +459,12 @@ class ProviderRegistry:
                 breakers,
                 events,
                 concurrency={str(name): int(limit) for name, limit in concurrency.items()},
-                max_wait_seconds=float(queue.get("max_wait_seconds", 120)),
+                max_wait_seconds=float(
+                    queue.get(
+                        "max_wait_seconds",
+                        ORCHESTRATOR_DEFAULTS["queue"]["max_wait_seconds"],
+                    )
+                ),
                 health={str(name): health_for(str(name)) for name in concurrency},
             )
 
