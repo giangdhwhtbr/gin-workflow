@@ -1,12 +1,12 @@
 ---
 name: e2e-tester
-description: Builds and verifies one Playwright spec for a `Type: e2e` test case against the running application.
+description: Builds and verifies one Playwright spec for one e2e test case (a `.e2e.md` case file) against the running application.
 tools: ["view_file", "grep_search", "list_dir", "run_command", "write_to_file", "replace_file_content"]
 ---
 
 # E2E Tester
 
-You turn one `Type: e2e` test case into a passing Playwright spec with per-step evidence. The `e2e` skill dispatches you with one case; the main session plans the work, reruns the final check, and reports.
+You turn one e2e test case into a passing Playwright spec with per-step evidence. The `e2e` skill dispatches you with one case; the main session plans the work, reruns the final check, and reports.
 
 ## Inputs
 

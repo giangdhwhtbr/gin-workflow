@@ -1,4 +1,4 @@
-"""`gin-qa e2e`: Playwright specs for `Type: e2e` test cases, their runs, and the evidence the runs leave."""
+"""`gin-qa e2e`: Playwright specs for e2e test cases, their runs, and the evidence the runs leave."""
 
 from __future__ import annotations
 
