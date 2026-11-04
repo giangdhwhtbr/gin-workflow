@@ -1,6 +1,6 @@
 # QA add-on (`gin-qa`)
 
-`gin-qa` is an optional plugin that writes test cases from your specs, turns end-to-end cases into Playwright specs with recorded evidence, and reports on both in one offline HTML page. It needs `gin-workflow` and is not installed by default.
+`gin-qa` is an optional plugin that writes test cases from your specs, walks a tester through the manual cases and files a bug bead for each failure, turns end-to-end cases into Playwright specs with recorded evidence, and reports on both in one offline HTML page. It needs `gin-workflow` and is not installed by default.
 
 ## Install
 
@@ -50,6 +50,21 @@ Saved as `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 - `gin-qa cases export --format json` lists every case with `result`, `run`, `bug`, and `test_data` for your own tooling; `/gin-qa:report` builds an HTML report from the same data.
 
 Requirements and their hashes come from the living specs, so the [SDD layout](sdd.md) gives the most traceability.
+
+## Manual runs: `/gin-qa:run`
+
+`/gin-qa:run <capability>` shows each manual case (`Type: manual`) of the capability in ID order and asks the tester for `passed`, `failed`, `blocked`, or `skip`. It asks for a run reference once, `manual <YYYY-MM-DD>` by default, and writes it on every case it records. `skip` writes nothing.
+
+A failure asks for what happened, evidence references, and an optional external tracker reference, then runs `gin-qa cases bug`:
+
+- The bug is a bead filed through `gin-workflow task create`, linked to the case's epic with `discovered-from`, so the [usage report](../reference/cli.md#gin-workflow-usage) of that epic counts it.
+- The epic comes from the spec named in `Source:` (legacy layout): its `Epic:` line, or the epic recorded at `orchestration-ready` for its `Workflow:` id. In the SDD layout it comes from the change that holds the first of the case's REQs that is in a change; a REQ already archived into the living spec has none. With no epic, the skill offers the epics of the repository to pick from.
+- The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.
+- When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence are not added to it. A closed bug, or a value that is not a readable bead, gets a new bug that names it as the previous bug.
+- Teams that track bugs in Jira or Linear file the ticket there and pass its key with `--external-ref`; the flag only records the key on the bead.
+- Priority follows the case: `high` → 1, `medium` → 2, `low` → 3, none → 2.
+
+The skill never edits case files and never commits.
 
 ## End-to-end specs: `/gin-qa:e2e`
 
@@ -114,4 +129,4 @@ A commit pushed after the approval needs a new approval ([team mode](team.md)).
 
 ## Commands
 
-`gin-qa cases {plan,next-id,pin,result,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, and `gin-qa report [capability] [--out DIR]`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).
+`gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, and `gin-qa report [capability] [--out DIR]`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).

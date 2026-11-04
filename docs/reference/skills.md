@@ -63,6 +63,8 @@ See [QA](../guides/qa.md).
 |---|---|
 | `cases` | Write or update test cases from specs, one block per case in `qa/cases/<capability>.md`, traced to REQ-IDs |
 | `e2e` | Write, run, and check Playwright specs for `Type: e2e` cases by exploring the running application |
+| `report` | Write an offline HTML report of the test cases, with charts, filters, and per-step e2e screenshots |
+| `run` | Walk the manual cases of a capability with a tester, record each result, and file a bug bead linked to the case's epic for each failure |
 
 Where the harness has subagents, `e2e` gives each case to the add-on's `e2e-tester` agent at the middle model and `low` effort.
 

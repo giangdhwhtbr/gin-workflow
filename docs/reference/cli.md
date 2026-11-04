@@ -383,7 +383,7 @@ In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for th
 
 ## `gin-qa`
 
-The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, and `gin-qa report [capability] [--out DIR]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing.
+The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, and `gin-qa report [capability] [--out DIR]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing.
 
 ### `gin-qa cases result`
 
@@ -392,6 +392,30 @@ The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,p
 Exit 2, writing nothing, when the ID does not exist, the status is not one of the four, `--run` or `--bug` is empty or holds a non-printable character, or the case files have a finding that names the case.
 
 Output: text `TC-AUTH-001 passed`; JSON `{"tc", "result", "run", "bug", "file"}`.
+
+### `gin-qa cases bug`
+
+`gin-qa cases bug <TC-ID> --actual TEXT [--evidence REF]... [--external-ref REF] [--discovered-from BEAD] [--run REF]` records `failed` on a manual case and files a bug bead for it.
+
+- When the case's `Bug:` is a bead that `gin-workflow task show` reports with a `status` other than `closed`, no bead is created, the case keeps that bug, and `epic` is `null`. No epic is needed.
+- A `Bug:` value that is not a bead, or that `task show` cannot read, counts as no open bug; the new bug names it as `Previous bug`.
+- Otherwise the epic is found:
+  - from the spec named in `Source:`, which must be inside the repository: its `Epic:` line, or the `epic` of `gin-workflow state --workflow-id <topic>` for its `Workflow: <topic>` line;
+  - or, with REQs, the `epic` of the first of the case's REQs that has one in `gin-workflow specs reqs`.
+- `--discovered-from` replaces the epic found. The epic must be a bead `gin-workflow task show` can read.
+- It then runs `gin-workflow task create -t bug --title "<TC-ID>: <title>" --body-file - --deps discovered-from:<epic> -p <priority> [--external-ref REF] --json` in the repository, with the description on stdin. Then it writes `Result: failed`, the run (`--run`, else the case's current `Run`), and the new bug.
+
+Exit 2, writing nothing, when:
+
+- the ID does not exist, or the case is not `manual`;
+- an option value is empty or not one printable line;
+- no epic is found (`no epic for <TC-ID>; pass --discovered-from <bead>`), or the epic is not a bead (`<epic>: no such bead; pass --discovered-from <bead>`);
+- the spec named in `Source:` is outside the repository or cannot be read;
+- `task show` on the epic fails for another reason, or `task create` fails (their stderr is passed on).
+
+When the bead is created but the result cannot be recorded, it exits 2 and names the bead and the `cases result` command to run.
+
+Output: text `TC-AUTH-001 failed gw-12`; JSON `{"tc", "bug", "epic", "created", "file"}`.
 
 ### `gin-qa cases split`
 

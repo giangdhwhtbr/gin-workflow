@@ -31,7 +31,7 @@ class TestPackaging(unittest.TestCase):
                          {p["name"]: p["source"]["path"] for p in marketplace["plugins"]})
 
     def test_skill_budget_and_links(self):
-        expected = {"cases": ["../../templates/guidelines.md", "../../templates/qa-readme.md", "../../templates/cases.md"], "e2e": ["references/explore-case.md"] * 2, "report": []}
+        expected = {"cases": ["../../templates/guidelines.md", "../../templates/qa-readme.md", "../../templates/cases.md"], "e2e": ["references/explore-case.md"] * 2, "report": [], "run": []}
         self.assertEqual(sorted(expected), sorted(p.name for p in (QA / "src/skills").iterdir()))
         self.assertLessEqual(description_chars(QA / "src"), 1_000)
         for name, want in expected.items():
