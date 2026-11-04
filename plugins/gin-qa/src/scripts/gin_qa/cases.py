@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 import hashlib
+import os
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
+import time
 
 TC_ID = re.compile(r"\bTC-([A-Z][A-Z0-9-]*?)-(\d{3,})\b")  # lazy: TC-AUTH-005-2024-tax is TC-AUTH-005
 _FIELD = re.compile(r"^(?:- )?(\*\*)?([A-Za-z][A-Za-z0-9 _-]*):(?(1)\*\*|(?!\*\*))\s*(\S.*)$")
@@ -228,6 +231,123 @@ def field_line(like: str, key: str, value: str) -> str:
     """`key: value` in the form of the field line `like`: `- **Key:** value` or `Key: value`."""
     return f"- **{key}:** {value}" if like.lstrip().startswith("- **") else f"{key}: {value}"
 
+
+
+@contextmanager
+def _lock(folder: Path, timeout: float = 10.0):
+    """One gin-qa writer at a time per cases folder; a crashed writer leaves the file, named in the error."""
+    path = folder / ".gin-qa.lock"
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except (FileExistsError, PermissionError):
+            if time.monotonic() > deadline:
+                raise ValueError(f"{path}: held for {timeout:.0f}s; delete it if no gin-qa is running") from None
+            time.sleep(0.02)
+    try:
+        yield
+    finally:
+        os.close(handle)
+        os.unlink(path)
+
+
+def write_atomic(path: Path, text: str) -> None:
+    """Readers in other processes see the old or the new file, never half of one."""
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(text, encoding="utf-8")
+    for attempt in range(40):
+        try:
+            os.replace(temporary, path)
+            return
+        except PermissionError:  # ponytail: Windows refuses a replace while a reader has the file open; retry 2s
+            if attempt == 39:
+                raise
+            time.sleep(0.05)
+
+
+def _with_result(text: str, case: Case, values: list[tuple[str, str | None]]) -> str:
+    lines = text.split("\n")
+    own = {case.field_lines[key] for key in RESULT_FIELDS if key in case.field_lines}
+    others = [number for key, number in case.field_lines.items() if key not in RESULT_FIELDS]
+    anchor = max(others) if others else (min(own) - 1 if own else case.line)
+    like = lines[max(others) - 1] if others else (lines[min(own) - 1] if own else "")
+    new = [field_line(like, key, value) for key, value in values if value is not None]
+    anchor -= sum(1 for number in own if number <= anchor)
+    kept = [line for number, line in enumerate(lines, 1) if number not in own]
+    return "\n".join(kept[:anchor] + new + kept[anchor:])
+
+
+def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: str | None = None,
+                  bug: str | None = None) -> dict[str, str]:
+    """The only writer of Result/Run/Bug: Run is replaced (dropped when None); Bug changes only when given."""
+    if status not in RESULTS:
+        raise ValueError(f"status is one of {', '.join(RESULTS)}; got {status!r}")
+    for value in (run, bug):
+        if value is not None and (not value.strip() or any(ord(char) < 32 for char in value)):
+            raise ValueError(f"{value!r}: values are one non-empty line")
+    cases, _ = load(root, cases_dir)
+    located = next((case for case in cases if case.id == case_id), None)
+    if located is None:
+        raise ValueError(f"{case_id}: no such test case")
+    path = root / located.path
+    flat = path.parent == root / cases_dir
+    with _lock(root / cases_dir):
+        found, errors = parse_path(root, cases_dir, path)
+        case = next((item for item in found if item.id == case_id), None)
+        # a per-case file holds only this case, so every finding in it is about the case
+        problems = [error for error in errors if not flat or re.search(rf"\b{re.escape(case_id)}\b", error)]
+        if case is None or problems:
+            raise ValueError("; ".join(problems) or f"{case_id}: no longer in {located.path}")
+        kept_bug = case.fields.get("Bug") if bug is None else (None if bug == "none" else bug)
+        values = [("Result", status), ("Run", run), ("Bug", kept_bug)]
+        write_atomic(path, _with_result(path.read_text(encoding="utf-8"), case, values))
+    return {"tc": case_id, "result": status, "run": run or "", "bug": kept_bug or "", "file": str(located.path)}
+
+
+def _slug(title: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    if len(slug) > 40:
+        slug = slug[:41].rsplit("-", 1)[0] if "-" in slug[:41] else slug[:40]
+    return f"-{slug}" if slug else ""
+
+
+def split(root: Path, cases_dir: str, cap: str) -> tuple[list[str], list[str]]:
+    """`<cases>/<cap>.md` → one `<cases>/<cap>/<TC-ID>-<slug>.<type>.md` per case; nothing is written on findings."""
+    base = root / cases_dir
+    path = base / f"{cap}.md"
+    shown = f"{cases_dir}/{cap}.md"
+    if not path.is_file():
+        raise ValueError(f"{shown}: no such file")
+    found, errors = parse_file(path, shown)
+    lines = path.read_text(encoding="utf-8").split("\n")
+    first = next((index for index, line in enumerate(lines) if line.startswith("### ")), len(lines))
+    head = [line for line in lines[:first] if line.strip()]
+    if head[1:] or (head and not head[0].startswith("# ")) or any(line.startswith("## ") for line in lines):
+        errors.append(f"{shown}: holds text outside its title and case blocks; move it before splitting")
+    targets: dict[str, Path] = {}
+    for case in found:
+        kind = case.fields.get("Type", "").strip().lower()
+        if not TYPE.match(kind):
+            errors.append(f"{shown}:{case.line}: {case.id}: needs a Type: matching [a-z][a-z0-9-]* to split")
+        if case.cap != cap or case.id in targets:
+            errors.append(f"{shown}:{case.line}: {case.id}: not a unique {cap} case")
+        target = base / cap / f"{case.id}{_slug(case.title)}.{kind}.md"
+        if target.exists():
+            errors.append(f"{target.relative_to(root).as_posix()}: already exists")
+        targets[case.id] = target
+    if errors:
+        return [], errors
+    starts = [case.line - 1 for case in found] + [len(lines)]
+    for case, start, end in zip(found, starts, starts[1:]):
+        block = lines[start:end]
+        block[0] = "# " + block[0][len("### "):]
+        del block[case.field_lines["Type"] - 1 - start]
+        targets[case.id].parent.mkdir(parents=True, exist_ok=True)
+        targets[case.id].write_text("\n".join(block).rstrip("\n") + "\n", encoding="utf-8")
+    path.unlink()
+    return [target.relative_to(root).as_posix() for target in targets.values()], []
 
 def as_dict(case: Case) -> dict[str, object]:
     return {"id": case.id, "title": case.title, "capability": case.cap, "file": str(case.path), "line": case.line,

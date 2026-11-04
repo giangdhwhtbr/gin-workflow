@@ -109,6 +109,15 @@ class TestPlanAndCheck(QaCase):
                          [(row["tc"], row["req"], row["reason"]) for row in obsolete])
 
 
+    def test_pin_keeps_the_bold_form(self):
+        path = write(self.root, "qa/cases/auth/TC-AUTH-001.e2e.md",
+                     case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000, REQ-AUTH-002@00000000"))
+        self.assertEqual(0, qa(self.root, self.bin, "pin", "TC-AUTH-001").returncode)
+        first = path.read_text().splitlines()[2]
+        self.assertEqual(f"- **REQ:** REQ-AUTH-001@{hash8(self.root, self.bin, 'REQ-AUTH-001')}, "
+                         f"REQ-AUTH-002@{hash8(self.root, self.bin, 'REQ-AUTH-002')}", first)
+
+
 class TestChanges(QaCase):
     def test_case_for_unarchived_change_is_valid_before_and_after_archive(self):
         make_change(self.root)
@@ -273,6 +282,100 @@ class TestCaseFiles(QaCase):
         self.assertEqual(["qa/cases/auth/TC-AUTH-001.e2e.md: matches artifacts.test_globs pattern "
                           "'qa/cases/*/*.e2e.md'; test cases would count as executed tests in specs trace"],
                          self.findings())
+
+
+class TestResult(QaCase):
+    def setUp(self):
+        super().setUp()
+        self.path = write(self.root, "qa/cases/auth/TC-AUTH-001.e2e.md",
+                          case_file("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-002")))
+
+    def result(self, *args: str):
+        return qa(self.root, self.bin, "result", "TC-AUTH-001", *args)
+
+    def test_add_replace_and_remove_lines_in_the_case_form(self):
+        self.assertEqual(0, self.result("failed", "--run", "qa/evidence/r1", "--bug", "gw-7").returncode)
+        text = self.path.read_text()
+        self.assertIn("- **Priority:** high\n- **Result:** failed\n- **Run:** qa/evidence/r1\n- **Bug:** gw-7\n\n"
+                      "**Preconditions:**", text)
+        out = qa(self.root, self.bin, "result", "TC-AUTH-001", "passed", "--format", "json")
+        self.assertEqual({"tc": "TC-AUTH-001", "result": "passed", "run": "", "bug": "gw-7",
+                          "file": "qa/cases/auth/TC-AUTH-001.e2e.md"}, json.loads(out.stdout))
+        self.assertIn("- **Priority:** high\n- **Result:** passed\n- **Bug:** gw-7\n\n", self.path.read_text())
+        self.assertEqual(0, self.result("not run", "--bug", "none").returncode)
+        self.assertIn("- **Priority:** high\n- **Result:** not run\n\n", self.path.read_text())
+        self.assertEqual([], self.findings())
+
+    def test_plain_flat_case_gets_plain_lines(self):
+        self.path.unlink()
+        self.path.parent.rmdir()
+        flat = self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-002")))
+        self.assertEqual(0, self.result("blocked", "--run", "manual 2026-11-04").returncode)
+        self.assertIn("Priority: high\nResult: blocked\nRun: manual 2026-11-04\n", flat.read_text())
+
+    def test_bad_input_exits_2_and_writes_nothing(self):
+        before = self.path.read_text()
+        for args, message in ((("done",), "status is one of passed, failed, blocked, not run"),
+                              (("passed", "--run", "a\nb"), "values are one non-empty line"),
+                              (("passed", "--bug", ""), "values are one non-empty line")):
+            with self.subTest(args=args):
+                result = self.result(*args)
+                self.assertEqual(2, result.returncode)
+                self.assertIn(message, result.stderr)
+        unknown = qa(self.root, self.bin, "result", "TC-AUTH-404", "passed")
+        self.assertEqual((2, True), (unknown.returncode, "TC-AUTH-404: no such test case" in unknown.stderr))
+        self.path.write_text(before.replace("1. Open /login", "- Open /login"))
+        broken = self.path.read_text()
+        self.assertEqual(2, self.result("passed").returncode)
+        self.assertEqual(broken, self.path.read_text())
+
+
+class TestSplit(QaCase):
+    def flat(self, *blocks: str) -> Path:
+        return self.write_cases(*blocks)
+
+    def test_split_writes_one_file_per_case_with_the_same_hash(self):
+        good = self.ref("REQ-AUTH-001", "REQ-AUTH-002")
+        manual = case("TC-AUTH-002", good, title="Reset: the password!").replace("Type: e2e", "Type: manual")
+        path = self.flat(case("TC-AUTH-001", good, title="Sign in"), manual)
+        before = {row["id"]: row["hash8"] for row in self.run_json("export")["cases"]}
+        result = qa(self.root, self.bin, "split", "auth")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertFalse(path.exists())
+        self.assertEqual(["TC-AUTH-001-sign-in.e2e.md", "TC-AUTH-002-reset-the-password.manual.md"],
+                         sorted(item.name for item in (self.root / "qa/cases/auth").iterdir()))
+        text = (self.root / "qa/cases/auth/TC-AUTH-001-sign-in.e2e.md").read_text()
+        self.assertTrue(text.startswith("# TC-AUTH-001: Sign in\n"))
+        self.assertNotIn("Type:", text)
+        self.assertEqual([], self.findings())
+        after = {row["id"]: (row["hash8"], row["type"]) for row in self.run_json("export")["cases"]}
+        self.assertEqual({key: (value, kind) for (key, value), kind in zip(before.items(), ("e2e", "manual"))}, after)
+        self.assertIn("TC-AUTH-003", qa(self.root, self.bin, "next-id", "auth").stdout)
+
+    def test_refusals_write_nothing(self):
+        good = self.ref("REQ-AUTH-001", "REQ-AUTH-002")
+        cases = (
+            (case("TC-AUTH-001", good).replace("Type: e2e\n", ""), "TC-AUTH-001: needs a Type: matching"),
+            (case("TC-AUTH-001", good).replace("Type: e2e", "Type: Web UI"), "TC-AUTH-001: needs a Type: matching"),
+            ("Intro prose.\n\n" + case("TC-AUTH-001", good), "holds text outside its title and case blocks"),
+            (case("TC-AUTH-001", good) + "\n## Notes\n- later\n", "holds text outside its title and case blocks"),
+        )
+        for block, message in cases:
+            with self.subTest(message=message):
+                path = self.flat(block)
+                before = path.read_text()
+                result = qa(self.root, self.bin, "split", "auth")
+                self.assertEqual(1, result.returncode)
+                self.assertIn(message, result.stdout)
+                self.assertEqual(before, path.read_text())
+                self.assertFalse((self.root / "qa/cases/auth").exists())
+        path = self.flat(case("TC-AUTH-001", good))
+        write(self.root, "qa/cases/auth/TC-AUTH-001-case.e2e.md", "x\n")
+        result = qa(self.root, self.bin, "split", "auth")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("qa/cases/auth/TC-AUTH-001-case.e2e.md: already exists", result.stdout)
+        self.assertTrue(path.exists())
+        self.assertEqual(2, qa(self.root, self.bin, "split", "billing").returncode)
 
 
 class TestReadableFormat(unittest.TestCase):

@@ -27,6 +27,12 @@ def _parser() -> argparse.ArgumentParser:
     scope.add_argument("--change")
     sub.add_parser("next-id", parents=[common]).add_argument("capability")
     sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
+    item = sub.add_parser("result", parents=[common])
+    item.add_argument("id")
+    item.add_argument("status")
+    item.add_argument("--run")
+    item.add_argument("--bug")
+    sub.add_parser("split", parents=[common]).add_argument("capability")
     sub.add_parser("check", parents=[common]).add_argument("--change")
     sub.add_parser("export", parents=[common])
     return parser
@@ -129,15 +135,15 @@ def _pin(root: Path, eff: Effective, ids: list[str]) -> list[str]:
         if unknown:
             errors.append(f"{case.path}:{case.line}: {case_id}: {', '.join(unknown)} not found; delete or fix the case")
             continue
-        line = "REQ: " + ", ".join(f"{req}@{eff.reqs[req]['hash'][:8]}" for req, _ in case.reqs)
-        edits.setdefault(root / case.path, {})[case.field_lines["REQ"]] = line
+        value = ", ".join(f"{req}@{eff.reqs[req]['hash'][:8]}" for req, _ in case.reqs)
+        edits.setdefault(root / case.path, {})[case.field_lines["REQ"]] = value
     if errors:
         return errors
-    for path, lines in edits.items():
+    for path, values in edits.items():
         text = path.read_text(encoding="utf-8").split("\n")
-        for number, line in lines.items():
-            text[number - 1] = line
-        path.write_text("\n".join(text), encoding="utf-8")
+        for number, value in values.items():
+            text[number - 1] = tc.field_line(text[number - 1], "REQ", value)
+        tc.write_atomic(path, "\n".join(text))
     return []
 
 
@@ -158,6 +164,16 @@ def _run(args: argparse.Namespace) -> int:
         return _findings(_check(root, eff, args.change), args.format, "ok")
     if args.command == "pin":
         return _findings(_pin(root, eff, args.ids), args.format, f"pinned {' '.join(args.ids)}")
+    if args.command == "result":
+        row = tc.record_result(root, eff.cases_dir, args.id, args.status, args.run, args.bug)
+        _emit(row, args.format, f"{row['tc']} {row['result']}")
+        return 0
+    if args.command == "split":
+        written, errors = tc.split(root, eff.cases_dir, args.capability)
+        if errors:
+            return _findings(errors, args.format, "")
+        _emit({"written": written}, args.format, "\n".join(written))
+        return 0
     cases, _ = tc.load(root, eff.cases_dir)
     if args.command == "export":
         rows = [tc.as_dict(case) for case in cases]
@@ -209,7 +225,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"gin-qa {VERSION}")
         return 0
     if argv[:1] not in (["cases"], ["e2e"]):
-        print("usage: gin-qa cases {plan,next-id,pin,check,export} ...\n"
+        print("usage: gin-qa cases {plan,next-id,pin,result,split,check,export} ...\n"
               "       gin-qa e2e {init,plan,pin,run,check,export} ...", file=sys.stderr)
         return 2
     try:
