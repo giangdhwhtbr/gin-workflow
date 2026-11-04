@@ -9,7 +9,7 @@ import sys
 from typing import Any, Sequence
 
 from . import cases as tc
-from . import e2e, report
+from . import bugs, e2e, report
 from .reqs import Effective, QaError, resolve, specs_reqs
 
 VERSION = "0.7"
@@ -32,6 +32,13 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("status")
     item.add_argument("--run")
     item.add_argument("--bug")
+    item = sub.add_parser("bug", parents=[common])
+    item.add_argument("id")
+    item.add_argument("--actual", required=True)
+    item.add_argument("--evidence", action="append", default=[])
+    item.add_argument("--external-ref")
+    item.add_argument("--discovered-from")
+    item.add_argument("--run")
     sub.add_parser("split", parents=[common]).add_argument("capability")
     sub.add_parser("check", parents=[common]).add_argument("--change")
     sub.add_parser("export", parents=[common])
@@ -168,6 +175,11 @@ def _run(args: argparse.Namespace) -> int:
         row = tc.record_result(root, eff.cases_dir, args.id, args.status, args.run, args.bug)
         _emit(row, args.format, f"{row['tc']} {row['result']}")
         return 0
+    if args.command == "bug":
+        row = bugs.file_bug(root, eff, args.id, args.actual, args.evidence, external_ref=args.external_ref,
+                            discovered_from=args.discovered_from, run=args.run)
+        _emit(row, args.format, f"{row['tc']} failed {row['bug']}")
+        return 0
     if args.command == "split":
         written, errors = tc.split(root, eff.cases_dir, args.capability)
         if errors:
@@ -244,7 +256,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "report": (_report_parser, _run_report)}
     if not argv or argv[0] not in groups:
-        print("usage: gin-qa cases {plan,next-id,pin,result,split,check,export} ...\n"
+        print("usage: gin-qa cases {plan,next-id,pin,result,bug,split,check,export} ...\n"
               "       gin-qa e2e {init,plan,pin,run,check,export} ...\n"
               "       gin-qa report [capability] [--out DIR]", file=sys.stderr)
         return 2

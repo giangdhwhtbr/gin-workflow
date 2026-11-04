@@ -284,14 +284,15 @@ def _with_result(text: str, case: Case, values: list[tuple[str, str | None]]) ->
     return "\n".join(kept[:anchor] + new + kept[anchor:])
 
 
-def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: str | None = None,
-                  bug: str | None = None) -> dict[str, str]:
-    """The only writer of Result/Run/Bug: Run is replaced (dropped when None); Bug changes only when given."""
-    if status not in RESULTS:
-        raise ValueError(f"status is one of {', '.join(RESULTS)}; got {status!r}")
-    for value in (run, bug):
-        if value is not None and (not value.strip() or not value.isprintable()):
-            raise ValueError(f"{value!r}: values are one non-empty line")
+def one_line(value: str) -> str:
+    """A value written into a case file or a bead: one non-empty line of printable characters."""
+    if not value.strip() or not value.isprintable():
+        raise ValueError(f"{value!r}: values are one non-empty line")
+    return value
+
+
+def find(root: Path, cases_dir: str, case_id: str) -> Case:
+    """The case `case_id`; refused when the case files have a finding that names it."""
     cases, findings = load(root, cases_dir)
     located = next((case for case in cases if case.id == case_id), None)
     if located is None:
@@ -299,6 +300,18 @@ def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: st
     about = [error for error in findings if re.search(rf"\b{re.escape(case_id)}\b", error)]
     if about:
         raise ValueError("; ".join(about))
+    return located
+
+
+def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: str | None = None,
+                  bug: str | None = None) -> dict[str, str]:
+    """The only writer of Result/Run/Bug: Run is replaced (dropped when None); Bug changes only when given."""
+    if status not in RESULTS:
+        raise ValueError(f"status is one of {', '.join(RESULTS)}; got {status!r}")
+    for value in (run, bug):
+        if value is not None:
+            one_line(value)
+    located = find(root, cases_dir, case_id)
     path = root / located.path
     flat = path.parent == root / cases_dir
     with _lock(root / cases_dir):
