@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 import inspect
 import threading
 from typing import Any, Iterable
 
+from .config import ORCHESTRATOR_DEFAULTS
 from .contracts import NotificationRequest, OperationStatus, WorkspaceRequest
 from .worker_dispatch import (
     WorkerRequest,
     WorkerResult,
     failed_worker_result,
+)
+
+TRANSIENT_FAILURE_BLOCKERS = frozenset(
+    {"provider_failure:quota", "provider_failure:rate_limit", "provider_failure:service"}
 )
 
 
@@ -88,8 +94,8 @@ class WorkerScheduler:
         task_tracking: Any,
         workspace: Any,
         max_parallel_workers: int,
-        max_retries: int = 0,
-        worker_timeout_seconds: float = 600.0,
+        max_retries: int = int(ORCHESTRATOR_DEFAULTS["worker"]["max_retries"]),
+        worker_timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
         notifications: Any | None = None,
     ) -> None:
         if max_parallel_workers < 1:
@@ -178,21 +184,20 @@ class WorkerScheduler:
             self._prepare(request)
         except Exception as error:
             return failed_worker_result(request, "preparation_failed", str(error))
-        result: WorkerResult | None = None
-        for attempt in range(self.max_retries + 1):
-            attempted_request = request if attempt == 0 else self._retry_request(
-                request, attempt
-            )
-            result, retry_safe = self._attempt_with_deadline(attempted_request)
-            if result.status == "completed":
-                return result
-            if not retry_safe:
-                return result
-        assert result is not None
-        return result
+        return run_with_retries(
+            self.dispatcher,
+            request,
+            max_retries=self.max_retries,
+            worker_timeout_seconds=self.worker_timeout_seconds,
+        )
 
     @staticmethod
-    def _retry_request(request: WorkerRequest, attempt: int) -> WorkerRequest:
+    def _retry_request(
+        request: WorkerRequest,
+        attempt: int,
+        *,
+        prior_changed_files: Sequence[str] = (),
+    ) -> WorkerRequest:
         identity = request.acceptance_identity
         if identity is not None:
             identity = replace(
@@ -202,91 +207,15 @@ class WorkerScheduler:
             request,
             retry_identity=f"{request.retry_identity}:retry:{attempt}",
             acceptance_identity=identity,
+            prior_changed_files=tuple(prior_changed_files),
         )
 
     def _attempt_with_deadline(
         self, request: WorkerRequest
     ) -> tuple[WorkerResult, bool]:
-        done = threading.Event()
-        receipt_ready = threading.Event()
-        state_lock = threading.Lock()
-        state: dict[str, Any] = {}
-
-        def execute_attempt() -> None:
-            try:
-                receipt = self.dispatcher.dispatch(request)
-                with state_lock:
-                    state["receipt"] = receipt
-                receipt_ready.set()
-                result = self.dispatcher.collect_result(receipt.worker_id)
-                retry_safe = True
-            except Exception as error:
-                result = failed_worker_result(request, "worker_exception", str(error))
-                retry_safe = False
-            with state_lock:
-                state["result"] = result
-                state["retry_safe"] = retry_safe
-            done.set()
-            receipt_ready.set()
-
-        threading.Thread(
-            target=execute_attempt,
-            name=f"attempt:{request.workflow_id}:{request.task_id}",
-            daemon=True,
-        ).start()
-        if done.wait(timeout=self.worker_timeout_seconds):
-            with state_lock:
-                return state["result"], state["retry_safe"]
-
-        timeout_result = failed_worker_result(
-            request,
-            "timeout",
-            f"worker attempt exceeded {self.worker_timeout_seconds} seconds",
+        return _attempt_with_deadline(
+            self.dispatcher, request, self.worker_timeout_seconds
         )
-        with state_lock:
-            if done.is_set():
-                return state["result"], state["retry_safe"]
-            receipt = state.get("receipt")
-        if receipt is None:
-            receipt_ready.wait(timeout=self.worker_timeout_seconds)
-            with state_lock:
-                if done.is_set():
-                    return state["result"], state["retry_safe"]
-                receipt = state.get("receipt")
-            if receipt is None:
-                return timeout_result, False
-
-        try:
-            cancel = self.dispatcher.cancel
-            parameters = inspect.signature(cancel).parameters.values()
-            supports_timeout = "timeout" in inspect.signature(cancel).parameters or any(
-                parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters
-            )
-            accepted = (
-                cancel(receipt.worker_id, timeout=self.worker_timeout_seconds)
-                if supports_timeout
-                else cancel(receipt.worker_id)
-            )
-            if accepted:
-                quiescent = done.wait(timeout=self.worker_timeout_seconds)
-                if quiescent:
-                    # The attempt actually finished (e.g. the native runner reported
-                    # a real cancelled/failed result with partial changed_files) --
-                    # report that real outcome instead of a synthetic empty one.
-                    with state_lock:
-                        return state["result"], state["retry_safe"]
-                return timeout_result, quiescent
-        except Exception:
-            return timeout_result, False
-
-        try:
-            status = self.dispatcher.status(receipt.worker_id)
-            if status.state.value in {"completed", "failed", "cancelled", "unavailable"}:
-                terminal = self.dispatcher.collect_result(receipt.worker_id, timeout=0)
-                return terminal, True
-        except Exception:
-            pass
-        return timeout_result, False
 
     def _run_and_notify(self, request: WorkerRequest) -> WorkerResult:
         result = self._run(request)
@@ -314,3 +243,121 @@ class WorkerScheduler:
             tuple(result for result in results if result.status == "completed"),
             tuple(result for result in results if result.status != "completed"),
         )
+
+
+def _attempt_with_deadline(
+    dispatcher: Any,
+    request: WorkerRequest,
+    worker_timeout_seconds: float,
+) -> tuple[WorkerResult, bool]:
+    done = threading.Event()
+    receipt_ready = threading.Event()
+    state_lock = threading.Lock()
+    state: dict[str, Any] = {}
+
+    def execute_attempt() -> None:
+        try:
+            receipt = dispatcher.dispatch(request)
+            with state_lock:
+                state["receipt"] = receipt
+            receipt_ready.set()
+            result = dispatcher.collect_result(receipt.worker_id)
+            retry_safe = True
+        except Exception as error:
+            result = failed_worker_result(request, "worker_exception", str(error))
+            retry_safe = False
+        with state_lock:
+            state["result"] = result
+            state["retry_safe"] = retry_safe
+        done.set()
+        receipt_ready.set()
+
+    threading.Thread(
+        target=execute_attempt,
+        name=f"attempt:{request.workflow_id}:{request.task_id}",
+        daemon=True,
+    ).start()
+    if done.wait(timeout=worker_timeout_seconds):
+        with state_lock:
+            return state["result"], state["retry_safe"]
+
+    timeout_result = failed_worker_result(
+        request,
+        "timeout",
+        f"worker attempt exceeded {worker_timeout_seconds} seconds",
+    )
+    with state_lock:
+        if done.is_set():
+            return state["result"], state["retry_safe"]
+        receipt = state.get("receipt")
+    if receipt is None:
+        receipt_ready.wait(timeout=worker_timeout_seconds)
+        with state_lock:
+            if done.is_set():
+                return state["result"], state["retry_safe"]
+            receipt = state.get("receipt")
+        if receipt is None:
+            return timeout_result, False
+
+    try:
+        cancel = dispatcher.cancel
+        parameters = inspect.signature(cancel).parameters.values()
+        supports_timeout = "timeout" in inspect.signature(cancel).parameters or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters
+        )
+        accepted = (
+            cancel(receipt.worker_id, timeout=worker_timeout_seconds)
+            if supports_timeout
+            else cancel(receipt.worker_id)
+        )
+        if accepted:
+            quiescent = done.wait(timeout=worker_timeout_seconds)
+            if quiescent:
+                # The attempt actually finished (e.g. the native runner reported
+                # a real cancelled/failed result with partial changed_files) --
+                # report that real outcome instead of a synthetic empty one.
+                with state_lock:
+                    return state["result"], state["retry_safe"]
+            return timeout_result, quiescent
+    except Exception:
+        return timeout_result, False
+
+    try:
+        status = dispatcher.status(receipt.worker_id)
+        if status.state.value in {"completed", "failed", "cancelled", "unavailable"}:
+            terminal = dispatcher.collect_result(receipt.worker_id, timeout=0)
+            return terminal, True
+    except Exception:
+        pass
+    return timeout_result, False
+
+
+def run_with_retries(
+    dispatcher: Any,
+    request: WorkerRequest,
+    *,
+    max_retries: int = int(ORCHESTRATOR_DEFAULTS["worker"]["max_retries"]),
+    worker_timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
+) -> WorkerResult:
+    result: WorkerResult | None = None
+    prior_changed_files: tuple[str, ...] = request.prior_changed_files
+    for attempt in range(max_retries + 1):
+        attempted_request = (
+            request
+            if attempt == 0
+            else WorkerScheduler._retry_request(
+                request, attempt, prior_changed_files=prior_changed_files
+            )
+        )
+        result, retry_safe = _attempt_with_deadline(
+            dispatcher, attempted_request, worker_timeout_seconds
+        )
+        if result.status == "completed":
+            return result
+        if not retry_safe:
+            return result
+        if not any(b in TRANSIENT_FAILURE_BLOCKERS for b in result.blockers):
+            return result
+        prior_changed_files = tuple(result.changed_files)
+    assert result is not None
+    return result

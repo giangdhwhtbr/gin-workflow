@@ -18,6 +18,7 @@ from .native_cli import (
     probe_help,
 )
 from .circuit_breaker import FailureKind
+from .config import ORCHESTRATOR_DEFAULTS
 from .worker_dispatch import SynchronousWorkerAdapter, WorkerResult
 
 
@@ -27,7 +28,7 @@ def build_codex_invocation(
     workspace: Path,
     prompt: str,
     *,
-    timeout_seconds: float = 900,
+    timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
     effort: str | None = None,
 ) -> NativeCliInvocation:
     argv = [
@@ -115,7 +116,7 @@ class CodexWorkerAdapter(SynchronousWorkerAdapter):
         executable: str | None = None,
         model: str | None = None,
         workspace: Path | None = None,
-        timeout_seconds: float = 900,
+        timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
         effort: str | None = None,
     ) -> None:
         cancellable_dispatch = None

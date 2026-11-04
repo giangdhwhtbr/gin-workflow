@@ -47,6 +47,8 @@ COUNTED_FAILURES = frozenset(
     }
 )
 
+IMMEDIATE_OPEN_FAILURE_KINDS = frozenset({FailureKind.QUOTA, FailureKind.AUTH})
+
 
 @dataclass(frozen=True)
 class CircuitRecord:
@@ -244,7 +246,11 @@ class CircuitBreakerStore:
             failures = record.failures + 1
             state = record.state
             opened_at = record.opened_at
-            if state is CircuitState.HALF_OPEN or failures >= self.failure_threshold:
+            if (
+                state is CircuitState.HALF_OPEN
+                or kind in IMMEDIATE_OPEN_FAILURE_KINDS
+                or failures >= self.failure_threshold
+            ):
                 state = CircuitState.OPEN
                 opened_at = self._clock()
             updated = CircuitRecord(

@@ -9,6 +9,7 @@ from typing import Any, Callable, Mapping
 from workflow_core.ext import PROVIDER_DEFAULT
 
 from .circuit_breaker import FailureKind
+from .config import ORCHESTRATOR_DEFAULTS
 from .native_cli import (
     MODEL_PROBE_PROMPT,
     MODEL_PROBE_TIMEOUT_SECONDS,
@@ -29,7 +30,7 @@ def build_opencode_invocation(
     workspace: Path,
     prompt: str,
     *,
-    timeout_seconds: float = 900,
+    timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
     agent: str | None = None,
 ) -> NativeCliInvocation:
     # OpenCode has no --cd/--add-dir: the process cwd is the workspace.
@@ -92,7 +93,7 @@ class OpenCodeWorkerAdapter(SynchronousWorkerAdapter):
         executable: str | None = None,
         model: str | None = None,
         workspace: Path | None = None,
-        timeout_seconds: float = 900,
+        timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"]),
         agent: str | None = None,
     ) -> None:
         cancellable_dispatch = None

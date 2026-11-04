@@ -21,7 +21,7 @@ from workflow_core.ext import (
 )
 
 from .routes import resolve_assignment
-from .config import orchestrator_section
+from .config import ORCHESTRATOR_DEFAULTS, orchestrator_section
 
 from .contracts import (
     EvidenceAuthority,
@@ -126,8 +126,8 @@ class ProviderRegistry:
     evidence: EvidenceProvider
     notifications: NotificationProvider
     worker: RoutedWorkerDispatcher | None = None
-    worker_timeout_seconds: float = 600.0
-    worker_max_retries: int = 0
+    worker_timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"])
+    worker_max_retries: int = int(ORCHESTRATOR_DEFAULTS["worker"]["max_retries"])
     worker_max_parallel: int = 1
 
     @classmethod
@@ -234,8 +234,8 @@ class ProviderRegistry:
             raise RegistryError(f"unknown notifications provider: {notification_name}")
 
         worker = None
-        configured_timeout = 600.0
-        configured_retries = 0
+        configured_timeout = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"])
+        configured_retries = int(ORCHESTRATOR_DEFAULTS["worker"]["max_retries"])
         configured_parallel = 1
         if provider_local is not None:
             for provider_name in provider_local:
@@ -263,15 +263,30 @@ class ProviderRegistry:
             )
             breakers = CircuitBreakerStore(
                 runtime_root / "circuit-breakers.json",
-                failure_threshold=int(breaker_policy.get("failure_threshold", 1)),
+                failure_threshold=int(
+                    breaker_policy.get(
+                        "failure_threshold",
+                        ORCHESTRATOR_DEFAULTS["circuit_breaker"]["failure_threshold"],
+                    )
+                ),
                 cooldown_seconds=float(breaker_policy.get("cooldown_seconds", 900)),
                 half_open_max_probes=int(breaker_policy.get("half_open_max_probes", 1)),
             )
             events = event_store or WorkflowEventStore(runtime_root / "events.jsonl")
             runner = native_runner or NativeCliRunner()
-            timeout_seconds = float(worker_policy.get("timeout_seconds", 900))
+            timeout_seconds = float(
+                worker_policy.get(
+                    "timeout_seconds",
+                    ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"],
+                )
+            )
             configured_timeout = timeout_seconds
-            configured_retries = int(worker_policy.get("max_retries", 0))
+            configured_retries = int(
+                worker_policy.get(
+                    "max_retries",
+                    ORCHESTRATOR_DEFAULTS["worker"]["max_retries"],
+                )
+            )
             configured_parallel = sum(int(limit) for limit in concurrency.values())
             health_overrides = dict(worker_health or {})
             health_cache: dict[str, Any] = {}
@@ -399,7 +414,12 @@ class ProviderRegistry:
                 breakers,
                 events,
                 concurrency={str(name): int(limit) for name, limit in concurrency.items()},
-                max_wait_seconds=float(queue.get("max_wait_seconds", 120)),
+                max_wait_seconds=float(
+                    queue.get(
+                        "max_wait_seconds",
+                        ORCHESTRATOR_DEFAULTS["queue"]["max_wait_seconds"],
+                    )
+                ),
                 health={str(name): health_for(str(name)) for name in concurrency},
             )
 
