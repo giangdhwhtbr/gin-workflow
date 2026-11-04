@@ -156,6 +156,12 @@ Out of scope:
     - `.agent-workflow/executables.local.yaml` and `.agent-workflow/orchestrator.local.yaml` (`providers.<name>.executable`, git-ignored by `.agent-workflow/.gitignore`) for machine-local CLI binary paths when a tool is installed outside standard `PATH` directories.
     - Personal memory (`~/.claude/`) vs shared project knowledge (`.planning/knowledge/` and `bd remember`).
   - Practical Claude Code session habits for `gin-workflow`: switching model and effort (`/model`) before running a stage skill, clearing or compacting context (`/clear`, `/compact`) between lifecycle stages (`discuss`, `plan`, `execute`) to reduce token burn and context drift, using CodeGraph (`codegraph explore`) for targeted lookups, and running `/goal` for unattended tracks that have no `Human gate:`.
+  - A `## Running several sessions in parallel` section. A checkout has one `HEAD`, so two sessions in the same checkout commit onto whichever branch was switched to last: the other session's switch silently moves the next commit. Conventions that prevent it, without any workflow setting:
+    - The main checkout stays on the base branch (`master`/`main`); no session switches its branch.
+    - Each session works in its own worktree from the start, before `/discuss` writes the spec: `git worktree add .claude/worktrees/<topic> -b feat/<topic> <base>`, then open Claude Code in that folder (or enter it with the harness's worktree tool). `orchestrate` then branches the track worktree from `feat/<topic>` as usual.
+    - Background or scheduled sessions that edit files run with worktree isolation, not in place.
+    - What worktrees still share: branches (a branch is checked out in one worktree at a time), the stash (never a bare `git stash pop`), the Beads database, and the installed plugins (an `install.sh` after one epic ships changes the skills every running session uses).
+    - `ship` one epic at a time: merging into the base branch needs a checkout of it, and the pre-push hook runs the full suite per push.
 
 ### R7. Readability improvements and Mermaid diagrams across existing user-facing docs
 
@@ -225,7 +231,7 @@ As a team member, I want dedicated guides explaining which model and effort to p
 
 Acceptance criteria:
 - `docs/guides/ai-strategy.md` documents the recommended model, effort, and rationale for every stage and skill, how to split work across Premium and Standard accounts, and the complete manual CLI workflow (`team deps`, `team ready`, `team claim`, `worktree create` vs `git worktree add` for reassigned branches, `rules`, `gin-qa cases/tests/e2e/report`, `task close` with and without `--waive-review`, PR `Plan:`/`Tracks:` fields, `team check --gate ship`) when AI quota is exhausted.
-- `docs/guides/claude-workflow.md` documents local customization via `~/.claude/CLAUDE.md` (active across worktrees without git diffs), `.git/info/exclude`, `/model`, `gin-workflow setup harness-override`, and `.agent-workflow/executables.local.yaml` vs shared team files, plus Claude Code context hygiene (`/clear`, `/compact`, `/goal`, `codegraph explore`).
+- `docs/guides/claude-workflow.md` documents local customization via `~/.claude/CLAUDE.md` (active across worktrees without git diffs), `.git/info/exclude`, `/model`, `gin-workflow setup harness-override`, and `.agent-workflow/executables.local.yaml` vs shared team files, plus Claude Code context hygiene (`/clear`, `/compact`, `/goal`, `codegraph explore`), and a `Running several sessions in parallel` section: main checkout stays on the base branch, one worktree per session from `/discuss` on, what worktrees still share, and one `ship` at a time.
 
 ### US-6: Vietnamese documentation for user and team guides
 As a Vietnamese-speaking user, I want the entry pages, role guide, starters, practical guides, and skills reference translated into Vietnamese (`*.vi.md`), so that my team can read all day-to-day workflow instructions and prompt templates in Vietnamese.

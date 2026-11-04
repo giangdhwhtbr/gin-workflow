@@ -146,7 +146,7 @@ Steps:
 - **Dependencies**: Track 1
 - **Files**:
   - Create `docs/guides/ai-strategy.md`
-  - Create `docs/guides/claude-workflow.md`
+  - Create `docs/guides/claude-workflow.md` (including the R6 `## Running several sessions in parallel` section)
   - Modify `docs/roles.md:1-60` (link Tech Lead reading list to `guides/ai-strategy.md` and Developer reading list to `guides/claude-workflow.md`)
   - Modify `docs/reference/skills.md:1-75` (include `gin-qa` skills `setup`, `tests`, `run`, and append `## Prompt templates` with copy-pasteable prompts and the Mermaid track-dependency diagram)
   - Modify `docs/guides/sdd.md:1-72` (add Mermaid `flowchart LR` diagram showing Living Specs, Change Delta `01-proposal` to `04-plan`, QA cases pinned to `REQ@hash8`, and `specs archive` on `ship`)
