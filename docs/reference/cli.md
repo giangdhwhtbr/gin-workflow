@@ -382,4 +382,4 @@ In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for th
 
 ## `gin-qa`
 
-The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`. Exit codes: 0 ok; 1 findings; 2 usage or environment error.
+The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing.

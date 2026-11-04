@@ -162,3 +162,5 @@ Expected:
 ## The end-to-end evidence fixture
 
 `gin-qa e2e init`, which `/gin-qa:e2e` runs, copies the fixture to `qa/e2e/evidence.ts`. The file belongs to your repository, so edit it freely, but keep the shape of the `result.json` it writes: `gin-qa e2e check` and `gin-qa e2e export` read it.
+
+The Playwright config template is copied the same way: `gin-qa e2e init` writes `playwright.config.ts` only when the repository root has no `playwright.config.*`, and the written file is yours to edit.

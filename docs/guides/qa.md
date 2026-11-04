@@ -42,12 +42,12 @@ Requirements and their hashes come from the living specs, so the [SDD layout](sd
 
 `/gin-qa:e2e <capability>` turns `Type: e2e` cases into Playwright specs under `qa/e2e/<capability>/` (`qa.e2e`), one spec per case:
 
-- `gin-qa e2e init` copies the evidence fixture `qa/e2e/evidence.ts` (yours to edit) and git-ignores `qa/evidence/`.
+- `gin-qa e2e init` copies the evidence fixture `qa/e2e/evidence.ts` (yours to edit), git-ignores `qa/evidence/`, and writes `playwright.config.ts` at the repository root when there is none: specs under `qa/e2e`, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
 - The skill builds each spec step by step against the running application, reading the ARIA snapshot (`NN.aria.yml`) and URL the fixture records after every step, and reviews the screenshots before reporting a case. Where the harness has subagents it gives each case to the `gin-qa:e2e-tester` agent at the middle model and `low` effort, several cases at a time (`--parallel N`, default 3).
 - `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `qa/evidence/`.
 - `gin-qa e2e check --run <folder>` checks a run's evidence; `gin-qa e2e export --run <folder> --format json` exports it.
 
-Your project provides `@playwright/test` 1.49 or later and its Playwright config (`baseURL`, browsers, video, trace).
+Your project provides `@playwright/test` 1.49 or later. `init` writes a starting Playwright config once; after that the config is yours (`baseURL`, browsers, video, trace, `webServer`), and `init` never overwrites it.
 
 ## Prompts
 
