@@ -30,6 +30,14 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 - Change these lines only with `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]`.
 - `gin-qa e2e run` and `gin-qa tests run` record the automated results.
 
+## Process
+
+- Cases: `/gin-qa:cases <capability>` writes the cases of a capability from its spec.
+- Tests: `/gin-qa:e2e <capability>` builds the specs of `e2e` cases; `/gin-qa:tests <capability> --type <type>` builds the tests of each type under `Automated types` in the guidelines.
+- Manual runs: `/gin-qa:run <capability>` walks the `manual` cases with a tester. When: not set yet.
+- Bugs: each failed manual case becomes a bug bead linked to the case's epic. External reference: none.
+- Report: `/gin-qa:report [capability]` writes an HTML report to zip and share. When and to whom: not set yet.
+
 ## Commands
 
 - `gin-qa cases next-id <capability>`: the next case ID.
