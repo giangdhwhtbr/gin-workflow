@@ -140,6 +140,19 @@ class TestPlaywrightRun(unittest.TestCase):
         rows = json.loads(self.e2e("export", "--run", payload["run"], "--format", "json").stdout)["cases"]
         self.assertEqual(3, len(rows[0]["results"]))
 
+    def test_config_written_by_init_runs_and_leaves_a_junit_report(self):
+        (self.root / "playwright.config.ts").unlink()
+        result = self.e2e("init", "--base-url", self.url(""))
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn(f"wrote playwright.config.ts (baseURL {self.url('')})", result.stdout)
+        self.write_spec("Dashboard")
+        code, payload = self.run_once()
+        self.assertEqual((0, []), (code, payload["findings"]))
+        self.assertTrue((self.root / payload["run"] / "junit.xml").is_file())
+        results = list((self.root / payload["run"] / "tc-auth-001").glob("chromium-*/result.json"))
+        self.assertEqual(1, len(results))
+        self.assertEqual("passed", json.loads(results[0].read_text())["status"])
+
 
 if __name__ == "__main__":
     unittest.main()

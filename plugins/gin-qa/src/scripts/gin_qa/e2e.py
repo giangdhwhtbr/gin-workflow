@@ -12,12 +12,16 @@ import shutil
 import subprocess
 import sys
 from typing import Any
+from urllib.parse import urlsplit
 
 from . import cases as tc
 from .reqs import Effective, QaError
 
 HEADER = re.compile(r"^// TC: (TC-[A-Z][A-Z0-9-]*-\d{3,})@([0-9a-f]{8})$")
 FIXTURE = "evidence.ts"
+CONFIG = "playwright.config.ts"
+CONFIG_NAMES = tuple(f"playwright.config.{ext}" for ext in ("ts", "js", "mjs", "cjs", "mts", "cts"))
+DEFAULT_BASE_URL = "http://localhost:3000"
 
 
 @dataclass
@@ -114,21 +118,43 @@ def pin(root: Path, eff: Effective, ids: list[str]) -> list[str]:
     return []
 
 
-def _template() -> Path:
+def _template(name: str) -> Path:
     here = Path(__file__).resolve().parent
     for base in (here.parent, here.parent.parent):  # installed launcher, then plugin source
-        if (base / "templates" / FIXTURE).is_file():
-            return base / "templates" / FIXTURE
-    raise QaError(f"the {FIXTURE} template is missing from this gin-qa install; reinstall gin-qa")
+        if (base / "templates" / name).is_file():
+            return base / "templates" / name
+    raise QaError(f"the {name} template is missing from this gin-qa install; reinstall gin-qa")
 
 
-def init(root: Path, eff: Effective) -> list[str]:
-    """Copies the fixture and ignores the evidence folder; never overwrites. Returns what it did."""
+def check_base_url(value: str) -> str:
+    """The URL goes into a TypeScript string literal: only a plain http(s) URL with a host is accepted."""
+    try:
+        parts = urlsplit(value)
+        plain = parts.scheme in ("http", "https") and bool(parts.hostname)
+    except ValueError:  # e.g. an unclosed IPv6 bracket
+        plain = False
+    if not plain or any(char in "'\\`" or ord(char) < 32 or ord(char) == 127 for char in value):
+        raise QaError(f"--base-url: expected an http(s) URL, got {value!r}")
+    return value
+
+
+def _has_e2e_script(root: Path) -> bool:
+    try:
+        scripts = json.loads((root / "package.json").read_text(encoding="utf-8")).get("scripts")
+    except (OSError, ValueError, AttributeError):
+        return False
+    return isinstance(scripts, dict) and "e2e" in scripts
+
+
+def init(root: Path, eff: Effective, base_url: str | None = None) -> list[str]:
+    """Copies the fixture, ignores the evidence folder, and writes the Playwright config; never overwrites.
+    Returns what it did."""
+    url = check_base_url(DEFAULT_BASE_URL if base_url is None else base_url)
     done: list[str] = []
     target = root / eff.e2e_dir / FIXTURE
     if not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(_template(), target)
+        shutil.copyfile(_template(FIXTURE), target)
         done.append(f"wrote {eff.e2e_dir}/{FIXTURE}")
     ignore = root / ".gitignore"
     entry = f"/{evidence_root(eff)}/"
@@ -136,9 +162,19 @@ def init(root: Path, eff: Effective) -> list[str]:
     if entry not in lines:
         ignore.write_text("\n".join([*lines, entry]) + "\n", encoding="utf-8")
         done.append(f"added {entry} to .gitignore")
+    existing = next((name for name in CONFIG_NAMES if (root / name).exists()), None)
+    if existing is None:
+        text = _template(CONFIG).read_text(encoding="utf-8")
+        (root / CONFIG).write_text(text.replace("__E2E_DIR__", eff.e2e_dir).replace("__BASE_URL__", url),
+                                   encoding="utf-8")
+        done.append(f"wrote {CONFIG} (baseURL {url})")
+    elif base_url is not None:
+        done.append(f"{existing} exists; --base-url not applied")
     if _playwright(root) is None:
         done.append("@playwright/test is not installed here: npm install -D @playwright/test && "
                     "npx playwright install chromium")
+    if not _has_e2e_script(root):
+        done.append('add "e2e": "playwright test" to the package.json scripts')
     return done
 
 

@@ -87,6 +87,7 @@ class TestInitPlanPin(E2eCase):
         self.assertIn("npm install -D @playwright/test", result.stdout)
         fixture.write_text("// edited by QA\n")
         write(self.root, "node_modules/@playwright/test/package.json", "{}")
+        write(self.root, "package.json", '{"scripts": {"e2e": "playwright test"}}')
         self.assertEqual((0, "already initialized\n"), (self.e2e("init").returncode, self.e2e("init").stdout))
         self.assertEqual("// edited by QA\n", fixture.read_text())
         self.assertEqual(1, (self.root / ".gitignore").read_text().splitlines().count("/qa/evidence/"))
@@ -119,6 +120,68 @@ class TestInitPlanPin(E2eCase):
         spec.unlink()
         self.assertEqual("TC-AUTH-001: no spec at qa/e2e/auth/tc-auth-001.spec.ts\n",
                          self.e2e("pin", "TC-AUTH-001").stdout)
+
+
+class TestInitConfig(E2eCase):
+    HINT = 'add "e2e": "playwright test" to the package.json scripts'
+
+    def test_writes_the_config_with_the_e2e_folder_and_base_url(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + "qa:\n  e2e: tests/e2e\n")
+        result = self.e2e("init", "--base-url", "http://127.0.0.1:8080")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("wrote playwright.config.ts (baseURL http://127.0.0.1:8080)", result.stdout)
+        text = (self.root / "playwright.config.ts").read_text()
+        self.assertIn("testDir: 'tests/e2e'", text)
+        self.assertIn("baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8080'", text)
+        self.assertIn("url: 'http://127.0.0.1:8080'", text)
+        self.assertNotIn("__E2E_DIR__", text)
+        self.assertNotIn("__BASE_URL__", text)
+        self.assertTrue((self.root / "tests/e2e/evidence.ts").is_file())
+
+    def test_default_url_and_the_config_is_never_overwritten(self):
+        self.assertEqual(0, self.e2e("init").returncode)
+        config = self.root / "playwright.config.ts"
+        self.assertIn("process.env.E2E_BASE_URL ?? 'http://localhost:3000'", config.read_text())
+        before = config.read_bytes()
+        result = self.e2e("init", "--base-url", "http://example.test")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("playwright.config.ts exists; --base-url not applied", result.stdout)
+        self.assertEqual(before, config.read_bytes())
+        self.assertNotIn("not applied", self.e2e("init").stdout)
+
+    def test_an_existing_js_config_is_kept(self):
+        write(self.root, "playwright.config.js", "module.exports = {};\n")
+        result = self.e2e("init", "--base-url", "http://example.test")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertFalse((self.root / "playwright.config.ts").exists())
+        self.assertIn("playwright.config.js exists; --base-url not applied", result.stdout)
+        self.assertEqual("module.exports = {};\n", (self.root / "playwright.config.js").read_text())
+
+    def test_bad_base_urls_exit_2_and_write_nothing(self):
+        ignore = self.root / ".gitignore"
+        for value in ("localhost:3000", "http://x/'", "ftp://x", "http://", "http://x/\\", "http://x/`",
+                      "http://x/\n", "http://[::1"):
+            with self.subTest(value=value):
+                result = self.e2e("init", "--base-url", value)
+                self.assertEqual(2, result.returncode)
+                self.assertIn("--base-url: expected an http(s) URL, got", result.stderr)
+                self.assertFalse((self.root / "playwright.config.ts").exists())
+                self.assertFalse((self.root / "qa/e2e/evidence.ts").exists())
+                self.assertNotIn("/qa/evidence/", ignore.read_text() if ignore.exists() else "")
+
+    def test_npm_script_hint(self):
+        package = self.root / "package.json"
+        for body, shown in ((None, True), ('{"scripts": {"test": "x"}}', True), ("{not json", True),
+                            ("[]", True), ('{"scripts": {"e2e": "playwright test"}}', False)):
+            with self.subTest(body=body):
+                if body is None:
+                    package.unlink(missing_ok=True)
+                else:
+                    package.write_text(body)
+                result = self.e2e("init")
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual(shown, self.HINT in result.stdout)
 
 
 class TestE2eFolderConfig(E2eCase):
