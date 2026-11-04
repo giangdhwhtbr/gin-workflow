@@ -86,16 +86,23 @@ def build(root: Path, eff: Effective, capability: str | None, out: str | None) -
                 shown, by_id = found
                 row["results"] = [_result(data, shown, copies) for data in by_id.get(case.id, [])]
         rows.append(row)
+    created = not folder.exists()  # False only for an empty --out folder
     # simplified: a second report in the same second exits 2 if it loses the mkdir race; no lock needed
-    folder.mkdir(parents=True, exist_ok=out is not None)
-    for source, target in copies.items():
-        (folder / target).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(root / source, folder / target)
-    data = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "scope": capability,
-            "cases": rows}
+    folder.mkdir(parents=True, exist_ok=not created)
     index = folder / "index.html"
-    index.write_text(template.replace(PLACEHOLDER, json.dumps(data, sort_keys=True).replace("<", "\\u003c")),
-                     encoding="utf-8")
+    try:
+        for source, target in copies.items():
+            (folder / target).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(root / source, folder / target)
+        data = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "scope": capability,
+                "cases": rows}
+        index.write_text(template.replace(PLACEHOLDER, json.dumps(data, sort_keys=True).replace("<", "\\u003c")),
+                         encoding="utf-8")
+    except OSError:
+        shutil.rmtree(folder, ignore_errors=True)  # everything in it is ours: it was new or empty
+        if not created:
+            folder.mkdir()  # an empty --out folder is left as it was
+        raise
     return {"report": index.relative_to(root).as_posix() if root in index.parents else str(index),
             "cases": len(rows), "screenshots": len(copies),
             "missing_evidence": [run for run, found in runs.items() if found is None]}

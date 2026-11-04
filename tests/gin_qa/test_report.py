@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from qa_fixtures import AUTH_SPEC, ROOT, case_file, gin_workflow_bin, make_repo, qa, write  # noqa: E402
+from qa_fixtures import AUTH_SPEC, ROOT, TOOLS_PATH, case_file, gin_workflow_bin, make_repo, qa, write  # noqa: E402
+from gin_qa import report  # noqa: E402
+from gin_qa.reqs import resolve, specs_reqs  # noqa: E402
 
 TEMPLATE = ROOT / "plugins/gin-qa/src/templates/report.html"
 SLOT = '<script type="application/json" id="gin-qa-data">/*GIN_QA_DATA*/</script>'
@@ -84,6 +88,33 @@ class TestReport(ReportCase):
                          run_result["steps"])
         self.assertEqual("png-bytes", (index.parent / run_result["steps"][0]["screenshot"]).read_text())
         self.assertEqual(("none", [], "not run"), (billing["evidence"], billing["results"], billing["result"]))
+
+    def test_a_screenshot_linking_outside_the_run_folder_is_not_copied(self):
+        outside = write(self.root, "secret.png", "secret")
+        shot = self.root / RUN / "tc-auth-001/01.png"
+        shot.unlink()
+        try:
+            shot.symlink_to(outside)
+        except OSError:  # Windows without the symlink privilege
+            self.skipTest("cannot create symlinks here")
+        payload = self.report_json()
+        [step] = self.page(self.root / payload["report"])["cases"][0]["results"][0]["steps"]
+        self.assertEqual((None, 0), (step["screenshot"], payload["screenshots"]))
+        self.assertEqual(["index.html"], [path.name for path in (self.root / payload["report"]).parent.iterdir()])
+
+    def test_a_failed_copy_leaves_no_partial_report(self):
+        empty = self.root / "empty"
+        empty.mkdir()
+        search = os.pathsep.join([str(self.bin), TOOLS_PATH])
+        with mock.patch.dict(os.environ, {"PATH": search}), \
+                mock.patch("gin_qa.report.shutil.copyfile", side_effect=OSError("disk full")):
+            eff = resolve(specs_reqs(self.root))
+            for out in (None, "empty", "fresh/out"):
+                with self.subTest(out=out), self.assertRaises(OSError):
+                    report.build(self.root, eff, None, out)
+        self.assertEqual([], self.reports())
+        self.assertEqual([], list(empty.iterdir()))
+        self.assertFalse((self.root / "fresh/out").exists())
 
     def test_json_output(self):
         payload = self.report_json()
