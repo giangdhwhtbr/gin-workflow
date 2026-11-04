@@ -1,11 +1,11 @@
 # Explore one case
 
-Build the Playwright spec for one `Type: e2e` test case from what the running application shows. Input: the case's `plan` row (TC-ID, title, steps, expected, `spec` path) and the guidelines file. Write only the case's spec file. Never commit, and never edit the fixture, the guidelines, the test cases, or another spec. Commands are `gin-qa e2e <command>`.
+Build the Playwright spec for one e2e test case (a `.e2e.md` case file) from what the running application shows. Input: the case's `plan` row (TC-ID, title, steps, expected, `spec` path) and the guidelines file. Write only the case's spec file. Never commit, and never edit the fixture, the guidelines, the test cases, or another spec. Commands are `gin-qa e2e <command>`.
 
 ## Spec shape
 
 - First line `// TC: <TC-ID>@00000000`, then `import { test, expect } from '../evidence';` and one `test('<TC-ID>: <title>', async ({ page, ev }) => { … })`.
-- One `await ev.step('<n>. <step text>', async () => { … })` per case step, in order. `Preconditions` go before the first step; `Expected` items are assertions in the step that produces them.
+- One `await ev.step('<n>. <step text>', async () => { … })` per case step, in order. `Preconditions` go before the first step; `Expected` items are assertions in the step that produces them. `Test data` items are built before the first step, in the spec or a fixture the guidelines name. A rule ("a unique email per run") becomes code that produces the value; a credential is read from the environment variable the item names.
 - Locators, in order of preference: `getByRole` with the accessible name, `getByLabel`/`getByPlaceholder`, `getByText`, `getByTestId`. The guidelines win over this list.
 - Assert with auto-waiting `expect(...)`; never `waitForTimeout` to wait for a state.
 

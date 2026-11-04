@@ -382,4 +382,26 @@ In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for th
 
 ## `gin-qa`
 
-The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing.
+The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,split,check,export}` and `gin-qa e2e {init,plan,pin,run,check,export}`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing.
+
+### `gin-qa cases result`
+
+`gin-qa cases result <TC-ID> <status> [--run REF] [--bug ID|none]` is the only command that writes the `Result`, `Run`, and `Bug` lines. `status` is `passed`, `failed`, `blocked`, or `not run`. `--run` sets the `Run` line; without it the line is removed. `--bug` sets the `Bug` line, `--bug none` removes it, and without it the line stays.
+
+Exit 2, writing nothing, when the ID does not exist, the status is not one of the four, `--run` or `--bug` is empty or holds a non-printable character, or the case files have a finding that names the case.
+
+Output: text `TC-AUTH-001 passed`; JSON `{"tc", "result", "run", "bug", "file"}`.
+
+### `gin-qa cases split`
+
+`gin-qa cases split <capability>` turns `qa/cases/<capability>.md` into one file per case under `qa/cases/<capability>/`, named `<TC-ID>-<slug>.<type>.md`, and removes the flat file. Each new file drops its `Type:` line and keeps the case's `hash8`, so e2e specs stay pinned.
+
+Exit 1, writing nothing, when the flat file has findings, a case has no `Type:` line or an invalid type, the file holds text outside its title and case blocks, the file holds no test case, or a target file already exists. Exit 2 when the capability name is not `[a-z][a-z0-9-]*` or the flat file does not exist.
+
+Output: text lists the files written; JSON `{"written": [...]}`.
+
+### `gin-qa cases export` and `gin-qa e2e run`
+
+Each case in `gin-qa cases export --format json` adds `result` (`not run` without a `Result:` line), `run` and `bug` (empty strings when absent), and `test_data` (a list).
+
+`gin-qa e2e run` records each case's result in its case file, the worst over its Playwright projects: `failed`, then `blocked`, then `passed`. A case with no result folder, or an invalid `result.json`, is `blocked`. Its JSON output lists them under `recorded` as `[{"tc", "result"}]`. A recording error is listed under `findings` and does not stop the other cases.

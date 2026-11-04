@@ -116,7 +116,7 @@ Example `qa/guidelines.md`:
 Rules for writing test cases in this repository:
 - Language: English
 - One user action per step.
-- Type: e2e for browser flows, integration for API/service tests, manual otherwise.
+- Type is the file suffix: .e2e.md for browser flows, .api.md for API/service tests, .manual.md otherwise.
 - Priority: high | medium | low.
 
 ## Extra Fields
@@ -133,31 +133,36 @@ Rules for writing test cases in this repository:
 
 ### Extra fields
 
-The gin-qa parser keeps any other `Key: value` line in a test case header. The agent adds the extra fields declared in your guidelines when it writes test cases:
+The gin-qa parser keeps any other field line in a case's header. The agent adds the extra fields declared in your guidelines when it writes test cases. Write them as `- **Key:** value` lines; the plain `Key: value` form also parses. The file name sets the type, so the case has no `Type:` line:
 
 ```markdown
-### TC-AUTH-005: Lockout after 5 failed login attempts
-REQ: REQ-AUTH-003@8f2d1e0a
-Type: e2e
-Priority: high
-Jira: PROJ-1024
-Severity: Critical
-Component: Authentication
-Automated: Yes
+# TC-AUTH-005: Lockout after 5 failed login attempts
 
-Preconditions:
+- **REQ:** REQ-AUTH-003@8f2d1e0a
+- **Priority:** high
+- **Jira:** PROJ-1024
+- **Severity:** Critical
+- **Component:** Authentication
+- **Automated:** Yes
+
+**Preconditions:**
 - User account `test@example.com` exists and is active.
 
-Steps:
+**Test data:**
+- User: `test@example.com`, password in environment variable `E2E_TEST_PASSWORD`
+
+**Steps:**
 1. Navigate to `/login`
 2. Submit invalid password 5 consecutive times
 
-Expected:
+**Expected:**
 - Account is locked for 15 minutes
 - Notification email is sent to `test@example.com`
 ```
 
-`gin-qa cases export --format json` lists every custom field (`Jira`, `Severity`, `Component`, and others) under `fields` in its JSON output.
+Saved as `qa/cases/auth/TC-AUTH-005-lockout.e2e.md`.
+
+`gin-qa cases export --format json` lists every custom field (`Jira`, `Severity`, `Component`, and others) under `fields` in its JSON output. `Result`, `Run`, and `Bug` are reserved for `gin-qa cases result`. `REQ`, `Source`, `Priority`, and `Type` keep their own meanings and stay out of `fields`.
 
 ## The end-to-end evidence fixture
 
