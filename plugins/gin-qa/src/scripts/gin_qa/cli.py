@@ -64,6 +64,9 @@ def _tests_parser() -> argparse.ArgumentParser:
     item.add_argument("--type", dest="kind")
     sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
     sub.add_parser("check", parents=[common]).add_argument("--type", dest="kind")
+    item = sub.add_parser("run", parents=[common])
+    item.add_argument("--type", dest="kind", required=True)
+    item.add_argument("targets", nargs="*", metavar="TC-ID|capability")
     return parser
 
 
@@ -244,7 +247,12 @@ def _run_tests(args: argparse.Namespace) -> int:
         return 0
     if args.command == "pin":
         return _findings(tests.pin(root, eff, args.ids), args.format, f"pinned {' '.join(args.ids)}")
-    return _findings(tests.check(root, eff, args.kind), args.format, "ok")
+    if args.command == "check":
+        return _findings(tests.check(root, eff, args.kind), args.format, "ok")
+    folder, code, errors, recorded = tests.run(root, eff, args.kind, args.targets)
+    _emit({"run": folder, "exit": code, "findings": errors, "recorded": recorded}, args.format,
+          "\n".join([*errors, *(f"{row['tc']} {row['result']}" for row in recorded), f"run: {folder}"]))
+    return code or (1 if errors else 0)
 
 
 def _report_parser() -> argparse.ArgumentParser:

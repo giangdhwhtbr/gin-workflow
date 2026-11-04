@@ -165,6 +165,17 @@ class TestReport(ReportCase):
         self.assertEqual(("none", "sprint-12 sheet", "passed", []),
                          (billing["evidence"], billing["run"], billing["result"], payload["missing_evidence"]))
 
+    def test_a_tests_run_folder_is_a_plain_reference(self):
+        run = "qa/evidence/2026-11-04T09-00-00-api"
+        write(self.root, f"{run}/run.json", json.dumps({"type": "api", "started": "2026-11-04T09:00:00+00:00",
+                                                        "command": ["pytest"], "cases": ["TC-BILLING-001"], "exit": 0}))
+        self.record("TC-BILLING-001", "passed", run)
+        result = self.report_json()
+        payload = result
+        billing = self.page(self.root / payload["report"])["cases"][1]
+        self.assertEqual(("none", run, "passed", []),
+                         (billing["evidence"], billing["run"], billing["result"], payload["missing_evidence"]))
+
     def test_out_folder(self):
         result = self.report("--out", "reports/today")
         self.assertEqual((0, "reports/today/index.html"), (result.returncode, result.stdout.strip()), result.stderr)

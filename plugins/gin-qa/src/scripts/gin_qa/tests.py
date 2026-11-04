@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import json
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shlex
+import shutil
+import subprocess
+import sys
 from typing import Any
+from xml.etree import ElementTree
 
 from . import cases as tc
+from .e2e import new_run_folder
 from .reqs import Effective, QaError
 
 SECTION = "## Automated types"
@@ -209,3 +216,98 @@ def pin(root: Path, eff: Effective, ids: list[str]) -> list[str]:
     for rel, text in texts.items():
         tc.write_atomic(root / rel, text)
     return []
+
+
+def _select(cases: dict[str, tc.Case], marked: dict[str, set[str]], kind: str, targets: list[str]) -> list[str]:
+    """The case IDs to run: every case of the type with a marker, or those the targets name."""
+    ids = sorted(marked)
+    if not targets:
+        if not ids:
+            raise QaError(f"no {kind} tests with a 'TC:' marker; write them with /gin-qa:tests <capability> --type {kind}")
+        return ids
+    chosen: list[str] = []
+    for target in targets:
+        if tc.TC_ID.fullmatch(target):
+            if target not in marked:
+                raise QaError(f"{target}: no {kind} test with its marker")
+            chosen.append(target)
+        else:
+            found = [case_id for case_id in ids if cases[case_id].cap == target]
+            if not found:
+                raise QaError(f"{target}: no {kind} tests in this capability")
+            chosen += found
+    return list(dict.fromkeys(chosen))
+
+
+def _junit(path: Path) -> tuple[list[tuple[str, str]], str | None]:
+    """(`classname name` upper-cased with `_` as `-`, status) per testcase, or the problem with the file."""
+    if not path.is_file():
+        return [], "missing; the Run command must write JUnit XML to {junit}"
+    try:
+        top = ElementTree.parse(path).getroot()
+    except ElementTree.ParseError as error:
+        return [], f"not valid XML: {error}"
+    if top.tag not in ("testsuites", "testsuite"):
+        return [], f"the root is <{top.tag}>, not <testsuites> or <testsuite>"
+    rows: list[tuple[str, str]] = []
+    for test in top.iter("testcase"):
+        if test.find("failure") is not None or test.find("error") is not None:
+            status = "failed"
+        elif test.find("skipped") is not None:
+            status = "blocked"
+        else:
+            status = "passed"
+        rows.append((f"{test.get('classname', '')} {test.get('name', '')}".replace("_", "-").upper(), status))
+    return rows, None
+
+
+def _outcome(case_id: str, rows: list[tuple[str, str]]) -> str | None:
+    """The worst status of the test cases named after the case, or None when none ran."""
+    named = re.compile(rf"(?<![A-Z0-9]){re.escape(case_id)}(?!\d)")
+    statuses = [status for name, status in rows if named.search(name)]
+    return next((worst for worst in ("failed", "blocked", "passed") if worst in statuses), None)
+
+
+def run(root: Path, eff: Effective, kind: str, targets: list[str]) -> tuple[str, int, list[str], list[dict[str, str]]]:
+    """Runs the declared command of `kind` into a new evidence folder and records each selected case's result.
+
+    Returns (folder, the command's exit, findings, recorded results).
+    """
+    declared_type = _types(root, eff, kind)[kind]
+    cases = {case.id: case for case in tc.load(root, eff.cases_dir)[0] if case.type == kind}
+    marked: dict[str, set[str]] = {}
+    for mark in markers(root, _files(root, declared_type.globs)):
+        if mark.tc in cases:
+            marked.setdefault(mark.tc, set()).add(mark.path)
+    selected = _select(cases, marked, kind, targets)
+    argv = shlex.split(declared_type.command)
+    program = shutil.which(str(root / argv[0]) if "/" in argv[0] or "\\" in argv[0] else argv[0])
+    if program is None:
+        raise QaError(f"{argv[0]}: not found; check the Run command of {kind} in {eff.guidelines}")
+    folder = new_run_folder(root, eff, f"-{kind}")
+    junit = root / folder / "junit.xml"
+    files = sorted({path for case_id in selected for path in marked[case_id]})
+    command: list[str] = []
+    for token in argv:
+        command += files if token == "{files}" else [token.replace("{junit}", str(junit))]
+    record: dict[str, Any] = {"type": kind, "started": datetime.now(timezone.utc).isoformat(), "command": command,
+                              "cases": selected, "exit": None}
+    (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    result = subprocess.run([program, *command[1:]], cwd=root, stdout=sys.stderr)
+    record["exit"] = result.returncode
+    (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    rows, problem = _junit(junit)
+    findings = [f"{folder}/junit.xml: {problem}"] if problem else []
+    recorded: list[dict[str, str]] = []
+    for case_id in selected:
+        status = "blocked" if problem else _outcome(case_id, rows)
+        if status is None:
+            findings.append(f"{case_id}: no test named after it ran")
+            status = "blocked"
+        try:
+            tc.record_result(root, eff.cases_dir, case_id, status, run=folder)
+        except ValueError as error:
+            findings.append(f"{case_id}: result not recorded: {error}")
+            continue
+        recorded.append({"tc": case_id, "result": status})
+    return folder, result.returncode, findings, recorded

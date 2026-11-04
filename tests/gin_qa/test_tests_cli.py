@@ -233,5 +233,94 @@ class TestPlanPinCheck(TestsCase):
         self.assertEqual((0, "ok\n"), (result.returncode, result.stdout))
 
 
+class TestRun(TestsCase):
+    def setUp(self):
+        super().setUp()
+        self.add_case("TC-AUTH-004", "api")
+        self.write_test("TC-AUTH-001", "TC-AUTH-002")
+        self.write_test("TC-AUTH-004", name="test_more.py")
+
+    def runner_args(self) -> list[str]:
+        return json.loads((self.root / ".runner-args").read_text())
+
+    def test_records_the_worst_result_per_case(self):
+        write(self.root, ".fake-junit", junit(("test_tc_auth_001_login", "passed"), ("test_tc_auth_001_again[x]", "passed"),
+                                              ("test_tc_auth_002", "passed"), ("test_TC_AUTH_002_b", "failure"),
+                                              ("TestAuth::test_ok", "passed"), ("test_tc_auth_004", "skipped")))
+        write(self.root, ".fake-exit", "3")
+        result = self.gin_tests("run", "--type", "api", "--format", "json")
+        self.assertEqual(3, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        folder = payload["run"]
+        self.assertRegex(folder, r"^qa/evidence/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-api$")
+        self.assertEqual((3, []), (payload["exit"], payload["findings"]))
+        self.assertEqual([{"tc": "TC-AUTH-001", "result": "passed"}, {"tc": "TC-AUTH-002", "result": "failed"},
+                          {"tc": "TC-AUTH-004", "result": "blocked"}], payload["recorded"])
+        fields = self.case_fields("TC-AUTH-002")
+        self.assertEqual(("failed", folder), (fields["result"], fields["run"]))
+        record = json.loads((self.root / folder / "run.json").read_text())
+        self.assertEqual(("api", 3, ["TC-AUTH-001", "TC-AUTH-002", "TC-AUTH-004"]),
+                         (record["type"], record["exit"], record["cases"]))
+        args = self.runner_args()
+        self.assertEqual(["fake-runner", *args], record["command"])
+        self.assertEqual(["backend/tests/test_auth.py", "backend/tests/test_more.py"], args[:2])
+        self.assertEqual((self.root / folder / "junit.xml").resolve(), Path(args[2].split("=", 1)[1]).resolve())
+        self.assertTrue((self.root / folder / "junit.xml").is_file())
+
+    def test_targets_select_the_files_and_the_cases(self):
+        write(self.root, ".fake-junit", junit(("test_tc_auth_001", "error"), ("test_tc_auth_002", "passed"),
+                                              ("test_tc_auth_004", "passed")))
+        payload = self.run_json("run", "--type", "api", "TC-AUTH-004")
+        self.assertEqual([{"tc": "TC-AUTH-004", "result": "passed"}], payload["recorded"])
+        self.assertEqual(["backend/tests/test_more.py"], self.runner_args()[:-1])
+        self.assertEqual("not run", self.case_fields("TC-AUTH-001")["result"])
+        payload = self.run_json("run", "--type", "api", "auth")
+        self.assertEqual(["failed", "passed", "passed"], [row["result"] for row in payload["recorded"]])
+        self.assertEqual("not run", self.case_fields("TC-AUTH-003")["result"])
+
+    def test_without_files_the_whole_command_runs(self):
+        self.guidelines.write_text(GUIDELINES.replace("{files} ", ""))
+        write(self.root, ".fake-junit", junit(("test_tc_auth_001", "passed"), ("test_tc_auth_002", "failure")))
+        payload = self.run_json("run", "--type", "api", "TC-AUTH-001")
+        self.assertEqual(1, len(self.runner_args()))
+        self.assertEqual([{"tc": "TC-AUTH-001", "result": "passed"}], payload["recorded"])
+        self.assertEqual("not run", self.case_fields("TC-AUTH-002")["result"])
+
+    def test_a_case_without_a_matching_test_is_blocked(self):
+        write(self.root, ".fake-junit", junit(("test_tc_auth_001", "passed"), ("test_tc_auth_0020", "passed")))
+        result = self.gin_tests("run", "--type", "api", "--format", "json")
+        self.assertEqual(1, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(["TC-AUTH-002: no test named after it ran", "TC-AUTH-004: no test named after it ran"],
+                         payload["findings"])
+        self.assertEqual(["passed", "blocked", "blocked"], [row["result"] for row in payload["recorded"]])
+
+    def test_a_missing_or_invalid_junit_file_blocks_every_selected_case(self):
+        result = self.gin_tests("run", "--type", "api", "--format", "json")
+        self.assertEqual(1, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([f"{payload['run']}/junit.xml: missing; the Run command must write JUnit XML to {{junit}}"],
+                         payload["findings"])
+        self.assertEqual(["blocked"] * 3, [row["result"] for row in payload["recorded"]])
+        write(self.root, ".fake-junit", "not xml")
+        self.assertRegex(self.run_json("run", "--type", "api")["findings"][0], r"/junit\.xml: not valid XML")
+        write(self.root, ".fake-junit", "<report/>")
+        self.assertRegex(self.run_json("run", "--type", "api")["findings"][0],
+                         r"/junit\.xml: the root is <report>, not <testsuites> or <testsuite>$")
+
+    def test_usage_errors_exit_2_and_leave_no_run_folder(self):
+        for args, message in ((("TC-AUTH-003",), "TC-AUTH-003: no api test with its marker"),
+                              (("billing",), "billing: no api tests in this capability")):
+            with self.subTest(args=args):
+                result = self.gin_tests("run", "--type", "api", *args)
+                self.assertEqual(2, result.returncode, result.stdout)
+                self.assertIn(message, result.stderr)
+        self.guidelines.write_text(GUIDELINES.replace("fake-runner", "no-such-runner"))
+        result = self.gin_tests("run", "--type", "api")
+        self.assertEqual(2, result.returncode, result.stdout)
+        self.assertIn("no-such-runner: not found", result.stderr)
+        self.assertFalse((self.root / "qa/evidence").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
