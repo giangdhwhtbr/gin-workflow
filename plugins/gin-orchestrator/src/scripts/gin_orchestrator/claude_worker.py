@@ -52,10 +52,13 @@ def build_claude_invocation(
     *,
     timeout_seconds: float = 900,
     effort: str | None = None,
+    agent: str | None = None,
 ) -> NativeCliInvocation:
     argv = [executable, "-p", "--model", model]
     if effort is not None:
         argv.extend(["--effort", effort])
+    if agent is not None:
+        argv.extend(["--agent", agent])
     argv.extend([
         "--output-format",
         "json",
@@ -121,6 +124,7 @@ class ClaudeWorkerAdapter(SynchronousWorkerAdapter):
         workspace: Path | None = None,
         timeout_seconds: float = 900,
         effort: str | None = None,
+        agent: str | None = None,
     ) -> None:
         cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
@@ -133,6 +137,7 @@ class ClaudeWorkerAdapter(SynchronousWorkerAdapter):
                     prompt,
                     timeout_seconds=timeout_seconds,
                     effort=effort,
+                    agent=agent,
                 ),
             )
         super().__init__(

@@ -46,6 +46,20 @@ class TestListModels(unittest.TestCase):
             raise AssertionError("claude has no list command")
         self.assertEqual(["opus", "sonnet", "haiku"], [m["id"] for m in list_models("claude", runner=fail, which=FOUND)])
 
+    def test_copilot_parses_model_block(self):
+        text = (
+            "Configuration options:\n\n"
+            "  `model`:\n"
+            '    - "claude-sonnet-4.5"\n'
+            '    - "gpt-5.4"\n\n'
+            "  `other_section`:\n"
+            '    - "other"\n'
+        )
+        models = list_models("copilot", runner=runner_for(text), which=FOUND)
+        self.assertEqual(["claude-sonnet-4.5", "gpt-5.4"], [m["id"] for m in models])
+        self.assertEqual(["claude-sonnet-4.5", "gpt-5.4"], [m["label"] for m in models])
+        self.assertEqual([], models[0]["reasoning_levels"])
+
     def test_failures_and_unknown_providers_return_empty(self):
         self.assertEqual([], list_models("codex", runner=runner_for("not json"), which=FOUND))
         self.assertEqual([], list_models("codex", runner=runner_for(CODEX_JSON, code=1), which=FOUND))

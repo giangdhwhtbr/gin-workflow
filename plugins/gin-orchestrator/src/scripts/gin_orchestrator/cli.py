@@ -31,6 +31,7 @@ from .antigravity_worker import antigravity_health
 from .claude_worker import claude_health
 from .codex_worker import codex_health
 from .config import roles, validate_orchestrator_config
+from .copilot_worker import copilot_health
 from .doctor import doctor_report
 from .local_config import LOCAL_FILE, load_local_config, validate_local_config
 from .native_cli import NativeCliRunner, list_models
@@ -41,8 +42,13 @@ CONTRACT_VERSION = 2
 ORCHESTRATOR_VERSION = "0.2.0"
 REQUIRES_GIN_WORKFLOW = ">=2.0,<3"
 CAPABILITIES = ["health", "models", "routes", "reviewer", "doctor"]
-HEALTH = {"claude": claude_health, "codex": codex_health, "antigravity": antigravity_health,
-          "opencode": opencode_health}
+HEALTH = {
+    "claude": claude_health,
+    "codex": codex_health,
+    "antigravity": antigravity_health,
+    "opencode": opencode_health,
+    "copilot": copilot_health,
+}
 
 
 class CliError(Exception):
@@ -53,7 +59,7 @@ def _health(args: argparse.Namespace) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     if args.model is not None:
         kwargs = {"model": args.model, "native_runner": NativeCliRunner(), "workspace": args.workspace}
-        if args.provider in ("claude", "codex") and args.effort is not None:
+        if args.provider in ("claude", "codex", "antigravity", "copilot") and args.effort is not None:
             kwargs["effort"] = args.effort
     health = HEALTH[args.provider](args.executable, **kwargs)
     return {"available": health.available, "reason": health.reason}

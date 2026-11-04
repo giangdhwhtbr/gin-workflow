@@ -30,6 +30,8 @@ def build_antigravity_invocation(
     prompt: str,
     *,
     timeout_seconds: float = 900,
+    effort: str | None = None,
+    agent: str | None = None,
 ) -> NativeCliInvocation:
     resolved_workspace = Path(workspace).resolve()
     timeout_str = f"{int(timeout_seconds)}s"
@@ -45,6 +47,10 @@ def build_antigravity_invocation(
     ]
     if model and model != PROVIDER_DEFAULT:
         argv.extend(["--model", model])
+    if effort is not None:
+        argv.extend(["--effort", effort])
+    if agent is not None:
+        argv.extend(["--agent", agent])
     argv.extend(["--print", prompt])
     return NativeCliInvocation(
         tuple(argv),
@@ -61,14 +67,17 @@ def antigravity_health(
     model: str | None = None,
     native_runner: NativeCliRunner | None = None,
     workspace: Path | None = None,
+    effort: str | None = None,
 ) -> NativeHealth:
     help_text = probe_help(executable, "--help") if help_text is None else help_text
     if help_text is None:
         return NativeHealth(False, "executable_or_help_unavailable", False)
     options = frozenset(re.findall(r"--[A-Za-z0-9][A-Za-z0-9-]*", help_text))
-    supported = "--model" in options and "--output-format" in options
+    supported = "--model" in options and "--output-format" in options and (effort is None or "--effort" in options)
     if "--print" not in options or "--sandbox" not in options:
         return NativeHealth(False, "required_flags_unverified", supported)
+    if effort is not None and "--effort" not in options:
+        return NativeHealth(False, "required_flags_unverified", False)
     health = NativeHealth(
         True,
         "ready" if supported else "explicit_model_selection_unverified",
@@ -84,6 +93,7 @@ def antigravity_health(
                 workspace,
                 MODEL_PROBE_PROMPT,
                 timeout_seconds=MODEL_PROBE_TIMEOUT_SECONDS,
+                effort=effort,
             )
         )
     except NativeCliError as error:
@@ -104,6 +114,8 @@ class AntigravityWorkerAdapter(SynchronousWorkerAdapter):
         model: str | None = None,
         workspace: Path | None = None,
         timeout_seconds: float = 900,
+        effort: str | None = None,
+        agent: str | None = None,
     ) -> None:
         cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
@@ -115,6 +127,8 @@ class AntigravityWorkerAdapter(SynchronousWorkerAdapter):
                     Path(workspace),
                     prompt,
                     timeout_seconds=timeout_seconds,
+                    effort=effort,
+                    agent=agent,
                 ),
             )
         super().__init__(

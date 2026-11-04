@@ -30,12 +30,15 @@ def build_opencode_invocation(
     prompt: str,
     *,
     timeout_seconds: float = 900,
+    agent: str | None = None,
 ) -> NativeCliInvocation:
     # OpenCode has no --cd/--add-dir: the process cwd is the workspace.
     resolved_workspace = Path(workspace).resolve()
     argv = [executable, "run", "--standalone", "--auto", "--format", "json"]
     if model and model != PROVIDER_DEFAULT:
         argv.extend(["--model", model])
+    if agent is not None:
+        argv.extend(["--agent", agent])
     argv.append(prompt)
     return NativeCliInvocation(tuple(argv), resolved_workspace, b"", timeout_seconds)
 
@@ -90,6 +93,7 @@ class OpenCodeWorkerAdapter(SynchronousWorkerAdapter):
         model: str | None = None,
         workspace: Path | None = None,
         timeout_seconds: float = 900,
+        agent: str | None = None,
     ) -> None:
         cancellable_dispatch = None
         if native_dispatch is None and all((native_runner, executable, model, workspace)):
@@ -101,6 +105,7 @@ class OpenCodeWorkerAdapter(SynchronousWorkerAdapter):
                     Path(workspace),
                     prompt,
                     timeout_seconds=timeout_seconds,
+                    agent=agent,
                 ),
             )
         super().__init__(

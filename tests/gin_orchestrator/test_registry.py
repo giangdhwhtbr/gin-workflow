@@ -36,7 +36,11 @@ from gin_orchestrator.native_cli import (  # noqa: E402
     NativeCliOutput,
     NativeHealth,
 )
-from gin_orchestrator.registry import ProviderRegistry, RegistryError  # noqa: E402
+from gin_orchestrator.registry import (  # noqa: E402
+    ProviderRegistry,
+    RegistryError,
+    _resolve_worker_agent,
+)
 from gin_orchestrator.routed_worker import RoutedWorkerDispatcher  # noqa: E402
 from gin_orchestrator.review import ReviewLedgerProvider  # noqa: E402
 from gin_orchestrator.task_tracking_cli import CliTaskTrackingProvider  # noqa: E402
@@ -455,6 +459,89 @@ class ProviderRegistryTests(unittest.TestCase):
                 self.assertEqual(("run", "--standalone", "--auto"), argv[1:4])
                 self.assertEqual(expect_model_flag, "--model" in argv)
 
+    def test_registry_routes_copilot_with_and_without_explicit_model(self):
+        class Runner:
+            def __init__(self):
+                self.invocations = []
+
+            def run(self, invocation, *, cancel_event=None):
+                self.invocations.append(invocation)
+                return NativeCliOutput(({"type": "assistant.message", "data": {"content": json.dumps({
+                    "status": "completed", "task_id": "api", "summary": "done",
+                    "changed_files": [], "commits": [], "tests": [], "evidence": [], "blockers": [],
+                })}},))
+
+        for model, expect_model_flag in (("provider_default", False), ("claude-sonnet-4.5", True)):
+            with self.subTest(model=model), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                runner = Runner()
+                local = {
+                    "copilot": ProviderModelConfig("copilot", "copilot"),
+                    "codex": ProviderModelConfig("codex", "codex"),
+                }
+                config = self.antigravity_config(
+                    root,
+                    "copilot",
+                    provider_models=[model] if model != "provider_default" else None,
+                )
+                registry = ProviderRegistry.from_effective_config(
+                    config,
+                    provider_local=local,
+                    evidence_authority=self.composite_authority(),
+                    native_runner=runner,
+                    worker_health={
+                        "copilot": lambda candidate: NativeHealth(True, "ready", True),
+                        "codex": lambda candidate: True,
+                    },
+                )
+                registry.workspace.create(
+                    WorkspaceRequest("ws-api", "task/api"), idempotency_key="create"
+                )
+                worker_request = WorkerRequest(
+                    "Implement", (), create_context_manifest("execute", ContextRequest()),
+                    {"mode": "isolated", "workspace_id": "ws-api", "branch": "task/api"},
+                    REQUIRED_RESULT_FIELDS, "api", "wf", "try-1", "backend", "gpt-6-astra", "high",
+                )
+
+                receipt = registry.worker.dispatch(worker_request)
+                normalized = registry.worker.collect_result(receipt.worker_id)
+
+                self.assertEqual("completed", normalized.status)
+                self.assertEqual("copilot", receipt.provider_name)
+                argv = runner.invocations[0].argv
+                self.assertEqual(("-p",), (argv[1],))
+                self.assertEqual(expect_model_flag, "--model" in argv)
+
+    def test_resolve_worker_agent_mapping(self):
+        self.assertIsNone(_resolve_worker_agent("claude", None))
+        self.assertIsNone(_resolve_worker_agent("claude", ""))
+        self.assertIsNone(_resolve_worker_agent("claude", "  "))
+        self.assertIsNone(_resolve_worker_agent("codex", "developer"))
+
+        # Bare stem
+        self.assertEqual("gin-workflow:developer", _resolve_worker_agent("claude", "developer"))
+        self.assertEqual("gin-workflow-developer", _resolve_worker_agent("opencode", "developer"))
+        self.assertEqual("developer", _resolve_worker_agent("antigravity", "developer"))
+        self.assertEqual("developer", _resolve_worker_agent("copilot", "developer"))
+
+        # Colon-delimited
+        self.assertEqual("gin-workflow:implementer", _resolve_worker_agent("claude", "gin-workflow:implementer"))
+        self.assertEqual("gin-workflow-implementer", _resolve_worker_agent("opencode", "gin-workflow:implementer"))
+        self.assertEqual("implementer", _resolve_worker_agent("antigravity", "gin-workflow:implementer"))
+        self.assertEqual("implementer", _resolve_worker_agent("copilot", "gin-workflow:implementer"))
+
+        # Hyphen-prefixed gin-workflow
+        self.assertEqual("gin-workflow:reviewer", _resolve_worker_agent("claude", "gin-workflow-reviewer"))
+        self.assertEqual("gin-workflow-reviewer", _resolve_worker_agent("opencode", "gin-workflow-reviewer"))
+        self.assertEqual("reviewer", _resolve_worker_agent("antigravity", "gin-workflow-reviewer"))
+        self.assertEqual("reviewer", _resolve_worker_agent("copilot", "gin-workflow-reviewer"))
+
+        # Hyphen-prefixed gin-qa
+        self.assertEqual("gin-qa:tester", _resolve_worker_agent("claude", "gin-qa-tester"))
+        self.assertEqual("gin-qa-tester", _resolve_worker_agent("opencode", "gin-qa-tester"))
+        self.assertEqual("tester", _resolve_worker_agent("antigravity", "gin-qa-tester"))
+        self.assertEqual("tester", _resolve_worker_agent("copilot", "gin-qa-tester"))
+
     @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_registry_wires_real_health_probe_cached_per_provider_and_model(self):
         class _ModelAwareRunner:
@@ -546,7 +633,8 @@ class ProviderRegistryTests(unittest.TestCase):
             config = EffectiveConfig(config_dict, Path(directory))
 
             with self.assertRaisesRegex(
-                RegistryError, "provider_default is only supported for antigravity"
+                RegistryError,
+                "provider_default is only supported for antigravity, opencode, and copilot",
             ):
                 ProviderRegistry.from_effective_config(
                     config, provider_local=local

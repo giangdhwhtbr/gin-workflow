@@ -54,6 +54,7 @@ from .antigravity_worker import (
     antigravity_health,
 )
 from .opencode_worker import OpenCodeWorkerAdapter, opencode_health
+from .copilot_worker import CopilotWorkerAdapter, copilot_health
 from .circuit_breaker import CircuitBreakerStore
 from .claude_worker import ClaudeWorkerAdapter, claude_health
 from .codex_worker import CodexWorkerAdapter, codex_health
@@ -63,6 +64,27 @@ from .routed_worker import RoutedWorkerDispatcher, WorkspaceUnavailableError
 
 class RegistryError(ValueError):
     """Raised when effective configuration selects an unknown provider."""
+
+
+def _resolve_worker_agent(provider: str, agent: str | None) -> str | None:
+    if not agent or not agent.strip():
+        return None
+    raw = agent.strip()
+    if provider == "codex":
+        return None
+    if ":" in raw:
+        plugin_prefix, stem = raw.split(":", 1)
+    elif raw.startswith("gin-workflow-"):
+        plugin_prefix, stem = "gin-workflow", raw[len("gin-workflow-"):]
+    elif raw.startswith("gin-qa-"):
+        plugin_prefix, stem = "gin-qa", raw[len("gin-qa-"):]
+    else:
+        plugin_prefix, stem = "gin-workflow", raw
+    if provider == "claude":
+        return f"{plugin_prefix}:{stem}"
+    if provider == "opencode":
+        return f"{plugin_prefix}-{stem}"
+    return stem
 
 
 _DEFAULTS = {
@@ -223,7 +245,7 @@ class ProviderRegistry:
                     and PROVIDER_DEFAULT in catalog_for(config, provider_name).models
                 ):
                     raise RegistryError(
-                        "provider_default is only supported for antigravity and opencode"
+                        "provider_default is only supported for antigravity, opencode, and copilot"
                     )
             orchestrator = orchestrator_section(config)
             concurrency = orchestrator.get("concurrency", {})
@@ -306,8 +328,11 @@ class ProviderRegistry:
                     "workspace": workspace_path,
                     "timeout_seconds": timeout_seconds,
                 }
-                if candidate.provider in ("claude", "codex") and candidate.effort is not None:
+                if candidate.provider in ("claude", "codex", "antigravity", "copilot") and candidate.effort is not None:
                     options["effort"] = candidate.effort
+                resolved_agent = _resolve_worker_agent(candidate.provider, getattr(request, "agent", None))
+                if resolved_agent is not None:
+                    options["agent"] = resolved_agent
                 if candidate.provider == "claude":
                     return ClaudeWorkerAdapter(**options)
                 if candidate.provider == "codex":
@@ -316,6 +341,8 @@ class ProviderRegistry:
                     return AntigravityWorkerAdapter(**options)
                 if candidate.provider == "opencode":
                     return OpenCodeWorkerAdapter(**options)
+                if candidate.provider == "copilot":
+                    return CopilotWorkerAdapter(**options)
                 raise RegistryError(f"unsupported native worker provider: {candidate.provider}")
 
             health_builders = {
@@ -323,6 +350,7 @@ class ProviderRegistry:
                 "codex": codex_health,
                 "antigravity": antigravity_health,
                 "opencode": opencode_health,
+                "copilot": copilot_health,
             }
 
             def health_for(provider: str):
@@ -342,7 +370,7 @@ class ProviderRegistry:
                             resolve_harness_executable(local.executable, provider=provider)
                             or local.executable
                         )
-                        if provider in ("claude", "codex", "antigravity", "opencode"):
+                        if provider in ("claude", "codex", "antigravity", "opencode", "copilot"):
                             if provider in PROVIDER_DEFAULT_PROVIDERS and _candidate.model == PROVIDER_DEFAULT:
                                 health_cache[key] = builder(resolved_exe)
                             else:
@@ -353,7 +381,7 @@ class ProviderRegistry:
                                     "native_runner": runner,
                                     "workspace": probe_workspace,
                                 }
-                                if provider in ("claude", "codex") and effort is not None:
+                                if provider in ("claude", "codex", "antigravity", "copilot") and effort is not None:
                                     probe_kwargs["effort"] = effort
                                 health_cache[key] = builder(
                                     resolved_exe,
