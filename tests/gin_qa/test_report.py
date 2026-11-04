@@ -1,0 +1,176 @@
+"""`gin-qa report`: the report folder, its embedded data, copied screenshots, scope, and errors."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import re
+import shutil
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from qa_fixtures import AUTH_SPEC, ROOT, case_file, gin_workflow_bin, make_repo, qa, write  # noqa: E402
+
+TEMPLATE = ROOT / "plugins/gin-qa/src/templates/report.html"
+SLOT = '<script type="application/json" id="gin-qa-data">/*GIN_QA_DATA*/</script>'
+DATA = re.compile(r'<script type="application/json" id="gin-qa-data">(.*?)</script>', re.S)
+RUN = "qa/evidence/2026-11-04T08-00-00"
+
+
+class ReportCase(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name)
+        self.bin = gin_workflow_bin(self.base)
+        self.root = make_repo(self.base / "repo")
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write(self.root, "qa/cases/auth/TC-AUTH-001-login.e2e.md",
+              case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000", title="Login"))
+        write(self.root, "qa/cases/billing/TC-BILLING-001-pay.manual.md",
+              case_file("TC-BILLING-001", "REQ: REQ-BILLING-001@00000000", title="Pay"))
+        write(self.root, f"{RUN}/run.json", json.dumps({"started": "2026-11-04T08:00:00+00:00",
+                                                        "specs": ["qa/e2e/auth/tc-auth-001.spec.ts"],
+                                                        "playwright_exit": 1}))
+        write(self.root, f"{RUN}/tc-auth-001/01.png", "png-bytes")
+        write(self.root, f"{RUN}/tc-auth-001/result.json", json.dumps({
+            "tc": "TC-AUTH-001", "tc_hash8": "00000000", "project": None, "status": "failed", "error": None,
+            "started": "2026-11-04T08:00:01Z", "finished": "2026-11-04T08:00:09Z",
+            "steps": [{"n": 1, "title": "1. Open /login", "status": "failed", "screenshot": "01.png",
+                       "snapshot": None, "url": "http://127.0.0.1/login", "error": "timeout"}]}))
+        self.record("TC-AUTH-001", "failed", RUN)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def record(self, tc_id: str, status: str, run: str) -> None:
+        result = qa(self.root, self.bin, "result", tc_id, status, "--run", run)
+        self.assertEqual(0, result.returncode, result.stderr)
+
+    def report(self, *args: str):
+        return qa(self.root, self.bin, *args, group="report")
+
+    def report_json(self, *args: str) -> dict:
+        result = self.report(*args, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        return json.loads(result.stdout)
+
+    def page(self, index: Path) -> dict:
+        return json.loads(DATA.search(index.read_text(encoding="utf-8")).group(1))
+
+    def reports(self) -> list[Path]:
+        return sorted((self.root / "qa/evidence").glob("report-*"))
+
+
+class TestReport(ReportCase):
+    def test_writes_the_folder_and_prints_the_index_path(self):
+        result = self.report()
+        self.assertEqual(0, result.returncode, result.stderr)
+        printed = result.stdout.strip()
+        self.assertRegex(printed, r"^qa/evidence/report-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}/index\.html$")
+        index = self.root / printed
+        data = self.page(index)
+        self.assertEqual((None, ["TC-AUTH-001", "TC-BILLING-001"]),
+                         (data["scope"], [row["id"] for row in data["cases"]]))
+        auth, billing = data["cases"]
+        self.assertEqual(("found", "failed", RUN, "Login"), (auth["evidence"], auth["result"], auth["run"], auth["title"]))
+        [run_result] = auth["results"]
+        self.assertEqual((None, "failed", "2026-11-04T08:00:01Z"),
+                         (run_result["project"], run_result["status"], run_result["started"]))
+        self.assertEqual([{"n": 1, "title": "1. Open /login", "status": "failed", "url": "http://127.0.0.1/login",
+                           "error": "timeout", "screenshot": "2026-11-04T08-00-00/tc-auth-001/01.png"}],
+                         run_result["steps"])
+        self.assertEqual("png-bytes", (index.parent / run_result["steps"][0]["screenshot"]).read_text())
+        self.assertEqual(("none", [], "not run"), (billing["evidence"], billing["results"], billing["result"]))
+
+    def test_json_output(self):
+        payload = self.report_json()
+        self.assertEqual((2, 1, []), (payload["cases"], payload["screenshots"], payload["missing_evidence"]))
+        self.assertTrue((self.root / payload["report"]).is_file())
+
+    def test_the_folder_moved_elsewhere_still_holds_every_image(self):
+        index = self.root / self.report_json()["report"]
+        moved = Path(shutil.move(str(index.parent), str(self.base / "sent")))
+        shots = [step["screenshot"] for row in self.page(moved / "index.html")["cases"]
+                 for result in row["results"] for step in result["steps"]]
+        self.assertEqual(["2026-11-04T08-00-00/tc-auth-001/01.png"], shots)
+        for shot in shots:
+            self.assertFalse(Path(shot).is_absolute() or ".." in Path(shot).parts, shot)
+            self.assertTrue((moved / shot).is_file(), shot)
+
+    def test_capability_scope(self):
+        payload = self.report_json("billing")
+        folder = (self.root / payload["report"]).parent
+        data = self.page(folder / "index.html")
+        self.assertEqual(("billing", ["TC-BILLING-001"], 0),
+                         (data["scope"], [row["id"] for row in data["cases"]], payload["screenshots"]))
+        self.assertEqual(["index.html"], [path.name for path in folder.iterdir()])
+
+    def test_case_text_cannot_close_the_script_element(self):
+        title = "Login </script><script>alert(1)</script>"
+        write(self.root, "qa/cases/auth/TC-AUTH-001-login.e2e.md",
+              case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000", title=title))
+        index = self.root / self.report_json()["report"]
+        text = index.read_text(encoding="utf-8")
+        self.assertEqual(TEMPLATE.read_text(encoding="utf-8").count("</script>"), text.count("</script>"))
+        self.assertEqual(title, self.page(index)["cases"][0]["title"])
+
+    def test_a_missing_run_folder_is_reported_and_the_rest_is_written(self):
+        self.record("TC-AUTH-001", "failed", "qa/evidence/gone")
+        result = self.report("--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(["qa/evidence/gone"], payload["missing_evidence"])
+        self.assertIn("evidence not found: qa/evidence/gone", result.stderr)
+        auth = self.page(self.root / payload["report"])["cases"][0]
+        self.assertEqual(("missing", "failed", []), (auth["evidence"], auth["result"], auth["results"]))
+
+    def test_a_run_outside_the_evidence_folder_is_plain_text(self):
+        self.record("TC-BILLING-001", "passed", "sprint-12 sheet")
+        payload = self.report_json()
+        billing = self.page(self.root / payload["report"])["cases"][1]
+        self.assertEqual(("none", "sprint-12 sheet", "passed", []),
+                         (billing["evidence"], billing["run"], billing["result"], payload["missing_evidence"]))
+
+    def test_out_folder(self):
+        result = self.report("--out", "reports/today")
+        self.assertEqual((0, "reports/today/index.html"), (result.returncode, result.stdout.strip()), result.stderr)
+        self.assertTrue((self.root / "reports/today/2026-11-04T08-00-00/tc-auth-001/01.png").is_file())
+        self.assertEqual([], self.reports())
+
+    def test_two_reports_get_two_folders(self):
+        first, second = self.report_json()["report"], self.report_json()["report"]
+        self.assertNotEqual(first, second)
+        self.assertEqual(2, len(self.reports()))
+
+    def test_errors_exit_2_and_write_nothing(self):
+        write(self.root, "out/kept.txt", "kept")
+        for args, message in ((["nope"], "no test cases for capability nope"),
+                              (["--out", "out"], "out: exists and is not an empty folder")):
+            with self.subTest(args=args):
+                result = self.report(*args)
+                self.assertEqual(2, result.returncode)
+                self.assertIn(message, result.stderr)
+        shutil.rmtree(self.root / "qa/cases")
+        result = self.report()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("no test cases under qa/cases", result.stderr)
+        self.assertEqual([], self.reports())
+        self.assertEqual(["kept.txt"], [path.name for path in (self.root / "out").iterdir()])
+
+
+class TestTemplate(unittest.TestCase):
+    def test_one_data_slot_and_no_unsafe_or_remote_code(self):
+        text = TEMPLATE.read_text(encoding="utf-8")
+        self.assertEqual(1, text.count(SLOT))
+        self.assertEqual(1, text.count("/*GIN_QA_DATA*/"))
+        for banned in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function",
+                       "http://", "https://", "<link", "<script src", "@import"):
+            with self.subTest(banned=banned):
+                self.assertNotIn(banned, text)
+
+
+if __name__ == "__main__":
+    unittest.main()
