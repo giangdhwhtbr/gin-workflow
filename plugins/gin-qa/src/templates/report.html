@@ -121,6 +121,9 @@ h4 { margin: 0 0 4px; }
   function toggle(dim, name) {
     filters[dim] = filters[dim] === name ? '' : name;
     update();
+    for (const bar of $('charts').querySelectorAll('.bar')) {
+      if (bar.dataset.dim === dim && bar.dataset.name === name) bar.focus();
+    }
   }
 
   function renderCharts() {
@@ -132,7 +135,7 @@ h4 { margin: 0 0 4px; }
         fill.style.width = `${(count / max) * 100}%`;
         if (dim === 'result') fill.style.background = `var(--${tone(name)})`;
         return el('button', {
-          type: 'button', class: 'bar', 'aria-pressed': String(filters[dim] === name),
+          type: 'button', class: 'bar', 'data-dim': dim, 'data-name': name, 'aria-pressed': String(filters[dim] === name),
           title: `${label}: ${name} (${count})`, onclick: () => toggle(dim, name),
         }, el('span', { class: 'name', text: name }), el('span', { class: 'track' }, fill),
         el('span', { class: 'count', text: String(count) }));
@@ -182,7 +185,7 @@ h4 { margin: 0 0 4px; }
       item.url ? el('div', { class: 'muted url', text: item.url }) : null,
       item.error ? el('div', { class: 'warn', text: item.error }) : null);
     if (item.screenshot) {
-      const href = `./${item.screenshot}`; // a path inside the report folder; the ./ keeps it from reading as a URL scheme
+      const href = `./${item.screenshot.split('/').map(encodeURIComponent).join('/')}`; // a path inside the report folder; the ./ keeps it from reading as a URL scheme
       li.append(el('a', { href, target: '_blank', rel: 'noopener' },
         el('img', { src: href, alt: `Screenshot after step ${item.n}`, loading: 'lazy' })));
     }
