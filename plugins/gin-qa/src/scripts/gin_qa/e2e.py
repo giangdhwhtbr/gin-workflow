@@ -42,7 +42,7 @@ def spec_path(eff: Effective, case: tc.Case) -> str:
 
 def e2e_cases(root: Path, eff: Effective) -> dict[str, tc.Case]:
     cases, _ = tc.load(root, eff.cases_dir)
-    return {case.id: case for case in cases if case.fields.get("Type", "").strip().lower() == "e2e"}
+    return {case.id: case for case in cases if case.type == "e2e"}
 
 
 def load_specs(root: Path, eff: Effective) -> list[Spec]:

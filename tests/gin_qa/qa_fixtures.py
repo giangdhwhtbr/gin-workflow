@@ -82,3 +82,14 @@ def case(tc_id: str, ref: str, *, title: str = "Case", extra: str = "") -> str:
 
 def cases_file(cap: str, *blocks: str) -> str:
     return f"# Test cases: {cap}\n\n" + "\n".join(blocks)
+
+
+def case_file(tc_id: str, ref: str, *, title: str = "Case", extra: str = "", bold: bool = True) -> str:
+    """One per-case file body (`# ` heading, no Type:); `ref` is the whole REQ:/Source: value line, plain form."""
+    key, value = ref.split(": ", 1)
+    if not bold:
+        return case(tc_id, ref, title=title, extra=extra).replace("### ", "# ", 1).replace("Type: e2e\n", "")
+    fields = [f"- **{key}:** {value}", "- **Priority:** high",
+              *(f"- **{k}:** {v}" for k, v in (line.split(": ", 1) for line in extra.splitlines() if line))]
+    return (f"# {tc_id}: {title}\n\n" + "\n".join(fields) + "\n\n**Preconditions:**\n- a user exists\n\n"
+            "**Steps:**\n1. Open /login\n2. Click \"Sign in\"\n\n**Expected:**\n- The dashboard is shown\n")
