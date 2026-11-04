@@ -120,6 +120,11 @@ def _work(root: Path, eff: Effective, cases: list[tc.Case], capability: str | No
 
 def _check(root: Path, eff: Effective, change: str | None) -> list[str]:
     cases, errors = tc.load(root, eff.cases_dir)
+    types, problems = tc.declared_types(root, eff.guidelines)
+    errors += problems
+    if types is not None:
+        errors += [f"{case.path}:{case.line}: {case.id}: type '{case.type}' is not listed under "
+                   f"'{tc.TYPES_SECTION}' in {eff.guidelines}" for case in cases if case.type and case.type not in types]
     files = [f"{eff.cases_dir}/probe.md", *(path.relative_to(root).as_posix()
                                             for path in tc.case_files(root, eff.cases_dir))]
     for pattern in eff.test_globs:

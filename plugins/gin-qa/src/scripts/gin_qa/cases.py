@@ -18,6 +18,8 @@ _REQ_ITEM = re.compile(r"^(REQ-[A-Z][A-Z0-9-]*-\d{3,})@([0-9a-f]{8})$")
 _STEP = re.compile(r"^(\d+)\. (\S.*)$")
 _CASE_FILE = re.compile(r"^(TC-[A-Z][A-Z0-9-]*?-\d{3,})(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?\.([a-z][a-z0-9-]*)\.md$")
 TYPE = re.compile(r"^[a-z][a-z0-9-]*$")
+TYPES_SECTION = "## Types"
+_TYPE_ENTRY = re.compile(r"^- `([a-z][a-z0-9-]*)`(?::.*)?$")
 SECTIONS = ("Preconditions", "Test data", "Steps", "Expected")
 RESULTS = ("passed", "failed", "blocked", "not run")
 RESULT_FIELDS = ("Result", "Run", "Bug")
@@ -110,6 +112,33 @@ def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, er
 def _lines(path: Path) -> list[str]:
     """Split on newlines only, as the writers do: splitlines() also breaks on \\x0c, \\x85, \\u2028, ..."""
     return path.read_text(encoding="utf-8").split("\n")
+
+
+def declared_types(root: Path, guidelines: str) -> tuple[set[str] | None, list[str]]:
+    """The types listed under `## Types` in the guidelines, or None without the file or section; and its findings."""
+    path = root / guidelines
+    if not path.is_file():
+        return None, []
+    lines = [line.rstrip() for line in _lines(path)]
+    start = next((index for index, line in enumerate(lines) if line == TYPES_SECTION), None)
+    if start is None:
+        return None, []
+    types: set[str] = set()
+    errors: list[str] = []
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        if line.startswith("## "):
+            break
+        if not line.startswith("- "):
+            continue
+        entry = _TYPE_ENTRY.match(line)
+        if entry:
+            types.add(entry.group(1))
+        else:
+            errors.append(f"{guidelines}:{index + 1}: '{TYPES_SECTION}' entry is not \"- `<type>`: <description>\"")
+    if not types and not errors:
+        errors.append(f"{guidelines}:{start + 1}: '{TYPES_SECTION}' lists no types")
+    return types, errors
 
 
 def parse_file(path: Path, shown: str) -> tuple[list[Case], list[str]]:

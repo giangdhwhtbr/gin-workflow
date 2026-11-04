@@ -479,6 +479,50 @@ class TestCaseHash(unittest.TestCase):
         self.assertNotIn(first, others[2:])
 
 
+TYPES_GUIDE = ("# Test case guidelines\n\n## Types\n\nThe types in use.\n\n- `e2e`: browser flows.\n"
+               "- `manual`: walked by a tester.\n\n## Automated types\n\nNone yet.\n")
+NOT_LISTED = "type '{}' is not listed under '## Types' in qa/guidelines.md"
+
+
+class TestTypes(QaCase):
+    def write_case(self, name: str, tc_id: str) -> None:
+        write(self.root, f"qa/cases/auth/{name}", case_file(tc_id, self.ref("REQ-AUTH-001")))
+
+    def test_listed_type_passes_and_unlisted_type_is_a_finding(self):
+        write(self.root, "qa/guidelines.md", TYPES_GUIDE)
+        self.write_case("TC-AUTH-001-login.manual.md", "TC-AUTH-001")
+        self.write_case("TC-AUTH-002-login.ap.md", "TC-AUTH-002")
+        result = qa(self.root, self.bin, "check")
+        self.assertEqual(1, result.returncode, result.stderr)
+        findings = self.findings()
+        self.assertIn("qa/cases/auth/TC-AUTH-002-login.ap.md:1: TC-AUTH-002: " + NOT_LISTED.format("ap"), findings)
+        self.assertFalse([f for f in findings if "TC-AUTH-001" in f and "## Types" in f], findings)
+        # the sdd rules still run next to the type rule
+        self.assertTrue([f for f in findings if "REQ-AUTH-002 has no test case" in f], findings)
+
+    def test_malformed_entry_and_empty_section_are_findings(self):
+        write(self.root, "qa/guidelines.md", "# G\n\n## Types\n\n- e2e: no backticks\n- `manual`: ok\n")
+        self.assertIn("qa/guidelines.md:5: '## Types' entry is not \"- `<type>`: <description>\"", self.findings())
+        write(self.root, "qa/guidelines.md", "## Types\n\nProse only.\n\n## Other\n\n- `e2e`: outside the section\n")
+        self.assertIn("qa/guidelines.md:1: '## Types' lists no types", self.findings())
+
+    def test_crlf_guidelines_parse(self):
+        write(self.root, "qa/guidelines.md", TYPES_GUIDE.replace("\n", "\r\n"))
+        self.write_case("TC-AUTH-001-login.e2e.md", "TC-AUTH-001")
+        self.assertFalse([f for f in self.findings() if "## Types" in f])
+
+    def test_no_section_or_no_guidelines_skips_the_rule(self):
+        self.write_case("TC-AUTH-001-login.ap.md", "TC-AUTH-001")
+        self.assertFalse([f for f in self.findings() if "## Types" in f])
+        write(self.root, "qa/guidelines.md", "# Test case guidelines\n\n- One user action per step.\n")
+        self.assertFalse([f for f in self.findings() if "## Types" in f])
+
+    def test_flat_case_without_type_is_not_checked(self):
+        write(self.root, "qa/guidelines.md", TYPES_GUIDE)
+        self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")).replace("Type: e2e\n", ""))
+        self.assertFalse([f for f in self.findings() if "## Types" in f])
+
+
 class TestLegacyAndEnvironment(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
