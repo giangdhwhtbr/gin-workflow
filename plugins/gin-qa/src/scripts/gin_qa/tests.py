@@ -247,6 +247,8 @@ def _junit(path: Path) -> tuple[list[tuple[str, str]], str | None]:
         top = ElementTree.parse(path).getroot()
     except ElementTree.ParseError as error:
         return [], f"not valid XML: {error}"
+    except OSError as error:
+        return [], f"cannot be read: {error}"
     if top.tag not in ("testsuites", "testsuite"):
         return [], f"the root is <{top.tag}>, not <testsuites> or <testsuite>"
     rows: list[tuple[str, str]] = []
@@ -306,7 +308,7 @@ def run(root: Path, eff: Effective, kind: str, targets: list[str]) -> tuple[str,
             status = "blocked"
         try:
             tc.record_result(root, eff.cases_dir, case_id, status, run=folder)
-        except ValueError as error:
+        except (ValueError, OSError) as error:
             findings.append(f"{case_id}: result not recorded: {error}")
             continue
         recorded.append({"tc": case_id, "result": status})
