@@ -10,7 +10,7 @@ UNINSTALL=false
 DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
 LAUNCHER_VERSION="2.9"
-QA_LAUNCHER_VERSION="0.9"
+QA_LAUNCHER_VERSION="0.10"
 ORCH_LAUNCHER_VERSION="0.1"
 MODIFY_PATH=true
 PATH_MARKER='# gin-workflow PATH'
@@ -570,6 +570,13 @@ install_opencode_bundle() {
     rm -rf "$target/skills/gin-workflow-report"
     mv "$target/skills/report" "$target/skills/gin-workflow-report"
     rewrite_file "$target/skills/gin-workflow-report/SKILL.md" 's/^name: report$/name: gin-workflow-report/'
+  fi
+
+  # gin-qa's `setup` would shadow gin-workflow's `setup`, which has the same directory id.
+  if [ "$plugin_name" = gin-qa ] && [ -d "$target/skills/setup" ]; then
+    rm -rf "$target/skills/gin-qa-setup"
+    mv "$target/skills/setup" "$target/skills/gin-qa-setup"
+    rewrite_file "$target/skills/gin-qa-setup/SKILL.md" 's/^name: setup$/name: gin-qa-setup/'
   fi
 
   # Shell commands run from the agent's working directory, so point support

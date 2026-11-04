@@ -1,6 +1,6 @@
 {
   "name": "gin-qa",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "QA add-on for gin-workflow: test cases derived from specs, Playwright specs with per-step evidence, and tests of other declared types run from JUnit XML, traced, exported as JSON, and reported as offline HTML.",
   "author": {
     "name": "gin"

@@ -16,7 +16,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $LauncherVersion = '2.9'
-$QaLauncherVersion = '0.9'
+$QaLauncherVersion = '0.10'
 $OrchLauncherVersion = '0.1'
 $ScriptRoot = $PSScriptRoot
 $UserHome = $env:HOME
@@ -326,6 +326,24 @@ function Install-OpenCodeBundle {
                 Remove-Item -LiteralPath $reportSkill -Force
             }
             Write-Utf8File -Path $reportSkill -Content $content
+        }
+    }
+
+    # gin-qa's `setup` would shadow gin-workflow's `setup`, which has the same directory id.
+    $setupDirectory = Join-Path $Destination 'skills/setup'
+    if ($PluginName -eq 'gin-qa' -and (Test-Path -LiteralPath $setupDirectory)) {
+        $renamed = Join-Path $Destination 'skills/gin-qa-setup'
+        if (Test-Path -LiteralPath $renamed) {
+            Remove-Item -LiteralPath $renamed -Recurse -Force
+        }
+        Move-Item -LiteralPath $setupDirectory -Destination $renamed
+        $setupSkill = Join-Path $renamed 'SKILL.md'
+        if (Test-Path -LiteralPath $setupSkill) {
+            $content = [regex]::Replace([IO.File]::ReadAllText($setupSkill), '(?m)^name: setup$', 'name: gin-qa-setup')
+            if ($null -ne (Get-Item -LiteralPath $setupSkill).LinkType) {
+                Remove-Item -LiteralPath $setupSkill -Force
+            }
+            Write-Utf8File -Path $setupSkill -Content $content
         }
     }
 
