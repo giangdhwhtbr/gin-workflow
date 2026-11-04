@@ -187,10 +187,11 @@ assert_not_contains "plugins/gin-workflow/dist/claude-code/skills/progress/SKILL
 
 assert_contains "$output_file" "Processing plugin: gin-qa"
 assert_not_contains "$output_file" "Processing plugin: gin-workflow"
-assert_contains "$output_file" "would install gin-qa launcher version 0.8 to"
+assert_contains "$output_file" "would install gin-qa launcher version 0.9 to"
 assert_exists "plugins/gin-qa/dist/claude-code/.claude-plugin/plugin.json"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/cases/SKILL.md"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/SKILL.md"
+assert_exists "plugins/gin-qa/dist/claude-code/skills/tests/SKILL.md"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/references/explore-case.md"
 assert_exists "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md"
 assert_contains "plugins/gin-qa/dist/claude-code/agents/e2e-tester.md" '"Bash"'
@@ -393,14 +394,15 @@ HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file"
 assert_not_contains "$output_file" "gin-workflow is not installed"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/cases/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/e2e/SKILL.md"
+assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/tests/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/e2e/references/explore-case.md"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.8/templates/evidence.ts"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.8/templates/playwright.config.ts"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.8/templates/qa-readme.md"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.8/templates/report.html"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.9/templates/evidence.ts"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.9/templates/playwright.config.ts"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.9/templates/qa-readme.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.9/templates/report.html"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-qa@skills-dir": true'
 qa_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-qa" --version)"
-if [ "$qa_version" != "gin-qa 0.8" ]; then
+if [ "$qa_version" != "gin-qa 0.9" ]; then
   echo "Unexpected gin-qa launcher version: $qa_version" >&2
   exit 1
 fi
@@ -483,7 +485,7 @@ assert_contains "$output_file" "missing TC-AUTH-001 qa/e2e/auth/tc-auth-001.spec
 for launcher in gin-workflow gin-qa gin-orchestrator; do
   case "$launcher" in
     gin-workflow) old_version=2.1; current_version=2.9 ;;
-    gin-qa) old_version=0.4; current_version=0.8 ;;
+    gin-qa) old_version=0.4; current_version=0.9 ;;
     gin-orchestrator) old_version=0.0; current_version=0.1 ;;
   esac
 

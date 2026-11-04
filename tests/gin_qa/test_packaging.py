@@ -5,13 +5,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import shutil
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 QA = ROOT / "plugins/gin-qa"
 CORE = ROOT / "plugins/gin-workflow/src"
 sys.path.insert(0, str(CORE / "scripts"))
+sys.path.insert(0, str(QA / "src/scripts"))
 
 from workflow_core.budget import description_chars  # noqa: E402
 
@@ -31,7 +34,7 @@ class TestPackaging(unittest.TestCase):
                          {p["name"]: p["source"]["path"] for p in marketplace["plugins"]})
 
     def test_skill_budget_and_links(self):
-        expected = {"cases": ["../../templates/guidelines.md", "../../templates/qa-readme.md", "../../templates/cases.md"], "e2e": ["references/explore-case.md"] * 2, "report": [], "run": []}
+        expected = {"cases": ["../../templates/guidelines.md", "../../templates/qa-readme.md", "../../templates/cases.md"], "e2e": ["references/explore-case.md"] * 2, "report": [], "run": [], "tests": []}
         self.assertEqual(sorted(expected), sorted(p.name for p in (QA / "src/skills").iterdir()))
         self.assertLessEqual(description_chars(QA / "src"), 1_000)
         for name, want in expected.items():
@@ -47,6 +50,17 @@ class TestPackaging(unittest.TestCase):
     def test_guidelines_template_sets_no_language(self):
         text = (QA / "src/templates/guidelines.md").read_text(encoding="utf-8")
         self.assertRegex(text, r"- Language: not set yet")
+
+    def test_guidelines_template_declares_no_automated_type(self):
+        from gin_qa.reqs import Effective
+        from gin_qa.tests import declared
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "qa").mkdir()
+            shutil.copyfile(QA / "src/templates/guidelines.md", root / "qa/guidelines.md")
+            text = (root / "qa/guidelines.md").read_text(encoding="utf-8")
+            self.assertIn("## Automated types\n", text)
+            self.assertEqual(({}, []), declared(root, Effective("legacy", "qa/cases", "qa/guidelines.md", [])))
 
     def test_core_never_refers_to_gin_qa(self):
         for path in sorted(p for p in CORE.rglob("*") if p.is_file() and p.suffix in (".md", ".py", ".yaml", ".json")):

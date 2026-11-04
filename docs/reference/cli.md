@@ -383,7 +383,7 @@ In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for th
 
 ## `gin-qa`
 
-The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, and `gin-qa report [capability] [--out DIR]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing.
+The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing.
 
 ### `gin-qa cases result`
 
@@ -431,6 +431,15 @@ Each case in `gin-qa cases export --format json` adds `result` (`not run` withou
 
 `gin-qa e2e run` records each case's result in its case file, the worst over its Playwright projects: `failed`, then `blocked`, then `passed`. A case with no result folder, or an invalid `result.json`, is `blocked`. Its JSON output lists them under `recorded` as `[{"tc", "result"}]`. A recording error is listed under `findings` and does not stop the other cases.
 
+### `gin-qa tests`
+
+`gin-qa tests` plans, pins, checks, and runs the tests of the automated types declared under `## Automated types` in the guidelines file (`qa.guidelines`). One `### <type>` per type, with `- Tests:` (backticked globs, relative to the repository root, never absolute or containing `..`) and `- Run:` (one backticked command that holds `{junit}` and optionally `{files}` as a whole argument). `e2e` and `manual` cannot be declared. A declaration error is a finding of `check` and makes the other subcommands exit 2.
+
+- `plan [capability] [--type T]`: `missing` (a case of the type with no `TC: <TC-ID>@<hash8>` line in the type's test files). The other rows are `stale` (a marker whose hash8 is not the case's), and `orphan` (a marker of a case that is gone or of another type). `--format json` adds `types` and `guidelines`.
+- `pin <TC-ID>...`: rewrites the hash8 of every marker of each case; writes nothing when any ID fails.
+- `check [--type T]`: the declaration errors when there are any; otherwise the `plan` rows, as findings.
+- `run --type T [TC-ID|capability ...]`: runs the command from the repository root, without a shell, into `qa/evidence/<UTC stamp>-<T>/` (`run.json`, `junit.xml`). `{junit}` becomes the JUnit file's path and `{files}` the test files of the selected cases. A JUnit test case whose name or classname holds the TC-ID (in any case, `_` read as `-`) belongs to that case. The case records `failed` (a failure or error), `blocked` (skipped), or `passed`, the worst over its tests, and `blocked` with a finding when none ran. When `junit.xml` is missing or unreadable, every selected case records `blocked` with one finding. `--format json` prints `{"run", "exit", "findings", "recorded"}`. Exit: the command's non-zero exit, else 1 on findings, else 0; a command not found exits 2.
+
 ### `gin-qa report`
 
-`gin-qa report [capability] [--out DIR] [--format text|json]` writes `index.html` and a copy of each screenshot it shows into a new folder, `qa/evidence/report-<UTC stamp>/` by default (`-2`, `-3`, ... when that folder exists). `--out DIR`, relative to the repository, must be missing or empty. The command prints the path of `index.html`; `--format json` prints `{"report", "cases", "screenshots", "missing_evidence"}`. A run folder named by a case's `Run` line that cannot be read is listed under `missing_evidence` and on stderr, and the report is still written. No test cases in scope, an unknown capability, or a non-empty `--out` exit 2 and write nothing.
+`gin-qa report [capability] [--out DIR] [--format text|json]` writes `index.html` and a copy of each screenshot it shows into a new folder, `qa/evidence/report-<UTC stamp>/` by default (`-2`, `-3`, ... when that folder exists). `--out DIR`, relative to the repository, must be missing or empty. The command prints the path of `index.html`; `--format json` prints `{"report", "cases", "screenshots", "missing_evidence"}`. A run folder named by a case's `Run` line that cannot be read is listed under `missing_evidence` and on stderr, and the report is still written. No test cases in scope, an unknown capability, or a non-empty `--out` exit 2 and write nothing. A `Run` folder written by `gin-qa tests run` is shown as text, not read as e2e evidence.

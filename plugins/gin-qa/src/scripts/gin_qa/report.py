@@ -29,6 +29,14 @@ def _run_results(root: Path, eff: Effective, run: str) -> tuple[str, Results] | 
     return payload["run"], {row["id"]: row["results"] for row in payload["cases"]}
 
 
+def _tests_run(root: Path, run: str) -> bool:
+    """A `gin-qa tests run` folder: its run.json names a test type, and it holds no e2e evidence to show."""
+    try:
+        return "type" in json.loads((root / run / "run.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def _result(data: dict[str, Any], run: str, copies: dict[str, str]) -> dict[str, Any]:
     """One Playwright project's result; each screenshot gets its path inside the report folder, `<run name>/...`."""
     steps = []
@@ -77,7 +85,7 @@ def build(root: Path, eff: Effective, capability: str | None, out: str | None) -
     for case in cases:
         row = {**tc.as_dict(case), "evidence": "none", "results": []}
         run = row["run"]
-        if run.startswith(evidence):  # anything else is a manual run reference, shown as text
+        if run.startswith(evidence) and not _tests_run(root, run):  # anything else is shown as text
             if run not in runs:
                 runs[run] = _run_results(root, eff, run)
             found = runs[run]
