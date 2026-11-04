@@ -107,9 +107,14 @@ def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, er
     return case
 
 
+def _lines(path: Path) -> list[str]:
+    """Split on newlines only, as the writers do: splitlines() also breaks on \\x0c, \\x85, \\u2028, ..."""
+    return path.read_text(encoding="utf-8").split("\n")
+
+
 def parse_file(path: Path, shown: str) -> tuple[list[Case], list[str]]:
     """Every `### ` block up to the next `## `/`### ` heading; findings are `<file>:<line>: <message>`."""
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = _lines(path)
     starts = [index for index, line in enumerate(lines) if line.startswith("### ")]
     ends = [index for index, line in enumerate(lines) if line.startswith("## ") or line.startswith("### ")]
     cases: list[Case] = []
@@ -128,7 +133,7 @@ def parse_case_file(path: Path, shown: str) -> tuple[list[Case], list[str]]:
     named = _CASE_FILE.match(path.name)
     if not named:
         return [], [f"{shown}: case file name is not '<TC-ID>[-<slug>].<type>.md'"]
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = _lines(path)
     heads = [index for index, line in enumerate(lines) if line.startswith("#")]
     if len(heads) != 1:
         return [], [f"{shown}: holds {len(heads)} headings; a case file holds one '# TC-<CAP>-<NNN>: <title>'"]
@@ -285,12 +290,15 @@ def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: st
     if status not in RESULTS:
         raise ValueError(f"status is one of {', '.join(RESULTS)}; got {status!r}")
     for value in (run, bug):
-        if value is not None and (not value.strip() or any(ord(char) < 32 for char in value)):
+        if value is not None and (not value.strip() or not value.isprintable()):
             raise ValueError(f"{value!r}: values are one non-empty line")
-    cases, _ = load(root, cases_dir)
+    cases, findings = load(root, cases_dir)
     located = next((case for case in cases if case.id == case_id), None)
     if located is None:
         raise ValueError(f"{case_id}: no such test case")
+    about = [error for error in findings if re.search(rf"\b{re.escape(case_id)}\b", error)]
+    if about:
+        raise ValueError("; ".join(about))
     path = root / located.path
     flat = path.parent == root / cases_dir
     with _lock(root / cases_dir):
@@ -315,6 +323,8 @@ def _slug(title: str) -> str:
 
 def split(root: Path, cases_dir: str, cap: str) -> tuple[list[str], list[str]]:
     """`<cases>/<cap>.md` → one `<cases>/<cap>/<TC-ID>-<slug>.<type>.md` per case; nothing is written on findings."""
+    if not TYPE.fullmatch(cap):
+        raise ValueError(f"{cap!r}: a capability matches [a-z][a-z0-9-]*")
     base = root / cases_dir
     path = base / f"{cap}.md"
     shown = f"{cases_dir}/{cap}.md"
@@ -326,6 +336,8 @@ def split(root: Path, cases_dir: str, cap: str) -> tuple[list[str], list[str]]:
     head = [line for line in lines[:first] if line.strip()]
     if head[1:] or (head and not head[0].startswith("# ")) or any(line.startswith("## ") for line in lines):
         errors.append(f"{shown}: holds text outside its title and case blocks; move it before splitting")
+    if not found:
+        errors.append(f"{shown}: holds no test cases")
     targets: dict[str, Path] = {}
     for case in found:
         kind = case.fields.get("Type", "").strip().lower()

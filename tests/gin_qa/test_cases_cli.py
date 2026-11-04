@@ -317,6 +317,8 @@ class TestResult(QaCase):
         before = self.path.read_text()
         for args, message in ((("done",), "status is one of passed, failed, blocked, not run"),
                               (("passed", "--run", "a\nb"), "values are one non-empty line"),
+                              (("passed", "--run", "a\u2028b"), "values are one non-empty line"),
+                              (("passed", "--bug", "gw\x7f"), "values are one non-empty line"),
                               (("passed", "--bug", ""), "values are one non-empty line")):
             with self.subTest(args=args):
                 result = self.result(*args)
@@ -328,6 +330,20 @@ class TestResult(QaCase):
         broken = self.path.read_text()
         self.assertEqual(2, self.result("passed").returncode)
         self.assertEqual(broken, self.path.read_text())
+
+    def test_odd_line_breaks_keep_writes_on_their_lines(self):
+        self.path.write_text(self.path.read_text().replace("\n\n- **REQ", "\n\x0c\n- **REQ", 1))
+        for status in ("failed", "passed"):
+            self.assertEqual(0, self.result(status, "--run", "r").returncode)
+        self.assertIn("- **Priority:** high\n- **Result:** passed\n- **Run:** r\n\n", self.path.read_text())
+        self.assertEqual([], self.findings())
+
+    def test_a_duplicate_id_exits_2_and_writes_nothing(self):
+        flat = self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-002")))
+        before = (flat.read_text(), self.path.read_text())
+        result = self.result("passed")
+        self.assertEqual((2, True), (result.returncode, "duplicate TC-AUTH-001" in result.stderr))
+        self.assertEqual(before, (flat.read_text(), self.path.read_text()))
 
 
 class TestSplit(QaCase):
@@ -359,6 +375,7 @@ class TestSplit(QaCase):
             (case("TC-AUTH-001", good).replace("Type: e2e", "Type: Web UI"), "TC-AUTH-001: needs a Type: matching"),
             ("Intro prose.\n\n" + case("TC-AUTH-001", good), "holds text outside its title and case blocks"),
             (case("TC-AUTH-001", good) + "\n## Notes\n- later\n", "holds text outside its title and case blocks"),
+            ("", "holds no test cases"),
         )
         for block, message in cases:
             with self.subTest(message=message):
@@ -376,6 +393,9 @@ class TestSplit(QaCase):
         self.assertIn("qa/cases/auth/TC-AUTH-001-case.e2e.md: already exists", result.stdout)
         self.assertTrue(path.exists())
         self.assertEqual(2, qa(self.root, self.bin, "split", "billing").returncode)
+        write(self.root, "notes.md", "# Notes\n")
+        self.assertEqual(2, qa(self.root, self.bin, "split", "../../notes").returncode)
+        self.assertTrue((self.root / "notes.md").exists())
 
 
 class TestReadableFormat(unittest.TestCase):
