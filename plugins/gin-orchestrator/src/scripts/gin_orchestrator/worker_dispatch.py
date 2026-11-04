@@ -433,6 +433,25 @@ class WorkerResult:
     acceptance_identity: AcceptanceIdentity | None = None
     schema_version: str = "2.3"
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "task_id": self.task_id,
+            "summary": self.summary,
+            "changed_files": list(self.changed_files),
+            "commits": list(self.commits),
+            "tests": [t.to_dict() if hasattr(t, "to_dict") else dict(t) for t in self.tests],
+            "evidence": [dict(e) for e in self.evidence],
+            "blockers": list(self.blockers),
+            "knowledge_candidates": [dict(k) for k in self.knowledge_candidates],
+            "acceptance_identity": (
+                None
+                if self.acceptance_identity is None
+                else self.acceptance_identity.to_dict()
+            ),
+            "schema_version": self.schema_version,
+        }
+
 
 @dataclass(frozen=True)
 class WorkerReceipt:

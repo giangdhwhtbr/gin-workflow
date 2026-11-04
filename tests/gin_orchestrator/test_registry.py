@@ -41,7 +41,10 @@ from gin_orchestrator.registry import (  # noqa: E402
     RegistryError,
     _resolve_worker_agent,
 )
-from gin_orchestrator.routed_worker import RoutedWorkerDispatcher  # noqa: E402
+from gin_orchestrator.routed_worker import (  # noqa: E402
+    RoutedWorkerDispatcher,
+    WorkspaceUnavailableError,
+)
 from gin_orchestrator.review import ReviewLedgerProvider  # noqa: E402
 from gin_orchestrator.task_tracking_cli import CliTaskTrackingProvider  # noqa: E402
 from gin_orchestrator.workspace import WorktreeWorkspaceProvider  # noqa: E402
@@ -1087,6 +1090,142 @@ class ProviderRegistryTests(unittest.TestCase):
             argv = runner.invocations[0].argv
             index = argv.index(expected[0])
             self.assertEqual(expected, list(argv[index:index + 2]))
+
+    def test_resolver_affinity_preserves_effort_for_coordinator(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = EffectiveConfig(
+                {
+                    "schema_version": "2.9",
+                    "harness": "claude",
+                    "provider_mode": "single",
+                    "orchestrator": {
+                        "roles": {"review": {"preferred": ["claude"], "fallback": []}},
+                        "concurrency": {"claude": 1},
+                        "queue": {"max_wait_seconds": 0},
+                        "worker": {"timeout_seconds": 10, "max_retries": 0},
+                        "circuit_breaker": {
+                            "failure_threshold": 1,
+                            "cooldown_seconds": 10,
+                            "half_open_max_probes": 1,
+                        },
+                    },
+                },
+                root,
+            )
+            local = {
+                "claude": ProviderModelConfig(
+                    provider="claude",
+                    executable="/bin/claude",
+                )
+            }
+            registry = ProviderRegistry.from_effective_config(
+                config,
+                provider_local=local,
+                evidence_authority=self.composite_authority(),
+            )
+            worker_request = WorkerRequest(
+                "Review",
+                (),
+                create_context_manifest("review", ContextRequest()),
+                {"mode": "isolated", "workspace_id": "ws-1", "branch": "task/1"},
+                REQUIRED_RESULT_FIELDS,
+                "task-1",
+                "wf-1",
+                "try-1",
+                "review",
+                "sonnet",
+                "high",
+                route_affinity=("claude", "sonnet"),
+            )
+            candidates = registry.worker.resolver(worker_request)
+            self.assertTrue(len(candidates) >= 1)
+            self.assertEqual("claude", candidates[0].provider)
+            self.assertEqual("sonnet", candidates[0].model)
+            self.assertEqual("high", candidates[0].effort)
+
+    def test_workspace_for_direct_mode_safety(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = EffectiveConfig(
+                {
+                    "schema_version": "2.9",
+                    "harness": "claude",
+                    "provider_mode": "single",
+                    "orchestrator": {
+                        "roles": {"backend": {"preferred": ["claude"], "fallback": []}},
+                        "concurrency": {"claude": 1},
+                        "queue": {"max_wait_seconds": 0},
+                        "worker": {"timeout_seconds": 10, "max_retries": 0},
+                    },
+                },
+                root,
+            )
+            registry = ProviderRegistry.from_effective_config(
+                config,
+                provider_local={"claude": ProviderModelConfig(provider="claude", executable="/bin/claude")},
+                evidence_authority=self.composite_authority(),
+            )
+            worktree_dir = root / ".planning/worktrees/task-1"
+            worktree_dir.mkdir(parents=True)
+
+            candidate = registry.worker.resolver(
+                WorkerRequest(
+                    "Test", (), create_context_manifest("execute", ContextRequest()),
+                    {"mode": "direct", "workspace_path": str(worktree_dir)},
+                    REQUIRED_RESULT_FIELDS, "t1", "wf", "try-1", "backend", "sonnet",
+                )
+            )[0]
+
+            req_execute_wt = WorkerRequest(
+                "Implement", (), create_context_manifest("execute", ContextRequest()),
+                {"mode": "direct", "workspace_path": str(worktree_dir)},
+                REQUIRED_RESULT_FIELDS, "t1", "wf", "try-1", "backend", "sonnet",
+            )
+            adapter = registry.worker.adapter_factory(candidate, req_execute_wt)
+            self.assertIsNotNone(adapter)
+
+            req_execute_root = WorkerRequest(
+                "Implement", (), create_context_manifest("execute", ContextRequest()),
+                {"mode": "direct", "workspace_path": str(root)},
+                REQUIRED_RESULT_FIELDS, "t1", "wf", "try-1", "backend", "sonnet",
+            )
+            with self.assertRaises(WorkspaceUnavailableError):
+                registry.worker.adapter_factory(candidate, req_execute_root)
+
+            req_execute_docs_root = WorkerRequest(
+                "Write docs", (), create_context_manifest("execute", ContextRequest()),
+                {"mode": "direct", "workspace_path": str(root)},
+                REQUIRED_RESULT_FIELDS, "t1", "wf", "try-1", "docs", "sonnet",
+            )
+            with self.assertRaises(WorkspaceUnavailableError):
+                registry.worker.adapter_factory(candidate, req_execute_docs_root)
+
+            req_unknown_stage_root = WorkerRequest(
+                "Implement", (), create_context_manifest("custom", ContextRequest()),
+                {"mode": "direct", "workspace_path": str(root)},
+                REQUIRED_RESULT_FIELDS, "t1", "wf", "try-1", "backend", "sonnet",
+            )
+            with self.assertRaises(WorkspaceUnavailableError):
+                registry.worker.adapter_factory(candidate, req_unknown_stage_root)
+
+            symlink_dir = root / "symlink_dir"
+            symlink_dir.symlink_to(worktree_dir)
+            req_symlink = WorkerRequest(
+                "Implement", (), create_context_manifest("execute", ContextRequest()),
+                {"mode": "direct", "workspace_path": str(symlink_dir)},
+                REQUIRED_RESULT_FIELDS, "t1", "wf", "try-1", "backend", "sonnet",
+            )
+            with self.assertRaises(WorkspaceUnavailableError):
+                registry.worker.adapter_factory(candidate, req_symlink)
+
+            req_review_root = WorkerRequest(
+                "Review", (), create_context_manifest("review", ContextRequest()),
+                {"mode": "direct", "workspace_path": str(root)},
+                REQUIRED_RESULT_FIELDS, "t1", "wf", "try-1", "review", "sonnet",
+            )
+            adapter_review = registry.worker.adapter_factory(candidate, req_review_root)
+            self.assertIsNotNone(adapter_review)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from workflow_core.ext import (
     PROVIDER_DEFAULT,
     PROVIDER_DEFAULT_PROVIDERS,
     ProviderModelConfig,
+    RouteCandidate,
     WorkflowEventStore,
     catalog_for,
     main_checkout,
@@ -292,16 +293,60 @@ class ProviderRegistry:
             health_cache: dict[str, Any] = {}
 
             def resolver(request):
+                main_harness = str(config.get("harness", ""))
+                is_direct = request.isolation_policy.get("mode") == "direct"
+                source_harness = main_harness or ("claude" if is_direct else "")
+                affinity = request.route_affinity
+                if is_direct and affinity is not None and len(affinity) >= 1:
+                    source_harness = str(affinity[0])
                 assignment = AssignmentRequest(
                     request.task_id,
                     request.provider_role,
                     request.model,
                     request.effort,
-                    str(config.get("harness", "")),
+                    source_harness,
                 )
-                return resolve_assignment(assignment, config, provider_local)
+                candidates = list(resolve_assignment(assignment, config, provider_local))
+                if is_direct and affinity is not None and len(affinity) >= 2:
+                    aff_provider = str(affinity[0])
+                    aff_model = str(affinity[1])
+                    aff_effort = affinity[2] if len(affinity) > 2 and affinity[2] else None
+                    if not any(
+                        c.provider == aff_provider and c.model == aff_model and (c.effort == aff_effort if aff_effort is not None else True)
+                        for c in candidates
+                    ):
+                        candidates.insert(
+                            0,
+                            RouteCandidate(aff_provider, aff_model, False, effort=aff_effort or request.effort),
+                        )
+                return tuple(candidates)
 
             def workspace_for(request) -> Path:
+                if request.isolation_policy.get("mode") == "direct":
+                    raw_supplied = request.isolation_policy.get("workspace_path")
+                    if not raw_supplied:
+                        raise WorkspaceUnavailableError("direct workspace mode requires workspace_path")
+                    supplied_path = Path(str(raw_supplied))
+                    resolved = supplied_path.resolve()
+                    supported_worktree_root = worktree_root.resolve()
+                    supported_repo_root = root.resolve()
+                    if supplied_path.is_symlink() or not resolved.is_dir():
+                        raise WorkspaceUnavailableError("direct workspace_path must be an existing non-symlink directory")
+                    stage = getattr(request.generated_manifest, "stage", "execute")
+                    if stage == "execute":
+                        if not resolved.is_relative_to(supported_worktree_root):
+                            raise WorkspaceUnavailableError("direct execute workspace violates worktree root safety")
+                    else:
+                        read_only_stages = frozenset({"discuss", "plan", "review", "tech-doc"})
+                        read_only_roles = frozenset({"review", "research"})
+                        if stage in read_only_stages or request.provider_role in read_only_roles:
+                            if not (resolved.is_relative_to(supported_repo_root) or resolved.is_relative_to(supported_worktree_root)):
+                                raise WorkspaceUnavailableError("direct workspace_path must reside inside repository or worktree root")
+                        else:
+                            if not resolved.is_relative_to(supported_worktree_root):
+                                raise WorkspaceUnavailableError("direct execute workspace violates worktree root safety")
+                    return resolved
+
                 workspace_id = str(request.isolation_policy.get("workspace_id", ""))
                 if not workspace_id and request.provider_role == "review":
                     return root.resolve()
