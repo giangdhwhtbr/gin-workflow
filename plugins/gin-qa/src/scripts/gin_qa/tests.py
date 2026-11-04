@@ -204,8 +204,7 @@ def pin(root: Path, eff: Effective, ids: list[str]) -> list[str]:
     texts: dict[str, str] = {}
     for rel, changes in edits.items():
         try:
-            with (root / rel).open(encoding="utf-8", newline="") as file:
-                lines = file.read().split("\n")
+            lines = (root / rel).read_text(encoding="utf-8").split("\n")
         except UnicodeDecodeError:
             errors.append(f"{rel}: not UTF-8 text")
             continue

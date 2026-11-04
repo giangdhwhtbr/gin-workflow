@@ -267,9 +267,13 @@ def _lock(folder: Path, timeout: float = 10.0):
 
 
 def write_atomic(path: Path, text: str) -> None:
-    """Readers in other processes see the old or the new file, never half of one."""
+    """Readers in other processes see the old or the new file, never half of one.
+
+    `text` ends lines with \\n; they are written as the replaced file ends them (CRLF stays CRLF), else \\n.
+    """
+    newline = "\r\n" if path.is_file() and b"\r\n" in path.read_bytes() else "\n"
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(text, encoding="utf-8", newline="")  # newline="": keep the caller's line endings
+    temporary.write_text(text, encoding="utf-8", newline=newline)
     for attempt in range(40):
         try:
             os.replace(temporary, path)

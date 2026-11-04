@@ -117,6 +117,15 @@ class TestPlanAndCheck(QaCase):
         self.assertEqual(f"- **REQ:** REQ-AUTH-001@{hash8(self.root, self.bin, 'REQ-AUTH-001')}, "
                          f"REQ-AUTH-002@{hash8(self.root, self.bin, 'REQ-AUTH-002')}", first)
 
+    def test_pin_keeps_crlf_line_endings(self):
+        path = write(self.root, "qa/cases/auth/TC-AUTH-001.e2e.md",
+                     case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000"))
+        path.write_bytes(path.read_text().replace("\n", "\r\n").encode())
+        self.assertEqual(0, qa(self.root, self.bin, "pin", "TC-AUTH-001").returncode)
+        data = path.read_bytes()
+        self.assertNotIn(b"\n", data.replace(b"\r\n", b""))
+        self.assertIn(f"REQ-AUTH-001@{hash8(self.root, self.bin, 'REQ-AUTH-001')}\r\n".encode(), data)
+
 
 class TestChanges(QaCase):
     def test_case_for_unarchived_change_is_valid_before_and_after_archive(self):

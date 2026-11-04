@@ -207,7 +207,7 @@ class TestPlanPinCheck(TestsCase):
 
     def test_pin_keeps_crlf_line_endings(self):
         path = self.write_test("TC-AUTH-001", pinned="00000000")
-        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+        path.write_bytes(b"# TC: TC-AUTH-001@00000000\r\ndef test_tc_auth_001():\r\n    pass\r\n")
         self.assertEqual(0, self.gin_tests("pin", "TC-AUTH-001").returncode)
         now = self.tc_hash("TC-AUTH-001")
         self.assertEqual(f"# TC: TC-AUTH-001@{now}\r\ndef test_tc_auth_001():\r\n    pass\r\n".encode(),
