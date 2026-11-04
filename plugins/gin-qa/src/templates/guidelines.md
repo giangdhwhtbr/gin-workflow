@@ -14,3 +14,13 @@ Rules for writing test cases in this repository. `/gin-qa:cases` reads this file
 - Locators: prefer `getByRole` with the accessible name; use `getByTestId` only when no stable name exists.
 - Sign-in: none yet (describe how specs sign in, e.g. a `storageState` file or a sign-in step).
 - Test data: none yet (shared users and records specs may rely on; data one case needs goes in its `Test data` section).
+
+## Automated types
+
+Case types other than e2e whose tests `gin-qa tests` plans and runs (`/gin-qa:tests`). One `### <type>` per type; `{junit}` is the JUnit XML file the command writes, `{files}` (optional) the test files of the cases run. For example:
+
+    ### api
+    - Tests: `backend/tests/**/test_*.py`
+    - Run: `pytest {files} --junitxml={junit}`
+
+None yet.

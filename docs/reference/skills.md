@@ -63,6 +63,7 @@ See [QA](../guides/qa.md).
 |---|---|
 | `cases` | Write or update test cases from specs, one block per case in `qa/cases/<capability>.md`, traced to REQ-IDs |
 | `e2e` | Write, run, and check Playwright specs for `Type: e2e` cases by exploring the running application |
+| `tests` | Write, run, and check tests of declared automated types other than e2e (`api`, `unit`, ...) in the project's own test framework |
 
 Where the harness has subagents, `e2e` gives each case to the add-on's `e2e-tester` agent at the middle model and `low` effort.
 

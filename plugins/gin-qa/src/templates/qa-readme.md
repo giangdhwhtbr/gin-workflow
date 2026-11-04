@@ -4,7 +4,7 @@ This folder holds the test cases and end-to-end specs for this repository.
 
 - `cases/`: one folder per capability, one file per test case.
 - `e2e/`: Playwright specs, one per `e2e` case.
-- `evidence/`: run folders written by `gin-qa e2e run`; git-ignored.
+- `evidence/`: run folders written by `gin-qa e2e run` and `gin-qa tests run`; git-ignored.
 - `guidelines.md`: the team rules for writing cases and specs.
 
 ## Case files
@@ -28,7 +28,7 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 - `Result` is one of `passed`, `failed`, `blocked`, `not run`.
 - `Run` points to the evidence and `Bug` names the bug the result found.
 - Change these lines only with `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]`.
-- `gin-qa e2e run` records the automated results.
+- `gin-qa e2e run` and `gin-qa tests run` record the automated results.
 
 ## Commands
 
@@ -38,3 +38,4 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 - `gin-qa cases split <capability>`: turns a flat `<capability>.md` file into case files.
 - `gin-qa cases export --format json`: lists every case with its fields and result.
 - `gin-qa e2e run [TC-ID|capability]`: runs the specs and records their results.
+- `gin-qa tests run --type <type> [TC-ID|capability]`: runs the tests of a type the guidelines declare under `Automated types` and records their results.
