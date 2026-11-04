@@ -138,6 +138,9 @@ def _row(case: tc.Case, kind: str) -> dict[str, Any]:
 
 
 def plan(root: Path, eff: Effective, capability: str | None = None, only: str | None = None) -> dict[str, Any]:
+    tc_id = tc.TC_ID.fullmatch(capability or "")
+    if tc_id:
+        raise QaError(f"{capability}: a TC-ID, not a capability; pass its capability, for example `{tc_id.group(1).lower()}`")
     types = _types(root, eff, only)
     cases, _ = tc.load(root, eff.cases_dir)  # parse findings are `gin-qa cases check`'s job
     by_id = {case.id: case for case in cases}

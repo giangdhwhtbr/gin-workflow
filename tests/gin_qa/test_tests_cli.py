@@ -171,6 +171,12 @@ class TestPlanPinCheck(TestsCase):
         self.assertEqual(([], [], []), tuple(self.run_json("plan", "billing")[key]
                                              for key in ("missing", "stale", "orphan")))
 
+    def test_plan_rejects_a_tc_id_as_the_capability(self):
+        result = self.gin_tests("plan", "TC-AUTH-004", "--type", "api")
+        self.assertEqual((2, ""), (result.returncode, result.stdout))
+        self.assertIn("TC-AUTH-004: a TC-ID, not a capability; pass its capability, for example `auth`",
+                      result.stderr)
+
     def test_a_marker_of_another_declared_type_is_not_an_orphan(self):
         self.guidelines.write_text(GUIDELINES + "\n### unit\n- Tests: `backend/tests/unit/*.py`\n"
                                                 "- Run: `fake-runner --junitxml={junit}`\n")
