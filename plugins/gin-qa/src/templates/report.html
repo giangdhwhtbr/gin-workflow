@@ -2,9 +2,225 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QA report</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff; --fg: #1d2433; --muted: #5b6475; --line: #d9dee7; --panel: #f5f7fa; --accent: #2f6fde;
+  --passed: #1f8a4c; --failed: #c62f2f; --blocked: #b7791f; --notrun: #6b7486;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c; --fg: #e6e9ef; --muted: #9aa3b2; --line: #2c323c; --panel: #1c2027; --accent: #6c9cf0;
+    --passed: #2f9e5f; --failed: #d64545; --blocked: #b8862e; --notrun: #6b7486;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header, main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.muted { color: var(--muted); }
+.warn { color: var(--failed); }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.chart { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.chart h2 { font-size: 12px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.bar { display: grid; grid-template-columns: minmax(0, 120px) 1fr 4ch; gap: 8px; align-items: center; width: 100%;
+  padding: 4px; border: 0; border-radius: 4px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.bar:hover, .bar[aria-pressed="true"] { background: var(--line); }
+.bar:focus-visible, tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bar .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .track { height: 12px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar .fill { display: block; height: 100%; background: var(--accent); }
+.bar .count { text-align: right; font-variant-numeric: tabular-nums; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.tools input, .tools select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: inherit; }
+.tools input { flex: 1 1 220px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-size: 12px; color: var(--muted); }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--panel); }
+.badge { display: inline-block; padding: 0 6px; border-radius: 9px; color: #fff; font-size: 12px; white-space: nowrap; }
+.badge.passed { background: var(--passed); }
+.badge.failed { background: var(--failed); }
+.badge.blocked { background: var(--blocked); }
+.badge.notrun { background: var(--notrun); }
+dialog { width: min(960px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--bg); color: var(--fg); }
+dialog::backdrop { background: rgb(0 0 0 / .45); }
+.dialog-bar { position: sticky; top: 0; display: flex; justify-content: flex-end; padding: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.dialog-bar button { font: inherit; padding: 4px 12px; }
+#detail-body { padding: 0 16px 16px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+h3 { font-size: 14px; margin: 16px 0 4px; }
+h4 { margin: 0 0 4px; }
+.result { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+.run-steps li { margin-bottom: 12px; }
+.url { overflow-wrap: anywhere; font-size: 12px; }
+.run-steps img { display: block; max-width: min(320px, 100%); max-height: 200px; margin-top: 4px; border: 1px solid var(--line);
+  border-radius: 4px; object-fit: cover; object-position: top; }
+</style>
 </head>
 <body>
+<header>
+  <h1>QA report</h1>
+  <p class="muted" id="summary"></p>
+</header>
+<main>
+  <div class="charts" id="charts"></div>
+  <div class="tools" id="filters">
+    <input id="search" type="search" placeholder="Search ID or title" aria-label="Search ID or title">
+  </div>
+  <p class="muted" id="count" aria-live="polite"></p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Title</th><th>Capability</th><th>Type</th><th>Priority</th><th>Result</th><th>Bug</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+<dialog id="detail" aria-label="Test case">
+  <form method="dialog" class="dialog-bar"><button>Close</button></form>
+  <div id="detail-body"></div>
+</dialog>
 <script type="application/json" id="gin-qa-data">/*GIN_QA_DATA*/</script>
+<script>
+(() => {
+  'use strict';
+  // Case text is rendered with textContent and setAttribute only; never parse it as HTML.
+  const data = JSON.parse(document.getElementById('gin-qa-data').textContent);
+  const cases = data.cases;
+  const DIMS = [['capability', 'Capability'], ['type', 'Type'], ['priority', 'Priority'], ['result', 'Result']];
+  const filters = { capability: '', type: '', priority: '', result: '' };
+  const $ = (id) => document.getElementById(id);
+  const value = (item, dim) => item[dim] || '(none)';
+  const tone = (result) => ({ passed: 'passed', failed: 'failed', blocked: 'blocked' })[result] || 'notrun';
+
+  function el(tag, props, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, val] of Object.entries(props || {})) {
+      if (key === 'text') node.textContent = val;
+      else if (key.startsWith('on')) node.addEventListener(key.slice(2), val);
+      else node.setAttribute(key, val);
+    }
+    for (const child of children) if (child !== null && child !== undefined) node.append(child);
+    return node;
+  }
+  const badge = (result) => el('span', { class: `badge ${tone(result)}`, text: result });
+
+  function counts(dim) {
+    const map = new Map();
+    for (const item of cases) map.set(value(item, dim), (map.get(value(item, dim)) || 0) + 1);
+    return [...map].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+
+  function toggle(dim, name) {
+    filters[dim] = filters[dim] === name ? '' : name;
+    update();
+  }
+
+  function renderCharts() {
+    $('charts').replaceChildren(...DIMS.map(([dim, label]) => {
+      const rows = counts(dim);
+      const max = Math.max(...rows.map(([, count]) => count));
+      return el('section', { class: 'chart' }, el('h2', { text: label }), ...rows.map(([name, count]) => {
+        const fill = el('span', { class: 'fill' });
+        fill.style.width = `${(count / max) * 100}%`;
+        if (dim === 'result') fill.style.background = `var(--${tone(name)})`;
+        return el('button', {
+          type: 'button', class: 'bar', 'aria-pressed': String(filters[dim] === name),
+          title: `${label}: ${name} (${count})`, onclick: () => toggle(dim, name),
+        }, el('span', { class: 'name', text: name }), el('span', { class: 'track' }, fill),
+        el('span', { class: 'count', text: String(count) }));
+      }));
+    }));
+  }
+
+  function renderSelects() {
+    for (const [dim, label] of DIMS) {
+      $('filters').append(el('select', {
+        id: `filter-${dim}`, 'aria-label': label,
+        onchange: (event) => { filters[dim] = event.target.value; update(); },
+      }, el('option', { value: '', text: `${label}: all` }),
+      ...counts(dim).map(([name]) => el('option', { value: name, text: name }))));
+    }
+    $('search').addEventListener('input', update);
+  }
+
+  function shown() {
+    const query = $('search').value.trim().toLowerCase();
+    return cases.filter((item) => DIMS.every(([dim]) => !filters[dim] || value(item, dim) === filters[dim])
+      && (!query || item.id.toLowerCase().includes(query) || item.title.toLowerCase().includes(query)));
+  }
+
+  function renderTable() {
+    const rows = shown();
+    $('count').textContent = `${rows.length} of ${cases.length} cases`;
+    $('rows').replaceChildren(...rows.map((item) => el('tr', {
+      tabindex: '0', onclick: () => openCase(item),
+      onkeydown: (event) => { if (event.key === 'Enter') { event.preventDefault(); openCase(item); } }, // preventDefault: the Enter keypress must not click the dialog's focused Close button
+    }, el('td', { text: item.id }), el('td', { text: item.title }), el('td', { text: item.capability }),
+    el('td', { text: item.type }), el('td', { text: item.priority }), el('td', {}, badge(item.result)),
+    el('td', { text: item.bug }))));
+  }
+
+  function update() {
+    for (const [dim] of DIMS) $(`filter-${dim}`).value = filters[dim];
+    renderCharts();
+    renderTable();
+  }
+
+  const list = (items, ordered) => el(ordered ? 'ol' : 'ul', {}, ...items.map((item) => el('li', { text: item })));
+  const part = (title, ...content) => el('section', {}, el('h3', { text: title }), ...content);
+
+  function step(item) {
+    const li = el('li', {}, el('div', {}, badge(item.status), ` ${item.title || ''}`),
+      item.url ? el('div', { class: 'muted url', text: item.url }) : null,
+      item.error ? el('div', { class: 'warn', text: item.error }) : null);
+    if (item.screenshot) {
+      const href = `./${item.screenshot}`; // a path inside the report folder; the ./ keeps it from reading as a URL scheme
+      li.append(el('a', { href, target: '_blank', rel: 'noopener' },
+        el('img', { src: href, alt: `Screenshot after step ${item.n}`, loading: 'lazy' })));
+    }
+    return li;
+  }
+
+  function evidence(item) {
+    if (item.evidence === 'missing') return [el('p', { class: 'warn', text: `evidence not found: ${item.run}` })];
+    if (!item.results.length) return [el('p', { class: 'muted', text: `No result for this case in ${item.run}.` })];
+    return item.results.map((result) => el('div', { class: 'result' },
+      el('h4', {}, `${result.project || 'Default project'} `, badge(result.status)),
+      result.error ? el('p', { class: 'warn', text: result.error }) : null,
+      el('ol', { class: 'run-steps' }, ...result.steps.map(step))));
+  }
+
+  function openCase(item) {
+    const facts = [['Capability', item.capability], ['Type', item.type], ['Priority', item.priority],
+      ['REQ', item.reqs.map((req) => `${req.id}@${req.hash8}`).join(', ')], ['Source', item.source],
+      ...Object.entries(item.fields), ['Result', item.result], ['Run', item.run], ['Bug', item.bug],
+      ['File', `${item.file}:${item.line}`]];
+    const details = el('dl', {});
+    for (const [key, val] of facts) if (val) details.append(el('dt', { text: key }), el('dd', { text: val }));
+    const parts = [el('h2', { text: `${item.id}: ${item.title}` }), details];
+    for (const [title, items, ordered] of [['Preconditions', item.preconditions], ['Test data', item.test_data],
+      ['Steps', item.steps, true], ['Expected', item.expected]]) {
+      if (items.length) parts.push(part(title, list(items, ordered)));
+    }
+    if (item.evidence !== 'none') parts.push(part('Run evidence', ...evidence(item)));
+    $('detail-body').replaceChildren(...parts);
+    $('detail').showModal();
+  }
+
+  $('detail').addEventListener('click', (event) => { if (event.target === $('detail')) $('detail').close(); });
+  const scope = data.scope ? `capability ${data.scope}` : 'all capabilities';
+  $('summary').textContent = `${cases.length} cases · ${scope} · generated ${data.generated}`;
+  renderSelects();
+  update();
+})();
+</script>
 </body>
 </html>
