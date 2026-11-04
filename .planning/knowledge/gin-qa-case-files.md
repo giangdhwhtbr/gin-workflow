@@ -10,6 +10,7 @@ Epic `gin-workflow-qa-case-folders` (2026-11-04) added per-case files `qa/cases/
 
 **Consequences**
 - A capability whose name has an all-digit segment of three or more digits (`api-100`) is not recognised in case file names or by `next-id`; `check` reports the mismatch, so it is not silent.
+- Because `read_text()` normalises line endings, every writer rewrites a CRLF file with LF (case files, e2e specs, and test files under `tests pin`); bead `gin-workflow-kbzn` tracks keeping them.
 - `split` and `pin` do not take the `.gin-qa.lock` that `record_result` holds; revisit if several processes write the same cases file.
 
 **References**
