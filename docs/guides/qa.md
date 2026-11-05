@@ -13,6 +13,16 @@ curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/rem
 
 This installs the plugin for each harness and links the `gin-qa` launcher into `~/.local/bin`.
 
+## Setup: `/gin-qa:setup`
+
+`/gin-qa:setup` sets up QA in a repository from one interview. It reads what `qa/guidelines.md`, `qa/README.md`, and the case files already say, and asks only for the rest: the case types, the language, the test command of each automated type, the manual run reference and cadence, the bug tracker reference, and when a report is made. It shows each change before writing it:
+
+- `qa/guidelines.md`: the `Language:` line and the sections `Types`, `Automated types`, `Manual runs`, and `Bugs`. Other sections, such as `E2E specs`, are left as they are.
+- `qa/README.md`: the `Process` section.
+- `.claude/skills/<repository>-qa/SKILL.md`: a project skill that tells an agent which gin-qa skill runs each step, and points to the guidelines and README. It copies no rules, so editing the guidelines does not make it stale. After a gin-qa upgrade, rerun `/gin-qa:setup` to see its difference against the current template.
+
+It ends with `gin-qa cases check`, plus `gin-qa tests check` when automated types are declared, and does not commit. The project skill is written for Claude Code; on another harness, copy the `.claude/skills/<repository>-qa/` folder to the project skill folder that harness reads. In OpenCode the skill is `@gin-qa-setup`, so `@setup` stays gin-workflow's setup.
+
 ## Test cases: `/gin-qa:cases`
 
 `/gin-qa:cases <capability>` (or `--change <epic>`) writes one file per case into `qa/cases/<capability>/` (`qa.cases`), following the team rules in `qa/guidelines.md` (`qa.guidelines`). On first use it creates the guidelines file and `qa/README.md`, a guide for testers, from templates.
@@ -51,9 +61,11 @@ Saved as `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 
 Requirements and their hashes come from the living specs, so the [SDD layout](sdd.md) gives the most traceability.
 
+The `## Types` section of the guidelines lists the case types in use. `gin-qa cases check` reports a case whose type is not listed, a malformed entry, and a section that lists no types. Guidelines without the section accept any type.
+
 ## Manual runs: `/gin-qa:run`
 
-`/gin-qa:run <capability>` shows each manual case (`Type: manual`) of the capability in ID order and asks the tester for `passed`, `failed`, `blocked`, or `skip`. It asks for a run reference once, `manual <YYYY-MM-DD>` by default, and writes it on every case it records. `skip` writes nothing.
+`/gin-qa:run <capability>` shows each manual case (`Type: manual`) of the capability in ID order and asks the tester for `passed`, `failed`, `blocked`, or `skip`. It asks for a run reference once, `manual <YYYY-MM-DD>` by default, and writes it on every case it records. `skip` writes nothing. When the guidelines set `Run reference:` under `## Manual runs`, that format is the default instead.
 
 A failure asks for what happened, evidence references, and an optional external tracker reference, then runs `gin-qa cases bug`:
 
@@ -62,6 +74,7 @@ A failure asks for what happened, evidence references, and an optional external 
 - The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.
 - When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence are not added to it. A closed bug gets a new bug that names it as the previous bug; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for other values.
 - Teams that track bugs in Jira or Linear file the ticket there and pass its key with `--external-ref`; the flag only records the key on the bead.
+- When `## Bugs` in the guidelines says `External reference: required`, a failure is not filed without a reference, and the reference must match the pattern the line names.
 - Priority follows the case: `high` → 1, `medium` → 2, `low` → 3, none → 2.
 
 The skill never edits case files and never commits.

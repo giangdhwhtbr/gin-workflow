@@ -102,10 +102,12 @@ The gin-qa add-on is customized through the guidelines file (`qa/guidelines.md`)
 
 ### The guidelines file
 
-On first use, `/gin-qa:cases` creates `qa/guidelines.md`. The agent reads this file before drafting test cases, and its rules override the defaults.
+`/gin-qa:setup` writes `qa/guidelines.md` from an interview; without it, `/gin-qa:cases` creates the file from the template on first use. The agent reads this file before drafting test cases, and its rules override the defaults.
 
 Edit `qa/guidelines.md` to customize:
 - Language: Enforce Vietnamese, English, or bilingual test steps.
+- Types: the case types in use, one ``- `<type>`: <what it covers>`` line each under `## Types`; `gin-qa cases check` reports a case of an unlisted type.
+- Manual runs and bugs: the run reference `/gin-qa:run` proposes (`## Manual runs`), and whether a bug needs an external tracker reference (`## Bugs`).
 - Extra fields: Declare team-specific metadata tags.
 - End-to-end rules: Define sign-in mechanisms (such as `storageState`), test user fixtures, or locator strategies.
 
@@ -116,8 +118,12 @@ Example `qa/guidelines.md`:
 Rules for writing test cases in this repository:
 - Language: English
 - One user action per step.
-- Type is the file suffix: .e2e.md for browser flows, .api.md for API/service tests, .manual.md otherwise.
 - Priority: high | medium | low.
+
+## Types
+- `e2e`: browser flows.
+- `api`: API and service tests.
+- `manual`: walked by a tester.
 
 ## Extra Fields
 - Jira: JIRA-NNNN ticket reference

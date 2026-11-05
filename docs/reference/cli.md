@@ -385,6 +385,10 @@ In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for th
 
 The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing. `gin-qa e2e plan` and `gin-qa tests plan` exit 2 when the capability is a TC-ID, and name its capability.
 
+### `gin-qa cases check`
+
+Reports problems in the case files: structure, IDs, the `REQ:` or `Source:` fields, and, in the SDD layout, missing, stale, and obsolete cases. When the guidelines file has a `## Types` section, it also reports each entry that is not `` - `<type>`: <description> ``, a section that lists no types, and each case whose type is not listed (`<file>:<line>: <TC-ID>: type '<type>' is not listed under '## Types' in <guidelines>`). Exit 0 prints `ok`; exit 1 lists the findings.
+
 ### `gin-qa cases result`
 
 `gin-qa cases result <TC-ID> <status> [--run REF] [--bug ID|none]` is the only command that writes the `Result`, `Run`, and `Bug` lines. `status` is `passed`, `failed`, `blocked`, or `not run`. `--run` sets the `Run` line; without it the line is removed. `--bug` sets the `Bug` line, `--bug none` removes it, and without it the line stays.
