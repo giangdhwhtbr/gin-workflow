@@ -13,7 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
-                            make_change, make_repo, write)
+                            make_change, make_repo, write, write_activity, STATE)
 from workflow_core import specs, specs_trace  # noqa: E402
 from workflow_core.specs_archive import ArchiveConflict, archive  # noqa: E402
 
@@ -34,6 +34,7 @@ class TestArchive(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = make_repo(Path(self.tmp.name) / "repo")
         write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(self.root)
         write(self.root, "docs/specs/README.md", "# Specs\n\n## Capabilities\n- [auth](auth/spec.md)\n")
         self.cfg = specs.sdd_config(specs.load_config(self.root))
         self.base2 = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")[1]
@@ -42,8 +43,25 @@ class TestArchive(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_new_capability_spec_links_its_diagrams(self):
+        write_activity(self.root, "billing", "pay")
+        write(self.root, "docs/specs/billing/diagrams/invoice-state.md", STATE)
+        auth_before = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
+        change = make_change(self.root, spec_delta=delta(
+            added=ADDED_BLOCK + "\n" + ADDED_BLOCK.replace("REQ-AUTH-003", "REQ-BILLING-001")))
+        commit_all(self.root)
+        archive(self.root, self.cfg, change, today=TODAY)
+        billing = (self.root / "docs/specs/billing/spec.md").read_text(encoding="utf-8")
+        self.assertIn("## Diagrams\n\n- [invoice-state](diagrams/invoice-state.md)\n"
+                      "- [pay-activity](diagrams/pay-activity.md)\n\n## Requirements", billing)
+        auth = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
+        self.assertTrue(auth.startswith(auth_before.rstrip()))
+        self.assertNotIn("## Diagrams", auth)
+        self.assertEqual(STATE, (self.root / "docs/specs/billing/diagrams/invoice-state.md").read_text(encoding="utf-8"))
+
     def test_applies_added_modified_removed_and_new_capability(self):
         billing = ADDED_BLOCK.replace("REQ-AUTH-003", "REQ-BILLING-001")
+        write_activity(self.root, "billing", "pay")
         change = make_change(self.root, spec_delta=delta(
             added=ADDED_BLOCK + "\n" + billing, modified=MODIFIED.format(base=self.base2),
             removed=f"### REQ-AUTH-001: Sign in with password\n<!-- base: {self.base1} -->\nReason: replaced by SSO\n"))
@@ -141,6 +159,7 @@ class TestEndToEnd(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = make_repo(Path(directory) / "repo")
             write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            write_activity(root)
             commit_all(root)
             self.assertEqual(0, self.run_specs(root, "new", "lockout", "--epic", "ep-1").returncode)
             req = self.run_specs(root, "next-id", "auth").stdout.strip()

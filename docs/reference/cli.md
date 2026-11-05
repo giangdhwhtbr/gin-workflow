@@ -129,11 +129,11 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 |---|---|
 | `new SLUG --epic BEAD [--title T]` | Create a change folder under `artifacts.changes` |
 | `next-id CAP` | Next free requirement id for a capability |
-| `lint [--change C] [--against REF] [--spec FILE]` | Lint the living specs, or one change: its spec delta, and each repository path its files cite in backticks that exists on disk but git neither tracks nor ignores, and each dated asset folder `<specs>/<cap>/assets/<YYYY-MM-DD>/` without a `description.md`; `--spec` lints a legacy-layout design spec (every `### US-<n>:` story needs `Acceptance criteria:` with a bullet, no `{{`, `TBD`, or `TODO` outside code) |
+| `lint [--change C] [--against REF] [--spec FILE]` | Lint the living specs, or one change: its spec delta, and each repository path its files cite in backticks that exists on disk but git neither tracks nor ignores, and each dated asset folder `<specs>/<cap>/assets/<YYYY-MM-DD>/` without a `description.md`, each `<specs>/<cap>/diagrams/*-activity.md` without a mermaid block starting with `flowchart` or `graph` and `*-state.md` without one starting with `stateDiagram`, and with `--change` each capability with an `ADDED` or `MODIFIED` block but no `*-activity.md`; `--spec` lints a legacy-layout design spec (every `### US-<n>:` story needs `Acceptance criteria:` with a bullet, no `{{`, `TBD`, or `TODO` outside code) |
 | `hash REQ-ID` | Print the base hash of a requirement (`<!-- base: ... -->`) |
 | `template NAME` | Print a spec template |
 | `renumber OLD NEW --change C [--against REF]` | Rename a requirement id in a change and its beads |
-| `archive --change C` | Merge a change's spec delta into the living specs and archive the change |
+| `archive --change C` | Merge a change's spec delta into the living specs and archive the change; a new capability's `spec.md` links each file in its `diagrams/` under `## Diagrams` |
 | `trace --change C` | Show which tests and sources cover each requirement |
 | `status --change C` | Show a change's review status, URL, and merge commit |
 | `reqs [--change C]` | List requirements with section, hash, and the epic of the change that holds them |

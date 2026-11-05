@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "tests/workflow_core"))
 sys.path.insert(0, str(ROOT / "plugins/gin-qa/src/scripts"))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, make_change,  # noqa: E402,F401
-                            make_repo, write)
+                            make_repo, write, write_activity)
 
 QA_LAUNCHER = ROOT / "plugins/gin-qa/src/scripts/gin-qa"
 

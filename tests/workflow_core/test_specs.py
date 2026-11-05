@@ -13,7 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
-                            make_change, make_repo, write)
+                            make_change, make_repo, write, write_activity, STATE)
 from workflow_core import docs_check, specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
@@ -63,6 +63,7 @@ class TestRepositoryCommands(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = make_repo(Path(self.tmp.name) / "repo")
         write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(self.root)
         self.cfg = specs.sdd_config(specs.load_config(self.root))
 
     def tearDown(self):
@@ -130,6 +131,45 @@ class TestRepositoryCommands(unittest.TestCase):
         write(self.root, "docs/specs/reports/assets/2026-12-01/description.md", "# Reports: 2026-12-01\n")
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
         self.assertEqual([], specs.lint_change(self.root, self.cfg, make_change(self.root)))
+
+    def test_lint_checks_each_diagram_holds_a_block_of_its_kind(self):
+        write(self.root, "docs/specs/auth/diagrams/login-activity.md", "# Login\n\nNo diagram yet.\n")
+        write(self.root, "docs/specs/auth/diagrams/account-state.md",
+              "# Account\n\n```mermaid\nflowchart TD\n  a --> b\n```\n")
+        write(self.root, "docs/specs/auth/diagrams/token-state.md", STATE)
+        write(self.root, "docs/specs/auth/diagrams/sso-sequence.md", "# SSO\n\nNo block.\n")
+        expected = ["docs/specs/auth/diagrams/account-state.md: no mermaid block starting with stateDiagram",
+                    "docs/specs/auth/diagrams/login-activity.md: no mermaid block starting with flowchart or graph"]
+        self.assertEqual(expected, specs.lint_living(self.root, self.cfg))
+        self.assertEqual(expected, specs.lint_change(self.root, self.cfg, make_change(self.root)))
+        result = run_specs(self.root, "lint")
+        self.assertEqual(1, result.returncode)
+        self.assertIn(expected[0], result.stdout)
+        write(self.root, "docs/specs/auth/diagrams/login-activity.md", specs.template_text(self.root, "activity.md"))
+        write(self.root, "docs/specs/auth/diagrams/account-state.md", specs.template_text(self.root, "state.md"))
+        self.assertEqual([], specs.lint_living(self.root, self.cfg))
+
+    def test_lint_change_needs_an_activity_diagram_where_requirements_are_added_or_modified(self):
+        (self.root / "docs/specs/auth/diagrams/login-activity.md").unlink()
+        missing = "auth: no activity diagram in docs/specs/auth/diagrams/ (gin-workflow specs template activity.md)"
+        change = make_change(self.root)
+        self.assertEqual([missing], specs.lint_change(self.root, self.cfg, change))
+        result = run_specs(self.root, "lint", "--change", "ep-1")
+        self.assertEqual(1, result.returncode)
+        self.assertIn(missing, result.stdout)
+        base2 = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")[1]
+        modified = (f"### REQ-AUTH-002: Reject wrong password\n<!-- base: {base2} -->\n"
+                    "The system SHALL reject a wrong password twice.\n\n#### Scenario: wrong password\n"
+                    "- GIVEN a registered user\n- WHEN they submit a wrong password\n- THEN they see an error\n")
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(modified=modified))
+        self.assertEqual([missing], specs.lint_change(self.root, self.cfg, change))
+        base1 = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-001")[1]
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(
+            removed=f"### REQ-AUTH-001: Sign in with password\n<!-- base: {base1} -->\nReason: replaced by SSO\n"))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+        write_activity(self.root)
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(added=ADDED_BLOCK))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
 
     def test_block_outside_delta_sections(self):
         change = make_change(self.root, spec_delta="# Delta\n\n## Other\n\n" + ADDED_BLOCK)
@@ -242,12 +282,16 @@ class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
         with tempfile.TemporaryDirectory() as directory:
             root = make_repo(Path(directory), layout="legacy")
-            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "iteration.md", "readme.md", "runbook.md", "changelog.md"):
+            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "iteration.md", "readme.md", "runbook.md", "changelog.md", "activity.md", "state.md"):
                 with self.subTest(name=name):
                     self.assertEqual(0, run_specs(root, "template", name).returncode)
             self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
             self.assertIn("## User Stories", run_specs(root, "template", "proposal.md").stdout)
             self.assertIn("Depends on:", run_specs(root, "template", "roadmap.md").stdout)
+            self.assertIn("```mermaid\nflowchart TD", run_specs(root, "template", "activity.md").stdout)
+            self.assertIn("```mermaid\nstateDiagram-v2", run_specs(root, "template", "state.md").stdout)
+            living = run_specs(root, "template", "spec.md").stdout
+            self.assertLess(living.index("## Diagrams"), living.index("## Requirements"))
             self.assertIn("Capabilities:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("Capabilities: {{capabilities}}", run_specs(root, "template", "epic.md").stdout)
             iteration = run_specs(root, "template", "iteration.md").stdout

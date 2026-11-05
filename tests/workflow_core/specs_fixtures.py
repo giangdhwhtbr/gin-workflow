@@ -46,6 +46,29 @@ The system SHALL lock an account for 15 minutes after 5 failed logins.
 - THEN the account is locked
 """
 
+ACTIVITY = """# Login
+
+How a user signs in.
+
+```mermaid
+flowchart TD
+  submit([Submit password]) --> check{Valid?}
+  check -->|yes| done([Signed in])
+```
+"""
+
+STATE = """# Invoice
+
+The states of an invoice.
+
+```mermaid
+%% stored in invoices.status
+stateDiagram-v2
+  [*] --> Open
+  Open --> Paid: payment received
+```
+"""
+
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout
@@ -68,6 +91,10 @@ def write(root: Path, relative: str, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def write_activity(root: Path, cap: str = "auth", name: str = "login") -> Path:
+    return write(root, f"docs/specs/{cap}/diagrams/{name}-activity.md", ACTIVITY)
 
 
 def commit_all(root: Path, message: str = "c") -> None:

@@ -2,4 +2,6 @@
 
 ## Purpose
 
+## Diagrams
+
 ## Requirements

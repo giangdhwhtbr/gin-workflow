@@ -77,7 +77,9 @@ def archive(root: Path, cfg: Mapping[str, Any], change: Path, *, today: date | N
                 texts[block.cap] = path.read_text(encoding="utf-8").splitlines()
             else:
                 title = block.cap.replace("-", " ").capitalize()
-                texts[block.cap] = render(template_text(root, "spec.md"), {"capability": title}).splitlines()
+                text = render(template_text(root, "spec.md"), {"capability": title})
+                links = "".join(f"- [{p.stem}](diagrams/{p.name})\n" for p in sorted((base / block.cap / "diagrams").glob("*.md")))
+                texts[block.cap] = (text.replace("## Diagrams\n", f"## Diagrams\n\n{links}", 1) if links else text).splitlines()
                 new_caps.append(block.cap)
     for cap, lines in texts.items():
         mine = [block for block in blocks if block.cap == cap]

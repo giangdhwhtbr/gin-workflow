@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
 from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, case_file, cases_file, commit_all, delta, failing_stub, gin_workflow_bin,  # noqa: E402
-                         hash8, make_change, make_repo, qa, write)
+                         hash8, make_change, make_repo, qa, write, write_activity)
 from gin_qa.cases import as_dict, hash8 as case_hash8, parse_case_file, parse_file  # noqa: E402
 
 
@@ -34,6 +34,7 @@ class QaCase(unittest.TestCase):
         self.bin = gin_workflow_bin(self.base)
         self.root = make_repo(self.base / "repo")
         write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(self.root)
 
     def tearDown(self):
         self.tmp.cleanup()

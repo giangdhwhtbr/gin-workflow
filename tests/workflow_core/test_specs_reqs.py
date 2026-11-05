@@ -12,7 +12,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, make_change, make_repo,  # noqa: E402
-                            write)
+                            write, write_activity)
 
 
 def reqs(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -30,6 +30,7 @@ class TestSpecsReqs(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = make_repo(Path(self.tmp.name) / "repo")
         write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(self.root)
 
     def tearDown(self):
         self.tmp.cleanup()

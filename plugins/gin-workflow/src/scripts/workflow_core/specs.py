@@ -287,6 +287,30 @@ def lint_iterations(root: Path, cfg: Mapping[str, Any]) -> list[str]:
             if folder.is_dir() and _ISO_DATE.match(folder.name) and not (folder / "description.md").is_file()]
 
 
+_MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
+_DIAGRAM_KINDS = {"-activity.md": ("flowchart", "graph"), "-state.md": ("stateDiagram",)}
+
+
+def _mermaid_types(text: str) -> list[str]:
+    """The first word of each ```mermaid block, skipping blank lines and `%%` comments."""
+    types: list[str] = []
+    for body in _MERMAID.findall(text):
+        first = next((line.strip() for line in body.splitlines()
+                      if line.strip() and not line.strip().startswith("%%")), "")
+        types.append(first.split()[0] if first else "")
+    return types
+
+
+def lint_diagrams(root: Path, cfg: Mapping[str, Any]) -> list[str]:
+    """Every `<specs>/<cap>/diagrams/*-activity.md` / `*-state.md` holds a mermaid block of its kind."""
+    errors: list[str] = []
+    for path in sorted(specs_dir(root, cfg).glob("*/diagrams/*.md")):
+        kinds = next((types for suffix, types in _DIAGRAM_KINDS.items() if path.name.endswith(suffix)), None)
+        if kinds and not any(kind.startswith(kinds) for kind in _mermaid_types(path.read_text(encoding="utf-8"))):
+            errors.append(f"{shown(root, path)}: no mermaid block starting with {' or '.join(kinds)}")
+    return errors
+
+
 def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     errors: list[str] = []
     seen: dict[str, str] = {}
@@ -304,7 +328,7 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
                 errors.append(f"{where}: {block.id} duplicates {seen[block.id]}")
             seen.setdefault(block.id, name)
             errors += [f"{where}: {message}" for message in lint_block(block)]
-    return errors + lint_iterations(root, cfg)
+    return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg)
 
 
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
@@ -338,7 +362,12 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         for block in blocks:
             if block.section == "ADDED" and block.id in taken:
                 errors.append(f"{path}:{block.start + 1}: {block.id} is already used on {against}")
-    return errors + _untracked_citations(root, change) + lint_iterations(root, cfg)
+    base = specs_dir(root, cfg)
+    for cap in sorted({block.cap for block in blocks if block.section in ("ADDED", "MODIFIED")}):
+        if not any((base / cap / "diagrams").glob("*-activity.md")):
+            errors.append(f"{cap}: no activity diagram in {shown(root, base / cap / 'diagrams')}/ "
+                          "(gin-workflow specs template activity.md)")
+    return errors + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg)
 
 
 _CITED = re.compile(r"`([^`\s]+)`")
