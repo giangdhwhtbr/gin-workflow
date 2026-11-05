@@ -6,7 +6,7 @@ gin-workflow là plugin cho Claude Code, Codex CLI, Antigravity CLI và OpenCode
 
 - [Bắt đầu](getting-started.md): cài plugin và chạy một tính năng từ ý tưởng tới merge.
 - [Vai trò trong nhóm](roles.md): PM, BA, developer và tester mỗi người làm gì và đọc gì.
-- [Khởi đầu](starters/greenfield.md): điểm vào cho dự án mới và dự án có sẵn.
+- [Khởi đầu](starters/greenfield.md): các điểm vào [greenfield](starters/greenfield.md) và [brownfield](starters/brownfield.md).
 - [Hướng dẫn](guides/use-cases.md): tình huống sử dụng, công cụ khuyến nghị, Windows, chế độ nhóm và add-on QA.
 - [Tham chiếu](reference/skills.md): mọi skill, lệnh CLI và khóa cấu hình.
 
