@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from datetime import date
 import hashlib
 import json
+import os
 from pathlib import Path
+import posixpath
 import re
 import subprocess
 from typing import Any, Mapping, Sequence
@@ -326,6 +328,32 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         for block in blocks:
             if block.section == "ADDED" and block.id in taken:
                 errors.append(f"{path}:{block.start + 1}: {block.id} is already used on {against}")
+    return errors + _untracked_citations(root, change)
+
+
+_CITED = re.compile(r"`([^`\s]+)`")
+_LINE_SUFFIX = re.compile(r":\d+(?:-\d+)?$")
+
+
+def _untracked_citations(root: Path, change: Path) -> list[str]:
+    """Repository paths cited in backticks that exist on disk but git does not track, so a clone loses them.
+
+    Missing paths (planned files), paths outside the repository, and the change folder itself are skipped."""
+    listed = _git(root, "ls-files", "-z", "--others", "--exclude-standard")
+    if listed.returncode != 0:
+        return [f"{shown(root, change)}: could not list untracked files: {listed.stderr.strip()}"]
+    own = shown(root, change) + "/"
+    untracked = [p for p in listed.stdout.split("\0") if p and not p.startswith(own)]
+    errors = []
+    for doc in sorted(change.rglob("*.md")):
+        for number, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), 1):
+            for cited in _CITED.findall(line):
+                rel = posixpath.normpath(_LINE_SUFFIX.sub("", cited))
+                # os.path.exists, not Path.exists: a token too long for a file name is simply not a path.
+                if rel == "." or rel.startswith(("/", "..")) or not os.path.exists(root / rel):
+                    continue
+                if any(p == rel or p.startswith(rel + "/") for p in untracked):
+                    errors.append(f"{shown(root, doc)}:{number}: `{cited}` is not tracked by git; commit it")
     return errors
 
 
