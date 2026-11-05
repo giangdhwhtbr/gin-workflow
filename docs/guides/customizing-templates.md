@@ -106,7 +106,7 @@ The gin-qa add-on is customized through the guidelines file (`qa/guidelines.md`)
 
 Edit `qa/guidelines.md` to customize:
 - Language: Enforce Vietnamese, English, or bilingual test steps.
-- Types: the case types in use, one ``- `<type>`: <what it covers>`` line each under `## Types`; `gin-qa cases check` reports a case of an unlisted type.
+- Types: the case types in use, one ``- `<type>`: <what it covers>`` line each under `## Types`, checked by [`gin-qa cases check`](../reference/cli.md#gin-qa-cases-check).
 - Manual runs and bugs: the run reference `/gin-qa:run` proposes (`## Manual runs`), and whether a bug needs an external tracker reference (`## Bugs`).
 - Extra fields: Declare team-specific metadata tags.
 - End-to-end rules: Define sign-in mechanisms (such as `storageState`), test user fixtures, or locator strategies.

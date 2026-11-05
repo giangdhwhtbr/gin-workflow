@@ -387,7 +387,7 @@ The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,p
 
 ### `gin-qa cases check`
 
-Reports problems in the case files: structure, IDs, the `REQ:` or `Source:` fields, and, in the SDD layout, missing, stale, and obsolete cases. When the guidelines file has a `## Types` section, it also reports each entry that is not `` - `<type>`: <description> ``, a section that lists no types, and each case whose type is not listed (`<file>:<line>: <TC-ID>: type '<type>' is not listed under '## Types' in <guidelines>`). Exit 0 prints `ok`; exit 1 lists the findings.
+Reports problems in the case files: structure, IDs, the `REQ:` or `Source:` fields, case files that match `artifacts.test_globs`, and, in the SDD layout, missing, stale, and obsolete cases. When the guidelines file has a `## Types` section, it also reports each entry that is not `` - `<type>` `` optionally followed by `:` and a description, a section that lists no types, and each case whose type is not listed (`<file>:<line>: <TC-ID>: type '<type>' is not listed under '## Types' in <guidelines>`). Guidelines without the section accept any type. Exit 0 prints `ok`; exit 1 lists the findings.
 
 ### `gin-qa cases result`
 

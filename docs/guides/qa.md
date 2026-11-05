@@ -15,13 +15,13 @@ This installs the plugin for each harness and links the `gin-qa` launcher into `
 
 ## Setup: `/gin-qa:setup`
 
-`/gin-qa:setup` sets up QA in a repository from one interview. It reads what `qa/guidelines.md`, `qa/README.md`, and the case files already say, and asks only for the rest: the case types, the language, the test command of each automated type, the manual run reference and cadence, the bug tracker reference, and when a report is made. It shows each change before writing it:
+`/gin-qa:setup` sets up QA in a repository from one interview. It reads what `qa/guidelines.md`, `qa/README.md`, and the case files already say, and asks only for what they leave open. The questions cover the case types, the language, the test command of each automated type, the manual run reference and cadence, the external tracker reference, and when a report is made. It shows each change before writing it:
 
 - `qa/guidelines.md`: the `Language:` line and the sections `Types`, `Automated types`, `Manual runs`, and `Bugs`. Other sections, such as `E2E specs`, are left as they are.
 - `qa/README.md`: the `Process` section.
-- `.claude/skills/<repository>-qa/SKILL.md`: a project skill that tells an agent which gin-qa skill runs each step, and points to the guidelines and README. It copies no rules, so editing the guidelines does not make it stale. After a gin-qa upgrade, rerun `/gin-qa:setup` to see its difference against the current template.
+- `.claude/skills/<name>-qa/SKILL.md`, where `<name>` is the repository folder name in lower case with each run of other characters replaced by `-`: a project skill that tells an agent which gin-qa skill runs each step, and points to the guidelines and README. It copies no rules, so editing the guidelines does not make it stale. After a gin-qa upgrade, rerun `/gin-qa:setup` to see its difference against the current template.
 
-It ends with `gin-qa cases check`, plus `gin-qa tests check` when automated types are declared, and does not commit. The project skill is written for Claude Code; on another harness, copy the `.claude/skills/<repository>-qa/` folder to the project skill folder that harness reads. In OpenCode the skill is `@gin-qa-setup`, so `@setup` stays gin-workflow's setup.
+It ends with `gin-qa cases check`, plus `gin-qa tests check` when automated types are declared, and does not commit. The project skill is written for Claude Code; on another harness, copy the `.claude/skills/<name>-qa/` folder to the project skill folder that harness reads. In OpenCode the skill is `@gin-qa-setup`, so `@setup` stays gin-workflow's setup.
 
 ## Test cases: `/gin-qa:cases`
 
@@ -61,7 +61,7 @@ Saved as `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 
 Requirements and their hashes come from the living specs, so the [SDD layout](sdd.md) gives the most traceability.
 
-The `## Types` section of the guidelines lists the case types in use. `gin-qa cases check` reports a case whose type is not listed, a malformed entry, and a section that lists no types. Guidelines without the section accept any type.
+The `## Types` section of the guidelines lists the case types in use, and [`gin-qa cases check`](../reference/cli.md#gin-qa-cases-check) checks each case against it.
 
 ## Manual runs: `/gin-qa:run`
 
