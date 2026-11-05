@@ -53,7 +53,7 @@ Stages load these when needed; you can also invoke them directly.
 | Skill | Purpose |
 |---|---|
 | `write-doc` | Write or update a standalone document (README, runbook or guide, ADR, changelog) from its template, and check it with `gin-workflow docs check` |
-| `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing) from repository evidence, or reground existing pages against the code, on request only |
+| `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing, and a glossary of non-English business terms) from repository evidence, or reground existing pages against the code, on request only |
 
 ## gin-qa (optional add-on)
 

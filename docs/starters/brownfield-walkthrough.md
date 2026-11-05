@@ -128,7 +128,9 @@ The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin-wo
 
 Put in the prompt: the entry points you know (`web.xml`, the Struts config), the database, and the modules you plan to replace first.
 
-**You get:** the tech-doc set under `.planning/codebase/` (or `docs/codebase/` with the SDD layout), one file per topic (`OVERVIEW`, `FEATURES`, `API`, `STACK`, `INTEGRATIONS`, `ARCHITECTURE`, `STRUCTURE`, `CONVENTIONS`, `TESTING`, `CONCERNS`).
+**You get:** the tech-doc set under `.planning/codebase/` (or `docs/codebase/` with the SDD layout), one file per topic (`OVERVIEW`, `FEATURES`, `API`, `STACK`, `INTEGRATIONS`, `ARCHITECTURE`, `STRUCTURE`, `CONVENTIONS`, `TESTING`, `CONCERNS`, `GLOSSARY`).
+
+When the legacy system uses a language other than English, the set also holds `11-GLOSSARY.md`: each business term with a proposed English term, the identifiers that carry it, and its evidence. Before the first `/gin-workflow:discuss`, set the translations you accept to `confirmed`, resolve the `Conflicts` table, and add `glossary` to `rules.packs` in `.agent-workflow/config.yaml`. Specs, plans, code, and reviews then use the same terms, and later `/gin-workflow:tech-doc` runs never change a confirmed one.
 
 **Gate or approval:** none. Review it with the team; the roadmap is only as good as this survey.
 
