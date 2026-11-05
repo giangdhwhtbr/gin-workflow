@@ -33,6 +33,7 @@ Everyone except the tech lead starts from [joining a team](guides/team.md#join-i
 2. [Enabling team mode](guides/team.md#enable-it-lead)
 3. [Brownfield starter](starters/brownfield.md)
 4. [Rule packs](guides/rules.md)
+5. [Using AI effectively](guides/ai-strategy.md)
 
 ### PM
 
@@ -53,6 +54,7 @@ Everyone except the tech lead starts from [joining a team](guides/team.md#join-i
 1. [Joining a team](guides/team.md#join-it-member)
 2. [Rule packs](guides/rules.md)
 3. The Execute section of the [brownfield starter](starters/brownfield.md#execute)
+4. [Working with Claude Code](guides/claude-workflow.md)
 
 ### Tester
 

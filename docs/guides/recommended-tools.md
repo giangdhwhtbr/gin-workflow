@@ -28,7 +28,7 @@ Check with `codegraph --version`.
 
 | Where | How |
 |---|---|
-| Every lifecycle stage ([stage contract](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-workflow/src/references/stage-contract.md)) | looks up symbols, tests, and knowledge with `codegraph explore` before grep |
+| Every lifecycle stage | looks up symbols, tests, and knowledge with `codegraph explore` before grep |
 | `agent-researcher`, `developer`, `docs-writer` agents | look up related code with `codegraph explore` |
 | `code-reviewer` agent | looks up callers; runs `codegraph impact` / `codegraph callers` on changed public symbols |
 | `/gin-workflow:tech-doc` | `codegraph files` for structure, `codegraph explore` for subsystems |
@@ -43,6 +43,6 @@ A git worktree has no `.codegraph/` of its own, so agents working in one fall ba
 
 | Tool | For | Set up |
 |---|---|---|
-| Codex CLI (`codex`), Antigravity CLI (`agy`), or OpenCode (`opencode`) next to your main harness | [worker routing](../orchestrator/README.md), with the gin-orchestrator extension | install the CLI and `./install.sh --plugin gin-orchestrator`, then run `/gin-orchestrator:providers` |
+| Codex CLI (`codex`), Antigravity CLI (`agy`), or OpenCode (`opencode`) next to your main harness | worker routing, with the gin-orchestrator extension (it sends tracks to other harnesses) | install the CLI and `./install.sh --plugin gin-orchestrator`, then run `/gin-orchestrator:providers` |
 | GitHub CLI (`gh`) or GitLab CLI (`glab`) | [team mode](team.md) | your package manager, then `gh auth login` or `glab auth login` |
 | Node with `@playwright/test` 1.49 or later | [QA end-to-end specs](qa.md) | `npm i -D @playwright/test` and `npx playwright install` in the application repository |

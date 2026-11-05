@@ -2,6 +2,15 @@
 
 `gin-qa` is an optional plugin that writes test cases from your specs, walks a tester through the manual cases and files a bug bead for each failure, turns end-to-end cases into Playwright specs with recorded evidence, and reports on both in one offline HTML page. It needs `gin-workflow` and is not installed by default.
 
+```mermaid
+flowchart LR
+  A["REQ-ID@hash8"] --> B["One case file per test case<br/>qa/cases/cap/"]
+  B --> C["gin-qa tests, gin-qa e2e,<br/>/gin-qa:run"]
+  C --> D["gin-qa cases result<br/>bug beads from gin-qa cases bug"]
+  D --> E["/gin-qa:report HTML report"]
+  E --> F["ship approval"]
+```
+
 ## Install
 
 From a clone of this repository, or remotely:

@@ -4,6 +4,14 @@ By default (`artifacts.layout: legacy`) each change gets a dated spec in `.plann
 
 Setup proposes `artifacts.layout: sdd` for a greenfield project. An existing repository switches with `/gin-workflow:migrate-specs`, which moves its `.planning` specs and plans and sets the layout; `gin-workflow setup doctor` suggests it when legacy specs exist.
 
+```mermaid
+flowchart LR
+  A["Living specs<br/>docs/specs"] --> B["Change delta<br/>01-proposal to 04-plan"]
+  B --> C["Plan tracks and tests<br/>pinned to REQ@hash8"]
+  C --> D["ship"]
+  D -->|"specs archive"| A
+```
+
 ## Layout
 
 ```

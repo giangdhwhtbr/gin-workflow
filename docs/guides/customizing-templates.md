@@ -6,14 +6,14 @@ Override the templates gin-workflow and gin-qa write from, and the rules gin-qa 
 
 `gin-workflow` looks templates up in this order:
 
-```text
-.agent-workflow/templates/<name>   ──► project override (used first)
-               ▲
-               │ (falls back to)
-the plugin's templates/            ──► built-in default
+```mermaid
+flowchart LR
+  A["Command needs a template"] --> B{"Override in<br/>.agent-workflow/templates/?"}
+  B -->|"yes"| C["Use the project override"]
+  B -->|"no"| D["Use the plugin built-in default"]
 ```
 
-A command that needs a template checks `.agent-workflow/templates/` at the repository root first. A file with the same name there replaces the built-in default (`template_text` in `workflow_core/specs.py`).
+A command that needs a template checks `.agent-workflow/templates/` at the repository root first. A file with the same name there replaces the built-in default.
 
 ### Built-in templates
 

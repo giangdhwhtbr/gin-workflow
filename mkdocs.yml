@@ -67,6 +67,8 @@ plugins:
             Starters: Khởi đầu
             Guides: Hướng dẫn
             Reference: Tham chiếu
+            Using AI effectively: Dùng AI hiệu quả
+            Working with Claude Code: Làm việc với Claude Code
 
 not_in_nav: |
   /concepts/**
@@ -93,14 +95,16 @@ nav:
       - Brownfield: starters/brownfield.md
   - Guides:
       - Use cases: guides/use-cases.md
+      - Team mode: guides/team.md
+      - Using AI effectively: guides/ai-strategy.md
+      - Working with Claude Code: guides/claude-workflow.md
+      - SDD living specs: guides/sdd.md
+      - QA add-on: guides/qa.md
       - Customizing templates: guides/customizing-templates.md
+      - Rule packs: guides/rules.md
+      - AI usage report: guides/usage-report.md
       - Recommended tools: guides/recommended-tools.md
       - Windows: guides/windows.md
-      - Rule packs: guides/rules.md
-      - SDD living specs: guides/sdd.md
-      - Team mode: guides/team.md
-      - QA add-on: guides/qa.md
-      - AI usage report: guides/usage-report.md
   - Reference:
       - Skills: reference/skills.md
       - CLI: reference/cli.md

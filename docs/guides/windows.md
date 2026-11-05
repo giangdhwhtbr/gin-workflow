@@ -12,7 +12,7 @@ winget install Microsoft.PowerShell
 
 ### Python 3.11
 
-Install Python 3.11 or later from python.org or with winget. `rules_checks.py` imports `tomllib`, which exists from 3.11, and `setup preset` and `setup doctor` load it. The launcher shim runs `py -3` when the `py` launcher exists and `python` otherwise, so one of them must be on `PATH`:
+Install Python 3.11 or later from python.org or with winget. The rule checks import `tomllib`, which exists from 3.11, and `setup preset` and `setup doctor` load them. The launcher shim runs `py -3` when the `py` launcher exists and `python` otherwise, so one of them must be on `PATH`:
 ```powershell
 winget install Python.Python.3.12
 ```
@@ -125,7 +125,7 @@ CI runs the same smoke test on `windows-latest` for every push and pull request.
 
 ### `PermissionError: [WinError 32]` or `[WinError 5]`
 
-`gin-workflow` retries file locks and atomic file replacement on Windows (`workflow_core/atomic.py`). If Windows Defender or another antivirus slows test runs, add a folder exclusion for the repository's `.planning/worktrees/` directory in Windows Security.
+`gin-workflow` retries file locks and atomic file replacement on Windows. If Windows Defender or another antivirus slows test runs, add a folder exclusion for the repository's `.planning/worktrees/` directory in Windows Security.
 
 ### `EventPersistenceError: cannot lock ...: file locking requires POSIX or Windows advisory file locking`
 

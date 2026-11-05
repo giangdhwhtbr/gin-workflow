@@ -5,10 +5,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WALKTHROUGH = ROOT / "docs/starters/brownfield.md"
+AI_STRATEGY = ROOT / "docs/guides/ai-strategy.md"
 
 
 # `task` runs bd unchanged; cli.md lists only some of its subcommands, so name the others the walkthrough uses.
-BD_PASSTHROUGH = {"graph"}
+BD_PASSTHROUGH = {"graph", "dep"}
 
 
 def undocumented(cli, text):
@@ -30,6 +31,11 @@ class TestWalkthroughCommands(unittest.TestCase):
     def test_every_cited_command_is_in_the_cli_reference(self):
         cli = (ROOT / "docs/reference/cli.md").read_text(encoding="utf-8")
         text = WALKTHROUGH.read_text(encoding="utf-8")
+        self.assertEqual([], undocumented(cli, text))
+
+    def test_ai_strategy_cites_only_documented_commands(self):
+        cli = (ROOT / "docs/reference/cli.md").read_text(encoding="utf-8")
+        text = AI_STRATEGY.read_text(encoding="utf-8")
         self.assertEqual([], undocumented(cli, text))
 
     def test_unknown_subcommand_is_reported(self):

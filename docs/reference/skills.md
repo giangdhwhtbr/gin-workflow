@@ -61,7 +61,7 @@ See [QA](../guides/qa.md).
 
 | Skill | Purpose |
 |---|---|
-| `cases` | Write or update test cases from specs, one block per case in `qa/cases/<capability>.md`, traced to REQ-IDs |
+| `cases` | Write or update test cases from specs, one file per case under `qa/cases/<capability>/`, traced to REQ-IDs |
 | `e2e` | Write, run, and check Playwright specs for `Type: e2e` cases by exploring the running application |
 | `report` | Write an offline HTML report of the test cases, with charts, filters, and per-step e2e screenshots |
 | `run` | Walk the manual cases of a capability with a tester, record each result, and file a bug bead linked to the case's epic for each failure |
@@ -77,3 +77,170 @@ See the [orchestrator contract](orchestrator-contract.md).
 | Skill | Purpose |
 |---|---|
 | `providers` | Configure worker harnesses: which harnesses may run work, the model catalog of each harness, preferred and fallback harnesses per role, concurrency, and limits |
+
+## Prompt templates
+
+Copy a prompt, replace the placeholders in angle brackets, and run it in your harness. The examples use the seven-person `shop-portal` team of the [brownfield starter](../starters/brownfield.md#the-scenario), which defines the members, areas, and approvals.
+
+The tracks of the migration epic depend on each other as follows. After the BA confirms the spec, QA cases, the backend API, and the frontend with mocks run in parallel.
+
+```mermaid
+flowchart LR
+  A["BA discuss"] --> B["QA cases"]
+  A --> C["BE API"]
+  A --> D["FE with mocks"]
+  C --> E["FE integration"]
+  D --> E
+  C --> F["Legacy router"]
+  B --> G["QA E2E and report"]
+  E --> G
+  F --> G
+```
+
+Which model and effort each stage needs is in [Using AI effectively](../guides/ai-strategy.md#model-and-effort-by-stage).
+
+### Setup and team
+
+`setup` (Tech Lead, once):
+
+```text
+/gin-workflow:setup
+Stage: brownfield. Shape: fullstack. Monorepo: yes.
+Directories: legacy/ (Struts, subtree), services/api/ (Maven), apps/web/ (npm), qa/.
+```
+
+`team-setup` as lead:
+
+```text
+/gin-workflow:team-setup
+Host: github. Commit convention: conventional.
+Members: lan@example.com pm; an@example.com ba; binh@example.com be_lead; em@example.com and dung@example.com be_dev; hoa@example.com fe_dev; chi@example.com qe.
+Areas: legacy legacy/**, api services/api/**, web apps/web/**, qa qa/**, each led by be_lead.
+Approvals: requirement_confirmed [ba, be_lead], plan_approved area_lead, ship [qe, be_lead], roadmap [pm, be_lead].
+Permissions: milestone [pm].
+```
+
+`team-setup` as member:
+
+```text
+/gin-workflow:team-setup
+I am a member. My git email is <email>.
+```
+
+### Documentation and roadmap
+
+`tech-doc`:
+
+```text
+/gin-workflow:tech-doc whole repository
+Entry points: web.xml and the Struts config. Database: Oracle. First modules to replace: catalog, cart, checkout.
+```
+
+`roadmap` (Lan, on a Premium seat):
+
+```text
+/gin-workflow:roadmap Goal: replace the catalog, cart and checkout JSP flows with a Spring Boot API and a React SPA within two quarters. Constraints: the Oracle schema stays; no downtime. Non-goals: reporting screens.
+Team: 7 members. Premium seats: lan, binh. Standard seats: an, em, dung, hoa, chi.
+Areas: legacy, api, web, qa. Epics must split into single-area tracks.
+```
+
+`roadmap --milestone`:
+
+```text
+/gin-workflow:roadmap --milestone <milestone-id>
+Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first.
+```
+
+### Spec, plan, and execution
+
+`discuss` (An):
+
+```text
+/gin-workflow:discuss <epic-id>
+Replace the catalog JSP flow. Describe the legacy edge cases and validation rules, give an explicit REST contract per endpoint, and state what is out of scope.
+```
+
+`plan` (Binh, on a Premium seat):
+
+```text
+/gin-workflow:plan
+Split the epic into single-area tracks, each with Area, Owner, Provider role, Model, Effort, and Files.
+Track 1: Area qa, Owner chi@example.com, Provider role general, Files: Create qa/cases/catalog/**. Cases for the catalog capability, one file per case.
+Track 2: Area api, Owner em@example.com, Provider role backend, Files: Create services/api/... Spring Boot API, facade, and parity tests.
+Track 3: Area web, Owner hoa@example.com, Provider role frontend, Files: Create apps/web/... React UI against contract mocks.
+Track 4: Area web, Owner hoa@example.com, Dependencies: Track 2, Track 3, Files: Modify apps/web/... Replace the mocks with real API calls.
+Track 5: Area legacy, Owner binh@example.com, Dependencies: Track 2, Files: Modify legacy/... Router cutover to the facade, opus and high.
+Track 6: Area qa, Owner chi@example.com, Dependencies: Track 1, Track 4, Track 5, Provider role general, Files: Create qa/e2e/catalog/... API tests, E2E, manual runs, and the HTML report.
+Bounded tracks run at sonnet and medium or haiku and low. Check the plan with gin-workflow team check-plan.
+```
+
+`orchestrate`:
+
+```text
+/gin-workflow:orchestrate
+Create one track bead per track, including the QA tracks. Members claim them with gin-workflow team claim.
+```
+
+`execute`:
+
+```text
+/gin-workflow:execute <track-bead-id>
+Work test-first inside the track's Files. Stop and tell me if a change would leave the track's area.
+```
+
+### QA
+
+`/gin-qa:setup` (Chi, once):
+
+```text
+/gin-qa:setup
+Case types: api, e2e, manual. The api type runs with <test command>. Bugs go to the epic as bug beads.
+```
+
+`/gin-qa:cases`:
+
+```text
+/gin-qa:cases catalog
+Cover every requirement of the catalog spec and the legacy behaviors the new API must match.
+```
+
+`/gin-qa:tests`:
+
+```text
+/gin-qa:tests catalog --type api
+```
+
+`/gin-qa:run` (files a bug bead with `gin-qa cases bug` for each failed manual case):
+
+```text
+/gin-qa:run catalog
+```
+
+`/gin-qa:e2e`:
+
+```text
+/gin-qa:e2e catalog
+Base URL: <url>. Accounts come from environment variables <names>. Flows: browse, search, open a product.
+```
+
+`/gin-qa:report` (writes the HTML report):
+
+```text
+/gin-qa:report catalog
+```
+
+### Close and review
+
+`ship`:
+
+```text
+/gin-workflow:ship
+Epic: <epic-id>. Open a pull request; do not merge yet.
+```
+
+`report`:
+
+```text
+/gin-workflow:report --milestone <milestone-id>
+Show cost and quality signals per epic.
+```
