@@ -229,6 +229,8 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
             self.assertIn("## User Stories", run_specs(root, "template", "proposal.md").stdout)
             self.assertIn("Depends on:", run_specs(root, "template", "roadmap.md").stdout)
+            self.assertIn("Capabilities:", run_specs(root, "template", "roadmap.md").stdout)
+            self.assertIn("Capabilities: {{capabilities}}", run_specs(root, "template", "epic.md").stdout)
             write(root, ".agent-workflow/templates/user-story.md", "### Story {{n}}\n")
             self.assertEqual("### Story {{n}}\n", run_specs(root, "template", "user-story.md").stdout)
 

@@ -53,6 +53,8 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 
 ## Images and mockups
 
+A feature's requirements, its UI included, live in the feature's capability (`reports`, not `ui`). A `ui` capability holds only what spans pages: design system, layout, navigation, shared components. A project that wants another rule writes it in `docs/specs/README.md`, and discuss follows the README.
+
 As a team convention, keep screenshots, mockups and diagrams for a capability in `docs/specs/<capability>/assets/`, with names that say the screen and state (`login-form-error.png`). gin-workflow does not create or move this folder.
 
 `specs archive` copies the text of each requirement block into `docs/specs/<capability>/spec.md`, so write image paths relative to that file (`assets/login-form.png`). In the change folder's `02-spec-delta.md` those links do not resolve until the change ships.
@@ -63,7 +65,7 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 
 | Stage | With the SDD layout |
 |---|---|
-| `discuss` | Creates the epic, then `specs new <slug> --epic <epic>` makes the change folder. Writes `01-proposal.md`, `02-spec-delta.md`, `03-design.md` (and an ADR for an architecture decision). `specs lint --change <epic>` must pass. |
+| `discuss` | Creates the epic, after you confirm the capabilities table (capability, requirement groups, asset paths) in the design, then `specs new <slug> --epic <epic>` makes the change folder. Writes `01-proposal.md`, `02-spec-delta.md`, `03-design.md` (and an ADR for an architecture decision). `specs lint --change <epic>` must pass. |
 | spec review | `artifacts.spec_review: chat` records `requirement-confirmed` when you confirm in the chat. `pr` commits the change folder and the files it cites on `spec/<epic>-<slug>`, opens a pull request, and records the gate only after `specs status --change <epic>` reports it merged. |
 | `plan` | Writes `<change>/04-plan.md`; each track lists `Requirements: REQ-...`, and every added or modified requirement belongs to a track. |
 | `orchestrate` | Reuses the epic; each track bead gets `--spec-id <epic>-<slug>` and `req:<REQ-ID>` labels. |

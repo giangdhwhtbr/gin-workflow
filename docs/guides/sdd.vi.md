@@ -53,6 +53,8 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 
 ## Hình ảnh và mockup { #images-and-mockups }
 
+Requirements của một feature, kể cả UI của nó, nằm trong capability của feature đó (`reports`, không phải `ui`). Capability `ui` chỉ giữ những gì dùng chung cho nhiều trang: design system, layout, navigation, component dùng chung. Project muốn quy tắc khác thì ghi vào `docs/specs/README.md`, và discuss theo README.
+
 Như một quy ước của nhóm, giữ screenshot, mockup và sơ đồ của một capability trong `docs/specs/<capability>/assets/`, với tên nói rõ màn hình và trạng thái (`login-form-error.png`). gin-workflow không tạo hay di chuyển thư mục này.
 
 `specs archive` sao chép văn bản của từng khối requirement vào `docs/specs/<capability>/spec.md`, nên hãy viết đường dẫn ảnh tương đối so với file đó (`assets/login-form.png`). Trong `02-spec-delta.md` của thư mục change, các liên kết đó không resolve được cho tới khi change ship.
@@ -63,7 +65,7 @@ Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id
 
 | Stage | Với layout SDD |
 |---|---|
-| `discuss` | Tạo epic, rồi `specs new <slug> --epic <epic>` tạo thư mục change. Ghi `01-proposal.md`, `02-spec-delta.md`, `03-design.md` (và một ADR cho quyết định kiến trúc). `specs lint --change <epic>` phải pass. |
+| `discuss` | Tạo epic, sau khi bạn xác nhận bảng capability (capability, nhóm requirement, đường dẫn asset) trong design, rồi `specs new <slug> --epic <epic>` tạo thư mục change. Ghi `01-proposal.md`, `02-spec-delta.md`, `03-design.md` (và một ADR cho quyết định kiến trúc). `specs lint --change <epic>` phải pass. |
 | spec review | `artifacts.spec_review: chat` ghi `requirement-confirmed` khi bạn xác nhận trong chat. `pr` commit thư mục change và các file nó trích dẫn lên `spec/<epic>-<slug>`, mở một pull request, và chỉ ghi gate sau khi `specs status --change <epic>` báo nó đã merge. |
 | `plan` | Ghi `<change>/04-plan.md`; mỗi track liệt kê `Requirements: REQ-...`, và mọi requirement được thêm hoặc sửa đều thuộc về một track. |
 | `orchestrate` | Tái sử dụng epic; mỗi track bead nhận `--spec-id <epic>-<slug>` và các label `req:<REQ-ID>`. |
