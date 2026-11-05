@@ -11,6 +11,7 @@ Epic `gin-workflow-7xy4` (2026-11-05). With the SDD layout the capability of a r
 
 **Consequences**
 - The rule is a skill convention; `docs/guides/sdd.md` labels it as such.
+- Since `gin-workflow-spec-iterations`, inputs under `<specs>/<cap>/assets/` go in dated folders `<YYYY-MM-DD>/` with a `description.md`; see [spec-asset-iterations](spec-asset-iterations.md).
 - Diagrams in specs and an SRS export were split into epics `gin-workflow-ycg8` and `gin-workflow-bel0`; both touch `gin-sdd/SKILL.md`, so they run after this epic.
 
 **References**
