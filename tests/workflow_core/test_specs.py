@@ -112,6 +112,25 @@ class TestRepositoryCommands(unittest.TestCase):
              "docs/changes/ep-1-lockout/03-design.md:4: `docs/assets/mockup/` is not tracked by git; commit it"],
             specs.lint_change(self.root, self.cfg, change))
 
+    def test_lint_flags_dated_asset_folder_without_description(self):
+        write(self.root, "docs/specs/auth/assets/2026-05-11/legacy/login.png", "png")
+        write(self.root, "docs/specs/reports/assets/2026-12-01/filter.png", "png")  # capability without spec.md
+        write(self.root, "docs/specs/auth/assets/mockup/index.html", "<html>")
+        write(self.root, "docs/specs/auth/assets/login-form.png", "png")
+        write(self.root, "docs/specs/auth/assets/110526/shot.png", "png")
+        expected = [
+            "docs/specs/auth/assets/2026-05-11: missing description.md (gin-workflow specs template iteration.md)",
+            "docs/specs/reports/assets/2026-12-01: missing description.md (gin-workflow specs template iteration.md)"]
+        self.assertEqual(expected, specs.lint_living(self.root, self.cfg))
+        self.assertEqual(expected, specs.lint_change(self.root, self.cfg, make_change(self.root)))
+        result = run_specs(self.root, "lint")
+        self.assertEqual(1, result.returncode)
+        self.assertIn(expected[0], result.stdout)
+        write(self.root, "docs/specs/auth/assets/2026-05-11/description.md", "# Auth: 2026-05-11\n")
+        write(self.root, "docs/specs/reports/assets/2026-12-01/description.md", "# Reports: 2026-12-01\n")
+        self.assertEqual([], specs.lint_living(self.root, self.cfg))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, make_change(self.root)))
+
     def test_block_outside_delta_sections(self):
         change = make_change(self.root, spec_delta="# Delta\n\n## Other\n\n" + ADDED_BLOCK)
         self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED" in e for e in specs.lint_change(self.root, self.cfg, change)))
@@ -223,7 +242,7 @@ class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
         with tempfile.TemporaryDirectory() as directory:
             root = make_repo(Path(directory), layout="legacy")
-            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "readme.md", "runbook.md", "changelog.md"):
+            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "iteration.md", "readme.md", "runbook.md", "changelog.md"):
                 with self.subTest(name=name):
                     self.assertEqual(0, run_specs(root, "template", name).returncode)
             self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
@@ -231,6 +250,10 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("Depends on:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("Capabilities:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("Capabilities: {{capabilities}}", run_specs(root, "template", "epic.md").stdout)
+            iteration = run_specs(root, "template", "iteration.md").stdout
+            for needle in ("Kind:", "Source:", "Previous: none", "## Summary", "## Changes", "## Files"):
+                with self.subTest(needle=needle):
+                    self.assertIn(needle, iteration)
             write(root, ".agent-workflow/templates/user-story.md", "### Story {{n}}\n")
             self.assertEqual("### Story {{n}}\n", run_specs(root, "template", "user-story.md").stdout)
 

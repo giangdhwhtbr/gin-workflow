@@ -277,6 +277,16 @@ def delta_blocks(root: Path, change: Path) -> tuple[list[Block], list[str]]:
     return blocks, errors
 
 
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def lint_iterations(root: Path, cfg: Mapping[str, Any]) -> list[str]:
+    """Every dated asset folder `<specs>/<cap>/assets/<YYYY-MM-DD>/` has a `description.md`."""
+    return [f"{shown(root, folder)}: missing description.md (gin-workflow specs template iteration.md)"
+            for folder in sorted(specs_dir(root, cfg).glob("*/assets/*"))
+            if folder.is_dir() and _ISO_DATE.match(folder.name) and not (folder / "description.md").is_file()]
+
+
 def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     errors: list[str] = []
     seen: dict[str, str] = {}
@@ -294,7 +304,7 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
                 errors.append(f"{where}: {block.id} duplicates {seen[block.id]}")
             seen.setdefault(block.id, name)
             errors += [f"{where}: {message}" for message in lint_block(block)]
-    return errors
+    return errors + lint_iterations(root, cfg)
 
 
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
@@ -328,7 +338,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         for block in blocks:
             if block.section == "ADDED" and block.id in taken:
                 errors.append(f"{path}:{block.start + 1}: {block.id} is already used on {against}")
-    return errors + _untracked_citations(root, change)
+    return errors + _untracked_citations(root, change) + lint_iterations(root, cfg)
 
 
 _CITED = re.compile(r"`([^`\s]+)`")

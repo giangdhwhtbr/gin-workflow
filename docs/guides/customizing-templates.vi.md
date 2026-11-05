@@ -24,7 +24,7 @@ gin-workflow specs template <template-name>
 ```
 
 Các template khả dụng:
-- Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`
+- Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`
 - Tài liệu codebase (`/gin-workflow:tech-doc`): `codebase/<FILE>.md`, ví dụ `codebase/05-API.md`
 - Quy ước của team: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
@@ -37,6 +37,7 @@ Các template khả dụng:
 | Proposal, spec delta, design, tests (layout SDD) | `specs new`, lệnh mà `/gin-workflow:discuss` chạy | `.agent-workflow/templates/proposal.md`, `spec-delta.md`, `design.md`, `tests.md` (không đánh số; `specs new` ghi chúng thành `01-proposal.md` và tiếp theo) |
 | `spec.md` | `specs archive` (một capability mới) và `/gin-workflow:migrate-specs` | `.agent-workflow/templates/spec.md` |
 | `specs-README.md` | `specs archive` và `specs migrate` | `.agent-workflow/templates/specs-README.md` |
+| Mô tả thư mục asset (layout SDD) | `/gin-workflow:discuss` | `.agent-workflow/templates/iteration.md` |
 | `codebase/*` | `/gin-workflow:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
 | `team/*` | `gin-workflow team init` | `.agent-workflow/templates/team/<file>` |
 
