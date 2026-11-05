@@ -64,6 +64,16 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("02-FEATURES.md", text)
         self.assertLess(text.index("`Capabilities:`"), text.index("5. **Write**"))
 
+    def test_sdd_discuss_confirms_capabilities_before_ids(self):
+        text = (SRC / "skills/gin-sdd/SKILL.md").read_text(encoding="utf-8")
+        discuss = text[text.index("## discuss"):text.index("## plan")]
+        for needle in ("Capabilities affected", "`ui` holds only", "`(new)`", "renumbering",
+                       "## Capabilities Affected", "`git mv`", "README.md"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, discuss)
+        self.assertLess(discuss.index("Capabilities affected"), discuss.index("`specs new <slug> --epic <epic>`"))
+        self.assertLessEqual(len(text), 6_000)
+
     def test_review_response_skill_routes_to_same_route(self):
         text = (SRC / "skills/gin-review-response/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("same route", text)
