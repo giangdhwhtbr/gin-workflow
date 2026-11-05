@@ -95,6 +95,21 @@ class TestRepositoryCommands(unittest.TestCase):
         self.assertTrue(any("REQ-AUTH-001 needs a 'Reason: <why>' line" in e for e in errors), errors)
         self.assertTrue(any("REQ-AUTH-001 appears twice" in e for e in errors), errors)
 
+    def test_lint_change_flags_cited_paths_git_does_not_track(self):
+        write(self.root, "src/tracked.py", "x = 1\n")
+        commit_all(self.root)
+        write(self.root, "docs/assets/mockup/shot.png", "png")
+        write(self.root, "docs/assets/mockup.html", "<html>")
+        change = make_change(self.root)
+        write(self.root, "docs/changes/ep-1-lockout/03-design.md",
+              "# Design\n\nSee `docs/assets/mockup.html` and `src/tracked.py:1`.\n"
+              "Screens: `docs/assets/mockup/`, planned `src/new.py`, outside `../other/x.md`, `/etc/hosts`,\n"
+              "own `docs/changes/ep-1-lockout/01-proposal.md`.\n")
+        self.assertEqual(
+            ["docs/changes/ep-1-lockout/03-design.md:3: `docs/assets/mockup.html` is not tracked by git; commit it",
+             "docs/changes/ep-1-lockout/03-design.md:4: `docs/assets/mockup/` is not tracked by git; commit it"],
+            specs.lint_change(self.root, self.cfg, change))
+
     def test_block_outside_delta_sections(self):
         change = make_change(self.root, spec_delta="# Delta\n\n## Other\n\n" + ADDED_BLOCK)
         self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED" in e for e in specs.lint_change(self.root, self.cfg, change)))
