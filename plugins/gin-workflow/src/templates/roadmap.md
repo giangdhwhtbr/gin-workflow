@@ -33,6 +33,7 @@ Estimate: {{estimate_days}}
 Goal:
 Scope:
 Out of scope:
+Capabilities:
 Depends on:
 Evidence:
 Risks:

@@ -3,5 +3,6 @@
 
 Scope: {{scope}}
 Out of scope: {{out_of_scope}}
+Capabilities: {{capabilities}}
 Evidence: {{evidence}}
 Roadmap: {{roadmap}}

@@ -57,6 +57,13 @@ class SkillRoutingTests(unittest.TestCase):
                 self.assertIn("`11-GLOSSARY.md`", text)
                 self.assertIn("`confirmed` English terms", text)
 
+    def test_roadmap_names_capabilities_per_epic(self):
+        text = (SRC / "skills/roadmap/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`Capabilities:`", text)
+        self.assertIn("`(new)`", text)
+        self.assertIn("02-FEATURES.md", text)
+        self.assertLess(text.index("`Capabilities:`"), text.index("5. **Write**"))
+
     def test_review_response_skill_routes_to_same_route(self):
         text = (SRC / "skills/gin-review-response/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("same route", text)
