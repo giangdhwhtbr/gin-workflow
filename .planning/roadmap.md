@@ -17,6 +17,7 @@ Source: Product brief given with `/roadmap gin-workflow-96sx` on 2026-11-05 (CLI
 - Specs carry an activity diagram per feature and a state diagram for complex features.
 - A capability or change exports to a printable SRS and to an interactive explainer page from the same living specs.
 - `gin` becomes the CLI and `gin:` the skill namespace, with `gin-workflow` kept as an alias.
+- Once everything above has shipped, the documentation describes the whole BA flow and the new names in one pass, with no page left on the old ones.
 
 ## Constraints
 
@@ -29,7 +30,7 @@ Source: Product brief given with `/roadmap gin-workflow-96sx` on 2026-11-05 (CLI
 
 ## Strategy
 
-Follow the BA flow: the asset layout first, because the mockup, legacy capture, diagrams, and SRS all write into it. Diagrams next, because the SRS and the explainer embed them. The `gin-ba` plugin and the SRS export then run in parallel on different files; the explainer reuses the SRS renderer, so it comes last in the milestone. The rename sweeps 158 files and every skill name, so it runs after the BA epics, in one mechanical pass, and opens the next milestone.
+Follow the BA flow: the asset layout first, because the mockup, legacy capture, diagrams, and SRS all write into it. Diagrams next, because the SRS and the explainer embed them. The `gin-ba` plugin and the SRS export then run in parallel on different files; the explainer reuses the SRS renderer, so it comes last in the milestone. The rename sweeps 158 files and every skill name, so it runs after the BA epics, in one mechanical pass, and opens the next milestone. A final docs epic closes it: each feature epic documents its own change, and the last epic rewrites the guides and reference pages as one coherent whole once names and flow are final.
 
 ## Order
 
@@ -40,7 +41,9 @@ flowchart LR
     B --> D[bel0 SRS export]
     D --> E[explain]
     B --> E
-    R[rename-gin]
+    R[rename-gin] --> X[docs-refresh]
+    E --> X
+    C --> X
 ```
 
 | Wave | Epics |
@@ -49,7 +52,7 @@ flowchart LR
 | 2 | `gin-workflow-ycg8`, `gin-workflow-ba-plugin` |
 | 3 | `gin-workflow-bel0` |
 | 4 | `gin-workflow-explain` |
-| next milestone | `gin-workflow-rename-gin` |
+| next milestone | `gin-workflow-rename-gin`, then `gin-workflow-docs-refresh` |
 
 `gin-workflow-ycg8` runs after `gin-workflow-spec-iterations` because both edit `gin-sdd/SKILL.md`; the Beads dependency of this adopted epic stays unchanged.
 
@@ -120,3 +123,12 @@ Out of scope: renaming the repository, the `plugins/gin-workflow/` directory, `g
 Depends on:
 Evidence: brief §1 (Core CLI & Command Renaming); `.claude-plugin/marketplace.json`; `install.sh:636,829,836`; `gin-harness/AGENTS.md` (gin-console runs `gin-workflow state --format json`).
 Risks: `setup doctor` compares the installed snapshot hash with `src`; `CLAUDE.md` files of other repositories point at `gin-workflow:*` skills; `install.sh:636` detects `gin-workflow` for gin-qa; scheduled after the BA epics so the sweep runs once without rebases.
+
+### Docs refresh: one coherent documentation pass after the BA flow and the rename ship
+Epic: gin-workflow-docs-refresh
+Goal: After every epic above has shipped, `README.md`, `docs/guides/`, `docs/reference/`, and the `.vi.md` translations describe the full BA flow (iteration assets → capture → mockup → discuss → diagrams → SRS → explain) and use the `gin` CLI and `gin:` skill names everywhere, with no page left on the old names or the old flow.
+Scope: audit every docs page and `README.md` against the shipped behaviour with `/tech-doc`-grade evidence; rewrite `docs/guides/sdd.md`, `docs/guides/ba.md`, `docs/reference/cli.md`, `docs/reference/skills.md`, `docs/reference/config.md` and their `.vi.md` pairs as one whole instead of per-epic patches; update `docs/concepts/architecture.md` and `lifecycle.md` where the BA stages and `gin-ba` plugin appear; `gin-workflow docs check` and `mkdocs build --strict` pass; `AGENTS.md` links refreshed by `setup refresh`.
+Out of scope: new behaviour; changes to skills or CLI (a mismatch found here is a bug bead on the owning epic, not a fix in this one).
+Depends on: gin-workflow-spec-iterations, gin-workflow-ycg8, gin-workflow-ba-plugin, gin-workflow-bel0, gin-workflow-explain, gin-workflow-rename-gin
+Evidence: PM request on 2026-11-05 during `/roadmap`; `AGENTS.md` (docs ownership: `README.md`, `docs/concepts/`, `docs/reference/`, `docs/contributing.md`); `docs/guides/sdd.md`.
+Risks: the docs pages are already edited by every epic before it, so this epic rebases last and must not undo per-epic docs; the character budgets of skill files do not apply, but `docs check` house-style rules do.
