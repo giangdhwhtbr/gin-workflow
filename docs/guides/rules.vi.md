@@ -15,6 +15,7 @@ Rule pack là các checklist ngắn mà agent tuân theo khi viết code và rev
 | `nextjs` | framework (cần `react`) | `app/`, `pages/`, `middleware.ts` | qua `rules.packs` |
 | `node-api` | framework | `*.ts`, `*.js` và các biến thể | qua `rules.packs` |
 | `fastapi` | framework (cần `python`) | `*.py` | qua `rules.packs` |
+| `glossary` | framework | mọi file | qua `rules.packs`; setup đề xuất nó khi có `11-GLOSSARY.md` |
 
 Setup đề xuất các pack language và framework từ những gì nó phát hiện (dependency, `tsconfig.json`, `pyproject.toml`). `core` bao gồm phạm vi, secret, xử lý lỗi, kiểm tra đầu vào, test hành vi, tái sử dụng, đặt tên, và hàm đơn mục đích. `lean` yêu cầu lời giải đúng ngắn nhất. Nó nói hãy tái sử dụng những gì đã có, ưu tiên thư viện chuẩn, nền tảng, và các dependency đã cài, và không thêm gì mang tính suy đoán. Nó không bao giờ cho phép cắt bỏ validation, xử lý lỗi, bảo mật, accessibility, hay các test cần thiết. Ý tưởng của nó đến từ [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). `docs` kiểm tra rằng Markdown khớp với code, gọi những thực hành mà code không cưỡng chế là quy ước, và giữ mỗi sự kiện trên một trang. Nó cũng kiểm tra văn phong: heading viết hoa kiểu câu, câu ngắn, và không có dấu gạch ngang, mục danh sách mở đầu bằng nhãn in đậm, hay emoji. Ý tưởng của nó đến từ [technical-writer](https://github.com/riekelt/technical-writer) (MIT).
 

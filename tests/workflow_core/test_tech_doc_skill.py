@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SKILL_PATH = ROOT / "plugins/gin-workflow/src/skills/tech-doc/SKILL.md"
 TEMPLATES = ROOT / "plugins/gin-workflow/src/templates/codebase"
 READING_ORDER = ["OVERVIEW", "FEATURES", "ARCHITECTURE", "STRUCTURE", "API",
-                 "INTEGRATIONS", "STACK", "CONVENTIONS", "TESTING", "CONCERNS"]
+                 "INTEGRATIONS", "STACK", "CONVENTIONS", "TESTING", "CONCERNS", "GLOSSARY"]
 
 
 class TechDocSkillTests(unittest.TestCase):
@@ -71,3 +71,17 @@ class TechDocSkillTests(unittest.TestCase):
         self.assertIn("`OVERVIEW.md` … `CONCERNS.md`", self.text)
         self.assertIn("renamed to their numbered names with `git mv`", self.text)
         self.assertIn(".agent-workflow/templates/codebase/", self.text)
+
+    def test_glossary_lives_at_output_root_and_keeps_confirmed_terms(self):
+        self.assertIn("`11-GLOSSARY.md` is the exception: it always lives at the root of the output folder", self.text)
+        self.assertIn("a `confirmed` row keeps its `English`", self.text)
+        self.assertIn("goes to `Conflicts`, never into the row", self.text)
+        self.assertIn("Only the user sets `confirmed`.", self.text)
+        self.assertIn("moves to `Follow-up`; it is never deleted", self.text)
+
+    def test_glossary_template_has_terms_and_conflicts_tables(self):
+        text = (TEMPLATES / "11-GLOSSARY.md").read_text(encoding="utf-8")
+        self.assertIn("| Term | Lang | English | Meaning | Legacy identifiers | Evidence | Status |", text)
+        self.assertIn("| Term | Lang | Existing English | Candidate | Evidence |", text)
+        for heading in ("## Terms", "## Conflicts", "## Inference And Uncertainty", "## Follow-up"):
+            self.assertIn(heading, text)

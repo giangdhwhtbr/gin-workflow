@@ -50,6 +50,13 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(file=path.name):
                 self.assertIn("gin-workflow:agent-researcher", text)
 
+    def test_discuss_and_plan_use_confirmed_glossary_terms(self):
+        for path in (SRC / "skills/discuss/SKILL.md", SRC / "skills/plan/SKILL.md"):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(file=path.name):
+                self.assertIn("`11-GLOSSARY.md`", text)
+                self.assertIn("`confirmed` English terms", text)
+
     def test_review_response_skill_routes_to_same_route(self):
         text = (SRC / "skills/gin-review-response/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("same route", text)
