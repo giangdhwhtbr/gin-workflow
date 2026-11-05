@@ -42,6 +42,12 @@ class TestPropose(unittest.TestCase):
         root = _repo({"pyproject.toml": '[project]\ndependencies=["fastapi"]\n'})
         self.assertEqual(["core", "python", "fastapi"], propose_packs(root, PLUGIN))
 
+    def test_glossary_proposed_when_glossary_exists(self):
+        for path in (".planning/codebase/11-GLOSSARY.md", "docs/codebase/11-GLOSSARY.md"):
+            with self.subTest(path=path):
+                self.assertEqual(["core", "glossary"], propose_packs(_repo({path: "# GLOSSARY\n"}), PLUGIN))
+        self.assertNotIn("glossary", propose_packs(_repo({"README.md": "x\n"}), PLUGIN))
+
     def test_nextjs(self):
         root = _repo({"package.json": _pkg("next", "react")})
         self.assertEqual(["core", "typescript", "nextjs", "react"], propose_packs(root, PLUGIN))

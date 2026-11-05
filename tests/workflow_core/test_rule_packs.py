@@ -9,7 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
-from workflow_core.rules import DEFAULT_PACKS, IMPACTS, TIERS, load_plugin_packs  # noqa: E402
+from workflow_core.rules import DEFAULT_PACKS, IMPACTS, TIERS, load_plugin_packs, select_packs  # noqa: E402
 
 PACKS = load_plugin_packs(ROOT / "plugins/gin-workflow/src/rules")
 CHECK_KINDS = {"tsconfig_option", "eslint_rule", "pyproject_tool", "file_exists"}
@@ -48,8 +48,16 @@ class TestRulePacks(unittest.TestCase):
         for name in ("core", "lean"):
             self.assertEqual(("**/*",), PACKS[name].applies_to)
             self.assertEqual("core", PACKS[name].tier)
-        self.assertNotIn("**/*", [p for pack in PACKS.values() if pack.id not in ("core", "lean")
+        self.assertNotIn("**/*", [p for pack in PACKS.values() if pack.id not in ("core", "lean", "glossary")
                                   for p in pack.applies_to])
+
+    def test_glossary_pack_applies_everywhere_only_when_enabled(self):
+        self.assertEqual(("**/*",), PACKS["glossary"].applies_to)
+        self.assertEqual({"critical", "high"}, {b.impact for b in PACKS["glossary"].bullets})
+        enabled, _ = select_packs(PACKS, [], {"rules": {"packs": ["glossary"]}}, ["src/Order.java"])
+        self.assertIn("glossary", [pack.id for pack in enabled])
+        default, _ = select_packs(PACKS, [], {}, ["src/Order.java"])
+        self.assertNotIn("glossary", [pack.id for pack in default])
 
     def test_review_skill_grades_lean_findings(self):
         text = (ROOT / "plugins/gin-workflow/src/skills/review/SKILL.md").read_text(encoding="utf-8")
