@@ -67,7 +67,7 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 |---|---|---|
 | `requirement-confirmed` | the user confirmed the design | evidence: spec path; team mode adds `--spec`. With `artifacts.layout: legacy` and an existing `.md` evidence file, the spec is linted first (`specs lint --spec`); a failing spec exits 1 with the errors and records nothing |
 | `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan` |
-| `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped`, and the epic bead is set to `in_progress`; when `bd` fails the gate stays recorded with a `warning` |
+| `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped`, and the epic bead is set to `in_progress`, claimed as `task update --claim` would when it has no assignee (an existing assignee is kept); the markdown tasks backend leaves the epic unchanged; when `bd` fails the gate stays recorded with a `warning` |
 | `quick-completed` | a `/quick` change finished | evidence: files and verify results |
 | `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead. Team mode with a `ship` policy: evidence is the merged PR URL, approved on its head commit by a listed role other than the author; the local HEAD is not compared |
 

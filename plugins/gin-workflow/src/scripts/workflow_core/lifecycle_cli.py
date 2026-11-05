@@ -228,16 +228,21 @@ def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse
 
 
 def _start_epic(repo_path: Path, epic: str) -> str | None:
-    """Mark the epic bead in_progress. Returns a warning on failure; the recorded gate stands."""
+    """Mark the epic bead in_progress, claimed like `task update --claim` when it has no assignee.
+
+    Returns a warning on failure; the recorded gate stands."""
     from .configuration import ConfigValidationError
+    from .tasks import _bd_env
     from .team import TeamError
-    from .team_beads import _bd
+    from .team_beads import _bd, _show
 
     try:
         if tasks_backend(repo_path) != "beads":
             return None
-        done = _bd(repo_path, ["update", epic, "--status", "in_progress"], timeout=30)
-    except (ConfigValidationError, TeamError, OSError, subprocess.SubprocessError) as error:
+        env = _bd_env(repo_path, [])
+        start = ["--status", "in_progress"] if _show(repo_path, epic, timeout=30).get("assignee") else ["--claim"]
+        done = _bd(repo_path, ["update", epic, *start], actor=env["BD_ACTOR"] if env else "", timeout=30)
+    except (ConfigValidationError, TeamError, OSError, subprocess.SubprocessError, ValueError, IndexError) as error:
         return f"could not set {epic} in_progress: {error}"
     if done.returncode != 0:
         return f"could not set {epic} in_progress: {done.stderr.strip()}"
