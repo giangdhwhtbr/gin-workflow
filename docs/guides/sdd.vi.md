@@ -19,6 +19,7 @@ docs/
   specs/                     living specs (artifacts.specs)
     README.md                capability index
     <capability>/spec.md     requirements for one capability
+    <capability>/diagrams/   activity and state diagrams (Mermaid)
   changes/                   proposed changes (artifacts.changes)
     <epic>-<slug>/
       01-proposal.md         why and what
@@ -49,13 +50,13 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin-workflow specs next-id <cap>`.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin-workflow specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
-- `gin-workflow specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `specs-README.md`).
+- `gin-workflow specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `specs-README.md`).
 
 ## Hình ảnh và mockup { #images-and-mockups }
 
 Requirements của một feature, kể cả UI của nó, nằm trong capability của feature đó (`reports`, không phải `ui`). Capability `ui` chỉ giữ những gì dùng chung cho nhiều trang: design system, layout, navigation, component dùng chung. Project muốn quy tắc khác thì ghi vào `docs/specs/README.md`, và discuss theo README.
 
-Giữ screenshot, mockup và sơ đồ của một capability trong `docs/specs/<capability>/assets/`, mỗi đợt đầu vào một thư mục theo ngày, với tên file nói rõ màn hình và trạng thái:
+Giữ screenshot và mockup của một capability trong `docs/specs/<capability>/assets/`, mỗi đợt đầu vào một thư mục theo ngày, với tên file nói rõ màn hình và trạng thái:
 
 ```text
 docs/specs/reports/assets/
@@ -72,13 +73,29 @@ docs/specs/reports/assets/
 
 `specs archive` sao chép văn bản của từng khối requirement vào `docs/specs/<capability>/spec.md`, nên hãy viết đường dẫn ảnh tương đối so với file đó (`assets/2026-05-11/report-list.png`). Trong `02-spec-delta.md` của thư mục change, các liên kết đó không resolve được cho tới khi change ship.
 
+## Sơ đồ { #diagrams }
+
+Mỗi feature có một activity diagram. Một entity có từ ba trạng thái trở lên, hoặc có chuyển trạng thái chỉ được phép khi thỏa một điều kiện (một role, một giá trị field, một giới hạn thời gian), có thêm state diagram. Cả hai là file Mermaid trong thư mục của capability:
+
+```text
+docs/specs/orders/
+  spec.md                  ## Diagrams links the files below
+  diagrams/
+    checkout-activity.md   flowchart: one feature, from the trigger to each outcome
+    order-state.md         stateDiagram-v2: one entity's states and transitions
+```
+
+Bắt đầu từ `gin-workflow specs template activity.md` và `state.md`. Discuss sửa chúng trực tiếp trên spec branch, như với asset: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `03-design.md` của change trích dẫn chúng trong `## Data Flow` và `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`, nên chúng được commit và review cùng change. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `diagrams/` dưới `## Diagrams`.
+
+`specs lint` báo `*-activity.md` không có khối mermaid bắt đầu bằng `flowchart` hoặc `graph`, và `*-state.md` không có khối bắt đầu bằng `stateDiagram`; các file khác trong `diagrams/` không bị kiểm tra. `specs lint --change` còn báo mỗi capability có block `ADDED` hoặc `MODIFIED` mà không có `*-activity.md`. Khi nào một entity cần state diagram là quy ước mà lint không kiểm tra.
+
 ## Các stage thay đổi thế nào { #how-the-stages-change }
 
 Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id <epic>`. Skill `gin-sdd` chứa các bước chính xác.
 
 | Stage | Với layout SDD |
 |---|---|
-| `discuss` | Tạo epic, sau khi bạn xác nhận bảng capability (capability, nhóm requirement, đường dẫn asset) trong design, rồi `specs new <slug> --epic <epic>` tạo thư mục change. Ghi `01-proposal.md`, `02-spec-delta.md`, `03-design.md` (và một ADR cho quyết định kiến trúc). `specs lint --change <epic>` phải pass. |
+| `discuss` | Tạo epic, sau khi bạn xác nhận bảng capability (capability, nhóm requirement, đường dẫn asset) trong design, rồi `specs new <slug> --epic <epic>` tạo thư mục change. Ghi `01-proposal.md`, `02-spec-delta.md`, `03-design.md`, các sơ đồ của capability (và một ADR cho quyết định kiến trúc). `specs lint --change <epic>` phải pass. |
 | spec review | `artifacts.spec_review: chat` ghi `requirement-confirmed` khi bạn xác nhận trong chat. `pr` commit thư mục change và các file nó trích dẫn lên `spec/<epic>-<slug>`, mở một pull request, và chỉ ghi gate sau khi `specs status --change <epic>` báo nó đã merge. |
 | `plan` | Ghi `<change>/04-plan.md`; mỗi track liệt kê `Requirements: REQ-...`, và mọi requirement được thêm hoặc sửa đều thuộc về một track. |
 | `orchestrate` | Tái sử dụng epic; mỗi track bead nhận `--spec-id <epic>-<slug>` và các label `req:<REQ-ID>`. |
