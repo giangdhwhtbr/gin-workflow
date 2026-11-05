@@ -67,8 +67,23 @@ plugins:
             Starters: Khởi đầu
             Guides: Hướng dẫn
             Reference: Tham chiếu
+            Greenfield: Dự án mới
+            Brownfield: Dự án có sẵn
+            Use cases: Tình huống sử dụng
+            Team mode: Chế độ nhóm
             Using AI effectively: Dùng AI hiệu quả
             Working with Claude Code: Làm việc với Claude Code
+            SDD living specs: Living specs (SDD)
+            QA add-on: Tiện ích QA
+            Customizing templates: Tùy chỉnh template
+            Rule packs: Bộ quy tắc
+            AI usage report: Báo cáo sử dụng AI
+            Recommended tools: Công cụ khuyên dùng
+            Windows: Windows
+            Skills: Skill
+            CLI: CLI
+            Configuration: Cấu hình
+            Troubleshooting: Xử lý sự cố
 
 not_in_nav: |
   /concepts/**
