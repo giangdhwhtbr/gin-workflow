@@ -49,15 +49,28 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin-workflow specs next-id <cap>`.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin-workflow specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
-- `gin-workflow specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `specs-README.md`).
+- `gin-workflow specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `specs-README.md`).
 
 ## Hình ảnh và mockup { #images-and-mockups }
 
 Requirements của một feature, kể cả UI của nó, nằm trong capability của feature đó (`reports`, không phải `ui`). Capability `ui` chỉ giữ những gì dùng chung cho nhiều trang: design system, layout, navigation, component dùng chung. Project muốn quy tắc khác thì ghi vào `docs/specs/README.md`, và discuss theo README.
 
-Như một quy ước của nhóm, giữ screenshot, mockup và sơ đồ của một capability trong `docs/specs/<capability>/assets/`, với tên nói rõ màn hình và trạng thái (`login-form-error.png`). gin-workflow không tạo hay di chuyển thư mục này.
+Giữ screenshot, mockup và sơ đồ của một capability trong `docs/specs/<capability>/assets/`, mỗi đợt đầu vào một thư mục theo ngày, với tên file nói rõ màn hình và trạng thái:
 
-`specs archive` sao chép văn bản của từng khối requirement vào `docs/specs/<capability>/spec.md`, nên hãy viết đường dẫn ảnh tương đối so với file đó (`assets/login-form.png`). Trong `02-spec-delta.md` của thư mục change, các liên kết đó không resolve được cho tới khi change ship.
+```text
+docs/specs/reports/assets/
+  2026-05-11/          # requirements đầu tiên
+    description.md     # Kind: new
+    report-list.png
+    mockup/
+  2026-12-01/          # thay đổi của khách
+    description.md     # Kind: change, Previous: assets/2026-05-11/
+    report-filter.png
+```
+
+Đặt tên thư mục theo ngày ISO nhận đầu vào. Theo quy ước, một đợt requirements, thay đổi hay thiết kế mới thì vào một thư mục mới và thư mục cũ không bao giờ bị sửa, nên các thư mục ghi lại lịch sử đầu vào của capability. Với project legacy không có design spec, đặt screenshot của feature hiện có trong `<date>/legacy/` và mô tả hành vi hiện tại của nó trong `description.md` của thư mục đó với `Kind: legacy`. Mọi `description.md` bắt đầu từ `gin-workflow specs template iteration.md`. `specs lint` báo thư mục có tên ngày mà thiếu `description.md`; file phẳng trong `assets/` và thư mục không mang tên ngày ISO vẫn hợp lệ và không bị kiểm tra.
+
+`specs archive` sao chép văn bản của từng khối requirement vào `docs/specs/<capability>/spec.md`, nên hãy viết đường dẫn ảnh tương đối so với file đó (`assets/2026-05-11/report-list.png`). Trong `02-spec-delta.md` của thư mục change, các liên kết đó không resolve được cho tới khi change ship.
 
 ## Các stage thay đổi thế nào { #how-the-stages-change }
 

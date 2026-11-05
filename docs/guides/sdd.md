@@ -49,15 +49,28 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin-workflow specs next-id <cap>`.
 - Each block has one `SHALL` or `MUST` statement and at least one GIVEN/WHEN/THEN scenario. The EARS patterns (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) are preferred.
 - A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin-workflow specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
-- `gin-workflow specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `specs-README.md`).
+- `gin-workflow specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `specs-README.md`).
 
 ## Images and mockups
 
 A feature's requirements, its UI included, live in the feature's capability (`reports`, not `ui`). A `ui` capability holds only what spans pages: design system, layout, navigation, shared components. A project that wants another rule writes it in `docs/specs/README.md`, and discuss follows the README.
 
-As a team convention, keep screenshots, mockups and diagrams for a capability in `docs/specs/<capability>/assets/`, with names that say the screen and state (`login-form-error.png`). gin-workflow does not create or move this folder.
+Keep screenshots, mockups and diagrams for a capability in `docs/specs/<capability>/assets/`, one dated folder per batch of inputs, with file names that say the screen and state:
 
-`specs archive` copies the text of each requirement block into `docs/specs/<capability>/spec.md`, so write image paths relative to that file (`assets/login-form.png`). In the change folder's `02-spec-delta.md` those links do not resolve until the change ships.
+```text
+docs/specs/reports/assets/
+  2026-05-11/          # first requirements
+    description.md     # Kind: new
+    report-list.png
+    mockup/
+  2026-12-01/          # the customer's changes
+    description.md     # Kind: change, Previous: assets/2026-05-11/
+    report-filter.png
+```
+
+Name the folder by the ISO date the inputs arrived. By convention, a new batch of requirements, changes, or designs gets a new folder and an older folder is never edited, so the folders record the history of the capability's inputs. On a legacy project without design specs, put screenshots of the existing feature under `<date>/legacy/` and describe how it behaves today in that folder's `description.md` with `Kind: legacy`. Start every `description.md` from `gin-workflow specs template iteration.md`. `specs lint` reports a dated folder without `description.md`; flat files under `assets/` and folders not named by an ISO date stay valid and are not checked.
+
+`specs archive` copies the text of each requirement block into `docs/specs/<capability>/spec.md`, so write image paths relative to that file (`assets/2026-05-11/report-list.png`). In the change folder's `02-spec-delta.md` those links do not resolve until the change ships.
 
 ## How the stages change
 
