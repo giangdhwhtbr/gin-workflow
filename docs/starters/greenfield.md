@@ -110,40 +110,13 @@ artifacts:
 
 Every feature moves through the same cycle:
 
-```text
-                       Discuss
-                ┌─────────────────────┐
-                │ /gin-workflow:discuss│
-                │ writes change spec  │
-                └──────────┬──────────┘
-                           │ requirement-confirmed
-                           ▼
-                         Plan
-                ┌─────────────────────┐
-                │ /gin-workflow:plan  │
-                │ breaks into tracks  │
-                └──────────┬──────────┘
-                           │ plan-approved
-                           ▼
-                      Orchestrate
-                ┌─────────────────────────┐
-                │/gin-workflow:orchestrate│
-                │ creates tasks & worktree│
-                └──────────┬──────────────┘
-                           │ orchestration-ready
-                           ▼
-                        Execute
-                ┌─────────────────────┐
-                │/gin-workflow:execute│ ◄──┐ (Repeat per track)
-                │ test-first, review  │ ───┘
-                └──────────┬──────────┘
-                           │ implementation-complete
-                           ▼
-                         Ship
-                ┌─────────────────────┐
-                │ /gin-workflow:ship  │
-                │ PR/Merge & archive  │
-                └─────────────────────┘
+```mermaid
+flowchart TD
+  D["Discuss<br/>writes the change spec"] -->|"requirement_confirmed"| P["Plan<br/>breaks it into tracks"]
+  P -->|"plan_approved"| O["Orchestrate<br/>creates tasks and a worktree"]
+  O -->|"orchestration_ready"| E["Execute<br/>test-first, with review"]
+  E -->|"repeat per track"| E
+  E --> S["Ship<br/>merge or pull request, then archive"]
 ```
 
 1. `/gin-workflow:discuss <feature>` creates a change folder `docs/changes/<epic>-<slug>/` holding `01-proposal.md`, `02-spec-delta.md`, and `03-design.md`, with traceable requirement IDs (`REQ-<MODULE>-001`).
@@ -159,4 +132,3 @@ Every feature moves through the same cycle:
 - Several epics: start from a product brief with `/gin-workflow:roadmap`.
 - A team: [team roles](../roles.md).
 - Automated end-to-end tests: the [QA add-on](../guides/qa.md).
-- Worker harnesses: the [gin-orchestrator](../orchestrator/README.md) extension.

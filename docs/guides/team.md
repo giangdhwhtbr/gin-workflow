@@ -2,6 +2,15 @@
 
 Solo use needs nothing here: without a `team:` section in `.agent-workflow/config.yaml`, every stage behaves as described in [Lifecycle](../concepts/lifecycle.md). Team mode is opt-in. It adds member identity, gates proven by approved pull requests (GitHub) or merge requests (GitLab), areas with owners, per-member claims, and optionally a shared Beads database. For how a PM, a BA, developers, and testers split the work, see [Team roles](../roles.md).
 
+```mermaid
+flowchart TD
+  L["Lead: /gin-workflow:team-setup"] --> C["team block, CODEOWNERS, hooks"]
+  C --> PR["Pull request merged"]
+  PR --> M["Member: /gin-workflow:team-setup"]
+  M --> W["Work on a track"]
+  W --> G["Gate pull request approved by a listed role"]
+```
+
 ## Enable it (lead)
 
 Run `/team-setup` and answer as the lead. It asks for:
@@ -33,6 +42,8 @@ team:
 
 ## Join it (member)
 
+Install the [prerequisites](../getting-started.md#prerequisites) first, and do not run `/gin-workflow:setup`: the lead has already configured the repository.
+
 Run `/team-setup` as a member: `gin-workflow team whoami` must find your `git config user.email`; `gin-workflow team hooks` installs the commit-msg hook; log in with `gh auth login` or `glab auth login`; with shared Beads, `bd init --remote <remote>`. `gin-workflow setup doctor` reports anything still missing.
 
 ## What changes in each stage
@@ -45,8 +56,8 @@ The `gin-team` skill carries the exact steps.
 | `discuss` | When `requirement_confirmed` has roles, the spec goes through a pull request (`spec/<topic>`, or the SDD `pr` flow) and the gate is recorded after it merges. |
 | `plan` | Each track adds `Area:` and `Owner:` (optional only with shared Beads; reassigning a track means a new plan PR); a track's files stay inside its area. `team check-plan <plan>` must pass. With `plan_approved: area_lead`, the plan merges through a pull request approved by the area lead. |
 | `orchestrate` | Track beads get `track:<N>` and `area:<area>` labels and the owner as assignee. With shared Beads the lead orchestrates once; otherwise each member creates beads only for the tracks they own, and a dependency on someone else's track becomes an `external: <plan>#<N>` placeholder. |
-| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready`, claim it with `team claim <bead>` (a lease of `team.claim_ttl_hours`, renewed by claiming again; an expired lease lets another member take the bead; so does a bead assigned without a lease or with unreadable `claim` metadata), and in the track worktree `team deps --bead <bead>` must pass before implementation. The `gin-team` skill names track branches `feat/<topic>-t<N>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. The [walkthrough](../starters/brownfield-walkthrough.md#execute) shows claims, leases, and handing a track over. |
-| `ship` | When `ship` has roles in `team.approvals`, only the pull request and keep options are offered, and that role approves the latest commit of the pull request before merge (`team check --gate ship <url>`); a later push needs a new approval. In team mode `record` also writes the gate's PR proof to the epic bead's `gates` metadata (see the [walkthrough](../starters/brownfield-walkthrough.md#ship)). GitLab needs "Reset approvals on push". Merging follows the host's rules (CODEOWNERS, branch protection). With shared Beads, `team sync` after closing beads. The old key `verification_passed` is deprecated and maps to `ship`. |
+| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready`, claim it with `team claim <bead>` (a lease of `team.claim_ttl_hours`, renewed by claiming again; an expired lease lets another member take the bead; so does a bead assigned without a lease or with unreadable `claim` metadata), and in the track worktree `team deps --bead <bead>` must pass before implementation. The `gin-team` skill names track branches `feat/<topic>-t<N>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. The [brownfield starter](../starters/brownfield.md#execute) shows claims, leases, and handing a track over. |
+| `ship` | When `ship` has roles in `team.approvals`, only the pull request and keep options are offered, and that role approves the latest commit of the pull request before merge (`team check --gate ship <url>`); a later push needs a new approval. In team mode `record` also writes the gate's PR proof to the epic bead's `gates` metadata (see the [brownfield starter](../starters/brownfield.md#ship)). GitLab needs "Reset approvals on push". Merging follows the host's rules (CODEOWNERS, branch protection). With shared Beads, `team sync` after closing beads. The old key `verification_passed` is deprecated and maps to `ship`. |
 
 Milestone writes follow `team.permissions.milestone`, and with shared Beads they pull first and push after. Details are in the [milestone command](../reference/cli.md#gin-workflow-milestone).
 

@@ -9,7 +9,7 @@ Read it on the [documentation site](https://giangdhwhtbr.github.io/gin-workflow/
 | Start here | |
 |---|---|
 | [Getting started](docs/getting-started.md) | one feature from idea to merge with Claude Code |
-| Starters | [greenfield](docs/starters/greenfield.md), [brownfield & modernization](docs/starters/brownfield-modernize.md), [brownfield walkthrough](docs/starters/brownfield-walkthrough.md) |
+| Starters | [greenfield](docs/starters/greenfield.md), [brownfield](docs/starters/brownfield.md) |
 | [Architecture](docs/concepts/architecture.md) | how the pieces fit, with flow diagrams |
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
 | [Team roles](docs/roles.md) | who owns what in a team, and what each role reads |

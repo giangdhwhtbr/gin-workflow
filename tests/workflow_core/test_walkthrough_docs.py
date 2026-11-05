@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-WALKTHROUGH = ROOT / "docs/starters/brownfield-walkthrough.md"
+WALKTHROUGH = ROOT / "docs/starters/brownfield.md"
 
 
 # `task` runs bd unchanged; cli.md lists only some of its subcommands, so name the others the walkthrough uses.

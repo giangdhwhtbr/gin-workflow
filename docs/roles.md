@@ -1,5 +1,16 @@
 # Team roles
 
+```mermaid
+flowchart LR
+  TL["Tech lead<br/>setup, tech-doc"] --> PM["PM<br/>roadmap"]
+  PM --> BA["BA<br/>discuss"]
+  BA --> TL2["Tech lead<br/>plan, orchestrate"]
+  TL2 --> DEV["Developer<br/>execute"]
+  TL2 --> QA["Tester<br/>cases, e2e"]
+  DEV --> SH["Tester and tech lead<br/>ship approval"]
+  QA --> SH
+```
+
 In [team mode](guides/team.md) each member holds roles, each area of the repository has a lead role, and a gate can require approval from listed roles. This page suggests how a PM, a BA, developers and testers split the work, and what each of them reads. gin-workflow enforces only what `team.areas` and `team.approvals` configure.
 
 ## Who owns what
@@ -8,36 +19,47 @@ In [team mode](guides/team.md) each member holds roles, each area of the reposit
 |---|---|---|---|---|
 | PM | `/gin-workflow:roadmap`, `/gin-workflow:progress`, `/gin-workflow:report`; `/gin-workflow:roadmap --milestone` writes milestones, limited by `team.permissions.milestone` | `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) | `roadmap/<topic>` | `roadmap` |
 | BA | `/gin-workflow:discuss`, `/gin-workflow:tech-doc`, `/gin-workflow:progress` | `.planning/specs/` (`docs/specs/` and `docs/changes/` with the SDD layout) | `spec/<topic>` (`spec/<epic>-<slug>` with the SDD layout) | `requirement_confirmed` |
-| Developer and tech lead | `/gin-workflow:plan`, `/gin-workflow:orchestrate`, `/gin-workflow:execute`, `/gin-workflow:review`, `/gin-workflow:ship` | source and test paths, `.planning/plans/` | `plan/<topic>`, then `feat/<topic>-t<N>` per track | `plan_approved` |
+| Tech lead | `/gin-workflow:setup`, `/gin-workflow:team-setup` (as lead), `/gin-workflow:tech-doc`, `/gin-workflow:plan`, `/gin-workflow:orchestrate`, `/gin-workflow:review`, `/gin-workflow:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` with the SDD layout), `.planning/plans/` (`04-plan.md` with the SDD layout), area source and test paths | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; backup approver for `roadmap`, `requirement_confirmed`, and `ship` when a role has one holder |
+| Developer | `/gin-workflow:execute`, `/gin-workflow:review`, `/gin-workflow:ship` for their own tracks, `/gin-workflow:quick`, `/gin-workflow:progress` | source and unit and integration test paths in their areas | `feat/<topic>-t<N>` per track | peer code reviews |
 | Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin-workflow:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's pull request | `ship` |
 
 ## What each role reads
 
+Everyone except the tech lead starts from [joining a team](guides/team.md#join-it-member), which links the install steps. Running `/gin-workflow:setup` again over the lead's configuration is the mistake to avoid.
+
+### Tech lead
+
+1. [Getting started](getting-started.md)
+2. [Enabling team mode](guides/team.md#enable-it-lead)
+3. [Brownfield starter](starters/brownfield.md)
+4. [Rule packs](guides/rules.md)
+
 ### PM
 
-1. The Roadmap overview, Milestone planning, and Milestone review and spill-over sections of the [brownfield walkthrough](starters/brownfield-walkthrough.md)
-2. [AI usage report](guides/usage-report.md)
-3. [Skills reference](reference/skills.md)
+1. [Joining a team](guides/team.md#join-it-member)
+2. The Roadmap overview, Milestone planning, and Milestone review and spill-over sections of the [brownfield starter](starters/brownfield.md)
+3. [AI usage report](guides/usage-report.md)
+4. [Skills reference](reference/skills.md)
 
 ### BA
 
-1. [Getting started](getting-started.md)
+1. [Joining a team](guides/team.md#join-it-member)
 2. [SDD living specs](guides/sdd.md)
 3. [Customizing templates](guides/customizing-templates.md)
-4. The Discuss an epic section of the [brownfield walkthrough](starters/brownfield-walkthrough.md)
+4. The Discuss an epic section of the [brownfield starter](starters/brownfield.md#discuss-an-epic)
 
-### Developer and tech lead
+### Developer
 
-1. [Getting started](getting-started.md)
-2. [Lifecycle and gates](concepts/lifecycle.md)
-3. [Team mode](guides/team.md)
-4. [Rule packs](guides/rules.md)
+1. [Joining a team](guides/team.md#join-it-member)
+2. [Rule packs](guides/rules.md)
+3. The Execute section of the [brownfield starter](starters/brownfield.md#execute)
 
 ### Tester
 
-1. [QA add-on](guides/qa.md)
-2. The Requirements section of [SDD living specs](guides/sdd.md#requirements)
-3. The Test cases and E2E sections of the [brownfield walkthrough](starters/brownfield-walkthrough.md)
+1. [Joining a team](guides/team.md#join-it-member)
+2. [QA add-on](guides/qa.md)
+3. The Requirements section of [SDD living specs](guides/sdd.md#requirements)
+4. The Test cases and E2E sections of the [brownfield starter](starters/brownfield.md#test-cases)
 
 ## Keeping work apart
 

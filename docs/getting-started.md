@@ -3,7 +3,14 @@
 This guide takes one feature from idea to merge using Claude Code and `gin-workflow`.
 
 Every change moves through recorded quality gates:
-`discuss` → `plan` → `orchestrate` → `execute` → `ship`.
+
+```mermaid
+flowchart LR
+  D["discuss"] -->|"requirement_confirmed"| P["plan"]
+  P -->|"plan_approved"| O["orchestrate"]
+  O -->|"orchestration_ready"| E["execute"]
+  E --> S["ship"]
+```
 
 ---
 
@@ -28,6 +35,8 @@ Run setup inside Claude Code to configure your project:
 /gin-workflow:setup
 ```
 
+In a team repository, only the Tech Lead runs `/gin-workflow:setup`, once, and commits `.agent-workflow/config.yaml`. Teammates follow [joining a team](guides/team.md#join-it-member) instead.
+
 Setup asks one question at a time and generates `.agent-workflow/config.yaml`:
 - Project type: stage and shape, detected from your repository.
 - Rigor: setup suggests `standard` for an existing codebase (Git worktrees for parallel work and independent review) and `easy` for a new one; `strict` always uses a worktree and a review ledger.
@@ -35,7 +44,7 @@ Setup asks one question at a time and generates `.agent-workflow/config.yaml`:
 - Code index: for an existing codebase, an offer to run `codegraph init` when CodeGraph is installed.
 - Task tracking: `markdown` (the default; local files under `.planning/tasks/`) or `beads` (needs `bd`).
 
-Everything runs in the harness you opened (`provider_mode: single`). Worker harnesses are the optional [gin-orchestrator](orchestrator/README.md) extension.
+Everything runs in the harness you opened (`provider_mode: single`).
 
 Commit `.agent-workflow/config.yaml` to git.
 
@@ -88,6 +97,5 @@ Claude offers four options: merge locally, push and open a pull request, keep th
 ## Starters and guides
 
 - New project: the [greenfield starter](starters/greenfield.md).
-- Legacy codebase: the [brownfield modernization starter](starters/brownfield-modernize.md), then the [brownfield walkthrough](starters/brownfield-walkthrough.md) for the team flow.
+- Legacy codebase: the [brownfield starter](starters/brownfield.md).
 - Team: [team roles](roles.md).
-- Multi-harness worker routing: the [gin-orchestrator](orchestrator/README.md) extension.

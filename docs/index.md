@@ -6,7 +6,7 @@ gin-workflow is a plugin for Claude Code, Codex CLI, Antigravity CLI, and OpenCo
 
 - [Getting started](getting-started.md): install the plugin and run one feature from idea to merge.
 - [Team roles](roles.md): what a PM, a BA, a developer, and a tester each do and read.
-- [Starters](starters/greenfield.md): greenfield and brownfield entry points.
+- [Starters](starters/greenfield.md): the [greenfield](starters/greenfield.md) and [brownfield](starters/brownfield.md) entry points.
 - [Guides](guides/use-cases.md): use cases, recommended tools, Windows, team mode, and the QA add-on.
 - [Reference](reference/skills.md): every skill, CLI command, and configuration key.
 
