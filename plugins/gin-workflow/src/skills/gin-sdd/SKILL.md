@@ -10,10 +10,10 @@ Applies only when `gin-workflow state --format json` reports `project.layout: sd
 ## discuss
 1. After the user confirms the design: `gin-workflow task create --type epic --title "<title>"` (a roadmap epic is reused as is) → `specs new <slug> --epic <epic>` creates `<changes>/<epic>-<slug>/`.
 2. Write `01-proposal.md`, `02-spec-delta.md`, and `03-design.md` in that folder (the number prefix is the reading order; a folder from before numbering keeps its unnumbered names, which every `specs` command still reads). `01-proposal.md` lists `## User Stories` from `specs template user-story.md`, each with `REQ:`. Each new requirement gets its ID from `specs next-id <cap>`; a `MODIFIED` or `REMOVED` block puts the output of `specs hash <REQ-ID>` on the line after its heading, and a `REMOVED` block adds `Reason: <why>`. An architecture decision also gets `docs/adr/NNNN-<slug>.md` from `specs template adr.md`.
-3. `specs lint --change <epic>` must exit 0.
+3. `specs lint --change <epic>` must exit 0. When it reports a cited file that git does not track (an ADR, a mockup), commit that file with the change folder and lint again.
 4. `project.spec_review`:
    - `chat`: the user confirms → `gin-workflow record requirement-confirmed --workflow-id <epic> --evidence <change folder> --actor <id>`.
-   - `pr`: commit only the change folder on branch `spec/<epic>-<slug>` and push; get approval (stage-contract Approvals), then `gh pr create --fill`; return `awaiting_spec_review` without recording. On a later run, `specs status --change <epic>`: `merged` → record `requirement-confirmed` with evidence `<pr url> <merge commit>`; `open` → report and stop; `closed` or `none` → ask the user. Implementation branches from the updated base.
+   - `pr`: commit only the change folder and the files it cites on branch `spec/<epic>-<slug>` and push; get approval (stage-contract Approvals), then `gh pr create --fill`; return `awaiting_spec_review` without recording. On a later run, `specs status --change <epic>`: `merged` → record `requirement-confirmed` with evidence `<pr url> <merge commit>`; `open` → report and stop; `closed` or `none` → ask the user. Implementation branches from the updated base.
 
 ## plan
 Write `<change>/04-plan.md`. Each track's Metadata adds `Requirements: REQ-…`; every `ADDED`/`MODIFIED` REQ in the delta belongs to at least one track. Record `plan-approved --workflow-id <epic>`.
