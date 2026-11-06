@@ -7,7 +7,7 @@ description: Walk the manual test cases of a capability with a tester, record ea
 
 `/gin-qa:run <capability>`. Results are written by `gin-qa cases result`, bugs by `gin-qa cases bug`; never edit a case file yourself.
 
-1. Preconditions: `gin-workflow` and `gin-qa` are on `PATH`. Otherwise stop and name what to install: `install.sh --plugin gin-qa` (or `--plugin all`) from a gin-workflow clone or through `remote-install.sh`.
+1. Preconditions: `gin` and `gin-qa` are on `PATH`. Otherwise stop and name what to install: `install.sh --plugin gin-qa` (or `--plugin all`) from a gin-workflow clone or through `remote-install.sh`.
 2. Run `gin-qa cases export --format json` and keep the cases whose `capability` is the one given and whose `type` is `manual`, sorted by `id`. None: say so and stop.
 3. Ask the tester once for a run reference. The default is the `Run reference:` under `## Manual runs` in the guidelines (`gin-qa cases plan <capability> --format json` names the file under `guidelines`), filled in with today's UTC date; without one, `manual <YYYY-MM-DD>`.
 4. Show one case at a time: ID and title, preconditions, test data, numbered steps, expected, and its current `result` and `bug`. Ask for `passed`, `failed`, `blocked`, or `skip`.

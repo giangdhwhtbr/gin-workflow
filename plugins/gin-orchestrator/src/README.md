@@ -14,9 +14,9 @@ This installs gin-workflow first when its launcher is missing, then the `gin-orc
 
 ## Dependency on gin-workflow
 
-The launcher asks `gin paths --json` for gin-workflow's library directory and imports gin-workflow's facade, `workflow_core.ext`, from there. This add-on imports nothing else from gin-workflow. If `gin-workflow` is not on `PATH`, the launcher exits 1 with `error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator`.
+The launcher asks `gin paths --json` for gin-workflow's library directory and imports gin-workflow's facade, `workflow_core.ext`, from there. This add-on imports nothing else from gin-workflow. If `gin` is not on `PATH`, the launcher exits 1 with `error: gin is not on PATH; install it with ./install.sh --plugin gin-orchestrator`.
 
-The facade carries `EXT_VERSION`. A change that removes a name or alters a signature raises it, and the launcher exits 1 when it differs from the version this add-on supports (`error: gin-workflow facade EXT_VERSION <n>; this gin-orchestrator supports 2`). The add-on requires gin-workflow `>=2.0,<3`.
+The facade carries `EXT_VERSION`. A change that removes a name or alters a signature raises it, and the launcher exits 1 when it differs from the version this add-on supports (`error: gin facade EXT_VERSION <n>; this gin-orchestrator supports 2`). The add-on requires gin-workflow `>=2.0,<3`.
 
 The worker library creates and removes worktrees through `workflow_core.ext.create_worktree` and `cleanup_worktree`, the same code as `gin worktree`.
 

@@ -7,7 +7,7 @@ description: "Configure worker harnesses for gin: which harness runs each role a
 
 `/gin-orchestrator:providers` sets up which harnesses may run work besides the main harness, and which one each role and reasoning tier prefers. Configuration is written by `gin-orchestrator configure`; never edit `.agent-workflow/config.yaml` or `.agent-workflow/orchestrator.local.yaml` by hand.
 
-Preconditions: `gin-workflow` and `gin-orchestrator` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists. Otherwise stop and name what to install or run: `./install.sh --plugin gin-orchestrator` from a gin-workflow clone, or `/setup`.
+Preconditions: `gin` and `gin-orchestrator` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists. Otherwise stop and name what to install or run: `./install.sh --plugin gin-orchestrator` from a gin-workflow clone, or `/setup`.
 
 Ask one question at a time and wait for the answer. Collect answers as `--set` keys (portable, committed) and `--local-set` keys (machine-local, untracked). `orchestrator.local.yaml` holds only executables; the model catalog lives under `models:` in `.agent-workflow/config.yaml`, written by `gin setup configure`.
 

@@ -26,6 +26,7 @@ ALLOWED = {
 COMMAND = re.compile(r"(?<![\w./-])gin-workflow (?:%s)\b|(?<![\w.-])gin-workflow:(?!start|end)"
                      % "|".join(map(re.escape, TOP_COMMANDS)))
 OLD_SKILL = re.compile(r"(?<![\w.-])gin-(?:knowledge|sdd|team|worktrees|debugging|review-response|parallel-agents)(?![\w-])")
+BARE_PROGRAM = re.compile(r"`gin-workflow`")
 SUFFIXES = {".md", ".py", ".json", ".yaml", ".yml", ".toml", ".sh", ".ps1", ".txt", ".html", ""}
 
 
@@ -50,3 +51,9 @@ class RenameSweepTests(unittest.TestCase):
             for number, line in enumerate(text.splitlines(), 1):
                 with self.subTest(file=rel, line=number):
                     self.assertIsNone(OLD_SKILL.search(line), line)
+
+    def test_no_bare_program_name_in_code_span(self):
+        for rel, text in scanned():
+            for number, line in enumerate(text.splitlines(), 1):
+                with self.subTest(file=rel, line=number):
+                    self.assertIsNone(BARE_PROGRAM.search(line), line)

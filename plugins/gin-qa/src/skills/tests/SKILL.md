@@ -7,7 +7,7 @@ description: Write, run, and check automated tests for api, unit, integration, o
 
 `/gin-qa:tests <capability> --type <type>` or `/gin-qa:tests <TC-ID>... --type <type>`. All commands are `gin-qa tests <command>`; exit 1 means findings to fix, exit 2 means wrong usage, a missing tool, or an invalid `## Automated types` section (which `check` lists as findings with exit 1).
 
-1. Preconditions: `gin-workflow` and `gin-qa` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists; otherwise stop and name what to install or run (`install.sh --plugin gin-qa`, `/setup`). For `e2e` use `/gin-qa:e2e`; `manual` cases have no tests.
+1. Preconditions: `gin` and `gin-qa` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists; otherwise stop and name what to install or run (`install.sh --plugin gin-qa`, `/setup`). For `e2e` use `/gin-qa:e2e`; `manual` cases have no tests.
 2. Read the guidelines file (`plan --format json` names it under `guidelines`; `/gin-qa:cases` creates it). Its rules override everything below.
 3. When its `## Automated types` section has no `### <type>`: find the project's test runner and where tests of this kind live (existing tests, `pyproject.toml`, `package.json`), propose the subsection to the user, and write it only after they confirm:
    ```markdown

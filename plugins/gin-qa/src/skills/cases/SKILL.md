@@ -7,7 +7,7 @@ description: Write or update test cases from gin specs, one file per case in qa/
 
 `/gin-qa:cases <capability>` or `/gin-qa:cases --change <epic>`. All commands are `gin-qa cases <command>`; exit 1 means findings to fix, exit 2 means wrong usage or a missing tool.
 
-1. Preconditions: `gin-workflow` and `gin-qa` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists. Otherwise stop and name what to install or run: `install.sh --plugin gin-qa` (or `--plugin all`) from a gin-workflow clone or through `remote-install.sh`, or `/setup`. Exit 2 mentioning `specs reqs` means gin-workflow is too old: reinstall it.
+1. Preconditions: `gin` and `gin-qa` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists. Otherwise stop and name what to install or run: `install.sh --plugin gin-qa` (or `--plugin all`) from a gin-workflow clone or through `remote-install.sh`, or `/setup`. Exit 2 mentioning `specs reqs` means `gin` is too old: reinstall it.
 2. `plan <capability>` (or `plan --change <epic>`) `--format json` gives `cases` (the folder), `guidelines` (a file), and the work: `missing`, `stale`, `obsolete`.
 3. Read the guidelines file. If it does not exist, create it from [guidelines.md](../../templates/guidelines.md) and tell the user to adapt it. Create `README.md` next to it from [qa-readme.md](../../templates/qa-readme.md) when that file does not exist. The guidelines' rules override everything below.
 4. A flat `<cases>/<capability>.md` file must be split before cases are added: run `gin-qa cases split <capability>`. On refusal, show the findings to the user and stop.

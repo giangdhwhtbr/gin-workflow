@@ -1,6 +1,6 @@
 # Tham chiếu skill
 
-Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, và `/gin-orchestrator:<name>` cho add-on worker harness. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `report` là `@gin-workflow-report`, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); các stage của lifecycle vẫn chạy qua CLI `gin-workflow`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
+Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, và `/gin-orchestrator:<name>` cho add-on worker harness. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `report` là `@gin-workflow-report`, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); các stage của lifecycle vẫn chạy qua CLI `gin`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
 
 ## gin: các stage của lifecycle { #gin-workflow-lifecycle-stages }
 
