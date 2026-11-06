@@ -457,8 +457,17 @@ function Disable-ClaudePlugin {
     if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf)) {
         return
     }
-    $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json -AsHashtable
-    if ($null -eq $settings -or -not $settings.Contains('enabledPlugins') -or $settings.enabledPlugins -isnot [System.Collections.IDictionary] -or -not $settings.enabledPlugins.Contains("$Name@skills-dir")) {
+    $parseError = "Error: cannot parse $settingsPath; fix it and re-run ./install.ps1"
+    try {
+        $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json -AsHashtable
+    }
+    catch {
+        throw $parseError
+    }
+    if ($settings -isnot [System.Collections.IDictionary] -or ($settings.Contains('enabledPlugins') -and $settings.enabledPlugins -isnot [System.Collections.IDictionary])) {
+        throw $parseError
+    }
+    if (-not $settings.Contains('enabledPlugins') -or -not $settings.enabledPlugins.Contains("$Name@skills-dir")) {
         return
     }
     $settings.enabledPlugins.Remove("$Name@skills-dir")

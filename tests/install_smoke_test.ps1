@@ -483,6 +483,35 @@ try {
     Assert-Exists (Join-Path $legacyAgents 'gin-qa-e2e-tester.md')
     Assert-Exists (Join-Path $legacyAgents 'gin-mine.md')
 
+    # An unparsable Claude settings.json stops the upgrade before the old Claude
+    # install or the settings file is touched.
+    $badHome = Join-Path $TestRoot 'bad-settings-home'
+    $env:HOME = $badHome
+    $env:USERPROFILE = $badHome
+    $badClaude = Join-Path $badHome '.claude/skills/gin-workflow'
+    $badSettings = Join-Path $badHome '.claude/settings.json'
+    foreach ($badContent in @('', '// comment', '[]', '{"enabledPlugins": []}')) {
+        if (Test-Path -LiteralPath $badHome) {
+            Remove-Item -LiteralPath $badHome -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $badClaude -Force | Out-Null
+        [IO.File]::WriteAllText($badSettings, $badContent)
+        $badBefore = [IO.File]::ReadAllBytes($badSettings)
+        $badFailed = $false
+        try {
+            Invoke-Installer @{ Platform = 'claude' } | Out-Null
+        }
+        catch {
+            $badFailed = $true
+            Assert-Contains $_.Exception.Message "Error: cannot parse $badSettings; fix it and re-run ./install.ps1"
+        }
+        Assert-True $badFailed "Expected an unparsable settings.json ('$badContent') to fail installation"
+        Assert-Exists $badClaude
+        Assert-True `
+            ([Convert]::ToBase64String($badBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($badSettings))) `
+            "Installer changed the unparsable settings.json ('$badContent')"
+    }
+
     # A gin-workflow file the installer does not manage is kept and reported.
     $foreignHome = Join-Path $TestRoot 'foreign-legacy-home'
     $env:HOME = $foreignHome

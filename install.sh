@@ -233,9 +233,14 @@ disable_claude_plugin() {
   python3 - "$settings_path" "$1@skills-dir" <<'PYEOF'
 import json, sys
 path, key = sys.argv[1], sys.argv[2]
-data = json.load(open(path, encoding="utf-8"))
-plugins = data.get("enabledPlugins")
-if isinstance(plugins, dict) and key in plugins:
+try:
+    data = json.load(open(path, encoding="utf-8"))
+except ValueError:
+    data = None
+if not isinstance(data, dict) or not isinstance(data.get("enabledPlugins", {}), dict):
+    sys.exit(f"Error: cannot parse {path}; fix it and re-run ./install.sh")
+plugins = data.get("enabledPlugins", {})
+if key in plugins:
     del plugins[key]
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=2)
@@ -734,8 +739,8 @@ remove_legacy_plugin() {
     return
   fi
   if matches_platform "claude" && [ "$HAS_CLAUDE" = true ]; then
-    rm -rf "${HOME}/.claude/skills/$old"
     disable_claude_plugin "$old"
+    rm -rf "${HOME}/.claude/skills/$old"
   fi
   if matches_platform "opencode"; then
     rm -rf "${HOME}/.config/opencode/skills/$old"

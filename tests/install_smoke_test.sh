@@ -618,6 +618,28 @@ assert_exists "$legacy_home/.config/opencode/agents/gin-developer.md"
 assert_exists "$legacy_home/.config/opencode/agents/gin-qa-e2e-tester.md"
 assert_exists "$legacy_home/.config/opencode/agents/gin-mine.md"
 
+# An unparsable Claude settings.json stops the upgrade before the old Claude
+# install or the settings file is touched.
+bad_settings_home="$MOCK_HOME/bad-settings-home"
+for bad_settings in '' '// comment' '[]' '{"enabledPlugins": []}'; do
+  rm -rf "$bad_settings_home"
+  mkdir -p "$bad_settings_home/.local/lib/gin-workflow/2.9" "$bad_settings_home/.local/bin" "$bad_settings_home/.claude/skills/gin-workflow"
+  printf '%s\n' '#!/usr/bin/env python3' > "$bad_settings_home/.local/lib/gin-workflow/2.9/gin-workflow"
+  ln -s "$bad_settings_home/.local/lib/gin-workflow/2.9/gin-workflow" "$bad_settings_home/.local/bin/gin-workflow"
+  printf '%s' "$bad_settings" > "$bad_settings_home/.claude/settings.json"
+  cp -f "$bad_settings_home/.claude/settings.json" "$bad_settings_home/settings.before"
+  if HOME="$bad_settings_home" ./install.sh --platform claude >"$output_file" 2>&1; then
+    echo "Expected an unparsable settings.json ('$bad_settings') to fail installation" >&2
+    exit 1
+  fi
+  assert_contains "$output_file" "Error: cannot parse $bad_settings_home/.claude/settings.json; fix it and re-run ./install.sh"
+  assert_exists "$bad_settings_home/.claude/skills/gin-workflow"
+  if ! cmp -s "$bad_settings_home/settings.before" "$bad_settings_home/.claude/settings.json"; then
+    echo "Expected settings.json ('$bad_settings') to be left untouched" >&2
+    exit 1
+  fi
+done
+
 # A gin-workflow file the installer does not manage is kept and reported.
 foreign_legacy_home="$MOCK_HOME/foreign-legacy-home"
 mkdir -p "$foreign_legacy_home/.local/bin" "$foreign_legacy_home/.local/lib/gin-workflow/2.9"
