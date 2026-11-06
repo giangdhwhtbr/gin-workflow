@@ -188,6 +188,13 @@ class TestHooksInstall(unittest.TestCase):
         self.assertEqual("stale", hooks.status(self.root)["pre-push"])
         self.assertEqual("chained", hooks.install(self.root)["hooks"]["pre-push"])
 
+    def test_doctor_tells_how_to_fix_a_stale_hook(self):
+        hook = self.root / ".git/hooks/pre-push"
+        hook.write_text('#!/bin/sh\nmy-check && gin-workflow hooks run pre-push "$@"\n', encoding="utf-8")
+        actions = setup_service.doctor(repository=self.root)["actions"]
+        self.assertIn("hooks: pre-push still calls gin-workflow; run gin hooks install, "
+                      "or in a hook you wrote replace gin-workflow hooks run with gin hooks run", actions)
+
 
 class TestHooksRun(unittest.TestCase):
     def setUp(self):

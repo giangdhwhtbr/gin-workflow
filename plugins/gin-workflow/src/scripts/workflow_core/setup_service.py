@@ -481,7 +481,8 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             states = hooks_status(root)
             checks_details["hooks"] = states
             hook_actions = [f"hooks: {name} is missing; run gin hooks install" if state == "missing" else
-                            f"hooks: {name} still calls gin-workflow; run gin hooks install" if state == "stale" else
+                            f"hooks: {name} still calls gin-workflow; run gin hooks install, "
+                            f"or in a hook you wrote replace gin-workflow hooks run with gin hooks run" if state == "stale" else
                             f"hooks: {name} is occupied; chain `exec gin hooks run {name}` into it"
                             for name, state in states.items() if state != "ok"]
         detected = detect_project(root)

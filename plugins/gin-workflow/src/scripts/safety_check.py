@@ -289,7 +289,7 @@ def wrapped_payloads(text):
 
 
 def block(message):
-    print(f"Blocked: {message} skips the gin-workflow git hooks; fix the failing check instead.", file=sys.stderr)
+    print(f"Blocked: {message} skips the gin git hooks; fix the failing check instead.", file=sys.stderr)
     raise SystemExit(BLOCK)
 
 
