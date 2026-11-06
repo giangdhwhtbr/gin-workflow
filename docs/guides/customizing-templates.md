@@ -25,6 +25,7 @@ gin-workflow specs template <template-name>
 
 Available templates:
 - Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
+- SRS export (`specs export`): `srs.html`, `srs-capability.html`
 - Codebase documentation (`/gin-workflow:tech-doc`): `codebase/<FILE>.md`, for example `codebase/05-API.md`
 - Team conventions: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
@@ -39,6 +40,7 @@ Available templates:
 | `specs-README.md` | `specs archive` and `specs migrate` | `.agent-workflow/templates/specs-README.md` |
 | Asset folder description (SDD layout) | `/gin-workflow:discuss` | `.agent-workflow/templates/iteration.md` |
 | Activity and state diagrams (SDD layout) | `/gin-workflow:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
+| SRS document and chapter (SDD layout) | `specs export` | `.agent-workflow/templates/srs.html`, `srs-capability.html` |
 | `codebase/*` | `/gin-workflow:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
 | `team/*` | `gin-workflow team init` | `.agent-workflow/templates/team/<file>` |
 
@@ -97,6 +99,24 @@ To override a template, create the `.agent-workflow/templates/` folder and put y
 5. Verify the override by running `gin-workflow specs template spec.md`. It prints your version from `.agent-workflow/templates/spec.md`.
 
 The `{{...}}` placeholders in `spec.md`, the SDD files, and the `team/*` files are filled by `gin-workflow` commands. The agent fills the story, roadmap, and epic templates, so placeholders you invent there stay as text for the agent to complete.
+
+### SRS export templates
+
+`gin-workflow specs export` fills `srs.html` once and `srs-capability.html` once per capability. `srs.html` takes `{{title}}`, `{{date}}`, `{{toc}}`, and `{{chapters}}`. `srs-capability.html` takes `{{cap}}` (the chapter's anchor), `{{capability}}`, `{{purpose}}`, `{{diagrams}}`, `{{requirements}}`, and `{{assets}}`: reorder them to reorder a chapter, or delete one and its heading to drop that section. Each placeholder is filled once, so `{{...}}` written in a spec stays as text, and comments are removed from both templates.
+
+Put the logo, the customer, and the product brief on the cover of `srs.html`:
+
+```html
+<section class="cover">
+  <img class="logo" src="docs/brand/logo.png" alt="Acme">
+  <h1>{{title}}</h1>
+  <p class="customer">Prepared for Example Corp</p>
+  <p class="brief">One paragraph on what the product does and for whom.</p>
+  <p class="date">{{date}}</p>
+</section>
+```
+
+A relative `src` in either template is read from the repository root and embedded in the exported file; when the file is missing, `specs export` exits 1 and names it.
 
 ## Test case guidelines and fields
 

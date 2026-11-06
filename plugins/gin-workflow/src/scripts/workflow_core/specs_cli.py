@@ -37,6 +37,10 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("trace", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("status", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("reqs", parents=[common]).add_argument("--change")
+    item = sub.add_parser("export", parents=[common])
+    item.add_argument("cap", nargs="?")
+    item.add_argument("--all", action="store_true")
+    item.add_argument("--out")
     item = sub.add_parser("migrate", parents=[common])
     item.add_argument("--dry-run", action="store_true")
     item.add_argument("--force", action="store_true")
@@ -106,6 +110,14 @@ def _run(args: argparse.Namespace) -> int:
         block, digest = specs.requirement_hash(root, cfg, args.req_id)
         _emit({"id": block.id, "hash": digest}, args.format, f"<!-- base: {digest} -->")
         return 0
+    if args.command == "export":
+        from .specs_export import export
+
+        if bool(args.cap) == args.all:
+            raise specs.SpecsError("give one capability or --all")
+        result = export(root, cfg, None if args.all else args.cap, args.out)
+        _emit(result, args.format, "\n".join([result["path"], *(f"missing image: {m}" for m in result["missing"])]))
+        return 1 if result["missing"] else 0
     change = specs.find_change(root, cfg, args.change)
     if args.command == "renumber":
         result = specs.renumber(root, cfg, change, args.old, args.new, against=args.against)

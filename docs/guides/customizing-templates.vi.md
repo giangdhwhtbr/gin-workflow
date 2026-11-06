@@ -25,6 +25,7 @@ gin-workflow specs template <template-name>
 
 Các template khả dụng:
 - Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
+- Xuất SRS (`specs export`): `srs.html`, `srs-capability.html`
 - Tài liệu codebase (`/gin-workflow:tech-doc`): `codebase/<FILE>.md`, ví dụ `codebase/05-API.md`
 - Quy ước của team: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
@@ -39,6 +40,7 @@ Các template khả dụng:
 | `specs-README.md` | `specs archive` và `specs migrate` | `.agent-workflow/templates/specs-README.md` |
 | Mô tả thư mục asset (layout SDD) | `/gin-workflow:discuss` | `.agent-workflow/templates/iteration.md` |
 | Sơ đồ activity và state (layout SDD) | `/gin-workflow:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
+| Tài liệu SRS và chương (layout SDD) | `specs export` | `.agent-workflow/templates/srs.html`, `srs-capability.html` |
 | `codebase/*` | `/gin-workflow:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
 | `team/*` | `gin-workflow team init` | `.agent-workflow/templates/team/<file>` |
 
@@ -97,6 +99,24 @@ Các template khả dụng:
 5. Xác minh việc ghi đè bằng cách chạy `gin-workflow specs template spec.md`. Nó in phiên bản của bạn từ `.agent-workflow/templates/spec.md`.
 
 Các placeholder `{{...}}` trong `spec.md`, các file SDD, và các file `team/*` được các lệnh `gin-workflow` điền. Agent điền các template story, roadmap, và epic, nên các placeholder bạn tự đặt ở đó vẫn là văn bản để agent hoàn thành.
+
+### Template xuất SRS { #srs-export-templates }
+
+`gin-workflow specs export` điền `srs.html` một lần và `srs-capability.html` một lần cho mỗi capability. `srs.html` nhận `{{title}}`, `{{date}}`, `{{toc}}`, và `{{chapters}}`. `srs-capability.html` nhận `{{cap}}` (anchor của chương), `{{capability}}`, `{{purpose}}`, `{{diagrams}}`, `{{requirements}}`, và `{{assets}}`: đổi thứ tự chúng để đổi thứ tự trong chương, hoặc xóa một placeholder cùng heading của nó để bỏ phần đó. Mỗi placeholder được điền một lần, nên `{{...}}` viết trong spec giữ nguyên là văn bản, và comment được bỏ khỏi cả hai template.
+
+Đặt logo, tên khách hàng, và phần giới thiệu sản phẩm trên trang bìa của `srs.html`:
+
+```html
+<section class="cover">
+  <img class="logo" src="docs/brand/logo.png" alt="Acme">
+  <h1>{{title}}</h1>
+  <p class="customer">Prepared for Example Corp</p>
+  <p class="brief">One paragraph on what the product does and for whom.</p>
+  <p class="date">{{date}}</p>
+</section>
+```
+
+Một `src` tương đối trong template được đọc từ gốc repository và nhúng vào file xuất ra; khi file không tồn tại, `specs export` thoát với mã 1 và nêu tên file đó.
 
 ## Guideline và trường của test case { #test-case-guidelines-and-fields }
 

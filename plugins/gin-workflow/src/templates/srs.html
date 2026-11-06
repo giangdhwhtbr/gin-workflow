@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<!-- The document of `gin-workflow specs export`. Override it in .agent-workflow/templates/srs.html.
+     Placeholders, each in double braces: title, date, toc, chapters (each chapter comes from srs-capability.html).
+     Put your logo, the customer, and the product brief on the cover, for example:
+       <img class="logo" src="docs/brand/logo.png" alt="Acme">
+       <p class="customer">Prepared for Example Corp</p>
+       <p class="brief">One paragraph on what the product does and for whom.</p>
+     A relative src is read from the repository root and embedded in the file.
+     Comments are removed before the document is written. -->
+<style>
+  :root { --ink: #1f2328; --muted: #59636e; --line: #d1d9e0; --accent: #0b5cad; --code: #f6f8fa; }
+  body { font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink);
+         background: #fff; max-width: 60rem; margin: 0 auto; padding: 2rem 1rem; }
+  h1, h2, h3, h4, h5, h6 { line-height: 1.25; }
+  .cover { min-height: 60vh; display: flex; flex-direction: column; justify-content: center;
+           border-bottom: 2px solid var(--accent); margin-bottom: 2rem; }
+  .cover .subtitle { font-size: 1.25rem; color: var(--muted); }
+  .logo { max-height: 4rem; align-self: flex-start; }
+  .toc ul { list-style: none; padding-left: 1rem; }
+  .chapter { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1rem; }
+  .requirement { border-left: 3px solid var(--accent); padding-left: 1rem; margin: 1.25rem 0; }
+  pre { background: var(--code); padding: .75rem; overflow-x: auto; }
+  pre.mermaid[data-processed] { background: none; text-align: center; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid var(--line); padding: .3rem .6rem; text-align: left; vertical-align: top; }
+  img { max-width: 100%; }
+  figure { margin: 1rem 0; }
+  figcaption { color: var(--muted); font-size: .85rem; }
+  .missing-image { color: #b42318; font-style: italic; }
+  @media print {
+    body { max-width: none; padding: 0; font-size: 11pt; }
+    .cover { min-height: 90vh; break-after: page; border-bottom: none; }
+    .toc { break-after: page; }
+    .chapter { break-before: page; border-top: none; margin-top: 0; }
+    .requirement, figure, pre, table { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<section class="cover">
+  <h1>{{title}}</h1>
+  <p class="subtitle">Software Requirements Specification</p>
+  <p class="date">{{date}}</p>
+</section>
+<nav class="toc">
+  <h2>Contents</h2>
+  {{toc}}
+</nav>
+{{chapters}}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
+        integrity="sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"
+        crossorigin="anonymous"></script>
+<script>if (window.mermaid) { window.mermaid.initialize({ startOnLoad: true }); }</script>
+</body>
+</html>
