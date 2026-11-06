@@ -7,7 +7,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 REMOVED = re.compile(
-    r"verification_passed|verification-passed|verification\.passed|skills/verify|/gin-workflow:verify|model_tiers\.verify"
+    r"verification_passed|verification-passed|verification\.passed|skills/verify|/gin:verify|model_tiers\.verify"
     r"|`verify` (stage|skill)|verify stage",
     re.IGNORECASE,
 )

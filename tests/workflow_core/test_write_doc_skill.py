@@ -14,8 +14,8 @@ class WriteDocSkillTests(unittest.TestCase):
 
     def test_names_templates_rules_and_check(self):
         for needle in ("`readme.md`", "`runbook.md`", "`adr.md`", "`changelog.md`",
-                       "gin-workflow specs template", "gin-workflow rules --files",
-                       "references/docs-style.md", "gin-workflow docs check", "artifacts.adr"):
+                       "gin specs template", "gin rules --files",
+                       "references/docs-style.md", "gin docs check", "artifacts.adr"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, self.text)
 

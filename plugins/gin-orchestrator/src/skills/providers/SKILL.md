@@ -1,6 +1,6 @@
 ---
 name: providers
-description: "Configure worker harnesses for gin-workflow: which harness runs each role and tier."
+description: "Configure worker harnesses for gin: which harness runs each role and tier."
 ---
 
 # Providers
@@ -9,7 +9,7 @@ description: "Configure worker harnesses for gin-workflow: which harness runs ea
 
 Preconditions: `gin-workflow` and `gin-orchestrator` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists. Otherwise stop and name what to install or run: `./install.sh --plugin gin-orchestrator` from a gin-workflow clone, or `/setup`.
 
-Ask one question at a time and wait for the answer. Collect answers as `--set` keys (portable, committed) and `--local-set` keys (machine-local, untracked). `orchestrator.local.yaml` holds only executables; the model catalog lives under `models:` in `.agent-workflow/config.yaml`, written by `gin-workflow setup configure`.
+Ask one question at a time and wait for the answer. Collect answers as `--set` keys (portable, committed) and `--local-set` keys (machine-local, untracked). `orchestrator.local.yaml` holds only executables; the model catalog lives under `models:` in `.agent-workflow/config.yaml`, written by `gin setup configure`.
 
 1. **Harnesses.** Which installed harnesses may run work? For each candidate `<p>` (`claude`, `codex`, `antigravity`, `opencode`), run `gin-orchestrator models --provider <p> --json` and show what it lists. For each chosen harness, record its executable as `--local-set providers.<p>.executable=<path or name>`.
 2. **Models.** For each chosen harness, which models may it run, weakest first? Offer only models the previous step listed. Record `--set 'models.<p>.models=[<weakest>, ..., <strongest>]'`, and `--set 'models.<p>.efforts=[...]'`, lowest first, when the harness takes an effort. A harness without an entry keeps its built-in catalog.
@@ -21,7 +21,7 @@ Then:
 
 1. Run `gin-orchestrator configure <every orchestrator. --set and --local-set> --dry-run --json`. Show the actions and any validation error; fix the answers and rerun until it is clean. Get explicit approval.
 2. Run the same command with `--approve` instead of `--dry-run`.
-3. Write the catalog and turn multi-harness routing on: `gin-workflow setup configure <every models. --set> --set provider_mode=multi --set routing.review.independence=provider --approve`.
-4. Run `gin-workflow setup doctor --probe --format json`, report each provider model that is unavailable and why, and stop. Do not start a lifecycle stage.
+3. Write the catalog and turn multi-harness routing on: `gin setup configure <every models. --set> --set provider_mode=multi --set routing.review.independence=provider --approve`.
+4. Run `gin setup doctor --probe --format json`, report each provider model that is unavailable and why, and stop. Do not start a lifecycle stage.
 
 `configure` refuses `--set` keys outside `orchestrator.` and writes nothing on a validation error.

@@ -522,22 +522,27 @@ class ProviderRegistryTests(unittest.TestCase):
         self.assertIsNone(_resolve_worker_agent("codex", "developer"))
 
         # Bare stem
-        self.assertEqual("gin-workflow:developer", _resolve_worker_agent("claude", "developer"))
-        self.assertEqual("gin-workflow-developer", _resolve_worker_agent("opencode", "developer"))
+        self.assertEqual("gin:developer", _resolve_worker_agent("claude", "developer"))
+        self.assertEqual("gin-developer", _resolve_worker_agent("opencode", "developer"))
         self.assertEqual("developer", _resolve_worker_agent("antigravity", "developer"))
         self.assertEqual("developer", _resolve_worker_agent("copilot", "developer"))
 
         # Colon-delimited
-        self.assertEqual("gin-workflow:implementer", _resolve_worker_agent("claude", "gin-workflow:implementer"))
-        self.assertEqual("gin-workflow-implementer", _resolve_worker_agent("opencode", "gin-workflow:implementer"))
-        self.assertEqual("implementer", _resolve_worker_agent("antigravity", "gin-workflow:implementer"))
-        self.assertEqual("implementer", _resolve_worker_agent("copilot", "gin-workflow:implementer"))
+        self.assertEqual("gin:implementer", _resolve_worker_agent("claude", "gin:implementer"))
+        self.assertEqual("gin-implementer", _resolve_worker_agent("opencode", "gin:implementer"))
+        self.assertEqual("implementer", _resolve_worker_agent("antigravity", "gin:implementer"))
+        self.assertEqual("implementer", _resolve_worker_agent("copilot", "gin:implementer"))
 
         # Hyphen-prefixed gin-workflow
-        self.assertEqual("gin-workflow:reviewer", _resolve_worker_agent("claude", "gin-workflow-reviewer"))
-        self.assertEqual("gin-workflow-reviewer", _resolve_worker_agent("opencode", "gin-workflow-reviewer"))
+        self.assertEqual("gin:reviewer", _resolve_worker_agent("claude", "gin-workflow-reviewer"))
+        self.assertEqual("gin-reviewer", _resolve_worker_agent("opencode", "gin-workflow-reviewer"))
         self.assertEqual("reviewer", _resolve_worker_agent("antigravity", "gin-workflow-reviewer"))
         self.assertEqual("reviewer", _resolve_worker_agent("copilot", "gin-workflow-reviewer"))
+
+        # Plugin ids: the new `gin`, the legacy long plugin id, and the gin-qa agents
+        self.assertEqual("gin:developer", _resolve_worker_agent("claude", "gin-workflow" + ":developer"))
+        self.assertEqual("gin-developer", _resolve_worker_agent("opencode", "gin:developer"))
+        self.assertEqual("gin-qa-e2e-tester", _resolve_worker_agent("opencode", "gin-qa:e2e-tester"))
 
         # Hyphen-prefixed gin-qa
         self.assertEqual("gin-qa:tester", _resolve_worker_agent("claude", "gin-qa-tester"))

@@ -13,7 +13,7 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertNotIn("three or fewer", text)
         self.assertNotIn("Execute directly", text)
         self.assertIn("routes dispatch", text)
-        self.assertIn("gin-workflow:developer", text)
+        self.assertIn("gin:developer", text)
         self.assertIn("needs_clarification", text)
         self.assertIn("--escalate", text)
         self.assertIn("routes dispatch --workflow-id <w> --task-id <id> --escalate", text)
@@ -22,7 +22,7 @@ class SkillRoutingTests(unittest.TestCase):
     def test_review_skill_uses_model_and_effort(self):
         text = (SRC / "skills/review/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("--model", text)
-        self.assertIn("gin-workflow:code-reviewer", text)
+        self.assertIn("gin:code-reviewer", text)
         self.assertNotIn("--tier", text)
 
     def test_plan_skill_and_schema_use_catalog_routes(self):
@@ -48,7 +48,7 @@ class SkillRoutingTests(unittest.TestCase):
         for path in (SRC / "skills/discuss/SKILL.md", SRC / "skills/plan/SKILL.md"):
             text = path.read_text(encoding="utf-8")
             with self.subTest(file=path.name):
-                self.assertIn("gin-workflow:agent-researcher", text)
+                self.assertIn("gin:agent-researcher", text)
 
     def test_discuss_and_plan_use_confirmed_glossary_terms(self):
         for path in (SRC / "skills/discuss/SKILL.md", SRC / "skills/plan/SKILL.md"):
@@ -65,7 +65,7 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertLess(text.index("`Capabilities:`"), text.index("5. **Write**"))
 
     def test_sdd_discuss_confirms_capabilities_before_ids(self):
-        text = (SRC / "skills/gin-sdd/SKILL.md").read_text(encoding="utf-8")
+        text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
         discuss = text[text.index("## discuss"):text.index("## plan")]
         for needle in ("Capabilities affected", "`ui` holds only", "`(new)`", "renumbering",
                        "## Capabilities Affected", "`git mv`", "README.md",
@@ -80,13 +80,13 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertLessEqual(len(text), 6_000)
 
     def test_sdd_names_the_srs_export(self):
-        text = (SRC / "skills/gin-sdd/SKILL.md").read_text(encoding="utf-8")
+        text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("`specs export <cap>`", text)
         self.assertIn("`--all`", text)
         self.assertLessEqual(len(text), 6_000)
 
     def test_review_response_skill_routes_to_same_route(self):
-        text = (SRC / "skills/gin-review-response/SKILL.md").read_text(encoding="utf-8")
+        text = (SRC / "skills/review-response/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("same route", text)
         self.assertNotIn("same-reasoning", text)
 

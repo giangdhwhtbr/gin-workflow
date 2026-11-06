@@ -75,12 +75,16 @@ def _resolve_worker_agent(provider: str, agent: str | None) -> str | None:
         return None
     if ":" in raw:
         plugin_prefix, stem = raw.split(":", 1)
-    elif raw.startswith("gin-workflow-"):
-        plugin_prefix, stem = "gin-workflow", raw[len("gin-workflow-"):]
     elif raw.startswith("gin-qa-"):
         plugin_prefix, stem = "gin-qa", raw[len("gin-qa-"):]
+    elif raw.startswith("gin-workflow-"):
+        plugin_prefix, stem = "gin", raw[len("gin-workflow-"):]
+    elif raw.startswith("gin-"):
+        plugin_prefix, stem = "gin", raw[len("gin-"):]
     else:
-        plugin_prefix, stem = "gin-workflow", raw
+        plugin_prefix, stem = "gin", raw
+    if plugin_prefix == "gin-workflow":
+        plugin_prefix = "gin"
     if provider == "claude":
         return f"{plugin_prefix}:{stem}"
     if provider == "opencode":

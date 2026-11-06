@@ -13,22 +13,22 @@ INSTALL = "./install.sh --plugin gin-orchestrator"
 
 def main() -> int:
     # bootstrap: workflow_core (and its tool()) is not importable until this lookup succeeds
-    gin_workflow = shutil.which("gin-workflow")
-    if gin_workflow is None:
-        print(f"error: gin-workflow is not on PATH; install it with {INSTALL}", file=sys.stderr)
+    gin_cli = shutil.which("gin")
+    if gin_cli is None:
+        print(f"error: gin is not on PATH; install it with {INSTALL}", file=sys.stderr)
         return 1
-    done = subprocess.run([gin_workflow, "paths", "--json"], capture_output=True, text=True, check=False)
+    done = subprocess.run([gin_cli, "paths", "--json"], capture_output=True, text=True, check=False)
     try:
         lib_dir = json.loads(done.stdout)["lib_dir"] if done.returncode == 0 else None
     except (json.JSONDecodeError, KeyError, TypeError):
         lib_dir = None
     if lib_dir is None:
-        print(f"error: gin-workflow paths failed; reinstall with {INSTALL}", file=sys.stderr)
+        print(f"error: gin paths failed; reinstall with {INSTALL}", file=sys.stderr)
         return 1
     sys.path[:0] = [str(Path(__file__).resolve().parent), lib_dir]
     from workflow_core import ext
     if ext.EXT_VERSION != SUPPORTED_EXT_VERSION:
-        print(f"error: gin-workflow facade EXT_VERSION {ext.EXT_VERSION}; this gin-orchestrator supports "
+        print(f"error: gin facade EXT_VERSION {ext.EXT_VERSION}; this gin-orchestrator supports "
               f"{SUPPORTED_EXT_VERSION}", file=sys.stderr)
         return 1
     from gin_orchestrator.cli import main as cli_main

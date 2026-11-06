@@ -16,8 +16,8 @@ class TechDocSkillTests(unittest.TestCase):
         self.text = SKILL_PATH.read_text(encoding="utf-8")
 
     def test_declares_agent_roles(self):
-        self.assertIn("gin-workflow:agent-researcher", self.text)
-        self.assertIn("gin-workflow:docs-writer", self.text)
+        self.assertIn("gin:agent-researcher", self.text)
+        self.assertIn("gin:docs-writer", self.text)
 
     def test_declares_runtime_notes_path(self):
         self.assertIn(".agent-workflow/runtime/tech-doc/", self.text)

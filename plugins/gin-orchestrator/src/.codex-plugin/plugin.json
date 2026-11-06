@@ -1,7 +1,7 @@
 {
   "name": "gin-orchestrator",
   "version": "0.2.0",
-  "description": "Worker harnesses for gin-workflow: route roles and tiers to other agent harnesses.",
+  "description": "Worker harnesses for gin: route roles and tiers to other agent harnesses.",
   "author": {
     "name": "gin"
   },

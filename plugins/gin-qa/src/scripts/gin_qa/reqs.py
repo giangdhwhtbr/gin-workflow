@@ -1,4 +1,4 @@
-"""Requirements from `gin-workflow specs reqs`, resolved to one effective block per REQ-ID."""
+"""Requirements from `gin specs reqs`, resolved to one effective block per REQ-ID."""
 
 from __future__ import annotations
 
@@ -33,17 +33,17 @@ class Effective:
 
 
 def specs_reqs(root: Path, change: str | None = None) -> dict[str, Any]:
-    executable = shutil.which("gin-workflow")  # gin-qa shells out to gin-workflow; it imports none of it
+    executable = shutil.which("gin")  # gin-qa shells out to gin; it imports none of it
     if executable is None:
-        raise QaError("gin-workflow is not on PATH; install gin-workflow first")
+        raise QaError("gin is not on PATH; install gin-workflow first")
     if not (root / ".agent-workflow/config.yaml").is_file():
-        raise QaError("gin-workflow setup is required; run /setup once")
+        raise QaError("gin setup is required; run /setup once")
     argv = [executable, "specs", "reqs", "--repository", str(root), "--format", "json"]
     result = subprocess.run(argv + (["--change", change] if change else []), capture_output=True, text=True)
     if result.returncode != 0:
         if "invalid choice: 'reqs'" in result.stderr:
-            raise QaError("this gin-workflow has no `specs reqs`; reinstall a newer gin-workflow")
-        raise QaError(result.stderr.strip() or f"gin-workflow specs reqs exited {result.returncode}")
+            raise QaError("this gin has no `specs reqs`; reinstall a newer gin-workflow")
+        raise QaError(result.stderr.strip() or f"gin specs reqs exited {result.returncode}")
     return json.loads(result.stdout)
 
 

@@ -1,11 +1,11 @@
-"""Skills and agents reach task tracking through `gin-workflow task`, so the markdown backend works without `bd`."""
+"""Skills and agents reach task tracking through `gin task`, so the markdown backend works without `bd`."""
 
 from pathlib import Path
 import re
 import unittest
 
 SRC = Path(__file__).resolve().parents[1] / "plugins/gin-workflow/src"
-BEADS_ONLY = {"beads-migration", "team-setup", "gin-team"}
+BEADS_ONLY = {"beads-migration", "team-setup", "team"}
 
 
 class TestNoDirectBd(unittest.TestCase):

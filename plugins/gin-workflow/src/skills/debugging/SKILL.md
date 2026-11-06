@@ -1,5 +1,5 @@
 ---
-name: gin-debugging
+name: debugging
 description: Use for any bug, test failure, build failure, or unexpected behavior — find the root cause before fixing.
 ---
 

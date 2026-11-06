@@ -40,8 +40,8 @@ class TestWalkthroughCommands(unittest.TestCase):
 
     def test_unknown_subcommand_is_reported(self):
         cli = (ROOT / "docs/reference/cli.md").read_text(encoding="utf-8")
-        self.assertEqual(["team nonsense"], undocumented(cli, "gin-workflow team nonsense"))
-        self.assertEqual(["task nonsense"], undocumented(cli, "gin-workflow task nonsense"))
+        self.assertEqual(["team nonsense"], undocumented(cli, "gin team nonsense"))
+        self.assertEqual(["task nonsense"], undocumented(cli, "gin task nonsense"))
 
     def test_walkthrough_has_the_milestone_stages(self):
         text = WALKTHROUGH.read_text(encoding="utf-8")

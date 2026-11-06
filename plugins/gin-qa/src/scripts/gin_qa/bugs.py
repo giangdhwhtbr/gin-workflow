@@ -18,10 +18,10 @@ PRIORITY = {"high": "1", "medium": "2", "low": "3"}
 
 
 def _gin_workflow(root: Path, *args: str, stdin: str = "") -> subprocess.CompletedProcess[str]:
-    """`gin-workflow ...` in the repository: `task` runs bd against the current directory's database."""
-    executable = shutil.which("gin-workflow")
+    """`gin ...` in the repository: `task` runs bd against the current directory's database."""
+    executable = shutil.which("gin")
     if executable is None:
-        raise QaError("gin-workflow is not on PATH; install gin-workflow first")
+        raise QaError("gin is not on PATH; install gin-workflow first")
     return subprocess.run([executable, *args], cwd=root, input=stdin, capture_output=True, text=True)
 
 
@@ -42,11 +42,11 @@ def _show(root: Path, bead: str) -> tuple[dict[str, Any] | None, str]:
         return _record(shown.stdout), ""
     if "no issue" in shown.stderr + shown.stdout:
         return None, ""
-    return None, shown.stderr.strip() or f"gin-workflow task show exited {shown.returncode}"
+    return None, shown.stderr.strip() or f"gin task show exited {shown.returncode}"
 
 
 def _workflow_epic(root: Path, topic: str) -> str | None:
-    """The epic recorded at orchestration-ready for a `Workflow: <topic>` spec (`gin-workflow state`)."""
+    """The epic recorded at orchestration-ready for a `Workflow: <topic>` spec (`gin state`)."""
     state = _gin_workflow(root, "state", "--workflow-id", topic, "--repository", str(root), "--format", "json")
     try:
         epic = json.loads(state.stdout).get("epic")
@@ -118,10 +118,10 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
             *(["--external-ref", external_ref] if external_ref else []), "--json"]
     created = _gin_workflow(root, *argv, stdin=description(case, run, previous, actual, evidence))
     if created.returncode != 0:
-        raise QaError(created.stderr.strip() or f"gin-workflow task create exited {created.returncode}")
+        raise QaError(created.stderr.strip() or f"gin task create exited {created.returncode}")
     bug = (_record(created.stdout) or {}).get("id")
     if not isinstance(bug, str) or not bug:
-        raise QaError(f"gin-workflow task create printed no bead id: {created.stdout.strip()[:200]!r}")
+        raise QaError(f"gin task create printed no bead id: {created.stdout.strip()[:200]!r}")
     try:
         row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, bug)
     except (ValueError, OSError) as error:

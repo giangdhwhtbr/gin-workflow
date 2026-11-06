@@ -10,6 +10,7 @@ from workflow_core.budget import STAGES, description_chars, stage_chain, stage_c
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "plugins/gin-workflow/src"
+SHARED_SKILLS = ("learn", "sdd", "team", "worktrees", "debugging", "review-response", "parallel-agents")
 BANNED = ("ContextManifest", "ArtifactRegistry", "ApprovalDecision", "load_effective_config")
 
 
@@ -57,8 +58,8 @@ class TestBudgetMeasurement(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp)
             _write(src, "commands/execute.md", "Use the `execute` skill.\n")
-            _write(src, "skills/execute/SKILL.md", "Failures route to the `gin-debugging` skill.\n")
-            _write(src, "skills/gin-debugging/SKILL.md", "debug")
+            _write(src, "skills/execute/SKILL.md", "Failures route to the `debugging` skill.\n")
+            _write(src, "skills/debugging/SKILL.md", "debug")
             names = sorted(p.relative_to(src.resolve()).as_posix() for p in stage_chain(src, "execute"))
             self.assertEqual(["commands/execute.md", "skills/execute/SKILL.md"], names)
 
@@ -94,10 +95,10 @@ class TestBudgetLimits(unittest.TestCase):
                     "agents/developer.md", "agents/code-reviewer.md")
         for relative in injected:
             with self.subTest(path=relative):
-                self.assertIn("gin-workflow rules --files", (SRC / relative).read_text(encoding="utf-8"))
+                self.assertIn("gin rules --files", (SRC / relative).read_text(encoding="utf-8"))
         for stage in ("discuss", "plan", "orchestrate", "ship"):
             with self.subTest(stage=stage):
-                self.assertNotIn("gin-workflow rules", (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8"))
+                self.assertNotIn("gin rules", (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8"))
 
     def test_greenfield_tooling_task_uses_rule_tool_check_snippets(self):
         for relative in ("skills/execute/SKILL.md", "agents/developer.md"):
@@ -105,7 +106,7 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(path=relative):
                 self.assertIn("greenfield", text)
                 self.assertIn("checks_details.rules.tool_checks", text)
-                self.assertIn("gin-workflow setup doctor --format json", text)
+                self.assertIn("gin setup doctor --format json", text)
 
     def test_ship_validates_every_track_ledger_in_history(self):
         text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
@@ -133,11 +134,11 @@ class TestBudgetLimits(unittest.TestCase):
         self.assertNotIn(": ~/gin-harness", text)
 
     def test_sdd_guidance_loads_on_demand(self):
-        sdd_skill = (SRC / "skills/gin-sdd/SKILL.md").resolve()
+        sdd_skill = (SRC / "skills/sdd/SKILL.md").resolve()
         for stage in ("discuss", "plan", "orchestrate", "execute", "review", "ship", "quick"):
             text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(stage=stage):
-                self.assertIn("`gin-sdd` skill", text)
+                self.assertIn("`sdd` skill", text)
                 self.assertLessEqual(sum("sdd" in line for line in text.splitlines()), 2)
                 self.assertNotIn(sdd_skill, stage_chain(SRC, stage))
         guide = sdd_skill.read_text(encoding="utf-8")
@@ -146,11 +147,11 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertIn(heading, guide)
 
     def test_team_guidance_loads_on_demand(self):
-        team_skill = (SRC / "skills/gin-team/SKILL.md").resolve()
+        team_skill = (SRC / "skills/team/SKILL.md").resolve()
         for stage in ("discuss", "plan", "orchestrate", "execute", "ship"):
             text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(stage=stage):
-                self.assertIn("`gin-team` skill", text)
+                self.assertIn("`team` skill", text)
                 self.assertEqual(1, sum("project.team" in line for line in text.splitlines()))
                 self.assertNotIn(team_skill, stage_chain(SRC, stage))
         guide = team_skill.read_text(encoding="utf-8")
@@ -159,7 +160,8 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertIn(heading, guide)
 
     def test_commands_agents_and_shared_skills_within_budget(self):
-        limits = [("agents/*.md", 4_000), ("skills/gin-*/SKILL.md", 6_000), ("references/shape-*.md", 1_500)]
+        limits = [("agents/*.md", 4_000), *((f"skills/{name}/SKILL.md", 6_000) for name in SHARED_SKILLS),
+                  ("references/shape-*.md", 1_500)]
         for pattern, limit in limits:
             paths = sorted(SRC.glob(pattern))
             self.assertTrue(paths, pattern)
@@ -168,7 +170,7 @@ class TestBudgetLimits(unittest.TestCase):
                     self.assertLessEqual(len(path.read_text(encoding="utf-8")), limit)
 
     def test_no_command_shadows_a_same_name_skill(self):
-        # Claude Code resolves /gin-workflow:<name> to a same-name command, so the skill never loads.
+        # Claude Code resolves /gin:<name> to a same-name command, so the skill never loads.
         for path in SRC.glob("commands/*.md"):
             with self.subTest(command=path.name):
                 self.assertFalse((SRC / "skills" / path.stem / "SKILL.md").is_file())

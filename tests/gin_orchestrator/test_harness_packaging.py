@@ -68,7 +68,7 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/specs_trace.py",
     "scripts/workflow_core/specs_migrate.py",
     "skills/migrate-specs/SKILL.md",
-    "skills/gin-sdd/SKILL.md",
+    "skills/sdd/SKILL.md",
     "templates/team/pull_request_template.md",
     "templates/team/commit-msg",
     "templates/team/github-ci.yml",
@@ -78,7 +78,7 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/team_beads.py",
     "scripts/workflow_core/team_init.py",
     "scripts/workflow_core/team_cli.py",
-    "skills/gin-team/SKILL.md",
+    "skills/team/SKILL.md",
     "skills/team-setup/SKILL.md",
     "skills/report/SKILL.md",
     "scripts/workflow_core/usage.py",
@@ -155,7 +155,7 @@ class HarnessPackagingTests(unittest.TestCase):
         # hooks/hooks.json in Copilot's format, and agents with translated tool names.
         root = self.dist / "copilot/gin-workflow"
         manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-        self.assertEqual("gin-workflow", manifest["name"])
+        self.assertEqual("gin", manifest["name"])
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())
         self.assertTrue((root / "skills/report/SKILL.md").is_file())
         self.assertTrue((root / "references/stage-contract.md").is_file())
@@ -237,7 +237,7 @@ class HarnessPackagingTests(unittest.TestCase):
         for manifest in manifests:
             with self.subTest(manifest=manifest.relative_to(ROOT)):
                 with manifest.open(encoding="utf-8") as file:
-                    self.assertEqual("2.2.0", json.load(file)["version"])
+                    self.assertEqual("3.0.0", json.load(file)["version"])
 
     def test_repository_ignores_installations_and_generated_workflow_output(self):
         ignored = (
@@ -326,16 +326,16 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertIn("not a router lifecycle stage", lifecycle)
         self.assertIn("review_approved", lifecycle)
         self.assertIn("fails closed when a ledger lacks terminal approval", resume)
-        self.assertLess(resume.index("/gin-workflow:progress"), resume.index("finish the review first"))
-        self.assertLess(resume.index("finish the review first"), resume.index("/gin-workflow:workflow"))
-        self.assertLess(resume.index("/gin-workflow:workflow"), resume.index("selects `ship`"))
+        self.assertLess(resume.index("/gin:progress"), resume.index("finish the review first"))
+        self.assertLess(resume.index("finish the review first"), resume.index("/gin:workflow"))
+        self.assertLess(resume.index("/gin:workflow"), resume.index("selects `ship`"))
 
     def test_t8_bounded_defect_orchestrates_before_execute(self):
         guide = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")
         defect = guide[guide.index("## Bounded defect"):guide.index("## Large multi-track change")]
-        self.assertIn("/gin-workflow:orchestrate", defect)
-        self.assertLess(defect.index("/gin-workflow:orchestrate"), defect.index("/gin-workflow:execute"))
-        self.assertLess(defect.index("gin-debugging"), defect.index("/gin-workflow:plan"))
+        self.assertIn("/gin:orchestrate", defect)
+        self.assertLess(defect.index("/gin:orchestrate"), defect.index("/gin:execute"))
+        self.assertLess(defect.index("debugging"), defect.index("/gin:plan"))
 
     def test_t8_provider_routing_documents_portable_and_local_boundaries(self):
         content = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")

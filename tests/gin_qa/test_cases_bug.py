@@ -1,4 +1,4 @@
-"""`gin-qa cases bug`: the epic of a manual case, the bug bead filed through `gin-workflow task`, and the result."""
+"""`gin-qa cases bug`: the epic of a manual case, the bug bead filed through `gin task`, and the result."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, case_file, delta, hash8, make_change,  # noqa: E402
                          make_repo, python_stub, qa, write)
 
-# `specs` runs this checkout's gin-workflow. Any other call is logged to calls.jsonl with its stdin and answered
+# `specs` runs this checkout's gin. Any other call is logged to calls.jsonl with its stdin and answered
 # from answers.json, keyed by its first three words, then its first two. No answer: bd's unknown-id failure.
 STUB = r'''#!@PYTHON@
 import json, pathlib, subprocess, sys
@@ -69,7 +69,7 @@ class BugCase(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.base = Path(self.tmp.name)
         self.bin = self.base / "bin"
-        python_stub(self.bin, "gin-workflow",
+        python_stub(self.bin, "gin",
                     STUB.replace("@PYTHON@", sys.executable).replace("@LAUNCHER@", repr(str(LAUNCHER))))
         self.answer({})
 

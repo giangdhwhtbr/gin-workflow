@@ -523,7 +523,7 @@ class RoutedWorkerTests(unittest.TestCase):
             SCRIPTS.parent / "skills/execute/references/delegation-policy.md"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("gin-workflow routes dispatch --workflow-id", skill)
+        self.assertIn("gin routes dispatch --workflow-id", skill)
         self.assertIn("A requested route is never lowered", policy)
         self.assertIn("circuit", lifecycle)
         self.assertIn("capacity", lifecycle)

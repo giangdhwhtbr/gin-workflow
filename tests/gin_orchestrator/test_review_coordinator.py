@@ -38,7 +38,7 @@ class ReviewCoordinatorTests(unittest.TestCase):
     def test_review_skills_require_independence_affinity_and_terminal_gate(self):
         plugin = SCRIPTS.parent / "skills"
         review = (plugin / "review/SKILL.md").read_text(encoding="utf-8")
-        receiving = (plugin / "gin-review-response/SKILL.md").read_text(encoding="utf-8")
+        receiving = (plugin / "review-response/SKILL.md").read_text(encoding="utf-8")
 
         self.assertIn("must differ from the implementation provider", review)
         self.assertIn("maximum review cycles", review)

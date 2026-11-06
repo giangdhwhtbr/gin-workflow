@@ -37,7 +37,7 @@ def validate_local_config(value: Mapping[str, Any]) -> None:
             raise ProviderLocalConfigError("provider entries must be named mappings")
         if "models" in raw_entry:
             raise ProviderLocalConfigError(
-                "orchestrator.local.yaml models moved to models: in config.yaml; run gin-workflow setup update --to-version 2.9 --approve"
+                "orchestrator.local.yaml models moved to models: in config.yaml; run gin setup update --to-version 2.9 --approve"
             )
         unknown = set(raw_entry) - {"executable"}
         if unknown:

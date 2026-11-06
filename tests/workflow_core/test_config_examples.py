@@ -43,7 +43,7 @@ class ConfigExampleTests(unittest.TestCase):
         quick = ("Project type", "Rigor", "Verify commands", "Code index", "Task tracking")
         positions = [setup.index(f"{index}. **{name}**") for index, name in enumerate(quick, 1)]
         self.assertEqual(sorted(positions), positions)
-        for phrase in ("Ask exactly one question", "gin-workflow setup preset", "configuration",
+        for phrase in ("Ask exactly one question", "gin setup preset", "configuration",
                        "same assignments"):
             self.assertIn(phrase, setup)
         self.assertNotIn("## Advanced setup", setup)

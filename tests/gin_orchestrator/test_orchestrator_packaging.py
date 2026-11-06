@@ -30,7 +30,7 @@ class TestPackaging(unittest.TestCase):
 
     def test_marketplace_lists_three_plugins(self):
         marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
-        self.assertEqual({"gin-workflow": "plugins/gin-workflow/src", "gin-qa": "plugins/gin-qa/src",
+        self.assertEqual({"gin": "plugins/gin-workflow/src", "gin-qa": "plugins/gin-qa/src",
                           "gin-orchestrator": "plugins/gin-orchestrator/src"},
                          {p["name"]: p["source"]["path"] for p in marketplace["plugins"]})
 

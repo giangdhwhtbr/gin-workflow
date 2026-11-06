@@ -1,6 +1,6 @@
 # gin-orchestrator
 
-Worker harnesses for gin-workflow: route roles and model tiers to other agent harnesses. gin-workflow runs the whole lifecycle with one main harness; this add-on only matters when you want another harness to run some of the work.
+Worker harnesses for gin: route roles and model tiers to other agent harnesses. gin-workflow runs the whole lifecycle with one main harness; this add-on only matters when you want another harness to run some of the work.
 
 ## Install
 
@@ -14,11 +14,11 @@ This installs gin-workflow first when its launcher is missing, then the `gin-orc
 
 ## Dependency on gin-workflow
 
-The launcher asks `gin-workflow paths --json` for gin-workflow's library directory and imports gin-workflow's facade, `workflow_core.ext`, from there. This add-on imports nothing else from gin-workflow. If `gin-workflow` is not on `PATH`, the launcher exits 1 with `error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator`.
+The launcher asks `gin paths --json` for gin-workflow's library directory and imports gin-workflow's facade, `workflow_core.ext`, from there. This add-on imports nothing else from gin-workflow. If `gin-workflow` is not on `PATH`, the launcher exits 1 with `error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator`.
 
 The facade carries `EXT_VERSION`. A change that removes a name or alters a signature raises it, and the launcher exits 1 when it differs from the version this add-on supports (`error: gin-workflow facade EXT_VERSION <n>; this gin-orchestrator supports 2`). The add-on requires gin-workflow `>=2.0,<3`.
 
-The worker library creates and removes worktrees through `workflow_core.ext.create_worktree` and `cleanup_worktree`, the same code as `gin-workflow worktree`.
+The worker library creates and removes worktrees through `workflow_core.ext.create_worktree` and `cleanup_worktree`, the same code as `gin worktree`.
 
 ## Contract
 
@@ -40,4 +40,4 @@ Worker routing lives under `orchestrator:` in `.agent-workflow/config.yaml`; gin
 
 ## Skill
 
-`/gin-orchestrator:providers` asks which harnesses may run work, the model catalog of each, preferred and fallback harnesses per role and tier, concurrency, and limits. It previews the change with `gin-orchestrator configure --dry-run`, applies it after approval, turns on `provider_mode: multi`, and probes each provider with `gin-workflow setup doctor --probe`.
+`/gin-orchestrator:providers` asks which harnesses may run work, the model catalog of each, preferred and fallback harnesses per role and tier, concurrency, and limits. It previews the change with `gin-orchestrator configure --dry-run`, applies it after approval, turns on `provider_mode: multi`, and probes each provider with `gin setup doctor --probe`.

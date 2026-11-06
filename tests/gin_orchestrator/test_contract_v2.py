@@ -203,8 +203,8 @@ class ContractV2Tests(unittest.TestCase):
     def gin_workflow_path(self) -> str:
         bin_dir = Path(self.directory.name) / "bin"
         bin_dir.mkdir(exist_ok=True)
-        if not (bin_dir / "gin-workflow").exists():
-            (bin_dir / "gin-workflow").symlink_to(LAUNCHER)
+        if not (bin_dir / "gin").exists():
+            (bin_dir / "gin").symlink_to(LAUNCHER)
         return str(bin_dir)
 
     @unittest.skipIf(os.name == "nt", "symlinks the extensionless #! launcher onto PATH, which needs POSIX")
@@ -249,7 +249,7 @@ class ContractV2Tests(unittest.TestCase):
                                   dry_run=False, approve=True)
 
         with mock.patch("gin_orchestrator.cli.tool", return_value=None):
-            with self.assertRaisesRegex(orchestrator_cli.CliError, "gin-workflow is not on PATH"):
+            with self.assertRaisesRegex(orchestrator_cli.CliError, "gin is not on PATH"):
                 orchestrator_cli._configure(args)
 
     def test_configure_reports_a_malformed_local_file(self):

@@ -1,4 +1,4 @@
-"""Shared helpers for gin-qa tests: an SDD repository, a `gin-workflow` on PATH, and test case blocks."""
+"""Shared helpers for gin-qa tests: an SDD repository, a `gin` on PATH, and test case blocks."""
 
 from __future__ import annotations
 
@@ -40,21 +40,21 @@ def python_stub(bin_dir: Path, name: str, body: str) -> Path:
 
 
 def gin_workflow_bin(base: Path, body: str = "") -> Path:
-    """A bin directory whose `gin-workflow` runs this checkout's launcher (or `body` when given)."""
+    """A bin directory whose `gin` runs this checkout's launcher (or `body` when given)."""
     bin_dir = Path(base) / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":
-        script = bin_dir / "gin-workflow.cmd"
+        script = bin_dir / "gin.cmd"
         script.write_text(body or f'@"{sys.executable}" "{LAUNCHER}" %*\r\n', encoding="utf-8", newline="")
         return bin_dir
-    script = bin_dir / "gin-workflow"
+    script = bin_dir / "gin"
     script.write_text(body or f'#!/bin/sh\nexec "{sys.executable}" "{LAUNCHER}" "$@"\n', encoding="utf-8")
     script.chmod(0o755)
     return bin_dir
 
 
 def failing_stub(stderr: str, code: int) -> str:
-    """A `gin-workflow` stub body that prints `stderr` and exits `code`."""
+    """A `gin` stub body that prints `stderr` and exits `code`."""
     if os.name == "nt":
         return f'@echo {stderr} 1>&2\r\n@exit {code}\r\n'
     return f'#!/bin/sh\necho "{stderr}" >&2\nexit {code}\n'
@@ -68,7 +68,7 @@ def qa(root: Path, bin_dir: Path | None, *args: str, group: str = "cases",
 
 
 def hash8(root: Path, bin_dir: Path, req: str) -> str:
-    result = subprocess.run([shutil.which("gin-workflow", path=str(bin_dir)), "specs", "reqs", "--repository", str(root),
+    result = subprocess.run([shutil.which("gin", path=str(bin_dir)), "specs", "reqs", "--repository", str(root),
                              "--format", "json"], capture_output=True, text=True, check=True)
     rows = [row for row in json.loads(result.stdout)["requirements"] if row["id"] == req]
     return rows[-1]["hash"][:8]

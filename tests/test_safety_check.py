@@ -1,4 +1,4 @@
-"""safety_check.py blocks commands that skip the gin-workflow git hooks or remove broad paths."""
+"""safety_check.py blocks commands that skip the gin git hooks or remove broad paths."""
 
 import json
 import os

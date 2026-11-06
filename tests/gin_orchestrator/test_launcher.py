@@ -1,4 +1,4 @@
-"""The `gin-orchestrator` launcher: it finds gin-workflow's facade through `gin-workflow paths`."""
+"""The `gin-orchestrator` launcher: it finds gin-workflow's facade through `gin paths`."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ class LauncherTests(unittest.TestCase):
 
     @unittest.skipIf(os.name == "nt", "symlinks the extensionless #! launcher onto PATH, which needs POSIX")
     def test_launcher_runs_with_gin_workflow_on_path(self):
-        (self.bin / "gin-workflow").symlink_to(paths.CORE_SCRIPTS / "gin")
+        (self.bin / "gin").symlink_to(paths.CORE_SCRIPTS / "gin")
 
         result = run(f"{self.bin}{os.pathsep}{os.environ['PATH']}")
 
@@ -43,7 +43,7 @@ class LauncherTests(unittest.TestCase):
         result = run(str(self.bin))
 
         self.assertEqual(1, result.returncode)
-        self.assertEqual("error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator\n",
+        self.assertEqual("error: gin is not on PATH; install it with ./install.sh --plugin gin-orchestrator\n",
                          result.stderr)
 
     @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
@@ -52,14 +52,14 @@ class LauncherTests(unittest.TestCase):
         (lib / "workflow_core").mkdir(parents=True)
         (lib / "workflow_core/__init__.py").write_text("", encoding="utf-8")
         (lib / "workflow_core/ext.py").write_text("EXT_VERSION = 99\n", encoding="utf-8")
-        fake = self.bin / "gin-workflow"
+        fake = self.bin / "gin"
         fake.write_text(f"#!/bin/sh\necho '{json.dumps({'lib_dir': str(lib)})}'\n", encoding="utf-8")
         fake.chmod(0o755)
 
         result = run(f"{self.bin}{os.pathsep}{os.environ['PATH']}")
 
         self.assertEqual(1, result.returncode)
-        self.assertEqual("error: gin-workflow facade EXT_VERSION 99; this gin-orchestrator supports 2\n", result.stderr)
+        self.assertEqual("error: gin facade EXT_VERSION 99; this gin-orchestrator supports 2\n", result.stderr)
 
 
 if __name__ == "__main__":

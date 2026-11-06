@@ -62,7 +62,7 @@ class LocalConfigTests(unittest.TestCase):
     def test_rejects_models_field_with_migration_hint(self):
         with self.assertRaisesRegex(
             ProviderLocalConfigError,
-            "orchestrator.local.yaml models moved to models: in config.yaml; run gin-workflow setup update --to-version 2.9 --approve",
+            "orchestrator.local.yaml models moved to models: in config.yaml; run gin setup update --to-version 2.9 --approve",
         ):
             validate_local_config(
                 {

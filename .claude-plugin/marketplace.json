@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "gin-workflow",
+      "name": "gin",
       "description": "Core plan-driven workflow: plan, orchestrate, execute, verify, and ship.",
       "source": {
         "source": "git-subdir",
@@ -24,7 +24,7 @@
     },
     {
       "name": "gin-orchestrator",
-      "description": "Worker harnesses for gin-workflow: route roles and tiers to other agent harnesses.",
+      "description": "Worker harnesses for gin: route roles and tiers to other agent harnesses.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/giangdhwhtbr/gin-workflow.git",

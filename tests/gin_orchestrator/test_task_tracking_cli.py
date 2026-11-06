@@ -35,7 +35,7 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         (self.root / ".claude").mkdir()
         subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i"],
                        cwd=self.root, check=True)
-        subprocess.run([shutil.which("gin-workflow"), "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
+        subprocess.run([shutil.which("gin"), "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
                         "--set", "providers.task_tracking=markdown"], cwd=self.root, check=True, capture_output=True)
         self.provider = CliTaskTrackingProvider(self.root)
 
@@ -46,13 +46,13 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
             calls.append(list(argv))
             return subprocess.CompletedProcess(argv, 1, "", "stub")
 
-        with mock.patch("gin_orchestrator.task_tracking_cli.tool", return_value="/cfg/gin-workflow") as tool:
+        with mock.patch("gin_orchestrator.task_tracking_cli.tool", return_value="/cfg/gin") as tool:
             provider = CliTaskTrackingProvider(self.root, runner=runner)
             provider.readiness("t1")
 
         tool.assert_called_once()
-        self.assertEqual("gin-workflow", tool.call_args[0][0])
-        self.assertEqual(["/cfg/gin-workflow", "task"], calls[0][:2])
+        self.assertEqual("gin", tool.call_args[0][0])
+        self.assertEqual(["/cfg/gin", "task"], calls[0][:2])
 
     @unittest.skipIf(os.name == "nt", "close_task sends quoted JSON notes through the gin-workflow .cmd shim, which cmd.exe mangles; see gin-workflow-gscr")
     def test_same_contract_scenario_as_the_fake_provider(self):
@@ -126,12 +126,12 @@ class CliTaskTrackingProviderTests(unittest.TestCase):
         failing = CliTaskTrackingProvider(
             self.root, runner=lambda argv, cwd: subprocess.CompletedProcess(argv, 1, "", "boom\n"))
         read = failing.read_task("t-1")
-        self.assertEqual((OperationStatus.INVALID, "gin-workflow task show failed: boom"),
+        self.assertEqual((OperationStatus.INVALID, "gin task show failed: boom"),
                          (read.status, read.message))
         self.assertFalse(failing.preflight().value.healthy)
 
         def missing(argv, cwd):
-            raise FileNotFoundError("gin-workflow")
+            raise FileNotFoundError("gin")
 
         self.assertEqual(OperationStatus.UNAVAILABLE,
                          CliTaskTrackingProvider(self.root, runner=missing).read_task("t-1").status)

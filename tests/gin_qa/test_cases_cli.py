@@ -136,7 +136,7 @@ class TestChanges(QaCase):
                          case("TC-AUTH-003", self.ref("REQ-AUTH-003")))
         self.assertEqual([], self.findings())
         commit_all(self.root)
-        result = subprocess.run([shutil.which("gin-workflow", path=str(self.bin)), "specs", "archive", "--change", "ep-1",
+        result = subprocess.run([shutil.which("gin", path=str(self.bin)), "specs", "archive", "--change", "ep-1",
                                  "--repository", str(self.root)], capture_output=True, text=True)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual([], self.findings())
@@ -547,7 +547,7 @@ class TestLegacyAndEnvironment(unittest.TestCase):
         root = make_repo(self.base / "repo")
         result = qa(root, None, "check")
         self.assertEqual(2, result.returncode)
-        self.assertIn("gin-workflow is not on PATH", result.stderr)
+        self.assertIn("gin is not on PATH", result.stderr)
         old = gin_workflow_bin(self.base / "old", failing_stub("error: argument command: invalid choice: 'reqs'", 2))
         result = qa(root, old, "check")
         self.assertEqual(2, result.returncode)

@@ -1,6 +1,6 @@
 # Rule packs
 
-Best-practice packs injected by `gin-workflow rules --files <paths>` into the `developer` agent and the reviewer. Only the bullets before `## Why` are injected.
+Best-practice packs injected by `gin rules --files <paths>` into the `developer` agent and the reviewer. Only the bullets before `## Why` are injected.
 
 ## Format
 - Frontmatter: `id` (= file stem), `tier` (`core` | `language` | `framework`), `applies_to` (globs), optional `requires`, `detect`, `conflict_keywords`, `tool_checks`.

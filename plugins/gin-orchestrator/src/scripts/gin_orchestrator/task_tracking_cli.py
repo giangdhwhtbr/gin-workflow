@@ -1,4 +1,4 @@
-"""Task tracking through the `gin-workflow task` CLI, so the orchestrator never touches a task backend directly."""
+"""Task tracking through the `gin task` CLI, so the orchestrator never touches a task backend directly."""
 
 from __future__ import annotations
 
@@ -87,11 +87,11 @@ def _task_record(raw: Any) -> ProviderResult[TaskRecord]:
     if isinstance(raw, dict) and isinstance(raw.get("issue"), dict):
         raw = raw["issue"]
     if not isinstance(raw, dict):
-        return ProviderResult.unavailable("gin-workflow task response did not contain a task object")
+        return ProviderResult.unavailable("gin task response did not contain a task object")
     task_id = raw.get("id") or raw.get("task_id")
     title = raw.get("title") or raw.get("name")
     if not task_id or not title:
-        return ProviderResult.unavailable("gin-workflow task response is missing id or title")
+        return ProviderResult.unavailable("gin task response is missing id or title")
     known = {
         "id", "task_id", "title", "name", "description", "status", "notes",
         "acceptance", "acceptance_criteria", "acceptance_evidence",
@@ -127,7 +127,7 @@ class CliTaskTrackingProvider(ProviderBase):
                  runner: Runner | None = None) -> None:
         super().__init__()
         self.repository_root = Path(repository_root).resolve()
-        self.executable = executable or tool("gin-workflow", self.repository_root) or "gin-workflow"
+        self.executable = executable or tool("gin", self.repository_root) or "gin"
         self._runner = runner or _default_runner
 
     def _run(self, *argv: str) -> ProviderResult[Any]:
@@ -136,11 +136,11 @@ class CliTaskTrackingProvider(ProviderBase):
         except (OSError, subprocess.SubprocessError) as error:
             return ProviderResult.unavailable(f"{self.executable} unavailable: {error}")
         if completed.returncode:
-            return ProviderResult.invalid(f"gin-workflow task {argv[0]} failed: {completed.stderr.strip()}")
+            return ProviderResult.invalid(f"gin task {argv[0]} failed: {completed.stderr.strip()}")
         try:
             return ProviderResult.success(json.loads(completed.stdout))
         except json.JSONDecodeError as error:
-            return ProviderResult.unavailable(f"gin-workflow task {argv[0]} returned invalid JSON: {error}")
+            return ProviderResult.unavailable(f"gin task {argv[0]} returned invalid JSON: {error}")
 
     def _record(self, *argv: str) -> ProviderResult[TaskRecord]:
         ran = self._run(*argv)
@@ -237,4 +237,4 @@ class CliTaskTrackingProvider(ProviderBase):
             TaskPreflight("gin-workflow", "1", self.capabilities, ran.value is not None, ran.message))
 
     def sync(self, request: TaskSyncRequest, *, idempotency_key: str, **_: Any) -> ProviderResult[TaskSyncResult]:
-        return ProviderResult.invalid("sync is owned by the gin-workflow task backend")
+        return ProviderResult.invalid("sync is owned by the gin task backend")

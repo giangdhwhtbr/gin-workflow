@@ -51,7 +51,7 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("provider role, `Model:`, and `Effort:`", planning)
         # Track beads are created before routes resolve, so the routes file is keyed by their real ids
         self.assertLess(
-            orchestrate.index("gin-workflow task create"),
+            orchestrate.index("gin task create"),
             orchestrate.index("routes resolve"),
         )
 

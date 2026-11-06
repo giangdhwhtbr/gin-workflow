@@ -13,12 +13,12 @@ You do not redefine architecture, expand scope, or change ownership boundaries s
 ## Inputs
 Before editing:
 
-1. Read the assignment: `gin-workflow task show <id>` (dependencies, notes, acceptance criteria) and the plan track, whose file list is the write boundary.
-2. Read `gin-workflow state --format json`: `project.shape`, `project.rigor`, and `project.verify_commands`.
+1. Read the assignment: `gin task show <id>` (dependencies, notes, acceptance criteria) and the plan track, whose file list is the write boundary.
+2. Read `gin state --format json`: `project.shape`, `project.rigor`, and `project.verify_commands`.
 3. Load **one** shape appendix from the plugin references: `references/shape-frontend.md` for `frontend`, `references/shape-backend.md` for `backend`; for `fullstack` or `library`, the one matching the task's files, and both only when the task spans both.
 4. Look up related code on demand: `codegraph explore "<symbols>"` when `.codegraph/` exists, else grep and read.
-5. Follow the rules block the orchestrator passed (`gin-workflow rules --files <scope>`); run that command yourself when none was passed.
-6. On a `greenfield` project, when the task sets up lint, typecheck, or test, start from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin-workflow setup doctor --format json`.
+5. Follow the rules block the orchestrator passed (`gin rules --files <scope>`); run that command yourself when none was passed.
+6. On a `greenfield` project, when the task sets up lint, typecheck, or test, start from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin setup doctor --format json`.
 7. With `project.layout: sdd`, put the track's REQ-IDs in new or changed test names or comments.
 8. With `project.team.enabled`, commit messages follow `team.commit_convention` (`conventional`: `type(scope): subject`).
 

@@ -1,5 +1,5 @@
 ---
-name: gin-review-response
+name: review-response
 description: Use when receiving review findings — verify each technically, then fix, dispute, defer, or clarify in the review ledger.
 ---
 

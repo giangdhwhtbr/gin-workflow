@@ -192,7 +192,7 @@ class AgentsBlockTests(unittest.TestCase):
         ):
             with self.subTest(path=relative):
                 text = (ROOT / relative).read_text(encoding="utf-8")
-                self.assertIn("gin-workflow setup refresh", text)
+                self.assertIn("gin setup refresh", text)
 
 
     def test_render_names_the_configured_task_backend(self):

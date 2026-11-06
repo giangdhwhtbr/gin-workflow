@@ -2,7 +2,7 @@
 
 ## Launching a worker
 
-Route with `gin-workflow routes dispatch --workflow-id <w> --task-id <id> --json`. Run `gin-orchestrator dispatch --workflow-id <w> --task-id <id> --role <role> --provider <provider> --model <model> [--effort <effort>] --stage execute --agent developer --workspace <worktree> --objective "<objective>" --json`. Verify diff and tests. On exit, `gin-workflow notify --event worker_finished "<track>: <provider>"` (`worker_failed` on failure). Fallback: native subagent or in-session run.
+Route with `gin routes dispatch --workflow-id <w> --task-id <id> --json`. Run `gin-orchestrator dispatch --workflow-id <w> --task-id <id> --role <role> --provider <provider> --model <model> [--effort <effort>] --stage execute --agent developer --workspace <worktree> --objective "<objective>" --json`. Verify diff and tests. On exit, `gin notify --event worker_finished "<track>: <provider>"` (`worker_failed` on failure). Fallback: native subagent or in-session run.
 
 ## Events
 

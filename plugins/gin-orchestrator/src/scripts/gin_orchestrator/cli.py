@@ -196,16 +196,16 @@ def _configure(args: argparse.Namespace) -> dict[str, Any]:
         return {"status": "would_configure", "actions": actions}
     if not args.approve:
         raise CliError("configure requires explicit --approve before changing configuration")
-    # Portable keys first: gin-workflow may reject them, and then nothing local was written.
+    # Portable keys first: gin may reject them, and then nothing local was written.
     if args.set:
-        gin_workflow = tool("gin-workflow", root)
-        if gin_workflow is None:
-            raise CliError("gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator")
-        done = subprocess.run([gin_workflow, "setup", "configure", *(a for s in args.set for a in ("--set", s)),
+        gin_cli = tool("gin", root)
+        if gin_cli is None:
+            raise CliError("gin is not on PATH; install it with ./install.sh --plugin gin-orchestrator")
+        done = subprocess.run([gin_cli, "setup", "configure", *(a for s in args.set for a in ("--set", s)),
                                "--approve", "--format", "json", "--repository", str(root)],
                               capture_output=True, text=True, check=False)
         if done.returncode != 0:
-            raise CliError(f"gin-workflow setup configure failed: {(done.stderr or done.stdout).strip()}")
+            raise CliError(f"gin setup configure failed: {(done.stderr or done.stdout).strip()}")
     if args.local_set:
         atomic_write_text(local_path, yaml.safe_dump(local, sort_keys=True))
         ignore_path = local_path.parent / ".gitignore"

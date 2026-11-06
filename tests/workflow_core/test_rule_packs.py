@@ -83,7 +83,7 @@ class TestRulePacks(unittest.TestCase):
             with self.subTest(path=relative):
                 self.assertIn("references/docs-style.md", (src / relative).read_text(encoding="utf-8"))
         tech_doc = (src / "skills/tech-doc/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("gin-workflow rules --files", tech_doc)
+        self.assertIn("gin rules --files", tech_doc)
         self.assertIn("## Regrounding existing docs", tech_doc)
 
 
