@@ -71,6 +71,16 @@ docs/specs/reports/assets/
 
 Đặt tên thư mục theo ngày ISO nhận đầu vào. Theo quy ước, một đợt requirements, thay đổi hay thiết kế mới thì vào một thư mục mới và thư mục cũ không bao giờ bị sửa, nên các thư mục ghi lại lịch sử đầu vào của capability. Với project legacy không có design spec, đặt screenshot của feature hiện có trong `<date>/legacy/` và mô tả hành vi hiện tại của nó trong `description.md` của thư mục đó với `Kind: legacy`. Mọi `description.md` bắt đầu từ `gin specs template iteration.md`. `specs lint` báo thư mục có tên ngày mà thiếu `description.md`; file phẳng trong `assets/` và thư mục không mang tên ngày ISO vẫn hợp lệ và không bị kiểm tra.
 
+Mỗi `description.md` có một dòng `Confirmed:`. Dòng này là `no` cho tới khi BA xác nhận đầu vào, sau đó là ngày ISO của lần xác nhận đó, và thư mục đã xác nhận không bao giờ bị sửa. Trong discuss, agent đọc `description.md` và `mockup/index.html` (nếu có) của từng thư mục có tên ngày của các capability bị ảnh hưởng, chỉ trích dẫn thư mục đã xác nhận, và hỏi về các thư mục còn lại. Một requirement lấy từ đầu vào thêm dòng `Source:` sau câu statement:
+
+```markdown
+### REQ-REPORTS-004: Filter reports by date
+The system SHALL show only the reports created in the selected date range.
+Source: `assets/2026-05-11/mockup/index.html#report-list`, `assets/2026-05-11/description.md`
+```
+
+`specs archive` sao chép dòng này vào `spec.md` cùng phần còn lại của khối, và `specs export` in nó ra.
+
 `specs archive` sao chép văn bản của từng khối requirement vào `docs/specs/<capability>/spec.md`, nên hãy viết đường dẫn ảnh tương đối so với file đó (`assets/2026-05-11/report-list.png`). Trong `02-spec-delta.md` của thư mục change, các liên kết đó không resolve được cho tới khi change ship.
 
 ## Sơ đồ { #diagrams }

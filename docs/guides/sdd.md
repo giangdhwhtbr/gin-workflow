@@ -71,6 +71,16 @@ docs/specs/reports/assets/
 
 Name the folder by the ISO date the inputs arrived. By convention, a new batch of requirements, changes, or designs gets a new folder and an older folder is never edited, so the folders record the history of the capability's inputs. On a legacy project without design specs, put screenshots of the existing feature under `<date>/legacy/` and describe how it behaves today in that folder's `description.md` with `Kind: legacy`. Start every `description.md` from `gin specs template iteration.md`. `specs lint` reports a dated folder without `description.md`; flat files under `assets/` and folders not named by an ISO date stay valid and are not checked.
 
+Each `description.md` has a `Confirmed:` line. It reads `no` until the BA confirms the inputs, then the ISO date of that confirmation, and a confirmed folder is never edited. In discuss, the agent reads `description.md` and any `mockup/index.html` of each dated folder of the affected capabilities, cites only confirmed folders, and asks about the others. A requirement taken from an input adds a `Source:` line after its statement:
+
+```markdown
+### REQ-REPORTS-004: Filter reports by date
+The system SHALL show only the reports created in the selected date range.
+Source: `assets/2026-05-11/mockup/index.html#report-list`, `assets/2026-05-11/description.md`
+```
+
+`specs archive` copies the line into `spec.md` with the rest of the block, and `specs export` prints it.
+
 `specs archive` copies the text of each requirement block into `docs/specs/<capability>/spec.md`, so write image paths relative to that file (`assets/2026-05-11/report-list.png`). In the change folder's `02-spec-delta.md` those links do not resolve until the change ships.
 
 ## Diagrams

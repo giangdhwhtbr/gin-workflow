@@ -99,6 +99,17 @@ class TestArchive(unittest.TestCase):
             archive(self.root, self.cfg, change, today=TODAY)
         self.assertTrue(change.is_dir())
 
+    def test_source_line_reaches_the_living_spec(self):
+        source = "Source: `assets/2026-10-01/mockup/index.html#lock-screen`, `assets/2026-10-01/description.md`"
+        block = ADDED_BLOCK.replace("5 failed logins.\n", "5 failed logins.\n" + source + "\n", 1)
+        change = make_change(self.root, spec_delta=delta(added=block))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+        commit_all(self.root)
+        archive(self.root, self.cfg, change, today=TODAY)
+        auth = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
+        self.assertIn(source, auth)
+        self.assertEqual([], specs.lint_living(self.root, self.cfg))
+
 
 class TestTraceAndStatus(unittest.TestCase):
     def setUp(self):

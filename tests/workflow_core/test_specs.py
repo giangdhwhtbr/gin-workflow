@@ -295,9 +295,11 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("Capabilities:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("Capabilities: {{capabilities}}", run_specs(root, "template", "epic.md").stdout)
             iteration = run_specs(root, "template", "iteration.md").stdout
-            for needle in ("Kind:", "Source:", "Previous: none", "## Summary", "## Changes", "## Files"):
+            for needle in ("Kind:", "Source:", "Previous: none", "Confirmed: no", "## Summary", "## Changes", "## Files"):
                 with self.subTest(needle=needle):
                     self.assertIn(needle, iteration)
+            self.assertIn("Previous: none\nConfirmed: no\n", iteration)
+            self.assertIn('"Source:"', run_specs(root, "template", "spec-delta.md").stdout)
             write(root, ".agent-workflow/templates/user-story.md", "### Story {{n}}\n")
             self.assertEqual("### Story {{n}}\n", run_specs(root, "template", "user-story.md").stdout)
 
