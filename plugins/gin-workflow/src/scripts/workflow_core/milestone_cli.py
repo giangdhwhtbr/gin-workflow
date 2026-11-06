@@ -1,4 +1,4 @@
-"""`gin-workflow milestone`: dated milestones over roadmap epics. Exit 0 ok, 1 refused or failed, 2 usage or role."""
+"""`gin milestone`: dated milestones over roadmap epics. Exit 0 ok, 1 refused or failed, 2 usage or role."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _today() -> date:
 def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--repository", type=Path, default=Path.cwd())
-    parser = argparse.ArgumentParser(prog="gin-workflow milestone")
+    parser = argparse.ArgumentParser(prog="gin milestone")
     sub = parser.add_subparsers(dest="command", required=True)
     item = sub.add_parser("create", parents=[common])
     item.add_argument("title")
@@ -69,7 +69,7 @@ def _config(root: Path) -> dict[str, Any]:
     from .tasks import backend_name
 
     if not (root / ".agent-workflow/config.yaml").is_file():
-        raise MilestoneError("gin-workflow setup is required; run /setup once")
+        raise MilestoneError("gin setup is required; run /setup once")
     config = resolve_effective_config(root, write=False).config.to_dict()
     if backend_name(config) != "beads":
         raise MilestoneError("milestones need providers.task_tracking: beads")

@@ -1,4 +1,4 @@
-"""Unit tests for gin-workflow state and gin-workflow unblock CLI subcommands."""
+"""Unit tests for gin state and gin unblock CLI subcommands."""
 
 from __future__ import annotations
 
@@ -485,7 +485,7 @@ class TestLifecycleCLI(unittest.TestCase):
             code = lifecycle_main(["record", "verification-passed", "--repository", str(self.repo_path),
                                    "--evidence", "x", "--actor", "user"])
         self.assertEqual(2, code)
-        self.assertIn("gin-workflow hooks install", err.getvalue())
+        self.assertIn("gin hooks install", err.getvalue())
 
     def test_unblock_verification_passed_is_rejected(self):
         import io
@@ -495,7 +495,7 @@ class TestLifecycleCLI(unittest.TestCase):
             code = lifecycle_main(["unblock", "--gate", "verification_passed", "--reason", "x", "--actor", "op",
                                    "--follow-up", "t-1", "--repository", str(self.repo_path)])
         self.assertEqual(2, code)
-        self.assertIn("gin-workflow hooks install", err.getvalue())
+        self.assertIn("gin hooks install", err.getvalue())
 
     def test_old_verification_events_are_ignored(self):
         self._git_repo()

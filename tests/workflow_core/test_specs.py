@@ -120,8 +120,8 @@ class TestRepositoryCommands(unittest.TestCase):
         write(self.root, "docs/specs/auth/assets/login-form.png", "png")
         write(self.root, "docs/specs/auth/assets/110526/shot.png", "png")
         expected = [
-            "docs/specs/auth/assets/2026-05-11: missing description.md (gin-workflow specs template iteration.md)",
-            "docs/specs/reports/assets/2026-12-01: missing description.md (gin-workflow specs template iteration.md)"]
+            "docs/specs/auth/assets/2026-05-11: missing description.md (gin specs template iteration.md)",
+            "docs/specs/reports/assets/2026-12-01: missing description.md (gin specs template iteration.md)"]
         self.assertEqual(expected, specs.lint_living(self.root, self.cfg))
         self.assertEqual(expected, specs.lint_change(self.root, self.cfg, make_change(self.root)))
         result = run_specs(self.root, "lint")
@@ -151,7 +151,7 @@ class TestRepositoryCommands(unittest.TestCase):
 
     def test_lint_change_needs_an_activity_diagram_where_requirements_are_added_or_modified(self):
         (self.root / "docs/specs/auth/diagrams/login-activity.md").unlink()
-        missing = "auth: no activity diagram in docs/specs/auth/diagrams/ (gin-workflow specs template activity.md)"
+        missing = "auth: no activity diagram in docs/specs/auth/diagrams/ (gin specs template activity.md)"
         change = make_change(self.root)
         self.assertEqual([missing], specs.lint_change(self.root, self.cfg, change))
         result = run_specs(self.root, "lint", "--change", "ep-1")

@@ -128,7 +128,7 @@ class ContractCliTests(unittest.TestCase):
                 }),
                 encoding="utf-8",
             )
-            launcher = paths.CORE_SCRIPTS / "gin-workflow"
+            launcher = paths.CORE_SCRIPTS / "gin"
             subprocess.run([sys.executable, str(launcher), "setup", "refresh", "--repository", str(repo)], check=True, capture_output=True)
 
             worktree = repo / ".planning/worktrees/task-1"
@@ -176,7 +176,7 @@ class ContractCliTests(unittest.TestCase):
                 }),
                 encoding="utf-8",
             )
-            launcher = paths.CORE_SCRIPTS / "gin-workflow"
+            launcher = paths.CORE_SCRIPTS / "gin"
             subprocess.run([sys.executable, str(launcher), "setup", "refresh", "--repository", str(repo)], check=True, capture_output=True)
 
             result = run(
@@ -221,7 +221,7 @@ class ContractCliTests(unittest.TestCase):
                 }),
                 encoding="utf-8",
             )
-            launcher = paths.CORE_SCRIPTS / "gin-workflow"
+            launcher = paths.CORE_SCRIPTS / "gin"
             subprocess.run([sys.executable, str(launcher), "setup", "refresh", "--repository", str(repo)], check=True, capture_output=True)
 
             result_review = run(
@@ -283,7 +283,7 @@ class ContractCliTests(unittest.TestCase):
                 }),
                 encoding="utf-8",
             )
-            launcher = paths.CORE_SCRIPTS / "gin-workflow"
+            launcher = paths.CORE_SCRIPTS / "gin"
             subprocess.run([sys.executable, str(launcher), "setup", "refresh", "--repository", str(repo)], check=True, capture_output=True)
 
             worktree = repo / ".planning/worktrees/task-1"
@@ -331,7 +331,7 @@ class ContractCliTests(unittest.TestCase):
                 }),
                 encoding="utf-8",
             )
-            launcher = paths.CORE_SCRIPTS / "gin-workflow"
+            launcher = paths.CORE_SCRIPTS / "gin"
             subprocess.run([sys.executable, str(launcher), "setup", "refresh", "--repository", str(repo)], check=True, capture_output=True)
 
             worktree = repo / ".planning/worktrees/task-1"
@@ -381,7 +381,7 @@ class ContractCliTests(unittest.TestCase):
                 }),
                 encoding="utf-8",
             )
-            launcher = paths.CORE_SCRIPTS / "gin-workflow"
+            launcher = paths.CORE_SCRIPTS / "gin"
             subprocess.run([sys.executable, str(launcher), "setup", "refresh", "--repository", str(repo)], check=True, capture_output=True)
 
             worktree = repo / ".planning/worktrees/task-1"

@@ -82,7 +82,7 @@ class ConfigurationTests(unittest.TestCase):
             repository = Path(directory)
             with self.assertRaisesRegex(
                 ConfigValidationError,
-                r"run .*gin-workflow setup init.*once",
+                r"run .*gin setup init.*once",
             ):
                 loader(repository)
 

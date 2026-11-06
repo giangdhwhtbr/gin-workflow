@@ -37,7 +37,7 @@ REQUIRED_ARTIFACTS = (
     "references/shape-backend.md",
     "references/docs-style.md",
     "agents/developer.md",
-    "scripts/gin-workflow",
+    "scripts/gin",
     "scripts/workflow_core/__init__.py",
     "scripts/workflow_core/configuration.py",
     "scripts/workflow_core/setup_service.py",

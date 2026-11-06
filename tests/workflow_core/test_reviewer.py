@@ -1,4 +1,4 @@
-"""`gin-workflow reviewer`: review route and ordered reviewer routes (agent-facing, read-only)."""
+"""`gin reviewer`: review route and ordered reviewer routes (agent-facing, read-only)."""
 
 from __future__ import annotations
 

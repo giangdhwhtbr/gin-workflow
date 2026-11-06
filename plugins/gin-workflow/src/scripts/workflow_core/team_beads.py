@@ -160,7 +160,7 @@ def _push(root: Path, team: TeamConfig, bead: str) -> None:
     try:
         sync(root)
     except (SyncConflict, TeamError) as error:
-        raise SyncConflict(f"push rejected for {bead}; local Beads kept, run gin-workflow team sync ({error})") from error
+        raise SyncConflict(f"push rejected for {bead}; local Beads kept, run gin team sync ({error})") from error
 
 
 def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str) -> dict[str, Any]:

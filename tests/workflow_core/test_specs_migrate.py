@@ -134,7 +134,7 @@ class TestSddReport(unittest.TestCase):
             write(root, ".planning/plans/2026-10-01-x.md", "# x\n")
             payload = json.loads(run_cli(root, "setup", "doctor", "--format", "json").stdout)
             self.assertEqual("legacy", payload["checks_details"]["sdd"]["layout"])
-            self.assertTrue(any(a.startswith("sdd: run /gin-workflow:migrate-specs") for a in payload["actions"]))
+            self.assertTrue(any(a.startswith("sdd: run /gin:migrate-specs") for a in payload["actions"]))
             self.assertNotIn("sdd", payload["checks"])
 
 

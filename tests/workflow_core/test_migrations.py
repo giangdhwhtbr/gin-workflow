@@ -248,7 +248,7 @@ setup_cli_version: '2.2'
             repository, _ = _write_repository(directory, V28, LOCAL_WITH_MODELS)
             actions = setup_service.doctor(repository)["actions"]
             self.assertTrue(
-                any("gin-workflow setup update --to-version 2.9 --approve" in action for action in actions), actions
+                any("gin setup update --to-version 2.9 --approve" in action for action in actions), actions
             )
 
     def test_default_update_from_2_7_renames_the_local_file_and_moves_its_tier_models(self):

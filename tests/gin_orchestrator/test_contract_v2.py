@@ -24,7 +24,7 @@ from gin_orchestrator.local_config import LOCAL_FILE, load_local_config  # noqa:
 from gin_orchestrator.routes import resolve_all_assignments  # noqa: E402
 from tests.workflow_core.test_schema_2_8 import LEGACY  # noqa: E402
 
-LAUNCHER = paths.CORE_SCRIPTS / "gin-workflow"
+LAUNCHER = paths.CORE_SCRIPTS / "gin"
 CODEX_STUB = (
     "#!/bin/sh\nif [ \"$1\" = \"exec\" ] && [ \"$2\" = \"--help\" ]; then\n"
     "  echo 'usage: codex exec --model MODEL --json --ephemeral"

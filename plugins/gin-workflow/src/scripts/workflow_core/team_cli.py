@@ -1,4 +1,4 @@
-"""`gin-workflow team` command line: exit 0 ok, 1 findings or rejection, 2 usage, configuration, or host error."""
+"""`gin team` command line: exit 0 ok, 1 findings or rejection, 2 usage, configuration, or host error."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--repository", type=Path, default=Path.cwd())
     common.add_argument("--format", choices=("text", "json"), default="text")
-    parser = argparse.ArgumentParser(prog="gin-workflow team")
+    parser = argparse.ArgumentParser(prog="gin team")
     sub = parser.add_subparsers(dest="command", required=True)
     item = sub.add_parser("init", parents=[common])
     item.add_argument("--ci", action="store_true")
@@ -54,12 +54,12 @@ def _run(args: argparse.Namespace) -> int:
 
     root = args.repository.resolve()
     if not (root / ".agent-workflow/config.yaml").is_file():
-        raise team_core.TeamError("gin-workflow setup is required; run /setup once")
+        raise team_core.TeamError("gin setup is required; run /setup once")
     config = resolve_effective_config(root, write=False).config.to_dict()
     team = team_core.load_team(config)
     if team is None:
         raise team_core.TeamError("team mode is off: add team: to .agent-workflow/config.yaml "
-                                  "(/gin-workflow:team-setup)")
+                                  "(/gin:team-setup)")
     if args.command in ("init", "codeowners", "hooks"):
         from . import team_init
 
@@ -81,7 +81,7 @@ def _run(args: argparse.Namespace) -> int:
         if args.check:
             drift = team_init.codeowners_drift(root, team, config)
             path = team_init.codeowners_path(team)
-            return _findings([f"{path} is out of date; run gin-workflow team init"] if drift else [],
+            return _findings([f"{path} is out of date; run gin team init"] if drift else [],
                              args.format, "ok")
         text = team_init.codeowners(team, config)
         _emit({"path": team_init.codeowners_path(team), "text": text}, args.format, text.rstrip("\n"))

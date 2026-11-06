@@ -125,5 +125,5 @@ def sdd_report(root: Path, config: Mapping[str, Any], cfg: Mapping[str, Any], *,
                               "suggestion": "set artifacts.specs to another folder, e.g. docs/requirements"}
     plans_dir = str((config.get("artifacts") or {}).get("plans", ".planning/plans"))
     if report["layout"] == "legacy" and any(any((Path(root) / d).glob("*.md")) for d in (LEGACY_SPECS, plans_dir)):
-        report["suggestion"] = "run /gin-workflow:migrate-specs to move .planning specs and plans into the SDD layout"
+        report["suggestion"] = "run /gin:migrate-specs to move .planning specs and plans into the SDD layout"
     return report

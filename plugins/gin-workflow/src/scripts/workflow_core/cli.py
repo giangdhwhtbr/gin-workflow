@@ -16,13 +16,13 @@ from .project import RIGORS, SHAPES, STAGES
 from .setup_service import COMMANDS, SetupError
 
 
-CLI_VERSION = "2.9"
+CLI_VERSION = "3.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
                 "reviewer", "hooks", "evidence", "task", "routes", "notify", "paths", "goal", "worktree", "milestone")
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="gin-workflow setup")
+    parser = argparse.ArgumentParser(prog="gin setup")
     parser.add_argument("action", choices=tuple(COMMANDS))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -63,10 +63,10 @@ def _emit(payload: dict[str, Any], output_format: str) -> None:
 def main(arguments: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if arguments is None else arguments)
     if argv == ["--version"]:
-        print(f"gin-workflow {CLI_VERSION}")
+        print(f"gin {CLI_VERSION}")
         return 0
     if not argv or argv[0] not in TOP_COMMANDS:
-        print(f"usage: gin-workflow {{{','.join(TOP_COMMANDS)}}} <command>", file=sys.stderr)
+        print(f"usage: gin {{{','.join(TOP_COMMANDS)}}} <command>", file=sys.stderr)
         return 2
     if argv[0] == "routes":
         from .routes import main as routes_main

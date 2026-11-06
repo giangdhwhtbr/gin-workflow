@@ -1,4 +1,4 @@
-"""Requirement blocks as data (`gin-workflow specs reqs`) for tools that build on the specs."""
+"""Requirement blocks as data (`gin specs reqs`) for tools that build on the specs."""
 
 from __future__ import annotations
 

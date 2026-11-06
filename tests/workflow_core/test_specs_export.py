@@ -1,4 +1,4 @@
-"""`gin-workflow specs export`: living specs to one printable SRS HTML file (gin-workflow-bel0)."""
+"""`gin specs export`: living specs to one printable SRS HTML file (gin-workflow-bel0)."""
 
 from __future__ import annotations
 

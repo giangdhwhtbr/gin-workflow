@@ -21,7 +21,7 @@ from workflow_core.migrations import CURRENT_VERSION, migrate_config  # noqa: E4
 from workflow_core.schemas import SUPPORTED_CONFIG_VERSIONS  # noqa: E402
 from workflow_core import setup_service  # noqa: E402
 
-LAUNCHER = SCRIPTS / "gin-workflow"
+LAUNCHER = SCRIPTS / "gin"
 
 LEGACY = {
     "schema_version": "2.7",

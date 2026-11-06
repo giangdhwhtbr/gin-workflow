@@ -16,7 +16,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-LAUNCHER = SCRIPTS / "gin-workflow"
+LAUNCHER = SCRIPTS / "gin"
 
 TEAM = """team:
   host: {host}

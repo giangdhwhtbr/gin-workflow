@@ -254,7 +254,7 @@ def _relative(repository: Path, raw: str) -> str:
 
 
 def main(arguments: Sequence[str]) -> int:
-    parser = argparse.ArgumentParser(prog="gin-workflow rules")
+    parser = argparse.ArgumentParser(prog="gin rules")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     parser.add_argument("--format", choices=("text", "json"), default="text")
     mode = parser.add_mutually_exclusive_group(required=True)

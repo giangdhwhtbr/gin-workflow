@@ -145,7 +145,7 @@ def _delivery_state(
 
 
 REMOVED_VERIFY_MESSAGE = ("the verify stage and verification_passed gate were removed; quality checks run in git hooks "
-                          "(gin-workflow hooks install)")
+                          "(gin hooks install)")
 _RECORDABLE_GATES = {
     "requirement-confirmed": ("requirement.confirmed", {}),
     "plan-approved": ("approval.recorded", {"action": "plan_approved", "decision": {"status": "approved"}}),
@@ -344,7 +344,7 @@ def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEv
     if done.returncode or done.stdout.strip():
         return None
     shown = knowledge.relative_to(repo_path) if knowledge.is_relative_to(repo_path) else knowledge
-    return f"no commit changed {shown} since orchestration-ready ({since}); reconcile knowledge (gin-knowledge) before ship"
+    return f"no commit changed {shown} since orchestration-ready ({since}); reconcile knowledge (learn) before ship"
 
 
 def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
@@ -553,7 +553,7 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
                                   scope_hash=getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path))
         if "requirement_confirmed" not in waivers:
             return {**base, "decision": "refused",
-                    "reason": "strict rigor requires /discuss; waive requirement_confirmed with gin-workflow unblock to use /quick"}, 4
+                    "reason": "strict rigor requires /discuss; waive requirement_confirmed with gin unblock to use /quick"}, 4
     if args.changed_files > settings.quick_max_files or args.modules > 1:
         return {**base, "decision": "escalate",
                 "reason": f"{args.changed_files} files / {args.modules} modules exceeds quick limits "
@@ -571,7 +571,7 @@ def _call(handler, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 def main(arguments: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if arguments is None else arguments)
     if not argv:
-        print("usage: gin-workflow {state,unblock,record,quick-check} ...", file=sys.stderr)
+        print("usage: gin {state,unblock,record,quick-check} ...", file=sys.stderr)
         return 2
 
     command = argv[0]
@@ -579,7 +579,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         print(f"unknown command: {command}", file=sys.stderr)
         return 2
 
-    parser = argparse.ArgumentParser(prog=f"gin-workflow {command}")
+    parser = argparse.ArgumentParser(prog=f"gin {command}")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--workflow-id", default="default-workflow")

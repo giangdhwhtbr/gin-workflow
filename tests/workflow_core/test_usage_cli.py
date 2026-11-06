@@ -1,4 +1,4 @@
-"""`gin-workflow usage` command line: collect (best effort) and report, exits 0 ok and 2 errors."""
+"""`gin usage` command line: collect (best effort) and report, exits 0 ok and 2 errors."""
 
 from __future__ import annotations
 

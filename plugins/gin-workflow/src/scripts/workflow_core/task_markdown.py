@@ -181,7 +181,7 @@ def _csv(values: Sequence[str] | None) -> list[str]:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="gin-workflow task", exit_on_error=False)
+    parser = argparse.ArgumentParser(prog="gin task", exit_on_error=False)
     parser.add_argument("--json", action="store_true")
     commands = parser.add_subparsers(dest="command", required=True)
 

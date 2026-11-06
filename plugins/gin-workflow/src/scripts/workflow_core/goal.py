@@ -1,4 +1,4 @@
-"""`gin-workflow goal`: a Claude Code /goal over the epic tracks the agent can finish unattended.
+"""`gin goal`: a Claude Code /goal over the epic tracks the agent can finish unattended.
 
 A track labelled `human-gate` needs a person (credentials, production access, a manual or third-party
 approval). The goal leaves it out, together with every open track that depends on it, so an unattended
@@ -39,7 +39,7 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]]) -> str:
         named = ", ".join(f"{bead} ({open_tracks[bead].get('title', '')})" for bead in gates)
         return f"No goal: every open track of epic {epic} waits on a human: {named}."
     text = (f"/goal tracks {', '.join(runnable)} of epic {epic} are closed in Beads, each after tests and review "
-            f"passed, executed per /gin-workflow:execute on its routed provider or a fallback from its route.")
+            f"passed, executed per /gin:execute on its routed provider or a fallback from its route.")
     if held:
         text += f" Do not start {', '.join(bead for bead in open_tracks if bead in held)}: they need a human."
     return text + f" Or stop after {min(MAX_TURNS, TURNS_PER_TRACK * len(runnable))} turns."
@@ -48,13 +48,13 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]]) -> str:
 def main(argv: Sequence[str]) -> int:
     from .lifecycle_cli import _get_event_store, _recorded_epic
 
-    parser = argparse.ArgumentParser(prog="gin-workflow goal")
+    parser = argparse.ArgumentParser(prog="gin goal")
     parser.add_argument("--workflow-id", required=True)
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
     epic = _recorded_epic(_get_event_store(args.repository).read_all(), args.workflow_id)
     if not epic:
-        print(f"error: no epic recorded for {args.workflow_id}; run /gin-workflow:orchestrate first", file=sys.stderr)
+        print(f"error: no epic recorded for {args.workflow_id}; run /gin:orchestrate first", file=sys.stderr)
         return 1
     tracks = query(args.repository, ["list", "--parent", epic, "--all", "--limit", "0"])
     if tracks == []:

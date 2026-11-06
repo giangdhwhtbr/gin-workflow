@@ -15,7 +15,7 @@ from workflow_core import tasks  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
 from tests.workflow_core.team_fixtures import fake_cli, init_beads, make_team_repo  # noqa: E402
 
-CLI = SCRIPTS / "gin-workflow"
+CLI = SCRIPTS / "gin"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
        "GIT_COMMITTER_EMAIL": "t@t"}
 

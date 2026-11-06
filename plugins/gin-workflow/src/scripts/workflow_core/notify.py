@@ -1,4 +1,4 @@
-"""`gin-workflow notify`: one-way Telegram messages behind `notifications.telegram`."""
+"""`gin notify`: one-way Telegram messages behind `notifications.telegram`."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def notify(root: Path | str, event: str, message: str, *, environ: Mapping[str, 
 
 
 def main(argv: Sequence[str]) -> int:
-    parser = argparse.ArgumentParser(prog="gin-workflow notify")
+    parser = argparse.ArgumentParser(prog="gin notify")
     parser.add_argument("--event", required=True, choices=EVENTS)
     parser.add_argument("--repository", default=".")
     parser.add_argument("message")

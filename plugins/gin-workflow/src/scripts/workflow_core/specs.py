@@ -114,7 +114,7 @@ def sdd_config(config: Mapping[str, Any]) -> dict[str, Any]:
 
 def load_config(repository: Path) -> Mapping[str, Any]:
     if not (Path(repository) / ".agent-workflow/config.yaml").is_file():
-        raise SpecsError("gin-workflow setup is required; run /setup once")
+        raise SpecsError("gin setup is required; run /setup once")
     return resolve_effective_config(Path(repository), write=False).config.to_dict()
 
 
@@ -282,7 +282,7 @@ _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 def lint_iterations(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """Every dated asset folder `<specs>/<cap>/assets/<YYYY-MM-DD>/` has a `description.md`."""
-    return [f"{shown(root, folder)}: missing description.md (gin-workflow specs template iteration.md)"
+    return [f"{shown(root, folder)}: missing description.md (gin specs template iteration.md)"
             for folder in sorted(specs_dir(root, cfg).glob("*/assets/*"))
             if folder.is_dir() and _ISO_DATE.match(folder.name) and not (folder / "description.md").is_file()]
 
@@ -351,7 +351,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
             if block.id not in living:
                 errors.append(f"{where}: {block.id} is not in the living spec")
             if block.base is None:
-                errors.append(f"{where}: {block.id} needs '<!-- base: <hash> -->' (gin-workflow specs hash {block.id})")
+                errors.append(f"{where}: {block.id} needs '<!-- base: <hash> -->' (gin specs hash {block.id})")
             if block.section == "MODIFIED":
                 errors += [f"{where}: {message}" for message in lint_block(block)]
             elif not re.search(r"^Reason: \S", block.text, re.MULTILINE):
@@ -366,7 +366,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
     for cap in sorted({block.cap for block in blocks if block.section in ("ADDED", "MODIFIED")}):
         if not any((base / cap / "diagrams").glob("*-activity.md")):
             errors.append(f"{cap}: no activity diagram in {shown(root, base / cap / 'diagrams')}/ "
-                          "(gin-workflow specs template activity.md)")
+                          "(gin specs template activity.md)")
     return errors + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg)
 
 

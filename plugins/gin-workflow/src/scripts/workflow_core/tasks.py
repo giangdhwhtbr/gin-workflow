@@ -1,4 +1,4 @@
-"""`gin-workflow task`: one task-tracking entry point, routed to Beads (`bd`) or the Markdown store."""
+"""`gin task`: one task-tracking entry point, routed to Beads (`bd`) or the Markdown store."""
 
 from __future__ import annotations
 
@@ -204,7 +204,7 @@ def main(argv: Sequence[str]) -> int:
     executable = tool("bd", root)
     if executable is None:
         print("error: bd is not installed; install Beads or set providers.task_tracking: markdown "
-              "(gin-workflow setup configure --set providers.task_tracking=markdown)", file=sys.stderr)
+              "(gin setup configure --set providers.task_tracking=markdown)", file=sys.stderr)
         return 127
     if argv[:1] == ["ready"]:
         return _ready(executable, [*argv, "--exclude-type", "milestone"])

@@ -1,4 +1,4 @@
-"""`gin-workflow docs check`: mechanical rules for Markdown pages. Exit 0 ok, 1 findings, 2 usage error."""
+"""`gin docs check`: mechanical rules for Markdown pages. Exit 0 ok, 1 findings, 2 usage error."""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def page_findings(page: Path, text: str, required: Sequence[str] = ()) -> list[s
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="gin-workflow docs")
+    parser = argparse.ArgumentParser(prog="gin docs")
     sub = parser.add_subparsers(dest="command", required=True)
     check = sub.add_parser("check")
     check.add_argument("files", nargs="+", type=Path)

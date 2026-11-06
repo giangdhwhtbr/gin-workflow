@@ -1,4 +1,4 @@
-"""`gin-workflow goal`: a /goal over the epic tracks the agent can finish unattended."""
+"""`gin goal`: a /goal over the epic tracks the agent can finish unattended."""
 
 from __future__ import annotations
 

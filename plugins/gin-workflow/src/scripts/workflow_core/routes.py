@@ -1,4 +1,4 @@
-"""`gin-workflow routes`: resolve plan tracks and dispatch worker execution."""
+"""`gin routes`: resolve plan tracks and dispatch worker execution."""
 
 from __future__ import annotations
 
@@ -340,7 +340,7 @@ def dispatch(
 
 
 def main(argv: Sequence[str]) -> int:
-    parser = argparse.ArgumentParser(prog="gin-workflow routes")
+    parser = argparse.ArgumentParser(prog="gin routes")
     commands = parser.add_subparsers(dest="command", required=True)
 
     resolve_parser = commands.add_parser("resolve")
@@ -371,7 +371,7 @@ def main(argv: Sequence[str]) -> int:
             return 2
         harness = config.harness or detect_project(root).get("harness")
         if not harness:
-            print("error: main harness unknown; run gin-workflow setup configure --harness <harness> --approve",
+            print("error: main harness unknown; run gin setup configure --harness <harness> --approve",
                   file=sys.stderr)
             return 2
         payload = resolve(root, args.workflow_id, tracks, config, harness)

@@ -57,7 +57,7 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
 
 def status(root: Path, change: Path) -> dict[str, Any]:
     branch = f"spec/{change.name}"
-    record = "gin-workflow record requirement-confirmed --workflow-id <epic> --evidence <pr-url> --actor <id>"
+    record = "gin record requirement-confirmed --workflow-id <epic> --evidence <pr-url> --actor <id>"
     executable = tool("gh", root)
     if executable is None:
         return {"change": change.name, "branch": branch, "status": "gh_unavailable",

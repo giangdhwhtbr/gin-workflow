@@ -305,7 +305,7 @@ class TestPushWithoutReset(unittest.TestCase):
         with mock.patch.object(team_beads, "_bd", return_value=rejected), \
                 mock.patch.object(team_beads, "sync", side_effect=team_beads.SyncConflict("bd dolt pull: conflict")):
             with self.assertRaisesRegex(team_beads.SyncConflict,
-                                        "push rejected for t-1; local Beads kept, run gin-workflow team sync"):
+                                        "push rejected for t-1; local Beads kept, run gin team sync"):
                 team_beads._push(Path("."), TeamConfig(beads_remote="x"), "t-1")
 
 

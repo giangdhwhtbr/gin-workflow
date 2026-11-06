@@ -195,7 +195,7 @@ class TestBudget(unittest.TestCase):
 
 class TestCli(unittest.TestCase):
     def _run(self, repo: Path, *args: str) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, str(SCRIPTS / "gin-workflow"), "rules", "--repository", str(repo), *args],
+        return subprocess.run([sys.executable, str(SCRIPTS / "gin"), "rules", "--repository", str(repo), *args],
                               cwd=ROOT, env={"PYTHONPATH": str(SCRIPTS), "PATH": "/usr/bin:/bin"},
                               capture_output=True, text=True, check=False)
 

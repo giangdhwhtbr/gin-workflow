@@ -1,4 +1,4 @@
-"""`gin-workflow reviewer` (agent-facing): the review route and ordered reviewer routes; exit 2 when none."""
+"""`gin reviewer` (agent-facing): the review route and ordered reviewer routes; exit 2 when none."""
 
 from __future__ import annotations
 
@@ -146,7 +146,7 @@ def route(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="gin-workflow reviewer")
+    parser = argparse.ArgumentParser(prog="gin reviewer")
     parser.add_argument("--base", required=True)
     parser.add_argument("--implementer", required=True)
     parser.add_argument("--model", required=True)

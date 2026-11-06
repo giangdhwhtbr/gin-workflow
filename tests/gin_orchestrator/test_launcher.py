@@ -32,7 +32,7 @@ class LauncherTests(unittest.TestCase):
 
     @unittest.skipIf(os.name == "nt", "symlinks the extensionless #! launcher onto PATH, which needs POSIX")
     def test_launcher_runs_with_gin_workflow_on_path(self):
-        (self.bin / "gin-workflow").symlink_to(paths.CORE_SCRIPTS / "gin-workflow")
+        (self.bin / "gin-workflow").symlink_to(paths.CORE_SCRIPTS / "gin")
 
         result = run(f"{self.bin}{os.pathsep}{os.environ['PATH']}")
 

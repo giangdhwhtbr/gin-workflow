@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from team_fixtures import TEAM, init_beads, make_team_repo  # noqa: E402
 from workflow_core import milestone_cli, team_beads  # noqa: E402
 
-CLI = SCRIPTS / "gin-workflow"
+CLI = SCRIPTS / "gin"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
        "GIT_COMMITTER_EMAIL": "t@t"}
 

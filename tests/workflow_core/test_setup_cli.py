@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -10,7 +12,7 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
-LAUNCHER = ROOT / "plugins/gin-workflow/src/scripts/gin-workflow"
+LAUNCHER = ROOT / "plugins/gin-workflow/src/scripts/gin"
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
 from workflow_core import setup_service  # noqa: E402
@@ -18,6 +20,17 @@ from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path  #
 
 
 class SetupCliTests(unittest.TestCase):
+    def test_version_and_usage_name_gin(self):
+        from workflow_core import cli
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(cli.main(["--version"]), 0)
+        self.assertEqual(out.getvalue().strip(), f"gin {cli.CLI_VERSION}")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(cli.main([]), 2)
+        self.assertTrue(err.getvalue().startswith("usage: gin {"))
+
     def test_reports_current_setup_cli_version(self):
         result = subprocess.run(
             [sys.executable, str(LAUNCHER), "--version"],
@@ -28,7 +41,7 @@ class SetupCliTests(unittest.TestCase):
         )
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual("gin-workflow 2.9", result.stdout.strip())
+        self.assertEqual("gin 3.0", result.stdout.strip())
 
     def run_cli(self, repository: Path, *arguments: str,
                 env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -277,7 +290,7 @@ class SetupCliTests(unittest.TestCase):
                     "generate .agent-workflow/generated/config-provenance.yaml",
                     "write .agent-workflow/.gitignore",
                     "write .agent-workflow/executables.local.yaml",
-                    "write AGENTS.md gin-workflow block",
+                    "write AGENTS.md gin block",
                     "add @AGENTS.md to CLAUDE.md",
                 ],
                 payload["actions"],
@@ -632,7 +645,7 @@ class SetupCliTests(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stderr)
             payload = json.loads(result.stdout)
-            self.assertIn("write AGENTS.md gin-workflow block", payload["actions"])
+            self.assertIn("write AGENTS.md gin block", payload["actions"])
             self.assertIn("add @AGENTS.md to CLAUDE.md", payload["actions"])
             agents = repository / "AGENTS.md"
             claude = repository / "CLAUDE.md"
@@ -655,7 +668,7 @@ class SetupCliTests(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stderr)
             payload = json.loads(result.stdout)
-            self.assertIn("write AGENTS.md gin-workflow block", payload["actions"])
+            self.assertIn("write AGENTS.md gin block", payload["actions"])
             self.assertIn("add @AGENTS.md to CLAUDE.md", payload["actions"])
             self.assertFalse((repository / "AGENTS.md").exists())
             self.assertFalse((repository / "CLAUDE.md").exists())
@@ -681,7 +694,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, dry.returncode, dry.stderr)
             dry_payload = json.loads(dry.stdout)
             self.assertEqual("would_update", dry_payload["status"])
-            self.assertIn("write AGENTS.md gin-workflow block", dry_payload["actions"])
+            self.assertIn("write AGENTS.md gin block", dry_payload["actions"])
             self.assertFalse((repository / "AGENTS.md").exists())
 
             unapproved = self.run_cli(repository, "init")
@@ -693,7 +706,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, approved.returncode, approved.stderr)
             approved_payload = json.loads(approved.stdout)
             self.assertEqual("updated", approved_payload["status"])
-            self.assertIn("write AGENTS.md gin-workflow block", approved_payload["actions"])
+            self.assertIn("write AGENTS.md gin block", approved_payload["actions"])
             self.assertTrue((repository / "AGENTS.md").exists())
 
             further = self.run_cli(repository, "init", "--approve")
@@ -791,7 +804,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, doc_stale.returncode, doc_stale.stderr)
             payload_stale = json.loads(doc_stale.stdout)
             self.assertEqual("stale", payload_stale["checks_details"]["agents_block"])
-            self.assertTrue(any("gin-workflow setup refresh" in action for action in payload_stale["actions"]))
+            self.assertTrue(any("gin setup refresh" in action for action in payload_stale["actions"]))
 
             (repository / "AGENTS.md").write_text("# Custom without block\n", encoding="utf-8")
             doc_absent = self.run_cli(repository, "doctor")

@@ -80,7 +80,7 @@ def run(root: Path) -> int:
 
 
 def main(argv: Sequence[str]) -> int:
-    parser = argparse.ArgumentParser(prog="gin-workflow evidence")
+    parser = argparse.ArgumentParser(prog="gin evidence")
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--repository", type=Path, default=Path.cwd())
     sub = parser.add_subparsers(dest="command", required=True)

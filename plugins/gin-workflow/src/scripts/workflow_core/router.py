@@ -449,7 +449,7 @@ def route_next_stage(
                 "progress",
                 "hold",
                 (*evidence_prefix, f"{completed_gate}=unknown"),
-                remedies=causes or ("restore the task tracker and the event log, then rerun gin-workflow state",),
+                remedies=causes or ("restore the task tracker and the event log, then rerun gin state",),
             )
 
         evidence = (*evidence_prefix, f"{completed_gate}=false")

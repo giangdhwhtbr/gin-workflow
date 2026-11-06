@@ -1,4 +1,4 @@
-"""`gin-workflow docs check`: mechanical rules for Markdown pages."""
+"""`gin docs check`: mechanical rules for Markdown pages."""
 
 from __future__ import annotations
 

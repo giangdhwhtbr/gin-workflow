@@ -1,4 +1,4 @@
-"""`gin-workflow specs export`: living specs to one self-contained SRS HTML file."""
+"""`gin specs export`: living specs to one self-contained SRS HTML file."""
 
 from __future__ import annotations
 

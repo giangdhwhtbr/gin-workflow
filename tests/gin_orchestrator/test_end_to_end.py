@@ -12,7 +12,7 @@ from tests.gin_orchestrator import paths  # noqa: F401
 
 ROOT = paths.ROOT
 SCRIPTS = paths.CORE_SCRIPTS
-LAUNCHER = SCRIPTS / "gin-workflow"
+LAUNCHER = SCRIPTS / "gin"
 
 from workflow_core.events import WorkflowEventStore  # noqa: E402
 from workflow_core.assignments import (  # noqa: E402

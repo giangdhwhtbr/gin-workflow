@@ -97,7 +97,7 @@ def doctor_report(root: Path, *, require_bd: bool) -> tuple[bool, dict[str, Any]
                "missing": missing, "problems": problems}
     actions = []
     if stale or problems:
-        actions.append("executables: stale or invalid entries in executables.local.yaml; run gin-workflow setup refresh")
+        actions.append("executables: stale or invalid entries in executables.local.yaml; run gin setup refresh")
     if "git" in missing:
         actions.append("git: not found; install git")
     if require_bd and "bd" in missing:

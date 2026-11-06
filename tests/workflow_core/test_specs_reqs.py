@@ -1,4 +1,4 @@
-"""`gin-workflow specs reqs`: requirement blocks as JSON for tools built on the specs, and the `qa:` config key."""
+"""`gin specs reqs`: requirement blocks as JSON for tools built on the specs, and the `qa:` config key."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Side-effect-aware operations behind ``gin-workflow setup``."""
+"""Side-effect-aware operations behind ``gin setup``."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def _agents_writes(root: Path, config: Mapping[str, Any], *, create: bool) -> di
 
 def _agents_actions(root: Path, writes: Mapping[Path, bytes]) -> list[str]:
     names = {
-        root / "AGENTS.md": "write AGENTS.md gin-workflow block",
+        root / "AGENTS.md": "write AGENTS.md gin block",
         root / "CLAUDE.md": "add @AGENTS.md to CLAUDE.md",
     }
     return [names[path] for path in writes if path in names]
@@ -387,7 +387,7 @@ def refresh(repository: Path, *, dry_run: bool = False, **_: Any) -> dict[str, A
     if not dry_run:
         write_local(root, detect_tools(root=root))
     if writes:
-        actions.append("update AGENTS.md gin-workflow block")
+        actions.append("update AGENTS.md gin block")
     return {
         "status": "would_refresh" if dry_run else "refreshed",
         "repository": str(root),
@@ -433,7 +433,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         if (root / ".beads").is_dir() and backend_unset and "team" not in user_cfg:
             backend_actions.append(
                 ".beads exists but providers.task_tracking is unset, so tasks use markdown; to keep Beads run "
-                "gin-workflow setup configure --set providers.task_tracking=beads --approve"
+                "gin setup configure --set providers.task_tracking=beads --approve"
             )
         if "worktrees" in (effective_cfg.get("artifacts") or {}):
             backend_actions.append(
@@ -442,7 +442,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             )
         if str(user_cfg.get("schema_version", "")) not in ("2.8", "2.9") and legacy_worker_routing(user_cfg):
             backend_actions.append(
-                "worker routing under routing: is ignored; run gin-workflow setup update --to-version 2.8 --approve"
+                "worker routing under routing: is ignored; run gin setup update --to-version 2.8 --approve"
             )
         if "model_tiers" in effective_cfg:
             backend_actions.append("model_tiers is ignored since schema 2.9; list models per harness under models:")
@@ -450,7 +450,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         if local_path.is_file() and _local_tier_models(_read_local_file(local_path)):
             backend_actions.append(
                 "orchestrator.local.yaml lists models per provider; move them into the models: catalog with "
-                "gin-workflow setup update --to-version 2.9 --approve"
+                "gin setup update --to-version 2.9 --approve"
             )
 
     h = effective_cfg.get("harness") or detect(root).get("harness")
@@ -461,7 +461,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
     checks_details["harness"] = {"name": h, "executable": h_exe}
     if not h_exe:
         backend_actions.append(
-            f"main harness {h}: executable not found on PATH" if h else "main harness is not configured; run gin-workflow setup init"
+            f"main harness {h}: executable not found on PATH" if h else "main harness is not configured; run gin setup init"
         )
 
     require_bd = (effective_cfg.get("providers") or {}).get("task_tracking") == "beads"
@@ -480,8 +480,9 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
 
             states = hooks_status(root)
             checks_details["hooks"] = states
-            hook_actions = [f"hooks: {name} is missing; run gin-workflow hooks install" if state == "missing" else
-                            f"hooks: {name} is occupied; chain `exec gin-workflow hooks run {name}` into it"
+            hook_actions = [f"hooks: {name} is missing; run gin hooks install" if state == "missing" else
+                            f"hooks: {name} still calls gin-workflow; run gin hooks install" if state == "stale" else
+                            f"hooks: {name} is occupied; chain `exec gin hooks run {name}` into it"
                             for name, state in states.items() if state != "ok"]
         detected = detect_project(root)
         if settings.stage == "greenfield" and detected["stage"] == "brownfield":
@@ -532,7 +533,7 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         state = agents_block.status(root, effective)
         checks_details["agents_block"] = state
         if state == "stale":
-            actions.append("agents: AGENTS.md block is stale; run gin-workflow setup refresh")
+            actions.append("agents: AGENTS.md block is stale; run gin setup refresh")
         elif state == "invalid":
             actions.append("agents: AGENTS.md block cannot be updated (broken markers or a symbolic link); fix it by hand")
 

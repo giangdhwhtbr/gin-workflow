@@ -215,7 +215,7 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
                 raise ConfigValidationError(
                     "worker routing (routing.concurrency, queue, worker, circuit_breaker, or a role naming a "
                     "provider other than main_harness) belongs under orchestrator:; "
-                    "run gin-workflow setup update --to-version 2.8 --approve"
+                    "run gin setup update --to-version 2.8 --approve"
                 )
         elif isinstance(roles, Mapping):
             concurrency = routing.get("concurrency", {})
@@ -281,7 +281,7 @@ def load_effective_config(repository: Path) -> EffectiveConfig:
     if not path.is_file():
         raise ConfigValidationError(
             "gin-workflow repository setup is required; run "
-            "`gin-workflow setup init --repository <path>` once before lifecycle work"
+            "`gin setup init --repository <path>` once before lifecycle work"
         )
     config = _read_yaml(path, missing_ok=False)
     validate_portable_config(config)

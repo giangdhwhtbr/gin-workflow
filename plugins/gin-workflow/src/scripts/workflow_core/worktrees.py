@@ -1,4 +1,4 @@
-"""`gin-workflow worktree`: create and remove track worktrees under `.planning/worktrees`."""
+"""`gin worktree`: create and remove track worktrees under `.planning/worktrees`."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def cleanup(repo: Path, track_id: str) -> Path | None:
 
 
 def main(argv: Sequence[str]) -> int:
-    parser = argparse.ArgumentParser(prog="gin-workflow worktree")
+    parser = argparse.ArgumentParser(prog="gin worktree")
     commands = parser.add_subparsers(dest="command", required=True)
     create_parser = commands.add_parser("create")
     create_parser.add_argument("--repository", default=".")

@@ -1,4 +1,4 @@
-"""`gin-workflow usage` command line: exit 0 ok, 2 usage or a real error (`--best-effort` turns errors into warnings)."""
+"""`gin usage` command line: exit 0 ok, 2 usage or a real error (`--best-effort` turns errors into warnings)."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--repository", type=Path, default=Path.cwd())
     common.add_argument("--format", choices=("text", "json"), default="text")
-    parser = argparse.ArgumentParser(prog="gin-workflow usage")
+    parser = argparse.ArgumentParser(prog="gin usage")
     sub = parser.add_subparsers(dest="command", required=True)
     item = sub.add_parser("collect", parents=[common])
     item.add_argument("--bead", required=True)

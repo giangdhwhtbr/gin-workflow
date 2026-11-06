@@ -1,4 +1,4 @@
-"""`gin-workflow specs` command line: exit 0 ok, 1 content findings, 2 usage or configuration error."""
+"""`gin specs` command line: exit 0 ok, 1 content findings, 2 usage or configuration error."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--repository", type=Path, default=Path.cwd())
     common.add_argument("--format", choices=("text", "json"), default="text")
-    parser = argparse.ArgumentParser(prog="gin-workflow specs")
+    parser = argparse.ArgumentParser(prog="gin specs")
     sub = parser.add_subparsers(dest="command", required=True)
     item = sub.add_parser("new", parents=[common])
     item.add_argument("slug")
