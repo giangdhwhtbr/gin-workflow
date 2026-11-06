@@ -72,7 +72,7 @@ Xem [QA](../guides/qa.md).
 
 ## gin-ba (add-on tùy chọn) { #gin-ba-optional-add-on }
 
-Các skill cho đầu vào của BA cho một capability, ghi vào các thư mục asset có tên ngày của nó với layout SDD. Cả hai đều không có CLI. Xem hướng dẫn BA.
+Các skill cho đầu vào của BA cho một capability, ghi vào các thư mục asset có tên ngày của nó với layout SDD. Cả hai đều không có CLI. Xem [BA](../guides/ba.md).
 
 | Skill | Mục đích |
 |---|---|

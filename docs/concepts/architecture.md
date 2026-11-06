@@ -152,7 +152,7 @@ flowchart LR
     MK[marketplace: claude plugin install, codex plugin add] --> C1b[harness plugin cache]
 ```
 
-The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Three plugins build the same way: gin-workflow (the default, plugin id `gin`), `gin-qa`, and `gin-orchestrator`. `--plugin gin-orchestrator` installs gin-workflow first when the `gin` launcher is missing or at another version. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the launchers. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
+The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Four plugins build the same way: gin-workflow (the default, plugin id `gin`), `gin-qa`, `gin-orchestrator`, and `gin-ba`. `--plugin gin-orchestrator` installs gin-workflow first when the `gin` launcher is missing or at another version. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the launchers. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
 
 ## Usage collection
 

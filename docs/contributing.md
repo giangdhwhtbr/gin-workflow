@@ -47,7 +47,7 @@ GitHub Copilot CLI registers `dist/copilot/<plugin>` with `copilot plugin instal
 ```bash
 ./install.sh --platform all                 # build and install for every detected harness
 ./install.sh --platform codex               # one harness
-./install.sh --plugin all                   # gin-workflow, gin-qa, and gin-orchestrator
+./install.sh --plugin all                   # gin-workflow, gin-qa, gin-orchestrator, and gin-ba
 ./install.sh --plugin gin-orchestrator      # installs gin-workflow first when its launcher is missing or at another version
 ./install.sh --link --platform claude       # symlink the dev tree instead of copying
 ./install.sh --project /path/to/repo        # install harness files into one repository
@@ -55,7 +55,7 @@ GitHub Copilot CLI registers `dist/copilot/<plugin>` with `copilot plugin instal
 ./install.sh --uninstall                    # remove generated dist output, the OpenCode global install, and the Copilot registration
 ```
 
-`--platform` takes `claude`, `antigravity`, `codex`, `opencode`, `copilot`, `both`, or `all` (default); `--plugin` takes the plugin directory name: `--plugin gin-workflow` (default, installed as `gin`), `--plugin gin-qa`, `--plugin gin-orchestrator`, or `--plugin all`.
+`--platform` takes `claude`, `antigravity`, `codex`, `opencode`, `copilot`, `both`, or `all` (default); `--plugin` takes the plugin directory name: `--plugin gin-workflow` (default, installed as `gin`), `--plugin gin-qa`, `--plugin gin-orchestrator`, `--plugin gin-ba`, or `--plugin all`.
 
 ### Windows (PowerShell 7)
 

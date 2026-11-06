@@ -72,7 +72,7 @@ Where the harness has subagents, `e2e` gives each case to the add-on's `e2e-test
 
 ## gin-ba (optional add-on)
 
-Skills for the BA's inputs to a capability, written into its dated asset folders with the SDD layout. Neither has a CLI. See the BA guide.
+Skills for the BA's inputs to a capability, written into its dated asset folders with the SDD layout. Neither has a CLI. See [BA](../guides/ba.md).
 
 | Skill | Purpose |
 |---|---|

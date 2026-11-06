@@ -75,6 +75,7 @@ plugins:
             Working with Claude Code: Làm việc với Claude Code
             SDD living specs: Living specs (SDD)
             QA add-on: Tiện ích QA
+            BA add-on: Tiện ích BA
             Customizing templates: Tùy chỉnh template
             Rule packs: Bộ quy tắc
             AI usage report: Báo cáo sử dụng AI
@@ -115,6 +116,7 @@ nav:
       - Working with Claude Code: guides/claude-workflow.md
       - SDD living specs: guides/sdd.md
       - QA add-on: guides/qa.md
+      - BA add-on: guides/ba.md
       - Customizing templates: guides/customizing-templates.md
       - Rule packs: guides/rules.md
       - AI usage report: guides/usage-report.md

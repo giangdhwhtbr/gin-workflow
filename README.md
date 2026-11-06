@@ -13,7 +13,7 @@ Read it on the [documentation site](https://giangdhwhtbr.github.io/gin-workflow/
 | [Architecture](docs/concepts/architecture.md) | how the pieces fit, with flow diagrams |
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
 | [Team roles](docs/roles.md) | who owns what in a team, and what each role reads |
-| Guides | [use cases](docs/guides/use-cases.md), [using AI effectively](docs/guides/ai-strategy.md), [working with Claude Code](docs/guides/claude-workflow.md), [customizing templates](docs/guides/customizing-templates.md), [recommended tools](docs/guides/recommended-tools.md), [Windows](docs/guides/windows.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [AI usage report](docs/guides/usage-report.md) |
+| Guides | [use cases](docs/guides/use-cases.md), [using AI effectively](docs/guides/ai-strategy.md), [working with Claude Code](docs/guides/claude-workflow.md), [customizing templates](docs/guides/customizing-templates.md), [recommended tools](docs/guides/recommended-tools.md), [Windows](docs/guides/windows.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [QA add-on](docs/guides/qa.md), [BA add-on](docs/guides/ba.md), [AI usage report](docs/guides/usage-report.md) |
 | Orchestrator | [worker harnesses (gin-orchestrator)](docs/orchestrator/README.md), [routing and configuration](docs/orchestrator/routing.md) |
 | Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [orchestrator contract](docs/reference/orchestrator-contract.md) |
 | [Contributing](docs/contributing.md) | build, test, release |
@@ -67,11 +67,12 @@ GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and regi
 
 ## Extensions
 
-gin-workflow works alone. Two add-ons install from the same clone:
+gin-workflow works alone. Three add-ons install from the same clone:
 
 | Extension | Install | Adds |
 |---|---|---|
 | gin-qa | `./install.sh --plugin gin-qa` | [QA cases and end-to-end specs](docs/guides/qa.md) |
+| gin-ba | `./install.sh --plugin gin-ba` | [BA mockups and legacy descriptions](docs/guides/ba.md) for spec inputs |
 | gin-orchestrator | `./install.sh --plugin gin-orchestrator` (installs gin-workflow too) | [worker harnesses](docs/orchestrator/README.md): route tracks and reviews to other harnesses |
 
 ## Quickstart
