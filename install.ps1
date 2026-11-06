@@ -15,7 +15,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$LauncherVersion = '2.9'
+$LauncherVersion = '3.0'
 $QaLauncherVersion = '0.10'
 $OrchLauncherVersion = '0.1'
 $ScriptRoot = $PSScriptRoot
@@ -32,6 +32,14 @@ if ($IsWindows) {
 function Test-Platform {
     param([Parameter(Mandatory)][string]$Name)
     return $Platform -eq $Name -or $Platform -eq 'both' -or $Platform -eq 'all'
+}
+
+# The plugin directory keeps its name; the plugin id (the `name` in its
+# plugin.meta.json) names the launcher and every install target.
+function Get-PluginId {
+    param([Parameter(Mandatory)][string]$Name)
+    if ($Name -eq 'gin-workflow') { return 'gin' }
+    return $Name
 }
 
 function New-Directory {
@@ -170,7 +178,7 @@ function New-CopilotHooksFile {
   "version": 1,
   "hooks": {
     "PreToolUse": [
-      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin}/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"; fi; echo \"gin: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
@@ -310,22 +318,26 @@ function Install-OpenCodeBundle {
     Copy-BundleDirectories -Source $Source -Destination $Destination -LinkFiles
     Convert-OpenCodeAgents -SourceDirectory $Source -DestinationDirectory $Destination -PluginName $PluginName
 
-    # OpenCode selects a skill by its directory id; keep `name` aligned with the
-    # renamed `report` directory (id `gin-workflow-report`).
-    $reportDirectory = Join-Path $Destination 'skills/report'
-    if (Test-Path -LiteralPath $reportDirectory) {
-        $renamed = Join-Path $Destination 'skills/gin-workflow-report'
+    # OpenCode selects a skill by its bare directory id, so gin's generic skill
+    # names get a gin- prefix, with the display `name` kept aligned.
+    $prefixedSkills = if ($PluginName -eq 'gin') { @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents', 'report') } else { @() }
+    foreach ($skill in $prefixedSkills) {
+        $skillDirectory = Join-Path $Destination "skills/$skill"
+        if (-not (Test-Path -LiteralPath $skillDirectory)) {
+            continue
+        }
+        $renamed = Join-Path $Destination "skills/gin-$skill"
         if (Test-Path -LiteralPath $renamed) {
             Remove-Item -LiteralPath $renamed -Recurse -Force
         }
-        Move-Item -LiteralPath $reportDirectory -Destination $renamed
-        $reportSkill = Join-Path $renamed 'SKILL.md'
-        if (Test-Path -LiteralPath $reportSkill) {
-            $content = [regex]::Replace([IO.File]::ReadAllText($reportSkill), '(?m)^name: report$', 'name: gin-workflow-report')
-            if ($null -ne (Get-Item -LiteralPath $reportSkill).LinkType) {
-                Remove-Item -LiteralPath $reportSkill -Force
+        Move-Item -LiteralPath $skillDirectory -Destination $renamed
+        $skillFile = Join-Path $renamed 'SKILL.md'
+        if (Test-Path -LiteralPath $skillFile) {
+            $content = [regex]::Replace([IO.File]::ReadAllText($skillFile), "(?m)^name: $([regex]::Escape($skill))`$", "name: gin-$skill")
+            if ($null -ne (Get-Item -LiteralPath $skillFile).LinkType) {
+                Remove-Item -LiteralPath $skillFile -Force
             }
-            Write-Utf8File -Path $reportSkill -Content $content
+            Write-Utf8File -Path $skillFile -Content $content
         }
     }
 
@@ -378,7 +390,7 @@ function Install-PlatformLayout {
             -Source (Join-Path $PluginDirectory 'src') `
             -Destination $Destination `
             -InstallRoot $InstallRoot `
-            -PluginName (Split-Path -Leaf $PluginDirectory)
+            -PluginName (Get-PluginId (Split-Path -Leaf $PluginDirectory))
         return
     }
     if ($Harness -eq 'copilot') {
@@ -439,6 +451,20 @@ function Enable-ClaudePlugin {
     Write-Utf8File -Path $settingsPath -Content (($settings | ConvertTo-Json -Depth 20) + "`n")
 }
 
+function Disable-ClaudePlugin {
+    param([Parameter(Mandatory)][string]$Name)
+    $settingsPath = Join-Path $UserHome '.claude/settings.json'
+    if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf)) {
+        return
+    }
+    $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json -AsHashtable
+    if ($null -eq $settings -or -not $settings.Contains('enabledPlugins') -or $settings.enabledPlugins -isnot [System.Collections.IDictionary] -or -not $settings.enabledPlugins.Contains("$Name@skills-dir")) {
+        return
+    }
+    $settings.enabledPlugins.Remove("$Name@skills-dir")
+    Write-Utf8File -Path $settingsPath -Content (($settings | ConvertTo-Json -Depth 32) + "`n")
+}
+
 function Test-ManagedLauncherShim {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -477,6 +503,35 @@ function Test-ManagedLauncherShim {
         $managed,
         [StringComparison]::OrdinalIgnoreCase
     )
+}
+
+# Remove ~/.local/bin/<name>.cmd and ~/.local/lib/<name> only when the shim is one
+# this installer wrote; a foreign file of that name is kept and reported.
+function Remove-ManagedLauncher {
+    param([Parameter(Mandatory)][string]$Name)
+    $shim = Join-Path $UserHome ".local/bin/$Name.cmd"
+    $managedRoot = Join-Path $UserHome ".local/lib/$Name"
+    if (Test-Path -LiteralPath $shim) {
+        if (-not (Test-ManagedLauncherShim -Path $shim -ManagedRoot $managedRoot -Name $Name)) {
+            Write-Warning "kept ${shim}: not a $Name launcher this installer manages"
+            return
+        }
+        if ($DryRun) {
+            Write-Output "(dry-run) would remove the $Name launcher at $shim"
+            return
+        }
+        Remove-Item -LiteralPath $shim -Force
+        Write-Output "Removed the $Name launcher at $shim"
+    }
+    if (-not (Test-Path -LiteralPath $managedRoot -PathType Container)) {
+        return
+    }
+    if ($DryRun) {
+        Write-Output "(dry-run) would remove $managedRoot"
+        return
+    }
+    Remove-Item -LiteralPath $managedRoot -Recurse -Force
+    Write-Output "Removed $managedRoot"
 }
 
 function Get-LauncherBin {
@@ -550,11 +605,13 @@ function Install-Launcher {
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][string]$Version
     )
+    # $Name is the plugin directory; the launcher carries the plugin id.
+    $launcherName = Get-PluginId $Name
     $sourceDirectory = Join-Path $ScriptRoot "plugins/$Name/src/scripts"
-    $managedRoot = Join-Path $UserHome ".local/lib/$Name"
+    $managedRoot = Join-Path $UserHome ".local/lib/$launcherName"
     $installDirectory = Join-Path $managedRoot $Version
-    $launcherTarget = Join-Path $installDirectory $Name
-    $launcherShim = Join-Path $UserHome ".local/bin/$Name.cmd"
+    $launcherTarget = Join-Path $installDirectory $launcherName
+    $launcherShim = Join-Path $UserHome ".local/bin/$launcherName.cmd"
     $packages = switch ($Name) {
         'gin-workflow' { @('workflow_core', 'review_ledger') }
         'gin-qa' { @('gin_qa') }
@@ -562,28 +619,31 @@ function Install-Launcher {
     }
 
     if (Test-Path -LiteralPath $launcherShim) {
-        if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot -Name $Name)) {
+        if (-not (Test-ManagedLauncherShim -Path $launcherShim -ManagedRoot $managedRoot -Name $launcherName)) {
             throw "Error: refusing to replace a different launcher at $launcherShim"
         }
     }
 
     if ($Name -eq 'gin-qa') {
-        $workflowShim = Join-Path $UserHome '.local/bin/gin-workflow.cmd'
-        if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin-workflow -ErrorAction SilentlyContinue)) {
-            Write-Warning 'gin-workflow is not installed; gin-qa needs it (./install.ps1 -Plugin gin-workflow).'
+        $workflowShim = Join-Path $UserHome '.local/bin/gin.cmd'
+        if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin -ErrorAction SilentlyContinue)) {
+            Write-Warning 'gin is not installed; gin-qa needs it (./install.ps1 -Plugin gin-workflow).'
         }
     }
 
     if ($DryRun) {
-        Write-Output "(dry-run) would install $Name launcher version $Version to $launcherTarget"
-        Write-Output "(dry-run) would install $Name launcher shim at $launcherShim"
-        if ($Name -eq 'gin-workflow') { Register-UserPath }
+        Write-Output "(dry-run) would install $launcherName launcher version $Version to $launcherTarget"
+        Write-Output "(dry-run) would install $launcherName launcher shim at $launcherShim"
+        if ($Name -eq 'gin-workflow') {
+            Register-UserPath
+            Remove-ManagedLauncher -Name 'gin-workflow'
+        }
         return
     }
 
     New-Directory (Split-Path -Parent $launcherShim)
     New-Directory $installDirectory
-    Copy-Item -LiteralPath (Join-Path $sourceDirectory $Name) -Destination $launcherTarget -Force
+    Copy-Item -LiteralPath (Join-Path $sourceDirectory $launcherName) -Destination $launcherTarget -Force
     foreach ($package in $packages) {
         New-Directory (Join-Path $installDirectory $package)
         Copy-DirectoryContent `
@@ -622,8 +682,11 @@ function Install-Launcher {
         }
     }
 
-    Write-Output "Installed $Name launcher version $Version to $launcherShim"
-    if ($Name -eq 'gin-workflow') { Register-UserPath }
+    Write-Output "Installed $launcherName launcher version $Version to $launcherShim"
+    if ($Name -eq 'gin-workflow') {
+        Register-UserPath
+        Remove-ManagedLauncher -Name 'gin-workflow'
+    }
 }
 
 function Invoke-NativeCommand {
@@ -639,9 +702,87 @@ function Invoke-NativeCommand {
     }
 }
 
+# Remove the global OpenCode agents an earlier install of plugin id $Id copied, as
+# its bundle lists them; a gin-*.md filter would also match gin-qa's and the user's own.
+function Remove-OpenCodeAgents {
+    param([Parameter(Mandatory)][string]$Id)
+    $bundleAgents = Join-Path $UserHome ".config/opencode/skills/$Id/agents"
+    if (-not (Test-Path -LiteralPath $bundleAgents -PathType Container)) {
+        return
+    }
+    foreach ($agent in Get-ChildItem -LiteralPath $bundleAgents -Filter '*.md' -File) {
+        $installed = Join-Path $UserHome ".config/opencode/agents/$($agent.Name)"
+        if (Test-Path -LiteralPath $installed) {
+            Remove-Item -LiteralPath $installed -Force
+        }
+    }
+}
+
+# The 2.x global install of this plugin under its old id, for each selected harness.
+function Remove-LegacyPlugin {
+    $old = 'gin-workflow'
+    if ($DryRun) {
+        Write-Output "(dry-run) would remove the old $old plugin installs"
+        return
+    }
+    $legacyDirectories = @()
+    if ((Test-Platform 'claude') -and (Get-Command claude -ErrorAction SilentlyContinue)) {
+        $legacyDirectories += Join-Path $UserHome ".claude/skills/$old"
+        Disable-ClaudePlugin -Name $old
+    }
+    if (Test-Platform 'opencode') {
+        $legacyDirectories += Join-Path $UserHome ".config/opencode/skills/$old"
+        $opencodeAgents = Join-Path $UserHome '.config/opencode/agents'
+        if (Test-Path -LiteralPath $opencodeAgents -PathType Container) {
+            Get-ChildItem -LiteralPath $opencodeAgents -Filter "$old-*.md" -File | Remove-Item -Force
+        }
+    }
+    if ((Test-Platform 'antigravity') -and (Get-Command agy -ErrorAction SilentlyContinue)) {
+        $legacyDirectories += Join-Path $UserHome ".gemini/config/plugins/$old"
+    }
+    foreach ($directory in $legacyDirectories) {
+        if (Test-Path -LiteralPath $directory) {
+            Remove-Item -LiteralPath $directory -Recurse -Force
+        }
+    }
+    # Best effort: the old plugin may not be registered, and then the harness CLI exits non-zero.
+    if ((Test-Platform 'codex') -and (Get-Command codex -ErrorAction SilentlyContinue)) {
+        & codex plugin remove "$old@gin-workflow-marketplace" *> $null
+    }
+    if ((Test-Platform 'copilot') -and (Get-Command copilot -ErrorAction SilentlyContinue)) {
+        & copilot plugin uninstall $old *> $null
+    }
+}
+
+# Skill folders a 2.x project install wrote under the old names, for each selected harness.
+function Remove-LegacyProjectInstall {
+    $roots = [ordered]@{ claude = '.claude'; antigravity = '.agents'; codex = '.codex'; opencode = '.opencode' }
+    foreach ($harness in $roots.Keys) {
+        if (-not (Test-Platform $harness)) {
+            continue
+        }
+        $root = Join-Path $Project $roots[$harness]
+        $skills = @('gin-knowledge', 'gin-sdd', 'gin-team', 'gin-worktrees', 'gin-debugging', 'gin-review-response', 'gin-parallel-agents')
+        if ($harness -eq 'opencode') {
+            $skills += 'gin-workflow-report'
+            $projectAgents = Join-Path $root 'agents'
+            if (Test-Path -LiteralPath $projectAgents -PathType Container) {
+                Get-ChildItem -LiteralPath $projectAgents -Filter 'gin-workflow-*.md' -File | Remove-Item -Force
+            }
+        }
+        foreach ($skill in $skills) {
+            $directory = Join-Path $root "skills/$skill"
+            if (Test-Path -LiteralPath $directory) {
+                Remove-Item -LiteralPath $directory -Recurse -Force
+            }
+        }
+    }
+}
+
 function Install-Plugin {
     param([Parameter(Mandatory)][string]$Name)
     $pluginDirectory = Join-Path $ScriptRoot "plugins/$Name"
+    $id = Get-PluginId $Name
     if (-not (Test-Path -LiteralPath $pluginDirectory -PathType Container)) {
         Write-Warning "Plugin directory '$pluginDirectory' not found. Skipping."
         return
@@ -657,8 +798,12 @@ function Install-Plugin {
         }
         if ($DryRun) {
             Write-Output "(dry-run) would install project-level configs for $Name to $Project"
+            if ($Name -eq 'gin-workflow') {
+                Write-Output "(dry-run) would remove the old gin-workflow skill folders from $Project"
+            }
             return
         }
+        if ($Name -eq 'gin-workflow') { Remove-LegacyProjectInstall }
         if (Test-Platform 'claude') {
             $target = Join-Path $Project '.claude'
             Install-PlatformLayout -Harness claude -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${CLAUDE_PROJECT_DIR}/.claude' -ManifestPath (Join-Path $target '.claude-plugin/plugin.json')
@@ -689,7 +834,7 @@ function Install-Plugin {
     if (Test-Platform 'antigravity') {
         $target = Join-Path $distDirectory 'antigravity'
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
-        $installedRoot = Join-Path $UserHome ".gemini/config/plugins/$Name"
+        $installedRoot = Join-Path $UserHome ".gemini/config/plugins/$id"
         Install-PlatformLayout -Harness antigravity -PluginDirectory $pluginDirectory -Destination $target -HooksRoot $installedRoot -ManifestPath (Join-Path $target 'plugin.json')
     }
     if (Test-Platform 'codex') {
@@ -701,35 +846,37 @@ function Install-Plugin {
         $target = Join-Path $distDirectory 'opencode'
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
         Write-Output "Configuring OpenCode skill structure for $Name..."
-        Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath '' -InstallRoot (Join-Path $UserHome ".config/opencode/skills/$Name")
+        Install-PlatformLayout -Harness opencode -PluginDirectory $pluginDirectory -Destination $target -HooksRoot '${PLUGIN_ROOT}' -ManifestPath '' -InstallRoot (Join-Path $UserHome ".config/opencode/skills/$id")
     }
     if (Test-Platform 'copilot') {
         $target = Join-Path $distDirectory 'copilot'
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
         Write-Output "Configuring Copilot plugin structure for $Name..."
         # Copilot names a direct install after the source directory, so the
-        # bundle directory carries the plugin name to keep plugins apart.
-        $bundle = Join-Path $target $Name
+        # bundle directory carries the plugin id to keep plugins apart.
+        $bundle = Join-Path $target $id
         Install-PlatformLayout -Harness copilot -PluginDirectory $pluginDirectory -Destination $bundle -HooksRoot '${PLUGIN_ROOT}' -ManifestPath (Join-Path $bundle '.claude-plugin/plugin.json')
     }
+
+    if ($Name -eq 'gin-workflow') { Remove-LegacyPlugin }
 
     if ($DryRun) {
         Write-Output "(dry-run) registration skipped for $Name"
         if (Test-Platform 'claude') {
-            Write-Output "(dry-run) would install global Claude Code plugin to $(Join-Path $UserHome ".claude/skills/$Name")"
+            Write-Output "(dry-run) would install global Claude Code plugin to $(Join-Path $UserHome ".claude/skills/$id")"
         }
         if (Test-Platform 'opencode') {
-            Write-Output "(dry-run) would install global OpenCode skills to $(Join-Path $UserHome ".config/opencode/skills/$Name")"
+            Write-Output "(dry-run) would install global OpenCode skills to $(Join-Path $UserHome ".config/opencode/skills/$id")"
         }
         if (Test-Platform 'copilot') {
-            Write-Output "(dry-run) would install Copilot plugin from $(Join-Path $distDirectory "copilot/$Name")"
+            Write-Output "(dry-run) would install Copilot plugin from $(Join-Path $distDirectory "copilot/$id")"
         }
         return
     }
 
     if ((Test-Platform 'claude') -and (Get-Command claude -ErrorAction SilentlyContinue)) {
         $source = Join-Path $distDirectory 'claude-code'
-        $destination = Join-Path $UserHome ".claude/skills/$Name"
+        $destination = Join-Path $UserHome ".claude/skills/$id"
         if (Test-Path -LiteralPath $destination) {
             Remove-Item -LiteralPath $destination -Recurse -Force
         }
@@ -740,12 +887,13 @@ function Install-Plugin {
         else {
             Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
         }
-        Enable-ClaudePlugin -Name $Name
-        Write-Output "Successfully installed and enabled $Name globally in Claude Code!"
+        Enable-ClaudePlugin -Name $id
+        Write-Output "Successfully installed and enabled $id globally in Claude Code!"
     }
     if (Test-Platform 'opencode') {
         $source = Join-Path $distDirectory 'opencode'
-        $destination = Join-Path $UserHome ".config/opencode/skills/$Name"
+        $destination = Join-Path $UserHome ".config/opencode/skills/$id"
+        Remove-OpenCodeAgents -Id $id
         if (Test-Path -LiteralPath $destination) {
             Remove-Item -LiteralPath $destination -Recurse -Force
         }
@@ -760,12 +908,11 @@ function Install-Plugin {
         if (Test-Path -LiteralPath $sourceAgents -PathType Container) {
             $destAgents = Join-Path $UserHome '.config/opencode/agents'
             New-Directory $destAgents
-            Get-ChildItem -LiteralPath $destAgents -Filter "$Name-*.md" -File -ErrorAction SilentlyContinue | Remove-Item -Force
-            foreach ($agent in Get-ChildItem -LiteralPath $sourceAgents -Filter "$Name-*.md" -File) {
+            foreach ($agent in Get-ChildItem -LiteralPath $sourceAgents -Filter "$id-*.md" -File) {
                 Copy-Item -LiteralPath $agent.FullName -Destination (Join-Path $destAgents $agent.Name) -Force
             }
         }
-        Write-Output "Successfully installed $Name globally in OpenCode!"
+        Write-Output "Successfully installed $id globally in OpenCode!"
     }
     if ((Test-Platform 'antigravity') -and (Get-Command agy -ErrorAction SilentlyContinue)) {
         Invoke-NativeCommand `
@@ -778,14 +925,14 @@ function Install-Plugin {
             -CommandArguments @('plugin', 'marketplace', 'add', $ScriptRoot)
         Invoke-NativeCommand `
             -Executable 'codex' `
-            -CommandArguments @('plugin', 'add', "$Name@gin-workflow-marketplace")
+            -CommandArguments @('plugin', 'add', "$id@gin-workflow-marketplace")
     }
     if (Test-Platform 'copilot') {
-        $copilotBundle = Join-Path $distDirectory "copilot/$Name"
+        $copilotBundle = Join-Path $distDirectory "copilot/$id"
         if (Get-Command copilot -ErrorAction SilentlyContinue) {
-            Write-Output "Registering $Name with Copilot..."
+            Write-Output "Registering $id with Copilot..."
             # Remove first so a re-run replaces the installed copy.
-            & copilot plugin uninstall $Name *> $null
+            & copilot plugin uninstall $id *> $null
             Invoke-NativeCommand -Executable 'copilot' -CommandArguments @('plugin', 'install', $copilotBundle)
         }
         else {
@@ -807,6 +954,24 @@ $Plugins = switch ($Plugin) {
 }
 
 if ($Uninstall) {
+    $ids = @($Plugins | ForEach-Object { Get-PluginId $_ })
+    if ($Plugins -contains 'gin-workflow') { $ids += 'gin-workflow' }
+    $opencodeAgents = Join-Path $UserHome '.config/opencode/agents'
+    foreach ($id in $ids) {
+        if ($id -eq 'gin-workflow') {
+            if (Test-Path -LiteralPath $opencodeAgents -PathType Container) {
+                Get-ChildItem -LiteralPath $opencodeAgents -Filter 'gin-workflow-*.md' -File | Remove-Item -Force
+            }
+        }
+        else {
+            Remove-OpenCodeAgents -Id $id
+        }
+        $opencodeSkills = Join-Path $UserHome ".config/opencode/skills/$id"
+        if (Test-Path -LiteralPath $opencodeSkills) {
+            Remove-Item -LiteralPath $opencodeSkills -Recurse -Force
+        }
+    }
+    # After the OpenCode agents: a -Link install lists them through dist.
     foreach ($directory in @(
         (Join-Path $ScriptRoot 'plugins/gin-workflow/dist'),
         (Join-Path $ScriptRoot 'plugins/gin-workflow-advanced/dist'),
@@ -817,32 +982,27 @@ if ($Uninstall) {
             Remove-Item -LiteralPath $directory -Recurse -Force
         }
     }
-    foreach ($name in $Plugins) {
-        $opencodeSkills = Join-Path $UserHome ".config/opencode/skills/$name"
-        if (Test-Path -LiteralPath $opencodeSkills) {
-            Remove-Item -LiteralPath $opencodeSkills -Recurse -Force
-        }
-        $opencodeAgents = Join-Path $UserHome '.config/opencode/agents'
-        if (Test-Path -LiteralPath $opencodeAgents -PathType Container) {
-            Get-ChildItem -LiteralPath $opencodeAgents -Filter "$name-*.md" -File | Remove-Item -Force
+    if (Get-Command copilot -ErrorAction SilentlyContinue) {
+        foreach ($id in $ids) {
+            # Best effort: a plugin that is not registered makes the CLI exit non-zero.
+            & copilot plugin uninstall $id *> $null
         }
     }
-    if (Get-Command copilot -ErrorAction SilentlyContinue) {
-        foreach ($name in $Plugins) {
-            & copilot plugin uninstall $name *> $null
-        }
+    if ($Plugins -contains 'gin-workflow') {
+        Remove-ManagedLauncher -Name 'gin'
+        Remove-ManagedLauncher -Name 'gin-workflow'
     }
     Unregister-UserPath
-    Write-Output 'Removed generated dist output, the global OpenCode skill install, and the Copilot plugin registration. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
+    Write-Output 'Removed generated dist output, the gin launcher, the global OpenCode skill install, and the Copilot plugin registration, under the gin and the old gin-workflow name. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
     return
 }
 
 if ($Plugins -contains 'gin-orchestrator' -and $Plugins -notcontains 'gin-workflow') {
-    $workflowShim = Join-Path $UserHome '.local/bin/gin-workflow.cmd'
-    $workflowTarget = Join-Path (Join-Path (Join-Path $UserHome '.local/lib/gin-workflow') $LauncherVersion) 'gin-workflow'
+    $workflowShim = Join-Path $UserHome '.local/bin/gin.cmd'
+    $workflowTarget = Join-Path (Join-Path (Join-Path $UserHome '.local/lib/gin') $LauncherVersion) 'gin'
     if (-not (Test-Path -LiteralPath $workflowShim -PathType Leaf) -or
         -not [IO.File]::ReadAllText($workflowShim).Contains("`"$workflowTarget`"", [StringComparison]::Ordinal)) {
-        Write-Output "gin-orchestrator requires gin-workflow $LauncherVersion; installing it first."
+        Write-Output "gin-orchestrator requires gin $LauncherVersion; installing it first."
         $Plugins = @('gin-workflow') + $Plugins
     }
 }

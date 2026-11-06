@@ -57,7 +57,7 @@ if cmd == "version":
         print(json.dumps({{
             "contract": contract,
             "orchestrator_version": "0.1.0",
-            "requires_gin_workflow": ">=2.0,<3",
+            "requires_gin_workflow": ">=3.0,<4",
             "capabilities": capabilities,
         }}))
     sys.exit(0)

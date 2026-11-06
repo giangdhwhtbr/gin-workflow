@@ -63,9 +63,9 @@ try {
     Assert-Exists $Installer
 
     $dryRunOutput = Invoke-Installer @{ Platform = 'codex'; DryRun = $true }
-    Assert-Contains $dryRunOutput 'would install gin-workflow launcher version 2.9'
+    Assert-Contains $dryRunOutput 'would install gin launcher version 3.0'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json')
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin-workflow.cmd'))) 'Dry-run wrote the launcher shim'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin.cmd'))) 'Dry-run wrote the launcher shim'
     Assert-True (-not $dryRunOutput.Contains('gin-qa', [StringComparison]::Ordinal)) 'Default install processed gin-qa'
 
     $qaDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-qa'; DryRun = $true }
@@ -80,11 +80,11 @@ try {
 
     # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
     $orchDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true }
-    Assert-Contains $orchDryRun 'gin-orchestrator requires gin-workflow 2.9; installing it first.'
-    Assert-Contains $orchDryRun 'would install gin-workflow launcher version 2.9'
+    Assert-Contains $orchDryRun 'gin-orchestrator requires gin 3.0; installing it first.'
+    Assert-Contains $orchDryRun 'would install gin launcher version 3.0'
     Assert-Contains $orchDryRun 'would install gin-orchestrator launcher version 0.1'
-    Assert-True ($orchDryRun.IndexOf('installing it first.', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-workflow launcher', [StringComparison]::Ordinal)) 'gin-workflow was not installed first'
-    Assert-True ($orchDryRun.IndexOf('would install gin-workflow launcher', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-orchestrator launcher', [StringComparison]::Ordinal)) 'gin-orchestrator was installed before gin-workflow'
+    Assert-True ($orchDryRun.IndexOf('installing it first.', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin launcher', [StringComparison]::Ordinal)) 'gin-workflow was not installed first'
+    Assert-True ($orchDryRun.IndexOf('would install gin launcher', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-orchestrator launcher', [StringComparison]::Ordinal)) 'gin-orchestrator was installed before gin-workflow'
     Assert-Exists (Join-Path $Root 'plugins/gin-orchestrator/dist/codex/skills/providers/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-orchestrator/dist/codex/.codex-plugin/plugin.json')
 
@@ -98,8 +98,8 @@ try {
     Assert-Contains $opencodeDryRun 'Configuring OpenCode skill structure for gin-workflow'
     Assert-Contains $opencodeDryRun 'would install global OpenCode skills to'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md')
-    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/gin-workflow-report/SKILL.md')
-    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/agents/gin-workflow-developer.md')
+    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/gin-report/SKILL.md')
+    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/agents/gin-developer.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist/opencode/hooks'))) 'OpenCode dry-run wrote hooks'
 
     $qaOpencodeDryRun = Invoke-Installer @{ Platform = 'opencode'; Plugin = 'gin-qa'; DryRun = $true }
@@ -111,27 +111,35 @@ try {
     New-Item -ItemType Directory -Path $project | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $project '.opencode/agents') -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $project '.opencode/agents/user-agent.md'), '# user agent')
+    # A 2.x project install left skills and agents under the old names.
+    foreach ($legacySkill in @('.claude/skills/gin-sdd', '.codex/skills/gin-knowledge', '.opencode/skills/gin-workflow-report')) {
+        New-Item -ItemType Directory -Path (Join-Path $project $legacySkill) -Force | Out-Null
+    }
+    [IO.File]::WriteAllText((Join-Path $project '.opencode/agents/gin-workflow-developer.md'), '# old agent')
     Invoke-Installer @{ Platform = 'all'; Project = $project } | Out-Null
     Assert-Exists (Join-Path $project '.claude/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.agents/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.opencode/skills/setup/SKILL.md')
-    Assert-Exists (Join-Path $project '.opencode/skills/gin-workflow-report/SKILL.md')
+    Assert-Exists (Join-Path $project '.opencode/skills/gin-report/SKILL.md')
     Assert-Exists (Join-Path $project '.opencode/agents/user-agent.md')
-    Assert-Exists (Join-Path $project '.opencode/agents/gin-workflow-developer.md')
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-workflow-report/SKILL.md'))) 'name: gin-workflow-report'
+    Assert-Exists (Join-Path $project '.opencode/agents/gin-developer.md')
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-report/SKILL.md'))) 'name: gin-report'
+    foreach ($legacySkill in @('.claude/skills/gin-sdd', '.codex/skills/gin-knowledge', '.opencode/skills/gin-workflow-report', '.opencode/agents/gin-workflow-developer.md')) {
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $project $legacySkill))) "Project install kept the old $legacySkill"
+    }
     Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
     Assert-Exists (Join-Path $project '.claude/scripts/safety_check.py')
     $claudeHook = (Get-Content -Raw -LiteralPath (Join-Path $project '.claude/hooks/hooks.json') | ConvertFrom-Json).hooks.PreToolUse[0].hooks[0].command
     Assert-True ($claudeHook -ceq 'python "${CLAUDE_PROJECT_DIR}/.claude/scripts/safety_check.py"') "Unexpected Claude hook command: $claudeHook"
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/workflow_core/cli.py')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/.gin-workflow-src.json')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/rules/core.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/templates/spec-delta.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-workflow/2.9/templates/team/commit-msg')
-    Assert-Exists (Join-Path $TestHome '.local/bin/gin-workflow.cmd')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/workflow_core/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/.gin-workflow-src.json')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/rules/core.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/templates/spec-delta.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/templates/team/commit-msg')
+    Assert-Exists (Join-Path $TestHome '.local/bin/gin.cmd')
 
     $qaProject = Join-Path $TestRoot 'qa-project'
     New-Item -ItemType Directory -Path $qaProject | Out-Null
@@ -189,16 +197,16 @@ try {
     if ($IsWindows) {
         # -Link falls back to copying without Developer Mode; either way the skill must exist.
         Assert-Exists (Join-Path $linkProject '.claude/skills/setup/SKILL.md')
-        $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') --version
-        Assert-True (($version | Out-String).Trim() -eq 'gin-workflow 2.9') "Unexpected launcher version: $version"
-        $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin-workflow.cmd') rules --list --repository $TestHome
+        $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin.cmd') --version
+        Assert-True (($version | Out-String).Trim() -eq 'gin 3.0') "Unexpected launcher version: $version"
+        $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin.cmd') rules --list --repository $TestHome
         Assert-True (($rulesList | Out-String).Contains('core (plugin, core)')) "Launcher did not list the core rule pack: $rulesList"
     }
 
     foreach ($launcherCase in @(
-        @{ Name = 'gin-workflow'; Old = '2.1'; Current = '2.9' },
-        @{ Name = 'gin-qa'; Old = '0.4'; Current = '0.10' },
-        @{ Name = 'gin-orchestrator'; Old = '0.0'; Current = '0.1' }
+        @{ Plugin = 'gin-workflow'; Name = 'gin'; Old = '2.1'; Current = '3.0' },
+        @{ Plugin = 'gin-qa'; Name = 'gin-qa'; Old = '0.4'; Current = '0.10' },
+        @{ Plugin = 'gin-orchestrator'; Name = 'gin-orchestrator'; Old = '0.0'; Current = '0.1' }
     )) {
         $launcherName = $launcherCase.Name
         $managedRoot = Join-Path $TestHome ".local/lib/$launcherName"
@@ -210,12 +218,12 @@ try {
         $oldShim = "@echo off`r`npython `"$oldLauncher`" %*`r`n"
         [IO.File]::WriteAllText($shim, $oldShim, [Text.UTF8Encoding]::new($false))
 
-        Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
+        Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherCase.Plugin; Project = $project } | Out-Null
         $upgradedShim = [IO.File]::ReadAllText($shim)
         Assert-Contains $upgradedShim (Join-Path $managedRoot "$($launcherCase.Current)/$launcherName")
         Assert-Exists $oldLauncher
 
-        Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
+        Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherCase.Plugin; Project = $project } | Out-Null
 
         $nestedLauncher = Join-Path $managedRoot "$($launcherCase.Old)/nested/$launcherName"
         New-Item -ItemType Directory -Path (Split-Path -Parent $nestedLauncher) -Force | Out-Null
@@ -225,7 +233,7 @@ try {
         $nestedBefore = [IO.File]::ReadAllBytes($shim)
         $nestedFailed = $false
         try {
-            Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
+            Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherCase.Plugin; Project = $project } | Out-Null
         }
         catch {
             $nestedFailed = $true
@@ -242,7 +250,7 @@ try {
         $before = [IO.File]::ReadAllBytes($shim)
         $collisionFailed = $false
         try {
-            Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherName; Project = $project } | Out-Null
+            Invoke-Installer @{ Platform = 'codex'; Plugin = $launcherCase.Plugin; Project = $project } | Out-Null
         }
         catch {
             $collisionFailed = $true
@@ -254,7 +262,7 @@ try {
         [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
     }
 
-    $shimText = [IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin-workflow.cmd'))
+    $shimText = [IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin.cmd'))
     Assert-Contains $shimText 'py -3 -X utf8 "'
     Assert-Contains $shimText 'else (python -X utf8 "'
     Assert-True (-not $shimText.Contains('||')) 'shim must not chain the CLI with ||'
@@ -279,7 +287,8 @@ try {
     Invoke-Installer @{ Platform = 'codex' } | Out-Null
     $codexLog = [IO.File]::ReadAllText($mockLog)
     Assert-Contains $codexLog 'plugin marketplace add'
-    Assert-Contains $codexLog 'plugin add gin-workflow@gin-workflow-marketplace'
+    Assert-Contains $codexLog 'plugin add gin@gin-workflow-marketplace'
+    Assert-Contains $codexLog 'plugin remove gin-workflow@gin-workflow-marketplace'
 
     New-MockCommand -Name 'codex' -ExitCode 23 | Out-Null
     $codexFailureDetected = $false
@@ -304,13 +313,18 @@ try {
     Assert-True $agyFailureDetected 'Expected a failing Antigravity registration command to fail installation'
 
     Invoke-Installer @{ Platform = 'opencode' } | Out-Null
-    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/setup/SKILL.md')
-    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md')
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $TestHome '.config/opencode/skills/gin-workflow/skills/gin-workflow-report/SKILL.md'))) 'name: gin-workflow-report'
-    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/agents/gin-workflow-developer.md')
-    Assert-Exists (Join-Path $TestHome '.config/opencode/agents/gin-workflow-developer.md')
-    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin-workflow/references/stage-contract.md')
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin-workflow/hooks'))) 'OpenCode install wrote hooks'
+    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin/skills/setup/SKILL.md')
+    # OpenCode selects a skill by its bare directory id, so gin's generic names get a gin- prefix.
+    foreach ($skill in @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents', 'report')) {
+        $prefixedSkill = Join-Path $TestHome ".config/opencode/skills/gin/skills/gin-$skill/SKILL.md"
+        Assert-Exists $prefixedSkill
+        Assert-Contains ([IO.File]::ReadAllText($prefixedSkill)) "name: gin-$skill"
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome ".config/opencode/skills/gin/skills/$skill"))) "OpenCode install kept skills/$skill"
+    }
+    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin/agents/gin-developer.md')
+    Assert-Exists (Join-Path $TestHome '.config/opencode/agents/gin-developer.md')
+    Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin/references/stage-contract.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/skills/gin/hooks'))) 'OpenCode install wrote hooks'
 
     $opencodeLinkProject = Join-Path $TestRoot 'opencode-link-project'
     New-Item -ItemType Directory -Path $opencodeLinkProject | Out-Null
@@ -318,13 +332,13 @@ try {
     $reportBefore = [IO.File]::ReadAllBytes($sourceReport)
     Invoke-Installer @{ Platform = 'opencode'; Project = $opencodeLinkProject; Link = $true } | Out-Null
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/setup/SKILL.md')
-    Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-workflow-report/SKILL.md')
+    Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-report/SKILL.md')
     Assert-True `
         ([Convert]::ToBase64String($reportBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceReport))) `
         'Linked OpenCode install renamed the source report skill'
 
     $copilotDryRun = Invoke-Installer @{ Platform = 'copilot'; DryRun = $true }
-    $copilotDist = Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin-workflow'
+    $copilotDist = Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin'
     Assert-Contains $copilotDryRun 'Configuring Copilot plugin structure for gin-workflow'
     Assert-Contains $copilotDryRun "(dry-run) would install Copilot plugin from $copilotDist"
     Assert-Exists (Join-Path $copilotDist '.claude-plugin/plugin.json')
@@ -339,8 +353,9 @@ try {
     New-MockCommand -Name 'copilot' -ExitCode 0 | Out-Null
     $copilotInstall = Invoke-Installer @{ Platform = 'copilot' }
     $copilotLog = [IO.File]::ReadAllText($mockLog)
-    Assert-Contains $copilotInstall 'Registering gin-workflow with Copilot...'
-    Assert-Contains $copilotLog 'plugin uninstall gin-workflow'
+    Assert-Contains $copilotInstall 'Registering gin with Copilot...'
+    Assert-True (($copilotLog -split '\r?\n') -contains 'plugin uninstall gin') 'Copilot install did not replace the gin plugin'
+    Assert-True (($copilotLog -split '\r?\n') -contains 'plugin uninstall gin-workflow') 'Copilot install did not remove the old gin-workflow plugin'
     Assert-Contains $copilotLog "plugin install $copilotDist"
 
     Set-Content -LiteralPath $mockLog -Value '' -NoNewline
@@ -361,18 +376,20 @@ try {
 
     Set-Content -LiteralPath $mockLog -Value '' -NoNewline
     & $Installer -Uninstall | Out-Null
-    Assert-Contains ([IO.File]::ReadAllText($mockLog)) 'plugin uninstall gin-workflow'
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/agents/gin-workflow-developer.md'))) 'OpenCode global agent still present after uninstall'
+    $uninstallLog = [IO.File]::ReadAllText($mockLog) -split '\r?\n'
+    Assert-True ($uninstallLog -contains 'plugin uninstall gin') 'Uninstall did not remove the gin Copilot plugin'
+    Assert-True ($uninstallLog -contains 'plugin uninstall gin-workflow') 'Uninstall did not remove the old gin-workflow Copilot plugin'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.config/opencode/agents/gin-developer.md'))) 'OpenCode global agent still present after uninstall'
     # Later blocks run without the stub.
     Remove-Item -LiteralPath (Join-Path $TestRoot "mock-bin/$(if ($IsWindows) { 'copilot.cmd' } else { 'copilot' })") -Force
     $env:PATH = $OriginalPath
 
     if (-not (Get-Command copilot -ErrorAction SilentlyContinue)) {
         $copilotSkip = Invoke-Installer @{ Platform = 'copilot' }
-        Assert-Contains $copilotSkip "Copilot CLI not found; skipped registration. Run: copilot plugin install $(Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin-workflow')"
+        Assert-Contains $copilotSkip "Copilot CLI not found; skipped registration. Run: copilot plugin install $(Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin')"
     }
 
-    $shim = Join-Path $TestHome '.local/bin/gin-workflow.cmd'
+    $shim = Join-Path $TestHome '.local/bin/gin.cmd'
     $foreignShim = "@echo off`r`necho foreign launcher`r`n"
     [IO.File]::WriteAllText($shim, $foreignShim, [Text.UTF8Encoding]::new($false))
 
@@ -387,13 +404,103 @@ try {
     Assert-True $missingProjectFailed 'Expected a missing project path to fail installation'
 
     $shimBeforeUninstall = [IO.File]::ReadAllBytes($shim)
-    Invoke-Installer @{ Uninstall = $true } | Out-Null
+    $foreignUninstall = & $Installer -Uninstall -NoModifyPath 3>&1 | Out-String
+    Assert-Contains $foreignUninstall 'gin.cmd: not a gin launcher this installer manages'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist'))) 'Uninstall preserved gin-workflow dist output'
     Assert-Exists $shim
     Assert-True `
         ([Convert]::ToBase64String($shimBeforeUninstall) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($shim))) `
         'Uninstall modified the user launcher shim'
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
+
+    # Upgrade over a managed 2.9 gin-workflow install: the old launcher and the old
+    # plugin installs go, one platform at a time, and only after a real run.
+    $legacyHome = Join-Path $TestRoot 'legacy-home'
+    $env:HOME = $legacyHome
+    $env:USERPROFILE = $legacyHome
+    $legacyLauncher = Join-Path $legacyHome '.local/lib/gin-workflow/2.9/gin-workflow'
+    $legacyShim = Join-Path $legacyHome '.local/bin/gin-workflow.cmd'
+    $legacyClaude = Join-Path $legacyHome '.claude/skills/gin-workflow'
+    $legacyOpenCode = Join-Path $legacyHome '.config/opencode/skills/gin-workflow'
+    $legacyAgents = Join-Path $legacyHome '.config/opencode/agents'
+    $legacySettings = Join-Path $legacyHome '.claude/settings.json'
+    foreach ($directory in @((Split-Path -Parent $legacyLauncher), (Split-Path -Parent $legacyShim), $legacyClaude, $legacyOpenCode, $legacyAgents)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+    [IO.File]::WriteAllText($legacyLauncher, '# old launcher')
+    [IO.File]::WriteAllText($legacyShim, "@echo off`r`npython `"$legacyLauncher`" %*`r`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($legacySettings, '{"enabledPlugins": {"gin-workflow@skills-dir": true}}')
+    foreach ($agent in @('gin-workflow-developer.md', 'gin-qa-e2e-tester.md', 'gin-mine.md')) {
+        [IO.File]::WriteAllText((Join-Path $legacyAgents $agent), '# agent')
+    }
+    # Claude Code counts as installed when a `claude` command exists.
+    $env:PATH = "$(New-MockCommand -Name 'claude' -ExitCode 0)$([IO.Path]::PathSeparator)$OriginalPath"
+
+    $legacyDryRun = Invoke-Installer @{ Platform = 'claude'; DryRun = $true }
+    Assert-Contains $legacyDryRun 'would remove the gin-workflow launcher at'
+    Assert-Contains $legacyDryRun '(dry-run) would remove the old gin-workflow plugin installs'
+    foreach ($path in @($legacyShim, $legacyLauncher, $legacyClaude)) {
+        Assert-Exists $path
+    }
+    Assert-True ((Get-Content -Raw -LiteralPath $legacySettings | ConvertFrom-Json -AsHashtable).enabledPlugins.Contains('gin-workflow@skills-dir')) 'Dry-run changed the Claude settings'
+
+    Invoke-Installer @{ Platform = 'claude' } | Out-Null
+    foreach ($path in @($legacyShim, (Join-Path $legacyHome '.local/lib/gin-workflow'), $legacyClaude)) {
+        Assert-True (-not (Test-Path -LiteralPath $path)) "Upgrade kept the old $path"
+    }
+    $enabledPlugins = (Get-Content -Raw -LiteralPath $legacySettings | ConvertFrom-Json -AsHashtable).enabledPlugins
+    Assert-True (-not $enabledPlugins.Contains('gin-workflow@skills-dir')) 'Upgrade kept the gin-workflow@skills-dir key'
+    Assert-True ($enabledPlugins['gin@skills-dir'] -eq $true) 'Upgrade did not enable gin@skills-dir'
+    Assert-Exists (Join-Path $legacyHome '.claude/skills/gin/skills/learn/SKILL.md')
+    Assert-Exists (Join-Path $legacyHome '.local/bin/gin.cmd')
+    Assert-Exists $legacyOpenCode
+    if ($IsWindows) {
+        $legacyVersion = & cmd.exe /d /c (Join-Path $legacyHome '.local/bin/gin.cmd') --version
+        Assert-True (($legacyVersion | Out-String).Trim() -eq 'gin 3.0') "Unexpected launcher version after the upgrade: $legacyVersion"
+    }
+
+    Invoke-Installer @{ Platform = 'opencode' } | Out-Null
+    Assert-True (-not (Test-Path -LiteralPath $legacyOpenCode)) 'Upgrade kept the old OpenCode skills'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $legacyAgents 'gin-workflow-developer.md'))) 'Upgrade kept the old OpenCode agent'
+    foreach ($agent in @('gin-developer.md', 'gin-qa-e2e-tester.md', 'gin-mine.md')) {
+        Assert-Exists (Join-Path $legacyAgents $agent)
+    }
+
+    # Uninstall removes the managed launcher and the OpenCode install under both names.
+    New-Item -ItemType Directory -Path $legacyOpenCode -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $legacyAgents 'gin-workflow-developer.md'), '# old agent')
+    Invoke-Installer @{ Uninstall = $true } | Out-Null
+    foreach ($path in @(
+        (Join-Path $legacyHome '.local/bin/gin.cmd'),
+        (Join-Path $legacyHome '.local/lib/gin'),
+        (Join-Path $legacyHome '.config/opencode/skills/gin'),
+        $legacyOpenCode,
+        (Join-Path $legacyAgents 'gin-developer.md'),
+        (Join-Path $legacyAgents 'gin-workflow-developer.md')
+    )) {
+        Assert-True (-not (Test-Path -LiteralPath $path)) "Uninstall kept $path"
+    }
+    Assert-Exists (Join-Path $legacyAgents 'gin-qa-e2e-tester.md')
+    Assert-Exists (Join-Path $legacyAgents 'gin-mine.md')
+
+    # A gin-workflow file the installer does not manage is kept and reported.
+    $foreignHome = Join-Path $TestRoot 'foreign-legacy-home'
+    $env:HOME = $foreignHome
+    $env:USERPROFILE = $foreignHome
+    $foreignLegacyShim = Join-Path $foreignHome '.local/bin/gin-workflow.cmd'
+    $foreignLegacyRoot = Join-Path $foreignHome '.local/lib/gin-workflow/2.9'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $foreignLegacyShim) -Force | Out-Null
+    New-Item -ItemType Directory -Path $foreignLegacyRoot -Force | Out-Null
+    [IO.File]::WriteAllText($foreignLegacyShim, "@echo off`r`necho my own gin-workflow`r`n", [Text.UTF8Encoding]::new($false))
+    $foreignLegacyBefore = [IO.File]::ReadAllBytes($foreignLegacyShim)
+    $foreignOutput = & $Installer -Platform opencode -NoModifyPath 3>&1 | Out-String
+    Assert-Contains $foreignOutput 'gin-workflow.cmd: not a gin-workflow launcher this installer manages'
+    Assert-True `
+        ([Convert]::ToBase64String($foreignLegacyBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($foreignLegacyShim))) `
+        'Foreign gin-workflow launcher was modified'
+    Assert-Exists $foreignLegacyRoot
+    Assert-Exists (Join-Path $foreignHome '.local/bin/gin.cmd')
+    $env:PATH = $OriginalPath
 
     Write-Host 'PowerShell installer smoke tests passed.'
 }

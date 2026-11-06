@@ -48,7 +48,7 @@ from .worker_scheduler import run_with_retries
 
 CONTRACT_VERSION = 2
 ORCHESTRATOR_VERSION = "0.2.0"
-REQUIRES_GIN_WORKFLOW = ">=2.0,<3"
+REQUIRES_GIN_WORKFLOW = ">=3.0,<4"
 CAPABILITIES = ["health", "models", "routes", "reviewer", "doctor", "dispatch"]
 HEALTH = {
     "claude": claude_health,

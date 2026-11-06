@@ -114,14 +114,15 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_dry_run_builds_every_harness_layout(self):
         self.assertEqual(0, self.install.returncode, self.install.stderr)
         # OpenCode translates agent files into namespaced subagents, drops
-        # commands, and renames the `report` skill to `gin-workflow-report` to
-        # avoid shadowing OpenCode's built-in `report` skill.
-        opencode_removed = {"agents/developer.md", "skills/report/SKILL.md"}
-        opencode_added = {"agents/gin-workflow-developer.md", "skills/gin-workflow-report/SKILL.md"}
+        # commands, and gives gin's generic skill names a gin- prefix, so
+        # `report` does not shadow OpenCode's built-in `report` skill.
+        prefixed = {"report", "sdd", "team"}
+        opencode_removed = {"agents/developer.md"} | {f"skills/{name}/SKILL.md" for name in prefixed}
+        opencode_added = {"agents/gin-developer.md"} | {f"skills/gin-{name}/SKILL.md" for name in prefixed}
         copilot_removed: set[str] = set()
         for harness in ("claude-code", "codex", "antigravity", "opencode", "copilot"):
             with self.subTest(harness=harness):
-                root = self.dist / ("copilot/gin-workflow" if harness == "copilot" else harness)
+                root = self.dist / ("copilot/gin" if harness == "copilot" else harness)
                 removed = opencode_removed if harness == "opencode" else copilot_removed if harness == "copilot" else set()
                 required = [r for r in REQUIRED_ARTIFACTS if r not in removed]
                 if harness == "opencode":
@@ -153,7 +154,7 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_copilot_layout_is_a_claude_manifest_bundle_with_copilot_hooks(self):
         # Copilot CLI reads .claude-plugin/plugin.json, skills/<name>/SKILL.md,
         # hooks/hooks.json in Copilot's format, and agents with translated tool names.
-        root = self.dist / "copilot/gin-workflow"
+        root = self.dist / "copilot/gin"
         manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual("gin", manifest["name"])
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())
@@ -181,9 +182,9 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_copilot_hook_commands_run_the_scripts_and_skip_when_missing(self):
         # Copilot runs each entry's `bash` with the payload on stdin; exit 2 denies,
         # and any other non-zero exit also denies, so a missing script must exit 0.
-        hooks = json.loads((self.dist / "copilot/gin-workflow/hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]
+        hooks = json.loads((self.dist / "copilot/gin/hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]
         pre = hooks["PreToolUse"][0]["bash"]
-        root = str(self.dist / "copilot/gin-workflow")
+        root = str(self.dist / "copilot/gin")
 
         def run(command, payload, **env):
             base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME")}
@@ -209,21 +210,21 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
         root = self.dist / "opencode"
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())
-        self.assertTrue((root / "skills/gin-workflow-report/SKILL.md").is_file())
+        self.assertTrue((root / "skills/gin-report/SKILL.md").is_file())
         self.assertTrue((root / "references/stage-contract.md").is_file())
         self.assertFalse((root / "hooks").exists())
         self.assertFalse((root / "plugin.json").exists())
         # OpenCode translates agents to subagents and prunes commands.
-        self.assertTrue((root / "agents/gin-workflow-developer.md").is_file())
+        self.assertTrue((root / "agents/gin-developer.md").is_file())
         self.assertFalse((root / "agents/developer.md").exists())
-        oc_frontmatter = yaml.safe_load((root / "agents/gin-workflow-developer.md").read_text(encoding="utf-8").split("---", 2)[1])
+        oc_frontmatter = yaml.safe_load((root / "agents/gin-developer.md").read_text(encoding="utf-8").split("---", 2)[1])
         self.assertEqual("subagent", oc_frontmatter.get("mode"))
         self.assertIn("description", oc_frontmatter)
         self.assertNotIn("name", oc_frontmatter)
         self.assertNotIn("tools", oc_frontmatter)
         self.assertFalse((root / "commands").exists())
         # The renamed skill keeps its display name aligned with the directory id.
-        self.assertIn("name: gin-workflow-report", (root / "skills/gin-workflow-report/SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("name: gin-report", (root / "skills/gin-report/SKILL.md").read_text(encoding="utf-8"))
 
     def test_plugin_metadata_and_harness_manifests_publish_current_version(self):
         manifests = (

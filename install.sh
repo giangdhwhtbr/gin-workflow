@@ -9,11 +9,20 @@ PROJECT_DIR=""
 UNINSTALL=false
 DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
-LAUNCHER_VERSION="2.9"
+LAUNCHER_VERSION="3.0"
 QA_LAUNCHER_VERSION="0.10"
 ORCH_LAUNCHER_VERSION="0.1"
 MODIFY_PATH=true
 PATH_MARKER='# gin-workflow PATH'
+
+# The plugin directory keeps its name; the plugin id (the `name` in its
+# plugin.meta.json) names the launcher and every install target.
+plugin_id() {
+  case "$1" in
+    gin-workflow) echo gin ;;
+    *) echo "$1" ;;
+  esac
+}
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -150,23 +159,6 @@ PYEOF
   done
 }
 
-if [ "$UNINSTALL" = true ]; then
-  echo "Uninstalling plugins..."
-  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist
-  for p_name in "${PLUGINS[@]}"; do
-    rm -rf "${HOME}/.config/opencode/skills/${p_name}"
-    rm -f "${HOME}/.config/opencode/agents/${p_name}-"*.md
-  done
-  if command -v copilot &> /dev/null; then
-    for p_name in "${PLUGINS[@]}"; do
-      copilot plugin uninstall "$p_name" >/dev/null 2>&1 || true
-    done
-  fi
-  unregister_path
-  echo "Removed generated dist output, the global OpenCode skill install, and the Copilot plugin registration. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
-  exit 0
-fi
-
 HAS_CLAUDE=false
 HAS_AGY=false
 HAS_CODEX=false
@@ -232,6 +224,22 @@ data['enabledPlugins'][plugin_key] = True
 os.makedirs(os.path.dirname(settings_path), exist_ok=True)
 with open(settings_path, 'w') as f:
     json.dump(data, f, indent=2)
+PYEOF
+}
+
+disable_claude_plugin() {
+  local settings_path="${HOME}/.claude/settings.json"
+  [ -f "$settings_path" ] || return 0
+  python3 - "$settings_path" "$1@skills-dir" <<'PYEOF'
+import json, sys
+path, key = sys.argv[1], sys.argv[2]
+data = json.load(open(path, encoding="utf-8"))
+plugins = data.get("enabledPlugins")
+if isinstance(plugins, dict) and key in plugins:
+    del plugins[key]
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2)
+        handle.write("\n")
 PYEOF
 }
 
@@ -373,7 +381,7 @@ template_hooks_for_copilot() {
   "version": 1,
   "hooks": {
     "PreToolUse": [
-      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin-workflow}/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"; fi; echo \"gin-workflow: $s not found, hook skipped\" >&2", "timeoutSec": 30}
+      {"type": "command", "matcher": "bash", "bash": "s=\"${PLUGIN_ROOT:-${COPILOT_HOME:-$HOME/.copilot}/installed-plugins/_direct/gin}/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"; fi; echo \"gin: $s not found, hook skipped\" >&2", "timeoutSec": 30}
     ]
   }
 }
@@ -461,7 +469,7 @@ install_platform() {
   local install_root="${7:-}"
 
   if [ "$platform" = "opencode" ]; then
-    install_opencode_bundle "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir" "$install_root" "$p_name"
+    install_opencode_bundle "$SCRIPT_DIR/plugins/$p_name/src" "$target_dir" "$install_root" "$(plugin_id "$p_name")"
     return
   fi
 
@@ -564,12 +572,16 @@ install_opencode_bundle() {
     template_agents_for_opencode "$src" "$target" "$plugin_name"
   fi
 
-  # OpenCode selects a skill by its directory id, so keep the display `name`
-  # aligned with the renamed `report` directory (id `gin-workflow-report`).
-  if [ -d "$target/skills/report" ]; then
-    rm -rf "$target/skills/gin-workflow-report"
-    mv "$target/skills/report" "$target/skills/gin-workflow-report"
-    rewrite_file "$target/skills/gin-workflow-report/SKILL.md" 's/^name: report$/name: gin-workflow-report/'
+  # OpenCode selects a skill by its bare directory id, so gin's generic skill
+  # names get a gin- prefix, with the display `name` kept aligned.
+  if [ "$plugin_name" = gin ]; then
+    local skill
+    for skill in learn sdd team worktrees debugging review-response parallel-agents report; do
+      [ -d "$target/skills/$skill" ] || continue
+      rm -rf "$target/skills/gin-$skill"
+      mv "$target/skills/$skill" "$target/skills/gin-$skill"
+      rewrite_file "$target/skills/gin-$skill/SKILL.md" "s/^name: $skill\$/name: gin-$skill/"
+    done
   fi
 
   # gin-qa's `setup` would shadow gin-workflow's `setup`, which has the same directory id.
@@ -614,14 +626,41 @@ is_managed_launcher_link() {
     [ "${version#*/}" = "$version" ]
 }
 
+# Remove ~/.local/bin/<name> and ~/.local/lib/<name> only when the link is one
+# this installer made; a foreign file of that name is kept and reported.
+remove_managed_launcher() {
+  local name="$1"
+  local link="${HOME}/.local/bin/$name" root="${HOME}/.local/lib/$name"
+  if [ -e "$link" ] || [ -L "$link" ]; then
+    if ! is_managed_launcher_link "$link" "$root" "$name"; then
+      echo "Warning: kept $link: not a $name launcher this installer manages" >&2
+      return 0
+    fi
+    if [ "$DRY_RUN" = true ]; then
+      echo "(dry-run) would remove the $name launcher at $link"
+      return 0
+    fi
+    rm -f "$link"
+    echo "Removed the $name launcher at $link"
+  fi
+  [ -d "$root" ] || return 0
+  if [ "$DRY_RUN" = true ]; then
+    echo "(dry-run) would remove $root"
+    return 0
+  fi
+  rm -rf "$root"
+  echo "Removed $root"
+}
+
 install_launcher() {
-  local name="$1" version="$2" packages package script
-  local source_dir="$SCRIPT_DIR/plugins/$name/src/scripts"
+  local dir="$1" version="$2" name packages package script
+  name="$(plugin_id "$dir")"
+  local source_dir="$SCRIPT_DIR/plugins/$dir/src/scripts"
   local managed_root="${HOME}/.local/lib/$name"
   local install_dir="$managed_root/$version"
   local launcher_target="$install_dir/$name"
   local launcher_link="${HOME}/.local/bin/$name"
-  case "$name" in
+  case "$dir" in
     gin-workflow) packages="workflow_core review_ledger" ;;
     gin-qa) packages=gin_qa ;;
     gin-orchestrator) packages=gin_orchestrator ;;
@@ -633,19 +672,22 @@ install_launcher() {
       return 1
     fi
   fi
-  if [ "$name" = gin-qa ] && [ ! -e "${HOME}/.local/bin/gin-workflow" ] && ! command -v gin-workflow &> /dev/null; then
-    echo "Warning: gin-workflow is not installed; gin-qa needs it (./install.sh --plugin gin-workflow)." >&2
+  if [ "$dir" = gin-qa ] && [ ! -e "${HOME}/.local/bin/gin" ] && ! command -v gin &> /dev/null; then
+    echo "Warning: gin is not installed; gin-qa needs it (./install.sh --plugin gin-workflow)." >&2
   fi
 
   if [ "$DRY_RUN" = true ]; then
     echo "(dry-run) would install $name launcher version $version to $launcher_target"
     echo "(dry-run) would link $name launcher on PATH at $launcher_link"
-    if [ "$name" = gin-workflow ]; then register_path; fi
+    if [ "$dir" = gin-workflow ]; then
+      register_path
+      remove_managed_launcher gin-workflow
+    fi
     return
   fi
 
   mkdir -p "$install_dir" "$(dirname "$launcher_link")"
-  if [ "$name" = gin-workflow ]; then
+  if [ "$dir" = gin-workflow ]; then
     mkdir -p "$install_dir/rules"
   fi
   cp -f "$source_dir/$name" "$launcher_target"
@@ -653,29 +695,90 @@ install_launcher() {
     mkdir -p "$install_dir/$package"
     cp -rf "$source_dir/$package/." "$install_dir/$package/"
   done
-  if [ "$name" = gin-workflow ]; then
+  if [ "$dir" = gin-workflow ]; then
     cp -rf "$source_dir/../rules/." "$install_dir/rules/"
   fi
   if [ -d "$source_dir/../templates" ]; then
     mkdir -p "$install_dir/templates"
     cp -rf "$source_dir/../templates/." "$install_dir/templates/"
   fi
-  if [ "$name" = gin-workflow ]; then
+  if [ "$dir" = gin-workflow ]; then
     PYTHONPATH="$source_dir" python3 -B -m workflow_core.snapshot "$SCRIPT_DIR/plugins/gin-workflow/src" "$install_dir"
   fi
   chmod 755 "$launcher_target"
   ln -sfn "$launcher_target" "$launcher_link"
   echo "Installed $name launcher version $version to $launcher_link"
-  if [ "$name" = gin-workflow ]; then
+  if [ "$dir" = gin-workflow ]; then
     register_path
+    remove_managed_launcher gin-workflow
   fi
 }
 
 CODEX_MARKETPLACE_READY=false
 
+# Remove the global OpenCode agents an earlier install of plugin id $1 copied, as
+# its bundle lists them; a gin-*.md glob would also match gin-qa's and the user's own.
+remove_opencode_agents() {
+  local f
+  for f in "${HOME}/.config/opencode/skills/$1/agents"/*.md; do
+    [ -e "$f" ] || continue
+    rm -f "${HOME}/.config/opencode/agents/$(basename "$f")"
+  done
+}
+
+# The 2.x global install of this plugin under its old id, for each selected harness.
+remove_legacy_plugin() {
+  local old=gin-workflow
+  if [ "$DRY_RUN" = true ]; then
+    echo "(dry-run) would remove the old $old plugin installs"
+    return
+  fi
+  if matches_platform "claude" && [ "$HAS_CLAUDE" = true ]; then
+    rm -rf "${HOME}/.claude/skills/$old"
+    disable_claude_plugin "$old"
+  fi
+  if matches_platform "opencode"; then
+    rm -rf "${HOME}/.config/opencode/skills/$old"
+    rm -f "${HOME}/.config/opencode/agents/$old-"*.md
+  fi
+  if matches_platform "antigravity" && [ "$HAS_AGY" = true ]; then
+    rm -rf "${HOME}/.gemini/config/plugins/$old"
+  fi
+  # Best effort: the old plugin may not be registered, and then the harness CLI exits non-zero.
+  if matches_platform "codex" && [ "$HAS_CODEX" = true ]; then
+    codex plugin remove "$old@gin-workflow-marketplace" >/dev/null 2>&1 || true
+  fi
+  if matches_platform "copilot" && [ "$HAS_COPILOT" = true ]; then
+    copilot plugin uninstall "$old" >/dev/null 2>&1 || true
+  fi
+}
+
+# Skill folders a 2.x project install wrote under the old names, for each selected harness.
+remove_legacy_project_install() {
+  local platform root skill
+  for platform in claude antigravity codex opencode; do
+    matches_platform "$platform" || continue
+    case "$platform" in
+      claude) root="$PROJECT_DIR/.claude" ;;
+      antigravity) root="$PROJECT_DIR/.agents" ;;
+      codex) root="$PROJECT_DIR/.codex" ;;
+      opencode)
+        root="$PROJECT_DIR/.opencode"
+        rm -rf "$root/skills/gin-workflow-report"
+        rm -f "$root/agents/gin-workflow-"*.md
+        ;;
+    esac
+    for skill in gin-knowledge gin-sdd gin-team gin-worktrees gin-debugging gin-review-response gin-parallel-agents; do
+      rm -rf "$root/skills/$skill"
+    done
+  done
+}
+
 install_plugin() {
   local p_name="$1"
   local p_dir="plugins/$p_name"
+  local p_id
+  p_id="$(plugin_id "$p_name")"
 
   if [ ! -d "$p_dir" ]; then
     echo "Warning: Plugin directory $p_dir not found. Skipping."
@@ -692,9 +795,13 @@ install_plugin() {
     fi
     if [ "$DRY_RUN" = true ]; then
       echo "(dry-run) would install project-level configs for $p_name to $PROJECT_DIR"
+      if [ "$p_name" = gin-workflow ]; then
+        echo "(dry-run) would remove the old gin-workflow skill folders from $PROJECT_DIR"
+      fi
       return
     fi
 
+    if [ "$p_name" = gin-workflow ]; then remove_legacy_project_install; fi
     echo "Installing $p_name locally to project: $PROJECT_DIR"
     if matches_platform "claude"; then
       install_platform "claude" "$p_name" "$PROJECT_DIR/.claude" "\${CLAUDE_PROJECT_DIR}/.claude" "" ""
@@ -730,7 +837,7 @@ install_plugin() {
   if matches_platform "antigravity"; then
     echo "Configuring Antigravity plugin structure for $p_name..."
     local agy_install_path
-    agy_install_path="${HOME}/.gemini/config/plugins/${p_name}"
+    agy_install_path="${HOME}/.gemini/config/plugins/${p_id}"
     install_platform "antigravity" "$p_name" "$dist_dir/antigravity" "$agy_install_path" "$dist_dir/antigravity/plugin.json" "true"
   fi
   if matches_platform "codex"; then
@@ -739,34 +846,36 @@ install_plugin() {
   fi
   if matches_platform "opencode"; then
     echo "Configuring OpenCode skill structure for $p_name..."
-    install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" "" "${HOME}/.config/opencode/skills/${p_name}"
+    install_platform "opencode" "$p_name" "$dist_dir/opencode" "" "" "" "${HOME}/.config/opencode/skills/${p_id}"
   fi
   if matches_platform "copilot"; then
     echo "Configuring Copilot plugin structure for $p_name..."
     # Copilot names a direct install after the source directory, so the
-    # bundle directory carries the plugin name to keep plugins apart.
-    install_platform "copilot" "$p_name" "$dist_dir/copilot/$p_name" "" "$dist_dir/copilot/$p_name/.claude-plugin/plugin.json" "false"
+    # bundle directory carries the plugin id to keep plugins apart.
+    install_platform "copilot" "$p_name" "$dist_dir/copilot/$p_id" "" "$dist_dir/copilot/$p_id/.claude-plugin/plugin.json" "false"
   fi
+
+  if [ "$p_name" = gin-workflow ]; then remove_legacy_plugin; fi
 
   if [ "$DRY_RUN" = true ]; then
     echo "(dry-run) registration skipped for $p_name"
     if matches_platform "claude"; then
-      local claude_install_dir="${HOME}/.claude/skills/${p_name}"
+      local claude_install_dir="${HOME}/.claude/skills/${p_id}"
       echo "(dry-run) would install global Claude Code plugin to $claude_install_dir"
     fi
     if matches_platform "opencode"; then
-      local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
+      local opencode_install_dir="${HOME}/.config/opencode/skills/${p_id}"
       echo "(dry-run) would install global OpenCode skills to $opencode_install_dir"
     fi
     if matches_platform "copilot"; then
-      echo "(dry-run) would install Copilot plugin from $SCRIPT_DIR/$dist_dir/copilot/$p_name"
+      echo "(dry-run) would install Copilot plugin from $SCRIPT_DIR/$dist_dir/copilot/$p_id"
     fi
     return
   fi
 
   if matches_platform "claude" && [ "$HAS_CLAUDE" = true ]; then
-    local claude_install_dir="${HOME}/.claude/skills/${p_name}"
-    echo "Installing $p_name globally to Claude Code skills directory: $claude_install_dir"
+    local claude_install_dir="${HOME}/.claude/skills/${p_id}"
+    echo "Installing $p_id globally to Claude Code skills directory: $claude_install_dir"
     rm -rf "$claude_install_dir"
     mkdir -p "$(dirname "$claude_install_dir")"
     if [ "$LINK" = true ]; then
@@ -774,12 +883,13 @@ install_plugin() {
     else
       cp -rf "$dist_dir/claude-code" "$claude_install_dir"
     fi
-    enable_claude_plugin "$p_name"
-    echo "Successfully installed and enabled $p_name globally in Claude Code!"
+    enable_claude_plugin "$p_id"
+    echo "Successfully installed and enabled $p_id globally in Claude Code!"
   fi
   if matches_platform "opencode"; then
-    local opencode_install_dir="${HOME}/.config/opencode/skills/${p_name}"
-    echo "Installing $p_name skills globally to OpenCode: $opencode_install_dir"
+    local opencode_install_dir="${HOME}/.config/opencode/skills/${p_id}"
+    echo "Installing $p_id skills globally to OpenCode: $opencode_install_dir"
+    remove_opencode_agents "$p_id"
     rm -rf "$opencode_install_dir"
     mkdir -p "$(dirname "$opencode_install_dir")"
     if [ "$LINK" = true ]; then
@@ -789,45 +899,76 @@ install_plugin() {
     fi
     if [ -d "$dist_dir/opencode/agents" ]; then
       mkdir -p "${HOME}/.config/opencode/agents"
-      rm -f "${HOME}/.config/opencode/agents/${p_name}-"*.md
-      cp -rf "$dist_dir/opencode/agents/${p_name}-"*.md "${HOME}/.config/opencode/agents/"
+      cp -rf "$dist_dir/opencode/agents/${p_id}-"*.md "${HOME}/.config/opencode/agents/"
     fi
-    echo "Successfully installed $p_name globally in OpenCode!"
+    echo "Successfully installed $p_id globally in OpenCode!"
   fi
   if matches_platform "antigravity" && [ "$HAS_AGY" = true ]; then
-    echo "Registering $p_name with Antigravity..."
+    echo "Registering $p_id with Antigravity..."
     agy plugin install "$SCRIPT_DIR/$dist_dir/antigravity"
   fi
   if matches_platform "codex" && [ "$HAS_CODEX" = true ]; then
-    echo "Registering $p_name with Codex..."
+    echo "Registering $p_id with Codex..."
     # codex plugin marketplace add/plugin add are no-ops when already
     # registered by name, and the git-subdir source snapshots content at
     # add-time -- so a repeat run would keep serving a stale snapshot even
     # after local changes are committed. Force a fresh registration.
     # With --plugin all, refresh the marketplace once so the second plugin does not drop the first.
-    codex plugin remove "$p_name@gin-workflow-marketplace" >/dev/null 2>&1 || true
+    codex plugin remove "$p_id@gin-workflow-marketplace" >/dev/null 2>&1 || true
     if [ "$CODEX_MARKETPLACE_READY" = false ]; then
       codex plugin marketplace remove "gin-workflow-marketplace" >/dev/null 2>&1 || true
       codex plugin marketplace add "$SCRIPT_DIR"
       CODEX_MARKETPLACE_READY=true
     fi
-    codex plugin add "$p_name@gin-workflow-marketplace"
+    codex plugin add "$p_id@gin-workflow-marketplace"
   fi
   if matches_platform "copilot"; then
     if [ "$HAS_COPILOT" = true ]; then
-      echo "Registering $p_name with Copilot..."
+      echo "Registering $p_id with Copilot..."
       # Remove first so a re-run replaces the installed copy.
-      copilot plugin uninstall "$p_name" >/dev/null 2>&1 || true
-      copilot plugin install "$SCRIPT_DIR/$dist_dir/copilot/$p_name"
+      copilot plugin uninstall "$p_id" >/dev/null 2>&1 || true
+      copilot plugin install "$SCRIPT_DIR/$dist_dir/copilot/$p_id"
     else
-      echo "Copilot CLI not found; skipped registration. Run: copilot plugin install $SCRIPT_DIR/$dist_dir/copilot/$p_name"
+      echo "Copilot CLI not found; skipped registration. Run: copilot plugin install $SCRIPT_DIR/$dist_dir/copilot/$p_id"
     fi
   fi
 }
 
+if [ "$UNINSTALL" = true ]; then
+  echo "Uninstalling plugins..."
+  ids=()
+  for p_name in "${PLUGINS[@]}"; do
+    ids+=("$(plugin_id "$p_name")")
+  done
+  if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then ids+=(gin-workflow); fi
+  for p_id in "${ids[@]}"; do
+    if [ "$p_id" = gin-workflow ]; then
+      rm -f "${HOME}/.config/opencode/agents/gin-workflow-"*.md
+    else
+      remove_opencode_agents "$p_id"
+    fi
+    rm -rf "${HOME}/.config/opencode/skills/${p_id}"
+  done
+  # After the OpenCode agents: a --link install lists them through dist.
+  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist
+  if command -v copilot &> /dev/null; then
+    for p_id in "${ids[@]}"; do
+      # Best effort: a plugin that is not registered makes the CLI exit non-zero.
+      copilot plugin uninstall "$p_id" >/dev/null 2>&1 || true
+    done
+  fi
+  if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
+    remove_managed_launcher gin
+    remove_managed_launcher gin-workflow
+  fi
+  unregister_path
+  echo "Removed generated dist output, the gin launcher, the global OpenCode skill install, and the Copilot plugin registration, under the gin and the old gin-workflow name. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
+  exit 0
+fi
+
 if [[ " ${PLUGINS[*]} " == *" gin-orchestrator "* && " ${PLUGINS[*]} " != *" gin-workflow "* ]] &&
-   [ "$(readlink "${HOME}/.local/bin/gin-workflow" 2>/dev/null)" != "${HOME}/.local/lib/gin-workflow/$LAUNCHER_VERSION/gin-workflow" ]; then
-  echo "gin-orchestrator requires gin-workflow $LAUNCHER_VERSION; installing it first."
+   [ "$(readlink "${HOME}/.local/bin/gin" 2>/dev/null)" != "${HOME}/.local/lib/gin/$LAUNCHER_VERSION/gin" ]; then
+  echo "gin-orchestrator requires gin $LAUNCHER_VERSION; installing it first."
   PLUGINS=(gin-workflow "${PLUGINS[@]}")
 fi
 

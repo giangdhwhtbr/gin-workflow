@@ -67,7 +67,7 @@ class ContractCliTests(unittest.TestCase):
         result = run("version", "--json")
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual({"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=2.0,<3",
+        self.assertEqual({"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=3.0,<4",
                           "capabilities": ["health", "models", "routes", "reviewer", "doctor", "dispatch"]},
                          json.loads(result.stdout))
 
