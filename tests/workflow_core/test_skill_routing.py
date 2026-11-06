@@ -79,6 +79,12 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertLess(discuss.index("Capabilities affected"), discuss.index("`specs new <slug> --epic <epic>`"))
         self.assertLessEqual(len(text), 6_000)
 
+    def test_sdd_names_the_srs_export(self):
+        text = (SRC / "skills/gin-sdd/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`specs export <cap>`", text)
+        self.assertIn("`--all`", text)
+        self.assertLessEqual(len(text), 6_000)
+
     def test_review_response_skill_routes_to_same_route(self):
         text = (SRC / "skills/gin-review-response/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("same route", text)
