@@ -3,7 +3,7 @@
 param(
     [ValidateSet('claude', 'antigravity', 'codex', 'opencode', 'copilot', 'both', 'all')]
     [string]$Platform = 'all',
-    [ValidateSet('gin-workflow', 'gin-qa', 'gin-orchestrator', 'all')]
+    [ValidateSet('gin-workflow', 'gin-qa', 'gin-ba', 'gin-orchestrator', 'all')]
     [string]$Plugin = 'gin-workflow',
     [switch]$Link,
     [string]$Project,
@@ -609,6 +609,15 @@ function Unregister-UserPath {
     Write-Output "Removed $launcherBin from the user PATH."
 }
 
+# Add-ons call gin; warn when it is neither installed by this installer nor on PATH.
+function Write-GinMissingWarning {
+    param([string]$Name)
+    $workflowShim = Join-Path $UserHome '.local/bin/gin.cmd'
+    if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin -ErrorAction SilentlyContinue)) {
+        Write-Warning "gin is not installed; $Name needs it (./install.ps1 -Plugin gin-workflow)."
+    }
+}
+
 function Install-Launcher {
     param(
         [Parameter(Mandatory)][string]$Name,
@@ -634,10 +643,7 @@ function Install-Launcher {
     }
 
     if ($Name -eq 'gin-qa') {
-        $workflowShim = Join-Path $UserHome '.local/bin/gin.cmd'
-        if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin -ErrorAction SilentlyContinue)) {
-            Write-Warning 'gin is not installed; gin-qa needs it (./install.ps1 -Plugin gin-workflow).'
-        }
+        Write-GinMissingWarning -Name 'gin-qa'
     }
 
     if ($DryRun) {
@@ -958,7 +964,7 @@ if (-not [string]::IsNullOrWhiteSpace($Project)) {
 }
 
 $Plugins = switch ($Plugin) {
-    'all' { @('gin-workflow', 'gin-qa', 'gin-orchestrator') }
+    'all' { @('gin-workflow', 'gin-qa', 'gin-orchestrator', 'gin-ba') }
     default { @($Plugin) }
 }
 
@@ -985,7 +991,8 @@ if ($Uninstall) {
         (Join-Path $ScriptRoot 'plugins/gin-workflow/dist'),
         (Join-Path $ScriptRoot 'plugins/gin-workflow-advanced/dist'),
         (Join-Path $ScriptRoot 'plugins/gin-qa/dist'),
-        (Join-Path $ScriptRoot 'plugins/gin-orchestrator/dist')
+        (Join-Path $ScriptRoot 'plugins/gin-orchestrator/dist'),
+        (Join-Path $ScriptRoot 'plugins/gin-ba/dist')
     )) {
         if (Test-Path -LiteralPath $directory) {
             Remove-Item -LiteralPath $directory -Recurse -Force
@@ -1030,12 +1037,16 @@ if ($Plugins -contains 'gin-workflow') {
 }
 
 foreach ($name in $Plugins) {
-    $version = switch ($name) {
-        'gin-workflow' { $LauncherVersion }
-        'gin-qa' { $QaLauncherVersion }
-        'gin-orchestrator' { $OrchLauncherVersion }
+    if ($name -eq 'gin-ba') {
+        Write-GinMissingWarning -Name 'gin-ba'
+    } else {
+        $version = switch ($name) {
+            'gin-workflow' { $LauncherVersion }
+            'gin-qa' { $QaLauncherVersion }
+            'gin-orchestrator' { $OrchLauncherVersion }
+        }
+        Install-Launcher -Name $name -Version $version
     }
-    Install-Launcher -Name $name -Version $version
     Install-Plugin -Name $name
 }
 Write-Output 'Install processes completed successfully!'

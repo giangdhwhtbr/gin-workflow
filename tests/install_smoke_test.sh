@@ -123,6 +123,7 @@ rm -rf plugins/gin-workflow/dist
 rm -rf plugins/gin-workflow-advanced/dist
 rm -rf plugins/gin-qa/dist
 rm -rf plugins/gin-orchestrator/dist
+rm -rf plugins/gin-ba/dist
 
 output_file="$(mktemp)"
 trap 'rm -f "$output_file"' EXIT
@@ -141,6 +142,7 @@ assert_contains "$output_file" "would link gin launcher on PATH at"
 assert_not_contains "$output_file" "gin-qa"
 assert_not_exists "plugins/gin-qa/dist"
 assert_not_exists "plugins/gin-orchestrator/dist"
+assert_not_exists "plugins/gin-ba/dist"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/write-doc/SKILL.md"
@@ -216,6 +218,20 @@ assert_exists "plugins/gin-qa/dist/claude-code/templates/qa-readme.md"
 assert_exists "plugins/gin-qa/dist/claude-code/scripts/gin_qa/cli.py"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-qa/src\""
 
+# gin-ba has no launcher; it warns like gin-qa when gin is missing.
+PATH="/usr/bin:/bin" ./install.sh --platform claude --plugin gin-ba --dry-run >"$output_file" 2>&1
+assert_contains "$output_file" "Warning: gin is not installed; gin-ba needs it (./install.sh --plugin gin-workflow)."
+assert_contains "$output_file" "Processing plugin: gin-ba"
+assert_not_contains "$output_file" "Processing plugin: gin-workflow"
+assert_not_contains "$output_file" "launcher"
+assert_exists "plugins/gin-ba/dist/claude-code/.claude-plugin/plugin.json"
+assert_exists "plugins/gin-ba/dist/claude-code/skills/mockup/SKILL.md"
+assert_exists "plugins/gin-ba/dist/claude-code/skills/mockup/references/mockup-html.md"
+assert_exists "plugins/gin-ba/dist/claude-code/skills/capture/SKILL.md"
+assert_exists "plugins/gin-ba/dist/claude-code/skills/capture/references/legacy-description.md"
+assert_not_exists "plugins/gin-ba/dist/claude-code/scripts/gin-ba"
+assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-ba/src\""
+
 # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
 empty_home="$(mktemp -d)"
 HOME="$empty_home" ./install.sh --platform claude --plugin gin-orchestrator --dry-run >"$output_file"
@@ -235,6 +251,7 @@ HOME="$empty_home" ./install.sh --platform claude --plugin all --dry-run >"$outp
 assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_contains "$output_file" "Processing plugin: gin-qa"
 assert_contains "$output_file" "Processing plugin: gin-orchestrator"
+assert_contains "$output_file" "Processing plugin: gin-ba"
 assert_not_contains "$output_file" "installing it first"
 assert_contains "$output_file" "would install gin-orchestrator launcher version 0.1 to"
 rm -rf "$empty_home"
@@ -690,6 +707,21 @@ assert_not_exists "$uninstall_home/.local/bin/gin"
 assert_not_exists "$uninstall_home/.local/lib/gin"
 assert_contains "$uninstall_home/.local/bin/gin-workflow" "my own gin-workflow"
 assert_contains "$output_file" "kept $uninstall_home/.local/bin/gin-workflow: not a gin-workflow launcher this installer manages"
+
+# gin-ba installs without a launcher, and its uninstall leaves gin alone.
+ba_home="$MOCK_HOME/ba-home"
+mkdir -p "$ba_home"
+HOME="$ba_home" ./install.sh --platform opencode >/dev/null
+HOME="$ba_home" ./install.sh --platform opencode --plugin gin-ba >/dev/null
+assert_exists "$ba_home/.config/opencode/skills/gin-ba/skills/mockup/SKILL.md"
+assert_exists "$ba_home/.config/opencode/skills/gin-ba/skills/capture/references/legacy-description.md"
+assert_not_exists "$ba_home/.local/bin/gin-ba"
+assert_not_exists "$ba_home/.local/lib/gin-ba"
+HOME="$ba_home" ./install.sh --uninstall --plugin gin-ba >"$output_file" 2>&1
+assert_not_exists "$ba_home/.config/opencode/skills/gin-ba"
+assert_not_exists "plugins/gin-ba/dist"
+assert_exists "$ba_home/.local/bin/gin"
+assert_exists "$ba_home/.config/opencode/skills/gin/skills/setup/SKILL.md"
 
 
 # Copilot: registration through a stub CLI, re-install, skip without the CLI,

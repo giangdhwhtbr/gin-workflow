@@ -40,7 +40,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --plugin)
       if [ -z "${2:-}" ]; then
-        echo "Error: --plugin requires a value (gin-workflow|gin-qa|gin-orchestrator|all)" >&2
+        echo "Error: --plugin requires a value (gin-workflow|gin-qa|gin-ba|gin-orchestrator|all)" >&2
         exit 1
       fi
       TARGET_PLUGIN="$2"
@@ -83,18 +83,21 @@ case "$TARGET_PLUGIN" in
   gin-qa)
     PLUGINS=(gin-qa)
     ;;
+  gin-ba)
+    PLUGINS=(gin-ba)
+    ;;
   gin-orchestrator)
     PLUGINS=(gin-orchestrator)
     ;;
   all)
-    PLUGINS=(gin-workflow gin-qa gin-orchestrator)
+    PLUGINS=(gin-workflow gin-qa gin-orchestrator gin-ba)
     ;;
   core|advanced)
     echo "Warning: --plugin $TARGET_PLUGIN is deprecated; using gin-workflow." >&2
     PLUGINS=(gin-workflow)
     ;;
   *)
-    echo "Error: --plugin must be 'gin-workflow', 'gin-qa', 'gin-orchestrator', or 'all' (got '$TARGET_PLUGIN')" >&2
+    echo "Error: --plugin must be 'gin-workflow', 'gin-qa', 'gin-ba', 'gin-orchestrator', or 'all' (got '$TARGET_PLUGIN')" >&2
     exit 1
     ;;
 esac
@@ -657,6 +660,13 @@ remove_managed_launcher() {
   echo "Removed $root"
 }
 
+# Add-ons call gin; warn when it is neither installed by this installer nor on PATH.
+warn_if_gin_missing() {
+  if [ ! -e "${HOME}/.local/bin/gin" ] && ! command -v gin &> /dev/null; then
+    echo "Warning: gin is not installed; $1 needs it (./install.sh --plugin gin-workflow)." >&2
+  fi
+}
+
 install_launcher() {
   local dir="$1" version="$2" name packages package script
   name="$(plugin_id "$dir")"
@@ -677,8 +687,8 @@ install_launcher() {
       return 1
     fi
   fi
-  if [ "$dir" = gin-qa ] && [ ! -e "${HOME}/.local/bin/gin" ] && ! command -v gin &> /dev/null; then
-    echo "Warning: gin is not installed; gin-qa needs it (./install.sh --plugin gin-workflow)." >&2
+  if [ "$dir" = gin-qa ]; then
+    warn_if_gin_missing gin-qa
   fi
 
   if [ "$DRY_RUN" = true ]; then
@@ -955,7 +965,7 @@ if [ "$UNINSTALL" = true ]; then
     rm -rf "${HOME}/.config/opencode/skills/${p_id}"
   done
   # After the OpenCode agents: a --link install lists them through dist.
-  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist
+  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist plugins/gin-ba/dist
   if command -v copilot &> /dev/null; then
     for p_id in "${ids[@]}"; do
       # Best effort: a plugin that is not registered makes the CLI exit non-zero.
@@ -994,6 +1004,7 @@ for p_name in "${PLUGINS[@]}"; do
     gin-workflow) install_launcher "$p_name" "$LAUNCHER_VERSION" ;;
     gin-qa) install_launcher "$p_name" "$QA_LAUNCHER_VERSION" ;;
     gin-orchestrator) install_launcher "$p_name" "$ORCH_LAUNCHER_VERSION" ;;
+    gin-ba) warn_if_gin_missing gin-ba ;;
   esac
   install_plugin "$p_name"
 done

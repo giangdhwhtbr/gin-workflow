@@ -78,6 +78,13 @@ try {
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/agents/e2e-tester.md')
 
+    $baDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-ba'; DryRun = $true }
+    Assert-True (-not $baDryRun.Contains('Processing plugin: gin-workflow', [StringComparison]::Ordinal)) 'gin-ba install processed gin-workflow'
+    Assert-True (-not $baDryRun.Contains('launcher', [StringComparison]::Ordinal)) 'gin-ba install wrote a launcher'
+    Assert-Exists (Join-Path $Root 'plugins/gin-ba/dist/codex/skills/mockup/SKILL.md')
+    Assert-Exists (Join-Path $Root 'plugins/gin-ba/dist/codex/skills/capture/references/legacy-description.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin-ba.cmd'))) 'gin-ba install wrote a launcher shim'
+
     # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
     $orchDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true }
     Assert-Contains $orchDryRun 'gin-orchestrator requires gin 3.0; installing it first.'
@@ -92,6 +99,7 @@ try {
     Assert-Contains $allDryRun 'Processing plugin: gin-workflow'
     Assert-Contains $allDryRun 'Processing plugin: gin-qa'
     Assert-Contains $allDryRun 'Processing plugin: gin-orchestrator'
+    Assert-Contains $allDryRun 'Processing plugin: gin-ba'
     Assert-True (-not $allDryRun.Contains('installing it first', [StringComparison]::Ordinal)) 'Plugin all installed gin-workflow twice'
 
     $opencodeDryRun = Invoke-Installer @{ Platform = 'opencode'; DryRun = $true }
