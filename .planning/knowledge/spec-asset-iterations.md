@@ -12,6 +12,7 @@ Epic `gin-workflow-spec-iterations` (2026-11-05). With the SDD layout, `<specs>/
 **Consequences**
 - The layout is a skill convention enforced only by the `description.md` lint; `docs/guides/sdd.md` labels it "By convention".
 - Assets stay under the capability, never in change folders, and archive does not move them (as in [ba-capability-placement](ba-capability-placement.md)).
+- Since `gin-workflow-ba-plugin`, `description.md` carries `Confirmed:`, the `gin-ba` skills fill these folders, and discuss cites confirmed ones with `Source:` lines; see [ba-plugin](ba-plugin.md).
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/specs.py` (`lint_iterations`), `plugins/gin-workflow/src/templates/iteration.md`, `plugins/gin-workflow/src/skills/gin-sdd/SKILL.md`, `docs/guides/sdd.md`
