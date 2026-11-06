@@ -64,7 +64,8 @@ The structure every `mockup/index.html` follows, and the default look when the r
     if (states.length) showState(s, states[0]);
   });
   function route() {
-    const id = location.hash.slice(1) || screens[0].id;
+    const hash = location.hash.slice(1);
+    const id = screens.some(s => s.id === hash) ? hash : screens[0].id;
     screens.forEach(s => s.classList.toggle('active', s.id === id));
     nav.querySelectorAll('a').forEach(a => {
       if (a.hash === '#' + id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
