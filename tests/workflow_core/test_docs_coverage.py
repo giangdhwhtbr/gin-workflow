@@ -44,7 +44,7 @@ class DocsCoverageTests(unittest.TestCase):
                               capture_output=True, text=True)
         commands = re.search(r"\{([^}]+)\}", done.stderr).group(1).split(",")
         text = (DOCS / "reference/cli.md").read_text(encoding="utf-8")
-        self.assertEqual([c for c in commands if f"## `gin-workflow {c}" not in text], [])
+        self.assertEqual([c for c in commands if f"## `gin {c}" not in text], [])
 
     def test_relative_links_resolve(self):
         dead = []

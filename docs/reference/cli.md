@@ -2,19 +2,19 @@
 
 The plugin ships two command-line tools that skills call and that you can run yourself:
 
-- `gin-workflow`: repository setup, lifecycle gates, rules, specs, team mode, and usage reports.
+- `gin`: repository setup, lifecycle gates, rules, specs, team mode, and usage reports.
 - `review-ledger.py`: the review ledger for one bead.
 
-The local installer (`install.sh`, `install.ps1`) links `gin-workflow` into `~/.local/bin`. A marketplace install does not; see [Troubleshooting](troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install).
+The local installer (`install.sh`, `install.ps1`) links `gin` into `~/.local/bin`. A marketplace install does not; see [Troubleshooting](troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install).
 
-`gin-workflow --version` prints the CLI version. An unknown or missing command prints the command list and exits 2.
+`gin --version` prints the CLI version. An unknown or missing command prints the command list and exits 2.
 
 Most commands accept `--repository PATH` (default: the current directory) and `--format text|json` (default `text`). JSON output is what skills parse.
 
-## `gin-workflow setup`
+## `gin setup`
 
 ```
-gin-workflow setup <action> [options]
+gin setup <action> [options]
 ```
 
 Configures a repository outside the lifecycle. The `setup` skill drives it one question at a time; see [Configuration](config.md).
@@ -41,10 +41,10 @@ Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--prob
 
 Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a required dependency is missing (for example PyYAML).
 
-## `gin-workflow state`
+## `gin state`
 
 ```
-gin-workflow state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
+gin state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 ```
 
 Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, `epic` (the epic recorded at `orchestration-ready` for the workflow id, or `null`), and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`.
@@ -55,10 +55,10 @@ A gate reads `unknown` when `state` cannot read the task tracker or the event lo
 
 Exit codes: 0 when the decision is `route`; 1 when the workflow is held or blocked.
 
-## `gin-workflow record`
+## `gin record`
 
 ```
-gin-workflow record <gate> --evidence TEXT [--actor ID] [--workflow-id ID] [--epic BEAD] [--plan PATH] [--spec PATH]
+gin record <gate> --evidence TEXT [--actor ID] [--workflow-id ID] [--epic BEAD] [--plan PATH] [--spec PATH]
 ```
 
 Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
@@ -75,11 +75,11 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 
 Exit codes: 0 recorded; 1 team mode rejected the evidence, or the event could not be written; 2 usage error. Usage errors are a missing actor, `--epic` on another gate, a process gate on a workflow that already shipped, `shipped` on anything but a standalone bead, `shipped` while the task tracker cannot be read (the message names the cause), and, in team mode, `shipped` evidence that is not a PR URL, or a team configuration or host error. The removed `verification-passed` gate also exits 2, because quality checks run in the git hooks; so does `unblock --gate verification_passed`.
 
-## `gin-workflow unblock`
+## `gin unblock`
 
 ```
-gin-workflow unblock --gate GATE --reason TEXT [--actor ID] [--follow-up BEAD]
-gin-workflow unblock --clear-blocker --reason TEXT [--actor ID]
+gin unblock --gate GATE --reason TEXT [--actor ID] [--follow-up BEAD]
+gin unblock --clear-blocker --reason TEXT [--actor ID]
 ```
 
 Waives a gate or clears a recorded blocker. A waiver is an auditable `gate.waived` event, scoped to the current source tree.
@@ -92,10 +92,10 @@ Waives a gate or clears a recorded blocker. A waiver is an auditable `gate.waive
 
 Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or follow-up; 2 missing actor or team-mode refusal.
 
-## `gin-workflow quick-check`
+## `gin quick-check`
 
 ```
-gin-workflow quick-check --changed-files N [--modules M]
+gin quick-check --changed-files N [--modules M]
 ```
 
 Decides whether a change may use the `/quick` path. `--modules` (default 1) counts the source modules the change touches; a changed module's tests and docs count as that module, not as another one. It returns the rigor, the verify commands to run, and the review mode (`self_check` under `easy`, `independent` otherwise).
@@ -106,21 +106,21 @@ Decides whether a change may use the `/quick` path. `--modules` (default 1) coun
 | `escalate` | 3 | more files or modules; use the full lifecycle |
 | `refused` | 4 | `strict` rigor without a `requirement_confirmed` waiver |
 
-## `gin-workflow rules`
+## `gin rules`
 
 ```
-gin-workflow rules --files PATH [PATH ...]
-gin-workflow rules --list
+gin rules --files PATH [PATH ...]
+gin rules --list
 ```
 
 `--files` prints the rule text for the given files: the `core` and `lean` packs, `docs` when a Markdown file is given, plus every enabled pack whose globs match. The output is trimmed to the task budget; critical bullets are never trimmed. `--list` shows each pack with its source, tier, size, and impact counts. See [Configuration](config.md#rules).
 
 Exit codes: 0 success; 2 invalid configuration or rule pack.
 
-## `gin-workflow specs`
+## `gin specs`
 
 ```
-gin-workflow specs <command> [options]
+gin specs <command> [options]
 ```
 
 Living specs for `artifacts.layout: sdd`. Every command except `template`, `migrate`, and `reqs` without `--change` requires that layout; `migrate` requires the `legacy` layout.
@@ -142,10 +142,10 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 
 Exit codes: 0 ok; 1 findings (lint errors, untraced requirements, archive conflicts, refused migration, images an export could not find); 2 usage or configuration error.
 
-## `gin-workflow docs`
+## `gin docs`
 
 ```
-gin-workflow docs check <file>... [--template NAME] [--repository PATH] [--format text|json]
+gin docs check <file>... [--template NAME] [--repository PATH] [--format text|json]
 ```
 
 Checks Markdown pages against the mechanical rules of the `docs` rule pack. Fenced code blocks and inline code are not checked. The command reads no workflow configuration.
@@ -164,10 +164,10 @@ Each finding prints as `<file>:<line>: <rule>`, or `<file>: missing section: <he
 
 Exit codes: 0 no findings; 1 findings; 2 a file does not exist or is not UTF-8, or the template is unknown.
 
-## `gin-workflow team`
+## `gin team`
 
 ```
-gin-workflow team <command> [options]
+gin team <command> [options]
 ```
 
 Opt-in team mode, active when the configuration has a `team:` section.
@@ -188,17 +188,17 @@ Opt-in team mode, active when the configuration has a `team:` section.
 
 Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuration, or host error.
 
-## `gin-workflow milestone`
+## `gin milestone`
 
 ```
-gin-workflow milestone list [--all] [--json]
-gin-workflow milestone show ID [--start YYYY-MM-DD] [--json]
-gin-workflow milestone create TITLE --start YYYY-MM-DD --end YYYY-MM-DD
-gin-workflow milestone update ID [--title TITLE] [--start YYYY-MM-DD] [--end YYYY-MM-DD]
-gin-workflow milestone kickstart ID [--date YYYY-MM-DD]
-gin-workflow milestone move EPIC... --to ID|none
-gin-workflow milestone estimate EPIC DAYS
-gin-workflow milestone close ID --reason TEXT
+gin milestone list [--all] [--json]
+gin milestone show ID [--start YYYY-MM-DD] [--json]
+gin milestone create TITLE --start YYYY-MM-DD --end YYYY-MM-DD
+gin milestone update ID [--title TITLE] [--start YYYY-MM-DD] [--end YYYY-MM-DD]
+gin milestone kickstart ID [--date YYYY-MM-DD]
+gin milestone move EPIC... --to ID|none
+gin milestone estimate EPIC DAYS
+gin milestone close ID --reason TEXT
 ```
 
 Dated milestones over roadmap epics, stored in Beads; they need `providers.task_tracking: beads`. `list` reports each open milestone (every milestone with `--all`) with its status, period, epic progress, and warning count, plus the number of open `roadmap` epics without a parent. `show` reports the schedule of one milestone: each epic's planned start and end in working days (Monday to Friday) from `--start`, else the kick-off date, else the start date, and its warnings (`overflow`, `late`, `unestimated`, `external_blocker`). A `list` entry whose schedule cannot be computed (a dependency cycle or a malformed date) carries `error` and keeps the other entries; its status then falls back to `planned`. `--start` is a read-only preview. `--json` prints `schema: 1`; fields are defined in the gin-console contract (`gin-harness/docs/changes/gin-harness-6s4-milestones/design.md`) and only ever added to.
@@ -218,27 +218,27 @@ Each write command first checks the team role. With `team.permissions.milestone`
 
 Exit codes: 0 ok, warnings included; 1 unknown id, a refused change, dependency cycle, non-Beads tracking, a failed pull or push, or a `bd` error; 2 usage error or a role that may not write milestones.
 
-## `gin-workflow hooks`
+## `gin hooks`
 
 ```
-gin-workflow hooks install
-gin-workflow hooks status
-gin-workflow hooks run pre-commit|pre-push
+gin hooks install
+gin hooks status
+gin hooks run pre-commit|pre-push
 ```
 
-`install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`). It is idempotent and does not create a missing hooks directory. It never overwrites a hook it did not write (`occupied`: add `exec gin-workflow hooks run <hook> "$@"` to your hook to chain it); a hook that already runs it is reported as `chained`. It also sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` (`ssh_keepalive: set`), so the SSH connection git opens before `pre-push` survives a long test run. An existing `core.sshCommand`, `GIT_SSH` or `GIT_SSH_COMMAND` is left alone (`kept`); a write that fails is reported as `failed` and does not fail the install. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
+`install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`). It is idempotent and does not create a missing hooks directory. It never overwrites a hook it did not write (`occupied`: add `exec gin hooks run <hook> "$@"` to your hook to chain it); a hook that already runs it is reported as `chained`. It also sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` (`ssh_keepalive: set`), so the SSH connection git opens before `pre-push` survives a long test run. An existing `core.sshCommand`, `GIT_SSH` or `GIT_SSH_COMMAND` is left alone (`kept`); a write that fails is reported as `failed` and does not fail the install. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
 
 `status` prints `{"hooks": {...}, "verify_commands": [...], "ok": ...}`: each hook's state (`ok`, `missing`, `occupied`) and the configured check names, including `<package>:<name>` for packages. It exits 1 when a hook is not `ok` or no verify command is configured; `ship` warns on that and continues.
 
-`run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks. `pre-push` runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. It runs them only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook. A passing `pre-push` on a tree with no tracked changes is recorded for [`evidence check`](#gin-workflow-evidence). When such a record for the pushed tree already covers every command the hook would run, `pre-push` prints a notice naming the record time and exits 0 without running them again. A record file it cannot read is reported and the commands run.
+`run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks. `pre-push` runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. It runs them only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook. A passing `pre-push` on a tree with no tracked changes is recorded for [`evidence check`](#gin-evidence). When such a record for the pushed tree already covers every command the hook would run, `pre-push` prints a notice naming the record time and exits 0 without running them again. A record file it cannot read is reported and the commands run.
 
 Exit codes: install 0 installed or chained, 1 occupied, 2 hooks directory missing; run 0 pass, otherwise the failing command's exit code.
 
-## `gin-workflow evidence`
+## `gin evidence`
 
 ```
-gin-workflow evidence run [--repository DIR]
-gin-workflow evidence check [--commit SHA] [--repository DIR] [--json]
+gin evidence run [--repository DIR]
+gin evidence check [--commit SHA] [--repository DIR] [--json]
 ```
 
 When every `pre-push` verify command passes on a tree with no tracked changes, `hooks run pre-push` and `evidence run` append a `checks.passed` event (workflow id `checks`; payload `tree`, `hook`, `commands`) to `.agent-workflow/runtime/events.jsonl` in the main checkout. A record that cannot be written prints a warning and never changes the exit code. `pre-commit` records nothing, because it runs no `test`.
@@ -249,10 +249,10 @@ When every `pre-push` verify command passes on a tree with no tracked changes, `
 
 Exit codes: `run` 0 pass, 2 tracked changes, otherwise the failing command's exit code; `check` 0 a record matches, 1 none does.
 
-## `gin-workflow reviewer`
+## `gin reviewer`
 
 ```
-gin-workflow reviewer --base SHA --implementer PROVIDER --model MODEL [--effort EFFORT] [--repository DIR] [--json]
+gin reviewer --base SHA --implementer PROVIDER --model MODEL [--effort EFFORT] [--repository DIR] [--json]
 ```
 
 Called by the `review` skill to pick the reviewer; you do not need to run it. `--model` and `--effort` are the implementer's final route, including any escalation, in the implementer's [catalog](config.md#models); a value outside that catalog exits 2. A diff since `--base` that changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) raises the weakest model of a multi-model catalog to the next one. `reason` then reads `non-docs files changed`.
@@ -261,11 +261,11 @@ Without gin-orchestrator the reviewer runs on the main harness. It keeps the rou
 
 Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, a model or effort outside the catalog, an unknown option, or an empty route list from gin-orchestrator.
 
-## `gin-workflow routes`
+## `gin routes`
 
 ```
-gin-workflow routes resolve --workflow-id ID --tracks FILE [--repository DIR] [--json]
-gin-workflow routes dispatch --workflow-id ID --task-id ID [--escalate REASON] [--repository DIR] [--json]
+gin routes resolve --workflow-id ID --tracks FILE [--repository DIR] [--json]
+gin routes dispatch --workflow-id ID --task-id ID [--escalate REASON] [--repository DIR] [--json]
 ```
 
 Both actions always print JSON; `--json` is accepted and changes nothing.
@@ -283,64 +283,64 @@ Both actions always print JSON; `--json` is accepted and changes nothing.
 
 Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it or without a resolved route, an invalid configuration, an unknown provider, or a manifest route outside its provider's catalog on `--escalate`, nothing left to escalate to, or invalid arguments; 3 the epic is over budget (`dispatch`).
 
-## `gin-workflow notify`
+## `gin notify`
 
 ```
-gin-workflow notify --event EVENT [--repository DIR] MESSAGE
+gin notify --event EVENT [--repository DIR] MESSAGE
 ```
 
 Sends a one-way notification message to Telegram. It is a no-op unless `notifications.telegram` is true. The four supported events are `needs_input`, `run_finished`, `worker_finished`, and `worker_failed`. Credentials are read from the `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` environment variables. If delivery fails or credentials are missing, a warning is printed to stderr and the command exits 0.
 
 Exit codes: 0 message sent, disabled, or delivery warning; 2 invalid arguments or unknown event.
 
-## `gin-workflow paths`
+## `gin paths`
 
 ```
-gin-workflow paths [--json]
+gin paths [--json]
 ```
 
 Prints the path of the directory holding `workflow_core` (`{"lib_dir": "..."}`) for external tools and extension launchers. It always prints JSON; `--json` changes nothing.
 
 Exit codes: 0 ok.
 
-## `gin-workflow goal`
+## `gin goal`
 
 ```
-gin-workflow goal --workflow-id ID [--repository PATH]
+gin goal --workflow-id ID [--repository PATH]
 ```
 
 Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`. The goal lists the open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one. Its turn limit is 6 per track, at most 30. A track run on a fallback from its route counts as run on its routed provider. A standalone bead is its own single track. When no open track is left for the agent, it prints a `No goal:` line instead, which names the human-gate tracks when any wait.
 
 Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is unavailable.
 
-## `gin-workflow worktree`
+## `gin worktree`
 
 ```
-gin-workflow worktree create [--repository DIR] TRACK_ID BRANCH [BASE_REF]
-gin-workflow worktree cleanup [--repository DIR] TRACK_ID
+gin worktree create [--repository DIR] TRACK_ID BRANCH [BASE_REF]
+gin worktree cleanup [--repository DIR] TRACK_ID
 ```
 
 Creates or removes the git worktree for one track at `.planning/worktrees/<track-id>` in the repository's top level. `TRACK_ID` must match `[A-Za-z0-9._-]+` and resolve inside `.planning/worktrees`. `create` makes the new branch `BRANCH` from `BASE_REF` (default: the current branch, or `HEAD` when detached) and refuses an existing directory. `cleanup` runs `git worktree remove` and succeeds without doing anything when the directory does not exist.
 
 Exit codes: 0 created, removed, or nothing to remove; 1 invalid track id, existing directory, or git failure (message on stderr); 2 invalid arguments.
 
-## `gin-workflow task`
+## `gin task`
 
 ```
-gin-workflow task <bd arguments>
+gin task <bd arguments>
 ```
 
-The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` it runs `bd` with the arguments unchanged, with one exception. `ready` also leaves out a bead of type `milestone` and a bead whose `external:<project>:<capability>` dependency is not shipped yet: no closed `provides:<capability>` bead exists in the database `external_projects.<project>` names. bd 1.0.5 reports such dependencies as resolved. `gin-workflow team ready` applies the same check. If bd cannot explain its ready list, `ready` exits 1 rather than list beads it could not check. Write `external_projects` paths as absolute paths or relative to the repo root, which is the main checkout when you run from a linked worktree; `~` is expanded. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update` (`--claim` sets `in_progress` and the assignee from `BD_ACTOR`, else `git config user.email`), `close`, `reopen`, `list` (`--assignee` filters by assignee), `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
+The task-tracking entry point skills and agents use. With `providers.task_tracking: beads` it runs `bd` with the arguments unchanged, with one exception. `ready` also leaves out a bead of type `milestone` and a bead whose `external:<project>:<capability>` dependency is not shipped yet: no closed `provides:<capability>` bead exists in the database `external_projects.<project>` names. bd 1.0.5 reports such dependencies as resolved. `gin team ready` applies the same check. If bd cannot explain its ready list, `ready` exits 1 rather than list beads it could not check. Write `external_projects` paths as absolute paths or relative to the repo root, which is the main checkout when you run from a linked worktree; `~` is expanded. With `markdown` it serves the same subset in process from `.planning/tasks/` (git-ignored, local to this machine): `create`, `show`, `update` (`--claim` sets `in_progress` and the assignee from `BD_ACTOR`, else `git config user.email`), `close`, `reopen`, `list` (`--assignee` filters by assignee), `ready`, `blocked`, `dep add|remove|list`, `config get issue_prefix`, `remember`, `memories`, with `bd`-shaped `--json` output.
 
 `close` has one guard of its own. With `project.review_ledger: true`, closing a bead that has a parent epic (a track) needs a review ledger with a live approval. Otherwise the command names the ledger state, closes nothing, and exits 2. `--waive-review <reason> --actor <id>` records a `review.waived` event and then closes. `ship` lists those tracks. A bead without a parent, or `review_ledger: false`, closes as before. Running `bd close` directly skips the guard.
 
 Exit codes: 0 ok; 1 invalid configuration, invalid request, or malformed task file (the message names the file); 2 `close` refused by the review guard or given bad arguments; 127 `beads` is configured but `bd` is not installed. Other `bd` commands exit with `bd`'s own code.
 
-## `gin-workflow usage`
+## `gin usage`
 
 ```
-gin-workflow usage collect --bead ID [--best-effort]
-gin-workflow usage report [--bead ID | --epic ID | --milestone ID | --since YYYY-MM-DD]
+gin usage collect --bead ID [--best-effort]
+gin usage report [--bead ID | --epic ID | --milestone ID | --since YYYY-MM-DD]
 ```
 
 `collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. `--milestone ID` covers the epics under that milestone and their tracks; a non-milestone id exits 2. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`. With `usage.budget_usd` set, collecting an epic adds `budget: {budget_usd, cost, status}` to its summary and the status to the printed line. `report` prints totals per model, then per role and model (`role main <model>`, `role subagent <model>`). A Claude Code record whose log line has `"isSidechain": true` counts as `subagent`; every other record, including every Codex record, counts as `main`.
@@ -370,17 +370,17 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 
 ## Delegation to gin-orchestrator
 
-When `provider_mode: multi` is set, `gin-orchestrator` is available on `PATH`, and the extension lists the required capability, `gin-workflow` delegates commands:
+When `provider_mode: multi` is set, `gin-orchestrator` is available on `PATH`, and the extension lists the required capability, `gin` delegates commands:
 
-| `gin-workflow` command | Delegates to | Capability |
+| `gin` command | Delegates to | Capability |
 |---|---|---|
-| `gin-workflow routes resolve` | `gin-orchestrator routes resolve` | `routes` |
-| `gin-workflow reviewer` | `gin-orchestrator reviewer` | `reviewer` |
-| `gin-workflow setup doctor --probe` | `gin-orchestrator doctor` | `doctor` |
-| `gin-workflow setup models` | `gin-orchestrator models` | `models` |
+| `gin routes resolve` | `gin-orchestrator routes resolve` | `routes` |
+| `gin reviewer` | `gin-orchestrator reviewer` | `reviewer` |
+| `gin setup doctor --probe` | `gin-orchestrator doctor` | `doctor` |
+| `gin setup models` | `gin-orchestrator models` | `models` |
 | Worker execution (`execute`, `review`) | `gin-orchestrator dispatch` | `dispatch` |
 
-In single-harness mode (`provider_mode: single`), `gin-workflow` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. Stage worker execution delegates cross-harness tasks to `gin-orchestrator dispatch` when available, falling back to native subagents on the main harness. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise.
+In single-harness mode (`provider_mode: single`), `gin` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. Stage worker execution delegates cross-harness tasks to `gin-orchestrator dispatch` when available, falling back to native subagents on the main harness. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise.
 
 ## `gin-qa`
 
@@ -402,13 +402,13 @@ Output: text `TC-AUTH-001 passed`; JSON `{"tc", "result", "run", "bug", "file"}`
 
 `gin-qa cases bug <TC-ID> --actual TEXT [--evidence REF]... [--external-ref REF] [--discovered-from BEAD] [--run REF]` records `failed` on a manual case and files a bug bead for it.
 
-- When the case's `Bug:` is a bead that `gin-workflow task show` reports with a `status` other than `closed`, no bead is created, the case keeps that bug, and `epic` is `null`. No epic is needed.
+- When the case's `Bug:` is a bead that `gin task show` reports with a `status` other than `closed`, no bead is created, the case keeps that bug, and `epic` is `null`. No epic is needed.
 - A `Bug:` value that is not a bead, or that `task show` cannot read, counts as no open bug; the new bug names it as `Previous bug`.
 - Otherwise the epic is found:
-  - from the spec named in `Source:`, which must be inside the repository: its `Epic:` line, or the `epic` of `gin-workflow state --workflow-id <topic>` for its `Workflow: <topic>` line;
-  - or, with REQs, the `epic` of the first of the case's REQs that has one in `gin-workflow specs reqs`.
-- `--discovered-from` replaces the epic found. The epic must be a bead `gin-workflow task show` can read.
-- It then runs `gin-workflow task create -t bug --title "<TC-ID>: <title>" --body-file - --deps discovered-from:<epic> -p <priority> [--external-ref REF] --json` in the repository, with the description on stdin. Then it writes `Result: failed`, the run (`--run`, else the case's current `Run`), and the new bug.
+  - from the spec named in `Source:`, which must be inside the repository: its `Epic:` line, or the `epic` of `gin state --workflow-id <topic>` for its `Workflow: <topic>` line;
+  - or, with REQs, the `epic` of the first of the case's REQs that has one in `gin specs reqs`.
+- `--discovered-from` replaces the epic found. The epic must be a bead `gin task show` can read.
+- It then runs `gin task create -t bug --title "<TC-ID>: <title>" --body-file - --deps discovered-from:<epic> -p <priority> [--external-ref REF] --json` in the repository, with the description on stdin. Then it writes `Result: failed`, the run (`--run`, else the case's current `Run`), and the new bug.
 
 Exit 2, writing nothing, when:
 

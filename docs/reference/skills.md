@@ -1,8 +1,8 @@
 # Skills reference
 
-Every skill is also a slash command: `/gin-workflow:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `report` is `@gin-workflow-report`, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); the lifecycle stages still run through the `gin-workflow` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
+Every skill is also a slash command: `/gin:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `report` is `@gin-workflow-report`, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); the lifecycle stages still run through the `gin-workflow` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
 
-## gin-workflow: lifecycle stages
+## gin: lifecycle stages
 
 Run these in order for a feature. `workflow` picks the next one for you.
 
@@ -15,7 +15,7 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | `review` | Request or perform an independent review recorded in the review ledger | approved ledger |
 | `ship` | Offer merge, PR, keep, or discard; run the chosen one; close beads and ledgers | `shipped` |
 
-## gin-workflow: entry points and status
+## gin: entry points and status
 
 | Skill | Purpose |
 |---|---|
@@ -25,21 +25,21 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | `report` | Report AI usage per bead, epic or milestone (`--milestone <id>`: tokens, cost, quality signals) without changing anything |
 | `setup` | First-time repository configuration and requested setup maintenance |
 
-## gin-workflow: supporting skills
+## gin: supporting skills
 
 Stages load these when needed; you can also invoke them directly.
 
 | Skill | Purpose |
 |---|---|
-| `gin-debugging` | Find the root cause of a bug, test failure, or build failure before fixing it |
-| `gin-review-response` | Handle review findings: verify each, then fix, dispute, defer, or clarify in the ledger |
-| `gin-worktrees` | Detect or create an isolated git worktree and check a clean test baseline |
-| `gin-parallel-agents` | Work several independent tasks concurrently, one bounded agent per domain |
-| `gin-knowledge` | Capture durable decisions and lessons, and reconcile project knowledge at ship |
-| `gin-sdd` | Stage rules for `artifacts.layout: sdd`: change folders, REQ-IDs, trace, spec review, archive ([guide](../guides/sdd.md)) |
-| `gin-team` | Stage rules for team mode: identity, PR-proven gates, areas and owners, claims, Beads sync ([guide](../guides/team.md)) |
+| `debugging` | Find the root cause of a bug, test failure, or build failure before fixing it |
+| `review-response` | Handle review findings: verify each, then fix, dispute, defer, or clarify in the ledger |
+| `worktrees` | Detect or create an isolated git worktree and check a clean test baseline |
+| `parallel-agents` | Work several independent tasks concurrently, one bounded agent per domain |
+| `learn` | Capture durable decisions and lessons, and reconcile project knowledge at ship |
+| `sdd` | Stage rules for `artifacts.layout: sdd`: change folders, REQ-IDs, trace, spec review, archive ([guide](../guides/sdd.md)) |
+| `team` | Stage rules for team mode: identity, PR-proven gates, areas and owners, claims, Beads sync ([guide](../guides/team.md)) |
 
-## gin-workflow: setup and maintenance
+## gin: setup and maintenance
 
 | Skill | Purpose |
 |---|---|
@@ -48,11 +48,11 @@ Stages load these when needed; you can also invoke them directly.
 | `beads-migration` | Move a repository's `.beads` directory into `~/gin-beads/<repo>` and symlink it back |
 | `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics; reconcile both on re-run; with the SDD layout each epic carries `Capabilities:`; `--milestone <id>` plans a dated milestone |
 
-## gin-workflow: documentation
+## gin: documentation
 
 | Skill | Purpose |
 |---|---|
-| `write-doc` | Write or update a standalone document (README, runbook or guide, ADR, changelog) from its template, and check it with `gin-workflow docs check` |
+| `write-doc` | Write or update a standalone document (README, runbook or guide, ADR, changelog) from its template, and check it with `gin docs check` |
 | `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing, and a glossary of non-English business terms) from repository evidence, or reground existing pages against the code, on request only |
 
 ## gin-qa (optional add-on)
@@ -104,7 +104,7 @@ Which model and effort each stage needs is in [Using AI effectively](../guides/a
 `setup` (Tech Lead, once):
 
 ```text
-/gin-workflow:setup
+/gin:setup
 Stage: brownfield. Shape: fullstack. Monorepo: yes.
 Directories: legacy/ (Struts, subtree), services/api/ (Maven), apps/web/ (npm), qa/.
 ```
@@ -112,7 +112,7 @@ Directories: legacy/ (Struts, subtree), services/api/ (Maven), apps/web/ (npm), 
 `team-setup` as lead:
 
 ```text
-/gin-workflow:team-setup
+/gin:team-setup
 Host: github. Commit convention: conventional.
 Members: lan@example.com pm; an@example.com ba; binh@example.com be_lead; em@example.com and dung@example.com be_dev; hoa@example.com fe_dev; chi@example.com qe.
 Areas: legacy legacy/**, api services/api/**, web apps/web/**, qa qa/**, each led by be_lead.
@@ -123,7 +123,7 @@ Permissions: milestone [pm].
 `team-setup` as member:
 
 ```text
-/gin-workflow:team-setup
+/gin:team-setup
 I am a member. My git email is <email>.
 ```
 
@@ -132,14 +132,14 @@ I am a member. My git email is <email>.
 `tech-doc`:
 
 ```text
-/gin-workflow:tech-doc whole repository
+/gin:tech-doc whole repository
 Entry points: web.xml and the Struts config. Database: Oracle. First modules to replace: catalog, cart, checkout.
 ```
 
 `roadmap` (Lan, on a Premium seat):
 
 ```text
-/gin-workflow:roadmap Goal: replace the catalog, cart and checkout JSP flows with a Spring Boot API and a React SPA within two quarters. Constraints: the Oracle schema stays; no downtime. Non-goals: reporting screens.
+/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with a Spring Boot API and a React SPA within two quarters. Constraints: the Oracle schema stays; no downtime. Non-goals: reporting screens.
 Team: 7 members. Premium seats: lan, binh. Standard seats: an, em, dung, hoa, chi.
 Areas: legacy, api, web, qa. Epics must split into single-area tracks.
 ```
@@ -147,7 +147,7 @@ Areas: legacy, api, web, qa. Epics must split into single-area tracks.
 `roadmap --milestone`:
 
 ```text
-/gin-workflow:roadmap --milestone <milestone-id>
+/gin:roadmap --milestone <milestone-id>
 Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first.
 ```
 
@@ -156,14 +156,14 @@ Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick on
 `discuss` (An):
 
 ```text
-/gin-workflow:discuss <epic-id>
+/gin:discuss <epic-id>
 Replace the catalog JSP flow. Describe the legacy edge cases and validation rules, give an explicit REST contract per endpoint, and state what is out of scope.
 ```
 
 `plan` (Binh, on a Premium seat):
 
 ```text
-/gin-workflow:plan
+/gin:plan
 Split the epic into single-area tracks, each with Area, Owner, Provider role, Model, Effort, and Files.
 Track 1: Area qa, Owner chi@example.com, Provider role general, Files: Create qa/cases/catalog/**. Cases for the catalog capability, one file per case.
 Track 2: Area api, Owner em@example.com, Provider role backend, Files: Create services/api/... Spring Boot API, facade, and parity tests.
@@ -171,20 +171,20 @@ Track 3: Area web, Owner hoa@example.com, Provider role frontend, Files: Create 
 Track 4: Area web, Owner hoa@example.com, Dependencies: Track 2, Track 3, Files: Modify apps/web/... Replace the mocks with real API calls.
 Track 5: Area legacy, Owner binh@example.com, Dependencies: Track 2, Files: Modify legacy/... Router cutover to the facade, opus and high.
 Track 6: Area qa, Owner chi@example.com, Dependencies: Track 1, Track 4, Track 5, Provider role general, Files: Create qa/e2e/catalog/... API tests, E2E, manual runs, and the HTML report.
-Bounded tracks run at sonnet and medium or haiku and low. Check the plan with gin-workflow team check-plan.
+Bounded tracks run at sonnet and medium or haiku and low. Check the plan with gin team check-plan.
 ```
 
 `orchestrate`:
 
 ```text
-/gin-workflow:orchestrate
-Create one track bead per track, including the QA tracks. Members claim them with gin-workflow team claim.
+/gin:orchestrate
+Create one track bead per track, including the QA tracks. Members claim them with gin team claim.
 ```
 
 `execute`:
 
 ```text
-/gin-workflow:execute <track-bead-id>
+/gin:execute <track-bead-id>
 Work test-first inside the track's Files. Stop and tell me if a change would leave the track's area.
 ```
 
@@ -234,13 +234,13 @@ Base URL: <url>. Accounts come from environment variables <names>. Flows: browse
 `ship`:
 
 ```text
-/gin-workflow:ship
+/gin:ship
 Epic: <epic-id>. Open a pull request; do not merge yet.
 ```
 
 `report`:
 
 ```text
-/gin-workflow:report --milestone <milestone-id>
+/gin:report --milestone <milestone-id>
 Show cost and quality signals per epic.
 ```

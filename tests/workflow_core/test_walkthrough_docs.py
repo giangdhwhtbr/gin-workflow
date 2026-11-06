@@ -1,4 +1,4 @@
-"""The walkthrough cites only documented gin-workflow commands."""
+"""The walkthrough cites only documented gin commands."""
 import re
 import unittest
 from pathlib import Path
@@ -13,13 +13,13 @@ BD_PASSTHROUGH = {"graph", "dep"}
 
 
 def undocumented(cli, text):
-    """Cited `gin-workflow <command> <sub>` tokens that cli.md does not document."""
+    """Cited `gin <command> <sub>` tokens that cli.md does not document."""
     missing = []
-    for token in sorted(set(re.findall(r"gin-workflow ((?:[a-z]+(?: [a-z-]+)?))", text))):
+    for token in sorted(set(re.findall(r"\bgin ((?:[a-z]+(?: [a-z-]+)?))", text))):
         command, _, sub = token.partition(" ")
-        match = re.search(rf"^## `gin-workflow {command}`.*?(?=^## |\Z)", cli, re.M | re.S)
+        match = re.search(rf"^## `gin {command}`.*?(?=^## |\Z)", cli, re.M | re.S)
         section = match.group(0) if match else ""
-        documented = f"gin-workflow {token}" in cli or (
+        documented = f"gin {token}" in cli or (
             bool(sub) and re.search(rf"^\| `{re.escape(sub)}[` ]", section, re.M) is not None
         ) or (command == "task" and (f"`{sub}`" in section or sub in BD_PASSTHROUGH))
         if not documented:

@@ -1,8 +1,8 @@
 # Tham chiếu skill
 
-Mỗi skill cũng là một slash command: `/gin-workflow:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, và `/gin-orchestrator:<name>` cho add-on worker harness. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `report` là `@gin-workflow-report`, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); các stage của lifecycle vẫn chạy qua CLI `gin-workflow`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
+Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, và `/gin-orchestrator:<name>` cho add-on worker harness. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `report` là `@gin-workflow-report`, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); các stage của lifecycle vẫn chạy qua CLI `gin-workflow`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
 
-## gin-workflow: các stage của lifecycle { #gin-workflow-lifecycle-stages }
+## gin: các stage của lifecycle { #gin-workflow-lifecycle-stages }
 
 Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage kế tiếp giúp bạn.
 
@@ -15,7 +15,7 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `review` | Yêu cầu hoặc thực hiện một review độc lập được ghi trong review ledger | ledger được duyệt |
 | `ship` | Đưa ra các lựa chọn merge, PR, giữ hoặc bỏ; chạy lựa chọn được chọn; đóng bead và ledger | `shipped` |
 
-## gin-workflow: điểm vào và trạng thái { #gin-workflow-entry-points-and-status }
+## gin: điểm vào và trạng thái { #gin-workflow-entry-points-and-status }
 
 | Skill | Mục đích |
 |---|---|
@@ -25,21 +25,21 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `report` | Báo cáo mức sử dụng AI theo bead, epic hoặc milestone (`--milestone <id>`: token, chi phí, tín hiệu chất lượng) mà không thay đổi gì |
 | `setup` | Cấu hình repository lần đầu và bảo trì setup khi được yêu cầu |
 
-## gin-workflow: các skill hỗ trợ { #gin-workflow-supporting-skills }
+## gin: các skill hỗ trợ { #gin-workflow-supporting-skills }
 
 Các stage nạp những skill này khi cần; bạn cũng có thể gọi trực tiếp.
 
 | Skill | Mục đích |
 |---|---|
-| `gin-debugging` | Tìm nguyên nhân gốc của lỗi, test thất bại hoặc build thất bại trước khi sửa |
-| `gin-review-response` | Xử lý các phát hiện của review: kiểm chứng từng cái, rồi sửa, phản biện, hoãn hoặc làm rõ trong ledger |
-| `gin-worktrees` | Phát hiện hoặc tạo một git worktree cô lập và kiểm tra baseline test sạch |
-| `gin-parallel-agents` | Làm nhiều task độc lập đồng thời, mỗi domain một agent có phạm vi rõ |
-| `gin-knowledge` | Ghi lại các quyết định và bài học lâu dài, và đối chiếu tri thức dự án khi ship |
-| `gin-sdd` | Quy tắc stage cho `artifacts.layout: sdd`: change folder, REQ-ID, trace, spec review, archive ([hướng dẫn](../guides/sdd.md)) |
-| `gin-team` | Quy tắc stage cho chế độ nhóm: danh tính, cổng được chứng minh bằng PR, khu vực và owner, claim, đồng bộ Beads ([hướng dẫn](../guides/team.md)) |
+| `debugging` | Tìm nguyên nhân gốc của lỗi, test thất bại hoặc build thất bại trước khi sửa |
+| `review-response` | Xử lý các phát hiện của review: kiểm chứng từng cái, rồi sửa, phản biện, hoãn hoặc làm rõ trong ledger |
+| `worktrees` | Phát hiện hoặc tạo một git worktree cô lập và kiểm tra baseline test sạch |
+| `parallel-agents` | Làm nhiều task độc lập đồng thời, mỗi domain một agent có phạm vi rõ |
+| `learn` | Ghi lại các quyết định và bài học lâu dài, và đối chiếu tri thức dự án khi ship |
+| `sdd` | Quy tắc stage cho `artifacts.layout: sdd`: change folder, REQ-ID, trace, spec review, archive ([hướng dẫn](../guides/sdd.md)) |
+| `team` | Quy tắc stage cho chế độ nhóm: danh tính, cổng được chứng minh bằng PR, khu vực và owner, claim, đồng bộ Beads ([hướng dẫn](../guides/team.md)) |
 
-## gin-workflow: setup và bảo trì { #gin-workflow-setup-and-maintenance }
+## gin: setup và bảo trì { #gin-workflow-setup-and-maintenance }
 
 | Skill | Mục đích |
 |---|---|
@@ -48,11 +48,11 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `beads-migration` | Chuyển thư mục `.beads` của repository vào `~/gin-beads/<repo>` và tạo symlink ngược lại |
 | `roadmap` | Biến bộ tech-doc hoặc một product brief thành roadmap đã xác nhận cùng các epic Beads phụ thuộc nhau; đối chiếu cả hai khi chạy lại; với layout SDD mỗi epic mang dòng `Capabilities:`; `--milestone <id>` lập kế hoạch cho một milestone có ngày |
 
-## gin-workflow: tài liệu { #gin-workflow-documentation }
+## gin: tài liệu { #gin-workflow-documentation }
 
 | Skill | Mục đích |
 |---|---|
-| `write-doc` | Viết hoặc cập nhật một tài liệu độc lập (README, runbook hoặc guide, ADR, changelog) từ template của nó, và kiểm tra bằng `gin-workflow docs check` |
+| `write-doc` | Viết hoặc cập nhật một tài liệu độc lập (README, runbook hoặc guide, ADR, changelog) từ template của nó, và kiểm tra bằng `gin docs check` |
 | `tech-doc` | Viết tài liệu kỹ thuật (tính năng, API, stack, kiến trúc, quy ước, testing, và bảng thuật ngữ cho các thuật ngữ nghiệp vụ không phải tiếng Anh) từ bằng chứng trong repository, hoặc đối chiếu lại các trang hiện có với code, chỉ khi được yêu cầu |
 
 ## gin-qa (add-on tùy chọn) { #gin-qa-optional-add-on }
@@ -104,7 +104,7 @@ Mỗi stage cần model và effort nào được nêu trong [Dùng AI hiệu qu�
 `setup` (Tech Lead, một lần):
 
 ```text
-/gin-workflow:setup
+/gin:setup
 Stage: brownfield. Shape: fullstack. Monorepo: yes.
 Directories: legacy/ (Struts, subtree), services/api/ (Maven), apps/web/ (npm), qa/.
 ```
@@ -112,7 +112,7 @@ Directories: legacy/ (Struts, subtree), services/api/ (Maven), apps/web/ (npm), 
 `team-setup` với tư cách lead:
 
 ```text
-/gin-workflow:team-setup
+/gin:team-setup
 Host: github. Commit convention: conventional.
 Members: lan@example.com pm; an@example.com ba; binh@example.com be_lead; em@example.com and dung@example.com be_dev; hoa@example.com fe_dev; chi@example.com qe.
 Areas: legacy legacy/**, api services/api/**, web apps/web/**, qa qa/**, each led by be_lead.
@@ -123,7 +123,7 @@ Permissions: milestone [pm].
 `team-setup` với tư cách thành viên:
 
 ```text
-/gin-workflow:team-setup
+/gin:team-setup
 I am a member. My git email is <email>.
 ```
 
@@ -132,14 +132,14 @@ I am a member. My git email is <email>.
 `tech-doc`:
 
 ```text
-/gin-workflow:tech-doc whole repository
+/gin:tech-doc whole repository
 Entry points: web.xml and the Struts config. Database: Oracle. First modules to replace: catalog, cart, checkout.
 ```
 
 `roadmap` (Lan, trên seat Premium):
 
 ```text
-/gin-workflow:roadmap Goal: replace the catalog, cart and checkout JSP flows with a Spring Boot API and a React SPA within two quarters. Constraints: the Oracle schema stays; no downtime. Non-goals: reporting screens.
+/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with a Spring Boot API and a React SPA within two quarters. Constraints: the Oracle schema stays; no downtime. Non-goals: reporting screens.
 Team: 7 members. Premium seats: lan, binh. Standard seats: an, em, dung, hoa, chi.
 Areas: legacy, api, web, qa. Epics must split into single-area tracks.
 ```
@@ -147,7 +147,7 @@ Areas: legacy, api, web, qa. Epics must split into single-area tracks.
 `roadmap --milestone`:
 
 ```text
-/gin-workflow:roadmap --milestone <milestone-id>
+/gin:roadmap --milestone <milestone-id>
 Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first.
 ```
 
@@ -156,14 +156,14 @@ Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick on
 `discuss` (An):
 
 ```text
-/gin-workflow:discuss <epic-id>
+/gin:discuss <epic-id>
 Replace the catalog JSP flow. Describe the legacy edge cases and validation rules, give an explicit REST contract per endpoint, and state what is out of scope.
 ```
 
 `plan` (Binh, trên seat Premium):
 
 ```text
-/gin-workflow:plan
+/gin:plan
 Split the epic into single-area tracks, each with Area, Owner, Provider role, Model, Effort, and Files.
 Track 1: Area qa, Owner chi@example.com, Provider role general, Files: Create qa/cases/catalog/**. Cases for the catalog capability, one file per case.
 Track 2: Area api, Owner em@example.com, Provider role backend, Files: Create services/api/... Spring Boot API, facade, and parity tests.
@@ -171,20 +171,20 @@ Track 3: Area web, Owner hoa@example.com, Provider role frontend, Files: Create 
 Track 4: Area web, Owner hoa@example.com, Dependencies: Track 2, Track 3, Files: Modify apps/web/... Replace the mocks with real API calls.
 Track 5: Area legacy, Owner binh@example.com, Dependencies: Track 2, Files: Modify legacy/... Router cutover to the facade, opus and high.
 Track 6: Area qa, Owner chi@example.com, Dependencies: Track 1, Track 4, Track 5, Provider role general, Files: Create qa/e2e/catalog/... API tests, E2E, manual runs, and the HTML report.
-Bounded tracks run at sonnet and medium or haiku and low. Check the plan with gin-workflow team check-plan.
+Bounded tracks run at sonnet and medium or haiku and low. Check the plan with gin team check-plan.
 ```
 
 `orchestrate`:
 
 ```text
-/gin-workflow:orchestrate
-Create one track bead per track, including the QA tracks. Members claim them with gin-workflow team claim.
+/gin:orchestrate
+Create one track bead per track, including the QA tracks. Members claim them with gin team claim.
 ```
 
 `execute`:
 
 ```text
-/gin-workflow:execute <track-bead-id>
+/gin:execute <track-bead-id>
 Work test-first inside the track's Files. Stop and tell me if a change would leave the track's area.
 ```
 
@@ -234,13 +234,13 @@ Base URL: <url>. Accounts come from environment variables <names>. Flows: browse
 `ship`:
 
 ```text
-/gin-workflow:ship
+/gin:ship
 Epic: <epic-id>. Open a pull request; do not merge yet.
 ```
 
 `report`:
 
 ```text
-/gin-workflow:report --milestone <milestone-id>
+/gin:report --milestone <milestone-id>
 Show cost and quality signals per epic.
 ```
