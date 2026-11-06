@@ -192,7 +192,8 @@ assert_contains "plugins/gin-workflow/dist/claude-code/skills/execute/SKILL.md" 
 assert_contains "plugins/gin-workflow/dist/claude-code/skills/progress/SKILL.md" "list --parent <milestone-id>"
 assert_not_contains "plugins/gin-workflow/dist/claude-code/skills/progress/SKILL.md" "sprint:"
 
-./install.sh --platform claude --plugin gin-qa --dry-run >"$output_file" 2>&1
+# A minimal PATH hides a gin the host has installed, so the warning shows.
+PATH="/usr/bin:/bin" ./install.sh --platform claude --plugin gin-qa --dry-run >"$output_file" 2>&1
 
 assert_contains "$output_file" "Warning: gin is not installed; gin-qa needs it (./install.sh --plugin gin-workflow)."
 assert_contains "$output_file" "Processing plugin: gin-qa"
