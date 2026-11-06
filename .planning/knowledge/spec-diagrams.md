@@ -13,7 +13,7 @@ Epic `gin-workflow-ycg8` (2026-11-05). With the SDD layout, living specs held on
 **Consequences**
 - A change in flight that adds or modifies requirements without an activity diagram fails `specs lint --change` and `specs archive` after upgrade.
 - Known test gaps left open: archive stopping on a missing activity diagram, a project template without `## Diagrams`, and `startswith` accepting `graphviz` as `graph`.
-- The SRS export (`gin-workflow-bel0`) reads `diagrams/` later. Diagrams sit next to assets under the capability, as in [spec-asset-iterations](spec-asset-iterations.md) and [ba-capability-placement](ba-capability-placement.md).
+- The SRS export ([srs-export](srs-export.md)) renders `diagrams/` in each chapter. Diagrams sit next to assets under the capability, as in [spec-asset-iterations](spec-asset-iterations.md) and [ba-capability-placement](ba-capability-placement.md).
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/specs.py` (`lint_diagrams`, `lint_change`), `plugins/gin-workflow/src/scripts/workflow_core/specs_archive.py`, `plugins/gin-workflow/src/templates/activity.md`, `state.md`, `spec.md`, `plugins/gin-workflow/src/skills/gin-sdd/SKILL.md`, `docs/guides/sdd.md`
