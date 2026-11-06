@@ -7,6 +7,7 @@ import contextlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 from typing import Any
 
@@ -101,15 +102,22 @@ def call_count(dir: Path | str, command: str = "version") -> int:
 
 @contextlib.contextmanager
 def on_path(dir: Path | str) -> Iterator[Path]:
-    """Patch PATH and clear orchestrator_client.status cache."""
+    """Patch PATH and clear orchestrator_client.status cache.
+
+    gin-orchestrator resolves through PATH only, so a host's executables.local.yaml
+    in this checkout cannot shadow the fake.
+    """
     if hasattr(orchestrator_client, "status") and hasattr(orchestrator_client.status, "cache_clear"):
         orchestrator_client.status.cache_clear()
     old_path = os.environ.get("PATH", "")
+    old_tool = orchestrator_client.tool
     target = Path(dir).resolve()
     os.environ["PATH"] = f"{target}{os.pathsep}{old_path}"
+    orchestrator_client.tool = shutil.which
     try:
         yield target
     finally:
+        orchestrator_client.tool = old_tool
         os.environ["PATH"] = old_path
         if hasattr(orchestrator_client, "status") and hasattr(orchestrator_client.status, "cache_clear"):
             orchestrator_client.status.cache_clear()

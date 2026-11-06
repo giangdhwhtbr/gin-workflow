@@ -45,9 +45,11 @@ class SetupCliTests(unittest.TestCase):
 
     def run_cli(self, repository: Path, *arguments: str,
                 env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        # Run outside this checkout: executable lookups follow the cwd, and a host's
+        # executables.local.yaml here would shadow the fakes on PATH.
         return subprocess.run(
             [sys.executable, str(LAUNCHER), "setup", *arguments, "--repository", str(repository), "--format", "json"],
-            cwd=ROOT,
+            cwd=tempfile.gettempdir(),
             text=True,
             capture_output=True,
             check=False,
