@@ -2,7 +2,7 @@
 
 Theo mặc định (`artifacts.layout: legacy`), mỗi thay đổi có một spec ghi ngày trong `.planning/specs/` và một plan trong `.planning/plans/`, và chúng nằm yên nơi được ghi. Layout SDD thay vào đó giữ các **living spec**: một spec cho mỗi capability luôn mô tả hành vi hiện tại, với các requirement được đánh số mà test và bead trỏ tới. Mỗi thay đổi đề xuất một delta cho các spec đó, và ship sẽ merge delta vào.
 
-Setup đề xuất `artifacts.layout: sdd` cho dự án greenfield. Một repository có sẵn chuyển đổi bằng `/gin-workflow:migrate-specs`, lệnh này di chuyển các spec và plan trong `.planning` rồi đặt layout; `gin-workflow setup doctor` gợi ý nó khi có spec legacy.
+Setup đề xuất `artifacts.layout: sdd` cho dự án greenfield. Một repository có sẵn chuyển đổi bằng `/gin:migrate-specs`, lệnh này di chuyển các spec và plan trong `.planning` rồi đặt layout; `gin setup doctor` gợi ý nó khi có spec legacy.
 
 ```mermaid
 flowchart LR
@@ -47,10 +47,10 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin-workflow specs next-id <cap>`.
+- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin specs next-id <cap>`.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
-- Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin-workflow specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
-- `gin-workflow specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `specs-README.md`).
+- Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
+- `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `specs-README.md`).
 
 ## Hình ảnh và mockup { #images-and-mockups }
 
@@ -69,7 +69,7 @@ docs/specs/reports/assets/
     report-filter.png
 ```
 
-Đặt tên thư mục theo ngày ISO nhận đầu vào. Theo quy ước, một đợt requirements, thay đổi hay thiết kế mới thì vào một thư mục mới và thư mục cũ không bao giờ bị sửa, nên các thư mục ghi lại lịch sử đầu vào của capability. Với project legacy không có design spec, đặt screenshot của feature hiện có trong `<date>/legacy/` và mô tả hành vi hiện tại của nó trong `description.md` của thư mục đó với `Kind: legacy`. Mọi `description.md` bắt đầu từ `gin-workflow specs template iteration.md`. `specs lint` báo thư mục có tên ngày mà thiếu `description.md`; file phẳng trong `assets/` và thư mục không mang tên ngày ISO vẫn hợp lệ và không bị kiểm tra.
+Đặt tên thư mục theo ngày ISO nhận đầu vào. Theo quy ước, một đợt requirements, thay đổi hay thiết kế mới thì vào một thư mục mới và thư mục cũ không bao giờ bị sửa, nên các thư mục ghi lại lịch sử đầu vào của capability. Với project legacy không có design spec, đặt screenshot của feature hiện có trong `<date>/legacy/` và mô tả hành vi hiện tại của nó trong `description.md` của thư mục đó với `Kind: legacy`. Mọi `description.md` bắt đầu từ `gin specs template iteration.md`. `specs lint` báo thư mục có tên ngày mà thiếu `description.md`; file phẳng trong `assets/` và thư mục không mang tên ngày ISO vẫn hợp lệ và không bị kiểm tra.
 
 `specs archive` sao chép văn bản của từng khối requirement vào `docs/specs/<capability>/spec.md`, nên hãy viết đường dẫn ảnh tương đối so với file đó (`assets/2026-05-11/report-list.png`). Trong `02-spec-delta.md` của thư mục change, các liên kết đó không resolve được cho tới khi change ship.
 
@@ -85,13 +85,13 @@ docs/specs/orders/
     order-state.md         stateDiagram-v2: one entity's states and transitions
 ```
 
-Bắt đầu từ `gin-workflow specs template activity.md` và `state.md`. Discuss sửa chúng trực tiếp trên spec branch, như với asset: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `03-design.md` của change trích dẫn chúng trong `## Data Flow` và `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`, nên chúng được commit và review cùng change. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `diagrams/` dưới `## Diagrams`.
+Bắt đầu từ `gin specs template activity.md` và `state.md`. Discuss sửa chúng trực tiếp trên spec branch, như với asset: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `03-design.md` của change trích dẫn chúng trong `## Data Flow` và `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`, nên chúng được commit và review cùng change. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `diagrams/` dưới `## Diagrams`.
 
 `specs lint` báo `*-activity.md` không có khối mermaid bắt đầu bằng `flowchart` hoặc `graph`, và `*-state.md` không có khối bắt đầu bằng `stateDiagram`; các file khác trong `diagrams/` không bị kiểm tra. `specs lint --change` còn báo mỗi capability có block `ADDED` hoặc `MODIFIED` mà không có `*-activity.md`. Khi nào một entity cần state diagram là quy ước mà lint không kiểm tra.
 
 ## Xuất SRS { #exporting-an-srs }
 
-`gin-workflow specs export <capability>` ghi living spec của capability vào một file HTML, `srs-<capability>.html` ở gốc repository. `specs export --all` ghi mọi capability vào `srs.html`, mỗi capability một chương, sắp theo tên. `--out <file>` ghi ra chỗ khác trong repository. File là file sinh ra, nên mỗi lần chạy sẽ ghi đè nó.
+`gin specs export <capability>` ghi living spec của capability vào một file HTML, `srs-<capability>.html` ở gốc repository. `specs export --all` ghi mọi capability vào `srs.html`, mỗi capability một chương, sắp theo tên. `--out <file>` ghi ra chỗ khác trong repository. File là file sinh ra, nên mỗi lần chạy sẽ ghi đè nó.
 
 Mỗi chương gồm `## Purpose` của capability, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
 
@@ -99,7 +99,7 @@ File tải Mermaid từ jsDelivr ở một phiên bản cố định để vẽ 
 
 ## Các stage thay đổi thế nào { #how-the-stages-change }
 
-Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id <epic>`. Skill `gin-sdd` chứa các bước chính xác.
+Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id <epic>`. Skill `sdd` chứa các bước chính xác.
 
 | Stage | Với layout SDD |
 |---|---|
@@ -113,8 +113,8 @@ Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id
 
 ## Chuyển đổi { #migrating }
 
-`/gin-workflow:migrate-specs` chạy `gin-workflow specs migrate --dry-run`, hiển thị các thao tác di chuyển, và khi được duyệt thì chuyển đổi trên branch `chore/migrate-specs`. Thay đổi chưa commit luôn làm nó dừng; một workflow đã duyệt nhưng chưa ship hoặc một worktree đang mở cũng làm nó dừng trừ khi bạn chấp nhận `--force`. Sau đó nó có thể gieo các living spec từng capability một, chỉ mô tả hành vi hiện tại, dùng đầu ra `tech-doc` khi `docs/codebase` còn trống.
+`/gin:migrate-specs` chạy `gin specs migrate --dry-run`, hiển thị các thao tác di chuyển, và khi được duyệt thì chuyển đổi trên branch `chore/migrate-specs`. Thay đổi chưa commit luôn làm nó dừng; một workflow đã duyệt nhưng chưa ship hoặc một worktree đang mở cũng làm nó dừng trừ khi bạn chấp nhận `--force`. Sau đó nó có thể gieo các living spec từng capability một, chỉ mô tả hành vi hiện tại, dùng đầu ra `tech-doc` khi `docs/codebase` còn trống.
 
 ## Lệnh { #commands }
 
-Xem [`gin-workflow specs`](../reference/cli.md#gin-workflow-specs) cho mọi lệnh và exit code của chúng. [Add-on QA](qa.md) dựng test case từ cùng các REQ-ID này.
+Xem [`gin specs`](../reference/cli.md#gin-specs) cho mọi lệnh và exit code của chúng. [Add-on QA](qa.md) dựng test case từ cùng các REQ-ID này.

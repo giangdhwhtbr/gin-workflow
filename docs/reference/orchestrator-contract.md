@@ -15,7 +15,7 @@ version --json
 ```
 
 ```json
-{"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=2.0,<3",
+{"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=3.0,<4",
  "capabilities": ["health", "models", "routes", "reviewer", "doctor", "dispatch"]}
 ```
 
@@ -53,13 +53,13 @@ An unknown provider prints `[]`.
 routes resolve --workflow-id W --tracks FILE --main-harness H [--repository DIR] --json
 ```
 
-`FILE` is a JSON list of tracks, each with `task_id`, `provider_role`, `model`, and `effort`, the same fields as for [`gin-workflow routes resolve`](cli.md#gin-workflow-routes). The command checks every model and effort against the catalog of `--main-harness`. It then resolves every track against `orchestrator.roles` (merged over `routing.roles`) and the executables in `.agent-workflow/orchestrator.local.yaml`. A candidate on the main harness keeps the track's route; any other candidate gets it mapped by rank ([rank mapping](../orchestrator/routing.md#rank-mapping)). It writes nothing; gin-workflow writes the assignment manifest.
+`FILE` is a JSON list of tracks, each with `task_id`, `provider_role`, `model`, and `effort`, the same fields as for [`gin routes resolve`](cli.md#gin-routes). The command checks every model and effort against the catalog of `--main-harness`. It then resolves every track against `orchestrator.roles` (merged over `routing.roles`) and the executables in `.agent-workflow/orchestrator.local.yaml`. A candidate on the main harness keeps the track's route; any other candidate gets it mapped by rank ([rank mapping](../orchestrator/routing.md#rank-mapping)). It writes nothing; gin-workflow writes the assignment manifest.
 
 ```json
 {"workflow_id": "W", "main_harness": "H", "routes": [], "diagnostics": []}
 ```
 
-Each entry of `routes` is the assignment manifest entry of one track (`task_id`, `requested`, `resolved`, `fallback`, `escalations`). A track that cannot be resolved adds a string to `diagnostics` (`<task_id>.<field>: <message>`) and `routes` is then `[]`. The exit code stays 0: a non-zero exit means the orchestrator itself failed, and gin-workflow then falls back to the main harness. `gin-workflow routes resolve` exits 2 when `diagnostics` is not empty.
+Each entry of `routes` is the assignment manifest entry of one track (`task_id`, `requested`, `resolved`, `fallback`, `escalations`). A track that cannot be resolved adds a string to `diagnostics` (`<task_id>.<field>: <message>`) and `routes` is then `[]`. The exit code stays 0: a non-zero exit means the orchestrator itself failed, and gin-workflow then falls back to the main harness. `gin routes resolve` exits 2 when `diagnostics` is not empty.
 
 ## `reviewer`
 
@@ -95,7 +95,7 @@ configure --set K=V... [--local-set K=V...] [--dry-run] [--approve] [--repositor
 {"status": "configured", "actions": ["update .agent-workflow/config.yaml", "refresh generated configuration"]}
 ```
 
-`--set` keys must start with `orchestrator.`; anything else exits 2 and writes nothing. `--local-set` keys edit `.agent-workflow/orchestrator.local.yaml`. The command validates the candidate configuration first. `--dry-run` prints the actions (`status: would_configure`) and writes nothing. Without `--dry-run`, `--approve` is required. The command first runs `gin-workflow setup configure --set ... --approve`, which writes the portable keys and refreshes the effective configuration. Only after that succeeds does it write `orchestrator.local.yaml` atomically and add it to `.agent-workflow/.gitignore`, so a rejected portable change leaves the local file untouched.
+`--set` keys must start with `orchestrator.`; anything else exits 2 and writes nothing. `--local-set` keys edit `.agent-workflow/orchestrator.local.yaml`. The command validates the candidate configuration first. `--dry-run` prints the actions (`status: would_configure`) and writes nothing. Without `--dry-run`, `--approve` is required. The command first runs `gin setup configure --set ... --approve`, which writes the portable keys and refreshes the effective configuration. Only after that succeeds does it write `orchestrator.local.yaml` atomically and add it to `.agent-workflow/.gitignore`, so a rejected portable change leaves the local file untouched.
 
 ## `dispatch`
 
@@ -113,9 +113,9 @@ Dispatches a worker task through the provider CLI. The command resolves route af
 
 Errors exit 2 with `error: <message>` on stderr, except the launcher's own three, which exit 1:
 
-- `error: gin-workflow is not on PATH; install it with ./install.sh --plugin gin-orchestrator`
-- `error: gin-workflow paths failed; reinstall with ./install.sh --plugin gin-orchestrator`
-- `error: gin-workflow facade EXT_VERSION <n>; this gin-orchestrator supports 2`
+- `error: gin is not on PATH; install it with ./install.sh --plugin gin-orchestrator`
+- `error: gin paths failed; reinstall with ./install.sh --plugin gin-orchestrator`
+- `error: gin facade EXT_VERSION <n>; this gin-orchestrator supports 2`
 
 ## Lookup and mismatch rule
 

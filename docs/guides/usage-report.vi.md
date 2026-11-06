@@ -1,6 +1,6 @@
 # Báo cáo mức sử dụng AI { #ai-usage-report }
 
-`gin-workflow usage` báo cáo công việc AI trên một bead hoặc một epic tốn bao nhiêu và diễn ra thế nào. Nó đọc các log harness có sẵn trên máy đã làm việc và hiển thị token cùng chi phí ước tính theo từng model và từng stage của vòng đời, bên cạnh các tín hiệu chất lượng. Nó chỉ đọc file cục bộ và cần Beads.
+`gin usage` báo cáo công việc AI trên một bead hoặc một epic tốn bao nhiêu và diễn ra thế nào. Nó đọc các log harness có sẵn trên máy đã làm việc và hiển thị token cùng chi phí ước tính theo từng model và từng stage của vòng đời, bên cạnh các tín hiệu chất lượng. Nó chỉ đọc file cục bộ và cần Beads.
 
 ## Những gì được đo { #what-is-measured }
 
@@ -22,7 +22,7 @@ Các tín hiệu chất lượng đến từ Beads và review ledger:
 
 ## Khi nào nó chạy { #when-it-runs }
 
-`execute` chạy `gin-workflow usage collect --bead <epic> --best-effort` sau mỗi lần worker trả về và `--bead <track>` trước khi đóng từng track, và `ship` chạy nó cho epic trước khi đóng. Bạn có thể tự chạy bất cứ lúc nào, từ main checkout hoặc bất kỳ worktree nào của nó; nó tính lại bản tóm tắt từ đầu, nên chạy hai lần cho cùng một kết quả. Với `--best-effort`, một lỗi trở thành cảnh báo và không bao giờ chặn việc đóng một bead.
+`execute` chạy `gin usage collect --bead <epic> --best-effort` sau mỗi lần worker trả về và `--bead <track>` trước khi đóng từng track, và `ship` chạy nó cho epic trước khi đóng. Bạn có thể tự chạy bất cứ lúc nào, từ main checkout hoặc bất kỳ worktree nào của nó; nó tính lại bản tóm tắt từ đầu, nên chạy hai lần cho cùng một kết quả. Với `--best-effort`, một lỗi trở thành cảnh báo và không bao giờ chặn việc đóng một bead.
 
 ## Mức sử dụng được quy cho ai { #how-usage-is-attributed }
 
@@ -70,13 +70,13 @@ usage:
 
 Bản tóm tắt của một track không có khối budget; ngân sách thuộc về epic.
 
-Ở `stop`, `gin-workflow routes dispatch` cho epic in `{"status": "over_budget", ...}`, không dispatch gì, và thoát với mã 3. Nâng `usage.budget_usd` cho phép lần dispatch kế tiếp tiến hành mà không cần collect lại. `unenforceable` không bao giờ dừng một lần dispatch.
+Ở `stop`, `gin routes dispatch` cho epic in `{"status": "over_budget", ...}`, không dispatch gì, và thoát với mã 3. Nâng `usage.budget_usd` cho phép lần dispatch kế tiếp tiến hành mà không cần collect lại. `unenforceable` không bao giờ dừng một lần dispatch.
 
 ## Đọc báo cáo { #reading-it }
 
 ```bash
-gin-workflow usage report --epic <epic>
-gin-workflow usage report --since 2026-10-01 --format json
+gin usage report --epic <epic>
+gin usage report --since 2026-10-01 --format json
 ```
 
 Hoặc hỏi `/report`. Báo cáo văn bản liệt kê chi phí của từng bead, tổng theo model (token theo loại) và theo stage, các model chưa có giá, mức sử dụng unattributed, và các bead đã đóng nhưng chưa bao giờ được collect (`not collected`). `--format json` trả về đầy đủ các bản tóm tắt cho công cụ của riêng bạn.
@@ -88,4 +88,4 @@ Hoặc hỏi `/report`. Báo cáo văn bản liệt kê chi phí của từng be
 - Stage `review` bao trùm toàn bộ thời gian một review được mở, kể cả thời gian người triển khai làm việc khác trong lúc chờ.
 - Các session có thư mục làm việc nằm ngoài repository và các worktree của nó không được đếm.
 
-Xem [`gin-workflow usage`](../reference/cli.md#gin-workflow-usage) cho các tùy chọn và exit code.
+Xem [`gin usage`](../reference/cli.md#gin-usage) cho các tùy chọn và exit code.

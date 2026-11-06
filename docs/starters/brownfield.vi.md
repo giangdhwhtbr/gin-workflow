@@ -2,7 +2,7 @@
 
 Trang này theo chân một nhóm từ lúc "chúng tôi thừa hưởng một hệ thống legacy" tới khi milestone đầu tiên được ship và milestone kế tiếp được lập kế hoạch. Mỗi giai đoạn nêu ai chạy nó, prompt cần dán, nội dung đưa vào prompt, kết quả nhận được, cổng hoặc phê duyệt, và các lỗi cần tránh.
 
-Trong một codebase có sẵn, code thường là đặc tả duy nhất, nên ngăn regression là việc đặt lên đầu. Chiến lược hiện đại hóa ở đây (strangler fig, parity test, data migration) là quy ước mà nhóm của bạn tuân theo. `gin-workflow` chỉ cưỡng chế các khu vực của track (`team.areas`) và các requirement hash mà test case của `gin-qa` ghim lại.
+Trong một codebase có sẵn, code thường là đặc tả duy nhất, nên ngăn regression là việc đặt lên đầu. Chiến lược hiện đại hóa ở đây (strangler fig, parity test, data migration) là quy ước mà nhóm của bạn tuân theo. gin-workflow chỉ cưỡng chế các khu vực của track (`team.areas`) và các requirement hash mà test case của `gin-qa` ghim lại.
 
 ## Kịch bản { #the-scenario }
 
@@ -27,7 +27,7 @@ Nhóm có bảy người. Lan và Binh giữ hai seat Claude Team Premium, nên 
 | Hoa | `fe_dev` | [Developer](../roles.md#developer) | Công việc React SPA |
 | Chi | `qe` | [Tester](../roles.md#tester) | Test case, E2E, phê duyệt ship |
 
-Khối `team:` trong `.agent-workflow/config.yaml` (do `/gin-workflow:team-setup` ghi):
+Khối `team:` trong `.agent-workflow/config.yaml` (do `/gin:team-setup` ghi):
 
 ```yaml
 team:
@@ -54,7 +54,7 @@ team:
   permissions: {milestone: [pm]}
 ```
 
-Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Một cổng không bao giờ do tác giả của pull request duyệt, nên mỗi vai trò phê duyệt cần người giữ thứ hai. Lan không có `pm` thứ hai và An không có `ba` thứ hai, nên Binh duyệt pull request roadmap và spec của họ. Vì lý do tương tự, `ship` liệt kê `be_lead` bên cạnh `qe`: Binh duyệt các pull request track QA của chính Chi, và Chi duyệt của các developer. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin-workflow milestone`.
+Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Một cổng không bao giờ do tác giả của pull request duyệt, nên mỗi vai trò phê duyệt cần người giữ thứ hai. Lan không có `pm` thứ hai và An không có `ba` thứ hai, nên Binh duyệt pull request roadmap và spec của họ. Vì lý do tương tự, `ship` liệt kê `be_lead` bên cạnh `qe`: Binh duyệt các pull request track QA của chính Chi, và Chi duyệt của các developer. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
 
 ## Toàn cảnh luồng làm việc { #the-flow-at-a-glance }
 
@@ -84,7 +84,7 @@ git subtree add --prefix=legacy git@github.com:acme/shop-portal.git main
 mkdir -p services/api apps/web qa
 ```
 ```text
-/gin-workflow:setup
+/gin:setup
 ```
 Trả lời `stage: brownfield`, `shape: fullstack`, `monorepo: true`.
 
@@ -112,12 +112,12 @@ Setup chỉ phát hiện `packages` từ các JavaScript workspace. Với hỗn 
 
 **Prompt (Tech Lead)**
 ```text
-/gin-workflow:team-setup
+/gin:team-setup
 ```
 
 **Prompt (mỗi thành viên, sau khi pull branch đã merge)**
 ```text
-/gin-workflow:team-setup
+/gin:team-setup
 ```
 
 **Prompt (Chi, một lần)**
@@ -127,7 +127,7 @@ Setup chỉ phát hiện `packages` từ các JavaScript workspace. Với hỗn 
 
 Đưa vào prompt: bảy thành viên cùng git email và vai trò của họ, bốn khu vực cùng đường dẫn, và `permissions: {milestone: [pm]}` để chỉ PM thay đổi milestone. Với `/gin-qa:setup`: các loại case `api`, `e2e` và `manual`, và lệnh test của loại `api`.
 
-Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, chạy `gin-workflow team init` (thêm `--ci` cho một workflow CI), rồi bạn commit trên một branch, push và mở pull request. Hãy merge nó. Một thành viên trả lời với tư cách thành viên: nó kiểm tra `gin-workflow team whoami` tìm thấy `git config user.email` của bạn, cài commit-msg hook (`gin-workflow team hooks`), yêu cầu bạn đăng nhập (`gh auth login` hoặc `glab auth login`), chạy `bd init --remote <remote>` khi nhóm dùng chung Beads, và kết thúc bằng `gin-workflow setup doctor`. Không có gì được ghi ngược vào repository.
+Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, chạy `gin team init` (thêm `--ci` cho một workflow CI), rồi bạn commit trên một branch, push và mở pull request. Hãy merge nó. Một thành viên trả lời với tư cách thành viên: nó kiểm tra `gin team whoami` tìm thấy `git config user.email` của bạn, cài commit-msg hook (`gin team hooks`), yêu cầu bạn đăng nhập (`gh auth login` hoặc `glab auth login`), chạy `bd init --remote <remote>` khi nhóm dùng chung Beads, và kết thúc bằng `gin setup doctor`. Không có gì được ghi ngược vào repository.
 
 `/gin-qa:setup` đọc những gì `qa/` đã nói và ghi `qa/guidelines.md` (các mục `## Types`, `## Automated types`, `## Manual runs` và `## Bugs`), `qa/README.md`, và một skill QA của dự án dưới `.claude/skills/`. Xem [add-on QA](../guides/qa.md#setup-gin-qasetup).
 
@@ -143,14 +143,14 @@ Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, ch�
 
 **Prompt**
 ```text
-/gin-workflow:tech-doc whole repository
+/gin:tech-doc whole repository
 ```
 
 Đưa vào prompt: các entry point bạn biết (`web.xml`, cấu hình Struts), cơ sở dữ liệu, và các module bạn định thay thế trước.
 
 **Kết quả:** bộ tech-doc dưới `.planning/codebase/` (hoặc `docs/codebase/` với layout SDD), mỗi chủ đề một file (`OVERVIEW`, `FEATURES`, `API`, `STACK`, `INTEGRATIONS`, `ARCHITECTURE`, `STRUCTURE`, `CONVENTIONS`, `TESTING`, `CONCERNS`, `GLOSSARY`).
 
-Khi hệ thống legacy dùng một ngôn ngữ khác tiếng Anh, bộ này còn có `11-GLOSSARY.md`: mỗi thuật ngữ nghiệp vụ kèm thuật ngữ tiếng Anh đề xuất, các identifier mang nó, và bằng chứng. Trước `/gin-workflow:discuss` đầu tiên, hãy đặt các bản dịch bạn chấp nhận thành `confirmed`, giải quyết bảng `Conflicts`, và thêm `glossary` vào `rules.packs` trong `.agent-workflow/config.yaml`. Khi đó spec, plan, code, và review dùng cùng thuật ngữ, và các lần chạy `/gin-workflow:tech-doc` sau không bao giờ đổi một thuật ngữ đã confirmed.
+Khi hệ thống legacy dùng một ngôn ngữ khác tiếng Anh, bộ này còn có `11-GLOSSARY.md`: mỗi thuật ngữ nghiệp vụ kèm thuật ngữ tiếng Anh đề xuất, các identifier mang nó, và bằng chứng. Trước `/gin:discuss` đầu tiên, hãy đặt các bản dịch bạn chấp nhận thành `confirmed`, giải quyết bảng `Conflicts`, và thêm `glossary` vào `rules.packs` trong `.agent-workflow/config.yaml`. Khi đó spec, plan, code, và review dùng cùng thuật ngữ, và các lần chạy `/gin:tech-doc` sau không bao giờ đổi một thuật ngữ đã confirmed.
 
 **Cổng hoặc phê duyệt:** không có. Hãy review nó cùng nhóm; roadmap chỉ tốt bằng bản khảo sát này.
 
@@ -162,7 +162,7 @@ Khi hệ thống legacy dùng một ngôn ngữ khác tiếng Anh, bộ này cò
 
 **Prompt**
 ```text
-/gin-workflow:roadmap Goal: replace the catalog, cart and checkout JSP flows with the REST API and the React SPA within two quarters; the Oracle schema stays; no downtime. Non-goals: reporting screens.
+/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with the REST API and the React SPA within two quarters; the Oracle schema stays; no downtime. Non-goals: reporting screens.
 ```
 
 Đưa vào prompt: mục tiêu và thời hạn, các ràng buộc không thể dịch chuyển (ở đây là schema và zero downtime), và các non-goal.
@@ -170,12 +170,12 @@ Khi hệ thống legacy dùng một ngôn ngữ khác tiếng Anh, bộ này cò
 **Kết quả:** skill đọc bộ tech-doc, hỏi về mục tiêu, nhóm và năng lực AI, cùng các ràng buộc, đề xuất hai hoặc ba cách chia công việc, và hiển thị roadmap để bạn xác nhận. Sau khi bạn xác nhận, nó ghi `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) trên branch `roadmap/<topic>` và, sau khi đồng bộ, tạo mỗi mục một epic cùng dependency của nó trong Beads. Đọc kết quả dưới dạng đồ thị:
 
 ```bash
-gin-workflow task graph --all
+gin task graph --all
 ```
 
 Trang Dependencies của gin-console hiển thị cùng đồ thị đó. Từ đó chọn việc làm trước: các epic không có blocker đang mở, và epic mở khóa được nhiều epic khác nhất (ở đây là API facade).
 
-**Cổng hoặc phê duyệt:** với `team.approvals.roadmap: [pm, be_lead]`, roadmap đi qua một pull request mà Binh duyệt (Lan không thể tự duyệt). Chạy lại prompt với URL của PR; skill kiểm tra nó bằng `gin-workflow team check <url> --gate roadmap`, rồi tạo các epic.
+**Cổng hoặc phê duyệt:** với `team.approvals.roadmap: [pm, be_lead]`, roadmap đi qua một pull request mà Binh duyệt (Lan không thể tự duyệt). Chạy lại prompt với URL của PR; skill kiểm tra nó bằng `gin team check <url> --gate roadmap`, rồi tạo các epic.
 
 **Lỗi thường gặp:** sửa epic id trong file roadmap về sau (id không bao giờ đổi một khi đã ghi); mong roadmap đóng hoặc xóa các epic bạn bỏ khỏi file (nó chỉ báo cáo chúng); bắt đầu với epic có nhiều người dùng nhất thay vì epic mở khóa phần còn lại.
 
@@ -185,18 +185,18 @@ Trang Dependencies của gin-console hiển thị cùng đồ thị đó. Từ �
 
 **Prompt**
 ```bash
-gin-workflow milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28
+gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28
 ```
 ```text
-/gin-workflow:roadmap --milestone <id>
+/gin:roadmap --milestone <id>
 ```
 Dùng id mà `milestone create` in ra. Đưa vào prompt: "Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first."
 
 Sau đó chốt ngày kick-off và đọc lịch:
 
 ```bash
-gin-workflow milestone kickstart <id> --date 2026-11-10
-gin-workflow milestone show <id>
+gin milestone kickstart <id> --date 2026-11-10
+gin milestone show <id>
 ```
 
 **Kết quả:** các epic được chọn nằm dưới milestone, mỗi epic có ước lượng theo ngày làm việc, và một lịch kèm các cảnh báo (`overflow`, `late`, `unestimated`, `external_blocker`). Một milestone là một bead của Beads có ngày bắt đầu và ngày kết thúc, không phải một label.
@@ -211,7 +211,7 @@ gin-workflow milestone show <id>
 
 **Prompt**
 ```text
-/gin-workflow:discuss <epic-id>
+/gin:discuss <epic-id>
 ```
 
 Đưa vào prompt: hành vi người dùng nhìn thấy của luồng JSP bạn thay thế, các edge case và quy tắc validation của nó (xem [Ghi lại hành vi hiện tại trước](#capture-current-behavior-first)), hợp đồng REST API mà service mới phải đáp ứng, và những gì nằm ngoài phạm vi.
@@ -239,23 +239,23 @@ Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (pa
 
 **Prompt**
 ```text
-/gin-workflow:plan
-/gin-workflow:orchestrate
+/gin:plan
+/gin:orchestrate
 ```
 
 Đưa vào prompt: các ràng buộc của migration (facade trước, dual-write hay backfill, tiêu chí rollback), các track nào có thể chạy song song, và ai giữ seat Premium.
 
-**Kết quả:** một plan với các track theo khu vực và owner (`gin-workflow team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, một worktree cô lập cho mỗi track, và các dependency. Thành viên claim bead của mình bằng `gin-workflow team claim <bead>`.
+**Kết quả:** một plan với các track theo khu vực và owner (`gin team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, một worktree cô lập cho mỗi track, và các dependency. Thành viên claim bead của mình bằng `gin team claim <bead>`.
 
 **Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, area lead duyệt pull request của plan.
 
-**Lỗi thường gặp:** một track đụng tới hai khu vực, ví dụ `services/api/` và `apps/web/`; hãy chạy `gin-workflow team check-plan <plan>` trước khi xin duyệt.
+**Lỗi thường gặp:** một track đụng tới hai khu vực, ví dụ `services/api/` và `apps/web/`; hãy chạy `gin team check-plan <plan>` trước khi xin duyệt.
 
 ### Strangler Fig { #strangler-fig }
 
-Hiện đại hóa từng bounded context một phía sau một facade hoặc router ổn định thay vì viết lại tất cả cùng lúc. Traffic của các endpoint đã hiện đại hóa đi tới bản triển khai mới, còn các request chưa migrate được chuyển tiếp xuống lõi legacy. Facade hoặc gateway là hạ tầng của riêng bạn; `gin-workflow` không cung cấp. Các `team.areas` ở trên giữ một track nằm trong các đường dẫn legacy hoặc các đường dẫn đã hiện đại hóa.
+Hiện đại hóa từng bounded context một phía sau một facade hoặc router ổn định thay vì viết lại tất cả cùng lúc. Traffic của các endpoint đã hiện đại hóa đi tới bản triển khai mới, còn các request chưa migrate được chuyển tiếp xuống lõi legacy. Facade hoặc gateway là hạ tầng của riêng bạn; gin-workflow không cung cấp. Các `team.areas` ở trên giữ một track nằm trong các đường dẫn legacy hoặc các đường dẫn đã hiện đại hóa.
 
-Trong `/gin-workflow:discuss`, hãy chốt chiến lược data migration (dual-write hoặc backfill) và tiêu chí rollback, còn trong `/gin-workflow:plan` hãy chia epic thành các track một khu vực:
+Trong `/gin:discuss`, hãy chốt chiến lược data migration (dual-write hoặc backfill) và tiêu chí rollback, còn trong `/gin:plan` hãy chia epic thành các track một khu vực:
 
 | Track | Khu vực | Owner | Công việc |
 |---|---|---|---|
@@ -311,11 +311,11 @@ Unit test qua không chứng tỏ code mới hành xử như code cũ. Parity te
 
 **Prompt**
 ```bash
-gin-workflow team ready
-gin-workflow team claim <bead>
+gin team ready
+gin team claim <bead>
 ```
 ```text
-/gin-workflow:execute
+/gin:execute
 ```
 
 Đưa vào prompt: track bead cần làm, nếu bạn muốn tự chọn.
@@ -323,7 +323,7 @@ gin-workflow team claim <bead>
 `team ready` liệt kê các bead trong khu vực của bạn. `team claim` ghi một lease dài `team.claim_ttl_hours` (mặc định 48); claim lại để gia hạn, và khi lease hết hạn thì thành viên khác có thể nhận bead. Nếu một thành viên vắng mặt hoặc hết quota, hãy push track branch và chạy:
 
 ```bash
-gin-workflow team reassign <bead> dung@example.com
+gin team reassign <bead> dung@example.com
 ```
 
 Người nhận mới phải được phép sở hữu track trong các khu vực của bead, sau đó checkout branch đã push và tiếp tục.
@@ -363,12 +363,12 @@ Người nhận mới phải được phép sở hữu track trong các khu vự
 
 **Prompt**
 ```text
-/gin-workflow:ship
+/gin:ship
 ```
 
 Đưa vào prompt: epic, và liệu có merge ngay hay giữ branch.
 
-**Kết quả:** sản phẩm bàn giao đã merge. Ở chế độ nhóm, bằng chứng PR của cổng được ghi vào metadata `gates` của epic bead, để đồng đội thấy nó trong `gin-workflow state` mà không cần event store cục bộ của bạn.
+**Kết quả:** sản phẩm bàn giao đã merge. Ở chế độ nhóm, bằng chứng PR của cổng được ghi vào metadata `gates` của epic bead, để đồng đội thấy nó trong `gin state` mà không cần event store cục bộ của bạn.
 
 **Cổng hoặc phê duyệt:** merge vào base branch cần phê duyệt rõ ràng; phê duyệt `ship` trên commit mới nhất được kiểm tra trước.
 
@@ -380,22 +380,22 @@ Người nhận mới phải được phép sở hữu track trong các khu vự
 
 **Prompt**
 ```bash
-gin-workflow milestone show <id>
-gin-workflow milestone create "M2 Cart and checkout" --start 2026-12-01 --end 2026-12-18
-gin-workflow milestone move <open-epic>... --to <next-id>
-gin-workflow milestone close <id> --reason "Catalog read path shipped; checkout epic moved to M2"
+gin milestone show <id>
+gin milestone create "M2 Cart and checkout" --start 2026-12-01 --end 2026-12-18
+gin milestone move <open-epic>... --to <next-id>
+gin milestone close <id> --reason "Catalog read path shipped; checkout epic moved to M2"
 ```
 ```text
-/gin-workflow:report --milestone <id>
-/gin-workflow:progress milestone <id>
+/gin:report --milestone <id>
+/gin:progress milestone <id>
 ```
 ```bash
-gin-workflow milestone kickstart <next-id> --date 2026-12-01
+gin milestone kickstart <next-id> --date 2026-12-01
 ```
 
 Đưa vào prompt: milestone id, và với báo cáo thì là câu hỏi bạn cần trả lời (chi phí, tín hiệu chất lượng, hoặc cả hai).
 
-**Kết quả:** `milestone show` liệt kê các epic đang mở và các cảnh báo; `move` chuyển parent của các epic chưa xong và ghi `{from, to, at, actor}` vào metadata `milestone_moves` của mỗi epic, để lịch sử của một epic bị trượt vẫn đọc được; `close` lưu lý do của bạn làm close reason của bead. `report` cho biết chi phí và mức sử dụng của các epic trong milestone cùng các track của chúng, còn `progress` liệt kê các epic của milestone bằng `gin-workflow task list --parent <id>` và trạng thái các track của từng epic. Sau đó bạn chạy `kickstart` cho milestone kế tiếp, và lập kế hoạch nó như trong [Lập kế hoạch milestone](#milestone-planning).
+**Kết quả:** `milestone show` liệt kê các epic đang mở và các cảnh báo; `move` chuyển parent của các epic chưa xong và ghi `{from, to, at, actor}` vào metadata `milestone_moves` của mỗi epic, để lịch sử của một epic bị trượt vẫn đọc được; `close` lưu lý do của bạn làm close reason của bead. `report` cho biết chi phí và mức sử dụng của các epic trong milestone cùng các track của chúng, còn `progress` liệt kê các epic của milestone bằng `gin task list --parent <id>` và trạng thái các track của từng epic. Sau đó bạn chạy `kickstart` cho milestone kế tiếp, và lập kế hoạch nó như trong [Lập kế hoạch milestone](#milestone-planning).
 
 **Cổng hoặc phê duyệt:** `milestone close` bị từ chối khi milestone còn epic đang mở, và `--reason` là bắt buộc.
 
@@ -411,6 +411,6 @@ Một người đóng mọi vai trò, nên luồng được rút gọn:
 
 - Không có `team-setup`, không có khối `team:`, không có pull request cho các cổng: bạn xác nhận trong chat.
 - Các lệnh `milestone` hoạt động như cũ; không có khóa `permissions` thì không gì hạn chế chúng.
-- Roadmap: `/gin-workflow:roadmap` ghi file sau khi bạn xác nhận và tạo các epic trực tiếp.
-- Execute: chọn việc bằng `gin-workflow task ready` thay vì `gin-workflow team ready`, và bỏ qua claim.
-- Mọi thứ còn lại giống nhau: `/gin-workflow:discuss <epic-id>`, `plan`, `orchestrate`, `execute`, `ship`.
+- Roadmap: `/gin:roadmap` ghi file sau khi bạn xác nhận và tạo các epic trực tiếp.
+- Execute: chọn việc bằng `gin task ready` thay vì `gin team ready`, và bỏ qua claim.
+- Mọi thứ còn lại giống nhau: `/gin:discuss <epic-id>`, `plan`, `orchestrate`, `execute`, `ship`.

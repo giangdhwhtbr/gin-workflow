@@ -1,8 +1,8 @@
 # Tham chiếu skill
 
-Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, và `/gin-orchestrator:<name>` cho add-on worker harness. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `report` là `@gin-workflow-report`, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-workflow-skills)); các stage của lifecycle vẫn chạy qua CLI `gin`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
+Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, và `/gin-orchestrator:<name>` cho add-on worker harness. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `learn` là `@gin-learn` và `report` là `@gin-report`, như sáu skill chung khác, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-skills)); các stage của lifecycle vẫn chạy qua CLI `gin`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
 
-## gin: các stage của lifecycle { #gin-workflow-lifecycle-stages }
+## gin: các stage của lifecycle { #gin-lifecycle-stages }
 
 Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage kế tiếp giúp bạn.
 
@@ -15,7 +15,7 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `review` | Yêu cầu hoặc thực hiện một review độc lập được ghi trong review ledger | ledger được duyệt |
 | `ship` | Đưa ra các lựa chọn merge, PR, giữ hoặc bỏ; chạy lựa chọn được chọn; đóng bead và ledger | `shipped` |
 
-## gin: điểm vào và trạng thái { #gin-workflow-entry-points-and-status }
+## gin: điểm vào và trạng thái { #gin-entry-points-and-status }
 
 | Skill | Mục đích |
 |---|---|
@@ -25,7 +25,7 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `report` | Báo cáo mức sử dụng AI theo bead, epic hoặc milestone (`--milestone <id>`: token, chi phí, tín hiệu chất lượng) mà không thay đổi gì |
 | `setup` | Cấu hình repository lần đầu và bảo trì setup khi được yêu cầu |
 
-## gin: các skill hỗ trợ { #gin-workflow-supporting-skills }
+## gin: các skill hỗ trợ { #gin-supporting-skills }
 
 Các stage nạp những skill này khi cần; bạn cũng có thể gọi trực tiếp.
 
@@ -39,7 +39,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `sdd` | Quy tắc stage cho `artifacts.layout: sdd`: change folder, REQ-ID, trace, spec review, archive ([hướng dẫn](../guides/sdd.md)) |
 | `team` | Quy tắc stage cho chế độ nhóm: danh tính, cổng được chứng minh bằng PR, khu vực và owner, claim, đồng bộ Beads ([hướng dẫn](../guides/team.md)) |
 
-## gin: setup và bảo trì { #gin-workflow-setup-and-maintenance }
+## gin: setup và bảo trì { #gin-setup-and-maintenance }
 
 | Skill | Mục đích |
 |---|---|
@@ -48,7 +48,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `beads-migration` | Chuyển thư mục `.beads` của repository vào `~/gin-beads/<repo>` và tạo symlink ngược lại |
 | `roadmap` | Biến bộ tech-doc hoặc một product brief thành roadmap đã xác nhận cùng các epic Beads phụ thuộc nhau; đối chiếu cả hai khi chạy lại; với layout SDD mỗi epic mang dòng `Capabilities:`; `--milestone <id>` lập kế hoạch cho một milestone có ngày |
 
-## gin: tài liệu { #gin-workflow-documentation }
+## gin: tài liệu { #gin-documentation }
 
 | Skill | Mục đích |
 |---|---|

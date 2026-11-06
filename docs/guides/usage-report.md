@@ -1,6 +1,6 @@
 # AI usage report
 
-`gin-workflow usage` reports what the AI work on a bead or an epic cost and how it went. It reads the harness logs already on the machine that did the work and shows tokens and estimated cost per model and per lifecycle stage, next to quality signals. It reads only local files and needs Beads.
+`gin usage` reports what the AI work on a bead or an epic cost and how it went. It reads the harness logs already on the machine that did the work and shows tokens and estimated cost per model and per lifecycle stage, next to quality signals. It reads only local files and needs Beads.
 
 ## What is measured
 
@@ -22,7 +22,7 @@ Quality signals come from Beads and the review ledger:
 
 ## When it runs
 
-`execute` runs `gin-workflow usage collect --bead <epic> --best-effort` after each worker returns and `--bead <track>` before closing each track, and `ship` runs it for the epic before closing it. You can run it yourself at any time, from the main checkout or any of its worktrees; it recomputes the summary from scratch, so running it twice gives the same result. With `--best-effort` an error becomes a warning and never blocks closing a bead.
+`execute` runs `gin usage collect --bead <epic> --best-effort` after each worker returns and `--bead <track>` before closing each track, and `ship` runs it for the epic before closing it. You can run it yourself at any time, from the main checkout or any of its worktrees; it recomputes the summary from scratch, so running it twice gives the same result. With `--best-effort` an error becomes a warning and never blocks closing a bead.
 
 ## How usage is attributed
 
@@ -70,13 +70,13 @@ usage:
 
 A track's summary has no budget block; the budget belongs to the epic.
 
-At `stop`, `gin-workflow routes dispatch` for the epic prints `{"status": "over_budget", ...}`, dispatches nothing, and exits 3. Raising `usage.budget_usd` lets the next dispatch proceed without another collect. `unenforceable` never stops a dispatch.
+At `stop`, `gin routes dispatch` for the epic prints `{"status": "over_budget", ...}`, dispatches nothing, and exits 3. Raising `usage.budget_usd` lets the next dispatch proceed without another collect. `unenforceable` never stops a dispatch.
 
 ## Reading it
 
 ```bash
-gin-workflow usage report --epic <epic>
-gin-workflow usage report --since 2026-10-01 --format json
+gin usage report --epic <epic>
+gin usage report --since 2026-10-01 --format json
 ```
 
 Or ask `/report`. The text report lists each bead's cost, totals per model (tokens by type) and per stage, unpriced models, unattributed usage, and closed beads that were never collected (`not collected`). `--format json` returns the full summaries for your own tooling.
@@ -88,4 +88,4 @@ Or ask `/report`. The text report lists each bead's cost, totals per model (toke
 - The `review` stage covers the whole time a review was open, including time the implementer spent on something else while waiting.
 - Sessions whose working directory is outside the repository and its worktrees are not counted.
 
-See [`gin-workflow usage`](../reference/cli.md#gin-workflow-usage) for options and exit codes.
+See [`gin usage`](../reference/cli.md#gin-usage) for options and exit codes.

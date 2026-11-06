@@ -1,6 +1,6 @@
 # QA add-on (`gin-qa`)
 
-`gin-qa` is an optional plugin that writes test cases from your specs, walks a tester through the manual cases and files a bug bead for each failure, turns end-to-end cases into Playwright specs with recorded evidence, and reports on both in one offline HTML page. It needs `gin-workflow` and is not installed by default.
+`gin-qa` is an optional plugin that writes test cases from your specs, walks a tester through the manual cases and files a bug bead for each failure, turns end-to-end cases into Playwright specs with recorded evidence, and reports on both in one offline HTML page. It needs gin-workflow and is not installed by default.
 
 ```mermaid
 flowchart LR
@@ -78,7 +78,7 @@ The `## Types` section of the guidelines lists the case types in use, and [`gin-
 
 A failure asks for what happened, evidence references, and an optional external tracker reference, then runs `gin-qa cases bug`:
 
-- The bug is a bead filed through `gin-workflow task create`, linked to the case's epic with `discovered-from`. `gin-workflow usage collect` on that epic counts it in `quality.bugs`, and the [usage report](../reference/cli.md#gin-workflow-usage) shows the count from the last collect.
+- The bug is a bead filed through `gin task create`, linked to the case's epic with `discovered-from`. `gin usage collect` on that epic counts it in `quality.bugs`, and the [usage report](../reference/cli.md#gin-usage) shows the count from the last collect.
 - The epic comes from the case's spec or change; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for the lookup. With no epic, the skill offers the open epics of the repository to pick from.
 - The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.
 - When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence are not added to it. A closed bug gets a new bug that names it as the previous bug; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for other values.

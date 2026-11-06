@@ -1,4 +1,4 @@
-# Gin Workflow (`gin-workflow`)
+# Gin Workflow (gin-workflow)
 
 A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and **OpenCode** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Tasks are tracked in local Markdown files or, optionally, in Beads. Tracks get an independent review at `standard` and `strict` rigor, and nothing is merged without your approval. A `/quick` path handles small changes.
 
@@ -24,18 +24,20 @@ Read it on the [documentation site](https://giangdhwhtbr.github.io/gin-workflow/
 
 | Need | For | Install |
 |---|---|---|
-| Python 3.11 or later with PyYAML | the `gin-workflow` CLI | `python3 -m pip install PyYAML` |
+| Python 3.11 or later with PyYAML | the `gin` CLI | `python3 -m pip install PyYAML` |
 | git | branches, worktrees, review checkpoints | your package manager |
 | [Beads](https://github.com/gastownhall/beads) (`bd`), optional | task tracking; without it, `/setup` offers local Markdown tasks (`providers.task_tracking: markdown`) | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
 | A harness | running the skills | Claude Code, Codex CLI, Antigravity CLI (`agy`), or OpenCode |
 
 Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; [gin-orchestrator](docs/orchestrator/README.md) with `codex`, `agy`, or `opencode` next to your main harness for worker routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).
 
-Then, in each repository, run `/gin-workflow:setup` once ([getting started](docs/getting-started.md)); if you chose Beads, run `bd init` first.
+Then, in each repository, run `/gin:setup` once ([getting started](docs/getting-started.md)); if you chose Beads, run `bd init` first.
 
 ### The plugin
 
-Skills call the `gin-workflow` CLI, so it must be on `PATH` (`~/.local/bin`). The installer links it and adds `~/.local/bin` to your shell startup file (`--no-modify-path` to opt out); a marketplace install alone does not ([fix](docs/reference/troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install)).
+Skills call the `gin` CLI, so it must be on `PATH` (`~/.local/bin`). The installer links it and adds `~/.local/bin` to your shell startup file (`--no-modify-path` to opt out); a marketplace install alone does not ([fix](docs/reference/troubleshooting.md#gin-command-not-found-after-a-marketplace-install)).
+
+Upgrading from 2.x: see [Upgrading from gin-workflow 2.x](docs/reference/troubleshooting.md#upgrading-from-gin-workflow-2x).
 
 **Any harness, with the launcher** (clones this repository and runs `install.sh`):
 
@@ -49,19 +51,19 @@ Use `--platform claude`, `codex`, `antigravity`, `opencode`, or `copilot` for on
 
 ```bash
 claude plugin marketplace add giangdhwhtbr/gin-workflow
-claude plugin install gin-workflow@gin-workflow-marketplace
+claude plugin install gin@gin-workflow-marketplace
 ```
 
 **Codex marketplace:**
 
 ```bash
 codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
-codex plugin add gin-workflow@gin-workflow-marketplace
+codex plugin add gin@gin-workflow-marketplace
 ```
 
-Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin-workflow`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin-workflow` CLI. The usage-report skill is `@gin-workflow-report` in OpenCode, so OpenCode's own built-in `report` skill is left intact.
+Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin` CLI. Eight generic skills carry a `gin-` prefix in OpenCode (`@gin-learn`, `@gin-sdd`, `@gin-team`, `@gin-worktrees`, `@gin-debugging`, `@gin-review-response`, `@gin-parallel-agents`, `@gin-report`), so OpenCode's own built-in `report` skill is left intact.
 
-GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hook runs through Copilot's `bash` hook type and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-workflow-pathscriptssafety_checkpy-not-found-hook-skipped)).
+GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hook runs through Copilot's `bash` hook type and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-pathscriptssafety_checkpy-not-found-hook-skipped)).
 
 ## Extensions
 
@@ -75,15 +77,15 @@ gin-workflow works alone. Two add-ons install from the same clone:
 ## Quickstart
 
 ```text
-/gin-workflow:setup                         once per repository
-/gin-workflow:discuss <what you want>       confirm the design → spec
-/gin-workflow:plan <feature>                approve the plan → tracks
-/gin-workflow:orchestrate <feature>         tasks, routes, worktree
-/gin-workflow:execute                       one track: test first, review, close
-/gin-workflow:ship                          merge, PR, keep, or discard
+/gin:setup                         once per repository
+/gin:discuss <what you want>       confirm the design → spec
+/gin:plan <feature>                approve the plan → tracks
+/gin:orchestrate <feature>         tasks, routes, worktree
+/gin:execute                       one track: test first, review, close
+/gin:ship                          merge, PR, keep, or discard
 ```
 
-`/gin-workflow:workflow` runs whichever stage comes next; `/gin-workflow:quick <change>` handles a small change; `/gin-workflow:progress` shows status; `/gin-workflow:report` shows AI cost and rework. Codex uses `$gin-workflow:<skill>`.
+`/gin:workflow` runs whichever stage comes next; `/gin:quick <change>` handles a small change; `/gin:progress` shows status; `/gin:report` shows AI cost and rework. Codex uses `$gin:<skill>`.
 
 ## Skills
 

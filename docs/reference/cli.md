@@ -5,7 +5,7 @@ The plugin ships two command-line tools that skills call and that you can run yo
 - `gin`: repository setup, lifecycle gates, rules, specs, team mode, and usage reports.
 - `review-ledger.py`: the review ledger for one bead.
 
-The local installer (`install.sh`, `install.ps1`) links `gin` into `~/.local/bin`. A marketplace install does not; see [Troubleshooting](troubleshooting.md#gin-workflow-command-not-found-after-a-marketplace-install).
+The local installer (`install.sh`, `install.ps1`) links `gin` into `~/.local/bin`. A marketplace install does not; see [Troubleshooting](troubleshooting.md#gin-command-not-found-after-a-marketplace-install).
 
 `gin --version` prints the CLI version. An unknown or missing command prints the command list and exits 2.
 
@@ -24,7 +24,7 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
 | `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--stack-intent`) into `--set` assignments | no |
 | `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode`) | no |
-| `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the gin-workflow block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block | yes |
+| `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the `gin` block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block | yes |
 | `configure` | Changes repository configuration (`--set key=value`) | yes |
 | `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration, rewrites `executables.local.yaml`, and re-renders an existing `AGENTS.md` block (never creates one) | yes |
 | `update` | Proposes, then with `--approve` applies, a registered schema migration (`--to-version`) | yes |

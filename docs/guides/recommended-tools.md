@@ -21,7 +21,7 @@ Check with `codegraph --version`.
 
 ### Configure
 
-- Index each repository once with `codegraph init` in its root. On a brownfield or legacy repository, `/gin-workflow:setup` offers to run it for you. The index lives in `.codegraph/`. Add `.codegraph/` to the repository's `.gitignore`; otherwise git lists the folder as untracked.
+- Index each repository once with `codegraph init` in its root. On a brownfield or legacy repository, `/gin:setup` offers to run it for you. The index lives in `.codegraph/`. Add `.codegraph/` to the repository's `.gitignore`; otherwise git lists the folder as untracked.
 - Optionally, `codegraph install` adds CodeGraph's MCP tools to Claude Code, Codex, and other supported agents; one global run covers every project. gin-workflow's skills call the `codegraph` CLI, so the MCP server is not required. It adds a file watcher that keeps the index current while you edit.
 
 ### Where gin-workflow uses it
@@ -31,9 +31,9 @@ Check with `codegraph --version`.
 | Every lifecycle stage | looks up symbols, tests, and knowledge with `codegraph explore` before grep |
 | `agent-researcher`, `developer`, `docs-writer` agents | look up related code with `codegraph explore` |
 | `code-reviewer` agent | looks up callers; runs `codegraph impact` / `codegraph callers` on changed public symbols |
-| `/gin-workflow:tech-doc` | `codegraph files` for structure, `codegraph explore` for subsystems |
-| `/gin-workflow:setup` | offers `codegraph init`, or suggests installing CodeGraph |
-| `gin-workflow setup doctor` | reports whether CodeGraph is installed and whether the index is older than `HEAD` (then run `codegraph sync`) |
+| `/gin:tech-doc` | `codegraph files` for structure, `codegraph explore` for subsystems |
+| `/gin:setup` | offers `codegraph init`, or suggests installing CodeGraph |
+| `gin setup doctor` | reports whether CodeGraph is installed and whether the index is older than `HEAD` (then run `codegraph sync`) |
 
 ### Known limitation: worktrees
 

@@ -1,6 +1,6 @@
 # Rule packs
 
-Rule packs are short checklists that the agent follows when it writes code and the reviewer checks when it reviews. `gin-workflow rules --files <paths>` picks the packs that apply to the files in scope; `execute` gives the output to the `developer` agent, `/quick` follows it, and `review` includes it as the reviewer's checklist.
+Rule packs are short checklists that the agent follows when it writes code and the reviewer checks when it reviews. `gin rules --files <paths>` picks the packs that apply to the files in scope; `execute` gives the output to the `developer` agent, `/quick` follows it, and `review` includes it as the reviewer's checklist.
 
 ## Packs
 
@@ -27,7 +27,7 @@ rules:
   disabled: [lean]             # turn a pack off, including core, lean, or docs
 ```
 
-Project-specific packs go in `.agent-workflow/rules/<id>.md` and take precedence over plugin packs. `gin-workflow rules --list` shows every enabled pack with its size and rule counts.
+Project-specific packs go in `.agent-workflow/rules/<id>.md` and take precedence over plugin packs. `gin rules --list` shows every enabled pack with its size and rule counts.
 
 ## Format
 

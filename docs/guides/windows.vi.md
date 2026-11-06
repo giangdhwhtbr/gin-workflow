@@ -1,6 +1,6 @@
 # Dùng gin-workflow trên Windows { #using-gin-workflow-on-windows }
 
-Hướng dẫn này bao gồm việc cài đặt native, cấu hình, và sử dụng hằng ngày `gin-workflow` trên Windows 10 và Windows 11.
+Hướng dẫn này bao gồm việc cài đặt native, cấu hình, và sử dụng hằng ngày gin-workflow trên Windows 10 và Windows 11.
 
 ## Điều kiện tiên quyết { #prerequisites }
 
@@ -50,7 +50,7 @@ git config --global core.autocrlf false
 
 ## Cài đặt { #installation }
 
-Chạy `install.ps1` từ gốc của repository `gin-workflow` đã clone:
+Chạy `install.ps1` từ gốc của repository gin-workflow đã clone:
 
 ### Cài cho mọi nền tảng (Claude, Antigravity, Copilot, Codex, OpenCode) { #install-for-all-platforms-claude-antigravity-copilot-codex-opencode }
 ```powershell
@@ -79,9 +79,9 @@ Trình cài đặt thêm `%USERPROFILE%\.local\bin` vào `PATH` của người d
 
 ## Theo dõi task { #task-tracking }
 
-`gin-workflow` hỗ trợ hai backend theo dõi task:
+gin-workflow hỗ trợ hai backend theo dõi task:
 
-1. Markdown, là lựa chọn mặc định. Nó không cần công cụ nào thêm và lưu task và epic dưới dạng `.planning/tasks/*.md`. `/gin-workflow:setup` hỏi bạn dùng backend nào và đề xuất Markdown theo mặc định.
+1. Markdown, là lựa chọn mặc định. Nó không cần công cụ nào thêm và lưu task và epic dưới dạng `.planning/tasks/*.md`. `/gin:setup` hỏi bạn dùng backend nào và đề xuất Markdown theo mặc định.
 2. Beads (`bd`). Cài các binary `bd` và `dolt` cho Windows và đặt chúng trên `PATH`.
 
 Skill `beads-migration` chuyển `.beads` sang `~/gin-beads/<repo>` và liên kết ngược lại bằng một symlink, đó là cách repository gin-workflow giữ cơ sở dữ liệu của nó. Trên Windows, hãy dùng junction thay thế, `cmd /c mklink /J .beads %USERPROFILE%\gin-beads\<repo>`, hoặc một bản sao thông thường của thư mục.
@@ -90,24 +90,24 @@ Skill `beads-migration` chuyển `.beads` sang `~/gin-beads/<repo>` và liên k�
 
 Bên trong AI harness của bạn (Claude Code, Antigravity, và các harness khác), dùng các slash command:
 
-- `/gin-workflow:setup`: khởi tạo `.agent-workflow/config.yaml`.
-- `/gin-workflow:discuss`: khám phá requirement và viết spec.
-- `/gin-workflow:plan`: biến spec thành plan triển khai.
-- `/gin-workflow:orchestrate`: tạo worktree và khởi tạo task.
-- `/gin-workflow:execute`: triển khai thay đổi và xác minh bằng test.
-- `/gin-workflow:review`: chạy các chu kỳ review độc lập.
-- `/gin-workflow:ship`: đóng task và merge.
+- `/gin:setup`: khởi tạo `.agent-workflow/config.yaml`.
+- `/gin:discuss`: khám phá requirement và viết spec.
+- `/gin:plan`: biến spec thành plan triển khai.
+- `/gin:orchestrate`: tạo worktree và khởi tạo task.
+- `/gin:execute`: triển khai thay đổi và xác minh bằng test.
+- `/gin:review`: chạy các chu kỳ review độc lập.
+- `/gin:ship`: đóng task và merge.
 
 Từ một terminal PowerShell, gọi trực tiếp CLI:
 ```powershell
 # Check current workflow state
-gin-workflow state
+gin state
 
 # Record a gate
-gin-workflow record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
+gin record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
 
 # Query tasks
-gin-workflow task list
+gin task list
 ```
 
 ## Xác minh việc cài đặt { #verifying-the-installation }
@@ -125,7 +125,7 @@ CI chạy cùng smoke test này trên `windows-latest` cho mỗi push và pull r
 
 ### `PermissionError: [WinError 32]` hoặc `[WinError 5]` { #permissionerror-winerror-32-or-winerror-5 }
 
-`gin-workflow` thử lại các khóa file và việc thay thế file nguyên tử trên Windows. Nếu Windows Defender hoặc phần mềm diệt virus khác làm các lần chạy test chậm đi, hãy thêm một ngoại lệ thư mục cho thư mục `.planning/worktrees/` của repository trong Windows Security.
+gin-workflow thử lại các khóa file và việc thay thế file nguyên tử trên Windows. Nếu Windows Defender hoặc phần mềm diệt virus khác làm các lần chạy test chậm đi, hãy thêm một ngoại lệ thư mục cho thư mục `.planning/worktrees/` của repository trong Windows Security.
 
 ### `EventPersistenceError: cannot lock ...: file locking requires POSIX or Windows advisory file locking` { #eventpersistenceerror-cannot-lock-file-locking-requires-posix-or-windows-advisory-file-locking }
 

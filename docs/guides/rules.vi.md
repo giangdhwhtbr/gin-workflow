@@ -1,6 +1,6 @@
 # Rule pack { #rule-packs }
 
-Rule pack là các checklist ngắn mà agent tuân theo khi viết code và reviewer kiểm tra khi review. `gin-workflow rules --files <paths>` chọn các pack áp dụng cho các file trong phạm vi; `execute` đưa đầu ra cho agent `developer`, `/quick` làm theo nó, và `review` đưa nó vào làm checklist của reviewer.
+Rule pack là các checklist ngắn mà agent tuân theo khi viết code và reviewer kiểm tra khi review. `gin rules --files <paths>` chọn các pack áp dụng cho các file trong phạm vi; `execute` đưa đầu ra cho agent `developer`, `/quick` làm theo nó, và `review` đưa nó vào làm checklist của reviewer.
 
 ## Các pack { #packs }
 
@@ -27,7 +27,7 @@ rules:
   disabled: [lean]             # turn a pack off, including core, lean, or docs
 ```
 
-Các pack riêng của dự án nằm ở `.agent-workflow/rules/<id>.md` và được ưu tiên hơn pack của plugin. `gin-workflow rules --list` hiển thị mọi pack đang bật cùng kích thước và số rule của chúng.
+Các pack riêng của dự án nằm ở `.agent-workflow/rules/<id>.md` và được ưu tiên hơn pack của plugin. `gin rules --list` hiển thị mọi pack đang bật cùng kích thước và số rule của chúng.
 
 ## Định dạng { #format }
 

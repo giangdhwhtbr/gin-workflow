@@ -21,7 +21,7 @@ Kiểm tra bằng `codegraph --version`.
 
 ### Cấu hình { #configure }
 
-- Lập chỉ mục mỗi repository một lần bằng `codegraph init` ở gốc của nó. Trên repository brownfield hoặc legacy, `/gin-workflow:setup` đề nghị chạy giúp bạn. Chỉ mục nằm trong `.codegraph/`. Thêm `.codegraph/` vào `.gitignore` của repository; nếu không, git sẽ liệt kê thư mục này là chưa được theo dõi.
+- Lập chỉ mục mỗi repository một lần bằng `codegraph init` ở gốc của nó. Trên repository brownfield hoặc legacy, `/gin:setup` đề nghị chạy giúp bạn. Chỉ mục nằm trong `.codegraph/`. Thêm `.codegraph/` vào `.gitignore` của repository; nếu không, git sẽ liệt kê thư mục này là chưa được theo dõi.
 - Tùy chọn, `codegraph install` thêm các MCP tool của CodeGraph vào Claude Code, Codex, và các agent khác được hỗ trợ; một lần chạy toàn cục bao phủ mọi dự án. Các skill của gin-workflow gọi CLI `codegraph`, nên MCP server không bắt buộc. Nó thêm một file watcher giữ chỉ mục luôn mới trong khi bạn chỉnh sửa.
 
 ### gin-workflow dùng nó ở đâu { #where-gin-workflow-uses-it }
@@ -31,9 +31,9 @@ Kiểm tra bằng `codegraph --version`.
 | Mọi stage của vòng đời | tra cứu symbol, test, và knowledge bằng `codegraph explore` trước khi grep |
 | Các agent `agent-researcher`, `developer`, `docs-writer` | tra cứu code liên quan bằng `codegraph explore` |
 | Agent `code-reviewer` | tra cứu caller; chạy `codegraph impact` / `codegraph callers` trên các public symbol đã đổi |
-| `/gin-workflow:tech-doc` | `codegraph files` cho cấu trúc, `codegraph explore` cho các subsystem |
-| `/gin-workflow:setup` | đề nghị `codegraph init`, hoặc gợi ý cài CodeGraph |
-| `gin-workflow setup doctor` | báo CodeGraph đã được cài chưa và chỉ mục có cũ hơn `HEAD` không (khi đó chạy `codegraph sync`) |
+| `/gin:tech-doc` | `codegraph files` cho cấu trúc, `codegraph explore` cho các subsystem |
+| `/gin:setup` | đề nghị `codegraph init`, hoặc gợi ý cài CodeGraph |
+| `gin setup doctor` | báo CodeGraph đã được cài chưa và chỉ mục có cũ hơn `HEAD` không (khi đó chạy `codegraph sync`) |
 
 ### Hạn chế đã biết: worktree { #known-limitation-worktrees }
 

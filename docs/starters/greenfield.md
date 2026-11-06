@@ -1,6 +1,6 @@
 # Greenfield project starter
 
-This guide bootstraps a new project with Claude Code and `gin-workflow`, from an empty repository to the first feature.
+This guide bootstraps a new project with Claude Code and gin-workflow, from an empty repository to the first feature.
 
 ---
 
@@ -13,14 +13,14 @@ Install the [dependencies](https://github.com/giangdhwhtbr/gin-workflow/blob/mas
 git init my-awesome-project
 cd my-awesome-project
 
-# 2. Install the gin-workflow plugin for Claude Code
+# 2. Install the gin plugin for Claude Code
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
 ```
 
 Verify the installation:
 
 ```bash
-gin-workflow --version
+gin --version
 ```
 
 ---
@@ -30,7 +30,7 @@ gin-workflow --version
 Inside Claude Code, run setup:
 
 ```text
-/gin-workflow:setup
+/gin:setup
 ```
 
 Setup detects your environment and asks:
@@ -55,19 +55,19 @@ git commit -m "chore: setup gin-workflow configuration"
 Before writing business features, set up the foundations: folder structure, core dependencies, database connections, and CI.
 
 ### Clarify the architecture in discuss
-Use `/gin-workflow:discuss` to define the high-level architecture:
+Use `/gin:discuss` to define the high-level architecture:
 
 ```text
-/gin-workflow:discuss Project architecture, folder structure, and tech stack foundation
+/gin:discuss Project architecture, folder structure, and tech stack foundation
 ```
 
 Claude proposes 2-3 approaches, weighs the tradeoffs, and writes a spec to `.planning/specs/` (with the SDD layout, a change folder under `docs/changes/`, plus an Architecture Decision Record in `docs/adr/` for an architecture decision). Review and confirm the design to record `requirement-confirmed`.
 
 ### Plan the foundation tracks
-Run `/gin-workflow:plan` to split the foundation into testable tracks:
+Run `/gin:plan` to split the foundation into testable tracks:
 
 ```text
-/gin-workflow:plan project-scaffolding
+/gin:plan project-scaffolding
 ```
 
 Typical tracks:
@@ -79,18 +79,18 @@ Typical tracks:
 Approve the plan to record `plan-approved`.
 
 ### Orchestrate and execute
-Run `/gin-workflow:orchestrate` and `/gin-workflow:execute` to build the foundation test-first:
+Run `/gin:orchestrate` and `/gin:execute` to build the foundation test-first:
 
 ```text
-/gin-workflow:orchestrate project-scaffolding
-/gin-workflow:execute
+/gin:orchestrate project-scaffolding
+/gin:execute
 ```
 
 Claude implements each track in an isolated Git worktree, writes tests first, reviews, and closes the track.
 
 ### Ship the foundation
 ```text
-/gin-workflow:ship
+/gin:ship
 ```
 
 Choose merge locally to merge the foundation into `master` or `main`.
@@ -119,16 +119,16 @@ flowchart TD
   E --> S["Ship<br/>merge or pull request, then archive"]
 ```
 
-1. `/gin-workflow:discuss <feature>` creates a change folder `docs/changes/<epic>-<slug>/` holding `01-proposal.md`, `02-spec-delta.md`, and `03-design.md`, with traceable requirement IDs (`REQ-<MODULE>-001`).
-2. `/gin-workflow:plan <feature>` maps requirements to tracks and files.
-3. `/gin-workflow:orchestrate <feature>` sets up the track tasks and an isolated Git worktree.
-4. `/gin-workflow:execute` builds the tracks test-first with independent review checkpoints.
-5. `/gin-workflow:ship` archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
+1. `/gin:discuss <feature>` creates a change folder `docs/changes/<epic>-<slug>/` holding `01-proposal.md`, `02-spec-delta.md`, and `03-design.md`, with traceable requirement IDs (`REQ-<MODULE>-001`).
+2. `/gin:plan <feature>` maps requirements to tracks and files.
+3. `/gin:orchestrate <feature>` sets up the track tasks and an isolated Git worktree.
+4. `/gin:execute` builds the tracks test-first with independent review checkpoints.
+5. `/gin:ship` archives the change's spec delta into the living project specs (`docs/specs/<capability>/spec.md`) on the feature branch, then merges or opens a pull request.
 
 ---
 
 ## Next steps
 
-- Several epics: start from a product brief with `/gin-workflow:roadmap`.
+- Several epics: start from a product brief with `/gin:roadmap`.
 - A team: [team roles](../roles.md).
 - Automated end-to-end tests: the [QA add-on](../guides/qa.md).

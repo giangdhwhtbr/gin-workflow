@@ -2,7 +2,7 @@
 
 By default (`artifacts.layout: legacy`) each change gets a dated spec in `.planning/specs/` and a plan in `.planning/plans/`, and they stay where they were written. The SDD layout keeps **living specs** instead: one spec per capability that always describes current behavior, with numbered requirements that tests and beads point to. Every change proposes a delta to those specs, and shipping merges the delta in.
 
-Setup proposes `artifacts.layout: sdd` for a greenfield project. An existing repository switches with `/gin-workflow:migrate-specs`, which moves its `.planning` specs and plans and sets the layout; `gin-workflow setup doctor` suggests it when legacy specs exist.
+Setup proposes `artifacts.layout: sdd` for a greenfield project. An existing repository switches with `/gin:migrate-specs`, which moves its `.planning` specs and plans and sets the layout; `gin setup doctor` suggests it when legacy specs exist.
 
 ```mermaid
 flowchart LR
@@ -47,10 +47,10 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin-workflow specs next-id <cap>`.
+- IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin specs next-id <cap>`.
 - Each block has one `SHALL` or `MUST` statement and at least one GIVEN/WHEN/THEN scenario. The EARS patterns (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) are preferred.
-- A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin-workflow specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
-- `gin-workflow specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `specs-README.md`).
+- A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
+- `gin specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `specs-README.md`).
 
 ## Images and mockups
 
@@ -69,7 +69,7 @@ docs/specs/reports/assets/
     report-filter.png
 ```
 
-Name the folder by the ISO date the inputs arrived. By convention, a new batch of requirements, changes, or designs gets a new folder and an older folder is never edited, so the folders record the history of the capability's inputs. On a legacy project without design specs, put screenshots of the existing feature under `<date>/legacy/` and describe how it behaves today in that folder's `description.md` with `Kind: legacy`. Start every `description.md` from `gin-workflow specs template iteration.md`. `specs lint` reports a dated folder without `description.md`; flat files under `assets/` and folders not named by an ISO date stay valid and are not checked.
+Name the folder by the ISO date the inputs arrived. By convention, a new batch of requirements, changes, or designs gets a new folder and an older folder is never edited, so the folders record the history of the capability's inputs. On a legacy project without design specs, put screenshots of the existing feature under `<date>/legacy/` and describe how it behaves today in that folder's `description.md` with `Kind: legacy`. Start every `description.md` from `gin specs template iteration.md`. `specs lint` reports a dated folder without `description.md`; flat files under `assets/` and folders not named by an ISO date stay valid and are not checked.
 
 `specs archive` copies the text of each requirement block into `docs/specs/<capability>/spec.md`, so write image paths relative to that file (`assets/2026-05-11/report-list.png`). In the change folder's `02-spec-delta.md` those links do not resolve until the change ships.
 
@@ -85,13 +85,13 @@ docs/specs/orders/
     order-state.md         stateDiagram-v2: one entity's states and transitions
 ```
 
-Start them from `gin-workflow specs template activity.md` and `state.md`. Discuss edits them directly on the spec branch, as it does assets: they are not requirement blocks and never go through `02-spec-delta.md`. The change's `03-design.md` cites them under `## Data Flow` and `01-proposal.md` lists them under `## Capabilities Affected`, so they are committed and reviewed with the change. `specs archive` leaves them in place; when it creates `spec.md` for a new capability, it links every file in `diagrams/` under `## Diagrams`.
+Start them from `gin specs template activity.md` and `state.md`. Discuss edits them directly on the spec branch, as it does assets: they are not requirement blocks and never go through `02-spec-delta.md`. The change's `03-design.md` cites them under `## Data Flow` and `01-proposal.md` lists them under `## Capabilities Affected`, so they are committed and reviewed with the change. `specs archive` leaves them in place; when it creates `spec.md` for a new capability, it links every file in `diagrams/` under `## Diagrams`.
 
 `specs lint` reports a `*-activity.md` without a mermaid block starting with `flowchart` or `graph`, and a `*-state.md` without one starting with `stateDiagram`; other files in `diagrams/` are not checked. `specs lint --change` also reports each capability with an `ADDED` or `MODIFIED` block but no `*-activity.md`. When an entity needs a state diagram is a convention that lint does not check.
 
 ## Exporting an SRS
 
-`gin-workflow specs export <capability>` writes the capability's living spec into one HTML file, `srs-<capability>.html` at the repository root. `specs export --all` writes every capability into `srs.html`, one chapter each, sorted by name. `--out <file>` writes elsewhere in the repository. The file is generated, so each run overwrites it.
+`gin specs export <capability>` writes the capability's living spec into one HTML file, `srs-<capability>.html` at the repository root. `specs export --all` writes every capability into `srs.html`, one chapter each, sorted by name. `--out <file>` writes elsewhere in the repository. The file is generated, so each run overwrites it.
 
 Each chapter holds the capability's `## Purpose`, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. Open it in a browser and print it to PDF; each chapter starts on a new page.
 
@@ -99,7 +99,7 @@ The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; w
 
 ## How the stages change
 
-Every `state` and `record` call for the change passes `--workflow-id <epic>`. The `gin-sdd` skill carries the exact steps.
+Every `state` and `record` call for the change passes `--workflow-id <epic>`. The `sdd` skill carries the exact steps.
 
 | Stage | With the SDD layout |
 |---|---|
@@ -113,8 +113,8 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 
 ## Migrating
 
-`/gin-workflow:migrate-specs` runs `gin-workflow specs migrate --dry-run`, shows the moves, and on approval migrates on a `chore/migrate-specs` branch. Uncommitted changes always stop it; an approved but unshipped workflow or an open worktree stops it unless you accept `--force`. It can then seed living specs one capability at a time, describing current behavior only, using the `tech-doc` output when `docs/codebase` is empty.
+`/gin:migrate-specs` runs `gin specs migrate --dry-run`, shows the moves, and on approval migrates on a `chore/migrate-specs` branch. Uncommitted changes always stop it; an approved but unshipped workflow or an open worktree stops it unless you accept `--force`. It can then seed living specs one capability at a time, describing current behavior only, using the `tech-doc` output when `docs/codebase` is empty.
 
 ## Commands
 
-See [`gin-workflow specs`](../reference/cli.md#gin-workflow-specs) for every command and its exit codes. The [QA add-on](qa.md) builds test cases from the same REQ-IDs.
+See [`gin specs`](../reference/cli.md#gin-specs) for every command and its exit codes. The [QA add-on](qa.md) builds test cases from the same REQ-IDs.

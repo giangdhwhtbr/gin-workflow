@@ -1,6 +1,6 @@
 # Getting started
 
-This guide takes one feature from idea to merge using Claude Code and `gin-workflow`.
+This guide takes one feature from idea to merge using Claude Code and gin-workflow.
 
 Every change moves through recorded quality gates:
 
@@ -17,7 +17,7 @@ flowchart LR
 ## Prerequisites
 
 1. Python 3.11 or later (with PyYAML) and Git.
-2. Claude Code and the `gin-workflow` plugin:
+2. Claude Code and the `gin` plugin:
    ```bash
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
    ```
@@ -32,10 +32,10 @@ flowchart LR
 Run setup inside Claude Code to configure your project:
 
 ```text
-/gin-workflow:setup
+/gin:setup
 ```
 
-In a team repository, only the Tech Lead runs `/gin-workflow:setup`, once, and commits `.agent-workflow/config.yaml`. Teammates follow [joining a team](guides/team.md#join-it-member) instead.
+In a team repository, only the Tech Lead runs `/gin:setup`, once, and commits `.agent-workflow/config.yaml`. Teammates follow [joining a team](guides/team.md#join-it-member) instead.
 
 Setup asks one question at a time and generates `.agent-workflow/config.yaml`:
 - Project type: stage and shape, detected from your repository.
@@ -54,33 +54,33 @@ Commit `.agent-workflow/config.yaml` to git.
 
 ### Discuss
 ```text
-/gin-workflow:discuss Add an export-to-csv button on the user list
+/gin:discuss Add an export-to-csv button on the user list
 ```
 Claude reads the existing code, asks clarifying questions one at a time, proposes approaches, and writes a specification to `.planning/specs/<date>-<topic>-design.md` (or `docs/changes/` in SDD mode). Confirm the design to pass the `requirement_confirmed` gate.
 
 ### Plan
 ```text
-/gin-workflow:plan export-csv-button
+/gin:plan export-csv-button
 ```
 Claude breaks the confirmed spec into tracks in `.planning/plans/`, each with files, interfaces, and test-first steps. Approve the plan to pass the `plan_approved` gate.
 
 ### Orchestrate
 ```text
-/gin-workflow:orchestrate export-csv-button
+/gin:orchestrate export-csv-button
 ```
 Claude creates an epic and task items in your task tracker (Markdown or Beads) and an isolated Git worktree. This passes the `orchestration_ready` gate.
 
 ### Execute
 ```text
-/gin-workflow:execute
+/gin:execute
 ```
-Claude claims the next ready track, writes a failing test first, implements until the tests pass, and runs an independent review in the review ledger. After approval the track closes. Repeat `/gin-workflow:execute` until all tracks are done.
+Claude claims the next ready track, writes a failing test first, implements until the tests pass, and runs an independent review in the review ledger. After approval the track closes. Repeat `/gin:execute` until all tracks are done.
 
-Quality checks do not need a stage: `pre-commit` runs lint and typecheck, `pre-push` runs the tests (plus the build at `standard` and `strict`, and e2e at `strict`), and CI is the backstop (`gin-workflow hooks install`, see the [CLI reference](reference/cli.md#gin-workflow-hooks)).
+Quality checks do not need a stage: `pre-commit` runs lint and typecheck, `pre-push` runs the tests (plus the build at `standard` and `strict`, and e2e at `strict`), and CI is the backstop (`gin hooks install`, see the [CLI reference](reference/cli.md#gin-hooks)).
 
 ### Ship
 ```text
-/gin-workflow:ship
+/gin:ship
 ```
 Claude offers four options: merge locally, push and open a pull request, keep the branch, or discard. After your approval it integrates the work, removes the worktree, and closes the epic (`shipped`). Ship runs no tests; the git hooks and CI do.
 
@@ -88,9 +88,9 @@ Claude offers four options: merge locally, push and open a pull request, keep th
 
 ## Shortcuts
 
-- `/gin-workflow:workflow`: detects the current state and runs the next stage.
-- `/gin-workflow:quick <change>`: handles a small change (up to 5 files in one module by default) without specs or tasks.
-- `/gin-workflow:progress`: shows active, ready, and blocked tasks.
+- `/gin:workflow`: detects the current state and runs the next stage.
+- `/gin:quick <change>`: handles a small change (up to 5 files in one module by default) without specs or tasks.
+- `/gin:progress`: shows active, ready, and blocked tasks.
 
 ---
 

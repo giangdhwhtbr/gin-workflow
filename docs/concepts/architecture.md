@@ -1,6 +1,6 @@
 # Architecture
 
-gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that moves a change from requirement to merge through recorded gates. GitHub Copilot CLI also loads its skills and hooks, but it cannot be the configured harness, so workers and reviews run on one of the others. Skills tell the agent what to do at each stage. The `gin-workflow` Python CLI records the gates and derives the workflow state from them. A task tracker (local Markdown files, or Beads if you choose it) tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
+gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that moves a change from requirement to merge through recorded gates. GitHub Copilot CLI also loads its skills and hooks, but it cannot be the configured harness, so workers and reviews run on one of the others. Skills tell the agent what to do at each stage. The `gin` Python CLI records the gates and derives the workflow state from them. A task tracker (local Markdown files, or Beads if you choose it) tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
 
 ## Components
 
@@ -18,7 +18,7 @@ flowchart LR
         REF[references/ stage-contract, shape-*]
         RUL[rules/ rule packs]
         HK[hooks/hooks.json: scripts/safety_check.py]
-        CLI[gin-workflow CLI: workflow_core]
+        CLI[gin CLI: workflow_core]
         RL[review-ledger.py: review_ledger]
     end
     subgraph EXT["gin-orchestrator extension (optional)"]
@@ -46,7 +46,7 @@ flowchart LR
     HK -.guards.-> GIT
 ```
 
-The harness loads the skills. Skills call `gin-workflow` for configuration, gates, rules, specs, team mode, and usage, and `review-ledger.py` for reviews. Tasks go through `gin-workflow task`, which serves Markdown files or runs `bd`. `gin-orchestrator` is an optional extension: `gin-workflow` calls it through a versioned CLI contract ([Orchestrator contract](../reference/orchestrator-contract.md)), and it reaches back only through the facade `workflow_core.ext`; `gin-workflow` never imports it. Nothing outside the repository holds workflow state except Beads (if used) and the harness logs that `usage collect` reads. See [State model](state-model.md) for who owns what.
+The harness loads the skills. Skills call `gin` for configuration, gates, rules, specs, team mode, and usage, and `review-ledger.py` for reviews. Tasks go through `gin task`, which serves Markdown files or runs `bd`. `gin-orchestrator` is an optional extension: gin-workflow calls it through a versioned CLI contract ([Orchestrator contract](../reference/orchestrator-contract.md)), and it reaches back only through the facade `workflow_core.ext`; gin-workflow never imports it. Nothing outside the repository holds workflow state except Beads (if used) and the harness logs that `usage collect` reads. See [State model](state-model.md) for who owns what.
 
 ## Lifecycle
 
@@ -73,7 +73,7 @@ stateDiagram-v2
     end note
 ```
 
-Each arrow is a gate recorded with `gin-workflow record` or derived from the task tracker. `gin-workflow state` evaluates the gates and names exactly one next stage, or holds at `progress` with remedies. See [Lifecycle](lifecycle.md).
+Each arrow is a gate recorded with `gin record` or derived from the task tracker. `gin state` evaluates the gates and names exactly one next stage, or holds at `progress` with remedies. See [Lifecycle](lifecycle.md).
 
 ## One track, from claim to close
 
@@ -82,12 +82,12 @@ sequenceDiagram
     autonumber
     participant A as Main agent (execute)
     participant D as Developer subagent
-    participant B as Task tracker (gin-workflow task)
+    participant B as Task tracker (gin task)
     participant W as Worktree
-    participant R as gin-workflow rules
+    participant R as gin rules
     participant L as review-ledger.py
     participant V as Independent reviewer
-    participant U as gin-workflow usage
+    participant U as gin usage
     A->>B: task ready, task update --status in_progress
     A->>R: rules --files <scope>
     R-->>A: rule text for the developer
@@ -112,7 +112,7 @@ A track closes when its tests pass and its review is approved, without waiting f
 
 ```mermaid
 flowchart TD
-    T[Plan track: provider role + catalog model and effort] --> F[gin-workflow routes resolve]
+    T[Plan track: provider role + catalog model and effort] --> F[gin routes resolve]
     F --> Q{provider_mode multi and gin-orchestrator available?}
     Q -->|no, or it failed: warning| MH[every route is the main harness]
     Q -->|yes| OR[gin-orchestrator routes resolve]
@@ -131,7 +131,7 @@ flowchart TD
     N -->|none left before queue deadline| U[worker_routes_unavailable: task stays open]
 ```
 
-Plans name roles and routes from the main harness's model catalog, never providers. `gin-workflow` resolves the routes and writes the manifest. It delegates the resolution, and the reviewer choice, to `gin-orchestrator` only when `provider_mode` is `multi` and that extension is installed. Without it every route is the main harness. Executables come from machine-local configuration and are rechecked at dispatch. Every candidate runs the plan's route mapped by rank into its own catalog, so a fallback keeps the rank. See [Providers](providers.md) and [Orchestrator](../orchestrator/README.md).
+Plans name roles and routes from the main harness's model catalog, never providers. gin-workflow resolves the routes and writes the manifest. It delegates the resolution, and the reviewer choice, to `gin-orchestrator` only when `provider_mode` is `multi` and that extension is installed. Without it every route is the main harness. Executables come from machine-local configuration and are rechecked at dispatch. Every candidate runs the plan's route mapped by rank into its own catalog, so a fallback keeps the rank. See [Providers](providers.md) and [Orchestrator](../orchestrator/README.md).
 
 ## Build and install
 
@@ -143,7 +143,7 @@ flowchart LR
     I --> D3[dist/antigravity]
     I --> D4[dist/opencode]
     I --> D5[dist/copilot/&lt;plugin&gt;]
-    I --> LCH[~/.local/bin launchers: gin-workflow, gin-qa, gin-orchestrator]
+    I --> LCH[~/.local/bin launchers: gin, gin-qa, gin-orchestrator]
     D1 --> C1[~/.claude/skills/&lt;plugin&gt;]
     D2 --> C2[codex plugin add: cached snapshot]
     D3 --> C3[agy plugin install]
@@ -152,7 +152,7 @@ flowchart LR
     MK[marketplace: claude plugin install, codex plugin add] --> C1b[harness plugin cache]
 ```
 
-The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Three plugins build the same way: `gin-workflow` (the default), `gin-qa`, and `gin-orchestrator`. `--plugin gin-orchestrator` installs gin-workflow first when the gin-workflow launcher is missing or at another version. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the launchers. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
+The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Three plugins build the same way: gin-workflow (the default, plugin id `gin`), `gin-qa`, and `gin-orchestrator`. `--plugin gin-orchestrator` installs gin-workflow first when the `gin` launcher is missing or at another version. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the launchers. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
 
 ## Usage collection
 
@@ -166,7 +166,7 @@ flowchart LR
     B -->|neither| UA[epic: unattributed]
     T & G & UA --> S[usage: cost from usage-prices.yaml + quality signals]
     S --> M[(bead metadata ai_usage)]
-    M --> R[gin-workflow usage report and /report]
+    M --> R[gin usage report and /report]
 ```
 
 `execute` and `ship` run `usage collect --best-effort` before closing a bead, so a collection error never blocks the close. It keeps only the timestamp, model, session, working directory, branch, and token counts of each log entry, never prompt text. See [Usage report](../guides/usage-report.md).

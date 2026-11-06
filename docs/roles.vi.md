@@ -17,15 +17,15 @@ Trong [chế độ nhóm](guides/team.md), mỗi thành viên giữ các vai tr�
 
 | Vai trò | Skill | File | Branch | Phê duyệt |
 |---|---|---|---|---|
-| PM | `/gin-workflow:roadmap`, `/gin-workflow:progress`, `/gin-workflow:report`; `/gin-workflow:roadmap --milestone` ghi milestone, giới hạn bởi `team.permissions.milestone` | `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) | `roadmap/<topic>` | `roadmap` |
-| BA | `/gin-workflow:discuss`, `/gin-workflow:tech-doc`, `/gin-workflow:progress` | `.planning/specs/` (`docs/specs/` và `docs/changes/` với layout SDD) | `spec/<topic>` (`spec/<epic>-<slug>` với layout SDD) | `requirement_confirmed` |
-| Tech lead | `/gin-workflow:setup`, `/gin-workflow:team-setup` (với tư cách lead), `/gin-workflow:tech-doc`, `/gin-workflow:plan`, `/gin-workflow:orchestrate`, `/gin-workflow:review`, `/gin-workflow:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` với layout SDD), `.planning/plans/` (`04-plan.md` với layout SDD), đường dẫn source và test của khu vực | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; người phê duyệt dự phòng cho `roadmap`, `requirement_confirmed` và `ship` khi một vai trò chỉ có một người giữ |
-| Developer | `/gin-workflow:execute`, `/gin-workflow:review`, `/gin-workflow:ship` cho các track của chính mình, `/gin-workflow:quick`, `/gin-workflow:progress` | đường dẫn source và unit test, integration test trong khu vực của họ | `feat/<topic>-t<N>` cho mỗi track | peer code review |
-| Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin-workflow:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | review pull request của developer | `ship` |
+| PM | `/gin:roadmap`, `/gin:progress`, `/gin:report`; `/gin:roadmap --milestone` ghi milestone, giới hạn bởi `team.permissions.milestone` | `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) | `roadmap/<topic>` | `roadmap` |
+| BA | `/gin:discuss`, `/gin:tech-doc`, `/gin:progress` | `.planning/specs/` (`docs/specs/` và `docs/changes/` với layout SDD) | `spec/<topic>` (`spec/<epic>-<slug>` với layout SDD) | `requirement_confirmed` |
+| Tech lead | `/gin:setup`, `/gin:team-setup` (với tư cách lead), `/gin:tech-doc`, `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` với layout SDD), `.planning/plans/` (`04-plan.md` với layout SDD), đường dẫn source và test của khu vực | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; người phê duyệt dự phòng cho `roadmap`, `requirement_confirmed` và `ship` khi một vai trò chỉ có một người giữ |
+| Developer | `/gin:execute`, `/gin:review`, `/gin:ship` cho các track của chính mình, `/gin:quick`, `/gin:progress` | đường dẫn source và unit test, integration test trong khu vực của họ | `feat/<topic>-t<N>` cho mỗi track | peer code review |
+| Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | review pull request của developer | `ship` |
 
 ## Mỗi vai trò đọc gì { #what-each-role-reads }
 
-Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md#join-it-member), trang này dẫn tới các bước cài đặt. Lỗi cần tránh là chạy lại `/gin-workflow:setup` đè lên cấu hình của lead.
+Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md#join-it-member), trang này dẫn tới các bước cài đặt. Lỗi cần tránh là chạy lại `/gin:setup` đè lên cấu hình của lead.
 
 ### Tech lead { #tech-lead }
 
@@ -67,8 +67,8 @@ Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md
 
 - Thay đổi yêu cầu sau khi plan được duyệt (một quy ước của nhóm): đừng sửa spec đang chạy. Với layout SDD, thay đổi nằm trong một change folder mới có khối `MODIFIED` mang base hash của requirement mà nó thay thế, và `gin-qa cases plan` cho biết test case nào đã lỗi thời.
 - Test (một quy ước của nhóm): developer sở hữu unit test và integration test nằm cạnh code; tester sở hữu acceptance case và end-to-end spec dưới `qa/`. Hãy cho mỗi loại một khu vực riêng trong `team.areas` để plan giữ chúng tách biệt.
-- Worktree: mỗi track chạy trong worktree riêng do `/gin-workflow:orchestrate` tạo.
+- Worktree: mỗi track chạy trong worktree riêng do `/gin:orchestrate` tạo.
 - Claim, bàn giao và phê duyệt ([chế độ nhóm](guides/team.md) có chi tiết):
   - claim thất bại khi người khác đang giữ bead;
-  - `gin-workflow team reassign` bàn giao một track;
+  - `gin team reassign` bàn giao một track;
   - một cổng có vai trò chỉ được ghi nhận cùng một pull request đã duyệt, và không bao giờ do chính tác giả duyệt.

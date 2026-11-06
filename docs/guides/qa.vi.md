@@ -1,6 +1,6 @@
 # Add-on QA (`gin-qa`) { #qa-add-on-gin-qa }
 
-`gin-qa` là một plugin tùy chọn: nó viết test case từ spec của bạn, dẫn tester đi qua các case thủ công và tạo một bug bead cho mỗi lần thất bại, biến các case end-to-end thành Playwright spec kèm evidence được ghi lại, và báo cáo cả hai trong một trang HTML offline. Nó cần `gin-workflow` và không được cài theo mặc định.
+`gin-qa` là một plugin tùy chọn: nó viết test case từ spec của bạn, dẫn tester đi qua các case thủ công và tạo một bug bead cho mỗi lần thất bại, biến các case end-to-end thành Playwright spec kèm evidence được ghi lại, và báo cáo cả hai trong một trang HTML offline. Nó cần gin-workflow và không được cài theo mặc định.
 
 ```mermaid
 flowchart LR
@@ -78,7 +78,7 @@ Mục `## Types` của guidelines liệt kê các loại case đang dùng, và [
 
 Một lần thất bại sẽ hỏi chuyện gì đã xảy ra, các tham chiếu evidence, và một tham chiếu tracker bên ngoài tùy chọn, rồi chạy `gin-qa cases bug`:
 
-- Bug là một bead được tạo qua `gin-workflow task create`, liên kết với epic của case bằng `discovered-from`. `gin-workflow usage collect` trên epic đó đếm nó vào `quality.bugs`, và [usage report](../reference/cli.md#gin-workflow-usage) hiển thị con số từ lần collect gần nhất.
+- Bug là một bead được tạo qua `gin task create`, liên kết với epic của case bằng `discovered-from`. `gin usage collect` trên epic đó đếm nó vào `quality.bugs`, và [usage report](../reference/cli.md#gin-usage) hiển thị con số từ lần collect gần nhất.
 - Epic lấy từ spec hoặc change của case; xem [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) để biết cách tra cứu. Nếu không có epic, skill đưa ra các epic đang mở của repository để chọn.
 - Mô tả chứa file case, lần chạy, precondition, test data, các bước, kết quả mong đợi, kết quả thực tế, và evidence.
 - Khi `Bug:` của case nêu một bead có trạng thái đã đặt và không phải `closed`, không có bug nào được tạo và case giữ nguyên nó; kết quả thực tế và evidence mới không được thêm vào đó. Một bug đã đóng nhận một bug mới nêu nó là bug trước đó; xem [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) cho các giá trị khác.

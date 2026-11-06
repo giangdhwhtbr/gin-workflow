@@ -7,7 +7,7 @@ gin-workflow runs the whole lifecycle in the harness you open (the main harness)
 - Routing of roles to harnesses: a plan names a role and a model and effort from the main harness's catalog, never a harness. gin-orchestrator resolves each track to an ordered list of harnesses, each at that route mapped by rank into its own catalog ([Routing](routing.md)).
 - Dispatch of workers on those harnesses, with health checks, fallback, a circuit breaker, and capacity limits.
 - Provider independence for review: the reviewer runs on a different harness than the implementer.
-- Provider health and model checks in `gin-workflow setup doctor --probe` and `setup models`.
+- Provider health and model checks in `gin setup doctor --probe` and `setup models`.
 - The `/gin-orchestrator:providers` skill, which configures all of it.
 
 ## Install
@@ -18,16 +18,16 @@ From a gin-workflow clone:
 ./install.sh --plugin gin-orchestrator
 ```
 
-This installs gin-workflow too, when it is missing. On Windows use `.\install.ps1 -Plugin gin-orchestrator`. Then, in each repository, run `/gin-orchestrator:providers` once. It writes the `orchestrator:` section of `.agent-workflow/config.yaml` and `.agent-workflow/orchestrator.local.yaml`, turns on `provider_mode: multi`, and probes each harness ([Routing](routing.md#setting-it-up)). Details of the install and of the dependency on gin-workflow: the [plugin README](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-orchestrator/src/README.md).
+This installs gin-workflow too, when it is missing. On Windows use `.\install.ps1 -Plugin gin-orchestrator`. Then, in each repository, run `/gin-orchestrator:providers` once. It writes the `orchestrator:` section of `.agent-workflow/config.yaml` and `.agent-workflow/orchestrator.local.yaml`, turns on `provider_mode: multi`, and probes each harness ([Routing](routing.md#setting-it-up)). Details of the install and of the dependency on gin: the [plugin README](https://github.com/giangdhwhtbr/gin-workflow/blob/master/plugins/gin-orchestrator/src/README.md).
 
 ## Single and multi mode
 
 | `provider_mode` | Behavior |
 |---|---|
 | `single` (default) | Every track and review runs on the main harness. gin-orchestrator is not consulted. Review independence is `session`. |
-| `multi` | `gin-workflow` delegates `routes resolve`, `reviewer`, and the `setup doctor --probe` and `setup models` provider checks to gin-orchestrator. Review independence can be `provider`, which `/gin-orchestrator:providers` sets. |
+| `multi` | gin-workflow delegates `routes resolve`, `reviewer`, and the `setup doctor --probe` and `setup models` provider checks to gin-orchestrator. Review independence can be `provider`, which `/gin-orchestrator:providers` sets. |
 
-In `multi` mode without gin-orchestrator, or when it fails, `gin-workflow` resolves every route to the main harness, warns, and never blocks the work ([troubleshooting](../reference/troubleshooting.md#orchestrator_missing-orchestrator_contract_mismatch-or-orchestrator_failed)). The delegation table is in the [CLI reference](../reference/cli.md#delegation-to-gin-orchestrator); the command contract is in the [orchestrator contract](../reference/orchestrator-contract.md).
+In `multi` mode without gin-orchestrator, or when it fails, gin-workflow resolves every route to the main harness, warns, and never blocks the work ([troubleshooting](../reference/troubleshooting.md#orchestrator_missing-orchestrator_contract_mismatch-or-orchestrator_failed)). The delegation table is in the [CLI reference](../reference/cli.md#delegation-to-gin-orchestrator); the command contract is in the [orchestrator contract](../reference/orchestrator-contract.md).
 
 ## When to use workers
 
@@ -41,7 +41,7 @@ Stage worker execution delegates to `gin-orchestrator dispatch`. At dispatch, `R
 2. Circuit breaker: infrastructure failures (quota, rate limit, authentication, service, timeout, crash, invalid model) count against a provider and model. The first quota or authentication failure opens the circuit at once; other kinds open it at `circuit_breaker.failure_threshold`. An open circuit stays open for `cooldown_seconds`, then allows `half_open_max_probes` trial runs. Task, test, review, and invalid-result failures do not count against the provider. Only quota, rate-limit, and service failures are retried (up to `worker.max_retries`), and the retry receives the prior attempt's `changed_files`; a timeout is not retried.
 3. Capacity: at most `concurrency.<provider>` workers at once; a task waits up to `queue.max_wait_seconds`.
 
-Fallback keeps the route's rank: every candidate runs the plan's model and effort mapped into its own catalog. Escalation (`gin-workflow routes dispatch --escalate`) moves up the catalog of the track's resolved harness. When no route is left before the queue deadline, the worker returns `worker_routes_unavailable` and the task stays open. A retry reuses the same identity, and a completed task is never dispatched again. The actual route, any fallback reason, and circuit transitions are recorded as runtime events.
+Fallback keeps the route's rank: every candidate runs the plan's model and effort mapped into its own catalog. Escalation (`gin routes dispatch --escalate`) moves up the catalog of the track's resolved harness. When no route is left before the queue deadline, the worker returns `worker_routes_unavailable` and the task stays open. A retry reuses the same identity, and a completed task is never dispatched again. The actual route, any fallback reason, and circuit transitions are recorded as runtime events.
 
 For Antigravity and OpenCode, a catalog model may be `provider_default`, which is their built-in catalog: the manifest records the provider and omits a model, and the CLI uses its own default. An OpenCode catalog model is passed verbatim to `--model`, so it can be a `provider/model` or `provider/model#variant` string.
 
@@ -49,7 +49,7 @@ OpenCode has no sandbox. Its adapter runs `opencode run --standalone --auto --fo
 
 ## Provider independence
 
-With `routing.review.independence: provider` and gin-orchestrator, the reviewer's provider must differ from the implementer's. `gin-workflow reviewer` returns the ordered reviewer routes, each with an `actor_id`. When no other provider is left, the review needs a human decision, unless `allow_self_review_fallback` is set. Without gin-orchestrator independence is `session` ([Providers](../concepts/providers.md#independent-review)).
+With `routing.review.independence: provider` and gin-orchestrator, the reviewer's provider must differ from the implementer's. `gin reviewer` returns the ordered reviewer routes, each with an `actor_id`. When no other provider is left, the review needs a human decision, unless `allow_self_review_fallback` is set. Without gin-orchestrator independence is `session` ([Providers](../concepts/providers.md#independent-review)).
 
 ## Worker context and results
 

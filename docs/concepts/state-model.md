@@ -4,7 +4,7 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 
 | Question | Owner |
 |---|---|
-| What work exists, what depends on what, what is ready, who claimed it, is it done? | the task tracker (`gin-workflow task`) |
+| What work exists, what depends on what, what is ready, who claimed it, is it done? | the task tracker (`gin task`) |
 | What was agreed to build? | the confirmed spec in `.planning/specs/` (SDD: the change folder and living specs) |
 | What files and tests belong to a track? | the approved plan in `.planning/plans/` (a standalone bead: its description and acceptance criteria) |
 | Was a gate confirmed, approved, waived, or recorded? | the event store, `.agent-workflow/runtime/events.jsonl` |
@@ -14,14 +14,14 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 
 ## Task tracker
 
-`gin-workflow task` owns task identity, priority, status (`open`, `in_progress`, `blocked`, `deferred`, `closed`), claims, dependencies, blockers, follow-ups, and closure. It serves them from Beads (`bd`) when `providers.task_tracking: beads`, and otherwise from Markdown files under `.planning/tasks/`. "What is active, blocked, or ready?" is answered through it (`gin-workflow task ready`, `gin-workflow task show`, or the `progress` skill), never from other local files. Tasks are called beads in either backend.
+`gin task` owns task identity, priority, status (`open`, `in_progress`, `blocked`, `deferred`, `closed`), claims, dependencies, blockers, follow-ups, and closure. It serves them from Beads (`bd`) when `providers.task_tracking: beads`, and otherwise from Markdown files under `.planning/tasks/`. "What is active, blocked, or ready?" is answered through it (`gin task ready`, `gin task show`, or the `progress` skill), never from other local files. Tasks are called beads in either backend.
 
 `bd` also creates `.beads.gate.lock` in the repository root (and `embeddeddolt.gate.lock` in the Beads directory) as a lock around its writes; `.gitignore` excludes it.
 
 `orchestrate` creates two kinds of beads:
 
 - The parent bead (epic) is the deliverable. It stays open until a human-confirmed merge; closing it is what marks the workflow `shipped`. Merge holds belong only here.
-- A track bead exists for each plan track (`gin-workflow task create --parent <epic>`), with technical acceptance criteria only: code in scope, tests passing, review approved. A track closes as soon as those hold, which unblocks its dependents. It never waits for the parent's merge.
+- A track bead exists for each plan track (`gin task create --parent <epic>`), with technical acceptance criteria only: code in scope, tests passing, review approved. A track closes as soon as those hold, which unblocks its dependents. It never waits for the parent's merge.
 
 `implementation_complete` is derived from the task tracker: every child of the epic recorded at `orchestration-ready` is closed.
 
@@ -31,7 +31,7 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 
 ## Event store
 
-`gin-workflow record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `quick.completed`, `delivery.shipped`, `gate.waived`, `blocker.cleared`, and `review.waived` (written by `task close --waive-review`). Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. Each event carries `schema_version`, currently 1. Readers accept events without it and ignore fields they do not know. A read or write waits at most 60 seconds for the store's lock, then fails. `gin-workflow state` replays them per workflow id, together with the task tracker, to derive the gates. If either one cannot be read, the gates that depend on it are `unknown` and `state` holds, naming the cause. The store is local to the machine; team mode proves gates with pull requests. In team mode with Beads, `record` also writes a gate's PR proof (`pr_url`, `merge_commit`, `approvers`, `actor`, `at`) into the `gates` metadata of the workflow's epic bead: the workflow id when it is a bead, else the epic of its `orchestration.ready` event, else the epic labelled `workflow:<id>`. `record orchestration-ready --epic` copies the proofs recorded before that epic existed and adds that label. When the bead write fails, or a proven gate has no epic to go to, the local event stays and `record` prints a warning. `state` finds the epic the same way and treats `requirement_confirmed` and `plan_approved` as satisfied when the local log or the epic's `gates` holds them, so a teammate's checkout sees a gate the lead recorded. For a standalone bead, `state` also takes `shipped` from the bead's `gates` once the bead is closed. All untracked workflow state lives in the main checkout: this store, the rest of `.agent-workflow/runtime/`, `generated/effective-config.yaml`, and `orchestrator.local.yaml`. Commands run inside a linked worktree read and write the main checkout's copy, so a gate recorded in either place is one state.
+`gin record` and `unblock` append to `.agent-workflow/runtime/events.jsonl`: `requirement.confirmed`, `approval.recorded` (plan approval), `orchestration.ready` (with the epic), `quick.completed`, `delivery.shipped`, `gate.waived`, `blocker.cleared`, and `review.waived` (written by `task close --waive-review`). Events are append-only and idempotent: recording the same gate with the same evidence twice adds nothing. Each event carries `schema_version`, currently 1. Readers accept events without it and ignore fields they do not know. A read or write waits at most 60 seconds for the store's lock, then fails. `gin state` replays them per workflow id, together with the task tracker, to derive the gates. If either one cannot be read, the gates that depend on it are `unknown` and `state` holds, naming the cause. The store is local to the machine; team mode proves gates with pull requests. In team mode with Beads, `record` also writes a gate's PR proof (`pr_url`, `merge_commit`, `approvers`, `actor`, `at`) into the `gates` metadata of the workflow's epic bead: the workflow id when it is a bead, else the epic of its `orchestration.ready` event, else the epic labelled `workflow:<id>`. `record orchestration-ready --epic` copies the proofs recorded before that epic existed and adds that label. When the bead write fails, or a proven gate has no epic to go to, the local event stays and `record` prints a warning. `state` finds the epic the same way and treats `requirement_confirmed` and `plan_approved` as satisfied when the local log or the epic's `gates` holds them, so a teammate's checkout sees a gate the lead recorded. For a standalone bead, `state` also takes `shipped` from the bead's `gates` once the bead is closed. All untracked workflow state lives in the main checkout: this store, the rest of `.agent-workflow/runtime/`, `generated/effective-config.yaml`, and `orchestrator.local.yaml`. Commands run inside a linked worktree read and write the main checkout's copy, so a gate recorded in either place is one state.
 
 ## Review ledger
 
@@ -62,7 +62,7 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
   backups/                 migration backups
 ```
 
-On first setup, `gin-workflow setup init` writes `.agent-workflow/.gitignore` with the entries listed in [Configuration](../reference/config.md); `setup configure` does not touch it. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
+On first setup, `gin setup init` writes `.agent-workflow/.gitignore` with the entries listed in [Configuration](../reference/config.md); `setup configure` does not touch it. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
 
 ## Runtime metadata
 
@@ -74,9 +74,9 @@ Worktree paths, branch names, assignment manifests (`runtime/assignments/<workfl
 
 ## Usage summaries
 
-`gin-workflow usage collect` stores a summary in the bead's metadata under `ai_usage`. It records tokens and estimated cost per model and per lifecycle stage, and quality signals (reopens, bugs found later, review cycles, rejections, findings by severity, waivers). It holds aggregates only, never prompts, session ids, or log paths.
+`gin usage collect` stores a summary in the bead's metadata under `ai_usage`. It records tokens and estimated cost per model and per lifecycle stage, and quality signals (reopens, bugs found later, review cycles, rejections, findings by severity, waivers). It holds aggregates only, never prompts, session ids, or log paths.
 
 ## Extensions state
 
-`gin-workflow state --format json` reports gin-orchestrator's status under `extensions.orchestrator`. `workflow_core.orchestrator_client.status()` computes it once per process from `gin-orchestrator version`; nothing stores it. The [CLI reference](../reference/cli.md#gin-workflow-state) lists its fields, and the [orchestrator contract](../reference/orchestrator-contract.md) explains the failure reasons.
+`gin state --format json` reports gin-orchestrator's status under `extensions.orchestrator`. `workflow_core.orchestrator_client.status()` computes it once per process from `gin-orchestrator version`; nothing stores it. The [CLI reference](../reference/cli.md#gin-state) lists its fields, and the [orchestrator contract](../reference/orchestrator-contract.md) explains the failure reasons.
 

@@ -2,7 +2,7 @@
 
 Pick the weakest model that can do the stage, raise the effort only for hard reasoning, and give the costly stages to the people with the most AI quota. This guide shows the choice per stage, a way to split work across mixed seats, and how to keep working when quota runs out.
 
-The model and effort advice is a convention. `gin-workflow` records the `Model:` and `Effort:` of each plan track and routes by them, but it does not pick them for you. The names come from the model catalog in [configuration](../reference/config.md#models): `haiku`, `sonnet`, and `opus` for models, `low`, `medium`, and `high` for efforts.
+The model and effort advice is a convention. gin-workflow records the `Model:` and `Effort:` of each plan track and routes by them, but it does not pick them for you. The names come from the model catalog in [configuration](../reference/config.md#models): `haiku`, `sonnet`, and `opus` for models, `low`, `medium`, and `high` for efforts.
 
 ## Model and effort by stage
 
@@ -10,19 +10,19 @@ Stages that read and write structured text run on `sonnet`. Stages that weigh tr
 
 | Stage | Model | Effort | Why |
 |---|---|---|---|
-| `/gin-workflow:setup` | `haiku` | `low` | An interview that fills fixed questions; little reasoning |
-| `/gin-workflow:team-setup` | `haiku` | `low` | Writes the `team:` block from answers you already hold |
-| `/gin-workflow:tech-doc` | `sonnet` | `medium` | Reads a lot of code, but summarizes rather than designs |
-| `/gin-workflow:roadmap` | `opus` | `high` | Splits goals into dependent epics; a wrong split costs a milestone |
-| `/gin-workflow:roadmap --milestone` | `sonnet` | `medium` | Chooses epics against capacity and blockers from a fixed list |
-| `/gin-workflow:discuss` | `sonnet` | `medium` | Turns answers into a spec; use `opus` for a risky legacy capability |
-| `/gin-workflow:plan` | `opus` | `high` | Decides tracks, areas, owners, and routes; every later stage inherits it |
-| `/gin-workflow:orchestrate` | `haiku` | `low` | Mirrors the plan into beads; the plan already holds the decisions |
-| `/gin-workflow:execute`, track at `low` | `haiku` | `low` | Mechanical edits and boilerplate |
-| `/gin-workflow:execute`, track at `medium` | `sonnet` | `medium` | A bounded change with a clear spec |
-| `/gin-workflow:execute`, track at `high` | `opus` | `high` | Cross-module, migration, security, or concurrency work |
-| `/gin-workflow:review` | `opus` | `high` | A reviewer weaker than the author misses defects |
-| `/gin-workflow:ship` | `haiku` | `low` | Runs the chosen merge option and closes beads |
+| `/gin:setup` | `haiku` | `low` | An interview that fills fixed questions; little reasoning |
+| `/gin:team-setup` | `haiku` | `low` | Writes the `team:` block from answers you already hold |
+| `/gin:tech-doc` | `sonnet` | `medium` | Reads a lot of code, but summarizes rather than designs |
+| `/gin:roadmap` | `opus` | `high` | Splits goals into dependent epics; a wrong split costs a milestone |
+| `/gin:roadmap --milestone` | `sonnet` | `medium` | Chooses epics against capacity and blockers from a fixed list |
+| `/gin:discuss` | `sonnet` | `medium` | Turns answers into a spec; use `opus` for a risky legacy capability |
+| `/gin:plan` | `opus` | `high` | Decides tracks, areas, owners, and routes; every later stage inherits it |
+| `/gin:orchestrate` | `haiku` | `low` | Mirrors the plan into beads; the plan already holds the decisions |
+| `/gin:execute`, track at `low` | `haiku` | `low` | Mechanical edits and boilerplate |
+| `/gin:execute`, track at `medium` | `sonnet` | `medium` | A bounded change with a clear spec |
+| `/gin:execute`, track at `high` | `opus` | `high` | Cross-module, migration, security, or concurrency work |
+| `/gin:review` | `opus` | `high` | A reviewer weaker than the author misses defects |
+| `/gin:ship` | `haiku` | `low` | Runs the chosen merge option and closes beads |
 | `/gin-qa:setup` | `sonnet` | `medium` | One interview that writes the QA guidelines |
 | `/gin-qa:cases` | `sonnet` | `medium` | Maps requirements to cases; needs care, not deep design |
 | `/gin-qa:tests` | `sonnet` | `medium` | Writes tests in your own framework from the cases |
@@ -51,9 +51,9 @@ flowchart TD
 
 Rules that keep the split working:
 
-- Lan and Binh run `/gin-workflow:roadmap`, the `plan`, reviews, and the `opus` or `high` tracks, such as the legacy cutover.
+- Lan and Binh run `/gin:roadmap`, the `plan`, reviews, and the `opus` or `high` tracks, such as the legacy cutover.
 - An, Em, Dung, Hoa, and Chi run bounded tracks in parallel, at `sonnet` and `medium` or `haiku` and `low`.
-- Write the `Owner:` of every track in the plan, so the split is visible in `gin-workflow team check-plan <plan>`.
+- Write the `Owner:` of every track in the plan, so the split is visible in `gin team check-plan <plan>`.
 - Set `usage.budget_usd` in `.agent-workflow/config.yaml` to cap the spend of each epic. See [AI usage report](usage-report.md#budget).
 
 ## Working manually when AI quota runs out
@@ -79,41 +79,41 @@ The current assignee or the area lead moves the track. Push the branch first.
 
 ```bash
 git push origin feat/<topic>-t<N>
-gin-workflow team reassign <bead> <email>
+gin team reassign <bead> <email>
 ```
 
-The new owner checks out the pushed branch. `gin-workflow worktree create` makes new branches only, so use `git worktree add` here:
+The new owner checks out the pushed branch. `gin worktree create` makes new branches only, so use `git worktree add` here:
 
 ```bash
 git fetch origin
 git worktree add .planning/worktrees/<bead> feat/<topic>-t<N>
-gin-workflow team claim <bead>
+gin team claim <bead>
 ```
 
 ### Create track beads by hand
 
-If quota ran out after the plan was approved and before `/gin-workflow:orchestrate` ran, create what that skill would have created.
+If quota ran out after the plan was approved and before `/gin:orchestrate` ran, create what that skill would have created.
 
 ```bash
-gin-workflow task create --parent <epic> --labels track:<N>,area:<area> --assignee <owner> "<title>"
-gin-workflow task dep add <blocked> <blocker>
-gin-workflow record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<bead-ids>"
+gin task create --parent <epic> --labels track:<N>,area:<area> --assignee <owner> "<title>"
+gin task dep add <blocked> <blocker>
+gin record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<bead-ids>"
 ```
 
 ### Work a track
 
 1. Find and claim a bead.
-   - In team mode, run `gin-workflow team deps`, `gin-workflow team ready`, and `gin-workflow team claim <bead>`. The claim writes a lease.
-   - In solo mode, run `gin-workflow task ready` and `gin-workflow task update <bead> --claim`.
+   - In team mode, run `gin team deps`, `gin team ready`, and `gin team claim <bead>`. The claim writes a lease.
+   - In solo mode, run `gin task ready` and `gin task update <bead> --claim`.
 2. Create the worktree for a new branch and enter it. Then check that the blocking tracks have merged.
    ```bash
-   gin-workflow worktree create <bead> feat/<topic>-t<N>
+   gin worktree create <bead> feat/<topic>-t<N>
    cd .planning/worktrees/<bead>
-   gin-workflow team deps --bead <bead>
+   gin team deps --bead <bead>
    ```
 3. Read the track's `Files:` and `Interfaces:` in the plan, then list the rules that apply to those paths.
    ```bash
-   gin-workflow rules --files <paths>
+   gin rules --files <paths>
    ```
 4. Write the failing test, make it pass, and commit. The `pre-commit` hook runs `lint` and `typecheck`.
 5. For a QA track, work the cases by hand with the `gin-qa` CLI.
@@ -133,23 +133,23 @@ gin-workflow record orchestration-ready --workflow-id <epic> --epic <epic> --evi
    Use `gin-qa cases bug` only for a failed manual case. It files the bug bead and records the failure.
 6. Close the track. Under `easy` or `standard` rigor, which leave `project.review_ledger` off:
    ```bash
-   gin-workflow task close <bead> --reason "Tests pass; implemented manually"
+   gin task close <bead> --reason "Tests pass; implemented manually"
    ```
    Under `strict` rigor, a track needs an approved review ledger. A peer review in the pull request can stand in for it as a recorded waiver:
    ```bash
-   gin-workflow task close <bead> --waive-review "AI quota exhausted; peer reviewed in PR #<num>" --actor <your-email> --reason "Tests and PR review passed"
+   gin task close <bead> --waive-review "AI quota exhausted; peer reviewed in PR #<num>" --actor <your-email> --reason "Tests and PR review passed"
    ```
-7. Push `feat/<topic>-t<N>`. The `pre-push` hook runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. With shared Beads, run `gin-workflow team sync`.
-8. Open the pull request and fill the `Plan:` and `Tracks:` fields of the template, so teammates' `gin-workflow team deps` can resolve the track.
+7. Push `feat/<topic>-t<N>`. The `pre-push` hook runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. With shared Beads, run `gin team sync`.
+8. Open the pull request and fill the `Plan:` and `Tracks:` fields of the template, so teammates' `gin team deps` can resolve the track.
 
 ### Check the ship gate
 
 Once every track pull request has merged, check the gate and close the epic.
 
 ```bash
-gin-workflow team check <pr-url> --gate ship
-gin-workflow task close <epic> --reason "All tracks merged"
-gin-workflow worktree cleanup <bead>
+gin team check <pr-url> --gate ship
+gin task close <epic> --reason "All tracks merged"
+gin worktree cleanup <bead>
 ```
 
 See [team mode](team.md) for claims and gates, and the [CLI reference](../reference/cli.md) for every option.

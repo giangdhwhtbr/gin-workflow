@@ -17,15 +17,15 @@ In [team mode](guides/team.md) each member holds roles, each area of the reposit
 
 | Role | Skills | Files | Branch | Approves |
 |---|---|---|---|---|
-| PM | `/gin-workflow:roadmap`, `/gin-workflow:progress`, `/gin-workflow:report`; `/gin-workflow:roadmap --milestone` writes milestones, limited by `team.permissions.milestone` | `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) | `roadmap/<topic>` | `roadmap` |
-| BA | `/gin-workflow:discuss`, `/gin-workflow:tech-doc`, `/gin-workflow:progress` | `.planning/specs/` (`docs/specs/` and `docs/changes/` with the SDD layout) | `spec/<topic>` (`spec/<epic>-<slug>` with the SDD layout) | `requirement_confirmed` |
-| Tech lead | `/gin-workflow:setup`, `/gin-workflow:team-setup` (as lead), `/gin-workflow:tech-doc`, `/gin-workflow:plan`, `/gin-workflow:orchestrate`, `/gin-workflow:review`, `/gin-workflow:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` with the SDD layout), `.planning/plans/` (`04-plan.md` with the SDD layout), area source and test paths | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; backup approver for `roadmap`, `requirement_confirmed`, and `ship` when a role has one holder |
-| Developer | `/gin-workflow:execute`, `/gin-workflow:review`, `/gin-workflow:ship` for their own tracks, `/gin-workflow:quick`, `/gin-workflow:progress` | source and unit and integration test paths in their areas | `feat/<topic>-t<N>` per track | peer code reviews |
-| Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin-workflow:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's pull request | `ship` |
+| PM | `/gin:roadmap`, `/gin:progress`, `/gin:report`; `/gin:roadmap --milestone` writes milestones, limited by `team.permissions.milestone` | `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) | `roadmap/<topic>` | `roadmap` |
+| BA | `/gin:discuss`, `/gin:tech-doc`, `/gin:progress` | `.planning/specs/` (`docs/specs/` and `docs/changes/` with the SDD layout) | `spec/<topic>` (`spec/<epic>-<slug>` with the SDD layout) | `requirement_confirmed` |
+| Tech lead | `/gin:setup`, `/gin:team-setup` (as lead), `/gin:tech-doc`, `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` with the SDD layout), `.planning/plans/` (`04-plan.md` with the SDD layout), area source and test paths | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; backup approver for `roadmap`, `requirement_confirmed`, and `ship` when a role has one holder |
+| Developer | `/gin:execute`, `/gin:review`, `/gin:ship` for their own tracks, `/gin:quick`, `/gin:progress` | source and unit and integration test paths in their areas | `feat/<topic>-t<N>` per track | peer code reviews |
+| Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's pull request | `ship` |
 
 ## What each role reads
 
-Everyone except the tech lead starts from [joining a team](guides/team.md#join-it-member), which links the install steps. Running `/gin-workflow:setup` again over the lead's configuration is the mistake to avoid.
+Everyone except the tech lead starts from [joining a team](guides/team.md#join-it-member), which links the install steps. Running `/gin:setup` again over the lead's configuration is the mistake to avoid.
 
 ### Tech lead
 
@@ -67,8 +67,8 @@ Everyone except the tech lead starts from [joining a team](guides/team.md#join-i
 
 - Requirement changes after plan approval (a team convention): do not edit the in-flight spec. With the SDD layout, the change goes in a new change folder whose `MODIFIED` block carries the base hash of the requirement it replaces, and `gin-qa cases plan` shows which test cases went stale.
 - Tests (a team convention): developers own unit and integration tests next to the code; testers own acceptance cases and end-to-end specs under `qa/`. Give each its own area in `team.areas`, so plans keep them apart.
-- Worktrees: each track runs in its own worktree created by `/gin-workflow:orchestrate`.
+- Worktrees: each track runs in its own worktree created by `/gin:orchestrate`.
 - Claims, hand-overs and approvals ([team mode](guides/team.md) has the details):
   - a claim fails while someone else holds the bead;
-  - `gin-workflow team reassign` hands a track over;
+  - `gin team reassign` hands a track over;
   - a gate with roles is recorded only with an approved pull request, never approved by its author.

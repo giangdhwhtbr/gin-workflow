@@ -4,7 +4,7 @@ Ghi đè các template mà gin-workflow và gin-qa dùng để ghi, cùng các r
 
 ## Cách ghi đè hoạt động { #how-overrides-work }
 
-`gin-workflow` tra cứu template theo thứ tự sau:
+gin-workflow tra cứu template theo thứ tự sau:
 
 ```mermaid
 flowchart LR
@@ -20,29 +20,29 @@ Một lệnh cần template sẽ kiểm tra `.agent-workflow/templates/` ở g�
 In bất kỳ template có sẵn nào bằng:
 
 ```bash
-gin-workflow specs template <template-name>
+gin specs template <template-name>
 ```
 
 Các template khả dụng:
 - Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
 - Xuất SRS (`specs export`): `srs.html`, `srs-capability.html`
-- Tài liệu codebase (`/gin-workflow:tech-doc`): `codebase/<FILE>.md`, ví dụ `codebase/05-API.md`
+- Tài liệu codebase (`/gin:tech-doc`): `codebase/<FILE>.md`, ví dụ `codebase/05-API.md`
 - Quy ước của team: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
 | Template | Được dùng bởi | File ghi đè |
 |---|---|---|
-| Roadmap | `/gin-workflow:roadmap` | `.agent-workflow/templates/roadmap.md` |
-| Mô tả epic | `/gin-workflow:roadmap` | `.agent-workflow/templates/epic.md` |
-| User story | `/gin-workflow:discuss` | `.agent-workflow/templates/user-story.md` |
-| Design spec (layout legacy) | `/gin-workflow:discuss` | `.agent-workflow/templates/design-spec.md` |
-| Proposal, spec delta, design, tests (layout SDD) | `specs new`, lệnh mà `/gin-workflow:discuss` chạy | `.agent-workflow/templates/proposal.md`, `spec-delta.md`, `design.md`, `tests.md` (không đánh số; `specs new` ghi chúng thành `01-proposal.md` và tiếp theo) |
-| `spec.md` | `specs archive` (một capability mới) và `/gin-workflow:migrate-specs` | `.agent-workflow/templates/spec.md` |
+| Roadmap | `/gin:roadmap` | `.agent-workflow/templates/roadmap.md` |
+| Mô tả epic | `/gin:roadmap` | `.agent-workflow/templates/epic.md` |
+| User story | `/gin:discuss` | `.agent-workflow/templates/user-story.md` |
+| Design spec (layout legacy) | `/gin:discuss` | `.agent-workflow/templates/design-spec.md` |
+| Proposal, spec delta, design, tests (layout SDD) | `specs new`, lệnh mà `/gin:discuss` chạy | `.agent-workflow/templates/proposal.md`, `spec-delta.md`, `design.md`, `tests.md` (không đánh số; `specs new` ghi chúng thành `01-proposal.md` và tiếp theo) |
+| `spec.md` | `specs archive` (một capability mới) và `/gin:migrate-specs` | `.agent-workflow/templates/spec.md` |
 | `specs-README.md` | `specs archive` và `specs migrate` | `.agent-workflow/templates/specs-README.md` |
-| Mô tả thư mục asset (layout SDD) | `/gin-workflow:discuss` | `.agent-workflow/templates/iteration.md` |
-| Sơ đồ activity và state (layout SDD) | `/gin-workflow:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
+| Mô tả thư mục asset (layout SDD) | `/gin:discuss` | `.agent-workflow/templates/iteration.md` |
+| Sơ đồ activity và state (layout SDD) | `/gin:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
 | Tài liệu SRS và chương (layout SDD) | `specs export` | `.agent-workflow/templates/srs.html`, `srs-capability.html` |
-| `codebase/*` | `/gin-workflow:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
-| `team/*` | `gin-workflow team init` | `.agent-workflow/templates/team/<file>` |
+| `codebase/*` | `/gin:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
+| `team/*` | `gin team init` | `.agent-workflow/templates/team/<file>` |
 
 ## Template spec, story, và roadmap { #spec-story-and-roadmap-templates }
 
@@ -55,7 +55,7 @@ Các template khả dụng:
 
 2. Xuất template mặc định:
    ```bash
-   gin-workflow specs template spec.md > .agent-workflow/templates/spec.md
+   gin specs template spec.md > .agent-workflow/templates/spec.md
    ```
 
 3. Sửa `.agent-workflow/templates/spec.md`. Bạn có thể thêm các mục, checklist tuân thủ, hoặc hướng dẫn về asset:
@@ -80,7 +80,7 @@ Các template khả dụng:
 
 4. Tùy biến user story trong `.agent-workflow/templates/user-story.md`:
    ```bash
-   gin-workflow specs template user-story.md > .agent-workflow/templates/user-story.md
+   gin specs template user-story.md > .agent-workflow/templates/user-story.md
    ```
    Định dạng ví dụ:
    ```markdown
@@ -96,13 +96,13 @@ Các template khả dụng:
    - [ ] Criteria 1
    ```
 
-5. Xác minh việc ghi đè bằng cách chạy `gin-workflow specs template spec.md`. Nó in phiên bản của bạn từ `.agent-workflow/templates/spec.md`.
+5. Xác minh việc ghi đè bằng cách chạy `gin specs template spec.md`. Nó in phiên bản của bạn từ `.agent-workflow/templates/spec.md`.
 
-Các placeholder `{{...}}` trong `spec.md`, các file SDD, và các file `team/*` được các lệnh `gin-workflow` điền. Agent điền các template story, roadmap, và epic, nên các placeholder bạn tự đặt ở đó vẫn là văn bản để agent hoàn thành.
+Các placeholder `{{...}}` trong `spec.md`, các file SDD, và các file `team/*` được các lệnh gin-workflow điền. Agent điền các template story, roadmap, và epic, nên các placeholder bạn tự đặt ở đó vẫn là văn bản để agent hoàn thành.
 
 ### Template xuất SRS { #srs-export-templates }
 
-`gin-workflow specs export` điền `srs.html` một lần và `srs-capability.html` một lần cho mỗi capability. `srs.html` nhận `{{title}}`, `{{date}}`, `{{toc}}`, và `{{chapters}}`. `srs-capability.html` nhận `{{cap}}` (anchor của chương), `{{capability}}`, `{{purpose}}`, `{{diagrams}}`, `{{requirements}}`, và `{{assets}}`: đổi thứ tự chúng để đổi thứ tự trong chương, hoặc xóa một placeholder cùng heading của nó để bỏ phần đó. Mỗi placeholder được điền một lần, nên `{{...}}` viết trong spec giữ nguyên là văn bản, và comment được bỏ khỏi cả hai template.
+`gin specs export` điền `srs.html` một lần và `srs-capability.html` một lần cho mỗi capability. `srs.html` nhận `{{title}}`, `{{date}}`, `{{toc}}`, và `{{chapters}}`. `srs-capability.html` nhận `{{cap}}` (anchor của chương), `{{capability}}`, `{{purpose}}`, `{{diagrams}}`, `{{requirements}}`, và `{{assets}}`: đổi thứ tự chúng để đổi thứ tự trong chương, hoặc xóa một placeholder cùng heading của nó để bỏ phần đó. Mỗi placeholder được điền một lần, nên `{{...}}` viết trong spec giữ nguyên là văn bản, và comment được bỏ khỏi cả hai template.
 
 Đặt logo, tên khách hàng, và phần giới thiệu sản phẩm trên trang bìa của `srs.html`:
 

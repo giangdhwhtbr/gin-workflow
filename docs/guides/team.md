@@ -4,9 +4,9 @@ Solo use needs nothing here: without a `team:` section in `.agent-workflow/confi
 
 ```mermaid
 flowchart TD
-  L["Lead: /gin-workflow:team-setup"] --> C["team block, CODEOWNERS, hooks"]
+  L["Lead: /gin:team-setup"] --> C["team block, CODEOWNERS, hooks"]
   C --> PR["Pull request merged"]
-  PR --> M["Member: /gin-workflow:team-setup"]
+  PR --> M["Member: /gin:team-setup"]
   M --> W["Work on a track"]
   W --> G["Gate pull request approved by a listed role"]
 ```
@@ -21,7 +21,7 @@ Run `/team-setup` and answer as the lead. It asks for:
 - approvals: which roles approve `requirement_confirmed`, `ship`, and the `/roadmap` pull request (`roadmap`), and `area_lead` or roles for `plan_approved` (`[]` for none);
 - optionally shared Beads: a separate repository used as `team.beads_sync.remote`.
 
-It writes the `team:` block with `gin-workflow setup configure`, then runs `gin-workflow team init` to generate CODEOWNERS, the pull request template, the commit-msg hook, and with `--ci` a CI workflow that checks commit messages against the convention and, when the repository variable `GIN_WORKFLOW_INSTALL` holds an install command, runs `team codeowners --check` and (SDD layout) `specs lint`. Commit those on a branch. On the host, protect the base branch: require a pull request with an approval and code-owner review.
+It writes the `team:` block with `gin setup configure`, then runs `gin team init` to generate CODEOWNERS, the pull request template, the commit-msg hook, and with `--ci` a CI workflow that checks commit messages against the convention and, when the repository variable `GIN_WORKFLOW_INSTALL` holds an install command, runs `team codeowners --check` and (SDD layout) `specs lint`. Commit those on a branch. On the host, protect the base branch: require a pull request with an approval and code-owner review.
 
 ```yaml
 team:
@@ -42,13 +42,13 @@ team:
 
 ## Join it (member)
 
-Install the [prerequisites](../getting-started.md#prerequisites) first, and do not run `/gin-workflow:setup`: the lead has already configured the repository.
+Install the [prerequisites](../getting-started.md#prerequisites) first, and do not run `/gin:setup`: the lead has already configured the repository.
 
-Run `/team-setup` as a member: `gin-workflow team whoami` must find your `git config user.email`; `gin-workflow team hooks` installs the commit-msg hook; log in with `gh auth login` or `glab auth login`; with shared Beads, `bd init --remote <remote>`. `gin-workflow setup doctor` reports anything still missing.
+Run `/team-setup` as a member: `gin team whoami` must find your `git config user.email`; `gin team hooks` installs the commit-msg hook; log in with `gh auth login` or `glab auth login`; with shared Beads, `bd init --remote <remote>`. `gin setup doctor` reports anything still missing.
 
 ## What changes in each stage
 
-The `gin-team` skill carries the exact steps.
+The `team` skill carries the exact steps.
 
 | Stage | In team mode |
 |---|---|
@@ -56,16 +56,16 @@ The `gin-team` skill carries the exact steps.
 | `discuss` | When `requirement_confirmed` has roles, the spec goes through a pull request (`spec/<topic>`, or the SDD `pr` flow) and the gate is recorded after it merges. |
 | `plan` | Each track adds `Area:` and `Owner:` (optional only with shared Beads; reassigning a track means a new plan PR); a track's files stay inside its area. `team check-plan <plan>` must pass. With `plan_approved: area_lead`, the plan merges through a pull request approved by the area lead. |
 | `orchestrate` | Track beads get `track:<N>` and `area:<area>` labels and the owner as assignee. With shared Beads the lead orchestrates once; otherwise each member creates beads only for the tracks they own, and a dependency on someone else's track becomes an `external: <plan>#<N>` placeholder. |
-| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready`, claim it with `team claim <bead>` (a lease of `team.claim_ttl_hours`, renewed by claiming again; an expired lease lets another member take the bead; so does a bead assigned without a lease or with unreadable `claim` metadata), and in the track worktree `team deps --bead <bead>` must pass before implementation. The `gin-team` skill names track branches `feat/<topic>-t<N>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. The [brownfield starter](../starters/brownfield.md#execute) shows claims, leases, and handing a track over. |
+| `execute` | `team deps` closes placeholders whose track has merged; pick work from `team ready`, claim it with `team claim <bead>` (a lease of `team.claim_ttl_hours`, renewed by claiming again; an expired lease lets another member take the bead; so does a bead assigned without a lease or with unreadable `claim` metadata), and in the track worktree `team deps --bead <bead>` must pass before implementation. The `team` skill names track branches `feat/<topic>-t<N>`; the pull request template's `Plan:` and `Tracks:` fields are read by other members' `team deps`. The [brownfield starter](../starters/brownfield.md#execute) shows claims, leases, and handing a track over. |
 | `ship` | When `ship` has roles in `team.approvals`, only the pull request and keep options are offered, and that role approves the latest commit of the pull request before merge (`team check --gate ship <url>`); a later push needs a new approval. In team mode `record` also writes the gate's PR proof to the epic bead's `gates` metadata (see the [brownfield starter](../starters/brownfield.md#ship)). GitLab needs "Reset approvals on push". Merging follows the host's rules (CODEOWNERS, branch protection). With shared Beads, `team sync` after closing beads. The old key `verification_passed` is deprecated and maps to `ship`. |
 
-Milestone writes follow `team.permissions.milestone`, and with shared Beads they pull first and push after. Details are in the [milestone command](../reference/cli.md#gin-workflow-milestone).
+Milestone writes follow `team.permissions.milestone`, and with shared Beads they pull first and push after. Details are in the [milestone command](../reference/cli.md#gin-milestone).
 
-To hand a track over (a member runs out of quota or is away), push the track branch, then the current assignee or the area lead runs `gin-workflow team reassign <bead> <email>`. The new assignee must be allowed to own tracks in the bead's areas; the bead keeps its status, gets a note `reassigned <from> -> <to> by <you>`, and with shared Beads the change is pushed. The new owner checks out the pushed branch and continues. The plan's `Owner:` field is not changed, and the review ledger travels with the branch only if it was committed.
+To hand a track over (a member runs out of quota or is away), push the track branch, then the current assignee or the area lead runs `gin team reassign <bead> <email>`. The new assignee must be allowed to own tracks in the bead's areas; the bead keeps its status, gets a note `reassigned <from> -> <to> by <you>`, and with shared Beads the change is pushed. The new owner checks out the pushed branch and continues. The plan's `Owner:` field is not changed, and the review ledger travels with the branch only if it was committed.
 
-`gin-workflow team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
+`gin team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
 
-A member's ship covers only their own tracks. The lead declares the feature complete once every track pull request has merged (the `gin-team` skill's rule).
+A member's ship covers only their own tracks. The lead declares the feature complete once every track pull request has merged (the `team` skill's rule).
 
 ## Host settings
 
@@ -74,7 +74,7 @@ A member's ship covers only their own tracks. The lead declares the feature comp
 
 ## CI (optional)
 
-`gin-workflow team init --ci` writes a CI job for the host. Commit it with the rest of `team init`'s files.
+`gin team init --ci` writes a CI job for the host. Commit it with the rest of `team init`'s files.
 
 | Host | File | Runs on |
 |---|---|---|
@@ -83,7 +83,7 @@ A member's ship covers only their own tracks. The lead declares the feature comp
 
 GitLab does not pick the file up by itself: add `include: { local: .gitlab/ci/gin-workflow.yml }` to the root `.gitlab-ci.yml`.
 
-The job always checks commit messages against `team.commit_convention` (skipped for `none`). It also runs `gin-workflow team codeowners --check` and, with the SDD layout, `gin-workflow specs lint`, but only when the variable `GIN_WORKFLOW_INSTALL` holds a shell command that installs `gin-workflow` on the CI runner; without it those two checks are skipped and the job still passes.
+The job always checks commit messages against `team.commit_convention` (skipped for `none`). It also runs `gin team codeowners --check` and, with the SDD layout, `gin specs lint`, but only when the variable `GIN_WORKFLOW_INSTALL` holds a shell command that installs `gin` on the CI runner; without it those two checks are skipped and the job still passes.
 
 - GitHub: Settings, Secrets and variables, Actions, tab **Variables** (a Variable, not a Secret).
 - GitLab: Settings, CI/CD, Variables.
@@ -91,4 +91,4 @@ The job always checks commit messages against `team.commit_convention` (skipped 
 
 ## Commands
 
-See [`gin-workflow team`](../reference/cli.md#gin-workflow-team) and the [`team` configuration keys](../reference/config.md#team).
+See [`gin team`](../reference/cli.md#gin-team) and the [`team` configuration keys](../reference/config.md#team).

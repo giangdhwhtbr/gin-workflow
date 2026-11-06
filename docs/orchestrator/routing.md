@@ -12,11 +12,11 @@ Run `/gin-orchestrator:providers`. It asks, one question at a time:
 4. the concurrency of each harness;
 5. the queue, worker, and circuit-breaker limits, which keep their defaults unless you change them.
 
-It previews the change with `gin-orchestrator configure --dry-run` and applies it after your approval. It then writes the catalog and turns on `provider_mode: multi` and `routing.review.independence: provider` with `gin-workflow setup configure`, and probes each harness with `gin-workflow setup doctor --probe`. Do not edit the two files below by hand.
+It previews the change with `gin-orchestrator configure --dry-run` and applies it after your approval. It then writes the catalog and turns on `provider_mode: multi` and `routing.review.independence: provider` with `gin setup configure`, and probes each harness with `gin setup doctor --probe`. Do not edit the two files below by hand.
 
 ## Configuration
 
-Worker routing lives under `orchestrator:` in `.agent-workflow/config.yaml`, which is committed. `gin-workflow` passes that section through without validating it; `gin-orchestrator` owns it.
+Worker routing lives under `orchestrator:` in `.agent-workflow/config.yaml`, which is committed. gin-workflow passes that section through without validating it; `gin-orchestrator` owns it.
 
 ```yaml
 provider_mode: multi
@@ -55,7 +55,7 @@ providers:
     executable: codex
 ```
 
-A full example ships with the plugin: `plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml`. Before schema 2.8 this file was `providers.local.yaml` and the worker keys sat under `routing`; `gin-workflow setup update --to-version 2.8 --approve` moves them. The schema 2.9 migration moves tier `models:` from this file into the catalog ([Versions and migration](../reference/config.md#versions-and-migration)).
+A full example ships with the plugin: `plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml`. Before schema 2.8 this file was `providers.local.yaml` and the worker keys sat under `routing`; `gin setup update --to-version 2.8 --approve` moves them. The schema 2.9 migration moves tier `models:` from this file into the catalog ([Versions and migration](../reference/config.md#versions-and-migration)).
 
 ## Rank mapping
 
@@ -70,11 +70,11 @@ Review uses the same mapping from the implementer's catalog: a reviewer on the i
 
 ## How routes are resolved
 
-`gin-workflow` always owns the front door; gin-orchestrator answers when it can.
+gin-workflow always owns the front door; gin-orchestrator answers when it can.
 
 ```mermaid
 flowchart TD
-    O["orchestrate: gin-workflow routes resolve"] --> C{multi mode and orchestrator available?}
+    O["orchestrate: gin routes resolve"] --> C{multi mode and orchestrator available?}
     C -->|no| M[every route is the main harness]
     C -->|yes| G["gin-orchestrator routes resolve"]
     G -->|failed| M
@@ -84,12 +84,12 @@ flowchart TD
     M --> W
 ```
 
-1. `orchestrate` runs `gin-workflow routes resolve` for every track of the approved plan.
+1. `orchestrate` runs `gin routes resolve` for every track of the approved plan.
 2. When delegating, `gin-orchestrator routes resolve` expands each role into its `preferred` then `fallback` harnesses (or its `by_tier.<tier>` list); each candidate needs an executable in `orchestrator.local.yaml` and runs at the track's route mapped into its catalog.
 3. If any track cannot be resolved, every diagnostic is reported and nothing durable is created.
-4. `gin-workflow` writes the routes to the runtime assignment manifest `.agent-workflow/runtime/assignments/<workflow>.yaml`. Provider names never enter the plan or the task tracker; the plan names only catalog models.
+4. gin-workflow writes the routes to the runtime assignment manifest `.agent-workflow/runtime/assignments/<workflow>.yaml`. Provider names never enter the plan or the task tracker; the plan names only catalog models.
 
-Reviews follow the same path: the `review` skill calls `gin-workflow reviewer`, which delegates to `gin-orchestrator reviewer` with the implementer's final model and effort for provider-independent routes.
+Reviews follow the same path: the `review` skill calls `gin reviewer`, which delegates to `gin-orchestrator reviewer` with the implementer's final model and effort for provider-independent routes.
 
 ## Resilience
 

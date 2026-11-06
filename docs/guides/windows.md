@@ -1,6 +1,6 @@
 # Using gin-workflow on Windows
 
-This guide covers native installation, configuration, and daily use of `gin-workflow` on Windows 10 and Windows 11.
+This guide covers native installation, configuration, and daily use of gin-workflow on Windows 10 and Windows 11.
 
 ## Prerequisites
 
@@ -50,7 +50,7 @@ git config --global core.autocrlf false
 
 ## Installation
 
-Run `install.ps1` from the root of the cloned `gin-workflow` repository:
+Run `install.ps1` from the root of the cloned gin-workflow repository:
 
 ### Install for all platforms (Claude, Antigravity, Copilot, Codex, OpenCode)
 ```powershell
@@ -79,9 +79,9 @@ The installer adds `%USERPROFILE%\.local\bin` to your user `PATH` once. Open a n
 
 ## Task tracking
 
-`gin-workflow` supports two task tracking backends:
+gin-workflow supports two task tracking backends:
 
-1. Markdown, the default. It needs no extra tools and stores tasks and epics as `.planning/tasks/*.md`. `/gin-workflow:setup` asks which backend to use and proposes Markdown by default.
+1. Markdown, the default. It needs no extra tools and stores tasks and epics as `.planning/tasks/*.md`. `/gin:setup` asks which backend to use and proposes Markdown by default.
 2. Beads (`bd`). Install the `bd` and `dolt` binaries for Windows and put them on `PATH`.
 
 The `beads-migration` skill moves `.beads` to `~/gin-beads/<repo>` and links it back with a symlink, which is how the gin-workflow repository keeps its database. On Windows, use a junction instead, `cmd /c mklink /J .beads %USERPROFILE%\gin-beads\<repo>`, or a plain copy of the directory.
@@ -90,24 +90,24 @@ The `beads-migration` skill moves `.beads` to `~/gin-beads/<repo>` and links it 
 
 Inside your AI harness (Claude Code, Antigravity, and others), use the slash commands:
 
-- `/gin-workflow:setup`: initialize `.agent-workflow/config.yaml`.
-- `/gin-workflow:discuss`: discover requirements and write the spec.
-- `/gin-workflow:plan`: turn specs into implementation plans.
-- `/gin-workflow:orchestrate`: create worktrees and initialize tasks.
-- `/gin-workflow:execute`: implement changes and verify them with tests.
-- `/gin-workflow:review`: run independent review cycles.
-- `/gin-workflow:ship`: close out tasks and merge.
+- `/gin:setup`: initialize `.agent-workflow/config.yaml`.
+- `/gin:discuss`: discover requirements and write the spec.
+- `/gin:plan`: turn specs into implementation plans.
+- `/gin:orchestrate`: create worktrees and initialize tasks.
+- `/gin:execute`: implement changes and verify them with tests.
+- `/gin:review`: run independent review cycles.
+- `/gin:ship`: close out tasks and merge.
 
 From a PowerShell terminal, call the CLI directly:
 ```powershell
 # Check current workflow state
-gin-workflow state
+gin state
 
 # Record a gate
-gin-workflow record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
+gin record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
 
 # Query tasks
-gin-workflow task list
+gin task list
 ```
 
 ## Verifying the installation
@@ -125,7 +125,7 @@ CI runs the same smoke test on `windows-latest` for every push and pull request.
 
 ### `PermissionError: [WinError 32]` or `[WinError 5]`
 
-`gin-workflow` retries file locks and atomic file replacement on Windows. If Windows Defender or another antivirus slows test runs, add a folder exclusion for the repository's `.planning/worktrees/` directory in Windows Security.
+gin-workflow retries file locks and atomic file replacement on Windows. If Windows Defender or another antivirus slows test runs, add a folder exclusion for the repository's `.planning/worktrees/` directory in Windows Security.
 
 ### `EventPersistenceError: cannot lock ...: file locking requires POSIX or Windows advisory file locking`
 
