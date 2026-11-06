@@ -77,6 +77,7 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, discuss)
         self.assertLess(discuss.index("Capabilities affected"), discuss.index("`specs new <slug> --epic <epic>`"))
+        self.assertLessEqual(len(text), 6_000)
 
     def test_sdd_discuss_reads_and_cites_confirmed_inputs(self):
         text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
@@ -86,7 +87,6 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, discuss)
         self.assertLess(discuss.index("never edit an older dated folder"), discuss.index("`Source:`"))
-        self.assertLessEqual(len(text), 6_000)
         self.assertLessEqual(len(text), 6_000)
 
     def test_sdd_names_the_srs_export(self):
