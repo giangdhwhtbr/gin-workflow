@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
 from workflow_core.cli import TOP_COMMANDS  # noqa: E402
 
-ROOTS = ("plugins/gin-workflow/src", "plugins/gin-qa/src", "plugins/gin-orchestrator/src", "tests",
+ROOTS = ("plugins/gin-workflow/src", "plugins/gin-qa/src", "plugins/gin-ba/src", "plugins/gin-orchestrator/src", "tests",
          "docs", "README.md", "AGENTS.md")
 # Files that must keep an old name: migration of old installs and markers, and this test.
 ALLOWED = {

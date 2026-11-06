@@ -70,6 +70,17 @@ Xem [QA](../guides/qa.md).
 
 Ở harness có subagent, `e2e` giao mỗi case cho agent `e2e-tester` của add-on ở model tầm trung và effort `low`.
 
+## gin-ba (add-on tùy chọn) { #gin-ba-optional-add-on }
+
+Các skill cho đầu vào của BA cho một capability, ghi vào các thư mục asset có tên ngày của nó với layout SDD. Cả hai đều không có CLI. Xem hướng dẫn BA.
+
+| Skill | Mục đích |
+|---|---|
+| `capture` | Mô tả một feature hiện có từ screenshot trong `assets/<date>/legacy/`: các field, rule và câu hỏi mở theo từng màn hình trong `description.md` |
+| `mockup` | Dựng một mockup HTML tương tác tự chứa tại `assets/<date>/mockup/index.html`, mỗi màn hình một section, sửa tới khi BA xác nhận |
+
+Mỗi skill chỉ đặt `Confirmed: <date>` trong `description.md` sau khi BA xác nhận; discuss của SDD chỉ trích dẫn thư mục đã xác nhận.
+
 ## gin-orchestrator (add-on tùy chọn) { #gin-orchestrator-optional-add-on }
 
 Xem [orchestrator contract](orchestrator-contract.md).

@@ -70,6 +70,17 @@ See [QA](../guides/qa.md).
 
 Where the harness has subagents, `e2e` gives each case to the add-on's `e2e-tester` agent at the middle model and `low` effort.
 
+## gin-ba (optional add-on)
+
+Skills for the BA's inputs to a capability, written into its dated asset folders with the SDD layout. Neither has a CLI. See the BA guide.
+
+| Skill | Purpose |
+|---|---|
+| `capture` | Describe an existing feature from screenshots under `assets/<date>/legacy/`: per-screen fields, rules, and open questions in `description.md` |
+| `mockup` | Build a self-contained interactive HTML mockup at `assets/<date>/mockup/index.html`, one section per screen, revised until the BA confirms |
+
+Each skill sets `Confirmed: <date>` in `description.md` only after the BA confirms; SDD discuss cites only confirmed folders.
+
 ## gin-orchestrator (optional add-on)
 
 See the [orchestrator contract](orchestrator-contract.md).

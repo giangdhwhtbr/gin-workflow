@@ -1,0 +1,7 @@
+{
+  "name": "gin-ba",
+  "version": "0.1.0",
+  "description": "BA add-on for gin: interactive HTML mockups and legacy feature descriptions in dated spec asset folders, confirmed by the BA and cited by SDD discuss.",
+  "author": { "name": "gin" },
+  "repository": "https://github.com/giangdhwhtbr/gin-workflow"
+}
