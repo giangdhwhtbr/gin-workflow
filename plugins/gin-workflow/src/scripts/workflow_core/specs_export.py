@@ -16,7 +16,7 @@ MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
                ".svg": "image/svg+xml", ".webp": "image/webp"}
 _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
-_TEMPLATE_SRC = re.compile(r'\bsrc="([^"]+)"')
+_TEMPLATE_SRC = re.compile(r'\bsrc=(["\'])(.+?)\1')
 _REMOTE = ("http://", "https://")
 _INLINE = re.compile(r"`([^`]+)`|!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]+)\]\(([^)\s]+)\)"
                      r"|\*\*(.+?)\*\*|\*(.+?)\*|(?<!\w)_(.+?)_(?!\w)")
@@ -29,6 +29,7 @@ _TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
 class Embed:
     """Turns local image paths into data: URIs and records the ones not found."""
 
+    root: Path
     missing: list[str] = field(default_factory=list)
     shown: set[Path] = field(default_factory=set)
 
@@ -36,7 +37,7 @@ class Embed:
         if target.startswith(_REMOTE):
             return target
         path = (base / target).resolve()
-        if not path.is_file():
+        if not (path.is_file() and path.is_relative_to(self.root) and path.suffix.lower() in MEDIA_TYPES):
             self.missing.append(f"{origin}: {target}")
             return None
         self.shown.add(path)
@@ -58,7 +59,10 @@ def _inline(text: str, image: Callable[[str, str], str]) -> str:
         elif target is not None:
             out.append(image(alt, target))
         elif href is not None:
-            out.append(f'<a href="{escape(href)}">{_inline(label, image)}</a>')
+            if href.startswith(("http://", "https://", "mailto:", "#")) or ":" not in re.split(r"[/?#]", href)[0]:
+                out.append(f'<a href="{escape(href)}">{_inline(label, image)}</a>')
+            else:
+                out.append(_inline(label, image))
         elif strong is not None:
             out.append(f"<strong>{_inline(strong, image)}</strong>")
         else:
@@ -146,7 +150,8 @@ def markdown_html(text: str, base: Path, origin: str, embed: Embed, top: int = 3
                 i += 1
             out.append(_list(items, inline))
         else:
-            paragraph = []
+            paragraph = [line.strip()]
+            i += 1
             while i < len(lines) and lines[i].strip() and not (
                     lines[i].startswith("```") or _HEADING.match(lines[i]) or _LIST_ITEM.match(lines[i])
                     or lines[i].lstrip().startswith("|")):
@@ -184,7 +189,7 @@ def _files(title: str | None, description: Path | None, files: list[Path], folde
         if path == description or path.resolve() in embed.shown:
             continue
         name = escape(path.relative_to(folder).as_posix())
-        if path.suffix.lower() in MEDIA_TYPES:
+        if path.suffix.lower() in MEDIA_TYPES and path.resolve().is_relative_to(root):
             out.append(f'<figure><img src="{data_uri(path)}" alt="{name}"><figcaption>{name}</figcaption></figure>')
         else:
             others.append(f"<li><code>{name}</code></li>")
@@ -236,7 +241,7 @@ def fill(template: str, values: Mapping[str, str]) -> str:
 
 def _template(root: Path, name: str, embed: Embed) -> str:
     def local(found: re.Match[str]) -> str:
-        target = found.group(1)
+        target = found.group(2)
         if target.startswith((*_REMOTE, "data:", "#")) or "{{" in target:
             return found.group(0)
         src = embed.src(target, root, name)
@@ -259,7 +264,7 @@ def export(root: Path, cfg: Mapping[str, Any], cap: str | None, out: str | None,
     path = (root / (out or (f"srs-{cap}.html" if cap else "srs.html"))).resolve()
     if not path.is_relative_to(root):
         raise specs.SpecsError(f"--out must stay inside the repository: {out}")
-    embed = Embed()
+    embed = Embed(root)
     chapter_template = _template(root, "srs-capability.html", embed)
     document = _template(root, "srs.html", embed)
     chapters, toc = [], []
@@ -270,6 +275,9 @@ def export(root: Path, cfg: Mapping[str, Any], cap: str | None, out: str | None,
     title = _title(living[cap].read_text(encoding="utf-8"), cap) if cap else root.name
     html = fill(document, {"title": escape(title), "date": (today or date.today()).isoformat(),
                            "toc": f'<ul>{"".join(toc)}</ul>', "chapters": "\n".join(chapters)})
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(html, encoding="utf-8")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(html, encoding="utf-8")
+    except OSError as error:
+        raise specs.SpecsError(f"cannot write {out or path}: {error}") from error
     return {"path": _shown(path, root), "capabilities": caps, "missing": embed.missing}

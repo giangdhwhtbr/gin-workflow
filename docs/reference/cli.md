@@ -137,7 +137,7 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 | `trace --change C` | Show which tests and sources cover each requirement |
 | `status --change C` | Show a change's review status, URL, and merge commit |
 | `reqs [--change C]` | List requirements with section, hash, and the epic of the change that holds them |
-| `export (CAP \| --all) [--out FILE]` | Write the living specs of one capability, or of every capability, into one printable SRS HTML file (default `srs-CAP.html` or `srs.html` at the repository root, overwritten), from the templates `srs.html` and `srs-capability.html`; images are embedded, diagrams load Mermaid from jsDelivr; a local image not found is listed and exits 1 |
+| `export (CAP \| --all) [--out FILE]` | Write the living specs of one capability, or of every capability, into one printable SRS HTML file (default `srs-CAP.html` or `srs.html` at the repository root, overwritten), from the templates `srs.html` and `srs-capability.html`; images are embedded, diagrams load Mermaid from jsDelivr; a local image not found, outside the repository, or not an image is listed and exits 1 |
 | `migrate [--dry-run] [--force]` | Move `legacy` layout artifacts into the SDD layout |
 
 Exit codes: 0 ok; 1 findings (lint errors, untraced requirements, archive conflicts, refused migration, images an export could not find); 2 usage or configuration error.

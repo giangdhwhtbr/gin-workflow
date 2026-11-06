@@ -116,7 +116,7 @@ Các placeholder `{{...}}` trong `spec.md`, các file SDD, và các file `team/*
 </section>
 ```
 
-Một `src` tương đối trong template được đọc từ gốc repository và nhúng vào file xuất ra; khi file không tồn tại, `specs export` thoát với mã 1 và nêu tên file đó.
+Một `src` tương đối trong template được đọc từ gốc repository và nhúng vào file xuất ra; khi file không tồn tại, nằm ngoài repository hoặc không phải ảnh, `specs export` thoát với mã 1 và nêu tên file đó.
 
 ## Guideline và trường của test case { #test-case-guidelines-and-fields }
 

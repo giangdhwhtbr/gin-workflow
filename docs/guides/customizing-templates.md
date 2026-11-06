@@ -116,7 +116,7 @@ Put the logo, the customer, and the product brief on the cover of `srs.html`:
 </section>
 ```
 
-A relative `src` in either template is read from the repository root and embedded in the exported file; when the file is missing, `specs export` exits 1 and names it.
+A relative `src` in either template is read from the repository root and embedded in the exported file; when the file is missing, outside the repository, or not an image, `specs export` exits 1 and names it.
 
 ## Test case guidelines and fields
 

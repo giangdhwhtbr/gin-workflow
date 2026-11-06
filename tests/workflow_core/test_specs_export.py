@@ -45,7 +45,7 @@ def write_bytes(root: Path, relative: str, data: bytes) -> Path:
 
 class TestMarkdown(unittest.TestCase):
     def convert(self, text: str, top: int = 3) -> tuple[str, Embed]:
-        embed = Embed()
+        embed = Embed(Path("/nonexistent"))
         return markdown_html(text, Path("/nonexistent"), "doc.md", embed, top), embed
 
     def test_blocks_and_inline(self):
@@ -81,12 +81,41 @@ class TestMarkdown(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             write_bytes(base, "img/a.png", PNG)
-            embed = Embed()
+            embed = Embed(base.resolve())
             html = markdown_html("![A](img/a.png) ![B](img/b.png) ![C](https://x.test/c.png)", base, "doc.md", embed)
         self.assertIn(f'<img src="{PNG_URI}" alt="A">', html)
         self.assertIn('<span class="missing-image">B</span>', html)
         self.assertIn('<img src="https://x.test/c.png" alt="C">', html)
         self.assertEqual(["doc.md: img/b.png"], embed.missing)
+
+    def test_pipe_line_without_rule_row_stays_a_paragraph(self):
+        html, _ = self.convert("| a | b |\nplain")
+        self.assertRegex(html, r"(?s)<p>.*a \| b.*plain.*</p>")
+
+    def test_unsafe_link_targets_render_only_the_label(self):
+        html, _ = self.convert("[a](javascript:alert(1)) [b](data:text/html,x) [c](https://x.test) "
+                               "[d](mailto:a@x.test) [e](#top) [f](docs/x.md?q=a:b)")
+        self.assertNotIn("javascript", html)
+        self.assertNotIn("data:", html)
+        for needle in ('<a href="https://x.test">c</a>', '<a href="mailto:a@x.test">d</a>',
+                       '<a href="#top">e</a>', '<a href="docs/x.md?q=a:b">f</a>'):
+            self.assertIn(needle, html)
+        self.assertTrue(html.startswith("<p>a"))
+
+    def test_images_outside_the_root_or_not_images_are_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            outer = Path(directory).resolve()
+            root = outer / "repo"
+            write_bytes(root, "docs/notes.txt", b"inside-secret")
+            write_bytes(outer, "secret.txt", b"outside-secret")
+            write_bytes(outer, "outside.png", PNG)
+            embed = Embed(root)
+            html = markdown_html(f"![a](../../secret.txt) ![b]({outer / 'outside.png'}) ![c](notes.txt)",
+                                 root / "docs", "doc.md", embed)
+        self.assertEqual(3, len(embed.missing))
+        self.assertEqual(3, html.count('class="missing-image"'))
+        for secret in (b"outside-secret", b"inside-secret", PNG):
+            self.assertNotIn(base64.b64encode(secret).decode("ascii"), html)
 
     def test_fill_is_one_pass(self):
         self.assertEqual("<p>{{date}}</p> 2026", fill("{{body}} {{date}}", {"body": "<p>{{date}}</p>", "date": "2026"}))
@@ -159,6 +188,34 @@ class TestExport(unittest.TestCase):
         self.assertEqual(1, result.returncode)
         self.assertIn("missing image: docs/specs/auth/assets/2026-05-11/description.md: mockup/login.png", result.stdout)
         self.assertIn('<span class="missing-image">Login screen</span>', self.read("srs-auth.html"))
+
+    def test_out_that_is_a_directory_exits_2(self):
+        (self.root / "outdir").mkdir()
+        result = run_specs(self.root, "export", "auth", "--out", "outdir")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("cannot write", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_asset_symlink_to_an_outside_image_is_listed_not_embedded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            outside = write_bytes(Path(directory), "outside.png", b"\x89PNG\r\nlinked-outside")
+            link = self.root / "docs/specs/auth/assets/linked.png"
+            try:
+                link.symlink_to(outside)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlinks unavailable")
+            export(self.root, self.cfg, "auth", None)
+        html = self.read("srs-auth.html")
+        self.assertIn("<code>linked.png</code>", html)
+        self.assertNotIn(base64.b64encode(b"\x89PNG\r\nlinked-outside").decode("ascii"), html)
+
+    def test_template_single_quoted_src_is_embedded(self):
+        write_bytes(self.root, "docs/brand/logo.png", PNG)
+        document = specs.template_text(self.root, "srs.html").replace(
+            '<section class="cover">', '<section class="cover"><img src=\'docs/brand/logo.png\' alt="A">')
+        write(self.root, ".agent-workflow/templates/srs.html", document)
+        self.assertEqual([], export(self.root, self.cfg, "auth", None)["missing"])
+        self.assertIn(PNG_URI, self.read("srs-auth.html"))
 
     def test_usage_errors_exit_2_and_write_nothing(self):
         for args in (("nope",), (), ("auth", "--all"), ("auth", "--out", "../outside.html")):
