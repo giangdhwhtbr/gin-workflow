@@ -618,6 +618,25 @@ assert_exists "$legacy_home/.config/opencode/agents/gin-developer.md"
 assert_exists "$legacy_home/.config/opencode/agents/gin-qa-e2e-tester.md"
 assert_exists "$legacy_home/.config/opencode/agents/gin-mine.md"
 
+# Installing gin refreshes the add-ons whose launchers the installer manages, so
+# their library copies stop calling the old CLI name.
+addon_home="$MOCK_HOME/addon-home"
+for addon in gin-qa gin-orchestrator; do
+  case "$addon" in
+    gin-qa) addon_version=0.10 ;;
+    gin-orchestrator) addon_version=0.1 ;;
+  esac
+  mkdir -p "$addon_home/.local/lib/$addon/$addon_version" "$addon_home/.local/bin"
+  printf '%s\n' '# stale add-on copy' > "$addon_home/.local/lib/$addon/$addon_version/$addon"
+  ln -s "$addon_home/.local/lib/$addon/$addon_version/$addon" "$addon_home/.local/bin/$addon"
+done
+HOME="$addon_home" ./install.sh --platform claude >"$output_file" 2>&1
+for addon in gin-qa gin-orchestrator; do
+  assert_contains "$output_file" "Refreshing the installed $addon add-on."
+  assert_not_contains "$(readlink -f "$addon_home/.local/bin/$addon")" "# stale add-on copy"
+done
+HOME="$addon_home" PATH="$addon_home/.local/bin:$PATH" "$addon_home/.local/bin/gin-orchestrator" version --json >/dev/null
+
 # An unparsable Claude settings.json stops the upgrade before the old Claude
 # install or the settings file is touched.
 bad_settings_home="$MOCK_HOME/bad-settings-home"

@@ -1016,6 +1016,19 @@ if ($Plugins -contains 'gin-orchestrator' -and $Plugins -notcontains 'gin-workfl
     }
 }
 
+# An installed add-on runs its own library copy, which calls gin; installing gin
+# refreshes each add-on whose launcher this installer manages.
+if ($Plugins -contains 'gin-workflow') {
+    foreach ($addon in @('gin-qa', 'gin-orchestrator')) {
+        $addonShim = Join-Path $UserHome ".local/bin/$addon.cmd"
+        $addonRoot = Join-Path $UserHome ".local/lib/$addon"
+        if ($Plugins -notcontains $addon -and (Test-ManagedLauncherShim -Path $addonShim -ManagedRoot $addonRoot -Name $addon)) {
+            Write-Output "Refreshing the installed $addon add-on."
+            $Plugins = @($Plugins) + $addon
+        }
+    }
+}
+
 foreach ($name in $Plugins) {
     $version = switch ($name) {
         'gin-workflow' { $LauncherVersion }

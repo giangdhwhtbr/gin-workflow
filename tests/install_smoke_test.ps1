@@ -262,7 +262,14 @@ try {
         [IO.File]::WriteAllText($shim, $upgradedShim, [Text.UTF8Encoding]::new($false))
     }
 
-    $shimText = [IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin.cmd'))
+    # Installing gin refreshes the add-ons whose launchers the installer manages.
+    $staleAddon = Join-Path $TestHome '.local/lib/gin-qa/0.10/gin-qa'
+    [IO.File]::WriteAllText($staleAddon, '# stale add-on copy')
+    $refreshOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project }
+    Assert-Contains $refreshOutput 'Refreshing the installed gin-qa add-on.'
+    Assert-True (-not [IO.File]::ReadAllText($staleAddon).Contains('# stale add-on copy')) 'gin-qa library copy was not refreshed'
+
+    $shimText =[IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin.cmd'))
     Assert-Contains $shimText 'py -3 -X utf8 "'
     Assert-Contains $shimText 'else (python -X utf8 "'
     Assert-True (-not $shimText.Contains('||')) 'shim must not chain the CLI with ||'

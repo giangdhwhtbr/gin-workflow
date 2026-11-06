@@ -977,6 +977,18 @@ if [[ " ${PLUGINS[*]} " == *" gin-orchestrator "* && " ${PLUGINS[*]} " != *" gin
   PLUGINS=(gin-workflow "${PLUGINS[@]}")
 fi
 
+# An installed add-on runs its own library copy, which calls gin; installing gin
+# refreshes each add-on whose launcher this installer manages.
+if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
+  for addon in gin-qa gin-orchestrator; do
+    if [[ " ${PLUGINS[*]} " != *" $addon "* ]] &&
+       is_managed_launcher_link "${HOME}/.local/bin/$addon" "${HOME}/.local/lib/$addon" "$addon"; then
+      echo "Refreshing the installed $addon add-on."
+      PLUGINS+=("$addon")
+    fi
+  done
+fi
+
 for p_name in "${PLUGINS[@]}"; do
   case "$p_name" in
     gin-workflow) install_launcher "$p_name" "$LAUNCHER_VERSION" ;;
