@@ -171,9 +171,17 @@ class WorkerAdapterTests(unittest.TestCase):
             )
 
             receipt = adapter.dispatch(request())
-            deadline = time.monotonic() + 5
-            while not (root / "native.pid").exists() and time.monotonic() < deadline:
+            # Cancel only once the worker has started its child; a loaded host can
+            # otherwise cancel between native.pid and child.pid.
+            child_pid_file = root / "child.pid"
+
+            def child_pid_written():
+                return child_pid_file.exists() and child_pid_file.read_text(encoding="utf-8").strip() != ""
+
+            deadline = time.monotonic() + 10
+            while not child_pid_written() and time.monotonic() < deadline:
                 time.sleep(0.01)
+            self.assertTrue(child_pid_written(), "the worker did not start its child within 10s")
 
             self.assertTrue(adapter.cancel(receipt.worker_id))
             cancelled = adapter.collect_result(receipt.worker_id, timeout=15)
