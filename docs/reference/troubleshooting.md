@@ -2,7 +2,7 @@
 
 ## `gin: command not found` after a marketplace install
 
-Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copies the plugin but does not link the `gin` launcher that the skills call, or the `gin-qa` launcher of the QA add-on. Only the installer links them, at `~/.local/bin/gin-workflow` and `~/.local/bin/gin-qa`.
+Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copies the plugin but does not link the `gin` launcher that the skills call, or the `gin-qa` launcher of the QA add-on. Only the installer links them, at `~/.local/bin/gin` and `~/.local/bin/gin-qa`.
 
 1. Run the installer, with `--platform claude` for Claude Code and `--plugin all` to add `gin-qa`; the other options are in [Contributing](../contributing.md#build-and-install-locally):
 
@@ -29,7 +29,7 @@ Cause: the installer registers the bundle with `copilot plugin install` only whe
 
 ## `gin: <path>/scripts/safety_check.py not found, hook skipped`
 
-Cause: the Copilot bundle's `hooks/hooks.json` runs `scripts/safety_check.py` with `python3` before the `bash` tool. The hook looks for its script under `$PLUGIN_ROOT`, or else under `~/.copilot/installed-plugins/_direct/gin-workflow` (`$COPILOT_HOME` replaces `~/.copilot` when set). Copilot does not set `PLUGIN_ROOT`. After a marketplace install the plugin is not in the `_direct` directory, so the hook prints this warning and lets the tool run. The hook defines only a `bash` command, so it does not run on Windows PowerShell.
+Cause: the Copilot bundle's `hooks/hooks.json` runs `scripts/safety_check.py` with `python3` before the `bash` tool. The hook looks for its script under `$PLUGIN_ROOT`, or else under `~/.copilot/installed-plugins/_direct/gin` (`$COPILOT_HOME` replaces `~/.copilot` when set). Copilot does not set `PLUGIN_ROOT`. After a marketplace install the plugin is not in the `_direct` directory, so the hook prints this warning and lets the tool run. The hook defines only a `bash` command, so it does not run on Windows PowerShell.
 
 1. Install with `./install.sh --platform copilot`, which installs from a local path into the `_direct` directory, or set `PLUGIN_ROOT` to the directory that holds the plugin's `scripts/`.
 2. Run a shell command in Copilot; the warning no longer appears.
