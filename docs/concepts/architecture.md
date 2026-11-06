@@ -137,7 +137,7 @@ Plans name roles and routes from the main harness's model catalog, never provide
 
 ```mermaid
 flowchart LR
-    S[plugins/&lt;plugin&gt;/src: gin-workflow, gin-qa, gin-orchestrator] --> I[install.sh / install.ps1]
+    S[plugins/&lt;plugin&gt;/src: gin-workflow, gin-qa, gin-orchestrator, gin-ba] --> I[install.sh / install.ps1]
     I --> D1[dist/claude-code]
     I --> D2[dist/codex]
     I --> D3[dist/antigravity]

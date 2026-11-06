@@ -1,6 +1,6 @@
 # Skills reference
 
-Every skill is also a slash command: `/gin:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `learn` is `@gin-learn` and `report` is `@gin-report`, as for the other six generic skills, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-skills)); the lifecycle stages still run through the `gin` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
+Every skill is also a slash command: `/gin:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, `/gin-ba:<name>` for the BA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `learn` is `@gin-learn` and `report` is `@gin-report`, as for the other six generic skills, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-skills)); the lifecycle stages still run through the `gin` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
 
 ## gin: lifecycle stages
 

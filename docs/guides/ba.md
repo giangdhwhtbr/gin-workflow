@@ -1,6 +1,6 @@
 # BA add-on (`gin-ba`)
 
-`gin-ba` is an optional plugin with two skills that prepare a capability's inputs before `/gin:discuss` writes requirements: `/gin-ba:capture` describes an existing feature from screenshots, and `/gin-ba:mockup` builds an interactive HTML mockup. Both write into the dated asset folders of the [SDD layout](sdd.md) and need gin-workflow. The plugin has no CLI and is not installed by default.
+`gin-ba` is an optional plugin with two skills that prepare a capability's inputs before `/gin:discuss` writes requirements. `/gin-ba:capture` describes an existing feature from screenshots, and `/gin-ba:mockup` builds an interactive HTML mockup. Both write into the dated asset folders of the [SDD layout](sdd.md) and need gin-workflow. The plugin has no CLI and is not installed by default.
 
 ```mermaid
 flowchart LR
@@ -26,7 +26,7 @@ This installs the skills for each harness. `gin-ba` has no launcher; the install
 
 Each round of inputs for a capability lives in `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, named by the day the inputs arrived, with a `description.md` from `gin specs template iteration.md`. Both skills take the capability and `--date YYYY-MM-DD` (default: today):
 
-- A missing folder is created with its `description.md`; `Previous:` names the latest earlier dated folder.
+- `/gin-ba:mockup` creates a missing folder, and both skills write a missing `description.md`; `Previous:` names the latest earlier dated folder.
 - A folder whose `description.md` reads `Confirmed: <date>` is frozen: the skill stops and asks for a new date.
 - An unconfirmed folder is continued.
 
@@ -41,7 +41,7 @@ The skills set `Confirmed: <today>` only after the BA explicitly confirms, and n
 
 ## Mockup: `/gin-ba:mockup`
 
-`/gin-ba:mockup <capability>` writes `assets/<date>/mockup/index.html`, one file with inline CSS and JavaScript, no network requests, and fictional data. Each screen is a `<section id>` that opens by URL hash, so a requirement can cite `mockup/index.html#<screen-id>`; screens show their empty, error, and loading states.
+`/gin-ba:mockup <capability>` writes `assets/<date>/mockup/index.html`, one file with inline CSS and JavaScript, no network requests, and fictional data. Each screen is a `<section id>` that opens by URL hash, so a requirement can cite `mockup/index.html#<screen-id>`; a screen that has empty, error, or loading states can switch between them.
 
 The look comes from, in order: the product's existing UI in the repository; the `frontend-design` skill when the repository has no UI and the harness provides the skill; otherwise the skill's built-in skeleton. A missing `frontend-design` skill is not an error. `Kind:` is `new` for a capability's first dated folder and `change` after that, with `## Changes` listing what differs from `Previous:`. Revise the mockup in the conversation until you confirm it.
 

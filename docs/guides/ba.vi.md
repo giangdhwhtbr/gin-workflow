@@ -1,6 +1,6 @@
 # Add-on BA (`gin-ba`) { #ba-add-on-gin-ba }
 
-`gin-ba` là một plugin tùy chọn với hai skill chuẩn bị đầu vào của một capability trước khi `/gin:discuss` viết requirement: `/gin-ba:capture` mô tả một tính năng hiện có từ screenshot, và `/gin-ba:mockup` dựng một mockup HTML tương tác. Cả hai ghi vào các thư mục asset có tên ngày của [layout SDD](sdd.md) và cần gin-workflow. Plugin không có CLI và không được cài theo mặc định.
+`gin-ba` là một plugin tùy chọn với hai skill chuẩn bị đầu vào của một capability trước khi `/gin:discuss` viết requirement. `/gin-ba:capture` mô tả một tính năng hiện có từ screenshot, và `/gin-ba:mockup` dựng một mockup HTML tương tác. Cả hai ghi vào các thư mục asset có tên ngày của [layout SDD](sdd.md) và cần gin-workflow. Plugin không có CLI và không được cài theo mặc định.
 
 ```mermaid
 flowchart LR
@@ -26,7 +26,7 @@ Lệnh này cài các skill cho từng harness. `gin-ba` không có launcher; b�
 
 Mỗi đợt đầu vào của một capability nằm trong `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, đặt tên theo ngày đầu vào đến, kèm một `description.md` từ `gin specs template iteration.md`. Cả hai skill nhận capability và `--date YYYY-MM-DD` (mặc định: hôm nay):
 
-- Thư mục chưa có được tạo cùng `description.md` của nó; `Previous:` ghi thư mục có tên ngày gần nhất trước đó.
+- `/gin-ba:mockup` tạo thư mục chưa có, và cả hai skill ghi `description.md` khi chưa có; `Previous:` ghi thư mục có tên ngày gần nhất trước đó.
 - Thư mục có `description.md` ghi `Confirmed: <date>` bị đóng băng: skill dừng lại và hỏi một ngày mới.
 - Thư mục chưa xác nhận được làm tiếp.
 
@@ -41,7 +41,7 @@ Các skill chỉ đặt `Confirmed: <today>` sau khi BA xác nhận rõ ràng, v
 
 ## Mockup: `/gin-ba:mockup` { #mockup-gin-bamockup }
 
-`/gin-ba:mockup <capability>` ghi `assets/<date>/mockup/index.html`, một file với CSS và JavaScript nội tuyến, không có request mạng, và dữ liệu hư cấu. Mỗi màn hình là một `<section id>` mở bằng URL hash, nên một requirement có thể trích dẫn `mockup/index.html#<screen-id>`; các màn hình hiển thị trạng thái trống, lỗi và đang tải.
+`/gin-ba:mockup <capability>` ghi `assets/<date>/mockup/index.html`, một file với CSS và JavaScript nội tuyến, không có request mạng, và dữ liệu hư cấu. Mỗi màn hình là một `<section id>` mở bằng URL hash, nên một requirement có thể trích dẫn `mockup/index.html#<screen-id>`; màn hình nào có trạng thái trống, lỗi hoặc đang tải thì chuyển qua lại được giữa các trạng thái đó.
 
 Giao diện lấy từ, theo thứ tự: UI hiện có của sản phẩm trong repository; skill `frontend-design` khi repository không có UI và harness cung cấp skill này; nếu không thì khung dựng sẵn của skill. Thiếu skill `frontend-design` không phải là lỗi. `Kind:` là `new` cho thư mục có tên ngày đầu tiên của một capability và `change` sau đó, với `## Changes` liệt kê điểm khác so với `Previous:`. Chỉnh mockup trong cuộc trò chuyện cho tới khi bạn xác nhận.
 
