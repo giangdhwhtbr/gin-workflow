@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
-from . import usage
+from . import usage, workspace
 
 
 def _date(value: str) -> date:
@@ -21,7 +21,7 @@ def _date(value: str) -> date:
 
 def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin usage")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -65,6 +65,7 @@ def _report_text(out: dict[str, Any]) -> str:
 
 def main(arguments: Sequence[str]) -> int:
     args = _parser().parse_args(list(arguments))
+    args.repository = workspace.repository_root(args.repository)
     root = args.repository.resolve()
     try:
         if args.command == "collect":

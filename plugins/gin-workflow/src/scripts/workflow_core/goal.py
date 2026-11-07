@@ -14,6 +14,7 @@ import sys
 from typing import Any, Sequence
 
 from .tasks import query
+from . import workspace
 
 HUMAN_GATE = "human-gate"
 TURNS_PER_TRACK = 6
@@ -50,8 +51,9 @@ def main(argv: Sequence[str]) -> int:
 
     parser = argparse.ArgumentParser(prog="gin goal")
     parser.add_argument("--workflow-id", required=True)
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     args = parser.parse_args(argv)
+    args.repository = workspace.repository_root(args.repository)
     epic = _recorded_epic(_get_event_store(args.repository).read_all(), args.workflow_id)
     if not epic:
         print(f"error: no epic recorded for {args.workflow_id}; run /gin:orchestrate first", file=sys.stderr)

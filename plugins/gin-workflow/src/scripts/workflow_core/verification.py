@@ -11,6 +11,7 @@ from typing import Any, Sequence
 
 from .checkout import main_checkout
 from .events import WorkflowEvent, WorkflowEventStore
+from . import workspace
 
 # Not the name of the removed verification gate: usage attribution still maps that event to the `verify` stage.
 EVENT_TYPE = "checks.passed"
@@ -82,13 +83,14 @@ def run(root: Path) -> int:
 def main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="gin evidence")
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("run", parents=[common])
     checker = sub.add_parser("check", parents=[common])
     checker.add_argument("--commit")
     checker.add_argument("--json", action="store_true")
     args = parser.parse_args(list(argv))
+    args.repository = workspace.repository_root(args.repository)
     root = args.repository.resolve()
     if args.command == "run":
         return run(root)

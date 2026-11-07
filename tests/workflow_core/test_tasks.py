@@ -54,12 +54,13 @@ class TaskDispatchTests(unittest.TestCase):
     def test_beads_passes_argv_through_to_bd_unchanged(self):
         argv = ["update", "x-1", "--status", "in_progress", "--json"]
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.workspace.project_root", return_value=self.root), \
                 mock.patch("workflow_core.team.team_for_repo", return_value=None), \
                 mock.patch("workflow_core.tasks.tool", return_value="/opt/bd"), \
                 mock.patch("workflow_core.tasks.subprocess.run",
                            return_value=subprocess.CompletedProcess([], 7)) as run:
             self.assertEqual(7, tasks.main(argv))
-        run.assert_called_once_with(["/opt/bd", *argv], check=False, env=None)
+        run.assert_called_once_with(["/opt/bd", *argv], cwd=self.root, check=False, env=None)
 
     def test_beads_query_matches_the_previous_bd_call(self):
         done = subprocess.CompletedProcess([], 0, stdout='[{"id": "x-1", "status": "closed"}]')

@@ -16,7 +16,7 @@ from .configuration import ConfigValidationError, resolve_effective_config
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .project import project_settings
 from .tasks import backend as tasks_backend
-from . import orchestrator_client
+from . import orchestrator_client, workspace
 from .team import load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
@@ -461,6 +461,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, team)},
         "extensions": {"orchestrator": orchestrator_client.status()},
+        "workspace": workspace.summary(workspace.locate(getattr(args, "start", repo_path))),
         "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes, *unshared,
                                  _knowledge_warning(repo_path, config, events, workflow_id, gates_state)) if w],
         "recent_quick": [
@@ -607,7 +608,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         return 2
 
     parser = argparse.ArgumentParser(prog=f"gin {command}")
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--workflow-id", default="default-workflow")
     parser.add_argument("--scope-hash")
@@ -617,6 +618,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
+        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
+        args.repository = workspace.repository_root(args.repository)
         payload, exit_code = _call(_state_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -651,6 +654,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
+        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
+        args.repository = workspace.repository_root(args.repository)
         payload, exit_code = _call(_quick_check_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -674,6 +679,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
+        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
+        args.repository = workspace.repository_root(args.repository)
 
         payload, exit_code = _call(_unblock_command, args)
         if args.format == "json":
@@ -699,6 +706,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
+        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
+        args.repository = workspace.repository_root(args.repository)
         payload, exit_code = _call(_record_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))

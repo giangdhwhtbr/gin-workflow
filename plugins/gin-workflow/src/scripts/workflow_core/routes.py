@@ -26,7 +26,7 @@ from .configuration import ConfigValidationError, load_effective_config, require
 from .events import WorkflowEvent, WorkflowEventStore
 from .locking import file_lock
 from .models import EffectiveConfig
-from . import orchestrator_client, usage
+from . import orchestrator_client, usage, workspace
 from .project_detect import detect_project
 from .provider_config import PROVIDER_DEFAULT
 
@@ -346,17 +346,18 @@ def main(argv: Sequence[str]) -> int:
     resolve_parser = commands.add_parser("resolve")
     resolve_parser.add_argument("--workflow-id", required=True)
     resolve_parser.add_argument("--tracks", type=Path, required=True)
-    resolve_parser.add_argument("--repository", type=Path, default=Path.cwd())
+    resolve_parser.add_argument("--repository", type=Path, default=None)
     resolve_parser.add_argument("--json", action="store_true")
 
     dispatch_parser = commands.add_parser("dispatch")
     dispatch_parser.add_argument("--workflow-id", required=True)
     dispatch_parser.add_argument("--task-id", required=True)
     dispatch_parser.add_argument("--escalate")
-    dispatch_parser.add_argument("--repository", type=Path, default=Path.cwd())
+    dispatch_parser.add_argument("--repository", type=Path, default=None)
     dispatch_parser.add_argument("--json", action="store_true")
 
     args = parser.parse_args(list(argv))
+    args.repository = workspace.repository_root(args.repository)
     root = args.repository.resolve()
 
     if args.command == "resolve":

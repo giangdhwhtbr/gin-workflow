@@ -26,7 +26,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("action", choices=tuple(COMMANDS))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--harness", choices=("claude", "codex", "antigravity", "opencode", "copilot"))
     parser.add_argument("--non-interactive", action="store_true")
     parser.add_argument("--approve", action="store_true")
@@ -118,11 +118,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if argv[0] in ("state", "unblock", "record", "quick-check"):
         from .lifecycle_cli import main as lifecycle_main
         return lifecycle_main(argv)
+    from . import workspace
     parsed = _parser().parse_args(argv[1:])
     options = vars(parsed)
     action = options.pop("action")
     output_format = options.pop("format")
     try:
+        options["repository"] = workspace.repository_root(options["repository"])
         payload = COMMANDS[action](**options)
     except DependencyUnavailableError as error:
         message = str(error)

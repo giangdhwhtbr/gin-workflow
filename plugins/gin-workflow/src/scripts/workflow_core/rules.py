@@ -11,6 +11,7 @@ import sys
 from typing import Any, Mapping, Sequence
 
 from .configuration import require_yaml, resolve_effective_config
+from . import workspace
 
 TIERS = ("core", "language", "framework")
 IMPACTS = ("critical", "high", "medium")
@@ -255,7 +256,7 @@ def _relative(repository: Path, raw: str) -> str:
 
 def main(arguments: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="gin rules")
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--files", nargs="+")
@@ -264,6 +265,7 @@ def main(arguments: Sequence[str]) -> int:
         args = parser.parse_args(list(arguments))
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
+    args.repository = workspace.repository_root(args.repository)
     repository = args.repository.resolve()
     try:
         config = _load_config(repository)
