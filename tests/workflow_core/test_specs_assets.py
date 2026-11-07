@@ -164,3 +164,71 @@ class TestAssetsConfirm(AssetsCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(f"{FOLDER}/description.md: Confirmed: {date.today().isoformat()}\n", result.stdout)
         self.assertEqual(2, run_specs(self.root, "assets", "confirm", "orders").returncode)
+
+
+CONFIRMED = "docs/specs/orders/assets/2026-11-01"
+
+
+class TestAssetLint(AssetsCase):
+    def confirm_on_main(self, confirmed: str = "2026-11-02") -> str:
+        write(self.root, f"{CONFIRMED}/description.md",
+              f"# orders: 2026-11-01\n\nKind: new\nPrevious: none\nConfirmed: {confirmed}\n")
+        write(self.root, f"{CONFIRMED}/brief.md", "v1\n")
+        commit_all(self.root, "main")
+        git(self.root, "switch", "-q", "-c", "feat/x")
+        return git(self.root, "rev-parse", "HEAD").strip()[:12]
+
+    def lint(self, against: str | None = None):
+        return specs_assets.lint(self.root, self.cfg, against)
+
+    def test_changes_to_a_folder_confirmed_on_the_base_are_reported(self):
+        sha = self.confirm_on_main()
+        self.assertEqual(([], []), self.lint())
+        write(self.root, f"{CONFIRMED}/brief.md", "v2\n")
+        write(self.root, f"{CONFIRMED}/new.png", "png")
+        suffix = f"assets/2026-11-01/ was confirmed on 2026-11-02 at merge-base {sha}; add a new dated folder"
+        self.assertEqual(([f"{CONFIRMED}/brief.md: {suffix}", f"{CONFIRMED}/new.png: {suffix}"], []), self.lint())
+        (self.root / CONFIRMED / "new.png").unlink()
+        (self.root / CONFIRMED / "brief.md").unlink()
+        self.assertEqual(([f"{CONFIRMED}/brief.md: {suffix}"], []), self.lint())
+
+    def test_against_names_the_base(self):
+        self.confirm_on_main()
+        write(self.root, f"{CONFIRMED}/brief.md", "v2\n")
+        commit_all(self.root, "edit")
+        findings, _ = self.lint("main")
+        self.assertEqual([f"{CONFIRMED}/brief.md: assets/2026-11-01/ was confirmed on 2026-11-02 at main; "
+                          "add a new dated folder"], findings)
+        result = run_specs(self.root, "lint", "--against", "main")
+        self.assertEqual(1, result.returncode)
+        self.assertIn(findings[0], result.stdout)
+
+    def test_unconfirmed_or_branch_only_confirmed_folders_pass(self):
+        self.confirm_on_main(confirmed="no")
+        write(self.root, f"{CONFIRMED}/brief.md", "v2\n")
+        write(self.root, "docs/specs/orders/assets/2026-11-05/description.md", "# orders: 2026-11-05\n\nConfirmed: 2026-11-05\n")
+        commit_all(self.root, "branch")
+        write(self.root, "docs/specs/orders/assets/2026-11-05/x.md", "edit\n")
+        self.assertEqual(([], []), self.lint())
+
+    def test_without_a_base_the_check_is_skipped_with_a_warning(self):
+        self.assertEqual(([], ["frozen asset check skipped: cannot find a merge-base with main or master; "
+                               "pass --against"]), self.lint())
+        self.assertEqual(([], ["frozen asset check skipped: cannot resolve nope"]), self.lint("nope"))
+        result = run_specs(self.root, "lint")
+        self.assertEqual(1 if specs.lint_living(self.root, self.cfg) else 0, result.returncode, result.stdout)
+        self.assertIn("warning: frozen asset check skipped", result.stderr)
+
+    def test_confirmed_value_must_be_no_or_a_date(self):
+        write(self.root, "docs/specs/orders/assets/2026-11-03/description.md",
+              "# orders: 2026-11-03\n\nKind: new\nPrevious: none\nConfirmed: yes\n")
+        write(self.root, "docs/specs/orders/assets/2026-11-04/description.md", "# orders\n\nConfirmed: 2026-02-30\n")
+        write(self.root, "docs/specs/orders/assets/2026-11-05/description.md", "# orders\n\nConfirmed: no\n")
+        write(self.root, "docs/specs/orders/assets/2026-11-06/description.md", "# orders\n")
+        message = "Confirmed: must be 'no' or a YYYY-MM-DD date"
+        findings, _ = self.lint()
+        self.assertEqual([f"docs/specs/orders/assets/2026-11-03/description.md:5: {message}",
+                          f"docs/specs/orders/assets/2026-11-04/description.md:3: {message}"], findings)
+        result = run_specs(self.root, "lint")
+        self.assertEqual(1, result.returncode)
+        self.assertIn(findings[0], result.stdout)

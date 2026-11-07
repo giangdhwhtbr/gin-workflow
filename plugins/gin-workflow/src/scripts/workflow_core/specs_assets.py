@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 import difflib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from typing import Any, Mapping, Sequence
 
@@ -120,3 +120,54 @@ def confirm(root: Path, cfg: Mapping[str, Any], cap: str, day: str, *, today: da
     atomic_write_many({description: _set_field(text, "Confirmed", stamp, after="Previous").encode("utf-8")},
                       mode=0o644)
     return {"description": shown, "confirmed": stamp}
+
+
+def confirmed_value_errors(root: Path, cfg: Mapping[str, Any]) -> list[str]:
+    """A `Confirmed:` line of a dated folder's description.md that is neither `no` nor an ISO date."""
+    errors = []
+    for description in sorted(specs.specs_dir(root, cfg).glob("*/assets/*/description.md")):
+        if not specs._ISO_DATE.match(description.parent.name):
+            continue
+        for number, line in enumerate(description.read_text(encoding="utf-8").splitlines(), 1):
+            found = _CONFIRMED.match(line)
+            if found:
+                if found.group(1) != "no" and not _is_day(found.group(1)):
+                    errors.append(f"{specs.shown(root, description)}:{number}: "
+                                  "Confirmed: must be 'no' or a YYYY-MM-DD date")
+                break
+    return errors
+
+
+def frozen_findings(root: Path, cfg: Mapping[str, Any], base: str, label: str) -> list[str]:
+    """Every path that differs from `base` under a dated folder confirmed on `base`, untracked files included."""
+    prefix = PurePosixPath(cfg["specs"]).as_posix()
+    listed = specs._git(root, "ls-tree", "-r", "--name-only", base, "--", prefix)
+    if listed.returncode != 0:
+        raise specs.SpecsError(f"cannot list {prefix} at {label}: {listed.stderr.strip()}")
+    pattern = re.compile(rf"^{re.escape(prefix)}/[^/]+/assets/(\d{{4}}-\d{{2}}-\d{{2}})/description\.md$")
+    findings = []
+    for path in listed.stdout.splitlines():
+        match = pattern.match(path)
+        when = confirmed_date(specs._git(root, "show", f"{base}:{path}").stdout) if match else None
+        if not when:
+            continue
+        folder = path.rsplit("/", 1)[0]
+        changed = specs._git(root, "diff", "--name-only", base, "--", folder).stdout.splitlines()
+        untracked = specs._git(root, "ls-files", "--others", "--exclude-standard", "--", folder).stdout.splitlines()
+        findings += [f"{item}: assets/{match.group(1)}/ was confirmed on {when} at {label}; add a new dated folder"
+                     for item in sorted(set(changed + untracked))]
+    return findings
+
+
+def lint(root: Path, cfg: Mapping[str, Any], against: str | None) -> tuple[list[str], list[str]]:
+    """Asset findings for `gin specs lint`, and warnings for stderr."""
+    errors = confirmed_value_errors(root, cfg)
+    try:
+        base = against or specs.default_base(root)
+        resolved = specs._git(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}")
+        if resolved.returncode != 0:
+            raise specs.SpecsError(f"cannot resolve {base}")
+        commit = resolved.stdout.strip()
+        return errors + frozen_findings(root, cfg, commit, against or f"merge-base {commit[:12]}"), []
+    except specs.SpecsError as error:
+        return errors, [f"frozen asset check skipped: {error}"]

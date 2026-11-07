@@ -126,11 +126,16 @@ def _run(args: argparse.Namespace) -> int:
         _emit({"id": req_id, "warnings": warnings}, args.format, req_id)
         return 0
     if args.command == "lint":
+        from .specs_assets import lint as lint_assets
+
         if args.change:
             errors = specs.lint_change(root, cfg, specs.find_change(root, cfg, args.change), against=args.against)
         else:
             errors = specs.lint_living(root, cfg)
-        return _findings(errors, args.format, "ok")
+        found, warnings = lint_assets(root, cfg, args.against)
+        for warning in warnings:
+            print(f"warning: {warning}", file=sys.stderr)
+        return _findings(errors + found, args.format, "ok")
     if args.command == "hash":
         block, digest = specs.requirement_hash(root, cfg, args.req_id)
         _emit({"id": block.id, "hash": digest}, args.format, f"<!-- base: {digest} -->")
