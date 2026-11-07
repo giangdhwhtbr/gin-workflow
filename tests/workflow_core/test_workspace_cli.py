@@ -84,6 +84,61 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertIn("workspace: apps/web has no verify.checks", doctor["actions"])
         self.assertFalse(doctor["checks_details"]["workspace"]["repos"]["apps/web"]["present"])
 
+    def _doctor_actions(self):
+        return json.loads(run(self.root, "setup", "doctor", "--format", "json").stdout)["actions"]
+
+    def _init(self, *extra):
+        return run(self.root, "setup", "init", "--harness", "claude", "--approve", "--format", "json", *extra)
+
+    def test_doctor_submodule_matches_path_exactly(self):
+        self._init()
+        message = ("workspace: services/api is still a submodule in .gitmodules; remove it "
+                   "(git submodule deinit -f services/api; git rm -f services/api)")
+        modules = self.root / ".gitmodules"
+        modules.write_text('[submodule "x"]\n\tpath = services/api-legacy\n', encoding="utf-8")
+        self.assertNotIn(message, self._doctor_actions())
+        modules.write_text('[submodule "x"]\n\tpath = services/api\n', encoding="utf-8")
+        self.assertIn(message, self._doctor_actions())
+        modules.write_text('[submodule "x"]\n\tpath=services/api  \n', encoding="utf-8")
+        self.assertIn(message, self._doctor_actions())
+
+    def test_doctor_gitignore_action_clears_after_clone(self):
+        self._init()
+        message = "workspace: apps/web is not in .gitignore; gin workspace clone adds it"
+        self.assertIn(message, self._doctor_actions())
+        run(self.root, "workspace", "clone", "apps/web")
+        self.assertNotIn(message, self._doctor_actions())
+
+    def test_init_workspace_gitignore_header_once_and_idempotent(self):
+        header = "# workspace repos (gin workspace clone adds one line per repository)"
+        fresh = init_repo(self.base / "fresh")
+        for _ in range(2):
+            done = run(fresh, "setup", "init", "--harness", "claude", "--approve", "--workspace", "--format", "json")
+            self.assertEqual(0, done.returncode, done.stderr)
+            lines = (fresh / ".gitignore").read_text().splitlines()
+            self.assertEqual(1, lines.count(header))
+            self.assertEqual(1, lines.count("/.beads"))
+            self.assertEqual(1, lines.count(".planning/worktrees/"))
+
+    def test_ensure_gitignore_without_trailing_newline(self):
+        from workflow_core.workspace import GITIGNORE_HEADER, ensure_gitignore
+        (self.root / ".gitignore").write_text("node_modules", encoding="utf-8")
+        self.assertEqual(["/apps/web"], ensure_gitignore(self.root, ["/apps/web"]))
+        self.assertEqual(["node_modules", "", GITIGNORE_HEADER, "/apps/web"],
+                         (self.root / ".gitignore").read_text().splitlines())
+
+    def test_partial_clone_failure_keeps_gitignore_in_step(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text().replace(f"file://{self.base}/remotes/apps/web",
+                                                     f"file://{self.base}/remotes/missing"), encoding="utf-8")
+        done = run(self.root, "workspace", "clone", "services/api", "apps/web")
+        self.assertEqual(1, done.returncode)
+        self.assertIn("apps/web:", done.stderr)
+        self.assertIn("(cloned so far: services/api)", done.stderr)
+        lines = (self.root / ".gitignore").read_text().splitlines()
+        self.assertIn("/services/api", lines)
+        self.assertNotIn("/apps/web", lines)
+
 
 if __name__ == "__main__":
     unittest.main()

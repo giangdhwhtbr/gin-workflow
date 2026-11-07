@@ -23,19 +23,23 @@ def clone(space: ws.Workspace, paths: Sequence[str], all_repos: bool) -> list[di
         raise ws.WorkspaceError(f"not in workspace.repos: {', '.join(missing)}")
     if not chosen:
         raise ws.WorkspaceError("name a repository path or pass --all")
-    results = []
-    for repo in chosen:
-        target = space.checkout(repo)
-        if space.present(repo):
-            results.append({"path": repo.path, "status": "present"})
-            continue
-        argv = ["clone", "--branch", repo.default_branch, *(["--depth", "1"] if repo.frozen else []),
-                repo.url, str(target)]
-        done = _run_git(argv)
-        if done.returncode:
-            raise ws.WorkspaceError(f"{repo.path}: {done.stderr.strip() or 'git clone failed'}")
-        results.append({"path": repo.path, "status": "cloned"})
-    ws.ensure_gitignore(space.root, [f"/{repo.path}" for repo in chosen])
+    results: list[dict[str, Any]] = []
+    try:
+        for repo in chosen:
+            target = space.checkout(repo)
+            if space.present(repo):
+                results.append({"path": repo.path, "status": "present"})
+                continue
+            argv = ["clone", "--branch", repo.default_branch, *(["--depth", "1"] if repo.frozen else []),
+                    repo.url, str(target)]
+            done = _run_git(argv)
+            if done.returncode:
+                cloned = [row["path"] for row in results if row["status"] == "cloned"]
+                so_far = f" (cloned so far: {', '.join(cloned)})" if cloned else ""
+                raise ws.WorkspaceError(f"{repo.path}: {done.stderr.strip() or 'git clone failed'}{so_far}")
+            results.append({"path": repo.path, "status": "cloned"})
+    finally:
+        ws.ensure_gitignore(space.root, [f"/{row['path']}" for row in results])
     return results
 
 

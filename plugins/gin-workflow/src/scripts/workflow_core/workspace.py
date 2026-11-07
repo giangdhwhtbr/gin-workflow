@@ -199,11 +199,13 @@ def doctor(root: Path, space: Workspace) -> dict[str, Any]:
     ignored = set(ignore_path.read_text(encoding="utf-8").splitlines()) if ignore_path.is_file() else set()
     modules_path = Path(root) / ".gitmodules"
     modules = modules_path.read_text(encoding="utf-8") if modules_path.is_file() else ""
+    submodule_paths = {value.strip() for key, _, value in (line.partition("=") for line in modules.splitlines()
+                                                           if "=" in line) if key.strip() == "path"}
     repos: dict[str, dict[str, Any]] = {}
     actions: list[str] = []
     for repo in space.repos:
         present = space.present(repo)
-        submodule = f"path = {repo.path}" in modules
+        submodule = repo.path in submodule_paths
         repos[repo.path] = {"present": present, "checks": sorted(repo.checks), "ignored": f"/{repo.path}" in ignored,
                             "submodule": submodule}
         if not present:
