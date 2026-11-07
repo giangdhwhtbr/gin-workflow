@@ -85,6 +85,8 @@ def add(root: Path, cfg: Mapping[str, Any], cap: str, files: Sequence[Path], *, 
         if legacy and source.suffix.lower() not in IMAGE_SUFFIXES:
             raise specs.SpecsError(f"{source.name}: --legacy takes only {', '.join(IMAGE_SUFFIXES)}")
         destination = target / source.name
+        if destination == description:
+            raise specs.SpecsError("description.md is reserved for the folder description")
         if destination in writes:
             raise specs.SpecsError(f"two files named {source.name}")
         if destination.exists():

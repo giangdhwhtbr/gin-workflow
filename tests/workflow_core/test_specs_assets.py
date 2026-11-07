@@ -99,6 +99,10 @@ class TestAssetsAdd(AssetsCase):
         self.assertRefused("must be YYYY-MM-DD", day="20261107")
         self.assertRefused("not a calendar date", day="2026-13-01")
 
+    def test_source_named_description_is_reserved(self):
+        (self.outside / "description.md").write_text("mine", encoding="utf-8")
+        self.assertRefused("description.md is reserved", self.outside / "description.md")
+
     def test_existing_name_and_confirmed_folder_are_refused(self):
         self.add(self.outside / "a.png")
         with self.assertRaisesRegex(SpecsError, f"{FOLDER}/a.png already exists"):
