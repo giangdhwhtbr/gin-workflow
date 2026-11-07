@@ -18,7 +18,7 @@ Epic `gin-workflow-bel0` (2026-11-06). BAs send the living specs to customers; `
 - `plugins/gin-workflow/src/scripts/workflow_core/specs_export.py`, `specs_cli.py`, `plugins/gin-workflow/src/templates/srs.html`, `srs-capability.html`, `docs/guides/sdd.md#exporting-an-srs`, `docs/guides/customizing-templates.md#srs-export-templates`, `docs/reference/cli.md`
 - `.planning/specs/2026-11-05-srs-export-design.md`, `.planning/plans/2026-11-06-srs-export.md`
 - Beads: `gin-workflow-bel0`, `gin-workflow-bel0.1`, `gin-workflow-bel0.2`
-- Related: [spec-diagrams](spec-diagrams.md), [spec-asset-iterations](spec-asset-iterations.md)
+- Related: [spec-diagrams](spec-diagrams.md), [spec-asset-iterations](spec-asset-iterations.md), [explain-page](explain-page.md) (`specs_explain.py` imports the private helpers of `specs_export.py`; a change to them changes both outputs)
 
 **Scope**
 SDD layout living specs and the `specs export` command only.
