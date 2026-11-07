@@ -35,7 +35,7 @@ The skills run `gin specs assets confirm` only after the BA explicitly confirms,
 ## Legacy capture: `/gin-ba:capture`
 
 1. Collect the screenshots of the existing feature (`.png`, `.jpg`, `.jpeg`, `.webp`, or `.gif`); they can be anywhere on disk.
-2. Run `/gin-ba:capture <capability> --date <date>` and name the files. The skill adds them under `docs/specs/<capability>/assets/<date>/legacy/` with `gin specs assets add <capability> <files> --legacy`. Add code paths after them, followed by code paths that show the feature's checks. The skill reads only the paths you name.
+2. Run `/gin-ba:capture <capability> --date <date>` and name the files. The skill adds them under `docs/specs/<capability>/assets/<date>/legacy/` with `gin specs assets add <capability> <files> --legacy`. Optionally add code paths that show the feature's checks. The skill reads only the paths you name.
 3. Review `description.md`: `Kind: legacy`, one `### <Screen>` per screen with a `Field | Type | Required | Rule` table and its actions, `## Rules`, and `## Open questions`. A value the evidence does not settle reads `?` and has an open question.
 4. Confirm it; the skill runs `gin specs assets confirm`.
 

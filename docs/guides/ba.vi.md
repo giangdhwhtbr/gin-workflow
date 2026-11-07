@@ -35,7 +35,7 @@ Các skill chỉ chạy `gin specs assets confirm` sau khi BA xác nhận rõ r�
 ## Ghi lại hệ thống cũ: `/gin-ba:capture` { #legacy-capture-gin-bacapture }
 
 1. Gom các screenshot của tính năng hiện có (`.png`, `.jpg`, `.jpeg`, `.webp`, hoặc `.gif`); chúng có thể nằm ở bất kỳ đâu trên đĩa.
-2. Chạy `/gin-ba:capture <capability> --date <date>` và nêu tên các file. Skill thêm chúng vào `docs/specs/<capability>/assets/<date>/legacy/` bằng `gin specs assets add <capability> <files> --legacy`. Thêm sau đó các đường dẫn code cho thấy các kiểm tra của tính năng. Skill chỉ đọc những đường dẫn bạn nêu.
+2. Chạy `/gin-ba:capture <capability> --date <date>` và nêu tên các file. Skill thêm chúng vào `docs/specs/<capability>/assets/<date>/legacy/` bằng `gin specs assets add <capability> <files> --legacy`. Có thể thêm các đường dẫn code cho thấy các kiểm tra của tính năng. Skill chỉ đọc những đường dẫn bạn nêu.
 3. Xem lại `description.md`: `Kind: legacy`, mỗi màn hình một `### <Screen>` với bảng `Field | Type | Required | Rule` và các hành động của nó, `## Rules`, và `## Open questions`. Một giá trị mà bằng chứng không xác định được ghi là `?` và có một câu hỏi mở.
 4. Xác nhận nó; skill chạy `gin specs assets confirm`.
 
