@@ -60,7 +60,9 @@ def _e2e_parser() -> argparse.ArgumentParser:
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin-qa e2e")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("init", parents=[common]).add_argument("--base-url")
+    item = sub.add_parser("init", parents=[common])
+    item.add_argument("--base-url")
+    item.add_argument("--install", action="store_true")
     sub.add_parser("plan", parents=[common]).add_argument("capability", nargs="?")
     sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
     sub.add_parser("run", parents=[common]).add_argument("targets", nargs="*", metavar="TC-ID|capability")
@@ -261,7 +263,7 @@ def _run_e2e(args: argparse.Namespace) -> int:
     root = args.repository.resolve()
     eff = resolve(specs_reqs(root))
     if args.command == "init":
-        done = e2e.init(root, eff, args.base_url)
+        done = e2e.init(root, eff, args.base_url, args.install)
         _emit({"done": done}, args.format, "\n".join(done) or "already initialized")
         return 0
     if args.command == "plan":
