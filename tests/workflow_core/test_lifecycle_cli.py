@@ -286,6 +286,20 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertEqual({"lint": "touch child-lint", "test": "true"}, json.loads(out.getvalue())["verify_commands"])
 
+    def test_quick_check_with_an_explicit_child_uses_the_workspace_rigor(self):
+        root = make_workspace(Path(tempfile.mkdtemp()).resolve())
+        self.addCleanup(shutil.rmtree, root.parent, True)
+        config = root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8").replace(
+            'verify: {checks: {test: "echo api-test"}}',
+            'verify: {checks: {lint: "l", test: "t", build: "b"}}') + "project: {rigor: easy}\n", encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = cli_main(["quick-check", "--repository", str(root / "services/api"),
+                             "--changed-files", "1", "--modules", "1", "--format", "json"])
+        payload = json.loads(out.getvalue())
+        self.assertEqual((0, "easy", {"lint": "l", "test": "t"}), (code, payload["rigor"], payload["verify_commands"]))
+
     def test_quick_check_escalates_over_threshold_or_multiple_modules(self):
         self._write_config("schema_version: '2.4'\nproject: {rigor: standard}\nquick: {max_files: 3}\n")
         self.assertEqual(3, self._quick("--changed-files", "4", "--modules", "1")[0])

@@ -477,6 +477,26 @@ class WorkspaceHookTests(unittest.TestCase):
         self.assertIn("already passed on this tree", err)
         self.assertEqual(1, len(self.events()))
 
+    def child_worktree(self):
+        worktree = self.root / ".planning/worktrees/t1"
+        git(self.child, "worktree", "add", "-q", str(worktree), "-b", "feat/t1", "main")
+        return worktree
+
+    def test_pre_commit_in_a_child_worktree_runs_the_checks_there(self):
+        worktree = self.child_worktree()
+        code, _, _ = self.hook("run", "pre-commit", "--repository", str(worktree))
+        self.assertEqual(0, code)
+        self.assertTrue((worktree / "child-lint").is_file())
+        self.assertFalse((self.child / "child-lint").exists())
+
+    def test_pre_push_in_a_child_worktree_records_the_worktree_tree(self):
+        worktree = self.child_worktree()
+        with mock.patch.object(sys, "stdin", io.StringIO(push_ref(worktree))):
+            self.assertEqual(0, self.hook("run", "pre-push", "--repository", str(worktree))[0])
+        self.assertFalse((self.child / "child-lint").exists())
+        self.assertEqual([git(worktree, "rev-parse", "HEAD^{tree}")],
+                         [event.payload["tree"] for event in self.events()])
+
     def test_install_all_repos_skips_frozen_beads_and_missing_clones(self):
         code, out, _ = self.hook("install", "--all-repos", "--repository", str(self.root))
         self.assertEqual(0, code)

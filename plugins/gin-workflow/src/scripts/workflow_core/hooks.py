@@ -96,7 +96,7 @@ def _scoped(root: Path, hook: str | None) -> tuple[list[tuple[Path, list[tuple[s
         names = _PRE_PUSH.get(settings.rigor, _PRE_PUSH["standard"]) if hook == "pre-push" else _PRE_COMMIT
     if located.entry is not None:
         checks = located.entry.checks
-        return ([(located.repo, [(f"{located.entry.path}:{name}", checks[name]) for name in names if checks.get(name)])],
+        return ([(Path(root), [(f"{located.entry.path}:{name}", checks[name]) for name in names if checks.get(name)])],
                 located.root, settings.rigor)
     scoped = [(root, [(name, settings.verify_commands[name]) for name in names if settings.verify_commands.get(name)])]
     for package in settings.packages:

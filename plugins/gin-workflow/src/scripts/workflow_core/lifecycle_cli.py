@@ -570,9 +570,9 @@ _QUICK_COMMANDS = {"easy": ("lint", "typecheck", "test"), "standard": ("lint", "
 
 def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     repo_path = Path(args.repository).resolve()
-    config = resolve_effective_config(repo_path, write=False).config
-    settings = project_settings(config.to_dict())
     located = workspace.locate(getattr(args, "start", repo_path))
+    config = resolve_effective_config(located.root, write=False).config
+    settings = project_settings(config.to_dict())
     verify_commands = dict(located.entry.checks) if located.entry is not None else settings.verify_commands
     commands = {k: v for k, v in verify_commands.items() if k in _QUICK_COMMANDS[settings.rigor]}
     base = {"rigor": settings.rigor, "verify_commands": commands,
