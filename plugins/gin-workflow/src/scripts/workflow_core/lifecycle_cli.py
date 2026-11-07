@@ -262,6 +262,20 @@ def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
     return lint_design_spec(path)
 
 
+def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
+    """`<path>:<line>: TQ-<n>` for each open technical question in the workflow's design doc."""
+    from .specs import design_doc, sdd_config, shown, technical_questions
+
+    if not (repo_path / ".agent-workflow/config.yaml").is_file():
+        return []
+    config = resolve_effective_config(repo_path, write=False).config.to_dict()
+    design = design_doc(repo_path, sdd_config(config), workflow_id)
+    if design is None:
+        return []
+    questions, _ = technical_questions(design)
+    return [f"{shown(repo_path, design)}:{item.line}: {item.id}" for item in questions if not item.decision]
+
+
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
@@ -271,6 +285,16 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if errors:
             return {"status": "rejected", "message": "requirement-confirmed refused: spec lint failed\n"
                     + "\n".join(errors)}, 1
+    if args.gate == "plan-approved":
+        from .specs import SpecsError
+
+        try:
+            open_questions = _open_questions(Path(args.repository).resolve(), args.workflow_id)
+        except SpecsError as error:
+            return {"status": "error", "message": str(error)}, 2
+        if open_questions:
+            return {"status": "rejected", "message": "plan-approved refused: open technical questions\n"
+                    + "\n".join(open_questions)}, 1
     store = _get_event_store(Path(args.repository).resolve())
     actor, team_payload = args.actor, {}
     team = team_for_repo(Path(args.repository).resolve())

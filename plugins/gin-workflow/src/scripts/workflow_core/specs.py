@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 import hashlib
 import json
@@ -95,9 +95,79 @@ def lint_design_spec(path: Path) -> list[str]:
         elif story and state == "criteria" and re.match(r"^\s*[-*] \S", line):
             state = "bullet"
     close()
+    errors += technical_questions(path)[1]
     if not stories:
         errors.append(f"{path}:1: no user stories (### US-<n>:)")
     return errors
+
+
+_TQ_SECTION = "## Open Technical Questions"
+_TQ = re.compile(r"^- (TQ-\d+): \S")
+_DECISION = re.compile(r"^\s+Decision:(.*)$")
+_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+_LEGACY_SPECS = ".planning/specs"
+
+
+@dataclass(frozen=True)
+class Question:
+    id: str
+    line: int
+    decision: str
+
+
+def technical_questions(path: Path, label: str | None = None) -> tuple[list[Question], list[str]]:
+    """Questions under `## Open Technical Questions` (an empty decision is open) and the section's format errors."""
+    name = label or str(path)
+    text = _COMMENT.sub(lambda found: "\n" * found.group().count("\n"), path.read_text(encoding="utf-8"))
+    questions: list[Question] = []
+    errors: list[str] = []
+    inside = fenced = False
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if re.match(r"^#{1,2} ", line):
+            inside = line.strip() == _TQ_SECTION
+            continue
+        if not inside or not line.strip():
+            continue
+        question, decision = _TQ.match(line), _DECISION.match(line)
+        if question:
+            if any(item.id == question.group(1) for item in questions):
+                errors.append(f"{name}:{number}: {question.group(1)} appears twice")
+            questions.append(Question(question.group(1), number, ""))
+        elif decision and questions and questions[-1].line == number - 1:
+            answer = decision.group(1).strip()
+            if not answer:
+                errors.append(f"{name}:{number}: {questions[-1].id} has an empty Decision:")
+            questions[-1] = replace(questions[-1], decision=answer)
+        elif decision:
+            errors.append(f"{name}:{number}: Decision: without a question on the line above")
+        else:
+            errors.append(f"{name}:{number}: not a question (- TQ-<n>: <question>) or its Decision: line")
+    return questions, errors
+
+
+def design_doc(root: Path, cfg: Mapping[str, Any], workflow_id: str) -> Path | None:
+    """The workflow's design doc: the SDD change's design file, or the one legacy spec naming the workflow."""
+    root = Path(root)
+    if cfg["layout"] == "sdd":
+        try:
+            design = change_file(find_change(root, cfg, workflow_id), "design")
+        except SpecsError as error:
+            if "ambiguous" in str(error):
+                raise
+            return None
+        return design if design.is_file() else None
+    named = re.compile(rf"^(?:Epic|Workflow): {re.escape(workflow_id)}$", re.MULTILINE)
+    folder = root / _LEGACY_SPECS
+    found = [path for path in sorted(folder.glob("*.md"))
+             if named.search(path.read_text(encoding="utf-8"))] if folder.is_dir() else []
+    if len(found) > 1:
+        raise SpecsError(f"several specs name {workflow_id}: {', '.join(shown(root, path) for path in found)}")
+    return found[0] if found else None
 
 
 def cap_of(req_id: str) -> str:
@@ -367,7 +437,9 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         if not any((base / cap / "diagrams").glob("*-activity.md")):
             errors.append(f"{cap}: no activity diagram in {shown(root, base / cap / 'diagrams')}/ "
                           "(gin specs template activity.md)")
-    return errors + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg)
+    design = change_file(change, "design")
+    questions = technical_questions(design, shown(root, design))[1] if design.is_file() else []
+    return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg)
 
 
 _CITED = re.compile(r"`([^`\s]+)`")
