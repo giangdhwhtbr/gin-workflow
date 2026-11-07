@@ -144,7 +144,7 @@ def locate(repository: Path) -> Located:
             if workspace.checkout(repo).resolve() == checkout:
                 return Located(workspace.root, checkout, workspace, repo)
     own = load(checkout)
-    return Located(own.root if own else given, checkout, own, None)
+    return Located(given, checkout, own, None)
 
 
 def project_root(repository: Path) -> Path:

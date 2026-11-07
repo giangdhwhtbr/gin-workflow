@@ -591,8 +591,10 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
 
 def _call(handler, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     try:
+        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
+        args.repository = workspace.repository_root(args.repository)
         return handler(args)
-    except ConfigValidationError as error:
+    except (ConfigValidationError, workspace.WorkspaceError) as error:
         return {"status": "error", "message": str(error)}, 2
 
 
@@ -618,8 +620,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
-        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
-        args.repository = workspace.repository_root(args.repository)
         payload, exit_code = _call(_state_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -654,8 +654,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
-        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
-        args.repository = workspace.repository_root(args.repository)
         payload, exit_code = _call(_quick_check_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -679,8 +677,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
-        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
-        args.repository = workspace.repository_root(args.repository)
 
         payload, exit_code = _call(_unblock_command, args)
         if args.format == "json":
@@ -706,8 +702,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
             args = parser.parse_args(argv[1:])
         except SystemExit as e:
             return e.code if isinstance(e.code, int) else 2
-        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
-        args.repository = workspace.repository_root(args.repository)
         payload, exit_code = _call(_record_command, args)
         if args.format == "json":
             print(json.dumps(payload, indent=2, sort_keys=True))

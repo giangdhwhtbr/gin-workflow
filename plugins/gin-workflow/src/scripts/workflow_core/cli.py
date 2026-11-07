@@ -68,57 +68,61 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if not argv or argv[0] not in TOP_COMMANDS:
         print(f"usage: gin {{{','.join(TOP_COMMANDS)}}} <command>", file=sys.stderr)
         return 2
-    if argv[0] == "routes":
-        from .routes import main as routes_main
-        return routes_main(argv[1:])
-    if argv[0] == "notify":
-        from .notify import main as notify_main
-        return notify_main(argv[1:])
-    if argv[0] == "paths":
-        import json
-        from pathlib import Path
-        print(json.dumps({"lib_dir": str(Path(__file__).resolve().parents[1])}))
-        return 0
-    if argv[0] == "goal":
-        from .goal import main as goal_main
-        return goal_main(argv[1:])
-    if argv[0] == "worktree":
-        from .worktrees import main as worktrees_main
-        return worktrees_main(argv[1:])
-    if argv[0] == "task":
-        from .tasks import main as tasks_main
-        return tasks_main(argv[1:])
-    if argv[0] == "hooks":
-        from .hooks import main as hooks_main
-        return hooks_main(argv[1:])
-    if argv[0] == "rules":
-        from .rules import main as rules_main
-        return rules_main(argv[1:])
-    if argv[0] == "docs":
-        from .docs_check import main as docs_main
-        return docs_main(argv[1:])
-    if argv[0] == "specs":
-        from .specs_cli import main as specs_main
-        return specs_main(argv[1:])
-    if argv[0] == "team":
-        from .team_cli import main as team_main
-        return team_main(argv[1:])
-    if argv[0] == "milestone":
-        from .milestone_cli import main as milestone_main
-        return milestone_main(argv[1:])
-    if argv[0] == "evidence":
-        from .verification import main as evidence_main
-        return evidence_main(argv[1:])
-    if argv[0] == "usage":
-        from .usage_cli import main as usage_main
-        return usage_main(argv[1:])
-    if argv[0] == "reviewer":
-        from .reviewer import main as reviewer_main
-        return reviewer_main(argv[1:])
-    if argv[0] in ("state", "unblock", "record", "quick-check"):
-        from .lifecycle_cli import main as lifecycle_main
-        return lifecycle_main(argv)
     from . import workspace
+    try:
+        if argv[0] == "routes":
+            from .routes import main as routes_main
+            return routes_main(argv[1:])
+        if argv[0] == "notify":
+            from .notify import main as notify_main
+            return notify_main(argv[1:])
+        if argv[0] == "paths":
+            import json
+            from pathlib import Path
+            print(json.dumps({"lib_dir": str(Path(__file__).resolve().parents[1])}))
+            return 0
+        if argv[0] == "goal":
+            from .goal import main as goal_main
+            return goal_main(argv[1:])
+        if argv[0] == "worktree":
+            from .worktrees import main as worktrees_main
+            return worktrees_main(argv[1:])
+        if argv[0] == "task":
+            from .tasks import main as tasks_main
+            return tasks_main(argv[1:])
+        if argv[0] == "hooks":
+            from .hooks import main as hooks_main
+            return hooks_main(argv[1:])
+        if argv[0] == "rules":
+            from .rules import main as rules_main
+            return rules_main(argv[1:])
+        if argv[0] == "docs":
+            from .docs_check import main as docs_main
+            return docs_main(argv[1:])
+        if argv[0] == "specs":
+            from .specs_cli import main as specs_main
+            return specs_main(argv[1:])
+        if argv[0] == "team":
+            from .team_cli import main as team_main
+            return team_main(argv[1:])
+        if argv[0] == "milestone":
+            from .milestone_cli import main as milestone_main
+            return milestone_main(argv[1:])
+        if argv[0] == "evidence":
+            from .verification import main as evidence_main
+            return evidence_main(argv[1:])
+        if argv[0] == "usage":
+            from .usage_cli import main as usage_main
+            return usage_main(argv[1:])
+        if argv[0] == "reviewer":
+            from .reviewer import main as reviewer_main
+            return reviewer_main(argv[1:])
+        if argv[0] in ("state", "unblock", "record", "quick-check"):
+            from .lifecycle_cli import main as lifecycle_main
+            return lifecycle_main(argv)
+    except workspace.WorkspaceError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     parsed = _parser().parse_args(argv[1:])
     options = vars(parsed)
     action = options.pop("action")
