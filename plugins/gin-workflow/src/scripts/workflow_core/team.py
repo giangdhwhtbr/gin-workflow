@@ -60,6 +60,11 @@ class TeamConfig:
     def areas_for(self, member: Member) -> list[str]:
         return [name for name, area in self.areas.items() if self.eligible(member, area)]
 
+    def technical(self, member: Member) -> bool:
+        """True when one of the member's roles leads an area or is listed in an area's roles."""
+        roles = set(member.roles)
+        return any(area.lead in roles or bool(roles & set(area.roles)) for area in self.areas.values())
+
     def area_of(self, path: str) -> str | None:
         from .rules import _glob_regex
 
@@ -174,7 +179,7 @@ def summary(root: Path, team: TeamConfig | None) -> dict[str, Any]:
         return {"enabled": False, "host": None, "me": None}
     member = current_member(root, team)
     me = None if member is None else {"email": member.email, "roles": list(member.roles),
-                                      "areas": team.areas_for(member)}
+                                      "areas": team.areas_for(member), "technical": team.technical(member)}
     return {"enabled": True, "host": team.host, "me": me,
             "permissions": {key: list(roles) for key, roles in team.permissions.items()}}
 

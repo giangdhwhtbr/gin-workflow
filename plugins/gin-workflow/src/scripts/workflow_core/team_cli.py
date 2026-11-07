@@ -99,9 +99,10 @@ def _run(args: argparse.Namespace) -> int:
     member = team_core.require_member(root, team)
     if args.command == "whoami":
         payload = {"email": member.email, "login": member.login, "roles": list(member.roles),
-                   "areas": team.areas_for(member)}
+                   "areas": team.areas_for(member), "technical": team.technical(member)}
         _emit(payload, args.format, f"{member.email} ({member.login}) roles: {', '.join(member.roles)}; "
-                                    f"areas: {', '.join(payload['areas']) or '-'}")
+                                    f"areas: {', '.join(payload['areas']) or '-'}; "
+                                    f"technical: {'yes' if payload['technical'] else 'no'}")
         return 0
     from . import team_beads
 

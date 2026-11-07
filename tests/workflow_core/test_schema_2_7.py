@@ -108,6 +108,27 @@ class TestSchema27(unittest.TestCase):
                                             "areas": {"api": {"paths": ["api/**"], "lead": "dev"}}}))
 
 
+class TestTechnicalMember(unittest.TestCase):
+    def test_area_lead_and_area_role_are_technical_others_are_not(self):
+        team = load_team({"team": RAW})
+        self.assertEqual({"an@corp.com": False, "binh@corp.com": True, "chi@corp.com": True,
+                          "dung@corp.com": False, "em@corp.com": True},
+                         {email: team.technical(member) for email, member in team.members.items()})
+
+    def test_area_without_roles_counts_only_its_lead(self):
+        team = load_team({"team": {"members": {"a@b.c": {"roles": ["ba"], "login": "a"},
+                                               "l@b.c": {"roles": ["lead"], "login": "l"}},
+                                   "areas": {"api": {"paths": ["api/**"], "lead": "lead"}}}})
+        self.assertEqual(["api"], team.areas_for(team.member("a@b.c")))
+        self.assertFalse(team.technical(team.member("a@b.c")))
+        self.assertTrue(team.technical(team.member("l@b.c")))
+
+    def test_business_and_technical_roles_make_a_technical_member(self):
+        members = {**RAW["members"], "an@corp.com": {"roles": ["ba", "be_dev"], "login": "an-ba"}}
+        team = load_team({"team": {**RAW, "members": members}})
+        self.assertTrue(team.technical(team.member("an@corp.com")))
+
+
 class TestTeamIdentityAndSolo(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -117,11 +138,23 @@ class TestTeamIdentityAndSolo(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_state_and_whoami_report_a_business_member(self):
+        make_team_repo(self.root, email="an@corp.com")
+        me = json.loads(run_cli(self.root, "state", "--format", "json").stdout)["project"]["team"]["me"]
+        self.assertEqual({"email": "an@corp.com", "roles": ["ba"], "areas": [], "technical": False}, me)
+        self.assertFalse(json.loads(run_cli(self.root, "team", "whoami", "--format", "json").stdout)["technical"])
+        self.assertIn("technical: no", run_cli(self.root, "team", "whoami").stdout)
+
+    def test_whoami_reports_a_technical_member(self):
+        make_team_repo(self.root)
+        self.assertIn("technical: yes", run_cli(self.root, "team", "whoami").stdout)
+
     def test_state_reports_team_and_me(self):
         make_team_repo(self.root)
         project = json.loads(run_cli(self.root, "state", "--format", "json").stdout)["project"]
         self.assertEqual({"enabled": True, "host": "github",
-                          "me": {"email": "binh@corp.com", "roles": ["be_lead", "be_dev"], "areas": ["backend"]},
+                          "me": {"email": "binh@corp.com", "roles": ["be_lead", "be_dev"], "areas": ["backend"],
+                                 "technical": True},
                           "permissions": {}},
                          project["team"])
 
