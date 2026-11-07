@@ -11,6 +11,7 @@ import unittest
 
 from tests.workflow_core.specs_fixtures import make_change, make_repo, write, write_activity
 from tests.workflow_core.team_fixtures import calls, fake_cli, make_team_repo, path_with, run_cli
+from tests.workflow_core.test_workspace import make_workspace
 from workflow_core import specs
 from workflow_core.cli import main as cli_main
 
@@ -191,6 +192,45 @@ class TestPlanApprovedCheck(_Repo):
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertIn("open technical questions", result.stderr)
         self.assertEqual([], calls(bin_dir))
+
+
+class PlanApprovedWorkspaceTests(unittest.TestCase):
+    """In a workspace, plan-approved also needs every track on one workable `Repo:` (gin-workflow-workspace)."""
+
+    PLAN = ("# Plan\n\n## Tasks\n\n### Track 1: API\n- **Repo**: `services/api`\n- **Files**:\n"
+            "  - Modify `services/api/a.py`\n\n## Integration\n")
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = make_workspace(Path(self.tmp.name))
+
+    def record(self, workflow: str = "ep-1", evidence: str = ".planning/plans/p.md"):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = cli_main(["record", "plan-approved", "--repository", str(self.root), "--evidence", evidence,
+                             "--actor", "user", "--workflow-id", workflow])
+        return code, err.getvalue()
+
+    gate = TestPlanApprovedCheck.gate
+
+    def test_valid_plan_records_the_gate(self):
+        write(self.root, ".planning/plans/p.md", self.PLAN)
+        self.assertEqual(0, self.record()[0])
+        self.assertEqual("satisfied", self.gate())
+
+    def test_bad_tracks_refuse_the_gate(self):
+        write(self.root, ".planning/plans/p.md", self.PLAN.replace("services/api", "legacy/portal"))
+        code, err = self.record()
+        self.assertEqual(1, code)
+        self.assertIn("plan-approved refused: workspace tracks\nTrack 1: Repo: legacy/portal is frozen", err)
+        self.assertEqual("unmet", self.gate())
+
+    def test_evidence_without_a_plan_file_is_refused(self):
+        code, err = self.record(evidence="pr-123")
+        self.assertEqual(1, code)
+        self.assertIn("plan-approved refused: a workspace needs the plan file as --plan or --evidence", err)
+        self.assertEqual("unmet", self.gate())
 
 
 if __name__ == "__main__":

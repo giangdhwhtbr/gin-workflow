@@ -156,6 +156,18 @@ class TestRoutesCLI(unittest.TestCase):
     def _track(self, task_id, model):
         return {"task_id": task_id, "provider_role": "backend", "model": model, "effort": "high"}
 
+    def test_repo_is_kept_in_the_manifest(self):
+        import yaml
+
+        code, payload = self._resolve("wf-repo", [{**self._track("t1", "sonnet"), "repo": "services/api"},
+                                                  self._track("t2", "sonnet")])
+        self.assertEqual(code, 0, payload)
+        manifest = yaml.safe_load((self.root / payload["manifest"]).read_text(encoding="utf-8"))
+        self.assertEqual("services/api", manifest["assignments"][0]["repo"])
+        self.assertEqual("services/api", manifest["tracks"]["t1"]["repo"])
+        self.assertNotIn("repo", manifest["assignments"][1])
+        self.assertNotIn("repo", manifest["tracks"]["t2"])
+
     def test_us5_every_track_on_the_strongest_model_warns(self):
         code, payload = self._resolve("wf-top", [self._track("t1", "opus"), self._track("t2", "opus")])
         self.assertEqual(code, 0)

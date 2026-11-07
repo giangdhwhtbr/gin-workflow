@@ -279,6 +279,15 @@ def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
     return [f"{shown(repo_path, design)}:{item.line}: {item.id}" for item in questions if not item.decision]
 
 
+
+def _plan_path(root: Path, value: str | None) -> Path | None:
+    if not value:
+        return None
+    candidate = Path(value)
+    candidate = candidate if candidate.is_absolute() else root / candidate
+    return candidate if candidate.is_file() else None
+
+
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
@@ -298,6 +307,18 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if open_questions:
             return {"status": "rejected", "message": "plan-approved refused: open technical questions\n"
                     + "\n".join(open_questions)}, 1
+        located = workspace.locate(Path(args.repository).resolve())
+        if located.workspace is not None:
+            plan = _plan_path(located.root, args.plan) or _plan_path(located.root, args.evidence)
+            if plan is None:
+                return {"status": "rejected",
+                        "message": "plan-approved refused: a workspace needs the plan file as --plan or --evidence"}, 1
+            from .team import check_plan_repos
+
+            errors = check_plan_repos(located.workspace, plan)
+            if errors:
+                return {"status": "rejected",
+                        "message": "plan-approved refused: workspace tracks\n" + "\n".join(errors)}, 1
     store = _get_event_store(Path(args.repository).resolve())
     actor, team_payload = args.actor, {}
     team = team_for_repo(Path(args.repository).resolve())

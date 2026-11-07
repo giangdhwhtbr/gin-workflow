@@ -157,7 +157,10 @@ def resolve(
                     main_harness=harness,
                     workflow_id=workflow_id,
                 )
-                entries.append(AssignmentManifest(workflow_id, request, resolve_main_harness(request)).to_dict())
+                entry = AssignmentManifest(workflow_id, request, resolve_main_harness(request)).to_dict()
+                if isinstance(track, Mapping) and track.get("repo"):
+                    entry["repo"] = str(track["repo"])
+                entries.append(entry)
             except AssignmentResolutionError as error:
                 diagnostics.append(f"{task_id}.route: {error}")
 
