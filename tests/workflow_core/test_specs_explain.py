@@ -17,6 +17,7 @@ PNG = b"\x89PNG\r\n\x1a\nfake-image"
 OUT = ".agent-workflow/runtime/explain"
 MOCKUP = """<!doctype html>
 <html><body>
+<nav><a href="#locked">Locked</a></nav>
 <section class="screen" id="sign-in" data-title="Sign in"><button>Go</button></section>
 <section class="screen" id="locked" data-title="Locked"></section>
 <script>function route(){}</script>
@@ -113,6 +114,8 @@ class TestCapability(unittest.TestCase):
                            '<iframe sandbox="allow-scripts" srcdoc="',
                            "&lt;section class=&quot;screen&quot; id=&quot;locked&quot;",
                            "/^[a-z][a-z0-9-]*$/.test(s)",
+                           "closest(&#x27;a[href^=&quot;#&quot;]&#x27;)",
+                           "e.preventDefault();location.hash=a.getAttribute(&#x27;href&#x27;).slice(1);",
                            '<option value="sign-in">', '<option value="locked">',
                            'id="asset-auth-assets-2026-05-11-mockup-index-html"',
                            '<a href="#asset-auth-assets-2026-05-11-mockup-index-html" data-screen="locked">'

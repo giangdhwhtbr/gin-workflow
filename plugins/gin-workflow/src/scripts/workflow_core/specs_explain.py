@@ -20,13 +20,19 @@ _CITED_DATE = re.compile(r"`assets/(\d{4}-\d{2}-\d{2})/")
 _CODE_PATH = re.compile(r"<code>(assets/\d{4}-\d{2}-\d{2}/[A-Za-z0-9._/-]+?)(?:#([a-z][a-z0-9-]*))?</code>")
 _SCREEN = re.compile(r"""<section\b[^>]*?\bid=["']([a-z][a-z0-9-]*)["']""")
 _LISTENER = ("<script>addEventListener('message',function(e){var s=e.data;"
-             "if(typeof s==='string'&&/^[a-z][a-z0-9-]*$/.test(s)){location.hash=s;}});</script>")
+             "if(typeof s==='string'&&/^[a-z][a-z0-9-]*$/.test(s)){location.hash=s;}});"
+             # A srcdoc document's base URL is the parent page: keep its own `#id` links inside the frame.
+             "document.addEventListener('click',function(e){"
+             "var a=e.target.closest&&e.target.closest('a[href^=\"#\"]');"
+             "if(a){e.preventDefault();location.hash=a.getAttribute('href').slice(1);}});</script>")
 TABS = (("overview", "Overview"), ("requirements", "Requirements"), ("stories", "Stories"),
         ("diagrams", "Diagrams"), ("mockups", "Mockups and images"))
 
 
 def _anchor(cap: str, relative: str) -> str:
     """Element id of a dated folder or one of its files, e.g. `asset-auth-assets-2026-05-11-mockup-index-html`."""
+    # simplified: two names that differ only in case or punctuation (`Login.png`/`login.png`, `a b.png`/`a-b.png`)
+    # share one id, so a link reaches the first; upgrade with a per-folder counter suffix if that matters.
     return "asset-" + re.sub(r"[^a-z0-9]+", "-", f"{cap}-{relative}".lower()).strip("-")
 
 

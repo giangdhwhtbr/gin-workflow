@@ -65,10 +65,16 @@
   if (window.mermaid) { window.mermaid.initialize({ startOnLoad: false }); }
   var tabs = Array.prototype.slice.call(document.querySelectorAll('section.tab'));
   var viewer = document.getElementById('viewer');
+  var current = null;
+  function hashId() {
+    var hash = location.hash.slice(1);
+    try { return decodeURIComponent(hash); } catch (error) { return hash; }
+  }
   function show(id) {
     var target = id ? document.getElementById(id) : null;
-    var tab = (target && target.closest('section.tab')) || tabs[0];
+    var tab = (target && target.closest('section.tab')) || current || tabs[0];
     if (!tab) { return null; }
+    current = tab;
     tabs.forEach(function (each) { each.hidden = each !== tab; });
     document.querySelectorAll('nav a').forEach(function (link) {
       link.classList.toggle('active', link.getAttribute('href') === '#' + tab.id);
@@ -81,8 +87,12 @@
   function screen(holder, id) {
     var frame = holder && holder.querySelector('iframe');
     if (frame && frame.contentWindow) { frame.contentWindow.postMessage(id, '*'); }
+    var picker = holder && holder.querySelector('select.screens');
+    if (picker && Array.prototype.some.call(picker.options, function (option) { return option.value === id; })) {
+      picker.value = id;
+    }
   }
-  window.addEventListener('hashchange', function () { show(decodeURIComponent(location.hash.slice(1))); });
+  window.addEventListener('hashchange', function () { show(hashId()); });
   document.addEventListener('click', function (event) {
     var link = event.target.closest('a[data-screen]');
     if (link) { screen(show(link.getAttribute('href').slice(1)), link.getAttribute('data-screen')); return; }
@@ -105,7 +115,7 @@
       });
     });
   }
-  show(decodeURIComponent(location.hash.slice(1)));
+  show(hashId());
 })();
 </script>
 </body>
