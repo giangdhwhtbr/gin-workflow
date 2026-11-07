@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<!-- The page of `gin specs explain`. Override it in .agent-workflow/templates/explain.html.
+     Placeholders, each in double braces: title, kind (capability or change), date, nav (one link per
+     section with content), sections (one section element with class "tab" per section).
+     The script shows the section named by the URL hash, filters the requirement cards, opens images
+     in a viewer, and sends a screen id to an embedded mockup: keep it when you restyle the page.
+     A relative src is read from the repository root and embedded in the file.
+     Comments are removed before the page is written. -->
+<style>
+  :root { --ink: #1f2328; --muted: #59636e; --line: #d1d9e0; --accent: #0b5cad; --code: #f6f8fa; --bg: #fff; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink);
+         background: var(--bg); margin: 0; }
+  header { padding: 1rem; border-bottom: 2px solid var(--accent); }
+  header h1 { margin: 0; font-size: 1.5rem; }
+  header p { margin: .25rem 0 0; color: var(--muted); }
+  nav { display: flex; flex-wrap: wrap; gap: .25rem; padding: .5rem 1rem; border-bottom: 1px solid var(--line);
+        position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  nav a { padding: .35rem .75rem; border-radius: 999px; color: var(--ink); text-decoration: none; }
+  nav a.active { background: var(--accent); color: #fff; }
+  main { max-width: 60rem; margin: 0 auto; padding: 1rem; }
+  .card { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px;
+          padding: .25rem 1rem; margin: 1rem 0; }
+  .story { border: 1px solid var(--line); border-radius: 6px; padding: .25rem 1rem; margin: 1rem 0; }
+  .from, .reqs { color: var(--muted); font-size: .85rem; }
+  #req-search { width: 100%; padding: .5rem; font: inherit; border: 1px solid var(--line); border-radius: 6px; }
+  pre { background: var(--code); padding: .75rem; overflow-x: auto; }
+  pre.mermaid[data-processed] { background: none; text-align: center; }
+  table { border-collapse: collapse; margin: 1rem 0; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--line); padding: .3rem .6rem; text-align: left; vertical-align: top; }
+  img { max-width: 100%; cursor: zoom-in; }
+  figure { margin: 1rem 0; }
+  figcaption { color: var(--muted); font-size: .85rem; }
+  .mockup select { margin: .5rem 0; font: inherit; }
+  .mockup iframe { display: block; width: 100%; height: 70vh; border: 1px solid var(--line); border-radius: 6px;
+                   background: #fff; }
+  .asset-group { border-top: 1px solid var(--line); margin-top: 2rem; }
+  .missing-image { color: #b42318; font-style: italic; }
+  #viewer { position: fixed; inset: 0; background: rgba(0, 0, 0, .85); display: flex; align-items: center;
+            justify-content: center; padding: 1rem; cursor: zoom-out; z-index: 2; }
+  #viewer[hidden] { display: none; }
+  #viewer img { max-height: 100%; cursor: zoom-out; }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{title}}</h1>
+  <p>{{kind}}, generated {{date}}</p>
+</header>
+<nav>{{nav}}</nav>
+<main>
+{{sections}}
+</main>
+<div id="viewer" hidden><img alt=""></div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
+        integrity="sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"
+        crossorigin="anonymous"></script>
+<script>
+(function () {
+  if (window.mermaid) { window.mermaid.initialize({ startOnLoad: false }); }
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('section.tab'));
+  var viewer = document.getElementById('viewer');
+  function show(id) {
+    var target = id ? document.getElementById(id) : null;
+    var tab = (target && target.closest('section.tab')) || tabs[0];
+    if (!tab) { return null; }
+    tabs.forEach(function (each) { each.hidden = each !== tab; });
+    document.querySelectorAll('nav a').forEach(function (link) {
+      link.classList.toggle('active', link.getAttribute('href') === '#' + tab.id);
+    });
+    var pending = tab.querySelectorAll('pre.mermaid:not([data-processed])');
+    if (window.mermaid && pending.length) { window.mermaid.run({ nodes: pending }); }
+    if (target && target !== tab) { target.scrollIntoView(); }
+    return target;
+  }
+  function screen(holder, id) {
+    var frame = holder && holder.querySelector('iframe');
+    if (frame && frame.contentWindow) { frame.contentWindow.postMessage(id, '*'); }
+  }
+  window.addEventListener('hashchange', function () { show(decodeURIComponent(location.hash.slice(1))); });
+  document.addEventListener('click', function (event) {
+    var link = event.target.closest('a[data-screen]');
+    if (link) { screen(show(link.getAttribute('href').slice(1)), link.getAttribute('data-screen')); return; }
+    var image = event.target.closest('main img');
+    if (image) { viewer.querySelector('img').setAttribute('src', image.getAttribute('src')); viewer.hidden = false; return; }
+    if (event.target.closest('#viewer')) { viewer.hidden = true; }
+  });
+  document.addEventListener('keydown', function (event) { if (event.key === 'Escape') { viewer.hidden = true; } });
+  document.addEventListener('change', function (event) {
+    if (event.target.matches('select.screens')) {
+      screen(document.getElementById(event.target.getAttribute('data-frame')), event.target.value);
+    }
+  });
+  var search = document.getElementById('req-search');
+  if (search) {
+    search.addEventListener('input', function () {
+      var query = search.value.trim().toLowerCase();
+      document.querySelectorAll('.card').forEach(function (card) {
+        card.hidden = query !== '' && card.textContent.toLowerCase().indexOf(query) < 0;
+      });
+    });
+  }
+  show(decodeURIComponent(location.hash.slice(1)));
+})();
+</script>
+</body>
+</html>
