@@ -17,6 +17,7 @@ from .team import Area, Member, TeamConfig, TeamError
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
 _TRACKS_LINE = re.compile(r"^Tracks:\s*([\d,\s]+)$", re.M)
+RELEASED = "released"
 
 
 class SyncConflict(Exception):
@@ -90,10 +91,12 @@ def ready(root: Path, team: TeamConfig, member: Member) -> list[dict[str, Any]]:
     result = []
     for issue in tasks.without_held(_bd_json(root, ["ready", "--exclude-type", "milestone"]), held):
         assignee = (issue.get("assignee") or "").lower()
-        areas = {label[5:] for label in issue.get("labels") or [] if label.startswith("area:")}
-        if assignee == member.email or (not assignee and (areas & mine or (not areas and not team.areas))):
+        labels = issue.get("labels") or []
+        areas = {label[5:] for label in labels if label.startswith("area:")}
+        released = RELEASED in labels
+        if assignee == member.email or (not assignee and (released or areas & mine or (not areas and not team.areas))):
             result.append({"id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
-                           "areas": sorted(areas)})
+                           "areas": sorted(areas), "released": released})
     seen = {row["id"] for row in result}
     now = utc_now()
     for issue in tasks.without_held(_bd_json(root, ["list", "--status", "in_progress"]), held):
@@ -124,7 +127,8 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
     if team.beads_remote:
         sync(root)
     issue = _show(root, bead)
-    ineligible = [area.name for area in _areas_of(team, issue) if not team.eligible(member, area)]
+    released = RELEASED in (issue.get("labels") or [])
+    ineligible = [] if released else [area.name for area in _areas_of(team, issue) if not team.eligible(member, area)]
     if ineligible:
         raise SyncConflict(f"{member.email} may not own tracks in {', '.join(ineligible)}")
     holder = (issue.get("assignee") or "").lower()
@@ -137,6 +141,8 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
                 "--append-notes", f"took over expired claim from {holder}", "--set-metadata", f"claim={lease}"]
     else:
         argv = ["update", bead, "--claim", "--set-metadata", f"claim={lease}"]
+    if released:
+        argv += ["--remove-label", RELEASED]
     completed = _bd(root, argv, actor=member.email)
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())

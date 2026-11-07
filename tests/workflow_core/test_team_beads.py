@@ -130,6 +130,24 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertEqual(1, refused.returncode)
         self.assertIn("binh@corp.com may not own tracks in frontend", refused.stdout)
 
+    def test_released_bead_is_ready_and_claimable_outside_its_areas(self):
+        frontend = create(self.root, "form", "area:frontend", "released")
+        listed = run_cli(self.root, "team", "ready", "--format", "json")
+        self.assertEqual(0, listed.returncode)
+        row = next(r for r in json.loads(listed.stdout)["ready"] if r["id"] == frontend)
+        self.assertTrue(row["released"])
+        claimed = run_cli(self.root, "team", "claim", frontend)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        issue = show(self.root, frontend)
+        self.assertEqual("binh@corp.com", issue["assignee"])
+        self.assertNotIn("released", issue.get("labels") or [])
+
+    def test_unreleased_frontend_bead_stays_hidden_and_refused(self):
+        frontend = create(self.root, "form", "area:frontend")
+        listed = run_cli(self.root, "team", "ready", "--format", "json")
+        self.assertNotIn(frontend, [r["id"] for r in json.loads(listed.stdout)["ready"]])
+        self.assertEqual(1, run_cli(self.root, "team", "claim", frontend).returncode)
+
     def test_expired_claim_is_listed_and_taken_over(self):
         held = create(self.root, "held", "area:backend")
         bd(self.root, "update", held, "--claim", actor="em@corp.com")
