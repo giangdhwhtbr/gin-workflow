@@ -107,6 +107,24 @@ Mỗi chương gồm `## Purpose` của capability, các sơ đồ, các require
 
 File tải Mermaid từ jsDelivr ở một phiên bản cố định để vẽ sơ đồ; khi không có mạng, nó hiển thị mã nguồn của sơ đồ. Lệnh xuất không lint, nên hãy chạy `specs lint` trước. Một ảnh local không tìm thấy, nằm ngoài repository, hoặc không phải ảnh hiển thị bằng alt text, và lệnh thoát với mã 1 kèm tên ảnh đó. Trang bìa, logo, khách hàng, và thứ tự các phần lấy từ template `srs.html` và `srs-capability.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 
+## Giải thích một capability { #explaining-a-capability }
+
+`/gin:explain <capability>` viết một trang tương tác về một capability. Agent đọc spec, sơ đồ, và các thư mục theo ngày của nó, viết một đoạn tóm tắt ngắn có trích REQ-ID, rồi chạy `gin specs explain <capability> --narrative <file>`. Trang là `.agent-workflow/runtime/explain/<capability>.html`; `gin setup` bỏ qua thư mục đó, nên trang không bao giờ được commit, và mỗi lần chạy sẽ ghi đè nó. Chạy riêng lệnh để có trang mà không có đoạn tóm tắt.
+
+Trang có một tab cho mỗi phần có nội dung:
+
+- Overview: đoạn tóm tắt, rồi `## Purpose`.
+- Requirements: mỗi requirement block một thẻ, nhóm theo section, có ô tìm kiếm theo nội dung và REQ-ID.
+- Stories: user story của mọi change đang mở và đã archive có dòng `REQ:` nêu một REQ-ID của capability, ghi kèm tên thư mục change.
+- Diagrams: từng file trong `diagrams/`.
+- Mockups and images: từng thư mục theo ngày, cũ nhất trước, với `description.md`, các ảnh (bấm để phóng to), và mỗi `mockup/index.html` chạy trong một khung sandbox có ô chọn màn hình.
+
+Một đường dẫn `Source:` dưới `assets/<date>/` trên requirement mở file đó trên trang. Đường dẫn có `#<screen-id>` còn mở đúng màn hình đó của mockup, và ô chọn màn hình đổi theo. Việc này cần mockup đổi màn hình theo thay đổi của URL hash; các link `#screen` của chính mockup cũng chạy trong khung.
+
+`gin specs explain <change>` làm tương tự cho một change đang mở, gọi theo tên như `--change` nhận. Phần overview hiển thị `## Why` và `## What Changes` của proposal, và các requirement được nhóm dưới ADDED, MODIFIED, và REMOVED. Phần sơ đồ bắt đầu bằng `03-design.md`, và chỉ hiển thị các thư mục theo ngày mà dòng `Source:` của nó trích. Change đã archive thì không tìm thấy; hãy giải thích capability của nó.
+
+Giống SRS, trang là một file có ảnh nhúng sẵn, và tải Mermaid từ jsDelivr ở một phiên bản cố định. Ảnh hoặc mockup không nhúng được sẽ được liệt kê, và lệnh thoát với mã 1. Bố cục lấy từ template `explain.html`; xem [Template trang explain](customizing-templates.md#explain-page-template).
+
 ## Các stage thay đổi thế nào { #how-the-stages-change }
 
 Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id <epic>`. Skill `sdd` chứa các bước chính xác.

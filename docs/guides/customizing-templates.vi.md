@@ -26,6 +26,7 @@ gin specs template <template-name>
 Các template khả dụng:
 - Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
 - Xuất SRS (`specs export`): `srs.html`, `srs-capability.html`
+- Trang explain (`specs explain`): `explain.html`
 - Tài liệu codebase (`/gin:tech-doc`): `codebase/<FILE>.md`, ví dụ `codebase/05-API.md`
 - Quy ước của team: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
@@ -41,6 +42,7 @@ Các template khả dụng:
 | Mô tả thư mục asset (layout SDD) | `/gin:discuss` | `.agent-workflow/templates/iteration.md` |
 | Sơ đồ activity và state (layout SDD) | `/gin:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
 | Tài liệu SRS và chương (layout SDD) | `specs export` | `.agent-workflow/templates/srs.html`, `srs-capability.html` |
+| Trang explain (layout SDD) | `specs explain` | `.agent-workflow/templates/explain.html` |
 | `codebase/*` | `/gin:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
 | `team/*` | `gin team init` | `.agent-workflow/templates/team/<file>` |
 
@@ -117,6 +119,10 @@ Các placeholder `{{...}}` trong `spec.md`, các file SDD, và các file `team/*
 ```
 
 Một `src` tương đối trong template được đọc từ gốc repository và nhúng vào file xuất ra; khi file không tồn tại, nằm ngoài repository hoặc không phải ảnh, `specs export` thoát với mã 1 và nêu tên file đó.
+
+### Template trang explain { #explain-page-template }
+
+`gin specs explain` điền `explain.html` một lần. Nó nhận `{{title}}`, `{{kind}}` (`capability` hoặc `change`), `{{date}}`, `{{nav}}` (mỗi phần có nội dung một link), và `{{sections}}` (mỗi phần một `<section class="tab">`, theo thứ tự Overview, Requirements, Stories, Diagrams, Mockups and images). Script của template có sẵn hiển thị phần được nêu trong URL hash, lọc các thẻ requirement, mở ảnh trong trình xem ảnh, và gửi screen id tới mockup nhúng; hãy giữ nó khi đổi giao diện trang. Như các template SRS, mỗi placeholder được điền một lần, comment bị bỏ, và một `src` tương đối được đọc từ gốc repository rồi nhúng vào.
 
 ## Guideline và trường của test case { #test-case-guidelines-and-fields }
 

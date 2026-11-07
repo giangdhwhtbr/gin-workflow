@@ -26,6 +26,7 @@ gin specs template <template-name>
 Available templates:
 - Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
 - SRS export (`specs export`): `srs.html`, `srs-capability.html`
+- Explain page (`specs explain`): `explain.html`
 - Codebase documentation (`/gin:tech-doc`): `codebase/<FILE>.md`, for example `codebase/05-API.md`
 - Team conventions: `team/pull_request_template.md`, `team/commit-msg`, `team/github-ci.yml`, `team/gitlab-ci.yml`
 
@@ -41,6 +42,7 @@ Available templates:
 | Asset folder description (SDD layout) | `/gin:discuss` | `.agent-workflow/templates/iteration.md` |
 | Activity and state diagrams (SDD layout) | `/gin:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
 | SRS document and chapter (SDD layout) | `specs export` | `.agent-workflow/templates/srs.html`, `srs-capability.html` |
+| Explain page (SDD layout) | `specs explain` | `.agent-workflow/templates/explain.html` |
 | `codebase/*` | `/gin:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
 | `team/*` | `gin team init` | `.agent-workflow/templates/team/<file>` |
 
@@ -117,6 +119,10 @@ Put the logo, the customer, and the product brief on the cover of `srs.html`:
 ```
 
 A relative `src` in either template is read from the repository root and embedded in the exported file; when the file is missing, outside the repository, or not an image, `specs export` exits 1 and names it.
+
+### Explain page template
+
+`gin specs explain` fills `explain.html` once. It takes `{{title}}`, `{{kind}}` (`capability` or `change`), `{{date}}`, `{{nav}}` (one link per section that has content), and `{{sections}}` (one `<section class="tab">` per section, in the order Overview, Requirements, Stories, Diagrams, Mockups and images). The built-in template's script shows the section named by the URL hash, filters the requirement cards, opens images in a viewer, and sends a screen id to an embedded mockup; keep it when you restyle the page. As in the SRS templates, each placeholder is filled once, comments are removed, and a relative `src` is read from the repository root and embedded.
 
 ## Test case guidelines and fields
 

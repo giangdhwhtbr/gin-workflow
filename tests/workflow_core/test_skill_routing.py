@@ -95,6 +95,14 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("`--all`", text)
         self.assertLessEqual(len(text), 6_000)
 
+    def test_explain_skill_runs_the_cli_with_a_narrative(self):
+        text = (SRC / "skills/explain/SKILL.md").read_text(encoding="utf-8")
+        for needle in ("`gin specs explain <name> --narrative", "`project.layout: sdd`", "`/gin:migrate-specs`",
+                       ".agent-workflow/runtime/explain/<name>.narrative.md", "Cite REQ-IDs", "Never commit"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        self.assertLessEqual(len(text), 6_000)
+
     def test_review_response_skill_routes_to_same_route(self):
         text = (SRC / "skills/review-response/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("same route", text)

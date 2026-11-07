@@ -107,6 +107,24 @@ Each chapter holds the capability's `## Purpose`, its diagrams, its requirement 
 
 The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; without network access it shows their source instead. The export does not lint, so run `specs lint` first. A local image it cannot find, one outside the repository, or a file that is not an image shows as its alt text, and the command exits 1 naming it. The cover, logo, customer, and section order come from the templates `srs.html` and `srs-capability.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 
+## Explaining a capability
+
+`/gin:explain <capability>` writes one interactive page about a capability. The agent reads its spec, diagrams, and dated folders, writes a short summary that cites REQ-IDs, and runs `gin specs explain <capability> --narrative <file>`. The page is `.agent-workflow/runtime/explain/<capability>.html`; `gin setup` ignores that folder, so the page is never committed, and each run overwrites it. Run the command alone to get the page without the summary.
+
+The page has one tab per section with content:
+
+- Overview: the summary, then `## Purpose`.
+- Requirements: one card per requirement block, grouped by section, with a search box for text and REQ-IDs.
+- Stories: the user stories of every active and archived change whose `REQ:` line names one of the capability's REQ-IDs, labelled with the change folder.
+- Diagrams: each file in `diagrams/`.
+- Mockups and images: each dated folder, oldest first, with its `description.md`, its images (click to enlarge), and each `mockup/index.html` running in a sandboxed frame with a screen picker.
+
+A `Source:` path under `assets/<date>/` on a requirement opens that file on the page. A path with `#<screen-id>` also opens that screen of the mockup, and the screen picker follows the jump. This needs a mockup that switches screens on a URL hash change; its own `#screen` links also work inside the frame.
+
+`gin specs explain <change>` does the same for an active change, named as `--change` takes it. The overview shows the proposal's `## Why` and `## What Changes`, and the requirements are grouped under ADDED, MODIFIED, and REMOVED. The diagrams start with `03-design.md`, and only the dated folders its `Source:` lines cite are shown. An archived change is not found; explain its capability instead.
+
+Like the SRS, the page is one file with its images embedded, and it loads Mermaid from jsDelivr at a pinned version. An image or mockup it cannot embed is listed, and the command exits 1. The layout comes from the template `explain.html`; see [Explain page template](customizing-templates.md#explain-page-template).
+
 ## How the stages change
 
 Every `state` and `record` call for the change passes `--workflow-id <epic>`. The `sdd` skill carries the exact steps.
