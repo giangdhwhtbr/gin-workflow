@@ -115,7 +115,8 @@ class TestCapability(unittest.TestCase):
                            "&lt;section class=&quot;screen&quot; id=&quot;locked&quot;",
                            "/^[a-z][a-z0-9-]*$/.test(s)",
                            "closest(&#x27;a[href^=&quot;#&quot;]&#x27;)",
-                           "e.preventDefault();location.hash=a.getAttribute(&#x27;href&#x27;).slice(1);",
+                           "if(a&amp;&amp;!e.defaultPrevented){e.preventDefault();"
+                           "location.hash=a.getAttribute(&#x27;href&#x27;).slice(1);",
                            '<option value="sign-in">', '<option value="locked">',
                            'id="asset-auth-assets-2026-05-11-mockup-index-html"',
                            '<a href="#asset-auth-assets-2026-05-11-mockup-index-html" data-screen="locked">'

@@ -24,7 +24,7 @@ _LISTENER = ("<script>addEventListener('message',function(e){var s=e.data;"
              # A srcdoc document's base URL is the parent page: keep its own `#id` links inside the frame.
              "document.addEventListener('click',function(e){"
              "var a=e.target.closest&&e.target.closest('a[href^=\"#\"]');"
-             "if(a){e.preventDefault();location.hash=a.getAttribute('href').slice(1);}});</script>")
+             "if(a&&!e.defaultPrevented){e.preventDefault();location.hash=a.getAttribute('href').slice(1);}});</script>")
 TABS = (("overview", "Overview"), ("requirements", "Requirements"), ("stories", "Stories"),
         ("diagrams", "Diagrams"), ("mockups", "Mockups and images"))
 
