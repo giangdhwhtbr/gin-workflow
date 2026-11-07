@@ -378,26 +378,31 @@ def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: st
 def move_to_manual(root: Path, cases_dir: str, guidelines: str, case_id: str, reason: str) -> Path:
     """Renames an e2e case file to `.manual.md`, records why, and resets its result; returns the new path."""
     one_line(reason)
-    case = find(root, cases_dir, case_id)
-    path = root / case.path
-    if case.type != "e2e":
-        raise ValueError(f"{case_id}: is a {case.type or 'untyped'} case; only an e2e case moves to manual")
-    if path.parent == root / cases_dir:
-        raise ValueError(f"{case.path}: a flat cases file; run `gin-qa cases split {case.cap}` first")
-    if MOVED_FIELD in case.fields:
-        raise ValueError(f"{case.path}:{case.field_lines[MOVED_FIELD]}: {case_id}: remove the {MOVED_FIELD}: line first")
-    types, _ = declared_types(root, guidelines)
-    if types is not None and "manual" not in types:
-        raise ValueError(f"manual is not listed under '{TYPES_SECTION}' in {guidelines}")
+    located = find(root, cases_dir, case_id)
+    path = root / located.path
+    flat = path.parent == root / cases_dir
     target = path.with_name(path.name[:-len(".e2e.md")] + ".manual.md")
-    if target.exists():
-        raise ValueError(f"{target.relative_to(root).as_posix()}: already exists")
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    values = [(MOVED_FIELD, f"{day}: {reason}"), ("Result", "not run"), ("Bug", case.fields.get("Bug"))]
     with _lock(root / cases_dir):
-        text = _with_result(path.read_text(encoding="utf-8"), case, values)
+        found, errors = parse_path(root, cases_dir, path)
+        case = next((item for item in found if item.id == case_id), None)
+        problems = [error for error in errors if not flat or re.search(rf"\b{re.escape(case_id)}\b", error)]
+        if case is None or problems:
+            raise ValueError("; ".join(problems) or f"{case_id}: no longer in {located.path}")
+        if case.type != "e2e":
+            raise ValueError(f"{case_id}: is a {case.type or 'untyped'} case; only an e2e case moves to manual")
+        if flat:
+            raise ValueError(f"{case.path}: a flat cases file; run `gin-qa cases split {case.cap}` first")
+        if MOVED_FIELD in case.fields:
+            raise ValueError(f"{case.path}:{case.field_lines[MOVED_FIELD]}: {case_id}: remove the {MOVED_FIELD}: line first")
+        types, _ = declared_types(root, guidelines)
+        if types is not None and "manual" not in types:
+            raise ValueError(f"manual is not listed under '{TYPES_SECTION}' in {guidelines}")
+        if target.exists():
+            raise ValueError(f"{target.relative_to(root).as_posix()}: already exists")
+        day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        values = [(MOVED_FIELD, f"{day}: {reason}"), ("Result", "not run"), ("Bug", case.fields.get("Bug"))]
+        write_atomic(path, _with_result(path.read_text(encoding="utf-8"), case, values))
         path.rename(target)
-        write_atomic(target, text)  # after the rename: write_atomic keeps the line endings of the file it replaces
     return target
 
 

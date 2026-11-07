@@ -8,6 +8,8 @@ import re
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -82,6 +84,38 @@ class TestToManual(ToManualCase):
         self.assertEqual(0, self.move().returncode)
         self.assertIn(b"\r\n", (self.root / NEW).read_bytes())
         self.assertNotIn(b"\n", (self.root / NEW).read_bytes().replace(b"\r\n", b""))
+
+
+class TestLockAndWrite(ToManualCase):
+    def call(self):
+        from gin_qa import cases as tc
+        return tc.move_to_manual(self.root, "qa/cases", "qa/guidelines.md", "TC-AUTH-001", "flaky on CI")
+
+    def test_the_case_is_re_read_under_the_lock(self):
+        path = self.root / OLD
+
+        @contextmanager
+        def concurrent_writer(_folder):  # a `cases result` that lands between the first read and the lock
+            path.write_text(path.read_text(encoding="utf-8").replace(
+                "- **Result:** failed\n", "- **Owner:** a\n- **Note:** b\n- **Result:** failed\n"), encoding="utf-8")
+            yield
+
+        with mock.patch("gin_qa.cases._lock", concurrent_writer):
+            target = self.call()
+        text = target.read_text(encoding="utf-8")
+        self.assertEqual(1, text.count("**Result:**"))
+        self.assertIn("- **Result:** not run\n", text)
+        self.assertNotIn("**Run:**", text)
+        self.assertIn("- **Bug:** gw-7\n", text)
+
+    def test_a_failed_write_leaves_the_case_and_the_spec(self):
+        before = (self.root / OLD).read_bytes()
+        with mock.patch("gin_qa.cases.write_atomic", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                self.call()
+        self.assertEqual(before, (self.root / OLD).read_bytes())
+        self.assertFalse((self.root / NEW).exists())
+        self.assertTrue((self.root / SPEC).is_file())
 
 
 class TestRefusals(ToManualCase):
