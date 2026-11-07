@@ -65,6 +65,31 @@ _TEAM = {
 _CHECKS = {"type": "object", "propertyNames": {"enum": ["lint", "typecheck", "test", "build", "e2e"]},
            "additionalProperties": {"type": "string"}}
 
+_WORKSPACE = {
+    "type": "object",
+    "required": ["repos"],
+    "properties": {
+        "repos": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["path", "url"],
+                "properties": {
+                    "path": {"type": "string", "minLength": 1},
+                    "url": {"type": "string", "minLength": 1},
+                    "shape": {"enum": ["frontend", "backend", "library", "qa", "beads"]},
+                    "frozen": {"type": "boolean"},
+                    "default_branch": {"type": "string", "minLength": 1},
+                    "verify": {"type": "object", "properties": {"checks": _CHECKS}, "additionalProperties": False},
+                },
+                "additionalProperties": False,
+            },
+        },
+    },
+    "additionalProperties": False,
+}
+
+
 CONFIG_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -239,6 +264,7 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "additionalProperties": False,
         },
         "team": _TEAM,
+        "workspace": _WORKSPACE,
         "qa": {
             "type": "object",
             "properties": {"cases": {"type": "string", "minLength": 1},
