@@ -64,5 +64,22 @@ class TestShipCommentsDependents(unittest.TestCase):
         self.assertIn("[gin ship]", line_with(skill("ship"), "9. Handoff:"))
 
 
+class TestRoadmapCommentsChangedEpics(unittest.TestCase):
+    def test_unchanged_epic_gets_a_comment_once(self):
+        bullet = line_with(skill("roadmap"), "warn and leave its title, description, and dependencies unchanged")
+        for needle in (
+            "[gin roadmap]",
+            "`Depends on:`",
+            "most recent `[gin roadmap]` comment",
+            "closed epic gets no comment",
+            "sync continues",
+            "markdown",
+        ):
+            self.assertIn(needle, bullet)
+
+    def test_report_lists_commented_epics(self):
+        self.assertIn("[gin roadmap]", line_with(skill("roadmap"), "7. **Report**"))
+
+
 if __name__ == "__main__":
     unittest.main()
