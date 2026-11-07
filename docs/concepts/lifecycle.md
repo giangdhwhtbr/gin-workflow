@@ -9,7 +9,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 | Stage | Does | Closes with | Gate recorded by |
 |---|---|---|---|
 | `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/`, and waits for your confirmation | `requirement_confirmed` | `gin record requirement-confirmed --evidence <spec> --actor <id>` |
-| `plan` | Writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role, and a model and effort from the model catalog each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
+| `plan` | First settles each open technical question (`TQ-<n>`) of the design doc, then writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role, and a model and effort from the model catalog each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
 | `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>`; sets the epic bead to `in_progress` |
 | `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
 | `ship` | Offers merge, pull request, keep, or discard; runs the one you choose; cleans up; closes the epic | `shipped` | derived: the epic is closed |
@@ -92,5 +92,5 @@ You approve the design (confirmation), the plan, production-impacting parallel w
 ## Variations
 
 - With the SDD layout (`artifacts.layout: sdd`), `discuss` writes a change folder with REQ-IDs instead of a dated spec, tests carry the REQ-IDs, and `ship` archives the change into the living specs. See [SDD](../guides/sdd.md).
-- In team mode (`team:` configured), gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member. See [Team mode](../guides/team.md).
+- In team mode (`team:` configured), gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member. A member with no technical role gets business questions only in `discuss`, and `plan` settles the technical questions it leaves. See [Team mode](../guides/team.md).
 - `easy` rigor skips worktrees and uses a self check; `strict` rigor always isolates and requires a review ledger.

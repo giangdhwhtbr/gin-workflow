@@ -66,7 +66,7 @@ Appends a gate event to `.agent-workflow/runtime/events.jsonl`. Gates:
 | Gate | Records | Notes |
 |---|---|---|
 | `requirement-confirmed` | the user confirmed the design | evidence: spec path; team mode adds `--spec`. With `artifacts.layout: legacy` and an existing `.md` evidence file, the spec is linted first (`specs lint --spec`); a failing spec exits 1 with the errors and records nothing |
-| `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan` |
+| `plan-approved` | the user approved the plan | evidence: plan path; team mode adds `--plan`. Refused (exit 1, nothing recorded) while the workflow's design doc has a `- TQ-<n>:` line under `## Open Technical Questions` without an indented `Decision:` line. The design doc is the legacy spec in `.planning/specs/` with `Epic: <id>` or `Workflow: <id>`, or the SDD change's `03-design.md`. Exit 2 when two legacy specs name the id, when the SDD change is ambiguous, or when the design doc cannot be read as UTF-8 |
 | `orchestration-ready` | beads, dependencies, and the worktree exist | `--epic <parent-bead>` is required to derive `implementation_complete` and `shipped`, and the epic bead is set to `in_progress`, claimed as `task update --claim` would when it has no assignee (an existing assignee is kept); the markdown tasks backend leaves the epic unchanged; when `bd` fails the gate stays recorded with a `warning` |
 | `quick-completed` | a `/quick` change finished | evidence: files and verify results |
 | `shipped` | a standalone bead (recorded as its own epic) was merged | an epic with children ships by closing the epic instead. Team mode with a `ship` policy: evidence is the merged PR URL, approved on its head commit by a listed role other than the author; the local HEAD is not compared |
@@ -129,7 +129,7 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 |---|---|
 | `new SLUG --epic BEAD [--title T]` | Create a change folder under `artifacts.changes` |
 | `next-id CAP` | Next free requirement id for a capability |
-| `lint [--change C] [--against REF] [--spec FILE]` | Lint the living specs, or one change: its spec delta, and each repository path its files cite in backticks that exists on disk but git neither tracks nor ignores, and each dated asset folder `<specs>/<cap>/assets/<YYYY-MM-DD>/` without a `description.md`, each `<specs>/<cap>/diagrams/*-activity.md` without a mermaid block starting with `flowchart` or `graph` and `*-state.md` without one starting with `stateDiagram`, and with `--change` each capability with an `ADDED` or `MODIFIED` block but no `*-activity.md`; `--spec` lints a legacy-layout design spec (every `### US-<n>:` story needs `Acceptance criteria:` with a bullet, no `{{`, `TBD`, or `TODO` outside code) |
+| `lint [--change C] [--against REF] [--spec FILE]` | Lint the living specs, or one change: its spec delta, and each repository path its files cite in backticks that exists on disk but git neither tracks nor ignores, and each dated asset folder `<specs>/<cap>/assets/<YYYY-MM-DD>/` without a `description.md`, each `<specs>/<cap>/diagrams/*-activity.md` without a mermaid block starting with `flowchart` or `graph` and `*-state.md` without one starting with `stateDiagram`, and with `--change` each capability with an `ADDED` or `MODIFIED` block but no `*-activity.md`; `--spec` lints a legacy-layout design spec (every `### US-<n>:` story needs `Acceptance criteria:` with a bullet, no `{{`, `TBD`, or `TODO` outside code); `--spec` and `--change` also check `## Open Technical Questions` (`- TQ-<n>: <question>` lines, unique ids, at most one non-empty indented `Decision:` line right below each); an open question is not an error |
 | `hash REQ-ID` | Print the base hash of a requirement (`<!-- base: ... -->`) |
 | `template NAME` | Print a spec template |
 | `renumber OLD NEW --change C [--against REF]` | Rename a requirement id in a change and its beads |
@@ -178,7 +178,7 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `init [--ci] [--force]` | Write CODEOWNERS, the pull request template, and the commit-msg hook; `--ci` adds the CI workflow; `--force` overwrites files it did not generate |
 | `codeowners [--check]` | Print CODEOWNERS, or check it is up to date |
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
-| `whoami` | Show your member entry, roles, and areas (from `git config user.email`) |
+| `whoami` | Show your member entry, roles, areas, and whether you hold a technical role (an area `lead` or a role in an area's `roles`), from `git config user.email` |
 | `check URL --gate GATE [--plan P] [--spec S]` | Check a pull request of this repository against the approval policy of `GATE` (`requirement_confirmed`, `plan_approved`, `ship`, or `roadmap`). Every gate but `ship` also needs the pull request merged and changing the gate's spec, plan, or roadmap file. Nothing is recorded |
 | `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, that the paths in each track's `Files` block stay inside its area, and that no path is listed by two tracks |
 | `ready` | Ready beads in your areas, and beads held by another member whose claim lease has expired (`expired_claim`) |

@@ -16,8 +16,10 @@ Applies only when `gin state --format json` reports `project.team.enabled: true`
 ## discuss
 When `team.approvals.requirement_confirmed` lists roles, spec review is `pr`: with `project.layout: sdd` follow the `pr` flow of the `sdd` skill; otherwise commit only the spec file on `spec/<topic>`, push, and open a PR after approval (stage-contract Approvals). Record `requirement-confirmed --evidence <pr-url>` once it is merged (`--spec <path>` when the PR changes several spec files).
 
+When `project.team.me.technical` is false, ask only business questions (purpose, users, rules, edge cases, validation, acceptance criteria, scope); propose no approach, present no technical design, and never ask the runner to choose or confirm a technical option. Write each technical point as `- TQ-<n>: <question>` under the design doc's `## Open Technical Questions` (the spec, or `03-design.md` with the SDD layout), not as an assumption; plan resolves them.
+
 ## plan
-Each track's Metadata adds `Area: <area>` and `Owner: <member email>` (required unless `team.beads_sync` is set; reassigning a track means a new plan PR). A track's files stay inside its area; split a track that crosses areas. No file may be listed by two tracks. `team check-plan <plan>` must exit 0 before asking for approval. With `plan_approved: area_lead` (or roles), commit only the plan on `plan/<topic>`, push, and open a PR; after it merges, record `plan-approved --evidence <pr-url>` (`--plan <path>` when the PR changes several plan files).
+Each track's Metadata adds `Area: <area>` and `Owner: <member email>` (required unless `team.beads_sync` is set; reassigning a track means a new plan PR). A track's files stay inside its area; split a track that crosses areas. No file may be listed by two tracks. `team check-plan <plan>` must exit 0 before asking for approval. With `plan_approved: area_lead` (or roles), commit only the plan on `plan/<topic>`, push, and open a PR; after it merges, record `plan-approved --evidence <pr-url>` (`--plan <path>` when the PR changes several plan files). The plan PR also carries the design doc's new `Decision:` lines and, with the SDD layout, the filled `03-design.md` sections.
 
 ## orchestrate
 Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` when the track has one.

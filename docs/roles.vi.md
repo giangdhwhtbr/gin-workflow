@@ -68,6 +68,7 @@ Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md
 - Thay đổi yêu cầu sau khi plan được duyệt (một quy ước của nhóm): đừng sửa spec đang chạy. Với layout SDD, thay đổi nằm trong một change folder mới có khối `MODIFIED` mang base hash của requirement mà nó thay thế, và `gin-qa cases plan` cho biết test case nào đã lỗi thời.
 - Test (một quy ước của nhóm): developer sở hữu unit test và integration test nằm cạnh code; tester sở hữu acceptance case và end-to-end spec dưới `qa/`. Hãy cho mỗi loại một khu vực riêng trong `team.areas` để plan giữ chúng tách biệt.
 - Worktree: mỗi track chạy trong worktree riêng do `/gin:orchestrate` tạo.
+- Câu hỏi kỹ thuật: ở chế độ nhóm, thành viên không có vai trò kỹ thuật chỉ được hỏi câu hỏi nghiệp vụ trong `/gin:discuss`. Mỗi điểm kỹ thuật trở thành một `TQ-<n>` còn mở để `/gin:plan` giải quyết, và `record plan-approved` từ chối khi còn một câu mở ([chế độ nhóm](guides/team.md) có chi tiết về cách chia).
 - Claim, bàn giao và phê duyệt ([chế độ nhóm](guides/team.md) có chi tiết):
   - claim thất bại khi người khác đang giữ bead;
   - `gin team reassign` bàn giao một track;
