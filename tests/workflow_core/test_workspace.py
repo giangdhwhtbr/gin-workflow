@@ -77,11 +77,32 @@ class ManifestTests(unittest.TestCase):
             ([{"path": "/abs", "url": "u", "shape": "backend"}], "relative"),
             ([{"path": "a", "url": "u"}], "shape"),
             ([{"path": "a", "url": "u", "shape": "beads"}], ".beads"),
+            ([{"path": ".", "url": "u", "shape": "backend"}], "inside the workspace"),
+            ([{"path": "./a", "url": "u", "shape": "backend"}, {"path": "a", "url": "u", "shape": "backend"}], "duplicate"),
+            ([{"path": ".planning/x", "url": "u", "shape": "backend"}], "reserved"),
+            ([{"path": "a", "url": "u", "shape": "backend", "verify": {"checks": {"lnt": "x"}}}], "unknown check lnt"),
         ]
         for repos, word in bad:
             with self.subTest(word=word), self.assertRaises(workspace.WorkspaceError) as caught:
                 workspace.repos_from({"workspace": {"repos": repos}})
             self.assertIn(word, str(caught.exception))
+
+    def test_repos_from_normalizes_paths(self):
+        repos = workspace.repos_from({"workspace": {"repos": [{"path": "a/", "url": "u", "shape": "backend"}]}})
+        self.assertEqual("a", repos[0].path)
+
+    def test_repos_from_rejects_malformed_blocks(self):
+        bad = [
+            ({"workspace": "x"}, "workspace must be a mapping"),
+            ({"workspace": {"repos": "x"}}, "workspace.repos must be a list"),
+            ({"workspace": {}}, "workspace.repos must be a list"),
+            ({"workspace": {"repos": ["x"]}}, "workspace.repos entry 1 must be a mapping"),
+        ]
+        for config, message in bad:
+            with self.subTest(message=message), self.assertRaises(workspace.WorkspaceError) as caught:
+                workspace.repos_from(config)
+            self.assertIn(message, str(caught.exception))
+        self.assertEqual((), workspace.repos_from({}))
 
     def test_schema_accepts_manifest_and_rejects_unknown_keys(self):
         import yaml

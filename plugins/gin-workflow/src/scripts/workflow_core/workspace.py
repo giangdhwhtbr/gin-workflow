@@ -69,10 +69,12 @@ class Located:
 
 
 def _entry(raw: Mapping[str, Any]) -> Repo:
-    path = str(raw.get("path", "")).strip()
-    if not path or path.startswith("/") or ".." in PurePosixPath(path).parts:
-        raise WorkspaceError(f"workspace.repos: path must be relative and inside the workspace: {path!r}")
-    if path in RESERVED:
+    given = str(raw.get("path", "")).strip()
+    pure = PurePosixPath(given)
+    if not given or pure.is_absolute() or ".." in pure.parts or pure.as_posix() == ".":
+        raise WorkspaceError(f"workspace.repos: path must be relative and inside the workspace: {given!r}")
+    path = pure.as_posix()
+    if pure.parts[0] in RESERVED:
         raise WorkspaceError(f"workspace.repos: {path} is reserved")
     url = str(raw.get("url", "")).strip()
     if not url:
@@ -83,17 +85,29 @@ def _entry(raw: Mapping[str, Any]) -> Repo:
         raise WorkspaceError(f"workspace.repos: {path}: shape must be one of {', '.join(SHAPES)}")
     if shape == "beads" and path != BEADS_PATH:
         raise WorkspaceError(f"workspace.repos: the beads repository must be at {BEADS_PATH}, not {path}")
-    checks = {k: str(v) for k, v in ((raw.get("verify") or {}).get("checks") or {}).items()
-              if k in CHECK_NAMES and str(v).strip()}
+    checks = {}
+    for name, command in ((raw.get("verify") or {}).get("checks") or {}).items():
+        if name not in CHECK_NAMES:
+            raise WorkspaceError(f"workspace.repos: {path}: unknown check {name}")
+        if str(command).strip():
+            checks[name] = str(command)
     return Repo(path, url, shape, frozen, str(raw.get("default_branch", "main")), checks)
 
 
 def repos_from(config: Mapping[str, Any]) -> tuple[Repo, ...]:
     """Parse and validate `workspace.repos`; an empty tuple when the key is absent."""
-    block = config.get("workspace") if isinstance(config, Mapping) else None
-    if not isinstance(block, Mapping) or not isinstance(block.get("repos"), list):
+    if not isinstance(config, Mapping) or "workspace" not in config:
         return ()
-    repos = tuple(_entry(raw) for raw in block["repos"] if isinstance(raw, Mapping))
+    block = config["workspace"]
+    if not isinstance(block, Mapping):
+        raise WorkspaceError("workspace must be a mapping")
+    raws = block.get("repos")
+    if not isinstance(raws, list):
+        raise WorkspaceError("workspace.repos must be a list")
+    for number, raw in enumerate(raws, 1):
+        if not isinstance(raw, Mapping):
+            raise WorkspaceError(f"workspace.repos entry {number} must be a mapping")
+    repos = tuple(_entry(raw) for raw in raws)
     paths = [repo.path for repo in repos]
     for index, path in enumerate(paths):
         if path in paths[:index]:
@@ -101,8 +115,6 @@ def repos_from(config: Mapping[str, Any]) -> tuple[Repo, ...]:
         for other in paths:
             if other != path and PurePosixPath(path) in PurePosixPath(other).parents:
                 raise WorkspaceError(f"workspace.repos: {other} nests inside {path}")
-    if sum(repo.shape == "beads" for repo in repos) > 1:
-        raise WorkspaceError("workspace.repos: at most one beads repository")
     return repos
 
 
