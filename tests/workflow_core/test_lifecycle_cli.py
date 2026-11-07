@@ -20,6 +20,7 @@ from workflow_core.events import EventPersistenceError, WorkflowEvent, WorkflowE
 from workflow_core.lifecycle_cli import main as lifecycle_main
 from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path
 from tests.workflow_core.team_fixtures import calls, fake_cli, path_with
+from tests.workflow_core.test_workspace import make_workspace
 
 
 class TestLifecycleCLI(unittest.TestCase):
@@ -268,6 +269,22 @@ class TestLifecycleCLI(unittest.TestCase):
         code, payload = self._quick("--changed-files", "2", "--modules", "1")
         self.assertEqual((0, "allowed", "self_check"), (code, payload["decision"], payload["review"]))
         self.assertEqual({"lint": "l", "typecheck": "t", "test": "u"}, payload["verify_commands"])
+
+    def test_quick_check_in_a_child_uses_its_checks(self):
+        root = make_workspace(Path(tempfile.mkdtemp()).resolve())
+        self.addCleanup(shutil.rmtree, root.parent, True)
+        config = root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8").replace(
+            'verify: {checks: {test: "echo api-test"}}', 'verify: {checks: {lint: "touch child-lint", test: "true"}}')
+            + "verify: {checks: {lint: touch parent-lint}}\n", encoding="utf-8")
+        before = os.getcwd()
+        self.addCleanup(os.chdir, before)
+        os.chdir(root / "services/api")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = cli_main(["quick-check", "--changed-files", "1", "--modules", "1", "--format", "json"])
+        self.assertEqual(0, code)
+        self.assertEqual({"lint": "touch child-lint", "test": "true"}, json.loads(out.getvalue())["verify_commands"])
 
     def test_quick_check_escalates_over_threshold_or_multiple_modules(self):
         self._write_config("schema_version: '2.4'\nproject: {rigor: standard}\nquick: {max_files: 3}\n")

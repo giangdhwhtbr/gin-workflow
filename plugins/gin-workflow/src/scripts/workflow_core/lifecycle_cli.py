@@ -572,7 +572,9 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
     repo_path = Path(args.repository).resolve()
     config = resolve_effective_config(repo_path, write=False).config
     settings = project_settings(config.to_dict())
-    commands = {k: v for k, v in settings.verify_commands.items() if k in _QUICK_COMMANDS[settings.rigor]}
+    located = workspace.locate(getattr(args, "start", repo_path))
+    verify_commands = dict(located.entry.checks) if located.entry is not None else settings.verify_commands
+    commands = {k: v for k, v in verify_commands.items() if k in _QUICK_COMMANDS[settings.rigor]}
     base = {"rigor": settings.rigor, "verify_commands": commands,
             "review": "self_check" if settings.rigor == "easy" else "independent"}
     if settings.rigor == "strict":

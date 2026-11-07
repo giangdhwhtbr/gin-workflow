@@ -18,6 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import hooks, setup_service, verification  # noqa: E402
 from workflow_core.events import WorkflowEventStore  # noqa: E402
+from tests.workflow_core.test_workspace import make_workspace  # noqa: E402
 
 CONFIG = """schema_version: "2.7"
 project:
@@ -430,3 +431,71 @@ class TestPassingRunRecords(unittest.TestCase):
             self.assertEqual(0, verification.run(tree))
         self.assertEqual(1, len(self.records(self.root)))
         self.assertIsNotNone(verification.check(self.root, "HEAD")[0])
+
+
+class WorkspaceHookTests(unittest.TestCase):
+    """Hooks fired in a child repository run that entry's checks and record in the workspace."""
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = make_workspace(Path(directory.name).resolve())
+        self.child = self.root / "services/api"
+        config = self.root / ".agent-workflow/config.yaml"
+        text = config.read_text(encoding="utf-8").replace(
+            'verify: {checks: {test: "echo api-test"}}', 'verify: {checks: {lint: "touch child-lint", test: "true"}}')
+        config.write_text(text + "verify:\n  checks:\n    lint: touch parent-lint\n", encoding="utf-8")
+
+    def hook(self, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = hooks.main(list(argv))
+        return code, out.getvalue(), err.getvalue()
+
+    def events(self):
+        path = self.root / ".agent-workflow/runtime/events.jsonl"
+        return WorkflowEventStore(path).read_all() if path.is_file() else []
+
+    def test_pre_commit_in_a_child_runs_only_the_entry_checks(self):
+        code, _, _ = self.hook("run", "pre-commit", "--repository", str(self.child))
+        self.assertEqual(0, code)
+        self.assertTrue((self.child / "child-lint").is_file())
+        self.assertFalse((self.child / "parent-lint").exists() or (self.root / "parent-lint").exists())
+
+    def test_status_in_a_child_lists_the_entry_checks_only(self):
+        _, out, _ = self.hook("status", "--repository", str(self.child))
+        self.assertEqual(["services/api:lint", "services/api:test"], json.loads(out)["verify_commands"])
+
+    def test_passing_pre_push_in_a_child_records_in_the_workspace(self):
+        with mock.patch.object(sys, "stdin", io.StringIO(push_ref(self.child))):
+            self.assertEqual(0, self.hook("run", "pre-push", "--repository", str(self.child))[0])
+        self.assertEqual(1, len(self.events()))
+        self.assertFalse((self.child / ".agent-workflow/runtime/events.jsonl").exists())
+        with mock.patch.object(sys, "stdin", io.StringIO(push_ref(self.child))):
+            code, _, err = self.hook("run", "pre-push", "--repository", str(self.child))
+        self.assertEqual(0, code)
+        self.assertIn("already passed on this tree", err)
+        self.assertEqual(1, len(self.events()))
+
+    def test_install_all_repos_skips_frozen_beads_and_missing_clones(self):
+        code, out, _ = self.hook("install", "--all-repos", "--repository", str(self.root))
+        self.assertEqual(0, code)
+        self.assertTrue((self.child / ".git/hooks/pre-commit").is_file())
+        self.assertFalse((self.root / ".git/hooks/pre-commit").exists())
+        for line in ("services/api: pre-commit: installed", "legacy/portal: skipped (frozen)",
+                     ".beads: skipped (beads)", "apps/web: skipped (not cloned)"):
+            self.assertIn(line, out)
+
+    def test_install_all_repos_outside_a_workspace_fails(self):
+        with tempfile.TemporaryDirectory() as plain:
+            code, _, err = self.hook("install", "--all-repos", "--repository", str(make_repo(plain)))
+        self.assertEqual((1, "error: not in a workspace\n"), (code, err))
+
+    def test_a_child_without_checks_has_nothing_to_run(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8").replace(
+            'verify: {checks: {lint: "touch child-lint", test: "true"}}', "verify: {checks: {}}"), encoding="utf-8")
+        code, _, err = self.hook("run", "pre-commit", "--repository", str(self.child))
+        self.assertEqual(0, code)
+        self.assertIn("no verify commands configured", err)
+        self.assertFalse((self.root / "parent-lint").exists())
