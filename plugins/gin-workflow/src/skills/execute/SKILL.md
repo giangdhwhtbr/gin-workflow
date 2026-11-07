@@ -16,7 +16,7 @@ Implement one ready work unit inside its approved scope and record evidence.
 2. Resume first: `gin task list --parent <epic> --status in_progress`; if empty, use `task ready`. Claim with `task update <id> --claim`.
    With `project.team.enabled`, add `--assignee <git user.email>` to that list; `team ready` and `team claim <id>` (`team` skill) replace `task ready` and `--claim`.
 3. Resolve file scope and validation intent from the plan track, or from the task description and acceptance criteria for a standalone unit. Review critically and raise concerns before starting.
-4. Work in the isolated worktree. Never implement on main/master without explicit consent.
+4. Work in the isolated worktree. Never implement on main/master without explicit consent. In a workspace the worktree is the track's `Repo:` (`worktrees` skill, Workspace).
 
 ## 2. Implement
 - Follow the plan steps exactly, test first. Keep changes minimal and in scope.
