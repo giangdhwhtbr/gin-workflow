@@ -54,8 +54,8 @@ class BaPackagingTests(unittest.TestCase):
         mockup = (BA / "src/skills/mockup/SKILL.md").read_text(encoding="utf-8")
         capture = (BA / "src/skills/capture/SKILL.md").read_text(encoding="utf-8")
         for text in (mockup, capture):
-            for needle in ("project.layout: sdd", "gin specs template iteration.md", "Confirmed: <YYYY-MM-DD>",
-                           "frozen", "Confirmed: <today>", "[a-z][a-z0-9-]*", "Do not commit"):
+            for needle in ("project.layout: sdd", "gin specs assets add", "Confirmed: <YYYY-MM-DD>",
+                           "frozen", "gin specs assets confirm", "[a-z][a-z0-9-]*", "Do not commit"):
                 with self.subTest(needle=needle):
                     self.assertIn(needle, text)
         for needle in ("mockup/index.html", '<section id="<screen-id>">', "`frontend-design`", "no network request",
@@ -63,7 +63,7 @@ class BaPackagingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, mockup)
         for needle in ("legacy/", "Kind: legacy", "`Field | Type | Required | Rule`", "## As-is behaviour",
-                       "## Rules", "## Open questions", "none (as-is)", "never copy from outside the repository"):
+                       "## Rules", "## Open questions", "none (as-is)", "--legacy"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, capture)
 

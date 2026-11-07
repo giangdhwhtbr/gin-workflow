@@ -69,7 +69,11 @@ docs/specs/reports/assets/
     report-filter.png
 ```
 
-Đặt tên thư mục theo ngày ISO nhận đầu vào. Theo quy ước, một đợt requirements, thay đổi hay thiết kế mới thì vào một thư mục mới và thư mục cũ không bao giờ bị sửa, nên các thư mục ghi lại lịch sử đầu vào của capability. Với project legacy không có design spec, đặt screenshot của feature hiện có trong `<date>/legacy/` và mô tả hành vi hiện tại của nó trong `description.md` của thư mục đó với `Kind: legacy`. Mọi `description.md` bắt đầu từ `gin specs template iteration.md`. `specs lint` báo thư mục có tên ngày mà thiếu `description.md`; file phẳng trong `assets/` và thư mục không mang tên ngày ISO vẫn hợp lệ và không bị kiểm tra.
+Đặt tên thư mục theo ngày ISO nhận đầu vào. Theo quy ước, một đợt requirements, thay đổi hay thiết kế mới thì vào một thư mục mới và thư mục cũ không bao giờ bị sửa, nên các thư mục ghi lại lịch sử đầu vào của capability. Với project legacy không có design spec, thêm screenshot của feature hiện có bằng `--legacy`, lệnh này đặt chúng trong `<date>/legacy/`, và mô tả hành vi hiện tại của nó trong `description.md` của thư mục đó với `Kind: legacy`.
+
+`gin specs assets add <capability> <files> [--date D]` chép các file, từ bất kỳ đâu trên đĩa, vào thư mục có tên ngày và ghi `description.md` với `Kind:`, `Previous:` và `Confirmed: no` khi chưa có. `gin specs assets confirm <capability> --date D` đặt `Confirmed:` thành hôm nay. Cả hai thoát với mã 2 khi từ chối; xem [tham chiếu CLI](../reference/cli.md#gin-specs).
+
+`specs lint` báo thư mục có tên ngày mà thiếu `description.md`, giá trị `Confirmed:` không phải `no` cũng không phải ngày, và mọi thay đổi trong thư mục đã xác nhận trên nhánh gốc. Nhánh gốc là `--against <ref>`, nếu không thì merge-base với `main` hoặc `master`; không có thì lint cảnh báo và bỏ qua kiểm tra này. Thư mục xác nhận trên nhánh hiện tại chỉ được kiểm tra sau khi nó vào nhánh gốc, và `assets add` từ chối nó trước đó. File phẳng trong `assets/` và thư mục không mang tên ngày ISO vẫn hợp lệ và không bị kiểm tra.
 
 Mỗi `description.md` có một dòng `Confirmed:`. Dòng này là `no` cho tới khi BA xác nhận đầu vào, sau đó là ngày ISO của lần xác nhận đó, và thư mục đã xác nhận không bao giờ bị sửa. Trong discuss, agent đọc `description.md` và `mockup/index.html` (nếu có) của từng thư mục có tên ngày của các capability bị ảnh hưởng, chỉ trích dẫn thư mục đã xác nhận, và hỏi về các thư mục còn lại. Một requirement lấy từ đầu vào thêm dòng `Source:` sau câu statement:
 

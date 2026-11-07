@@ -68,9 +68,9 @@ class SkillRoutingTests(unittest.TestCase):
         text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
         discuss = text[text.index("## discuss"):text.index("## plan")]
         for needle in ("Capabilities affected", "`ui` holds only", "`(new)`", "renumbering",
-                       "## Capabilities Affected", "`git mv`", "README.md",
-                       "<specs>/<cap>/assets/<YYYY-MM-DD>/<file>", "`specs template iteration.md`",
-                       "`legacy/`", "never edit an older dated folder",
+                       "## Capabilities Affected", "`specs assets add <cap> <files...> [--date <YYYY-MM-DD>]`", "README.md",
+                       "<specs>/<cap>/assets/<YYYY-MM-DD>/<file>", "`--legacy`",
+                       "`legacy/`", "Never edit an older dated folder",
                        "`<specs>/<cap>/diagrams/<feature>-activity.md`", "`specs template activity.md`",
                        "`specs template state.md`", "three or more states", "`## Data Flow`",
                        "`## Diagrams`"):
@@ -86,7 +86,7 @@ class SkillRoutingTests(unittest.TestCase):
                        "`## Open questions`", "`Source:`", "`#<screen-id>`"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, discuss)
-        self.assertLess(discuss.index("never edit an older dated folder"), discuss.index("`Source:`"))
+        self.assertLess(discuss.index("Never edit an older dated folder"), discuss.index("`Source:`"))
         self.assertLessEqual(len(text), 6_000)
 
     def test_sdd_names_the_srs_export(self):

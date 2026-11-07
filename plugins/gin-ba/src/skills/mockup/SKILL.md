@@ -10,11 +10,11 @@ description: Build an interactive, self-contained HTML mockup of a capability's 
 1. Preconditions. On a failure, stop and name the fix:
    - `gin` is on `PATH`; otherwise `./install.sh --plugin gin-workflow` from a gin-workflow clone.
    - `gin state --format json` reports `project.layout: sdd`; otherwise say the BA skills need the SDD layout (`/gin:migrate-specs` moves a project to it).
-   - `<specs>` is `artifacts.specs` (default `docs/specs`). Normalize the capability to `[a-z][a-z0-9-]*`. Without a folder `<specs>/<cap>/`: when an existing capability nearly matches (`report`, `reports`), use it and say so; otherwise ask the user to confirm the new name before writing anything.
+   - `<specs>` is `artifacts.specs` (default `docs/specs`). Normalize the capability to `[a-z][a-z0-9-]*`. Without a folder `<specs>/<cap>/`: when an existing capability nearly matches (`report`, `reports`), use it and say so; otherwise ask the user to confirm the new name before writing anything; a new name the user confirms is created with `--new-capability`.
 2. The folder is `<specs>/<cap>/assets/<date>/`, with `<date>` from `--date` or today.
-   - Missing, or without `description.md`: create the folder if needed, keep any files already in it, and write `description.md` from `gin specs template iteration.md`, with `{{capability}}` and `{{date}}` filled in. `Kind:` is `new` when the capability has no earlier dated folder, else `change`. `Previous:` is the latest earlier dated folder as `assets/<YYYY-MM-DD>/`, or `none`. Ask once who gave the inputs for `Source:` (for example `customer workshop`).
+   - Run `gin specs assets add <cap> --date <date>`: it creates the folder and, when missing, `description.md` with `Kind:` (`new` or `change`), `Previous:`, and `Confirmed: no`. On exit 2, report its message and stop. Ask once who gave the inputs for `Source:` (for example `customer workshop`).
    - Its `description.md` reads `Confirmed: <YYYY-MM-DD>`: the folder is frozen. Stop and ask for a new date; never edit it.
-   - Otherwise continue in it and read the mockup already there. A `description.md` without a `Confirmed:` line gets `Confirmed: no` after `Previous:`.
+   - Otherwise continue in it and read the mockup already there.
 3. Read the inputs: the BA's description in the conversation; `description.md` and `mockup/index.html` of each earlier dated folder of the capability; the images under any `legacy/` folder of the capability; and the product's existing UI in the repository (design tokens, theme, component library, stylesheets).
 4. Pick the visual source, in order: the existing UI when the repository has one (reuse its colours, type, spacing, and components); else the `frontend-design` skill when the harness provides it; else [references/mockup-html.md](references/mockup-html.md). A missing `frontend-design` skill is not an error.
 5. Write `mockup/index.html` as one self-contained file:
@@ -29,6 +29,6 @@ description: Build an interactive, self-contained HTML mockup of a capability's 
    - `## Summary`: what the screens cover, in two or three sentences;
    - `## Changes`: for `change`, what differs from `Previous:`, one line per screen; for `new`, `none (first version)`;
    - `## Files`: one line per screen, `` `mockup/index.html#<screen-id>` `` and the screen's purpose;
-   - `Confirmed: <today>` in place of `Confirmed: no`.
+   - then run `gin specs assets confirm <cap> --date <date>`.
    Report the path and the next command, `/gin:discuss`.
-8. Never confirm on the BA's behalf: only the BA's explicit answer sets `Confirmed:`. Do not commit; the BA reviews and commits the folder.
+8. Never confirm on the BA's behalf: only the BA's explicit answer runs `gin specs assets confirm`. Do not commit; the BA reviews and commits the folder.
