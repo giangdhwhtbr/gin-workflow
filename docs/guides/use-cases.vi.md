@@ -8,8 +8,9 @@ Một lỗi chính tả, một thay đổi nội dung chữ, một bản sửa m
 
 1. `/gin:quick <what to change>`: agent diễn đạt lại thay đổi trong vài dòng và chờ bạn xác nhận.
 2. Nó chạy `gin quick-check` với ước tính số file và module của mình. `escalate` nghĩa là thay đổi vượt giới hạn của quick; hãy dùng vòng đời đầy đủ (bên dưới). `refused` chỉ xuất hiện ở mức rigor `strict`: dùng vòng đời đầy đủ, hoặc miễn `requirement_confirmed` bằng `gin unblock` để dùng `/quick`.
-3. Nó triển khai (test trước khi hành vi thay đổi), chạy các verify command theo rigor của bạn, review (tự kiểm tra ở mức `easy`, review độc lập ở các mức khác), rồi ghi `quick-completed`.
-4. Bạn xem diff và commit.
+3. Nó triển khai (test trước khi hành vi thay đổi), chạy các verify command theo rigor của bạn, và review (tự kiểm tra ở mức `easy`, review độc lập ở các mức khác).
+4. Nó commit lên feature branch hiện tại, hoặc lên branch mới `quick/<slug>` khi bắt đầu từ `main`/`master`, rồi ghi `quick-completed`. Nó không push.
+5. Bạn xem diff, rồi push hoặc mở pull request.
 
 Nếu thay đổi lớn hơn ước tính, agent chạy lại `quick-check` và dừng khi gặp `escalate`.
 

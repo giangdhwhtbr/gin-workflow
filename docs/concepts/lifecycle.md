@@ -71,7 +71,7 @@ At handoff the agent reports what changed, what was validated and what was not, 
 - `escalate`: too large; use the full lifecycle.
 - `refused`: `strict` rigor without a `requirement_confirmed` waiver.
 
-`/quick` never commits; you do. See [Use cases](../guides/use-cases.md#small-change).
+`/quick` commits on the current feature branch, or on a new `quick/<slug>` when started on `main`/`master`. It never pushes. See [Use cases](../guides/use-cases.md#small-change).
 
 ## Waivers
 

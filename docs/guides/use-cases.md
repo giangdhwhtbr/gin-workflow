@@ -8,8 +8,9 @@ A typo, a copy change, a one-file fix with an obvious test.
 
 1. `/gin:quick <what to change>`: the agent restates the change in a few lines and waits for your confirmation.
 2. It runs `gin quick-check` with its estimate of files and modules. `escalate` means the change exceeds the quick limits; use the full lifecycle (below). `refused` comes only under `strict` rigor: use the full lifecycle, or waive `requirement_confirmed` with `gin unblock` to use `/quick`.
-3. It implements (test first when behavior changes), runs the verify commands for your rigor, reviews (self check under `easy`, independent otherwise), and records `quick-completed`.
-4. You review the diff and commit.
+3. It implements (test first when behavior changes), runs the verify commands for your rigor, and reviews (self check under `easy`, independent otherwise).
+4. It commits on the current feature branch, or on a new `quick/<slug>` when started on `main`/`master`, and records `quick-completed`. It does not push.
+5. You review the diff, then push or open a pull request.
 
 If the change grows past the estimate, the agent re-runs `quick-check` and stops on `escalate`.
 
