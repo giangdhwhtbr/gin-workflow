@@ -141,7 +141,7 @@ def confirmed_value_errors(root: Path, cfg: Mapping[str, Any]) -> list[str]:
 def frozen_findings(root: Path, cfg: Mapping[str, Any], base: str, label: str) -> list[str]:
     """Every path that differs from `base` under a dated folder confirmed on `base`, untracked files included."""
     prefix = PurePosixPath(cfg["specs"]).as_posix()
-    listed = specs._git(root, "ls-tree", "-r", "--name-only", base, "--", prefix)
+    listed = specs._git(root, "-c", "core.quotepath=off", "ls-tree", "-r", "--name-only", base, "--", prefix)
     if listed.returncode != 0:
         raise specs.SpecsError(f"cannot list {prefix} at {label}: {listed.stderr.strip()}")
     pattern = re.compile(rf"^{re.escape(prefix)}/[^/]+/assets/(\d{{4}}-\d{{2}}-\d{{2}})/description\.md$")
@@ -152,10 +152,11 @@ def frozen_findings(root: Path, cfg: Mapping[str, Any], base: str, label: str) -
         if not when:
             continue
         folder = path.rsplit("/", 1)[0]
-        changed = specs._git(root, "diff", "--name-only", base, "--", folder).stdout.splitlines()
-        untracked = specs._git(root, "ls-files", "--others", "--exclude-standard", "--", folder).stdout.splitlines()
+        changed = specs._git(root, "-c", "core.quotepath=off", "diff", "--name-only", base, "--", folder)
+        untracked = specs._git(root, "-c", "core.quotepath=off", "ls-files", "--others", "--exclude-standard",
+                               "--", folder)
         findings += [f"{item}: assets/{match.group(1)}/ was confirmed on {when} at {label}; add a new dated folder"
-                     for item in sorted(set(changed + untracked))]
+                     for item in sorted(set(changed.stdout.splitlines() + untracked.stdout.splitlines()))]
     return findings
 
 

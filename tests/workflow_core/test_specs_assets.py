@@ -192,6 +192,14 @@ class TestAssetLint(AssetsCase):
         (self.root / CONFIRMED / "brief.md").unlink()
         self.assertEqual(([f"{CONFIRMED}/brief.md: {suffix}"], []), self.lint())
 
+    def test_non_ascii_paths_are_reported_plainly(self):
+        self.confirm_on_main()
+        write(self.root, f"{CONFIRMED}/\u00e9.png", "png")
+        result = run_specs(self.root, "lint")
+        self.assertEqual(1, result.returncode)
+        self.assertIn(f"{CONFIRMED}/\u00e9.png: ", result.stdout)
+        self.assertNotIn("\\", result.stdout)
+
     def test_against_names_the_base(self):
         self.confirm_on_main()
         write(self.root, f"{CONFIRMED}/brief.md", "v2\n")
