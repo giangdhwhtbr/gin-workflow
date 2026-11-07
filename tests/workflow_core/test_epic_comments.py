@@ -46,5 +46,23 @@ class TestPlanReadsNewerComments(unittest.TestCase):
             self.assertIn(needle, step)
 
 
+class TestShipCommentsDependents(unittest.TestCase):
+    def test_close_out_comments_open_dependent_epics(self):
+        step = line_with(skill("ship"), "7. Close out:")
+        for needle in (
+            "`gin task show <epic> --json --include-dependents`",
+            "`issue_type: epic`",
+            "`open` or `in_progress`",
+            "[gin ship]",
+            "`requirement.confirmed`",
+            "never blocks",
+            "markdown",
+        ):
+            self.assertIn(needle, step)
+
+    def test_handoff_lists_commented_epics(self):
+        self.assertIn("[gin ship]", line_with(skill("ship"), "9. Handoff:"))
+
+
 if __name__ == "__main__":
     unittest.main()
