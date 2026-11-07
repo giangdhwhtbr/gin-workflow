@@ -112,6 +112,29 @@ class WorkspaceWorktreeTests(unittest.TestCase):
         self.assertEqual(0, self.run_main("create", "--repository", str(self.root), "t2", "feat/p-t2", base))
         self.assertTrue((self.root / ".planning/worktrees/t2").is_dir())
 
+    def test_two_tracks_on_one_child_are_two_worktrees_on_different_branches(self):
+        self.assertEqual(0, self.run_main("create", "--repository", str(self.child), "t1", "feat/x-t1", "main"))
+        self.assertEqual(0, self.run_main("create", "--repository", str(self.child), "t2", "feat/x-t2", "main"))
+        for track, branch in (("t1", "feat/x-t1"), ("t2", "feat/x-t2")):
+            path = self.root / ".planning/worktrees" / track
+            self.assertTrue(path.is_dir())
+            self.assertEqual(branch, git(path, "rev-parse", "--abbrev-ref", "HEAD"))
+
+    def test_repository_may_be_a_linked_worktree_of_the_child(self):
+        self.assertEqual(0, self.run_main("create", "--repository", str(self.child), "t1", "feat/x-t1", "main"))
+        linked = self.root / ".planning/worktrees/t1"
+        self.assertEqual(0, self.run_main("create", "--repository", str(linked), "t3", "feat/x-t3", "main"))
+        path = self.root / ".planning/worktrees/t3"
+        self.assertTrue(path.is_dir())
+        self.assertEqual(str(self.child / ".git"), git(path, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+
+    def test_cleanup_of_a_missing_child_worktree_removes_nothing(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = worktrees.main(["cleanup", "--repository", str(self.child), "missing"])
+        self.assertEqual(0, code)
+        self.assertIn("nothing to remove", out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
