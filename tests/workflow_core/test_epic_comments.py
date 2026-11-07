@@ -34,5 +34,17 @@ class TestDiscussReadsComments(unittest.TestCase):
         self.assertIn("Comments considered: <count>, latest <created_at", line)
 
 
+class TestPlanReadsNewerComments(unittest.TestCase):
+    def test_step_one_reads_comments_newer_than_the_spec(self):
+        step = line_with(skill("plan"), "1. Require `requirement_confirmed`")
+        for needle in (
+            "`gin task comments <epic> --json`",
+            "Comments considered:",
+            "return to `/discuss <epic>`",
+            "markdown",
+        ):
+            self.assertIn(needle, step)
+
+
 if __name__ == "__main__":
     unittest.main()
