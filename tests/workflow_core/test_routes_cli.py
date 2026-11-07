@@ -284,6 +284,35 @@ class TestRoutesCLI(unittest.TestCase):
             self.assertEqual("sonnet", received_tracks[0]["model"])
             self.assertEqual("medium", received_tracks[0]["effort"])
 
+    def test_delegation_keeps_repo_in_the_manifest(self):
+        import yaml
+
+        self._set_multi_mode()
+
+        def route(task_id):
+            return {
+                "task_id": task_id,
+                "requested": {"provider_role": "backend", "model": "sonnet", "effort": "medium"},
+                "resolved": {"provider": "claude", "model": "sonnet", "effort": "medium", "selection_mode": "explicit"},
+                "fallback": [],
+            }
+
+        reply = {"workflow_id": "wf-orch-repo", "main_harness": "claude",
+                 "routes": [route("t1"), route("t2")], "diagnostics": []}
+        with patch("workflow_core.orchestrator_client.delegates", return_value=True), \
+             patch("workflow_core.orchestrator_client.call", return_value=reply):
+            code, payload = self._resolve("wf-orch-repo", [
+                {"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium",
+                 "repo": "services/api"},
+                {"task_id": "t2", "provider_role": "backend", "model": "sonnet", "effort": "medium"},
+            ])
+        self.assertEqual(0, code, payload)
+        manifest = yaml.safe_load((self.root / payload["manifest"]).read_text(encoding="utf-8"))
+        self.assertEqual("services/api", manifest["assignments"][0]["repo"])
+        self.assertEqual("services/api", manifest["tracks"]["t1"]["repo"])
+        self.assertNotIn("repo", manifest["assignments"][1])
+        self.assertNotIn("repo", manifest["tracks"]["t2"])
+
     def test_multi_mode_diagnostics_from_orchestrator_exit_2_and_write_nothing(self):
         self._set_multi_mode()
         with tempfile.TemporaryDirectory() as fake_dir:

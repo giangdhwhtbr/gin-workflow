@@ -99,6 +99,10 @@ def resolve(
                     "manifest": None,
                 }
             entries = list(reply.get("routes", []))
+            repos = {str(t.get("task_id", "")).strip(): str(t["repo"])
+                     for t in tracks if isinstance(t, Mapping) and t.get("repo")}
+            entries = [{**e, "repo": repos[e["task_id"]]} if isinstance(e, Mapping) and e.get("task_id") in repos else e
+                       for e in entries]
             manifest = None
             try:
                 path = write_assignments(root, workflow_id, entries)
