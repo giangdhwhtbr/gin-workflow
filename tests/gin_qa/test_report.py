@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -218,6 +219,32 @@ class TestReport(ReportCase):
         self.assertIn('id="moved"', text)
         self.assertIn("Moved from e2e to manual", text)
         self.assertIn("moved_from_e2e", text)
+
+    def test_zip_holds_the_folder_and_keeps_it(self):
+        payload = self.report_json("--zip")
+        folder = (self.root / payload["report"]).parent
+        self.assertEqual(f"{folder.name}.zip", Path(payload["zip"]).name)
+        with zipfile.ZipFile(self.root / payload["zip"]) as archive:
+            names = archive.namelist()
+        self.assertIn(f"{folder.name}/index.html", names)
+        self.assertIn(f"{folder.name}/2026-11-04T08-00-00/tc-auth-001/01.png", names)
+        self.assertTrue(folder.is_dir())
+        self.assertIsNone(self.report_json()["zip"])
+
+    def test_a_failed_zip_exits_2_and_leaves_no_archive(self):
+        search = os.pathsep.join([str(self.bin), TOOLS_PATH])
+        with mock.patch.dict(os.environ, {"PATH": search}), \
+                mock.patch("gin_qa.report.shutil.make_archive", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                report.build(self.root, resolve(specs_reqs(self.root)), None, "out", archive=True)
+        self.assertEqual([], list(self.root.glob("*.zip")) + list(self.root.glob(".*.zip")))
+
+    def test_the_evidence_folder_is_ignored_once_and_out_elsewhere_is_not(self):
+        self.assertEqual(0, self.report("--out", "elsewhere").returncode)
+        self.assertFalse((self.root / ".gitignore").exists())
+        self.report_json()
+        self.report_json()
+        self.assertEqual(1, (self.root / ".gitignore").read_text().split().count("/qa/evidence/"))
 
 
 class TestTemplate(unittest.TestCase):

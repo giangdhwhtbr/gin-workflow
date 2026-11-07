@@ -413,6 +413,28 @@ def _slug(title: str) -> str:
     return f"-{slug}" if slug else ""
 
 
+def new_case(root: Path, cases_dir: str, guidelines: str, cap: str, kind: str, title: str, key: str,
+             value: str) -> tuple[str, Path]:
+    """Writes `<cases>/<cap>/<TC-ID>-<slug>.<kind>.md` with the next ID; `key`/`value` is its REQ or Source field."""
+    one_line(title)
+    cap = capability_arg(cap)
+    if not TYPE.fullmatch(cap):
+        raise ValueError(f"{cap!r}: a capability matches [a-z][a-z0-9-]*")
+    types, _ = declared_types(root, guidelines)
+    if not TYPE.fullmatch(kind) or (types is not None and kind not in types):
+        raise ValueError(f"{kind}: not listed under '{TYPES_SECTION}' in {guidelines}")
+    base = root / cases_dir
+    (base / cap).mkdir(parents=True, exist_ok=True)  # before the lock: the lock file lives in the cases folder
+    with _lock(base):
+        if (base / f"{cap}.md").is_file():
+            raise ValueError(f"{cases_dir}/{cap}.md: a flat cases file; run `gin-qa cases split {cap}` first")
+        case_id = next_id(root, cases_dir, cap)
+        path = base / cap / f"{case_id}{_slug(title)}.{kind}.md"
+        write_atomic(path, f"# {case_id}: {title}\n\n- **{key}:** {value}\n- **Priority:** medium\n\n"
+                           "**Preconditions:**\n\n**Test data:**\n\n**Steps:**\n\n**Expected:**\n")
+    return case_id, path
+
+
 def split(root: Path, cases_dir: str, cap: str) -> tuple[list[str], list[str]]:
     """`<cases>/<cap>.md` → one `<cases>/<cap>/<TC-ID>-<slug>.<type>.md` per case; nothing is written on findings."""
     if not TYPE.fullmatch(cap):

@@ -169,6 +169,17 @@ def _has_e2e_script(root: Path) -> bool:
     return isinstance(scripts, dict) and "e2e" in scripts
 
 
+def ignore_evidence(root: Path, eff: Effective) -> bool:
+    """Adds the evidence folder to `.gitignore`; returns whether it wrote the entry."""
+    ignore = root / ".gitignore"
+    entry = f"/{evidence_root(eff)}/"
+    lines = ignore.read_text(encoding="utf-8").splitlines() if ignore.is_file() else []
+    if entry in lines:
+        return False
+    ignore.write_text("\n".join([*lines, entry]) + "\n", encoding="utf-8")
+    return True
+
+
 def init(root: Path, eff: Effective, base_url: str | None = None) -> list[str]:
     """Copies the fixture, ignores the evidence folder, and writes the Playwright config; never overwrites.
     Returns what it did."""
@@ -179,12 +190,8 @@ def init(root: Path, eff: Effective, base_url: str | None = None) -> list[str]:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(_template(FIXTURE), target)
         done.append(f"wrote {eff.e2e_dir}/{FIXTURE}")
-    ignore = root / ".gitignore"
-    entry = f"/{evidence_root(eff)}/"
-    lines = ignore.read_text(encoding="utf-8").splitlines() if ignore.is_file() else []
-    if entry not in lines:
-        ignore.write_text("\n".join([*lines, entry]) + "\n", encoding="utf-8")
-        done.append(f"added {entry} to .gitignore")
+    if ignore_evidence(root, eff):
+        done.append(f"added /{evidence_root(eff)}/ to .gitignore")
     existing = next((name for name in CONFIG_NAMES if (root / name).exists()), None)
     if existing is None:
         text = _template(CONFIG).read_text(encoding="utf-8")

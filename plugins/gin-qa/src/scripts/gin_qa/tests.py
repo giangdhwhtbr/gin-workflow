@@ -16,7 +16,7 @@ from typing import Any
 from xml.etree import ElementTree
 
 from . import cases as tc
-from .e2e import new_run_folder
+from .e2e import ignore_evidence, new_run_folder
 from .reqs import Effective, QaError
 
 SECTION = "## Automated types"
@@ -288,6 +288,7 @@ def run(root: Path, eff: Effective, kind: str, targets: list[str]) -> tuple[str,
     if program is None:
         raise QaError(f"{argv[0]}: not found; check the Run command of {kind} in {eff.guidelines}")
     folder = new_run_folder(root, eff, f"-{kind}")
+    ignore_evidence(root, eff)
     junit = root / folder / "junit.xml"
     files = sorted({path for case_id in selected for path in marked[case_id]})
     command: list[str] = []

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path, PurePosixPath
 import shutil
 from typing import Any
@@ -66,7 +67,24 @@ def _target(root: Path, eff: Effective, out: str | None) -> Path:
     return path
 
 
-def build(root: Path, eff: Effective, capability: str | None, out: str | None) -> dict[str, Any]:
+def _archive(folder: Path) -> Path:
+    """`<folder>.zip` next to the folder, holding it; a failed write leaves no archive."""
+    base = folder.with_name(f".{folder.name}.tmp")
+    target = folder.with_name(f"{folder.name}.zip")
+    try:
+        os.replace(shutil.make_archive(str(base), "zip", root_dir=folder.parent, base_dir=folder.name), target)
+    except OSError:
+        Path(f"{base}.zip").unlink(missing_ok=True)
+        raise
+    return target
+
+
+def _shown(root: Path, path: Path) -> str:
+    return path.relative_to(root).as_posix() if root in path.parents else str(path)
+
+
+def build(root: Path, eff: Effective, capability: str | None, out: str | None,
+          archive: bool = False) -> dict[str, Any]:
     """Writes `index.html` and the screenshots it shows into a new folder; returns what the CLI prints."""
     cases, _ = tc.load(root, eff.cases_dir)  # parse findings are `gin-qa cases check`'s job
     if capability is not None:
@@ -111,6 +129,9 @@ def build(root: Path, eff: Effective, capability: str | None, out: str | None) -
         if not created:
             folder.mkdir()  # an empty --out folder is left as it was
         raise
-    return {"report": index.relative_to(root).as_posix() if root in index.parents else str(index),
+    if root / e2e.evidence_root(eff) in folder.parents:
+        e2e.ignore_evidence(root, eff)
+    packed = _archive(folder) if archive else None
+    return {"report": _shown(root, index), "zip": _shown(root, packed) if packed else None,
             "cases": len(rows), "moved": sum(1 for row in rows if row["moved_from_e2e"]), "screenshots": len(copies),
             "missing_evidence": [run for run, found in runs.items() if found is None]}
