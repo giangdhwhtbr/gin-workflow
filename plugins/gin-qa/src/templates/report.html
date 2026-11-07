@@ -63,6 +63,7 @@ h4 { margin: 0 0 4px; }
 .url { overflow-wrap: anywhere; font-size: 12px; }
 .run-steps img { display: block; max-width: min(320px, 100%); max-height: 200px; margin-top: 4px; border: 1px solid var(--line);
   border-radius: 4px; object-fit: cover; object-position: top; }
+#moved { margin-top: 16px; }
 </style>
 </head>
 <body>
@@ -82,6 +83,15 @@ h4 { margin: 0 0 4px; }
       <tbody id="rows"></tbody>
     </table>
   </div>
+  <section id="moved" hidden>
+    <h2>Moved from e2e to manual</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Title</th><th>Moved on</th><th>Reason</th><th>Result</th></tr></thead>
+        <tbody id="moved-rows"></tbody>
+      </table>
+    </div>
+  </section>
 </main>
 <dialog id="detail" aria-label="Test case">
   <form method="dialog" class="dialog-bar"><button>Close</button></form>
@@ -166,9 +176,18 @@ h4 { margin: 0 0 4px; }
     $('rows').replaceChildren(...rows.map((item) => el('tr', {
       tabindex: '0', onclick: () => openCase(item),
       onkeydown: (event) => { if (event.key === 'Enter') { event.preventDefault(); openCase(item); } }, // preventDefault: the Enter keypress must not click the dialog's focused Close button
-    }, el('td', { text: item.id }), el('td', { text: item.title }), el('td', { text: item.capability }),
+    }, el('td', { text: item.id }), el('td', {}, item.title, item.moved_from_e2e ? el('span', { class: 'muted', text: ' (moved from e2e)' }) : null),
+    el('td', { text: item.capability }),
     el('td', { text: item.type }), el('td', { text: item.priority }), el('td', {}, badge(item.result)),
     el('td', { text: item.bug }))));
+  }
+
+  function renderMoved() {
+    const moved = cases.filter((item) => item.moved_from_e2e);
+    $('moved').hidden = !moved.length;
+    $('moved-rows').replaceChildren(...moved.map((item) => el('tr', { tabindex: '0', onclick: () => openCase(item) },
+      el('td', { text: item.id }), el('td', { text: item.title }), el('td', { text: item.moved_from_e2e.date }),
+      el('td', { text: item.moved_from_e2e.reason }), el('td', {}, badge(item.result)))));
   }
 
   function update() {
@@ -204,7 +223,8 @@ h4 { margin: 0 0 4px; }
   function openCase(item) {
     const facts = [['Capability', item.capability], ['Type', item.type], ['Priority', item.priority],
       ['REQ', item.reqs.map((req) => `${req.id}@${req.hash8}`).join(', ')], ['Source', item.source],
-      ...Object.entries(item.fields), ['Result', item.result], ['Run', item.run], ['Bug', item.bug],
+      ...Object.entries(item.fields),
+      ['Moved from e2e', item.moved_from_e2e && `${item.moved_from_e2e.date}: ${item.moved_from_e2e.reason}`], ['Result', item.result], ['Run', item.run], ['Bug', item.bug],
       ['File', `${item.file}:${item.line}`]];
     const details = el('dl', {});
     for (const [key, val] of facts) if (val) details.append(el('dt', { text: key }), el('dd', { text: val }));
@@ -222,6 +242,7 @@ h4 { margin: 0 0 4px; }
   const scope = data.scope ? `capability ${data.scope}` : 'all capabilities';
   $('summary').textContent = `${cases.length} cases · ${scope} · generated ${data.generated}`;
   renderSelects();
+  renderMoved();
   update();
 })();
 </script>

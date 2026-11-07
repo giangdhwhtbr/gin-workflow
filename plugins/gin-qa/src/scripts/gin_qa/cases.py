@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 import hashlib
 import os
 from pathlib import Path, PurePosixPath
@@ -23,7 +24,9 @@ _TYPE_ENTRY = re.compile(r"^- `([a-z][a-z0-9-]*)`(?::.*)?$")
 SECTIONS = ("Preconditions", "Test data", "Steps", "Expected")
 RESULTS = ("passed", "failed", "blocked", "not run")
 RESULT_FIELDS = ("Result", "Run", "Bug")
-KNOWN_FIELDS = ("REQ", "Source", "Type", "Priority", *RESULT_FIELDS)
+MOVED_FIELD = "Moved from e2e"
+_MOVED = re.compile(r"^(\d{4}-\d{2}-\d{2}): (\S.*)$")
+KNOWN_FIELDS = ("REQ", "Source", "Type", "Priority", MOVED_FIELD, *RESULT_FIELDS)
 
 
 def _heading(level: str) -> re.Pattern[str]:
@@ -106,6 +109,10 @@ def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, er
     for key in ("Run", "Bug"):
         if key in case.fields and result is None:
             errors.append(f"{path}:{case.field_lines[key]}: {case.id}: {key}: needs a Result: line")
+    moved = case.fields.get(MOVED_FIELD)
+    if moved is not None and not _MOVED.match(moved):
+        errors.append(f"{path}:{case.field_lines[MOVED_FIELD]}: {case.id}: {MOVED_FIELD}: is "
+                      f"'<YYYY-MM-DD>: <reason>'; got {moved!r}")
     return case
 
 
@@ -368,6 +375,32 @@ def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: st
     return {"tc": case_id, "result": status, "run": run or "", "bug": kept_bug or "", "file": str(located.path)}
 
 
+def move_to_manual(root: Path, cases_dir: str, guidelines: str, case_id: str, reason: str) -> Path:
+    """Renames an e2e case file to `.manual.md`, records why, and resets its result; returns the new path."""
+    one_line(reason)
+    case = find(root, cases_dir, case_id)
+    path = root / case.path
+    if case.type != "e2e":
+        raise ValueError(f"{case_id}: is a {case.type or 'untyped'} case; only an e2e case moves to manual")
+    if path.parent == root / cases_dir:
+        raise ValueError(f"{case.path}: a flat cases file; run `gin-qa cases split {case.cap}` first")
+    if MOVED_FIELD in case.fields:
+        raise ValueError(f"{case.path}:{case.field_lines[MOVED_FIELD]}: {case_id}: remove the {MOVED_FIELD}: line first")
+    types, _ = declared_types(root, guidelines)
+    if types is not None and "manual" not in types:
+        raise ValueError(f"manual is not listed under '{TYPES_SECTION}' in {guidelines}")
+    target = path.with_name(path.name[:-len(".e2e.md")] + ".manual.md")
+    if target.exists():
+        raise ValueError(f"{target.relative_to(root).as_posix()}: already exists")
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    values = [(MOVED_FIELD, f"{day}: {reason}"), ("Result", "not run"), ("Bug", case.fields.get("Bug"))]
+    with _lock(root / cases_dir):
+        text = _with_result(path.read_text(encoding="utf-8"), case, values)
+        path.rename(target)
+        write_atomic(target, text)  # after the rename: write_atomic keeps the line endings of the file it replaces
+    return target
+
+
 def _slug(title: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
     if len(slug) > 40:
@@ -415,6 +448,11 @@ def split(root: Path, cases_dir: str, cap: str) -> tuple[list[str], list[str]]:
     path.unlink()
     return [target.relative_to(root).as_posix() for target in targets.values()], []
 
+def moved_from_e2e(case: Case) -> dict[str, str] | None:
+    found = _MOVED.match(case.fields.get(MOVED_FIELD, ""))
+    return {"date": found.group(1), "reason": found.group(2)} if found else None
+
+
 def as_dict(case: Case) -> dict[str, object]:
     return {"id": case.id, "title": case.title, "capability": case.cap, "file": str(case.path), "line": case.line,
             "hash8": hash8(case),
@@ -424,4 +462,5 @@ def as_dict(case: Case) -> dict[str, object]:
             "fields": {key: value for key, value in case.fields.items() if key not in KNOWN_FIELDS},
             "preconditions": case.preconditions, "steps": case.steps, "expected": case.expected,
             "result": case.fields.get("Result", "not run"), "run": case.fields.get("Run", ""),
-            "bug": case.fields.get("Bug", ""), "test_data": case.test_data}
+            "bug": case.fields.get("Bug", ""),
+            "moved_from_e2e": moved_from_e2e(case), "test_data": case.test_data}

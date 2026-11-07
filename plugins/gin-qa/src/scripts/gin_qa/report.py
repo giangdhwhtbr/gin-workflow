@@ -112,5 +112,5 @@ def build(root: Path, eff: Effective, capability: str | None, out: str | None) -
             folder.mkdir()  # an empty --out folder is left as it was
         raise
     return {"report": index.relative_to(root).as_posix() if root in index.parents else str(index),
-            "cases": len(rows), "screenshots": len(copies),
+            "cases": len(rows), "moved": sum(1 for row in rows if row["moved_from_e2e"]), "screenshots": len(copies),
             "missing_evidence": [run for run, found in runs.items() if found is None]}

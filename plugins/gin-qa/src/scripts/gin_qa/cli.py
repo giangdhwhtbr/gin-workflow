@@ -39,6 +39,9 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--external-ref")
     item.add_argument("--discovered-from")
     item.add_argument("--run")
+    item = sub.add_parser("to-manual", parents=[common])
+    item.add_argument("id")
+    item.add_argument("--reason", required=True)
     sub.add_parser("split", parents=[common]).add_argument("capability")
     sub.add_parser("check", parents=[common]).add_argument("--change")
     sub.add_parser("export", parents=[common])
@@ -202,6 +205,10 @@ def _run(args: argparse.Namespace) -> int:
                             discovered_from=args.discovered_from, run=args.run)
         _emit(row, args.format, f"{row['tc']} failed {row['bug']}")
         return 0
+    if args.command == "to-manual":
+        row = e2e.to_manual(root, eff, args.id, args.reason)
+        _emit(row, args.format, "\n".join([row["file"], row["spec"] or "no spec"]))
+        return 0
     if args.command == "split":
         written, errors = tc.split(root, eff.cases_dir, args.capability)
         if errors:
@@ -298,7 +305,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "tests": (_tests_parser, _run_tests),
               "report": (_report_parser, _run_report)}
     if not argv or argv[0] not in groups:
-        print("usage: gin-qa cases {plan,next-id,pin,result,bug,split,check,export} ...\n"
+        print("usage: gin-qa cases {plan,next-id,pin,result,bug,to-manual,split,check,export} ...\n"
               "       gin-qa e2e {init,plan,pin,run,check,export} ...\n"
               "       gin-qa tests {plan,pin,check,run} ...\n"
               "       gin-qa report [capability] [--out DIR]", file=sys.stderr)

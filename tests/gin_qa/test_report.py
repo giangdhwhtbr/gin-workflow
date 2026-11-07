@@ -202,6 +202,23 @@ class TestReport(ReportCase):
         self.assertEqual([], self.reports())
         self.assertEqual(["kept.txt"], [path.name for path in (self.root / "out").iterdir()])
 
+    def test_moved_cases_are_counted_and_carry_date_and_reason(self):
+        self.assertEqual(0, self.report_json()["moved"])
+        result = qa(self.root, self.bin, "to-manual", "TC-AUTH-001", "--reason", "flaky on CI")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.record("TC-AUTH-001", "passed", "manual 2026-11-07")
+        payload = self.report_json()
+        self.assertEqual(1, payload["moved"])
+        row = next(item for item in self.page(self.root / payload["report"])["cases"] if item["id"] == "TC-AUTH-001")
+        self.assertEqual(("manual", "passed", "flaky on CI"),
+                         (row["type"], row["result"], row["moved_from_e2e"]["reason"]))
+
+    def test_the_template_holds_the_moved_section(self):
+        text = TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn('id="moved"', text)
+        self.assertIn("Moved from e2e to manual", text)
+        self.assertIn("moved_from_e2e", text)
+
 
 class TestTemplate(unittest.TestCase):
     def test_one_data_slot_and_no_unsafe_or_remote_code(self):

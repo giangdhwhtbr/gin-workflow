@@ -227,7 +227,8 @@ class TestIdsAndExport(QaCase):
             "reqs": [{"id": "REQ-AUTH-001", "hash8": hash8(self.root, self.bin, "REQ-AUTH-001")}], "source": "",
             "type": "e2e", "priority": "high", "fields": {"Owner": "qa-team"},
             "preconditions": ["a user exists"], "steps": ["Open /login", 'Click "Sign in"'],
-            "expected": ["The dashboard is shown"], "result": "not run", "run": "", "bug": "", "test_data": []}], rows)
+            "expected": ["The dashboard is shown"], "result": "not run", "run": "", "bug": "", "moved_from_e2e": None,
+            "test_data": []}], rows)
 
 
 class TestCaseFiles(QaCase):

@@ -53,6 +53,15 @@ def spec_path(eff: Effective, case: tc.Case) -> str:
     return f"{eff.e2e_dir}/{case.cap}/{case.id.lower()}.spec.ts"
 
 
+def to_manual(root: Path, eff: Effective, case_id: str, reason: str) -> dict[str, str | None]:
+    """Moves an e2e case to manual, then deletes its spec, so a failed delete leaves an orphan `check` reports."""
+    spec = spec_path(eff, tc.find(root, eff.cases_dir, case_id))
+    target = tc.move_to_manual(root, eff.cases_dir, eff.guidelines, case_id, reason)
+    existed = (root / spec).is_file()
+    (root / spec).unlink(missing_ok=True)
+    return {"tc": case_id, "file": target.relative_to(root).as_posix(), "spec": spec if existed else None}
+
+
 def e2e_cases(root: Path, eff: Effective) -> dict[str, tc.Case]:
     cases, _ = tc.load(root, eff.cases_dir)
     return {case.id: case for case in cases if case.type == "e2e"}
