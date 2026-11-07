@@ -321,9 +321,10 @@ Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is un
 ```
 gin worktree create [--repository DIR] TRACK_ID BRANCH [BASE_REF]
 gin worktree cleanup [--repository DIR] TRACK_ID
+gin worktree checkout [--repository DIR] TRACK_ID BRANCH
 ```
 
-Creates or removes the git worktree for one track at `.planning/worktrees/<track-id>` in the repository's top level. `TRACK_ID` must match `[A-Za-z0-9._-]+` and resolve inside `.planning/worktrees`. `create` makes the new branch `BRANCH` from `BASE_REF` (default: the current branch, or `HEAD` when detached) and refuses an existing directory. `cleanup` runs `git worktree remove` and succeeds without doing anything when the directory does not exist.
+Creates or removes the git worktree for one track at `.planning/worktrees/<track-id>` in the repository's top level. `TRACK_ID` must match `[A-Za-z0-9._-]+` and resolve inside `.planning/worktrees`. `create` makes the new branch `BRANCH` from `BASE_REF` (default: the current branch, or `HEAD` when detached) and refuses an existing directory. `checkout` checks out an existing branch `BRANCH` at the same path; a branch that exists only on `origin` is created locally tracking it; it refuses an existing directory and an unknown branch. `cleanup` runs `git worktree remove` and succeeds without doing anything when the directory does not exist.
 
 Exit codes: 0 created, removed, or nothing to remove; 1 invalid track id, existing directory, or git failure (message on stderr); 2 invalid arguments.
 
