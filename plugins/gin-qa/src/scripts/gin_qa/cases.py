@@ -424,10 +424,11 @@ def new_case(root: Path, cases_dir: str, guidelines: str, cap: str, kind: str, t
     if not TYPE.fullmatch(kind) or (types is not None and kind not in types):
         raise ValueError(f"{kind}: not listed under '{TYPES_SECTION}' in {guidelines}")
     base = root / cases_dir
-    (base / cap).mkdir(parents=True, exist_ok=True)  # before the lock: the lock file lives in the cases folder
+    base.mkdir(parents=True, exist_ok=True)  # before the lock: the lock file lives in the cases folder
     with _lock(base):
         if (base / f"{cap}.md").is_file():
             raise ValueError(f"{cases_dir}/{cap}.md: a flat cases file; run `gin-qa cases split {cap}` first")
+        (base / cap).mkdir(exist_ok=True)
         case_id = next_id(root, cases_dir, cap)
         path = base / cap / f"{case_id}{_slug(title)}.{kind}.md"
         write_atomic(path, f"# {case_id}: {title}\n\n- **{key}:** {value}\n- **Priority:** medium\n\n"

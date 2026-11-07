@@ -31,6 +31,7 @@ class NewCase(unittest.TestCase):
 
     def nothing_written(self) -> None:
         self.assertEqual([], list((self.root / "qa/cases").glob("**/*.md")) if (self.root / "qa/cases").exists() else [])
+        self.assertFalse((self.root / "qa/cases/auth").exists())
 
     def test_writes_a_named_pinned_file_with_the_next_id(self):
         result = self.new("--req", "REQ-AUTH-001", "--format", "json")
@@ -62,6 +63,13 @@ class NewCase(unittest.TestCase):
         result = self.new("--req", "REQ-AUTH-001")
         self.assertEqual(2, result.returncode)
         self.assertIn("gin-qa cases split auth", result.stderr)
+        self.assertFalse((self.root / "qa/cases/auth").exists())
+
+    def test_a_repeated_req_is_pinned_once(self):
+        result = self.new("--req", "REQ-AUTH-001", "--req", "REQ-AUTH-001")
+        self.assertEqual(0, result.returncode, result.stderr)
+        text = (self.root / FILE).read_text(encoding="utf-8")
+        self.assertEqual(1, text.count("REQ-AUTH-001@"))
 
     def test_the_legacy_layout_takes_a_source(self):
         root = make_repo(self.base / "legacy", layout="legacy")

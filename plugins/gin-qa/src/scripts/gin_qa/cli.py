@@ -199,6 +199,7 @@ def _reference(eff: Effective, reqs: list[str], source: str | None) -> tuple[str
         return "Source", tc.one_line(source)
     if source or not reqs:
         raise ValueError("the SDD layout takes --req, not --source")
+    reqs = list(dict.fromkeys(reqs))
     unknown = [req for req in reqs if req not in eff.reqs]
     if unknown:
         raise ValueError(f"{', '.join(unknown)}: no such requirement")
