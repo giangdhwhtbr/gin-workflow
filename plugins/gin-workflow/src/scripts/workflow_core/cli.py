@@ -18,7 +18,7 @@ from .setup_service import COMMANDS, SetupError
 
 CLI_VERSION = "3.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
-                "reviewer", "hooks", "evidence", "task", "routes", "notify", "paths", "goal", "worktree", "milestone")
+                "reviewer", "hooks", "evidence", "task", "routes", "notify", "paths", "goal", "worktree", "workspace", "milestone")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -43,6 +43,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--rigor", choices=RIGORS)
     parser.add_argument("--task-tracking", choices=("markdown", "beads"))
     parser.add_argument("--monorepo", action="store_true")
+    parser.add_argument("--workspace", action="store_true")
     parser.add_argument("--stack-intent", default="")
     parser.add_argument("--provider", choices=("claude", "codex", "antigravity", "opencode", "copilot"))
     return parser
@@ -87,6 +88,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
         if argv[0] == "worktree":
             from .worktrees import main as worktrees_main
             return worktrees_main(argv[1:])
+        if argv[0] == "workspace":
+            from .workspace_cli import main as workspace_main
+            return workspace_main(argv[1:])
         if argv[0] == "task":
             from .tasks import main as tasks_main
             return tasks_main(argv[1:])

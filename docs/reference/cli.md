@@ -22,7 +22,7 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | Action | What it does | Writes |
 |---|---|---|
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
-| `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--stack-intent`) into `--set` assignments | no |
+| `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--workspace`, `--stack-intent`) into `--set` assignments | no |
 | `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode`) | no |
 | `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the `gin` block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block | yes |
 | `configure` | Changes repository configuration (`--set key=value`) | yes |
@@ -34,6 +34,8 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | `rollback` | Restores a validated backup (`--backup PATH`) | yes |
 | `export-bundle` / `verify-bundle` | Writes (`--output`) or checks (`--bundle`) a portable configuration bundle | export only |
 | `harness-override` | Sets (`--harness`), shows, or clears (`--clear`) a session override of the main harness | runtime only |
+
+`--workspace` (on `preset` and `init`) writes an empty `workspace.repos` list and, on `init`, the parent `.gitignore` entries.
 
 Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--probe`, `--harness`.
 
@@ -313,6 +315,17 @@ gin goal --workflow-id ID [--repository PATH]
 Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`. The goal lists the open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one. Its turn limit is 6 per track, at most 30. A track run on a fallback from its route counts as run on its routed provider. A standalone bead is its own single track. When no open track is left for the agent, it prints a `No goal:` line instead, which names the human-gate tracks when any wait.
 
 Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is unavailable.
+
+## `gin workspace`
+
+```
+gin workspace clone [--repository DIR] [--json] [--all | PATH ...]
+gin workspace status [--repository DIR] [--json]
+```
+
+A workspace is a parent repository whose `workspace.repos` lists child repositories ([configuration](config.md#workspace)). `clone` clones the named entries, or every entry with `--all`, at their manifest paths from their `url` and `default_branch`; a `frozen` entry is cloned with `--depth 1`; an entry already present is reported as `present`; each path gets a `/<path>` line in the parent `.gitignore`. `status` prints one line per entry: path, `present` or `missing`, branch, `clean` or `dirty`, and `frozen`. Both commands run from anywhere inside the workspace, including a child repository.
+
+Exit codes: 0 done; 1 outside a workspace, an unknown path, or a git failure (message on stderr); 2 invalid arguments.
 
 ## `gin worktree`
 

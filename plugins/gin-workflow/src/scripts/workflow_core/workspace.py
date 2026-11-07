@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 import subprocess
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from .checkout import main_checkout
 from .configuration import require_yaml
@@ -175,3 +175,44 @@ def summary(located: Located) -> dict[str, Any] | None:
                    "branch": branch(workspace.checkout(repo)) if workspace.present(repo) else None}
                   for repo in workspace.repos],
     }
+
+
+GITIGNORE_HEADER = "# workspace repos (gin workspace clone adds one line per repository)"
+
+
+def ensure_gitignore(root: Path, lines: Sequence[str]) -> list[str]:
+    """Append each missing line to `<root>/.gitignore` under the workspace header; returns what was added."""
+    path = Path(root) / ".gitignore"
+    existing = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    added = [line for line in lines if line not in existing]
+    if not added:
+        return []
+    block = ([] if GITIGNORE_HEADER in existing else [GITIGNORE_HEADER]) + added
+    text = ("\n".join(existing).rstrip("\n") + "\n\n" if existing else "") + "\n".join(block) + "\n"
+    path.write_text(text, encoding="utf-8")
+    return added
+
+
+def doctor(root: Path, space: Workspace) -> dict[str, Any]:
+    """Findings for `gin setup doctor`; they never flip health."""
+    ignore_path = Path(root) / ".gitignore"
+    ignored = set(ignore_path.read_text(encoding="utf-8").splitlines()) if ignore_path.is_file() else set()
+    modules_path = Path(root) / ".gitmodules"
+    modules = modules_path.read_text(encoding="utf-8") if modules_path.is_file() else ""
+    repos: dict[str, dict[str, Any]] = {}
+    actions: list[str] = []
+    for repo in space.repos:
+        present = space.present(repo)
+        submodule = f"path = {repo.path}" in modules
+        repos[repo.path] = {"present": present, "checks": sorted(repo.checks), "ignored": f"/{repo.path}" in ignored,
+                            "submodule": submodule}
+        if not present:
+            actions.append(f"clone {repo.path}: gin workspace clone {repo.path}")
+        if repo.workable and not repo.checks:
+            actions.append(f"{repo.path} has no verify.checks")
+        if f"/{repo.path}" not in ignored:
+            actions.append(f"{repo.path} is not in .gitignore; gin workspace clone adds it")
+        if submodule:
+            actions.append(f"{repo.path} is still a submodule in .gitmodules; remove it "
+                           f"(git submodule deinit -f {repo.path}; git rm -f {repo.path})")
+    return {"repos": repos, "actions": actions}

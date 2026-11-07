@@ -29,6 +29,7 @@ from .notify import credentials_warning
 from . import agents_block
 from . import orchestrator_client
 from . import snapshot
+from . import workspace as workspace_mod
 from .schemas import require_jsonschema
 
 
@@ -178,6 +179,7 @@ def initialize(
     harness: str | None = None,
     assignments: Iterable[str] = (),
     approve: bool = False,
+    workspace: bool = False,
     **_: Any,
 ) -> dict[str, Any]:
     _dependencies()
@@ -279,6 +281,8 @@ def initialize(
     for relative in ("backups", "references", "runtime/evidence"):
         (workflow / relative).mkdir(parents=True, exist_ok=True)
     agents_block.write(agents_writes)
+    if workspace:
+        workspace_mod.ensure_gitignore(root, ["/.beads", ".planning/worktrees/"])
     actions = list(INIT_ACTIONS)
     actions.extend(agents_actions)
     return {"status": "initialized", "repository": str(root), "actions": actions}
@@ -559,6 +563,11 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
             checks_details["team"] = team_detail
             checks["team"] = all(team_detail["checks"].values())
             actions.extend(f"team: {action}" for action in team_detail["actions"])
+        space = workspace_mod.load(root)
+        if space is not None:
+            detail = workspace_mod.doctor(root, space)
+            checks_details["workspace"] = detail
+            actions.extend(f"workspace: {action}" for action in detail["actions"])
 
         if effective.get("provider_mode") == "multi":
             checks_details["orchestrator"] = orchestrator_client.status()
@@ -819,7 +828,7 @@ def harness_override(
 
 def preset(repository: Path, *, project_stage: str | None = None, project_shape: str | None = None,
            rigor: str | None = None, task_tracking: str | None = None, monorepo: bool = False,
-           stack_intent: str = "", **_: Any) -> dict[str, Any]:
+           stack_intent: str = "", workspace: bool = False, **_: Any) -> dict[str, Any]:
     from .rules import load_plugin_packs, plugin_rules_dir
     from .rules_checks import propose_packs, tool_check_report
     from .specs import SDD_DEFAULTS
@@ -840,6 +849,8 @@ def preset(repository: Path, *, project_stage: str | None = None, project_shape:
             rule_packs=rule_packs, layout=layout)
     except ValueError as error:
         raise SetupError(str(error)) from error
+    if workspace:
+        assignments.append("workspace.repos=[]")
     missing = [key for key, value in detected["verify_commands"].items() if not value and key != "e2e"]
     tool_checks = [item for item in tool_check_report(root, [plugin[name] for name in rule_packs])
                    if item["status"] != "present"]
