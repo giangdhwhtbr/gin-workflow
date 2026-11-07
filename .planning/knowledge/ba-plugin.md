@@ -15,6 +15,7 @@ Epic `gin-workflow-ba-plugin` (2026-11-06). Since `gin-workflow-spec-iterations`
 - The PowerShell installer changes were reviewed by reading only (no pwsh on the dev host); the Windows CI job is their first run.
 - The end-to-end BA walkthrough (capture, mockup, confirm, discuss with `Source:` lines) needs a real BA in an interactive session and was not run in the epic.
 - Uninstalling any add-on still unregisters the PATH entry while `gin` stays installed; this predates the epic.
+- Since `gin-workflow-tp83`, the skills call `gin specs assets add` and `confirm`, and lint enforces the freeze against the base, replacing the "no BA CLI, no lints" decision above; see [ba-asset-intake](ba-asset-intake.md).
 
 **References**
 - `plugins/gin-ba/src/skills/mockup/`, `plugins/gin-ba/src/skills/capture/`, `plugins/gin-workflow/src/skills/sdd/SKILL.md`, `plugins/gin-workflow/src/templates/iteration.md`, `install.sh`, `install.ps1`, `docs/guides/ba.md`
