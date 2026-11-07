@@ -264,7 +264,7 @@ def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
 
 def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
     """`<path>:<line>: TQ-<n>` for each open technical question in the workflow's design doc."""
-    from .specs import design_doc, sdd_config, shown, technical_questions
+    from .specs import SpecsError, design_doc, sdd_config, shown, technical_questions
 
     if not (repo_path / ".agent-workflow/config.yaml").is_file():
         return []
@@ -272,7 +272,10 @@ def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
     design = design_doc(repo_path, sdd_config(config), workflow_id)
     if design is None:
         return []
-    questions, _ = technical_questions(design)
+    try:
+        questions, _ = technical_questions(design)
+    except (OSError, UnicodeDecodeError) as error:
+        raise SpecsError(f"{shown(repo_path, design)}: cannot read the design doc: {error}") from error
     return [f"{shown(repo_path, design)}:{item.line}: {item.id}" for item in questions if not item.decision]
 
 

@@ -164,7 +164,7 @@ def design_doc(root: Path, cfg: Mapping[str, Any], workflow_id: str) -> Path | N
     named = re.compile(rf"^(?:Epic|Workflow): {re.escape(workflow_id)}$", re.MULTILINE)
     folder = root / _LEGACY_SPECS
     found = [path for path in sorted(folder.glob("*.md"))
-             if named.search(path.read_text(encoding="utf-8"))] if folder.is_dir() else []
+             if named.search(path.read_text(encoding="utf-8", errors="replace"))] if folder.is_dir() else []
     if len(found) > 1:
         raise SpecsError(f"several specs name {workflow_id}: {', '.join(shown(root, path) for path in found)}")
     return found[0] if found else None

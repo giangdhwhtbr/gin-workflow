@@ -160,6 +160,21 @@ class TestPlanApprovedCheck(_Repo):
         self.assertEqual(0, self.record("other")[0])
         self.assertEqual("satisfied", self.gate("other"))
 
+    def test_unrelated_non_utf8_spec_does_not_stop_the_check(self):
+        (self.root / ".planning/specs/2026-01-03-bad-design.md").write_bytes(b"# B\n\nEpic: other\n\ncaf\xe9\n")
+        code, err = self.record()
+        self.assertEqual(1, code)
+        self.assertIn("TQ-1", err)
+        self.assertEqual(0, self.record("no-spec-workflow")[0])
+
+    def test_non_utf8_design_doc_is_a_usage_error_naming_the_file(self):
+        bad = ".planning/specs/2026-01-03-bad-design.md"
+        (self.root / bad).write_bytes(b"# B\n\nEpic: ep-9\n\ncaf\xe9\n")
+        code, err = self.record("ep-9")
+        self.assertEqual(2, code)
+        self.assertIn(bad, err)
+        self.assertEqual("unmet", self.gate("ep-9"))
+
     def test_two_specs_for_one_epic_is_a_usage_error(self):
         write(self.root, ".planning/specs/2026-01-02-y-design.md", spec(""))
         code, err = self.record()
