@@ -54,7 +54,7 @@ Unclear requirements never raise the model or effort.
 - Rationale: pairs stay in sync and each track can be rejected independently.
 
 ## Scope
-- In scope: `docs/guides/ba.md`, `docs/roles.md`, `docs/starters/brownfield.md`, `docs/starters/greenfield.md`, `README.md`, `docs/guides/sdd.md`, `docs/reference/cli.md`, `docs/reference/skills.md`, `docs/reference/config.md`, `docs/concepts/architecture.md`, `docs/concepts/lifecycle.md`, their existing `.vi.md` pairs, `mkdocs.yml` nav.
+- In scope: `docs/guides/ba.md`, `docs/roles.md`, `docs/starters/brownfield.md`, `docs/starters/greenfield.md`, `README.md`, `docs/guides/sdd.md`, `docs/reference/cli.md`, `docs/reference/skills.md`, `docs/reference/config.md`, `docs/concepts/architecture.md`, `docs/concepts/lifecycle.md`, their existing `.vi.md` pairs, `mkdocs.yml` nav; the new `docs/guides/git-flow.md` and `git-flow.vi.md` with links from `docs/guides/team.md`, `docs/roles.md`, their `.vi.md` pairs, and `README.md` (scope addition 2026-11-08, R7).
 - Out of scope: see Global Constraints.
 
 ## Execution Strategy
@@ -64,7 +64,7 @@ execution_strategy:
   mode: worker
   workers:
     mode: parallel
-  rationale: Track 1 and Track 2 touch disjoint files and run together; Track 3 shares README.md and sdd.md link text with Track 1 and runs after it; Track 4 checks the result of all three.
+  rationale: Track 1 and Track 2 touch disjoint files and run together; Track 5 shares roles.md, mkdocs.yml, and README.md with Track 1 and runs after it, in parallel with Track 2; Track 3 shares README.md with Tracks 1 and 5 and runs after both; Track 4 checks the result of all four.
 ```
 
 ## Conventions for every track
@@ -133,7 +133,7 @@ execution_strategy:
 - **Estimated complexity**: medium
 
 ### Track 3: Accuracy pass over reference, concept, and overview pages
-- **Dependencies**: Track 1 (shares `README.md` and `docs/guides/sdd.md`)
+- **Dependencies**: Track 1, Track 5 (share `README.md`; Track 1 also `docs/guides/sdd.md`)
 - **Files**:
   - Modify `README.md` (mismatches only)
   - Modify `docs/guides/sdd.md`, `docs/guides/sdd.vi.md` (mismatches only)
@@ -158,7 +158,7 @@ execution_strategy:
 - **Estimated complexity**: medium
 
 ### Track 4: Final checks
-- **Dependencies**: Track 1, Track 2, Track 3
+- **Dependencies**: Track 1, Track 2, Track 3, Track 5
 - **Files**:
   - Modify `AGENTS.md` (only if `gin setup refresh` changes it)
 - **Provider role**: `docs`
@@ -174,9 +174,32 @@ execution_strategy:
 - **Acceptance criteria**: R6; a failure goes back to the track that owns the page.
 - **Estimated complexity**: low
 
+### Track 5: Team git agreement page
+- **Dependencies**: Track 1 (shares `docs/roles.md`, `mkdocs.yml`, `README.md`)
+- **Files**:
+  - Create `docs/guides/git-flow.md` (R7)
+  - Create `docs/guides/git-flow.vi.md` (R7, R5)
+  - Modify `mkdocs.yml` (nav entry `Team git agreement: guides/git-flow.md` after `Team mode: guides/team.md`; Vietnamese nav translation `Team git agreement: Thoả thuận git của team`)
+  - Modify `README.md:16` (add `[team git agreement](docs/guides/git-flow.md)` after `[team mode](docs/guides/team.md)`)
+  - Modify `docs/guides/team.md`, `docs/guides/team.vi.md` (one sentence after the intro paragraph linking to the agreement)
+  - Modify `docs/roles.md`, `docs/roles.vi.md` (the Keeping work apart list gains a first bullet linking to the agreement; the BA and Tester reading lists gain it after Joining a team)
+- **Provider role**: `docs`
+- **Model:** `sonnet`
+- **Effort:** `medium`
+- **Why:** one new page from a fixed ten-section outline in the spec; facts come from `team.md`, the `team` skill, and `team_host.py`; needs plain, formal writing for non-technical readers, not cross-module analysis.
+- **Steps**:
+  1. Read for facts: `docs/guides/team.md`, `docs/roles.md`, `plugins/gin-workflow/src/skills/team/SKILL.md`, `plugins/gin-workflow/src/scripts/workflow_core/team_host.py` (hosts `github` and `gitlab` only, line 13), the pull request template that `gin team init` writes (`grep -rn 'Tracks:' plugins/gin-workflow/src`), and `gin team --help`.
+  2. Write `docs/guides/git-flow.md`: `# Team git agreement`, then `## 1. Purpose and scope`, `## 2. Terms`, `## 3. Branches`, `## 4. Commits`, `## 5. Pull requests`, `## 6. Review`, `## 7. Approval and merge rules`, `## 8. Conflicts and changes after approval`, `## 9. Host procedures` (with `### GitHub`, `### GitLab`, `### AWS CodeCommit`), `## Appendix: AI support`. Obligations use SHALL; one sentence per rule; every term used is defined in section 2; no git command appears outside section 9 and the appendix. Section 5 has the table `Artifact | Branch | Approved by | Gate` with rows roadmap (`roadmap/<topic>`, `roadmap`), spec (`spec/<topic>`, `requirement_confirmed`), plan (`plan/<topic>`, `plan_approved`), track (`feat/<topic>-t<N>`, `ship`), and a sentence that the approving roles come from the project's `team.approvals`. Section 6 has the three role checklists and the one-working-day default. Section 9: for GitHub and GitLab, numbered web steps for create, review (Files changed / Changes tab, line comment), approve, request changes, merge, and delete branch, then a code block with `gh pr create`, `gh pr review --approve`, `gh pr review --request-changes -b "<comment>"`, `gh pr merge --delete-branch` (and `glab mr create`, `glab mr approve`, `glab mr note`, `glab mr merge --remove-source-branch`); for CodeCommit, the console steps (approval rule template on the repository, create pull request, approve, merge) and the sentence: gin verifies pull requests on GitHub and GitLab only, so on CodeCommit a gate whose approving roles are set in `team.approvals` cannot be recorded from a pull request yet. The appendix gives four prompts in `text` blocks: open a pull request for the current work; summarise pull request <url> for review against its spec; address the review comments on <url>; update the branch from the base and resolve conflicts.
+  3. Confirm each `gh` / `glab` command and flag with `gh pr <cmd> --help` and `glab mr <cmd> --help` when installed; otherwise against their official manuals; list the checks in the bead notes.
+  4. Write `docs/guides/git-flow.vi.md` with the same headings (Conventions); SHALL becomes `PHẢI`, defined once in section 1.
+  5. Add the links in `mkdocs.yml`, `README.md`, `team.md`/`team.vi.md`, `roles.md`/`roles.vi.md`.
+  6. Run `gin docs check docs/guides/git-flow.md docs/guides/git-flow.vi.md docs/guides/team.md docs/guides/team.vi.md docs/roles.md docs/roles.vi.md README.md` → `ok`; heading parity for `git-flow`, `team`, `roles` → no output. Commit.
+- **Acceptance criteria**: US-6; sections in the order of R7; the CodeCommit limitation sentence is present; the page is linked from the nav, `README.md`, `team.md`, and `roles.md`.
+- **Estimated complexity**: medium
+
 ## Integration
 - **Branch**: `feat/docs-refresh`
-- **Merge strategy**: parallel-then-merge (Track 1 and Track 2 in parallel, then Track 3, then Track 4)
+- **Merge strategy**: parallel-then-merge (Track 1 and Track 2 in parallel; Track 5 after Track 1; Track 3 after Tracks 1 and 5; then Track 4)
 
 ## Validation
 - [ ] `mkdocs build --strict` passes (Track 4)

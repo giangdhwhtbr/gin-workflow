@@ -15,16 +15,19 @@ Confirmed understanding (2026-11-08):
 - `docs/roles.md` stays the overview (ownership table and reading lists) and links to the new BA page; task-ordered pages for the PM, tech lead, developer, and tester are a later epic (user decision 2026-11-08, option A).
 - Delivery is split by page group, and each track writes the English page and its `.vi.md` pair together (user decision 2026-11-08, approach 1).
 - Every Vietnamese text is written with the `vietnamese-language-skill` plugin (its `vietnamese-tech-writing` skill) (user requirement 2026-11-08).
+- Scope addition (user, 2026-11-08, during plan review): a new page `docs/guides/git-flow.md` (`.vi.md`), the team's git agreement for team mode: branches, commits, creating and reviewing pull requests. It is written formally because a team adopts it as its agreement, and for members who are not technical (BA, tester). The agreement is host- and CLI-neutral; host procedures cover GitHub, GitLab, and AWS CodeCommit; AI support is an appendix.
+- Team mode verifies pull requests on GitHub and GitLab only (`plugins/gin-workflow/src/scripts/workflow_core/team_host.py:13`). CodeCommit support is the separate epic `gin-workflow-uj2o` (not urgent); the page states the limitation.
 
 Comments considered: 0. The epic description and its notes (latest 2026-11-08) are the input.
 
-In scope: `docs/guides/ba.md`, `docs/roles.md`, `docs/starters/brownfield.md`, `docs/starters/greenfield.md`, `README.md`, `docs/guides/sdd.md`, `docs/reference/cli.md`, `docs/reference/skills.md`, `docs/reference/config.md`, `docs/concepts/architecture.md`, `docs/concepts/lifecycle.md`, the existing `.vi.md` pairs of these pages, and the nav entry in `mkdocs.yml`.
+In scope: `docs/guides/ba.md`, `docs/roles.md`, `docs/starters/brownfield.md`, `docs/starters/greenfield.md`, `README.md`, `docs/guides/sdd.md`, `docs/reference/cli.md`, `docs/reference/skills.md`, `docs/reference/config.md`, `docs/concepts/architecture.md`, `docs/concepts/lifecycle.md`, the existing `.vi.md` pairs of these pages, the new `docs/guides/git-flow.md` and `git-flow.vi.md`, links to it from `docs/guides/team.md` and `docs/roles.md` (and their `.vi.md` pairs), the nav in `mkdocs.yml`, and the documentation table in `README.md`.
 
 Out of scope:
 - New behaviour; changes to skills, templates, or the CLI. A mismatch between docs and code becomes a bug bead on the epic that owns the code, not a fix here.
 - New `.vi.md` pairs for pages that have none (`cli.md`, `config.md`, `troubleshooting.md`, `concepts/*`, `orchestrator/*`, `contributing.md`).
 - Task-ordered role pages for roles other than the BA.
 - The `gin-workflow` lines in `docs/reference/troubleshooting.md`: they describe the upgrade to 3.0 on purpose.
+- CodeCommit support in team mode (`gin-workflow-uj2o`).
 
 ## Requirements
 
@@ -61,6 +64,23 @@ In `docs/starters/brownfield.md`, `greenfield.md`, and their `.vi.md` pairs, eve
 ### R5. Vietnamese text
 
 Every `.vi.md` change is written with the `vietnamese-tech-writing` skill of the `vietnamese-language-skill` plugin: the impersonal technical register, English kept for code, identifiers, commands, and established terms. A `.vi.md` page keeps the heading structure of its English pair.
+
+### R7. Team git agreement (track T5)
+
+New `docs/guides/git-flow.md` and `git-flow.vi.md`, titled `Team git agreement`, written as a formal agreement (SHALL for obligations), for readers who are not technical. Sections, in order:
+
+1. **Purpose and scope**: the agreement binds every member of a project with team mode on; it complements [team mode](team.md), which holds the mechanics.
+2. **Terms**: branch, base branch, commit, pull request (merge request on GitLab), review, approve, request changes, merge, conflict; one plain sentence each.
+3. **Branches**: the base branch is protected and no member commits to it; one branch per piece of work, named by kind: `roadmap/<topic>`, `spec/<topic>` (`spec/<epic>-<slug>` with the SDD layout), `plan/<topic>`, `feat/<topic>-t<N>`, `chore/<topic>`.
+4. **Commits**: messages follow the team's convention (`team.commit_convention`), checked by the commit-msg hook (`gin team hooks`).
+5. **Pull requests**: a table artifact → branch → approving role → gate, from `team.approvals` (`roadmap`, `requirement_confirmed`, `plan_approved`, `ship`); what a pull request carries (the template fields, including `Plan:` and `Tracks:`, and a link to the bead or spec).
+6. **Review**: who reviews what; a checklist per role (BA reviews a spec: stories with acceptance criteria, `Source:` lines, legacy edge cases; tester reviews a developer's pull request: acceptance criteria met, test evidence present; tech lead reviews a plan); how to approve and how to request changes; a reviewer responds within one working day (a recommended default the team may change).
+7. **Approval and merge rules**: no member approves their own pull request; an approval counts only on the latest commit, so a push after approval needs a new approval; a pull request merges only with the required approvals and passing CI; the author merges and deletes the branch.
+8. **Conflicts and changes after approval**: the author updates the branch from the base and asks for review again; a requirement change after plan approval goes in a new change folder.
+9. **Host procedures**: GitHub and GitLab, each with the web steps (create, review, approve, merge) and the equivalent `gh` / `glab` commands; AWS CodeCommit with the console steps (approval rule template, approve, merge) and the limitation that gin cannot verify a CodeCommit pull request, so gates with roles cannot be recorded from it yet.
+10. **Appendix: AI support**: sample prompts that ask the agent to commit, push, and open a pull request, summarise a pull request to review, or address review comments.
+
+The page is in the `mkdocs.yml` nav (next to Team mode) and the `README.md` documentation table; `team.md` and `roles.md` (and their `.vi.md` pairs) link to it.
 
 ### R6. Final checks (track T4)
 
@@ -105,6 +125,15 @@ As a Vietnamese reader, I want each `.vi.md` page to read as native technical Vi
 Acceptance criteria:
 - Every changed `.vi.md` was written with `vietnamese-tech-writing`.
 - Each changed `.vi.md` has the same heading count and order as its English pair.
+
+### US-6: Follow one git agreement as a non-technical member
+As a BA or tester, I want one formal page that says how the team branches, opens, reviews, approves, and merges pull requests, step by step on our host, so that I follow the team's agreement without knowing git.
+
+Acceptance criteria:
+- `docs/guides/git-flow.md` has the ten sections of R7 in that order, and every term it uses is defined in its Terms section.
+- Each host section gives the web steps for create, review, approve, and merge; GitHub and GitLab also give the CLI commands.
+- The CodeCommit section states that gin cannot verify a CodeCommit pull request yet.
+- The page is reachable from the nav, `README.md`, `team.md`, and `roles.md`.
 
 ## Errors and compatibility
 
