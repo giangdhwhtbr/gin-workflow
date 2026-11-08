@@ -207,7 +207,8 @@ def _open_roadmap_epics(beads: Beads) -> dict[str, Mapping[str, Any]]:
 
 def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) -> dict[str, Any] | None:
     """When every open roadmap epic finishes: open milestones in `end` order on their own lanes, one after
-    another, then the unassigned pool on `default_lanes`. None when no roadmap epic is open."""
+    another, then the unassigned pool on `default_lanes`. None when no roadmap epic is open. On a cycle or bad
+    milestone metadata, `error` is set and `finish` covers only the groups placed before it."""
     epics = _open_roadmap_epics(beads)
     if not epics:
         return None
@@ -226,6 +227,8 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
     cursor, ends = _workday(today), []
     try:
         for milestone, group in groups:
+            if not group:
+                continue
             if milestone is None:
                 first, lanes = cursor, default_lanes
             else:
@@ -240,7 +243,6 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
                 cursor = _workday(max(group_ends) + timedelta(days=1))
     except ValueError as error:  # CycleError and bad milestone metadata
         result["error"] = str(error)
-        return result
     if ends:
         finish = max(ends)
         result["finish"] = finish.isoformat()
@@ -276,8 +278,6 @@ def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadm
         except ValueError as error:  # CycleError included
             entry["error"] = str(error)
         entries.append(entry)
-    unassigned = sum(1 for bead in beads.values()
-                     if bead.get("issue_type") == "epic" and "roadmap" in (bead.get("labels") or [])
-                     and bead.get("status") != "closed" and not bead.get("parent"))
+    unassigned = sum(1 for bead in _open_roadmap_epics(beads).values() if not bead.get("parent"))
     return {"schema": SCHEMA, "milestones": entries, "unassigned_epics": unassigned, "today": today.isoformat(),
             "forecast": forecast(beads, today, roadmap, default_lanes)}
