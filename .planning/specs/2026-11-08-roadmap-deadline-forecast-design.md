@@ -1,7 +1,7 @@
 # Roadmap deadline and forecast: project deadline, lanes per milestone, forecast over every open epic
 
 Epic: gin-workflow-57fw
-Status: draft for user review.
+Status: confirmed by the user on 2026-11-08.
 
 ## Goal and scope
 
