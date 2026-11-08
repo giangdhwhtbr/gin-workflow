@@ -23,7 +23,7 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 |---|---|---|
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
 | `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--workspace`, `--stack-intent`) into `--set` assignments | no |
-| `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode`) | no |
+| `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode\|copilot`) | no |
 | `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the `gin` block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block | yes |
 | `configure` | Changes repository configuration (`--set key=value`) | yes |
 | `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration, rewrites `executables.local.yaml`, and re-renders an existing `AGENTS.md` block (never creates one) | yes |
@@ -125,7 +125,7 @@ Exit codes: 0 success; 2 invalid configuration or rule pack.
 gin specs <command> [options]
 ```
 
-Living specs for `artifacts.layout: sdd`. Every command except `template`, `migrate`, and `reqs` without `--change` requires that layout; `migrate` requires the `legacy` layout.
+Living specs for `artifacts.layout: sdd`. Every command except `template`, `migrate`, `reqs` without `--change`, and `lint --spec` requires that layout; `migrate` and `lint --spec` require the `legacy` layout.
 
 | Command | Purpose |
 |---|---|

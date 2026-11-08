@@ -1,6 +1,6 @@
 # Greenfield project starter
 
-This guide bootstraps a new project with Claude Code and gin-workflow, from an empty repository to the first feature.
+This guide bootstraps a new project with Claude Code and gin-workflow, from an empty repository to the first feature. The prompts use a clinic booking service as the example project.
 
 ---
 
@@ -31,6 +31,9 @@ Inside Claude Code, run setup:
 
 ```text
 /gin:setup
+Stage: greenfield. Shape: fullstack. Rigor: standard.
+Stack: TypeScript and React for the web app, Python and FastAPI for the API, PostgreSQL.
+Task tracking: markdown.
 ```
 
 Setup detects your environment and asks:
@@ -59,6 +62,9 @@ Use `/gin:discuss` to define the high-level architecture:
 
 ```text
 /gin:discuss Project architecture, folder structure, and tech stack foundation
+Product: online booking for a small clinic; patients book and cancel visits.
+Constraints: one deployable API, no microservices; patient data stays in one region.
+Out of scope: payments and notifications.
 ```
 
 Claude proposes 2-3 approaches, weighs the tradeoffs, and writes a spec to `.planning/specs/` (with the SDD layout, a change folder under `docs/changes/`, plus an Architecture Decision Record in `docs/adr/` for an architecture decision). Review and confirm the design to record `requirement-confirmed`.
@@ -68,6 +74,8 @@ Run `/gin:plan` to split the foundation into testable tracks:
 
 ```text
 /gin:plan project-scaffolding
+Tracks: directory structure and tooling; database migrations and connection pool; API server with /health and logging; CI workflow.
+The database and API server tracks run in parallel once the directory structure is in place.
 ```
 
 Typical tracks:
@@ -83,7 +91,11 @@ Run `/gin:orchestrate` and `/gin:execute` to build the foundation test-first:
 
 ```text
 /gin:orchestrate project-scaffolding
+Create the track beads and worktrees from the approved plan.
+```
+```text
 /gin:execute
+Start with the directory structure track and run the project's checks before closing it.
 ```
 
 Claude implements each track in an isolated Git worktree, writes tests first, reviews, and closes the track.
@@ -91,6 +103,8 @@ Claude implements each track in an isolated Git worktree, writes tests first, re
 ### Ship the foundation
 ```text
 /gin:ship
+Epic: project-scaffolding.
+Merge locally into main.
 ```
 
 Choose merge locally to merge the foundation into `master` or `main`.

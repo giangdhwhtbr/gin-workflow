@@ -83,7 +83,7 @@ The system SHALL show only the reports created in the selected date range.
 Source: `assets/2026-05-11/mockup/index.html#report-list`, `assets/2026-05-11/description.md`
 ```
 
-`specs archive` sao chép dòng này vào `spec.md` cùng phần còn lại của khối, và `specs export` in nó ra. [Add-on BA](ba.md) viết mockup và mô tả hệ thống cũ theo đúng dạng này.
+`specs archive` sao chép dòng này vào `spec.md` cùng phần còn lại của khối, và `specs export` in nó ra. [Hướng dẫn cho BA](ba.md) viết mockup và mô tả hệ thống cũ theo đúng dạng này.
 
 `specs archive` sao chép văn bản của từng khối requirement vào `docs/specs/<capability>/spec.md`, nên hãy viết đường dẫn ảnh tương đối so với file đó (`assets/2026-05-11/report-list.png`). Trong `02-spec-delta.md` của thư mục change, các liên kết đó không resolve được cho tới khi change ship.
 

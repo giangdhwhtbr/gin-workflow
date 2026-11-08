@@ -1,6 +1,6 @@
 # Starter dự án greenfield
 
-Hướng dẫn này khởi tạo một dự án mới bằng Claude Code và gin-workflow, từ repository trống tới tính năng đầu tiên.
+Hướng dẫn này khởi tạo một dự án mới bằng Claude Code và gin-workflow, từ repository trống tới tính năng đầu tiên. Các prompt dùng một dịch vụ đặt lịch khám của phòng khám làm dự án ví dụ.
 
 ---
 
@@ -31,6 +31,9 @@ Trong Claude Code, chạy setup:
 
 ```text
 /gin:setup
+Stage: greenfield. Shape: fullstack. Rigor: standard.
+Stack: TypeScript and React for the web app, Python and FastAPI for the API, PostgreSQL.
+Task tracking: markdown.
 ```
 
 Setup phát hiện môi trường của bạn và hỏi:
@@ -59,6 +62,9 @@ Dùng `/gin:discuss` để xác định kiến trúc ở mức tổng quan:
 
 ```text
 /gin:discuss Project architecture, folder structure, and tech stack foundation
+Product: online booking for a small clinic; patients book and cancel visits.
+Constraints: one deployable API, no microservices; patient data stays in one region.
+Out of scope: payments and notifications.
 ```
 
 Claude đề xuất 2-3 hướng tiếp cận, cân nhắc đánh đổi và viết một spec vào `.planning/specs/` (với layout SDD là một change folder dưới `docs/changes/`, cộng một Architecture Decision Record trong `docs/adr/` cho quyết định kiến trúc). Review và xác nhận thiết kế để ghi nhận `requirement-confirmed`.
@@ -68,6 +74,8 @@ Chạy `/gin:plan` để chia phần nền thành các track có thể kiểm th
 
 ```text
 /gin:plan project-scaffolding
+Tracks: directory structure and tooling; database migrations and connection pool; API server with /health and logging; CI workflow.
+The database and API server tracks run in parallel once the directory structure is in place.
 ```
 
 Các track điển hình:
@@ -83,7 +91,11 @@ Chạy `/gin:orchestrate` và `/gin:execute` để xây phần nền theo hướ
 
 ```text
 /gin:orchestrate project-scaffolding
+Create the track beads and worktrees from the approved plan.
+```
+```text
 /gin:execute
+Start with the directory structure track and run the project's checks before closing it.
 ```
 
 Claude triển khai từng track trong một Git worktree cô lập, viết test trước, review, rồi đóng track.
@@ -91,6 +103,8 @@ Claude triển khai từng track trong một Git worktree cô lập, viết test
 ### Ship phần nền tảng { #ship-the-foundation }
 ```text
 /gin:ship
+Epic: project-scaffolding.
+Merge locally into main.
 ```
 
 Chọn merge cục bộ để merge phần nền vào `master` hoặc `main`.

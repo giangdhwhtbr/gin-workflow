@@ -71,12 +71,13 @@ plugins:
             Brownfield: Dự án có sẵn
             Use cases: Tình huống sử dụng
             Team mode: Chế độ nhóm
+            Team git agreement: Thoả thuận git của team
             Workspace: Không gian làm việc
             Using AI effectively: Dùng AI hiệu quả
             Working with Claude Code: Làm việc với Claude Code
             SDD living specs: Living specs (SDD)
             QA add-on: Tiện ích QA
-            BA add-on: Tiện ích BA
+            Business analyst: Business analyst (BA)
             Customizing templates: Tùy chỉnh template
             Rule packs: Bộ quy tắc
             AI usage report: Báo cáo sử dụng AI
@@ -113,12 +114,13 @@ nav:
   - Guides:
       - Use cases: guides/use-cases.md
       - Team mode: guides/team.md
+      - Team git agreement: guides/git-flow.md
       - Workspace: guides/workspace.md
       - Using AI effectively: guides/ai-strategy.md
       - Working with Claude Code: guides/claude-workflow.md
       - SDD living specs: guides/sdd.md
       - QA add-on: guides/qa.md
-      - BA add-on: guides/ba.md
+      - Business analyst: guides/ba.md
       - Customizing templates: guides/customizing-templates.md
       - Rule packs: guides/rules.md
       - AI usage report: guides/usage-report.md

@@ -86,6 +86,8 @@ flowchart LR
 **Prompt**
 ```text
 /gin:setup
+Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
+Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
 Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó điền `workspace.repos` trong `.agent-workflow/config.yaml`:
 
@@ -145,16 +147,23 @@ mkdir -p services/api apps/web qa
 **Prompt (Tech Lead)**
 ```text
 /gin:team-setup
+Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_dev), chi@example.com (qe).
+Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads all four.
+Approvals: requirement_confirmed by ba and be_lead; plan_approved by the area lead; ship by qe and be_lead; roadmap by pm and be_lead.
+Permissions: only the pm changes milestones.
 ```
 
 **Prompt (mỗi thành viên, sau khi pull branch đã merge)**
 ```text
 /gin:team-setup
+I am Em (em@example.com), a be_dev. The team: block is merged on master.
 ```
 
 **Prompt (Chi, một lần)**
 ```text
 /gin-qa:setup
+Case types: api, e2e and manual.
+The api type: tests under qa/api/, run with npm test.
 ```
 
 Đưa vào prompt: bảy thành viên cùng git email và vai trò của họ, bốn khu vực cùng đường dẫn, và `permissions: {milestone: [pm]}` để chỉ PM thay đổi milestone. Với `/gin-qa:setup`: các loại case `api`, `e2e` và `manual`, và lệnh test của loại `api`.
@@ -178,6 +187,9 @@ Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, ch�
 **Prompt**
 ```text
 /gin:tech-doc whole repository
+Entry points: web.xml and struts-config.xml in legacy/shop-portal.
+Database: Oracle; the checkout JSPs call stored procedures.
+Replace first: the catalog, then the cart and checkout.
 ```
 
 Đưa vào prompt: các entry point bạn biết (`web.xml`, cấu hình Struts), cơ sở dữ liệu, và các module bạn định thay thế trước.
@@ -198,12 +210,17 @@ Khi hệ thống legacy dùng một ngôn ngữ khác tiếng Anh, bộ này cò
 
 **Prompt**
 ```text
-/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with the REST API and the React SPA within two quarters; the Oracle schema stays; no downtime. Non-goals: reporting screens.
+/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with the Spring Boot REST API and the React SPA.
+Deadline: 2027-05-28.
+Constraints: the Oracle schema stays; no downtime; each module cuts over behind the facade.
+Non-goals: reporting screens.
 ```
 
-Đưa vào prompt: mục tiêu và thời hạn, các ràng buộc không thể dịch chuyển (ở đây là schema và zero downtime), và các non-goal.
+Đưa vào prompt: mục tiêu, deadline, các ràng buộc không thể dịch chuyển (ở đây là schema, zero downtime và facade), và các non-goal. Thứ tự thực hiện và cách làm việc không phải đầu vào: skill đề xuất cả hai và PM xác nhận.
 
-**Kết quả:** skill đọc bộ tech-doc, hỏi về mục tiêu, nhóm và năng lực AI, cùng các ràng buộc, đề xuất hai hoặc ba cách chia công việc, và hiển thị roadmap để bạn xác nhận. Sau khi bạn xác nhận, nó ghi `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) trên branch `roadmap/<topic>` và, sau khi đồng bộ, tạo mỗi mục một epic cùng dependency của nó trong Beads. Đọc kết quả dưới dạng đồ thị:
+**Kết quả:** skill đọc bộ tech-doc và hỏi về mục tiêu, deadline, các ràng buộc và năng lực AI. Dòng `AI capacity:` bắt đầu bằng số lane, tức số luồng công việc mà mỗi luồng chạy một epic tại một thời điểm. Skill đề xuất hai hoặc ba cách chia công việc cùng một cách làm việc, rồi hiển thị roadmap kèm `Estimate:` theo ngày làm việc của từng epic để xác nhận. Khi chưa có epic roadmap nào đã đóng để đo tốc độ, skill hỏi một giá trị ngày cho mỗi cỡ (nhỏ, vừa, lớn) và đánh dấu các ước lượng là `(assumed)`.
+
+Sau khi xác nhận, skill ghi `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) trên branch `roadmap/<topic>`. `Deadline:` và `AI capacity:` nằm dưới `## Constraints`, còn cách làm việc đã xác nhận nằm dưới `## Way of working`. Sau khi đồng bộ, skill tạo mỗi mục một epic cùng dependency trong Beads và lưu từng ước lượng bằng `gin milestone estimate`. Báo cáo của skill so sánh forecast từ `gin milestone list` với deadline: ngày hoàn thành, số ngày làm việc còn dư hoặc vượt, và số epic chưa có ước lượng. Vượt deadline chỉ được báo cáo, không chặn. Đọc kết quả dưới dạng đồ thị:
 
 ```bash
 gin task graph --all
@@ -213,7 +230,7 @@ Trang Dependencies của gin-console hiển thị cùng đồ thị đó. Từ �
 
 **Cổng hoặc phê duyệt:** với `team.approvals.roadmap: [pm, be_lead]`, roadmap đi qua một pull request mà Binh duyệt (Lan không thể tự duyệt). Chạy lại prompt với URL của PR; skill kiểm tra nó bằng `gin team check <url> --gate roadmap`, rồi tạo các epic.
 
-**Lỗi thường gặp:** sửa epic id trong file roadmap về sau (id không bao giờ đổi một khi đã ghi); mong roadmap đóng hoặc xóa các epic bạn bỏ khỏi file (nó chỉ báo cáo chúng); bắt đầu với epic có nhiều người dùng nhất thay vì epic mở khóa phần còn lại.
+**Lỗi thường gặp:** sửa epic id trong file roadmap về sau (id không bao giờ đổi một khi đã ghi); mong roadmap đóng hoặc xóa các epic bạn bỏ khỏi file (nó chỉ báo cáo chúng); bắt đầu với epic có nhiều người dùng nhất thay vì epic mở khóa phần còn lại; coi forecast dựa trên ước lượng `(assumed)` là kết quả chắc chắn.
 
 ## Lập kế hoạch milestone { #milestone-planning }
 
@@ -223,25 +240,35 @@ Trang Dependencies của gin-console hiển thị cùng đồ thị đó. Từ �
 
 **Prompt**
 ```bash
-gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28
+gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28 --lanes 3
 ```
 ```text
 /gin:roadmap --milestone <id>
+Milestone goal: customers browse the catalog on the new API behind the facade.
+Leave out: the cart and checkout epics.
 ```
-Dùng id mà `milestone create` in ra. Đưa vào prompt: "Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first."
 
-Sau đó chốt ngày kick-off và đọc lịch:
+Dùng id mà `milestone create` in ra. Đưa vào prompt: mục tiêu của milestone và các epic cần loại ra. Skill tự chọn các epic sẵn sàng.
+
+`--lanes` là năng lực của milestone này và có thể khác số ở `AI capacity:` của dự án. Khi không có `--lanes`, milestone dùng số đó, rồi đến số `team.members`, rồi 1.
+
+Sau đó chốt ngày kick-off, đọc forecast và đọc lịch:
 
 ```bash
 gin milestone kickstart <id> --date 2026-11-10
+gin milestone list
 gin milestone show <id>
 ```
 
-**Kết quả:** các epic được chọn nằm dưới milestone, mỗi epic có ước lượng theo ngày làm việc, và một lịch kèm các cảnh báo (`overflow`, `late`, `unestimated`, `external_blocker`). Một milestone là một bead của Beads có ngày bắt đầu và ngày kết thúc, không phải một label.
+**Kết quả:** các epic được chọn nằm dưới milestone, mỗi epic có `Estimate:` theo ngày làm việc. File roadmap gom chúng dưới `## Milestone: <title>`, mở đầu bằng `Spec ready by:` (ngày kick-off, nếu chưa có thì ngày bắt đầu) và một khối `Integration point:`. Integration point chỉ là một ngày trong file roadmap; Beads không lưu nó.
+
+`gin milestone list` in một dòng forecast cho mọi epic đang mở, đã gán milestone hay chưa. `gin milestone show` in lịch và các cảnh báo (`overflow`, `late`, `unestimated`, `external_blocker`, `spec_not_ready`). Sau kick-off, `spec_not_ready` đánh dấu epic đang mở mà spec chưa được xác nhận, để BA biết spec nào đến hạn.
+
+Lặp lại cho từng milestone. Khi các milestone đóng, số epic đang mở trong dòng forecast giảm và ngày hoàn thành thay đổi, vì các epic còn lại được xếp lịch lại từ hôm nay. Một milestone là một bead của Beads có ngày bắt đầu và ngày kết thúc, không phải một label.
 
 **Cổng hoặc phê duyệt:** `permissions.milestone: [pm]` chỉ cho Lan ghi; cổng pull request roadmap của giai đoạn trước vẫn áp dụng cho các thay đổi roadmap.
 
-**Lỗi thường gặp:** chọn một epic có blocker nằm ở milestone sau (`external_blocker`); để epic không có ước lượng (`unestimated`); lập kế hoạch vượt quá ngày kết thúc (`overflow`).
+**Lỗi thường gặp:** chọn một epic có blocker nằm ở milestone sau (`external_blocker`); để epic không có ước lượng (`unestimated`); lập kế hoạch vượt quá ngày kết thúc (`overflow`); kick-off milestone khi epic chưa có spec được xác nhận (`spec_not_ready`).
 
 ## Discuss một epic { #discuss-an-epic }
 
@@ -251,7 +278,11 @@ gin milestone show <id>
 
 **Prompt**
 ```text
-/gin:discuss <epic-id>
+/gin:discuss shop-portal-catalog-read
+Replace the JSP catalog list and product detail pages.
+Legacy rules: hidden products never show; the price comes from the customer's price list and falls back to the list price; out-of-stock items show "Notify me".
+API contract: GET /api/products?category=&page= and GET /api/products/{id}, with the same fields as the JSP model.
+Out of scope: search and reviews.
 ```
 
 Đưa vào prompt: hành vi người dùng nhìn thấy của luồng JSP bạn thay thế, các edge case và quy tắc validation của nó (xem [Ghi lại hành vi hiện tại trước](#capture-current-behavior-first)), hợp đồng REST API mà service mới phải đáp ứng, và những gì nằm ngoài phạm vi.
@@ -281,8 +312,17 @@ Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (pa
 
 **Prompt**
 ```text
-/gin:plan
-/gin:orchestrate
+/gin:plan shop-portal-catalog-read
+Migration: the facade comes first; the catalog API reads the existing Oracle tables, so no dual-write and no backfill.
+Rollback: route the facade back to the JSP pages when the parity tests fail after cutover.
+Parallel: QA cases, the catalog API, and the SPA against contract mocks.
+Seats: the router cutover track goes to Binh on a Premium seat.
+Each track names its repository, for example Repo: services/catalog-api.
+```
+```text
+/gin:orchestrate shop-portal-catalog-read
+Create the track beads and worktrees from the approved plan.
+Leave every track bead unassigned; members take theirs with gin team claim.
 ```
 
 Đưa vào prompt: các ràng buộc của migration (facade trước, dual-write hay backfill, tiêu chí rollback), các track nào có thể chạy song song, và ai giữ seat Premium. Mỗi track mang `Repo: <path>`, ví dụ `Repo: services/order-api`.
@@ -332,7 +372,12 @@ Các script kiểm tra parity và dữ liệu chạy trong hook `pre-push` khi l
 **Prompt**
 ```text
 /gin-qa:cases catalog
+Epic: shop-portal-catalog-read.
+Legacy behaviors the new API must match: hidden products never listed; customer price list with list-price fallback; the legacy pagination; the "Notify me" button on out-of-stock items.
+```
+```text
 /gin-qa:tests catalog --type api
+Compare the new API with the legacy pages on payloads recorded from staging.
 ```
 
 Đưa vào prompt: epic, và các hành vi legacy mà API mới phải khớp.
@@ -358,10 +403,12 @@ Unit test qua không chứng tỏ code mới hành xử như code cũ. Parity te
 **Prompt**
 ```bash
 gin team ready
-gin team claim <bead>
+gin team claim shop-portal-catalog-read.2
 ```
 ```text
 /gin:execute
+Track: shop-portal-catalog-read.2, the catalog API track in services/catalog-api.
+Stay inside that repository and run its checks before closing the track.
 ```
 
 Đưa vào prompt: track bead cần làm, nếu bạn muốn tự chọn.
@@ -389,8 +436,17 @@ Người nhận mới phải được phép sở hữu track trong các khu vự
 **Prompt**
 ```text
 /gin-qa:e2e catalog
+Base URL: the web-shop staging URL, read from BASE_URL.
+Accounts: SHOP_USER and SHOP_PASSWORD for a customer.
+Flows: browse a category, open a product page, join the "Notify me" list of an out-of-stock product.
+```
+```text
 /gin-qa:run catalog
+Manual cases only; start with TC-CATALOG-003.
+```
+```text
 /gin-qa:report catalog
+Include the evidence of this run; the report goes to the product owner as a zip.
 ```
 
 Đưa vào prompt: base URL của SPA, các tài khoản test (dưới dạng tên biến môi trường), và các luồng cần phủ.
@@ -414,6 +470,8 @@ Người nhận mới phải được phép sở hữu track trong các khu vự
 **Prompt**
 ```text
 /gin:ship
+Epic: shop-portal-catalog-read.
+Open a pull request instead of merging locally; Chi approves the latest commit first.
 ```
 
 Đưa vào prompt: epic, và liệu có merge ngay hay giữ branch.
@@ -439,7 +497,11 @@ gin milestone close <id> --reason "Catalog read path shipped; checkout epic move
 ```
 ```text
 /gin:report --milestone <id>
+Question: what did the catalog epics cost, and which of them were reopened or had bugs found later?
+```
+```text
 /gin:progress milestone <id>
+Question: which epics are still open, and which tracks block them?
 ```
 ```bash
 gin milestone kickstart <next-id> --date 2026-12-01
