@@ -244,13 +244,13 @@ gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28 
 ```
 ```text
 /gin:roadmap --milestone <id>
-Sprint goal: customers browse the catalog on the new API behind the facade.
+Milestone goal: customers browse the catalog on the new API behind the facade.
 Leave out: the cart and checkout epics.
 ```
 
-Dùng id mà `milestone create` in ra. Đưa vào prompt: mục tiêu của sprint và các epic cần loại ra. Skill tự chọn các epic sẵn sàng.
+Dùng id mà `milestone create` in ra. Đưa vào prompt: mục tiêu của milestone và các epic cần loại ra. Skill tự chọn các epic sẵn sàng.
 
-`--lanes` là năng lực của sprint này và có thể khác số ở `AI capacity:` của dự án. Khi không có `--lanes`, milestone dùng số đó, rồi đến số `team.members`, rồi 1.
+`--lanes` là năng lực của milestone này và có thể khác số ở `AI capacity:` của dự án. Khi không có `--lanes`, milestone dùng số đó, rồi đến số `team.members`, rồi 1.
 
 Sau đó chốt ngày kick-off, đọc forecast và đọc lịch:
 
@@ -264,11 +264,11 @@ gin milestone show <id>
 
 `gin milestone list` in một dòng forecast cho mọi epic đang mở, đã gán milestone hay chưa. `gin milestone show` in lịch và các cảnh báo (`overflow`, `late`, `unestimated`, `external_blocker`, `spec_not_ready`). Sau kick-off, `spec_not_ready` đánh dấu epic đang mở mà spec chưa được xác nhận, để BA biết spec nào đến hạn.
 
-Lặp lại cho từng sprint. Khi các sprint đóng, số epic đang mở trong dòng forecast giảm và ngày hoàn thành thay đổi, vì các epic còn lại được xếp lịch lại từ hôm nay. Một milestone là một bead của Beads có ngày bắt đầu và ngày kết thúc, không phải một label.
+Lặp lại cho từng milestone. Khi các milestone đóng, số epic đang mở trong dòng forecast giảm và ngày hoàn thành thay đổi, vì các epic còn lại được xếp lịch lại từ hôm nay. Một milestone là một bead của Beads có ngày bắt đầu và ngày kết thúc, không phải một label.
 
 **Cổng hoặc phê duyệt:** `permissions.milestone: [pm]` chỉ cho Lan ghi; cổng pull request roadmap của giai đoạn trước vẫn áp dụng cho các thay đổi roadmap.
 
-**Lỗi thường gặp:** chọn một epic có blocker nằm ở milestone sau (`external_blocker`); để epic không có ước lượng (`unestimated`); lập kế hoạch vượt quá ngày kết thúc (`overflow`); kick-off sprint khi epic chưa có spec được xác nhận (`spec_not_ready`).
+**Lỗi thường gặp:** chọn một epic có blocker nằm ở milestone sau (`external_blocker`); để epic không có ước lượng (`unestimated`); lập kế hoạch vượt quá ngày kết thúc (`overflow`); kick-off milestone khi epic chưa có spec được xác nhận (`spec_not_ready`).
 
 ## Discuss một epic { #discuss-an-epic }
 

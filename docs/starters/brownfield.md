@@ -244,13 +244,13 @@ gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28 
 ```
 ```text
 /gin:roadmap --milestone <id>
-Sprint goal: customers browse the catalog on the new API behind the facade.
+Milestone goal: customers browse the catalog on the new API behind the facade.
 Leave out: the cart and checkout epics.
 ```
 
-Use the id that `milestone create` prints. Put in the prompt: the sprint goal and the epics to leave out. The skill picks the ready epics itself.
+Use the id that `milestone create` prints. Put in the prompt: the milestone goal and the epics to leave out. The skill picks the ready epics itself.
 
-`--lanes` is the capacity of this sprint and may differ from the project's `AI capacity:` number. Without it, the milestone uses that number, then the count of `team.members`, then 1.
+`--lanes` is the capacity of this milestone and may differ from the project's `AI capacity:` number. Without it, the milestone uses that number, then the count of `team.members`, then 1.
 
 Then fix the kick-off date, read the forecast, and read the schedule:
 
@@ -264,11 +264,11 @@ gin milestone show <id>
 
 `gin milestone list` prints one forecast line over every open epic, assigned or not. `gin milestone show` prints the schedule and the warnings (`overflow`, `late`, `unestimated`, `external_blocker`, `spec_not_ready`). After the kick-off, `spec_not_ready` marks an open epic whose spec is not confirmed, so the BA sees which spec is due.
 
-Repeat for each sprint. As sprints close, the open epic count in the forecast line falls and the finish date moves, because the remaining epics are scheduled again from today. A milestone is a Beads bead with a start and an end date, not a label.
+Repeat for each milestone. As milestones close, the open epic count in the forecast line falls and the finish date moves, because the remaining epics are scheduled again from today. A milestone is a Beads bead with a start and an end date, not a label.
 
 **Gate or approval:** `permissions.milestone: [pm]` lets only Lan write; the roadmap pull request gate of the previous stage still applies to roadmap changes.
 
-**Common mistakes:** picking an epic whose blocker sits in a later milestone (`external_blocker`); leaving epics without an estimate (`unestimated`); planning past the end date (`overflow`); kicking off a sprint whose epics have no confirmed spec (`spec_not_ready`).
+**Common mistakes:** picking an epic whose blocker sits in a later milestone (`external_blocker`); leaving epics without an estimate (`unestimated`); planning past the end date (`overflow`); kicking off a milestone whose epics have no confirmed spec (`spec_not_ready`).
 
 ## Discuss an epic
 
