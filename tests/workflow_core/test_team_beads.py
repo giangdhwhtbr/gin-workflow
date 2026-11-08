@@ -393,6 +393,43 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertIn("cannot read review ledger", broken.stdout)
         self.assertEqual("binh@corp.com", show(self.root, self.bead)["assignee"])
 
+    def test_takeover_checks_out_the_handed_off_branch_and_claims(self):
+        self.assertEqual(0, run_cli(self.root, "team", "handoff", self.bead, "em@corp.com").returncode)
+        worktrees.cleanup(self.root, self.bead)
+        git(self.root, "branch", "-D", "feat/api-t1")
+        git(self.root, "config", "user.email", "em@corp.com")
+        taken = run_cli(self.root, "team", "takeover", self.bead, "--format", "json")
+        self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        result = json.loads(taken.stdout)
+        path = Path(result["worktree"])
+        self.assertEqual(self.root / ".planning/worktrees" / self.bead, path)
+        self.assertEqual("feat/api-t1", git(path, "rev-parse", "--abbrev-ref", "HEAD").strip())
+        self.assertEqual("v1", (path / "api.txt").read_text(encoding="utf-8"))
+        self.assertEqual("em@corp.com", show(self.root, self.bead)["assignee"])
+        self.assertIn("next: gin team deps --bead", taken.stderr)
+
+    def test_takeover_refuses_worktree_cwd_missing_branch_and_existing_directory(self):
+        shutil.copytree(self.root / ".agent-workflow", self.worktree / ".agent-workflow")
+        inside = run_cli(self.worktree, "team", "takeover", self.bead)
+        self.assertEqual(1, inside.returncode)
+        self.assertIn("main checkout", inside.stdout)
+        other = create(self.root, "DB", "area:backend")
+        missing = run_cli(self.root, "team", "takeover", other)
+        self.assertEqual(1, missing.returncode)
+        self.assertIn("pass --branch", missing.stdout)
+        git(self.worktree, "push", "-q", "-u", "origin", "feat/api-t1")
+        existing = run_cli(self.root, "team", "takeover", self.bead, "--branch", "feat/api-t1")
+        self.assertEqual(1, existing.returncode)
+        self.assertIn("already exists", existing.stdout)
+
+    def test_takeover_with_explicit_branch_when_no_metadata(self):
+        git(self.worktree, "push", "-q", "-u", "origin", "feat/api-t1")
+        worktrees.cleanup(self.root, self.bead)
+        git(self.root, "branch", "-D", "feat/api-t1")
+        taken = run_cli(self.root, "team", "takeover", self.bead, "--branch", "feat/api-t1")
+        self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        self.assertTrue((self.root / ".planning/worktrees" / self.bead / "api.txt").is_file())
+
 
 class TestPushWithoutReset(unittest.TestCase):
     """A rejected push retries through sync once; local Beads are never reset."""

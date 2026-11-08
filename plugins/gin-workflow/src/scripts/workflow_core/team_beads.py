@@ -307,6 +307,33 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
     return result
 
 
+def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch: str | None = None) -> dict[str, Any]:
+    """Fetch the handed-off branch, check it out at .planning/worktrees/<bead>, fetch the review ref, claim."""
+    git_dir = (root / worktrees._git(root, "rev-parse", "--git-dir")).resolve()
+    common = (root / worktrees._git(root, "rev-parse", "--git-common-dir")).resolve()
+    if git_dir != common:
+        raise SyncConflict("run gin team takeover from the main checkout, not a linked worktree")
+    if team.beads_remote:
+        sync(root)
+    issue = _show(root, bead)
+    branch = branch or str(handoff_of(issue).get("branch") or "")
+    if not branch:
+        raise SyncConflict(f"no handoff branch recorded for {bead}; pass --branch <name>")
+    try:
+        worktrees._git(root, "fetch", "origin", branch)
+        path = worktrees.checkout(root, bead, branch)
+    except (RuntimeError, ValueError) as error:
+        raise SyncConflict(str(error)) from error
+    ref = _ledger_ref(path, bead)
+    try:
+        worktrees._git(path, "fetch", "origin", f"+{ref}:{ref}")
+    except RuntimeError:
+        print(f"no review ref {ref} on origin for {bead}", file=sys.stderr)
+    result = claim(root, team, member, bead)
+    print(f"next: gin team deps --bead {bead}", file=sys.stderr)
+    return {**result, "branch": branch, "worktree": str(path)}
+
+
 def _tracks_in(body: str) -> tuple[str, set[int]]:
     plan = _PLAN_LINE.search(body)
     tracks = _TRACKS_LINE.search(body)

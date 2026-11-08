@@ -39,6 +39,9 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("email", nargs="?")
     item.add_argument("--release", action="store_true")
     item.add_argument("--worktree")
+    item = sub.add_parser("takeover", parents=[common])
+    item.add_argument("bead")
+    item.add_argument("--branch")
     sub.add_parser("deps", parents=[common]).add_argument("--bead")
     sub.add_parser("sync", parents=[common])
     return parser
@@ -134,6 +137,10 @@ def _run(args: argparse.Namespace) -> int:
                                         worktree=args.worktree)
             _emit(result, args.format, f"{result['status']} {args.bead} on {result['branch']}"
                   + (f" -> {result['assignee']}" if result.get("assignee") else ""))
+            return 0
+        if args.command == "takeover":
+            result = team_beads.takeover(root, team, member, args.bead, branch=args.branch)
+            _emit(result, args.format, f"{result['status']} {args.bead} at {result['worktree']} on {result['branch']}")
             return 0
         if args.command == "deps" and args.bead:
             result = team_beads.deps_for(root, args.bead)
