@@ -11,7 +11,7 @@ Source: {{source}}
      A plain /roadmap omits them and lists its epics under Unassigned.
      gin milestone list reads two Constraints lines: Deadline: (YYYY-MM-DD, the project deadline) and the whole
      number that starts AI capacity: (the default lanes, streams of work that each run one epic at a time).
-     The way-of-working section is written by a plain /roadmap from the skill's references/way-of-working.md and kept on re-runs;
+     The way-of-working section is written by /roadmap from the skill's references/way-of-working.md and kept on re-runs;
      Spec ready by: and Integration point: are written by /roadmap --milestone. Older files without them stay valid. -->
 
 ## Goals
