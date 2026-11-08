@@ -28,6 +28,8 @@ Return one line: `<TC-ID> done|app_defect|blocked <run folder> <reason>`.
 
 ## Fixture without snapshots
 
+`gin-qa e2e init` merges this block when the fixture matches the template exactly, and otherwise says so and leaves the file.
+
 A repository whose `evidence.ts` has no `ariaSnapshot` predates step snapshots. Its owner merges this into `ev.step`, after the screenshot, and adds `snapshot: string | null; url: string;` to `StepResult` and `snapshot, url: page.url(),` to the pushed step:
 
 ```ts

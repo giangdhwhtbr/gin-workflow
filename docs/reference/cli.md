@@ -387,7 +387,9 @@ In single-harness mode (`provider_mode: single`), `gin` resolves for the main ha
 
 ## `gin-qa`
 
-The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing. `gin-qa e2e plan` and `gin-qa tests plan` exit 2 when the capability is a TC-ID, and name its capability.
+The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR] [--zip]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL] [--install]` also writes `playwright.config.ts` when the repository root has none; an invalid URL exits 2 and writes nothing. It adds the evidence folder to `.gitignore`. On an existing `evidence.ts` without `ariaSnapshot`, it merges the step snapshots when the file matches the template, and otherwise prints a line to merge by hand and leaves the file.
+
+`--install` first reads `package.json` at the repository root; a missing or invalid file, or a `scripts` that is not an object, exits 2 before anything changes. It then runs the install commands for the package manager of the lockfile at the repository root (`pnpm-lock.yaml`, `yarn.lock`, else `npm` and `npx`): add `@playwright/test`, unless it is already installed, and `playwright install chromium`. It adds `"e2e": "playwright test"` to `scripts` when missing. A manager not found or a failed command exits 2 and names the commands to run by hand. Without the flag, `init` only prints those steps. `gin-qa e2e plan` and `gin-qa tests plan` exit 2 when the capability is a TC-ID, and name its capability.
 
 ### `gin-qa cases check`
 
@@ -406,6 +408,7 @@ Output: text `TC-AUTH-001 passed`; JSON `{"tc", "result", "run", "bug", "file"}`
 `gin-qa cases bug <TC-ID> --actual TEXT [--evidence REF]... [--external-ref REF] [--discovered-from BEAD] [--run REF]` records `failed` on a manual case and files a bug bead for it.
 
 - When the case's `Bug:` is a bead that `gin task show` reports with a `status` other than `closed`, no bead is created, the case keeps that bug, and `epic` is `null`. No epic is needed.
+- When the bug is open, the new actual result is added to its notes with `gin task update --append-notes`, as one line, `Re-run <date>; Run: <ref>; Actual: <text>; Evidence: <refs>`; the `Run` and `Evidence` parts are left out when empty, and double quotes become single quotes. A failed update exits 2 and leaves the case unchanged.
 - A `Bug:` value that is not a bead, or that `task show` cannot read, counts as no open bug; the new bug names it as `Previous bug`.
 - Otherwise the epic is found:
   - from the spec named in `Source:`, which must be inside the repository: its `Epic:` line, or the `epic` of `gin state --workflow-id <topic>` for its `Workflow: <topic>` line;
@@ -423,7 +426,23 @@ Exit 2, writing nothing, when:
 
 When the bead is created but the result cannot be recorded, it exits 2 and names the bead and the `cases result` command to run.
 
-Output: text `TC-AUTH-001 failed gw-12`; JSON `{"tc", "bug", "epic", "created", "file"}`.
+Output: text `TC-AUTH-001 failed gw-12`; JSON `{"tc", "bug", "epic", "created", "appended", "file"}`. `appended` is true when the result went into the notes of an open bug.
+
+### `gin-qa cases new`
+
+`gin-qa cases new <capability> --type TYPE --title TITLE (--req REQ-ID... | --source PATH#HEADING)` writes `qa/cases/<capability>/<TC-ID>-<slug>.<type>.md` with the next ID. The case holds the `REQ` field with the requirement's current `hash8` (SDD layout, `--req` repeated for several requirements, a repeated one pinned once) or the `Source` field (legacy layout, `--source`), `Priority: medium`, and the four sections empty. `gin-qa cases check` reports the case until its steps and expected results are written.
+
+Exit 2, writing nothing, when `--req` is used with the legacy layout or `--source` with the SDD layout, a REQ-ID does not exist, the title or source is empty or not one line, the capability is not `[a-z][a-z0-9-]*`, the type is not listed under `## Types` in the guidelines, or `qa/cases/<capability>.md` is a flat file (run `cases split` first).
+
+Output: text the file path; JSON `{"tc", "file"}`.
+
+### `gin-qa cases to-manual`
+
+`gin-qa cases to-manual <TC-ID> --reason TEXT` moves an e2e case to manual. Under the cases lock it writes `Moved from e2e: <UTC date>: <reason>` and `Result: not run`, removes the `Run` line, keeps `Bug:`, renames the file from `.e2e.md` to `.manual.md`, and deletes the spec last, so a failed delete leaves an orphan that `gin-qa e2e check` reports.
+
+Exit 2, writing nothing, when the ID does not exist, the case is not `e2e`, the reason is empty or not one line, the case is in a flat cases file, it already has a `Moved from e2e:` line, `manual` is missing under `## Types` in the guidelines, or the `.manual.md` file exists.
+
+Output: text the new file path, then the deleted spec path or `no spec`; JSON `{"tc", "file", "spec"}` (`spec` is `null` when there was none).
 
 ### `gin-qa cases split`
 
@@ -435,7 +454,7 @@ Output: text lists the files written; JSON `{"written": [...]}`.
 
 ### `gin-qa cases export` and `gin-qa e2e run`
 
-Each case in `gin-qa cases export --format json` adds `result` (`not run` without a `Result:` line), `run` and `bug` (empty strings when absent), and `test_data` (a list).
+Each case in `gin-qa cases export --format json` adds `result` (`not run` without a `Result:` line), `run` and `bug` (empty strings when absent), `moved_from_e2e` (`{"date", "reason"}`, or `null`), and `test_data` (a list).
 
 `gin-qa e2e run` records each case's result in its case file, the worst over its Playwright projects: `failed`, then `blocked`, then `passed`. A case with no result folder, or an invalid `result.json`, is `blocked`. Its JSON output lists them under `recorded` as `[{"tc", "result"}]`. A recording error is listed under `findings` and does not stop the other cases.
 
@@ -446,8 +465,8 @@ Each case in `gin-qa cases export --format json` adds `result` (`not run` withou
 - `plan [capability] [--type T]`: `missing` (a case of the type with no `TC: <TC-ID>@<hash8>` line in the type's test files). The other rows are `stale` (a marker whose hash8 is not the case's), and `orphan` (a marker of a case that is gone or of another type). `--format json` adds `types` and `guidelines`.
 - `pin <TC-ID>...`: rewrites the hash8 of every marker of each case; writes nothing when any ID fails.
 - `check [--type T]`: the declaration errors when there are any; otherwise the `plan` rows, as findings.
-- `run --type T [TC-ID|capability ...]`: runs the command from the repository root, without a shell, into `qa/evidence/<UTC stamp>-<T>/` (`run.json`, `junit.xml`). `{junit}` becomes the JUnit file's path and `{files}` the test files of the selected cases. A JUnit test case whose name or classname holds the TC-ID (in any case, `_` read as `-`) belongs to that case. The case records `failed` (a failure or error), `blocked` (skipped), or `passed`, the worst over its tests, and `blocked` with a finding when none ran. When `junit.xml` is missing or unreadable, every selected case records `blocked` with one finding. `--format json` prints `{"run", "exit", "findings", "recorded"}`. Exit: the command's non-zero exit, else 1 on findings, else 0; a command not found exits 2.
+- `run --type T [TC-ID|capability ...]`: runs the command from the repository root, without a shell, into `qa/evidence/<UTC stamp>-<T>/` (`run.json`, `junit.xml`), which it adds to `.gitignore`. `{junit}` becomes the JUnit file's path and `{files}` the test files of the selected cases. A JUnit test case whose name or classname holds the TC-ID (in any case, `_` read as `-`) belongs to that case. The case records `failed` (a failure or error), `blocked` (skipped), or `passed`, the worst over its tests, and `blocked` with a finding when none ran. When `junit.xml` is missing or unreadable, every selected case records `blocked` with one finding. `--format json` prints `{"run", "exit", "findings", "recorded"}`. Exit: the command's non-zero exit, else 1 on findings, else 0; a command not found exits 2.
 
 ### `gin-qa report`
 
-`gin-qa report [capability] [--out DIR] [--format text|json]` writes `index.html` and a copy of each screenshot it shows into a new folder, `qa/evidence/report-<UTC stamp>/` by default (`-2`, `-3`, ... when that folder exists). `--out DIR`, relative to the repository, must be missing or empty. The command prints the path of `index.html`; `--format json` prints `{"report", "cases", "screenshots", "missing_evidence"}`. A run folder named by a case's `Run` line that cannot be read is listed under `missing_evidence` and on stderr, and the report is still written. No test cases in scope, an unknown capability, or a non-empty `--out` exit 2 and write nothing. A `Run` folder written by `gin-qa tests run` is shown as text, not read as e2e evidence.
+`gin-qa report [capability] [--out DIR] [--zip] [--format text|json]` writes `index.html` and a copy of each screenshot it shows into a new folder, `qa/evidence/report-<UTC stamp>/` by default (`-2`, `-3`, ... when that folder exists). `--out DIR`, relative to the repository, must be missing or empty. `--zip` also writes `<folder>.zip` next to the folder. The command prints the path of `index.html`, then the zip path with `--zip`; `--format json` prints `{"report", "zip", "cases", "moved", "screenshots", "missing_evidence"}`, where `zip` is `null` without the flag and `moved` counts the cases with a `Moved from e2e:` line. A report under the evidence folder adds that folder to `.gitignore`. A run folder named by a case's `Run` line that cannot be read is listed under `missing_evidence` and on stderr, and the report is still written. No test cases in scope, an unknown capability, or a non-empty `--out` exit 2 and write nothing. A `Run` folder written by `gin-qa tests run` is shown as text, not read as e2e evidence.

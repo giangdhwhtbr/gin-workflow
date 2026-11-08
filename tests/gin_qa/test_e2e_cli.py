@@ -40,6 +40,21 @@ FAKE_NPX = textwrap.dedent('''\
     sys.exit(int(exit_file.read_text()) if exit_file.exists() else 0)
 ''').format(python=sys.executable)
 
+FAKE_MANAGER = textwrap.dedent('''\
+    #!{python}
+    """Stands in for npm, npx, pnpm, and yarn: logs its call; .pm-exit holds its exit code."""
+    import pathlib, sys
+    root = pathlib.Path.cwd()
+    with open(root / ".pm-calls", "a") as log:
+        log.write(" ".join([pathlib.Path(sys.argv[0]).stem, *sys.argv[1:]]) + "\\n")
+    sys.exit(int((root / ".pm-exit").read_text()) if (root / ".pm-exit").exists() else 0)
+''')
+
+OLD_FIXTURE = ("  screenshot: string | null;\n  error: string | null;\n"
+               "          let screenshot: string | null = null;\n"
+               "            } catch {\n              screenshot = null;\n            }\n"
+               "            screenshot,\n            error: failure ? firstLine(failure) : null,\n")
+
 
 def spec_text(tc_id: str, pinned: str) -> str:
     return (f"// TC: {tc_id}@{pinned}\nimport {{ test, expect }} from '../evidence';\n\n"
@@ -88,7 +103,9 @@ class TestInitPlanPin(E2eCase):
         fixture.write_text("// edited by QA\n")
         write(self.root, "node_modules/@playwright/test/package.json", "{}")
         write(self.root, "package.json", '{"scripts": {"e2e": "playwright test"}}')
-        self.assertEqual((0, "already initialized\n"), (self.e2e("init").returncode, self.e2e("init").stdout))
+        by_hand = ("qa/e2e/evidence.ts has no ariaSnapshot and differs from the template; merge it by hand "
+                   "(references/explore-case.md of the e2e skill)\n")
+        self.assertEqual((0, by_hand), (self.e2e("init").returncode, self.e2e("init").stdout))
         self.assertEqual("// edited by QA\n", fixture.read_text())
         self.assertEqual(1, (self.root / ".gitignore").read_text().splitlines().count("/qa/evidence/"))
 
@@ -455,6 +472,99 @@ class TestRunAndEvidence(E2eCase):
         case_dir.symlink_to(self.base / "case-elsewhere", target_is_directory=True)
         self.assertEqual([f"{folder}/tc-auth-001: not a folder inside the run"],
                          self.run_json("check", "--run", folder)["findings"])
+
+
+
+class TestInitInstall(E2eCase):
+    def setUp(self):
+        super().setUp()
+        for name in ("npm", "npx", "pnpm", "yarn"):
+            python_stub(self.bin, name, FAKE_MANAGER.format(python=sys.executable))
+        write(self.root, "package.json", '{"name": "app"}\n')
+
+    def calls(self) -> list[str]:
+        log = self.root / ".pm-calls"
+        return log.read_text().splitlines() if log.exists() else []
+
+    def test_without_the_flag_nothing_is_installed(self):
+        self.assertEqual(0, self.e2e("init").returncode)
+        self.assertEqual([], self.calls())
+
+    def test_the_manager_follows_the_lockfile(self):
+        for lockfile, expected in (
+                (None, ["npm install -D @playwright/test", "npx playwright install chromium"]),
+                ("pnpm-lock.yaml", ["pnpm add -D @playwright/test", "pnpm exec playwright install chromium"]),
+                ("yarn.lock", ["yarn add -D @playwright/test", "yarn playwright install chromium"])):
+            with self.subTest(lockfile=lockfile):
+                (self.root / ".pm-calls").unlink(missing_ok=True)
+                if lockfile:
+                    write(self.root, lockfile, "")
+                result = self.e2e("init", "--install")
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual(expected, self.calls())
+                (self.root / (lockfile or "none")).unlink(missing_ok=True)
+
+    def test_adds_the_script_and_keeps_the_rest_of_package_json(self):
+        self.assertEqual(0, self.e2e("init", "--install").returncode)
+        data = json.loads((self.root / "package.json").read_text())
+        self.assertEqual({"name": "app", "scripts": {"e2e": "playwright test"}}, data)
+
+    def test_an_installed_package_is_not_installed_again(self):
+        write(self.root, "node_modules/@playwright/test/package.json", "{}")
+        self.assertEqual(0, self.e2e("init", "--install").returncode)
+        self.assertEqual(["npx playwright install chromium"], self.calls())
+
+    def test_a_failed_install_exits_2_and_names_the_commands(self):
+        write(self.root, ".pm-exit", "3")
+        result = self.e2e("init", "--install")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("npm install -D @playwright/test", result.stderr)
+        self.assertIn("npx playwright install chromium", result.stderr)
+
+    def test_no_package_json_exits_2_and_writes_nothing(self):
+        (self.root / "package.json").unlink()
+        result = self.e2e("init", "--install")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("package.json", result.stderr)
+        self.assertFalse((self.root / "qa/e2e/evidence.ts").exists())
+
+    def test_a_bad_package_json_exits_2_before_anything_is_installed_or_written(self):
+        for text in ("{not json", "[]", '{"scripts": []}'):
+            with self.subTest(text=text):
+                write(self.root, "package.json", text)
+                result = self.e2e("init", "--install")
+                self.assertEqual(2, result.returncode)
+                self.assertIn("package.json", result.stderr)
+                self.assertEqual([], self.calls())
+                self.assertEqual(text, (self.root / "package.json").read_text())
+                for name in ("qa/e2e/evidence.ts", "playwright.config.ts", ".gitignore"):
+                    self.assertFalse((self.root / name).exists(), name)
+
+
+class TestSnapshotMerge(E2eCase):
+    def test_an_older_fixture_matching_the_anchors_is_merged(self):
+        path = write(self.root, "qa/e2e/evidence.ts", OLD_FIXTURE)
+        result = self.e2e("init")
+        self.assertEqual(0, result.returncode, result.stderr)
+        text = path.read_text()
+        for needle in ("  snapshot: string | null;\n  url: string;\n", "let snapshot: string | null = null;",
+                       "ariaSnapshot({ timeout: 5000 })", "snapshot,\n            url: page.url(),"):
+            self.assertIn(needle, text)
+        self.assertIn("merged", result.stdout)
+
+    def test_an_edited_fixture_stays_unchanged_and_names_the_manual_steps(self):
+        path = write(self.root, "qa/e2e/evidence.ts", "// my own fixture\n")
+        result = self.e2e("init")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("// my own fixture\n", path.read_text())
+        self.assertIn("explore-case.md", result.stdout)
+
+    def test_a_current_fixture_is_left_alone(self):
+        self.assertEqual(0, self.e2e("init").returncode)
+        path = self.root / "qa/e2e/evidence.ts"
+        before = path.read_text()
+        self.assertNotIn("merged", self.e2e("init").stdout)
+        self.assertEqual(before, path.read_text())
 
 
 if __name__ == "__main__":

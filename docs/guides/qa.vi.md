@@ -61,7 +61,7 @@ Lưu thành `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 - Các trường là dòng `- **Key:** value`. Các mục là `**Preconditions:**`, `**Test data:**`, `**Steps:**`, và `**Expected:**`, theo đúng thứ tự đó.
 - `Test data` liệt kê các bản ghi và giá trị mà case cần, dưới dạng một giá trị hoặc một quy tắc. Credential chỉ xuất hiện dưới dạng tên biến môi trường.
 - `gin-qa cases plan` liệt kê công việc: requirement chưa có case (`missing`), case có requirement đã đổi kể từ lúc được pin (`stale`), và case có requirement đã biến mất (`obsolete`).
-- ID lấy từ `gin-qa cases next-id <capability>`; `pin <TC-ID>` ghi lại hash hiện tại của requirement sau khi một case được cập nhật.
+- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>` ghi file case với ID kế tiếp và pin. Lặp `--req` cho nhiều requirement; layout legacy dùng `--source <spec path>#<heading>`. Case mới có các bước và kết quả mong đợi trống, nên `cases check` báo nó cho đến khi bạn viết chúng. `pin <TC-ID>` ghi lại hash hiện tại của requirement sau khi một case được cập nhật.
 - `gin-qa cases check` phải thoát với mã 0. Case obsolete chỉ bị xóa khi bạn đồng ý, và skill không bao giờ commit.
 - `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]` ghi các dòng `Result`, `Run`, và `Bug`. Không bao giờ sửa chúng bằng tay.
 - Một file phẳng `qa/cases/<capability>.md` từ các phiên bản trước vẫn dùng được. `gin-qa cases split <capability>` ghi mỗi case một file và xóa file phẳng.
@@ -81,7 +81,7 @@ Một lần thất bại sẽ hỏi chuyện gì đã xảy ra, các tham chiế
 - Bug là một bead được tạo qua `gin task create`, liên kết với epic của case bằng `discovered-from`. `gin usage collect` trên epic đó đếm nó vào `quality.bugs`, và [usage report](../reference/cli.md#gin-usage) hiển thị con số từ lần collect gần nhất.
 - Epic lấy từ spec hoặc change của case; xem [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) để biết cách tra cứu. Nếu không có epic, skill đưa ra các epic đang mở của repository để chọn.
 - Mô tả chứa file case, lần chạy, precondition, test data, các bước, kết quả mong đợi, kết quả thực tế, và evidence.
-- Khi `Bug:` của case nêu một bead có trạng thái đã đặt và không phải `closed`, không có bug nào được tạo và case giữ nguyên nó; kết quả thực tế và evidence mới không được thêm vào đó. Một bug đã đóng nhận một bug mới nêu nó là bug trước đó; xem [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) cho các giá trị khác.
+- Khi `Bug:` của case nêu một bead có trạng thái đã đặt và không phải `closed`, không có bug nào được tạo và case giữ nguyên nó; kết quả thực tế và evidence mới được ghi vào notes của bead thành một dòng `Re-run`. Một bug đã đóng nhận một bug mới nêu nó là bug trước đó; xem [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) cho các giá trị khác.
 - Các nhóm theo dõi bug trong Jira hoặc Linear tạo ticket ở đó và truyền key của nó bằng `--external-ref`; cờ này chỉ ghi key vào bead.
 - Khi `## Bugs` trong guidelines ghi `External reference: required`, một lần thất bại không được tạo nếu thiếu tham chiếu, và tham chiếu phải khớp với pattern mà dòng đó nêu.
 - Mức ưu tiên theo case: `high` → 1, `medium` → 2, `low` → 3, không có → 2.
@@ -92,10 +92,12 @@ Skill không bao giờ sửa file case và không bao giờ commit.
 
 `/gin-qa:e2e <capability>` biến các case `.e2e.md` thành Playwright spec dưới `qa/e2e/<capability>/` (`qa.e2e`), mỗi case một spec:
 
-- `gin-qa e2e init` sao chép evidence fixture `qa/e2e/evidence.ts` (bạn tự sửa), cho git bỏ qua `qa/evidence/`, và ghi `playwright.config.ts` ở gốc repository khi chưa có: spec dưới `qa/e2e`, `baseURL` từ `E2E_BASE_URL` hoặc giá trị `--base-url` (mặc định `http://localhost:3000`), retry trên CI, trace ở lần retry đầu, reporter `list` và `junit` (báo cáo JUnit nằm trong thư mục lần chạy), và một project `chromium`.
+- `gin-qa e2e init` sao chép evidence fixture `qa/e2e/evidence.ts` (bạn tự sửa), thêm `qa/evidence/` vào `.gitignore`, và ghi `playwright.config.ts` ở gốc repository khi chưa có: spec dưới `qa/e2e`, `baseURL` từ `E2E_BASE_URL` hoặc giá trị `--base-url` (mặc định `http://localhost:3000`), retry trên CI, trace ở lần retry đầu, reporter `list` và `junit` (báo cáo JUnit nằm trong thư mục lần chạy), và một project `chromium`.
 - Skill dựng từng spec theo từng bước với ứng dụng đang chạy, đọc ARIA snapshot (`NN.aria.yml`) và URL mà fixture ghi lại sau mỗi bước, và xem lại các screenshot trước khi báo cáo một case. Nơi harness có subagent, nó giao mỗi case cho agent `gin-qa:e2e-tester` ở model trung bình và effort `low`, nhiều case cùng lúc (`--parallel N`, mặc định 3).
 - `gin-qa e2e run` chạy chúng; mỗi lần chạy để lại một screenshot cho mỗi bước và một `result.json` cho mỗi case (và cho mỗi Playwright project khi config có đặt tên project) dưới `qa/evidence/`. Nó ghi kết quả của từng case vào file case và liệt kê chúng dưới `recorded` trong đầu ra JSON.
 - `gin-qa e2e check --run <folder>` kiểm tra evidence của một lần chạy; `gin-qa e2e export --run <folder> --format json` xuất nó.
+
+`gin-qa e2e init --install` còn cài `@playwright/test` và chromium bằng trình quản lý gói của lockfile (pnpm, yarn, nếu không thì npm) và thêm script `e2e` vào `package.json`; không có cờ, `init` chỉ nêu các bước đó. Với fixture chưa có `ariaSnapshot`, `init` gộp snapshot từng bước khi fixture khớp template, và nếu không thì bảo bạn gộp bằng tay.
 
 Dự án của bạn cung cấp `@playwright/test` 1.49 trở lên. `init` ghi một Playwright config khởi đầu một lần; sau đó config là của bạn (`baseURL`, trình duyệt, video, trace, `webServer`), và `init` không bao giờ ghi đè nó.
 
@@ -115,16 +117,31 @@ Dự án của bạn cung cấp `@playwright/test` 1.49 trở lên. `init` ghi m
 
   `{junit}` (bắt buộc) là file JUnit XML mà lệnh phải ghi; `{files}` (tùy chọn) là các file test của những case đang chạy. Lệnh chạy từ gốc repository, không qua shell. Các path của `{files}` tương đối so với gốc đó, nên một tùy chọn của runner đổi thư mục (`uv run --directory`, `pnpm -C`) không thể nhận `{files}`.
 - Một test mang marker `TC: <TC-ID>@<hash8>`, theo quy ước nằm trong một dòng comment phía trên nó, và một tên chứa TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` và `check` so marker với case, như `gin-qa e2e` làm với header của một spec; `gin-qa tests pin` cập nhật nó.
-- `gin-qa tests run --type <type> [TC-ID|capability]` chạy lệnh vào `qa/evidence/<UTC time>-<type>/` và ghi kết quả của từng case vào file case. [Tài liệu tham chiếu CLI](../reference/cli.md#gin-qa-tests) nêu các quy tắc về kết quả. Chỉ `gin-qa e2e init` cho git bỏ qua `qa/evidence/`; nếu không có e2e, hãy thêm nó vào `.gitignore`.
+- `gin-qa tests run --type <type> [TC-ID|capability]` chạy lệnh vào `qa/evidence/<UTC time>-<type>/` và ghi kết quả của từng case vào file case. [Tài liệu tham chiếu CLI](../reference/cli.md#gin-qa-tests) nêu các quy tắc về kết quả. `gin-qa tests run` thêm `qa/evidence/` vào `.gitignore`.
 
 ## Báo cáo: `/gin-qa:report` { #report-gin-qareport }
 
-`/gin-qa:report [capability]` chạy `gin-qa report` và ghi một thư mục bạn có thể nén zip và gửi đi:
+`/gin-qa:report [capability]` chạy `gin-qa report` và ghi một thư mục bạn có thể gửi đi; `--zip` còn ghi `<folder>.zip` ngay cạnh nó:
 
-- Thư mục là `qa/evidence/report-<UTC time>/`; `--out <dir>` chọn nơi khác, nơi đó phải chưa tồn tại hoặc rỗng. Nó chứa `index.html` và một bản sao của mỗi screenshot e2e mà báo cáo hiển thị, nên mở được offline từ bất kỳ vị trí nào. `gin-qa e2e init` cho git bỏ qua `qa/evidence/`, nên báo cáo không vào git.
+- Thư mục là `qa/evidence/report-<UTC time>/`; `--out <dir>` chọn nơi khác, nơi đó phải chưa tồn tại hoặc rỗng. Nó chứa `index.html` và một bản sao của mỗi screenshot e2e mà báo cáo hiển thị, nên mở được offline từ bất kỳ vị trí nào. Báo cáo dưới `qa/evidence/` nằm trong mục `.gitignore` mà `gin-qa report` thêm vào, nên nó không vào version control.
 - Trang đếm số case theo capability, loại, mức ưu tiên, và kết quả trong bốn biểu đồ cột; nhấp vào một cột sẽ lọc bảng case. Bảng có ô tìm kiếm theo ID và tiêu đề, và một bộ lọc cho mỗi biểu đồ.
 - Nhấp vào một case sẽ mở các trường, precondition, test data, các bước, kết quả mong đợi, kết quả, lần chạy, và bug của nó, và với một case e2e là từng bước của lần chạy mà dòng `Run` của nó nêu, theo từng Playwright project: trạng thái, URL, lỗi, và screenshot.
 - Mỗi case hiển thị lần chạy mà dòng `Run` của nó nêu. Khi thư mục đó đã mất, case hiển thị `evidence not found: <run>` và lệnh liệt kê lần chạy dưới `missing_evidence`. Một `Run` nằm ngoài `qa/evidence/`, như tham chiếu lần chạy thủ công, và một thư mục `gin-qa tests run` được hiển thị dưới dạng văn bản.
+- Một case chuyển từ e2e sang manual giữ nguyên hàng của nó và có thêm dấu "moved from e2e". Mục "Moved from e2e to manual" liệt kê từng case với ngày, lý do, và kết quả, và chỉ xuất hiện khi có case như vậy.
+
+## Chuyển một case e2e không ổn định sang manual { #moving-a-flaky-e2e-case-to-manual }
+
+QA quyết định khi nào một case rời automation; `gin-qa` không đếm số lần thất bại. Với một case liên tục thất bại hoặc chập chờn trên pipeline, chạy:
+
+```bash
+gin-qa cases to-manual <TC-ID> --reason "<why>"
+```
+
+- File được đổi tên từ `.e2e.md` thành `.manual.md`, và thêm dòng `Moved from e2e: <date>: <reason>`.
+- `Result` thành `not run` và dòng `Run` bị xóa. `Bug:` được giữ. Spec bị xóa cuối cùng.
+- Lệnh thoát với mã 2, không ghi gì, với case không phải e2e, lý do rỗng hoặc nhiều dòng, file case phẳng, case đã có dòng `Moved from e2e:`, mục `## Types` thiếu `manual`, hoặc file `.manual.md` đã tồn tại.
+
+Sau đó chạy `/gin-qa:run`, nó dẫn bạn đi qua case bằng tay. Để quay lại, đổi tên file về `.e2e.md`, xóa dòng `Moved from e2e:`, và chạy `/gin-qa:e2e`.
 
 ## Prompt { #prompts }
 
@@ -171,4 +188,4 @@ Một commit được push sau phê duyệt cần phê duyệt mới ([chế đ�
 
 ## Lệnh { #commands }
 
-`gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, và `gin-qa report [capability] [--out DIR]`; exit 0 ok, 1 có phát hiện, 2 lỗi cách dùng hoặc môi trường. Xem [CLI](../reference/cli.md#gin-qa) và các [khóa cấu hình `qa`](../reference/config.md#qa).
+`gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, và `gin-qa report [capability] [--out DIR] [--zip]`; exit 0 ok, 1 có phát hiện, 2 lỗi cách dùng hoặc môi trường. Xem [CLI](../reference/cli.md#gin-qa) và các [khóa cấu hình `qa`](../reference/config.md#qa).
