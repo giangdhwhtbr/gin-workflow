@@ -2,7 +2,7 @@
 
 Epic: gin-workflow-docs-refresh
 Workflow: gin-workflow-docs-refresh
-Status: draft for user review.
+Status: confirmed by the user on 2026-11-08.
 
 ## Goal and scope
 
