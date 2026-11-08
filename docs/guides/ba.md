@@ -28,7 +28,7 @@ In [team mode](team.md) the gate takes the roles listed in `team.approvals`. A m
 
 ### Install gin-ba
 
-`gin-ba` needs gin-workflow and a project on the SDD layout. A project on the legacy layout moves with `/gin:migrate-specs`; the skills stop and say so otherwise.
+The legacy layout has no dated asset folders, so `gin-ba` needs gin-workflow and a project on the SDD layout. Move a legacy project with `/gin:migrate-specs`; the skills stop and say so otherwise.
 
 From a clone of this repository, or remotely:
 
@@ -41,11 +41,7 @@ The installer adds the skills for each harness. `gin-ba` has no CLI and no launc
 
 ### Open a dated asset folder
 
-Each round of inputs lives in its own dated folder, `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, named by the day the inputs arrived. The folder holds a `description.md` that records the kind of input and its status.
-
-Both skills take the capability and `--date YYYY-MM-DD`, which defaults to today. They run `gin specs assets add`, which creates a missing folder and a missing `description.md` with `Kind:`, `Previous:` and `Confirmed: no`.
-
-A folder whose `description.md` reads `Confirmed: <date>` is frozen. The skill stops and asks for a new date, so new inputs always get a new folder. An unconfirmed folder is continued. See [images and mockups](sdd.md#images-and-mockups) for the folder rules and what `specs lint` checks.
+Each round of inputs gets a folder `docs/specs/<capability>/assets/<YYYY-MM-DD>/` with a `description.md`. Both skills take the capability and `--date YYYY-MM-DD`, which defaults to today, and create the folder with `gin specs assets add`. The folder rules, including frozen folders, are in [images and mockups](sdd.md#images-and-mockups).
 
 ### Capture legacy behaviour
 
@@ -78,13 +74,7 @@ The skills never confirm on your behalf and never commit. Review the folder and 
 
 Run `/gin:discuss` to turn the confirmed inputs into requirements. Discuss reads `description.md` and any `mockup/index.html` of each dated folder of the affected capabilities. It turns `## Open questions` into questions or listed assumptions.
 
-Each requirement taken from an input gets a `Source:` line:
-
-```markdown
-### REQ-ORDERS-007: Reject a past delivery date
-The system SHALL reject a delivery date before today.
-Source: `assets/2026-05-11/description.md`, `assets/2026-06-02/mockup/index.html#new-order`
-```
+Each requirement taken from an input gets a `Source:` line that names the file, for example `Source: assets/2026-06-02/mockup/index.html#new-order`; [the SDD guide](sdd.md#images-and-mockups) shows the full block.
 
 Discuss also writes the [diagrams](sdd.md#diagrams) and the change folder, and `specs lint --change <epic>` must pass. In team mode a member without a technical role gets business questions only; see [what changes in each stage](team.md#what-changes-in-each-stage).
 
@@ -96,19 +86,22 @@ With `chat`, the gate is recorded when you confirm in the conversation. When `te
 
 ### Export and explain
 
-Two commands share the spec with people who do not read the repository. `gin specs export <capability>` writes `srs-<capability>.html` at the repository root, with diagrams, requirements and assets. `--all` writes every capability into `srs.html`.
-
-Open the file in a browser and print it to PDF. Run `specs lint` first, because the export does not lint.
-
-`/gin:explain <capability>` writes one interactive page with a short summary that cites REQ-IDs. It is saved under `.agent-workflow/runtime/explain/` and never committed. A `Source:` path with `#<screen-id>` opens that screen of the mockup. See [exporting an SRS](sdd.md#exporting-an-srs) and [explaining a capability](sdd.md#explaining-a-capability).
+Two commands share the spec with people who do not read the repository. `gin specs export <capability>` writes an SRS as one HTML file, and `/gin:explain <capability>` writes an interactive page. See [exporting an SRS](sdd.md#exporting-an-srs) and [explaining a capability](sdd.md#explaining-a-capability).
 
 ## Conventions
 
 These are team practices, not behaviour the tool enforces.
 
-- A new batch of requirements, changes or designs gets a new dated folder, and a confirmed folder is never edited.
+- Capture the legacy behaviour and the REST contract before writing requirements, so the edge cases are known.
+- A requirement change after plan approval goes in a new change folder whose `MODIFIED` block carries the base hash; see [keeping work apart](../roles.md#keeping-work-apart).
 - A feature's requirements, its UI included, live in the feature's capability. A `ui` capability holds only what spans pages.
 - The BA reviews and commits asset folders, because the skills never do.
+
+Common mistakes:
+
+- Creating a second epic by hand. Discuss reuses the roadmap epic.
+- Writing user stories without acceptance criteria.
+- Leaving out the edge cases of the legacy system.
 
 ## Commands
 

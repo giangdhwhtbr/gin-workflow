@@ -28,7 +28,7 @@ Trong [chế độ nhóm](team.md), gate nhận các vai trò liệt kê trong `
 
 ### Cài đặt gin-ba { #install-gin-ba }
 
-`gin-ba` cần gin-workflow và một dự án dùng layout SDD. Dự án dùng layout legacy chuyển sang SDD bằng `/gin:migrate-specs`; nếu chưa chuyển, các skill dừng lại và báo lỗi.
+Layout legacy không có thư mục asset theo ngày, nên `gin-ba` cần gin-workflow và một dự án dùng layout SDD. Chuyển dự án legacy bằng `/gin:migrate-specs`; nếu chưa chuyển, các skill dừng lại và báo lỗi.
 
 Từ một bản clone của repository này, hoặc từ xa:
 
@@ -41,11 +41,7 @@ Bộ cài thêm các skill cho từng harness. `gin-ba` không có CLI và khôn
 
 ### Mở thư mục asset có tên ngày { #open-a-dated-asset-folder }
 
-Mỗi đợt đầu vào nằm trong một thư mục riêng có tên ngày, `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, đặt theo ngày đầu vào đến. Thư mục chứa một `description.md` ghi loại đầu vào và trạng thái của nó.
-
-Cả hai skill nhận capability và `--date YYYY-MM-DD`, mặc định là hôm nay. Chúng chạy `gin specs assets add`, lệnh tạo thư mục chưa có và `description.md` chưa có với `Kind:`, `Previous:` và `Confirmed: no`.
-
-Thư mục có `description.md` ghi `Confirmed: <date>` bị đóng băng. Skill dừng lại và hỏi một ngày mới, nên đầu vào mới luôn có thư mục mới. Thư mục chưa xác nhận được làm tiếp. Xem [ảnh và mockup](sdd.md#images-and-mockups) về quy tắc thư mục và những gì `specs lint` kiểm tra.
+Mỗi đợt đầu vào có một thư mục `docs/specs/<capability>/assets/<YYYY-MM-DD>/` với một `description.md`. Cả hai skill nhận capability và `--date YYYY-MM-DD`, mặc định là hôm nay, và tạo thư mục bằng `gin specs assets add`. Quy tắc thư mục, gồm cả thư mục bị đóng băng, nằm ở [ảnh và mockup](sdd.md#images-and-mockups).
 
 ### Ghi lại hành vi hệ thống cũ { #capture-legacy-behaviour }
 
@@ -78,13 +74,7 @@ Các skill không bao giờ xác nhận thay BA và không bao giờ commit. BA 
 
 Chạy `/gin:discuss` để biến đầu vào đã xác nhận thành requirement. Discuss đọc `description.md` và mọi `mockup/index.html` của từng thư mục có tên ngày của các capability bị ảnh hưởng. Nó biến `## Open questions` thành câu hỏi hoặc các giả định được liệt kê.
 
-Mỗi requirement lấy từ một đầu vào có một dòng `Source:`:
-
-```markdown
-### REQ-ORDERS-007: Reject a past delivery date
-The system SHALL reject a delivery date before today.
-Source: `assets/2026-05-11/description.md`, `assets/2026-06-02/mockup/index.html#new-order`
-```
+Mỗi requirement lấy từ một đầu vào có một dòng `Source:` nêu tên file, ví dụ `Source: assets/2026-06-02/mockup/index.html#new-order`; [hướng dẫn SDD](sdd.md#images-and-mockups) có khối đầy đủ.
 
 Discuss cũng viết các [sơ đồ](sdd.md#diagrams) và change folder, và `specs lint --change <epic>` phải qua. Trong chế độ nhóm, thành viên không có vai trò kỹ thuật chỉ nhận câu hỏi nghiệp vụ; xem [thay đổi ở từng stage](team.md#what-changes-in-each-stage).
 
@@ -96,19 +86,22 @@ Với `chat`, gate được ghi khi BA xác nhận trong cuộc trò chuyện. K
 
 ### Xuất và giải thích { #export-and-explain }
 
-Hai lệnh chia sẻ spec với những người không đọc repository. `gin specs export <capability>` ghi `srs-<capability>.html` ở gốc repository, kèm sơ đồ, requirement và asset. `--all` ghi mọi capability vào `srs.html`.
-
-Mở file trong trình duyệt và in ra PDF. Chạy `specs lint` trước, vì lệnh export không chạy lint.
-
-`/gin:explain <capability>` ghi một trang tương tác với phần tóm tắt ngắn trích dẫn REQ-ID. Trang được lưu dưới `.agent-workflow/runtime/explain/` và không bao giờ được commit. Đường dẫn `Source:` có `#<screen-id>` mở màn hình đó của mockup. Xem [xuất SRS](sdd.md#exporting-an-srs) và [giải thích một capability](sdd.md#explaining-a-capability).
+Hai lệnh chia sẻ spec với những người không đọc repository. `gin specs export <capability>` ghi SRS thành một file HTML, và `/gin:explain <capability>` ghi một trang tương tác. Xem [xuất SRS](sdd.md#exporting-an-srs) và [giải thích một capability](sdd.md#explaining-a-capability).
 
 ## Quy ước { #conventions }
 
 Đây là thực hành của nhóm, không phải hành vi công cụ ép buộc.
 
-- Một đợt requirement, thay đổi hoặc thiết kế mới có thư mục mới, và thư mục đã xác nhận không bao giờ bị sửa.
+- Ghi lại hành vi hệ thống cũ và REST contract trước khi viết requirement, để biết các edge case.
+- Thay đổi requirement sau khi plan được duyệt đi vào một change folder mới có khối `MODIFIED` mang base hash; xem [tách biệt công việc](../roles.md#keeping-work-apart).
 - Requirement của một tính năng, gồm cả UI, nằm trong capability của tính năng đó. Capability `ui` chỉ chứa những gì dùng chung cho nhiều trang.
 - BA xem lại và commit các thư mục asset, vì các skill không bao giờ commit.
+
+Các lỗi thường gặp:
+
+- Tạo epic thứ hai bằng tay. Discuss dùng lại epic của roadmap.
+- Viết user story không có acceptance criteria.
+- Bỏ sót các edge case của hệ thống cũ.
 
 ## Lệnh { #commands }
 
