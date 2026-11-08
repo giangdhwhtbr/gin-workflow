@@ -98,7 +98,7 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "t-m1", "title": "M1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "finish": "2026-11-06", "overflow_days": 2,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 2,
             "epics": [
                 {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "planned_start": "2026-11-02",
                  "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": []},
@@ -111,9 +111,9 @@ class MilestoneCliTests(unittest.TestCase):
         code, out, err = self.run_cli("list", "--json")
         self.assertEqual(0, code, err)
         self.assertEqual({
-            "schema": 1, "today": "2026-10-29", "unassigned_epics": 0,
+            "schema": 1, "today": "2026-10-29", "unassigned_epics": 0, "forecast": None,
             "milestones": [{"id": "t-m1", "title": "M1", "status": "planned", "start": "2026-11-02",
-                            "end": "2026-11-04", "kickoff": None, "finish": "2026-11-06",
+                            "end": "2026-11-04", "kickoff": None, "lanes": 1, "finish": "2026-11-06",
                             "epics": {"total": 2, "closed": 0}, "warnings": 1, "error": None}]}, json.loads(out))
 
     def test_req_009_preview_does_not_write(self):
@@ -201,6 +201,55 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual(1, code, err)
         self.assertEqual(before, self.bd("list", "--all", "--limit", "0", "--json"))
         return err
+
+    def write_roadmap(self, body):
+        path = self.root / ".planning/roadmap.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# Roadmap: T\n\n## Constraints\n\n" + body, encoding="utf-8")
+
+    def test_lanes_on_create_and_update(self):
+        code, out, err = self.run_cli("create", "M1", "--start", "2026-11-02", "--end", "2026-12-18", "--lanes", "2")
+        self.assertEqual(0, code, err)
+        self.assertEqual({"start": "2026-11-02", "end": "2026-12-18", "lanes": 2}, self.show(out.strip())["metadata"])
+        self.assertEqual(2, json.loads(self.run_cli("show", out.strip(), "--json")[1])["lanes"])
+        self.assertEqual(0, self.run_cli("update", out.strip(), "--lanes", "3")[0])
+        self.assertEqual("3", str(self.show(out.strip())["metadata"]["lanes"]))
+        self.assertEqual(3, json.loads(self.run_cli("show", out.strip(), "--json")[1])["lanes"])
+
+    def test_bad_lanes_is_refused_before_any_write(self):
+        for value in ("0", "-1", "two", ""):
+            err = self.refused("create", "M1", "--start", "2026-11-02", "--end", "2026-12-18", "--lanes", value)
+            self.assertIn("lanes must be a positive whole number", err)
+
+    def test_list_forecast_line_uses_roadmap_lanes_and_deadline(self):
+        self.seed()
+        self.bd("create", "R1", "--id", "t-r1", "--type", "epic", "--labels", "roadmap", "--estimate", "480")
+        self.bd("update", "t-a", "--add-label", "roadmap")
+        self.bd("update", "t-b", "--add-label", "roadmap")
+        self.write_roadmap("- AI capacity: 2 accounts\n- Deadline: 2026-11-13\n")
+        code, out, err = self.run_cli("list")
+        self.assertEqual(0, code, err)
+        self.assertIn("forecast: finish 2026-11-09, deadline 2026-11-13, 4 working days spare, lanes 2, 3 open epics", out)
+        payload = json.loads(self.run_cli("list", "--json")[1])
+        self.assertEqual(2, payload["milestones"][0]["lanes"])
+        self.assertEqual("2026-11-09", payload["forecast"]["finish"])
+
+    def test_list_forecast_without_deadline_and_with_a_bad_one(self):
+        self.bd("create", "R1", "--id", "t-r1", "--type", "epic", "--labels", "roadmap")
+        code, out, _ = self.run_cli("list")
+        self.assertEqual(0, code)
+        self.assertIn("forecast: finish unknown, no deadline, lanes 1, 1 open epics, 1 unestimated", out)
+        self.write_roadmap("- Deadline: soon\n")
+        code, out, _ = self.run_cli("list")
+        self.assertEqual(0, code)
+        self.assertIn("forecast: error: Deadline: soon is not a date (YYYY-MM-DD), lanes 1, 1 open epics, 1 unestimated", out)
+
+    def test_default_lanes_chain(self):
+        from workflow_core.milestone import Roadmap
+        team = {"team": {"members": {"a@x.io": {"roles": ["dev"], "login": "a"}, "b@x.io": {"roles": ["dev"], "login": "b"}}}}
+        self.assertEqual(4, milestone_cli._default_lanes(team, Roadmap(lanes=4)))
+        self.assertEqual(2, milestone_cli._default_lanes(team, Roadmap()))
+        self.assertEqual(1, milestone_cli._default_lanes({}, Roadmap()))
 
     def test_req_001_create(self):
         code, out, err = self.run_cli("create", "M1", "--start", "2026-11-02", "--end", "2026-12-18")

@@ -37,11 +37,13 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("title")
     item.add_argument("--start", required=True)
     item.add_argument("--end", required=True)
+    item.add_argument("--lanes")
     item = sub.add_parser("update", parents=[common])
     item.add_argument("id")
     item.add_argument("--title")
     item.add_argument("--start")
     item.add_argument("--end")
+    item.add_argument("--lanes")
     item = sub.add_parser("kickstart", parents=[common])
     item.add_argument("id")
     item.add_argument("--date")
@@ -109,6 +111,49 @@ def _date(text: str) -> date:
         raise MilestoneError(str(error)) from None
 
 
+def _lanes(text: str) -> int:
+    if not re.fullmatch(r"[1-9][0-9]*", text):
+        raise MilestoneError("lanes must be a positive whole number")
+    return int(text)
+
+
+def _roadmap(root: Path, config: dict[str, Any]) -> core.Roadmap:
+    from .roadmap_file import read_roadmap
+    from .specs import sdd_config
+
+    return read_roadmap(root, sdd_config(config)["layout"])
+
+
+def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
+    """Roadmap `AI capacity:` number, else the team member count, else 1."""
+    from . import team as team_core
+
+    if roadmap.lanes:
+        return roadmap.lanes
+    team = team_core.load_team(config)
+    return len(team.members) if team is not None and team.members else 1
+
+
+def _forecast_text(forecast: dict[str, Any]) -> str:
+    if forecast["error"]:
+        head = f"forecast: error: {forecast['error']}"
+    else:
+        head = f"forecast: finish {forecast['finish'] or 'unknown'}"
+        if not forecast["deadline"]:
+            head += ", no deadline"
+        elif forecast["finish"] is None:
+            head += f", deadline {forecast['deadline']}"
+        elif forecast["overflow_days"]:
+            head += f", deadline {forecast['deadline']}, overflow {forecast['overflow_days']} working days"
+        else:
+            spare = core.workdays_after(date.fromisoformat(forecast["finish"]), date.fromisoformat(forecast["deadline"]))
+            head += f", deadline {forecast['deadline']}, " + (f"{spare} working days spare" if spare else "on the deadline")
+    tail = f", lanes {forecast['lanes']}, {forecast['open_epics']} open epics"
+    if forecast["unestimated"]:
+        tail += f", {forecast['unestimated']} unestimated"
+    return head + tail
+
+
 def _list_text(payload: dict[str, Any]) -> str:
     lines = []
     for entry in payload["milestones"]:
@@ -116,12 +161,15 @@ def _list_text(payload: dict[str, Any]) -> str:
                   f"epics {entry['epics']['closed']}/{entry['epics']['total']}  warnings {entry['warnings']}")
         lines.append(f"{entry['id']}  {entry['status']:<9} {entry['start']}..{entry['end']}  {detail}")
     lines.append(f"unassigned roadmap epics: {payload['unassigned_epics']}")
+    if payload["forecast"]:
+        lines.append(_forecast_text(payload["forecast"]))
     return "\n".join(lines)
 
 
 def _show_text(payload: dict[str, Any]) -> str:
     lines = [f"{payload['id']} {payload['title']} [{payload['status']}] {payload['start']}..{payload['end']}, "
-             f"schedule from {payload['schedule_start']}{' (preview)' if payload['preview'] else ''}"]
+             f"schedule from {payload['schedule_start']}{' (preview)' if payload['preview'] else ''}, "
+             f"lanes {payload['lanes']}"]
     for row in payload["epics"]:
         codes = ",".join(warning["code"] for warning in row["warnings"])
         days = row["estimate_days"] if row["estimate_days"] is not None else "-"
@@ -145,8 +193,10 @@ def _check_period(start: date, end: date) -> None:
 def _create(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
     start, end = _date(args.start), _date(args.end)
     _check_period(start, end)
-    meta = json.dumps({"start": start.isoformat(), "end": end.isoformat()})
-    out = _bd(root, ["create", args.title, "--type", "milestone", "--metadata", meta, "--json"], actor)
+    meta = {"start": start.isoformat(), "end": end.isoformat()}
+    if args.lanes is not None:
+        meta["lanes"] = _lanes(args.lanes)
+    out = _bd(root, ["create", args.title, "--type", "milestone", "--metadata", json.dumps(meta), "--json"], actor)
     return json.JSONDecoder().raw_decode(out.lstrip())[0]["id"], "milestone"
 
 
@@ -154,8 +204,11 @@ def _update(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any
     start, end = core.period(_open(beads, args.id))
     start, end = (_date(args.start) if args.start else start), (_date(args.end) if args.end else end)
     _check_period(start, end)
+    lanes = _lanes(args.lanes) if args.lanes is not None else None
     argv = ["update", args.id, "--set-metadata", f"start={start.isoformat()}",
             "--set-metadata", f"end={end.isoformat()}"] + (["--title", args.title] if args.title else [])
+    if lanes is not None:
+        argv += ["--set-metadata", f"lanes={lanes}"]
     _bd(root, argv, actor)
     return f"updated {args.id}", "update"
 
@@ -269,13 +322,15 @@ def _run(args: argparse.Namespace) -> int:
     root = args.repository.resolve()
     config = _config(root)
     if args.command == "list":
-        payload = core.list_payload(_beads(root), _today(), args.all)
+        roadmap = _roadmap(root, config)
+        payload = core.list_payload(_beads(root), _today(), args.all, roadmap, _default_lanes(config, roadmap))
         print(json.dumps(payload, indent=2) if args.json else _list_text(payload))
         return 0
     if args.command == "show":
         beads = _beads(root)
         start = _date(args.start) if args.start else None
-        payload = core.show_payload(_milestone(beads, args.id), beads, start, _today())
+        payload = core.show_payload(_milestone(beads, args.id), beads, start, _today(),
+                                  _default_lanes(config, _roadmap(root, config)))
         print(json.dumps(payload, indent=2) if args.json else _show_text(payload))
         return 0
     return _write(root, config, args)

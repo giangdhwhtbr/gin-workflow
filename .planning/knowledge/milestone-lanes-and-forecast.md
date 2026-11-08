@@ -1,0 +1,33 @@
+# Milestone lanes and the roadmap forecast: a project deadline next to sprint milestones
+
+**Context**
+Epic `gin-workflow-57fw` (2026-11-08). Milestones are sprints, so a project-wide deadline had no home. The scheduler in `workflow_core/milestone.py` let independent epics start on the same day without limit (optimistic, not sequential as the epic description assumed), `AI capacity:` in the roadmap was free text the CLI never read, and unassigned roadmap epics were only counted. The user's flow: `/roadmap` for the whole project first, then `gin milestone create` plus `/roadmap --milestone <id>` to pick ready epics into each sprint.
+
+**Decision/Solution**
+- A lane is one stream of work that runs one epic at a time. `_place(epics, first, lanes)` is the one greedy placer: the ready epic with the earliest allowed start (ties by id) takes the lane that frees first; unestimated epics take no lane and no days; the lane list is capped at the number of epics (a huge `lanes` metadata value set through `bd` caused OOM in review). `schedule` and `show_payload` take `default_lanes` and use `lanes_of(milestone, default_lanes)`.
+- Lanes per milestone live in the milestone's `lanes` metadata (`gin milestone create/update --lanes N`, positive whole number, empty value refused). Effective lanes: metadata, else the whole number that starts the roadmap `AI capacity:` line, else `len(team.members)`, else 1 (`milestone_cli._default_lanes`).
+- `workflow_core/roadmap_file.py` reads only two bullets of the roadmap file (`team.ROADMAP[layout]`): `- Deadline: YYYY-MM-DD` and the leading number of `- AI capacity:`. It never raises: a missing file or line gives None, a malformed date or unreadable file fills `Roadmap.error`. `Roadmap` is a frozen dataclass in `milestone.py` to avoid a circular import.
+- `forecast(beads, today, roadmap, default_lanes)` schedules open milestones in `end` order, each on its own lanes, one after another from `max(today, kickoff or start, previous finish + 1 working day)`, then every open roadmap epic outside an open milestone on the default lanes. Milestones with no open epics are skipped before their dates are parsed. On a cycle or bad milestone metadata, `error` is set and `finish` covers only the groups placed before it. `list_payload` adds per-entry `lanes` and top-level `forecast` (null without an open roadmap epic); `schema` stays 1.
+- `gin milestone list` ends with `forecast: finish <date>, deadline <date>, N working days spare | overflow N working days | on the deadline, lanes N, N open epics[, N unestimated]`; `no deadline` without the line; `finish unknown` when every epic is unestimated; `forecast: error: ...` replaces the dates. `list` exits 0 in every case.
+- `/roadmap` asks for the deadline next to AI capacity, proposes `Estimate:` for every epic in the plain run too (written with `gin milestone estimate` when Beads has none; Beads wins otherwise), asks a sprint's lanes in `--milestone`, and reports `forecast` from `gin milestone list --json` without computing dates itself.
+
+**Consequences**
+- Milestones planned before lanes existed show later dates and may gain `overflow` warnings at the default of 1 lane; `--lanes` or the `AI capacity:` number is the remedy (cli.md says so).
+- The forecast pool is broader than `unassigned_epics`: it also holds open roadmap epics under a closed milestone or a non-milestone parent.
+- Group sequencing makes a cross-group blocker rule unnecessary: an earlier group always finishes before the next starts; a sprint epic blocked by a pool epic is not moved (`show` warns `external_blocker`).
+- `gin evidence run` runs the whole suite (about 4.5 minutes), so a track that changes a payload must update the exact-payload CLI tests in the same track, or evidence fails; tracks 2 and 3 did that although the plan put it in track 4.
+- Roadmap `SKILL.md` grew to 10,714 characters; it is outside `budget.STAGES`, so no test enforces its size.
+- The installed `gin` at `~/.local/bin` lags the repo until `install.sh` runs; run `plugins/gin-workflow/src/scripts/gin` for a manual check in a worktree.
+- Follow-ups: gin-console reads the new keys through a `gin-harness` epic depending on `external:gin-workflow:milestone-forecast` (the Pydantic models ignore unknown keys until then); the brownfield guide describes the two-step roadmap flow in `gin-workflow-docs-refresh`.
+
+**References**
+- `plugins/gin-workflow/src/scripts/workflow_core/{milestone,roadmap_file,milestone_cli}.py`; tests `tests/workflow_core/test_{milestone,roadmap_file,milestone_cli}.py`
+- `plugins/gin-workflow/src/templates/roadmap.md`, `plugins/gin-workflow/src/skills/roadmap/SKILL.md`
+- Docs: `docs/reference/cli.md` (`gin milestone`), `docs/guides/customizing-templates.md`, `docs/reference/skills.md`, `docs/concepts/lifecycle.md`
+- `.planning/specs/2026-11-08-roadmap-deadline-forecast-design.md`, `.planning/plans/2026-11-08-roadmap-deadline-forecast.md`
+- Commits `3c70329`, `4d4507b`, `4278702`, `4104d02`, `24928d6`, `5ef30c9`, `ed72371`, `dfc968a`, `d5c25f8`, `28b2cd2`
+- Beads: `gin-workflow-57fw`, `gin-workflow-57fw.1` to `.5`
+- Related: [epic-comments](epic-comments.md), [workspace](workspace.md)
+
+**Scope**
+`gin milestone` scheduling and forecast, the roadmap file's Constraints lines, and `/roadmap` with the Beads task backend.
