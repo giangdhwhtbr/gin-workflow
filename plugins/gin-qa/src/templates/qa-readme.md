@@ -14,7 +14,7 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 - `TC-<CAP>-NNN` is the case ID; `<CAP>` is the capability in upper case.
 - `<slug>` is optional and only helps readers; renaming the title does not require a new name.
 - `<type>` is the test type, such as `e2e` or `manual`; the guidelines list the types in use.
-- Each file holds one case. Get the next ID with `gin-qa cases next-id <capability>`.
+- Each file holds one case. Create it with `gin-qa cases new`, which picks the next ID.
 
 ## Case format
 
@@ -36,11 +36,12 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 - Tests: `/gin-qa:e2e <capability>` builds the specs of `e2e` cases; `/gin-qa:tests <capability> --type <type>` builds the tests of each type under `Automated types` in the guidelines.
 - Manual runs: `/gin-qa:run <capability>` walks the `manual` cases with a tester. When: not set yet.
 - Bugs: each failed manual case becomes a bug bead linked to the case's epic. External reference: none.
-- Report: `/gin-qa:report [capability]` writes an HTML report to zip and share. When and to whom: not set yet.
+- Report: `/gin-qa:report [capability]` writes an HTML report; `--zip` also packs it to share. When and to whom: not set yet.
 
 ## Commands
 
-- `gin-qa cases next-id <capability>`: the next case ID.
+- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>`: writes a case file with the next ID and the pin (`--source <path>` with the legacy layout).
+- `gin-qa cases to-manual <TC-ID> --reason <why>`: moves an e2e case to manual and deletes its spec.
 - `gin-qa cases check`: finds problems in the case files.
 - `gin-qa cases result <TC-ID> <status>`: records a result.
 - `gin-qa cases split <capability>`: turns a flat `<capability>.md` file into case files.
