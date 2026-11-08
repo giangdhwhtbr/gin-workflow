@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-ua46`
 - **Base SHA:** `8b4e17be986f0c01ec71e6dd93ec85448a391a53`
-- **Reviewed SHA:** `a5a714d4c0a61bae144edb6b308b8692e6b27ebe`
+- **Reviewed SHA:** `4605e2b3a0b498166c9ec5dc84faeec77e018fec`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-ua46`
-- **Checkpoint SHA:** `a5a714d4c0a61bae144edb6b308b8692e6b27ebe`
+- **Checkpoint SHA:** `4605e2b3a0b498166c9ec5dc84faeec77e018fec`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `6146232504a7c863570328de652ce9201557b65c6354365c46060326833a1178`
+- **Tree Hash:** `3e509644d59f3c0cc0965c1f4a20a839976dbece8faee4c001c76b4ae8262b07`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -67,3 +67,5 @@
 | `EV-000010` | `2026-11-08T04:35:46.795895Z` | `changes-requested` | `reviewer:claude:session-d96f113f` (reviewer) |
 | `EV-000011` | `2026-11-08T04:35:51.871100Z` | `lease-released` | `reviewer:claude:session-d96f113f` (reviewer) |
 | `EV-000012` | `2026-11-08T04:38:13.833043Z` | `implementation-in-progress` | `claude` (worker) |
+| `EV-000013` | `2026-11-08T04:38:58.919988Z` | `source-checkpoint-created` | `claude` (worker) |
+| `EV-000014` | `2026-11-08T04:38:59.047602Z` | `review-requested` | `claude` (worker) |
