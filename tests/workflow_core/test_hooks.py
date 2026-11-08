@@ -7,6 +7,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -544,6 +545,14 @@ class WorkspaceHookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as plain:
             code, _, err = self.hook("status", "--all-repos", "--repository", str(make_repo(plain)))
         self.assertEqual((1, "error: not in a workspace\n"), (code, err))
+
+    def test_install_all_repos_reports_a_missing_hooks_directory(self):
+        hooks_dir = self.child / ".git/hooks"
+        shutil.rmtree(hooks_dir)
+        code, out, err = self.hook("install", "--all-repos", "--repository", str(self.root))
+        self.assertEqual(2, code)
+        self.assertNotIn("services/api: pre-commit", out)
+        self.assertIn(f"services/api: hooks directory {hooks_dir} does not exist; create it or fix core.hooksPath", err)
 
     def test_install_all_repos_keeps_a_foreign_hook_and_tells_how_to_chain_it(self):
         hook = self.child / ".git/hooks/pre-commit"

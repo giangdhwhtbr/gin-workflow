@@ -119,7 +119,7 @@ Mở: repository `qa`. Đó là repository automation, nên test case, spec và 
 |---|---|
 | `gin workspace clone [PATH ...\|--all]` | Clone các mục được nêu hoặc tất cả tại path manifest của chúng; mục `frozen` được clone nông; thêm mỗi path vào `.gitignore` của repository cha; mục đã có được báo là `present` |
 | `gin workspace status` | In một dòng cho mỗi mục: path, present hoặc missing, branch, clean hoặc dirty, frozen. Thêm `--json` cho script |
-| `gin hooks install --all-repos` | Cài hook trong mọi repository đã clone trừ mục frozen và beads; hook bị chiếm được giữ nguyên và file cần chain vào được nêu tên |
+| `gin hooks install --all-repos` | Cài hook trong mọi repository đã clone trừ mục frozen và beads; hook bị chiếm được giữ nguyên và file cần chain vào được nêu tên; thư mục hooks bị thiếu được báo |
 | `gin hooks status --all-repos` | In trạng thái hook và tên check của mọi repository đã clone có `verify.checks`, trừ mục frozen và beads, dưới dạng JSON; exit 1 khi có một repository không ok |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Tạo worktree của track cho một repository con dưới `.planning/worktrees/` của repository cha |
 | `gin worktree cleanup --repository <repo> <track-id>` | Gỡ nó |
