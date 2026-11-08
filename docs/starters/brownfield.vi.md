@@ -264,7 +264,7 @@ gin milestone show <id>
 
 `gin milestone list` in một dòng forecast cho mọi epic đang mở, đã gán milestone hay chưa. `gin milestone show` in lịch và các cảnh báo (`overflow`, `late`, `unestimated`, `external_blocker`, `spec_not_ready`). Sau kick-off, `spec_not_ready` đánh dấu epic đang mở mà spec chưa được xác nhận, để BA biết spec nào đến hạn.
 
-Lặp lại cho từng sprint. Forecast thu hẹp dần khi các sprint đóng. Một milestone là một bead của Beads có ngày bắt đầu và ngày kết thúc, không phải một label.
+Lặp lại cho từng sprint. Khi các sprint đóng, số epic đang mở trong dòng forecast giảm và ngày hoàn thành thay đổi, vì các epic còn lại được xếp lịch lại từ hôm nay. Một milestone là một bead của Beads có ngày bắt đầu và ngày kết thúc, không phải một label.
 
 **Cổng hoặc phê duyệt:** `permissions.milestone: [pm]` chỉ cho Lan ghi; cổng pull request roadmap của giai đoạn trước vẫn áp dụng cho các thay đổi roadmap.
 
@@ -403,11 +403,11 @@ Unit test qua không chứng tỏ code mới hành xử như code cũ. Parity te
 **Prompt**
 ```bash
 gin team ready
-gin team claim <bead>
+gin team claim shop-portal-catalog-read.2
 ```
 ```text
 /gin:execute
-Track: <bead>, the catalog API track in services/catalog-api.
+Track: shop-portal-catalog-read.2, the catalog API track in services/catalog-api.
 Stay inside that repository and run its checks before closing the track.
 ```
 

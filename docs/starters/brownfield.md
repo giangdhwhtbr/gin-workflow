@@ -264,7 +264,7 @@ gin milestone show <id>
 
 `gin milestone list` prints one forecast line over every open epic, assigned or not. `gin milestone show` prints the schedule and the warnings (`overflow`, `late`, `unestimated`, `external_blocker`, `spec_not_ready`). After the kick-off, `spec_not_ready` marks an open epic whose spec is not confirmed, so the BA sees which spec is due.
 
-Repeat for each sprint. The forecast shrinks as sprints close. A milestone is a Beads bead with a start and an end date, not a label.
+Repeat for each sprint. As sprints close, the open epic count in the forecast line falls and the finish date moves, because the remaining epics are scheduled again from today. A milestone is a Beads bead with a start and an end date, not a label.
 
 **Gate or approval:** `permissions.milestone: [pm]` lets only Lan write; the roadmap pull request gate of the previous stage still applies to roadmap changes.
 
@@ -403,11 +403,11 @@ Passing unit tests does not show that the new code behaves like the old. Parity 
 **Prompt**
 ```bash
 gin team ready
-gin team claim <bead>
+gin team claim shop-portal-catalog-read.2
 ```
 ```text
 /gin:execute
-Track: <bead>, the catalog API track in services/catalog-api.
+Track: shop-portal-catalog-read.2, the catalog API track in services/catalog-api.
 Stay inside that repository and run its checks before closing the track.
 ```
 
