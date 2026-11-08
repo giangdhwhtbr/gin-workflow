@@ -4,7 +4,7 @@
 
 Thoả thuận này quy định cách team tạo branch, commit, mở pull request, review, approve và merge công việc. Thoả thuận ràng buộc mọi thành viên của dự án đã bật [chế độ nhóm](team.md). Chế độ nhóm mô tả cách vận hành; trang này nêu các quy tắc.
 
-Trong thoả thuận này, PHẢI đánh dấu một nghĩa vụ. Thành viên không tuân theo quy tắc có chữ PHẢI là chưa đáp ứng thoả thuận. Những câu không có chữ PHẢI mô tả mặc định khuyến nghị mà team có thể đổi.
+Trong thoả thuận này, PHẢI đánh dấu một nghĩa vụ và PHẢI KHÔNG đánh dấu một điều cấm. Thành viên vi phạm một trong hai là chưa đáp ứng thoả thuận. Những câu không có hai cụm này mô tả mặc định khuyến nghị mà team có thể đổi.
 
 Không cần biết git để tuân theo thoả thuận. Mục Quy trình theo từng host nêu các bước trên host đang dùng, và phần phụ lục có các prompt nhờ AI agent làm phần việc git.
 
@@ -24,6 +24,24 @@ Không cần biết git để tuân theo thoả thuận. Mục Quy trình theo t
 - Track: một phần của plan, được giao bằng một pull request.
 - Bead: một bản ghi công việc trong công cụ theo dõi task của dự án.
 - CI: các kiểm tra tự động chạy trên mỗi pull request.
+- Host: dịch vụ lưu repository và các pull request của nó: GitHub, GitLab hoặc AWS CodeCommit.
+- Roadmap: file liệt kê các epic mà team dự kiến giao.
+- Epic: một khối công việc lớn trong công cụ theo dõi task, gồm nhiều track.
+- Spec: file nêu công việc phải làm gì, theo ngôn ngữ nghiệp vụ.
+- Requirement: một quy tắc trong spec mà công việc hoàn thành phải đáp ứng.
+- User story: một câu ngắn nêu ai cần gì và vì sao, nằm trong spec.
+- Acceptance criterion: một phép kiểm tra cho thấy requirement đã được đáp ứng.
+- Plan: file chia spec thành các track và nêu ai làm từng track.
+- Artifact: một roadmap, spec, plan hoặc track mà team review.
+- Area: một phần của repository, có vai trò lead, sở hữu một số path.
+- Owner: thành viên làm một track.
+- Change folder: thư mục trong layout SDD chứa một thay đổi của các spec.
+- Layout SDD: cấu trúc repository giữ living spec và change folder dưới `docs/`.
+- Skill: một lệnh của AI agent chạy một stage của công việc.
+- BA: business analyst, người viết và xác nhận spec.
+- Developer: thành viên làm một track.
+- Tester: thành viên kiểm tra công việc đáp ứng spec.
+- Tech lead: thành viên viết plan và dẫn dắt các area.
 
 ## Branch { #branches }
 
@@ -39,7 +57,7 @@ Mỗi phần việc PHẢI có branch riêng, và tên branch PHẢI cho thấy 
 | Track của plan | `feat/<topic>-t<N>`, trong đó `<N>` là số thứ tự track |
 | Việc khác | `chore/<topic>` |
 
-Một branch PHẢI chỉ chứa một loại công việc. Spec và plan không dùng chung branch.
+Một branch PHẢI chứa đúng một loại công việc. Spec và plan không dùng chung branch.
 
 ## Commit { #commits }
 
@@ -70,12 +88,12 @@ Tác giả PHẢI điền template pull request do `gin team init` ghi. Template
 
 ## Review { #review }
 
-Mỗi pull request PHẢI được review bởi một thành viên giữ approving role của gate đó. Người review PHẢI đọc các thay đổi theo danh sách của vai trò mình.
+Mỗi pull request PHẢI được review bởi một thành viên giữ approving role của gate đó. Mỗi người review PHẢI dùng checklist của vai trò mình bên dưới. Các checklist là quy tắc của chính thoả thuận này và là quy ước của team, team có thể đổi.
 
 BA review một spec và kiểm tra rằng:
 
 - mỗi user story có acceptance criteria;
-- mỗi requirement có một dòng `Source:`;
+- mỗi requirement có một dòng `Source:` nêu nguồn gốc của nó;
 - các edge case của hệ thống cũ đã được phủ.
 
 Tester review pull request của developer và kiểm tra rằng:
@@ -88,17 +106,19 @@ Tech lead review một plan và kiểm tra rằng:
 - mỗi track có area và owner;
 - các track không liệt kê cùng một file.
 
+gin chỉ tự kiểm tra một phần. `gin team check-plan` kiểm tra area, owner và các path của plan, còn `gin specs lint` kiểm tra cấu trúc của spec. Phần còn lại tuỳ vào người review.
+
 Để approve, mở pull request trên host và chọn Approve. Để request changes, comment vào các dòng liên quan và chọn Request changes. Mục Quy trình theo từng host nêu các bước.
 
 Người review nên phản hồi trong vòng một ngày làm việc. Đây là quy ước mà team có thể đổi; gin không áp dụng quy ước này.
 
 ## Quy tắc approve và merge { #approval-and-merge-rules }
 
-Không thành viên nào PHẢI approve pull request của chính mình.
+Thành viên PHẢI KHÔNG approve pull request của chính mình.
 
-Một approval chỉ có giá trị trên commit mới nhất. Sau một lần push, PHẢI có approval mới.
+Một approval chỉ có giá trị trên commit mới nhất. Sau mỗi lần push, PHẢI có approval mới.
 
-Pull request PHẢI chỉ được merge khi có đủ approval cần thiết và CI đạt.
+Thành viên PHẢI KHÔNG merge pull request khi chưa có đủ approval cần thiết hoặc khi CI chưa đạt.
 
 Theo quy ước, tác giả merge và xoá branch sau khi merge. Đây là quy ước của team mà team có thể đổi; gin không áp dụng quy ước này.
 
@@ -111,7 +131,8 @@ Gate được ghi từ một pull request đã approve. Skill của stage chạy
 | `roadmap` | Đã merge | Skill `roadmap` kiểm tra bằng `gin team check <url> --gate roadmap`; skill này không ghi gate |
 | `requirement_confirmed` | Đã merge | Skill `discuss`, bằng `gin record requirement-confirmed --evidence <PR url>` |
 | `plan_approved` | Đã merge | Skill `plan`, bằng `gin record plan-approved --evidence <PR url>` |
-| `ship` | Đang mở và đã approve trên commit mới nhất | Skill `ship` kiểm tra trước khi merge bằng `gin team check --gate ship <url>`, rồi ghi bằng `gin record shipped --evidence <PR url>` cho bead độc lập |
+| `ship`, trước khi merge | Đang mở và đã approve trên commit mới nhất | Skill `ship` kiểm tra bằng `gin team check --gate ship <url>`; lệnh này không ghi gì |
+| `ship`, sau khi merge | Đã merge | Skill `ship`, bằng `gin record shipped --evidence <PR url>`, chỉ cho bead độc lập |
 
 Epic có bead con được ship khi bead epic đóng, nên không cần `gin record shipped`.
 

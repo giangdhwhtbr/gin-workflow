@@ -4,7 +4,7 @@
 
 This agreement says how the team branches, commits, opens, reviews, approves, and merges work. It binds every member of a project that has [team mode](team.md) on. Team mode holds the mechanics; this page holds the rules.
 
-In this agreement, SHALL marks an obligation. A member who does not follow a SHALL rule has not met the agreement. Words that are not SHALL describe a recommended default that the team may change.
+In this agreement, SHALL marks an obligation and SHALL NOT marks a prohibition. A member who breaks either has not met the agreement. Words that are neither describe a recommended default that the team may change.
 
 You do not need to know git to follow it. The Host procedures section gives the steps on your host, and the appendix gives prompts that ask the AI agent to do the git work.
 
@@ -24,10 +24,28 @@ You do not need to know git to follow it. The Host procedures section gives the 
 - Track: one slice of a plan, delivered by one pull request.
 - Bead: a task record in the project's task tracker.
 - CI: automatic checks that run on every pull request.
+- Host: the service that stores the repository and its pull requests: GitHub, GitLab, or AWS CodeCommit.
+- Roadmap: the file that lists the epics the team plans to deliver.
+- Epic: a large piece of work in the task tracker, made of several tracks.
+- Spec: the file that states what a piece of work must do, in business terms.
+- Requirement: one rule in a spec that the finished work must meet.
+- User story: a short statement of who needs something and why, inside a spec.
+- Acceptance criterion: a check that shows a requirement is met.
+- Plan: the file that splits a spec into tracks and says who builds each one.
+- Artifact: a roadmap, spec, plan, or track that the team reviews.
+- Area: a part of the repository, with a lead role, that owns certain paths.
+- Owner: the member who builds a track.
+- Change folder: a folder in the SDD layout that holds one change to the specs.
+- SDD layout: the repository layout that keeps living specs and change folders under `docs/`.
+- Skill: a command of the AI agent that runs one stage of the work.
+- BA: the business analyst, who writes and confirms specs.
+- Developer: the member who builds a track.
+- Tester: the member who checks that the work meets its spec.
+- Tech lead: the member who writes the plan and leads the areas.
 
 ## Branches
 
-The base branch is protected. No member SHALL commit to it directly.
+The base branch is protected. Members SHALL NOT commit to it directly.
 
 Every piece of work SHALL have its own branch, and the branch name SHALL show the kind of work.
 
@@ -70,13 +88,13 @@ The author SHALL fill the pull request template that `gin team init` writes. It 
 
 ## Review
 
-Each pull request SHALL be reviewed by a member who holds an approving role for its gate. Reviewers SHALL read the changes against the list for their role.
+Each pull request SHALL be reviewed by a member who holds an approving role for its gate. Each reviewer SHALL use the checklist for their role below. The checklists are the agreement's own rule and a team convention that the team may change.
 
 The BA reviews a spec and checks that:
 
 - every user story has acceptance criteria;
-- every requirement has a `Source:` line;
-- the legacy edge cases are covered.
+- every requirement has a `Source:` line that names where it comes from;
+- the edge cases of the old system are covered.
 
 The tester reviews a developer's pull request and checks that:
 
@@ -88,17 +106,19 @@ The tech lead reviews a plan and checks that:
 - every track has an area and an owner;
 - the tracks do not list the same file.
 
+gin checks only part of this itself. `gin team check-plan` checks the area, owner, and file paths of a plan, and `gin specs lint` checks the structure of a spec. The rest depends on the reviewer.
+
 To approve, open the pull request on the host and choose Approve. To request changes, leave comments on the lines concerned and choose Request changes. The Host procedures section has the steps.
 
 A reviewer should respond within one working day. This is a convention the team may change; gin does not enforce it.
 
 ## Approval and merge rules
 
-No member SHALL approve their own pull request.
+Members SHALL NOT approve their own pull request.
 
 An approval counts only on the latest commit. A push after approval SHALL be followed by a new approval.
 
-A pull request SHALL merge only with the required approvals and passing CI.
+Members SHALL NOT merge a pull request without the required approvals and passing CI.
 
 By convention, the author merges and deletes the branch after the merge. This is a team convention that the team may change; gin does not enforce it.
 
@@ -111,7 +131,8 @@ A gate is recorded from an approved pull request. The stage skill runs the comma
 | `roadmap` | Merged | The `roadmap` skill checks it with `gin team check <url> --gate roadmap`; it records no gate |
 | `requirement_confirmed` | Merged | The `discuss` skill, with `gin record requirement-confirmed --evidence <PR url>` |
 | `plan_approved` | Merged | The `plan` skill, with `gin record plan-approved --evidence <PR url>` |
-| `ship` | Open and approved on its latest commit | The `ship` skill checks it before the merge with `gin team check --gate ship <url>`, then records it with `gin record shipped --evidence <PR url>` for a standalone bead |
+| `ship`, before the merge | Open and approved on its latest commit | The `ship` skill checks it with `gin team check --gate ship <url>`; this records nothing |
+| `ship`, after the merge | Merged | The `ship` skill, with `gin record shipped --evidence <PR url>`, for a standalone bead only |
 
 An epic with child beads ships when the epic bead closes, so it needs no `gin record shipped`.
 
