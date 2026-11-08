@@ -1,6 +1,6 @@
 # Gin Workflow (gin-workflow)
 
-A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, and **OpenCode** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → verify → ship. Tasks are tracked in local Markdown files or, optionally, in Beads. Tracks get an independent review at `standard` and `strict` rigor, and nothing is merged without your approval. A `/quick` path handles small changes.
+A workflow plugin for **Claude Code**, **Codex CLI**, **Antigravity CLI**, **OpenCode**, and **GitHub Copilot CLI** that takes a change from requirement to merge through recorded gates: discuss → plan → orchestrate → execute → ship. Tasks are tracked in local Markdown files or, optionally, in Beads. Tracks get an independent review at `standard` and `strict` rigor, and nothing is merged without your approval. A `/quick` path handles small changes.
 
 ## Documentation
 
@@ -27,9 +27,9 @@ Read it on the [documentation site](https://giangdhwhtbr.github.io/gin-workflow/
 | Python 3.11 or later with PyYAML | the `gin` CLI | `python3 -m pip install PyYAML` |
 | git | branches, worktrees, review checkpoints | your package manager |
 | [Beads](https://github.com/gastownhall/beads) (`bd`), optional | task tracking; without it, `/setup` offers local Markdown tasks (`providers.task_tracking: markdown`) | `brew install beads`, `npm install -g @beads/bd`, or `curl -fsSL https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh \| bash` |
-| A harness | running the skills | Claude Code, Codex CLI, Antigravity CLI (`agy`), or OpenCode |
+| A harness | running the skills | Claude Code, Codex CLI, Antigravity CLI (`agy`), OpenCode, or GitHub Copilot CLI (`copilot`) |
 
-Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; [gin-orchestrator](docs/orchestrator/README.md) with `codex`, `agy`, or `opencode` next to your main harness for worker routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).
+Optional, per feature: [CodeGraph](docs/guides/recommended-tools.md#codegraph) for faster code lookup by agents; [gin-orchestrator](docs/orchestrator/README.md) with `codex`, `agy`, `opencode`, or `copilot` next to your main harness for worker routing; `gh` or `glab` for [team mode](docs/guides/team.md); Node with `@playwright/test` 1.49 or later for [QA end-to-end specs](docs/guides/qa.md). Install and configuration: [recommended tools](docs/guides/recommended-tools.md).
 
 Then, in each repository, run `/gin:setup` once ([getting started](docs/getting-started.md)); if you chose Beads, run `bd init` first.
 
@@ -63,7 +63,7 @@ codex plugin add gin@gin-workflow-marketplace
 
 Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin` CLI. Eight generic skills carry a `gin-` prefix in OpenCode (`@gin-learn`, `@gin-sdd`, `@gin-team`, `@gin-worktrees`, `@gin-debugging`, `@gin-review-response`, `@gin-parallel-agents`, `@gin-report`), so OpenCode's own built-in `report` skill is left intact.
 
-GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook, but it cannot be the configured harness; workers and reviews still need `claude`, `codex`, `agy`, or `opencode` (workers also need gin-orchestrator). The hook runs through Copilot's `bash` hook type and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-pathscriptssafety_checkpy-not-found-hook-skipped)).
+GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook and can be the main harness; `gin setup` detects it from `.github/agents`. gin-orchestrator can also route workers and reviews to it. The hook runs through Copilot's `bash` hook type and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-pathscriptssafety_checkpy-not-found-hook-skipped)).
 
 ## Extensions
 

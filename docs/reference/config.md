@@ -50,7 +50,7 @@ A schema 2.9 configuration that sets `model_tiers` is rejected. On an older sche
 
 | Key | Values | Default |
 |---|---|---|
-| `harness` | `claude`, `codex`, `antigravity`, `opencode`: the main harness that coordinates the workflow | set by setup |
+| `harness` | `claude`, `codex`, `antigravity`, `opencode`, `copilot`: the main harness that coordinates the workflow | set by setup |
 | `provider_mode` | `single` (the main harness does everything) or `multi` (routes and reviews are delegated to [gin-orchestrator](../orchestrator/README.md) when it is installed) | `single` |
 
 ### `project`
@@ -145,7 +145,7 @@ models:
 |---|---|---|
 | `claude` | `haiku`, `sonnet`, `opus` | `low`, `medium`, `high`, `xhigh`, `max` |
 | `codex` | `gpt-6-astra` | `low`, `medium`, `high`, `xhigh` |
-| `antigravity`, `opencode` | `provider_default` (the CLI's own default) | none |
+| `antigravity`, `opencode`, `copilot` | `provider_default` (the CLI's own default) | none |
 
 A configured harness entry replaces that harness's built-in entry as a whole. `models` needs at least one entry, and `efforts` may be empty or left out; entries in both lists are unique, non-empty strings. Plan tracks pick their model and effort from the main harness's entry, and `gin state --format json` prints that entry as `catalog`. gin-orchestrator maps a route into another harness's entry by rank ([rank mapping](../orchestrator/routing.md#rank-mapping)).
 

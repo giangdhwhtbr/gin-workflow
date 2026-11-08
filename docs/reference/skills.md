@@ -151,16 +151,22 @@ Entry points: web.xml and the Struts config. Database: Oracle. First modules to 
 `roadmap` (Lan, on a Premium seat):
 
 ```text
-/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with a Spring Boot API and a React SPA within two quarters. Constraints: the Oracle schema stays; no downtime. Non-goals: reporting screens.
-Team: 7 members. Premium seats: lan, binh. Standard seats: an, em, dung, hoa, chi.
-Areas: legacy, api, web, qa. Epics must split into single-area tracks.
+/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with the Spring Boot REST API and the React SPA.
+Deadline: 2027-05-28.
+Constraints: the Oracle schema stays; no downtime; each module cuts over behind the facade.
+Non-goals: reporting screens.
 ```
 
-`roadmap --milestone`:
+`roadmap --milestone`, after creating the milestone:
+
+```bash
+gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28 --lanes 3
+```
 
 ```text
 /gin:roadmap --milestone <milestone-id>
-Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first.
+Milestone goal: customers browse the catalog on the new API behind the facade.
+Leave out: the cart and checkout epics.
 ```
 
 ### Spec, plan, and execution
