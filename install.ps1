@@ -63,13 +63,17 @@ function Copy-DirectoryContent {
         [Parameter(Mandatory)][string]$Source,
         [Parameter(Mandatory)][string]$Destination,
         [switch]$AsLink,
-        [switch]$LinkFiles
+        [switch]$LinkFiles,
+        [string[]]$Exclude = @()
     )
     if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
         return
     }
     New-Directory $Destination
     foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
+        if ($Exclude -contains $item.Name) {
+            continue
+        }
         $target = Join-Path $Destination $item.Name
         if (Test-Path -LiteralPath $target) {
             Remove-Item -LiteralPath $target -Recurse -Force
@@ -292,7 +296,8 @@ function Copy-BundleDirectories {
     param(
         [Parameter(Mandatory)][string]$Source,
         [Parameter(Mandatory)][string]$Destination,
-        [switch]$LinkFiles
+        [switch]$LinkFiles,
+        [string[]]$ExcludeSkills = @()
     )
     New-Directory $Destination
     foreach ($directory in @('skills', 'scripts', 'references', 'examples', 'rules', 'templates')) {
@@ -300,7 +305,8 @@ function Copy-BundleDirectories {
             -Source (Join-Path $Source $directory) `
             -Destination (Join-Path $Destination $directory) `
             -AsLink:$Link `
-            -LinkFiles:$LinkFiles
+            -LinkFiles:$LinkFiles `
+            -Exclude $(if ($directory -eq 'skills') { $ExcludeSkills } else { @() })
     }
 }
 
@@ -315,7 +321,27 @@ function Install-OpenCodeBundle {
     # use for the Claude/Codex commands/ files, and copying them would risk
     # clobbering a repository's own .opencode/commands. Agents are translated
     # into namespaced subagents (<plugin>-<agent>.md).
-    Copy-BundleDirectories -Source $Source -Destination $Destination -LinkFiles
+    # gin-qa's `setup` would shadow gin's `setup`, which has the same directory id,
+    # so it lands as gin-qa-setup without touching a skills/setup already there.
+    $qaSetup = Join-Path $Source 'skills/setup'
+    $renameSetup = ($PluginName -eq 'gin-qa') -and (Test-Path -LiteralPath $qaSetup -PathType Container)
+    Copy-BundleDirectories -Source $Source -Destination $Destination -LinkFiles `
+        -ExcludeSkills $(if ($renameSetup) { @('setup') } else { @() })
+    if ($renameSetup) {
+        $renamed = Join-Path $Destination 'skills/gin-qa-setup'
+        if (Test-Path -LiteralPath $renamed) {
+            Remove-Item -LiteralPath $renamed -Recurse -Force
+        }
+        Copy-DirectoryContent -Source $qaSetup -Destination $renamed -AsLink:$Link -LinkFiles
+        $setupSkill = Join-Path $renamed 'SKILL.md'
+        if (Test-Path -LiteralPath $setupSkill) {
+            $content = [regex]::Replace([IO.File]::ReadAllText($setupSkill), '(?m)^name: setup$', 'name: gin-qa-setup')
+            if ($null -ne (Get-Item -LiteralPath $setupSkill).LinkType) {
+                Remove-Item -LiteralPath $setupSkill -Force
+            }
+            Write-Utf8File -Path $setupSkill -Content $content
+        }
+    }
     Convert-OpenCodeAgents -SourceDirectory $Source -DestinationDirectory $Destination -PluginName $PluginName
 
     # OpenCode selects a skill by its bare directory id, so gin's generic skill
@@ -338,24 +364,6 @@ function Install-OpenCodeBundle {
                 Remove-Item -LiteralPath $skillFile -Force
             }
             Write-Utf8File -Path $skillFile -Content $content
-        }
-    }
-
-    # gin-qa's `setup` would shadow gin-workflow's `setup`, which has the same directory id.
-    $setupDirectory = Join-Path $Destination 'skills/setup'
-    if ($PluginName -eq 'gin-qa' -and (Test-Path -LiteralPath $setupDirectory)) {
-        $renamed = Join-Path $Destination 'skills/gin-qa-setup'
-        if (Test-Path -LiteralPath $renamed) {
-            Remove-Item -LiteralPath $renamed -Recurse -Force
-        }
-        Move-Item -LiteralPath $setupDirectory -Destination $renamed
-        $setupSkill = Join-Path $renamed 'SKILL.md'
-        if (Test-Path -LiteralPath $setupSkill) {
-            $content = [regex]::Replace([IO.File]::ReadAllText($setupSkill), '(?m)^name: setup$', 'name: gin-qa-setup')
-            if ($null -ne (Get-Item -LiteralPath $setupSkill).LinkType) {
-                Remove-Item -LiteralPath $setupSkill -Force
-            }
-            Write-Utf8File -Path $setupSkill -Content $content
         }
     }
 

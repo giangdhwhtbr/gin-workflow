@@ -133,6 +133,12 @@ try {
     Assert-Exists (Join-Path $project '.opencode/agents/user-agent.md')
     Assert-Exists (Join-Path $project '.opencode/agents/gin-developer.md')
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-report/SKILL.md'))) 'name: gin-report'
+    # gin-qa added to the same project keeps gin's setup skill and lands as gin-qa-setup.
+    Invoke-Installer @{ Platform = 'opencode'; Plugin = 'gin-qa'; Project = $project } | Out-Null
+    Assert-Exists (Join-Path $project '.opencode/skills/setup/SKILL.md')
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/setup/SKILL.md'))) 'name: setup'
+    Assert-Exists (Join-Path $project '.opencode/skills/gin-qa-setup/SKILL.md')
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-qa-setup/SKILL.md'))) 'name: gin-qa-setup'
     foreach ($legacySkill in @('.claude/skills/gin-sdd', '.codex/skills/gin-knowledge', '.opencode/skills/gin-workflow-report', '.opencode/agents/gin-workflow-developer.md')) {
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $project $legacySkill))) "Project install kept the old $legacySkill"
     }

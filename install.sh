@@ -546,20 +546,35 @@ rewrite_file() {
   mv "$tmp" "$file"
 }
 
+copy_tree() {
+  if [ "$LINK" = true ]; then
+    cp -rsf "$1" "$2"
+  else
+    cp -rf "$1" "$2"
+  fi
+}
+
+# Copies the bundle directories of $src into $target; a third argument names one
+# skill directory to leave out.
 copy_bundle_dirs() {
   local src="$1"
   local target="$2"
-  local dir
+  local skip_skill="${3:-}"
+  local dir entry
 
   mkdir -p "$target"
   for dir in skills scripts references examples rules templates; do
     [ -d "$src/$dir" ] || continue
     [ -n "$(ls -A "$src/$dir" 2>/dev/null)" ] || continue
     mkdir -p "$target/$dir"
-    if [ "$LINK" = true ]; then
-      cp -rsf "$src/$dir/." "$target/$dir/"
+    if [ "$dir" = skills ] && [ -n "$skip_skill" ]; then
+      for entry in "$src/skills"/* "$src/skills"/.[!.]*; do
+        [ -e "$entry" ] || continue
+        [ "$(basename "$entry")" = "$skip_skill" ] && continue
+        copy_tree "$entry" "$target/skills/"
+      done
     else
-      cp -rf "$src/$dir/." "$target/$dir/"
+      copy_tree "$src/$dir/." "$target/$dir/"
     fi
   done
 }
@@ -575,7 +590,19 @@ install_opencode_bundle() {
   # use for the Claude/Codex commands/ files, and copying them would risk
   # clobbering a repository's own .opencode/commands. Agents are translated
   # into namespaced subagents (<plugin>-<agent>.md).
-  copy_bundle_dirs "$src" "$target"
+  # gin-qa's `setup` would shadow gin's `setup`, which has the same directory id,
+  # so it lands as gin-qa-setup without touching a skills/setup already there.
+  local skip_skill=""
+  if [ "$plugin_name" = gin-qa ] && [ -d "$src/skills/setup" ]; then
+    skip_skill=setup
+  fi
+  copy_bundle_dirs "$src" "$target" "$skip_skill"
+  if [ -n "$skip_skill" ]; then
+    rm -rf "$target/skills/gin-qa-setup"
+    mkdir -p "$target/skills/gin-qa-setup"
+    copy_tree "$src/skills/setup/." "$target/skills/gin-qa-setup/"
+    rewrite_file "$target/skills/gin-qa-setup/SKILL.md" 's/^name: setup$/name: gin-qa-setup/'
+  fi
   if [ -n "$plugin_name" ]; then
     template_agents_for_opencode "$src" "$target" "$plugin_name"
   fi
@@ -590,13 +617,6 @@ install_opencode_bundle() {
       mv "$target/skills/$skill" "$target/skills/gin-$skill"
       rewrite_file "$target/skills/gin-$skill/SKILL.md" "s/^name: $skill\$/name: gin-$skill/"
     done
-  fi
-
-  # gin-qa's `setup` would shadow gin-workflow's `setup`, which has the same directory id.
-  if [ "$plugin_name" = gin-qa ] && [ -d "$target/skills/setup" ]; then
-    rm -rf "$target/skills/gin-qa-setup"
-    mv "$target/skills/setup" "$target/skills/gin-qa-setup"
-    rewrite_file "$target/skills/gin-qa-setup/SKILL.md" 's/^name: setup$/name: gin-qa-setup/'
   fi
 
   # Shell commands run from the agent's working directory, so point support
