@@ -69,7 +69,7 @@ try {
     Assert-True (-not $dryRunOutput.Contains('gin-qa', [StringComparison]::Ordinal)) 'Default install processed gin-qa'
 
     $qaDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-qa'; DryRun = $true }
-    Assert-Contains $qaDryRun 'would install gin-qa launcher version 0.10'
+    Assert-Contains $qaDryRun 'would install gin-qa launcher version 0.11'
     Assert-True (-not $qaDryRun.Contains('Processing plugin: gin-workflow', [StringComparison]::Ordinal)) 'gin-qa install processed gin-workflow'
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/cases/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/SKILL.md')
@@ -154,11 +154,11 @@ try {
     Invoke-Installer @{ Platform = 'claude'; Plugin = 'all'; Project = $qaProject } | Out-Null
     Assert-Exists (Join-Path $qaProject '.claude/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $qaProject '.claude/skills/cases/SKILL.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.10/gin_qa/cli.py')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.10/templates/evidence.ts')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.10/templates/playwright.config.ts')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.10/templates/qa-readme.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.10/templates/report.html')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/gin_qa/cli.py')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/evidence.ts')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/playwright.config.ts')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/qa-readme.md')
+    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/report.html')
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-qa.cmd')
     Assert-Exists (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/templates'))) 'gin-orchestrator copied templates'
@@ -213,7 +213,7 @@ try {
 
     foreach ($launcherCase in @(
         @{ Plugin = 'gin-workflow'; Name = 'gin'; Old = '2.1'; Current = '3.0' },
-        @{ Plugin = 'gin-qa'; Name = 'gin-qa'; Old = '0.4'; Current = '0.10' },
+        @{ Plugin = 'gin-qa'; Name = 'gin-qa'; Old = '0.4'; Current = '0.11' },
         @{ Plugin = 'gin-orchestrator'; Name = 'gin-orchestrator'; Old = '0.0'; Current = '0.1' }
     )) {
         $launcherName = $launcherCase.Name
@@ -271,7 +271,7 @@ try {
     }
 
     # Installing gin refreshes the add-ons whose launchers the installer manages.
-    $staleAddon = Join-Path $TestHome '.local/lib/gin-qa/0.10/gin-qa'
+    $staleAddon = Join-Path $TestHome '.local/lib/gin-qa/0.11/gin-qa'
     [IO.File]::WriteAllText($staleAddon, '# stale add-on copy')
     $refreshOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project }
     Assert-Contains $refreshOutput 'Refreshing the installed gin-qa add-on.'

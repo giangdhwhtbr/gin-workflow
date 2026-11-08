@@ -16,7 +16,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $LauncherVersion = '3.0'
-$QaLauncherVersion = '0.10'
+$QaLauncherVersion = '0.11'
 $OrchLauncherVersion = '0.1'
 $ScriptRoot = $PSScriptRoot
 $UserHome = $env:HOME
