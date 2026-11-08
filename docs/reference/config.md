@@ -59,7 +59,7 @@ A schema 2.9 configuration that sets `model_tiers` is rejected. On an older sche
 |---|---|---|
 | `stage` | `greenfield`, `brownfield`, `legacy` | `brownfield` |
 | `shape` | `frontend`, `backend`, `fullstack`, `library`; selects the `references/shape-<shape>.md` appendix the developer reads | `fullstack` |
-| `monorepo`, `packages` | monorepo flag and detected packages | `false` |
+| `monorepo`, `packages` | monorepo flag and detected packages; for several repositories under one parent see [`workspace`](#workspace) | `false` |
 | `stack_intent` | free text for a greenfield project | `""` |
 | `rigor` | `easy`, `standard`, `strict` | `standard` |
 | `worktree` | `never`, `parallel`, `always` | from rigor |
@@ -169,6 +169,10 @@ A configured harness entry replaces that harness's built-in entry as a whole. `m
 ### `team`
 
 Present only in team mode ([guide](../guides/team.md)). Keys: `host` (`github` or `gitlab`), `commit_convention` (`conventional` or `none`), `members` (email → `roles`, `login`), `areas` (name → `paths`, `lead`, `roles`), `approvals`, and `beads_sync.remote`. `approvals` maps a gate (`requirement_confirmed`, `plan_approved`, `ship`, `roadmap`) to a role list. `plan_approved` may be `area_lead` instead, and `roadmap` gates the `/roadmap` pull request. `permissions.milestone` lists the roles allowed to run `gin milestone` writes; unset means any member. Every listed role must be held by a member. Update gin-workflow for every member before adding `permissions`, because an older version rejects the key. `strict: true` makes a missing policy for `requirement_confirmed`, `plan_approved`, or `ship` a configuration error; unset, `setup doctor` and `team init` only warn. `claim_ttl_hours` (integer, minimum 1, default 48) is the lease length `team claim` writes into the bead's `claim` metadata (`holder`, `expires_at`).
+
+### `workspace`
+
+Present when the repository is the parent of several repositories ([guide](../guides/workspace.md)). `repos` lists them: `path` (relative, gitignored in the parent), `url`, `shape` (`frontend`, `backend`, `library`, `qa`, `beads`), `frozen` (read only: no hooks, tracks, or worktrees; cloned shallow), `default_branch` (default `main`), and `verify.checks` with the same keys as the root block. The `beads` entry sits at `.beads` and holds the shared Beads database. `project.packages` keeps its meaning inside one repository and is ignored for workspace entries.
 
 ### `qa`
 

@@ -61,7 +61,7 @@ These are conventions, and no workflow setting enforces them:
   ```bash
   git worktree add .claude/worktrees/<topic> -b feat/<topic> <base>
   ```
-  `/gin:orchestrate` later branches each track worktree from `feat/<topic>` as usual.
+  `/gin:orchestrate` later branches each track worktree from `feat/<topic>` as usual. In a workspace the session worktree is a worktree of the parent, where specs and plans live.
 - Run background or scheduled sessions that edit files in a worktree, never in place.
 - Remember what worktrees still share: the branches (a branch is checked out in one worktree at a time), the stash (never run a bare `git stash pop`), the Beads database, and the installed plugins. Running `install.sh` after one epic ships changes the skills that every running session uses.
 - Ship one epic at a time. Merging into the base branch needs a checkout of it, and the `pre-push` hook runs the full test suite on each push.

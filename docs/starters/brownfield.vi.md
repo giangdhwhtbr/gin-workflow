@@ -6,14 +6,17 @@ Trong một codebase có sẵn, code thường là đặc tả duy nhất, nên 
 
 ## Kịch bản { #the-scenario }
 
-`shop-portal` là một monolith Java 8 JSP và Struts chạy trên Oracle. Nhóm thay thế nó phía sau một facade bằng REST API Spring Boot và React SPA, trong một monorepo:
+`shop-portal` là một monolith Java 8 JSP và Struts chạy trên Oracle. Nhóm thay thế nó phía sau một facade bằng REST API Spring Boot và React SPA, dưới một repository cha (workspace):
 
 | Thư mục | Nội dung |
 |---|---|
-| `legacy/` | ứng dụng Struts, đưa vào dưới dạng git subtree |
-| `services/api/` | Spring Boot API và facade |
-| `apps/web/` | React SPA |
-| `qa/` | test case, end-to-end spec, evidence |
+| `legacy/shop-portal/` | ứng dụng Struts, repository `frozen` chỉ để đọc |
+| `services/order-api/` | Spring Boot API cho đơn hàng và facade |
+| `services/catalog-api/` | Spring Boot API cho danh mục |
+| `apps/web-shop/` | React SPA cho khách hàng |
+| `apps/web-admin/` | React SPA cho quản trị |
+| `qa/` | repository automation: test case, end-to-end spec, evidence |
+| `.beads/` | cơ sở dữ liệu Beads dùng chung |
 
 Nhóm có bảy người. Lan và Binh giữ hai seat Claude Team Premium, nên nhận các việc cần model mạnh nhất: roadmap và milestone, plan, review, và track migration khó nhất. An, Em, Dung, Hoa và Chi giữ năm seat Standard và nhận các track có phạm vi rõ. Việc phân bổ seat là lựa chọn của nhóm, không phải một thiết lập.
 
@@ -42,9 +45,9 @@ team:
     hoa@example.com: {roles: [fe_dev], login: hoa-dev}
     chi@example.com: {roles: [qe], login: chi-qe}
   areas:
-    legacy: {paths: ["legacy/**"], lead: be_lead, roles: [be_dev]}
-    api: {paths: ["services/api/**"], lead: be_lead, roles: [be_dev]}
-    web: {paths: ["apps/web/**"], lead: be_lead, roles: [fe_dev]}
+    legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}
+    api: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
+    web: {paths: ["apps/**"], lead: be_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
     requirement_confirmed: [ba, be_lead]
@@ -78,37 +81,66 @@ flowchart LR
 
 **Ai làm:** Tech Lead, một lần.
 
+**Làm ở đâu:** repository cha, nơi chứa `docs/` và `.planning/`. Các repository con là bản clone thường nằm dưới nó, không phải submodule.
+
 **Prompt**
+```text
+/gin:setup
+```
+Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó điền `workspace.repos` trong `.agent-workflow/config.yaml`:
+
+```yaml
+workspace:
+  repos:
+    - {path: legacy/shop-portal, url: git@github.com:acme/shop-portal.git, frozen: true}
+    - path: services/order-api
+      url: git@github.com:acme/order-api.git
+      shape: backend
+      verify: {checks: {test: mvn -q test, build: mvn -q package}}
+    - path: services/catalog-api
+      url: git@github.com:acme/catalog-api.git
+      shape: backend
+      verify: {checks: {test: mvn -q test, build: mvn -q package}}
+    - {path: apps/web-shop, url: git@github.com:acme/web-shop.git, shape: frontend,
+       verify: {checks: {lint: npm run lint, test: npm test, build: npm run build}}}
+    - {path: apps/web-admin, url: git@github.com:acme/web-admin.git, shape: frontend,
+       verify: {checks: {lint: npm run lint, test: npm test, build: npm run build}}}
+    - {path: qa, url: git@github.com:acme/qa.git, shape: qa}
+    - {path: .beads, url: git@github.com:acme/beads.git, shape: beads}
+```
+
+Sau đó clone tất cả và cài hook trong từng repository:
+
+```bash
+gin workspace clone --all
+gin hooks install --all-repos
+gin setup doctor
+```
+
+Đưa vào prompt: sáu repository ở trên cùng stack của từng cái (Maven cho các service, npm cho các app), và repository Beads dùng chung.
+
+`legacy/shop-portal` là `frozen`: nó được clone nông (shallow), chỉ để đọc cho bước khảo sát và các parity test, và không bao giờ có hook, track hay worktree. `.beads` là mục giữ cơ sở dữ liệu Beads dùng chung. `qa` là repository automation, nên `gin-qa` vẫn ghi `qa/cases/`, `qa/e2e/` và `qa/evidence/` vào đó. Mỗi path được thêm vào `.gitignore` của repository cha, nên repository cha không theo dõi repository con nào. Mỗi kỹ sư chỉ clone các repository họ làm việc; xem [hướng dẫn workspace](../guides/workspace.md).
+
+Phương án thay thế là một repository duy nhất với code legacy dưới dạng git subtree:
+
 ```bash
 git subtree add --prefix=legacy git@github.com:acme/shop-portal.git main
 mkdir -p services/api apps/web qa
 ```
-```text
-/gin:setup
-```
-Trả lời `stage: brownfield`, `shape: fullstack`, `monorepo: true`.
 
-Đưa vào prompt: các thư mục ở trên và stack của từng thư mục (Maven cho API, npm cho SPA).
+Ở biến thể này, trả lời `monorepo: true` trong `/gin:setup` và tự thêm một mục `project.packages` cho `services/api` và một cho `apps/web`, mỗi mục có `path`, `shape` và `verify.checks` ([cấu hình](../reference/config.md#verifychecks)). Chọn nó khi một thay đổi facade, một parity test và một lần gỡ legacy phải nằm trong cùng một pull request và một lịch sử, khi nhóm đủ nhỏ để dùng chung một pipeline deploy, và khi không ai cần deploy một service riêng lẻ. Kéo các bản sửa của vendor về sau bằng `git subtree pull --prefix=legacy git@github.com:acme/shop-portal.git main`. Phần còn lại của trang này giả định bạn dùng workspace.
 
-Hãy giữ code legacy và phần thay thế trong một monorepo, để một thay đổi facade, một parity test và một lần gỡ legacy nằm trong cùng một pull request và một lịch sử. `git subtree` sao chép lịch sử legacy vào một thư mục và không để lại gì cho đồng đội phải khởi tạo. Kéo các bản sửa của vendor về sau bằng:
-
-```bash
-git subtree pull --prefix=legacy git@github.com:acme/shop-portal.git main
-```
-
-Git submodule không phù hợp: mỗi lần checkout bên trong submodule làm repository cha bị dirty, và mỗi thành viên phải giữ hai commit đồng bộ với nhau. Repository legacy nên để riêng khi một nhóm khác sở hữu pipeline deploy của nó, khi compliance yêu cầu lịch sử hoặc danh sách truy cập của nó phải tách biệt, hoặc khi nó quá lớn để mang theo trong mỗi bản clone.
-
-Setup chỉ phát hiện `packages` từ các JavaScript workspace. Với hỗn hợp Maven và npm này, hãy tự thêm một mục `project.packages` cho `services/api` và một cho `apps/web` trong `.agent-workflow/config.yaml`, mỗi mục có `path`, `shape` và `verify.checks`. Khi đó hook chạy các check của package trong thư mục của nó ([cấu hình](../reference/config.md#verifychecks)).
-
-**Kết quả:** lịch sử legacy dưới `legacy/`, và `.agent-workflow/config.yaml` với các thiết lập dự án cùng các mục `project.packages` của bạn.
+**Kết quả:** mọi repository được clone tại path của nó, một hook pre-commit và pre-push trong từng repository chạy check của chính repository đó, và `.agent-workflow/config.yaml` với `workspace.repos`.
 
 **Cổng hoặc phê duyệt:** không có.
 
-**Lỗi thường gặp:** dùng submodule thay vì subtree; không có mục `project.packages` cho một package nên check của nó không bao giờ chạy.
+**Lỗi thường gặp:** chạy `/gin:setup` trong một repository con thay vì repository cha; để một path trong `.gitmodules` trong khi nó cũng có trong `workspace.repos` (`gin setup doctor` báo là vẫn còn submodule); quên `gin hooks install --all-repos` nên một repository con không có hook.
 
 ## Setup và team setup { #setup-and-team-setup }
 
 **Ai làm:** Tech Lead một lần cho mỗi repository, sau đó mỗi thành viên một lần trên bản clone của mình. Thành viên không tự đăng ký: lead liệt kê mọi thành viên, vai trò, khu vực và phê duyệt trong khối `team:`. Chi cũng chạy `/gin-qa:setup` một lần.
+
+**Làm ở đâu:** repository cha.
 
 **Prompt (Tech Lead)**
 ```text
@@ -141,6 +173,8 @@ Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, ch�
 
 **Ai làm:** Tech Lead.
 
+**Làm ở đâu:** repository cha.
+
 **Prompt**
 ```text
 /gin:tech-doc whole repository
@@ -159,6 +193,8 @@ Khi hệ thống legacy dùng một ngôn ngữ khác tiếng Anh, bộ này cò
 ## Tổng quan roadmap { #roadmap-overview }
 
 **Ai làm:** PM.
+
+**Làm ở đâu:** repository cha.
 
 **Prompt**
 ```text
@@ -182,6 +218,8 @@ Trang Dependencies của gin-console hiển thị cùng đồ thị đó. Từ �
 ## Lập kế hoạch milestone { #milestone-planning }
 
 **Ai làm:** PM.
+
+**Làm ở đâu:** repository cha.
 
 **Prompt**
 ```bash
@@ -208,6 +246,8 @@ gin milestone show <id>
 ## Discuss một epic { #discuss-an-epic }
 
 **Ai làm:** BA.
+
+**Làm ở đâu:** repository cha.
 
 **Prompt**
 ```text
@@ -237,6 +277,8 @@ Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (pa
 
 **Ai làm:** Tech Lead.
 
+**Làm ở đâu:** repository cha.
+
 **Prompt**
 ```text
 /gin:plan
@@ -249,7 +291,7 @@ Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (pa
 
 **Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, area lead duyệt pull request của plan.
 
-**Lỗi thường gặp:** một track đụng tới hai khu vực, ví dụ `services/api/` và `apps/web/`; hãy chạy `gin team check-plan <plan>` trước khi xin duyệt.
+**Lỗi thường gặp:** một track đụng tới hai khu vực, ví dụ `services/` và `apps/`; hãy chạy `gin team check-plan <plan>` trước khi xin duyệt.
 
 ### Strangler Fig { #strangler-fig }
 
@@ -285,6 +327,8 @@ Các script kiểm tra parity và dữ liệu chạy trong hook `pre-push` khi l
 
 **Ai làm:** QE.
 
+**Làm ở đâu:** repository `qa`.
+
 **Prompt**
 ```text
 /gin-qa:cases catalog
@@ -308,6 +352,8 @@ Unit test qua không chứng tỏ code mới hành xử như code cũ. Parity te
 ## Execute { #execute }
 
 **Ai làm:** Developer (Em và Dung cho các track API và legacy, Hoa cho các track SPA).
+
+**Làm ở đâu:** worktree của track `<parent>/.planning/worktrees/<track-id>` (một service hoặc một app).
 
 **Prompt**
 ```bash
@@ -338,6 +384,8 @@ Người nhận mới phải được phép sở hữu track trong các khu vự
 
 **Ai làm:** QE.
 
+**Làm ở đâu:** repository `qa`.
+
 **Prompt**
 ```text
 /gin-qa:e2e catalog
@@ -361,6 +409,8 @@ Người nhận mới phải được phép sở hữu track trong các khu vự
 
 **Ai làm:** Tech Lead.
 
+**Làm ở đâu:** repository cha.
+
 **Prompt**
 ```text
 /gin:ship
@@ -377,6 +427,8 @@ Người nhận mới phải được phép sở hữu track trong các khu vự
 ## Review milestone và spill-over { #milestone-review-and-spill-over }
 
 **Ai làm:** PM, vào ngày kết thúc của milestone.
+
+**Làm ở đâu:** repository cha.
 
 **Prompt**
 ```bash
