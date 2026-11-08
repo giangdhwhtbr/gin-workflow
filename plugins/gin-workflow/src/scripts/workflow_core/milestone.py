@@ -199,7 +199,59 @@ def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None,
             **schedule(milestone, beads, schedule_start, today, default_lanes)}
 
 
-def list_payload(beads: Beads, today: date, include_closed: bool) -> dict[str, Any]:
+def _open_roadmap_epics(beads: Beads) -> dict[str, Mapping[str, Any]]:
+    return {bead["id"]: bead for bead in beads.values()
+            if bead.get("issue_type") == "epic" and "roadmap" in (bead.get("labels") or [])
+            and bead.get("status") != "closed"}
+
+
+def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) -> dict[str, Any] | None:
+    """When every open roadmap epic finishes: open milestones in `end` order on their own lanes, one after
+    another, then the unassigned pool on `default_lanes`. None when no roadmap epic is open."""
+    epics = _open_roadmap_epics(beads)
+    if not epics:
+        return None
+    result: dict[str, Any] = {
+        "deadline": roadmap.deadline.isoformat() if roadmap.deadline else None, "lanes": default_lanes,
+        "start": today.isoformat(), "finish": None, "overflow_days": 0, "open_epics": len(epics),
+        "unestimated": sum(estimate_days(epic.get("estimated_minutes")) is None for epic in epics.values()),
+        "error": roadmap.error}
+    milestones = sorted((bead for bead in beads.values()
+                         if bead.get("issue_type") == "milestone" and bead.get("status") != "closed"),
+                        key=lambda bead: (str(_meta(bead).get("end", "")), bead["id"]))
+    groups: list[tuple[Mapping[str, Any] | None, dict[str, Mapping[str, Any]]]] = [
+        (m, {k: v for k, v in epics.items() if v.get("parent") == m["id"]}) for m in milestones]
+    owned = {k for _, group in groups for k in group}
+    groups.append((None, {k: v for k, v in epics.items() if k not in owned}))
+    cursor, ends = _workday(today), []
+    try:
+        for milestone, group in groups:
+            if milestone is None:
+                first, lanes = cursor, default_lanes
+            else:
+                begin, _ = period(milestone)
+                meta = _meta(milestone)
+                first = max(cursor, parse_date(meta["kickoff"]) if meta.get("kickoff") else begin)
+                lanes = lanes_of(milestone, default_lanes)
+            planned = _place(group, _workday(first), lanes)
+            group_ends = [planned[k][1] for k, v in group.items() if estimate_days(v.get("estimated_minutes")) is not None]
+            if group_ends:
+                ends.append(max(group_ends))
+                cursor = _workday(max(group_ends) + timedelta(days=1))
+    except ValueError as error:  # CycleError and bad milestone metadata
+        result["error"] = str(error)
+        return result
+    if ends:
+        finish = max(ends)
+        result["finish"] = finish.isoformat()
+        if roadmap.deadline:
+            result["overflow_days"] = workdays_after(roadmap.deadline, finish)
+    return result
+
+
+def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadmap | None = None,
+                 default_lanes: int = 1) -> dict[str, Any]:
+    roadmap = roadmap or Roadmap()
     entries = []
     milestones = [bead for bead in beads.values() if bead.get("issue_type") == "milestone"]
     for milestone in sorted(milestones, key=lambda bead: (str(_meta(bead).get("start", "")), bead["id"])):
@@ -210,6 +262,7 @@ def list_payload(beads: Beads, today: date, include_closed: bool) -> dict[str, A
         entry = {"id": milestone["id"], "title": milestone.get("title", ""),
                  "status": "closed" if milestone.get("status") == "closed" else "planned",
                  "start": meta.get("start"), "end": meta.get("end"), "kickoff": meta.get("kickoff"),
+                 "lanes": lanes_of(milestone, default_lanes),
                  "finish": None, "epics": {"total": len(epics),
                                            "closed": sum(epic.get("status") == "closed" for epic in epics)},
                  "warnings": None, "error": None}
@@ -217,7 +270,7 @@ def list_payload(beads: Beads, today: date, include_closed: bool) -> dict[str, A
             entry["status"] = status(milestone, today)
             begin, _ = period(milestone)
             start = parse_date(meta["kickoff"]) if meta.get("kickoff") else begin
-            plan = schedule(milestone, beads, start, today)
+            plan = schedule(milestone, beads, start, today, default_lanes)
             entry["finish"] = plan["finish"]
             entry["warnings"] = sum(len(row["warnings"]) for row in plan["epics"])
         except ValueError as error:  # CycleError included
@@ -226,4 +279,5 @@ def list_payload(beads: Beads, today: date, include_closed: bool) -> dict[str, A
     unassigned = sum(1 for bead in beads.values()
                      if bead.get("issue_type") == "epic" and "roadmap" in (bead.get("labels") or [])
                      and bead.get("status") != "closed" and not bead.get("parent"))
-    return {"schema": SCHEMA, "milestones": entries, "unassigned_epics": unassigned, "today": today.isoformat()}
+    return {"schema": SCHEMA, "milestones": entries, "unassigned_epics": unassigned, "today": today.isoformat(),
+            "forecast": forecast(beads, today, roadmap, default_lanes)}

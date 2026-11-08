@@ -111,9 +111,9 @@ class MilestoneCliTests(unittest.TestCase):
         code, out, err = self.run_cli("list", "--json")
         self.assertEqual(0, code, err)
         self.assertEqual({
-            "schema": 1, "today": "2026-10-29", "unassigned_epics": 0,
+            "schema": 1, "today": "2026-10-29", "unassigned_epics": 0, "forecast": None,
             "milestones": [{"id": "t-m1", "title": "M1", "status": "planned", "start": "2026-11-02",
-                            "end": "2026-11-04", "kickoff": None, "finish": "2026-11-06",
+                            "end": "2026-11-04", "kickoff": None, "lanes": 1, "finish": "2026-11-06",
                             "epics": {"total": 2, "closed": 0}, "warnings": 1, "error": None}]}, json.loads(out))
 
     def test_req_009_preview_does_not_write(self):

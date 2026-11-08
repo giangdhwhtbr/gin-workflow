@@ -253,6 +253,8 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual({"total": 6, "closed": 0}, payload["milestones"][0]["epics"])
         self.assertEqual(3, payload["unassigned_epics"])
         self.assertEqual("2026-10-29", payload["today"])
+        self.assertEqual(1, payload["milestones"][0]["lanes"])
+        self.assertEqual(3, payload["forecast"]["open_epics"])
 
     def test_req_011_list_omits_closed_unless_all(self):
         beads = world(milestone_bead(), milestone_bead("m0", status="closed", start="2026-09-01", end="2026-09-30"))
@@ -283,6 +285,77 @@ class PayloadTests(unittest.TestCase):
     def test_req_011_list_reports_missing_period(self):
         beads = world(bead("m1", type="milestone"))
         self.assertIn("no start/end metadata", milestone.list_payload(beads, TODAY, False)["milestones"][0]["error"])
+
+
+class ForecastTests(unittest.TestCase):
+    def forecast(self, beads, roadmap=None, lanes=1):
+        return milestone.forecast(beads, TODAY, roadmap or milestone.Roadmap(), lanes)
+
+    def test_pool_only_with_spare_days(self):
+        beads = world(bead("r1", labels=["roadmap"], minutes=days(2)), bead("r2", labels=["roadmap"], minutes=days(1)))
+        found = self.forecast(beads, milestone.Roadmap(deadline=D("2026-11-06")))
+        self.assertEqual({"deadline": "2026-11-06", "lanes": 1, "start": "2026-10-29", "finish": "2026-11-02",
+                          "overflow_days": 0, "open_epics": 2, "unestimated": 0, "error": None}, found)
+
+    def test_overflow_counts_working_days_after_the_deadline(self):
+        beads = world(bead("r1", labels=["roadmap"], minutes=days(2)), bead("r2", labels=["roadmap"], minutes=days(1)))
+        self.assertEqual(1, self.forecast(beads, milestone.Roadmap(deadline=D("2026-10-30")))["overflow_days"])
+
+    def test_without_deadline(self):
+        beads = world(bead("r1", labels=["roadmap"], minutes=days(1)))
+        found = self.forecast(beads)
+        self.assertEqual((None, 0, "2026-10-29"), (found["deadline"], found["overflow_days"], found["finish"]))
+
+    def test_milestones_in_end_order_with_their_own_lanes_then_the_pool(self):
+        beads = world(milestone_bead("m2", start="2026-11-09", end="2026-11-13", lanes=2),
+                      milestone_bead("m1", start="2026-11-02", end="2026-11-06", lanes=1),
+                      bead("A", parent="m1", minutes=days(2), labels=["roadmap"]),
+                      bead("B", parent="m1", minutes=days(2), labels=["roadmap"]),
+                      bead("C", parent="m2", minutes=days(3), labels=["roadmap"]),
+                      bead("D", parent="m2", minutes=days(1), labels=["roadmap"]),
+                      bead("r1", labels=["roadmap"], minutes=days(1)))
+        found = self.forecast(beads, milestone.Roadmap(deadline=D("2026-11-13")))
+        self.assertEqual(("2026-11-12", 0, 5), (found["finish"], found["overflow_days"], found["open_epics"]))
+
+    def test_closed_epics_and_closed_milestones_are_left_out(self):
+        beads = world(milestone_bead("m0", status="closed", start="2026-09-01", end="2026-09-30"),
+                      bead("done", labels=["roadmap"], minutes=days(5), status="closed"),
+                      bead("r1", labels=["roadmap"], minutes=days(1)))
+        found = self.forecast(beads)
+        self.assertEqual(("2026-10-29", 1), (found["finish"], found["open_epics"]))
+
+    def test_pool_epic_blocked_by_a_sprint_epic_starts_after_it(self):
+        beads = world(milestone_bead(lanes=1), bead("A", parent="m1", minutes=days(2), labels=["roadmap"]),
+                      bead("r1", labels=["roadmap"], minutes=days(1), blocks=["A"]),
+                      bead("r2", labels=["roadmap"], minutes=days(1)))
+        self.assertEqual("2026-11-05", self.forecast(beads)["finish"])
+
+    def test_cycle_sets_error(self):
+        beads = world(bead("r1", labels=["roadmap"], blocks=["r2"]), bead("r2", labels=["roadmap"], blocks=["r1"]))
+        found = self.forecast(beads)
+        self.assertIn("dependency cycle", found["error"])
+        self.assertIsNone(found["finish"])
+
+    def test_reader_error_is_passed_through_with_the_dates(self):
+        beads = world(bead("r1", labels=["roadmap"], minutes=days(1)))
+        found = self.forecast(beads, milestone.Roadmap(error="Deadline: soon is not a date (YYYY-MM-DD)"))
+        self.assertEqual(("Deadline: soon is not a date (YYYY-MM-DD)", "2026-10-29"), (found["error"], found["finish"]))
+
+    def test_no_open_epic_gives_none(self):
+        self.assertIsNone(self.forecast(world(bead("done", labels=["roadmap"], status="closed"))))
+        self.assertIsNone(self.forecast(world(bead("t", type="task", labels=["roadmap"]))))
+
+    def test_all_unestimated(self):
+        beads = world(bead("r1", labels=["roadmap"]), bead("r2", labels=["roadmap"]))
+        found = self.forecast(beads)
+        self.assertEqual((None, 2, 2), (found["finish"], found["unestimated"], found["open_epics"]))
+
+    def test_list_payload_carries_lanes_and_forecast(self):
+        beads = world(milestone_bead(lanes=2), bead("A", parent="m1", minutes=days(1), labels=["roadmap"]))
+        payload = milestone.list_payload(beads, TODAY, False, milestone.Roadmap(deadline=D("2026-11-30")), 1)
+        self.assertEqual(2, payload["milestones"][0]["lanes"])
+        self.assertEqual("2026-11-02", payload["forecast"]["finish"])
+        self.assertIsNone(milestone.list_payload(world(milestone_bead()), TODAY, False)["forecast"])
 
 
 if __name__ == "__main__":
