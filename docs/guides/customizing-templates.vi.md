@@ -24,7 +24,7 @@ gin specs template <template-name>
 ```
 
 Các template khả dụng:
-- Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
+- Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `task.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
 - Xuất SRS (`specs export`): `srs.html`, `srs-capability.html`
 - Trang explain (`specs explain`): `explain.html`
 - Tài liệu codebase (`/gin:tech-doc`): `codebase/<FILE>.md`, ví dụ `codebase/05-API.md`
@@ -34,6 +34,7 @@ Các template khả dụng:
 |---|---|---|
 | Roadmap | `/gin:roadmap` | `.agent-workflow/templates/roadmap.md` |
 | Mô tả epic | `/gin:roadmap` | `.agent-workflow/templates/epic.md` |
+| Mô tả bead track | `/gin:orchestrate` | `.agent-workflow/templates/task.md` |
 | User story | `/gin:discuss` | `.agent-workflow/templates/user-story.md` |
 | Design spec (layout legacy) | `/gin:discuss` | `.agent-workflow/templates/design-spec.md` |
 | Proposal, spec delta, design, tests (layout SDD) | `specs new`, lệnh mà `/gin:discuss` chạy | `.agent-workflow/templates/proposal.md`, `spec-delta.md`, `design.md`, `tests.md` (không đánh số; `specs new` ghi chúng thành `01-proposal.md` và tiếp theo) |
@@ -125,6 +126,8 @@ Một `src` tương đối trong template được đọc từ gốc repository 
 `gin specs explain` điền `explain.html` một lần. Nó nhận `{{title}}`, `{{kind}}` (`capability` hoặc `change`), `{{date}}`, `{{nav}}` (mỗi phần có nội dung một link), và `{{sections}}` (mỗi phần một `<section class="tab">`, theo thứ tự Overview, Requirements, Stories, Diagrams, Mockups and images). Script của template có sẵn hiển thị phần được nêu trong URL hash, lọc các thẻ requirement, mở ảnh trong trình xem ảnh, và gửi screen id tới mockup nhúng; hãy giữ nó khi đổi giao diện trang. Như các template SRS, mỗi placeholder được điền một lần, comment bị bỏ, và một `src` tương đối được đọc từ gốc repository rồi nhúng vào.
 
 `## Constraints` của template roadmap có hai dòng mà `gin milestone list` đọc: `- Deadline: YYYY-MM-DD`, hạn chót của dự án mà dự báo được so với, và `- AI capacity: <n> ...`, có số nguyên đứng đầu là số lane mặc định. Hãy giữ cả hai bullet khi ghi đè template; chữ tự do sau con số bị bỏ qua.
+
+Mục `## Way of working` của template (Foundation, Spec cadence, Build, Integration, Quality, Load) được điền bởi `/gin:roadmap` không kèm tham số, từ `references/way-of-working.md` của skill, và giữ nguyên khi chạy lại. Mỗi khối `## Milestone:` bắt đầu bằng `Spec ready by:` và một khối `Integration point:` (Integrates, Flags on, E2E scope, Exit criteria) do `/gin:roadmap --milestone` ghi. Roadmap không có các dòng này vẫn hợp lệ. Các track bead do `/gin:orchestrate` tạo lấy mô tả từ `task.md`, với các dòng nhãn `Plan:`, `Files:`, `Route:`, `Acceptance:` và `Notes:`. Epic roadmap mang dòng `Complexity:` (`low`, `medium` hoặc `high`) trong cả file roadmap lẫn mô tả bead `epic.md`.
 
 ## Guideline và trường của test case { #test-case-guidelines-and-fields }
 

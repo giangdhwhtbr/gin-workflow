@@ -24,7 +24,7 @@ gin specs template <template-name>
 ```
 
 Available templates:
-- Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
+- Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `task.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
 - SRS export (`specs export`): `srs.html`, `srs-capability.html`
 - Explain page (`specs explain`): `explain.html`
 - Codebase documentation (`/gin:tech-doc`): `codebase/<FILE>.md`, for example `codebase/05-API.md`
@@ -34,6 +34,7 @@ Available templates:
 |---|---|---|
 | Roadmap | `/gin:roadmap` | `.agent-workflow/templates/roadmap.md` |
 | Epic description | `/gin:roadmap` | `.agent-workflow/templates/epic.md` |
+| Track bead description | `/gin:orchestrate` | `.agent-workflow/templates/task.md` |
 | User story | `/gin:discuss` | `.agent-workflow/templates/user-story.md` |
 | Design spec (legacy layout) | `/gin:discuss` | `.agent-workflow/templates/design-spec.md` |
 | Proposal, spec delta, design, tests (SDD layout) | `specs new`, which `/gin:discuss` runs | `.agent-workflow/templates/proposal.md`, `spec-delta.md`, `design.md`, `tests.md` (unnumbered; `specs new` writes them as `01-proposal.md` and so on) |
@@ -125,6 +126,8 @@ A relative `src` in either template is read from the repository root and embedde
 `gin specs explain` fills `explain.html` once. It takes `{{title}}`, `{{kind}}` (`capability` or `change`), `{{date}}`, `{{nav}}` (one link per section that has content), and `{{sections}}` (one `<section class="tab">` per section, in the order Overview, Requirements, Stories, Diagrams, Mockups and images). The built-in template's script shows the section named by the URL hash, filters the requirement cards, opens images in a viewer, and sends a screen id to an embedded mockup; keep it when you restyle the page. As in the SRS templates, each placeholder is filled once, comments are removed, and a relative `src` is read from the repository root and embedded.
 
 The roadmap template's `## Constraints` has two lines that `gin milestone list` reads: `- Deadline: YYYY-MM-DD`, the project deadline the forecast is measured against, and `- AI capacity: <n> ...`, whose leading whole number is the default number of lanes. Keep both bullets when you override the template; free text after the number is ignored.
+
+The template's `## Way of working` section (Foundation, Spec cadence, Build, Integration, Quality, Load) is filled by a plain `/gin:roadmap` from the skill's `references/way-of-working.md` and kept on re-runs. Each `## Milestone:` block opens with `Spec ready by:` and an `Integration point:` block (Integrates, Flags on, E2E scope, Exit criteria) that `/gin:roadmap --milestone` writes. A roadmap without these lines stays valid. Track beads created by `/gin:orchestrate` take their description from `task.md`, with the `Plan:`, `Files:`, `Route:`, `Acceptance:`, and `Notes:` label lines. Roadmap epics carry a `Complexity:` line (`low`, `medium`, or `high`) in both the roadmap file and the `epic.md` bead description.
 
 ## Test case guidelines and fields
 

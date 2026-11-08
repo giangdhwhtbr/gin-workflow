@@ -230,7 +230,7 @@ class PayloadTests(unittest.TestCase):
             "schema": 1, "id": "m1", "title": "m1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-12-18", "kickoff": None, "schedule_start": "2026-11-02",
             "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 0,
-            "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5,
+            "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5, "spec_confirmed": None,
                        "planned_start": "2026-11-02", "planned_end": "2026-11-06", "depends_on": [],
                        "external_depends_on": [], "warnings": []}]}, payload)
 
@@ -393,6 +393,41 @@ class ForecastTests(unittest.TestCase):
         self.assertEqual(2, payload["milestones"][0]["lanes"])
         self.assertEqual("2026-11-02", payload["forecast"]["finish"])
         self.assertIsNone(milestone.list_payload(world(milestone_bead()), TODAY, False)["forecast"])
+
+
+class SpecReadinessTests(unittest.TestCase):
+    def rows_with(self, beads, confirmed, **kwargs):
+        milestone_id = kwargs.pop("milestone_id", "m1")
+        return rows(milestone.schedule(beads[milestone_id], beads, D("2026-11-02"), TODAY, 1, confirmed))
+
+    def test_spec_confirmed_true_false_and_unknown(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(1)), bead("B", parent="m1", minutes=days(1)))
+        found = self.rows_with(beads, frozenset({"A"}))
+        self.assertEqual((True, False), (found["A"]["spec_confirmed"], found["B"]["spec_confirmed"]))
+        self.assertIsNone(self.rows_with(beads, None)["A"]["spec_confirmed"])
+
+    def test_spec_not_ready_only_after_kickoff(self):
+        planned = world(milestone_bead(), bead("A", parent="m1", minutes=days(1)))
+        self.assertNotIn({"code": "spec_not_ready"}, self.rows_with(planned, frozenset())["A"]["warnings"])
+        scheduled = world(milestone_bead(kickoff="2026-11-09"), bead("A", parent="m1", minutes=days(1)))
+        self.assertIn({"code": "spec_not_ready"}, self.rows_with(scheduled, frozenset())["A"]["warnings"])
+        active = world(milestone_bead(start="2026-10-01", kickoff="2026-10-01"), bead("A", parent="m1", minutes=days(1)))
+        self.assertIn({"code": "spec_not_ready"}, self.rows_with(active, frozenset())["A"]["warnings"])
+        self.assertNotIn({"code": "spec_not_ready"}, self.rows_with(active, frozenset({"A"}))["A"]["warnings"])
+
+    def test_closed_epic_and_unknown_log_never_warn(self):
+        beads = world(milestone_bead(kickoff="2026-11-09"), bead("A", parent="m1", minutes=days(1), status="closed"),
+                      bead("B", parent="m1", minutes=days(1)))
+        found = self.rows_with(beads, frozenset())
+        self.assertNotIn({"code": "spec_not_ready"}, found["A"]["warnings"])
+        self.assertIn({"code": "spec_not_ready"}, found["B"]["warnings"])
+        self.assertNotIn({"code": "spec_not_ready"}, self.rows_with(beads, None)["B"]["warnings"])
+
+    def test_list_counts_spec_not_ready(self):
+        beads = world(milestone_bead(kickoff="2026-11-09"), bead("A", parent="m1", minutes=days(1)))
+        payload = milestone.list_payload(beads, TODAY, False, None, 1, frozenset())
+        self.assertEqual(1, payload["milestones"][0]["warnings"])
+        self.assertEqual(0, milestone.list_payload(beads, TODAY, False)["milestones"][0]["warnings"])
 
 
 if __name__ == "__main__":
