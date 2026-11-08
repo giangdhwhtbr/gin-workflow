@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, init_beads, make_team_repo  # noqa: E402
 from workflow_core import milestone_cli, team_beads  # noqa: E402
+from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 
 CLI = SCRIPTS / "gin"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
@@ -100,11 +101,43 @@ class MilestoneCliTests(unittest.TestCase):
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
             "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 2,
             "epics": [
-                {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "planned_start": "2026-11-02",
+                {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "spec_confirmed": False, "planned_start": "2026-11-02",
                  "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": []},
-                {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "planned_start": "2026-11-05",
+                {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "spec_confirmed": False, "planned_start": "2026-11-05",
                  "planned_end": "2026-11-06", "depends_on": ["t-a"], "external_depends_on": [],
                  "warnings": [{"code": "overflow", "days": 2}]}]}, json.loads(out))
+
+    def events_path(self):
+        path = self.root / ".agent-workflow/runtime/events.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def confirm_spec(self, epic):
+        WorkflowEventStore(self.events_path()).append(WorkflowEvent.create(
+            event_type="requirement.confirmed", workflow_id=epic, timestamp="2026-10-20T00:00:00Z",
+            payload={"evidence": f".planning/specs/{epic}.md"}, actor="t"))
+
+    def test_spec_not_ready_after_kickoff_unless_confirmed(self):
+        self.seed()
+        self.confirm_spec("t-a")
+        self.bd("update", "t-m1", "--set-metadata", "kickoff=2026-11-02")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        rows = {row["id"]: row for row in json.loads(out)["epics"]}
+        self.assertEqual((True, False), (rows["t-a"]["spec_confirmed"], rows["t-b"]["spec_confirmed"]))
+        self.assertNotIn({"code": "spec_not_ready"}, rows["t-a"]["warnings"])
+        self.assertIn({"code": "spec_not_ready"}, rows["t-b"]["warnings"])
+        code, out, _ = self.run_cli("list", "--json")
+        self.assertEqual(2, json.loads(out)["milestones"][0]["warnings"])
+
+    def test_unreadable_event_log_degrades_with_a_warning(self):
+        self.seed()
+        self.events_path().write_text("{not json\n", encoding="utf-8")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        self.assertIn("warning: event log unreadable:", err)
+        self.assertIn("spec readiness unknown", err)
+        self.assertTrue(all(row["spec_confirmed"] is None for row in json.loads(out)["epics"]))
 
     def test_req_011_list_exact_payload(self):
         self.seed()

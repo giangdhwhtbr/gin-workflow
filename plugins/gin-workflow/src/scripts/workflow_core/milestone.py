@@ -153,11 +153,12 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int) -> d
 
 
 def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: date,
-             default_lanes: int = 1) -> dict[str, Any]:
+             default_lanes: int = 1, confirmed: frozenset[str] | None = None) -> dict[str, Any]:
     _, end = period(milestone)
     epics = {epic["id"]: epic for epic in epics_of(milestone["id"], beads)}
     planned = _place(epics, _workday(start), lanes_of(milestone, default_lanes))
     active = status(milestone, today) == "active"
+    kicked_off = status(milestone, today) in ("scheduled", "active")
     rows = []
     for epic_id in sorted(epics, key=lambda item: (planned[item][0], item)):
         epic = epics[epic_id]
@@ -173,8 +174,11 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
             warnings.append({"code": "unestimated"})
         if any(bead.get("status") != "closed" for bead in outside):
             warnings.append({"code": "external_blocker"})
+        if confirmed is not None and kicked_off and epic.get("status") != "closed" and epic_id not in confirmed:
+            warnings.append({"code": "spec_not_ready"})
         rows.append({
             "id": epic_id, "title": epic.get("title", ""), "status": epic.get("status"), "estimate_days": days,
+            "spec_confirmed": None if confirmed is None else epic_id in confirmed,
             "planned_start": begin.isoformat(), "planned_end": finish.isoformat(),
             "depends_on": sorted(dep for dep in _blocks(epic) if dep in epics),
             "external_depends_on": [{"id": bead["id"], "milestone": _milestone_of(bead, beads)}
@@ -187,7 +191,7 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
 
 
 def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None, today: date,
-                 default_lanes: int = 1) -> dict[str, Any]:
+                 default_lanes: int = 1, confirmed: frozenset[str] | None = None) -> dict[str, Any]:
     meta = _meta(milestone)
     begin, _ = period(milestone)
     schedule_start = start or (parse_date(meta["kickoff"]) if meta.get("kickoff") else begin)
@@ -196,7 +200,7 @@ def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None,
             "start": meta["start"], "end": meta["end"], "kickoff": meta.get("kickoff"),
             "schedule_start": schedule_start.isoformat(), "preview": start is not None, "today": today.isoformat(),
             "lanes": lanes_of(milestone, default_lanes),
-            **schedule(milestone, beads, schedule_start, today, default_lanes)}
+            **schedule(milestone, beads, schedule_start, today, default_lanes, confirmed)}
 
 
 def _open_roadmap_epics(beads: Beads) -> dict[str, Mapping[str, Any]]:
@@ -252,7 +256,7 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
 
 
 def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadmap | None = None,
-                 default_lanes: int = 1) -> dict[str, Any]:
+                 default_lanes: int = 1, confirmed: frozenset[str] | None = None) -> dict[str, Any]:
     roadmap = roadmap or Roadmap()
     entries = []
     milestones = [bead for bead in beads.values() if bead.get("issue_type") == "milestone"]
@@ -272,7 +276,7 @@ def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadm
             entry["status"] = status(milestone, today)
             begin, _ = period(milestone)
             start = parse_date(meta["kickoff"]) if meta.get("kickoff") else begin
-            plan = schedule(milestone, beads, start, today, default_lanes)
+            plan = schedule(milestone, beads, start, today, default_lanes, confirmed)
             entry["finish"] = plan["finish"]
             entry["warnings"] = sum(len(row["warnings"]) for row in plan["epics"])
         except ValueError as error:  # CycleError included

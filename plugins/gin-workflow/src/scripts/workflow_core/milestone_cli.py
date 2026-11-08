@@ -13,6 +13,7 @@ import sys
 from typing import Any, Mapping, Sequence
 
 from . import milestone as core, workspace
+from .checkout import main_checkout
 from .executables import tool
 
 
@@ -122,6 +123,19 @@ def _roadmap(root: Path, config: dict[str, Any]) -> core.Roadmap:
     from .specs import sdd_config
 
     return read_roadmap(root, sdd_config(config)["layout"])
+
+
+def _confirmed(root: Path) -> frozenset[str] | None:
+    """Workflow ids with a `requirement.confirmed` event; None, with a stderr warning, when the log is unreadable."""
+    from .events import EventPersistenceError, WorkflowEventStore
+
+    path = main_checkout(root) / ".agent-workflow" / "runtime" / "events.jsonl"
+    try:
+        events = WorkflowEventStore(path).read_all()
+    except (EventPersistenceError, OSError, ValueError) as error:
+        print(f"warning: event log unreadable: {error}; spec readiness unknown", file=sys.stderr)
+        return None
+    return frozenset(event.workflow_id for event in events if event.event_type == "requirement.confirmed")
 
 
 def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
@@ -323,14 +337,15 @@ def _run(args: argparse.Namespace) -> int:
     config = _config(root)
     if args.command == "list":
         roadmap = _roadmap(root, config)
-        payload = core.list_payload(_beads(root), _today(), args.all, roadmap, _default_lanes(config, roadmap))
+        payload = core.list_payload(_beads(root), _today(), args.all, roadmap, _default_lanes(config, roadmap),
+                                  _confirmed(root))
         print(json.dumps(payload, indent=2) if args.json else _list_text(payload))
         return 0
     if args.command == "show":
         beads = _beads(root)
         start = _date(args.start) if args.start else None
         payload = core.show_payload(_milestone(beads, args.id), beads, start, _today(),
-                                  _default_lanes(config, _roadmap(root, config)))
+                                  _default_lanes(config, _roadmap(root, config)), _confirmed(root))
         print(json.dumps(payload, indent=2) if args.json else _show_text(payload))
         return 0
     return _write(root, config, args)
