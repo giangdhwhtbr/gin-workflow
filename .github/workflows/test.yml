@@ -1,7 +1,8 @@
 name: test
+# Manual only, to save Actions minutes: run it from the Actions tab or `gh workflow run test.yml`.
+# The release workflow runs the same tests on every release tag.
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
