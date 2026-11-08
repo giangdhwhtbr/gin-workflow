@@ -128,6 +128,7 @@ All of them run from anywhere inside the workspace, including a child. `gin stat
 
 ## Limits
 
+- One epic stays inside one child repository. A change that needs a service and an app is two epics, or two tracks of one epic with a Beads dependency between them; a track never spans two repositories.
 - One repository per track. A change that touches two repositories is two tracks.
 - `project.packages` is ignored for workspace entries.
 - There is no version pinning: the parent does not record which commit of a child it expects.

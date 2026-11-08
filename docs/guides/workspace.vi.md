@@ -128,6 +128,7 @@ Tất cả chạy được từ bất kỳ đâu trong workspace, kể cả tron
 
 ## Giới hạn { #limits }
 
+- Một epic nằm trong một repo con. Thay đổi cần cả service lẫn app là hai epic, hoặc hai track của một epic có phụ thuộc trong Beads; một track không bao giờ trải trên hai repo.
 - Một repository cho mỗi track. Một thay đổi đụng tới hai repository là hai track.
 - `project.packages` bị bỏ qua với các mục workspace.
 - Không có ghim phiên bản: repository cha không ghi lại commit nào của repository con mà nó mong đợi.
