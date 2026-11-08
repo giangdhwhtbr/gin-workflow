@@ -63,8 +63,8 @@ When quota runs out, the workflow continues from the command line: beads, claims
 ```mermaid
 flowchart LR
   A["Quota out"] --> B{"Who?"}
-  B -->|"one member"| C["team reassign"]
-  C --> D["git worktree add<br/>team claim"]
+  B -->|"one member"| C["team handoff"]
+  C --> D["team takeover"]
   B -->|"everyone, plan approved"| E["task create<br/>record orchestration-ready"]
   E --> F["claim, worktree,<br/>implement"]
   D --> F
@@ -75,19 +75,16 @@ flowchart LR
 
 ### Hand a track to another member
 
-The current assignee or the area lead moves the track. Push the branch first.
+The current assignee or the area lead runs one command from the main checkout. It refuses a dirty worktree, pushes the branch and the review ref, and reassigns the bead. With `--release` it returns the bead to the pool for any member:
 
 ```bash
-git push origin feat/<topic>-t<N>
-gin team reassign <bead> <email>
+gin team handoff <bead> <email>
 ```
 
-The new owner checks out the pushed branch. `gin worktree create` makes new branches only, so use `git worktree add` here:
+The new owner takes it in one command from the main checkout of their clone; it fetches the branch, creates `.planning/worktrees/<bead>`, fetches the review ref, and claims:
 
 ```bash
-git fetch origin
-git worktree add .planning/worktrees/<bead> feat/<topic>-t<N>
-gin team claim <bead>
+gin team takeover <bead>
 ```
 
 ### Create track beads by hand

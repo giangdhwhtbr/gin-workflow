@@ -15,7 +15,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with, run_cli  # noqa: E402
-from workflow_core import team_beads  # noqa: E402
+from workflow_core import team_beads, worktrees  # noqa: E402
 from workflow_core.team import TeamConfig, team_for_repo  # noqa: E402
 
 HAS_BD = shutil.which("bd") is not None
@@ -129,6 +129,24 @@ class TestTeamBeadsLocal(unittest.TestCase):
         refused = run_cli(self.root, "team", "claim", frontend)
         self.assertEqual(1, refused.returncode)
         self.assertIn("binh@corp.com may not own tracks in frontend", refused.stdout)
+
+    def test_released_bead_is_ready_and_claimable_outside_its_areas(self):
+        frontend = create(self.root, "form", "area:frontend", "released")
+        listed = run_cli(self.root, "team", "ready", "--format", "json")
+        self.assertEqual(0, listed.returncode)
+        row = next(r for r in json.loads(listed.stdout)["ready"] if r["id"] == frontend)
+        self.assertTrue(row["released"])
+        claimed = run_cli(self.root, "team", "claim", frontend)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        issue = show(self.root, frontend)
+        self.assertEqual("binh@corp.com", issue["assignee"])
+        self.assertNotIn("released", issue.get("labels") or [])
+
+    def test_unreleased_frontend_bead_stays_hidden_and_refused(self):
+        frontend = create(self.root, "form", "area:frontend")
+        listed = run_cli(self.root, "team", "ready", "--format", "json")
+        self.assertNotIn(frontend, [r["id"] for r in json.loads(listed.stdout)["ready"]])
+        self.assertEqual(1, run_cli(self.root, "team", "claim", frontend).returncode)
 
     def test_expired_claim_is_listed_and_taken_over(self):
         held = create(self.root, "held", "area:backend")
@@ -274,6 +292,163 @@ class TestTeamBeadsLocal(unittest.TestCase):
         result = run_cli(self.root, "team", "sync")
         self.assertEqual(2, result.returncode)
         self.assertIn("team.beads_sync.remote is not set", result.stderr)
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamHandoff(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.origin = base / "origin.git"
+        git(base, "init", "-q", "--bare", str(self.origin))
+        self.root = make_team_repo(base / "repo")
+        git(self.root, "remote", "set-url", "origin", str(self.origin))
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "base")
+        git(self.root, "push", "-q", "origin", "main")
+        init_beads(self.root)
+        self.bead = create(self.root, "API", "area:backend")
+        self.assertEqual(0, run_cli(self.root, "team", "claim", self.bead).returncode)
+        self.worktree = worktrees.create(self.root, self.bead, "feat/api-t1")
+        (self.worktree / "api.txt").write_text("v1", encoding="utf-8")
+        git(self.worktree, "add", "api.txt")
+        git(self.worktree, "commit", "-q", "-m", "api v1")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def remote_branches(self):
+        return git(self.origin, "branch", "--list", "feat/api-t1").split()
+
+    def test_handoff_refuses_a_dirty_worktree_and_changes_nothing(self):
+        (self.worktree / "scratch.txt").write_text("x", encoding="utf-8")
+        refused = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("scratch.txt", refused.stdout)
+        self.assertEqual([], self.remote_branches())
+        self.assertEqual("binh@corp.com", show(self.root, self.bead)["assignee"])
+
+    def test_handoff_pushes_branch_records_metadata_and_reassigns(self):
+        done = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        self.assertEqual(["feat/api-t1"], self.remote_branches())
+        issue = show(self.root, self.bead)
+        self.assertEqual("em@corp.com", issue["assignee"])
+        handoff = team_beads.handoff_of(issue)
+        self.assertEqual({"branch": "feat/api-t1", "from": "binh@corp.com", "to": "em@corp.com"},
+                         {k: handoff[k] for k in ("branch", "from", "to")})
+        self.assertEqual("em@corp.com", team_beads.claim_of(issue)["holder"])
+        self.assertIn("next: gin team takeover", done.stderr)
+
+    def test_handoff_release_reopens_and_labels_the_bead(self):
+        done = run_cli(self.root, "team", "handoff", self.bead, "--release")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        issue = show(self.root, self.bead)
+        self.assertFalse(issue.get("assignee"))
+        self.assertEqual("open", issue["status"])
+        self.assertIn("released", issue["labels"])
+        self.assertEqual({}, team_beads.claim_of(issue))
+        self.assertIsNone(team_beads.handoff_of(issue)["to"])
+        git(self.root, "config", "user.email", "chi@corp.com")
+        listed = run_cli(self.root, "team", "ready", "--format", "json")
+        self.assertIn(self.bead, [r["id"] for r in json.loads(listed.stdout)["ready"]])
+
+    def test_handoff_refuses_missing_worktree_and_bad_arguments(self):
+        other = create(self.root, "DB", "area:backend")
+        self.assertEqual(0, run_cli(self.root, "team", "claim", other).returncode)
+        missing = run_cli(self.root, "team", "handoff", other, "em@corp.com")
+        self.assertEqual(1, missing.returncode)
+        self.assertIn("no worktree for", missing.stdout)
+        self.assertEqual(2, run_cli(self.root, "team", "handoff", self.bead).returncode)
+        self.assertEqual(2, run_cli(self.root, "team", "handoff", self.bead, "em@corp.com", "--release").returncode)
+
+    def test_handoff_rejected_push_leaves_the_bead_untouched(self):
+        git(self.root, "remote", "set-url", "origin", str(Path(self.tmp.name) / "missing.git"))
+        refused = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("git push of feat/api-t1 failed", refused.stdout)
+        issue = show(self.root, self.bead)
+        self.assertEqual("binh@corp.com", issue["assignee"])
+        self.assertEqual({}, team_beads.handoff_of(issue))
+
+    def test_handoff_pushes_the_local_review_ref(self):
+        git(self.worktree, "update-ref", f"refs/gin/review/{self.bead}", "HEAD")
+        done = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        self.assertEqual(git(self.worktree, "rev-parse", "HEAD").strip(),
+                         git(self.origin, "rev-parse", f"refs/gin/review/{self.bead}").strip())
+
+    def test_handoff_refuses_a_non_git_worktree_and_a_broken_ledger(self):
+        plain = Path(self.tmp.name) / "plain"
+        plain.mkdir()
+        refused = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com", "--worktree", str(plain))
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("is not a git worktree", refused.stdout)
+        ledger = self.worktree / ".planning/reviews" / self.bead / "review.json"
+        ledger.parent.mkdir(parents=True)
+        ledger.write_text("{not json", encoding="utf-8")
+        git(self.worktree, "add", "-A")
+        git(self.worktree, "commit", "-q", "-m", "broken ledger")
+        broken = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(1, broken.returncode)
+        self.assertIn("cannot read review ledger", broken.stdout)
+        self.assertEqual("binh@corp.com", show(self.root, self.bead)["assignee"])
+
+    def test_takeover_checks_out_the_handed_off_branch_and_claims(self):
+        git(self.worktree, "update-ref", f"refs/gin/review/{self.bead}", "HEAD")
+        sha = git(self.worktree, "rev-parse", "HEAD").strip()
+        self.assertEqual(0, run_cli(self.root, "team", "handoff", self.bead, "em@corp.com").returncode)
+        worktrees.cleanup(self.root, self.bead)
+        git(self.root, "branch", "-D", "feat/api-t1")
+        git(self.root, "update-ref", "-d", f"refs/gin/review/{self.bead}")
+        git(self.root, "config", "user.email", "em@corp.com")
+        taken = run_cli(self.root, "team", "takeover", self.bead, "--format", "json")
+        self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        result = json.loads(taken.stdout)
+        path = Path(result["worktree"])
+        self.assertEqual(self.root / ".planning/worktrees" / self.bead, path)
+        self.assertEqual("feat/api-t1", git(path, "rev-parse", "--abbrev-ref", "HEAD").strip())
+        self.assertEqual("v1", (path / "api.txt").read_text(encoding="utf-8"))
+        self.assertEqual("em@corp.com", show(self.root, self.bead)["assignee"])
+        self.assertIn("next: gin team deps --bead", taken.stderr)
+        self.assertEqual(sha, git(path, "rev-parse", "--verify", f"refs/gin/review/{self.bead}").strip())
+
+    def test_takeover_refuses_worktree_cwd_missing_branch_and_existing_directory(self):
+        shutil.copytree(self.root / ".agent-workflow", self.worktree / ".agent-workflow")
+        inside = run_cli(self.worktree, "team", "takeover", self.bead)
+        self.assertEqual(1, inside.returncode)
+        self.assertIn("main checkout", inside.stdout)
+        other = create(self.root, "DB", "area:backend")
+        missing = run_cli(self.root, "team", "takeover", other)
+        self.assertEqual(1, missing.returncode)
+        self.assertIn("pass --branch", missing.stdout)
+        bd(self.root, "update", other, "--set-metadata", 'handoff={"branch": "--upload-pack=touch /tmp/pwned"}')
+        hostile = run_cli(self.root, "team", "takeover", other)
+        self.assertEqual(1, hostile.returncode)
+        self.assertIn("starts with '-'", hostile.stdout)
+        self.assertFalse((self.root / ".planning/worktrees" / other).exists())
+        git(self.worktree, "push", "-q", "-u", "origin", "feat/api-t1")
+        existing = run_cli(self.root, "team", "takeover", self.bead, "--branch", "feat/api-t1")
+        self.assertEqual(1, existing.returncode)
+        self.assertIn("already exists", existing.stdout)
+
+    def test_takeover_with_explicit_branch_when_no_metadata(self):
+        git(self.worktree, "push", "-q", "-u", "origin", "feat/api-t1")
+        worktrees.cleanup(self.root, self.bead)
+        git(self.root, "branch", "-D", "feat/api-t1")
+        taken = run_cli(self.root, "team", "takeover", self.bead, "--branch", "feat/api-t1")
+        self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        self.assertTrue((self.root / ".planning/worktrees" / self.bead / "api.txt").is_file())
+
+    def test_takeover_names_the_worktree_when_the_claim_is_refused(self):
+        self.assertEqual(0, run_cli(self.root, "team", "handoff", self.bead, "em@corp.com").returncode)
+        worktrees.cleanup(self.root, self.bead)
+        git(self.root, "branch", "-D", "feat/api-t1")
+        git(self.root, "config", "user.email", "chi@corp.com")
+        refused = run_cli(self.root, "team", "takeover", self.bead)
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("worktree left at", refused.stdout)
+        self.assertIn(f"gin worktree cleanup {self.bead}", refused.stdout)
+        self.assertTrue((self.root / ".planning/worktrees" / self.bead / "api.txt").is_file())
 
 
 class TestPushWithoutReset(unittest.TestCase):

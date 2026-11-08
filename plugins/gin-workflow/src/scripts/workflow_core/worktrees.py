@@ -41,6 +41,22 @@ def create(repo: Path, track_id: str, branch: str, base_ref: str | None = None) 
     return target
 
 
+def checkout(repo: Path, track_id: str, branch: str) -> Path:
+    """Existing branch `branch` checked out at `.planning/worktrees/<track_id>`; a branch that exists only on origin is created tracking it."""
+    target = _target(repo, track_id)
+    if target.exists():
+        raise ValueError(f"directory {target} already exists")
+    if not branch.strip():
+        raise ValueError("branch is required")
+    if _git(repo, "branch", "--list", branch):
+        _git(repo, "worktree", "add", "--", str(target), branch)
+    elif _git(repo, "branch", "-r", "--list", f"origin/{branch}"):
+        _git(repo, "worktree", "add", "--track", "-b", branch, "--", str(target), f"origin/{branch}")
+    else:
+        raise ValueError(f"branch {branch} does not exist locally or on origin")
+    return target
+
+
 def cleanup(repo: Path, track_id: str) -> Path | None:
     """Remove the track's worktree; None when it does not exist."""
     target = _target(repo, track_id)
@@ -58,6 +74,10 @@ def main(argv: Sequence[str]) -> int:
     create_parser.add_argument("track_id")
     create_parser.add_argument("branch")
     create_parser.add_argument("base_ref", nargs="?")
+    checkout_parser = commands.add_parser("checkout")
+    checkout_parser.add_argument("--repository", default=".")
+    checkout_parser.add_argument("track_id")
+    checkout_parser.add_argument("branch")
     cleanup_parser = commands.add_parser("cleanup")
     cleanup_parser.add_argument("--repository", default=".")
     cleanup_parser.add_argument("track_id")
@@ -66,6 +86,9 @@ def main(argv: Sequence[str]) -> int:
     try:
         if args.command == "create":
             path = create(repo, args.track_id, args.branch, args.base_ref)
+            print(f"Worktree created at: {path} on branch {args.branch}")
+        elif args.command == "checkout":
+            path = checkout(repo, args.track_id, args.branch)
             print(f"Worktree created at: {path} on branch {args.branch}")
         elif (removed := cleanup(repo, args.track_id)) is None:
             print(f"No worktree for {args.track_id}; nothing to remove.")
