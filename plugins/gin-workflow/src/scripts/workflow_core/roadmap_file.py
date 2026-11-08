@@ -17,7 +17,10 @@ def read_roadmap(root: Path, layout: str) -> Roadmap:
     path = Path(root) / ROADMAP.get(layout, ROADMAP["legacy"])
     if not path.is_file():
         return Roadmap()
-    text = path.read_text(encoding="utf-8")
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        return Roadmap(error=f"roadmap file unreadable: {error}")
     capacity = _CAPACITY.search(text)
     lanes = int(capacity.group(1)) if capacity and int(capacity.group(1)) > 0 else None
     deadline = _DEADLINE.search(text)

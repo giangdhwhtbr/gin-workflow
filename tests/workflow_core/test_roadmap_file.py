@@ -53,6 +53,16 @@ class ReadRoadmapTests(unittest.TestCase):
             self.assertEqual(date(2027, 1, 15), read_roadmap(root, "sdd").deadline)
             self.assertIsNone(read_roadmap(root, "legacy").deadline)
 
+    def test_unreadable_file_is_an_error_not_an_exception(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / ".planning/roadmap.md"
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"\xff\xfe- Deadline: 2026-12-31\n")
+            found = read_roadmap(root, "legacy")
+            self.assertEqual((None, None), (found.deadline, found.lanes))
+            self.assertTrue(found.error.startswith("roadmap file unreadable: "), found.error)
+
 
 if __name__ == "__main__":
     unittest.main()
