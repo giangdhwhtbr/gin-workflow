@@ -19,6 +19,8 @@ Confirmed understanding (2026-11-08):
 
 In scope: roadmap template, the roadmap skill and a new reference file, `gin milestone show`/`list` warning `spec_not_ready` with a per-epic `spec_confirmed` field, tests, docs in this repository.
 
+Add-on requested by the user on 2026-11-08 during plan review (not part of the pipeline design, carried here so ship traces it): a bead description template for track beads and a `Complexity:` field on roadmap epics (R6, US-6).
+
 Out of scope:
 - Lanes, deadline, and forecast (shipped by `gin-workflow-57fw`).
 - Starter-guide prompts and the brownfield guide (`gin-workflow-docs-refresh`).
@@ -74,6 +76,21 @@ New `plugins/gin-workflow/src/skills/roadmap/references/way-of-working.md`, read
 - `docs/guides/customizing-templates.md` and `.vi.md`: the `## Way of working` section and the milestone block lines.
 - `docs/reference/skills.md` and `.vi.md` roadmap row: proposes the way of working; `docs/concepts/lifecycle.md` `/roadmap` sentence.
 
+### R6. Bead description template and epic complexity (add-on)
+
+- New template `plugins/gin-workflow/src/templates/task.md`, served by `gin specs template task.md`, in the label-line style of `epic.md` (gin-console shows descriptions as plain text, so no Markdown headings):
+  ```
+  {{summary}}
+
+  Plan: {{plan_path}}, Track {{track}}
+  Files: {{files}}
+  Route: {{provider_role}} / {{model}} / {{effort}}
+  Acceptance: {{acceptance}}
+  Notes: {{notes}}
+  ```
+- The `orchestrate` skill writes every track bead's description from `task.md` (summary from the track title and `Why:`, files from `Files:`, route from the plan) and passes the plan's acceptance criteria as `--acceptance`. Standalone beads of `execute` and `quick` are unchanged.
+- `plugins/gin-workflow/src/templates/epic.md` gains `Complexity: {{complexity}}` after `Capabilities:`; the roadmap template's epic block gains `Complexity:` after `Estimate:`. The roadmap skill presents `Complexity:` per epic as `low`, `medium`, or `high` with the main driver in a few words (cross-module reach, unknown legacy behaviour, data migration, integration count), writes it to the file, and copies it into the bead description with `Capabilities:` at sync. Older files and beads without the line stay valid.
+
 ## User Stories
 
 ### US-1: Get a proposed way of working
@@ -114,6 +131,14 @@ Acceptance criteria:
 - A roadmap file without `## Way of working`, `Spec ready by:`, or `Integration point:` is read as today.
 - `gin milestone list --json` keeps `schema: 1` and every existing key.
 
+### US-6: Stable bead descriptions and an epic complexity
+As a team member reading gin-console, I want track beads to share one description layout and roadmap epics to state their complexity, so that beads read the same way across epics and the team sees how hard an epic is.
+
+Acceptance criteria:
+- `gin specs template task.md` prints the label lines `Plan:`, `Files:`, `Route:`, `Acceptance:`, `Notes:`.
+- `/gin:orchestrate` creates track beads whose description follows `task.md` and whose acceptance criteria come from the plan.
+- `gin specs template epic.md` and the roadmap template's epic block carry `Complexity:`; `/gin:roadmap` proposes `low`, `medium`, or `high` with a reason per epic and syncs it into the bead description.
+
 ## Errors and compatibility
 
 | Case | Behaviour |
@@ -132,6 +157,7 @@ Compatibility: `schema` stays 1; `spec_confirmed` and `spec_not_ready` are addit
 - `tests/workflow_core/test_milestone.py`: `spec_confirmed` true/false/null; `spec_not_ready` for an active and a scheduled milestone, absent for planned and for closed epics; `list_payload` warning count includes it.
 - `tests/workflow_core/test_milestone_cli.py`: a seeded `requirement.confirmed` event in the repo's `events.jsonl` marks that epic confirmed; a kickoff milestone shows `spec_not_ready` for the other epic; an unreadable log prints the stderr warning and exits 0; exact-payload tests updated.
 - `tests/workflow_core/test_specs.py`: the rendered template contains `## Way of working`, `Spec ready by:`, `Integration point:`.
+- `tests/workflow_core/test_specs.py`: `task.md` renders with `Plan:` and `Route:`; `epic.md` and `roadmap.md` contain `Complexity:`.
 - `tests/workflow_core/test_epic_comments.py`, `test_skill_routing.py`, `test_token_budget.py` keep passing; `wc -c` of `SKILL.md` under 12,000 and of `references/way-of-working.md` under 6,000.
 - `gin docs check` on every touched docs page prints `ok`.
 - Full suite: `python3 -m pytest -n auto`.
