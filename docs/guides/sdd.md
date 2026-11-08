@@ -83,7 +83,7 @@ The system SHALL show only the reports created in the selected date range.
 Source: `assets/2026-05-11/mockup/index.html#report-list`, `assets/2026-05-11/description.md`
 ```
 
-`specs archive` copies the line into `spec.md` with the rest of the block, and `specs export` prints it. The [BA add-on](ba.md) writes mockups and legacy descriptions in this shape.
+`specs archive` copies the line into `spec.md` with the rest of the block, and `specs export` prints it. The [BA guide](ba.md) writes mockups and legacy descriptions in this shape.
 
 `specs archive` copies the text of each requirement block into `docs/specs/<capability>/spec.md`, so write image paths relative to that file (`assets/2026-05-11/report-list.png`). In the change folder's `02-spec-delta.md` those links do not resolve until the change ships.
 
