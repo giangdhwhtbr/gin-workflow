@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, timedelta
 import math
 import re
@@ -10,6 +11,14 @@ from typing import Any, Mapping
 SCHEMA = 1
 WORKDAY_MINUTES = 480
 Beads = Mapping[str, Mapping[str, Any]]
+
+
+@dataclass(frozen=True)
+class Roadmap:
+    """What `gin milestone list` reads from the roadmap file."""
+    deadline: date | None = None
+    lanes: int | None = None
+    error: str | None = None
 
 
 class CycleError(ValueError):
