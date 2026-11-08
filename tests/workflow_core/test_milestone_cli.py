@@ -98,7 +98,7 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "t-m1", "title": "M1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "finish": "2026-11-06", "overflow_days": 2,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 2,
             "epics": [
                 {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "planned_start": "2026-11-02",
                  "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": []},

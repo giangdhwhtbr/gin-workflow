@@ -97,30 +97,66 @@ def _milestone_of(bead: Mapping[str, Any], beads: Beads) -> str | None:
     return parent if parent and (beads.get(parent) or {}).get("issue_type") == "milestone" else None
 
 
-def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: date) -> dict[str, Any]:
-    _, end = period(milestone)
-    epics = {epic["id"]: epic for epic in epics_of(milestone["id"], beads)}
-    first = _workday(start)
-    planned: dict[str, tuple[date, date]] = {}
+def lanes_of(milestone: Mapping[str, Any], default_lanes: int) -> int:
+    """The milestone's `lanes` metadata (int or digit string), else the default."""
+    text = str(_meta(milestone).get("lanes", ""))
+    return int(text) if re.fullmatch(r"[1-9][0-9]*", text) else default_lanes
 
-    def visit(epic_id: str, path: list[str]) -> tuple[date, date]:
-        if epic_id in planned:
-            return planned[epic_id]
+
+def _check_cycles(epics: Mapping[str, Mapping[str, Any]]) -> None:
+    done: set[str] = set()
+
+    def visit(epic_id: str, path: list[str]) -> None:
+        if epic_id in done:
+            return
         if epic_id in path:
             loop = path[path.index(epic_id):] + [epic_id]
             raise CycleError("dependency cycle: " + " -> ".join(loop))
-        begin = first
         for dep in _blocks(epics[epic_id]):
             if dep in epics:
-                dep_start, dep_end = visit(dep, path + [epic_id])
-                estimated = estimate_days(epics[dep].get("estimated_minutes")) is not None
-                begin = max(begin, _workday(dep_end + timedelta(days=1)) if estimated else dep_start)
-        days = estimate_days(epics[epic_id].get("estimated_minutes"))
-        planned[epic_id] = (begin, _last_of(begin, days) if days else begin)
-        return planned[epic_id]
+                visit(dep, path + [epic_id])
+        done.add(epic_id)
 
     for epic_id in sorted(epics):
         visit(epic_id, [])
+
+
+def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int) -> dict[str, tuple[date, date]]:
+    """Greedy placement on `lanes` lanes from the working day `first`: the ready epic with the earliest allowed
+    start (ties by id) takes the lane that frees first. Unestimated epics take no lane and no days."""
+    _check_cycles(epics)
+    planned: dict[str, tuple[date, date]] = {}
+    free = [first] * lanes
+    while len(planned) < len(epics):
+        ready: dict[str, date] = {}
+        for epic_id, epic in epics.items():
+            deps = [dep for dep in _blocks(epic) if dep in epics]
+            if epic_id in planned or any(dep not in planned for dep in deps):
+                continue
+            begin = first
+            for dep in deps:
+                dep_start, dep_end = planned[dep]
+                estimated = estimate_days(epics[dep].get("estimated_minutes")) is not None
+                begin = max(begin, _workday(dep_end + timedelta(days=1)) if estimated else dep_start)
+            ready[epic_id] = begin
+        epic_id = min(ready, key=lambda item: (ready[item], item))
+        days = estimate_days(epics[epic_id].get("estimated_minutes"))
+        if days is None:
+            planned[epic_id] = (ready[epic_id], ready[epic_id])
+            continue
+        lane = min(range(lanes), key=lambda index: free[index])
+        begin = max(ready[epic_id], free[lane])
+        end = _last_of(begin, days)
+        planned[epic_id] = (begin, end)
+        free[lane] = _workday(end + timedelta(days=1))
+    return planned
+
+
+def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: date,
+             default_lanes: int = 1) -> dict[str, Any]:
+    _, end = period(milestone)
+    epics = {epic["id"]: epic for epic in epics_of(milestone["id"], beads)}
+    planned = _place(epics, _workday(start), lanes_of(milestone, default_lanes))
     active = status(milestone, today) == "active"
     rows = []
     for epic_id in sorted(epics, key=lambda item: (planned[item][0], item)):
@@ -150,7 +186,8 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
             "overflow_days": workdays_after(end, last) if last else 0, "epics": rows}
 
 
-def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None, today: date) -> dict[str, Any]:
+def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None, today: date,
+                 default_lanes: int = 1) -> dict[str, Any]:
     meta = _meta(milestone)
     begin, _ = period(milestone)
     schedule_start = start or (parse_date(meta["kickoff"]) if meta.get("kickoff") else begin)
@@ -158,7 +195,8 @@ def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None,
             "description": milestone.get("description") or "", "status": status(milestone, today),
             "start": meta["start"], "end": meta["end"], "kickoff": meta.get("kickoff"),
             "schedule_start": schedule_start.isoformat(), "preview": start is not None, "today": today.isoformat(),
-            **schedule(milestone, beads, schedule_start, today)}
+            "lanes": lanes_of(milestone, default_lanes),
+            **schedule(milestone, beads, schedule_start, today, default_lanes)}
 
 
 def list_payload(beads: Beads, today: date, include_closed: bool) -> dict[str, Any]:

@@ -30,8 +30,8 @@ def days(count):
     return count * milestone.WORKDAY_MINUTES
 
 
-def plan(beads, start="2026-11-02", today=TODAY, milestone_id="m1"):
-    return milestone.schedule(beads[milestone_id], beads, D(start), today)
+def plan(beads, start="2026-11-02", today=TODAY, milestone_id="m1", lanes=1):
+    return milestone.schedule(beads[milestone_id], beads, D(start), today, lanes)
 
 
 def rows(result):
@@ -46,7 +46,7 @@ class ScheduleTests(unittest.TestCase):
     def test_req_007_chain_and_parallel(self):
         beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(3)),
                       bead("B", parent="m1", minutes=days(2), blocks=["A"]), bead("C", parent="m1", minutes=days(4)))
-        found = rows(plan(beads))
+        found = rows(plan(beads, lanes=2))
         self.assertEqual(("2026-11-02", "2026-11-04"), span(found["A"]))
         self.assertEqual(("2026-11-05", "2026-11-06"), span(found["B"]))
         self.assertEqual(("2026-11-02", "2026-11-05"), span(found["C"]))
@@ -136,6 +136,46 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual([{"id": "E9", "milestone": None}], rows(plan(beads))["E1"]["external_depends_on"])
 
 
+class LaneTests(unittest.TestCase):
+    def test_one_lane_runs_estimated_epics_in_sequence(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(3)),
+                      bead("B", parent="m1", minutes=days(2), blocks=["A"]), bead("C", parent="m1", minutes=days(4)))
+        result = plan(beads)
+        found = rows(result)
+        self.assertEqual(("2026-11-02", "2026-11-04"), span(found["A"]))
+        self.assertEqual(("2026-11-05", "2026-11-10"), span(found["C"]))
+        self.assertEqual(("2026-11-11", "2026-11-12"), span(found["B"]))
+        self.assertEqual("2026-11-12", result["finish"])
+
+    def test_two_lanes_split_three_equal_epics(self):
+        beads = world(milestone_bead(), *(bead(name, parent="m1", minutes=days(2)) for name in "ABC"))
+        found = rows(plan(beads, lanes=2))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(found["A"]))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(found["B"]))
+        self.assertEqual(("2026-11-04", "2026-11-05"), span(found["C"]))
+
+    def test_blocker_wins_over_a_free_lane(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(3)),
+                      bead("B", parent="m1", minutes=days(1), blocks=["A"]))
+        self.assertEqual(("2026-11-05", "2026-11-05"), span(rows(plan(beads, lanes=2))["B"]))
+
+    def test_unestimated_epic_takes_no_lane(self):
+        beads = world(milestone_bead(), bead("U", parent="m1"), bead("A", parent="m1", minutes=days(1)),
+                      bead("B", parent="m1", minutes=days(1)))
+        found = rows(plan(beads))
+        self.assertEqual(("2026-11-02", "2026-11-02"), span(found["U"]))
+        self.assertEqual(("2026-11-02", "2026-11-02"), span(found["A"]))
+        self.assertEqual(("2026-11-03", "2026-11-03"), span(found["B"]))
+
+    def test_lanes_of_metadata_then_default(self):
+        self.assertEqual(2, milestone.lanes_of(milestone_bead(lanes=2), 1))
+        self.assertEqual(2, milestone.lanes_of(milestone_bead(lanes="2"), 1))
+        self.assertEqual(3, milestone.lanes_of(milestone_bead(), 3))
+        self.assertEqual(3, milestone.lanes_of(milestone_bead(lanes="0"), 3))
+        beads = world(milestone_bead())
+        self.assertEqual(1, milestone.show_payload(beads["m1"], beads, None, TODAY)["lanes"])
+
+
 class StatusTests(unittest.TestCase):
     def test_req_004_status(self):
         self.assertEqual("planned", milestone.status(milestone_bead(), TODAY))
@@ -181,7 +221,7 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "m1", "title": "m1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-12-18", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "finish": "2026-11-06", "overflow_days": 0,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 0,
             "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5,
                        "planned_start": "2026-11-02", "planned_end": "2026-11-06", "depends_on": [],
                        "external_depends_on": [], "warnings": []}]}, payload)
