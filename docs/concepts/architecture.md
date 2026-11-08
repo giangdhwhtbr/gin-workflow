@@ -1,6 +1,6 @@
 # Architecture
 
-gin-workflow is a plugin for Claude Code, Codex, Antigravity, and OpenCode that moves a change from requirement to merge through recorded gates. GitHub Copilot CLI also loads its skills and hooks, but it cannot be the configured harness, so workers and reviews run on one of the others. Skills tell the agent what to do at each stage. The `gin` Python CLI records the gates and derives the workflow state from them. A task tracker (local Markdown files, or Beads if you choose it) tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
+gin-workflow is a plugin for Claude Code, Codex, Antigravity, OpenCode, and GitHub Copilot CLI that moves a change from requirement to merge through recorded gates. Skills tell the agent what to do at each stage. The `gin` Python CLI records the gates and derives the workflow state from them. A task tracker (local Markdown files, or Beads if you choose it) tracks the work. This page shows how the pieces fit. Each diagram links to the page that covers it in detail.
 
 ## Components
 
@@ -11,6 +11,7 @@ flowchart LR
         CX[Codex]
         AG[Antigravity agy]
         OC[OpenCode]
+        CP[Copilot CLI]
     end
     subgraph Bundle["Plugin bundle (dist/&lt;harness&gt;)"]
         SK[skills/ stage and support skills]
@@ -24,13 +25,20 @@ flowchart LR
     subgraph EXT["gin-orchestrator extension (optional)"]
         ORC[gin-orchestrator CLI: gin_orchestrator routed workers]
     end
+    subgraph ADD["gin-ba add-on (optional)"]
+        BA[skills/ capture, mockup]
+    end
     subgraph Repo["Your repository"]
         CFG[.agent-workflow/ config, generated, runtime/events.jsonl]
         PLN[.planning/ specs, plans, reviews, worktrees]
         TK[(Tasks: .planning/tasks or Beads)]
         GIT[(git branches and worktrees)]
+        AST[docs/specs/&lt;capability&gt;/assets/&lt;date&gt;: BA inputs, SDD layout]
     end
-    CC & CX & AG & OC --> SK
+    CC & CX & AG & OC & CP --> SK
+    CC & CX & AG & OC & CP --> BA
+    BA -->|gin specs assets| AST
+    SK -->|discuss cites confirmed folders| AST
     SK --> AGT
     SK --> REF
     SK --> CLI
@@ -42,16 +50,21 @@ flowchart LR
     RL --> GIT
     CLI -->|delegates when installed| ORC
     ORC -->|imports only workflow_core.ext| CLI
-    ORC --> CC & CX & AG & OC
+    ORC --> CC & CX & AG & OC & CP
     HK -.guards.-> GIT
 ```
 
 The harness loads the skills. Skills call `gin` for configuration, gates, rules, specs, team mode, and usage, and `review-ledger.py` for reviews. Tasks go through `gin task`, which serves Markdown files or runs `bd`. `gin-orchestrator` is an optional extension: gin-workflow calls it through a versioned CLI contract ([Orchestrator contract](../reference/orchestrator-contract.md)), and it reaches back only through the facade `workflow_core.ext`; gin-workflow never imports it. Nothing outside the repository holds workflow state except Beads (if used) and the harness logs that `usage collect` reads. See [State model](state-model.md) for who owns what.
 
+The optional `gin-ba` add-on has skills only and no CLI. With the SDD layout, `capture` and `mockup` write the business analyst's inputs into dated asset folders under `docs/specs/<capability>/assets/` through `gin specs assets`, and `discuss` cites the confirmed folders. See [Business analyst](../guides/ba.md).
+
 ## Lifecycle
 
 ```mermaid
 stateDiagram-v2
+    state "BA inputs: gin-ba capture, mockup" as ba_inputs
+    [*] --> ba_inputs: SDD layout, optional
+    ba_inputs --> discuss: Confirmed date
     [*] --> discuss
     discuss --> plan: requirement_confirmed
     plan --> orchestrate: plan_approved
@@ -71,9 +84,13 @@ stateDiagram-v2
         SDD layout: change folder and REQ-IDs
         team mode: gates proven by pull requests
     end note
+    note right of discuss
+        after the spec: gin specs export (SRS),
+        /gin:explain (interactive page)
+    end note
 ```
 
-Each arrow is a gate recorded with `gin record` or derived from the task tracker. `gin state` evaluates the gates and names exactly one next stage, or holds at `progress` with remedies. See [Lifecycle](lifecycle.md).
+Each arrow between stages is a gate recorded with `gin record` or derived from the task tracker. `gin state` evaluates the gates and names exactly one next stage, or holds at `progress` with remedies. The `ba_inputs` state and the SRS export and explain page after the spec record no gate; the BA confirms inputs with `Confirmed: <date>` in the folder's `description.md`. See [Lifecycle](lifecycle.md) and [Business analyst](../guides/ba.md).
 
 ## One track, from claim to close
 
@@ -88,7 +105,7 @@ sequenceDiagram
     participant L as review-ledger.py
     participant V as Independent reviewer
     participant U as gin usage
-    A->>B: task ready, task update --status in_progress
+    A->>B: task ready, task update --claim
     A->>R: rules --files <scope>
     R-->>A: rule text for the developer
     A->>D: spawn at the model and effort from routes dispatch
@@ -127,7 +144,7 @@ flowchart TD
     D --> H{health, circuit breaker, capacity}
     H -->|unavailable| N[next candidate, route mapped by rank]
     N --> H
-    H -->|allowed| RUN[run native CLI: claude, codex, agy, opencode]
+    H -->|allowed| RUN[run native CLI: claude, codex, agy, opencode, copilot]
     N -->|none left before queue deadline| U[worker_routes_unavailable: task stays open]
 ```
 
