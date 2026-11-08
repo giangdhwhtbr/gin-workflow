@@ -61,7 +61,7 @@ Skill `team` chứa các bước chính xác.
 
 Việc ghi milestone theo `team.permissions.milestone`, và với Beads dùng chung thì pull trước và push sau. Chi tiết nằm ở [lệnh milestone](../reference/cli.md#gin-milestone).
 
-Để bàn giao một track (một thành viên hết quota hoặc vắng mặt), assignee hiện tại hoặc area lead chạy `gin team handoff <bead> <email>` từ main checkout. Lệnh từ chối khi worktree của track còn file chưa commit hoặc chưa track, rồi push branch của track và review ref, ghi branch lên bead, và reassign với lease mới. `gin team handoff <bead> --release` trả bead về pool: bead mất assignee và lease, mở lại, và nhận label `released`, nên mọi thành viên thấy nó trong `gin team ready` và có thể claim dù thuộc area nào. Owner mới chạy `gin team takeover <bead>` trong main checkout của clone của mình: lệnh fetch branch, checkout tại `.planning/worktrees/<bead>`, fetch review ref, và claim. Trường `Owner:` của plan không bị đổi.
+Để bàn giao một track (một thành viên hết quota hoặc vắng mặt), assignee hiện tại hoặc area lead chạy `gin team handoff <bead> <email>` từ main checkout. Lệnh từ chối khi worktree của track còn file chưa commit hoặc chưa track. Nếu không, lệnh push branch của track và review ref, ghi branch lên bead, và reassign với lease mới. `gin team handoff <bead> --release` trả bead về pool: bead mất assignee và lease, mở lại, và nhận label `released`. Mọi thành viên khi đó thấy nó trong `gin team ready` và có thể claim dù thuộc area nào. Owner mới chạy `gin team takeover <bead>` trong main checkout của clone của mình: lệnh fetch branch, checkout tại `.planning/worktrees/<bead>`, fetch review ref, và claim. Trường `Owner:` của plan không bị đổi.
 
 `gin team check --gate <gate> <url>` kiểm tra lại gate của đồng đội mà không ghi nó.
 

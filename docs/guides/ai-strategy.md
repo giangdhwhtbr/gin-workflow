@@ -75,7 +75,7 @@ flowchart LR
 
 ### Hand a track to another member
 
-The current assignee or the area lead runs one command from the main checkout; it refuses a dirty worktree, pushes the branch and the review ref, and reassigns the bead (or `--release` returns it to the pool for any member):
+The current assignee or the area lead runs one command from the main checkout. It refuses a dirty worktree, pushes the branch and the review ref, and reassigns the bead. With `--release` it returns the bead to the pool for any member:
 
 ```bash
 gin team handoff <bead> <email>
