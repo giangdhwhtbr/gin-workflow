@@ -4,7 +4,7 @@ Spec: `.planning/specs/2026-11-08-roadmap-pipeline-design.md` (Epic: gin-workflo
 
 ## Objective
 
-`/gin:roadmap` proposes the team's way of working from `team.members` and the tech-doc set, sequences epics by spec readiness and real data needs, and writes `Spec ready by:` and an `Integration point:` block into every milestone; `gin milestone show` reports `spec_confirmed` per epic and warns `spec_not_ready` when an open epic sits in a kicked-off milestone without a confirmed spec. Older roadmap files and gin-console keep working.
+`/gin:roadmap` proposes the team's way of working from `team.members` and the tech-doc set, sequences epics by spec readiness and real data needs, and writes `Spec ready by:` and an `Integration point:` block into every milestone; `gin milestone show` reports `spec_confirmed` per epic and warns `spec_not_ready` when an open epic sits in a kicked-off milestone without a confirmed spec. Older roadmap files and gin-console keep working. Add-on (user, 2026-11-08): track beads get a `task.md` description template and roadmap epics a `Complexity:` field.
 
 ## Architecture
 
@@ -76,7 +76,7 @@ execution_strategy:
   mode: direct
   workers:
     mode: sequential
-  rationale: Three small tracks; track 3 documents what tracks 1 and 2 build, and the full-suite evidence run after each track takes four minutes, so parallel workers would only add merge noise.
+  rationale: Four small tracks; track 3 documents what tracks 1, 2, and 4 build, and the full-suite evidence run after each track takes four minutes, so parallel workers would only add merge noise.
 ```
 
 ## Tasks
@@ -306,7 +306,7 @@ Steps:
 5. Commit: `feat(roadmap): way of working reference, integration point and spec-ready lines, skill steps (gin-workflow-roadmap-pipeline)`.
 
 ### Track 3: Documentation
-- **Dependencies**: Track 1, Track 2
+- **Dependencies**: Track 1, Track 2, Track 4
 - **Files**:
   - Modify `docs/reference/cli.md:211` (the `gin milestone` prose paragraph)
   - Modify `docs/guides/customizing-templates.md:127` and `docs/guides/customizing-templates.vi.md:127` (paragraph after the Deadline/AI capacity paragraph)
@@ -322,10 +322,52 @@ Steps:
 Steps:
 
 1. `docs/reference/cli.md`, in the paragraph starting `Dated milestones over roadmap epics`: in the `show` sentence replace `(\`overflow\`, \`late\`, \`unestimated\`, \`external_blocker\`)` with `(\`overflow\`, \`late\`, \`unestimated\`, \`external_blocker\`, \`spec_not_ready\`)`. After the sentence ending `set \`--lanes\` or the \`AI capacity:\` number to match the team.` insert: `Each epic row carries \`spec_confirmed\`: whether a \`requirement.confirmed\` event for the epic exists in \`.agent-workflow/runtime/events.jsonl\` of the main checkout. An open epic without one in a \`scheduled\` or \`active\` milestone gets \`spec_not_ready\`. An unreadable event log prints \`warning: event log unreadable: ...; spec readiness unknown\` on stderr, sets \`spec_confirmed\` to null, and the command still exits 0.` In the `--json` sentence, extend the additive keys list: `\`lanes\` (per milestone and on \`show\`), \`spec_confirmed\` (per epic on \`show\`), and \`forecast\` (...)`.
-2. `docs/guides/customizing-templates.md`, after the paragraph at line 127, add: `The template's \`## Way of working\` section (Foundation, Spec cadence, Build, Integration, Quality, Load) is filled by a plain \`/gin:roadmap\` from the skill's \`references/way-of-working.md\` and kept on re-runs. Each \`## Milestone:\` block opens with \`Spec ready by:\` and an \`Integration point:\` block (Integrates, Flags on, E2E scope, Exit criteria) that \`/gin:roadmap --milestone\` writes. A roadmap without these lines stays valid.` Add the same paragraph in Vietnamese to `customizing-templates.vi.md` after its line 127 (code spans and file names verbatim).
-3. `docs/reference/skills.md:49`: after `reconcile both on re-run;` insert `propose the team's way of working (foundation, spec-ahead cadence, flags and mocks, integration point, QA close) for the PM to confirm;` and after `plans a dated milestone with its own lanes` append `, spec deadline, and integration point`. Translate the same additions into the Vietnamese row of `skills.vi.md:49`.
+2. `docs/guides/customizing-templates.md`, after the paragraph at line 127, add: `The template's \`## Way of working\` section (Foundation, Spec cadence, Build, Integration, Quality, Load) is filled by a plain \`/gin:roadmap\` from the skill's \`references/way-of-working.md\` and kept on re-runs. Each \`## Milestone:\` block opens with \`Spec ready by:\` and an \`Integration point:\` block (Integrates, Flags on, E2E scope, Exit criteria) that \`/gin:roadmap --milestone\` writes. A roadmap without these lines stays valid. Track beads created by `/gin:orchestrate` take their description from `task.md` (`Plan:`, `Files:`, `Route:`, `Acceptance:`, `Notes:` label lines), and roadmap epics carry a `Complexity:` line (`low`, `medium`, or `high`) in both the roadmap file and the `epic.md` bead description.` Add the same paragraph in Vietnamese to `customizing-templates.vi.md` after its line 127 (code spans and file names verbatim).
+3. `docs/reference/skills.md:49`: after `reconcile both on re-run;` insert `propose the team's way of working (foundation, spec-ahead cadence, flags and mocks, integration point, QA close) for the PM to confirm; rate each epic's complexity;` and after `plans a dated milestone with its own lanes` append `, spec deadline, and integration point`. Translate the same additions into the Vietnamese row of `skills.vi.md:49`.
 4. `docs/concepts/lifecycle.md:23`: replace `It writes the project deadline and an estimate per epic and reports the forecast;` with `It proposes the way of working, writes the project deadline and an estimate per epic, and reports the forecast;` and replace `on its own lanes;` with `on its own lanes with a spec deadline and an integration point;`.
 5. Run `gin docs check docs/reference/cli.md docs/guides/customizing-templates.md docs/guides/customizing-templates.vi.md docs/reference/skills.md docs/reference/skills.vi.md docs/concepts/lifecycle.md` (each `ok`) and `python3 -m pytest -n auto -q`. Commit: `docs(roadmap): way of working, integration point, spec_not_ready (gin-workflow-roadmap-pipeline)`.
+
+### Track 4: Bead description template and epic complexity (user add-on)
+- **Dependencies**: Track 2
+- **Files**:
+  - Create `plugins/gin-workflow/src/templates/task.md`
+  - Modify `plugins/gin-workflow/src/templates/epic.md:6` (add `Complexity:` after `Capabilities:`)
+  - Modify `plugins/gin-workflow/src/templates/roadmap.md` (epic block: `Complexity:` after `Estimate:`)
+  - Modify `plugins/gin-workflow/src/skills/roadmap/SKILL.md:27,33` (step 4 presents `Complexity:`; step 6 copies it)
+  - Modify `plugins/gin-workflow/src/skills/orchestrate/SKILL.md:21` (track bead description from `task.md`)
+  - Test `tests/workflow_core/test_specs.py:285-297` (template list and assertions)
+- **Provider role**: `backend`
+- **Model:** `haiku`
+- **Effort:** `low`
+- **Why:** template files and two one-sentence skill edits with the exact text below; the roadmap skill budget check from Track 2 guards the size.
+- **Acceptance criteria**: `gin specs template task.md` prints the five label lines; `epic.md` and `roadmap.md` templates contain `Complexity:`; `test_specs.py`, `test_epic_comments.py`, `test_skill_routing.py`, `test_token_budget.py` pass; `SKILL.md` of roadmap stays under 12,000 characters.
+- **Estimated complexity**: low
+
+Steps:
+
+1. Tests first. In `tests/workflow_core/test_specs.py`, add `"task.md"` to the tuple of template names at line 285 and, after the `Capabilities: {{capabilities}}` assertion, add:
+   ```python
+            task = run_specs(root, "template", "task.md").stdout
+            self.assertIn("Plan: {{plan_path}}, Track {{track}}", task)
+            self.assertIn("Route: {{provider_role}} / {{model}} / {{effort}}", task)
+            self.assertIn("Complexity: {{complexity}}", run_specs(root, "template", "epic.md").stdout)
+            self.assertIn("Complexity:", run_specs(root, "template", "roadmap.md").stdout)
+   ```
+   Run `python3 -m pytest tests/workflow_core/test_specs.py -q -p no:cacheprovider -k template`: fails (`task.md` unknown).
+2. Create `plugins/gin-workflow/src/templates/task.md`:
+   ```
+   <!-- Description of a track bead in Beads; /orchestrate writes it from the plan. Label lines, no headings: gin-console shows it as plain text. -->
+   {{summary}}
+
+   Plan: {{plan_path}}, Track {{track}}
+   Files: {{files}}
+   Route: {{provider_role}} / {{model}} / {{effort}}
+   Acceptance: {{acceptance}}
+   Notes: {{notes}}
+   ```
+   In `epic.md` add the line `Complexity: {{complexity}}` right after `Capabilities: {{capabilities}}`. In `templates/roadmap.md` add `Complexity: {{complexity}}` right after `Estimate: {{estimate_days}}` in the epic block. If `gin specs template` resolves names from a fixed list rather than the directory, add `task.md` to that list (grep `"epic.md"` in `plugins/gin-workflow/src/scripts/workflow_core/specs.py`). Run the template test: passes.
+3. Roadmap `SKILL.md`: on line 27 (step 4) replace the text `` `Risks:`. Every run proposes `` with `` `Risks:`, `Complexity:` (`low`, `medium`, or `high` and the main driver in a few words: cross-module reach, unknown legacy behaviour, data migration, integration count). Every run proposes ``; on line 33 replace `` `Capabilities:` copied from the file; `` with `` `Capabilities:` and `Complexity:` copied from the file; ``. Orchestrate `SKILL.md` line 21: replace `` one per plan track (`gin task create --parent <epic>`). `` with `` one per plan track (`gin task create --parent <epic>`), the description from `gin specs template task.md` (summary from the track title and `Why:`, `Files:`, `Route:` from the plan) and `--acceptance` from the track's acceptance criteria. `` Run `wc -c plugins/gin-workflow/src/skills/roadmap/SKILL.md` (under 12,000) and `python3 -m pytest tests/workflow_core/test_specs.py tests/workflow_core/test_epic_comments.py tests/workflow_core/test_skill_routing.py tests/workflow_core/test_token_budget.py -q -p no:cacheprovider`: passes.
+4. Commit: `feat(templates): task.md for track beads and Complexity on roadmap epics (gin-workflow-roadmap-pipeline)`.
 
 ## Integration
 - **Branch**: `feat/roadmap-pipeline` (worktree `.claude/worktrees/feat-roadmap-pipeline`)
@@ -334,6 +376,7 @@ Steps:
 ## Validation
 - [ ] `python3 -m pytest -n auto` passes
 - [ ] `gin specs template roadmap.md` prints `## Way of working`, `Spec ready by:`, `Integration point:`
+- [ ] `gin specs template task.md` prints `Plan:` and `Route:`; `gin specs template epic.md` prints `Complexity:`
 - [ ] `wc -c plugins/gin-workflow/src/skills/roadmap/SKILL.md` under 12000; `references/way-of-working.md` under 6000
 - [ ] `plugins/gin-workflow/src/scripts/gin milestone show gin-workflow-96sx --json` rows carry `spec_confirmed` (true for `gin-workflow-roadmap-pipeline` after this spec's gate) and exit 0
 - [ ] Manual: corrupt a copy of `events.jsonl` in a scratch repo and see the stderr warning with exit 0
