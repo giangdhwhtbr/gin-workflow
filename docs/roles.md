@@ -46,9 +46,10 @@ Everyone except the tech lead starts from [joining a team](guides/team.md#join-i
 
 1. [Business analyst](guides/ba.md)
 2. [Joining a team](guides/team.md#join-it-member)
-3. [SDD living specs](guides/sdd.md)
-4. [Customizing templates](guides/customizing-templates.md)
-5. The Discuss an epic section of the [brownfield starter](starters/brownfield.md#discuss-an-epic)
+3. [Team git agreement](guides/git-flow.md)
+4. [SDD living specs](guides/sdd.md)
+5. [Customizing templates](guides/customizing-templates.md)
+6. The Discuss an epic section of the [brownfield starter](starters/brownfield.md#discuss-an-epic)
 
 ### Developer
 
@@ -60,12 +61,14 @@ Everyone except the tech lead starts from [joining a team](guides/team.md#join-i
 ### Tester
 
 1. [Joining a team](guides/team.md#join-it-member)
-2. [QA add-on](guides/qa.md)
-3. The Requirements section of [SDD living specs](guides/sdd.md#requirements)
-4. The Test cases and E2E sections of the [brownfield starter](starters/brownfield.md#test-cases)
+2. [Team git agreement](guides/git-flow.md)
+3. [QA add-on](guides/qa.md)
+4. The Requirements section of [SDD living specs](guides/sdd.md#requirements)
+5. The Test cases and E2E sections of the [brownfield starter](starters/brownfield.md#test-cases)
 
 ## Keeping work apart
 
+- Branches, pull requests, review, and merge: follow the [team git agreement](guides/git-flow.md).
 - Requirement changes after plan approval (a team convention): do not edit the in-flight spec. With the SDD layout, the change goes in a new change folder whose `MODIFIED` block carries the base hash of the requirement it replaces, and `gin-qa cases plan` shows which test cases went stale.
 - Tests (a team convention): developers own unit and integration tests next to the code; testers own acceptance cases and end-to-end specs under `qa/`. Give each its own area in `team.areas`, so plans keep them apart.
 - Worktrees: each track runs in its own worktree created by `/gin:orchestrate`.

@@ -46,9 +46,10 @@ Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md
 
 1. [Business analyst](guides/ba.md)
 2. [Tham gia nhóm](guides/team.md#join-it-member)
-3. [Living spec SDD](guides/sdd.md)
-4. [Tùy biến template](guides/customizing-templates.md)
-5. Mục Discuss an epic của [starter brownfield](starters/brownfield.md#discuss-an-epic)
+3. [Thoả thuận git của team](guides/git-flow.md)
+4. [Living spec SDD](guides/sdd.md)
+5. [Tùy biến template](guides/customizing-templates.md)
+6. Mục Discuss an epic của [starter brownfield](starters/brownfield.md#discuss-an-epic)
 
 ### Developer { #developer }
 
@@ -60,12 +61,14 @@ Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md
 ### Tester { #tester }
 
 1. [Tham gia nhóm](guides/team.md#join-it-member)
-2. [Add-on QA](guides/qa.md)
-3. Mục Requirements của [living spec SDD](guides/sdd.md#requirements)
-4. Các mục Test cases và E2E của [starter brownfield](starters/brownfield.md#test-cases)
+2. [Thoả thuận git của team](guides/git-flow.md)
+3. [Add-on QA](guides/qa.md)
+4. Mục Requirements của [living spec SDD](guides/sdd.md#requirements)
+5. Các mục Test cases và E2E của [starter brownfield](starters/brownfield.md#test-cases)
 
 ## Giữ công việc tách biệt { #keeping-work-apart }
 
+- Branch, pull request, review và merge: tuân theo [thoả thuận git của team](guides/git-flow.md).
 - Thay đổi yêu cầu sau khi plan được duyệt (một quy ước của nhóm): đừng sửa spec đang chạy. Với layout SDD, thay đổi nằm trong một change folder mới có khối `MODIFIED` mang base hash của requirement mà nó thay thế, và `gin-qa cases plan` cho biết test case nào đã lỗi thời.
 - Test (một quy ước của nhóm): developer sở hữu unit test và integration test nằm cạnh code; tester sở hữu acceptance case và end-to-end spec dưới `qa/`. Hãy cho mỗi loại một khu vực riêng trong `team.areas` để plan giữ chúng tách biệt.
 - Worktree: mỗi track chạy trong worktree riêng do `/gin:orchestrate` tạo.
