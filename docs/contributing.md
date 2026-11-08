@@ -83,7 +83,7 @@ bash tests/install_smoke_test.sh
 
 `python3 -m pytest -n auto` runs every test under `tests/` (`testpaths` in `pytest.ini`) on one worker process per available CPU. Playwright tests under `tests/gin_qa` skip without a Playwright environment. `pytest.ini` puts the repository root and `plugins/gin-workflow/src/scripts` on `sys.path` and uses `--import-mode=importlib`, so test files with the same name in two directories both load, and `tests/` never shadows the `gin_orchestrator` package. The smoke test builds and installs into temporary homes. `tests/install_smoke_test.ps1` is the Windows counterpart.
 
-CI runs the unit tests and the smoke test of each platform on `ubuntu-latest` and `windows-latest` for every push and pull request (`.github/workflows/test.yml`). The Windows job sets `PYTHONUTF8=1`; the installed `gin.cmd` shim passes `-X utf8` for the same UTF-8 mode. A test that needs a POSIX feature is marked `@unittest.skipIf(os.name == "nt", "<reason>")`, and the reason names that feature.
+CI runs the unit tests and the smoke test of each platform on `ubuntu-latest` and `windows-latest` only on request (`.github/workflows/test.yml`, `workflow_dispatch`): start it from the Actions tab or with `gh workflow run test.yml --ref <branch>`. It no longer runs on push or pull request, to keep within the Actions minutes; the release workflow runs the unit tests on every release tag. The Windows job sets `PYTHONUTF8=1`; the installed `gin.cmd` shim passes `-X utf8` for the same UTF-8 mode. A test that needs a POSIX feature is marked `@unittest.skipIf(os.name == "nt", "<reason>")`, and the reason names that feature.
 
 To run one file, pass its path: `python3 -m pytest tests/workflow_core/test_atomic.py`. `-k` narrows the run to matching test names.
 
