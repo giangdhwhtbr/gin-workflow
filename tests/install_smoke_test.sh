@@ -458,6 +458,15 @@ if [ "$qa_version" != "gin-qa 0.11" ]; then
   exit 1
 fi
 
+# A project install refreshes the managed gin-qa launcher but writes only gin into
+# the project, where gin-qa's `setup` skill would replace gin's in the shared .opencode/skills.
+addon_project="$MOCK_HOME/addon-project"
+mkdir -p "$addon_project"
+HOME="$MOCK_HOME" ./install.sh --platform opencode --project "$addon_project" >"$output_file" 2>&1
+assert_contains "$output_file" "Refreshing the installed gin-qa add-on."
+assert_exists "$addon_project/.opencode/skills/setup/SKILL.md"
+assert_not_exists "$addon_project/.opencode/skills/gin-qa-setup"
+
 # gin-workflow is already installed in MOCK_HOME, so gin-orchestrator installs alone.
 HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-orchestrator >"$output_file" 2>&1
 assert_not_contains "$output_file" "installing it first"
