@@ -12,7 +12,7 @@ from . import cases as tc
 from . import bugs, e2e, report, tests
 from .reqs import Effective, QaError, resolve, specs_reqs
 
-VERSION = "0.10"
+VERSION = "0.11"
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -39,6 +39,15 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--external-ref")
     item.add_argument("--discovered-from")
     item.add_argument("--run")
+    item = sub.add_parser("to-manual", parents=[common])
+    item.add_argument("id")
+    item.add_argument("--reason", required=True)
+    item = sub.add_parser("new", parents=[common])
+    item.add_argument("capability")
+    item.add_argument("--type", dest="kind", required=True)
+    item.add_argument("--title", required=True)
+    item.add_argument("--req", action="append", default=[])
+    item.add_argument("--source")
     sub.add_parser("split", parents=[common]).add_argument("capability")
     sub.add_parser("check", parents=[common]).add_argument("--change")
     sub.add_parser("export", parents=[common])
@@ -51,7 +60,9 @@ def _e2e_parser() -> argparse.ArgumentParser:
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin-qa e2e")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("init", parents=[common]).add_argument("--base-url")
+    item = sub.add_parser("init", parents=[common])
+    item.add_argument("--base-url")
+    item.add_argument("--install", action="store_true")
     sub.add_parser("plan", parents=[common]).add_argument("capability", nargs="?")
     sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
     sub.add_parser("run", parents=[common]).add_argument("targets", nargs="*", metavar="TC-ID|capability")
@@ -182,6 +193,21 @@ def _findings(errors: list[str], output_format: str, ok: str) -> int:
     return 1 if errors else 0
 
 
+def _reference(eff: Effective, reqs: list[str], source: str | None) -> tuple[str, str]:
+    """The REQ: field of an SDD case or the Source: field of a legacy case, as `(key, value)`."""
+    if eff.layout != "sdd":
+        if reqs or not source:
+            raise ValueError("the legacy layout takes --source, not --req")
+        return "Source", tc.one_line(source)
+    if source or not reqs:
+        raise ValueError("the SDD layout takes --req, not --source")
+    reqs = list(dict.fromkeys(reqs))
+    unknown = [req for req in reqs if req not in eff.reqs]
+    if unknown:
+        raise ValueError(f"{', '.join(unknown)}: no such requirement")
+    return "REQ", ", ".join(f"{req}@{eff.reqs[req]['hash'][:8]}" for req in reqs)
+
+
 def _run(args: argparse.Namespace) -> int:
     root = args.repository.resolve()
     eff = resolve(specs_reqs(root))
@@ -201,6 +227,16 @@ def _run(args: argparse.Namespace) -> int:
         row = bugs.file_bug(root, eff, args.id, args.actual, args.evidence, external_ref=args.external_ref,
                             discovered_from=args.discovered_from, run=args.run)
         _emit(row, args.format, f"{row['tc']} failed {row['bug']}")
+        return 0
+    if args.command == "to-manual":
+        row = e2e.to_manual(root, eff, args.id, args.reason)
+        _emit(row, args.format, "\n".join([row["file"], row["spec"] or "no spec"]))
+        return 0
+    if args.command == "new":
+        case_id, path = tc.new_case(root, eff.cases_dir, eff.guidelines, args.capability, args.kind, args.title,
+                                    *_reference(eff, args.req, args.source))
+        shown = path.relative_to(root).as_posix()
+        _emit({"tc": case_id, "file": shown}, args.format, shown)
         return 0
     if args.command == "split":
         written, errors = tc.split(root, eff.cases_dir, args.capability)
@@ -227,7 +263,7 @@ def _run_e2e(args: argparse.Namespace) -> int:
     root = args.repository.resolve()
     eff = resolve(specs_reqs(root))
     if args.command == "init":
-        done = e2e.init(root, eff, args.base_url)
+        done = e2e.init(root, eff, args.base_url, args.install)
         _emit({"done": done}, args.format, "\n".join(done) or "already initialized")
         return 0
     if args.command == "plan":
@@ -276,6 +312,7 @@ def _report_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gin-qa report")
     parser.add_argument("capability", nargs="?")
     parser.add_argument("--out", help="report folder, relative to the repository; must be missing or empty")
+    parser.add_argument("--zip", action="store_true", dest="archive")
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     parser.add_argument("--format", choices=("text", "json"), default="text")
     return parser
@@ -283,10 +320,10 @@ def _report_parser() -> argparse.ArgumentParser:
 
 def _run_report(args: argparse.Namespace) -> int:
     root = args.repository.resolve()
-    payload = report.build(root, resolve(specs_reqs(root)), args.capability, args.out)
+    payload = report.build(root, resolve(specs_reqs(root)), args.capability, args.out, args.archive)
     for run in payload["missing_evidence"]:
         print(f"gin-qa: evidence not found: {run}", file=sys.stderr)
-    _emit(payload, args.format, payload["report"])
+    _emit(payload, args.format, "\n".join(filter(None, (payload["report"], payload["zip"]))))
     return 0
 
 
@@ -298,10 +335,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "tests": (_tests_parser, _run_tests),
               "report": (_report_parser, _run_report)}
     if not argv or argv[0] not in groups:
-        print("usage: gin-qa cases {plan,next-id,pin,result,bug,split,check,export} ...\n"
+        print("usage: gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export} ...\n"
               "       gin-qa e2e {init,plan,pin,run,check,export} ...\n"
               "       gin-qa tests {plan,pin,check,run} ...\n"
-              "       gin-qa report [capability] [--out DIR]", file=sys.stderr)
+              "       gin-qa report [capability] [--out DIR] [--zip]", file=sys.stderr)
         return 2
     make, run = groups[argv[0]]
     try:

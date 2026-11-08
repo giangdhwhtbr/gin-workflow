@@ -22,6 +22,26 @@ FIXTURE = "evidence.ts"
 CONFIG = "playwright.config.ts"
 CONFIG_NAMES = tuple(f"playwright.config.{ext}" for ext in ("ts", "js", "mjs", "cjs", "mts", "cts"))
 DEFAULT_BASE_URL = "http://localhost:3000"
+MANAGERS = (("pnpm-lock.yaml", ("pnpm", "add", "-D"), ("pnpm", "exec")), ("yarn.lock", ("yarn", "add", "-D"), ("yarn",)))
+ARIA_BLOCK = ("            try {\n"
+              "              const aria = await page.locator('body').ariaSnapshot({ timeout: 5000 });\n"
+              "              const file = `${String(n).padStart(2, '0')}.aria.yml`;\n"
+              "              fs.writeFileSync(path.join(tcDir, file), aria + '\\n');\n"
+              "              snapshot = file;\n"
+              "            } catch {\n"
+              "              snapshot = null;\n"
+              "            }\n")
+SCREENSHOT_CATCH = "            } catch {\n              screenshot = null;\n            }\n"
+# (old, new) pairs: each old text is in the template as `gin-qa e2e init` copied it before step snapshots.
+ARIA_EDITS = (
+    ("  screenshot: string | null;\n  error: string | null;\n",
+     "  screenshot: string | null;\n  snapshot: string | null;\n  url: string;\n  error: string | null;\n"),
+    ("          let screenshot: string | null = null;\n",
+     "          let screenshot: string | null = null;\n          let snapshot: string | null = null;\n"),
+    (SCREENSHOT_CATCH, SCREENSHOT_CATCH + ARIA_BLOCK),
+    ("            screenshot,\n            error: failure",
+     "            screenshot,\n            snapshot,\n            url: page.url(),\n            error: failure"),
+)
 
 
 @dataclass
@@ -51,6 +71,15 @@ def new_run_folder(root: Path, eff: Effective, suffix: str = "") -> str:
 
 def spec_path(eff: Effective, case: tc.Case) -> str:
     return f"{eff.e2e_dir}/{case.cap}/{case.id.lower()}.spec.ts"
+
+
+def to_manual(root: Path, eff: Effective, case_id: str, reason: str) -> dict[str, str | None]:
+    """Moves an e2e case to manual, then deletes its spec, so a failed delete leaves an orphan `check` reports."""
+    spec = spec_path(eff, tc.find(root, eff.cases_dir, case_id))
+    target = tc.move_to_manual(root, eff.cases_dir, eff.guidelines, case_id, reason)
+    existed = (root / spec).is_file()
+    (root / spec).unlink(missing_ok=True)
+    return {"tc": case_id, "file": target.relative_to(root).as_posix(), "spec": spec if existed else None}
 
 
 def e2e_cases(root: Path, eff: Effective) -> dict[str, tc.Case]:
@@ -160,22 +189,91 @@ def _has_e2e_script(root: Path) -> bool:
     return isinstance(scripts, dict) and "e2e" in scripts
 
 
-def init(root: Path, eff: Effective, base_url: str | None = None) -> list[str]:
+def ignore_evidence(root: Path, eff: Effective) -> bool:
+    """Adds the evidence folder to `.gitignore`; returns whether it wrote the entry."""
+    ignore = root / ".gitignore"
+    entry = f"/{evidence_root(eff)}/"
+    lines = ignore.read_text(encoding="utf-8").splitlines() if ignore.is_file() else []
+    if entry in lines:
+        return False
+    ignore.write_text("\n".join([*lines, entry]) + "\n", encoding="utf-8")
+    return True
+
+
+def _merge_snapshot(path: Path, shown: str) -> str:
+    """Adds step snapshots to an older fixture on an exact anchor match; returns what it did, or ""."""
+    text = path.read_text(encoding="utf-8")
+    if "ariaSnapshot" in text:
+        return ""
+    if any(text.count(old) != 1 for old, _ in ARIA_EDITS):
+        return (f"{shown} has no ariaSnapshot and differs from the template; merge it by hand "
+                "(references/explore-case.md of the e2e skill)")
+    for old, new in ARIA_EDITS:
+        text = text.replace(old, new)
+    tc.write_atomic(path, text)
+    return f"merged ariaSnapshot into {shown}"
+
+
+def _commands(root: Path) -> tuple[list[str], list[str]]:
+    """The commands that install the package and chromium, by the lockfile at the repository root."""
+    add, run = next(((add, run) for lockfile, add, run in MANAGERS if (root / lockfile).is_file()),
+                    (("npm", "install", "-D"), ("npx",)))
+    return [*add, "@playwright/test"], [*run, "playwright", "install", "chromium"]
+
+
+def _read_package(root: Path) -> dict[str, Any]:
+    """`package.json` as an object whose `scripts`, when present, is an object; QaError otherwise."""
+    path = root / "package.json"
+    if not path.is_file():
+        raise QaError("no package.json at the repository root; create one before --install")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise QaError(f"package.json: {error}") from error
+    if not isinstance(data, dict) or not isinstance(data.get("scripts", {}), dict):
+        raise QaError("package.json: expected an object whose scripts is an object")
+    return data
+
+
+def _install(root: Path) -> list[str]:
+    """Installs Playwright and chromium and adds the `e2e` script; a failure names the commands to run by hand."""
+    package, browser = _commands(root)
+    by_hand = " && ".join(" ".join(argv) for argv in (package, browser))
+    done: list[str] = []
+    for argv in ([] if _playwright(root) else [package]) + [browser]:
+        program = shutil.which(argv[0])
+        if program is None:
+            raise QaError(f"{argv[0]}: not found; run by hand: {by_hand}")
+        result = subprocess.run([program, *argv[1:]], cwd=root, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise QaError(f"{' '.join(argv)} failed: {result.stderr.strip()[-300:]}; run by hand: {by_hand}")
+        done.append(f"ran {' '.join(argv)}")
+    if not _has_e2e_script(root):
+        # re-read: the manager may have rewritten package.json
+        data = _read_package(root)
+        data.setdefault("scripts", {})["e2e"] = "playwright test"
+        tc.write_atomic(root / "package.json", json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        done.append('added "e2e": "playwright test" to package.json')
+    return done
+
+
+def init(root: Path, eff: Effective, base_url: str | None = None, install: bool = False) -> list[str]:
     """Copies the fixture, ignores the evidence folder, and writes the Playwright config; never overwrites.
     Returns what it did."""
     url = check_base_url(DEFAULT_BASE_URL if base_url is None else base_url)
+    if install:
+        _read_package(root)  # before the first side effect
     done: list[str] = []
     target = root / eff.e2e_dir / FIXTURE
     if not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(_template(FIXTURE), target)
         done.append(f"wrote {eff.e2e_dir}/{FIXTURE}")
-    ignore = root / ".gitignore"
-    entry = f"/{evidence_root(eff)}/"
-    lines = ignore.read_text(encoding="utf-8").splitlines() if ignore.is_file() else []
-    if entry not in lines:
-        ignore.write_text("\n".join([*lines, entry]) + "\n", encoding="utf-8")
-        done.append(f"added {entry} to .gitignore")
+    else:
+        merged = _merge_snapshot(target, f"{eff.e2e_dir}/{FIXTURE}")
+        done += [merged] if merged else []
+    if ignore_evidence(root, eff):
+        done.append(f"added /{evidence_root(eff)}/ to .gitignore")
     existing = next((name for name in CONFIG_NAMES if (root / name).exists()), None)
     if existing is None:
         text = _template(CONFIG).read_text(encoding="utf-8")
@@ -184,6 +282,8 @@ def init(root: Path, eff: Effective, base_url: str | None = None) -> list[str]:
         done.append(f"wrote {CONFIG} (baseURL {url})")
     elif base_url is not None:
         done.append(f"{existing} exists; --base-url not applied")
+    if install:
+        return done + _install(root)
     if _playwright(root) is None:
         done.append("@playwright/test is not installed here: npm install -D @playwright/test && "
                     "npx playwright install chromium")

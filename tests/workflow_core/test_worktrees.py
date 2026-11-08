@@ -44,6 +44,30 @@ class WorktreeTests(unittest.TestCase):
         path = worktrees.create(self.root, "t2", "bead/t2", "other")
         self.assertEqual(git(self.root, "rev-parse", "other"), git(path, "rev-parse", "HEAD"))
 
+    def test_checkout_existing_local_branch(self):
+        git(self.root, "branch", "feat/x")
+        path = worktrees.checkout(self.root, "t3", "feat/x")
+        self.assertEqual(self.worktrees / "t3", path)
+        self.assertEqual("feat/x", git(path, "rev-parse", "--abbrev-ref", "HEAD"))
+
+    def test_checkout_remote_only_branch_tracks_origin(self):
+        remote = self.root.parent / f"{self.root.name}-origin.git"
+        git(self.root, "init", "-q", "--bare", str(remote))
+        self.addCleanup(lambda: subprocess.run(["rm", "-rf", str(remote)], check=False))
+        git(self.root, "remote", "add", "origin", str(remote))
+        git(self.root, "push", "-q", "origin", "HEAD:refs/heads/feat/remote")
+        git(self.root, "fetch", "-q", "origin")
+        path = worktrees.checkout(self.root, "t4", "feat/remote")
+        self.assertEqual("feat/remote", git(path, "rev-parse", "--abbrev-ref", "HEAD"))
+        self.assertEqual("origin/feat/remote", git(path, "rev-parse", "--abbrev-ref", "@{upstream}"))
+
+    def test_checkout_refuses_unknown_branch_and_existing_directory(self):
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            worktrees.checkout(self.root, "t5", "nope")
+        worktrees.create(self.root, "t6", "bead/t6")
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            worktrees.checkout(self.root, "t6", "bead/t6")
+
     def test_rejects_unsafe_ids_without_side_effects(self):
         for track_id in ("../x", "a/b", "", ".", "..", "x y"):
             with self.subTest(track_id=track_id), self.assertRaises(ValueError):

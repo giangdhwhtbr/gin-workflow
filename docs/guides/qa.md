@@ -61,7 +61,7 @@ Saved as `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 - Fields are `- **Key:** value` lines. Sections are `**Preconditions:**`, `**Test data:**`, `**Steps:**`, and `**Expected:**`, in that order.
 - `Test data` lists the records and values the case needs, as a value or a rule. Credentials appear only as environment variable names.
 - `gin-qa cases plan` lists the work: requirements with no case (`missing`), cases whose requirement changed since they were pinned (`stale`), and cases whose requirement is gone (`obsolete`).
-- IDs come from `gin-qa cases next-id <capability>`; `pin <TC-ID>` records the requirement's current hash after a case is updated.
+- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>` writes the case file with the next ID and the pin. Repeat `--req` for several requirements; the legacy layout takes `--source <spec path>#<heading>` instead. The new case has empty steps and expected results, so `cases check` reports it until you write them. `pin <TC-ID>` records the requirement's current hash after a case is updated.
 - `gin-qa cases check` must exit 0. Obsolete cases are deleted only with your approval, and the skill never commits.
 - `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]` writes the `Result`, `Run`, and `Bug` lines. Never edit them by hand.
 - A flat `qa/cases/<capability>.md` file from earlier versions still works. `gin-qa cases split <capability>` writes one file per case and removes the flat file.
@@ -81,7 +81,7 @@ A failure asks for what happened, evidence references, and an optional external 
 - The bug is a bead filed through `gin task create`, linked to the case's epic with `discovered-from`. `gin usage collect` on that epic counts it in `quality.bugs`, and the [usage report](../reference/cli.md#gin-usage) shows the count from the last collect.
 - The epic comes from the case's spec or change; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for the lookup. With no epic, the skill offers the open epics of the repository to pick from.
 - The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.
-- When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence are not added to it. A closed bug gets a new bug that names it as the previous bug; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for other values.
+- When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence go into the bead's notes as one `Re-run` line. A closed bug gets a new bug that names it as the previous bug; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for other values.
 - Teams that track bugs in Jira or Linear file the ticket there and pass its key with `--external-ref`; the flag only records the key on the bead.
 - When `## Bugs` in the guidelines says `External reference: required`, a failure is not filed without a reference, and the reference must match the pattern the line names.
 - Priority follows the case: `high` → 1, `medium` → 2, `low` → 3, none → 2.
@@ -92,10 +92,12 @@ The skill never edits case files and never commits.
 
 `/gin-qa:e2e <capability>` turns `.e2e.md` cases into Playwright specs under `qa/e2e/<capability>/` (`qa.e2e`), one spec per case:
 
-- `gin-qa e2e init` copies the evidence fixture `qa/e2e/evidence.ts` (yours to edit), git-ignores `qa/evidence/`, and writes `playwright.config.ts` at the repository root when there is none: specs under `qa/e2e`, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
+- `gin-qa e2e init` copies the evidence fixture `qa/e2e/evidence.ts` (yours to edit), adds `qa/evidence/` to `.gitignore`, and writes `playwright.config.ts` at the repository root when there is none: specs under `qa/e2e`, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
 - The skill builds each spec step by step against the running application, reading the ARIA snapshot (`NN.aria.yml`) and URL the fixture records after every step, and reviews the screenshots before reporting a case. Where the harness has subagents it gives each case to the `gin-qa:e2e-tester` agent at the middle model and `low` effort, several cases at a time (`--parallel N`, default 3).
 - `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `qa/evidence/`. It records each case's result in its case file and lists them under `recorded` in the JSON output.
 - `gin-qa e2e check --run <folder>` checks a run's evidence; `gin-qa e2e export --run <folder> --format json` exports it.
+
+`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the lockfile (pnpm, yarn, else npm) and adds the `e2e` script to `package.json`; without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template, and otherwise tells you to merge by hand.
 
 Your project provides `@playwright/test` 1.49 or later. `init` writes a starting Playwright config once; after that the config is yours (`baseURL`, browsers, video, trace, `webServer`), and `init` never overwrites it.
 
@@ -115,16 +117,31 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
 
   `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root, without a shell. `{files}` paths are relative to that root, so a runner option that changes folder (`uv run --directory`, `pnpm -C`) cannot take `{files}`.
 - A test carries the marker `TC: <TC-ID>@<hash8>`, by convention in a comment line above it, and a name holding the TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` and `check` compare the marker with the case, as `gin-qa e2e` does with a spec's header; `gin-qa tests pin` updates it.
-- `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `qa/evidence/<UTC time>-<type>/` and records each case's result in its case file. The [CLI reference](../reference/cli.md#gin-qa-tests) gives the result rules. Only `gin-qa e2e init` git-ignores `qa/evidence/`; without e2e, add it to `.gitignore`.
+- `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `qa/evidence/<UTC time>-<type>/` and records each case's result in its case file. The [CLI reference](../reference/cli.md#gin-qa-tests) gives the result rules. `gin-qa tests run` adds `qa/evidence/` to `.gitignore`.
 
 ## Report: `/gin-qa:report`
 
-`/gin-qa:report [capability]` runs `gin-qa report` and writes one folder you can zip and send:
+`/gin-qa:report [capability]` runs `gin-qa report` and writes one folder you can send; `--zip` also writes `<folder>.zip` next to it:
 
-- The folder is `qa/evidence/report-<UTC time>/`; `--out <dir>` picks another, which must be missing or empty. It holds `index.html` and a copy of each e2e screenshot the report shows, so it opens offline from any location. `gin-qa e2e init` git-ignores `qa/evidence/`, so reports stay out of git.
+- The folder is `qa/evidence/report-<UTC time>/`; `--out <dir>` picks another, which must be missing or empty. It holds `index.html` and a copy of each e2e screenshot the report shows, so it opens offline from any location. A report under `qa/evidence/` is covered by the `.gitignore` entry that `gin-qa report` adds, so it stays out of version control.
 - The page counts cases per capability, type, priority, and result in four bar charts; a click on a bar filters the case table. The table has a search over ID and title and one filter per chart.
 - A click on a case opens its fields, preconditions, test data, steps, expected results, result, run, and bug, and for an e2e case each step of the run its `Run` line names, per Playwright project: status, URL, error, and screenshot.
 - Each case shows the run its `Run` line names. When that folder is gone, the case shows `evidence not found: <run>` and the command lists the run under `missing_evidence`. A `Run` outside `qa/evidence/`, such as a manual run reference, and a `gin-qa tests run` folder are shown as text.
+- A case moved from e2e to manual keeps its row and gains a "moved from e2e" mark. The section "Moved from e2e to manual" lists each with its date, reason, and result, and appears only when there is one.
+
+## Moving a flaky e2e case to manual
+
+QA decides when a case leaves automation; `gin-qa` does not count failures. For a case that keeps failing or flaking on the pipeline, run:
+
+```bash
+gin-qa cases to-manual <TC-ID> --reason "<why>"
+```
+
+- The file is renamed from `.e2e.md` to `.manual.md`, and a `Moved from e2e: <date>: <reason>` line is added.
+- `Result` becomes `not run` and the `Run` line is removed. `Bug:` is kept. The spec is deleted last.
+- The command exits 2, writing nothing, for a case that is not e2e, an empty or multi-line reason, a flat cases file, a case that already has a `Moved from e2e:` line, a `## Types` section without `manual`, or an existing `.manual.md` file.
+
+Then run `/gin-qa:run`, which walks the case by hand. To go back, rename the file to `.e2e.md`, remove the `Moved from e2e:` line, and run `/gin-qa:e2e`.
 
 ## Prompts
 
@@ -169,4 +186,4 @@ A commit pushed after the approval needs a new approval ([team mode](team.md)).
 
 ## Commands
 
-`gin-qa cases {plan,next-id,pin,result,bug,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR]`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).
+`gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR] [--zip]`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).

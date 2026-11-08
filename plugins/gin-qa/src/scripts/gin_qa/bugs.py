@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
@@ -87,6 +88,14 @@ def description(case: tc.Case, run: str | None, previous: str | None, actual: st
     return "\n\n".join(["\n".join(head), *(f"## {name}\n\n" + "\n".join(lines) for name, lines in sections if lines)])
 
 
+def rerun_note(run: str | None, actual: str, evidence: list[str]) -> str:
+    """One line with no double quote: a Windows .cmd shim cuts an argument at its first newline and re-parses quotes."""
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    parts = [f"Re-run {day}", *([f"Run: {run}"] if run else []), f"Actual: {actual}",
+             *([f"Evidence: {', '.join(evidence)}"] if evidence else [])]
+    return "; ".join(parts).replace('"', "'")
+
+
 def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: list[str], *,
              external_ref: str | None = None, discovered_from: str | None = None,
              run: str | None = None) -> dict[str, Any]:
@@ -101,8 +110,12 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     if previous:
         old, _ = _show(root, previous)  # a value that is not a readable bead counts as no open bug
         if old is not None and old.get("status") not in (None, "closed"):
+            added = _gin_workflow(root, "task", "update", previous, "--append-notes", rerun_note(run, actual, evidence))
+            if added.returncode != 0:  # before the case changes, so the tester can run this again
+                raise QaError(added.stderr.strip() or f"gin task update exited {added.returncode}")
             row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, previous)
-            return {"tc": case_id, "bug": previous, "epic": None, "created": False, "file": row["file"]}
+            return {"tc": case_id, "bug": previous, "epic": None, "created": False, "appended": True,
+                    "file": row["file"]}
     epic = discovered_from or epic_of(root, eff, case)
     if epic is None:
         raise QaError(f"no epic for {case_id}; pass --discovered-from <bead>")
@@ -127,4 +140,5 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     except (ValueError, OSError) as error:
         raise QaError(f"filed {bug} but could not record it: {error}; "
                       f"run gin-qa cases result {case_id} failed --bug {bug}") from error
-    return {"tc": case_id, "bug": bug, "epic": epic, "created": True, "file": row["file"]}
+    return {"tc": case_id, "bug": bug, "epic": epic, "created": True, "appended": False,
+            "file": row["file"]}

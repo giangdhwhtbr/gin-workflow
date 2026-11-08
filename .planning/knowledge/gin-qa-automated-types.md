@@ -12,7 +12,7 @@ Epic `gin-workflow-qa-test-types` (2026-11-04) added `gin-qa tests {plan,pin,che
 **Consequences**
 - `tests pin`, like `e2e pin` and the case writers, rewrites CRLF files with LF (bead `gin-workflow-kbzn`).
 - `tests plan <TC-ID>` treats the TC-ID as a capability and finds nothing (bead `gin-workflow-w9et`); the skill runs `plan` per capability instead.
-- `qa/evidence/` is git-ignored only by `gin-qa e2e init`; a tests-only project adds the entry itself.
+- Since `gin-workflow-uj96`, `gin-qa tests run` and `gin-qa report` add `qa/evidence/` to `.gitignore` too, through `e2e.ignore_evidence`; see [gin-qa-utilities](gin-qa-utilities.md).
 
 **References**
 - `plugins/gin-qa/src/scripts/gin_qa/tests.py` (`declared`, `_files`, `markers`, `pin`, `_junit`, `run`)

@@ -8,15 +8,17 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 from typing import Any, Mapping
 
-from . import tasks
+from . import tasks, worktrees
 from .executables import tool
 from .team import Area, Member, TeamConfig, TeamError
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
 _TRACKS_LINE = re.compile(r"^Tracks:\s*([\d,\s]+)$", re.M)
+RELEASED = "released"
 
 
 class SyncConflict(Exception):
@@ -90,10 +92,12 @@ def ready(root: Path, team: TeamConfig, member: Member) -> list[dict[str, Any]]:
     result = []
     for issue in tasks.without_held(_bd_json(root, ["ready", "--exclude-type", "milestone"]), held):
         assignee = (issue.get("assignee") or "").lower()
-        areas = {label[5:] for label in issue.get("labels") or [] if label.startswith("area:")}
-        if assignee == member.email or (not assignee and (areas & mine or (not areas and not team.areas))):
+        labels = issue.get("labels") or []
+        areas = {label[5:] for label in labels if label.startswith("area:")}
+        released = RELEASED in labels
+        if assignee == member.email or (not assignee and (released or areas & mine or (not areas and not team.areas))):
             result.append({"id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
-                           "areas": sorted(areas)})
+                           "areas": sorted(areas), "released": released})
     seen = {row["id"] for row in result}
     now = utc_now()
     for issue in tasks.without_held(_bd_json(root, ["list", "--status", "in_progress"]), held):
@@ -124,7 +128,8 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
     if team.beads_remote:
         sync(root)
     issue = _show(root, bead)
-    ineligible = [area.name for area in _areas_of(team, issue) if not team.eligible(member, area)]
+    released = RELEASED in (issue.get("labels") or [])
+    ineligible = [] if released else [area.name for area in _areas_of(team, issue) if not team.eligible(member, area)]
     if ineligible:
         raise SyncConflict(f"{member.email} may not own tracks in {', '.join(ineligible)}")
     holder = (issue.get("assignee") or "").lower()
@@ -137,6 +142,8 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
                 "--append-notes", f"took over expired claim from {holder}", "--set-metadata", f"claim={lease}"]
     else:
         argv = ["update", bead, "--claim", "--set-metadata", f"claim={lease}"]
+    if released:
+        argv += ["--remove-label", RELEASED]
     completed = _bd(root, argv, actor=member.email)
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
@@ -163,14 +170,11 @@ def _push(root: Path, team: TeamConfig, bead: str) -> None:
         raise SyncConflict(f"push rejected for {bead}; local Beads kept, run gin team sync ({error})") from error
 
 
-def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str) -> dict[str, Any]:
-    """Hand a track to another member: only the current assignee or the lead of one of its areas may."""
+def _reassign_target(team: TeamConfig, member: Member, bead: str, issue: Mapping[str, Any], email: str) -> tuple[str, Member]:
+    """(holder, target) after the reassign rules: authority, open bead, member target, eligible target."""
     target = team.member(email)
     if target is None:
         raise TeamError(f"{email} is not a team member")
-    if team.beads_remote:
-        sync(root)
-    issue = _show(root, bead)
     if issue.get("status") == "closed":
         raise SyncConflict(f"{bead} is closed")
     holder = (issue.get("assignee") or "").lower()
@@ -182,13 +186,164 @@ def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str
     ineligible = [area.name for area in areas if not team.eligible(target, area)]
     if ineligible:
         raise SyncConflict(f"{target.email} may not own tracks in {', '.join(ineligible)}")
+    return holder, target
+
+
+def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str) -> dict[str, Any]:
+    """Hand a track to another member: only the current assignee or the lead of one of its areas may."""
+    if team.member(email) is None:
+        raise TeamError(f"{email} is not a team member")
+    if team.beads_remote:
+        sync(root)
+    issue = _show(root, bead)
+    holder, target = _reassign_target(team, member, bead, issue, email)
+    _write_reassign(root, team, member, bead, holder, target)
+    _push(root, team, bead)
+    return {"status": "reassigned", "bead": bead, "from": holder, "assignee": target.email}
+
+
+def _write_reassign(root: Path, team: TeamConfig, member: Member, bead: str, holder: str, target: Member) -> None:
     note = f"reassigned {holder or 'nobody'} -> {target.email} by {member.email}"
     completed = _bd(root, ["update", bead, "--assignee", target.email, "--append-notes", note,
                            "--set-metadata", f'claim={json.dumps({"holder": target.email, "expires_at": _expires(team)})}'], actor=member.email)
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
+
+
+def handoff_of(issue: Mapping[str, Any]) -> dict[str, Any]:
+    return metadata_json(issue, "handoff")
+
+
+def _track_worktree(root: Path, bead: str, worktree: str | None) -> Path:
+    path = Path(worktree).resolve() if worktree else worktrees._target(root, bead)
+    if not path.is_dir():
+        raise SyncConflict(f"no worktree for {bead}; pass --worktree <path>")
+    return path
+
+
+def _ledger_ref(worktree: Path, bead: str) -> str:
+    """The review ref the bead's ledger names, else the default refs/gin/review/<bead>."""
+    ledger = worktree / ".planning/reviews" / bead / "review.json"
+    default = f"refs/gin/review/{bead}"
+    if not ledger.is_file():
+        return default
+    try:
+        repos = json.loads(ledger.read_text(encoding="utf-8")).get("repositories") or [{}]
+        first = repos[0] if isinstance(repos, list) and repos and isinstance(repos[0], dict) else {}
+    except (OSError, ValueError, AttributeError) as error:
+        raise SyncConflict(f"cannot read review ledger {ledger}: {error}") from error
+    return first.get("checkpoint_ref") or first.get("review_ref") or default
+
+
+def _local_ref(worktree: Path, ref: str) -> bool:
+    try:
+        worktrees._git(worktree, "rev-parse", "--verify", "--quiet", ref)
+    except RuntimeError:
+        return False
+    return True
+
+
+def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: str | None = None,
+            release: bool = False, worktree: str | None = None) -> dict[str, Any]:
+    """Push the track branch and review ref, record the branch on the bead, then reassign or release it."""
+    from review_ledger.git_adapter import GitAdapterError, push_review_ref
+
+    if bool(email) == release:
+        raise TeamError("pass exactly one of <email> or --release")
+    path = _track_worktree(root, bead, worktree)
+    try:
+        dirty = worktrees._git(path, "status", "--porcelain")
+    except RuntimeError as error:
+        raise SyncConflict(f"{path} is not a git worktree: {error}") from error
+    if dirty:
+        raise SyncConflict(f"{bead}: uncommitted changes in {path}:\n{dirty}")
+    if team.beads_remote:
+        sync(root)
+    issue = _show(root, bead)
+    holder = (issue.get("assignee") or "").lower()
+    target = None
+    if email:
+        holder, target = _reassign_target(team, member, bead, issue, email)
+    else:
+        if issue.get("status") == "closed":
+            raise SyncConflict(f"{bead} is closed")
+        areas = _areas_of(team, issue)
+        if holder != member.email and not any(area.lead in member.roles for area in areas):
+            raise SyncConflict(f"only {holder or 'an area lead'} or the lead of its area may release {bead}")
+    branch = worktrees._git(path, "rev-parse", "--abbrev-ref", "HEAD")
+    if branch == "HEAD":
+        raise SyncConflict(f"{path} is on a detached HEAD; check out the track branch first")
+    try:
+        worktrees._git(path, "push", "-u", "origin", branch)
+    except RuntimeError as error:
+        raise SyncConflict(f"git push of {branch} failed: {error}") from error
+    ref = _ledger_ref(path, bead)
+    if _local_ref(path, ref):
+        try:
+            push_review_ref(str(path), ref)
+        except GitAdapterError as error:
+            raise SyncConflict(f"review ref push failed for {ref}: {error}") from error
+    elif (path / ".planning/reviews" / bead / "review.json").is_file():
+        print(f"no local review ref {ref} for {bead}; nothing to push", file=sys.stderr)
+    else:
+        print(f"no review ledger for {bead}", file=sys.stderr)
+    meta = json.dumps({"branch": branch, "from": member.email, "to": target.email if target else None, "at": utc_now()})
+    completed = _bd(root, ["update", bead, "--set-metadata", f"handoff={meta}"], actor=member.email)
+    if completed.returncode != 0:
+        raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
+    if target:
+        _write_reassign(root, team, member, bead, holder, target)
+    else:
+        completed = _bd(root, ["update", bead, "--assignee", "", "--status", "open", "--unset-metadata", "claim",
+                               "--add-label", RELEASED, "--append-notes", f"released to the pool by {member.email}"],
+                        actor=member.email)
+        if completed.returncode != 0:
+            raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
-    return {"status": "reassigned", "bead": bead, "from": holder, "assignee": target.email}
+    print(f"next: gin team takeover {bead}", file=sys.stderr)
+    result: dict[str, Any] = {"status": "handed-off" if target else "released", "bead": bead, "branch": branch}
+    if target:
+        result["assignee"] = target.email
+    return result
+
+
+def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch: str | None = None) -> dict[str, Any]:
+    """Fetch the handed-off branch, check it out at .planning/worktrees/<bead>, fetch the review ref, claim."""
+    git_dir = (root / worktrees._git(root, "rev-parse", "--git-dir")).resolve()
+    common = (root / worktrees._git(root, "rev-parse", "--git-common-dir")).resolve()
+    if git_dir != common:
+        raise SyncConflict("run gin team takeover from the main checkout, not a linked worktree")
+    if team.beads_remote:
+        sync(root)
+    issue = _show(root, bead)
+    branch = branch or str(handoff_of(issue).get("branch") or "")
+    if not branch:
+        raise SyncConflict(f"no handoff branch recorded for {bead}; pass --branch <name>")
+    if branch.startswith("-"):
+        raise SyncConflict(f"refusing branch name {branch!r} from the handoff metadata: it starts with '-'")
+    try:
+        worktrees._git(root, "check-ref-format", "--branch", branch)
+    except RuntimeError as error:
+        raise SyncConflict(f"invalid branch name {branch!r} in the handoff metadata: {error}") from error
+    try:
+        worktrees._git(root, "fetch", "origin", branch)
+        path = worktrees.checkout(root, bead, branch)
+    except (RuntimeError, ValueError) as error:
+        raise SyncConflict(str(error)) from error
+    try:
+        ref = _ledger_ref(path, bead)
+        if ref.startswith("refs/gin/review/"):
+            try:
+                worktrees._git(path, "fetch", "origin", f"+{ref}:{ref}")
+            except RuntimeError:
+                print(f"no review ref {ref} on origin for {bead}", file=sys.stderr)
+        else:
+            print(f"ignoring review ref {ref} from the ledger: not under refs/gin/review/", file=sys.stderr)
+        result = claim(root, team, member, bead)
+    except SyncConflict as error:
+        raise SyncConflict(f"{error}; worktree left at {path}; remove it with gin worktree cleanup {bead}") from error
+    print(f"next: gin team deps --bead {bead}", file=sys.stderr)
+    return {**result, "branch": branch, "worktree": str(path)}
 
 
 def _tracks_in(body: str) -> tuple[str, set[int]]:

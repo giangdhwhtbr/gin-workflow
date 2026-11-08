@@ -119,9 +119,7 @@ gin record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<b
 5. Với một track QA, làm các case bằng tay với CLI `gin-qa`.
    ```bash
    gin-qa cases plan <capability>
-   gin-qa cases next-id <capability>
-   # create one file per case under qa/cases/<capability>/
-   gin-qa cases pin <TC-ID>
+   gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>
    gin-qa cases check
    gin-qa tests run --type <type>
    gin-qa e2e run

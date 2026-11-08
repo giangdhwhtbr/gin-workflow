@@ -24,20 +24,20 @@ This installs the skills for each harness. `gin-ba` has no launcher; the install
 
 ## Dated folders
 
-Each round of inputs for a capability lives in `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, named by the day the inputs arrived, with a `description.md` from `gin specs template iteration.md`. Both skills take the capability and `--date YYYY-MM-DD` (default: today):
+Each round of inputs for a capability lives in `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, named by the day the inputs arrived, with a `description.md` that `gin specs assets add` writes. Both skills take the capability and `--date YYYY-MM-DD` (default: today):
 
 - `/gin-ba:mockup` creates a missing folder, and both skills write a missing `description.md`; `Previous:` names the latest earlier dated folder.
 - A folder whose `description.md` reads `Confirmed: <date>` is frozen: the skill stops and asks for a new date.
 - An unconfirmed folder is continued.
 
-The skills set `Confirmed: <today>` only after the BA explicitly confirms, and never commit: the BA reviews and commits the folder.
+The skills run `gin specs assets confirm` only after the BA explicitly confirms, and never commit: the BA reviews and commits the folder.
 
 ## Legacy capture: `/gin-ba:capture`
 
-1. Put the screenshots of the existing feature under `docs/specs/<capability>/assets/<date>/legacy/` (`.png`, `.jpg`, `.jpeg`, `.webp`, or `.gif`).
-2. Run `/gin-ba:capture <capability> --date <date>`, optionally followed by code paths that show the feature's checks. The skill reads only the paths you name.
+1. Collect the screenshots of the existing feature (`.png`, `.jpg`, `.jpeg`, `.webp`, or `.gif`); they can be anywhere on disk.
+2. Run `/gin-ba:capture <capability> --date <date>` and name the files. The skill adds them under `docs/specs/<capability>/assets/<date>/legacy/` with `gin specs assets add <capability> <files> --legacy`. Optionally add code paths that show the feature's checks. The skill reads only the paths you name.
 3. Review `description.md`: `Kind: legacy`, one `### <Screen>` per screen with a `Field | Type | Required | Rule` table and its actions, `## Rules`, and `## Open questions`. A value the evidence does not settle reads `?` and has an open question.
-4. Confirm it; the skill sets `Confirmed: <today>`.
+4. Confirm it; the skill runs `gin specs assets confirm`.
 
 ## Mockup: `/gin-ba:mockup`
 

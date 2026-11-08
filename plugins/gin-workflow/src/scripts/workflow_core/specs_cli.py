@@ -48,6 +48,16 @@ def _parser() -> argparse.ArgumentParser:
     item = sub.add_parser("migrate", parents=[common])
     item.add_argument("--dry-run", action="store_true")
     item.add_argument("--force", action="store_true")
+    assets = sub.add_parser("assets").add_subparsers(dest="assets_command", required=True)
+    item = assets.add_parser("add", parents=[common])
+    item.add_argument("cap")
+    item.add_argument("files", nargs="*", type=Path)
+    item.add_argument("--date")
+    item.add_argument("--legacy", action="store_true")
+    item.add_argument("--new-capability", action="store_true")
+    item = assets.add_parser("confirm", parents=[common])
+    item.add_argument("cap")
+    item.add_argument("--date", required=True)
     return parser
 
 
@@ -93,6 +103,17 @@ def _run(args: argparse.Namespace) -> int:
         specs.require_layout(cfg, "legacy")
         return _findings(specs.lint_design_spec(args.spec), args.format, "ok")
     specs.require_layout(cfg, "sdd")
+    if args.command == "assets":
+        from .specs_assets import add, confirm
+
+        if args.assets_command == "add":
+            result = add(root, cfg, args.cap, args.files, day=args.date, legacy=args.legacy,
+                         new_capability=args.new_capability)
+            _emit(result, args.format, "\n".join([result["folder"], *result["files"]]))
+        else:
+            result = confirm(root, cfg, args.cap, args.date)
+            _emit(result, args.format, f"{result['description']}: Confirmed: {result['confirmed']}")
+        return 0
     if args.command == "new":
         change = specs.new_change(root, cfg, args.slug, args.epic, args.title)
         relative = change.relative_to(root).as_posix()
@@ -105,11 +126,16 @@ def _run(args: argparse.Namespace) -> int:
         _emit({"id": req_id, "warnings": warnings}, args.format, req_id)
         return 0
     if args.command == "lint":
+        from .specs_assets import lint as lint_assets
+
         if args.change:
             errors = specs.lint_change(root, cfg, specs.find_change(root, cfg, args.change), against=args.against)
         else:
             errors = specs.lint_living(root, cfg)
-        return _findings(errors, args.format, "ok")
+        found, warnings = lint_assets(root, cfg, args.against)
+        for warning in warnings:
+            print(f"warning: {warning}", file=sys.stderr)
+        return _findings(errors + found, args.format, "ok")
     if args.command == "hash":
         block, digest = specs.requirement_hash(root, cfg, args.req_id)
         _emit({"id": block.id, "hash": digest}, args.format, f"<!-- base: {digest} -->")

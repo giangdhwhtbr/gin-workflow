@@ -106,8 +106,8 @@ class TestLegacy(BugCase):
         result = self.bug("TC-AUTH-001", "--actual", "An error page is shown", "--evidence", "shots/1.png",
                           "--evidence", "https://logs.example/42", "--run", "manual 2026-11-04", "--format", "json")
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual({"tc": "TC-AUTH-001", "bug": "gw-bug1", "epic": "gw-epic", "created": True, "file": FILE},
-                         json.loads(result.stdout))
+        self.assertEqual({"tc": "TC-AUTH-001", "bug": "gw-bug1", "epic": "gw-epic", "created": True,
+                          "appended": False, "file": FILE}, json.loads(result.stdout))
         [call] = self.creates()
         argv = call["argv"]
         self.assertEqual(["task", "create", "-t", "bug"], argv[:4])
@@ -148,10 +148,11 @@ class TestLegacy(BugCase):
         write(self.root, SPEC, "# Login\n")
         write(self.root, FILE, CASE.replace("- **Priority:** low\n",
                                             "- **Priority:** low\n- **Result:** failed\n- **Bug:** gw-7\n"))
-        self.answer({"task show gw-7": shown("gw-7", "in_progress")})
+        self.answer({"task show gw-7": shown("gw-7", "in_progress"), "task update gw-7": {}})
         result = self.bug("TC-AUTH-001", "--actual", "Still broken", "--format", "json")
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual({"tc": "TC-AUTH-001", "bug": "gw-7", "epic": None, "created": False, "file": FILE},
+        self.assertEqual({"tc": "TC-AUTH-001", "bug": "gw-7", "epic": None, "created": False, "appended": True,
+                          "file": FILE},
                          json.loads(result.stdout))
         self.assertEqual([], self.creates())
         self.assertIn("- **Bug:** gw-7\n", self.path.read_text(encoding="utf-8"))
@@ -234,6 +235,32 @@ class TestLegacy(BugCase):
                 self.assertEqual(2, result.returncode)
                 self.assertIn(error, result.stderr)
         self.assertEqual([], self.calls())
+        self.assertEqual(before, self.path.read_text(encoding="utf-8"))
+
+    def kept_bug(self) -> None:
+        write(self.root, FILE, CASE.replace("- **Priority:** low\n",
+                                            "- **Priority:** low\n- **Result:** blocked\n- **Bug:** gw-7\n"))
+
+    def test_a_re_run_appends_one_line_to_the_notes_of_the_open_bug(self):
+        self.kept_bug()
+        self.answer({"task show gw-7": shown("gw-7", "open"), "task update gw-7": {}})
+        result = self.bug("TC-AUTH-001", "--actual", 'Shows "500" again', "--evidence", "a.png", "--evidence", "b.png",
+                          "--run", "manual 2026-11-07")
+        self.assertEqual(0, result.returncode, result.stderr)
+        [update] = [call for call in self.calls() if call["argv"][:2] == ["task", "update"]]
+        note = self.option(update["argv"], "--append-notes")
+        self.assertRegex(note, r"^Re-run \d{4}-\d{2}-\d{2}; Run: manual 2026-11-07; "
+                               r"Actual: Shows '500' again; Evidence: a\.png, b\.png$")
+        self.assertIn("- **Result:** failed\n", self.path.read_text(encoding="utf-8"))
+
+    def test_a_failed_notes_update_exits_2_and_leaves_the_case(self):
+        self.kept_bug()
+        before = self.path.read_text(encoding="utf-8")
+        self.answer({"task show gw-7": shown("gw-7", "open"),
+                     "task update gw-7": {"stderr": "database locked\n", "code": 1}})
+        result = self.bug("TC-AUTH-001", "--actual", "Still broken")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("database locked", result.stderr)
         self.assertEqual(before, self.path.read_text(encoding="utf-8"))
 
 

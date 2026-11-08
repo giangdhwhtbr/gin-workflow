@@ -264,6 +264,7 @@ class TestRun(TestsCase):
         write(self.root, ".fake-exit", "3")
         result = self.gin_tests("run", "--type", "api", "--format", "json")
         self.assertEqual(3, result.returncode, result.stderr)
+        self.assertIn("/qa/evidence/", (self.root / ".gitignore").read_text().split())
         payload = json.loads(result.stdout)
         folder = payload["run"]
         self.assertRegex(folder, r"^qa/evidence/\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-api$")

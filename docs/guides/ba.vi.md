@@ -24,20 +24,20 @@ Lệnh này cài các skill cho từng harness. `gin-ba` không có launcher; b�
 
 ## Thư mục có tên ngày { #dated-folders }
 
-Mỗi đợt đầu vào của một capability nằm trong `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, đặt tên theo ngày đầu vào đến, kèm một `description.md` từ `gin specs template iteration.md`. Cả hai skill nhận capability và `--date YYYY-MM-DD` (mặc định: hôm nay):
+Mỗi đợt đầu vào của một capability nằm trong `docs/specs/<capability>/assets/<YYYY-MM-DD>/`, đặt tên theo ngày đầu vào đến, kèm một `description.md` do `gin specs assets add` ghi. Cả hai skill nhận capability và `--date YYYY-MM-DD` (mặc định: hôm nay):
 
 - `/gin-ba:mockup` tạo thư mục chưa có, và cả hai skill ghi `description.md` khi chưa có; `Previous:` ghi thư mục có tên ngày gần nhất trước đó.
 - Thư mục có `description.md` ghi `Confirmed: <date>` bị đóng băng: skill dừng lại và hỏi một ngày mới.
 - Thư mục chưa xác nhận được làm tiếp.
 
-Các skill chỉ đặt `Confirmed: <today>` sau khi BA xác nhận rõ ràng, và không bao giờ commit: BA xem lại và commit thư mục.
+Các skill chỉ chạy `gin specs assets confirm` sau khi BA xác nhận rõ ràng, và không bao giờ commit: BA xem lại và commit thư mục.
 
 ## Ghi lại hệ thống cũ: `/gin-ba:capture` { #legacy-capture-gin-bacapture }
 
-1. Đặt các screenshot của tính năng hiện có vào `docs/specs/<capability>/assets/<date>/legacy/` (`.png`, `.jpg`, `.jpeg`, `.webp`, hoặc `.gif`).
-2. Chạy `/gin-ba:capture <capability> --date <date>`, có thể kèm các đường dẫn code cho thấy các kiểm tra của tính năng. Skill chỉ đọc những đường dẫn bạn nêu.
+1. Gom các screenshot của tính năng hiện có (`.png`, `.jpg`, `.jpeg`, `.webp`, hoặc `.gif`); chúng có thể nằm ở bất kỳ đâu trên đĩa.
+2. Chạy `/gin-ba:capture <capability> --date <date>` và nêu tên các file. Skill thêm chúng vào `docs/specs/<capability>/assets/<date>/legacy/` bằng `gin specs assets add <capability> <files> --legacy`. Có thể thêm các đường dẫn code cho thấy các kiểm tra của tính năng. Skill chỉ đọc những đường dẫn bạn nêu.
 3. Xem lại `description.md`: `Kind: legacy`, mỗi màn hình một `### <Screen>` với bảng `Field | Type | Required | Rule` và các hành động của nó, `## Rules`, và `## Open questions`. Một giá trị mà bằng chứng không xác định được ghi là `?` và có một câu hỏi mở.
-4. Xác nhận nó; skill đặt `Confirmed: <today>`.
+4. Xác nhận nó; skill chạy `gin specs assets confirm`.
 
 ## Mockup: `/gin-ba:mockup` { #mockup-gin-bamockup }
 

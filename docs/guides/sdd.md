@@ -69,7 +69,11 @@ docs/specs/reports/assets/
     report-filter.png
 ```
 
-Name the folder by the ISO date the inputs arrived. By convention, a new batch of requirements, changes, or designs gets a new folder and an older folder is never edited, so the folders record the history of the capability's inputs. On a legacy project without design specs, put screenshots of the existing feature under `<date>/legacy/` and describe how it behaves today in that folder's `description.md` with `Kind: legacy`. Start every `description.md` from `gin specs template iteration.md`. `specs lint` reports a dated folder without `description.md`; flat files under `assets/` and folders not named by an ISO date stay valid and are not checked.
+Name the folder by the ISO date the inputs arrived. By convention, a new batch of requirements, changes, or designs gets a new folder and an older folder is never edited, so the folders record the history of the capability's inputs. On a legacy project without design specs, add screenshots of the existing feature with `--legacy`, which puts them under `<date>/legacy/`, and describe how it behaves today in that folder's `description.md` with `Kind: legacy`.
+
+`gin specs assets add <capability> <files> [--date D]` copies the files, from anywhere on disk, into the dated folder and writes `description.md` with `Kind:`, `Previous:`, and `Confirmed: no` when it is missing. `gin specs assets confirm <capability> --date D` sets `Confirmed:` to today. Both exit 2 on refusal; see the [CLI reference](../reference/cli.md#gin-specs).
+
+`specs lint` reports a dated folder without `description.md`, a `Confirmed:` value that is neither `no` nor a date, and any change to a folder confirmed on the base branch. The base is `--against <ref>`, else the merge-base with `main` or `master`; without one, lint warns and skips that check. A folder confirmed on the current branch is checked only after it reaches the base, and `assets add` refuses it before that. Flat files under `assets/` and folders not named by an ISO date stay valid and are not checked.
 
 Each `description.md` has a `Confirmed:` line. It reads `no` until the BA confirms the inputs, then the ISO date of that confirmation, and a confirmed folder is never edited. In discuss, the agent reads `description.md` and any `mockup/index.html` of each dated folder of the affected capabilities, cites only confirmed folders, and asks about the others. A requirement taken from an input adds a `Source:` line after its statement:
 
