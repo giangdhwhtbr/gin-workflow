@@ -321,51 +321,39 @@ function Install-OpenCodeBundle {
     # use for the Claude/Codex commands/ files, and copying them would risk
     # clobbering a repository's own .opencode/commands. Agents are translated
     # into namespaced subagents (<plugin>-<agent>.md).
-    # gin-qa's `setup` would shadow gin's `setup`, which has the same directory id,
-    # so it lands as gin-qa-setup without touching a skills/setup already there.
-    $qaSetup = Join-Path $Source 'skills/setup'
-    $renameSetup = ($PluginName -eq 'gin-qa') -and (Test-Path -LiteralPath $qaSetup -PathType Container)
-    Copy-BundleDirectories -Source $Source -Destination $Destination -LinkFiles `
-        -ExcludeSkills $(if ($renameSetup) { @('setup') } else { @() })
-    if ($renameSetup) {
-        $renamed = Join-Path $Destination 'skills/gin-qa-setup'
-        if (Test-Path -LiteralPath $renamed) {
-            Remove-Item -LiteralPath $renamed -Recurse -Force
-        }
-        Copy-DirectoryContent -Source $qaSetup -Destination $renamed -AsLink:$Link -LinkFiles
-        $setupSkill = Join-Path $renamed 'SKILL.md'
-        if (Test-Path -LiteralPath $setupSkill) {
-            $content = [regex]::Replace([IO.File]::ReadAllText($setupSkill), '(?m)^name: setup$', 'name: gin-qa-setup')
-            if ($null -ne (Get-Item -LiteralPath $setupSkill).LinkType) {
-                Remove-Item -LiteralPath $setupSkill -Force
+    # OpenCode selects a skill by its bare directory id: gin's generic skill names
+    # get a gin- prefix and gin-qa's `setup` becomes gin-qa-setup, with the display
+    # `name` kept aligned. A renamed skill is copied straight to its new id. The
+    # project .opencode/skills is shared between plugins, and a copy under the old
+    # id would replace another plugin's skill of that name (gin-qa's setup, report).
+    $renamed = [ordered]@{}
+    if ($PluginName -eq 'gin') {
+        foreach ($skill in @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents', 'report')) {
+            if (Test-Path -LiteralPath (Join-Path $Source "skills/$skill") -PathType Container) {
+                $renamed[$skill] = "gin-$skill"
             }
-            Write-Utf8File -Path $setupSkill -Content $content
         }
     }
-    Convert-OpenCodeAgents -SourceDirectory $Source -DestinationDirectory $Destination -PluginName $PluginName
-
-    # OpenCode selects a skill by its bare directory id, so gin's generic skill
-    # names get a gin- prefix, with the display `name` kept aligned.
-    $prefixedSkills = if ($PluginName -eq 'gin') { @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents', 'report') } else { @() }
-    foreach ($skill in $prefixedSkills) {
-        $skillDirectory = Join-Path $Destination "skills/$skill"
-        if (-not (Test-Path -LiteralPath $skillDirectory)) {
-            continue
+    elseif ($PluginName -eq 'gin-qa' -and (Test-Path -LiteralPath (Join-Path $Source 'skills/setup') -PathType Container)) {
+        $renamed['setup'] = 'gin-qa-setup'
+    }
+    Copy-BundleDirectories -Source $Source -Destination $Destination -LinkFiles -ExcludeSkills @($renamed.Keys)
+    foreach ($skill in @($renamed.Keys)) {
+        $target = Join-Path $Destination "skills/$($renamed[$skill])"
+        if (Test-Path -LiteralPath $target) {
+            Remove-Item -LiteralPath $target -Recurse -Force
         }
-        $renamed = Join-Path $Destination "skills/gin-$skill"
-        if (Test-Path -LiteralPath $renamed) {
-            Remove-Item -LiteralPath $renamed -Recurse -Force
-        }
-        Move-Item -LiteralPath $skillDirectory -Destination $renamed
-        $skillFile = Join-Path $renamed 'SKILL.md'
+        Copy-DirectoryContent -Source (Join-Path $Source "skills/$skill") -Destination $target -AsLink:$Link -LinkFiles
+        $skillFile = Join-Path $target 'SKILL.md'
         if (Test-Path -LiteralPath $skillFile) {
-            $content = [regex]::Replace([IO.File]::ReadAllText($skillFile), "(?m)^name: $([regex]::Escape($skill))`$", "name: gin-$skill")
+            $content = [regex]::Replace([IO.File]::ReadAllText($skillFile), "(?m)^name: $([regex]::Escape($skill))`$", "name: $($renamed[$skill])")
             if ($null -ne (Get-Item -LiteralPath $skillFile).LinkType) {
                 Remove-Item -LiteralPath $skillFile -Force
             }
             Write-Utf8File -Path $skillFile -Content $content
         }
     }
+    Convert-OpenCodeAgents -SourceDirectory $Source -DestinationDirectory $Destination -PluginName $PluginName
 
     # Shell commands run from the agent's working directory, so point support
     # scripts at the absolute install location; ${PLUGIN_ROOT} does not exist here.
