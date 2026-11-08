@@ -21,9 +21,33 @@ TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "
                 "reviewer", "hooks", "evidence", "task", "routes", "notify", "paths", "goal", "worktree", "workspace", "milestone")
 
 
+ACTIONS = {
+    "detect": "detect project stage, shape, monorepo, stack, packages, verify commands, and code-index state",
+    "preset": "turn --project-stage, --project-shape, --rigor, --task-tracking (plus --monorepo, --workspace, "
+              "--stack-intent) into --set assignments",
+    "models": "list the models a provider CLI reports (--provider)",
+    "init": "first setup: write .agent-workflow/config.yaml, the generated files, executables.local.yaml, "
+            "and the AGENTS.md block (--dry-run previews; --approve adds a missing block)",
+    "configure": "change repository configuration (--set key=value)",
+    "refresh": "regenerate .agent-workflow/generated/ from the current configuration, rewrite "
+               "executables.local.yaml, and re-render an existing AGENTS.md block",
+    "update": "propose, then with --approve apply, a schema migration (--to-version)",
+    "doctor": "check configuration, the main harness executable, verify commands, hooks, external CLI paths, "
+              "the code index, and the AGENTS.md block (--probe asks the orchestrator for provider health)",
+    "status": "show whether the repository is initialized and the generated files exist",
+    "diff": "show how the generated configuration differs from what the current inputs would produce",
+    "rollback": "restore a validated backup (--backup PATH)",
+    "export-bundle": "write a portable configuration bundle (--output PATH)",
+    "verify-bundle": "check a portable configuration bundle (--bundle PATH)",
+    "harness-override": "set (--harness), show, or clear (--clear) a session override of the main harness",
+}
+
+
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="gin setup")
-    parser.add_argument("action", choices=tuple(COMMANDS))
+    actions = "\n".join(f"  {name:<18} {ACTIONS[name]}" for name in COMMANDS)
+    parser = argparse.ArgumentParser(prog="gin setup", formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description=f"configure a repository outside the lifecycle\n\nactions:\n{actions}")
+    parser.add_argument("action", choices=tuple(COMMANDS), metavar="action", help="one of the actions above")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--repository", type=Path, default=None)

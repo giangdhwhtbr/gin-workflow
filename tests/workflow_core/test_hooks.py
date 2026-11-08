@@ -519,3 +519,31 @@ class WorkspaceHookTests(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertIn("no verify commands configured", err)
         self.assertFalse((self.root / "parent-lint").exists())
+
+    def test_status_all_repos_reports_each_workable_clone(self):
+        code, out, _ = self.hook("status", "--all-repos", "--repository", str(self.root))
+        report = json.loads(out)
+        self.assertEqual((1, ["services/api"], False), (code, sorted(report["repos"]), report["ok"]))
+        self.assertEqual("missing", report["repos"]["services/api"]["hooks"]["pre-commit"])
+        self.hook("install", "--all-repos", "--repository", str(self.root))
+        code, out, _ = self.hook("status", "--all-repos", "--repository", str(self.child))
+        report = json.loads(out)
+        self.assertEqual((0, True), (code, report["ok"]))
+        self.assertEqual({"hooks": {"pre-commit": "ok", "pre-push": "ok"},
+                          "verify_commands": ["services/api:lint", "services/api:test"], "ok": True},
+                         report["repos"]["services/api"])
+
+    def test_status_all_repos_outside_a_workspace_fails(self):
+        with tempfile.TemporaryDirectory() as plain:
+            code, _, err = self.hook("status", "--all-repos", "--repository", str(make_repo(plain)))
+        self.assertEqual((1, "error: not in a workspace\n"), (code, err))
+
+    def test_install_all_repos_keeps_a_foreign_hook_and_tells_how_to_chain_it(self):
+        hook = self.child / ".git/hooks/pre-commit"
+        hook.write_text("#!/bin/sh\nnpx lint-staged\n", encoding="utf-8")
+        code, out, err = self.hook("install", "--all-repos", "--repository", str(self.root))
+        self.assertEqual(1, code)
+        self.assertIn("services/api: pre-commit: occupied", out)
+        self.assertIn("services/api: pre-push: installed", out)
+        self.assertEqual("#!/bin/sh\nnpx lint-staged\n", hook.read_text(encoding="utf-8"))
+        self.assertIn(f'services/api: add `exec gin hooks run pre-commit "$@"` to {hook} to chain it', err)

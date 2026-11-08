@@ -86,6 +86,17 @@ def status(root: Path) -> dict[str, str]:
     return out
 
 
+def findings(root: Path, install: str = "gin hooks install") -> tuple[dict[str, str], list[str]]:
+    """Each hook's state and one action per hook that is not `ok`, for `gin setup doctor`."""
+    active, states = active_hooks_dir(Path(root)), status(root)
+    actions = [f"{name} is missing; run {install}" if state == "missing" else
+               f"{name} still calls gin-workflow; run {install}, "
+               f"or in a hook you wrote replace {_LEGACY_RUN} with {_RUN}" if state == "stale" else
+               f'{name} is occupied; chain `exec gin hooks run {name} "$@"` into {active / name}'
+               for name, state in states.items() if state != "ok"]
+    return states, actions
+
+
 def _scoped(root: Path, hook: str | None) -> tuple[list[tuple[Path, list[tuple[str, str]]]], Path, str]:
     """(cwd, [(name, command)]) groups for `hook` (every check when None), the events root, and the rigor."""
     located = workspace.locate(Path(root))
@@ -190,22 +201,38 @@ def verify(root: Path, hook: str) -> int:
     return 0
 
 
-def _install_all(root: Path) -> int:
-    space = workspace.locate(root).workspace
-    if space is None:
-        print("error: not in a workspace", file=sys.stderr)
-        return 1
+def _skip_reason(space: workspace.Workspace, repo: workspace.Repo) -> str | None:
+    if repo.frozen:
+        return "frozen"
+    if not repo.workable:
+        return repo.shape
+    if not space.present(repo):
+        return "not cloned"
+    return None
+
+
+def _install_all(space: workspace.Workspace) -> int:
+    occupied = False
     for repo in space.repos:
-        if repo.frozen:
-            print(f"{repo.path}: skipped (frozen)")
-        elif not repo.workable:
-            print(f"{repo.path}: skipped ({repo.shape})")
-        elif not space.present(repo):
-            print(f"{repo.path}: skipped (not cloned)")
-        else:
-            for hook, state in install(space.checkout(repo))["hooks"].items():
-                print(f"{repo.path}: {hook}: {state}")
-    return 0
+        if (reason := _skip_reason(space, repo)) is not None:
+            print(f"{repo.path}: skipped ({reason})")
+            continue
+        result = install(space.checkout(repo))
+        for hook, state in result["hooks"].items():
+            print(f"{repo.path}: {hook}: {state}")
+            if state == "occupied":
+                occupied = True
+                print(f'{repo.path}: add `exec gin hooks run {hook} "$@"` to {Path(result["path"]) / hook} to chain it',
+                      file=sys.stderr)
+    return 1 if occupied else 0
+
+
+def _status_all(space: workspace.Workspace) -> int:
+    reports = {repo.path: status_report(space.checkout(repo)) for repo in space.repos
+               if _skip_reason(space, repo) is None}
+    ok = all(report["ok"] for report in reports.values())
+    print(json.dumps({"repos": reports, "ok": ok}, indent=2, sort_keys=True))
+    return 0 if ok else 1
 
 
 def main(argv: Sequence[str]) -> int:
@@ -214,15 +241,20 @@ def main(argv: Sequence[str]) -> int:
     parser.add_argument("hook", nargs="?", choices=HOOKS)
     parser.add_argument("git_args", nargs="*", help="arguments git passes to the hook (pre-push: remote name and URL); ignored")
     parser.add_argument("--repository", type=Path, default=None)
-    parser.add_argument("--all-repos", action="store_true", help="install: every workable cloned repository of the workspace")
+    parser.add_argument("--all-repos", action="store_true",
+                        help="install, status: every cloned repository of the workspace except frozen and beads entries")
     args = parser.parse_args(list(argv))
     root = args.repository.resolve() if args.repository else Path.cwd().resolve()
+    if args.all_repos and args.action in ("install", "status"):
+        space = workspace.locate(root).workspace
+        if space is None:
+            print("error: not in a workspace", file=sys.stderr)
+            return 1
+        return _install_all(space) if args.action == "install" else _status_all(space)
     if args.action == "status":
         report = status_report(root)
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["ok"] else 1
-    if args.action == "install" and args.all_repos:
-        return _install_all(root)
     if args.action == "install":
         result = install(root)
         for hook, state in result["hooks"].items():

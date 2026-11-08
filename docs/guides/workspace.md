@@ -47,7 +47,7 @@ The tech lead does this.
 4. Run `gin workspace clone --all`.
 5. Run `gin hooks install --all-repos`.
 6. In team mode, run `/gin:team-setup` and define one area per repository, for example `services/order-api/**` with lead `be_lead`.
-7. Run `gin setup doctor`. Its `workspace:` actions name a missing clone, a repository with no checks, a path missing from `.gitignore`, or a path that is still a git submodule.
+7. Run `gin setup doctor`. Its `workspace:` actions name a missing clone, a `frontend`, `backend`, or `qa` repository with no checks, a cloned repository whose hook is missing or occupied, a path missing from `.gitignore`, or a path that is still a git submodule. A hook owned by another tool (husky, lefthook) stays as it is: add `exec gin hooks run <hook> "$@"` to the file the action names, and `gin` runs after it.
 
 Run `/gin:setup` only in the parent, never in a child.
 
@@ -119,7 +119,8 @@ Open: the `qa` repository. It is the automation repository, so the cases, specs,
 |---|---|
 | `gin workspace clone [PATH ...\|--all]` | Clones the named entries or all of them at their manifest paths; a frozen entry is cloned shallow; adds each path to the parent `.gitignore`; entries already present are reported as `present` |
 | `gin workspace status` | Prints one line per entry: path, present or missing, branch, clean or dirty, frozen. Add `--json` for scripts |
-| `gin hooks install --all-repos` | Installs the hooks in every cloned repository except frozen and beads entries |
+| `gin hooks install --all-repos` | Installs the hooks in every cloned repository except frozen and beads entries; an occupied hook is kept and the file to chain into is named |
+| `gin hooks status --all-repos` | Prints the hook states and check names of every cloned repository except frozen and beads entries as JSON; exits 1 when one is not ok |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Creates the track worktree of one child under the parent `.planning/worktrees/` |
 | `gin worktree cleanup --repository <repo> <track-id>` | Removes it |
 | `gin state --format json` | The `workspace` key is `null` outside a workspace; otherwise it holds `root`, `current_repo`, and `repos[]` with `path`, `shape`, `frozen`, `present`, and `branch` |

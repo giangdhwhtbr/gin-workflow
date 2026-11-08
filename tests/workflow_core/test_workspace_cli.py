@@ -109,6 +109,41 @@ class WorkspaceCliTests(unittest.TestCase):
         run(self.root, "workspace", "clone", "apps/web")
         self.assertNotIn(message, self._doctor_actions())
 
+    def test_doctor_reports_the_hooks_of_each_cloned_child(self):
+        self._init()
+        run(self.root, "workspace", "clone", "services/api")
+        missing = "workspace: services/api: pre-commit is missing; run gin hooks install --all-repos"
+        self.assertIn(missing, self._doctor_actions())
+        hook = self.root / "services/api/.git/hooks/pre-commit"
+        hook.write_text("#!/bin/sh\nnpx lint-staged\n", encoding="utf-8")
+        run(self.root, "hooks", "install", "--all-repos")
+        doctor = json.loads(run(self.root, "setup", "doctor", "--format", "json").stdout)
+        self.assertNotIn(missing, doctor["actions"])
+        self.assertIn("workspace: services/api: pre-commit is occupied; chain "
+                      f'`exec gin hooks run pre-commit "$@"` into {hook}', doctor["actions"])
+        self.assertEqual({"pre-commit": "occupied", "pre-push": "ok"},
+                         doctor["checks_details"]["workspace"]["repos"]["services/api"]["hooks"])
+        self.assertNotIn("hooks", doctor["checks_details"]["workspace"]["repos"]["apps/web"])
+
+    def test_doctor_asks_for_checks_on_backend_frontend_and_qa_only(self):
+        self._init()
+        message = "workspace: apps/web has no verify.checks"
+        self.assertIn(message, self._doctor_actions())
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8").replace("shape: frontend", "shape: library"),
+                          encoding="utf-8")
+        self.assertNotIn(message, self._doctor_actions())
+
+    def test_help_describes_clone_and_status(self):
+        top = run(self.root, "workspace", "--help")
+        self.assertEqual(0, top.returncode, top.stderr)
+        self.assertIn("clone the named entries, or every entry with --all", top.stdout)
+        self.assertIn("one line per entry", top.stdout)
+        clone = run(self.root, "workspace", "clone", "--help").stdout
+        self.assertIn("every entry of workspace.repos", clone)
+        self.assertIn("a directory inside the workspace", clone)
+        self.assertIn("print JSON", clone)
+
     def test_init_workspace_gitignore_header_once_and_idempotent(self):
         header = "# workspace repos (gin workspace clone adds one line per repository)"
         fresh = init_repo(self.base / "fresh")

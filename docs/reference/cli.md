@@ -17,7 +17,7 @@ Most commands accept `--repository PATH` (default: the current directory) and `-
 gin setup <action> [options]
 ```
 
-Configures a repository outside the lifecycle. The `setup` skill drives it one question at a time; see [Configuration](config.md).
+Configures a repository outside the lifecycle. The `setup` skill drives it one question at a time; see [Configuration](config.md). `gin setup --help` prints one line per action.
 
 | Action | What it does | Writes |
 |---|---|---|
@@ -228,18 +228,20 @@ Exit codes: 0 ok, warnings included; 1 unknown id, a refused change, dependency 
 ## `gin hooks`
 
 ```
-gin hooks install
-gin hooks status
+gin hooks install [--all-repos]
+gin hooks status [--all-repos]
 gin hooks run pre-commit|pre-push
 ```
 
-`install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`). It is idempotent and does not create a missing hooks directory. It never overwrites a hook it did not write (`occupied`: add `exec gin hooks run <hook> "$@"` to your hook to chain it); a hook that already runs it is reported as `chained`. It also sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` (`ssh_keepalive: set`), so the SSH connection git opens before `pre-push` survives a long test run. An existing `core.sshCommand`, `GIT_SSH` or `GIT_SSH_COMMAND` is left alone (`kept`); a write that fails is reported as `failed` and does not fail the install. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
+`install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`, so a husky repository's hooks live in `.husky`). It is idempotent and does not create a missing hooks directory. It never overwrites a hook it did not write (`occupied`: add `exec gin hooks run <hook> "$@"` to your hook to chain it); a hook that already runs it is reported as `chained`. It also sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` (`ssh_keepalive: set`), so the SSH connection git opens before `pre-push` survives a long test run. An existing `core.sshCommand`, `GIT_SSH` or `GIT_SSH_COMMAND` is left alone (`kept`); a write that fails is reported as `failed` and does not fail the install. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
 
 `status` prints `{"hooks": {...}, "verify_commands": [...], "ok": ...}`: each hook's state (`ok`, `missing`, `occupied`) and the configured check names, including `<package>:<name>` for packages. It exits 1 when a hook is not `ok` or no verify command is configured; `ship` warns on that and continues.
 
+`--all-repos` runs `install` or `status` in every cloned repository of a [workspace](#gin-workspace), skipping `frozen` and `beads` entries and entries that are not cloned; it works from anywhere inside the workspace. `install --all-repos` prints `<path>: <hook>: <state>` per hook, keeps an occupied hook and names the file to chain `exec gin hooks run <hook> "$@"` into, and exits 1 when any hook is occupied. `status --all-repos` prints `{"repos": {"<path>": <status report>, ...}, "ok": ...}` and exits 1 when any repository is not `ok`. `setup doctor` lists the same missing, stale, or occupied hooks per cloned child as `workspace:` actions.
+
 `run` is what the shims call. `pre-commit` runs the `lint` and `typecheck` checks. `pre-push` runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. It runs them only when the pushed branch is the checked-out HEAD (tags and deletes are skipped). Package `verify.checks` run in the package directory. Commands stop at the first failure and print its output. Empty `verify.checks` exits 0 with a notice. Git's own `GIT_DIR`, `GIT_INDEX_FILE` and similar variables are removed before the commands run. `git commit/push --no-verify` is blocked by the safety hook. A passing `pre-push` on a tree with no tracked changes is recorded for [`evidence check`](#gin-evidence). When such a record for the pushed tree already covers every command the hook would run, `pre-push` prints a notice naming the record time and exits 0 without running them again. A record file it cannot read is reported and the commands run.
 
-Exit codes: install 0 installed or chained, 1 occupied, 2 hooks directory missing; run 0 pass, otherwise the failing command's exit code.
+Exit codes: install 0 installed or chained, 1 occupied, 2 hooks directory missing; `--all-repos` 1 outside a workspace; run 0 pass, otherwise the failing command's exit code.
 
 ## `gin evidence`
 
