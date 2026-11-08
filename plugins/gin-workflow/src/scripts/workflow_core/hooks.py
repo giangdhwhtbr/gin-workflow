@@ -228,8 +228,9 @@ def _install_all(space: workspace.Workspace) -> int:
 
 
 def _status_all(space: workspace.Workspace) -> int:
+    """Children without `verify.checks` have nothing for the hooks to run and are left out, as in `setup doctor`."""
     reports = {repo.path: status_report(space.checkout(repo)) for repo in space.repos
-               if _skip_reason(space, repo) is None}
+               if _skip_reason(space, repo) is None and repo.checks}
     ok = all(report["ok"] for report in reports.values())
     print(json.dumps({"repos": reports, "ok": ok}, indent=2, sort_keys=True))
     return 0 if ok else 1

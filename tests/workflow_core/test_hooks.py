@@ -18,7 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import hooks, setup_service, verification  # noqa: E402
 from workflow_core.events import WorkflowEventStore  # noqa: E402
-from tests.workflow_core.test_workspace import make_workspace  # noqa: E402
+from tests.workflow_core.test_workspace import init_repo, make_workspace  # noqa: E402
 
 CONFIG = """schema_version: "2.7"
 project:
@@ -532,6 +532,13 @@ class WorkspaceHookTests(unittest.TestCase):
         self.assertEqual({"hooks": {"pre-commit": "ok", "pre-push": "ok"},
                           "verify_commands": ["services/api:lint", "services/api:test"], "ok": True},
                          report["repos"]["services/api"])
+
+    def test_status_all_repos_leaves_out_a_child_without_checks(self):
+        init_repo(self.root / "apps/web")
+        self.hook("install", "--all-repos", "--repository", str(self.root))
+        code, out, _ = self.hook("status", "--all-repos", "--repository", str(self.root))
+        report = json.loads(out)
+        self.assertEqual((0, ["services/api"], True), (code, sorted(report["repos"]), report["ok"]))
 
     def test_status_all_repos_outside_a_workspace_fails(self):
         with tempfile.TemporaryDirectory() as plain:

@@ -216,7 +216,11 @@ def doctor(root: Path, space: Workspace) -> dict[str, Any]:
         if repo.workable and repo.shape in CHECKED_SHAPES and not repo.checks:
             actions.append(f"{repo.path} has no verify.checks")
         if present and repo.workable and repo.checks:
-            repos[repo.path]["hooks"], found = hook_findings(space.checkout(repo), install="gin hooks install --all-repos")
+            try:
+                repos[repo.path]["hooks"], found = hook_findings(space.checkout(repo),
+                                                                 install="gin hooks install --all-repos")
+            except subprocess.CalledProcessError:  # a broken clone is a finding, not a crash
+                found = ["is not a readable git repository"]
             actions.extend(f"{repo.path}: {action}" for action in found)
         if f"/{repo.path}" not in ignored:
             actions.append(f"{repo.path} is not in .gitignore; gin workspace clone adds it")

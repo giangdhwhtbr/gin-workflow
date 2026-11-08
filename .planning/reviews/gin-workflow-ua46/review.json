@@ -1,0 +1,288 @@
+{
+  "schema_version": "1.0",
+  "review_state": "changes-requested",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-ua46",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-ua46",
+      "review_base_sha": "8b4e17be986f0c01ec71e6dd93ec85448a391a53",
+      "reviewed_source_sha": "a5a714d4c0a61bae144edb6b308b8692e6b27ebe",
+      "checkpoint_sha": "a5a714d4c0a61bae144edb6b308b8692e6b27ebe",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "6146232504a7c863570328de652ce9201557b65c6354365c46060326833a1178",
+      "reviewed_source_tree_hash": "6146232504a7c863570328de652ce9201557b65c6354365c46060326833a1178",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 11,
+  "next_finding_number": 1,
+  "findings": {
+    "status-all-no-checks": {
+      "finding_id": "status-all-no-checks",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "docs-doctor-hooks-scope": {
+      "finding_id": "docs-doctor-hooks-scope",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "install-all-missing-dir-silent": {
+      "finding_id": "install-all-missing-dir-silent",
+      "severity": "MINOR",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "doctor-broken-child-repo": {
+      "finding_id": "doctor-broken-child-repo",
+      "severity": "MINOR",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-08T04:33:23.008979Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ua46",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ua46",
+            "review_base_sha": "8b4e17be986f0c01ec71e6dd93ec85448a391a53",
+            "reviewed_source_sha": "f3cc466177b23d61cdcdd50d9a78fb093c440395",
+            "checkpoint_sha": "f3cc466177b23d61cdcdd50d9a78fb093c440395",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "6146232504a7c863570328de652ce9201557b65c6354365c46060326833a1178",
+            "reviewed_source_tree_hash": "6146232504a7c863570328de652ce9201557b65c6354365c46060326833a1178",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "claude",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "6c28572e7946edd804b7a08e9e0888f2f8230a63690f4766c305095d29814098"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-08T04:33:23.318062Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ua46",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ua46",
+            "review_base_sha": "8b4e17be986f0c01ec71e6dd93ec85448a391a53",
+            "reviewed_source_sha": "a5a714d4c0a61bae144edb6b308b8692e6b27ebe",
+            "checkpoint_sha": "a5a714d4c0a61bae144edb6b308b8692e6b27ebe",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "6146232504a7c863570328de652ce9201557b65c6354365c46060326833a1178",
+            "reviewed_source_tree_hash": "6146232504a7c863570328de652ce9201557b65c6354365c46060326833a1178",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "6c28572e7946edd804b7a08e9e0888f2f8230a63690f4766c305095d29814098",
+      "event_hash": "e683314072a92627fb983ef9e864bae6962af087d5ee5d5f8c7bfdf59d8041a5"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-08T04:33:23.442026Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "e683314072a92627fb983ef9e864bae6962af087d5ee5d5f8c7bfdf59d8041a5",
+      "event_hash": "84710d03073dbedc01990fdf75b8c50671a329336fa7ea09f212ac909e4e18f5"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-08T04:35:29.255400Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "lease_id": "60edb7f1c87443e5ad0124f55cae0121",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f",
+        "acquired_at": "2026-11-08T04:35:29.254617Z",
+        "expires_at": "2026-11-08T04:45:29.254617Z"
+      },
+      "previous_event_hash": "84710d03073dbedc01990fdf75b8c50671a329336fa7ea09f212ac909e4e18f5",
+      "event_hash": "52f3208e172fb9550801c6bcca71a340636611a8fb4e128d35c00c38ab5abb17"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-08T04:35:29.271323Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {},
+      "previous_event_hash": "52f3208e172fb9550801c6bcca71a340636611a8fb4e128d35c00c38ab5abb17",
+      "event_hash": "8753b0bc5cdb0e3c491f2ee44897f96aeb55f5b85f09155cefdacc691f1a7929"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-08T04:35:40.139207Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "status-all-no-checks",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "8753b0bc5cdb0e3c491f2ee44897f96aeb55f5b85f09155cefdacc691f1a7929",
+      "event_hash": "28aaf72f96c6d830b0fe21898b072e844fc6b1622188b9d9a9c3ff72d9c16c0b"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-created",
+      "timestamp": "2026-11-08T04:35:40.363412Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "docs-doctor-hooks-scope",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "28aaf72f96c6d830b0fe21898b072e844fc6b1622188b9d9a9c3ff72d9c16c0b",
+      "event_hash": "b6f005e55dfc7202a91fa5834270b1d025c02088955c6cec5fb4a434c6cc932c"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "finding-created",
+      "timestamp": "2026-11-08T04:35:40.667926Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "install-all-missing-dir-silent",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "b6f005e55dfc7202a91fa5834270b1d025c02088955c6cec5fb4a434c6cc932c",
+      "event_hash": "d3443b151f97b6cbe120035427151d134f1fe4766291514cfc7ff67d7fa5805b"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "finding-created",
+      "timestamp": "2026-11-08T04:35:46.570723Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "doctor-broken-child-repo",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "d3443b151f97b6cbe120035427151d134f1fe4766291514cfc7ff67d7fa5805b",
+      "event_hash": "bf0814571c4bde1ab0343138733a4bea8b4279783477a67fc45807348a2f4e1b"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "changes-requested",
+      "timestamp": "2026-11-08T04:35:46.795895Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "to": "changes-requested"
+      },
+      "previous_event_hash": "bf0814571c4bde1ab0343138733a4bea8b4279783477a67fc45807348a2f4e1b",
+      "event_hash": "c13d89e4624ffaf04612926c8ca506b42589939b116e18f6d7904e40523572a4"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "lease-released",
+      "timestamp": "2026-11-08T04:35:51.871100Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "lease_id": "60edb7f1c87443e5ad0124f55cae0121",
+        "released_at": "2026-11-08T04:35:51.870290Z"
+      },
+      "previous_event_hash": "c13d89e4624ffaf04612926c8ca506b42589939b116e18f6d7904e40523572a4",
+      "event_hash": "4b91c18ef434e4f41a1d55db0d811bd4a2b2a6c312aeac9359ff21066eb11d40"
+    }
+  ]
+}

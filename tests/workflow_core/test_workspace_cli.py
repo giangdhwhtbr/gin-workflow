@@ -125,6 +125,14 @@ class WorkspaceCliTests(unittest.TestCase):
                          doctor["checks_details"]["workspace"]["repos"]["services/api"]["hooks"])
         self.assertNotIn("hooks", doctor["checks_details"]["workspace"]["repos"]["apps/web"])
 
+    def test_doctor_reports_a_broken_clone_instead_of_crashing(self):
+        self._init()
+        broken = self.root / "services/api"
+        broken.mkdir(parents=True)
+        (broken / ".git").write_text("gitdir: /nonexistent/api.git\n", encoding="utf-8")
+        actions = self._doctor_actions()
+        self.assertIn("workspace: services/api: is not a readable git repository", actions)
+
     def test_doctor_asks_for_checks_on_backend_frontend_and_qa_only(self):
         self._init()
         message = "workspace: apps/web has no verify.checks"
