@@ -988,8 +988,10 @@ if [[ " ${PLUGINS[*]} " == *" gin-orchestrator "* && " ${PLUGINS[*]} " != *" gin
 fi
 
 # An installed add-on runs its own library copy, which calls gin; installing gin
-# refreshes each add-on whose launcher this installer manages.
-if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
+# refreshes each add-on whose launcher this installer manages. A project install
+# writes only the requested plugins: the add-ons would land in the same
+# .opencode/skills, where gin-qa's `setup` replaces gin's.
+if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]] && [ -z "$PROJECT_DIR" ]; then
   for addon in gin-qa gin-orchestrator; do
     if [[ " ${PLUGINS[*]} " != *" $addon "* ]] &&
        is_managed_launcher_link "${HOME}/.local/bin/$addon" "${HOME}/.local/lib/$addon" "$addon"; then

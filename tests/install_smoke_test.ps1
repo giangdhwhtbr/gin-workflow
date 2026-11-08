@@ -345,8 +345,11 @@ try {
     New-Item -ItemType Directory -Path $opencodeLinkProject | Out-Null
     $sourceReport = Join-Path $Root 'plugins/gin-workflow/src/skills/report/SKILL.md'
     $reportBefore = [IO.File]::ReadAllBytes($sourceReport)
-    Invoke-Installer @{ Platform = 'opencode'; Project = $opencodeLinkProject; Link = $true } | Out-Null
+    # gin-qa is installed globally by now; a project install must not pull it into the project.
+    $linkOutput = Invoke-Installer @{ Platform = 'opencode'; Project = $opencodeLinkProject; Link = $true }
+    Assert-True (-not $linkOutput.Contains('Refreshing the installed')) 'Project install refreshed the global add-ons'
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/setup/SKILL.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $opencodeLinkProject '.opencode/skills/gin-qa-setup'))) 'Project install wrote the gin-qa skills'
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-report/SKILL.md')
     Assert-True `
         ([Convert]::ToBase64String($reportBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceReport))) `
