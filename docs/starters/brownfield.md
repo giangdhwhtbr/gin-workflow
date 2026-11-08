@@ -86,6 +86,8 @@ flowchart LR
 **Prompt**
 ```text
 /gin:setup
+Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
+Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
 Answer `stage: brownfield`, `shape: fullstack`, and `workspace` for the repository layout. Then fill `workspace.repos` in `.agent-workflow/config.yaml`:
 
@@ -145,16 +147,23 @@ In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.pack
 **Prompt (Tech Lead)**
 ```text
 /gin:team-setup
+Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_dev), chi@example.com (qe).
+Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads all four.
+Approvals: requirement_confirmed by ba and be_lead; plan_approved by the area lead; ship by qe and be_lead; roadmap by pm and be_lead.
+Permissions: only the pm changes milestones.
 ```
 
 **Prompt (each member, after pulling the merged branch)**
 ```text
 /gin:team-setup
+I am Em (em@example.com), a be_dev. The team: block is merged on master.
 ```
 
 **Prompt (Chi, once)**
 ```text
 /gin-qa:setup
+Case types: api, e2e and manual.
+The api type: tests under qa/api/, run with npm test.
 ```
 
 Put in the prompt: the seven members with their git emails and roles, the four areas with their paths, and `permissions: {milestone: [pm]}` so only the PM changes milestones. For `/gin-qa:setup`: the case types `api`, `e2e`, and `manual`, and the test command of the `api` type.
@@ -178,6 +187,9 @@ The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin te
 **Prompt**
 ```text
 /gin:tech-doc whole repository
+Entry points: web.xml and struts-config.xml in legacy/shop-portal.
+Database: Oracle; the checkout JSPs call stored procedures.
+Replace first: the catalog, then the cart and checkout.
 ```
 
 Put in the prompt: the entry points you know (`web.xml`, the Struts config), the database, and the modules you plan to replace first.
@@ -198,12 +210,17 @@ When the legacy system uses a language other than English, the set also holds `1
 
 **Prompt**
 ```text
-/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with the REST API and the React SPA within two quarters; the Oracle schema stays; no downtime. Non-goals: reporting screens.
+/gin:roadmap Goal: replace the catalog, cart and checkout JSP flows with the Spring Boot REST API and the React SPA.
+Deadline: 2027-05-28.
+Constraints: the Oracle schema stays; no downtime; each module cuts over behind the facade.
+Non-goals: reporting screens.
 ```
 
-Put in the prompt: the goal and its deadline, the constraints that cannot move (here the schema and zero downtime), and the non-goals.
+Put in the prompt: the goal, the deadline, the constraints that cannot move (here the schema, zero downtime, and the facade), and the non-goals. Sequencing and the way of working are not input: the skill proposes both and the PM confirms them.
 
-**You get:** the skill reads the tech-doc set, asks about goals, team and AI capacity, and constraints, proposes two or three ways to split the work, and shows the roadmap for your confirmation. After you confirm it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>` and, after the sync, one epic per item with its dependencies in Beads. Read the result as a graph:
+**You get:** the skill reads the tech-doc set and asks about the goal, the deadline, the constraints, and the AI capacity. The `AI capacity:` line starts with the number of lanes, the streams of work that each run one epic at a time. The skill proposes two or three ways to split the work and a way of working, then shows the roadmap, with an `Estimate:` in working days per epic, for your confirmation. With no closed roadmap epic to measure a pace from, it asks for one day value per size (small, medium, large) and marks the estimates `(assumed)`.
+
+After you confirm, it writes `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) on branch `roadmap/<topic>`. `Deadline:` and `AI capacity:` sit under `## Constraints`, and the confirmed way of working sits under `## Way of working`. After the sync it creates one epic per item with its dependencies in Beads and stores each estimate with `gin milestone estimate`. Its report compares the forecast from `gin milestone list` with the deadline: the finish date, the spare or overflow working days, and the number of epics without an estimate. An overflow is reported and never blocks. Read the result as a graph:
 
 ```bash
 gin task graph --all
@@ -213,7 +230,7 @@ The gin-console Dependencies page shows the same graph. Choose what goes first f
 
 **Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin team check <url> --gate roadmap`, then creates the epics.
 
-**Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics you remove from the file (it only reports them); starting with the epic that has the most users instead of the one that unblocks the rest.
+**Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics you remove from the file (it only reports them); starting with the epic that has the most users instead of the one that unblocks the rest; reading a forecast built on `(assumed)` estimates as a commitment.
 
 ## Milestone planning
 
@@ -223,25 +240,35 @@ The gin-console Dependencies page shows the same graph. Choose what goes first f
 
 **Prompt**
 ```bash
-gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28
+gin milestone create "M1 Catalog read path" --start 2026-11-10 --end 2026-11-28 --lanes 3
 ```
 ```text
 /gin:roadmap --milestone <id>
+Sprint goal: customers browse the catalog on the new API behind the facade.
+Leave out: the cart and checkout epics.
 ```
-Use the id that `milestone create` prints. Put in the prompt: "Capacity: 3 developers, 1 QE, 15 working days. Sizes: S=3 M=6 L=10 days. Pick only epics with no open blockers; the API facade lands first."
 
-Then fix the kick-off date and read the schedule:
+Use the id that `milestone create` prints. Put in the prompt: the sprint goal and the epics to leave out. The skill picks the ready epics itself.
+
+`--lanes` is the capacity of this sprint and may differ from the project's `AI capacity:` number. Without it, the milestone uses that number, then the count of `team.members`, then 1.
+
+Then fix the kick-off date, read the forecast, and read the schedule:
 
 ```bash
 gin milestone kickstart <id> --date 2026-11-10
+gin milestone list
 gin milestone show <id>
 ```
 
-**You get:** the chosen epics under the milestone, each with an estimate in working days, and a schedule with warnings (`overflow`, `late`, `unestimated`, `external_blocker`). A milestone is a Beads bead with a start and an end date, not a label.
+**You get:** the chosen epics under the milestone, each with an `Estimate:` in working days. The roadmap file groups them under `## Milestone: <title>`, which opens with `Spec ready by:` (the kick-off date, else the start date) and an `Integration point:` block. The integration point is a date in the roadmap file only; Beads does not store it.
+
+`gin milestone list` prints one forecast line over every open epic, assigned or not. `gin milestone show` prints the schedule and the warnings (`overflow`, `late`, `unestimated`, `external_blocker`, `spec_not_ready`). After the kick-off, `spec_not_ready` marks an open epic whose spec is not confirmed, so the BA sees which spec is due.
+
+Repeat for each sprint. The forecast shrinks as sprints close. A milestone is a Beads bead with a start and an end date, not a label.
 
 **Gate or approval:** `permissions.milestone: [pm]` lets only Lan write; the roadmap pull request gate of the previous stage still applies to roadmap changes.
 
-**Common mistakes:** picking an epic whose blocker sits in a later milestone (`external_blocker`); leaving epics without an estimate (`unestimated`); planning past the end date (`overflow`).
+**Common mistakes:** picking an epic whose blocker sits in a later milestone (`external_blocker`); leaving epics without an estimate (`unestimated`); planning past the end date (`overflow`); kicking off a sprint whose epics have no confirmed spec (`spec_not_ready`).
 
 ## Discuss an epic
 
@@ -251,7 +278,11 @@ gin milestone show <id>
 
 **Prompt**
 ```text
-/gin:discuss <epic-id>
+/gin:discuss shop-portal-catalog-read
+Replace the JSP catalog list and product detail pages.
+Legacy rules: hidden products never show; the price comes from the customer's price list and falls back to the list price; out-of-stock items show "Notify me".
+API contract: GET /api/products?category=&page= and GET /api/products/{id}, with the same fields as the JSP model.
+Out of scope: search and reviews.
 ```
 
 Put in the prompt: the user-visible behavior of the JSP flow you replace, its edge cases and validation rules (see [Capture current behavior first](#capture-current-behavior-first)), the REST API contract the new service must meet, and what is out of scope.
@@ -281,8 +312,17 @@ Write the REST contract of each endpoint the same way (path, method, request, re
 
 **Prompt**
 ```text
-/gin:plan
-/gin:orchestrate
+/gin:plan shop-portal-catalog-read
+Migration: the facade comes first; the catalog API reads the existing Oracle tables, so no dual-write and no backfill.
+Rollback: route the facade back to the JSP pages when the parity tests fail after cutover.
+Parallel: QA cases, the catalog API, and the SPA against contract mocks.
+Seats: the router cutover track goes to Binh on a Premium seat.
+Each track names its repository, for example Repo: services/catalog-api.
+```
+```text
+/gin:orchestrate shop-portal-catalog-read
+Create the track beads and worktrees from the approved plan.
+Leave every track bead unassigned; members take theirs with gin team claim.
 ```
 
 Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat. Each track carries `Repo: <path>`, for example `Repo: services/order-api`.
@@ -332,7 +372,12 @@ Parity and data validation scripts run in the `pre-push` hook when the `verify.c
 **Prompt**
 ```text
 /gin-qa:cases catalog
+Epic: shop-portal-catalog-read.
+Legacy behaviors the new API must match: hidden products never listed; customer price list with list-price fallback; the legacy pagination; the "Notify me" button on out-of-stock items.
+```
+```text
 /gin-qa:tests catalog --type api
+Compare the new API with the legacy pages on payloads recorded from staging.
 ```
 
 Put in the prompt: the epic, and the legacy behaviors that the new API must match.
@@ -362,6 +407,8 @@ gin team claim <bead>
 ```
 ```text
 /gin:execute
+Track: <bead>, the catalog API track in services/catalog-api.
+Stay inside that repository and run its checks before closing the track.
 ```
 
 Put in the prompt: the track bead to work on, if you want to choose it yourself.
@@ -389,8 +436,17 @@ The new assignee must be allowed to own tracks in the bead's areas, then checks 
 **Prompt**
 ```text
 /gin-qa:e2e catalog
+Base URL: the web-shop staging URL, read from BASE_URL.
+Accounts: SHOP_USER and SHOP_PASSWORD for a customer.
+Flows: browse a category, open a product page, join the "Notify me" list of an out-of-stock product.
+```
+```text
 /gin-qa:run catalog
+Manual cases only; start with TC-CATALOG-003.
+```
+```text
 /gin-qa:report catalog
+Include the evidence of this run; the report goes to the product owner as a zip.
 ```
 
 Put in the prompt: the base URL of the SPA, the test accounts (as environment variable names), and the flows to cover.
@@ -414,6 +470,8 @@ Put in the prompt: the base URL of the SPA, the test accounts (as environment va
 **Prompt**
 ```text
 /gin:ship
+Epic: shop-portal-catalog-read.
+Open a pull request instead of merging locally; Chi approves the latest commit first.
 ```
 
 Put in the prompt: the epic and whether to merge now or keep the branch.
@@ -439,7 +497,11 @@ gin milestone close <id> --reason "Catalog read path shipped; checkout epic move
 ```
 ```text
 /gin:report --milestone <id>
+Question: what did the catalog epics cost, and which of them were reopened or had bugs found later?
+```
+```text
 /gin:progress milestone <id>
+Question: which epics are still open, and which tracks block them?
 ```
 ```bash
 gin milestone kickstart <next-id> --date 2026-12-01
