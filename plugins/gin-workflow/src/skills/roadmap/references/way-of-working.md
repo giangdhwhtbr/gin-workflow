@@ -3,7 +3,7 @@
 Read on `/roadmap`. Tailor each block to the team roles and the tech-doc set, present it with trade-offs, and write the confirmed text under `## Way of working` in the roadmap file. Keep a confirmed section on re-runs unless the PM asks for a change.
 
 ## Foundation
-First milestone, 2 weeks by default, shorter when the tech-doc set shows the pieces exist: CI/CD, environments, auth, feature flags, app shell, contract convention (OpenAPI first), and onboarding. In onboarding each member sets up the environment and learns the tools and the gin skills (gin-workflow, gin-qa, gin-ba) on one small capability. Feature epics depend on the foundation epics they need.
+First milestone, 2 weeks by default, shorter when the tech-doc set shows the pieces exist: CI/CD, environments, auth, feature flags, app shell, contract convention (OpenAPI first), and onboarding. In onboarding each member sets up the environment and learns the tools and the gin skills the team installed on one small capability. Feature epics depend on the foundation epics they need.
 
 ## Spec cadence
 The BA confirms the specs of milestone N+1 during milestone N. `Spec ready by:` of a milestone is its kickoff date, else its start date. At kickoff, `gin milestone show <id>` warns `spec_not_ready` for an open epic without a confirmed spec. Name those epics and the BA work due before kickoff.
