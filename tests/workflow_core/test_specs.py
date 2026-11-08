@@ -289,6 +289,9 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("## User Stories", run_specs(root, "template", "proposal.md").stdout)
             self.assertIn("Depends on:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("- Deadline:", run_specs(root, "template", "roadmap.md").stdout)
+            self.assertIn("## Way of working", run_specs(root, "template", "roadmap.md").stdout)
+            self.assertIn("Spec ready by:", run_specs(root, "template", "roadmap.md").stdout)
+            self.assertIn("Integration point:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("```mermaid\nflowchart TD", run_specs(root, "template", "activity.md").stdout)
             self.assertIn("```mermaid\nstateDiagram-v2", run_specs(root, "template", "state.md").stdout)
             living = run_specs(root, "template", "spec.md").stdout

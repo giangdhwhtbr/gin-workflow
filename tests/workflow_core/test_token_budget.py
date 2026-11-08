@@ -78,6 +78,12 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(stage=stage):
                 self.assertLessEqual(stage_chars(SRC, stage), 12_000)
 
+    def test_roadmap_skill_within_12000(self):
+        skill = SRC / "skills/roadmap/SKILL.md"
+        self.assertLessEqual(len(skill.read_text(encoding="utf-8")), 12_000)
+        reference = SRC / "skills/roadmap/references/way-of-working.md"
+        self.assertLessEqual(len(reference.read_text(encoding="utf-8")), 6_000)
+
     def test_quick_chain_within_8000(self):
         self.assertLessEqual(stage_chars(SRC, "quick"), 8_000)
 
