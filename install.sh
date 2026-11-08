@@ -554,12 +554,14 @@ copy_tree() {
   fi
 }
 
-# Copies the bundle directories of $src into $target; a third argument names one
-# skill directory to leave out.
+# Copies the bundle directories of $src into $target; further arguments name
+# skill directories to leave out.
 copy_bundle_dirs() {
   local src="$1"
   local target="$2"
-  local skip_skill="${3:-}"
+  shift 2
+  local skip_count=$#
+  local skip_skills=" $* "
   local dir entry
 
   mkdir -p "$target"
@@ -567,10 +569,12 @@ copy_bundle_dirs() {
     [ -d "$src/$dir" ] || continue
     [ -n "$(ls -A "$src/$dir" 2>/dev/null)" ] || continue
     mkdir -p "$target/$dir"
-    if [ "$dir" = skills ] && [ -n "$skip_skill" ]; then
+    if [ "$dir" = skills ] && [ "$skip_count" -gt 0 ]; then
       for entry in "$src/skills"/* "$src/skills"/.[!.]*; do
         [ -e "$entry" ] || continue
-        [ "$(basename "$entry")" = "$skip_skill" ] && continue
+        case "$skip_skills" in
+          *" $(basename "$entry") "*) continue ;;
+        esac
         copy_tree "$entry" "$target/skills/"
       done
     else
@@ -590,33 +594,36 @@ install_opencode_bundle() {
   # use for the Claude/Codex commands/ files, and copying them would risk
   # clobbering a repository's own .opencode/commands. Agents are translated
   # into namespaced subagents (<plugin>-<agent>.md).
-  # gin-qa's `setup` would shadow gin's `setup`, which has the same directory id,
-  # so it lands as gin-qa-setup without touching a skills/setup already there.
-  local skip_skill=""
-  if [ "$plugin_name" = gin-qa ] && [ -d "$src/skills/setup" ]; then
-    skip_skill=setup
+  # OpenCode selects a skill by its bare directory id: gin's generic skill names
+  # get a gin- prefix and gin-qa's `setup` becomes gin-qa-setup, with the display
+  # `name` kept aligned. A renamed skill is copied straight to its new id. The
+  # project .opencode/skills is shared between plugins, and a copy under the old
+  # id would replace another plugin's skill of that name (gin-qa's setup, report).
+  local -a renamed=() skipped=()
+  local skill pair from to
+  if [ "$plugin_name" = gin ]; then
+    for skill in learn sdd team worktrees debugging review-response parallel-agents report; do
+      if [ -d "$src/skills/$skill" ]; then
+        renamed+=("$skill:gin-$skill")
+      fi
+    done
+  elif [ "$plugin_name" = gin-qa ] && [ -d "$src/skills/setup" ]; then
+    renamed+=("setup:gin-qa-setup")
   fi
-  copy_bundle_dirs "$src" "$target" "$skip_skill"
-  if [ -n "$skip_skill" ]; then
-    rm -rf "$target/skills/gin-qa-setup"
-    mkdir -p "$target/skills/gin-qa-setup"
-    copy_tree "$src/skills/setup/." "$target/skills/gin-qa-setup/"
-    rewrite_file "$target/skills/gin-qa-setup/SKILL.md" 's/^name: setup$/name: gin-qa-setup/'
-  fi
+  for pair in ${renamed[@]+"${renamed[@]}"}; do
+    skipped+=("${pair%%:*}")
+  done
+  copy_bundle_dirs "$src" "$target" ${skipped[@]+"${skipped[@]}"}
+  for pair in ${renamed[@]+"${renamed[@]}"}; do
+    from="${pair%%:*}"
+    to="${pair#*:}"
+    rm -rf "$target/skills/$to"
+    mkdir -p "$target/skills/$to"
+    copy_tree "$src/skills/$from/." "$target/skills/$to/"
+    rewrite_file "$target/skills/$to/SKILL.md" "s/^name: $from\$/name: $to/"
+  done
   if [ -n "$plugin_name" ]; then
     template_agents_for_opencode "$src" "$target" "$plugin_name"
-  fi
-
-  # OpenCode selects a skill by its bare directory id, so gin's generic skill
-  # names get a gin- prefix, with the display `name` kept aligned.
-  if [ "$plugin_name" = gin ]; then
-    local skill
-    for skill in learn sdd team worktrees debugging review-response parallel-agents report; do
-      [ -d "$target/skills/$skill" ] || continue
-      rm -rf "$target/skills/gin-$skill"
-      mv "$target/skills/$skill" "$target/skills/gin-$skill"
-      rewrite_file "$target/skills/gin-$skill/SKILL.md" "s/^name: $skill\$/name: gin-$skill/"
-    done
   fi
 
   # Shell commands run from the agent's working directory, so point support

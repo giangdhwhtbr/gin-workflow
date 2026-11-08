@@ -448,6 +448,13 @@ assert_contains "$opencode_project/.opencode/skills/setup/SKILL.md" "name: setup
 assert_exists "$opencode_project/.opencode/skills/gin-qa-setup/SKILL.md"
 assert_contains "$opencode_project/.opencode/skills/gin-qa-setup/SKILL.md" "name: gin-qa-setup"
 
+# Reinstalling gin into that project keeps gin-qa's report skill; gin's lands as gin-report.
+HOME="$MOCK_HOME" ./install.sh --platform opencode --project "$opencode_project" >/dev/null
+assert_contains "$opencode_project/.opencode/skills/report/SKILL.md" "name: report"
+assert_contains "$opencode_project/.opencode/skills/report/SKILL.md" "offline HTML report"
+assert_contains "$opencode_project/.opencode/skills/gin-report/SKILL.md" "name: gin-report"
+assert_contains "$opencode_project/.opencode/skills/gin-report/SKILL.md" "Report AI usage"
+
 HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file" 2>&1
 assert_not_contains "$output_file" "gin is not installed"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/cases/SKILL.md"
