@@ -319,17 +319,29 @@ def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch:
     branch = branch or str(handoff_of(issue).get("branch") or "")
     if not branch:
         raise SyncConflict(f"no handoff branch recorded for {bead}; pass --branch <name>")
+    if branch.startswith("-"):
+        raise SyncConflict(f"refusing branch name {branch!r} from the handoff metadata: it starts with '-'")
+    try:
+        worktrees._git(root, "check-ref-format", "--branch", branch)
+    except RuntimeError as error:
+        raise SyncConflict(f"invalid branch name {branch!r} in the handoff metadata: {error}") from error
     try:
         worktrees._git(root, "fetch", "origin", branch)
         path = worktrees.checkout(root, bead, branch)
     except (RuntimeError, ValueError) as error:
         raise SyncConflict(str(error)) from error
-    ref = _ledger_ref(path, bead)
     try:
-        worktrees._git(path, "fetch", "origin", f"+{ref}:{ref}")
-    except RuntimeError:
-        print(f"no review ref {ref} on origin for {bead}", file=sys.stderr)
-    result = claim(root, team, member, bead)
+        ref = _ledger_ref(path, bead)
+        if ref.startswith("refs/gin/review/"):
+            try:
+                worktrees._git(path, "fetch", "origin", f"+{ref}:{ref}")
+            except RuntimeError:
+                print(f"no review ref {ref} on origin for {bead}", file=sys.stderr)
+        else:
+            print(f"ignoring review ref {ref} from the ledger: not under refs/gin/review/", file=sys.stderr)
+        result = claim(root, team, member, bead)
+    except SyncConflict as error:
+        raise SyncConflict(f"{error}; worktree left at {path}; remove it with gin worktree cleanup {bead}") from error
     print(f"next: gin team deps --bead {bead}", file=sys.stderr)
     return {**result, "branch": branch, "worktree": str(path)}
 

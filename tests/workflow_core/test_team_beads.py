@@ -394,9 +394,12 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertEqual("binh@corp.com", show(self.root, self.bead)["assignee"])
 
     def test_takeover_checks_out_the_handed_off_branch_and_claims(self):
+        git(self.worktree, "update-ref", f"refs/gin/review/{self.bead}", "HEAD")
+        sha = git(self.worktree, "rev-parse", "HEAD").strip()
         self.assertEqual(0, run_cli(self.root, "team", "handoff", self.bead, "em@corp.com").returncode)
         worktrees.cleanup(self.root, self.bead)
         git(self.root, "branch", "-D", "feat/api-t1")
+        git(self.root, "update-ref", "-d", f"refs/gin/review/{self.bead}")
         git(self.root, "config", "user.email", "em@corp.com")
         taken = run_cli(self.root, "team", "takeover", self.bead, "--format", "json")
         self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
@@ -407,6 +410,7 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertEqual("v1", (path / "api.txt").read_text(encoding="utf-8"))
         self.assertEqual("em@corp.com", show(self.root, self.bead)["assignee"])
         self.assertIn("next: gin team deps --bead", taken.stderr)
+        self.assertEqual(sha, git(path, "rev-parse", "--verify", f"refs/gin/review/{self.bead}").strip())
 
     def test_takeover_refuses_worktree_cwd_missing_branch_and_existing_directory(self):
         shutil.copytree(self.root / ".agent-workflow", self.worktree / ".agent-workflow")
@@ -417,6 +421,11 @@ class TestTeamHandoff(unittest.TestCase):
         missing = run_cli(self.root, "team", "takeover", other)
         self.assertEqual(1, missing.returncode)
         self.assertIn("pass --branch", missing.stdout)
+        bd(self.root, "update", other, "--set-metadata", 'handoff={"branch": "--upload-pack=touch /tmp/pwned"}')
+        hostile = run_cli(self.root, "team", "takeover", other)
+        self.assertEqual(1, hostile.returncode)
+        self.assertIn("starts with '-'", hostile.stdout)
+        self.assertFalse((self.root / ".planning/worktrees" / other).exists())
         git(self.worktree, "push", "-q", "-u", "origin", "feat/api-t1")
         existing = run_cli(self.root, "team", "takeover", self.bead, "--branch", "feat/api-t1")
         self.assertEqual(1, existing.returncode)
@@ -428,6 +437,17 @@ class TestTeamHandoff(unittest.TestCase):
         git(self.root, "branch", "-D", "feat/api-t1")
         taken = run_cli(self.root, "team", "takeover", self.bead, "--branch", "feat/api-t1")
         self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        self.assertTrue((self.root / ".planning/worktrees" / self.bead / "api.txt").is_file())
+
+    def test_takeover_names_the_worktree_when_the_claim_is_refused(self):
+        self.assertEqual(0, run_cli(self.root, "team", "handoff", self.bead, "em@corp.com").returncode)
+        worktrees.cleanup(self.root, self.bead)
+        git(self.root, "branch", "-D", "feat/api-t1")
+        git(self.root, "config", "user.email", "chi@corp.com")
+        refused = run_cli(self.root, "team", "takeover", self.bead)
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("worktree left at", refused.stdout)
+        self.assertIn(f"gin worktree cleanup {self.bead}", refused.stdout)
         self.assertTrue((self.root / ".planning/worktrees" / self.bead / "api.txt").is_file())
 
 
