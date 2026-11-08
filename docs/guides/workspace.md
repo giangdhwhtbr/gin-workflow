@@ -37,7 +37,9 @@ flowchart TD
   W -.->|"worktree of one child"| S
 ```
 
-## Setup once (tech lead)
+## Setup once
+
+The tech lead does this.
 
 1. Create the parent repository with `docs/` and `.planning/`.
 2. Run `/gin:setup` in the parent and answer `workspace`.
@@ -49,7 +51,9 @@ flowchart TD
 
 Run `/gin:setup` only in the parent, never in a child.
 
-## Onboarding (every engineer)
+## Onboarding
+
+Every engineer does this.
 
 1. Clone the parent.
 2. Run `gin workspace clone <path>` for the repositories you work on. A backend engineer clones one or two services; the frozen legacy only when they need to read it.
@@ -82,7 +86,7 @@ Open: the parent for setup, plan, orchestrate, and ship.
 | Orchestrate | `/gin:orchestrate` creates one worktree per track inside the named child; a missing clone stops with the exact `gin workspace clone <path>` command |
 | Ship | `/gin:ship` from the parent integrates one repository at a time, the parent last |
 
-`gin record shipped` carries one merge commit per repository and marks the epic shipped when every listed repository is merged. One service can therefore merge and deploy without waiting for another.
+For a standalone bead, `gin record shipped --evidence "<repo>:<merge commit>; ...; parent:<merge commit>"` records one merge commit per repository; gin does not check that each repository was merged. An epic is shipped when its parent bead is closed after the human-confirmed merges.
 
 ## Backend and frontend engineers
 
@@ -90,7 +94,7 @@ Open: `<parent>/.planning/worktrees/<track-id>`. It is a worktree of one service
 
 | Stage | Command |
 |---|---|
-| Find a track | `gin task` or `/gin:progress` from anywhere in the workspace lists ready tracks with their worktree path |
+| Find a track | `gin task` or `/gin:progress` from anywhere in the workspace lists ready tracks; the worktree of a track is `<parent>/.planning/worktrees/<track-id>` |
 | Implement | `/gin:execute` in the worktree; commit and push to that repository |
 | Review | `/gin:review` in the worktree |
 | Small change | `/gin:quick` inside the child; it commits on a branch of the child and runs that child's checks |
@@ -115,7 +119,7 @@ Open: the `qa` repository. It is the automation repository, so the cases, specs,
 |---|---|
 | `gin workspace clone [PATH ...\|--all]` | Clones the named entries or all of them at their manifest paths; a frozen entry is cloned shallow; adds each path to the parent `.gitignore`; entries already present are reported as `present` |
 | `gin workspace status` | Prints one line per entry: path, present or missing, branch, clean or dirty, frozen. Add `--json` for scripts |
-| `gin hooks install --all-repos` | Installs the hooks in every present, non-frozen repository |
+| `gin hooks install --all-repos` | Installs the hooks in every cloned repository except frozen and beads entries |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Creates the track worktree of one child under the parent `.planning/worktrees/` |
 | `gin worktree cleanup --repository <repo> <track-id>` | Removes it |
 | `gin state --format json` | The `workspace` key is `null` outside a workspace; otherwise it holds `root`, `current_repo`, and `repos[]` with `path`, `shape`, `frozen`, `present`, and `branch` |
@@ -125,6 +129,6 @@ All of them run from anywhere inside the workspace, including a child. `gin stat
 ## Limits
 
 - One repository per track. A change that touches two repositories is two tracks.
-- `project.packages` keeps its meaning inside one repository and is ignored for workspace entries; a child cannot contain packages of its own in the manifest.
+- `project.packages` is ignored for workspace entries.
 - There is no version pinning: the parent does not record which commit of a child it expects.
 - A child cloned outside its manifest path, or a repository not in the manifest, is standalone. `gin` treats it as an ordinary repository and `gin workspace status` shows the entry as missing.

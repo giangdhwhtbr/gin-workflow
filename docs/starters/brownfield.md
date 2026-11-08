@@ -26,7 +26,7 @@ The team has seven people. Lan and Binh hold the two Claude Team Premium seats, 
 | An | `ba` | [BA](../roles.md#ba) | Specs and user stories |
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | API work |
-| Dung | `be_dev` | [Developer](../roles.md#developer) | API and legacy work |
+| Dung | `be_dev` | [Developer](../roles.md#developer) | API work |
 | Hoa | `fe_dev` | [Developer](../roles.md#developer) | React SPA work |
 | Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, ship approval |
 
@@ -45,7 +45,7 @@ team:
     hoa@example.com: {roles: [fe_dev], login: hoa-dev}
     chi@example.com: {roles: [qe], login: chi-qe}
   areas:
-    legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}
+    legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}  # read-only: for tech-doc reading, no track targets it
     api: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
     web: {paths: ["apps/**"], lead: be_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
@@ -130,7 +130,7 @@ mkdir -p services/api apps/web qa
 
 In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.packages` entry for `services/api` and one for `apps/web` yourself, each with `path`, `shape`, and `verify.checks` ([configuration](../reference/config.md#verifychecks)). Choose it when a facade change, a parity test, and a legacy removal must land in one pull request and one history, when the team is small enough to share one deploy pipeline, and when nobody needs to deploy a service on its own. Pull later vendor fixes with `git subtree pull --prefix=legacy git@github.com:acme/shop-portal.git main`. The rest of this page assumes the workspace.
 
-**You get:** every repository cloned at its path, a pre-commit and pre-push hook in each one that runs that repository's checks, and `.agent-workflow/config.yaml` with `workspace.repos`.
+**You get:** every repository cloned at its path, a pre-commit and pre-push hook in each cloned repository except frozen and beads entries that runs that repository's checks, and `.agent-workflow/config.yaml` with `workspace.repos`.
 
 **Gate or approval:** none.
 
@@ -285,7 +285,7 @@ Write the REST contract of each endpoint the same way (path, method, request, re
 /gin:orchestrate
 ```
 
-Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat.
+Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat. Each track carries `Repo: <path>`, for example `Repo: services/order-api`.
 
 **You get:** a plan with tracks per area and owner (`gin team check-plan <plan>` must pass), then one track bead per track under the reused epic, including the QA tracks, an isolated worktree per track, and dependencies. Members claim their beads with `gin team claim <bead>`.
 
@@ -295,7 +295,7 @@ Put in the prompt: the constraints of the migration (facade first, dual-write or
 
 ### Strangler Fig
 
-Modernize one bounded context at a time behind a stable facade or router instead of an all-at-once rewrite. Traffic for modernized endpoints goes to the new implementation while unmigrated requests pass through to the legacy core. The facade or gateway is your own infrastructure; gin-workflow does not provide one. The `team.areas` above keep a track inside either the legacy or the modernized paths.
+Modernize one bounded context at a time behind a stable facade or router instead of an all-at-once rewrite. Traffic for modernized endpoints goes to the new implementation while unmigrated requests pass through to the legacy core. The facade or gateway is your own infrastructure; gin-workflow does not provide one. The `team.areas` above keep every track inside the modernized repositories; the frozen `legacy` area exists only so `/gin:tech-doc` can read it, and no track targets it.
 
 In `/gin:discuss`, settle the data migration strategy (dual-write or backfill) and the rollback criteria, and in `/gin:plan` split the epic into single-area tracks:
 
@@ -305,7 +305,7 @@ In `/gin:discuss`, settle the data migration strategy (dual-write or backfill) a
 | 2 | `api` | Em | Spring Boot API, facade, and parity tests against the contract |
 | 3 | `web` | Hoa | React UI built against contract mocks |
 | 4 | `web` | Hoa | Integration: replace the mocks with real API calls |
-| 5 | `legacy` | Binh | Router cutover to the new facade, on a Premium seat with a high effort |
+| 5 | `api` (`services/order-api`) | Binh | Router cutover to the new facade, on a Premium seat with a high effort |
 | 6 | `qa` | Chi | API tests, E2E, manual runs, and the report |
 
 ```mermaid
@@ -351,7 +351,7 @@ Passing unit tests does not show that the new code behaves like the old. Parity 
 
 ## Execute
 
-**Who:** Developer (Em and Dung for the API and legacy tracks, Hoa for the SPA tracks).
+**Who:** Developer (Em and Dung for the API tracks, Hoa for the SPA tracks).
 
 **Where:** the track worktree `<parent>/.planning/worktrees/<track-id>` (one service or one app).
 

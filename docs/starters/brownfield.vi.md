@@ -26,7 +26,7 @@ Nhóm có bảy người. Lan và Binh giữ hai seat Claude Team Premium, nên 
 | An | `ba` | [BA](../roles.md#ba) | Spec và user story |
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | Công việc API |
-| Dung | `be_dev` | [Developer](../roles.md#developer) | Công việc API và legacy |
+| Dung | `be_dev` | [Developer](../roles.md#developer) | Công việc API |
 | Hoa | `fe_dev` | [Developer](../roles.md#developer) | Công việc React SPA |
 | Chi | `qe` | [Tester](../roles.md#tester) | Test case, E2E, phê duyệt ship |
 
@@ -45,7 +45,7 @@ team:
     hoa@example.com: {roles: [fe_dev], login: hoa-dev}
     chi@example.com: {roles: [qe], login: chi-qe}
   areas:
-    legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}
+    legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}  # read-only: for tech-doc reading, no track targets it
     api: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
     web: {paths: ["apps/**"], lead: be_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
@@ -130,7 +130,7 @@ mkdir -p services/api apps/web qa
 
 Ở biến thể này, trả lời `monorepo: true` trong `/gin:setup` và tự thêm một mục `project.packages` cho `services/api` và một cho `apps/web`, mỗi mục có `path`, `shape` và `verify.checks` ([cấu hình](../reference/config.md#verifychecks)). Chọn nó khi một thay đổi facade, một parity test và một lần gỡ legacy phải nằm trong cùng một pull request và một lịch sử, khi nhóm đủ nhỏ để dùng chung một pipeline deploy, và khi không ai cần deploy một service riêng lẻ. Kéo các bản sửa của vendor về sau bằng `git subtree pull --prefix=legacy git@github.com:acme/shop-portal.git main`. Phần còn lại của trang này giả định bạn dùng workspace.
 
-**Kết quả:** mọi repository được clone tại path của nó, một hook pre-commit và pre-push trong từng repository chạy check của chính repository đó, và `.agent-workflow/config.yaml` với `workspace.repos`.
+**Kết quả:** mọi repository được clone tại path của nó, một hook pre-commit và pre-push trong từng repository đã clone (trừ mục frozen và beads) chạy check của chính repository đó, và `.agent-workflow/config.yaml` với `workspace.repos`.
 
 **Cổng hoặc phê duyệt:** không có.
 
@@ -285,7 +285,7 @@ Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (pa
 /gin:orchestrate
 ```
 
-Đưa vào prompt: các ràng buộc của migration (facade trước, dual-write hay backfill, tiêu chí rollback), các track nào có thể chạy song song, và ai giữ seat Premium.
+Đưa vào prompt: các ràng buộc của migration (facade trước, dual-write hay backfill, tiêu chí rollback), các track nào có thể chạy song song, và ai giữ seat Premium. Mỗi track mang `Repo: <path>`, ví dụ `Repo: services/order-api`.
 
 **Kết quả:** một plan với các track theo khu vực và owner (`gin team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, một worktree cô lập cho mỗi track, và các dependency. Thành viên claim bead của mình bằng `gin team claim <bead>`.
 
@@ -295,7 +295,7 @@ Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (pa
 
 ### Strangler Fig { #strangler-fig }
 
-Hiện đại hóa từng bounded context một phía sau một facade hoặc router ổn định thay vì viết lại tất cả cùng lúc. Traffic của các endpoint đã hiện đại hóa đi tới bản triển khai mới, còn các request chưa migrate được chuyển tiếp xuống lõi legacy. Facade hoặc gateway là hạ tầng của riêng bạn; gin-workflow không cung cấp. Các `team.areas` ở trên giữ một track nằm trong các đường dẫn legacy hoặc các đường dẫn đã hiện đại hóa.
+Hiện đại hóa từng bounded context một phía sau một facade hoặc router ổn định thay vì viết lại tất cả cùng lúc. Traffic của các endpoint đã hiện đại hóa đi tới bản triển khai mới, còn các request chưa migrate được chuyển tiếp xuống lõi legacy. Facade hoặc gateway là hạ tầng của riêng bạn; gin-workflow không cung cấp. Các `team.areas` ở trên giữ mọi track trong các repository đã hiện đại hóa; khu vực `legacy` bị đóng băng chỉ tồn tại để `/gin:tech-doc` đọc, và không track nào nhắm tới nó.
 
 Trong `/gin:discuss`, hãy chốt chiến lược data migration (dual-write hoặc backfill) và tiêu chí rollback, còn trong `/gin:plan` hãy chia epic thành các track một khu vực:
 
@@ -305,7 +305,7 @@ Trong `/gin:discuss`, hãy chốt chiến lược data migration (dual-write ho�
 | 2 | `api` | Em | Spring Boot API, facade và parity test theo hợp đồng |
 | 3 | `web` | Hoa | React UI xây dựa trên contract mock |
 | 4 | `web` | Hoa | Tích hợp: thay các mock bằng lời gọi API thật |
-| 5 | `legacy` | Binh | Router cutover sang facade mới, trên seat Premium với effort cao |
+| 5 | `api` (`services/order-api`) | Binh | Router cutover sang facade mới, trên seat Premium với effort cao |
 | 6 | `qa` | Chi | API test, E2E, manual run và báo cáo |
 
 ```mermaid
@@ -351,7 +351,7 @@ Unit test qua không chứng tỏ code mới hành xử như code cũ. Parity te
 
 ## Execute { #execute }
 
-**Ai làm:** Developer (Em và Dung cho các track API và legacy, Hoa cho các track SPA).
+**Ai làm:** Developer (Em và Dung cho các track API, Hoa cho các track SPA).
 
 **Làm ở đâu:** worktree của track `<parent>/.planning/worktrees/<track-id>` (một service hoặc một app).
 

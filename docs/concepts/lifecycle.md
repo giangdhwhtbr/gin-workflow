@@ -61,7 +61,7 @@ At handoff the agent reports what changed, what was validated and what was not, 
 
 ## Ship
 
-`ship` requires `implementation_complete` and a terminal review state, and runs the plain steps above. It then offers four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. For a merge, it first runs `usage collect` for the epic and deletes the closed tracks' review ledgers in a commit on the feature branch. It then merges, removes the worktree, deletes the branch, and closes the epic, which marks `shipped`. In a workspace ship integrates one repository at a time, the parent last, and `record shipped` carries one merge commit per repository.
+`ship` requires `implementation_complete` and a terminal review state, and runs the plain steps above. It then offers four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. For a merge, it first runs `usage collect` for the epic and deletes the closed tracks' review ledgers in a commit on the feature branch. It then merges, removes the worktree, deletes the branch, and closes the epic, which marks `shipped`. In a workspace ship integrates one repository at a time, the parent last; for a standalone bead, `record shipped` carries one merge commit per repository in `--evidence`.
 
 `state` warns when `implementation_complete` holds and no commit has touched the knowledge directory since `orchestration.ready`; committing a knowledge record (see `learn`) clears it.
 

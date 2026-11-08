@@ -37,7 +37,9 @@ flowchart TD
   W -.->|"worktree of one child"| S
 ```
 
-## Thiết lập một lần (tech lead) { #setup-once-tech-lead }
+## Thiết lập một lần { #setup-once }
+
+Tech lead thực hiện phần này.
 
 1. Tạo repository cha với `docs/` và `.planning/`.
 2. Chạy `/gin:setup` trong repository cha và trả lời `workspace`.
@@ -49,7 +51,9 @@ flowchart TD
 
 Chỉ chạy `/gin:setup` trong repository cha, không bao giờ trong repository con.
 
-## Onboarding (mọi kỹ sư) { #onboarding-every-engineer }
+## Onboarding { #onboarding }
+
+Mọi kỹ sư thực hiện phần này.
 
 1. Clone repository cha.
 2. Chạy `gin workspace clone <path>` cho các repository bạn làm việc. Kỹ sư backend clone một hoặc hai service; legacy `frozen` chỉ khi họ cần đọc nó.
@@ -82,7 +86,7 @@ Mở: repository cha cho setup, plan, orchestrate và ship.
 | Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>` |
 | Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng |
 
-`gin record shipped` mang một merge commit cho mỗi repository và đánh dấu epic là shipped khi mọi repository được liệt kê đã merge. Nhờ vậy một service có thể merge và deploy mà không phải đợi service khác.
+Với một bead độc lập, `gin record shipped --evidence "<repo>:<merge commit>; ...; parent:<merge commit>"` ghi một merge commit cho mỗi repository; gin không kiểm tra từng repository đã được merge hay chưa. Một epic là shipped khi bead cha của nó được đóng sau các lần merge do con người xác nhận.
 
 ## Kỹ sư backend và frontend { #backend-and-frontend-engineers }
 
@@ -90,7 +94,7 @@ Mở: `<parent>/.planning/worktrees/<track-id>`. Đó là worktree của một s
 
 | Stage | Lệnh |
 |---|---|
-| Tìm track | `gin task` hoặc `/gin:progress` từ bất kỳ đâu trong workspace liệt kê các track sẵn sàng cùng đường dẫn worktree |
+| Tìm track | `gin task` hoặc `/gin:progress` từ bất kỳ đâu trong workspace liệt kê các track sẵn sàng; worktree của một track là `<parent>/.planning/worktrees/<track-id>` |
 | Triển khai | `/gin:execute` trong worktree; commit và push vào repository đó |
 | Review | `/gin:review` trong worktree |
 | Thay đổi nhỏ | `/gin:quick` bên trong repository con; nó commit trên một branch của repository con và chạy check của repository con đó |
@@ -115,7 +119,7 @@ Mở: repository `qa`. Đó là repository automation, nên test case, spec và 
 |---|---|
 | `gin workspace clone [PATH ...\|--all]` | Clone các mục được nêu hoặc tất cả tại path manifest của chúng; mục `frozen` được clone nông; thêm mỗi path vào `.gitignore` của repository cha; mục đã có được báo là `present` |
 | `gin workspace status` | In một dòng cho mỗi mục: path, present hoặc missing, branch, clean hoặc dirty, frozen. Thêm `--json` cho script |
-| `gin hooks install --all-repos` | Cài hook trong mọi repository đang có và không `frozen` |
+| `gin hooks install --all-repos` | Cài hook trong mọi repository đã clone trừ mục frozen và beads |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Tạo worktree của track cho một repository con dưới `.planning/worktrees/` của repository cha |
 | `gin worktree cleanup --repository <repo> <track-id>` | Gỡ nó |
 | `gin state --format json` | Khóa `workspace` là `null` ngoài workspace; nếu không nó chứa `root`, `current_repo` và `repos[]` với `path`, `shape`, `frozen`, `present` và `branch` |
@@ -125,6 +129,6 @@ Tất cả chạy được từ bất kỳ đâu trong workspace, kể cả tron
 ## Giới hạn { #limits }
 
 - Một repository cho mỗi track. Một thay đổi đụng tới hai repository là hai track.
-- `project.packages` giữ nguyên ý nghĩa bên trong một repository và bị bỏ qua với các mục workspace; một repository con không thể chứa package riêng trong manifest.
+- `project.packages` bị bỏ qua với các mục workspace.
 - Không có ghim phiên bản: repository cha không ghi lại commit nào của repository con mà nó mong đợi.
 - Một repository con được clone ngoài path manifest của nó, hoặc một repository không có trong manifest, là độc lập. `gin` coi nó là repository thông thường và `gin workspace status` hiển thị mục đó là missing.

@@ -172,7 +172,7 @@ Present only in team mode ([guide](../guides/team.md)). Keys: `host` (`github` o
 
 ### `workspace`
 
-Present when the repository is the parent of several repositories ([guide](../guides/workspace.md)). `repos` lists them: `path` (relative, gitignored in the parent), `url`, `shape` (`frontend`, `backend`, `library`, `qa`, `beads`), `frozen` (read only: no hooks, tracks, or worktrees; cloned shallow), `default_branch` (default `main`), and `verify.checks` with the same keys as the root block. The `beads` entry sits at `.beads` and holds the shared Beads database. `project.packages` keeps its meaning inside one repository and is ignored for workspace entries.
+Present when the repository is the parent of several repositories ([guide](../guides/workspace.md)). `repos` lists them: `path` (relative, gitignored in the parent), `url`, `shape` (`frontend`, `backend`, `library`, `qa`, `beads`), `frozen` (read only: no hooks, tracks, or worktrees; cloned shallow), `default_branch` (default `main`), and `verify.checks` with the same keys as the root block. The `beads` entry sits at `.beads` and holds the shared Beads database. `project.packages` keeps its meaning inside one repository and is ignored for workspace entries. `path` and `url` are required; `shape` is required unless `frozen`. A path is relative, without `..`, not under `.planning` or `.agent-workflow`, and not a duplicate of, or nested inside, another entry. The `beads` shape is accepted only at `.beads`. Check names are the same set as the root `verify.checks`.
 
 ### `qa`
 
