@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+      "review_base_sha": "a0032f2503a9c25fa93951db0b0e6b47a9456953",
+      "reviewed_source_sha": "fd7cd8d0229eb22f6a093b20077a8fdb3666b88d",
+      "checkpoint_sha": "fd7cd8d0229eb22f6a093b20077a8fdb3666b88d",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+      "reviewed_source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 7,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-08T14:38:12.240596Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+            "review_base_sha": "a0032f2503a9c25fa93951db0b0e6b47a9456953",
+            "reviewed_source_sha": "126a5560028976fefa1e865294395f749a0e3406",
+            "checkpoint_sha": "126a5560028976fefa1e865294395f749a0e3406",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+            "reviewed_source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "workflow_id": "gin-workflow-roadmap-pipeline",
+        "attempt_id": "1",
+        "task_id": "gin-workflow-roadmap-pipeline.1",
+        "owner": "worker:claude:sonnet",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "4bd43fc529c1b377b3a4f53de71bd2ab882bba270a254b588b3f69f2dd13ad1b"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-08T14:38:12.541019Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+            "review_base_sha": "a0032f2503a9c25fa93951db0b0e6b47a9456953",
+            "reviewed_source_sha": "fd7cd8d0229eb22f6a093b20077a8fdb3666b88d",
+            "checkpoint_sha": "fd7cd8d0229eb22f6a093b20077a8fdb3666b88d",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+            "reviewed_source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+            "source_identity_status": "complete"
+          }
+        ],
+        "workflow_id": "gin-workflow-roadmap-pipeline",
+        "attempt_id": "1",
+        "task_id": "gin-workflow-roadmap-pipeline.1"
+      },
+      "previous_event_hash": "4bd43fc529c1b377b3a4f53de71bd2ab882bba270a254b588b3f69f2dd13ad1b",
+      "event_hash": "621b17f6e19d560307c1e1bd308664fedcbe14cab2ed8775160f9c550526503a"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-08T14:43:00.066041Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "621b17f6e19d560307c1e1bd308664fedcbe14cab2ed8775160f9c550526503a",
+      "event_hash": "65e0723c6b36f44580e662ae4a1adbe274e27fe0f72ee7bdc9d4342a986fecf8"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-08T14:43:20.980350Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-3da5a7c5"
+      },
+      "payload": {
+        "lease_id": "4d3c1e312bd745aaa4d46359603e4070",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-3da5a7c5",
+        "acquired_at": "2026-11-08T14:43:20.979567Z",
+        "expires_at": "2026-11-08T14:53:20.979567Z"
+      },
+      "previous_event_hash": "65e0723c6b36f44580e662ae4a1adbe274e27fe0f72ee7bdc9d4342a986fecf8",
+      "event_hash": "6554e287fea5375667bc9af55311c263110200461593aeccd459ff43ce78d3d8"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-08T14:43:21.002291Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-3da5a7c5"
+      },
+      "payload": {},
+      "previous_event_hash": "6554e287fea5375667bc9af55311c263110200461593aeccd459ff43ce78d3d8",
+      "event_hash": "896fa13a26f83828d94df75ea0940303748d2599e5771b05a082d65dd4062478"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-11-08T14:43:58.784498Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-3da5a7c5"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-roadmap-pipeline.1",
+            "review_base_sha": "a0032f2503a9c25fa93951db0b0e6b47a9456953",
+            "reviewed_source_sha": "fd7cd8d0229eb22f6a093b20077a8fdb3666b88d",
+            "checkpoint_sha": "fd7cd8d0229eb22f6a093b20077a8fdb3666b88d",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+            "reviewed_source_tree_hash": "849cb9d3b0f8dc9c17f6374f9b21452ba2502da1d9d1bade47e964908c60dba9",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": [],
+        "workflow_id": "gin-workflow-roadmap-pipeline",
+        "attempt_id": "1",
+        "task_id": "gin-workflow-roadmap-pipeline.1"
+      },
+      "previous_event_hash": "896fa13a26f83828d94df75ea0940303748d2599e5771b05a082d65dd4062478",
+      "event_hash": "875575770a389295885d6bcae2582c173b66aa6e0a748cfa276a85be83e9ba28"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-11-08T14:44:02.464579Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-3da5a7c5"
+      },
+      "payload": {
+        "lease_id": "4d3c1e312bd745aaa4d46359603e4070",
+        "released_at": "2026-11-08T14:44:02.463822Z"
+      },
+      "previous_event_hash": "875575770a389295885d6bcae2582c173b66aa6e0a748cfa276a85be83e9ba28",
+      "event_hash": "ad43e7f0dee3e86a538d6a90f8e25c294316b6accdaf7d08b6fa0a0ea4bd5193"
+    }
+  ]
+}
