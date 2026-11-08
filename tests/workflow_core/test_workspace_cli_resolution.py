@@ -101,6 +101,7 @@ class ResolutionFromChildTests(unittest.TestCase):
         self.assertIn("telegram_credentials_missing", done.stderr)
         self.assertNotIn("setup is required", done.stderr)
 
+    @unittest.skipIf(os.name == "nt", "runs a #! bd stub from PATH, which needs POSIX")
     def test_task_runs_bd_at_the_workspace_root(self):
         with tempfile.TemporaryDirectory() as bin_dir:
             script = Path(bin_dir) / "bd"

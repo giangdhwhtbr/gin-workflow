@@ -123,7 +123,7 @@ class WorkspaceWorktreeTests(unittest.TestCase):
         self.assertEqual(0, self.run_main("create", "--repository", str(self.child), "t1", "feat/x-t1", "main"))
         path = self.root / ".planning/worktrees/t1"
         self.assertTrue(path.is_dir())
-        self.assertEqual(str(self.child / ".git"), git(path, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+        self.assertEqual(self.child / ".git", Path(git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")))
         self.assertEqual("feat/x-t1", git(path, "rev-parse", "--abbrev-ref", "HEAD"))
         self.assertEqual(0, self.run_main("cleanup", "--repository", str(self.child), "t1"))
         self.assertFalse(path.exists())
@@ -150,7 +150,7 @@ class WorkspaceWorktreeTests(unittest.TestCase):
         self.assertEqual(0, self.run_main("create", "--repository", str(linked), "t3", "feat/x-t3", "main"))
         path = self.root / ".planning/worktrees/t3"
         self.assertTrue(path.is_dir())
-        self.assertEqual(str(self.child / ".git"), git(path, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+        self.assertEqual(self.child / ".git", Path(git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")))
 
     def test_cleanup_of_a_missing_child_worktree_removes_nothing(self):
         out = io.StringIO()
