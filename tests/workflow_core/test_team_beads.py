@@ -361,6 +361,38 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertEqual(2, run_cli(self.root, "team", "handoff", self.bead).returncode)
         self.assertEqual(2, run_cli(self.root, "team", "handoff", self.bead, "em@corp.com", "--release").returncode)
 
+    def test_handoff_rejected_push_leaves_the_bead_untouched(self):
+        git(self.root, "remote", "set-url", "origin", str(Path(self.tmp.name) / "missing.git"))
+        refused = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("git push of feat/api-t1 failed", refused.stdout)
+        issue = show(self.root, self.bead)
+        self.assertEqual("binh@corp.com", issue["assignee"])
+        self.assertEqual({}, team_beads.handoff_of(issue))
+
+    def test_handoff_pushes_the_local_review_ref(self):
+        git(self.worktree, "update-ref", f"refs/gin/review/{self.bead}", "HEAD")
+        done = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        self.assertEqual(git(self.worktree, "rev-parse", "HEAD").strip(),
+                         git(self.origin, "rev-parse", f"refs/gin/review/{self.bead}").strip())
+
+    def test_handoff_refuses_a_non_git_worktree_and_a_broken_ledger(self):
+        plain = Path(self.tmp.name) / "plain"
+        plain.mkdir()
+        refused = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com", "--worktree", str(plain))
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("is not a git worktree", refused.stdout)
+        ledger = self.worktree / ".planning/reviews" / self.bead / "review.json"
+        ledger.parent.mkdir(parents=True)
+        ledger.write_text("{not json", encoding="utf-8")
+        git(self.worktree, "add", "-A")
+        git(self.worktree, "commit", "-q", "-m", "broken ledger")
+        broken = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        self.assertEqual(1, broken.returncode)
+        self.assertIn("cannot read review ledger", broken.stdout)
+        self.assertEqual("binh@corp.com", show(self.root, self.bead)["assignee"])
+
 
 class TestPushWithoutReset(unittest.TestCase):
     """A rejected push retries through sync once; local Beads are never reset."""

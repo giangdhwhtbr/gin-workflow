@@ -227,8 +227,12 @@ def _ledger_ref(worktree: Path, bead: str) -> str:
     default = f"refs/gin/review/{bead}"
     if not ledger.is_file():
         return default
-    repos = json.loads(ledger.read_text(encoding="utf-8")).get("repositories") or [{}]
-    return repos[0].get("checkpoint_ref") or repos[0].get("review_ref") or default
+    try:
+        repos = json.loads(ledger.read_text(encoding="utf-8")).get("repositories") or [{}]
+        first = repos[0] if isinstance(repos, list) and repos and isinstance(repos[0], dict) else {}
+    except (OSError, ValueError, AttributeError) as error:
+        raise SyncConflict(f"cannot read review ledger {ledger}: {error}") from error
+    return first.get("checkpoint_ref") or first.get("review_ref") or default
 
 
 def _local_ref(worktree: Path, ref: str) -> bool:
@@ -247,7 +251,10 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
     if bool(email) == release:
         raise TeamError("pass exactly one of <email> or --release")
     path = _track_worktree(root, bead, worktree)
-    dirty = worktrees._git(path, "status", "--porcelain")
+    try:
+        dirty = worktrees._git(path, "status", "--porcelain")
+    except RuntimeError as error:
+        raise SyncConflict(f"{path} is not a git worktree: {error}") from error
     if dirty:
         raise SyncConflict(f"{bead}: uncommitted changes in {path}:\n{dirty}")
     if team.beads_remote:
@@ -276,6 +283,8 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
             push_review_ref(str(path), ref)
         except GitAdapterError as error:
             raise SyncConflict(f"review ref push failed for {ref}: {error}") from error
+    elif (path / ".planning/reviews" / bead / "review.json").is_file():
+        print(f"no local review ref {ref} for {bead}; nothing to push", file=sys.stderr)
     else:
         print(f"no review ledger for {bead}", file=sys.stderr)
     meta = json.dumps({"branch": branch, "from": member.email, "to": target.email if target else None, "at": utc_now()})
