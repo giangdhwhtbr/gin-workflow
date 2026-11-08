@@ -76,9 +76,10 @@ New `docs/guides/git-flow.md` and `git-flow.vi.md`, titled `Team git agreement`,
 5. **Pull requests**: a table artifact → branch → approving role → gate, from `team.approvals` (`roadmap`, `requirement_confirmed`, `plan_approved`, `ship`); what a pull request carries (the template fields, including `Plan:` and `Tracks:`, and a link to the bead or spec).
 6. **Review**: who reviews what; a checklist per role (BA reviews a spec: stories with acceptance criteria, `Source:` lines, legacy edge cases; tester reviews a developer's pull request: acceptance criteria met, test evidence present; tech lead reviews a plan); how to approve and how to request changes; a reviewer responds within one working day (a recommended default the team may change).
 7. **Approval and merge rules**: no member approves their own pull request; an approval counts only on the latest commit, so a push after approval needs a new approval; a pull request merges only with the required approvals and passing CI; the author merges and deletes the branch.
-8. **Conflicts and changes after approval**: the author updates the branch from the base and asks for review again; a requirement change after plan approval goes in a new change folder.
-9. **Host procedures**: GitHub and GitLab, each with the web steps (create, review, approve, merge) and the equivalent `gh` / `glab` commands; AWS CodeCommit with the console steps (approval rule template, approve, merge) and the limitation that gin cannot verify a CodeCommit pull request, so gates with roles cannot be recorded from it yet.
-10. **Appendix: AI support**: sample prompts that ask the agent to commit, push, and open a pull request, summarise a pull request to review, or address review comments.
+8. **Gate approval** (scope addition, user 2026-11-08 during execute): how an approved pull request becomes a recorded gate. A table gate → pull request state gin requires (merged for `roadmap`, `requirement_confirmed`, `plan_approved`; open and approved on its latest commit for `ship`, checked with `gin team check --gate ship <url>`) → who records it and with which stage (`gin record <gate> --evidence <PR url>`, run by the stage skill); the conditions gin checks (the pull request belongs to this repository and changes the gate's artifact, `--spec`/`--plan` picking one when it changes several; the approver holds a listed role and is not the author; the plan gate also runs `check-plan`, and `area_lead` means the area lead approves); what happens on a rejection (gin lists the missing approvals; it is never worked around with other evidence or a waiver). Facts from `docs/guides/team.md` (gates and ship rows) and the `team` skill, linked rather than restated where `team.md` already holds the mechanics.
+9. **Conflicts and changes after approval**: the author updates the branch from the base and asks for review again; a requirement change after plan approval goes in a new change folder.
+10. **Host procedures**: GitHub and GitLab, each with the web steps (create, review, approve, merge) and the equivalent `gh` / `glab` commands; AWS CodeCommit with the console steps (approval rule template, approve, merge) and the limitation that gin cannot verify a CodeCommit pull request, so gates with roles cannot be recorded from it yet (pointing to Gate approval).
+11. **Appendix: AI support**: sample prompts that ask the agent to commit, push, and open a pull request, summarise a pull request to review, or address review comments.
 
 The page is in the `mkdocs.yml` nav (next to Team mode) and the `README.md` documentation table; `team.md` and `roles.md` (and their `.vi.md` pairs) link to it.
 
@@ -130,7 +131,8 @@ Acceptance criteria:
 As a BA or tester, I want one formal page that says how the team branches, opens, reviews, approves, and merges pull requests, step by step on our host, so that I follow the team's agreement without knowing git.
 
 Acceptance criteria:
-- `docs/guides/git-flow.md` has the ten sections of R7 in that order, and every term it uses is defined in its Terms section.
+- `docs/guides/git-flow.md` has the eleven sections of R7 in that order, and every term it uses is defined in its Terms section.
+- The Gate approval section says, per gate, which pull request state gin requires, who records the gate, and what to do when gin rejects it.
 - Each host section gives the web steps for create, review, approve, and merge; GitHub and GitLab also give the CLI commands.
 - The CodeCommit section states that gin cannot verify a CodeCommit pull request yet.
 - The page is reachable from the nav, `README.md`, `team.md`, and `roles.md`.
