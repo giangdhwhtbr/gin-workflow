@@ -4,7 +4,7 @@ This folder holds the test cases and end-to-end specs for this repository.
 
 - `cases/`: one folder per capability, one file per test case.
 - `e2e/`: Playwright specs, one per `e2e` case.
-- `evidence/`: run folders written by `gin-qa e2e run` and `gin-qa tests run`; `gin-qa e2e init` git-ignores it (without e2e, add `qa/evidence/` to `.gitignore`).
+- `evidence/`: run folders written by `gin-qa e2e run` and `gin-qa tests run`; `gin-qa e2e init`, `gin-qa tests run`, and `gin-qa report` add it to `.gitignore`.
 - `guidelines.md`: the team rules for writing cases and specs.
 
 ## Case files
