@@ -1,7 +1,7 @@
 # Roadmap delivery pipeline: way of working, spec-ahead sequencing, and an integration point per milestone
 
 Epic: gin-workflow-roadmap-pipeline
-Status: draft for user review.
+Status: confirmed by the user on 2026-11-08.
 
 ## Goal and scope
 
