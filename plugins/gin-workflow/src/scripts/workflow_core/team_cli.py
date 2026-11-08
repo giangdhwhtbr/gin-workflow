@@ -34,6 +34,11 @@ def _parser() -> argparse.ArgumentParser:
     item = sub.add_parser("reassign", parents=[common])
     item.add_argument("bead")
     item.add_argument("email")
+    item = sub.add_parser("handoff", parents=[common])
+    item.add_argument("bead")
+    item.add_argument("email", nargs="?")
+    item.add_argument("--release", action="store_true")
+    item.add_argument("--worktree")
     sub.add_parser("deps", parents=[common]).add_argument("--bead")
     sub.add_parser("sync", parents=[common])
     return parser
@@ -121,6 +126,14 @@ def _run(args: argparse.Namespace) -> int:
         if args.command == "reassign":
             result = team_beads.reassign(root, team, member, args.bead, args.email)
             _emit(result, args.format, f"reassigned {args.bead} to {result['assignee']}")
+            return 0
+        if args.command == "handoff":
+            if bool(args.email) == args.release:
+                raise team_core.TeamError("pass exactly one of <email> or --release")
+            result = team_beads.handoff(root, team, member, args.bead, email=args.email, release=args.release,
+                                        worktree=args.worktree)
+            _emit(result, args.format, f"{result['status']} {args.bead} on {result['branch']}"
+                  + (f" -> {result['assignee']}" if result.get("assignee") else ""))
             return 0
         if args.command == "deps" and args.bead:
             result = team_beads.deps_for(root, args.bead)
