@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "review-approved",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 14,
+  "ledger_revision": 28,
   "next_finding_number": 1,
   "findings": {
     "status-all-no-checks": {
       "finding_id": "status-all-no-checks",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "verified",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "docs-doctor-hooks-scope": {
       "finding_id": "docs-doctor-hooks-scope",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "verified",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -58,11 +58,11 @@
     "install-all-missing-dir-silent": {
       "finding_id": "install-all-missing-dir-silent",
       "severity": "MINOR",
-      "status": "open",
+      "status": "deferred-verified",
       "clarification_count": 0,
-      "deferral_reason": null,
-      "follow_up_bead_id": null,
-      "follow_up_bead_title": null,
+      "deferral_reason": "pre-existing: _install_all printed nothing for a missing hooks directory before this change; outside the scope of gin-workflow-ua46",
+      "follow_up_bead_id": "gin-workflow-e5vs",
+      "follow_up_bead_title": "hooks install --all-repos: report a child whose hooks directory is missing and exit non-zero",
       "decision": null,
       "waived_reason": null,
       "location": "",
@@ -72,7 +72,7 @@
     "doctor-broken-child-repo": {
       "finding_id": "doctor-broken-child-repo",
       "severity": "MINOR",
-      "status": "open",
+      "status": "verified",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -340,6 +340,235 @@
       },
       "previous_event_hash": "57a2902a028173ea69f451a60fa68b909248f99bf2d3fc2e34660f73f0b0de97",
       "event_hash": "0a6580d36f2274327b17909f011f6badf8fe11fb539a5e2db828d176ab191d3d"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-08T04:44:24.018922Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "lease_id": "6d762074577a44bf8d2983c53de4f09e",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f",
+        "acquired_at": "2026-11-08T04:44:24.018077Z",
+        "expires_at": "2026-11-08T04:54:24.018077Z"
+      },
+      "previous_event_hash": "0a6580d36f2274327b17909f011f6badf8fe11fb539a5e2db828d176ab191d3d",
+      "event_hash": "3d58dec8b145528e87efe97edb4e33f6439cc67d8ab095fa9b00f06e0786bee4"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "review-started",
+      "timestamp": "2026-11-08T04:44:24.042730Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {},
+      "previous_event_hash": "3d58dec8b145528e87efe97edb4e33f6439cc67d8ab095fa9b00f06e0786bee4",
+      "event_hash": "de37affc0497d7eee148b65e4db93b0ae05bc4da6a791a81dad3a1ded3b5c6f0"
+    },
+    {
+      "event_id": "EV-000017",
+      "action": "lease-released",
+      "timestamp": "2026-11-08T04:44:35.522958Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "lease_id": "6d762074577a44bf8d2983c53de4f09e",
+        "released_at": "2026-11-08T04:44:35.522167Z"
+      },
+      "previous_event_hash": "de37affc0497d7eee148b65e4db93b0ae05bc4da6a791a81dad3a1ded3b5c6f0",
+      "event_hash": "348ae92cdb17ea44c4208ea7fee5cdec56a97670a207429838901636925fb370"
+    },
+    {
+      "event_id": "EV-000018",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-08T04:45:01.924348Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "status-all-no-checks"
+      },
+      "previous_event_hash": "348ae92cdb17ea44c4208ea7fee5cdec56a97670a207429838901636925fb370",
+      "event_hash": "84958d5affbc5959c26a83d7c488dc11845d641b280bc12b860e9c2f795d31ae"
+    },
+    {
+      "event_id": "EV-000019",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-08T04:45:02.058245Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "docs-doctor-hooks-scope"
+      },
+      "previous_event_hash": "84958d5affbc5959c26a83d7c488dc11845d641b280bc12b860e9c2f795d31ae",
+      "event_hash": "86089e372e4f0d159d539490526ff58942f820a1d47fe06097baab7eebf9ceb2"
+    },
+    {
+      "event_id": "EV-000020",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-08T04:45:02.183596Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "doctor-broken-child-repo"
+      },
+      "previous_event_hash": "86089e372e4f0d159d539490526ff58942f820a1d47fe06097baab7eebf9ceb2",
+      "event_hash": "2bb2a59539edc7c61638c61abcd2b162c4a0bd43eebd2ede1148b1760f6db1cb"
+    },
+    {
+      "event_id": "EV-000021",
+      "action": "deferral-proposed",
+      "timestamp": "2026-11-08T04:45:26.527956Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "finding_id": "install-all-missing-dir-silent",
+        "reason": "pre-existing: _install_all printed nothing for a missing hooks directory before this change; outside the scope of gin-workflow-ua46",
+        "follow_up_bead_id": "gin-workflow-e5vs",
+        "follow_up_bead_title": "hooks install --all-repos: report a child whose hooks directory is missing and exit non-zero"
+      },
+      "previous_event_hash": "2bb2a59539edc7c61638c61abcd2b162c4a0bd43eebd2ede1148b1760f6db1cb",
+      "event_hash": "665e915f747612e4dbbbc833bbd8d3bedd70234fbfedcaf88559b90f290da126"
+    },
+    {
+      "event_id": "EV-000022",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-08T04:45:46.097273Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "lease_id": "88ed610a88d0478aaa9b3f67747249ab",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f",
+        "acquired_at": "2026-11-08T04:45:46.096442Z",
+        "expires_at": "2026-11-08T04:55:46.096442Z"
+      },
+      "previous_event_hash": "665e915f747612e4dbbbc833bbd8d3bedd70234fbfedcaf88559b90f290da126",
+      "event_hash": "df55e666fb0b1b624d618a46d6ae39f3f1bdf68ed3b59067431ac9ff08380941"
+    },
+    {
+      "event_id": "EV-000023",
+      "action": "finding-verified",
+      "timestamp": "2026-11-08T04:45:53.670052Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "status-all-no-checks"
+      },
+      "previous_event_hash": "df55e666fb0b1b624d618a46d6ae39f3f1bdf68ed3b59067431ac9ff08380941",
+      "event_hash": "f2e37e045a50954e9e3b124523fea0a034304f500e32c876d6edb1ba16b0786c"
+    },
+    {
+      "event_id": "EV-000024",
+      "action": "finding-verified",
+      "timestamp": "2026-11-08T04:45:53.901931Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "docs-doctor-hooks-scope"
+      },
+      "previous_event_hash": "f2e37e045a50954e9e3b124523fea0a034304f500e32c876d6edb1ba16b0786c",
+      "event_hash": "6272f504bf681be8dff5c7b96f900339ba00ce52a83429e3fa61b0f905c9ba7c"
+    },
+    {
+      "event_id": "EV-000025",
+      "action": "finding-verified",
+      "timestamp": "2026-11-08T04:45:54.121834Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "doctor-broken-child-repo"
+      },
+      "previous_event_hash": "6272f504bf681be8dff5c7b96f900339ba00ce52a83429e3fa61b0f905c9ba7c",
+      "event_hash": "09d510416d938dfdfe26f5b7499746c2941bf9109c3ec6ae1d8d1b85f3367aab"
+    },
+    {
+      "event_id": "EV-000026",
+      "action": "deferral-approved",
+      "timestamp": "2026-11-08T04:45:54.344250Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "finding_id": "install-all-missing-dir-silent"
+      },
+      "previous_event_hash": "09d510416d938dfdfe26f5b7499746c2941bf9109c3ec6ae1d8d1b85f3367aab",
+      "event_hash": "74b87916d6249f314d3e211a57c7ae2beddf69c992a9d5808408598e7918be35"
+    },
+    {
+      "event_id": "EV-000027",
+      "action": "review-approved",
+      "timestamp": "2026-11-08T04:45:58.118542Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ua46",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ua46",
+            "review_base_sha": "8b4e17be986f0c01ec71e6dd93ec85448a391a53",
+            "reviewed_source_sha": "4605e2b3a0b498166c9ec5dc84faeec77e018fec",
+            "checkpoint_sha": "4605e2b3a0b498166c9ec5dc84faeec77e018fec",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "3e509644d59f3c0cc0965c1f4a20a839976dbece8faee4c001c76b4ae8262b07",
+            "reviewed_source_tree_hash": "3e509644d59f3c0cc0965c1f4a20a839976dbece8faee4c001c76b4ae8262b07",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": [
+          "status-all-no-checks",
+          "docs-doctor-hooks-scope",
+          "install-all-missing-dir-silent",
+          "doctor-broken-child-repo"
+        ]
+      },
+      "previous_event_hash": "74b87916d6249f314d3e211a57c7ae2beddf69c992a9d5808408598e7918be35",
+      "event_hash": "5fb6600b9a4603d9a4eb73df3c6dbf2d5042ab22c7daf215de27e96e81d6f19e"
+    },
+    {
+      "event_id": "EV-000028",
+      "action": "lease-released",
+      "timestamp": "2026-11-08T04:46:03.117343Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d96f113f"
+      },
+      "payload": {
+        "lease_id": "88ed610a88d0478aaa9b3f67747249ab",
+        "released_at": "2026-11-08T04:46:03.116495Z"
+      },
+      "previous_event_hash": "5fb6600b9a4603d9a4eb73df3c6dbf2d5042ab22c7daf215de27e96e81d6f19e",
+      "event_hash": "e65ee8794e3b9a2dfeb0bf1522be71ced4aaa6d81828151c555ac51fe884132c"
     }
   ]
 }

@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000027`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `4605e2b`, Tree Hash: `3e50964`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,26 +33,28 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `docs-doctor-hooks-scope` | `IMPORTANT` | `open` | 0 | - |
-| `doctor-broken-child-repo` | `MINOR` | `open` | 0 | - |
-| `install-all-missing-dir-silent` | `MINOR` | `open` | 0 | - |
-| `status-all-no-checks` | `IMPORTANT` | `open` | 0 | - |
+| `docs-doctor-hooks-scope` | `IMPORTANT` | `verified` | 0 | - |
+| `doctor-broken-child-repo` | `MINOR` | `verified` | 0 | - |
+| `install-all-missing-dir-silent` | `MINOR` | `deferred-verified` | 0 | `gin-workflow-e5vs` |
+| `status-all-no-checks` | `IMPORTANT` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `docs-doctor-hooks-scope` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `doctor-broken-child-repo` (MINOR)
-- **Status:** `open`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `install-all-missing-dir-silent` (MINOR)
-- **Status:** `open`
+- **Status:** `deferred-verified`
 - **Clarification Count:** 0
+- **Deferral Reason:** pre-existing: _install_all printed nothing for a missing hooks directory before this change; outside the scope of gin-workflow-ua46
+- **Follow-up Bead:** `gin-workflow-e5vs` (*hooks install --all-repos: report a child whose hooks directory is missing and exit non-zero*)
 
 ### `status-all-no-checks` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -69,3 +75,17 @@
 | `EV-000012` | `2026-11-08T04:38:13.833043Z` | `implementation-in-progress` | `claude` (worker) |
 | `EV-000013` | `2026-11-08T04:38:58.919988Z` | `source-checkpoint-created` | `claude` (worker) |
 | `EV-000014` | `2026-11-08T04:38:59.047602Z` | `review-requested` | `claude` (worker) |
+| `EV-000015` | `2026-11-08T04:44:24.018922Z` | `lease-acquired` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000016` | `2026-11-08T04:44:24.042730Z` | `review-started` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000017` | `2026-11-08T04:44:35.522958Z` | `lease-released` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000018` | `2026-11-08T04:45:01.924348Z` | `finding-fixed` | `claude` (worker) |
+| `EV-000019` | `2026-11-08T04:45:02.058245Z` | `finding-fixed` | `claude` (worker) |
+| `EV-000020` | `2026-11-08T04:45:02.183596Z` | `finding-fixed` | `claude` (worker) |
+| `EV-000021` | `2026-11-08T04:45:26.527956Z` | `deferral-proposed` | `claude` (worker) |
+| `EV-000022` | `2026-11-08T04:45:46.097273Z` | `lease-acquired` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000023` | `2026-11-08T04:45:53.670052Z` | `finding-verified` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000024` | `2026-11-08T04:45:53.901931Z` | `finding-verified` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000025` | `2026-11-08T04:45:54.121834Z` | `finding-verified` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000026` | `2026-11-08T04:45:54.344250Z` | `deferral-approved` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000027` | `2026-11-08T04:45:58.118542Z` | `review-approved` | `reviewer:claude:session-d96f113f` (reviewer) |
+| `EV-000028` | `2026-11-08T04:46:03.117343Z` | `lease-released` | `reviewer:claude:session-d96f113f` (reviewer) |
