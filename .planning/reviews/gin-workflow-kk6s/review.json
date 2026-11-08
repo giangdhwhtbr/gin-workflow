@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-requested",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-kk6s",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-kk6s",
+      "review_base_sha": "dbe717be4c2bc28670bcf15a8db63147e62dd0d5",
+      "reviewed_source_sha": "8aa290861bf5b715ce931c2f317457ff9940b607",
+      "checkpoint_sha": "8aa290861bf5b715ce931c2f317457ff9940b607",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "97fd6e356be70bd8d866182de0f4d564fe237876f5d8473263402d7c56dbab70",
+      "reviewed_source_tree_hash": "97fd6e356be70bd8d866182de0f4d564fe237876f5d8473263402d7c56dbab70",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 3,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-08T08:00:28.661229Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-kk6s",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-kk6s",
+            "review_base_sha": "dbe717be4c2bc28670bcf15a8db63147e62dd0d5",
+            "reviewed_source_sha": "f8bb22d3219a38d625d0e2b17269d5ea21135106",
+            "checkpoint_sha": "f8bb22d3219a38d625d0e2b17269d5ea21135106",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "97fd6e356be70bd8d866182de0f4d564fe237876f5d8473263402d7c56dbab70",
+            "reviewed_source_tree_hash": "97fd6e356be70bd8d866182de0f4d564fe237876f5d8473263402d7c56dbab70",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "claude",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "600664cd45c97e4820415281f60347c3fda1e595321840c010b3f38406a58d20"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-08T08:00:28.925791Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-kk6s",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-kk6s",
+            "review_base_sha": "dbe717be4c2bc28670bcf15a8db63147e62dd0d5",
+            "reviewed_source_sha": "8aa290861bf5b715ce931c2f317457ff9940b607",
+            "checkpoint_sha": "8aa290861bf5b715ce931c2f317457ff9940b607",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "97fd6e356be70bd8d866182de0f4d564fe237876f5d8473263402d7c56dbab70",
+            "reviewed_source_tree_hash": "97fd6e356be70bd8d866182de0f4d564fe237876f5d8473263402d7c56dbab70",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "600664cd45c97e4820415281f60347c3fda1e595321840c010b3f38406a58d20",
+      "event_hash": "1585ff3efd0f4936282e71163ada8f0895665ddf353d5c43e14c7e6863b5d585"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-08T08:00:29.050703Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "claude"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "1585ff3efd0f4936282e71163ada8f0895665ddf353d5c43e14c7e6863b5d585",
+      "event_hash": "53f68a21503e735b93cf91116000c62590b0bfd58e4b8b0c7249c34bca062e1f"
+    }
+  ]
+}
