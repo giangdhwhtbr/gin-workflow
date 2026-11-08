@@ -126,7 +126,7 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int) -> d
     start (ties by id) takes the lane that frees first. Unestimated epics take no lane and no days."""
     _check_cycles(epics)
     planned: dict[str, tuple[date, date]] = {}
-    free = [first] * lanes
+    free = [first] * max(1, min(lanes, len(epics)))  # more lanes than epics change nothing
     while len(planned) < len(epics):
         ready: dict[str, date] = {}
         for epic_id, epic in epics.items():
@@ -144,7 +144,7 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int) -> d
         if days is None:
             planned[epic_id] = (ready[epic_id], ready[epic_id])
             continue
-        lane = min(range(lanes), key=lambda index: free[index])
+        lane = min(range(len(free)), key=lambda index: free[index])
         begin = max(ready[epic_id], free[lane])
         end = _last_of(begin, days)
         planned[epic_id] = (begin, end)

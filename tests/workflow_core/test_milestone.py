@@ -154,6 +154,14 @@ class LaneTests(unittest.TestCase):
         self.assertEqual(("2026-11-02", "2026-11-03"), span(found["B"]))
         self.assertEqual(("2026-11-04", "2026-11-05"), span(found["C"]))
 
+    def test_more_lanes_than_epics_equals_one_lane_per_epic(self):
+        beads = world(milestone_bead(lanes="999999999999"), bead("A", parent="m1", minutes=days(3)),
+                      bead("B", parent="m1", minutes=days(2), blocks=["A"]), bead("C", parent="m1", minutes=days(4)))
+        huge = rows(plan(beads))
+        exact = rows(plan(world(milestone_bead(lanes=3), *(beads[k] for k in "ABC"))))
+        self.assertEqual({k: span(v) for k, v in exact.items()}, {k: span(v) for k, v in huge.items()})
+        self.assertEqual(("2026-11-02", "2026-11-05"), span(huge["C"]))
+
     def test_blocker_wins_over_a_free_lane(self):
         beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(3)),
                       bead("B", parent="m1", minutes=days(1), blocks=["A"]))
