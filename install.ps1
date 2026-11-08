@@ -1025,15 +1025,17 @@ if ($Plugins -contains 'gin-orchestrator' -and $Plugins -notcontains 'gin-workfl
 
 # An installed add-on runs its own library copy, which calls gin; installing gin
 # refreshes each add-on whose launcher this installer manages. A project install
-# writes only the requested plugins: the add-ons would land in the same
-# .opencode/skills, where gin-qa's `setup` replaces gin's.
-if (($Plugins -contains 'gin-workflow') -and [string]::IsNullOrWhiteSpace($Project)) {
+# refreshes the launcher only: the add-on's skills are not written into the
+# project, where gin-qa's `setup` would replace gin's in the shared .opencode/skills.
+$refreshedAddons = @()
+if ($Plugins -contains 'gin-workflow') {
     foreach ($addon in @('gin-qa', 'gin-orchestrator')) {
         $addonShim = Join-Path $UserHome ".local/bin/$addon.cmd"
         $addonRoot = Join-Path $UserHome ".local/lib/$addon"
         if ($Plugins -notcontains $addon -and (Test-ManagedLauncherShim -Path $addonShim -ManagedRoot $addonRoot -Name $addon)) {
             Write-Output "Refreshing the installed $addon add-on."
             $Plugins = @($Plugins) + $addon
+            $refreshedAddons += $addon
         }
     }
 }
@@ -1048,6 +1050,9 @@ foreach ($name in $Plugins) {
             'gin-orchestrator' { $OrchLauncherVersion }
         }
         Install-Launcher -Name $name -Version $version
+    }
+    if (($refreshedAddons -contains $name) -and -not [string]::IsNullOrWhiteSpace($Project)) {
+        continue
     }
     Install-Plugin -Name $name
 }

@@ -989,14 +989,16 @@ fi
 
 # An installed add-on runs its own library copy, which calls gin; installing gin
 # refreshes each add-on whose launcher this installer manages. A project install
-# writes only the requested plugins: the add-ons would land in the same
-# .opencode/skills, where gin-qa's `setup` replaces gin's.
-if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]] && [ -z "$PROJECT_DIR" ]; then
+# refreshes the launcher only: the add-on's skills are not written into the
+# project, where gin-qa's `setup` would replace gin's in the shared .opencode/skills.
+REFRESHED_ADDONS=()
+if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
   for addon in gin-qa gin-orchestrator; do
     if [[ " ${PLUGINS[*]} " != *" $addon "* ]] &&
        is_managed_launcher_link "${HOME}/.local/bin/$addon" "${HOME}/.local/lib/$addon" "$addon"; then
       echo "Refreshing the installed $addon add-on."
       PLUGINS+=("$addon")
+      REFRESHED_ADDONS+=("$addon")
     fi
   done
 fi
@@ -1008,6 +1010,9 @@ for p_name in "${PLUGINS[@]}"; do
     gin-orchestrator) install_launcher "$p_name" "$ORCH_LAUNCHER_VERSION" ;;
     gin-ba) warn_if_gin_missing gin-ba ;;
   esac
+  if [ -n "$PROJECT_DIR" ] && [[ " ${REFRESHED_ADDONS[*]:-} " == *" $p_name "* ]]; then
+    continue
+  fi
   install_plugin "$p_name"
 done
 
