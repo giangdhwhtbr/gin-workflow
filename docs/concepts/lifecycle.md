@@ -16,6 +16,8 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 
 Every `record` needs `--actor <id>`; in team mode the actor comes from `git config user.email`. One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the spec's topic slug) so gates from different features do not mix; without one, `default-workflow` is used.
 
+In a workspace, each plan track names its `Repo:` and orchestrate creates the worktree of that child repository under the parent's `.planning/worktrees/` ([workspace guide](../guides/workspace.md)).
+
 `gin state` evaluates the gates and routes to exactly one stage, or holds at `progress` with evidence and remedies when the work is blocked, a capability is disabled, or an approval is missing. It also holds when a gate is `unknown` because the task tracker or the event log cannot be read.
 
 `/roadmap` runs before the stages and records no gate; its epics enter `/discuss <epic-id>`. With `--milestone <id>` it plans a dated milestone over those epics; see the [milestone reference](../reference/cli.md#gin-milestone) and the [roadmap skill](../reference/skills.md).
@@ -61,7 +63,7 @@ At handoff the agent reports what changed, what was validated and what was not, 
 
 ## Ship
 
-`ship` requires `implementation_complete` and a terminal review state, and runs the plain steps above. It then offers four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. For a merge, it first runs `usage collect` for the epic and deletes the closed tracks' review ledgers in a commit on the feature branch. It then merges, removes the worktree, deletes the branch, and closes the epic, which marks `shipped`.
+`ship` requires `implementation_complete` and a terminal review state, and runs the plain steps above. It then offers four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. For a merge, it first runs `usage collect` for the epic and deletes the closed tracks' review ledgers in a commit on the feature branch. It then merges, removes the worktree, deletes the branch, and closes the epic, which marks `shipped`. In a workspace ship integrates one repository at a time, the parent last; for a standalone bead, `record shipped` carries one merge commit per repository in `--evidence`.
 
 `state` warns when `implementation_complete` holds and no commit has touched the knowledge directory since `orchestration.ready`; committing a knowledge record (see `learn`) clears it.
 

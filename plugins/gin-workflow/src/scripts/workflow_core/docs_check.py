@@ -9,7 +9,7 @@ import re
 import sys
 from typing import Iterator, Sequence
 
-from . import specs
+from . import specs, workspace
 
 STYLE_RULES = (("dash", re.compile("[–—]")),
                ("bold-label item", re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\*\*")),
@@ -65,13 +65,14 @@ def _parser() -> argparse.ArgumentParser:
     check = sub.add_parser("check")
     check.add_argument("files", nargs="+", type=Path)
     check.add_argument("--template")
-    check.add_argument("--repository", type=Path, default=Path.cwd())
+    check.add_argument("--repository", type=Path, default=None)
     check.add_argument("--format", choices=("text", "json"), default="text")
     return parser
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(arguments)
+    args.repository = workspace.repository_root(args.repository)
     missing = [str(path) for path in args.files if not path.is_file()]
     if missing:
         print(f"no such file: {', '.join(missing)}", file=sys.stderr)

@@ -12,6 +12,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import workspace
 from .checkout import main_checkout
 from .configuration import ConfigValidationError, load_effective_config
 
@@ -61,9 +62,10 @@ def notify(root: Path | str, event: str, message: str, *, environ: Mapping[str, 
 def main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="gin notify")
     parser.add_argument("--event", required=True, choices=EVENTS)
-    parser.add_argument("--repository", default=".")
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("message")
     args = parser.parse_args(list(argv))
-    if warning := notify(Path(args.repository), args.event, args.message):
+    args.repository = workspace.repository_root(args.repository)
+    if warning := notify(args.repository, args.event, args.message):
         print(f"Warning: {warning}", file=sys.stderr)
     return 0

@@ -8,12 +8,12 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
-from . import specs
+from . import specs, workspace
 
 
 def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin specs")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -185,6 +185,7 @@ def main(arguments: Sequence[str]) -> int:
         args = _parser().parse_args(list(arguments))
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
+    args.repository = workspace.repository_root(args.repository)
     try:
         return _run(args)
     except (specs.SpecsError, ValueError) as error:

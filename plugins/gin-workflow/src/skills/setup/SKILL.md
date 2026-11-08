@@ -18,9 +18,10 @@ Ask exactly one question at a time and wait for its answer. Do not infer require
 3. **Verify commands** — Confirm the detected lint, typecheck, test, build, and e2e commands; the user may edit any. On greenfield, ask for `stack_intent` instead.
 4. **Code index** — Brownfield or legacy only. When `codegraph.installed` is true and it is not `indexed`: offer `codegraph init`, and run it only on approval. When `codegraph.installed` is false: print one line suggesting CodeGraph with https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md; do not ask, install, or wait.
 5. **Task tracking** — `markdown` (default) or `beads` (needs Beads), passed as `--task-tracking`.
+6. **Workspace** — Ask whether this repository is the parent of several repositories (services, apps, a frozen legacy, shared Beads). On yes pass `--workspace` to `preset` and `init`; it writes an empty `workspace.repos` and the parent `.gitignore` lines. The lead then fills one entry per repository (`path`, `url`, `shape`, `frozen`, `default_branch`, `verify.checks`) and runs `gin workspace clone --all` and `gin hooks install --all-repos`.
 
 Then:
-1. `gin setup preset --project-stage S --project-shape X --rigor R --task-tracking T [--monorepo] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
+1. `gin setup preset --project-stage S --project-shape X --rigor R --task-tracking T [--monorepo] [--workspace] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
 2. Run `init --dry-run` with the harness and every assignment. Present `configuration`, the proposed `rule_packs` (the user may add or remove packs as an extra `--set rules.packs=[...]`), each `rule_tool_checks` item with its `suggest` snippet (suggestions only; setup never edits lint or type configs), the exact files/actions, and any validation error. Do not write on dry-run.
 3. Obtain explicit native-harness approval for the proposal.
 4. Run one approved `init` with the same harness and same assignments. The CLI validates before any atomic write.

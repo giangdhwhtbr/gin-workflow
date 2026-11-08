@@ -26,7 +26,7 @@ from .configuration import ConfigValidationError, load_effective_config, require
 from .events import WorkflowEvent, WorkflowEventStore
 from .locking import file_lock
 from .models import EffectiveConfig
-from . import orchestrator_client, usage
+from . import orchestrator_client, usage, workspace
 from .project_detect import detect_project
 from .provider_config import PROVIDER_DEFAULT
 
@@ -99,6 +99,10 @@ def resolve(
                     "manifest": None,
                 }
             entries = list(reply.get("routes", []))
+            repos = {str(t.get("task_id", "")).strip(): str(t["repo"])
+                     for t in tracks if isinstance(t, Mapping) and t.get("repo")}
+            entries = [{**e, "repo": repos[e["task_id"]]} if isinstance(e, Mapping) and e.get("task_id") in repos else e
+                       for e in entries]
             manifest = None
             try:
                 path = write_assignments(root, workflow_id, entries)
@@ -157,7 +161,10 @@ def resolve(
                     main_harness=harness,
                     workflow_id=workflow_id,
                 )
-                entries.append(AssignmentManifest(workflow_id, request, resolve_main_harness(request)).to_dict())
+                entry = AssignmentManifest(workflow_id, request, resolve_main_harness(request)).to_dict()
+                if isinstance(track, Mapping) and track.get("repo"):
+                    entry["repo"] = str(track["repo"])
+                entries.append(entry)
             except AssignmentResolutionError as error:
                 diagnostics.append(f"{task_id}.route: {error}")
 
@@ -346,17 +353,18 @@ def main(argv: Sequence[str]) -> int:
     resolve_parser = commands.add_parser("resolve")
     resolve_parser.add_argument("--workflow-id", required=True)
     resolve_parser.add_argument("--tracks", type=Path, required=True)
-    resolve_parser.add_argument("--repository", type=Path, default=Path.cwd())
+    resolve_parser.add_argument("--repository", type=Path, default=None)
     resolve_parser.add_argument("--json", action="store_true")
 
     dispatch_parser = commands.add_parser("dispatch")
     dispatch_parser.add_argument("--workflow-id", required=True)
     dispatch_parser.add_argument("--task-id", required=True)
     dispatch_parser.add_argument("--escalate")
-    dispatch_parser.add_argument("--repository", type=Path, default=Path.cwd())
+    dispatch_parser.add_argument("--repository", type=Path, default=None)
     dispatch_parser.add_argument("--json", action="store_true")
 
     args = parser.parse_args(list(argv))
+    args.repository = workspace.repository_root(args.repository)
     root = args.repository.resolve()
 
     if args.command == "resolve":

@@ -8,12 +8,12 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
-from . import team as team_core
+from . import team as team_core, workspace
 
 
 def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin team")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -95,7 +95,11 @@ def _run(args: argparse.Namespace) -> int:
         _emit({"path": team_init.codeowners_path(team), "text": text}, args.format, text.rstrip("\n"))
         return 0
     if args.command == "check-plan":
-        return _findings(team_core.check_plan(team, args.plan), args.format, "ok")
+        findings = team_core.check_plan(team, args.plan)
+        located = workspace.locate(args.repository)
+        if located.workspace is not None:
+            findings += team_core.check_plan_repos(located.workspace, args.plan)
+        return _findings(findings, args.format, "ok")
     if args.command == "check":
         pr, artifact, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan,
                                                       spec=args.spec)
@@ -171,6 +175,7 @@ def main(arguments: Sequence[str]) -> int:
         args = _parser().parse_args(list(arguments))
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
+    args.repository = workspace.repository_root(args.repository)
     try:
         return _run(args)
     except (team_core.TeamError, HostUnavailable, ValueError) as error:

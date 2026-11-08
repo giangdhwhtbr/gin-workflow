@@ -11,6 +11,7 @@ from typing import Any, Sequence
 
 from .checkout import main_checkout
 from .events import WorkflowEvent, WorkflowEventStore
+from . import workspace
 
 # Not the name of the removed verification gate: usage attribution still maps that event to the `verify` stage.
 EVENT_TYPE = "checks.passed"
@@ -34,15 +35,15 @@ def clean_tree(root: Path) -> str | None:
     return tree.stdout.strip() if tree.returncode == 0 else None
 
 
-def record(root: Path, hook: str, tree: str, commands: Sequence[str]) -> None:
-    path = _events_path(root)
+def record(root: Path, hook: str, tree: str, commands: Sequence[str], *, events_root: Path | None = None) -> None:
+    path = _events_path(events_root or root)
     path.parent.mkdir(parents=True, exist_ok=True)
     WorkflowEventStore(path).append(WorkflowEvent.create(
         event_type=EVENT_TYPE, workflow_id=WORKFLOW_ID,
         payload={"tree": tree, "hook": hook, "commands": sorted(commands)}))
 
 
-def check(root: Path, commit: str | None = None) -> tuple[dict[str, Any] | None, str]:
+def check(root: Path, commit: str | None = None, *, events_root: Path | None = None) -> tuple[dict[str, Any] | None, str]:
     """The newest record that ran `test` on the commit's tree, or on HEAD's tree when nothing tracked changed."""
     if commit is None:
         tree = clean_tree(root)
@@ -53,7 +54,7 @@ def check(root: Path, commit: str | None = None) -> tuple[dict[str, Any] | None,
         if done.returncode:
             return None, f"unknown commit: {commit}"
         tree = done.stdout.strip()
-    path = _events_path(root)
+    path = _events_path(events_root or root)
     events = WorkflowEventStore(path).read_all() if path.is_file() else []
     matches = [event for event in events
                if event.event_type == EVENT_TYPE and (event.payload or {}).get("tree") == tree]
@@ -82,13 +83,14 @@ def run(root: Path) -> int:
 def main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="gin evidence")
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("run", parents=[common])
     checker = sub.add_parser("check", parents=[common])
     checker.add_argument("--commit")
     checker.add_argument("--json", action="store_true")
     args = parser.parse_args(list(argv))
+    args.repository = workspace.repository_root(args.repository)
     root = args.repository.resolve()
     if args.command == "run":
         return run(root)

@@ -14,7 +14,7 @@ from typing import Any
 from .catalog import Catalog, DEFAULT_CATALOGS, catalog_for, map_route, route_diagnostics, tier_of
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
-from . import orchestrator_client
+from . import orchestrator_client, workspace
 
 
 class ReviewerError(Exception):
@@ -151,13 +151,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--implementer", required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--effort", default=None)
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--json", action="store_true")
 
     try:
         args = parser.parse_args(list(argv) if argv is not None else sys.argv[1:])
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
+    args.repository = workspace.repository_root(args.repository)
     root = args.repository.resolve()
     try:
         config = load_effective_config(root)

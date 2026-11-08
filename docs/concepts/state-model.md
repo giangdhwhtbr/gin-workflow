@@ -52,7 +52,7 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
   plans/        approved plans
   reviews/      review ledgers, one folder per bead
   tasks/        Markdown task files when providers.task_tracking is markdown (gitignored)
-  worktrees/    git-fallback worktrees, one per track or epic (gitignored)
+  worktrees/    git-fallback worktrees, one per track or epic (gitignored); in a workspace, worktrees of the child repositories
   knowledge/    durable project knowledge
 .agent-workflow/
   config.yaml              portable configuration (tracked)
@@ -63,6 +63,8 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
 ```
 
 On first setup, `gin setup init` writes `.agent-workflow/.gitignore` with the entries listed in [Configuration](../reference/config.md); `setup configure` does not touch it. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
+
+In a workspace the parent owns config, specs, plans, runtime, and beads; each child owns its hooks, branches, and worktrees ([workspace guide](../guides/workspace.md)).
 
 ## Runtime metadata
 

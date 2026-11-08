@@ -18,7 +18,7 @@ from .setup_service import COMMANDS, SetupError
 
 CLI_VERSION = "3.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
-                "reviewer", "hooks", "evidence", "task", "routes", "notify", "paths", "goal", "worktree", "milestone")
+                "reviewer", "hooks", "evidence", "task", "routes", "notify", "paths", "goal", "worktree", "workspace", "milestone")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -26,7 +26,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("action", choices=tuple(COMMANDS))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--format", choices=("text", "json"), default="text")
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--harness", choices=("claude", "codex", "antigravity", "opencode", "copilot"))
     parser.add_argument("--non-interactive", action="store_true")
     parser.add_argument("--approve", action="store_true")
@@ -43,6 +43,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--rigor", choices=RIGORS)
     parser.add_argument("--task-tracking", choices=("markdown", "beads"))
     parser.add_argument("--monorepo", action="store_true")
+    parser.add_argument("--workspace", action="store_true")
     parser.add_argument("--stack-intent", default="")
     parser.add_argument("--provider", choices=("claude", "codex", "antigravity", "opencode", "copilot"))
     return parser
@@ -68,61 +69,70 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if not argv or argv[0] not in TOP_COMMANDS:
         print(f"usage: gin {{{','.join(TOP_COMMANDS)}}} <command>", file=sys.stderr)
         return 2
-    if argv[0] == "routes":
-        from .routes import main as routes_main
-        return routes_main(argv[1:])
-    if argv[0] == "notify":
-        from .notify import main as notify_main
-        return notify_main(argv[1:])
-    if argv[0] == "paths":
-        import json
-        from pathlib import Path
-        print(json.dumps({"lib_dir": str(Path(__file__).resolve().parents[1])}))
-        return 0
-    if argv[0] == "goal":
-        from .goal import main as goal_main
-        return goal_main(argv[1:])
-    if argv[0] == "worktree":
-        from .worktrees import main as worktrees_main
-        return worktrees_main(argv[1:])
-    if argv[0] == "task":
-        from .tasks import main as tasks_main
-        return tasks_main(argv[1:])
-    if argv[0] == "hooks":
-        from .hooks import main as hooks_main
-        return hooks_main(argv[1:])
-    if argv[0] == "rules":
-        from .rules import main as rules_main
-        return rules_main(argv[1:])
-    if argv[0] == "docs":
-        from .docs_check import main as docs_main
-        return docs_main(argv[1:])
-    if argv[0] == "specs":
-        from .specs_cli import main as specs_main
-        return specs_main(argv[1:])
-    if argv[0] == "team":
-        from .team_cli import main as team_main
-        return team_main(argv[1:])
-    if argv[0] == "milestone":
-        from .milestone_cli import main as milestone_main
-        return milestone_main(argv[1:])
-    if argv[0] == "evidence":
-        from .verification import main as evidence_main
-        return evidence_main(argv[1:])
-    if argv[0] == "usage":
-        from .usage_cli import main as usage_main
-        return usage_main(argv[1:])
-    if argv[0] == "reviewer":
-        from .reviewer import main as reviewer_main
-        return reviewer_main(argv[1:])
-    if argv[0] in ("state", "unblock", "record", "quick-check"):
-        from .lifecycle_cli import main as lifecycle_main
-        return lifecycle_main(argv)
+    from . import workspace
+    try:
+        if argv[0] == "routes":
+            from .routes import main as routes_main
+            return routes_main(argv[1:])
+        if argv[0] == "notify":
+            from .notify import main as notify_main
+            return notify_main(argv[1:])
+        if argv[0] == "paths":
+            import json
+            from pathlib import Path
+            print(json.dumps({"lib_dir": str(Path(__file__).resolve().parents[1])}))
+            return 0
+        if argv[0] == "goal":
+            from .goal import main as goal_main
+            return goal_main(argv[1:])
+        if argv[0] == "worktree":
+            from .worktrees import main as worktrees_main
+            return worktrees_main(argv[1:])
+        if argv[0] == "workspace":
+            from .workspace_cli import main as workspace_main
+            return workspace_main(argv[1:])
+        if argv[0] == "task":
+            from .tasks import main as tasks_main
+            return tasks_main(argv[1:])
+        if argv[0] == "hooks":
+            from .hooks import main as hooks_main
+            return hooks_main(argv[1:])
+        if argv[0] == "rules":
+            from .rules import main as rules_main
+            return rules_main(argv[1:])
+        if argv[0] == "docs":
+            from .docs_check import main as docs_main
+            return docs_main(argv[1:])
+        if argv[0] == "specs":
+            from .specs_cli import main as specs_main
+            return specs_main(argv[1:])
+        if argv[0] == "team":
+            from .team_cli import main as team_main
+            return team_main(argv[1:])
+        if argv[0] == "milestone":
+            from .milestone_cli import main as milestone_main
+            return milestone_main(argv[1:])
+        if argv[0] == "evidence":
+            from .verification import main as evidence_main
+            return evidence_main(argv[1:])
+        if argv[0] == "usage":
+            from .usage_cli import main as usage_main
+            return usage_main(argv[1:])
+        if argv[0] == "reviewer":
+            from .reviewer import main as reviewer_main
+            return reviewer_main(argv[1:])
+        if argv[0] in ("state", "unblock", "record", "quick-check"):
+            from .lifecycle_cli import main as lifecycle_main
+            return lifecycle_main(argv)
+    except workspace.WorkspaceError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     parsed = _parser().parse_args(argv[1:])
     options = vars(parsed)
     action = options.pop("action")
     output_format = options.pop("format")
     try:
+        options["repository"] = workspace.repository_root(options["repository"])
         payload = COMMANDS[action](**options)
     except DependencyUnavailableError as error:
         message = str(error)

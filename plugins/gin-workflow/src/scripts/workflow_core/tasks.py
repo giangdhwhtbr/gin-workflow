@@ -10,7 +10,7 @@ import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
-from . import task_markdown
+from . import task_markdown, workspace
 from .checkout import main_checkout
 from .configuration import ConfigValidationError
 from .executables import tool
@@ -101,15 +101,14 @@ def without_held(result: Any, held: Mapping[str, Any]) -> Any:
     return result
 
 
-def _ready(executable: str, argv: Sequence[str]) -> int:
-    root = Path.cwd()
+def _ready(executable: str, argv: Sequence[str], root: Path) -> int:
     held = held_by_external(root, executable)
     if held is None:
         print("error: bd ready --explain failed, so external dependencies cannot be checked", file=sys.stderr)
         return 1
     if not held:
-        return subprocess.run([executable, *argv], check=False).returncode
-    completed = subprocess.run([executable, *argv], text=True, capture_output=True, check=False)
+        return subprocess.run([executable, *argv], cwd=root, check=False).returncode
+    completed = subprocess.run([executable, *argv], cwd=root, text=True, capture_output=True, check=False)
     sys.stderr.write(completed.stderr)
     if completed.returncode != 0:
         sys.stdout.write(completed.stdout)
@@ -186,7 +185,7 @@ def _bd_env(root: Path, argv: Sequence[str]) -> dict[str, str] | None:
 
 
 def main(argv: Sequence[str]) -> int:
-    root = Path.cwd()
+    root = workspace.project_root(Path.cwd())
     try:
         name = backend(root)
     except ConfigValidationError as error:
@@ -207,5 +206,5 @@ def main(argv: Sequence[str]) -> int:
               "(gin setup configure --set providers.task_tracking=markdown)", file=sys.stderr)
         return 127
     if argv[:1] == ["ready"]:
-        return _ready(executable, [*argv, "--exclude-type", "milestone"])
-    return subprocess.run([executable, *argv], check=False, env=_bd_env(root, argv)).returncode
+        return _ready(executable, [*argv, "--exclude-type", "milestone"], root)
+    return subprocess.run([executable, *argv], cwd=root, check=False, env=_bd_env(root, argv)).returncode

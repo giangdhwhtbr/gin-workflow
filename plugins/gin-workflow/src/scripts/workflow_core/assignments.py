@@ -208,6 +208,7 @@ def write_assignments(
                 "resolved": entry.get("resolved", {}),
                 "fallback": entry.get("fallback", []),
                 "escalations": entry.get("escalations", []),
+                **({"repo": entry["repo"]} if entry.get("repo") else {}),
             }
         payload = {
             "workflow_id": workflow_id,

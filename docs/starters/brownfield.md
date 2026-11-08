@@ -6,14 +6,17 @@ In an existing codebase the code is often the only specification, so preventing 
 
 ## The scenario
 
-`shop-portal` is a Java 8 JSP and Struts monolith on Oracle. The team replaces it behind a facade with a Spring Boot REST API and a React SPA, in one monorepo:
+`shop-portal` is a Java 8 JSP and Struts monolith on Oracle. The team replaces it behind a facade with a Spring Boot REST API and a React SPA, under one parent repository (a workspace):
 
 | Directory | Content |
 |---|---|
-| `legacy/` | the Struts application, brought in as a git subtree |
-| `services/api/` | the Spring Boot API and the facade |
-| `apps/web/` | the React SPA |
-| `qa/` | test cases, end-to-end specs, evidence |
+| `legacy/shop-portal/` | the Struts application, a `frozen` read-only repository |
+| `services/order-api/` | the Spring Boot order API and the facade |
+| `services/catalog-api/` | the Spring Boot catalog API |
+| `apps/web-shop/` | the React SPA for customers |
+| `apps/web-admin/` | the React SPA for administrators |
+| `qa/` | the automation repository: test cases, end-to-end specs, evidence |
+| `.beads/` | the shared Beads database |
 
 The team has seven people. Lan and Binh hold the two Claude Team Premium seats, so they take the work that needs the strongest model: the roadmap and milestones, the plan, reviews, and the hardest migration track. An, Em, Dung, Hoa, and Chi hold the five Standard seats and take bounded tracks. Seat allocation is a team choice, not a setting.
 
@@ -23,7 +26,7 @@ The team has seven people. Lan and Binh hold the two Claude Team Premium seats, 
 | An | `ba` | [BA](../roles.md#ba) | Specs and user stories |
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | API work |
-| Dung | `be_dev` | [Developer](../roles.md#developer) | API and legacy work |
+| Dung | `be_dev` | [Developer](../roles.md#developer) | API work |
 | Hoa | `fe_dev` | [Developer](../roles.md#developer) | React SPA work |
 | Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, ship approval |
 
@@ -42,9 +45,9 @@ team:
     hoa@example.com: {roles: [fe_dev], login: hoa-dev}
     chi@example.com: {roles: [qe], login: chi-qe}
   areas:
-    legacy: {paths: ["legacy/**"], lead: be_lead, roles: [be_dev]}
-    api: {paths: ["services/api/**"], lead: be_lead, roles: [be_dev]}
-    web: {paths: ["apps/web/**"], lead: be_lead, roles: [fe_dev]}
+    legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}  # read-only: for tech-doc reading, no track targets it
+    api: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
+    web: {paths: ["apps/**"], lead: be_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
     requirement_confirmed: [ba, be_lead]
@@ -78,37 +81,66 @@ flowchart LR
 
 **Who:** Tech Lead, once.
 
+**Where:** the parent repository, which holds `docs/` and `.planning/`. Its siblings are plain clones under it, not submodules.
+
 **Prompt**
+```text
+/gin:setup
+```
+Answer `stage: brownfield`, `shape: fullstack`, and `workspace` for the repository layout. Then fill `workspace.repos` in `.agent-workflow/config.yaml`:
+
+```yaml
+workspace:
+  repos:
+    - {path: legacy/shop-portal, url: git@github.com:acme/shop-portal.git, frozen: true}
+    - path: services/order-api
+      url: git@github.com:acme/order-api.git
+      shape: backend
+      verify: {checks: {test: mvn -q test, build: mvn -q package}}
+    - path: services/catalog-api
+      url: git@github.com:acme/catalog-api.git
+      shape: backend
+      verify: {checks: {test: mvn -q test, build: mvn -q package}}
+    - {path: apps/web-shop, url: git@github.com:acme/web-shop.git, shape: frontend,
+       verify: {checks: {lint: npm run lint, test: npm test, build: npm run build}}}
+    - {path: apps/web-admin, url: git@github.com:acme/web-admin.git, shape: frontend,
+       verify: {checks: {lint: npm run lint, test: npm test, build: npm run build}}}
+    - {path: qa, url: git@github.com:acme/qa.git, shape: qa}
+    - {path: .beads, url: git@github.com:acme/beads.git, shape: beads}
+```
+
+Then clone everything and install the hooks in each repository:
+
+```bash
+gin workspace clone --all
+gin hooks install --all-repos
+gin setup doctor
+```
+
+Put in the prompt: the six repositories above with the stack of each (Maven for the services, npm for the apps), and the shared Beads repository.
+
+`legacy/shop-portal` is `frozen`: it is cloned shallow, read for the survey and the parity tests, and never gets hooks, tracks, or worktrees. `.beads` is the entry that holds the shared Beads database. `qa` is the automation repository, so `gin-qa` keeps writing `qa/cases/`, `qa/e2e/`, and `qa/evidence/` into it. Every path is added to the parent `.gitignore`, so the parent tracks no child. Each engineer clones only the repositories they work on; see the [workspace guide](../guides/workspace.md).
+
+The alternative is one repository with the legacy code as a git subtree:
+
 ```bash
 git subtree add --prefix=legacy git@github.com:acme/shop-portal.git main
 mkdir -p services/api apps/web qa
 ```
-```text
-/gin:setup
-```
-Answer `stage: brownfield`, `shape: fullstack`, `monorepo: true`.
 
-Put in the prompt: the directories above and the stack of each (Maven for the API, npm for the SPA).
+In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.packages` entry for `services/api` and one for `apps/web` yourself, each with `path`, `shape`, and `verify.checks` ([configuration](../reference/config.md#verifychecks)). Choose it when a facade change, a parity test, and a legacy removal must land in one pull request and one history, when the team is small enough to share one deploy pipeline, and when nobody needs to deploy a service on its own. Pull later vendor fixes with `git subtree pull --prefix=legacy git@github.com:acme/shop-portal.git main`. The rest of this page assumes the workspace.
 
-Keep the legacy code and its replacement in one monorepo, so a facade change, a parity test, and a legacy removal land in one pull request and one history. `git subtree` copies the legacy history under a directory and leaves nothing for teammates to initialize. Pull later vendor fixes with:
-
-```bash
-git subtree pull --prefix=legacy git@github.com:acme/shop-portal.git main
-```
-
-Git submodules are a poor fit: every checkout inside a submodule dirties the parent repository, and each member must keep two commits in step. A legacy repository stays separate when another team owns its deploy pipeline, when compliance requires its history or access list to stay apart, or when it is too large to carry in every clone.
-
-Setup detects `packages` only from JavaScript workspaces. For this Maven and npm mix, add a `project.packages` entry for `services/api` and one for `apps/web` yourself in `.agent-workflow/config.yaml`, each with `path`, `shape`, and `verify.checks`. Hooks then run a package's checks in its directory ([configuration](../reference/config.md#verifychecks)).
-
-**You get:** the legacy history under `legacy/`, and `.agent-workflow/config.yaml` with the project settings and your `project.packages` entries.
+**You get:** every repository cloned at its path, a pre-commit and pre-push hook in each cloned repository except frozen and beads entries that runs that repository's checks, and `.agent-workflow/config.yaml` with `workspace.repos`.
 
 **Gate or approval:** none.
 
-**Common mistakes:** a submodule instead of a subtree; no `project.packages` entry for a package, so its checks never run.
+**Common mistakes:** running `/gin:setup` inside a child instead of the parent; leaving a path in `.gitmodules` while it is also in `workspace.repos` (`gin setup doctor` reports it as still a submodule); forgetting `gin hooks install --all-repos`, so a child has no hooks.
 
 ## Setup and team setup
 
 **Who:** Tech Lead once per repository, then every member once on their own clone. Members do not register themselves: the lead lists every member, role, area, and approval in the `team:` block. Chi also runs `/gin-qa:setup` once.
+
+**Where:** the parent.
 
 **Prompt (Tech Lead)**
 ```text
@@ -141,6 +173,8 @@ The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin te
 
 **Who:** Tech Lead.
 
+**Where:** the parent.
+
 **Prompt**
 ```text
 /gin:tech-doc whole repository
@@ -159,6 +193,8 @@ When the legacy system uses a language other than English, the set also holds `1
 ## Roadmap overview
 
 **Who:** PM.
+
+**Where:** the parent.
 
 **Prompt**
 ```text
@@ -182,6 +218,8 @@ The gin-console Dependencies page shows the same graph. Choose what goes first f
 ## Milestone planning
 
 **Who:** PM.
+
+**Where:** the parent.
 
 **Prompt**
 ```bash
@@ -208,6 +246,8 @@ gin milestone show <id>
 ## Discuss an epic
 
 **Who:** BA.
+
+**Where:** the parent.
 
 **Prompt**
 ```text
@@ -237,23 +277,25 @@ Write the REST contract of each endpoint the same way (path, method, request, re
 
 **Who:** Tech Lead.
 
+**Where:** the parent.
+
 **Prompt**
 ```text
 /gin:plan
 /gin:orchestrate
 ```
 
-Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat.
+Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat. Each track carries `Repo: <path>`, for example `Repo: services/order-api`.
 
 **You get:** a plan with tracks per area and owner (`gin team check-plan <plan>` must pass), then one track bead per track under the reused epic, including the QA tracks, an isolated worktree per track, and dependencies. Members claim their beads with `gin team claim <bead>`.
 
 **Gate or approval:** with `plan_approved: area_lead`, the area lead approves the plan pull request.
 
-**Common mistakes:** a track that touches two areas, for example `services/api/` and `apps/web/`; run `gin team check-plan <plan>` before asking for approval.
+**Common mistakes:** a track that touches two areas, for example `services/` and `apps/`; run `gin team check-plan <plan>` before asking for approval.
 
 ### Strangler Fig
 
-Modernize one bounded context at a time behind a stable facade or router instead of an all-at-once rewrite. Traffic for modernized endpoints goes to the new implementation while unmigrated requests pass through to the legacy core. The facade or gateway is your own infrastructure; gin-workflow does not provide one. The `team.areas` above keep a track inside either the legacy or the modernized paths.
+Modernize one bounded context at a time behind a stable facade or router instead of an all-at-once rewrite. Traffic for modernized endpoints goes to the new implementation while unmigrated requests pass through to the legacy core. The facade or gateway is your own infrastructure; gin-workflow does not provide one. The `team.areas` above keep every track inside the modernized repositories; the frozen `legacy` area exists only so `/gin:tech-doc` can read it, and no track targets it.
 
 In `/gin:discuss`, settle the data migration strategy (dual-write or backfill) and the rollback criteria, and in `/gin:plan` split the epic into single-area tracks:
 
@@ -263,7 +305,7 @@ In `/gin:discuss`, settle the data migration strategy (dual-write or backfill) a
 | 2 | `api` | Em | Spring Boot API, facade, and parity tests against the contract |
 | 3 | `web` | Hoa | React UI built against contract mocks |
 | 4 | `web` | Hoa | Integration: replace the mocks with real API calls |
-| 5 | `legacy` | Binh | Router cutover to the new facade, on a Premium seat with a high effort |
+| 5 | `api` (`services/order-api`) | Binh | Router cutover to the new facade, on a Premium seat with a high effort |
 | 6 | `qa` | Chi | API tests, E2E, manual runs, and the report |
 
 ```mermaid
@@ -284,6 +326,8 @@ Parity and data validation scripts run in the `pre-push` hook when the `verify.c
 ## Test cases
 
 **Who:** QE.
+
+**Where:** the `qa` repository.
 
 **Prompt**
 ```text
@@ -307,7 +351,9 @@ Passing unit tests does not show that the new code behaves like the old. Parity 
 
 ## Execute
 
-**Who:** Developer (Em and Dung for the API and legacy tracks, Hoa for the SPA tracks).
+**Who:** Developer (Em and Dung for the API tracks, Hoa for the SPA tracks).
+
+**Where:** the track worktree `<parent>/.planning/worktrees/<track-id>` (one service or one app).
 
 **Prompt**
 ```bash
@@ -338,6 +384,8 @@ The new assignee must be allowed to own tracks in the bead's areas, then checks 
 
 **Who:** QE.
 
+**Where:** the `qa` repository.
+
 **Prompt**
 ```text
 /gin-qa:e2e catalog
@@ -361,6 +409,8 @@ Put in the prompt: the base URL of the SPA, the test accounts (as environment va
 
 **Who:** Tech Lead.
 
+**Where:** the parent.
+
 **Prompt**
 ```text
 /gin:ship
@@ -377,6 +427,8 @@ Put in the prompt: the epic and whether to merge now or keep the branch.
 ## Milestone review and spill-over
 
 **Who:** PM, on the milestone's end date.
+
+**Where:** the parent.
 
 **Prompt**
 ```bash

@@ -14,7 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
 from workflow_core.configuration import resolve_effective_config  # noqa: E402
-from workflow_core.team import check_plan, load_team, plan_tracks, repo_slug  # noqa: E402
+from workflow_core.team import check_plan, check_plan_repos, load_team, plan_tracks, repo_slug  # noqa: E402
+from workflow_core.workspace import Workspace, repos_from  # noqa: E402
 from workflow_core.team_host import fetch_pr  # noqa: E402
 
 import yaml  # noqa: E402
@@ -22,6 +23,13 @@ import yaml  # noqa: E402
 PR = "https://github.com/org/app/pull/7"
 MR = "https://gitlab.corp.com/group/app/-/merge_requests/12"
 PLAN_PATH = ".planning/plans/2026-10-03-login.md"
+WORKSPACE = """workspace:
+  repos:
+    - {path: services/api, url: u1, shape: backend}
+    - {path: apps/web, url: u2, shape: frontend}
+    - {path: legacy/portal, url: u3, frozen: true}
+    - {path: .beads, url: u4, shape: beads}
+"""
 SPEC_PATH = ".planning/specs/2026-10-03-login-design.md"
 
 
@@ -632,6 +640,38 @@ class TestPlanChecks(unittest.TestCase):
                           "Track 2: missing Area:"], check_plan(self.team, path))
         result = run_cli(self.root, "team", "check-plan", str(path))
         self.assertEqual(1, result.returncode)
+
+    def test_plan_tracks_reads_repo(self):
+        plan = (PLAN.replace("- Owner: em@corp.com\n", "- Owner: em@corp.com\n- **Repo**: `services/api`\n")
+                .replace("- Owner: chi@corp.com\n", "- Owner: chi@corp.com\n- Repo: apps/web\n"))
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertEqual(["services/api", "apps/web"], [track.repo for track in plan_tracks(path)])
+        self.assertEqual("", plan_tracks(write(self.root, PLAN_PATH, PLAN))[0].repo)
+
+    def test_check_plan_repos_findings(self):
+        space = Workspace(self.root, repos_from(yaml.safe_load(WORKSPACE)))
+        plan = ("# Plan\n\n## Tasks\n\n"
+                "### Track 1: None\n- **Files**:\n  - Modify `services/api/a.py`\n\n"
+                "### Track 2: Unknown\n- **Repo**: `services/billing`\n- **Files**:\n  - Modify `services/billing/a.py`\n\n"
+                "### Track 3: Frozen\n- **Repo**: `legacy/portal`\n- **Files**:\n  - Modify `legacy/portal/a.php`\n\n"
+                "### Track 4: Outside\n- **Repo**: `services/api`\n- **Files**:\n"
+                "  - Modify `services/api/b.py`, `apps/web/b.tsx`\n\n"
+                "### Track 5: Beads\n- **Repo**: `.beads`\n- **Files**:\n  - Modify `.beads/x.jsonl`\n\n"
+                "### Track 6: Fine\n- **Repo**: `apps/web`\n- **Files**:\n  - Modify `apps/web/c.tsx`\n\n"
+                "## Integration\n")
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertEqual(["Track 1: missing Repo:",
+                          "Track 2: Repo: services/billing is not in workspace.repos",
+                          "Track 3: Repo: legacy/portal is frozen",
+                          "Track 4: `apps/web/b.tsx` is outside repo services/api",
+                          "Track 5: Repo: .beads is the beads repository"], check_plan_repos(space, path))
+
+    def test_check_plan_cli_adds_workspace_findings(self):
+        root = make_team_repo(Path(self.tmp.name) / "ws", extra=WORKSPACE)
+        path = write(root, PLAN_PATH, PLAN)
+        result = run_cli(root, "team", "check-plan", str(path), "--format", "json")
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertEqual(["Track 1: missing Repo:", "Track 2: missing Repo:"], json.loads(result.stdout)["findings"])
 
     def test_a_file_in_two_tracks_is_rejected(self):
         plan = PLAN.replace("- Modify: `web/login.tsx:10-20`\n",

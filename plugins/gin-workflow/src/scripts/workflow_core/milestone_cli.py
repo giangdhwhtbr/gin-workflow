@@ -12,7 +12,7 @@ import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
-from . import milestone as core
+from . import milestone as core, workspace
 from .executables import tool
 
 
@@ -30,7 +30,7 @@ def _today() -> date:
 
 def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     parser = argparse.ArgumentParser(prog="gin milestone")
     sub = parser.add_subparsers(dest="command", required=True)
     item = sub.add_parser("create", parents=[common])
@@ -288,6 +288,7 @@ def main(arguments: Sequence[str]) -> int:
         args = _parser().parse_args(list(arguments))
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
+    args.repository = workspace.repository_root(args.repository)
     try:
         return _run(args)
     except Denied as error:

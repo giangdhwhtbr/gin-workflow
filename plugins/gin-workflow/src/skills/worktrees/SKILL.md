@@ -32,3 +32,11 @@ Run the project test command (configured `verify.commands` first). If it fails, 
 
 ## Cleanup
 Only after merge or a confirmed discard: from the main checkout (never from inside the worktree), run `gin worktree cleanup <track-id>`, then `git worktree prune`, then delete the branch. Keep the worktree for PR and keep-as-is outcomes.
+
+## 3. Workspace
+When `gin state --format json` reports `workspace.current_repo`, the worktree is one child repository and the project root is the parent:
+- Strip the `<repo>/` prefix from the plan's `Files:`; paths in the worktree are repo-relative.
+- Read `references/shape-<shape>.md` for the entry's `shape` (`backend`, `frontend`); `library` and `qa` have none.
+- Commit and push in this worktree only; the spec and plan live in the parent and are read, never edited, by a track.
+- `gin` commands from inside the worktree resolve the parent: `gin task`, `gin state`, `gin review` need no `--repository`.
+- Cleanup from the parent: `gin worktree cleanup --repository <repo> <track-id>`.

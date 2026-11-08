@@ -16,7 +16,7 @@ from .configuration import ConfigValidationError, resolve_effective_config
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .project import project_settings
 from .tasks import backend as tasks_backend
-from . import orchestrator_client
+from . import orchestrator_client, workspace
 from .team import load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
@@ -279,6 +279,15 @@ def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
     return [f"{shown(repo_path, design)}:{item.line}: {item.id}" for item in questions if not item.decision]
 
 
+
+def _plan_path(root: Path, value: str | None) -> Path | None:
+    if not value:
+        return None
+    candidate = Path(value)
+    candidate = candidate if candidate.is_absolute() else root / candidate
+    return candidate if candidate.is_file() else None
+
+
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
@@ -298,6 +307,18 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if open_questions:
             return {"status": "rejected", "message": "plan-approved refused: open technical questions\n"
                     + "\n".join(open_questions)}, 1
+        located = workspace.locate(Path(args.repository).resolve())
+        if located.workspace is not None:
+            plan = _plan_path(located.root, args.plan) or _plan_path(located.root, args.evidence)
+            if plan is None:
+                return {"status": "rejected",
+                        "message": "plan-approved refused: a workspace needs the plan file as --plan or --evidence"}, 1
+            from .team import check_plan_repos
+
+            errors = check_plan_repos(located.workspace, plan)
+            if errors:
+                return {"status": "rejected",
+                        "message": "plan-approved refused: workspace tracks\n" + "\n".join(errors)}, 1
     store = _get_event_store(Path(args.repository).resolve())
     actor, team_payload = args.actor, {}
     team = team_for_repo(Path(args.repository).resolve())
@@ -461,6 +482,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, team)},
         "extensions": {"orchestrator": orchestrator_client.status()},
+        "workspace": workspace.summary(workspace.locate(getattr(args, "start", repo_path))),
         "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes, *unshared,
                                  _knowledge_warning(repo_path, config, events, workflow_id, gates_state)) if w],
         "recent_quick": [
@@ -569,9 +591,11 @@ _QUICK_COMMANDS = {"easy": ("lint", "typecheck", "test"), "standard": ("lint", "
 
 def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     repo_path = Path(args.repository).resolve()
-    config = resolve_effective_config(repo_path, write=False).config
+    located = workspace.locate(getattr(args, "start", repo_path))
+    config = resolve_effective_config(located.root, write=False).config
     settings = project_settings(config.to_dict())
-    commands = {k: v for k, v in settings.verify_commands.items() if k in _QUICK_COMMANDS[settings.rigor]}
+    verify_commands = dict(located.entry.checks) if located.entry is not None else settings.verify_commands
+    commands = {k: v for k, v in verify_commands.items() if k in _QUICK_COMMANDS[settings.rigor]}
     base = {"rigor": settings.rigor, "verify_commands": commands,
             "review": "self_check" if settings.rigor == "easy" else "independent"}
     if settings.rigor == "strict":
@@ -590,8 +614,10 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
 
 def _call(handler, args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     try:
+        args.start = Path(args.repository) if args.repository is not None else Path.cwd()
+        args.repository = workspace.repository_root(args.repository)
         return handler(args)
-    except ConfigValidationError as error:
+    except (ConfigValidationError, workspace.WorkspaceError) as error:
         return {"status": "error", "message": str(error)}, 2
 
 
@@ -607,7 +633,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         return 2
 
     parser = argparse.ArgumentParser(prog=f"gin {command}")
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--workflow-id", default="default-workflow")
     parser.add_argument("--scope-hash")

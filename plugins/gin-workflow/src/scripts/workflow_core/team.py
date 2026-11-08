@@ -10,6 +10,8 @@ import sys
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
+from .workspace import Workspace
+
 GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
 ROADMAP = {"legacy": ".planning/roadmap.md", "sdd": "docs/roadmap.md"}
 DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead", "ship": []}
@@ -191,10 +193,11 @@ class Track:
     area: str
     owner: str
     files: tuple[str, ...]
+    repo: str = ""
 
 
 _TRACK = re.compile(r"^### Track (\d+):\s*(.*)$")
-_META = re.compile(r"^-\s*(?:\*\*)?(Area|Owner)(?:\*\*)?:\s*`?([^`\s]+)`?\s*$")
+_META = re.compile(r"^-\s*(?:\*\*)?(Area|Owner|Repo)(?:\*\*)?:\s*`?([^`\s]+)`?\s*$")
 _FILES_LABEL = re.compile(r"^(-\s*)?(?:\*\*)?Files(?:\*\*)?:(?:\*\*)?\s*(.*)$")
 _VERB = re.compile(r"^(?:Create|Modify|Test|Delete)\b:?\s*")
 _PATH = re.compile(r"`([^`\s]+)`")
@@ -225,7 +228,7 @@ def plan_tracks(path: Path) -> list[Track]:
     def close() -> None:
         if current is not None:
             tracks.append(Track(current["number"], current["title"], current["area"], current["owner"],
-                                tuple(dict.fromkeys(current["files"]))))
+                                tuple(dict.fromkeys(current["files"])), current["repo"]))
 
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         opener = _FENCE.match(line)
@@ -239,7 +242,7 @@ def plan_tracks(path: Path) -> list[Track]:
         if heading or (current is not None and line.startswith("## ")):
             close()
             current = None if not heading else {"number": int(heading.group(1)), "title": heading.group(2).strip(),
-                                                 "area": "", "owner": "", "files": []}
+                                                 "area": "", "owner": "", "files": [], "repo": ""}
             files_indent = None
             continue
         if current is None:
@@ -295,6 +298,28 @@ def check_plan(team: TeamConfig, path: Path) -> list[str]:
         if len(numbers) > 1:
             names = [str(n) for n in sorted(numbers)]
             errors.append(f"`{item}` is listed by tracks {', '.join(names[:-1])} and {names[-1]}")
+    return errors
+
+
+
+def check_plan_repos(space: Workspace, path: Path) -> list[str]:
+    """Workspace rules for a plan: every track names one workable `Repo:` and lists files inside it."""
+    errors: list[str] = []
+    for track in plan_tracks(path):
+        label = f"Track {track.number}"
+        if not track.repo:
+            errors.append(f"{label}: missing Repo:")
+            continue
+        repo = space.repo(track.repo)
+        if repo is None:
+            errors.append(f"{label}: Repo: {track.repo} is not in workspace.repos")
+            continue
+        if repo.frozen:
+            errors.append(f"{label}: Repo: {track.repo} is frozen")
+        elif repo.shape == "beads":
+            errors.append(f"{label}: Repo: {track.repo} is the beads repository")
+        errors += [f"{label}: `{item}` is outside repo {track.repo}" for item in track.files
+                   if space.repo_of(item) != repo]
     return errors
 
 
