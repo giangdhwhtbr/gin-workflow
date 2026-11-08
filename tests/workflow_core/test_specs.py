@@ -282,7 +282,7 @@ class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
         with tempfile.TemporaryDirectory() as directory:
             root = make_repo(Path(directory), layout="legacy")
-            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "iteration.md", "readme.md", "runbook.md", "changelog.md", "activity.md", "state.md"):
+            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "iteration.md", "readme.md", "runbook.md", "changelog.md", "activity.md", "state.md", "task.md"):
                 with self.subTest(name=name):
                     self.assertEqual(0, run_specs(root, "template", name).returncode)
             self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
@@ -298,6 +298,11 @@ class TestSpecsCli(unittest.TestCase):
             self.assertLess(living.index("## Diagrams"), living.index("## Requirements"))
             self.assertIn("Capabilities:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("Capabilities: {{capabilities}}", run_specs(root, "template", "epic.md").stdout)
+            task = run_specs(root, "template", "task.md").stdout
+            self.assertIn("Plan: {{plan_path}}, Track {{track}}", task)
+            self.assertIn("Route: {{provider_role}} / {{model}} / {{effort}}", task)
+            self.assertIn("Complexity: {{complexity}}", run_specs(root, "template", "epic.md").stdout)
+            self.assertIn("Complexity:", run_specs(root, "template", "roadmap.md").stdout)
             iteration = run_specs(root, "template", "iteration.md").stdout
             for needle in ("Kind:", "Source:", "Previous: none", "Confirmed: no", "## Summary", "## Changes", "## Files"):
                 with self.subTest(needle=needle):

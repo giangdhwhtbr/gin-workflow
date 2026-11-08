@@ -4,5 +4,6 @@
 Scope: {{scope}}
 Out of scope: {{out_of_scope}}
 Capabilities: {{capabilities}}
+Complexity: {{complexity}}
 Evidence: {{evidence}}
 Roadmap: {{roadmap}}
