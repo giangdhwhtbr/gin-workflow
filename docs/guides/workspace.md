@@ -119,7 +119,7 @@ Open: the `qa` repository. It is the automation repository, so the cases, specs,
 |---|---|
 | `gin workspace clone [PATH ...\|--all]` | Clones the named entries or all of them at their manifest paths; a frozen entry is cloned shallow; adds each path to the parent `.gitignore`; entries already present are reported as `present` |
 | `gin workspace status` | Prints one line per entry: path, present or missing, branch, clean or dirty, frozen. Add `--json` for scripts |
-| `gin hooks install --all-repos` | Installs the hooks in every cloned repository except frozen and beads entries; an occupied hook is kept and the file to chain into is named |
+| `gin hooks install --all-repos` | Installs the hooks in every cloned repository except frozen and beads entries; an occupied hook is kept and the file to chain into is named; a missing hooks directory is reported |
 | `gin hooks status --all-repos` | Prints the hook states and check names of every cloned repository that has `verify.checks`, except frozen and beads entries, as JSON; exits 1 when one is not ok |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Creates the track worktree of one child under the parent `.planning/worktrees/` |
 | `gin worktree cleanup --repository <repo> <track-id>` | Removes it |

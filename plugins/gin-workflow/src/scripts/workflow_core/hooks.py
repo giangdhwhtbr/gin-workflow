@@ -211,20 +211,27 @@ def _skip_reason(space: workspace.Workspace, repo: workspace.Repo) -> str | None
     return None
 
 
+_INSTALL_EXIT = {"installed": 0, "occupied": 1, "missing": 2}
+
+
 def _install_all(space: workspace.Workspace) -> int:
-    occupied = False
+    """Install in every workable clone; the exit code is the worst single-repository result."""
+    worst = 0
     for repo in space.repos:
         if (reason := _skip_reason(space, repo)) is not None:
             print(f"{repo.path}: skipped ({reason})")
             continue
         result = install(space.checkout(repo))
+        worst = max(worst, _INSTALL_EXIT[result["status"]])
+        if result["status"] == "missing":
+            print(f"{repo.path}: hooks directory {result['path']} does not exist; create it or fix core.hooksPath",
+                  file=sys.stderr)
         for hook, state in result["hooks"].items():
             print(f"{repo.path}: {hook}: {state}")
             if state == "occupied":
-                occupied = True
                 print(f'{repo.path}: add `exec gin hooks run {hook} "$@"` to {Path(result["path"]) / hook} to chain it',
                       file=sys.stderr)
-    return 1 if occupied else 0
+    return worst
 
 
 def _status_all(space: workspace.Workspace) -> int:
@@ -268,7 +275,7 @@ def main(argv: Sequence[str]) -> int:
             print(f"hooks directory {result['path']} does not exist; create it or fix core.hooksPath", file=sys.stderr)
         if result["status"] == "occupied":
             print('add `exec gin hooks run <hook> "$@"` to the existing hook to chain it', file=sys.stderr)
-        return {"installed": 0, "occupied": 1, "missing": 2}[result["status"]]
+        return _INSTALL_EXIT[result["status"]]
     if args.hook is None:
         parser.error("run needs a hook name")
     refs = sys.stdin.read().splitlines() if args.hook == "pre-push" and not sys.stdin.isatty() else []
