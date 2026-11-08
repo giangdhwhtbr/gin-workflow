@@ -69,15 +69,22 @@ def _text(rows: list[dict[str, Any]]) -> str:
 
 
 def main(argv: Sequence[str]) -> int:
-    parser = argparse.ArgumentParser(prog="gin workspace")
+    parser = argparse.ArgumentParser(prog="gin workspace",
+                                     description="clone the repositories of workspace.repos and show their state")
     commands = parser.add_subparsers(dest="command", required=True)
-    clone_parser = commands.add_parser("clone")
-    clone_parser.add_argument("paths", nargs="*")
-    clone_parser.add_argument("--all", dest="all_repos", action="store_true")
-    status_parser = commands.add_parser("status")
+    clone_parser = commands.add_parser(
+        "clone", help="clone the named entries, or every entry with --all, at their manifest paths",
+        description="clone the named entries, or every entry with --all, at their manifest paths; "
+                    "an entry already present is reported as present; each path is added to the parent .gitignore")
+    clone_parser.add_argument("paths", nargs="*", help="manifest paths to clone")
+    clone_parser.add_argument("--all", dest="all_repos", action="store_true", help="every entry of workspace.repos")
+    status_parser = commands.add_parser(
+        "status", help="one line per entry: path, present or missing, branch, clean or dirty, frozen",
+        description="one line per entry: path, present or missing, branch, clean or dirty, frozen")
     for sub in (clone_parser, status_parser):
-        sub.add_argument("--repository", type=Path, default=None)
-        sub.add_argument("--json", dest="as_json", action="store_true")
+        sub.add_argument("--repository", type=Path, default=None,
+                         help="a directory inside the workspace (default: the current directory)")
+        sub.add_argument("--json", dest="as_json", action="store_true", help="print JSON instead of text")
     args = parser.parse_args(list(argv))
     start = args.repository if args.repository is not None else Path.cwd()
     try:

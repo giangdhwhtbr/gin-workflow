@@ -43,6 +43,14 @@ class SetupCliTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("gin 3.0", result.stdout.strip())
 
+    def test_help_describes_every_action(self):
+        result = subprocess.run([sys.executable, str(LAUNCHER), "setup", "--help"], cwd=ROOT, text=True,
+                                capture_output=True, check=False)
+        self.assertEqual(0, result.returncode, result.stderr)
+        for action in setup_service.COMMANDS:
+            self.assertIn(f"\n  {action} ", result.stdout)
+        self.assertIn("refresh            regenerate .agent-workflow/generated/", result.stdout)
+
     def run_cli(self, repository: Path, *arguments: str,
                 env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         # Run outside this checkout: executable lookups follow the cwd, and a host's

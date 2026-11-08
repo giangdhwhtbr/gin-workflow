@@ -16,6 +16,7 @@ from .configuration import require_yaml
 
 SHAPES = ("frontend", "backend", "library", "qa", "beads")
 CHECK_NAMES = ("lint", "typecheck", "test", "build", "e2e")
+CHECKED_SHAPES = ("frontend", "backend", "qa")  # entries whose hooks are expected to run something
 RESERVED = (".planning", ".agent-workflow")
 BEADS_PATH = ".beads"
 
@@ -195,6 +196,8 @@ def ensure_gitignore(root: Path, lines: Sequence[str]) -> list[str]:
 
 def doctor(root: Path, space: Workspace) -> dict[str, Any]:
     """Findings for `gin setup doctor`; they never flip health."""
+    from .hooks import findings as hook_findings  # hooks imports this module
+
     ignore_path = Path(root) / ".gitignore"
     ignored = set(ignore_path.read_text(encoding="utf-8").splitlines()) if ignore_path.is_file() else set()
     modules_path = Path(root) / ".gitmodules"
@@ -210,8 +213,15 @@ def doctor(root: Path, space: Workspace) -> dict[str, Any]:
                             "submodule": submodule}
         if not present:
             actions.append(f"clone {repo.path}: gin workspace clone {repo.path}")
-        if repo.workable and not repo.checks:
+        if repo.workable and repo.shape in CHECKED_SHAPES and not repo.checks:
             actions.append(f"{repo.path} has no verify.checks")
+        if present and repo.workable and repo.checks:
+            try:
+                repos[repo.path]["hooks"], found = hook_findings(space.checkout(repo),
+                                                                 install="gin hooks install --all-repos")
+            except subprocess.CalledProcessError:  # a broken clone is a finding, not a crash
+                found = ["is not a readable git repository"]
+            actions.extend(f"{repo.path}: {action}" for action in found)
         if f"/{repo.path}" not in ignored:
             actions.append(f"{repo.path} is not in .gitignore; gin workspace clone adds it")
         if submodule:

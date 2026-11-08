@@ -480,15 +480,10 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         missing = [k for k in ("lint", "typecheck", "test", "build") if not settings.verify_commands.get(k)]
         checks_details["verify_commands"] = {"missing": missing}
         if settings.verify_commands:
-            from .hooks import _LEGACY_RUN, _RUN, status as hooks_status
+            from .hooks import findings as hook_findings
 
-            states = hooks_status(root)
-            checks_details["hooks"] = states
-            hook_actions = [f"hooks: {name} is missing; run gin hooks install" if state == "missing" else
-                            f"hooks: {name} still calls gin-workflow; run gin hooks install, "
-                            f"or in a hook you wrote replace {_LEGACY_RUN} with {_RUN}" if state == "stale" else
-                            f"hooks: {name} is occupied; chain `exec gin hooks run {name}` into it"
-                            for name, state in states.items() if state != "ok"]
+            checks_details["hooks"], found = hook_findings(root)
+            hook_actions = [f"hooks: {action}" for action in found]
         detected = detect_project(root)
         if settings.stage == "greenfield" and detected["stage"] == "brownfield":
             checks_details["project_stage"] = {"suggestion": "project now has a manifest/sources; run /setup configure to set project.stage=brownfield"}

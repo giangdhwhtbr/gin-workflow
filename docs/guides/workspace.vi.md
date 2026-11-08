@@ -47,7 +47,7 @@ Tech lead thực hiện phần này.
 4. Chạy `gin workspace clone --all`.
 5. Chạy `gin hooks install --all-repos`.
 6. Ở chế độ team, chạy `/gin:team-setup` và định nghĩa một area cho mỗi repository, ví dụ `services/order-api/**` với lead `be_lead`.
-7. Chạy `gin setup doctor`. Các action `workspace:` của nó nêu rõ bản clone bị thiếu, repository không có check, path thiếu trong `.gitignore`, hoặc path vẫn còn là git submodule.
+7. Chạy `gin setup doctor`. Các action `workspace:` của nó nêu rõ bản clone bị thiếu, repository `frontend`, `backend` hoặc `qa` không có check, repository đã clone có `verify.checks` mà hook bị thiếu, cũ (stale) hoặc bị chiếm, path thiếu trong `.gitignore`, hoặc path vẫn còn là git submodule. Hook do công cụ khác sở hữu (husky, lefthook) được giữ nguyên: thêm `exec gin hooks run <hook> "$@"` vào file mà action nêu tên, và `gin` chạy sau nó.
 
 Chỉ chạy `/gin:setup` trong repository cha, không bao giờ trong repository con.
 
@@ -119,7 +119,8 @@ Mở: repository `qa`. Đó là repository automation, nên test case, spec và 
 |---|---|
 | `gin workspace clone [PATH ...\|--all]` | Clone các mục được nêu hoặc tất cả tại path manifest của chúng; mục `frozen` được clone nông; thêm mỗi path vào `.gitignore` của repository cha; mục đã có được báo là `present` |
 | `gin workspace status` | In một dòng cho mỗi mục: path, present hoặc missing, branch, clean hoặc dirty, frozen. Thêm `--json` cho script |
-| `gin hooks install --all-repos` | Cài hook trong mọi repository đã clone trừ mục frozen và beads |
+| `gin hooks install --all-repos` | Cài hook trong mọi repository đã clone trừ mục frozen và beads; hook bị chiếm được giữ nguyên và file cần chain vào được nêu tên |
+| `gin hooks status --all-repos` | In trạng thái hook và tên check của mọi repository đã clone có `verify.checks`, trừ mục frozen và beads, dưới dạng JSON; exit 1 khi có một repository không ok |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Tạo worktree của track cho một repository con dưới `.planning/worktrees/` của repository cha |
 | `gin worktree cleanup --repository <repo> <track-id>` | Gỡ nó |
 | `gin state --format json` | Khóa `workspace` là `null` ngoài workspace; nếu không nó chứa `root`, `current_repo` và `repos[]` với `path`, `shape`, `frozen`, `present` và `branch` |
