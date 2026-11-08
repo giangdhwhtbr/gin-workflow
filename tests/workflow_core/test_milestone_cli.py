@@ -217,7 +217,7 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual(3, json.loads(self.run_cli("show", out.strip(), "--json")[1])["lanes"])
 
     def test_bad_lanes_is_refused_before_any_write(self):
-        for value in ("0", "-1", "two"):
+        for value in ("0", "-1", "two", ""):
             err = self.refused("create", "M1", "--start", "2026-11-02", "--end", "2026-12-18", "--lanes", value)
             self.assertIn("lanes must be a positive whole number", err)
 

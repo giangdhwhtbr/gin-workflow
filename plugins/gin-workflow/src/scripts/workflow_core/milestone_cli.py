@@ -194,7 +194,7 @@ def _create(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any
     start, end = _date(args.start), _date(args.end)
     _check_period(start, end)
     meta = {"start": start.isoformat(), "end": end.isoformat()}
-    if args.lanes:
+    if args.lanes is not None:
         meta["lanes"] = _lanes(args.lanes)
     out = _bd(root, ["create", args.title, "--type", "milestone", "--metadata", json.dumps(meta), "--json"], actor)
     return json.JSONDecoder().raw_decode(out.lstrip())[0]["id"], "milestone"
@@ -204,7 +204,7 @@ def _update(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any
     start, end = core.period(_open(beads, args.id))
     start, end = (_date(args.start) if args.start else start), (_date(args.end) if args.end else end)
     _check_period(start, end)
-    lanes = _lanes(args.lanes) if args.lanes else None
+    lanes = _lanes(args.lanes) if args.lanes is not None else None
     argv = ["update", args.id, "--set-metadata", f"start={start.isoformat()}",
             "--set-metadata", f"end={end.isoformat()}"] + (["--title", args.title] if args.title else [])
     if lanes is not None:
