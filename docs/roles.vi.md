@@ -18,7 +18,7 @@ Trong [chế độ nhóm](guides/team.md), mỗi thành viên giữ các vai tr�
 | Vai trò | Skill | File | Branch | Phê duyệt |
 |---|---|---|---|---|
 | PM | `/gin:roadmap`, `/gin:progress`, `/gin:report`; `/gin:roadmap --milestone` ghi milestone, giới hạn bởi `team.permissions.milestone` | `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) | `roadmap/<topic>` | `roadmap` |
-| BA | `/gin:discuss`, `/gin:tech-doc`, `/gin:progress` | `.planning/specs/` (`docs/specs/` và `docs/changes/` với layout SDD) | `spec/<topic>` (`spec/<epic>-<slug>` với layout SDD) | `requirement_confirmed` |
+| BA | `/gin-ba:capture`, `/gin-ba:mockup`, `/gin:discuss`, `/gin:explain`, `/gin:tech-doc`, `/gin:progress` | `.planning/specs/` (`docs/specs/` và `docs/changes/` với layout SDD) | `spec/<topic>` (`spec/<epic>-<slug>` với layout SDD) | `requirement_confirmed` |
 | Tech lead | `/gin:setup`, `/gin:team-setup` (với tư cách lead), `/gin:tech-doc`, `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` với layout SDD), `.planning/plans/` (`04-plan.md` với layout SDD), đường dẫn source và test của khu vực | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; người phê duyệt dự phòng cho `roadmap`, `requirement_confirmed` và `ship` khi một vai trò chỉ có một người giữ |
 | Developer | `/gin:execute`, `/gin:review`, `/gin:ship` cho các track của chính mình, `/gin:quick`, `/gin:progress` | đường dẫn source và unit test, integration test trong khu vực của họ | `feat/<topic>-t<N>` cho mỗi track | peer code review |
 | Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | review pull request của developer | `ship` |
@@ -44,10 +44,11 @@ Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md
 
 ### BA { #ba }
 
-1. [Tham gia nhóm](guides/team.md#join-it-member)
-2. [Living spec SDD](guides/sdd.md)
-3. [Tùy biến template](guides/customizing-templates.md)
-4. Mục Discuss an epic của [starter brownfield](starters/brownfield.md#discuss-an-epic)
+1. [Business analyst](guides/ba.md)
+2. [Tham gia nhóm](guides/team.md#join-it-member)
+3. [Living spec SDD](guides/sdd.md)
+4. [Tùy biến template](guides/customizing-templates.md)
+5. Mục Discuss an epic của [starter brownfield](starters/brownfield.md#discuss-an-epic)
 
 ### Developer { #developer }
 
