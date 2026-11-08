@@ -124,6 +124,8 @@ Một `src` tương đối trong template được đọc từ gốc repository 
 
 `gin specs explain` điền `explain.html` một lần. Nó nhận `{{title}}`, `{{kind}}` (`capability` hoặc `change`), `{{date}}`, `{{nav}}` (mỗi phần có nội dung một link), và `{{sections}}` (mỗi phần một `<section class="tab">`, theo thứ tự Overview, Requirements, Stories, Diagrams, Mockups and images). Script của template có sẵn hiển thị phần được nêu trong URL hash, lọc các thẻ requirement, mở ảnh trong trình xem ảnh, và gửi screen id tới mockup nhúng; hãy giữ nó khi đổi giao diện trang. Như các template SRS, mỗi placeholder được điền một lần, comment bị bỏ, và một `src` tương đối được đọc từ gốc repository rồi nhúng vào.
 
+`## Constraints` của template roadmap có hai dòng mà `gin milestone list` đọc: `- Deadline: YYYY-MM-DD`, hạn chót của dự án mà dự báo được so với, và `- AI capacity: <n> ...`, có số nguyên đứng đầu là số lane mặc định. Hãy giữ cả hai bullet khi ghi đè template; chữ tự do sau con số bị bỏ qua.
+
 ## Guideline và trường của test case { #test-case-guidelines-and-fields }
 
 Add-on gin-qa được tùy biến qua file guidelines (`qa/guidelines.md`) và các trường metadata bổ sung.

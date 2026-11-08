@@ -187,7 +187,7 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, that the paths in each track's `Files` block stay inside its area, and that no path is listed by two tracks |
 | `ready` | Ready beads in your areas, and beads held by another member whose claim lease has expired (`expired_claim`). A bead labelled `released` is listed for every member (`released: true`) |
 | `claim BEAD` | Claim a bead as yourself, or renew your claim. Refused when you hold no role allowed in one of its `area:` labels (unless the bead is labelled `released` by `handoff --release`), or another member's lease (`claim.expires_at`, `team.claim_ttl_hours` ahead) has not expired; an expired lease is taken over with a note. Without `team.beads_sync.remote` the claim is advisory: only this machine sees it |
-| `reassign BEAD EMAIL` | Hand a track bead to another member. Allowed for the bead's current assignee or the lead of one of its areas; the new assignee must be allowed to own tracks in each area (`team.areas.<name>.roles`). Sets the assignee, appends a note, writes a fresh claim lease for the new assignee, and pushes with shared Beads. A closed bead, a non-member, or a no-op is refused |
+| `reassign BEAD EMAIL` | Hand a track bead to another member. Allowed for the bead's current assignee or the lead of one of its areas; the new assignee must be allowed to own tracks in each area (`team.areas.<name>.roles`). Sets the assignee, appends a note, writes a fresh claim lease for the new assignee, and pushes with shared Beads. A closed bead, a non-member, or a no-op is refused; `--lanes N` stores the lane count |
 | `handoff BEAD [EMAIL] [--release] [--worktree PATH]` | Hand a track over in one step. Give exactly one of `EMAIL` or `--release`. It refuses a track worktree (`.planning/worktrees/<bead>`, or `--worktree`) with uncommitted or untracked files, and lists them. It also refuses a `--worktree` that is not a Git worktree. These checks, and the authority and target checks, run before any push. It then pushes the track branch to `origin`. A broken `review.json` is refused after the branch push and before the review ref push, leaving the branch on `origin` and the bead unchanged. Otherwise it pushes the review ref when the ledger exists. It records `handoff` metadata (`branch`, `from`, `to`, `at`) only after the branch is on `origin`. With `EMAIL` it reassigns the bead as `reassign` does. With `--release` the bead loses its assignee and lease, returns to status `open`, and gets the label `released`. A rejected push is reported plainly |
 | `takeover BEAD [--branch NAME]` | Take a handed-off track on your machine. Run it in the main checkout only. It fetches the branch recorded by `gin team handoff` (or `--branch`), checks it out at `.planning/worktrees/<bead>` (`gin worktree checkout`), fetches the review ref when present, then claims the bead. A branch name that starts with `-` or fails `git check-ref-format` is refused. Only a review ref under `refs/gin/review/` is fetched. If a step fails after the worktree exists, it reports `worktree left at <path>; remove it with gin worktree cleanup <bead>`. A bead labelled `released` can be claimed by any member, and the label is removed on claim |
 | `deps [--bead ID]` | Without `--bead`: close placeholders whose track PR merged, storing its merge commit. With `--bead`: exit 1 unless each external dependency's merge commit is in this workspace |
@@ -200,22 +200,22 @@ Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuratio
 ```
 gin milestone list [--all] [--json]
 gin milestone show ID [--start YYYY-MM-DD] [--json]
-gin milestone create TITLE --start YYYY-MM-DD --end YYYY-MM-DD
-gin milestone update ID [--title TITLE] [--start YYYY-MM-DD] [--end YYYY-MM-DD]
+gin milestone create TITLE --start YYYY-MM-DD --end YYYY-MM-DD [--lanes N]
+gin milestone update ID [--title TITLE] [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--lanes N]
 gin milestone kickstart ID [--date YYYY-MM-DD]
 gin milestone move EPIC... --to ID|none
 gin milestone estimate EPIC DAYS
 gin milestone close ID --reason TEXT
 ```
 
-Dated milestones over roadmap epics, stored in Beads; they need `providers.task_tracking: beads`. `list` reports each open milestone (every milestone with `--all`) with its status, period, epic progress, and warning count, plus the number of open `roadmap` epics without a parent. `show` reports the schedule of one milestone: each epic's planned start and end in working days (Monday to Friday) from `--start`, else the kick-off date, else the start date, and its warnings (`overflow`, `late`, `unestimated`, `external_blocker`). A `list` entry whose schedule cannot be computed (a dependency cycle or a malformed date) carries `error` and keeps the other entries; its status then falls back to `planned`. `--start` is a read-only preview. `--json` prints `schema: 1`; fields are defined in the gin-console contract (`gin-harness/docs/changes/gin-harness-6s4-milestones/design.md`) and only ever added to.
+Dated milestones over roadmap epics, stored in Beads; they need `providers.task_tracking: beads`. `list` reports each open milestone (every milestone with `--all`) with its status, period, epic progress, and warning count, plus the number of open `roadmap` epics without a parent. It ends with a forecast line when any `roadmap` epic is open: when every open epic finishes against the roadmap's `Deadline:`, with the spare or overflow working days, the default lanes, and the open and unestimated counts. Open milestones are scheduled one after another in `end` order, each on its own lanes, then every open roadmap epic outside an open milestone on the default lanes. `show` reports the schedule of one milestone: each epic's planned start and end in working days (Monday to Friday) from `--start`, else the kick-off date, else the start date, and its warnings (`overflow`, `late`, `unestimated`, `external_blocker`). Schedules are lane-bound: a lane runs one epic at a time, so with one lane estimated epics run in sequence and independent epics overlap only with two or more lanes. A milestone's lanes come from its `lanes` metadata, else the whole number that starts the `AI capacity:` line of the roadmap file, else the number of `team.members`, else 1. A milestone planned before lanes existed now shows later dates and may gain `overflow` warnings at the default of 1 lane; set `--lanes` or the `AI capacity:` number to match the team. A `list` entry whose schedule cannot be computed (a dependency cycle or a malformed date) carries `error` and keeps the other entries; its status then falls back to `planned`. `--start` is a read-only preview. `--json` prints `schema: 1` with the additive keys `lanes` (per milestone and on `show`) and `forecast` (`deadline`, `lanes`, `start`, `finish`, `overflow_days`, `open_epics`, `unestimated`, `error`; null without an open roadmap epic); fields are defined in the gin-console contract (`gin-harness/docs/changes/gin-harness-6s4-milestones/design.md`) and only ever added to.
 
 The write commands:
 
 | Command | Effect |
 |---|---|
 | `create` | New milestone with a start and end date; prints its id. `--start` after `--end` is refused |
-| `update` | Change the title or either date of an open milestone |
+| `update` | Change the title, either date, or the lanes of an open milestone |
 | `kickstart` | Set the kick-off date (default today) that the schedule starts from |
 | `move` | Put epics under a milestone, or take them out with `--to none`. Refuses a non-epic, a closed target, an epic in a closed milestone, and an epic whose parent is not a milestone. Appends `{from, to, at, actor}` to each epic's `milestone_moves` metadata (a failed append prints a warning and keeps the move) |
 | `estimate` | Set an epic's estimate as a positive whole number of working days (480 minutes each) |
@@ -223,7 +223,9 @@ The write commands:
 
 Each write command first checks the team role. With `team.permissions.milestone` set, the git user must hold one of its roles, otherwise the command names the roles and exits 2. With `team.beads_sync.remote`, it pulls first and stops with `pull failed, nothing written` (exit 1) when the pull fails or times out. After the write it pushes; a rejected or timed-out push prints `<change> written locally but not pushed` and exits 1. The local write stays and is never reset. In team mode, the member's email is recorded as the Beads actor. See [Team mode](../guides/team.md).
 
-Exit codes: 0 ok, warnings included; 1 unknown id, a refused change, dependency cycle, non-Beads tracking, a failed pull or push, or a `bd` error; 2 usage error or a role that may not write milestones.
+Exit codes: 0 ok, warnings included; 1 unknown id, a refused change, a `--lanes` that is not a positive whole number, dependency cycle, non-Beads tracking, a failed pull or push, or a `bd` error; 2 usage error or a role that may not write milestones.
+
+A malformed `Deadline:` line or a dependency cycle among open epics is reported in `forecast.error`; `list` still exits 0.
 
 ## `gin hooks`
 
