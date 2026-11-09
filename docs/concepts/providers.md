@@ -1,6 +1,6 @@
 # Providers
 
-The harness you open (the main harness) plans, coordinates, and does the work: Claude Code, Codex, Antigravity, OpenCode, or GitHub Copilot CLI (`copilot`). gin-workflow runs the whole lifecycle in it with no other tool. Running bounded work, such as an implementation track or an independent review, on a different installed harness is the job of the gin-orchestrator extension: see [Orchestrator](../orchestrator/README.md). The [routing diagram](architecture.md#provider-routing) shows the flow.
+The harness you open (the main harness) plans, coordinates, and does the work: Claude Code, Codex, Antigravity, OpenCode, or GitHub Copilot CLI (`copilot`). gin-workflow runs the lifecycle in it with no other tool. On Claude Code and Antigravity, tracks and reviews run in native subagents. On Codex, OpenCode, and Copilot without gin-orchestrator, a track runs in the main session, and a review stops for you to open a fresh session. Running bounded work, such as an implementation track or an independent review, on a different installed harness is the job of the gin-orchestrator extension: see [Orchestrator](../orchestrator/README.md). The [routing diagram](architecture.md#provider-routing) shows the flow.
 
 ## Capabilities
 
