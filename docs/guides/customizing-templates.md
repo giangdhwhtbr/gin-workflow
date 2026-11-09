@@ -24,7 +24,7 @@ gin specs template <template-name>
 ```
 
 Available templates:
-- Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `task.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
+- Specs, stories, and roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `task.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`
 - SRS export (`specs export`): `srs.html`, `srs-capability.html`
 - Explain page (`specs explain`): `explain.html`
 - Codebase documentation (`/gin:tech-doc`): `codebase/<FILE>.md`, for example `codebase/05-API.md`
@@ -42,6 +42,7 @@ Available templates:
 | `specs-README.md` | `specs archive` and `specs migrate` | `.agent-workflow/templates/specs-README.md` |
 | Asset folder description (SDD layout) | `/gin:discuss` | `.agent-workflow/templates/iteration.md` |
 | Activity and state diagrams (SDD layout) | `/gin:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
+| Use cases (SDD layout) | `/gin:discuss` | `.agent-workflow/templates/use-case.md` |
 | SRS document and chapter (SDD layout) | `specs export` | `.agent-workflow/templates/srs.html`, `srs-capability.html` |
 | Explain page (SDD layout) | `specs explain` | `.agent-workflow/templates/explain.html` |
 | `codebase/*` | `/gin:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
@@ -105,7 +106,7 @@ The `{{...}}` placeholders in `spec.md`, the SDD files, and the `team/*` files a
 
 ### SRS export templates
 
-`gin specs export` fills `srs.html` once and `srs-capability.html` once per capability. `srs.html` takes `{{title}}`, `{{date}}`, `{{toc}}`, and `{{chapters}}`. `srs-capability.html` takes `{{cap}}` (the chapter's anchor), `{{capability}}`, `{{purpose}}`, `{{diagrams}}`, `{{requirements}}`, and `{{assets}}`: reorder them to reorder a chapter, or delete one and its heading to drop that section. Each placeholder is filled once, so `{{...}}` written in a spec stays as text, and comments are removed from both templates.
+`gin specs export` fills `srs.html` once and `srs-capability.html` once per capability. `srs.html` takes `{{title}}`, `{{date}}`, `{{toc}}`, and `{{chapters}}`. `srs-capability.html` takes `{{cap}}` (the chapter's anchor), `{{capability}}`, `{{purpose}}`, `{{use_cases}}`, `{{diagrams}}`, `{{requirements}}`, and `{{assets}}`: reorder them to reorder a chapter, or delete one and its heading to drop that section. Each placeholder is filled once, so `{{...}}` written in a spec stays as text, and comments are removed from both templates. An overridden `srs-capability.html` shows no use cases until it adds `{{use_cases}}`; see [Use cases](sdd.md#use-cases).
 
 Put the logo, the customer, and the product brief on the cover of `srs.html`:
 

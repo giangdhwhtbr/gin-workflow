@@ -24,7 +24,7 @@ gin specs template <template-name>
 ```
 
 Các template khả dụng:
-- Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `task.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`
+- Spec, story, và roadmap: `spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `design-spec.md`, `user-story.md`, `epic.md`, `task.md`, `roadmap.md`, `tests.md`, `adr.md`, `specs-README.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`
 - Xuất SRS (`specs export`): `srs.html`, `srs-capability.html`
 - Trang explain (`specs explain`): `explain.html`
 - Tài liệu codebase (`/gin:tech-doc`): `codebase/<FILE>.md`, ví dụ `codebase/05-API.md`
@@ -42,6 +42,7 @@ Các template khả dụng:
 | `specs-README.md` | `specs archive` và `specs migrate` | `.agent-workflow/templates/specs-README.md` |
 | Mô tả thư mục asset (layout SDD) | `/gin:discuss` | `.agent-workflow/templates/iteration.md` |
 | Sơ đồ activity và state (layout SDD) | `/gin:discuss` | `.agent-workflow/templates/activity.md`, `state.md` |
+| Use case (layout SDD) | `/gin:discuss` | `.agent-workflow/templates/use-case.md` |
 | Tài liệu SRS và chương (layout SDD) | `specs export` | `.agent-workflow/templates/srs.html`, `srs-capability.html` |
 | Trang explain (layout SDD) | `specs explain` | `.agent-workflow/templates/explain.html` |
 | `codebase/*` | `/gin:tech-doc` | `.agent-workflow/templates/codebase/<FILE>.md` |
@@ -105,7 +106,7 @@ Các placeholder `{{...}}` trong `spec.md`, các file SDD, và các file `team/*
 
 ### Template xuất SRS { #srs-export-templates }
 
-`gin specs export` điền `srs.html` một lần và `srs-capability.html` một lần cho mỗi capability. `srs.html` nhận `{{title}}`, `{{date}}`, `{{toc}}`, và `{{chapters}}`. `srs-capability.html` nhận `{{cap}}` (anchor của chương), `{{capability}}`, `{{purpose}}`, `{{diagrams}}`, `{{requirements}}`, và `{{assets}}`: đổi thứ tự chúng để đổi thứ tự trong chương, hoặc xóa một placeholder cùng heading của nó để bỏ phần đó. Mỗi placeholder được điền một lần, nên `{{...}}` viết trong spec giữ nguyên là văn bản, và comment được bỏ khỏi cả hai template.
+`gin specs export` điền `srs.html` một lần và `srs-capability.html` một lần cho mỗi capability. `srs.html` nhận `{{title}}`, `{{date}}`, `{{toc}}`, và `{{chapters}}`. `srs-capability.html` nhận `{{cap}}` (anchor của chương), `{{capability}}`, `{{purpose}}`, `{{use_cases}}`, `{{diagrams}}`, `{{requirements}}`, và `{{assets}}`: đổi thứ tự chúng để đổi thứ tự trong chương, hoặc xóa một placeholder cùng heading của nó để bỏ phần đó. Mỗi placeholder được điền một lần, nên `{{...}}` viết trong spec giữ nguyên là văn bản, và comment được bỏ khỏi cả hai template. Một `srs-capability.html` bị ghi đè không hiển thị use case cho đến khi nó thêm `{{use_cases}}`; xem [Use case](sdd.md#use-cases).
 
 Đặt logo, tên khách hàng, và phần giới thiệu sản phẩm trên trang bìa của `srs.html`:
 

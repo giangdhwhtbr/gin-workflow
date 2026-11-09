@@ -76,7 +76,7 @@ Run `/gin:discuss` to turn the confirmed inputs into requirements. Discuss reads
 
 Each requirement taken from an input gets a `Source:` line that names the file, for example `Source: assets/2026-06-02/mockup/index.html#new-order`; [the SDD guide](sdd.md#images-and-mockups) shows the full block.
 
-Discuss also writes the [diagrams](sdd.md#diagrams) and the change folder, and `specs lint --change <epic>` must pass. In team mode a member without a technical role gets business questions only; see [what changes in each stage](team.md#what-changes-in-each-stage).
+Discuss also writes the [diagrams](sdd.md#diagrams), any [use cases](sdd.md#use-cases), and the change folder, and `specs lint --change <epic>` must pass. In team mode a member without a technical role gets business questions only; see [what changes in each stage](team.md#what-changes-in-each-stage).
 
 ### Open the spec pull request
 

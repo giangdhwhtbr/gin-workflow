@@ -76,7 +76,7 @@ Chạy `/gin:discuss` để biến đầu vào đã xác nhận thành requireme
 
 Mỗi requirement lấy từ một đầu vào có một dòng `Source:` nêu tên file, ví dụ `Source: assets/2026-06-02/mockup/index.html#new-order`; [hướng dẫn SDD](sdd.md#images-and-mockups) có khối đầy đủ.
 
-Discuss cũng viết các [sơ đồ](sdd.md#diagrams) và change folder, và `specs lint --change <epic>` phải qua. Trong chế độ nhóm, thành viên không có vai trò kỹ thuật chỉ nhận câu hỏi nghiệp vụ; xem [thay đổi ở từng stage](team.md#what-changes-in-each-stage).
+Discuss cũng viết các [sơ đồ](sdd.md#diagrams), các [use case](sdd.md#use-cases) nếu có, và change folder, và `specs lint --change <epic>` phải qua. Trong chế độ nhóm, thành viên không có vai trò kỹ thuật chỉ nhận câu hỏi nghiệp vụ; xem [thay đổi ở từng stage](team.md#what-changes-in-each-stage).
 
 ### Mở spec pull request { #open-the-spec-pull-request }
 

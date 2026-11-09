@@ -20,6 +20,7 @@ docs/
     README.md                capability index
     <capability>/spec.md     requirements for one capability
     <capability>/diagrams/   activity and state diagrams (Mermaid)
+    <capability>/use-cases/  use cases (optional)
   changes/                   proposed changes (artifacts.changes)
     <epic>-<slug>/
       01-proposal.md         why and what
@@ -50,7 +51,7 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin specs next-id <cap>`.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
-- `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `specs-README.md`).
+- `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
 ## Hình ảnh và mockup { #images-and-mockups }
 
@@ -103,11 +104,26 @@ Bắt đầu từ `gin specs template activity.md` và `state.md`. Discuss sửa
 
 `specs lint` báo `*-activity.md` không có khối mermaid bắt đầu bằng `flowchart` hoặc `graph`, và `*-state.md` không có khối bắt đầu bằng `stateDiagram`; các file khác trong `diagrams/` không bị kiểm tra. `specs lint --change` còn báo mỗi capability có block `ADDED` hoặc `MODIFIED` mà không có `*-activity.md`. Khi nào một entity cần state diagram là quy ước mà lint không kiểm tra.
 
+## Use case { #use-cases }
+
+Một use case mô tả tương tác của một actor với hệ thống, từng bước. Nó là tùy chọn: thêm khi một feature có actor tương tác với hệ thống, hoặc khi người dùng yêu cầu. Mỗi use case là một file Markdown trong thư mục của capability, bắt đầu từ `gin specs template use-case.md`:
+
+```text
+docs/specs/orders/
+  spec.md                  ## Use Cases links the files below
+  use-cases/
+    place-order.md         actor, goal, main flow, alternative flows
+```
+
+Dòng `Requirements:` của nó nêu các REQ-ID mà nó bao phủ. Discuss sửa use case trực tiếp trên spec branch, như với sơ đồ: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `use-cases/` dưới `## Use Cases`.
+
+`specs lint` và `specs lint --change` kiểm tra mỗi file trong `use-cases/` có tiêu đề `# `, dòng `Actor:`, dòng `Requirements:` với ít nhất một REQ-ID, và `## Main flow` có danh sách đánh số. Mỗi REQ-ID phải có trong một living spec hoặc trong `02-spec-delta.md` của một change đang mở; nếu không, lint báo `<REQ> is not in a living spec or an open change`.
+
 ## Xuất SRS { #exporting-an-srs }
 
 `gin specs export <capability>` ghi living spec của capability vào một file HTML, `srs-<capability>.html` ở gốc repository. `specs export --all` ghi mọi capability vào `srs.html`, mỗi capability một chương, sắp theo tên. `--out <file>` ghi ra chỗ khác trong repository. File là file sinh ra, nên mỗi lần chạy sẽ ghi đè nó.
 
-Mỗi chương gồm `## Purpose` của capability, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
+Mỗi chương gồm `## Purpose` của capability, các use case, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
 
 File tải Mermaid từ jsDelivr ở một phiên bản cố định để vẽ sơ đồ; khi không có mạng, nó hiển thị mã nguồn của sơ đồ. Lệnh xuất không lint, nên hãy chạy `specs lint` trước. Một ảnh local không tìm thấy, nằm ngoài repository, hoặc không phải ảnh hiển thị bằng alt text, và lệnh thoát với mã 1 kèm tên ảnh đó. Trang bìa, logo, khách hàng, và thứ tự các phần lấy từ template `srs.html` và `srs-capability.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 

@@ -20,6 +20,7 @@ docs/
     README.md                capability index
     <capability>/spec.md     requirements for one capability
     <capability>/diagrams/   activity and state diagrams (Mermaid)
+    <capability>/use-cases/  use cases (optional)
   changes/                   proposed changes (artifacts.changes)
     <epic>-<slug>/
       01-proposal.md         why and what
@@ -50,7 +51,7 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin specs next-id <cap>`.
 - Each block has one `SHALL` or `MUST` statement and at least one GIVEN/WHEN/THEN scenario. The EARS patterns (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) are preferred.
 - A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
-- `gin specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `specs-README.md`).
+- `gin specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
 ## Images and mockups
 
@@ -103,11 +104,26 @@ Start them from `gin specs template activity.md` and `state.md`. Discuss edits t
 
 `specs lint` reports a `*-activity.md` without a mermaid block starting with `flowchart` or `graph`, and a `*-state.md` without one starting with `stateDiagram`; other files in `diagrams/` are not checked. `specs lint --change` also reports each capability with an `ADDED` or `MODIFIED` block but no `*-activity.md`. When an entity needs a state diagram is a convention that lint does not check.
 
+## Use cases
+
+A use case describes one actor's interaction with the system, step by step. It is optional: add one for a feature where an actor interacts with the system, or when the user asks for one. Each is a Markdown file in the capability's folder, started from `gin specs template use-case.md`:
+
+```text
+docs/specs/orders/
+  spec.md                  ## Use Cases links the files below
+  use-cases/
+    place-order.md         actor, goal, main flow, alternative flows
+```
+
+Its `Requirements:` line names the REQ-IDs it covers. Discuss edits use cases directly on the spec branch, as it does diagrams: they are not requirement blocks and never go through `02-spec-delta.md`. `01-proposal.md` lists them under `## Capabilities Affected`. `specs archive` leaves them in place; when it creates `spec.md` for a new capability, it links every file in `use-cases/` under `## Use Cases`.
+
+`specs lint` and `specs lint --change` check each file in `use-cases/` for a `# ` title, an `Actor:` line, a `Requirements:` line with at least one REQ-ID, and a `## Main flow` with a numbered list. Each REQ-ID must be in a living spec or in an open change's `02-spec-delta.md`; otherwise lint reports `<REQ> is not in a living spec or an open change`.
+
 ## Exporting an SRS
 
 `gin specs export <capability>` writes the capability's living spec into one HTML file, `srs-<capability>.html` at the repository root. `specs export --all` writes every capability into `srs.html`, one chapter each, sorted by name. `--out <file>` writes elsewhere in the repository. The file is generated, so each run overwrites it.
 
-Each chapter holds the capability's `## Purpose`, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. Open it in a browser and print it to PDF; each chapter starts on a new page.
+Each chapter holds the capability's `## Purpose`, its use cases, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. Open it in a browser and print it to PDF; each chapter starts on a new page.
 
 The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; without network access it shows their source instead. The export does not lint, so run `specs lint` first. A local image it cannot find, one outside the repository, or a file that is not an image shows as its alt text, and the command exits 1 naming it. The cover, logo, customer, and section order come from the templates `srs.html` and `srs-capability.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 
