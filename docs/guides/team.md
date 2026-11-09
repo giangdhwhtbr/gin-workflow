@@ -114,10 +114,10 @@ CodeCommit does not enforce code owners. Create an approval rule template and as
 
 ```bash
 aws codecommit create-approval-rule-template \
-  --approval-rule-template-name gin-team \
+  --approval-rule-template-name team-approvals \
   --approval-rule-template-content '{"Version":"2018-11-08","DestinationReferences":["refs/heads/main"],"Statements":[{"Type":"Approvers","NumberOfApprovalsNeeded":1,"ApprovalPoolMembers":["arn:aws:sts::<account>:assumed-role/Dev/*"]}]}'
 aws codecommit associate-approval-rule-template-with-repository \
-  --approval-rule-template-name gin-team --repository-name <repo>
+  --approval-rule-template-name team-approvals --repository-name <repo>
 ```
 
 Approvals belong to one revision of the pull request. The `ship` gate counts only approvals of the current revision whose source commit equals your local `HEAD`.
@@ -143,4 +143,4 @@ The job always checks commit messages against `team.commit_convention` (skipped 
 
 ## Commands
 
-See [`gin team`](../reference/cli.md#gin-team) and the [`team` configuration keys](../reference/config.md#team).
+See [`gin team`](../reference/cli.md#team-approvals) and the [`team` configuration keys](../reference/config.md#team).

@@ -114,10 +114,10 @@ CodeCommit không áp dụng code owner. Tạo một approval rule template và 
 
 ```bash
 aws codecommit create-approval-rule-template \
-  --approval-rule-template-name gin-team \
+  --approval-rule-template-name team-approvals \
   --approval-rule-template-content '{"Version":"2018-11-08","DestinationReferences":["refs/heads/main"],"Statements":[{"Type":"Approvers","NumberOfApprovalsNeeded":1,"ApprovalPoolMembers":["arn:aws:sts::<account>:assumed-role/Dev/*"]}]}'
 aws codecommit associate-approval-rule-template-with-repository \
-  --approval-rule-template-name gin-team --repository-name <repo>
+  --approval-rule-template-name team-approvals --repository-name <repo>
 ```
 
 Approval thuộc về một revision của pull request. Gate `ship` chỉ tính approval của revision hiện tại có source commit trùng `HEAD` local.
@@ -143,4 +143,4 @@ Job luôn kiểm tra commit message theo `team.commit_convention` (bỏ qua vớ
 
 ## Lệnh { #commands }
 
-Xem [`gin team`](../reference/cli.md#gin-team) và các [khóa cấu hình `team`](../reference/config.md#team).
+Xem [`gin team`](../reference/cli.md#team-approvals) và các [khóa cấu hình `team`](../reference/config.md#team).
