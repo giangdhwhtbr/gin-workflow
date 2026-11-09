@@ -473,7 +473,11 @@ try {
     }
     Assert-True ((Get-Content -Raw -LiteralPath $legacySettings | ConvertFrom-Json -AsHashtable).enabledPlugins.Contains('gin-workflow@skills-dir')) 'Dry-run changed the Claude settings'
 
-    Invoke-Installer @{ Platform = 'claude' } | Out-Null
+    # gin-ba has no launcher: its Claude skills folder marks it installed.
+    New-Item -ItemType Directory -Force -Path (Join-Path $legacyHome '.claude/skills/gin-ba') | Out-Null
+    $upgradeOutput = Invoke-Installer @{ Platform = 'claude' }
+    Assert-Contains $upgradeOutput 'Refreshing the installed gin-ba add-on.'
+    Assert-Exists (Join-Path $legacyHome '.claude/skills/gin-ba/skills/mockup/SKILL.md')
     foreach ($path in @($legacyShim, (Join-Path $legacyHome '.local/lib/gin-workflow'), $legacyClaude)) {
         Assert-True (-not (Test-Path -LiteralPath $path)) "Upgrade kept the old $path"
     }

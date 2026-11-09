@@ -1034,6 +1034,11 @@ if ($Plugins -contains 'gin-workflow') {
             $refreshedAddons += $addon
         }
     }
+    # gin-ba has no launcher: its global Claude skills folder marks it installed.
+    if ([string]::IsNullOrWhiteSpace($Project) -and $Plugins -notcontains 'gin-ba' -and (Test-Path -LiteralPath (Join-Path $UserHome '.claude/skills/gin-ba') -PathType Container)) {
+        Write-Output 'Refreshing the installed gin-ba add-on.'
+        $Plugins = @($Plugins) + 'gin-ba'
+    }
 }
 
 foreach ($name in $Plugins) {

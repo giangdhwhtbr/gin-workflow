@@ -8,7 +8,7 @@ description: Describe an existing feature from screenshots in a dated asset fold
 `/gin-ba:capture <capability> [--date YYYY-MM-DD] [code paths...]`. Copies the screenshots the BA names under `<specs>/<cap>/assets/<date>/legacy/`, reads them, and writes the `description.md` of that folder with `Kind: legacy`. `/gin:discuss` starts the requirements of a rebuild from it. Never commit.
 
 1. Preconditions. On a failure, stop and name the fix:
-   - `gin` is on `PATH`; otherwise `./install.sh --plugin gin-workflow` from a gin-workflow clone.
+   - `gin` is on `PATH`; otherwise `./install.sh --plugin gin-workflow` (Windows: `.\install.ps1 -Plugin gin-workflow`) from a gin-workflow clone.
    - `gin state --format json` reports `project.layout: sdd`; otherwise say the BA skills need the SDD layout (`/gin:migrate-specs` moves a project to it).
    - `<specs>` is `artifacts.specs` (default `docs/specs`). Normalize the capability to `[a-z][a-z0-9-]*`. Without a folder `<specs>/<cap>/`: when an existing capability nearly matches (`order`, `orders`), use it and say so; otherwise ask the user to confirm the new name before writing anything; a new name the user confirms is created with `--new-capability`.
 2. The folder is `<specs>/<cap>/assets/<date>/`, with `<date>` from `--date` or today.
