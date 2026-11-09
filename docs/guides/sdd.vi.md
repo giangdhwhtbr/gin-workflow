@@ -117,7 +117,7 @@ docs/specs/orders/
 
 Dòng `Requirements:` của nó nêu các REQ-ID mà nó bao phủ. Discuss sửa use case trực tiếp trên spec branch, như với sơ đồ: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `use-cases/` dưới `## Use Cases`.
 
-`specs lint` và `specs lint --change` kiểm tra mỗi file trong `use-cases/` có tiêu đề `# `, dòng `Actor:`, dòng `Requirements:` với ít nhất một REQ-ID, và `## Main flow` có danh sách đánh số. Mỗi REQ-ID phải có trong một living spec hoặc trong `02-spec-delta.md` của một change đang mở; nếu không, lint báo `<REQ> is not in a living spec or an open change`.
+`specs lint` và `specs lint --change` kiểm tra mỗi file trong `use-cases/` có tiêu đề `# `, dòng `Actor:`, dòng `Requirements:` với ít nhất một REQ-ID, và `## Main flow` có danh sách đánh số. Mỗi REQ-ID phải có trong một living spec, hoặc là `ADDED` hay `MODIFIED` trong `02-spec-delta.md` của một change đang mở (REQ chỉ `REMOVED` ở đó vẫn bị báo); nếu không, lint báo `<REQ> is not in a living spec or an open change`.
 
 ## Xuất SRS { #exporting-an-srs }
 

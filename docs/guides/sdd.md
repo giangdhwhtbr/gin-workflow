@@ -117,7 +117,7 @@ docs/specs/orders/
 
 Its `Requirements:` line names the REQ-IDs it covers. Discuss edits use cases directly on the spec branch, as it does diagrams: they are not requirement blocks and never go through `02-spec-delta.md`. `01-proposal.md` lists them under `## Capabilities Affected`. `specs archive` leaves them in place; when it creates `spec.md` for a new capability, it links every file in `use-cases/` under `## Use Cases`.
 
-`specs lint` and `specs lint --change` check each file in `use-cases/` for a `# ` title, an `Actor:` line, a `Requirements:` line with at least one REQ-ID, and a `## Main flow` with a numbered list. Each REQ-ID must be in a living spec or in an open change's `02-spec-delta.md`; otherwise lint reports `<REQ> is not in a living spec or an open change`.
+`specs lint` and `specs lint --change` check each file in `use-cases/` for a `# ` title, an `Actor:` line, a `Requirements:` line with at least one REQ-ID, and a `## Main flow` with a numbered list. Each REQ-ID must be in a living spec, or `ADDED` or `MODIFIED` in an open change's `02-spec-delta.md` (a REQ only `REMOVED` there is reported); otherwise lint reports `<REQ> is not in a living spec or an open change`.
 
 ## Exporting an SRS
 
