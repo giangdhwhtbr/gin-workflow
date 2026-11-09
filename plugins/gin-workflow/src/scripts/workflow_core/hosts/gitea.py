@@ -15,7 +15,7 @@ from ..executables import tool
 from ..team import TeamError, origin_url, repo_slug
 from .base import HostFiles
 
-_INSTANCE = "<instance URL>"          # replaced by the instance the failing call targeted, when known
+_INSTANCE = "<instance URL, including any subpath>"   # replaced by the instance the failing call targeted, when known
 _PULL_URL = re.compile(r"^(?P<prefix>.*?)/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pulls/(?P<number>\d+)(?:/.*)?$")
 _EXPECTED = "https://<host>[/<subpath>]/<owner>/<repo>/pulls/<n>"
 _PAGES = ["-f", "limit=50", "--paginate", "--slurp"]   # --slurp: all pages as one JSON array of pages
@@ -42,12 +42,23 @@ def _pull_ref(url: str) -> tuple[str, str, str, str]:
 
 
 def _instance_of(remote: str) -> str:
-    """The instance `--host` for a remote: the base URL of an http(s) remote, else the bare host (gt adds the scheme)."""
+    """The base URL of an http(s) remote (everything before `/<owner>/<repo>`); "" for any other remote."""
     parsed = urlparse(remote.strip())
-    if parsed.scheme in ("http", "https") and parsed.hostname:
-        prefix = parsed.path.strip("/").split("/")[:-2]
-        return "/".join([f"{parsed.scheme}://{parsed.netloc.rpartition('@')[2]}", *prefix])
-    return repo_slug(remote).partition("/")[0]
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return ""
+    prefix = parsed.path.strip("/").split("/")[:-2]
+    return "/".join([f"{parsed.scheme}://{parsed.netloc.rpartition('@')[2]}", *prefix])
+
+
+def _logged_in_instances(executable: str, host: str, cwd: Path) -> list[str]:
+    """The instances `gt auth status --json` lists (one row per account) whose host name is `host`."""
+    shown = _ran([executable, "auth", "status", "--json"], cwd)
+    try:
+        rows = json.loads(shown.stdout) if shown and shown.returncode == 0 else []
+    except json.JSONDecodeError:
+        rows = []
+    instances = {row["host"] for row in rows if isinstance(row, dict) and isinstance(row.get("host"), str)}
+    return sorted(url for url in instances if (urlparse(url).hostname or "").lower() == host)
 
 
 def _ran(argv: list[str], cwd: Path) -> subprocess.CompletedProcess | None:
@@ -88,12 +99,13 @@ class Gitea:
         data = _expect(self._gt(["api", "--host", base, path], cwd, base), dict, path)
         reviews = self._pages(f"{path}/reviews", ["api", "--host", base, f"{path}/reviews", *_PAGES], cwd, base)
         files = self._pages(f"{path}/files", ["api", "--host", base, f"{path}/files", *_PAGES], cwd, base)
-        latest: dict[str, tuple[str, str]] = {}
+        latest: dict[str, tuple[str, str, bool]] = {}
         for item in sorted(reviews, key=lambda item: item.get("id") or 0):
             login = (item.get("user") or {}).get("login", "")
-            if login and not item.get("dismissed") and item.get("state") in _COUNTED:
-                latest[login] = (item["state"], item.get("commit_id") or "")
-        approvals = tuple((login, commit) for login, (state, commit) in latest.items() if state == "APPROVED")
+            if login and item.get("state") in _COUNTED:
+                latest[login] = (item["state"], item.get("commit_id") or "", bool(item.get("dismissed")))
+        approvals = tuple((login, commit) for login, (state, commit, dismissed) in latest.items()
+                          if state == "APPROVED" and not dismissed)
         return team_host.PrInfo(
             url=f"{base}/{owner}/{repo}/pulls/{number}",
             state="merged" if data.get("merged") else str(data.get("state", "")),
@@ -108,13 +120,23 @@ class Gitea:
                            if any(not commit for _, commit in approvals) else ""),
         )
 
+    def _origin(self, cwd: Path) -> tuple[list[str], str]:
+        """`--host` and the instance for a call without a PR URL: known for an http(s) origin; otherwise `gt`
+        takes the instance from the cwd remote and a failure shows the placeholder login command."""
+        try:
+            instance = _instance_of(origin_url(cwd))
+        except TeamError:
+            instance = ""
+        return (["--host", instance] if instance else []), instance or _INSTANCE
+
     def merged_with_text(self, text: str, cwd: Path) -> list[team_host.PrInfo]:
-        issues = self._pages("issue search", ["api", "repos/{owner}/{repo}/issues", "-f", "type=pulls", "-f", "state=closed",
-                              "-f", f"q={text}", *_PAGES, "--max-pages", "2"], cwd)
+        host, instance = self._origin(cwd)
+        issues = self._pages("issue search", ["api", *host, "repos/{owner}/{repo}/issues", "-f", "type=pulls", "-f", "state=closed",
+                              "-f", f"q={text}", *_PAGES, "--max-pages", "2"], cwd, instance)
         found = []
         for issue in issues[:_SEARCH_LIMIT]:
             path = f"repos/{{owner}}/{{repo}}/pulls/{_expect(issue.get('number'), int, 'issue search')}"
-            pull = _expect(self._gt(["api", path], cwd), dict, path)
+            pull = _expect(self._gt(["api", *host, path], cwd, instance), dict, path)
             if pull.get("merged"):
                 found.append(team_host.PrInfo(pull.get("html_url", ""), "merged", True,
                                               pull.get("merge_commit_sha") or "", "", "", (), (),
@@ -122,8 +144,9 @@ class Gitea:
         return found
 
     def pr_for_branch(self, branch: str, cwd: Path) -> team_host.PrInfo | None:
-        pulls = self._pages("pull request list", ["api", "repos/{owner}/{repo}/pulls", "-f", "state=all", *_PAGES,
-                             "--max-pages", _BRANCH_PAGES], cwd)
+        host, instance = self._origin(cwd)
+        pulls = self._pages("pull request list", ["api", *host, "repos/{owner}/{repo}/pulls", "-f", "state=all",
+                                                  *_PAGES, "--max-pages", _BRANCH_PAGES], cwd, instance)
         same = [pull for pull in pulls if (pull.get("head") or {}).get("ref") == branch]
         if not same:
             return None
@@ -152,10 +175,21 @@ class Gitea:
             return {"gitea_cli": (False, "the gt on PATH is not the Gitea CLI (Graphite also names its CLI gt); "
                                          "install Gitea's gt (docs.gitea.com/cli) ahead of it on PATH")}
         checks = {"gitea_cli": (True, "")}
+        login = f"gt auth login --host {_INSTANCE}"
         try:
-            instance = _instance_of(origin_url(root))
+            remote = origin_url(root)
         except TeamError as error:
-            return {**checks, "host_login": (False, f"{error}; add the Gitea remote, then run `gt auth login --host <instance URL>`")}
+            return {**checks, "host_login": (False, f"{error}; add the Gitea remote, then run `{login}`")}
+        instance = _instance_of(remote)
+        if not instance:                               # ssh://, scp-style or a path: only the host is known
+            host = repo_slug(remote).partition("/")[0]
+            found = _logged_in_instances(executable, host, root) if host else []
+            if len(found) != 1:
+                fix = login if not found else (
+                    f"origin host {host} matches several logged-in instances ({', '.join(found)}): log in to one "
+                    "of them only, or use an https origin remote that names the instance")
+                return {**checks, "host_login": (False, fix)}
+            instance = found[0]
         login = f"gt auth login --host {instance}"
         status = _ran([executable, "auth", "status", "--host", instance], root)
         checks["host_login"] = (bool(status and status.returncode == 0), login)

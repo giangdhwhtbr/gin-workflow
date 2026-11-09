@@ -89,6 +89,12 @@ class TestFetchPr(GiteaCase):
             review("chi-fe", "APPROVED", "a", 5), review("chi-fe", "COMMENT", "b", 6)]))
         self.assertEqual((("binh-dev", "b"), ("chi-fe", "a")), self.fetch().approvals)
 
+    def test_a_dismissed_rejection_does_not_revive_an_earlier_approval(self):
+        self.gt(pull_rules(gitea_pr(), [
+            review("an-ba", "APPROVED", "a", 1), review("an-ba", "REQUEST_CHANGES", "b", 2, dismissed=True),
+            review("binh-dev", "APPROVED", "a", 3), review("binh-dev", "COMMENT", "b", 4, dismissed=True)]))
+        self.assertEqual((("binh-dev", "a"),), self.fetch().approvals)
+
     def test_a_review_without_commit_id_says_it_predates_commit_tracking(self):
         self.gt(pull_rules(gitea_pr(), [review("an-ba", "APPROVED", "", 1)]))
         pr = self.fetch()
@@ -167,6 +173,33 @@ class TestSearch(GiteaCase):
         self.assertEqual([f"{BASE}/org/app/pulls/1", f"{BASE}/org/app/pulls/3"], [pr.url for pr in found])
         self.assertEqual([("merged", True, "m" * 40, "Plan: p\nTracks: 1")],
                          [(pr.state, pr.merged, pr.merge_commit, pr.body) for pr in found[:1]])
+
+    def test_an_https_origin_passes_its_instance_host_to_search_and_branch_lookup(self):
+        git(self.root, "remote", "set-url", "origin", f"{BASE}/org/app.git")
+        listing = ["api", "--host", BASE, "repos/{owner}/{repo}/pulls", "-f", "state=all", "-f", "limit=50",
+                   "--paginate", "--slurp", "--max-pages", "10"]
+        self.gt([{"argv": ["api", "--host", BASE, "repos/{owner}/{repo}/issues"], "stdout": [[{"number": 1}]]},
+                 {"argv": ["api", "--host", BASE, "repos/{owner}/{repo}/pulls/1"],
+                  "stdout": {**gitea_pr(1), "html_url": "u1"}},
+                 {"argv": listing, "stdout": [[{**gitea_pr(4, branch="spec/x"), "html_url": "u4"}]]}])
+        with mock.patch.dict(os.environ, self.env):
+            self.assertEqual(["u1"], [pr.url for pr in adapter("gitea").merged_with_text("Plan: p", self.root)])
+            self.assertEqual("u4", adapter("gitea").pr_for_branch("spec/x", self.root).url)
+        self.assertTrue(all(call[2:4] == ["--host", BASE] for call in calls(self.bin)), calls(self.bin))
+        self.gt([{"argv": ["api"], "exit": 4}])
+        with mock.patch.dict(os.environ, self.env):
+            for lookup in (lambda: adapter("gitea").merged_with_text("x", self.root),
+                           lambda: adapter("gitea").pr_for_branch("x", self.root)):
+                with self.assertRaisesRegex(HostUnavailable, f"run gt auth login --host {BASE}$"):
+                    lookup()
+
+    def test_another_origin_relies_on_the_clone_and_names_the_placeholder_login(self):
+        self.gt([{"argv": ["api"], "exit": 4}])
+        with mock.patch.dict(os.environ, self.env), self.assertRaises(HostUnavailable) as raised:
+            adapter("gitea").pr_for_branch("x", self.root)
+        self.assertEqual("gt is not logged in: run gt auth login --host <instance URL, including any subpath>",
+                         str(raised.exception))
+        self.assertNotIn("--host", calls(self.bin)[0])
 
     def test_pr_for_branch_is_the_newest_pull_request_of_the_branch(self):
         listing = ["api", "repos/{owner}/{repo}/pulls", "-f", "state=all", "-f", "limit=50", "--paginate", "--slurp",
@@ -253,13 +286,48 @@ class TestDoctor(GiteaCase):
         self.assertFalse(ok)
         self.assertIn("could not read", fix)
 
-    def test_an_ssh_remote_checks_the_bare_host(self):
+    def logged_in(self, *hosts: str, version: str = "28.0.0") -> None:
+        """`gt` logged in to `hosts` (one account each); the instance login checks answer for BASE only."""
+        rows = [{"host": host, "user": "me", "active": True} for host in hosts]
+        self.gt([{"argv": ["--version"], "stdout": VERSION}, {"argv": ["auth", "status", "--json"], "stdout": rows},
+                 {"argv": ["auth", "status", "--host", BASE]},
+                 {"argv": ["api", "--host", BASE, "version"], "stdout": {"version": version}}])
+
+    def test_an_ssh_remote_finds_its_instance_among_the_logged_in_ones(self):
+        for remote in (SSH_REMOTE, "git@git.example.com:org/app.git"):
+            with self.subTest(remote):
+                git(self.root, "remote", "set-url", "origin", remote)
+                self.logged_in(BASE, "https://other.example.com", BASE)
+                checks = self.checks()
+                self.assertTrue(all(ok for ok, _ in checks.values()), checks)
+                self.assertEqual(["server_version"], list(checks)[-1:])
+                self.assertIn(["gt", "auth", "status", "--host", BASE], calls(self.bin))
+                self.assertIn(["gt", "api", "--host", BASE, "version"], calls(self.bin))
+                self.assertNotIn(["gt", "auth", "status", "--host", "git.example.com"], calls(self.bin))
+
+    def test_an_ssh_remote_without_a_matching_login_asks_for_the_full_instance_url(self):
         git(self.root, "remote", "set-url", "origin", SSH_REMOTE)
-        self.gt([{"argv": ["--version"], "stdout": VERSION}, {"argv": ["auth", "status", "--host", "git.example.com"]},
-                 {"argv": ["api", "--host", "git.example.com", "version"], "stdout": {"version": "28.0.0"}}])
+        self.logged_in("https://gitea.com", "https://other.example.com/gitea")
         checks = self.checks()
-        self.assertTrue(all(ok for ok, _ in checks.values()), checks)
-        self.assertIn(["gt", "auth", "status", "--host", "git.example.com"], calls(self.bin))
+        self.assertEqual({"gitea_cli", "host_login"}, set(checks))
+        self.assertEqual((False, "gt auth login --host <instance URL, including any subpath>"), checks["host_login"])
+
+    def test_an_ssh_remote_matching_several_instances_names_them(self):
+        git(self.root, "remote", "set-url", "origin", SSH_REMOTE)
+        self.logged_in(BASE, "http://git.example.com:3000")
+        checks = self.checks()
+        ok, fix = checks["host_login"]
+        self.assertFalse(ok)
+        self.assertIn(f"matches several logged-in instances (http://git.example.com:3000, {BASE})", fix)
+        self.assertNotIn("server_version", checks)
+
+    def test_an_origin_without_a_host_fails_with_the_placeholder_login(self):
+        git(self.root, "remote", "set-url", "origin", "/srv/git/org/app.git")
+        self.logged_in(BASE)
+        checks = self.checks()
+        self.assertEqual((False, "gt auth login --host <instance URL, including any subpath>"), checks["host_login"])
+        self.assertNotIn("server_version", checks)
+        self.assertNotIn(["gt", "auth", "status", "--host", ""], calls(self.bin))
 
     def test_setup_doctor_reports_the_failing_checks_and_fixes(self):
         write(self.root, ".agent-workflow/config.yaml",
