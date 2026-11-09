@@ -58,6 +58,30 @@ class TestBlocks(unittest.TestCase):
         self.assertEqual(["REQ-AUTH-009: needs at least one '#### Scenario:'"], specs.lint_block(none))
 
 
+USE_CASE = """# Sign in
+
+Actor: Registered user
+Requirements: REQ-AUTH-001, REQ-AUTH-002
+
+## Goal
+Reach the dashboard.
+
+## Preconditions
+The user has an account.
+
+## Main flow
+1. The user enters email and password.
+2. The system signs the user in.
+
+## Alternative flows
+### 2a. Wrong password
+1. The system shows "Invalid credentials".
+
+## Postconditions
+The user is signed in.
+"""
+
+
 class TestRepositoryCommands(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -148,6 +172,42 @@ class TestRepositoryCommands(unittest.TestCase):
         write(self.root, "docs/specs/auth/diagrams/login-activity.md", specs.template_text(self.root, "activity.md"))
         write(self.root, "docs/specs/auth/diagrams/account-state.md", specs.template_text(self.root, "state.md"))
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
+
+    def test_lint_accepts_a_valid_use_case_and_no_folder(self):
+        self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
+        self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
+        self.assertNotIn("use-cases", "\n".join(specs.lint_living(self.root, self.cfg)))
+
+    def test_lint_reports_each_missing_part_of_a_use_case(self):
+        path = "docs/specs/auth/use-cases/sign-in.md"
+        cases = {
+            "missing '# <use case name>' title": USE_CASE.replace("# Sign in\n", ""),
+            "missing 'Actor: <primary actor>' line": USE_CASE.replace("Actor: Registered user\n", "Actor:\n"),
+            "missing 'Requirements: REQ-…' line": USE_CASE.replace("Requirements: REQ-AUTH-001, REQ-AUTH-002\n", ""),
+            "no REQ-ID on its Requirements line": USE_CASE.replace("REQ-AUTH-001, REQ-AUTH-002", "none yet"),
+            "missing '## Main flow' with a numbered list": USE_CASE.replace("1. The user enters", "- The user enters")
+                                                                  .replace("2. The system signs", "- The system signs"),
+            "REQ-AUTH-009 is not in a living spec or an open change": USE_CASE.replace("REQ-AUTH-002", "REQ-AUTH-009"),
+        }
+        for message, text in cases.items():
+            with self.subTest(message=message):
+                write(self.root, path, text)
+                expected = [f"{path}: {message}"]
+                self.assertEqual(expected, specs.lint_use_cases(self.root, self.cfg))
+                self.assertIn(expected[0], specs.lint_change(self.root, self.cfg, make_change(self.root)))
+
+    def test_lint_use_case_accepts_requirements_added_in_an_open_change(self):
+        make_change(self.root, spec_delta=delta(added=ADDED_BLOCK))          # adds REQ-AUTH-003
+        write(self.root, "docs/specs/auth/use-cases/lock.md", USE_CASE.replace("REQ-AUTH-002", "REQ-AUTH-003"))
+        self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
+
+    def test_lint_use_case_reports_a_requirement_only_removed(self):
+        removed = ADDED_BLOCK.replace("REQ-AUTH-003", "REQ-AUTH-009") + "Reason: gone\n"
+        make_change(self.root, spec_delta=delta(removed=removed))
+        write(self.root, "docs/specs/auth/use-cases/lock.md", USE_CASE.replace("REQ-AUTH-002", "REQ-AUTH-009"))
+        self.assertEqual(["docs/specs/auth/use-cases/lock.md: REQ-AUTH-009 is not in a living spec or an open change"],
+                         specs.lint_use_cases(self.root, self.cfg))
 
     def test_lint_change_needs_an_activity_diagram_where_requirements_are_added_or_modified(self):
         (self.root / "docs/specs/auth/diagrams/login-activity.md").unlink()
@@ -282,7 +342,7 @@ class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
         with tempfile.TemporaryDirectory() as directory:
             root = make_repo(Path(directory), layout="legacy")
-            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "iteration.md", "readme.md", "runbook.md", "changelog.md", "activity.md", "state.md", "task.md"):
+            for name in ("roadmap.md", "epic.md", "user-story.md", "design-spec.md", "iteration.md", "readme.md", "runbook.md", "changelog.md", "activity.md", "state.md", "task.md", "use-case.md"):
                 with self.subTest(name=name):
                     self.assertEqual(0, run_specs(root, "template", name).returncode)
             self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
@@ -296,6 +356,12 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("```mermaid\nstateDiagram-v2", run_specs(root, "template", "state.md").stdout)
             living = run_specs(root, "template", "spec.md").stdout
             self.assertLess(living.index("## Diagrams"), living.index("## Requirements"))
+            use_case = run_specs(root, "template", "use-case.md").stdout
+            for needle in ("Actor:", "Requirements:", "## Goal", "## Preconditions", "## Main flow", "## Alternative flows", "## Postconditions"):
+                with self.subTest(needle=needle):
+                    self.assertIn(needle, use_case)
+            self.assertLess(living.index("## Diagrams"), living.index("## Use Cases"))
+            self.assertLess(living.index("## Use Cases"), living.index("## Requirements"))
             self.assertIn("Capabilities:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("Capabilities: {{capabilities}}", run_specs(root, "template", "epic.md").stdout)
             task = run_specs(root, "template", "task.md").stdout

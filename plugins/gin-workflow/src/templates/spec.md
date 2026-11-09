@@ -4,4 +4,6 @@
 
 ## Diagrams
 
+## Use Cases
+
 ## Requirements

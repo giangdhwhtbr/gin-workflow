@@ -381,6 +381,44 @@ def lint_diagrams(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     return errors
 
 
+_USE_CASE_REQS = re.compile(r"^Requirements:[ \t]*(.*)$", re.MULTILINE)
+_MAIN_FLOW = re.compile(r"^## Main flow[ \t]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
+
+
+def _known_req_ids(root: Path, cfg: Mapping[str, Any]) -> set[str]:
+    """REQ-IDs in a living spec, or ADDED or MODIFIED in an open change folder."""
+    known = set(living_blocks(root, cfg))
+    base = changes_dir(root, cfg)
+    for change in sorted(base.iterdir()) if base.is_dir() else []:
+        if change.is_dir() and change.name != "archive" and change_file(change, "spec-delta").is_file():
+            known |= {b.id for b in delta_blocks(root, change)[0] if b.section in ("ADDED", "MODIFIED")}
+    return known
+
+
+def lint_use_cases(root: Path, cfg: Mapping[str, Any]) -> list[str]:
+    """Every `<specs>/<cap>/use-cases/*.md` has a title, an actor, known REQ-IDs, and a numbered main flow."""
+    paths = sorted(specs_dir(root, cfg).glob("*/use-cases/*.md"))
+    known = _known_req_ids(root, cfg) if paths else set()
+    errors: list[str] = []
+    for path in paths:
+        text, name = _COMMENT.sub("", path.read_text(encoding="utf-8")), shown(root, path)
+        if not re.search(r"^# \S", text, re.MULTILINE):
+            errors.append(f"{name}: missing '# <use case name>' title")
+        if not re.search(r"^Actor:[ \t]*\S", text, re.MULTILINE):
+            errors.append(f"{name}: missing 'Actor: <primary actor>' line")
+        line = _USE_CASE_REQS.search(text)
+        ids = [found.group(0) for found in REQ_ID.finditer(line.group(1))] if line else []
+        if line is None:
+            errors.append(f"{name}: missing 'Requirements: REQ-…' line")
+        elif not ids:
+            errors.append(f"{name}: no REQ-ID on its Requirements line")
+        flow = _MAIN_FLOW.search(text)
+        if not (flow and re.search(r"^\d+\.\s+\S", flow.group(1), re.MULTILINE)):
+            errors.append(f"{name}: missing '## Main flow' with a numbered list")
+        errors += [f"{name}: {req} is not in a living spec or an open change" for req in ids if req not in known]
+    return errors
+
+
 def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     errors: list[str] = []
     seen: dict[str, str] = {}
@@ -398,7 +436,7 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
                 errors.append(f"{where}: {block.id} duplicates {seen[block.id]}")
             seen.setdefault(block.id, name)
             errors += [f"{where}: {message}" for message in lint_block(block)]
-    return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg)
+    return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg)
 
 
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
@@ -439,7 +477,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
                           "(gin specs template activity.md)")
     design = change_file(change, "design")
     questions = technical_questions(design, shown(root, design))[1] if design.is_file() else []
-    return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg)
+    return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg)
 
 
 _CITED = re.compile(r"`([^`\s]+)`")
