@@ -10,7 +10,7 @@ import sys
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
-from .hosts import DEFAULT_HOST, adapter
+from .hosts import DEFAULT_HOST, HOSTS, adapter
 from .workspace import Workspace
 
 GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
@@ -29,6 +29,7 @@ class Member:
     email: str
     roles: tuple[str, ...]
     login: str
+    aws_identity: str = ""
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,7 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
     held: set[str] = set()
     emails: dict[str, str] = {}
     logins: dict[str, str] = {}
+    identities: dict[str, str] = {}
     for email, spec in members.items():
         key = str(email).strip().lower()
         if key in emails:
@@ -102,6 +104,11 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
         if login in logins:
             errors.append(f"team.members: login {spec.get('login')} used by {logins[login]} and {email}")
         logins[login] = str(email)
+        identity = str(spec.get("aws_identity", ""))
+        if identity:
+            if identity.lower() in identities:
+                errors.append(f"team.members: aws_identity {identity} used by {identities[identity.lower()]} and {email}")
+            identities[identity.lower()] = str(email)
         held.update(spec.get("roles", ()))
     needed: list[tuple[str, str]] = []
     for gate, policy in (raw.get("approvals") or {}).items():
@@ -120,6 +127,17 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
         for other, other_prefix in prefixes[index + 1:]:
             if other != name and (prefix.startswith(other_prefix) or other_prefix.startswith(prefix)):
                 errors.append(f"team.areas: {name} and {other} overlap ({prefix!r} vs {other_prefix!r})")
+    host = raw.get("host", DEFAULT_HOST)
+    if host in HOSTS and adapter(host).identity_key == "aws_identity":
+        policies = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}.values()
+        approving = {role for policy in policies if isinstance(policy, list) for role in policy}
+        if "area_lead" in policies:
+            approving |= {area.get("lead", "") for area in areas.values()}
+        for email, spec in members.items():
+            roles = sorted(approving & set(spec.get("roles", ())))
+            if roles and not spec.get("aws_identity"):
+                errors.append(f"team.members: {email} holds approving role {', '.join(roles)} but has no "
+                              f"aws_identity (required on host {host})")
     if raw.get("strict"):
         approvals = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}
         errors += [f"team.strict: team.approvals.{gate} has no role policy" for gate in POLICY_GATES
@@ -132,7 +150,7 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
     if not isinstance(raw, Mapping):
         return None
     members = {str(email).strip().lower(): Member(str(email).strip().lower(), tuple(spec.get("roles", ())),
-                                                 str(spec.get("login", "")))
+                                                 str(spec.get("login", "")), str(spec.get("aws_identity", "")))
                for email, spec in (raw.get("members") or {}).items()}
     areas = {name: Area(name, tuple(spec.get("paths", ())), str(spec.get("lead", "")), tuple(spec.get("roles", ())))
              for name, spec in (raw.get("areas") or {}).items()}

@@ -9,6 +9,7 @@ import sys
 from typing import Any, Sequence
 
 from . import team as team_core, workspace
+from .hosts import adapter
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -91,6 +92,8 @@ def _run(args: argparse.Namespace) -> int:
             path = team_init.codeowners_path(team)
             return _findings([f"{path} is out of date; run gin team init"] if drift else [],
                              args.format, "ok")
+        if team_init.codeowners_path(team) is None:
+            raise team_core.TeamError(f"team.host {team.host} has no CODEOWNERS file")
         text = team_init.codeowners(team, config)
         _emit({"path": team_init.codeowners_path(team), "text": text}, args.format, text.rstrip("\n"))
         return 0
@@ -103,6 +106,10 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "check":
         pr, artifact, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan,
                                                       spec=args.spec)
+        key = adapter(team.host).identity_key
+        for member in team.members.values():
+            if not getattr(member, key):
+                print(f"warning: {member.email} has no {key}; its approvals cannot be matched", file=sys.stderr)
         payload = {"status": "rejected" if reasons else "ok", "gate": args.gate, "url": pr.url, "reasons": reasons,
                    "approvers": team_core.approver_payload(pr, team, on_commit=pr.head_sha if args.gate == "ship" else None),
                    "artifact": artifact}

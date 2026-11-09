@@ -44,7 +44,7 @@ class TestRegistry(unittest.TestCase):
                          adapter("gitlab").doctor_notes())
 
     def test_stub_hosts_are_not_built_yet(self):
-        for host in ("gitea", "codecommit"):
+        for host in ("gitea",):
             with self.subTest(host=host), self.assertRaisesRegex(HostUnavailable, f"{host} support is not built yet"):
                 adapter(host).fetch_pr("https://example.com/x", Path("."))
 
