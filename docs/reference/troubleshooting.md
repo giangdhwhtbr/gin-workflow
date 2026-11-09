@@ -150,7 +150,7 @@ To keep Markdown tasks, set `providers.task_tracking=markdown` the same way.
 
 ## Upgrading from gin-workflow 2.x
 
-Version 3.0 renames the CLI to `gin` and the skills to the `gin:` namespace (`/gin:discuss`, `gin:learn`), with no `gin-workflow` alias. `./install.sh` installs `gin` and removes the old `gin-workflow` launcher and plugin installs it manages. It also reinstalls the gin-qa and gin-orchestrator add-ons whose launchers it manages, so they call `gin`; a `--project` install refreshes those launchers too but writes only the plugins named on the command line into the project.
+Version 3.0 renames the CLI to `gin` and the skills to the `gin:` namespace (`/gin:discuss`, `gin:learn`), with no `gin-workflow` alias. `./install.sh` installs `gin` and removes the old `gin-workflow` launcher and plugin installs it manages. It also reinstalls the gin-qa and gin-orchestrator add-ons whose launchers it manages, so they call `gin`; a `--project` install refreshes those launchers too but writes only the plugins named on the command line into the project. A global install also reinstalls gin-ba when `~/.claude/skills/gin-ba` exists, since gin-ba has no launcher.
 
 In each repository, run `gin hooks install`, then `gin setup refresh`; with team mode, also `gin team init`. A hook installed before 3.0 stops the commit with `gin-workflow is not on PATH`, so no check is skipped silently. `gin setup doctor` reports what is still on the old name.
 

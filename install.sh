@@ -1028,6 +1028,11 @@ if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
       REFRESHED_ADDONS+=("$addon")
     fi
   done
+  # gin-ba has no launcher: its global Claude skills folder marks it installed.
+  if [ -z "$PROJECT_DIR" ] && [[ " ${PLUGINS[*]} " != *" gin-ba "* ]] && [ -d "${HOME}/.claude/skills/gin-ba" ]; then
+    echo "Refreshing the installed gin-ba add-on."
+    PLUGINS+=(gin-ba)
+  fi
 fi
 
 for p_name in "${PLUGINS[@]}"; do

@@ -671,11 +671,15 @@ for addon in gin-qa gin-orchestrator; do
   printf '%s\n' '# stale add-on copy' > "$addon_home/.local/lib/$addon/$addon_version/$addon"
   ln -s "$addon_home/.local/lib/$addon/$addon_version/$addon" "$addon_home/.local/bin/$addon"
 done
+# gin-ba has no launcher: its Claude skills folder marks it installed.
+mkdir -p "$addon_home/.claude/skills/gin-ba"
 HOME="$addon_home" ./install.sh --platform claude >"$output_file" 2>&1
 for addon in gin-qa gin-orchestrator; do
   assert_contains "$output_file" "Refreshing the installed $addon add-on."
   assert_not_contains "$(readlink -f "$addon_home/.local/bin/$addon")" "# stale add-on copy"
 done
+assert_contains "$output_file" "Refreshing the installed gin-ba add-on."
+assert_exists "$addon_home/.claude/skills/gin-ba/skills/mockup/SKILL.md"
 HOME="$addon_home" PATH="$addon_home/.local/bin:$PATH" "$addon_home/.local/bin/gin-orchestrator" version --json >/dev/null
 
 # An unparsable Claude settings.json stops the upgrade before the old Claude
