@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import subprocess
 from typing import Any, Mapping
@@ -56,22 +55,25 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
 
 
 def status(root: Path, change: Path) -> dict[str, Any]:
+    """The newest spec-review PR of `spec/<change>` on the configured host (GitHub without team mode)."""
+    from .hosts import adapter
+    from .team import TeamConfig, team_for_repo
+    from .team_host import HostUnavailable, pr_for_branch
+
     branch = f"spec/{change.name}"
     record = "gin record requirement-confirmed --workflow-id <epic> --evidence <pr-url> --actor <id>"
-    executable = tool("gh", root)
-    if executable is None:
-        return {"change": change.name, "branch": branch, "status": "gh_unavailable",
-                "message": f"gh unavailable; check the PR for {branch} by hand, then: {record}"}
-    listed = subprocess.run([executable, "pr", "list", "--head", branch, "--state", "all",
-                             "--json", "url,state,mergeCommit"], cwd=root, text=True, capture_output=True, check=False)
-    if listed.returncode != 0:
-        raise SpecsError(f"gh pr list failed: {listed.stderr.strip()}")
-    prs = json.loads(listed.stdout or "[]")
-    if not prs:
+    host = (team_for_repo(root) or TeamConfig()).host
+    name = adapter(host).executable
+    if tool(name, root) is None:
+        return {"change": change.name, "branch": branch, "status": f"{name}_unavailable",
+                "message": f"{name} unavailable; check the PR for {branch} by hand, then: {record}"}
+    try:
+        pr = pr_for_branch(host, branch, root)
+    except HostUnavailable as error:
+        raise SpecsError(str(error)) from error
+    if pr is None:
         return {"change": change.name, "branch": branch, "status": "none"}
-    pr = prs[0]
-    state = str(pr.get("state", "")).lower()
-    payload = {"change": change.name, "branch": branch, "status": state, "url": pr.get("url", "")}
-    if state == "merged":
-        payload["merge_commit"] = (pr.get("mergeCommit") or {}).get("oid", "")
+    payload = {"change": change.name, "branch": branch, "status": pr.state, "url": pr.url}
+    if pr.state == "merged":
+        payload["merge_commit"] = pr.merge_commit
     return payload

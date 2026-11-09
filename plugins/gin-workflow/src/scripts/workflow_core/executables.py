@@ -11,7 +11,7 @@ from .atomic import atomic_write_text
 from .checkout import main_checkout
 from .configuration import require_yaml
 
-KNOWN_TOOLS = ("git", "bd", "gh", "glab", "npm", "npx", "gin", "gin-orchestrator", "codegraph")
+KNOWN_TOOLS = ("git", "bd", "gh", "glab", "gt", "aws", "npm", "npx", "gin", "gin-orchestrator", "codegraph")
 LOCAL_FILE = ".agent-workflow/executables.local.yaml"
 
 

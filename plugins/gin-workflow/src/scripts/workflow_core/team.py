@@ -10,6 +10,7 @@ import sys
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
+from .hosts import DEFAULT_HOST, adapter
 from .workspace import Workspace
 
 GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
@@ -40,7 +41,7 @@ class Area:
 
 @dataclass(frozen=True)
 class TeamConfig:
-    host: str = "github"
+    host: str = DEFAULT_HOST
     commit_convention: str = "conventional"
     members: Mapping[str, Member] = field(default_factory=dict)
     areas: Mapping[str, Area] = field(default_factory=dict)
@@ -53,8 +54,13 @@ class TeamConfig:
     def member(self, email: str) -> Member | None:
         return self.members.get(email.strip().lower())
 
+    def by_identity(self, name: str, key: str = "login") -> Member | None:
+        """The member whose `key` field (a host's `identity_key`) equals `name`, case-insensitive."""
+        return next((m for m in self.members.values()
+                     if name and str(getattr(m, key, "")).lower() == name.lower()), None)
+
     def by_login(self, login: str) -> Member | None:
-        return next((m for m in self.members.values() if m.login.lower() == login.lower()), None)
+        return self.by_identity(login, "login")
 
     def eligible(self, member: Member, area: Area) -> bool:
         return not area.roles or area.lead in member.roles or bool(set(area.roles) & set(member.roles))
@@ -137,7 +143,7 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
             approvals["ship"] = legacy
         print("warning: team.approvals.verification_passed is deprecated; use team.approvals.ship", file=sys.stderr)
     return TeamConfig(
-        host=str(raw.get("host", "github")),
+        host=str(raw.get("host", DEFAULT_HOST)),
         commit_convention=str(raw.get("commit_convention", "conventional")),
         members=members,
         areas=areas,
@@ -326,12 +332,13 @@ def check_plan_repos(space: Workspace, path: Path) -> list[str]:
 def _approver_roles(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> dict[str, set[str]]:
     """Roles per approving login, excluding the PR author and approvals not made on `on_commit`."""
     roles: dict[str, set[str]] = {}
+    key = adapter(team.host).identity_key
     for login, commit in pr.approvals:
         if login.lower() == pr.author.lower():
             continue
         if on_commit and commit != on_commit:
             continue
-        member = team.by_login(login)
+        member = team.by_identity(login, key)
         if member is not None:
             roles[login] = set(member.roles)
     return roles
@@ -356,12 +363,12 @@ def repo_slug(location: str, *, pr: bool = False) -> str:
     return f"{host}/{path.removesuffix('.git')}".lower()
 
 
-def origin_slug(root: Path) -> str:
+def origin_url(root: Path) -> str:
     done = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, text=True, capture_output=True,
                           check=False)
     if done.returncode != 0 or not done.stdout.strip():
         raise TeamError("no git remote 'origin'; team gates compare the PR repository with it")
-    return repo_slug(done.stdout)
+    return done.stdout.strip()
 
 
 def _is_artifact(path: str, gate: str, changes: str) -> bool:
@@ -395,7 +402,8 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
     policy = team.approvals.get("ship" if gate == "shipped" else gate, [])
     reasons: list[str] = []
-    expected, actual = origin_slug(Path(root)), repo_slug(pr.url, pr=True)
+    host = adapter(team.host)
+    expected, actual = host.repo_id(origin_url(Path(root))), host.repo_id(pr.url, pr=True)
     if actual != expected:
         reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
     if gate in ("ship", "shipped"):
@@ -455,8 +463,9 @@ def can_waive(member: Member, gate: str, team: TeamConfig) -> bool:
 
 def approver_payload(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> list[dict[str, Any]]:
     result = []
+    key = adapter(team.host).identity_key
     for login in _approver_roles(pr, team, on_commit=on_commit):
-        member = team.by_login(login)
+        member = team.by_identity(login, key)
         result.append({"login": login, "email": member.email, "roles": list(member.roles)})
     return result
 
@@ -504,7 +513,7 @@ def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, 
         raise TeamRejected(reasons)
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
                           "approvers": approver_payload(pr, team, on_commit=pr.head_sha if gate == "shipped" else None),
-                          "repository": repo_slug(pr.url, pr=True),
+                          "repository": adapter(team.host).repo_id(pr.url, pr=True),
                           **({"artifact": artifact} if artifact else {})}
 
 

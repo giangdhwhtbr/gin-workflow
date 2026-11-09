@@ -16,7 +16,7 @@ _TEAM = {
     "type": "object",
     "required": ["members"],
     "properties": {
-        "host": {"enum": ["github", "gitlab"]},
+        "host": {"enum": ["github", "gitlab", "gitea", "codecommit"]},
         "commit_convention": {"enum": ["conventional", "none"]},
         "members": {
             "type": "object",
