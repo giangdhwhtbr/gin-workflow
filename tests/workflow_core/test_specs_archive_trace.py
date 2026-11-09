@@ -53,7 +53,7 @@ class TestArchive(unittest.TestCase):
         archive(self.root, self.cfg, change, today=TODAY)
         billing = (self.root / "docs/specs/billing/spec.md").read_text(encoding="utf-8")
         self.assertIn("## Diagrams\n\n- [invoice-state](diagrams/invoice-state.md)\n"
-                      "- [pay-activity](diagrams/pay-activity.md)\n\n## Requirements", billing)
+                      "- [pay-activity](diagrams/pay-activity.md)\n\n## Use Cases\n\n## Requirements", billing)
         auth = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
         self.assertTrue(auth.startswith(auth_before.rstrip()))
         self.assertNotIn("## Diagrams", auth)
