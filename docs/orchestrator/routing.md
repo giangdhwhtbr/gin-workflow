@@ -42,7 +42,7 @@ orchestrator:
   concurrency: {claude: 2, codex: 2, antigravity: 1}
 ```
 
-Roles are responsibilities such as `backend`, `frontend`, `docs`, `review`, or `general`; each lists harnesses (`claude`, `codex`, `antigravity`, `opencode`, or `main_harness`) in preference order. A role may add `by_tier.<tier>`, a list that replaces `preferred` for that tier. A track's tier comes from its model's rank in the main harness's catalog: `low` for the weakest, `high` for the strongest, and `medium` for any other or for a one-entry catalog. Plans name a role, a model, and an effort, never a harness. Other keys: `queue`, `worker`, and `circuit_breaker` ([Configuration](../reference/config.md#orchestrator)).
+Roles are responsibilities such as `backend`, `frontend`, `docs`, `review`, or `general`; each lists harnesses (`claude`, `codex`, `antigravity`, `opencode`, `copilot`, or `main_harness`) in preference order. A role may add `by_tier.<tier>`, a list that replaces `preferred` for that tier. A track's tier comes from its model's rank in the main harness's catalog: `low` for the weakest, `high` for the strongest, and `medium` for any other or for a one-entry catalog. Plans name a role, a model, and an effort, never a harness. Other keys: `queue`, `worker`, and `circuit_breaker` ([Configuration](../reference/config.md#orchestrator)).
 
 The models and efforts of each harness come from the [model catalog](../reference/config.md#models) under `models:` in `.agent-workflow/config.yaml`. Only the executable of each harness is machine-local, in `.agent-workflow/orchestrator.local.yaml` (git-ignored):
 
