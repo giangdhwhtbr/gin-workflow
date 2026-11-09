@@ -99,13 +99,13 @@ Có hai giới hạn. gin nhận diện repository Gitea theo host, owner và t�
 
 Đặt `team.host: codecommit`. CodeCommit không có file CODEOWNERS, template pull request hay CI workflow, nên `team init` chỉ ghi hook commit-msg, và `team init --ci` bị từ chối với exit 2: dùng CodeBuild hoặc CodePipeline cho CI.
 
-Mỗi thành viên có approving role cần `aws_identity`, giá trị gin so khớp với người approve. Đó là tên IAM user, hoặc role session name với assumed role (`arn:aws:sts::<account>:assumed-role/Dev/alice` khớp với `alice`). Dùng AWS SSO hoặc điều kiện `sts:RoleSessionName` trong trust policy của role, để mỗi người có một session name riêng. `gin team check` báo lỗi khi người approve thiếu giá trị này.
+Mỗi thành viên có approving role cần `aws_identity`, giá trị gin so khớp với người approve. Đó là tên IAM user, hoặc `<role>/<session>` với assumed role (`arn:aws:sts::<account>:assumed-role/Dev/alice` khớp với `Dev/alice`). gin so khớp cả role, nên một session tên `alice` dưới role khác không phải là alice. Ai được assume cùng role vẫn tự chọn được session name: dùng AWS SSO (session name do SSO đặt) hoặc điều kiện `sts:RoleSessionName` trong trust policy của role. Session name trần như `alice` không khớp assumed role nào, nên phải thêm role phía trước. `gin team check` báo lỗi khi người approve thiếu giá trị này.
 
 ```yaml
 team:
   host: codecommit
   members:
-    alice@example.com: {roles: [be_lead], aws_identity: alice}
+    alice@example.com: {roles: [be_lead], aws_identity: Dev/alice}
 ```
 
 gin gọi `aws` với môi trường hiện tại, nên cần credentials (`aws configure` hoặc `aws sso login`) và region. Region lấy từ remote `origin` (`codecommit::<region>://<repo>` hoặc dạng https `git-codecommit.<region>.amazonaws.com`), nếu không thì từ `AWS_REGION`, nếu không nữa thì từ `AWS_DEFAULT_REGION`. Khi remote là `codecommit://<profile>@<repo>`, đặt `AWS_PROFILE` thành profile đó, vì gin không đọc profile từ remote.

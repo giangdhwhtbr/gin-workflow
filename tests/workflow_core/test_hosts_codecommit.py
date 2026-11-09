@@ -31,7 +31,7 @@ DAVE = "arn:aws:iam::111122223333:user/ops/dave"
 
 # `TEAM` with an `aws_identity` on every approving member; em (be_dev) holds no approving role.
 CC_TEAM = (TEAM.format(host="codecommit")
-           .replace("login: an-ba}", "login: an-ba, aws_identity: alice}")
+           .replace("login: an-ba}", "login: an-ba, aws_identity: Dev/alice}")
            .replace("login: binh-dev}", "login: binh-dev, aws_identity: bob}")
            .replace("login: chi-fe}", "login: chi-fe, aws_identity: carol}")
            .replace("login: dung-qe}", "login: dung-qe, aws_identity: dave}"))
@@ -102,7 +102,7 @@ class TestFetchPr(CodeCommitCase):
         ])
         pr = self.fetch()
         self.assertEqual(("open", False, "", "s" * 40, "bob"), (pr.state, pr.merged, pr.merge_commit, pr.head_sha, pr.author))
-        self.assertEqual((("alice", "s" * 40), ("bob", "s" * 40)), pr.approvals)
+        self.assertEqual((("Dev/alice", "s" * 40), ("bob", "s" * 40)), pr.approvals)
         self.assertEqual(URL, pr.url)
         self.assertIn(["codecommit", "get-pull-request-approval-states", "--pull-request-id", "7", "--revision-id",
                        "rev2", *TAIL], self.aws_calls())
@@ -257,14 +257,14 @@ class TestAwsIdentityConfig(unittest.TestCase):
 
     def test_load_team_reads_aws_identity_with_an_empty_default(self):
         team = load_team({"team": self.RAW})
-        self.assertEqual(("alice", ""), (team.member("an@corp.com").aws_identity, team.member("em@corp.com").aws_identity))
-        self.assertEqual("an@corp.com", team.by_identity("ALICE", "aws_identity").email)
+        self.assertEqual(("Dev/alice", ""), (team.member("an@corp.com").aws_identity, team.member("em@corp.com").aws_identity))
+        self.assertEqual("an@corp.com", team.by_identity("DEV/ALICE", "aws_identity").email)
         self.assertIsNone(team.by_identity("", "aws_identity"))
 
     def test_duplicate_aws_identity_is_an_error(self):
         raw = yaml.safe_load(CC_TEAM)["team"]
-        raw["members"]["em@corp.com"]["aws_identity"] = "ALICE"
-        self.assertEqual(["team.members: aws_identity ALICE used by an@corp.com and em@corp.com"], validate_team(raw))
+        raw["members"]["em@corp.com"]["aws_identity"] = "DEV/ALICE"
+        self.assertEqual(["team.members: aws_identity DEV/ALICE used by an@corp.com and em@corp.com"], validate_team(raw))
 
     def test_an_approver_without_aws_identity_is_an_error_on_codecommit_only(self):
         raw = yaml.safe_load(CC_TEAM)["team"]
@@ -352,7 +352,7 @@ class TestCodeCommitGates(CodeCommitCase):
         result = self.record()
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual({"evidence": URL, "pr_url": URL, "merge_commit": "m" * 40,
-                          "approvers": [{"login": "alice", "email": "an@corp.com", "roles": ["ba"]}],
+                          "approvers": [{"login": "Dev/alice", "email": "an@corp.com", "roles": ["ba"]}],
                           "repository": "codecommit/eu-west-1/app", "artifact": SPEC_PATH},
                          self.events()[-1]["payload"])
 
@@ -365,6 +365,13 @@ class TestCodeCommitGates(CodeCommitCase):
         self.assertIn("missing approval", self.record().stderr)
         self.spec_pr(approver="arn:aws:iam::111122223333:user/mallory")
         self.assertIn("missing approval", self.record().stderr)
+        self.assertEqual([], self.events())
+
+    def test_a_session_named_after_a_member_under_another_role_is_not_that_member(self):
+        self.spec_pr(approver="arn:aws:sts::111122223333:assumed-role/Other/alice")
+        result = self.record()
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("missing approval from one of ba, be_lead, fe_lead", result.stderr)
         self.assertEqual([], self.events())
 
     def test_another_repository_or_region_is_rejected_as_not_this_repository(self):

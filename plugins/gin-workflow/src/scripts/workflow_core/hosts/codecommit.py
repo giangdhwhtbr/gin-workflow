@@ -23,12 +23,13 @@ _MAX_SEARCH = 100
 
 
 def _name(arn: str) -> str:
-    """The member-facing name of an IAM ARN: `user/<name>` gives the name, `assumed-role/<role>/<session>` the
-    session; any other ARN is returned whole, so it matches no member."""
+    """The member-facing name of an IAM ARN: `user/<name>` gives the name, `assumed-role/<role>/<session>` gives
+    `<role>/<session>`, so a session named after a member under another role matches no member; any other ARN is
+    returned whole, so it matches no member."""
     resource = arn.split(":", 5)[5] if arn.startswith("arn:") and arn.count(":") >= 5 else ""
     parts = resource.split("/")
     if parts[0] == "assumed-role" and len(parts) == 3:
-        return parts[2]
+        return f"{parts[1]}/{parts[2]}"
     if parts[0] in ("user", "federated-user") and len(parts) >= 2:
         return parts[-1]
     return arn
