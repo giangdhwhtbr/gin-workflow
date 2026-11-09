@@ -8,7 +8,7 @@ Epic `gin-workflow-ycg8` (2026-11-05). With the SDD layout, living specs held on
 - They are not part of the spec delta: they carry no `base:` hash, and `parse_blocks` (`workflow_core/specs.py`) is not fence-aware, so Mermaid stays out of requirement blocks. Reviewers see them because `03-design.md` `## Data Flow` cites each path, and the existing untracked-citation check in `lint_change` requires cited files to be committed; `01-proposal.md` `## Capabilities Affected` lists them.
 - `lint_diagrams` checks only the diagram type on the first non-empty, non-`%%` line of a mermaid block; Mermaid syntax and front matter are not validated. `lint_change` reports a capability with an `ADDED` or `MODIFIED` block and no `*-activity.md`; a `REMOVED`-only delta needs none.
 - The state-diagram rule (three or more states, or a guarded transition) is a skill convention; lint cannot judge it.
-- `templates/spec.md` has `## Diagrams` before `## Requirements`, which stays last because archive appends `ADDED` blocks at the end. Archive fills `## Diagrams` only when it creates `spec.md` for a new capability; for an existing one, discuss adds the link.
+- `templates/spec.md` has `## Diagrams`, then `## Use Cases` (since `gin-workflow-fm8l`, [spec-use-cases](spec-use-cases.md)), before `## Requirements`, which stays last because archive appends `ADDED` blocks at the end. Archive fills `## Diagrams` and `## Use Cases` only when it creates `spec.md` for a new capability; for an existing one, discuss adds the link.
 
 **Consequences**
 - A change in flight that adds or modifies requirements without an activity diagram fails `specs lint --change` and `specs archive` after upgrade.
