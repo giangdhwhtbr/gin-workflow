@@ -24,7 +24,7 @@ Không cần biết git để tuân theo thoả thuận. Mục Quy trình theo t
 - Track: một phần của plan, được giao bằng một pull request.
 - Bead: một bản ghi công việc trong công cụ theo dõi task của dự án.
 - CI: các kiểm tra tự động chạy trên mỗi pull request.
-- Host: dịch vụ lưu repository và các pull request của nó: GitHub, GitLab hoặc AWS CodeCommit.
+- Host: dịch vụ lưu repository và các pull request của nó: GitHub, GitLab, Gitea hoặc AWS CodeCommit.
 - Roadmap: file liệt kê các epic mà team dự kiến giao.
 - Epic: một khối công việc lớn trong công cụ theo dõi task, gồm nhiều track.
 - Spec: file nêu công việc phải làm gì, theo ngôn ngữ nghiệp vụ.
@@ -152,7 +152,7 @@ Thay đổi requirement sau khi plan được approve PHẢI nằm trong một c
 
 ## Quy trình theo từng host { #host-procedures }
 
-Chọn mục tương ứng với host. Các lệnh `gh` và `glab` làm cùng việc với các bước trên web, và cần đăng nhập bằng `gh auth login` hoặc `glab auth login`.
+Chọn mục tương ứng với host. Các lệnh `gh`, `glab`, `gt`, và `aws` làm cùng việc với các bước trên web, và cần đăng nhập trên host. Các lệnh login là `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, và `aws configure` hoặc `aws sso login`. [Thiết lập trên host](team.md#host-settings) của hướng dẫn team có thêm chi tiết.
 
 ### GitHub { #github }
 
@@ -188,16 +188,41 @@ glab mr merge --remove-source-branch
 
 Trên GitLab, project PHẢI bật Reset approvals on push, để approval chỉ có giá trị trên commit mới nhất.
 
+### Gitea { #gitea }
+
+1. Tạo: mở repository, chọn Pull requests, rồi New Pull Request. Đặt base branch và compare là branch của mình, điền template và chọn Create Pull Request.
+2. Review: mở pull request và chọn Files Changed. Rê chuột lên một dòng, chọn biểu tượng comment, viết comment và chọn Start Review.
+3. Approve: chọn Finish Review, chọn Approve, rồi chọn Submit Review.
+4. Request changes: chọn Finish Review, chọn Request Changes, viết nội dung cần sửa, rồi chọn Submit Review.
+5. Merge: sau khi đủ approval cần thiết và các check đạt, chọn nút merge.
+6. Xoá branch: chọn Delete Branch trên pull request đã merge.
+
+```bash
+gt pr create --base <base-branch> --title "<title>" --body "<description>"
+gt pr review <number> --approve
+gt pr review <number> --request-changes --body "<comment>"
+gt pr merge <number> --delete-branch
+```
+
+Trên Gitea, protected branch PHẢI yêu cầu approval và bật Dismiss stale approvals, để approval chỉ có giá trị trên commit mới nhất.
+
 ### AWS CodeCommit { #aws-codecommit }
 
-1. Thiết lập một lần: trong AWS console, mở CodeCommit, rồi Approval rule templates, và tạo một template nêu các approving role và số approval cần có. Gắn template vào repository.
+1. Thiết lập một lần: trong AWS console, mở CodeCommit, rồi Approval rule templates, và tạo một template nêu các approving role và số approval cần có. Gắn template vào repository. [Chế độ team](team.md#aws-codecommit) nêu cùng các bước bằng `aws codecommit`.
 2. Tạo: mở repository, chọn Pull requests, rồi Create pull request. Chọn destination branch và source branch của mình, rồi điền title và description.
 3. Review: mở pull request và chọn Changes. Chọn một dòng để thêm comment.
 4. Approve: chọn Approve. Để rút approval, chọn Revoke approval.
 5. Request changes: để lại một comment nêu rõ cần sửa gì, và không approve.
 6. Merge: khi approval rule được thoả, chọn Merge và chọn tuỳ chọn xoá source branch.
 
-gin chỉ xác minh pull request trên GitHub và GitLab. Trên CodeCommit, gate có approving role đặt trong `team.approvals` chưa thể được ghi từ pull request. Xem [Phê duyệt gate](#gate-approval).
+```bash
+aws codecommit create-pull-request --title "<title>" --targets repositoryName=<repo>,sourceReference=<branch>,destinationReference=<base-branch>
+aws codecommit update-pull-request-approval-state --pull-request-id <id> --revision-id <revision-id> --approval-state APPROVE
+aws codecommit merge-pull-request-by-squash --pull-request-id <id> --repository-name <repo>
+aws codecommit delete-branch --repository-name <repo> --branch-name <branch>
+```
+
+Lấy `<revision-id>` từ `aws codecommit get-pull-request --pull-request-id <id>`. Approval chỉ có giá trị trên revision hiện tại, nên đọc lại revision id sau mỗi lần push.
 
 ## Phụ lục: hỗ trợ từ AI { #appendix-ai-support }
 

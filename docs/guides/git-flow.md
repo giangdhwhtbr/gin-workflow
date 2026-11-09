@@ -24,7 +24,7 @@ You do not need to know git to follow it. The Host procedures section gives the 
 - Track: one slice of a plan, delivered by one pull request.
 - Bead: a task record in the project's task tracker.
 - CI: automatic checks that run on every pull request.
-- Host: the service that stores the repository and its pull requests: GitHub, GitLab, or AWS CodeCommit.
+- Host: the service that stores the repository and its pull requests: GitHub, GitLab, Gitea, or AWS CodeCommit.
 - Roadmap: the file that lists the epics the team plans to deliver.
 - Epic: a large piece of work in the task tracker, made of several tracks.
 - Spec: the file that states what a piece of work must do, in business terms.
@@ -152,7 +152,7 @@ A requirement change after plan approval SHALL go in a new change folder, not in
 
 ## Host procedures
 
-Pick the section for your host. The `gh` and `glab` commands do the same as the web steps, and they need a login with `gh auth login` or `glab auth login`.
+Pick the section for your host. The `gh`, `glab`, `gt`, and `aws` commands do the same as the web steps, and they need a login on your host. The logins are `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, and `aws configure` or `aws sso login`. [Host settings](team.md#host-settings) of the team guide has the details.
 
 ### GitHub
 
@@ -188,16 +188,41 @@ glab mr merge --remove-source-branch
 
 On GitLab the project SHALL turn on Reset approvals on push, so that an approval counts only on the latest commit.
 
+### Gitea
+
+1. Create: open the repository, choose Pull requests, then New Pull Request. Set the base branch and compare to your branch, fill the template, and choose Create Pull Request.
+2. Review: open the pull request and choose Files Changed. Hover over a line, choose the comment icon, write a comment, and choose Start Review.
+3. Approve: choose Finish Review, choose Approve, and choose Submit Review.
+4. Request changes: choose Finish Review, choose Request Changes, write what must change, and choose Submit Review.
+5. Merge: after the required approvals and passing checks, choose the merge button.
+6. Delete branch: choose Delete Branch on the merged pull request.
+
+```bash
+gt pr create --base <base-branch> --title "<title>" --body "<description>"
+gt pr review <number> --approve
+gt pr review <number> --request-changes --body "<comment>"
+gt pr merge <number> --delete-branch
+```
+
+On Gitea the protected branch SHALL require approvals and turn on Dismiss stale approvals, so that an approval counts only on the latest commit.
+
 ### AWS CodeCommit
 
-1. Set up once: in the AWS console, open CodeCommit, then Approval rule templates, and create a template that names the approving roles and the number of approvals. Associate the template with the repository.
+1. Set up once: in the AWS console, open CodeCommit, then Approval rule templates, and create a template that names the approving roles and the number of approvals. Associate the template with the repository. [Team mode](team.md#aws-codecommit) shows the same steps with `aws codecommit`.
 2. Create: open the repository, choose Pull requests, then Create pull request. Pick the destination branch and your source branch, and fill the title and description.
 3. Review: open the pull request and choose Changes. Choose a line to add a comment.
 4. Approve: choose Approve. To withdraw an approval, choose Revoke approval.
 5. Request changes: leave a comment that says what must change, and do not approve.
 6. Merge: when the approval rule is satisfied, choose Merge, and tick the option to delete the source branch.
 
-gin verifies pull requests on GitHub and GitLab only. On CodeCommit, a gate whose approving roles are set in `team.approvals` cannot be recorded from a pull request yet. See [Gate approval](#gate-approval).
+```bash
+aws codecommit create-pull-request --title "<title>" --targets repositoryName=<repo>,sourceReference=<branch>,destinationReference=<base-branch>
+aws codecommit update-pull-request-approval-state --pull-request-id <id> --revision-id <revision-id> --approval-state APPROVE
+aws codecommit merge-pull-request-by-squash --pull-request-id <id> --repository-name <repo>
+aws codecommit delete-branch --repository-name <repo> --branch-name <branch>
+```
+
+Get the `<revision-id>` from `aws codecommit get-pull-request --pull-request-id <id>`. An approval counts only on the current revision, so read the revision id again after a push.
 
 ## Appendix: AI support
 
