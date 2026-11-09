@@ -56,7 +56,7 @@ flowchart LR
 
 The harness loads the skills. Skills call `gin` for configuration, gates, rules, specs, team mode, and usage, and `review-ledger.py` for reviews. Tasks go through `gin task`, which serves Markdown files or runs `bd`. `gin-orchestrator` is an optional extension: gin-workflow calls it through a versioned CLI contract ([Orchestrator contract](../reference/orchestrator-contract.md)), and it reaches back only through the facade `workflow_core.ext`; gin-workflow never imports it. Nothing outside the repository holds workflow state except Beads (if used) and the harness logs that `usage collect` reads. See [State model](state-model.md) for who owns what.
 
-The optional `gin-ba` add-on has skills only and no CLI. With the SDD layout, `capture` and `mockup` write the business analyst's inputs into dated asset folders under `docs/specs/<capability>/assets/` through `gin specs assets`, and `discuss` cites the confirmed folders. See [Business analyst](../guides/ba.md).
+The optional `gin-ba` add-on has skills only and no CLI. With the SDD layout, `capture` and `mockup` write the business analyst's inputs into dated asset folders under `docs/specs/<capability>/assets/` through `gin specs assets`. `discuss` cites the confirmed folders. See [Business analyst](../guides/ba.md).
 
 ## Lifecycle
 
