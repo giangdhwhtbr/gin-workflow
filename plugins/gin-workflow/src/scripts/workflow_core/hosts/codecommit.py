@@ -22,25 +22,6 @@ _REMOTE_FORM = ("codecommit::<region>://<repo>, codecommit://[<profile>@]<repo> 
 _MAX_SEARCH = 100
 
 
-class _RepoId(str):
-    """`codecommit/<region>/<repo>`; a remote without a region (empty) equals that repository in any region."""
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, str):
-            return NotImplemented
-        mine, theirs = self.split("/", 2), other.split("/", 2)
-        if len(mine) == len(theirs) == 3 and "" in (mine[1], theirs[1]):
-            return mine[2] == theirs[2]
-        return str.__eq__(self, other)
-
-    def __ne__(self, other: object) -> bool:
-        result = self.__eq__(other)
-        return result if result is NotImplemented else not result
-
-    def __hash__(self) -> int:
-        return hash(self.split("/", 2)[-1])
-
-
 def _name(arn: str) -> str:
     """The member-facing name of an IAM ARN: `user/<name>` gives the name, `assumed-role/<role>/<session>` the
     session; any other ARN is returned whole, so it matches no member."""
@@ -129,9 +110,6 @@ class CodeCommit:
     def _listing(self, cwd: Path, status: str | None) -> tuple[str, str, list[str]]:
         """Region, repository, and pull request ids (newest first, at most 100) of the origin remote."""
         region, repo = self._origin(cwd)
-        if not region:
-            raise team_host.HostUnavailable("the AWS region of origin is unknown; set AWS_REGION or use "
-                                            "codecommit::<region>://<repo>")
         ids = self._paged(region, ["list-pull-requests", "--repository-name", repo,
                                    *(["--pull-request-status", status] if status else [])], "pullRequestIds", cwd)
         return region, repo, sorted(ids, key=int, reverse=True)[:_MAX_SEARCH]
@@ -173,14 +151,18 @@ class CodeCommit:
         match = _HTTPS_SSH.match(text) or _REMOTE_CLI.match(text)
         if match is None:
             raise team_host.HostUnavailable(f"origin is not a CodeCommit remote; expected {_REMOTE_FORM}")
-        return match.group(1) or _env_region(), match.group(2)
+        region = match.group(1) or _env_region()
+        if not region:
+            raise team_host.HostUnavailable("the AWS region of origin is unknown; set AWS_REGION or use "
+                                            "codecommit::<region>://<repo>")
+        return region, match.group(2)
 
     def repo_id(self, location: str, *, pr: bool = False) -> str:
         if pr:
             region, repo, _ = self._parse_pr(location)
         else:
             region, repo = self._parse_remote(location)
-        return _RepoId(f"codecommit/{region}/{repo}")
+        return f"codecommit/{region}/{repo}"
 
     def doctor_checks(self, root: Path) -> dict[str, tuple[bool, str]]:
         return {}

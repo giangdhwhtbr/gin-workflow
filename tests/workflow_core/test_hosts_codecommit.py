@@ -228,12 +228,10 @@ class TestRepoId(unittest.TestCase):
         self.assertNotEqual(console, host.repo_id("codecommit::eu-west-1://other"))
         self.assertNotEqual(console, host.repo_id(URL.replace("/app/", "/other/"), pr=True))
 
-    def test_remote_without_a_region_compares_the_repository_name_only(self):
-        host = adapter("codecommit")
-        with mock.patch.dict(os.environ, {"AWS_REGION": "", "AWS_DEFAULT_REGION": ""}):
-            bare = host.repo_id("codecommit://dev@app")
-        self.assertEqual(bare, host.repo_id(URL, pr=True))
-        self.assertNotEqual(bare, host.repo_id(URL.replace("/app/", "/other/"), pr=True))
+    def test_remote_without_a_region_fails_closed(self):
+        with mock.patch.dict(os.environ, {"AWS_REGION": "", "AWS_DEFAULT_REGION": ""}), \
+                self.assertRaisesRegex(HostUnavailable, "region of origin is unknown; set AWS_REGION"):
+            adapter("codecommit").repo_id("codecommit://dev@app")
 
     def test_default_region_variable_is_used_after_aws_region(self):
         with mock.patch.dict(os.environ, {"AWS_REGION": "", "AWS_DEFAULT_REGION": "us-east-1"}):
