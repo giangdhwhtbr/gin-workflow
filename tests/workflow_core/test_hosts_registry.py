@@ -1,4 +1,4 @@
-"""Host adapter registry: GitHub and GitLab adapters, unknown hosts, stub hosts, and `specs trace` per host."""
+"""Host adapter registry: GitHub and GitLab adapters, unknown hosts, and `specs trace` per host."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from specs_fixtures import make_change  # noqa: E402
 from workflow_core import specs_trace, team_init  # noqa: E402
 from workflow_core.hosts import HOSTS, adapter  # noqa: E402
 from workflow_core.team import TeamError, load_team  # noqa: E402
-from workflow_core.team_host import HostUnavailable  # noqa: E402
 
 import yaml  # noqa: E402
 
@@ -42,11 +41,6 @@ class TestRegistry(unittest.TestCase):
         self.assertEqual([], adapter("github").doctor_notes())
         self.assertEqual(["GitLab Free cannot require code-owner approval; the gin check still applies"],
                          adapter("gitlab").doctor_notes())
-
-    def test_stub_hosts_are_not_built_yet(self):
-        for host in ("gitea",):
-            with self.subTest(host=host), self.assertRaisesRegex(HostUnavailable, f"{host} support is not built yet"):
-                adapter(host).fetch_pr("https://example.com/x", Path("."))
 
 
 class HostRepoCase(unittest.TestCase):
