@@ -44,7 +44,7 @@ team:
 
 Cài [điều kiện tiên quyết](../getting-started.md#prerequisites) trước, và đừng chạy `/gin:setup`: lead đã cấu hình repository rồi.
 
-Chạy `/team-setup` với tư cách member: `gin team whoami` phải tìm thấy `git config user.email` của bạn; `gin team hooks` cài hook commit-msg; đăng nhập bằng lệnh login của host (liệt kê trong `references/hosts.md` của skill `team`); với Beads dùng chung, chạy `bd init --remote <remote>`. `gin setup doctor` báo bất cứ thứ gì còn thiếu.
+Chạy `/team-setup` với tư cách member: `gin team whoami` phải tìm thấy `git config user.email` của bạn; `gin team hooks` cài hook commit-msg; đăng nhập bằng `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, hoặc `aws configure` hoặc `aws sso login`, tùy host; với Beads dùng chung, chạy `bd init --remote <remote>`. `gin setup doctor` báo bất cứ thứ gì còn thiếu.
 
 ## Mỗi stage thay đổi gì { #what-changes-in-each-stage }
 
@@ -69,7 +69,7 @@ Ship của một thành viên chỉ bao gồm các track của chính họ. Lead
 
 ## Thiết lập trên host { #host-settings }
 
-Mỗi host cần một CLI đã đăng nhập và branch protection trên integration branch. Bảng trong `references/hosts.md` của skill `team` liệt kê CLI, lệnh login, lệnh mở pull request và các thiết lập của từng host. `gin setup doctor` báo CLI hoặc login còn thiếu cùng cách sửa.
+Mỗi host cần một CLI đã đăng nhập và branch protection trên integration branch. Các lệnh login là `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, và `aws configure` hoặc `aws sso login`. File `references/hosts.md` của skill `team` liệt kê chúng cùng lệnh mở pull request và các thiết lập của từng host. `gin setup doctor` báo CLI hoặc login còn thiếu cùng cách sửa.
 
 - GitHub: branch protection trên integration branch và CODEOWNERS theo từng area (`team init`). Khuyến nghị: "Dismiss stale pull request approvals when new commits are pushed". Dù thế nào, gate `ship` chỉ tính các phê duyệt được thực hiện trên commit mới nhất.
 - GitLab: "Reset approvals on push" (`reset_approvals_on_push`), bắt buộc với `ship`; không có nó, gate từ chối phê duyệt.
@@ -108,7 +108,7 @@ team:
     alice@example.com: {roles: [be_lead], aws_identity: alice}
 ```
 
-gin gọi `aws` với môi trường hiện tại, nên cần credentials (`aws configure` hoặc `aws sso login`) và region. Region lấy từ `AWS_REGION` hoặc từ remote `origin` có dạng `codecommit::<region>://<repo>`. Khi remote là `codecommit://<profile>@<repo>`, đặt `AWS_PROFILE` thành profile đó, vì gin không đọc profile từ remote.
+gin gọi `aws` với môi trường hiện tại, nên cần credentials (`aws configure` hoặc `aws sso login`) và region. Region lấy từ remote `origin` (`codecommit::<region>://<repo>` hoặc dạng https `git-codecommit.<region>.amazonaws.com`), nếu không thì từ `AWS_REGION`, nếu không nữa thì từ `AWS_DEFAULT_REGION`. Khi remote là `codecommit://<profile>@<repo>`, đặt `AWS_PROFILE` thành profile đó, vì gin không đọc profile từ remote.
 
 CodeCommit không áp dụng code owner. Tạo một approval rule template và gắn vào repository, để pull request cần đủ approval trước khi merge:
 
@@ -143,4 +143,4 @@ Job luôn kiểm tra commit message theo `team.commit_convention` (bỏ qua vớ
 
 ## Lệnh { #commands }
 
-Xem [`gin team`](../reference/cli.md#team-approvals) và các [khóa cấu hình `team`](../reference/config.md#team).
+Xem [`gin team`](../reference/cli.md#gin-team) và các [khóa cấu hình `team`](../reference/config.md#team).

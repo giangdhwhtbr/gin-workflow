@@ -152,7 +152,7 @@ Thay đổi requirement sau khi plan được approve PHẢI nằm trong một c
 
 ## Quy trình theo từng host { #host-procedures }
 
-Chọn mục tương ứng với host. Các lệnh `gh`, `glab`, `gt`, và `aws` làm cùng việc với các bước trên web, và cần đăng nhập trên host. Lệnh login nằm trong [Thiết lập trên host](team.md#host-settings) của hướng dẫn team.
+Chọn mục tương ứng với host. Các lệnh `gh`, `glab`, `gt`, và `aws` làm cùng việc với các bước trên web, và cần đăng nhập trên host. Các lệnh login là `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, và `aws configure` hoặc `aws sso login`. [Thiết lập trên host](team.md#host-settings) của hướng dẫn team có thêm chi tiết.
 
 ### GitHub { #github }
 
@@ -199,9 +199,9 @@ Trên GitLab, project PHẢI bật Reset approvals on push, để approval chỉ
 
 ```bash
 gt pr create --base <base-branch> --title "<title>" --body "<description>"
-gt pr review --approve
-gt pr review --request-changes --body "<comment>"
-gt pr merge --delete-branch
+gt pr review <number> --approve
+gt pr review <number> --request-changes --body "<comment>"
+gt pr merge <number> --delete-branch
 ```
 
 Trên Gitea, protected branch PHẢI yêu cầu approval và bật Dismiss stale approvals, để approval chỉ có giá trị trên commit mới nhất.

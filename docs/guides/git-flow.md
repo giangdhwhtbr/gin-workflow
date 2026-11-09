@@ -152,7 +152,7 @@ A requirement change after plan approval SHALL go in a new change folder, not in
 
 ## Host procedures
 
-Pick the section for your host. The `gh`, `glab`, `gt`, and `aws` commands do the same as the web steps, and they need a login on your host. The login commands are in the [Host settings](team.md#host-settings) of the team guide.
+Pick the section for your host. The `gh`, `glab`, `gt`, and `aws` commands do the same as the web steps, and they need a login on your host. The logins are `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, and `aws configure` or `aws sso login`. [Host settings](team.md#host-settings) of the team guide has the details.
 
 ### GitHub
 
@@ -199,9 +199,9 @@ On GitLab the project SHALL turn on Reset approvals on push, so that an approval
 
 ```bash
 gt pr create --base <base-branch> --title "<title>" --body "<description>"
-gt pr review --approve
-gt pr review --request-changes --body "<comment>"
-gt pr merge --delete-branch
+gt pr review <number> --approve
+gt pr review <number> --request-changes --body "<comment>"
+gt pr merge <number> --delete-branch
 ```
 
 On Gitea the protected branch SHALL require approvals and turn on Dismiss stale approvals, so that an approval counts only on the latest commit.

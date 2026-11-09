@@ -44,7 +44,7 @@ team:
 
 Install the [prerequisites](../getting-started.md#prerequisites) first, and do not run `/gin:setup`: the lead has already configured the repository.
 
-Run `/team-setup` as a member: `gin team whoami` must find your `git config user.email`; `gin team hooks` installs the commit-msg hook; log in with the login command of your host (listed in `references/hosts.md` of the `team` skill); with shared Beads, `bd init --remote <remote>`. `gin setup doctor` reports anything still missing.
+Run `/team-setup` as a member: `gin team whoami` must find your `git config user.email`; `gin team hooks` installs the commit-msg hook; log in with `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, or `aws configure` or `aws sso login`, as your host needs; with shared Beads, `bd init --remote <remote>`. `gin setup doctor` reports anything still missing.
 
 ## What changes in each stage
 
@@ -69,7 +69,7 @@ A member's ship covers only their own tracks. The lead declares the feature comp
 
 ## Host settings
 
-Each host needs a logged-in CLI and branch protection on the integration branch. The table in `references/hosts.md` of the `team` skill lists the CLI, login, open-pull-request command, and settings per host. `gin setup doctor` reports a missing CLI or login with the fix to run.
+Each host needs a logged-in CLI and branch protection on the integration branch. The login commands are `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, and `aws configure` or `aws sso login`. The `team` skill's `references/hosts.md` lists them with the open-pull-request command and settings per host. `gin setup doctor` reports a missing CLI or login with the fix to run.
 
 - GitHub: branch protection on the integration branch and CODEOWNERS per area (`team init`). Recommended: "Dismiss stale pull request approvals when new commits are pushed". The `ship` gate counts only approvals made on the latest commit either way.
 - GitLab: "Reset approvals on push" (`reset_approvals_on_push`), required for `ship`; without it the gate rejects the approval.
@@ -108,7 +108,7 @@ team:
     alice@example.com: {roles: [be_lead], aws_identity: alice}
 ```
 
-gin calls `aws` with your environment, so it needs credentials (`aws configure` or `aws sso login`) and a region. The region comes from `AWS_REGION` or from an `origin` remote of the form `codecommit::<region>://<repo>`. When the remote is `codecommit://<profile>@<repo>`, set `AWS_PROFILE` to that profile, because gin does not read the profile from the remote.
+gin calls `aws` with your environment, so it needs credentials (`aws configure` or `aws sso login`) and a region. The region comes from the `origin` remote (`codecommit::<region>://<repo>` or the https form `git-codecommit.<region>.amazonaws.com`), else from `AWS_REGION`, else from `AWS_DEFAULT_REGION`. When the remote is `codecommit://<profile>@<repo>`, set `AWS_PROFILE` to that profile, because gin does not read the profile from the remote.
 
 CodeCommit does not enforce code owners. Create an approval rule template and associate it with the repository, so a pull request needs approvals before merge:
 
@@ -143,4 +143,4 @@ The job always checks commit messages against `team.commit_convention` (skipped 
 
 ## Commands
 
-See [`gin team`](../reference/cli.md#team-approvals) and the [`team` configuration keys](../reference/config.md#team).
+See [`gin team`](../reference/cli.md#gin-team) and the [`team` configuration keys](../reference/config.md#team).
