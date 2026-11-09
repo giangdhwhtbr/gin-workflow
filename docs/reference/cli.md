@@ -179,8 +179,8 @@ Opt-in team mode, active when the configuration has a `team:` section.
 
 | Command | Purpose |
 |---|---|
-| `init [--ci] [--force]` | Write CODEOWNERS, the pull request template, and the commit-msg hook; `--ci` adds the CI workflow; `--force` overwrites files it did not generate |
-| `codeowners [--check]` | Print CODEOWNERS, or check it is up to date |
+| `init [--ci] [--force]` | Write CODEOWNERS, the pull request template, and the commit-msg hook; `--ci` adds the CI workflow; `--force` overwrites files it did not generate. On `codecommit` it writes only the commit-msg hook, and `--ci` exits 2 because CodeCommit has no CI workflow file |
+| `codeowners [--check]` | Print CODEOWNERS, or check it is up to date. Exits 2 on `codecommit`, which has no CODEOWNERS file |
 | `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
 | `whoami` | Show your member entry, roles, areas, and whether you hold a technical role (an area `lead` or a role in an area's `roles`), from `git config user.email` |
 | `check URL --gate GATE [--plan P] [--spec S]` | Check a pull request of this repository against the approval policy of `GATE` (`requirement_confirmed`, `plan_approved`, `ship`, or `roadmap`). Every gate but `ship` also needs the pull request merged and changing the gate's spec, plan, or roadmap file. Nothing is recorded |
@@ -194,6 +194,8 @@ Opt-in team mode, active when the configuration has a `team:` section.
 | `sync` | Sync Beads with `team.beads_sync.remote` |
 
 Exit codes: 0 ok; 1 findings, rejection, or sync conflict; 2 usage, configuration, or host error.
+
+`gin setup doctor` checks the host CLI and its login for every host (`host_cli`, with the fix `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, or `aws configure` or `aws sso login`). On `gitea` it also checks that `gt` is Gitea's CLI (`gitea_cli`), that it is logged in to the instance of `origin` (`host_login`), and that the instance runs Gitea 28 or later (`server_version`). On `codecommit` it adds a note that CodeCommit does not enforce code owners and an approval rule template is needed ([guide](../guides/team.md#aws-codecommit)).
 
 ## `gin milestone`
 

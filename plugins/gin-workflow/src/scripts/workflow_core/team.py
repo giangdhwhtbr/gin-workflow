@@ -10,6 +10,7 @@ import sys
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
+from .hosts import DEFAULT_HOST, HOSTS, adapter
 from .workspace import Workspace
 
 GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
@@ -28,6 +29,7 @@ class Member:
     email: str
     roles: tuple[str, ...]
     login: str
+    aws_identity: str = ""
 
 
 @dataclass(frozen=True)
@@ -40,7 +42,7 @@ class Area:
 
 @dataclass(frozen=True)
 class TeamConfig:
-    host: str = "github"
+    host: str = DEFAULT_HOST
     commit_convention: str = "conventional"
     members: Mapping[str, Member] = field(default_factory=dict)
     areas: Mapping[str, Area] = field(default_factory=dict)
@@ -53,8 +55,13 @@ class TeamConfig:
     def member(self, email: str) -> Member | None:
         return self.members.get(email.strip().lower())
 
+    def by_identity(self, name: str, key: str = "login") -> Member | None:
+        """The member whose `key` field (a host's `identity_key`) equals `name`, case-insensitive."""
+        return next((m for m in self.members.values()
+                     if name and str(getattr(m, key, "")).lower() == name.lower()), None)
+
     def by_login(self, login: str) -> Member | None:
-        return next((m for m in self.members.values() if m.login.lower() == login.lower()), None)
+        return self.by_identity(login, "login")
 
     def eligible(self, member: Member, area: Area) -> bool:
         return not area.roles or area.lead in member.roles or bool(set(area.roles) & set(member.roles))
@@ -87,6 +94,7 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
     held: set[str] = set()
     emails: dict[str, str] = {}
     logins: dict[str, str] = {}
+    identities: dict[str, str] = {}
     for email, spec in members.items():
         key = str(email).strip().lower()
         if key in emails:
@@ -96,6 +104,11 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
         if login in logins:
             errors.append(f"team.members: login {spec.get('login')} used by {logins[login]} and {email}")
         logins[login] = str(email)
+        identity = str(spec.get("aws_identity", ""))
+        if identity:
+            if identity.lower() in identities:
+                errors.append(f"team.members: aws_identity {identity} used by {identities[identity.lower()]} and {email}")
+            identities[identity.lower()] = str(email)
         held.update(spec.get("roles", ()))
     needed: list[tuple[str, str]] = []
     for gate, policy in (raw.get("approvals") or {}).items():
@@ -114,6 +127,17 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
         for other, other_prefix in prefixes[index + 1:]:
             if other != name and (prefix.startswith(other_prefix) or other_prefix.startswith(prefix)):
                 errors.append(f"team.areas: {name} and {other} overlap ({prefix!r} vs {other_prefix!r})")
+    host = raw.get("host", DEFAULT_HOST)
+    if host in HOSTS and adapter(host).identity_key == "aws_identity":
+        policies = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}.values()
+        approving = {role for policy in policies if isinstance(policy, list) for role in policy}
+        if "area_lead" in policies:
+            approving |= {area.get("lead", "") for area in areas.values()}
+        for email, spec in members.items():
+            roles = sorted(approving & set(spec.get("roles", ())))
+            if roles and not spec.get("aws_identity"):
+                errors.append(f"team.members: {email} holds approving role {', '.join(roles)} but has no "
+                              f"aws_identity (required on host {host})")
     if raw.get("strict"):
         approvals = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}
         errors += [f"team.strict: team.approvals.{gate} has no role policy" for gate in POLICY_GATES
@@ -126,7 +150,7 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
     if not isinstance(raw, Mapping):
         return None
     members = {str(email).strip().lower(): Member(str(email).strip().lower(), tuple(spec.get("roles", ())),
-                                                 str(spec.get("login", "")))
+                                                 str(spec.get("login", "")), str(spec.get("aws_identity", "")))
                for email, spec in (raw.get("members") or {}).items()}
     areas = {name: Area(name, tuple(spec.get("paths", ())), str(spec.get("lead", "")), tuple(spec.get("roles", ())))
              for name, spec in (raw.get("areas") or {}).items()}
@@ -137,7 +161,7 @@ def load_team(config: Mapping[str, Any]) -> TeamConfig | None:
             approvals["ship"] = legacy
         print("warning: team.approvals.verification_passed is deprecated; use team.approvals.ship", file=sys.stderr)
     return TeamConfig(
-        host=str(raw.get("host", "github")),
+        host=str(raw.get("host", DEFAULT_HOST)),
         commit_convention=str(raw.get("commit_convention", "conventional")),
         members=members,
         areas=areas,
@@ -326,12 +350,13 @@ def check_plan_repos(space: Workspace, path: Path) -> list[str]:
 def _approver_roles(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> dict[str, set[str]]:
     """Roles per approving login, excluding the PR author and approvals not made on `on_commit`."""
     roles: dict[str, set[str]] = {}
+    key = adapter(team.host).identity_key
     for login, commit in pr.approvals:
         if login.lower() == pr.author.lower():
             continue
         if on_commit and commit != on_commit:
             continue
-        member = team.by_login(login)
+        member = team.by_identity(login, key)
         if member is not None:
             roles[login] = set(member.roles)
     return roles
@@ -356,12 +381,12 @@ def repo_slug(location: str, *, pr: bool = False) -> str:
     return f"{host}/{path.removesuffix('.git')}".lower()
 
 
-def origin_slug(root: Path) -> str:
+def origin_url(root: Path) -> str:
     done = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, text=True, capture_output=True,
                           check=False)
     if done.returncode != 0 or not done.stdout.strip():
         raise TeamError("no git remote 'origin'; team gates compare the PR repository with it")
-    return repo_slug(done.stdout)
+    return done.stdout.strip()
 
 
 def _is_artifact(path: str, gate: str, changes: str) -> bool:
@@ -395,7 +420,8 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
     policy = team.approvals.get("ship" if gate == "shipped" else gate, [])
     reasons: list[str] = []
-    expected, actual = origin_slug(Path(root)), repo_slug(pr.url, pr=True)
+    host = adapter(team.host)
+    expected, actual = host.repo_id(origin_url(Path(root))), host.repo_id(pr.url, pr=True)
     if actual != expected:
         reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
     if gate in ("ship", "shipped"):
@@ -455,8 +481,9 @@ def can_waive(member: Member, gate: str, team: TeamConfig) -> bool:
 
 def approver_payload(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> list[dict[str, Any]]:
     result = []
+    key = adapter(team.host).identity_key
     for login in _approver_roles(pr, team, on_commit=on_commit):
-        member = team.by_login(login)
+        member = team.by_identity(login, key)
         result.append({"login": login, "email": member.email, "roles": list(member.roles)})
     return result
 
@@ -504,7 +531,7 @@ def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, 
         raise TeamRejected(reasons)
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
                           "approvers": approver_payload(pr, team, on_commit=pr.head_sha if gate == "shipped" else None),
-                          "repository": repo_slug(pr.url, pr=True),
+                          "repository": adapter(team.host).repo_id(pr.url, pr=True),
                           **({"artifact": artifact} if artifact else {})}
 
 

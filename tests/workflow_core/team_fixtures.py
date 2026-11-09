@@ -165,6 +165,16 @@ def gh_pr(url: str = "https://github.com/org/app/pull/7", *, state: str = "MERGE
     }
 
 
+def gitea_pr(number: int = 5, *, merged: bool = True, state: str = "", author: str = "an-ba", head: str = "h" * 40,
+             body: str = "", branch: str = "feat/x", html_url: str = "") -> dict:
+    """The JSON of `GET repos/{owner}/{repo}/pulls/{index}` (a merged PR is `closed` with `merged: true`)."""
+    return {
+        "number": number, "state": state or ("closed" if merged else "open"), "merged": merged,
+        "merge_commit_sha": "m" * 40 if merged else None, "head": {"sha": head, "ref": branch},
+        "user": {"login": author}, "body": body, "html_url": html_url,
+    }
+
+
 def run_cli(root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, str(LAUNCHER), *args, "--repository", str(root)], cwd=root, text=True,
                           capture_output=True, env={**os.environ, **(env or {})}, check=False)
