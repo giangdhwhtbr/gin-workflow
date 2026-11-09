@@ -99,13 +99,13 @@ Two limits apply. gin identifies a Gitea repository by host, owner, and reposito
 
 Set `team.host: codecommit`. CodeCommit has no CODEOWNERS file, pull request template, or CI workflow, so `team init` writes only the commit-msg hook, and `team init --ci` is refused with exit 2: use CodeBuild or CodePipeline for CI.
 
-Each member who holds an approving role needs `aws_identity`, which gin matches against the approver. It is the IAM user name, or the role session name for an assumed role (`arn:aws:sts::<account>:assumed-role/Dev/alice` matches `alice`). Use AWS SSO or an `sts:RoleSessionName` condition in the role trust policy, so each person has a distinct session name. `gin team check` reports an approver without it as an error.
+Each member who holds an approving role needs `aws_identity`, which gin matches against the approver. It is the IAM user name, or `<role>/<session>` for an assumed role (`arn:aws:sts::<account>:assumed-role/Dev/alice` matches `Dev/alice`). gin matches the role too, so a session named `alice` under another role is not alice. Anyone who may assume the same role can still pick any session name: use AWS SSO, which sets the session name, or an `sts:RoleSessionName` condition in the role trust policy. A bare session name such as `alice` matches no assumed role, so prefix it with the role. `gin team check` reports an approver without it as an error.
 
 ```yaml
 team:
   host: codecommit
   members:
-    alice@example.com: {roles: [be_lead], aws_identity: alice}
+    alice@example.com: {roles: [be_lead], aws_identity: Dev/alice}
 ```
 
 gin calls `aws` with your environment, so it needs credentials (`aws configure` or `aws sso login`) and a region. The region comes from the `origin` remote (`codecommit::<region>://<repo>` or the https form `git-codecommit.<region>.amazonaws.com`), else from `AWS_REGION`, else from `AWS_DEFAULT_REGION`. When the remote is `codecommit://<profile>@<repo>`, set `AWS_PROFILE` to that profile, because gin does not read the profile from the remote.
