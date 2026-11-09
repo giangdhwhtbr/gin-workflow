@@ -8,7 +8,7 @@ description: Build an interactive, self-contained HTML mockup of a capability's 
 `/gin-ba:mockup <capability> [--date YYYY-MM-DD]`. Writes `<specs>/<cap>/assets/<date>/mockup/index.html` and the `description.md` of that folder. `/gin:discuss` cites the confirmed screens as the source of requirements. Never commit.
 
 1. Preconditions. On a failure, stop and name the fix:
-   - `gin` is on `PATH`; otherwise `./install.sh --plugin gin-workflow` from a gin-workflow clone.
+   - `gin` is on `PATH`; otherwise `./install.sh --plugin gin-workflow` (Windows: `.\install.ps1 -Plugin gin-workflow`) from a gin-workflow clone.
    - `gin state --format json` reports `project.layout: sdd`; otherwise say the BA skills need the SDD layout (`/gin:migrate-specs` moves a project to it).
    - `<specs>` is `artifacts.specs` (default `docs/specs`). Normalize the capability to `[a-z][a-z0-9-]*`. Without a folder `<specs>/<cap>/`: when an existing capability nearly matches (`report`, `reports`), use it and say so; otherwise ask the user to confirm the new name before writing anything; a new name the user confirms is created with `--new-capability`.
 2. The folder is `<specs>/<cap>/assets/<date>/`, with `<date>` from `--date` or today.
