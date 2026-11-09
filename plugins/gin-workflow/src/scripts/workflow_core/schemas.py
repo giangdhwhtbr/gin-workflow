@@ -25,7 +25,8 @@ _TEAM = {
             "additionalProperties": {
                 "type": "object",
                 "required": ["roles", "login"],
-                "properties": {"roles": {**_ROLES, "minItems": 1}, "login": {"type": "string", "minLength": 1}},
+                "properties": {"roles": {**_ROLES, "minItems": 1}, "login": {"type": "string", "minLength": 1},
+                               "aws_identity": {"type": "string", "minLength": 1}},
                 "additionalProperties": False,
             },
         },
