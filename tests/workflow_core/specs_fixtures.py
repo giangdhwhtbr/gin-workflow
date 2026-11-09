@@ -112,3 +112,26 @@ def make_change(root: Path, name: str = "ep-1-lockout", *, epic: str = "ep-1", s
     write(root, f"docs/changes/{name}/02-spec-delta.md", spec_delta or delta(added=ADDED_BLOCK))
     write(root, f"docs/changes/{name}/05-tests.md", "| TC | REQ | type | evidence |\n|---|---|---|---|\n")
     return change
+
+USE_CASE = """# Sign in
+
+Actor: Registered user
+Requirements: REQ-AUTH-001, REQ-AUTH-002
+
+## Goal
+Reach the dashboard.
+
+## Preconditions
+The user has an account.
+
+## Main flow
+1. The user enters email and password.
+2. The system signs the user in.
+
+## Alternative flows
+### 2a. Wrong password
+1. The system shows "Invalid credentials".
+
+## Postconditions
+The user is signed in.
+"""

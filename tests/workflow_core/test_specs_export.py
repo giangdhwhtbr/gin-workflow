@@ -14,7 +14,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from specs_fixtures import AUTH_SPEC, LAUNCHER, STATE, make_repo, write, write_activity  # noqa: E402
+from specs_fixtures import AUTH_SPEC, LAUNCHER, STATE, USE_CASE, make_repo, write, write_activity  # noqa: E402
 from workflow_core import specs  # noqa: E402
 from workflow_core.specs_export import Embed, export, fill, markdown_html  # noqa: E402
 
@@ -130,6 +130,7 @@ class TestExport(unittest.TestCase):
         write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC.replace("Sign-in.", "Sign-in. Literal {{date}} stays."))
         write_activity(self.root)
         write(self.root, "docs/specs/auth/diagrams/account-state.md", STATE)
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
         write(self.root, "docs/specs/auth/assets/2026-05-11/description.md", DESCRIPTION)
         write_bytes(self.root, "docs/specs/auth/assets/2026-05-11/mockup/login.png", PNG)
         write_bytes(self.root, "docs/specs/auth/assets/2026-05-11/legacy/old.png", PNG)
@@ -143,6 +144,37 @@ class TestExport(unittest.TestCase):
 
     def read(self, relative: str) -> str:
         return (self.root / relative).read_text(encoding="utf-8")
+
+    def test_chapter_holds_use_cases_between_purpose_and_diagrams(self):
+        write(self.root, "docs/specs/auth/use-cases/a-reset.md", USE_CASE.replace("# Sign in", "# Reset password"))
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        html = self.read("srs-auth.html")
+        self.assertIn('<section class="use-case" id="auth-sign-in">', html)
+        self.assertIn("<h3>Sign in</h3>", html)
+        self.assertLess(html.index("<h2>Purpose</h2>"), html.index("<h2>Use Cases</h2>"))
+        self.assertLess(html.index("<h2>Use Cases</h2>"), html.index("<h2>Diagrams</h2>"))
+        self.assertLess(html.index('id="auth-a-reset"'), html.index('id="auth-sign-in"'))
+
+    def test_all_export_prints_use_cases_per_chapter_and_none_for_billing(self):
+        self.assertEqual(0, run_specs(self.root, "export", "--all").returncode)
+        html = self.read("srs.html")
+        self.assertEqual(1, html.count('class="use-case"'))
+        billing = html[html.index('<section class="chapter" id="billing">'):]
+        self.assertNotIn('class="use-case"', billing)
+
+    def test_template_without_use_cases_placeholder_exports(self):
+        chapter = specs.template_text(self.root, "srs-capability.html")
+        write(self.root, ".agent-workflow/templates/srs-capability.html",
+              chapter.replace("<h2>Use Cases</h2>", "").replace("{{use_cases}}", ""))
+        result = run_specs(self.root, "export", "auth")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertNotIn('class="use-case"', self.read("srs-auth.html"))
+
+    def test_missing_image_in_a_use_case_is_reported(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE + "\n![flow](missing.png)\n")
+        result = run_specs(self.root, "export", "auth", "--format", "json")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("docs/specs/auth/use-cases/sign-in.md: missing.png", json.loads(result.stdout)["missing"])
 
     def test_one_capability_holds_purpose_diagrams_requirements_and_assets(self):
         result = run_specs(self.root, "export", "auth")
@@ -258,7 +290,7 @@ class TestTemplates(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, document)
         self.assertRegex(document, r'mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js"\s+integrity="sha384-[A-Za-z0-9+/=]{64}"')
-        order = [chapter.index("{{" + key + "}}") for key in ("cap", "capability", "purpose", "diagrams",
+        order = [chapter.index("{{" + key + "}}") for key in ("cap", "capability", "purpose", "use_cases", "diagrams",
                                                                  "requirements", "assets")]
         self.assertEqual(sorted(order), order)
 

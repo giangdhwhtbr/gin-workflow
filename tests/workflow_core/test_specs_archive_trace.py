@@ -13,7 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
-                            make_change, make_repo, write, write_activity, STATE)
+                            make_change, make_repo, write, write_activity, STATE, USE_CASE)
 from workflow_core import specs, specs_trace  # noqa: E402
 from workflow_core.specs_archive import ArchiveConflict, archive  # noqa: E402
 
@@ -58,6 +58,21 @@ class TestArchive(unittest.TestCase):
         self.assertTrue(auth.startswith(auth_before.rstrip()))
         self.assertNotIn("## Diagrams", auth)
         self.assertEqual(STATE, (self.root / "docs/specs/billing/diagrams/invoice-state.md").read_text(encoding="utf-8"))
+
+    def test_new_capability_spec_links_its_use_cases(self):
+        write_activity(self.root, "billing", "pay")
+        write(self.root, "docs/specs/billing/use-cases/pay-invoice.md",
+              USE_CASE.replace("REQ-AUTH-001, REQ-AUTH-002", "REQ-BILLING-001"))
+        auth_before = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
+        change = make_change(self.root, spec_delta=delta(
+            added=ADDED_BLOCK + "\n" + ADDED_BLOCK.replace("REQ-AUTH-003", "REQ-BILLING-001")))
+        commit_all(self.root)
+        archive(self.root, self.cfg, change, today=TODAY)
+        billing = (self.root / "docs/specs/billing/spec.md").read_text(encoding="utf-8")
+        self.assertIn("## Use Cases\n\n- [pay-invoice](use-cases/pay-invoice.md)\n\n## Requirements", billing)
+        auth = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
+        self.assertTrue(auth.startswith(auth_before.rstrip()))
+        self.assertNotIn("## Use Cases", auth)
 
     def test_applies_added_modified_removed_and_new_capability(self):
         billing = ADDED_BLOCK.replace("REQ-AUTH-003", "REQ-BILLING-001")

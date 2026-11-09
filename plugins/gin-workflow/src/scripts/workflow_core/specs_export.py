@@ -218,6 +218,10 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     folder = spec.parent
     title = _title(text, cap)
     purpose = markdown_html(_section(text, "Purpose"), folder, _shown(spec, root), embed)
+    use_cases = "\n".join(
+        f'<section class="use-case" id="{escape(cap)}-{escape(path.stem)}">'
+        f'{markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed)}</section>'
+        for path in sorted((folder / "use-cases").glob("*.md")))
     diagrams = "\n".join(
         f'<section class="diagram" id="{escape(cap)}-{escape(path.stem)}">'
         f'{markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed)}</section>'
@@ -227,6 +231,7 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
         f'<section class="requirement" id="{escape(block.id)}">'
         f'{markdown_html(block.text, folder, _shown(spec, root), embed)}</section>' for block in blocks)
     chapter = fill(template, {"cap": escape(cap), "capability": escape(title), "purpose": purpose,
+                              "use_cases": use_cases,
                               "diagrams": diagrams, "requirements": requirements,
                               "assets": _assets(folder / "assets", root, embed)})
     links = "".join(f'<li><a href="#{escape(b.id)}">{escape(b.id)}: {escape(b.title)}</a></li>' for b in blocks)

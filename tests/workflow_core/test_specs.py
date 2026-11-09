@@ -13,7 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
-                            make_change, make_repo, write, write_activity, STATE)
+                            make_change, make_repo, write, write_activity, STATE, USE_CASE)
 from workflow_core import docs_check, specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
@@ -57,29 +57,6 @@ class TestBlocks(unittest.TestCase):
         none = specs.parse_blocks("### REQ-AUTH-009: X\nThe system MUST lock.\n")[0][0]
         self.assertEqual(["REQ-AUTH-009: needs at least one '#### Scenario:'"], specs.lint_block(none))
 
-
-USE_CASE = """# Sign in
-
-Actor: Registered user
-Requirements: REQ-AUTH-001, REQ-AUTH-002
-
-## Goal
-Reach the dashboard.
-
-## Preconditions
-The user has an account.
-
-## Main flow
-1. The user enters email and password.
-2. The system signs the user in.
-
-## Alternative flows
-### 2a. Wrong password
-1. The system shows "Invalid credentials".
-
-## Postconditions
-The user is signed in.
-"""
 
 
 class TestRepositoryCommands(unittest.TestCase):
