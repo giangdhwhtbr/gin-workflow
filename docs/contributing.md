@@ -42,7 +42,7 @@ Each harness registers differently. Claude Code gets the bundle at `~/.claude/sk
 
 The OpenCode bundle drops the Claude/Codex `agents/` and `commands/` files, so a project install never clobbers a repository's own `.opencode/agents` or `.opencode/commands`. It rewrites the `${PLUGIN_ROOT}` variable to the absolute install path, because shell commands run from the agent's working directory. It renames the skills `learn`, `sdd`, `team`, `worktrees`, `debugging`, `review-response`, `parallel-agents`, and `report` to `gin-<name>` (for example `gin-report`), so generic names do not shadow OpenCode's built-ins. It ships no `hooks/`, so the safety hook does not run in OpenCode; the CLI still checks the lifecycle gates.
 
-GitHub Copilot CLI registers `dist/copilot/<plugin>` with `copilot plugin install`. That bundle keeps the Claude manifest (`.claude-plugin/plugin.json`) and skills, writes `hooks/hooks.json` in Copilot's format, and drops `agents/` and `commands/`. Its directory carries the plugin name because Copilot names a local install after the source directory.
+GitHub Copilot CLI registers `dist/copilot/<plugin>` with `copilot plugin install`. That bundle keeps the Claude manifest (`.claude-plugin/plugin.json`) and skills, writes `hooks/hooks.json` in Copilot's format, and rewrites each agent in `agents/` with Copilot tool names. Its directory carries the plugin name because Copilot names a local install after the source directory.
 
 ```bash
 ./install.sh --platform all                 # build and install for every detected harness

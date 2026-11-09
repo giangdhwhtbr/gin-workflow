@@ -1,6 +1,6 @@
 # gin-workflow
 
-gin-workflow is a plugin for Claude Code, Codex CLI, Antigravity CLI, and OpenCode that takes a change from requirement to merge through recorded gates: discuss, plan, orchestrate, execute, verify, ship. Nothing is merged without your approval, and a `/quick` path handles small changes.
+gin-workflow is a plugin for Claude Code, Codex CLI, Antigravity CLI, OpenCode, and GitHub Copilot CLI. It takes a change from requirement to merge through recorded gates: discuss, plan, orchestrate, execute, ship. Nothing is merged without your approval, and a `/quick` path handles small changes.
 
 ## Where to start
 
