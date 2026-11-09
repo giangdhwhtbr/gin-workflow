@@ -15,6 +15,10 @@ class HostUnavailable(Exception):
     """The host CLI is missing, unauthenticated, or unreachable: exit 2, nothing recorded."""
 
 
+class HostCliMissing(HostUnavailable):
+    """The host CLI is not installed."""
+
+
 @dataclass(frozen=True)
 class PrInfo:
     url: str
@@ -37,7 +41,7 @@ def _run(host: str, argv: list[str], cwd: Path) -> Any:
     name, fix = spec.executable, spec.login_fix
     executable = tool(name, cwd)
     if executable is None:
-        raise HostUnavailable(f"{name} is not installed; install it, then run {fix}")
+        raise HostCliMissing(f"{name} is not installed; install it, then run {fix}")
     try:
         completed = subprocess.run([executable, *argv], cwd=cwd, text=True, capture_output=True, check=False,
                                    timeout=60)

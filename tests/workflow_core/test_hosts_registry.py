@@ -86,7 +86,7 @@ class TestSpecsTraceStatus(HostRepoCase):
 
     def test_missing_cli_names_the_host_cli(self):
         root = self.repo("gitlab")
-        with mock.patch("workflow_core.specs_trace.tool", return_value=None):
+        with mock.patch("workflow_core.team_host.tool", return_value=None):
             result = specs_trace.status(root, make_change(root))
         self.assertEqual("glab_unavailable", result["status"])
         self.assertTrue(result["message"].startswith("glab unavailable; check the PR for spec/ep-1-lockout by hand"))

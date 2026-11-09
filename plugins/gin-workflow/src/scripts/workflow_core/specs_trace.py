@@ -7,7 +7,6 @@ import subprocess
 from typing import Any, Mapping
 
 from .specs import REQ_ID, SpecsError, change_file, delta_blocks, test_files
-from .executables import tool
 
 
 def _tracked(root: Path) -> list[str]:
@@ -58,17 +57,17 @@ def status(root: Path, change: Path) -> dict[str, Any]:
     """The newest spec-review PR of `spec/<change>` on the configured host (GitHub without team mode)."""
     from .hosts import adapter
     from .team import TeamConfig, team_for_repo
-    from .team_host import HostUnavailable, pr_for_branch
+    from .team_host import HostCliMissing, HostUnavailable, pr_for_branch
 
     branch = f"spec/{change.name}"
     record = "gin record requirement-confirmed --workflow-id <epic> --evidence <pr-url> --actor <id>"
     host = (team_for_repo(root) or TeamConfig()).host
-    name = adapter(host).executable
-    if tool(name, root) is None:
-        return {"change": change.name, "branch": branch, "status": f"{name}_unavailable",
-                "message": f"{name} unavailable; check the PR for {branch} by hand, then: {record}"}
     try:
         pr = pr_for_branch(host, branch, root)
+    except HostCliMissing:
+        name = adapter(host).executable
+        return {"change": change.name, "branch": branch, "status": f"{name}_unavailable",
+                "message": f"{name} unavailable; check the PR for {branch} by hand, then: {record}"}
     except HostUnavailable as error:
         raise SpecsError(str(error)) from error
     if pr is None:
