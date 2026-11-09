@@ -1,6 +1,6 @@
 # Chế độ team { #team-mode }
 
-Dùng một mình thì không cần gì ở đây: nếu không có mục `team:` trong `.agent-workflow/config.yaml`, mọi stage hoạt động như mô tả trong [Vòng đời](../concepts/lifecycle.md). Chế độ team là tùy chọn bật thêm. Nó thêm danh tính thành viên, các cổng được chứng minh bằng pull request (GitHub) hoặc merge request (GitLab) đã được duyệt, các area có owner, claim theo từng thành viên, và tùy chọn một cơ sở dữ liệu Beads dùng chung. Về cách PM, BA, developer và tester chia việc, xem [Vai trò trong nhóm](../roles.md). Quy tắc về branch, pull request, review và merge nằm trong [thoả thuận git của team](git-flow.md).
+Dùng một mình thì không cần gì ở đây: nếu không có mục `team:` trong `.agent-workflow/config.yaml`, mọi stage hoạt động như mô tả trong [Vòng đời](../concepts/lifecycle.md). Chế độ team là tùy chọn bật thêm. Nó thêm danh tính thành viên, các cổng được chứng minh bằng pull request (GitHub, Gitea, AWS CodeCommit) hoặc merge request (GitLab) đã được duyệt, các area có owner, claim theo từng thành viên, và tùy chọn một cơ sở dữ liệu Beads dùng chung. Về cách PM, BA, developer và tester chia việc, xem [Vai trò trong nhóm](../roles.md). Quy tắc về branch, pull request, review và merge nằm trong [thoả thuận git của team](git-flow.md).
 
 ```mermaid
 flowchart TD
@@ -15,8 +15,8 @@ flowchart TD
 
 Chạy `/team-setup` và trả lời với tư cách lead. Nó hỏi:
 
-- host (`github` hoặc `gitlab`) và commit convention (`conventional` hoặc `none`);
-- thành viên: git email, các role, và host login của từng người;
+- host (`github`, `gitlab`, `gitea` hoặc `codecommit`) và commit convention (`conventional` hoặc `none`);
+- thành viên: git email, các role, và host login của từng người (với `codecommit` thì hỏi `aws_identity` thay cho login);
 - area: một tên, các path glob (gồm cả test của area), role `lead`, và tùy chọn các `roles` được phép sở hữu track;
 - phê duyệt: role nào duyệt `requirement_confirmed`, `ship`, và pull request của `/roadmap` (`roadmap`), cùng `area_lead` hoặc các role cho `plan_approved` (`[]` nếu không có);
 - tùy chọn Beads dùng chung: một repository riêng được dùng làm `team.beads_sync.remote`.
@@ -44,7 +44,7 @@ team:
 
 Cài [điều kiện tiên quyết](../getting-started.md#prerequisites) trước, và đừng chạy `/gin:setup`: lead đã cấu hình repository rồi.
 
-Chạy `/team-setup` với tư cách member: `gin team whoami` phải tìm thấy `git config user.email` của bạn; `gin team hooks` cài hook commit-msg; đăng nhập bằng `gh auth login` hoặc `glab auth login`; với Beads dùng chung, chạy `bd init --remote <remote>`. `gin setup doctor` báo bất cứ thứ gì còn thiếu.
+Chạy `/team-setup` với tư cách member: `gin team whoami` phải tìm thấy `git config user.email` của bạn; `gin team hooks` cài hook commit-msg; đăng nhập bằng lệnh login của host (liệt kê trong `references/hosts.md` của skill `team`); với Beads dùng chung, chạy `bd init --remote <remote>`. `gin setup doctor` báo bất cứ thứ gì còn thiếu.
 
 ## Mỗi stage thay đổi gì { #what-changes-in-each-stage }
 
@@ -57,7 +57,7 @@ Skill `team` chứa các bước chính xác.
 | `plan` | Mỗi track thêm `Area:` và `Owner:` (chỉ là tùy chọn khi dùng Beads dùng chung; gán lại một track nghĩa là một plan PR mới); file của một track nằm trong area của nó. `team check-plan <plan>` phải pass. Với `plan_approved: area_lead`, plan được merge qua một pull request do area lead duyệt. Trước hết `plan` giải quyết từng `TQ-<n>` còn mở cùng thành viên đang chạy nó và ghi `Decision:` bên dưới. Pull request của plan mang các dòng đó và, với layout SDD, các phần đã điền của `03-design.md`. |
 | `orchestrate` | Các track bead nhận label `track:<N>` và `area:<area>` và owner làm assignee. Với Beads dùng chung, lead orchestrate một lần; nếu không, mỗi thành viên chỉ tạo bead cho các track mình sở hữu, và dependency tới track của người khác trở thành một placeholder `external: <plan>#<N>`. |
 | `execute` | `team deps` đóng các placeholder mà track của nó đã merge; chọn việc từ `team ready`, claim bằng `team claim <bead>` (một lease dài `team.claim_ttl_hours`, gia hạn bằng cách claim lại; lease hết hạn cho phép thành viên khác lấy bead; bead được gán mà không có lease hoặc với metadata `claim` không đọc được cũng vậy), và trong worktree của track, `team deps --bead <bead>` phải pass trước khi triển khai. Skill `team` đặt tên branch của track là `feat/<topic>-t<N>`; các trường `Plan:` và `Tracks:` của template pull request được `team deps` của các thành viên khác đọc. [Starter brownfield](../starters/brownfield.md#execute) minh họa claim, lease, và bàn giao một track. |
-| `ship` | Khi `ship` có role trong `team.approvals`, chỉ các lựa chọn pull request và keep được đưa ra, và role đó duyệt commit mới nhất của pull request trước khi merge (`team check --gate ship <url>`); một lần push sau đó cần phê duyệt mới. Trong chế độ team, `record` còn ghi bằng chứng PR của gate vào metadata `gates` của epic bead (xem [starter brownfield](../starters/brownfield.md#ship)). GitLab cần "Reset approvals on push". Việc merge theo luật của host (CODEOWNERS, branch protection). Với Beads dùng chung, chạy `team sync` sau khi đóng bead. Khóa cũ `verification_passed` đã deprecated và ánh xạ sang `ship`. |
+| `ship` | Khi `ship` có role trong `team.approvals`, chỉ các lựa chọn pull request và keep được đưa ra, và role đó duyệt commit mới nhất của pull request trước khi merge (`team check --gate ship <url>`); một lần push sau đó cần phê duyệt mới. Trong chế độ team, `record` còn ghi bằng chứng PR của gate vào metadata `gates` của epic bead (xem [starter brownfield](../starters/brownfield.md#ship)). GitLab cần "Reset approvals on push", Gitea cần "Dismiss stale approvals", còn CodeCommit gắn approval với revision (xem [Thiết lập trên host](#host-settings)). Việc merge theo luật của host (CODEOWNERS, branch protection). Với Beads dùng chung, chạy `team sync` sau khi đóng bead. Khóa cũ `verification_passed` đã deprecated và ánh xạ sang `ship`. |
 
 Việc ghi milestone theo `team.permissions.milestone`, và với Beads dùng chung thì pull trước và push sau. Chi tiết nằm ở [lệnh milestone](../reference/cli.md#gin-milestone).
 
@@ -69,8 +69,58 @@ Ship của một thành viên chỉ bao gồm các track của chính họ. Lead
 
 ## Thiết lập trên host { #host-settings }
 
+Mỗi host cần một CLI đã đăng nhập và branch protection trên integration branch. Bảng trong `references/hosts.md` của skill `team` liệt kê CLI, lệnh login, lệnh mở pull request và các thiết lập của từng host. `gin setup doctor` báo CLI hoặc login còn thiếu cùng cách sửa.
+
 - GitHub: branch protection trên integration branch và CODEOWNERS theo từng area (`team init`). Khuyến nghị: "Dismiss stale pull request approvals when new commits are pushed". Dù thế nào, gate `ship` chỉ tính các phê duyệt được thực hiện trên commit mới nhất.
 - GitLab: "Reset approvals on push" (`reset_approvals_on_push`), bắt buộc với `ship`; không có nó, gate từ chối phê duyệt.
+
+### Gitea { #gitea }
+
+Đặt `team.host: gitea`. `team init` ghi `.gitea/CODEOWNERS` và `.gitea/PULL_REQUEST_TEMPLATE.md`. Bảo vệ integration branch bằng số approval bắt buộc và bật "Dismiss stale approvals". Dù thế nào, gate `ship` chỉ tính các phê duyệt trên head commit.
+
+`gt` là CLI của Gitea và cần Gitea 28 trở lên. Đăng nhập một lần cho mỗi instance, và đưa cả subpath vào URL:
+
+```bash
+gt auth login --host https://example.com/gitea --oauth
+gt auth login --host https://example.com/gitea --with-token < token.txt
+```
+
+Với instance nằm sau access proxy, `gt auth login` còn nhận `--header` và `--client-cert`. Certificate tự ký phải được hệ thống tin cậy, vì gin không truyền tùy chọn certificate nào cho `gt`.
+
+`gin setup doctor` chạy các kiểm tra Gitea sau:
+
+- `gt` trên `PATH` là CLI của Gitea. Graphite cũng đặt tên CLI là `gt`, và kiểm tra phân biệt hai CLI qua output của `gt --version`.
+- `gt` đã đăng nhập vào instance của `origin`. Remote https cho biết instance. Với remote SSH, gin tìm instance đã đăng nhập có cùng tên host; nếu có nhiều kết quả, chỉ đăng nhập một instance hoặc dùng remote https.
+- Instance chạy Gitea 28 trở lên.
+
+Có hai giới hạn. gin nhận diện repository Gitea theo host, owner và tên repository, nên không chạy hai instance Gitea trên cùng một host với cùng path repository. `gin team deps` và `gin specs trace` quét 500 pull request mới nhất và tối đa 100 kết quả tìm kiếm.
+
+### AWS CodeCommit { #aws-codecommit }
+
+Đặt `team.host: codecommit`. CodeCommit không có file CODEOWNERS, template pull request hay CI workflow, nên `team init` chỉ ghi hook commit-msg, và `team init --ci` bị từ chối với exit 2: dùng CodeBuild hoặc CodePipeline cho CI.
+
+Mỗi thành viên có approving role cần `aws_identity`, giá trị gin so khớp với người approve. Đó là tên IAM user, hoặc role session name với assumed role (`arn:aws:sts::<account>:assumed-role/Dev/alice` khớp với `alice`). Dùng AWS SSO hoặc điều kiện `sts:RoleSessionName` trong trust policy của role, để mỗi người có một session name riêng. `gin team check` báo lỗi khi người approve thiếu giá trị này.
+
+```yaml
+team:
+  host: codecommit
+  members:
+    alice@example.com: {roles: [be_lead], aws_identity: alice}
+```
+
+gin gọi `aws` với môi trường hiện tại, nên cần credentials (`aws configure` hoặc `aws sso login`) và region. Region lấy từ `AWS_REGION` hoặc từ remote `origin` có dạng `codecommit::<region>://<repo>`. Khi remote là `codecommit://<profile>@<repo>`, đặt `AWS_PROFILE` thành profile đó, vì gin không đọc profile từ remote.
+
+CodeCommit không áp dụng code owner. Tạo một approval rule template và gắn vào repository, để pull request cần đủ approval trước khi merge:
+
+```bash
+aws codecommit create-approval-rule-template \
+  --approval-rule-template-name gin-team \
+  --approval-rule-template-content '{"Version":"2018-11-08","DestinationReferences":["refs/heads/main"],"Statements":[{"Type":"Approvers","NumberOfApprovalsNeeded":1,"ApprovalPoolMembers":["arn:aws:sts::<account>:assumed-role/Dev/*"]}]}'
+aws codecommit associate-approval-rule-template-with-repository \
+  --approval-rule-template-name gin-team --repository-name <repo>
+```
+
+Approval thuộc về một revision của pull request. Gate `ship` chỉ tính approval của revision hiện tại có source commit trùng `HEAD` local.
 
 ## CI (tùy chọn) { #ci-optional }
 
@@ -80,13 +130,15 @@ Ship của một thành viên chỉ bao gồm các track của chính họ. Lead
 |---|---|---|
 | GitHub Actions | `.github/workflows/gin-workflow.yml` (job `conventions`) | mọi pull request |
 | GitLab CI | `.gitlab/ci/gin-workflow.yml` (job `gin-workflow-conventions`, stage `test`) | mọi merge request |
+| Gitea Actions | `.gitea/workflows/gin-workflow.yml` (job `conventions`) | mọi pull request |
 
-GitLab không tự nhận file này: thêm `include: { local: .gitlab/ci/gin-workflow.yml }` vào `.gitlab-ci.yml` ở gốc.
+CodeCommit không có file CI. GitLab không tự nhận file này: thêm `include: { local: .gitlab/ci/gin-workflow.yml }` vào `.gitlab-ci.yml` ở gốc.
 
 Job luôn kiểm tra commit message theo `team.commit_convention` (bỏ qua với `none`). Nó cũng chạy `gin team codeowners --check` và, với layout SDD, `gin specs lint`, nhưng chỉ khi biến `GIN_WORKFLOW_INSTALL` chứa một lệnh shell cài gin-workflow trên CI runner; nếu không có, hai kiểm tra đó bị bỏ qua và job vẫn pass.
 
 - GitHub: Settings, Secrets and variables, Actions, tab **Variables** (là Variable, không phải Secret).
 - GitLab: Settings, CI/CD, Variables.
+- Gitea: Settings, Actions, Variables của repository.
 - Giá trị ví dụ: `curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude`.
 
 ## Lệnh { #commands }
