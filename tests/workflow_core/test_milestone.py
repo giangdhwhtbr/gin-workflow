@@ -487,7 +487,6 @@ class SpecDueTests(unittest.TestCase):
         self.assertEqual(["spec_not_ready"], [c for c in self.codes(result, "A") if c.startswith("spec_")])
 
 
-
 class PlannedDaysTests(unittest.TestCase):
     def test_in_progress_with_tracks_uses_the_open_share(self):
         beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(4), status="in_progress"),
@@ -521,7 +520,6 @@ class PlannedDaysTests(unittest.TestCase):
         beads = world(bead("r1", labels=["roadmap"], minutes=days(2)), bead("r2", labels=["roadmap"]))
         found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)
         self.assertEqual(("2026-11-03", 1), (found["finish"], found["unestimated"]))  # Thu 29 .. Tue 3: 2 + 2 days
-
 
     def test_median_ignores_closed_epics_in_show_and_forecast(self):
         beads = world(milestone_bead(), bead("C", parent="m1", minutes=days(10), status="closed"),

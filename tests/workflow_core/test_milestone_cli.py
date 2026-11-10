@@ -468,8 +468,6 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertIn("providers.task_tracking: beads", err)
 
 
-
-@unittest.skipUnless(shutil.which("bd"), "bd is not installed")
 class ShowTextTests(unittest.TestCase):
     def text(self, *beads, deadline=None):
         items = {item["id"]: item for item in beads}
@@ -498,6 +496,7 @@ class ShowTextTests(unittest.TestCase):
         self.assertIn("deadline: 2026-11-13", self.text(self.milestone(), deadline=date(2026, 11, 13)))
 
 
+@unittest.skipUnless(shutil.which("bd"), "bd is not installed")
 class MilestoneTeamTests(unittest.TestCase):
     def setUp(self):
         self._directory = tempfile.TemporaryDirectory()
