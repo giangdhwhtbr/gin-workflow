@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 from urllib.parse import urlparse
 
 from .hosts import DEFAULT_HOST, HOSTS, adapter
@@ -389,6 +389,33 @@ def origin_url(root: Path) -> str:
     return done.stdout.strip()
 
 
+def repo_for_pr(root: Path, team: TeamConfig, pr_url: str, cwd: Path | None = None) -> tuple[str, Path, list[str]]:
+    """The URL a ship PR must match, the directory whose HEAD the `ship` gate compares, and the repository ids a
+    workspace accepts. The parent when the PR is its own; else the `workspace.repos` entry with the PR's
+    repository, taking HEAD from `cwd` when it is that child's checkout or one of its worktrees."""
+    from .checkout import main_checkout
+    from . import workspace as workspace_core
+
+    host = adapter(team.host)
+    parent = origin_url(Path(root))
+    wanted = host.repo_id(pr_url, pr=True)
+    if wanted == host.repo_id(parent):
+        return parent, Path(root), []
+    space = workspace_core.load(Path(root))
+    if space is None:
+        return parent, Path(root), []
+    accepted = [host.repo_id(parent)] + [host.repo_id(entry.url) for entry in space.repos if entry.url]
+    for entry in space.repos:
+        if entry.url and host.repo_id(entry.url) == wanted:
+            checkout = space.checkout(entry)
+            if not (checkout / ".git").exists():
+                raise TeamError(f"{entry.path} is not cloned; run gin workspace clone {entry.path}")
+            here = Path(cwd or Path.cwd()).resolve()
+            same = main_checkout(here) == checkout.resolve()
+            return entry.url, (here if same else checkout), accepted
+    return parent, Path(root), accepted
+
+
 def _is_artifact(path: str, gate: str, changes: str) -> bool:
     from .specs import CHANGE_FILES
 
@@ -416,14 +443,15 @@ def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> st
 
 
 def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact: str = "",
-                   local_head: str = "") -> list[str]:
+                   local_head: str = "", expected_repo: str = "", accepted: Sequence[str] = ()) -> list[str]:
     """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
     policy = team.approvals.get("ship" if gate == "shipped" else gate, [])
     reasons: list[str] = []
     host = adapter(team.host)
-    expected, actual = host.repo_id(origin_url(Path(root))), host.repo_id(pr.url, pr=True)
+    expected, actual = host.repo_id(expected_repo or origin_url(Path(root))), host.repo_id(pr.url, pr=True)
     if actual != expected:
-        reasons.append(f"PR belongs to {actual}, not this repository ({expected})")
+        also = f"; accepted: {', '.join(accepted)}" if accepted else ""
+        reasons.append(f"PR belongs to {actual}, not this repository ({expected}){also}")
     if gate in ("ship", "shipped"):
         if gate == "shipped" and not pr.merged:
             reasons.append(f"PR is {pr.state}, not merged")
@@ -513,8 +541,11 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
     pr = fetch_pr(url, team.host, Path(root))
     artifact = "" if gate in ("ship", "shipped") else resolve_artifact(
         pr, Path(root), gate, plan if gate == "plan_approved" else spec)
-    head = _head(Path(root)) if gate == "ship" else ""
-    reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head)
+    expected, head_dir, accepted = (repo_for_pr(Path(root), team, url) if gate in ("ship", "shipped")
+                                    else ("", Path(root), []))
+    head = _head(head_dir) if gate == "ship" else ""
+    reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head,
+                             expected_repo=expected, accepted=accepted)
     return pr, artifact, reasons
 
 
