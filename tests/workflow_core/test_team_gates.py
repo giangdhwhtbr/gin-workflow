@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -12,7 +13,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
+from team_fixtures import LAUNCHER, PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
 from workflow_core.configuration import resolve_effective_config  # noqa: E402
 from workflow_core.team import check_plan, check_plan_repos, load_team, plan_tracks, repo_slug  # noqa: E402
 from workflow_core.workspace import Workspace, repos_from  # noqa: E402
@@ -703,6 +704,79 @@ class TestPlanChecks(unittest.TestCase):
         path = write(self.root, PLAN_PATH, plan)
         self.assertIn("`services/auth/login.py` is listed by tracks 1, 2 and 3", check_plan(self.team, path))
         self.assertEqual(1, run_cli(self.root, "team", "check-plan", str(path)).returncode)
+
+
+CHILD_PR = "https://github.com/org/api/pull/9"
+CHILD_WORKSPACE = """workspace:
+  repos:
+    - {path: services/api, url: "git@github.com:org/api.git", shape: backend}
+    - {path: apps/web, url: "git@github.com:org/web.git", shape: frontend}
+"""
+
+
+class TestChildShipGate(GateCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = make_team_repo(Path(self.tmp.name) / "repo", host=self.host, extra=CHILD_WORKSPACE)
+        self.bin = Path(self.tmp.name) / "bin"
+        self.env = path_with(self.bin)
+        self.child = self.root / "services/api"
+        self.child.mkdir(parents=True)
+        git(self.child, "init", "-q", "-b", "main")
+        git(self.child, "config", "user.email", "binh@corp.com")
+        git(self.child, "config", "user.name", "T")
+        git(self.child, "remote", "add", "origin", "git@github.com:org/api.git")
+        git(self.child, "commit", "-q", "--allow-empty", "-m", "feat: api")
+        self.head = git(self.child, "rev-parse", "HEAD").strip()
+
+    def child_pr(self, head, state="OPEN", url=CHILD_PR):
+        fake_cli(self.bin, "gh", [{"argv": ["pr", "view", url], "exit": 0,
+                                   "stdout": gh_pr(url, state=state, head=head,
+                                                   reviews=[("dung-qe", "APPROVED", head)])}])
+
+    def run_in(self, cwd, *args):
+        return subprocess.run([sys.executable, str(LAUNCHER), *args], cwd=cwd, text=True, capture_output=True,
+                              env={**os.environ, **self.env}, check=False)
+
+    def test_child_pr_passes_from_parent_child_and_worktree(self):
+        self.child_pr(self.head)
+        self.assertEqual(0, run_cli(self.root, "team", "check", CHILD_PR, "--gate", "ship", env=self.env).returncode)
+        self.assertEqual(0, self.run_in(self.child, "team", "check", CHILD_PR, "--gate", "ship").returncode)
+        worktree = Path(self.tmp.name) / "wt"
+        git(self.child, "worktree", "add", "-q", "-b", "track", str(worktree))
+        git(worktree, "commit", "-q", "--allow-empty", "-m", "feat: track")
+        track_head = git(worktree, "rev-parse", "HEAD").strip()
+        self.child_pr(track_head)
+        self.assertEqual(0, self.run_in(worktree, "team", "check", CHILD_PR, "--gate", "ship").returncode)
+        mismatch = self.run_in(self.child, "team", "check", CHILD_PR, "--gate", "ship")
+        self.assertEqual(1, mismatch.returncode)
+        self.assertIn("is not local HEAD", mismatch.stdout)
+
+    def test_unlisted_repository_is_refused_with_accepted_ids(self):
+        other = "https://github.com/org/other/pull/3"
+        self.child_pr(self.head, url=other)
+        result = run_cli(self.root, "team", "check", other, "--gate", "ship", env=self.env)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("not this repository", result.stdout)
+        self.assertIn("github.com/org/api", result.stdout)
+
+    def test_uncloned_child_names_workspace_clone(self):
+        url = "https://github.com/org/web/pull/4"
+        self.child_pr(self.head, url=url)
+        result = run_cli(self.root, "team", "check", url, "--gate", "ship", env=self.env)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("gin workspace clone apps/web", result.stdout + result.stderr)
+
+    def test_record_shipped_accepts_a_merged_child_pr(self):
+        write(self.root, ".agent-workflow/config.yaml",
+              (self.root / ".agent-workflow/config.yaml").read_text() + "providers:\n  task_tracking: beads\n")
+        resolve_effective_config(self.root)
+        self.bd({"w": {"id": "w", "issue_type": "task", "status": "closed", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                                    "--epic", "w", env=self.env).returncode)
+        self.child_pr(self.head, state="MERGED")
+        result = run_cli(self.root, "record", "shipped", "--evidence", CHILD_PR, "--workflow-id", "w", env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
 
 
 if __name__ == "__main__":
