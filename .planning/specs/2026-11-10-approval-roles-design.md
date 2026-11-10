@@ -24,7 +24,7 @@ Out of scope:
 - Consuming-area leads approving a contract spec (FE-LEAD-5), and a frontend review checklist.
 - Changing the existing waiver rules.
 
-Confirmed summary (user, 2026-11-10): the `{all, any}` form with three anti-deadlock layers: the author-only-holder fallback, a doctor warning, and the existing `gin unblock` waiver for an absent holder. The author never approves their own pull request.
+Confirmed summary (user, 2026-11-10): the `{all, any}` form with three anti-deadlock layers: the author-only-holder fallback, a doctor warning, and the existing `gin unblock` waiver for an absent holder, which applies to `requirement_confirmed` and `plan_approved` only; for `ship`, add a holder. The author never approves their own pull request.
 
 ## Requirements
 
@@ -42,7 +42,7 @@ R6. `gin setup doctor` (the team checks) warns for each gate policy role in `all
 
 R7. `gate_roles`, `can_waive`, and `team init` CODEOWNERS treat an object policy as the union of its `all` and `any` roles.
 
-R8. `docs/roles.md` adds an `fe_lead` row and stops naming the tech lead as backup approver for every gate. The brownfield starter adds an `fe_lead` member, makes the app area led by `fe_lead`, sets `ship: {all: [qe], any: [be_lead, fe_lead]}`, and replaces its single-holder note. `docs/reference/config.md`, `docs/guides/team.md`, and the `team` and `team-setup` skills document the object form, the fallback, and the waiver for an absent holder. Skill and stage character budgets hold.
+R8. `docs/roles.md` adds an `fe_lead` row and stops naming the tech lead as backup approver for every gate. The brownfield starter adds an `fe_lead` member, makes the app area led by `fe_lead`, sets `ship: {all: [qe], any: [be_lead, fe_lead]}`, and replaces its single-holder note. `docs/reference/config.md`, `docs/guides/team.md`, and the `team` and `team-setup` skills document the object form, the fallback, and the waiver for an absent holder (`requirement_confirmed` and `plan_approved` only; for `ship`, add a holder). Skill and stage character budgets hold.
 
 ## User Stories
 

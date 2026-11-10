@@ -321,8 +321,8 @@ class TestCodeCommitCli(CodeCommitCase):
         self.assertTrue(detail["checks"]["host_cli"], detail)
         self.assertTrue(payload["checks"]["team"], detail)
         self.assertIn(["aws", "sts", "get-caller-identity"], calls(self.bin))
-        self.assertTrue(detail["note"].startswith("CodeCommit does not enforce code owners; create an approval rule template "
-                         "(see docs/guides/team.md)"), detail["note"])
+        self.assertEqual("CodeCommit does not enforce code owners; create an approval rule template "
+                         "(see docs/guides/team.md)", "; ".join(detail["note"].split("; ")[:2]))
         self.aws([{"argv": ["sts", "get-caller-identity"], "exit": 255, "stderr": "Unable to locate credentials"}])
         detail = json.loads(run_cli(root, "setup", "doctor", "--format", "json", env=self.env).stdout
                             )["checks_details"]["team"]
