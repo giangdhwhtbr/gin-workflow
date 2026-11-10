@@ -12,6 +12,9 @@ SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9")
 
 _SHAPES = ["frontend", "backend", "fullstack", "library"]
 _ROLES = {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}}
+_POLICY = {"type": "object", "properties": {"all": _ROLES, "any": _ROLES}, "additionalProperties": False,
+           "minProperties": 1}
+_GATE = {"anyOf": [_ROLES, _POLICY]}
 _TEAM = {
     "type": "object",
     "required": ["members"],
@@ -43,11 +46,11 @@ _TEAM = {
         "approvals": {
             "type": "object",
             "properties": {
-                "requirement_confirmed": _ROLES,
-                "plan_approved": {"anyOf": [{"const": "area_lead"}, _ROLES]},
-                "ship": _ROLES,
-                "verification_passed": _ROLES,  # deprecated: mapped to ship
-                "roadmap": _ROLES,
+                "requirement_confirmed": _GATE,
+                "plan_approved": {"anyOf": [{"const": "area_lead"}, _ROLES, _POLICY]},
+                "ship": _GATE,
+                "verification_passed": _GATE,  # deprecated: mapped to ship
+                "roadmap": _GATE,
             },
             "additionalProperties": False,
         },

@@ -104,16 +104,18 @@ def _run(args: argparse.Namespace) -> int:
             findings += team_core.check_plan_repos(located.workspace, args.plan)
         return _findings(findings, args.format, "ok")
     if args.command == "check":
+        notes: list[str] = []
         pr, artifact, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan,
-                                                      spec=args.spec)
+                                                      spec=args.spec, notes=notes)
         key = adapter(team.host).identity_key
         for member in team.members.values():
             if not getattr(member, key):
                 print(f"warning: {member.email} has no {key}; its approvals cannot be matched", file=sys.stderr)
         payload = {"status": "rejected" if reasons else "ok", "gate": args.gate, "url": pr.url, "reasons": reasons,
                    "approvers": team_core.approver_payload(pr, team, on_commit=pr.head_sha if args.gate == "ship" else None),
-                   "artifact": artifact}
-        _emit(payload, args.format, "\n".join(reasons) if reasons else f"ok: {args.gate} {pr.url}")
+                   "artifact": artifact, "notes": notes}
+        _emit(payload, args.format, "\n".join([*(f"note: {note}" for note in notes),
+                                               *(reasons or [f"ok: {args.gate} {pr.url}"])]))
         return 1 if reasons else 0
     member = team_core.require_member(root, team)
     if args.command == "whoami":

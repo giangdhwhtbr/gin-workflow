@@ -14,7 +14,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import LAUNCHER, PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
-from workflow_core.configuration import resolve_effective_config  # noqa: E402
+from workflow_core.configuration import ConfigValidationError, resolve_effective_config, validate_portable_config  # noqa: E402
 from workflow_core.team import check_plan, check_plan_repos, load_team, plan_tracks, repo_slug  # noqa: E402
 from workflow_core.workspace import Workspace, repos_from  # noqa: E402
 from workflow_core.team_host import fetch_pr  # noqa: E402
@@ -777,6 +777,128 @@ class TestChildShipGate(GateCase):
         self.child_pr(self.head, state="MERGED")
         result = run_cli(self.root, "record", "shipped", "--evidence", CHILD_PR, "--workflow-id", "w", env=self.env)
         self.assertEqual(0, result.returncode, result.stderr)
+
+
+class TestObjectPolicies(GateCase):
+    """`{all, any}` approval policies and the sole-holder fallback (gin-workflow-approval-roles R1-R5)."""
+
+    def use_policy(self, ship: str | None = None, *, plan: str | None = None, members: str = "") -> None:
+        team = TEAM.format(host="github")
+        if ship is not None:
+            team = team.replace("    ship: [qe]\n", f"    ship: {ship}\n")
+        if plan is not None:
+            team = team.replace("    plan_approved: area_lead\n", f"    plan_approved: {plan}\n")
+        team = team.replace("  areas:\n", members + "  areas:\n")
+        write(self.root, ".agent-workflow/config.yaml", f"schema_version: '2.7'\n{team}")
+
+    def ship_pr(self, author: str, *approvers: str) -> None:
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "feat: x")
+        head = git(self.root, "rev-parse", "HEAD").strip()
+        self.gh(gh_pr(state="OPEN", author=author, head=head, reviews=[(login, "APPROVED", head) for login in approvers]))
+
+    def test_all_requires_each_role(self):
+        self.use_policy("{all: [qe], any: [be_lead, fe_lead]}")
+        self.ship_pr("an-ba", "binh-dev")
+        result = self.check_ship()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from qe", result.stdout)
+        self.ship_pr("an-ba", "dung-qe", "chi-fe")
+        self.assertEqual(0, self.check_ship().returncode)
+
+    def test_any_required_with_all(self):
+        self.use_policy("{all: [qe], any: [be_lead, fe_lead]}")
+        self.ship_pr("an-ba", "dung-qe")
+        result = self.check_ship()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from one of be_lead, fe_lead", result.stdout)
+
+    def test_list_policy_unchanged(self):
+        self.use_policy("[qe, be_lead]")
+        self.ship_pr("an-ba", "binh-dev")
+        self.assertEqual(0, self.check_ship().returncode)
+
+    def test_sole_holder_author_falls_back_to_any(self):
+        self.use_policy("{all: [qe], any: [be_lead]}")
+        self.ship_pr("dung-qe", "binh-dev")
+        result = self.check_ship()
+        self.assertEqual(0, result.returncode, result.stdout)
+        self.assertIn("note: qe skipped: the author is its only holder", result.stdout)
+        out = run_cli(self.root, "team", "check", PR, "--gate", "ship", "--format", "json", env=self.env)
+        self.assertEqual(["qe skipped: the author is its only holder"], json.loads(out.stdout)["notes"])
+
+    def test_sole_holder_fallback_still_requires_any(self):
+        self.use_policy("{all: [qe], any: [be_lead]}")
+        self.ship_pr("dung-qe", "chi-fe")
+        result = self.check_ship()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from one of be_lead", result.stdout)
+
+    def test_sole_holder_without_any_is_refused(self):
+        self.use_policy("{all: [qe]}")
+        self.ship_pr("dung-qe", "binh-dev")
+        result = self.check_ship()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("qe has no holder other than the author; add a holder or an `any` role", result.stdout)
+
+    def test_second_holder_disables_fallback(self):
+        self.use_policy("{all: [qe], any: [be_lead]}", members="    eve@corp.com: {roles: [qe], login: eve-qe}\n")
+        self.ship_pr("dung-qe", "binh-dev")
+        result = self.check_ship()
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from qe", result.stdout)
+        self.assertNotIn("skipped", result.stdout)
+
+    def test_area_lead_author_substituted_by_other_lead(self):
+        self.gh(gh_pr(author="binh-dev", files=[PLAN_PATH], reviews=[("chi-fe", "APPROVED", "c")]))
+        result = run_cli(self.root, "team", "check", PR, "--gate", "plan_approved", env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout)
+        self.assertIn("note: be_lead for area backend skipped: the author is its only holder; approved by fe_lead",
+                      result.stdout)
+        self.assertEqual(0, self.record("plan-approved").returncode)
+
+    def test_area_lead_without_another_lead_approval_is_refused(self):
+        self.gh(gh_pr(author="binh-dev", files=[PLAN_PATH], reviews=[("dung-qe", "APPROVED", "c")]))
+        result = self.record("plan-approved")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from be_lead for area backend", result.stderr)
+
+    def test_area_lead_with_a_second_holder_is_not_substituted(self):
+        self.use_policy(members="    fay@corp.com: {roles: [be_lead], login: fay-be}\n")
+        self.gh(gh_pr(author="binh-dev", files=[PLAN_PATH], reviews=[("chi-fe", "APPROVED", "c")]))
+        result = self.record("plan-approved")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from be_lead for area backend", result.stderr)
+
+    def test_area_lead_substitution_needs_another_area(self):
+        solo = ("team:\n  members:\n    binh@corp.com: {roles: [be_lead], login: binh-dev}\n"
+                "    chi@corp.com: {roles: [fe_lead], login: chi-fe}\n"
+                "  areas:\n    backend: {paths: [\"services/**\", \"tests/services/**\"], lead: be_lead}\n"
+                "  approvals:\n    plan_approved: area_lead\n")
+        write(self.root, ".agent-workflow/config.yaml", f"schema_version: '2.7'\n{solo}")
+        write(self.root, PLAN_PATH, PLAN.split("### Track 2")[0] + "## Integration\n- Branch: feat/login\n")
+        self.gh(gh_pr(author="binh-dev", files=[PLAN_PATH], reviews=[("chi-fe", "APPROVED", "c")]))
+        result = self.record("plan-approved")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from be_lead for area backend", result.stderr)
+
+    def test_object_policy_unknown_key_is_refused(self):
+        raw = yaml.safe_load(TEAM.format(host="github"))["team"]
+        validate_portable_config({"schema_version": "2.7", "team": {**raw, "approvals": {"ship": {"all": ["qe"]}}}})
+        for bad in ({"every": ["qe"]}, {}, {"all": "qe"}):
+            with self.subTest(bad=bad), self.assertRaises(ConfigValidationError):
+                validate_portable_config({"schema_version": "2.7", "team": {**raw, "approvals": {"ship": bad}}})
+
+    def test_policy_roles_held_by_no_member_are_config_errors(self):
+        from workflow_core.team import validate_team
+
+        raw = yaml.safe_load(TEAM.format(host="github"))["team"]
+        raw["approvals"] = {"ship": {"all": ["qe", "ghost"], "any": ["phantom"]}}
+        errors = validate_team(raw)
+        self.assertIn("team.approvals.ship: role ghost is held by no member", errors)
+        self.assertIn("team.approvals.ship: role phantom is held by no member", errors)
+        raw["approvals"] = {"ship": {"all": [], "any": []}}
+        self.assertIn("team.approvals.ship: all and any are both empty", validate_team(raw))
 
 
 if __name__ == "__main__":
