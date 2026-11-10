@@ -13,10 +13,11 @@ D = date.fromisoformat
 
 
 def bead(id, *, type="epic", status="open", parent=None, minutes=None, blocks=(), labels=(), meta=None, title="",
-         started_at=None):
+         started_at=None, deps=()):
     item = {"id": id, "title": title or id, "description": "", "status": status, "issue_type": type,
             "parent": parent, "labels": list(labels), "estimated_minutes": minutes, "metadata": meta or {},
             "dependencies": [{"issue_id": id, "depends_on_id": d, "type": "blocks"} for d in blocks]}
+    item["dependencies"] += [{"issue_id": id, "depends_on_id": target, "type": kind} for kind, target in deps]
     if started_at:
         item["started_at"] = started_at
     return item
@@ -242,7 +243,7 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "m1", "title": "m1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-12-18", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "integration": None, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
             "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5, "remaining_days": 5, "assumed_days": None,
                        "spec_confirmed": None,
                        "planned_start": "2026-11-02", "planned_end": "2026-11-06", "depends_on": [],
@@ -560,6 +561,105 @@ class PlannedDaysTests(unittest.TestCase):
         found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)
         # group: 4 + 4 assumed = 8 days, Thu 29 .. Mon 9 Nov; pool: 1 + 1 assumed = 2 days, Tue 10 .. Wed 11
         self.assertEqual("2026-11-11", found["finish"])
+
+
+class CapacityTests(unittest.TestCase):
+    def test_building_roles(self):
+        self.assertEqual([True, True, True, True, True, False, False, False, False],
+                         [milestone.is_building_role(r) for r in
+                          ("dev", "be_dev", "fe_lead", "be_lead", "mobile_dev", "pm", "ba", "qe", "devops")])
+
+    def test_away_skips_days_on_the_builders_lane(self):
+        beads = world(milestone_bead(away='{"an@x.io": ["2026-11-03..2026-11-04"]}'),
+                      bead("A", parent="m1", minutes=days(3)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, None, ("an@x.io",))
+        self.assertEqual(("2026-11-02", "2026-11-06"), span(rows(result)["A"]))  # Mon, then Thu, Fri
+
+    def test_away_is_ignored_with_lanes_metadata(self):
+        beads = world(milestone_bead(lanes="1", away='{"an@x.io": ["2026-11-03..2026-11-04"]}'),
+                      bead("A", parent="m1", minutes=days(3)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, None, ("an@x.io",))
+        self.assertEqual(("2026-11-02", "2026-11-04"), span(rows(result)["A"]))
+
+    def test_away_without_builders_is_ignored(self):
+        beads = world(milestone_bead(away='{"an@x.io": ["2026-11-03"]}'), bead("A", parent="m1", minutes=days(2)))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(rows(plan(beads))["A"]))
+
+    def test_second_lane_belongs_to_the_second_builder(self):
+        beads = world(milestone_bead(away='{"b@x.io": ["2026-11-02..2026-11-03"]}'),
+                      bead("A", parent="m1", minutes=days(2)), bead("B", parent="m1", minutes=days(2)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 2, None, ("a@x.io", "b@x.io"))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(rows(result)["A"]))
+        self.assertEqual(("2026-11-04", "2026-11-05"), span(rows(result)["B"]))
+
+    def test_away_of_reads_json_and_rejects_garbage(self):
+        self.assertEqual({}, milestone.away_of(milestone_bead()))
+        self.assertEqual({"a@x.io": ["2026-11-03"]}, milestone.away_of(milestone_bead(away='{"a@x.io": ["2026-11-03"]}')))
+        self.assertIsNone(milestone.away_of(milestone_bead(away="not json")))
+        self.assertIsNone(milestone.away_of(milestone_bead(away='{"a@x.io": ["2026-13-40"]}')))
+
+    def test_show_payload_lists_away(self):
+        beads = world(milestone_bead(away='{"a@x.io": ["2026-11-03"]}'))
+        payload = milestone.show_payload(beads["m1"], beads, None, TODAY)
+        self.assertEqual({"a@x.io": ["2026-11-03"]}, payload["away"])
+
+    def test_lane_choice_honours_days_off(self):
+        beads = world(milestone_bead(away='{"a@x.io": ["2026-11-02..2026-11-06"]}'),
+                      bead("A", parent="m1", minutes=days(2)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 2, None, ("a@x.io", "b@x.io"))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(rows(result)["A"]))  # lane b, not lane a on 9 Nov
+
+    def test_invalid_lanes_text_keeps_builder_lanes_and_away(self):
+        beads = world(milestone_bead(lanes="abc", away='{"an@x.io": ["2026-11-03..2026-11-04"]}'),
+                      bead("A", parent="m1", minutes=days(3)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, None, ("an@x.io",))
+        self.assertEqual(("2026-11-02", "2026-11-06"), span(rows(result)["A"]))
+
+    def test_forecast_applies_away_to_a_milestone_group(self):
+        beads = world(milestone_bead(away='{"a@x.io": ["2026-11-02..2026-11-03"]}'),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(2)))
+        self.assertEqual("2026-11-03", milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)["finish"])
+        found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1, ("a@x.io",))
+        self.assertEqual("2026-11-05", found["finish"])
+        listed = milestone.list_payload(beads, TODAY, False, None, 1, None, ("a@x.io",))
+        self.assertEqual("2026-11-05", listed["forecast"]["finish"])
+
+
+class ExitWarningTests(unittest.TestCase):
+    def codes(self, beads, epic_id="A"):
+        return rows(plan(beads))[epic_id]["warnings"]
+
+    def test_after_integration(self):
+        beads = world(milestone_bead(integration="2026-11-03"), bead("A", parent="m1", minutes=days(3)))
+        self.assertIn({"code": "after_integration"}, self.codes(beads))
+        beads = world(milestone_bead(integration="2026-11-04"), bead("A", parent="m1", minutes=days(3)))
+        self.assertNotIn({"code": "after_integration"}, self.codes(beads))
+
+    def test_open_bugs_counts_open_discovered_bugs(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(1)),
+                      bead("b1", type="bug", deps=[("discovered-from", "A")]),
+                      bead("b2", type="bug", deps=[("discovered-from", "A")]),
+                      bead("b3", type="bug", status="closed", deps=[("discovered-from", "A")]))
+        self.assertIn({"code": "open_bugs", "count": 2}, self.codes(beads))
+
+    def test_oversized(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-06"), bead("A", parent="m1", minutes=days(7)))
+        self.assertIn({"code": "oversized", "days": 2}, self.codes(beads))
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-06"), bead("A", parent="m1", minutes=days(5)))
+        self.assertNotIn("oversized", [w["code"] for w in self.codes(beads)])
+
+    def test_closed_epic_gets_no_oversized_or_after_integration(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-06", integration="2026-11-03"),
+                      bead("A", parent="m1", minutes=days(7), status="closed"))
+        found = [w["code"] for w in self.codes(beads)]
+        self.assertNotIn("oversized", found)
+        self.assertNotIn("after_integration", found)
+
+    def test_malformed_integration_is_ignored_and_reported(self):
+        beads = world(milestone_bead(integration="soon"), bead("A", parent="m1", minutes=days(3)))
+        self.assertNotIn({"code": "after_integration"}, self.codes(beads))
+        self.assertEqual(["integration"], milestone.metadata_problems(beads["m1"]))
+        self.assertIsNone(milestone.show_payload(beads["m1"], beads, None, TODAY)["integration"])
 
 
 if __name__ == "__main__":

@@ -45,6 +45,8 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--start")
     item.add_argument("--end")
     item.add_argument("--lanes")
+    item.add_argument("--away", action="append", default=[])
+    item.add_argument("--integration")
     item = sub.add_parser("kickstart", parents=[common])
     item.add_argument("id")
     item.add_argument("--date")
@@ -141,14 +143,27 @@ def _confirmed(root: Path, beads: Mapping[str, Mapping[str, Any]]) -> frozenset[
     return frozenset(shared | {event.workflow_id for event in events if event.event_type == "requirement.confirmed"})
 
 
-def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
-    """Roadmap `AI capacity:` number, else the team member count, else 1."""
+def _builders(config: Mapping[str, Any]) -> tuple[str, ...]:
+    """Member emails, in `team.members` order, that hold a building role."""
     from . import team as team_core
 
-    if roadmap.lanes:
-        return roadmap.lanes
     team = team_core.load_team(config)
-    return len(team.members) if team is not None and team.members else 1
+    if team is None:
+        return ()
+    return tuple(email for email, member in team.members.items() if any(map(core.is_building_role, member.roles)))
+
+
+def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
+    """Roadmap `AI capacity:` number, else the building-member count, else 1."""
+    return roadmap.lanes or len(_builders(config)) or 1
+
+
+def _warn_malformed_metadata(milestones: Sequence[Mapping[str, Any]]) -> None:
+    """One stderr warning per open milestone key (`away`, `integration`) that is unreadable; it is ignored."""
+    for milestone in milestones:
+        if milestone.get("issue_type") == "milestone" and milestone.get("status") != "closed":
+            for key in core.metadata_problems(milestone):
+                print(f"warning: {milestone['id']}: malformed {key} metadata ignored", file=sys.stderr)
 
 
 def _forecast_text(forecast: dict[str, Any]) -> str:
@@ -189,6 +204,8 @@ def _show_text(payload: dict[str, Any]) -> str:
              f"lanes {payload['lanes']}"]
     if payload.get("deadline"):
         lines.append(f"deadline: {payload['deadline']}")
+    if payload.get("integration"):
+        lines.append(f"integration: {payload['integration']}")
     for row in payload["epics"]:
         codes = ",".join(warning["code"] for warning in row["warnings"])
         if row["estimate_days"] is not None:
@@ -222,8 +239,36 @@ def _create(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any
     return json.JSONDecoder().raw_decode(out.lstrip())[0]["id"], "milestone"
 
 
+def _away_change(config: Mapping[str, Any], current: Mapping[str, list[str]],
+                 values: Sequence[str]) -> dict[str, list[str]]:
+    """`current` with each `MEMBER:FROM[..TO]` added and each `MEMBER:none` removed; refuses before any write."""
+    from . import team as team_core
+
+    team = team_core.load_team(config)
+    members = set(team.members) if team is not None else set()
+    away = {member: list(spec) for member, spec in current.items()}
+    for value in values:
+        member, _, spec = value.partition(":")
+        member = member.strip().lower()
+        if spec == "none" and member in away:  # a member who left team.members can still be cleared
+            del away[member]
+            continue
+        if member not in members:
+            raise MilestoneError(f"--away: {member or value} is not in team.members")
+        if spec == "none":
+            away.pop(member, None)
+            continue
+        first, _, last = spec.partition("..")
+        begin, end = _date(first), _date(last or first)
+        if begin > end:
+            raise MilestoneError(f"--away: {spec} ends before it starts")
+        away.setdefault(member, []).append(f"{begin.isoformat()}..{end.isoformat()}")
+    return away
+
+
 def _update(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
-    start, end = core.period(_open(beads, args.id))
+    milestone = _open(beads, args.id)
+    start, end = core.period(milestone)
     start, end = (_date(args.start) if args.start else start), (_date(args.end) if args.end else end)
     _check_period(start, end)
     lanes = _lanes(args.lanes) if args.lanes is not None else None
@@ -231,6 +276,13 @@ def _update(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any
             "--set-metadata", f"end={end.isoformat()}"] + (["--title", args.title] if args.title else [])
     if lanes is not None:
         argv += ["--set-metadata", f"lanes={lanes}"]
+    if args.away:
+        away = _away_change(_config(root), core.away_of(milestone) or {}, args.away)
+        argv += ["--set-metadata", f"away={json.dumps(away, sort_keys=True)}"] if away else ["--unset-metadata", "away"]
+    if args.integration == "none":
+        argv += ["--unset-metadata", "integration"]
+    elif args.integration:
+        argv += ["--set-metadata", f"integration={_date(args.integration).isoformat()}"]
     _bd(root, argv, actor)
     return f"updated {args.id}", "update"
 
@@ -346,16 +398,19 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "list":
         roadmap = _roadmap(root, config)
         beads = _beads(root)
+        _warn_malformed_metadata(list(beads.values()))
         payload = core.list_payload(beads, _today(), args.all, roadmap, _default_lanes(config, roadmap),
-                                  _confirmed(root, beads))
+                                  _confirmed(root, beads), builders=() if roadmap.lanes else _builders(config))
         print(json.dumps(payload, indent=2) if args.json else _list_text(payload))
         return 0
     if args.command == "show":
         beads = _beads(root)
         start = _date(args.start) if args.start else None
         roadmap = _roadmap(root, config)
+        _warn_malformed_metadata([_milestone(beads, args.id)])
         payload = core.show_payload(_milestone(beads, args.id), beads, start, _today(),
-                                  _default_lanes(config, roadmap), _confirmed(root, beads), roadmap.deadline)
+                                  _default_lanes(config, roadmap), _confirmed(root, beads), roadmap.deadline,
+                                  () if roadmap.lanes else _builders(config))
         print(json.dumps(payload, indent=2) if args.json else _show_text(payload))
         return 0
     return _write(root, config, args)

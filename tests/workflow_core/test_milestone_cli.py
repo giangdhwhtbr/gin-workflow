@@ -99,8 +99,8 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "t-m1", "title": "M1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "deadline": None, "finish": "2026-11-06",
-            "overflow_days": 2,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "integration": None, "deadline": None,
+            "finish": "2026-11-06", "overflow_days": 2,
             "epics": [
                 {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "remaining_days": 3,
                  "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-02",
@@ -109,6 +109,22 @@ class MilestoneCliTests(unittest.TestCase):
                  "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-05",
                  "planned_end": "2026-11-06", "depends_on": ["t-a"], "external_depends_on": [],
                  "warnings": [{"code": "overflow", "days": 2}, {"code": "spec_due"}]}]}, json.loads(out))
+
+    def test_malformed_away_is_ignored_with_a_warning(self):
+        self.seed()
+        self.bd("update", "t-m1", "--set-metadata", "away=not json")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        self.assertIn("warning: t-m1: malformed away metadata ignored", err)
+        self.assertEqual({}, json.loads(out)["away"])
+
+    def test_malformed_integration_is_ignored_with_a_warning(self):
+        self.seed()
+        self.bd("update", "t-m1", "--set-metadata", "integration=soon")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        self.assertIn("warning: t-m1: malformed integration metadata ignored", err)
+        self.assertIsNone(json.loads(out)["integration"])
 
     def test_show_prints_the_roadmap_deadline(self):
         self.seed()
@@ -310,9 +326,11 @@ class MilestoneCliTests(unittest.TestCase):
 
     def test_default_lanes_chain(self):
         from workflow_core.milestone import Roadmap
-        team = {"team": {"members": {"a@x.io": {"roles": ["dev"], "login": "a"}, "b@x.io": {"roles": ["dev"], "login": "b"}}}}
+        team = {"team": {"members": {"a@x.io": {"roles": ["dev"], "login": "a"}, "b@x.io": {"roles": ["dev"], "login": "b"},
+                                     "pm@x.io": {"roles": ["pm"], "login": "p"}}}}
         self.assertEqual(4, milestone_cli._default_lanes(team, Roadmap(lanes=4)))
         self.assertEqual(2, milestone_cli._default_lanes(team, Roadmap()))
+        self.assertEqual(("a@x.io", "b@x.io"), milestone_cli._builders(team))
         self.assertEqual(1, milestone_cli._default_lanes({}, Roadmap()))
 
     def test_req_001_create(self):
@@ -491,6 +509,13 @@ class ShowTextTests(unittest.TestCase):
         out = self.text(self.milestone(), self.item("u", status="closed"))
         self.assertIn("u 2026-11-02..2026-11-02 -d unestimated", out)
 
+    def test_integration_line_only_when_set(self):
+        items = (self.milestone(), self.item("a", estimated_minutes=960))
+        self.assertNotIn("integration:", self.text(*items))
+        with_date = {**self.milestone(), "metadata": {"start": "2026-11-02", "end": "2026-11-30",
+                                                      "integration": "2026-11-03"}}
+        self.assertIn("integration: 2026-11-03", self.text(with_date, items[1]))
+
     def test_deadline_line_only_when_set(self):
         self.assertNotIn("deadline:", self.text(self.milestone()))
         self.assertIn("deadline: 2026-11-13", self.text(self.milestone(), deadline=date(2026, 11, 13)))
@@ -523,6 +548,20 @@ class MilestoneTeamTests(unittest.TestCase):
             code = milestone_cli.main([*argv, "--repository", str(root)])
         return code, err.getvalue()
 
+    def test_integration_writes_shows_and_clears(self):
+        root = self.repo("ba", "an@corp.com")
+        self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--integration", "2026-11-03")[0])
+        self.assertEqual("2026-11-03", self.metadata(root, "t-m1")["integration"])
+        self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--integration", "soon")[0])
+        self.assertEqual("2026-11-03", self.metadata(root, "t-m1")["integration"])
+        self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--integration", "none")[0])
+        self.assertNotIn("integration", self.metadata(root, "t-m1") or {})
+
+    def test_integration_on_a_closed_milestone_is_refused(self):
+        root = self.repo("ba", "an@corp.com")
+        self.bd(root, "close", "t-m1", "--reason", "x")
+        self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--integration", "2026-11-03")[0])
+
     def test_req_012_milestone_writes_need_a_permitted_role(self):
         root = self.repo("dev", "em@corp.com")
         code, err = self.run_cli(root, "kickstart", "t-m1")
@@ -550,6 +589,26 @@ class MilestoneTeamTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("written locally but not pushed", err)
         self.assertEqual("2026-11-16", self.metadata(root, "t-m1")["kickoff"])
+
+    def test_away_writes_validates_and_removes(self):
+        root = self.repo("ba", "an@corp.com")
+        code, err = self.run_cli(root, "update", "t-m1", "--away", "binh@corp.com:2026-11-03..2026-11-04",
+                                 "--away", "chi@corp.com:2026-11-02")
+        self.assertEqual(0, code, err)
+        stored = lambda: (lambda v: v if isinstance(v, dict) else json.loads(v))(self.metadata(root, "t-m1")["away"])
+        away = stored()
+        self.assertEqual({"binh@corp.com": ["2026-11-03..2026-11-04"], "chi@corp.com": ["2026-11-02..2026-11-02"]}, away)
+        for bad in ("nobody@corp.com:2026-11-03", "binh@corp.com:2026-11-05..2026-11-03", "binh@corp.com:soon"):
+            code, err = self.run_cli(root, "update", "t-m1", "--away", bad)
+            self.assertEqual(1, code, bad)
+        self.assertEqual(away, stored())
+        self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--away", "chi@corp.com:none")[0])
+        self.assertEqual({"binh@corp.com": ["2026-11-03..2026-11-04"]}, stored())
+        self.bd(root, "update", "t-m1", "--set-metadata",
+                'away={"binh@corp.com": ["2026-11-03..2026-11-04"], "gone@corp.com": ["2026-11-02"]}')
+        self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--away", "gone@corp.com:2026-11-05")[0])
+        self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--away", "gone@corp.com:none")[0])
+        self.assertEqual({"binh@corp.com": ["2026-11-03..2026-11-04"]}, stored())
 
     def test_team_write_records_the_member_as_actor(self):
         root = self.repo("ba", "an@corp.com")

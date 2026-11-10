@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+import json
 import math
 import re
 import statistics
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 SCHEMA = 1
 WORKDAY_MINUTES = 480
@@ -68,6 +69,89 @@ def _workday(day: date) -> date:
     while day.weekday() >= 5:
         day += timedelta(days=1)
     return day
+
+
+_BUILDING = re.compile(r"dev|be_.+|fe_.+|.+_dev|.+_lead")
+
+
+def is_building_role(role: str) -> bool:
+    return bool(_BUILDING.fullmatch(str(role)))
+
+
+def _ranges(spec: Any) -> frozenset[date]:
+    """Dates of `["D", "D..D", ...]`; raises ValueError on a malformed entry or a reversed range."""
+    if not isinstance(spec, list):
+        raise ValueError("away ranges must be a list")
+    found: set[date] = set()
+    for item in spec:
+        first, _, last = str(item).partition("..")
+        begin, end = parse_date(first), parse_date(last or first)
+        if begin > end:
+            raise ValueError(f"reversed range: {item}")
+        found.update(begin + timedelta(days=n) for n in range((end - begin).days + 1))
+    return frozenset(found)
+
+
+def away_of(milestone: Mapping[str, Any]) -> dict[str, list[str]] | None:
+    """The milestone's `away` metadata as {member: [range, ...]}; {} when absent, None when malformed."""
+    value = _meta(milestone).get("away")
+    if value in (None, ""):
+        return {}
+    try:
+        value = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(value, Mapping):
+            raise ValueError("away must be an object")
+        for spec in value.values():
+            _ranges(spec)
+    except ValueError:  # json.JSONDecodeError is a ValueError
+        return None
+    return {str(member): [str(item) for item in spec] for member, spec in value.items()}
+
+
+def _integration(milestone: Mapping[str, Any]) -> date | None:
+    try:
+        value = _meta(milestone).get("integration")
+        return parse_date(value) if value else None
+    except ValueError:
+        return None
+
+
+def metadata_problems(milestone: Mapping[str, Any]) -> list[str]:
+    """Names of the metadata keys (`away`, `integration`) that are present but unreadable; they are ignored."""
+    meta = _meta(milestone)
+    problems = []
+    if meta.get("away") not in (None, "") and away_of(milestone) is None:
+        problems.append("away")
+    if meta.get("integration") and _integration(milestone) is None:
+        problems.append("integration")
+    return problems
+
+
+def _open_bugs(beads: Beads) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for bead in beads.values():
+        if bead.get("issue_type") != "bug" or bead.get("status") == "closed":
+            continue
+        for dep in bead.get("dependencies") or []:
+            if dep.get("type") == "discovered-from":
+                target = str(dep.get("depends_on_id"))
+                counts[target] = counts.get(target, 0) + 1
+    return counts
+
+
+def _off(day: date, off: frozenset[date]) -> date:
+    """The first working day on or after `day` that is not in `off`."""
+    while day.weekday() >= 5 or day in off:
+        day += timedelta(days=1)
+    return day
+
+
+def _lane_off(milestone: Mapping[str, Any], builders: Sequence[str]) -> list[frozenset[date]] | None:
+    """Days off per lane when lanes come from building members: lane n is builders[n]."""
+    away = away_of(milestone)
+    if not builders or lanes_of(milestone, 0) or not away:
+        return None
+    return [_ranges(away.get(member, [])) for member in builders]
 
 
 def _last_of(start: date, days: int) -> date:
@@ -164,12 +248,14 @@ def _check_cycles(epics: Mapping[str, Mapping[str, Any]]) -> None:
 
 
 def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int,
-           days: Mapping[str, int | None]) -> dict[str, tuple[date, date]]:
+           days: Mapping[str, int | None],
+           off: Sequence[frozenset[date]] | None = None) -> dict[str, tuple[date, date]]:
     """Greedy placement on `lanes` lanes from the working day `first`: the ready epic with the earliest allowed
     start (ties by id) takes the lane that frees first. Epics whose days are None take no lane and no days."""
     _check_cycles(epics)
     planned: dict[str, tuple[date, date]] = {}
-    free = [first] * max(1, min(lanes, len(epics)))  # more lanes than epics change nothing
+    # more lanes than epics change nothing, unless lanes differ by days off: then every lane may win
+    free = [first] * max(1, lanes if off else min(lanes, len(epics)))
     while len(planned) < len(epics):
         ready: dict[str, date] = {}
         for epic_id, epic in epics.items():
@@ -187,23 +273,35 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int,
         if length is None:
             planned[epic_id] = (ready[epic_id], ready[epic_id])
             continue
-        lane = min(range(len(free)), key=lambda index: free[index])
-        begin = max(ready[epic_id], free[lane])
-        end = _last_of(begin, length)
+        def lane_off_of(index: int) -> frozenset[date]:
+            return off[index] if off and index < len(off) else frozenset()
+
+        lane = min(range(len(free)), key=lambda index: (
+            _off(max(ready[epic_id], free[index]), lane_off_of(index)), free[index], index))
+        lane_off = lane_off_of(lane)
+        begin = _off(max(ready[epic_id], free[lane]), lane_off)
+        end = begin
+        for _ in range(length - 1):
+            end = _off(end + timedelta(days=1), lane_off)
         planned[epic_id] = (begin, end)
-        free[lane] = _workday(end + timedelta(days=1))
+        free[lane] = _off(end + timedelta(days=1), lane_off)
     return planned
 
 
 def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: date,
-             default_lanes: int = 1, confirmed: frozenset[str] | None = None) -> dict[str, Any]:
+             default_lanes: int = 1, confirmed: frozenset[str] | None = None,
+             builders: Sequence[str] = ()) -> dict[str, Any]:
     start_day, end = period(milestone)
     epics = {epic["id"]: epic for epic in epics_of(milestone["id"], beads)}
     days_of = _planned_days(epics, beads, today)
-    planned = _place(epics, _workday(start), lanes_of(milestone, default_lanes), days_of)
+    planned = _place(epics, _workday(start), lanes_of(milestone, default_lanes), days_of,
+                     _lane_off(milestone, builders))
     active = status(milestone, today) == "active"
     kicked_off = status(milestone, today) in ("scheduled", "active")
     due = status(milestone, today) == "planned" and start_day <= _last_of(_workday(today), SPEC_DUE_DAYS)
+    integration = _integration(milestone)
+    bugs = _open_bugs(beads)
+    span_days = _workdays_before(start_day, end + timedelta(days=1))
     rows = []
     for epic_id in sorted(epics, key=lambda item: (planned[item][0], item)):
         epic = epics[epic_id]
@@ -224,6 +322,13 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
                 warnings.append({"code": "spec_not_ready"})
             elif due:
                 warnings.append({"code": "spec_due"})
+        still_open = epic.get("status") != "closed"
+        if integration and still_open and finish > integration:
+            warnings.append({"code": "after_integration"})
+        if bugs.get(epic_id):
+            warnings.append({"code": "open_bugs", "count": bugs[epic_id]})
+        if still_open and days_of[epic_id] is not None and days_of[epic_id] > span_days:
+            warnings.append({"code": "oversized", "days": days_of[epic_id] - span_days})
         rows.append({
             "id": epic_id, "title": epic.get("title", ""), "status": epic.get("status"), "estimate_days": days,
             "remaining_days": remaining_days(epic, beads, today),
@@ -242,7 +347,7 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
 
 def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None, today: date,
                  default_lanes: int = 1, confirmed: frozenset[str] | None = None,
-                 deadline: date | None = None) -> dict[str, Any]:
+                 deadline: date | None = None, builders: Sequence[str] = ()) -> dict[str, Any]:
     meta = _meta(milestone)
     begin, _ = period(milestone)
     schedule_start = start or (parse_date(meta["kickoff"]) if meta.get("kickoff") else begin)
@@ -250,9 +355,10 @@ def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None,
             "description": milestone.get("description") or "", "status": status(milestone, today),
             "start": meta["start"], "end": meta["end"], "kickoff": meta.get("kickoff"),
             "schedule_start": schedule_start.isoformat(), "preview": start is not None, "today": today.isoformat(),
-            "lanes": lanes_of(milestone, default_lanes),
+            "lanes": lanes_of(milestone, default_lanes), "away": away_of(milestone) or {},
+            "integration": i.isoformat() if (i := _integration(milestone)) else None,
             "deadline": deadline.isoformat() if deadline else None,
-            **schedule(milestone, beads, schedule_start, today, default_lanes, confirmed)}
+            **schedule(milestone, beads, schedule_start, today, default_lanes, confirmed, builders)}
 
 
 def _open_roadmap_epics(beads: Beads) -> dict[str, Mapping[str, Any]]:
@@ -261,7 +367,8 @@ def _open_roadmap_epics(beads: Beads) -> dict[str, Mapping[str, Any]]:
             and bead.get("status") != "closed"}
 
 
-def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) -> dict[str, Any] | None:
+def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int,
+             builders: Sequence[str] = ()) -> dict[str, Any] | None:
     """When every open roadmap epic finishes: open milestones in `end` order on their own lanes, one after
     another, then the unassigned pool on `default_lanes`. None when no roadmap epic is open. On a cycle or bad
     milestone metadata, `error` is set and `finish` covers only the groups placed before it."""
@@ -285,6 +392,7 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
         for milestone, group in groups:
             if not group:
                 continue
+            off = None
             if milestone is None:
                 first, lanes = cursor, default_lanes
             else:
@@ -292,8 +400,9 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
                 meta = _meta(milestone)
                 first = max(cursor, parse_date(meta["kickoff"]) if meta.get("kickoff") else begin)
                 lanes = lanes_of(milestone, default_lanes)
+                off = _lane_off(milestone, builders)
             days_of = _planned_days(group, beads, today)
-            planned = _place(group, _workday(first), lanes, days_of)
+            planned = _place(group, _workday(first), lanes, days_of, off)
             group_ends = [planned[k][1] for k in group if days_of[k] is not None]
             if group_ends:
                 ends.append(max(group_ends))
@@ -309,7 +418,8 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
 
 
 def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadmap | None = None,
-                 default_lanes: int = 1, confirmed: frozenset[str] | None = None) -> dict[str, Any]:
+                 default_lanes: int = 1, confirmed: frozenset[str] | None = None,
+                 builders: Sequence[str] = ()) -> dict[str, Any]:
     roadmap = roadmap or Roadmap()
     entries = []
     milestones = [bead for bead in beads.values() if bead.get("issue_type") == "milestone"]
@@ -329,7 +439,7 @@ def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadm
             entry["status"] = status(milestone, today)
             begin, _ = period(milestone)
             start = parse_date(meta["kickoff"]) if meta.get("kickoff") else begin
-            plan = schedule(milestone, beads, start, today, default_lanes, confirmed)
+            plan = schedule(milestone, beads, start, today, default_lanes, confirmed, builders)
             entry["finish"] = plan["finish"]
             entry["warnings"] = sum(len(row["warnings"]) for row in plan["epics"])
         except ValueError as error:  # CycleError included
@@ -337,4 +447,4 @@ def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadm
         entries.append(entry)
     unassigned = sum(1 for bead in _open_roadmap_epics(beads).values() if not bead.get("parent"))
     return {"schema": SCHEMA, "milestones": entries, "unassigned_epics": unassigned, "today": today.isoformat(),
-            "forecast": forecast(beads, today, roadmap, default_lanes)}
+            "forecast": forecast(beads, today, roadmap, default_lanes, builders)}
