@@ -1,6 +1,6 @@
 # Capability epics: tracks, areas, contract, integration
 
-Read on `/roadmap` when presenting epics (step 4) and when adopting epics into a milestone.
+Read on `/roadmap` when presenting epics (step 4).
 
 ## One epic per capability
 An epic delivers one capability. In a workspace it holds one track per repository; with team areas and no workspace, one track per area. A track never spans two repositories or two areas.

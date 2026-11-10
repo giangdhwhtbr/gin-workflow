@@ -134,7 +134,6 @@ All of them run from anywhere inside the workspace, including a child. `gin stat
 ## Limits
 
 - One track per repository. A capability that needs a service and an app is one epic with two tracks, one in each repository; a track never spans two repositories.
-- One repository per track. A change that touches two repositories is two tracks.
 - `project.packages` is ignored for workspace entries.
 - There is no version pinning: the parent does not record which commit of a child it expects.
 - A child cloned outside its manifest path, or a repository not in the manifest, is standalone. `gin` treats it as an ordinary repository and `gin workspace status` shows the entry as missing.
