@@ -487,9 +487,6 @@ class SpecDueTests(unittest.TestCase):
         self.assertEqual(["spec_not_ready"], [c for c in self.codes(result, "A") if c.startswith("spec_")])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class PlannedDaysTests(unittest.TestCase):
     def test_in_progress_with_tracks_uses_the_open_share(self):
@@ -524,3 +521,48 @@ class PlannedDaysTests(unittest.TestCase):
         beads = world(bead("r1", labels=["roadmap"], minutes=days(2)), bead("r2", labels=["roadmap"]))
         found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)
         self.assertEqual(("2026-11-03", 1), (found["finish"], found["unestimated"]))  # Thu 29 .. Tue 3: 2 + 2 days
+
+
+    def test_median_ignores_closed_epics_in_show_and_forecast(self):
+        beads = world(milestone_bead(), bead("C", parent="m1", minutes=days(10), status="closed"),
+                      bead("A", parent="m1", minutes=days(2)), bead("U", parent="m1"))
+        self.assertEqual(2, rows(plan(beads))["U"]["assumed_days"])
+        pool = world(bead("C", labels=["roadmap"], minutes=days(10), status="closed"),
+                     bead("A", labels=["roadmap"], minutes=days(2)), bead("U", labels=["roadmap"]))
+        found = milestone.forecast(pool, TODAY, milestone.Roadmap(), 1)
+        self.assertEqual("2026-11-03", found["finish"])  # Thu 29 .. Tue 3: A 2 days + U 2 assumed days
+
+    def test_remaining_days_without_tracks_edge_cases(self):
+        def left(started_at):
+            epic = bead("A", minutes=days(5), status="in_progress", started_at=started_at)
+            return milestone.remaining_days(epic, world(epic), TODAY)  # TODAY is Thu 29 Oct
+
+        self.assertEqual(5, left("2026-11-02T09:00:00Z"))  # starts in the future: the full estimate
+        self.assertEqual(5, left("2026-10-29T09:00:00Z"))  # started today: nothing elapsed
+        self.assertEqual(2, left("2026-10-24T09:00:00Z"))  # Saturday start: Mon 26, Tue 27, Wed 28 elapsed
+        self.assertEqual(5, left("not-a-date"))
+        self.assertEqual(5, left(None))
+
+    def test_in_progress_unestimated_epic_takes_assumed_days(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(4)),
+                      bead("U", parent="m1", status="in_progress", started_at="2026-10-27T09:00:00Z"))
+        row = rows(plan(beads))["U"]
+        self.assertEqual((None, None, 4), (row["estimate_days"], row["remaining_days"], row["assumed_days"]))
+
+    def test_in_progress_with_every_track_closed_has_one_day_left(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(4), status="in_progress"),
+                      *[bead(f"A.{n}", type="task", parent="A", status="closed") for n in (1, 2)])
+        self.assertEqual(1, rows(plan(beads))["A"]["remaining_days"])
+
+    def test_forecast_milestone_group_and_pool_each_take_their_own_median(self):
+        beads = world(milestone_bead(start="2026-10-29", end="2026-11-30"),
+                      bead("a", parent="m1", labels=["roadmap"], minutes=days(4)),
+                      bead("u", parent="m1", labels=["roadmap"]),
+                      bead("p", labels=["roadmap"], minutes=days(1)), bead("q", labels=["roadmap"]))
+        found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)
+        # group: 4 + 4 assumed = 8 days, Thu 29 .. Mon 9 Nov; pool: 1 + 1 assumed = 2 days, Tue 10 .. Wed 11
+        self.assertEqual("2026-11-11", found["finish"])
+
+
+if __name__ == "__main__":
+    unittest.main()

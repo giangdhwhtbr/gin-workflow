@@ -113,8 +113,10 @@ def remaining_days(epic: Mapping[str, Any], beads: Beads, today: date) -> int | 
 
 def _planned_days(epics: Mapping[str, Mapping[str, Any]], beads: Beads, today: date) -> dict[str, int | None]:
     """Days each epic takes in the schedule: remaining days, else for an open unestimated epic the median
-    estimate of the group rounded up (1 when none is estimated); a closed unestimated epic takes none."""
-    known = [d for epic in epics.values() if (d := estimate_days(epic.get("estimated_minutes"))) is not None]
+    estimate of the group's estimated, not-closed epics, rounded up (1 when none); a closed unestimated epic
+    takes none."""
+    known = [d for epic in epics.values()
+             if epic.get("status") != "closed" and (d := estimate_days(epic.get("estimated_minutes"))) is not None]
     assumed = math.ceil(statistics.median(known)) if known else 1
     planned: dict[str, int | None] = {}
     for epic_id, epic in epics.items():

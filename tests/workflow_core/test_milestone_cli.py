@@ -16,7 +16,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, init_beads, make_team_repo  # noqa: E402
-from workflow_core import milestone_cli, team_beads  # noqa: E402
+from workflow_core import milestone, milestone_cli, team_beads  # noqa: E402
 from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 
 CLI = SCRIPTS / "gin"
@@ -470,6 +470,34 @@ class MilestoneCliTests(unittest.TestCase):
 
 
 @unittest.skipUnless(shutil.which("bd"), "bd is not installed")
+class ShowTextTests(unittest.TestCase):
+    def text(self, *beads, deadline=None):
+        items = {item["id"]: item for item in beads}
+        payload = milestone.show_payload(items["m1"], items, None, date(2026, 10, 29), deadline=deadline)
+        return milestone_cli._show_text(payload)
+
+    @staticmethod
+    def item(bead_id, **fields):
+        return {"id": bead_id, "title": bead_id, "status": "open", "issue_type": "epic", "parent": "m1", **fields}
+
+    def milestone(self):
+        return {"id": "m1", "title": "M", "status": "open", "issue_type": "milestone",
+                "metadata": {"start": "2026-11-02", "end": "2026-11-30"}}
+
+    def test_assumed_days_print_with_a_question_mark(self):
+        out = self.text(self.milestone(), self.item("a", estimated_minutes=960), self.item("u"))
+        self.assertIn("a 2026-11-02..2026-11-03 2d", out)
+        self.assertIn("u 2026-11-04..2026-11-05 2d? unestimated", out)
+
+    def test_closed_unestimated_epic_prints_a_dash(self):
+        out = self.text(self.milestone(), self.item("u", status="closed"))
+        self.assertIn("u 2026-11-02..2026-11-02 -d unestimated", out)
+
+    def test_deadline_line_only_when_set(self):
+        self.assertNotIn("deadline:", self.text(self.milestone()))
+        self.assertIn("deadline: 2026-11-13", self.text(self.milestone(), deadline=date(2026, 11, 13)))
+
+
 class MilestoneTeamTests(unittest.TestCase):
     def setUp(self):
         self._directory = tempfile.TemporaryDirectory()
