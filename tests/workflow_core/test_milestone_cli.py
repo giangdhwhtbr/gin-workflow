@@ -553,8 +553,14 @@ class MilestoneTeamTests(unittest.TestCase):
         self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--integration", "2026-11-03")[0])
         self.assertEqual("2026-11-03", self.metadata(root, "t-m1")["integration"])
         self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--integration", "soon")[0])
+        self.assertEqual("2026-11-03", self.metadata(root, "t-m1")["integration"])
         self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--integration", "none")[0])
         self.assertNotIn("integration", self.metadata(root, "t-m1") or {})
+
+    def test_integration_on_a_closed_milestone_is_refused(self):
+        root = self.repo("ba", "an@corp.com")
+        self.bd(root, "close", "t-m1", "--reason", "x")
+        self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--integration", "2026-11-03")[0])
 
     def test_req_012_milestone_writes_need_a_permitted_role(self):
         root = self.repo("dev", "em@corp.com")

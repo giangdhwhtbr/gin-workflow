@@ -648,6 +648,13 @@ class ExitWarningTests(unittest.TestCase):
         beads = world(milestone_bead(start="2026-11-02", end="2026-11-06"), bead("A", parent="m1", minutes=days(5)))
         self.assertNotIn("oversized", [w["code"] for w in self.codes(beads)])
 
+    def test_closed_epic_gets_no_oversized_or_after_integration(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-06", integration="2026-11-03"),
+                      bead("A", parent="m1", minutes=days(7), status="closed"))
+        found = [w["code"] for w in self.codes(beads)]
+        self.assertNotIn("oversized", found)
+        self.assertNotIn("after_integration", found)
+
     def test_malformed_integration_is_ignored_and_reported(self):
         beads = world(milestone_bead(integration="soon"), bead("A", parent="m1", minutes=days(3)))
         self.assertNotIn({"code": "after_integration"}, self.codes(beads))
