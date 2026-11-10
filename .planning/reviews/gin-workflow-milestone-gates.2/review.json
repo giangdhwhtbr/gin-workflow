@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-approved",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+      "review_base_sha": "11873c792726af18a7127fcb7de98a4342352e5d",
+      "reviewed_source_sha": "59ce179e5403e624f89d1e5420b5cc7bd602b79a",
+      "checkpoint_sha": "59ce179e5403e624f89d1e5420b5cc7bd602b79a",
+      "source_scope_hash": "3949a29f61d823c3b8794292a92bcd0564c08e6aeece09439cb17cfd985b9077",
+      "source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+      "reviewed_source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [
+      "docs/concepts",
+      "plugins/gin-workflow/src/scripts/workflow_core",
+      "tests/workflow_core"
+    ],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 7,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-10T05:18:48.355369Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+            "review_base_sha": "11873c792726af18a7127fcb7de98a4342352e5d",
+            "reviewed_source_sha": "6e2c5bec89066b8b683f50919617774df8381fef",
+            "checkpoint_sha": "6e2c5bec89066b8b683f50919617774df8381fef",
+            "source_scope_hash": "3949a29f61d823c3b8794292a92bcd0564c08e6aeece09439cb17cfd985b9077",
+            "source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+            "reviewed_source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [
+            "docs/concepts",
+            "plugins/gin-workflow/src/scripts/workflow_core",
+            "tests/workflow_core"
+          ],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "worker:claude:sonnet",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "bb20c2e814ff854a453fcd5c1287a4f9ae47af250802c5b3a6e92ac3343aed62"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-10T05:18:48.676666Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+            "review_base_sha": "11873c792726af18a7127fcb7de98a4342352e5d",
+            "reviewed_source_sha": "59ce179e5403e624f89d1e5420b5cc7bd602b79a",
+            "checkpoint_sha": "59ce179e5403e624f89d1e5420b5cc7bd602b79a",
+            "source_scope_hash": "3949a29f61d823c3b8794292a92bcd0564c08e6aeece09439cb17cfd985b9077",
+            "source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+            "reviewed_source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "bb20c2e814ff854a453fcd5c1287a4f9ae47af250802c5b3a6e92ac3343aed62",
+      "event_hash": "6914b367151f733eafe395df8a1859ee4d7930310ad4ab26d219ae801d02e054"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-10T05:23:51.679030Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "6914b367151f733eafe395df8a1859ee4d7930310ad4ab26d219ae801d02e054",
+      "event_hash": "091ec6003513e3f62e5ae8b8804051dc8dc865a300edf5db17b96f3c3c07ad44"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-10T05:24:11.913145Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-5f4d0b07"
+      },
+      "payload": {
+        "lease_id": "15223390674d44c5a708239d2ce0c4a7",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-5f4d0b07",
+        "acquired_at": "2026-11-10T05:24:11.912348Z",
+        "expires_at": "2026-11-10T05:34:11.912348Z"
+      },
+      "previous_event_hash": "091ec6003513e3f62e5ae8b8804051dc8dc865a300edf5db17b96f3c3c07ad44",
+      "event_hash": "2c6cad34d1adae2b773e670cc0217ef0a1c888ef605785bfd88395b163e7481e"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-10T05:24:11.937048Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-5f4d0b07"
+      },
+      "payload": {},
+      "previous_event_hash": "2c6cad34d1adae2b773e670cc0217ef0a1c888ef605785bfd88395b163e7481e",
+      "event_hash": "96368c67ea7a454a3100679da73ddc7f0f8377d4f7c4df1b79e3fe095f4fd8cf"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-11-10T05:24:31.090852Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-5f4d0b07"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-milestone-gates.2",
+            "review_base_sha": "11873c792726af18a7127fcb7de98a4342352e5d",
+            "reviewed_source_sha": "59ce179e5403e624f89d1e5420b5cc7bd602b79a",
+            "checkpoint_sha": "59ce179e5403e624f89d1e5420b5cc7bd602b79a",
+            "source_scope_hash": "3949a29f61d823c3b8794292a92bcd0564c08e6aeece09439cb17cfd985b9077",
+            "source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+            "reviewed_source_tree_hash": "c093234fb2fa01554cec42725c44fbe1e90a4862b8eb86efb02c23231682f568",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "3949a29f61d823c3b8794292a92bcd0564c08e6aeece09439cb17cfd985b9077",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "96368c67ea7a454a3100679da73ddc7f0f8377d4f7c4df1b79e3fe095f4fd8cf",
+      "event_hash": "10b677f9ad085b601be7c1cd26978ff1ee353446413008f3c06ba9bad3f6ef3c"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-11-10T05:24:31.319856Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-5f4d0b07"
+      },
+      "payload": {
+        "lease_id": "15223390674d44c5a708239d2ce0c4a7",
+        "released_at": "2026-11-10T05:24:31.319068Z"
+      },
+      "previous_event_hash": "10b677f9ad085b601be7c1cd26978ff1ee353446413008f3c06ba9bad3f6ef3c",
+      "event_hash": "0540bfa1a578a547f820d2f318781eae1f4805b5fab94105d4cea978bf1e7ac5"
+    }
+  ]
+}
