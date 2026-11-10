@@ -112,8 +112,9 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
         held.update(spec.get("roles", ()))
     needed: list[tuple[str, str]] = []
     for gate, policy in (raw.get("approvals") or {}).items():
-        if isinstance(policy, list):
-            needed += [(role, f"team.approvals.{gate}") for role in policy]
+        needed += [(role, f"team.approvals.{gate}") for role in sum(policy_parts(policy), [])]
+        if isinstance(policy, Mapping) and not any(policy_parts(policy)):
+            errors.append(f"team.approvals.{gate}: all and any are both empty")
     for key, roles in (raw.get("permissions") or {}).items():
         needed += [(role, f"team.permissions.{key}") for role in roles]
     for name, area in areas.items():
@@ -130,7 +131,7 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
     host = raw.get("host", DEFAULT_HOST)
     if host in HOSTS and adapter(host).identity_key == "aws_identity":
         policies = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}.values()
-        approving = {role for policy in policies if isinstance(policy, list) for role in policy}
+        approving = {role for policy in policies for role in set().union(*policy_parts(policy))}
         if "area_lead" in policies:
             approving |= {area.get("lead", "") for area in areas.values()}
         for email, spec in members.items():
@@ -443,8 +444,10 @@ def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> st
 
 
 def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact: str = "",
-                   local_head: str = "", expected_repo: str = "", accepted: Sequence[str] = ()) -> list[str]:
-    """Reasons the PR does not satisfy the gate's policy (empty = pass)."""
+                   local_head: str = "", expected_repo: str = "", accepted: Sequence[str] = (),
+                   notes: list[str] | None = None) -> list[str]:
+    """Reasons the PR does not satisfy the gate's policy (empty = pass); skipped sole-holder roles are appended
+    to `notes` when given."""
     policy = team.approvals.get("ship" if gate == "shipped" else gate, [])
     reasons: list[str] = []
     host = adapter(team.host)
@@ -477,25 +480,65 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
         else:
             reasons.append(f"{artifact} is not in this checkout; pull the merged plan")
     held = set().union(*approvers.values()) if approvers else set()
+    author = team.by_identity(pr.author, adapter(team.host).identity_key)
     if policy == "area_lead":
         for name in sorted({track.area for track in tracks if track.area}):
             area = team.areas.get(name)
             if area is not None and area.lead not in held:
-                reasons.append(f"missing approval from {area.lead} for area {name}")
+                others = sorted(held & {other.lead for other in team.areas.values() if other.lead != area.lead})
+                if _sole_holder(team, area.lead, author) and others:
+                    if notes is not None:
+                        notes.append(f"{area.lead} for area {name} skipped: the author is its only holder; "
+                                     f"approved by {others[0]}")
+                else:
+                    reasons.append(f"missing approval from {area.lead} for area {name}")
+    elif isinstance(policy, Mapping):
+        required, optional = policy_parts(policy)
+        for role in required:
+            if role in held:
+                continue
+            if _sole_holder(team, role, author):
+                if not optional:
+                    reasons.append(f"{role} has no holder other than the author; add a holder or an `any` role")
+                elif notes is not None:
+                    notes.append(f"{role} skipped: the author is its only holder")
+                continue
+            reasons.append(f"missing approval from {role}")
+        if optional and not held & set(optional):
+            reasons.append(f"missing approval from one of {', '.join(optional)}")
     elif policy and not held & set(policy):
         reasons.append(f"missing approval from one of {', '.join(policy)}")
     return reasons
 
 
-def gate_roles(gate: str, team: TeamConfig) -> set[str]:
-    policy = team.approvals.get(gate, [])
+def policy_parts(policy: Any) -> tuple[list[str], list[str]]:
+    """(roles that must each approve, roles of which one must approve)."""
+    if isinstance(policy, Mapping):
+        return list(policy.get("all") or []), list(policy.get("any") or [])
+    if isinstance(policy, list):
+        return [], list(policy)
+    return [], []
+
+
+def policy_roles(policy: Any, team: TeamConfig) -> set[str]:
+    """Every role that can approve under the policy; `area_lead` gives the area leads."""
     if policy == "area_lead":
         return {area.lead for area in team.areas.values()}
-    return set(policy)
+    return set().union(*policy_parts(policy))
+
+
+def _sole_holder(team: TeamConfig, role: str, author: Member | None) -> bool:
+    """True when `author` holds `role` and no other member does."""
+    return author is not None and role in author.roles and all(
+        member is author for member in team.members.values() if role in member.roles)
+
+
+def gate_roles(gate: str, team: TeamConfig) -> set[str]:
+    return policy_roles(team.approvals.get(gate, []), team)
 
 
 def _has_policy(policy: Any, areas: Mapping[str, Any]) -> bool:
-    return policy == "area_lead" and bool(areas) or isinstance(policy, list) and bool(policy)
+    return policy == "area_lead" and bool(areas) or bool(set().union(*policy_parts(policy)))
 
 
 def has_policy(gate: str, team: TeamConfig) -> bool:
@@ -531,9 +574,9 @@ def _head(root: Path) -> str:
 
 
 def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str | None = None,
-                spec: str | None = None) -> tuple[Any, str, list[str]]:
+                spec: str | None = None, notes: list[str] | None = None) -> tuple[Any, str, list[str]]:
     """Fetch the PR/MR and return it, the approved artifact, and the reasons it fails the gate
-    (HostUnavailable propagates)."""
+    (HostUnavailable propagates); skipped sole-holder roles are appended to `notes` when given."""
     from .team_host import fetch_pr
 
     if not url.startswith(("https://", "http://")):
@@ -545,7 +588,7 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
                                     else ("", Path(root), []))
     head = _head(head_dir) if gate == "ship" else ""
     reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head,
-                             expected_repo=expected, accepted=accepted)
+                             expected_repo=expected, accepted=accepted, notes=notes)
     return pr, artifact, reasons
 
 

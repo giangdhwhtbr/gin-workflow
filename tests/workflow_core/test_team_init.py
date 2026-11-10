@@ -14,6 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, fake_cli, git, make_team_repo, path_with, run_cli, write  # noqa: E402
 
+from workflow_core.team import load_team  # noqa: E402
+from workflow_core.team_init import single_holder_notes  # noqa: E402
+
 GITHUB = [".github/CODEOWNERS", ".github/pull_request_template.md", ".githooks/commit-msg"]
 GITLAB = [".gitlab/CODEOWNERS", ".gitlab/merge_request_templates/Default.md", ".githooks/commit-msg"]
 
@@ -73,6 +76,18 @@ class TestTeamInit(unittest.TestCase):
         self.assertEqual(1, result.returncode)
         self.assertIn(".github/CODEOWNERS is out of date", result.stdout)
 
+
+    def test_codeowners_with_object_requirement_policy(self):
+        team = TEAM.format(host="github").replace("requirement_confirmed: [ba, be_lead, fe_lead]",
+                                                  "requirement_confirmed: {all: [ba], any: [be_lead]}")
+        root = make_team_repo(self.base / "object", team=team)
+        run_cli(root, "team", "init")
+        owners = (root / ".github/CODEOWNERS").read_text()
+        self.assertIn("/.planning/specs/ @an-ba @binh-dev @chi-fe\n", owners)
+        team = team.replace("requirement_confirmed: {all: [ba], any: [be_lead]}", "requirement_confirmed: {all: [ba]}")
+        root = make_team_repo(self.base / "object-all", team=team.replace("lead: fe_lead", "lead: be_lead"))
+        run_cli(root, "team", "init")
+        self.assertIn("/.planning/specs/ @an-ba @binh-dev\n", (root / ".github/CODEOWNERS").read_text())
 
     def test_legacy_marker_file_is_rewritten(self):
         root = make_team_repo(self.base / "legacy")
@@ -135,6 +150,41 @@ class TestCommitMsgHook(unittest.TestCase):
         self.assertEqual(1, run_cli(root, "team", "hooks").returncode)
         git(root, "config", "core.hooksPath", ".githooks")
         self.assertTrue(run_cli(root, "team", "hooks").stdout.startswith("active: "))
+
+
+class TestSingleHolderNotes(unittest.TestCase):
+    """approval-roles R6: doctor names gate `all` roles and area leads that only one member holds."""
+
+    @staticmethod
+    def _team(*extra_members):
+        members = {
+            "lan@x.com": {"roles": ["pm"], "login": "lan"},
+            "an@x.com": {"roles": ["ba"], "login": "an"},
+            "binh@x.com": {"roles": ["be_lead"], "login": "binh"},
+            "em@x.com": {"roles": ["be_dev"], "login": "em"},
+            "dung@x.com": {"roles": ["be_dev"], "login": "dung"},
+            "hoa@x.com": {"roles": ["fe_lead", "fe_dev"], "login": "hoa"},
+            "chi@x.com": {"roles": ["qe"], "login": "chi"},
+        }
+        for email in extra_members:
+            members[email] = {"roles": ["qe"], "login": email.split("@")[0]}
+        return load_team({"team": {
+            "members": members,
+            "areas": {"api": {"paths": ["services/**"], "lead": "be_lead", "roles": ["be_dev"]},
+                      "web": {"paths": ["apps/**"], "lead": "fe_lead", "roles": ["fe_dev"]}},
+            "approvals": {"ship": {"all": ["qe"], "any": ["be_lead", "fe_lead"]}, "plan_approved": "area_lead"},
+        }})
+
+    def test_doctor_notes_single_holders(self):
+        notes = single_holder_notes(self._team())
+        self.assertIn("ship: qe has one holder (chi)", notes)
+        self.assertIn("area api: lead be_lead has one holder (binh)", notes)
+        self.assertIn("area web: lead fe_lead has one holder (hoa)", notes)
+        self.assertFalse([note for note in notes if note.startswith("ship: be_lead")])
+
+    def test_second_holder_removes_the_note(self):
+        notes = single_holder_notes(self._team("qe2@x.com"))
+        self.assertFalse([note for note in notes if note.startswith("ship:")])
 
 
 if __name__ == "__main__":
