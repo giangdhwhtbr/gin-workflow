@@ -575,6 +575,11 @@ class MilestoneTeamTests(unittest.TestCase):
         self.assertEqual(away, stored())
         self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--away", "chi@corp.com:none")[0])
         self.assertEqual({"binh@corp.com": ["2026-11-03..2026-11-04"]}, stored())
+        self.bd(root, "update", "t-m1", "--set-metadata",
+                'away={"binh@corp.com": ["2026-11-03..2026-11-04"], "gone@corp.com": ["2026-11-02"]}')
+        self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--away", "gone@corp.com:2026-11-05")[0])
+        self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--away", "gone@corp.com:none")[0])
+        self.assertEqual({"binh@corp.com": ["2026-11-03..2026-11-04"]}, stored())
 
     def test_team_write_records_the_member_as_actor(self):
         root = self.repo("ba", "an@corp.com")

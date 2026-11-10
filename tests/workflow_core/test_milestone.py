@@ -602,6 +602,27 @@ class CapacityTests(unittest.TestCase):
         payload = milestone.show_payload(beads["m1"], beads, None, TODAY)
         self.assertEqual({"a@x.io": ["2026-11-03"]}, payload["away"])
 
+    def test_lane_choice_honours_days_off(self):
+        beads = world(milestone_bead(away='{"a@x.io": ["2026-11-02..2026-11-06"]}'),
+                      bead("A", parent="m1", minutes=days(2)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 2, None, ("a@x.io", "b@x.io"))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(rows(result)["A"]))  # lane b, not lane a on 9 Nov
+
+    def test_invalid_lanes_text_keeps_builder_lanes_and_away(self):
+        beads = world(milestone_bead(lanes="abc", away='{"an@x.io": ["2026-11-03..2026-11-04"]}'),
+                      bead("A", parent="m1", minutes=days(3)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, None, ("an@x.io",))
+        self.assertEqual(("2026-11-02", "2026-11-06"), span(rows(result)["A"]))
+
+    def test_forecast_applies_away_to_a_milestone_group(self):
+        beads = world(milestone_bead(away='{"a@x.io": ["2026-11-02..2026-11-03"]}'),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(2)))
+        self.assertEqual("2026-11-03", milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)["finish"])
+        found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1, ("a@x.io",))
+        self.assertEqual("2026-11-05", found["finish"])
+        listed = milestone.list_payload(beads, TODAY, False, None, 1, None, ("a@x.io",))
+        self.assertEqual("2026-11-05", listed["forecast"]["finish"])
+
 
 if __name__ == "__main__":
     unittest.main()

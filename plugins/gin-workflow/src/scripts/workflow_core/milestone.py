@@ -118,7 +118,7 @@ def _off(day: date, off: frozenset[date]) -> date:
 def _lane_off(milestone: Mapping[str, Any], builders: Sequence[str]) -> list[frozenset[date]] | None:
     """Days off per lane when lanes come from building members: lane n is builders[n]."""
     away = away_of(milestone)
-    if not builders or str(_meta(milestone).get("lanes", "")) or not away:
+    if not builders or lanes_of(milestone, 0) or not away:
         return None
     return [_ranges(away.get(member, [])) for member in builders]
 
@@ -223,7 +223,8 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int,
     start (ties by id) takes the lane that frees first. Epics whose days are None take no lane and no days."""
     _check_cycles(epics)
     planned: dict[str, tuple[date, date]] = {}
-    free = [first] * max(1, min(lanes, len(epics)))  # more lanes than epics change nothing
+    # more lanes than epics change nothing, unless lanes differ by days off: then every lane may win
+    free = [first] * max(1, lanes if off else min(lanes, len(epics)))
     while len(planned) < len(epics):
         ready: dict[str, date] = {}
         for epic_id, epic in epics.items():
@@ -241,8 +242,12 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int,
         if length is None:
             planned[epic_id] = (ready[epic_id], ready[epic_id])
             continue
-        lane = min(range(len(free)), key=lambda index: free[index])
-        lane_off = off[lane] if off and lane < len(off) else frozenset()
+        def lane_off_of(index: int) -> frozenset[date]:
+            return off[index] if off and index < len(off) else frozenset()
+
+        lane = min(range(len(free)), key=lambda index: (
+            _off(max(ready[epic_id], free[index]), lane_off_of(index)), free[index], index))
+        lane_off = lane_off_of(lane)
         begin = _off(max(ready[epic_id], free[lane]), lane_off)
         end = begin
         for _ in range(length - 1):
@@ -320,7 +325,8 @@ def _open_roadmap_epics(beads: Beads) -> dict[str, Mapping[str, Any]]:
             and bead.get("status") != "closed"}
 
 
-def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) -> dict[str, Any] | None:
+def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int,
+             builders: Sequence[str] = ()) -> dict[str, Any] | None:
     """When every open roadmap epic finishes: open milestones in `end` order on their own lanes, one after
     another, then the unassigned pool on `default_lanes`. None when no roadmap epic is open. On a cycle or bad
     milestone metadata, `error` is set and `finish` covers only the groups placed before it."""
@@ -344,6 +350,7 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
         for milestone, group in groups:
             if not group:
                 continue
+            off = None
             if milestone is None:
                 first, lanes = cursor, default_lanes
             else:
@@ -351,8 +358,9 @@ def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int) ->
                 meta = _meta(milestone)
                 first = max(cursor, parse_date(meta["kickoff"]) if meta.get("kickoff") else begin)
                 lanes = lanes_of(milestone, default_lanes)
+                off = _lane_off(milestone, builders)
             days_of = _planned_days(group, beads, today)
-            planned = _place(group, _workday(first), lanes, days_of)
+            planned = _place(group, _workday(first), lanes, days_of, off)
             group_ends = [planned[k][1] for k in group if days_of[k] is not None]
             if group_ends:
                 ends.append(max(group_ends))
@@ -397,4 +405,4 @@ def list_payload(beads: Beads, today: date, include_closed: bool, roadmap: Roadm
         entries.append(entry)
     unassigned = sum(1 for bead in _open_roadmap_epics(beads).values() if not bead.get("parent"))
     return {"schema": SCHEMA, "milestones": entries, "unassigned_epics": unassigned, "today": today.isoformat(),
-            "forecast": forecast(beads, today, roadmap, default_lanes)}
+            "forecast": forecast(beads, today, roadmap, default_lanes, builders)}

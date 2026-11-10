@@ -247,6 +247,9 @@ def _away_change(config: Mapping[str, Any], current: Mapping[str, list[str]],
     for value in values:
         member, _, spec = value.partition(":")
         member = member.strip().lower()
+        if spec == "none" and member in away:  # a member who left team.members can still be cleared
+            del away[member]
+            continue
         if member not in members:
             raise MilestoneError(f"--away: {member or value} is not in team.members")
         if spec == "none":
