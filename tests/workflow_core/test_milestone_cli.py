@@ -16,7 +16,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, init_beads, make_team_repo  # noqa: E402
-from workflow_core import milestone_cli, team_beads  # noqa: E402
+from workflow_core import milestone, milestone_cli, team_beads  # noqa: E402
 from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 
 CLI = SCRIPTS / "gin"
@@ -99,13 +99,24 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "t-m1", "title": "M1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 2,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "deadline": None, "finish": "2026-11-06",
+            "overflow_days": 2,
             "epics": [
-                {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "spec_confirmed": False, "planned_start": "2026-11-02",
-                 "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": []},
-                {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "spec_confirmed": False, "planned_start": "2026-11-05",
+                {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "remaining_days": 3,
+                 "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-02",
+                 "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": [{"code": "spec_due"}]},
+                {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "remaining_days": 2,
+                 "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-05",
                  "planned_end": "2026-11-06", "depends_on": ["t-a"], "external_depends_on": [],
-                 "warnings": [{"code": "overflow", "days": 2}]}]}, json.loads(out))
+                 "warnings": [{"code": "overflow", "days": 2}, {"code": "spec_due"}]}]}, json.loads(out))
+
+    def test_show_prints_the_roadmap_deadline(self):
+        self.seed()
+        self.write_roadmap("- Deadline: 2026-11-13\n")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual("2026-11-13", json.loads(out)["deadline"])
+        code, out, err = self.run_cli("show", "t-m1")
+        self.assertIn("deadline: 2026-11-13", out)
 
     def events_path(self):
         path = self.root / ".agent-workflow/runtime/events.jsonl"
@@ -130,6 +141,26 @@ class MilestoneCliTests(unittest.TestCase):
         code, out, _ = self.run_cli("list", "--json")
         self.assertEqual(2, json.loads(out)["milestones"][0]["warnings"])
 
+    def test_shared_gate_confirms_the_spec(self):
+        self.seed()
+        self.bd("update", "t-a", "--set-metadata",
+                'gates={"requirement_confirmed": {"actor": "ba@corp.com", "at": "2026-10-20T00:00:00Z"}}')
+        self.bd("update", "t-m1", "--set-metadata", "kickoff=2026-11-02")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        rows = {row["id"]: row for row in json.loads(out)["epics"]}
+        self.assertEqual((True, False), (rows["t-a"]["spec_confirmed"], rows["t-b"]["spec_confirmed"]))
+        self.assertNotIn({"code": "spec_not_ready"}, rows["t-a"]["warnings"])
+
+    def test_unreadable_log_still_uses_shared_gates(self):
+        self.seed()
+        self.bd("update", "t-a", "--set-metadata", 'gates={"requirement_confirmed": {"actor": "x", "at": "y"}}')
+        self.events_path().write_text("{not json\n", encoding="utf-8")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertIn("warning: event log unreadable:", err)
+        rows = {row["id"]: row for row in json.loads(out)["epics"]}
+        self.assertEqual((True, False), (rows["t-a"]["spec_confirmed"], rows["t-b"]["spec_confirmed"]))
+
     def test_unreadable_event_log_degrades_with_a_warning(self):
         self.seed()
         self.events_path().write_text("{not json\n", encoding="utf-8")
@@ -147,7 +178,7 @@ class MilestoneCliTests(unittest.TestCase):
             "schema": 1, "today": "2026-10-29", "unassigned_epics": 0, "forecast": None,
             "milestones": [{"id": "t-m1", "title": "M1", "status": "planned", "start": "2026-11-02",
                             "end": "2026-11-04", "kickoff": None, "lanes": 1, "finish": "2026-11-06",
-                            "epics": {"total": 2, "closed": 0}, "warnings": 1, "error": None}]}, json.loads(out))
+                            "epics": {"total": 2, "closed": 0}, "warnings": 3, "error": None}]}, json.loads(out))
 
     def test_req_009_preview_does_not_write(self):
         self.seed()
@@ -271,7 +302,7 @@ class MilestoneCliTests(unittest.TestCase):
         self.bd("create", "R1", "--id", "t-r1", "--type", "epic", "--labels", "roadmap")
         code, out, _ = self.run_cli("list")
         self.assertEqual(0, code)
-        self.assertIn("forecast: finish unknown, no deadline, lanes 1, 1 open epics, 1 unestimated", out)
+        self.assertIn("forecast: finish 2026-10-29, no deadline, lanes 1, 1 open epics, 1 unestimated", out)
         self.write_roadmap("- Deadline: soon\n")
         code, out, _ = self.run_cli("list")
         self.assertEqual(0, code)
@@ -436,6 +467,33 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual("", out)
         self.assertIn("providers.task_tracking: beads", err)
 
+
+class ShowTextTests(unittest.TestCase):
+    def text(self, *beads, deadline=None):
+        items = {item["id"]: item for item in beads}
+        payload = milestone.show_payload(items["m1"], items, None, date(2026, 10, 29), deadline=deadline)
+        return milestone_cli._show_text(payload)
+
+    @staticmethod
+    def item(bead_id, **fields):
+        return {"id": bead_id, "title": bead_id, "status": "open", "issue_type": "epic", "parent": "m1", **fields}
+
+    def milestone(self):
+        return {"id": "m1", "title": "M", "status": "open", "issue_type": "milestone",
+                "metadata": {"start": "2026-11-02", "end": "2026-11-30"}}
+
+    def test_assumed_days_print_with_a_question_mark(self):
+        out = self.text(self.milestone(), self.item("a", estimated_minutes=960), self.item("u"))
+        self.assertIn("a 2026-11-02..2026-11-03 2d", out)
+        self.assertIn("u 2026-11-04..2026-11-05 2d? unestimated", out)
+
+    def test_closed_unestimated_epic_prints_a_dash(self):
+        out = self.text(self.milestone(), self.item("u", status="closed"))
+        self.assertIn("u 2026-11-02..2026-11-02 -d unestimated", out)
+
+    def test_deadline_line_only_when_set(self):
+        self.assertNotIn("deadline:", self.text(self.milestone()))
+        self.assertIn("deadline: 2026-11-13", self.text(self.milestone(), deadline=date(2026, 11, 13)))
 
 
 @unittest.skipUnless(shutil.which("bd"), "bd is not installed")

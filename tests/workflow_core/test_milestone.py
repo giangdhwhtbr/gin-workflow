@@ -12,10 +12,14 @@ TODAY = date(2026, 10, 29)
 D = date.fromisoformat
 
 
-def bead(id, *, type="epic", status="open", parent=None, minutes=None, blocks=(), labels=(), meta=None, title=""):
-    return {"id": id, "title": title or id, "description": "", "status": status, "issue_type": type,
+def bead(id, *, type="epic", status="open", parent=None, minutes=None, blocks=(), labels=(), meta=None, title="",
+         started_at=None):
+    item = {"id": id, "title": title or id, "description": "", "status": status, "issue_type": type,
             "parent": parent, "labels": list(labels), "estimated_minutes": minutes, "metadata": meta or {},
             "dependencies": [{"issue_id": id, "depends_on_id": d, "type": "blocks"} for d in blocks]}
+    if started_at:
+        item["started_at"] = started_at
+    return item
 
 
 def milestone_bead(id="m1", *, start="2026-11-02", end="2026-12-18", status="open", **meta):
@@ -63,9 +67,9 @@ class ScheduleTests(unittest.TestCase):
         beads = world(milestone_bead(), bead("U", parent="m1"), bead("A", parent="m1", minutes=days(2)),
                       bead("B", parent="m1", minutes=days(1), blocks=["U", "A"]))
         found = rows(plan(beads))
-        self.assertEqual(("2026-11-02", "2026-11-02"), span(found["U"]))
+        self.assertEqual(("2026-11-04", "2026-11-05"), span(found["U"]))  # assumed 2 days: median of 2 and 1, rounded up
         self.assertEqual(("2026-11-02", "2026-11-03"), span(found["A"]))
-        self.assertEqual(("2026-11-04", "2026-11-04"), span(found["B"]))
+        self.assertEqual(("2026-11-06", "2026-11-06"), span(found["B"]))
 
     def test_req_007_dependency_outside_the_milestone_is_ignored_for_dates(self):
         beads = world(milestone_bead(), milestone_bead("m2"), bead("X", parent="m2", minutes=days(5)),
@@ -167,13 +171,22 @@ class LaneTests(unittest.TestCase):
                       bead("B", parent="m1", minutes=days(1), blocks=["A"]))
         self.assertEqual(("2026-11-05", "2026-11-05"), span(rows(plan(beads, lanes=2))["B"]))
 
-    def test_unestimated_epic_takes_no_lane(self):
+    def test_unestimated_epic_takes_the_assumed_days(self):
         beads = world(milestone_bead(), bead("U", parent="m1"), bead("A", parent="m1", minutes=days(1)),
+                      bead("B", parent="m1", minutes=days(1)))
+        found = rows(plan(beads))
+        self.assertEqual(("2026-11-02", "2026-11-02"), span(found["A"]))
+        self.assertEqual(("2026-11-03", "2026-11-03"), span(found["B"]))
+        self.assertEqual(("2026-11-04", "2026-11-04"), span(found["U"]))  # assumed 1 day, after A and B
+
+    def test_closed_unestimated_epic_takes_no_lane(self):
+        beads = world(milestone_bead(), bead("U", parent="m1", status="closed"), bead("A", parent="m1", minutes=days(1)),
                       bead("B", parent="m1", minutes=days(1)))
         found = rows(plan(beads))
         self.assertEqual(("2026-11-02", "2026-11-02"), span(found["U"]))
         self.assertEqual(("2026-11-02", "2026-11-02"), span(found["A"]))
         self.assertEqual(("2026-11-03", "2026-11-03"), span(found["B"]))
+        self.assertIsNone(found["U"]["assumed_days"])
 
     def test_lanes_of_metadata_then_default(self):
         self.assertEqual(2, milestone.lanes_of(milestone_bead(lanes=2), 1))
@@ -229,8 +242,9 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "m1", "title": "m1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-12-18", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 0,
-            "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5, "spec_confirmed": None,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
+            "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5, "remaining_days": 5, "assumed_days": None,
+                       "spec_confirmed": None,
                        "planned_start": "2026-11-02", "planned_end": "2026-11-06", "depends_on": [],
                        "external_depends_on": [], "warnings": []}]}, payload)
 
@@ -348,7 +362,7 @@ class ForecastTests(unittest.TestCase):
     def test_all_unestimated(self):
         beads = world(bead("r1", labels=["roadmap"]), bead("r2", labels=["roadmap"]))
         found = self.forecast(beads)
-        self.assertEqual((None, 2, 2), (found["finish"], found["unestimated"], found["open_epics"]))
+        self.assertEqual(("2026-10-30", 2, 2), (found["finish"], found["unestimated"], found["open_epics"]))  # 1 day each
 
     def test_empty_milestone_without_dates_does_not_break_the_forecast(self):
         beads = world(bead("m1", type="milestone"), bead("r1", labels=["roadmap"], minutes=days(1)))
@@ -428,6 +442,124 @@ class SpecReadinessTests(unittest.TestCase):
         payload = milestone.list_payload(beads, TODAY, False, None, 1, frozenset())
         self.assertEqual(1, payload["milestones"][0]["warnings"])
         self.assertEqual(0, milestone.list_payload(beads, TODAY, False)["milestones"][0]["warnings"])
+
+
+class SpecDueTests(unittest.TestCase):
+    def codes(self, result, epic_id):
+        return [w["code"] for w in rows(result)[epic_id]["warnings"]]
+
+    def test_spec_due_for_planned_milestone_starting_within_five_working_days(self):
+        beads = world(milestone_bead(start="2026-11-04", end="2026-11-20"), bead("A", parent="m1", minutes=days(1)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-04"), TODAY, 1, frozenset())
+        self.assertIn("spec_due", self.codes(result, "A"))
+        self.assertNotIn("spec_not_ready", self.codes(result, "A"))
+
+    def test_no_spec_due_when_the_planned_milestone_starts_later(self):
+        beads = world(milestone_bead(start="2026-11-09", end="2026-11-20"), bead("A", parent="m1", minutes=days(1)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-09"), TODAY, 1, frozenset())
+        self.assertNotIn("spec_due", self.codes(result, "A"))
+
+    def test_no_spec_due_when_confirmed_or_closed(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-20"), bead("A", parent="m1", minutes=days(1)),
+                      bead("B", parent="m1", minutes=days(1), status="closed"))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, frozenset({"A"}))
+        self.assertNotIn("spec_due", self.codes(result, "A"))
+        self.assertNotIn("spec_due", self.codes(result, "B"))
+
+    def spec_codes(self, start, confirmed=frozenset()):
+        beads = world(milestone_bead(start=start, end="2026-11-30"), bead("A", parent="m1", minutes=days(1)))
+        return self.codes(milestone.schedule(beads["m1"], beads, D(start), TODAY, 1, confirmed), "A")
+
+    def test_spec_due_when_the_planned_start_is_already_past(self):
+        self.assertIn("spec_due", self.spec_codes("2026-10-26"))
+
+    def test_spec_due_boundary_is_the_fifth_working_day(self):
+        self.assertIn("spec_due", self.spec_codes("2026-11-04"))
+        self.assertNotIn("spec_due", self.spec_codes("2026-11-05"))
+
+    def test_no_spec_due_when_readiness_is_unknown(self):
+        self.assertNotIn("spec_due", self.spec_codes("2026-11-02", None))
+
+    def test_kicked_off_milestone_warns_spec_not_ready_never_spec_due(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-20", kickoff="2026-10-28"),
+                      bead("A", parent="m1", minutes=days(1)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, frozenset())
+        self.assertEqual(["spec_not_ready"], [c for c in self.codes(result, "A") if c.startswith("spec_")])
+
+
+class PlannedDaysTests(unittest.TestCase):
+    def test_in_progress_with_tracks_uses_the_open_share(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(4), status="in_progress"),
+                      *[bead(f"A.{n}", type="task", parent="A", status="closed" if n == 1 else "open") for n in (1, 2, 3, 4)])
+        row = rows(plan(beads))["A"]
+        self.assertEqual((3, 4), (row["remaining_days"], row["estimate_days"]))
+        self.assertEqual(("2026-11-02", "2026-11-04"), span(row))
+
+    def test_in_progress_without_tracks_subtracts_elapsed_working_days(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(3), status="in_progress",
+                                             started_at="2026-10-27T09:00:00Z"))
+        self.assertEqual(1, rows(plan(beads))["A"]["remaining_days"])  # Tue 27 and Wed 28 elapsed
+
+    def test_open_epic_keeps_its_estimate(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(2)))
+        self.assertEqual(2, rows(plan(beads))["A"]["remaining_days"])
+
+    def test_unestimated_epic_takes_the_median(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(1)), bead("B", parent="m1", minutes=days(2)),
+                      bead("C", parent="m1", minutes=days(4)), bead("U", parent="m1"))
+        row = rows(plan(beads))["U"]
+        self.assertEqual((None, 2, None), (row["estimate_days"], row["assumed_days"], row["remaining_days"]))
+        self.assertIn({"code": "unestimated"}, row["warnings"])
+        self.assertEqual("2026-11-12", plan(beads)["finish"])  # 1+2+4+2 = 9 working days from Mon 2 Nov
+
+    def test_all_unestimated_assume_one_day(self):
+        beads = world(milestone_bead(), bead("U", parent="m1"))
+        self.assertEqual(1, rows(plan(beads))["U"]["assumed_days"])
+
+    def test_forecast_finish_counts_unestimated_epics(self):
+        beads = world(bead("r1", labels=["roadmap"], minutes=days(2)), bead("r2", labels=["roadmap"]))
+        found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)
+        self.assertEqual(("2026-11-03", 1), (found["finish"], found["unestimated"]))  # Thu 29 .. Tue 3: 2 + 2 days
+
+    def test_median_ignores_closed_epics_in_show_and_forecast(self):
+        beads = world(milestone_bead(), bead("C", parent="m1", minutes=days(10), status="closed"),
+                      bead("A", parent="m1", minutes=days(2)), bead("U", parent="m1"))
+        self.assertEqual(2, rows(plan(beads))["U"]["assumed_days"])
+        pool = world(bead("C", labels=["roadmap"], minutes=days(10), status="closed"),
+                     bead("A", labels=["roadmap"], minutes=days(2)), bead("U", labels=["roadmap"]))
+        found = milestone.forecast(pool, TODAY, milestone.Roadmap(), 1)
+        self.assertEqual("2026-11-03", found["finish"])  # Thu 29 .. Tue 3: A 2 days + U 2 assumed days
+
+    def test_remaining_days_without_tracks_edge_cases(self):
+        def left(started_at):
+            epic = bead("A", minutes=days(5), status="in_progress", started_at=started_at)
+            return milestone.remaining_days(epic, world(epic), TODAY)  # TODAY is Thu 29 Oct
+
+        self.assertEqual(5, left("2026-11-02T09:00:00Z"))  # starts in the future: the full estimate
+        self.assertEqual(5, left("2026-10-29T09:00:00Z"))  # started today: nothing elapsed
+        self.assertEqual(2, left("2026-10-24T09:00:00Z"))  # Saturday start: Mon 26, Tue 27, Wed 28 elapsed
+        self.assertEqual(5, left("not-a-date"))
+        self.assertEqual(5, left(None))
+
+    def test_in_progress_unestimated_epic_takes_assumed_days(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(4)),
+                      bead("U", parent="m1", status="in_progress", started_at="2026-10-27T09:00:00Z"))
+        row = rows(plan(beads))["U"]
+        self.assertEqual((None, None, 4), (row["estimate_days"], row["remaining_days"], row["assumed_days"]))
+
+    def test_in_progress_with_every_track_closed_has_one_day_left(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(4), status="in_progress"),
+                      *[bead(f"A.{n}", type="task", parent="A", status="closed") for n in (1, 2)])
+        self.assertEqual(1, rows(plan(beads))["A"]["remaining_days"])
+
+    def test_forecast_milestone_group_and_pool_each_take_their_own_median(self):
+        beads = world(milestone_bead(start="2026-10-29", end="2026-11-30"),
+                      bead("a", parent="m1", labels=["roadmap"], minutes=days(4)),
+                      bead("u", parent="m1", labels=["roadmap"]),
+                      bead("p", labels=["roadmap"], minutes=days(1)), bead("q", labels=["roadmap"]))
+        found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)
+        # group: 4 + 4 assumed = 8 days, Thu 29 .. Mon 9 Nov; pool: 1 + 1 assumed = 2 days, Tue 10 .. Wed 11
+        self.assertEqual("2026-11-11", found["finish"])
 
 
 if __name__ == "__main__":

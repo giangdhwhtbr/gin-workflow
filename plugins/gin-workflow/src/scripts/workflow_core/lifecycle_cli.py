@@ -214,6 +214,7 @@ def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse
             for prior in _proven_locally(events, args.workflow_id):
                 write_gate(repo_path, epic, _SHARED_EVENTS[prior.event_type],
                            _proof(prior.payload, prior.actor, prior.timestamp), actor=actor)
+            write_gate(repo_path, epic, "orchestration_ready", {"actor": actor, "at": utc_now(), "epic": epic}, actor=actor)
             labelled = _bd(repo_path, ["update", epic, "--add-label", f"workflow:{args.workflow_id}"], actor=actor)
             if labelled.returncode != 0:
                 return f"could not label {epic} workflow:{args.workflow_id}: {labelled.stderr.strip()}"
@@ -423,7 +424,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             from .team_beads import shared_gates
 
             shared_epic, shared, shared_cause = shared_gates(repo_path, workflow_id, recorded)
-            for gate in ("requirement_confirmed", "plan_approved"):
+            for gate in ("requirement_confirmed", "plan_approved", "orchestration_ready"):
                 if gate in shared:
                     gates_state[gate] = True
         delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id,

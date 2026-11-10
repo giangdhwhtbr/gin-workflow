@@ -125,17 +125,20 @@ def _roadmap(root: Path, config: dict[str, Any]) -> core.Roadmap:
     return read_roadmap(root, sdd_config(config)["layout"])
 
 
-def _confirmed(root: Path) -> frozenset[str] | None:
-    """Workflow ids with a `requirement.confirmed` event; None, with a stderr warning, when the log is unreadable."""
+def _confirmed(root: Path, beads: Mapping[str, Mapping[str, Any]]) -> frozenset[str] | None:
+    """Epic ids with a confirmed spec: `gates.requirement_confirmed` in the bead metadata, or a local
+    `requirement.confirmed` event. None, with a stderr warning, when the log is unreadable and no bead has the gate."""
     from .events import EventPersistenceError, WorkflowEventStore
+    from .team_beads import gates_of
 
+    shared = {bead_id for bead_id, row in beads.items() if "requirement_confirmed" in gates_of(row)}
     path = main_checkout(root) / ".agent-workflow" / "runtime" / "events.jsonl"
     try:
         events = WorkflowEventStore(path).read_all()
     except (EventPersistenceError, OSError, ValueError) as error:
         print(f"warning: event log unreadable: {error}; spec readiness unknown", file=sys.stderr)
-        return None
-    return frozenset(event.workflow_id for event in events if event.event_type == "requirement.confirmed")
+        return frozenset(shared) if shared else None
+    return frozenset(shared | {event.workflow_id for event in events if event.event_type == "requirement.confirmed"})
 
 
 def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
@@ -184,10 +187,15 @@ def _show_text(payload: dict[str, Any]) -> str:
     lines = [f"{payload['id']} {payload['title']} [{payload['status']}] {payload['start']}..{payload['end']}, "
              f"schedule from {payload['schedule_start']}{' (preview)' if payload['preview'] else ''}, "
              f"lanes {payload['lanes']}"]
+    if payload.get("deadline"):
+        lines.append(f"deadline: {payload['deadline']}")
     for row in payload["epics"]:
         codes = ",".join(warning["code"] for warning in row["warnings"])
-        days = row["estimate_days"] if row["estimate_days"] is not None else "-"
-        lines.append(f"  {row['id']} {row['planned_start']}..{row['planned_end']} {days}d {codes}".rstrip())
+        if row["estimate_days"] is not None:
+            days = f"{row['estimate_days']}d"
+        else:
+            days = f"{row['assumed_days']}d?" if row["assumed_days"] is not None else "-d"
+        lines.append(f"  {row['id']} {row['planned_start']}..{row['planned_end']} {days} {codes}".rstrip())
     lines.append(f"finish {payload['finish'] or '-'}, overflow {payload['overflow_days']} working days")
     return "\n".join(lines)
 
@@ -337,15 +345,17 @@ def _run(args: argparse.Namespace) -> int:
     config = _config(root)
     if args.command == "list":
         roadmap = _roadmap(root, config)
-        payload = core.list_payload(_beads(root), _today(), args.all, roadmap, _default_lanes(config, roadmap),
-                                  _confirmed(root))
+        beads = _beads(root)
+        payload = core.list_payload(beads, _today(), args.all, roadmap, _default_lanes(config, roadmap),
+                                  _confirmed(root, beads))
         print(json.dumps(payload, indent=2) if args.json else _list_text(payload))
         return 0
     if args.command == "show":
         beads = _beads(root)
         start = _date(args.start) if args.start else None
+        roadmap = _roadmap(root, config)
         payload = core.show_payload(_milestone(beads, args.id), beads, start, _today(),
-                                  _default_lanes(config, _roadmap(root, config)), _confirmed(root))
+                                  _default_lanes(config, roadmap), _confirmed(root, beads), roadmap.deadline)
         print(json.dumps(payload, indent=2) if args.json else _show_text(payload))
         return 0
     return _write(root, config, args)

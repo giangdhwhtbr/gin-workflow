@@ -287,7 +287,7 @@ class TestRecordGitHub(GateCase):
                                                               event["payload"]["pr_url"]))
         self.assertEqual(["dung-qe"], [a["login"] for a in event["payload"]["approvers"]])
         self.assertNotIn("is not local HEAD", result.stderr)
-        update = next(u for u in self.bd_updates() if u[2:4] == ["w", "--set-metadata"])
+        update = next(u for u in self.bd_updates() if u[2:4] == ["w", "--set-metadata"] and '"shipped"' in u[4])
         self.assertEqual(PR, json.loads(update[4].removeprefix("gates="))["shipped"]["pr_url"])
 
     def test_shipped_on_a_closed_unmerged_pr_gives_one_reason(self):
@@ -371,6 +371,25 @@ class TestSharedGates(GateCase):
         gates = next(json.loads(u[4].removeprefix("gates=")) for u in updates if u[2] == "e-2" and u[3] == "--set-metadata")
         self.assertEqual(PR, gates["requirement_confirmed"]["pr_url"])
 
+    def test_orchestration_ready_writes_its_own_gate(self):
+        self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open", "metadata": {}}})
+        ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                        "--epic", "e-2", env=self.env)
+        self.assertEqual(0, ready.returncode, ready.stderr)
+        writes = [json.loads(u[4].removeprefix("gates=")) for u in self.bd_updates()
+                  if u[2] == "e-2" and u[3] == "--set-metadata"]
+        gate = writes[-1]["orchestration_ready"]
+        self.assertEqual("e-2", gate["epic"])
+        self.assertRegex(gate["at"], r"^\d{4}-\d{2}-\d{2}T")
+        self.assertTrue(gate["actor"])
+
+    def test_state_reads_orchestration_ready_from_the_epic_bead(self):
+        gate = {"actor": "binh@corp.com", "at": "2026-11-01T00:00:00Z", "epic": "e-1"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"orchestration_ready": gate})}}})
+        state = json.loads(run_cli(self.root, "state", "--workflow-id", "e-1", "--format", "json", env=self.env).stdout)
+        self.assertEqual("satisfied", state["gates"]["orchestration_ready"])
+
     def test_state_finds_the_epic_by_workflow_label(self):
         proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["an@corp.com"], "actor": "binh@corp.com",
                  "at": "2026-11-01T00:00:00Z"}
@@ -417,6 +436,9 @@ class TestSharedGates(GateCase):
         before = len(calls(self.bin))
         self.assertEqual(0, run_cli(root, "state", "--workflow-id", "w", "--format", "json", env=self.env).returncode)
         self.assertEqual([], [c for c in calls(self.bin)[before:] if c[0] == "bd"])
+        self.assertEqual(0, run_cli(root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                                    "--epic", "e-9", "--actor", "me", env=self.env).returncode)
+        self.assertEqual([], self.bd_updates())
 
     def test_orchestration_ready_without_epic_touches_no_bead(self):
         self.bd({})
