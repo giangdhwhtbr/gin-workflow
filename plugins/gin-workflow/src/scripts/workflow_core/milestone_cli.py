@@ -46,6 +46,7 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--end")
     item.add_argument("--lanes")
     item.add_argument("--away", action="append", default=[])
+    item.add_argument("--integration")
     item = sub.add_parser("kickstart", parents=[common])
     item.add_argument("id")
     item.add_argument("--date")
@@ -157,12 +158,12 @@ def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
     return roadmap.lanes or len(_builders(config)) or 1
 
 
-def _warn_malformed_away(milestones: Sequence[Mapping[str, Any]]) -> None:
-    """One stderr warning per open milestone whose `away` metadata is unreadable; it is ignored."""
+def _warn_malformed_metadata(milestones: Sequence[Mapping[str, Any]]) -> None:
+    """One stderr warning per open milestone key (`away`, `integration`) that is unreadable; it is ignored."""
     for milestone in milestones:
-        if milestone.get("issue_type") == "milestone" and milestone.get("status") != "closed" \
-                and core.away_of(milestone) is None:
-            print(f"warning: {milestone['id']} has malformed away metadata; ignored", file=sys.stderr)
+        if milestone.get("issue_type") == "milestone" and milestone.get("status") != "closed":
+            for key in core.metadata_problems(milestone):
+                print(f"warning: {milestone['id']}: malformed {key} metadata ignored", file=sys.stderr)
 
 
 def _forecast_text(forecast: dict[str, Any]) -> str:
@@ -203,6 +204,8 @@ def _show_text(payload: dict[str, Any]) -> str:
              f"lanes {payload['lanes']}"]
     if payload.get("deadline"):
         lines.append(f"deadline: {payload['deadline']}")
+    if payload.get("integration"):
+        lines.append(f"integration: {payload['integration']}")
     for row in payload["epics"]:
         codes = ",".join(warning["code"] for warning in row["warnings"])
         if row["estimate_days"] is not None:
@@ -276,6 +279,10 @@ def _update(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any
     if args.away:
         away = _away_change(_config(root), core.away_of(milestone) or {}, args.away)
         argv += ["--set-metadata", f"away={json.dumps(away, sort_keys=True)}"] if away else ["--unset-metadata", "away"]
+    if args.integration == "none":
+        argv += ["--unset-metadata", "integration"]
+    elif args.integration:
+        argv += ["--set-metadata", f"integration={_date(args.integration).isoformat()}"]
     _bd(root, argv, actor)
     return f"updated {args.id}", "update"
 
@@ -391,7 +398,7 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "list":
         roadmap = _roadmap(root, config)
         beads = _beads(root)
-        _warn_malformed_away(list(beads.values()))
+        _warn_malformed_metadata(list(beads.values()))
         payload = core.list_payload(beads, _today(), args.all, roadmap, _default_lanes(config, roadmap),
                                   _confirmed(root, beads), builders=() if roadmap.lanes else _builders(config))
         print(json.dumps(payload, indent=2) if args.json else _list_text(payload))
@@ -400,7 +407,7 @@ def _run(args: argparse.Namespace) -> int:
         beads = _beads(root)
         start = _date(args.start) if args.start else None
         roadmap = _roadmap(root, config)
-        _warn_malformed_away([_milestone(beads, args.id)])
+        _warn_malformed_metadata([_milestone(beads, args.id)])
         payload = core.show_payload(_milestone(beads, args.id), beads, start, _today(),
                                   _default_lanes(config, roadmap), _confirmed(root, beads), roadmap.deadline,
                                   () if roadmap.lanes else _builders(config))

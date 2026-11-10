@@ -13,10 +13,11 @@ D = date.fromisoformat
 
 
 def bead(id, *, type="epic", status="open", parent=None, minutes=None, blocks=(), labels=(), meta=None, title="",
-         started_at=None):
+         started_at=None, deps=()):
     item = {"id": id, "title": title or id, "description": "", "status": status, "issue_type": type,
             "parent": parent, "labels": list(labels), "estimated_minutes": minutes, "metadata": meta or {},
             "dependencies": [{"issue_id": id, "depends_on_id": d, "type": "blocks"} for d in blocks]}
+    item["dependencies"] += [{"issue_id": id, "depends_on_id": target, "type": kind} for kind, target in deps]
     if started_at:
         item["started_at"] = started_at
     return item
@@ -242,7 +243,7 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "m1", "title": "m1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-12-18", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "integration": None, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
             "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5, "remaining_days": 5, "assumed_days": None,
                        "spec_confirmed": None,
                        "planned_start": "2026-11-02", "planned_end": "2026-11-06", "depends_on": [],
@@ -622,6 +623,36 @@ class CapacityTests(unittest.TestCase):
         self.assertEqual("2026-11-05", found["finish"])
         listed = milestone.list_payload(beads, TODAY, False, None, 1, None, ("a@x.io",))
         self.assertEqual("2026-11-05", listed["forecast"]["finish"])
+
+
+class ExitWarningTests(unittest.TestCase):
+    def codes(self, beads, epic_id="A"):
+        return rows(plan(beads))[epic_id]["warnings"]
+
+    def test_after_integration(self):
+        beads = world(milestone_bead(integration="2026-11-03"), bead("A", parent="m1", minutes=days(3)))
+        self.assertIn({"code": "after_integration"}, self.codes(beads))
+        beads = world(milestone_bead(integration="2026-11-04"), bead("A", parent="m1", minutes=days(3)))
+        self.assertNotIn({"code": "after_integration"}, self.codes(beads))
+
+    def test_open_bugs_counts_open_discovered_bugs(self):
+        beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(1)),
+                      bead("b1", type="bug", deps=[("discovered-from", "A")]),
+                      bead("b2", type="bug", deps=[("discovered-from", "A")]),
+                      bead("b3", type="bug", status="closed", deps=[("discovered-from", "A")]))
+        self.assertIn({"code": "open_bugs", "count": 2}, self.codes(beads))
+
+    def test_oversized(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-06"), bead("A", parent="m1", minutes=days(7)))
+        self.assertIn({"code": "oversized", "days": 2}, self.codes(beads))
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-06"), bead("A", parent="m1", minutes=days(5)))
+        self.assertNotIn("oversized", [w["code"] for w in self.codes(beads)])
+
+    def test_malformed_integration_is_ignored_and_reported(self):
+        beads = world(milestone_bead(integration="soon"), bead("A", parent="m1", minutes=days(3)))
+        self.assertNotIn({"code": "after_integration"}, self.codes(beads))
+        self.assertEqual(["integration"], milestone.metadata_problems(beads["m1"]))
+        self.assertIsNone(milestone.show_payload(beads["m1"], beads, None, TODAY)["integration"])
 
 
 if __name__ == "__main__":

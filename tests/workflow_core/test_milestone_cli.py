@@ -99,7 +99,7 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "t-m1", "title": "M1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "deadline": None,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "integration": None, "deadline": None,
             "finish": "2026-11-06", "overflow_days": 2,
             "epics": [
                 {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "remaining_days": 3,
@@ -115,8 +115,16 @@ class MilestoneCliTests(unittest.TestCase):
         self.bd("update", "t-m1", "--set-metadata", "away=not json")
         code, out, err = self.run_cli("show", "t-m1", "--json")
         self.assertEqual(0, code, err)
-        self.assertIn("t-m1 has malformed away metadata", err)
+        self.assertIn("warning: t-m1: malformed away metadata ignored", err)
         self.assertEqual({}, json.loads(out)["away"])
+
+    def test_malformed_integration_is_ignored_with_a_warning(self):
+        self.seed()
+        self.bd("update", "t-m1", "--set-metadata", "integration=soon")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        self.assertIn("warning: t-m1: malformed integration metadata ignored", err)
+        self.assertIsNone(json.loads(out)["integration"])
 
     def test_show_prints_the_roadmap_deadline(self):
         self.seed()
@@ -501,6 +509,13 @@ class ShowTextTests(unittest.TestCase):
         out = self.text(self.milestone(), self.item("u", status="closed"))
         self.assertIn("u 2026-11-02..2026-11-02 -d unestimated", out)
 
+    def test_integration_line_only_when_set(self):
+        items = (self.milestone(), self.item("a", estimated_minutes=960))
+        self.assertNotIn("integration:", self.text(*items))
+        with_date = {**self.milestone(), "metadata": {"start": "2026-11-02", "end": "2026-11-30",
+                                                      "integration": "2026-11-03"}}
+        self.assertIn("integration: 2026-11-03", self.text(with_date, items[1]))
+
     def test_deadline_line_only_when_set(self):
         self.assertNotIn("deadline:", self.text(self.milestone()))
         self.assertIn("deadline: 2026-11-13", self.text(self.milestone(), deadline=date(2026, 11, 13)))
@@ -532,6 +547,14 @@ class MilestoneTeamTests(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
             code = milestone_cli.main([*argv, "--repository", str(root)])
         return code, err.getvalue()
+
+    def test_integration_writes_shows_and_clears(self):
+        root = self.repo("ba", "an@corp.com")
+        self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--integration", "2026-11-03")[0])
+        self.assertEqual("2026-11-03", self.metadata(root, "t-m1")["integration"])
+        self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--integration", "soon")[0])
+        self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--integration", "none")[0])
+        self.assertNotIn("integration", self.metadata(root, "t-m1") or {})
 
     def test_req_012_milestone_writes_need_a_permitted_role(self):
         root = self.repo("dev", "em@corp.com")

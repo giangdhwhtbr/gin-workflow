@@ -18,7 +18,7 @@ One feature flag per capability, controlled by the backend. `GET /api/feature-fl
 QA writes the E2E suite against the mocked UI during the build and reruns the same suite against the real API after the flip. QA closes each epic inside its own milestone, and the days after the integration point are hardening days. `Exit criteria:` of a milestone: E2E green against the real API for every flag turned on, watermark gone, no open bug bead on the integrated epics.
 
 ## Load
-Team mode: group the roles of `team.members` (`.agent-workflow/config.yaml`) by the first token before `_` (`be_dev` and `be_lead` are BE; `fe_*` is FE; `qa` and `qe` are QA; `ba`, `sa`, `devops`, `pm` stand alone). Print the grouping for the PM to correct. Bound each milestone by the member count of the scarcest group that the adopted epics need (an epic needs the groups its `Scope:` names), times the working days. Without team mode, the bound is the lane count (`AI capacity:` or `--lanes`) times the working days. Never ask the team composition.
+Team mode: group the roles of `team.members` (`.agent-workflow/config.yaml`) by the first token before `_` (`be_dev` and `be_lead` are BE; `fe_*` is FE; `qa` and `qe` are QA; `ba`, `sa`, `devops`, `pm` stand alone). Print the grouping for the PM to correct. Bound each milestone by the member count of the scarcest group that the adopted epics need (an epic needs the groups its `Scope:` names; QA (`qa`, `qe`) is needed by every epic whose `Scope:` names tests or cases), times the working days. Without team mode, the bound is the lane count (`AI capacity:` or `--lanes`) times the working days. Never ask the team composition.
 
 ## Milestone block
 ```

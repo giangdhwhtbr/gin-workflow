@@ -108,6 +108,37 @@ def away_of(milestone: Mapping[str, Any]) -> dict[str, list[str]] | None:
     return {str(member): [str(item) for item in spec] for member, spec in value.items()}
 
 
+def _integration(milestone: Mapping[str, Any]) -> date | None:
+    try:
+        value = _meta(milestone).get("integration")
+        return parse_date(value) if value else None
+    except ValueError:
+        return None
+
+
+def metadata_problems(milestone: Mapping[str, Any]) -> list[str]:
+    """Names of the metadata keys (`away`, `integration`) that are present but unreadable; they are ignored."""
+    meta = _meta(milestone)
+    problems = []
+    if meta.get("away") not in (None, "") and away_of(milestone) is None:
+        problems.append("away")
+    if meta.get("integration") and _integration(milestone) is None:
+        problems.append("integration")
+    return problems
+
+
+def _open_bugs(beads: Beads) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for bead in beads.values():
+        if bead.get("issue_type") != "bug" or bead.get("status") == "closed":
+            continue
+        for dep in bead.get("dependencies") or []:
+            if dep.get("type") == "discovered-from":
+                target = str(dep.get("depends_on_id"))
+                counts[target] = counts.get(target, 0) + 1
+    return counts
+
+
 def _off(day: date, off: frozenset[date]) -> date:
     """The first working day on or after `day` that is not in `off`."""
     while day.weekday() >= 5 or day in off:
@@ -268,6 +299,9 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
     active = status(milestone, today) == "active"
     kicked_off = status(milestone, today) in ("scheduled", "active")
     due = status(milestone, today) == "planned" and start_day <= _last_of(_workday(today), SPEC_DUE_DAYS)
+    integration = _integration(milestone)
+    bugs = _open_bugs(beads)
+    span_days = _workdays_before(start_day, end + timedelta(days=1))
     rows = []
     for epic_id in sorted(epics, key=lambda item: (planned[item][0], item)):
         epic = epics[epic_id]
@@ -288,6 +322,13 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
                 warnings.append({"code": "spec_not_ready"})
             elif due:
                 warnings.append({"code": "spec_due"})
+        still_open = epic.get("status") != "closed"
+        if integration and still_open and finish > integration:
+            warnings.append({"code": "after_integration"})
+        if bugs.get(epic_id):
+            warnings.append({"code": "open_bugs", "count": bugs[epic_id]})
+        if still_open and days_of[epic_id] is not None and days_of[epic_id] > span_days:
+            warnings.append({"code": "oversized", "days": days_of[epic_id] - span_days})
         rows.append({
             "id": epic_id, "title": epic.get("title", ""), "status": epic.get("status"), "estimate_days": days,
             "remaining_days": remaining_days(epic, beads, today),
@@ -315,6 +356,7 @@ def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None,
             "start": meta["start"], "end": meta["end"], "kickoff": meta.get("kickoff"),
             "schedule_start": schedule_start.isoformat(), "preview": start is not None, "today": today.isoformat(),
             "lanes": lanes_of(milestone, default_lanes), "away": away_of(milestone) or {},
+            "integration": i.isoformat() if (i := _integration(milestone)) else None,
             "deadline": deadline.isoformat() if deadline else None,
             **schedule(milestone, beads, schedule_start, today, default_lanes, confirmed, builders)}
 
