@@ -242,7 +242,7 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "m1", "title": "m1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-12-18", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
             "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5, "remaining_days": 5, "assumed_days": None,
                        "spec_confirmed": None,
                        "planned_start": "2026-11-02", "planned_end": "2026-11-06", "depends_on": [],
@@ -560,6 +560,47 @@ class PlannedDaysTests(unittest.TestCase):
         found = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1)
         # group: 4 + 4 assumed = 8 days, Thu 29 .. Mon 9 Nov; pool: 1 + 1 assumed = 2 days, Tue 10 .. Wed 11
         self.assertEqual("2026-11-11", found["finish"])
+
+
+class CapacityTests(unittest.TestCase):
+    def test_building_roles(self):
+        self.assertEqual([True, True, True, True, True, False, False, False, False],
+                         [milestone.is_building_role(r) for r in
+                          ("dev", "be_dev", "fe_lead", "be_lead", "mobile_dev", "pm", "ba", "qe", "devops")])
+
+    def test_away_skips_days_on_the_builders_lane(self):
+        beads = world(milestone_bead(away='{"an@x.io": ["2026-11-03..2026-11-04"]}'),
+                      bead("A", parent="m1", minutes=days(3)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, None, ("an@x.io",))
+        self.assertEqual(("2026-11-02", "2026-11-06"), span(rows(result)["A"]))  # Mon, then Thu, Fri
+
+    def test_away_is_ignored_with_lanes_metadata(self):
+        beads = world(milestone_bead(lanes="1", away='{"an@x.io": ["2026-11-03..2026-11-04"]}'),
+                      bead("A", parent="m1", minutes=days(3)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, None, ("an@x.io",))
+        self.assertEqual(("2026-11-02", "2026-11-04"), span(rows(result)["A"]))
+
+    def test_away_without_builders_is_ignored(self):
+        beads = world(milestone_bead(away='{"an@x.io": ["2026-11-03"]}'), bead("A", parent="m1", minutes=days(2)))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(rows(plan(beads))["A"]))
+
+    def test_second_lane_belongs_to_the_second_builder(self):
+        beads = world(milestone_bead(away='{"b@x.io": ["2026-11-02..2026-11-03"]}'),
+                      bead("A", parent="m1", minutes=days(2)), bead("B", parent="m1", minutes=days(2)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 2, None, ("a@x.io", "b@x.io"))
+        self.assertEqual(("2026-11-02", "2026-11-03"), span(rows(result)["A"]))
+        self.assertEqual(("2026-11-04", "2026-11-05"), span(rows(result)["B"]))
+
+    def test_away_of_reads_json_and_rejects_garbage(self):
+        self.assertEqual({}, milestone.away_of(milestone_bead()))
+        self.assertEqual({"a@x.io": ["2026-11-03"]}, milestone.away_of(milestone_bead(away='{"a@x.io": ["2026-11-03"]}')))
+        self.assertIsNone(milestone.away_of(milestone_bead(away="not json")))
+        self.assertIsNone(milestone.away_of(milestone_bead(away='{"a@x.io": ["2026-13-40"]}')))
+
+    def test_show_payload_lists_away(self):
+        beads = world(milestone_bead(away='{"a@x.io": ["2026-11-03"]}'))
+        payload = milestone.show_payload(beads["m1"], beads, None, TODAY)
+        self.assertEqual({"a@x.io": ["2026-11-03"]}, payload["away"])
 
 
 if __name__ == "__main__":
