@@ -113,6 +113,10 @@ Open: the `qa` repository. It is the automation repository, so the cases, specs,
 | End-to-end | `/gin-qa:e2e`, `/gin-qa:run` |
 | Report | `/gin-qa:report` |
 
+## Contract
+
+The confirmed spec of a capability's epic is its API contract, and `requirement_confirmed` is the moment it is frozen. When the contract uses an OpenAPI file, the file lives in the parent repository and the spec links it. The service track and the app track of the epic read the same spec; the app track generates its mocks from it. A contract change after plan approval goes back through `/discuss`, so the spec, the plan, and both tracks change together. The roadmap adds one `<capability> integration` epic per capability, blocked by the build epics, for the day the flag turns on.
+
 ## Commands
 
 | Command | Does |
@@ -129,8 +133,7 @@ All of them run from anywhere inside the workspace, including a child. `gin stat
 
 ## Limits
 
-- One epic stays inside one child repository. A change that needs a service and an app is two epics, or two tracks of one epic with a Beads dependency between them; a track never spans two repositories.
-- One repository per track. A change that touches two repositories is two tracks.
+- One track per repository. A capability that needs a service and an app is one epic with two tracks, one in each repository; a track never spans two repositories.
 - `project.packages` is ignored for workspace entries.
 - There is no version pinning: the parent does not record which commit of a child it expects.
 - A child cloned outside its manifest path, or a repository not in the manifest, is standalone. `gin` treats it as an ordinary repository and `gin workspace status` shows the entry as missing.

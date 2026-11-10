@@ -84,9 +84,7 @@ execution_strategy:
 - [ ] Manual verification steps
 
 ## Notes
-- `Model:` and `Effort:` are chosen from the main harness catalog using the route rubric.
 - Omit `Effort:` when the catalog lists no efforts.
-- Unclear requirements never raise the model or effort; ask the user or return to `discuss`.
 - The user may override `Model:` and `Effort:` before plan approval.
 - Provider roles describe responsibility rather than filename patterns.
 - Deliverable merge-holds (e.g. "remain open until human-confirmed merge") apply exclusively to the Parent Bead. Individual track beads must close upon passing tests and code review to unblock downstream dependent tracks.
