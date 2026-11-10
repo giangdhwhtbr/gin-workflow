@@ -99,13 +99,24 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual({
             "schema": 1, "id": "t-m1", "title": "M1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
-            "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 2,
+            "preview": False, "today": "2026-10-29", "lanes": 1, "deadline": None, "finish": "2026-11-06",
+            "overflow_days": 2,
             "epics": [
-                {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "spec_confirmed": False, "planned_start": "2026-11-02",
+                {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "remaining_days": 3,
+                 "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-02",
                  "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": [{"code": "spec_due"}]},
-                {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "spec_confirmed": False, "planned_start": "2026-11-05",
+                {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "remaining_days": 2,
+                 "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-05",
                  "planned_end": "2026-11-06", "depends_on": ["t-a"], "external_depends_on": [],
                  "warnings": [{"code": "overflow", "days": 2}, {"code": "spec_due"}]}]}, json.loads(out))
+
+    def test_show_prints_the_roadmap_deadline(self):
+        self.seed()
+        self.write_roadmap("- Deadline: 2026-11-13\n")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual("2026-11-13", json.loads(out)["deadline"])
+        code, out, err = self.run_cli("show", "t-m1")
+        self.assertIn("deadline: 2026-11-13", out)
 
     def events_path(self):
         path = self.root / ".agent-workflow/runtime/events.jsonl"
@@ -291,7 +302,7 @@ class MilestoneCliTests(unittest.TestCase):
         self.bd("create", "R1", "--id", "t-r1", "--type", "epic", "--labels", "roadmap")
         code, out, _ = self.run_cli("list")
         self.assertEqual(0, code)
-        self.assertIn("forecast: finish unknown, no deadline, lanes 1, 1 open epics, 1 unestimated", out)
+        self.assertIn("forecast: finish 2026-10-29, no deadline, lanes 1, 1 open epics, 1 unestimated", out)
         self.write_roadmap("- Deadline: soon\n")
         code, out, _ = self.run_cli("list")
         self.assertEqual(0, code)

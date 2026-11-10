@@ -187,10 +187,15 @@ def _show_text(payload: dict[str, Any]) -> str:
     lines = [f"{payload['id']} {payload['title']} [{payload['status']}] {payload['start']}..{payload['end']}, "
              f"schedule from {payload['schedule_start']}{' (preview)' if payload['preview'] else ''}, "
              f"lanes {payload['lanes']}"]
+    if payload.get("deadline"):
+        lines.append(f"deadline: {payload['deadline']}")
     for row in payload["epics"]:
         codes = ",".join(warning["code"] for warning in row["warnings"])
-        days = row["estimate_days"] if row["estimate_days"] is not None else "-"
-        lines.append(f"  {row['id']} {row['planned_start']}..{row['planned_end']} {days}d {codes}".rstrip())
+        if row["estimate_days"] is not None:
+            days = f"{row['estimate_days']}d"
+        else:
+            days = f"{row['assumed_days']}d?" if row["assumed_days"] is not None else "-d"
+        lines.append(f"  {row['id']} {row['planned_start']}..{row['planned_end']} {days} {codes}".rstrip())
     lines.append(f"finish {payload['finish'] or '-'}, overflow {payload['overflow_days']} working days")
     return "\n".join(lines)
 
@@ -348,8 +353,9 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "show":
         beads = _beads(root)
         start = _date(args.start) if args.start else None
+        roadmap = _roadmap(root, config)
         payload = core.show_payload(_milestone(beads, args.id), beads, start, _today(),
-                                  _default_lanes(config, _roadmap(root, config)), _confirmed(root, beads))
+                                  _default_lanes(config, roadmap), _confirmed(root, beads), roadmap.deadline)
         print(json.dumps(payload, indent=2) if args.json else _show_text(payload))
         return 0
     return _write(root, config, args)
