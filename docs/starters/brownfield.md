@@ -27,7 +27,7 @@ The team has seven people. Lan and Binh hold the two Claude Team Premium seats, 
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | API work |
 | Dung | `be_dev` | [Developer](../roles.md#developer) | API work |
-| Hoa | `fe_dev` | [Developer](../roles.md#developer) | React SPA work |
+| Hoa | `fe_lead`, `fe_dev` | [Frontend lead](../roles.md#who-owns-what) | React SPA work, web plan approval |
 | Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, ship approval |
 
 The `team:` block in `.agent-workflow/config.yaml` (written by `/gin:team-setup`):
@@ -42,22 +42,22 @@ team:
     binh@example.com: {roles: [be_lead], login: binh-dev}
     em@example.com: {roles: [be_dev], login: em-dev}
     dung@example.com: {roles: [be_dev], login: dung-dev}
-    hoa@example.com: {roles: [fe_dev], login: hoa-dev}
+    hoa@example.com: {roles: [fe_lead, fe_dev], login: hoa-dev}
     chi@example.com: {roles: [qe], login: chi-qe}
   areas:
     legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}  # read-only: for tech-doc reading, no track targets it
     api: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
-    web: {paths: ["apps/**"], lead: be_lead, roles: [fe_dev]}
+    web: {paths: ["apps/**"], lead: fe_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
     requirement_confirmed: [ba, be_lead]
     plan_approved: area_lead
-    ship: [qe, be_lead]
+    ship: {all: [qe], any: [be_lead, fe_lead]}
     roadmap: [pm, be_lead]
   permissions: {milestone: [pm]}
 ```
 
-The areas do not overlap, so every plan track stays inside one of them. A gate is never approved by the author of its pull request, so each approving role needs a second holder. Lan has no second `pm` and An no second `ba`, so Binh approves their roadmap and spec pull requests. For the same reason `ship` lists `be_lead` next to `qe`: Binh approves Chi's own QA track pull requests, and Chi approves the developers'. Only Lan, the one `pm`, may run `gin milestone` writes.
+The areas do not overlap, so every plan track stays inside one of them. A gate is never approved by the author of its pull request. Lan has no second `pm` and An no second `ba`, so Binh approves their roadmap and spec pull requests. The `ship` policy uses the object form, which needs gin-workflow 3.1 or later: `all` roles must each approve, and one `any` role must approve. Chi is the only `qe`, so on Chi's own QA pull request the `qe` role is skipped with a note, and Binh or Hoa approves. Binh and Hoa each lead an area, so `gin setup doctor` notes that `qe`, `be_lead`, and `fe_lead` have one holder. The fallback applies only while the author is the sole holder; add a second holder to remove it. Only Lan, the one `pm`, may run `gin milestone` writes.
 
 ## The flow at a glance
 
@@ -147,9 +147,9 @@ In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.pack
 **Prompt (Tech Lead)**
 ```text
 /gin:team-setup
-Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_dev), chi@example.com (qe).
-Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads all four.
-Approvals: requirement_confirmed by ba and be_lead; plan_approved by the area lead; ship by qe and be_lead; roadmap by pm and be_lead.
+Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_lead and fe_dev), chi@example.com (qe).
+Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads legacy, api, and qa; Hoa leads web.
+Approvals: requirement_confirmed by ba and be_lead; plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
 Permissions: only the pm changes milestones.
 ```
 
@@ -457,7 +457,7 @@ Put in the prompt: the base URL of the SPA, the test accounts (as environment va
 - `/gin-qa:run` walks the manual cases, records each result with `gin-qa cases result`, and files a bug bead per failure through `gin-qa cases bug`, linked to the epic with `discovered-from`.
 - `/gin-qa:report` writes an offline HTML report folder under `qa/evidence/` that you can zip and send.
 
-**Gate or approval:** with `ship: [qe, be_lead]`, Chi approves the latest commit of a developer's pull request before it merges, and Binh approves Chi's. A later push needs a new approval. See the [ship approval checklist](../guides/qa.md#ship-approval-checklist).
+**Gate or approval:** with `ship: {all: [qe], any: [be_lead, fe_lead]}`, a developer's pull request needs Chi and one lead (Binh or Hoa) to approve its latest commit before it merges. Chi's own QA pull request needs only a lead. A later push needs a new approval. See the [ship approval checklist](../guides/qa.md#ship-approval-checklist).
 
 **Common mistakes:** approving before the last commit; a push after approval silently invalidates it.
 

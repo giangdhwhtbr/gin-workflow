@@ -154,6 +154,26 @@ def gate_policy_gap(team: TeamConfig) -> list[str]:
     return [gate for gate in POLICY_GATES if not has_policy(gate, team)]
 
 
+def single_holder_notes(team: TeamConfig) -> list[str]:
+    """Gate `all` roles and area leads that exactly one member holds (that member's own PR cannot be approved)."""
+    from .team import policy_parts
+
+    def holders(role: str) -> list[str]:
+        return sorted(member.login or member.email for member in team.members.values() if role in member.roles)
+
+    notes = []
+    for gate, policy in sorted(team.approvals.items()):
+        for role in policy_parts(policy)[0]:
+            found = holders(role)
+            if len(found) == 1:
+                notes.append(f"{gate}: {role} has one holder ({found[0]})")
+    for name, area in sorted(team.areas.items()):
+        found = holders(area.lead)
+        if len(found) == 1:
+            notes.append(f"area {name}: lead {area.lead} has one holder ({found[0]})")
+    return notes
+
+
 def doctor_report(root: Path, team: TeamConfig, config: Mapping[str, Any]) -> dict[str, Any]:
     """`setup doctor` section for team mode: every check plus one fix per failing check."""
     from .team import current_member, has_policy
@@ -191,7 +211,7 @@ def doctor_report(root: Path, team: TeamConfig, config: Mapping[str, Any]) -> di
         "beads_remote": f"run `bd dolt remote add origin {team.beads_remote}` and `gin team sync`",
     }
     report: dict[str, Any] = {"checks": checks, "actions": [fixes[name] for name, ok in checks.items() if not ok]}
-    notes = host.doctor_notes()
+    notes = host.doctor_notes() + single_holder_notes(team)
     if notes:
         report["note"] = "; ".join(notes)
     return report

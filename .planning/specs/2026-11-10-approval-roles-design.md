@@ -80,7 +80,7 @@ Acceptance criteria:
 
 - Existing role-list and `area_lead` configs keep their behaviour and refusal texts; existing tests stay green.
 - A config using the object form is refused by older gin-workflow versions (schema), so the starter and docs state the minimum version.
-- No JSON output or Beads metadata changes; gin-console is unaffected.
+- No Beads metadata changes. `team check --format json` gains an additive `notes` key (the reviewer note from Track 1); gin-console is unaffected.
 
 ## Testing
 

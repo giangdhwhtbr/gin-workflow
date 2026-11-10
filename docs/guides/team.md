@@ -18,7 +18,7 @@ Run `/team-setup` and answer as the lead. It asks for:
 - the host (`github`, `gitlab`, `gitea`, or `codecommit`) and the commit convention (`conventional` or `none`);
 - members: git email, roles, and host login for each person (on `codecommit`, the `aws_identity` instead);
 - areas: a name, path globs (including the area's tests), the `lead` role, and optionally the `roles` allowed to own tracks;
-- approvals: which roles approve `requirement_confirmed`, `ship`, and the `/roadmap` pull request (`roadmap`), and `area_lead` or roles for `plan_approved` (`[]` for none);
+- approvals: which roles approve `requirement_confirmed`, `ship`, and the `/roadmap` pull request (`roadmap`), as a role list or an [`{all, any}` policy](#approval-policies), and `area_lead` or roles for `plan_approved` (`[]` for none);
 - optionally shared Beads: a separate repository used as `team.beads_sync.remote`.
 
 It writes the `team:` block with `gin setup configure`, then runs `gin team init` to generate CODEOWNERS, the pull request template, the commit-msg hook, and with `--ci` a CI workflow that checks commit messages against the convention and, when the repository variable `GIN_WORKFLOW_INSTALL` holds an install command, runs `team codeowners --check` and (SDD layout) `specs lint`. Commit those on a branch. On the host, protect the base branch: require a pull request with an approval and code-owner review.
@@ -40,6 +40,19 @@ team:
     roadmap: [pm]
 ```
 
+## Approval policies
+
+A gate policy has three forms. A role list needs approval from one member holding a listed role. `{all: [roles], any: [roles]}` needs every `all` role and one `any` role, and needs gin-workflow 3.1 or later. `plan_approved: area_lead` needs the lead of each area the plan touches.
+
+```yaml
+  approvals:
+    ship: {all: [qe], any: [be_lead, fe_lead]}
+```
+
+No gate is approved by the pull request author. When the author is the only holder of an `all` role and the policy has an `any` role, the `all` role is skipped and `team check` prints "<role> skipped: the author is its only holder"; the `any` role must still approve. Without an `any` role the check refuses: "<role> has no holder other than the author; add a holder or an `any` role". For `plan_approved: area_lead`, a sole-holder area lead is skipped when the lead of another area approved, with the note "<lead> for area <name> skipped: ...". `gin setup doctor` notes each `all` role and area lead that exactly one member holds.
+
+When a holder is absent, run `gin unblock` with a reason and a follow-up bead.
+
 ## Join it (member)
 
 Install the [prerequisites](../getting-started.md#prerequisites) first, and do not run `/gin:setup`: the lead has already configured the repository.
@@ -52,7 +65,7 @@ The `team` skill carries the exact steps.
 
 | Stage | In team mode |
 |---|---|
-| gates | `record` and `unblock` take the actor from your git email. A gate with roles in `team.approvals` takes `--evidence <PR url>`: `record` checks the pull request is merged (open is enough for `ship`) and approved by a member with a listed role who is not its author. The pull request must belong to this repository, or for `ship` to a `workspace.repos` child, and change the gate's artifact (`--plan`/`--spec` pick one when it changes several); the plan gate also runs `check-plan`. A rejection lists the missing approvals; it is never worked around with other evidence or a waiver. |
+| gates | `record` and `unblock` take the actor from your git email. A gate with roles in `team.approvals` takes `--evidence <PR url>`: `record` checks the pull request is merged (open is enough for `ship`) and approved by a member with a listed role who is not its author. The pull request must belong to this repository, or for `ship` to a `workspace.repos` child, and change the gate's artifact (`--plan`/`--spec` pick one when it changes several); the plan gate also runs `check-plan`. A rejection lists the missing approvals; it is never worked around with other evidence. An absent holder is the one exception: `gin unblock` with a reason and a follow-up bead. |
 | `discuss` | When `requirement_confirmed` has roles, the spec goes through a pull request (`spec/<topic>`, or the SDD `pr` flow) and the gate is recorded after it merges. A member has no technical role when they are no area's `lead` and hold no role in any area's `roles`; `gin team whoami` then shows `technical: no`. That member gets business questions only, and the `team` skill has `discuss` write each technical point as `- TQ-<n>: <question>` under the design doc's `## Open Technical Questions`. |
 | `plan` | Each track adds `Area:` and `Owner:` (optional only with shared Beads; reassigning a track means a new plan PR); a track's files stay inside its area. `team check-plan <plan>` must pass. With `plan_approved: area_lead`, the plan merges through a pull request approved by the area lead. `plan` first settles each open `TQ-<n>` with the member running it and writes `Decision:` under it. The plan pull request carries those lines and, with the SDD layout, the filled `03-design.md` sections. |
 | `orchestrate` | Track beads get `track:<N>` and `area:<area>` labels and the owner as assignee. With shared Beads the lead orchestrates once; otherwise each member creates beads only for the tracks they own, and a dependency on someone else's track becomes an `external: <plan>#<N>` placeholder. |
