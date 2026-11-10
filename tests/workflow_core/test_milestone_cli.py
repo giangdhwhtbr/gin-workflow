@@ -102,10 +102,10 @@ class MilestoneCliTests(unittest.TestCase):
             "preview": False, "today": "2026-10-29", "lanes": 1, "finish": "2026-11-06", "overflow_days": 2,
             "epics": [
                 {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "spec_confirmed": False, "planned_start": "2026-11-02",
-                 "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": []},
+                 "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": [{"code": "spec_due"}]},
                 {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "spec_confirmed": False, "planned_start": "2026-11-05",
                  "planned_end": "2026-11-06", "depends_on": ["t-a"], "external_depends_on": [],
-                 "warnings": [{"code": "overflow", "days": 2}]}]}, json.loads(out))
+                 "warnings": [{"code": "overflow", "days": 2}, {"code": "spec_due"}]}]}, json.loads(out))
 
     def events_path(self):
         path = self.root / ".agent-workflow/runtime/events.jsonl"
@@ -130,6 +130,26 @@ class MilestoneCliTests(unittest.TestCase):
         code, out, _ = self.run_cli("list", "--json")
         self.assertEqual(2, json.loads(out)["milestones"][0]["warnings"])
 
+    def test_shared_gate_confirms_the_spec(self):
+        self.seed()
+        self.bd("update", "t-a", "--set-metadata",
+                'gates={"requirement_confirmed": {"actor": "ba@corp.com", "at": "2026-10-20T00:00:00Z"}}')
+        self.bd("update", "t-m1", "--set-metadata", "kickoff=2026-11-02")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        rows = {row["id"]: row for row in json.loads(out)["epics"]}
+        self.assertEqual((True, False), (rows["t-a"]["spec_confirmed"], rows["t-b"]["spec_confirmed"]))
+        self.assertNotIn({"code": "spec_not_ready"}, rows["t-a"]["warnings"])
+
+    def test_unreadable_log_still_uses_shared_gates(self):
+        self.seed()
+        self.bd("update", "t-a", "--set-metadata", 'gates={"requirement_confirmed": {"actor": "x", "at": "y"}}')
+        self.events_path().write_text("{not json\n", encoding="utf-8")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertIn("warning: event log unreadable:", err)
+        rows = {row["id"]: row for row in json.loads(out)["epics"]}
+        self.assertEqual((True, False), (rows["t-a"]["spec_confirmed"], rows["t-b"]["spec_confirmed"]))
+
     def test_unreadable_event_log_degrades_with_a_warning(self):
         self.seed()
         self.events_path().write_text("{not json\n", encoding="utf-8")
@@ -147,7 +167,7 @@ class MilestoneCliTests(unittest.TestCase):
             "schema": 1, "today": "2026-10-29", "unassigned_epics": 0, "forecast": None,
             "milestones": [{"id": "t-m1", "title": "M1", "status": "planned", "start": "2026-11-02",
                             "end": "2026-11-04", "kickoff": None, "lanes": 1, "finish": "2026-11-06",
-                            "epics": {"total": 2, "closed": 0}, "warnings": 1, "error": None}]}, json.loads(out))
+                            "epics": {"total": 2, "closed": 0}, "warnings": 3, "error": None}]}, json.loads(out))
 
     def test_req_009_preview_does_not_write(self):
         self.seed()

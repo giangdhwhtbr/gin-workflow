@@ -430,5 +430,34 @@ class SpecReadinessTests(unittest.TestCase):
         self.assertEqual(0, milestone.list_payload(beads, TODAY, False)["milestones"][0]["warnings"])
 
 
+class SpecReadinessTests(unittest.TestCase):
+    def codes(self, result, epic_id):
+        return [w["code"] for w in rows(result)[epic_id]["warnings"]]
+
+    def test_spec_due_for_planned_milestone_starting_within_five_working_days(self):
+        beads = world(milestone_bead(start="2026-11-04", end="2026-11-20"), bead("A", parent="m1", minutes=days(1)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-04"), TODAY, 1, frozenset())
+        self.assertIn("spec_due", self.codes(result, "A"))
+        self.assertNotIn("spec_not_ready", self.codes(result, "A"))
+
+    def test_no_spec_due_when_the_planned_milestone_starts_later(self):
+        beads = world(milestone_bead(start="2026-11-09", end="2026-11-20"), bead("A", parent="m1", minutes=days(1)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-09"), TODAY, 1, frozenset())
+        self.assertNotIn("spec_due", self.codes(result, "A"))
+
+    def test_no_spec_due_when_confirmed_or_closed(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-20"), bead("A", parent="m1", minutes=days(1)),
+                      bead("B", parent="m1", minutes=days(1), status="closed"))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, frozenset({"A"}))
+        self.assertNotIn("spec_due", self.codes(result, "A"))
+        self.assertNotIn("spec_due", self.codes(result, "B"))
+
+    def test_kicked_off_milestone_warns_spec_not_ready_never_spec_due(self):
+        beads = world(milestone_bead(start="2026-11-02", end="2026-11-20", kickoff="2026-10-28"),
+                      bead("A", parent="m1", minutes=days(1)))
+        result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, frozenset())
+        self.assertEqual(["spec_not_ready"], [c for c in self.codes(result, "A") if c.startswith("spec_")])
+
+
 if __name__ == "__main__":
     unittest.main()

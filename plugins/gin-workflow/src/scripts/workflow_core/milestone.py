@@ -10,6 +10,7 @@ from typing import Any, Mapping
 
 SCHEMA = 1
 WORKDAY_MINUTES = 480
+SPEC_DUE_DAYS = 5
 Beads = Mapping[str, Mapping[str, Any]]
 
 
@@ -154,11 +155,12 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int) -> d
 
 def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: date,
              default_lanes: int = 1, confirmed: frozenset[str] | None = None) -> dict[str, Any]:
-    _, end = period(milestone)
+    start_day, end = period(milestone)
     epics = {epic["id"]: epic for epic in epics_of(milestone["id"], beads)}
     planned = _place(epics, _workday(start), lanes_of(milestone, default_lanes))
     active = status(milestone, today) == "active"
     kicked_off = status(milestone, today) in ("scheduled", "active")
+    due = status(milestone, today) == "planned" and start_day <= _last_of(_workday(today), SPEC_DUE_DAYS)
     rows = []
     for epic_id in sorted(epics, key=lambda item: (planned[item][0], item)):
         epic = epics[epic_id]
@@ -174,8 +176,11 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
             warnings.append({"code": "unestimated"})
         if any(bead.get("status") != "closed" for bead in outside):
             warnings.append({"code": "external_blocker"})
-        if confirmed is not None and kicked_off and epic.get("status") != "closed" and epic_id not in confirmed:
-            warnings.append({"code": "spec_not_ready"})
+        if confirmed is not None and epic.get("status") != "closed" and epic_id not in confirmed:
+            if kicked_off:
+                warnings.append({"code": "spec_not_ready"})
+            elif due:
+                warnings.append({"code": "spec_due"})
         rows.append({
             "id": epic_id, "title": epic.get("title", ""), "status": epic.get("status"), "estimate_days": days,
             "spec_confirmed": None if confirmed is None else epic_id in confirmed,
