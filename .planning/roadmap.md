@@ -41,13 +41,14 @@ Source: `.planning/reviews/2026-11-07-process-review/synthesis.md` (26 clusters,
 
 ## Strategy
 
-Fix the planning tools first, because every later epic is planned with them: shared gate state and the milestone forecast, then roadmap areas on tracks with contract and integration epics. The three blockers follow: the ship gate for child pull requests, gin-qa in a child, and approval roles. `ws-ship-gate` and `approval-roles` both edit `team.py`, so they run back to back. Progress views build on the shared gate state. The docs epic for the epic rule comes after the roadmap and approval epics it describes. Workspace branch, setup, and rule epics follow, then the QA lifecycle on top of gin-qa in a child, then the SDD team flow and the BA epic that builds on it.
+Fix the planning tools first, because every later epic is planned with them: shared gate state and forecast fidelity, then the capacity model and exit criteria, then roadmap areas on tracks with contract and integration epics. The three blockers follow: the ship gate for child pull requests, gin-qa in a child, and approval roles. `ws-ship-gate` and `approval-roles` both edit `team.py`, so they run back to back. Progress views build on the shared gate state. The docs epic for the epic rule comes after the roadmap and approval epics it describes. Workspace branch, setup, and rule epics follow, then the QA lifecycle on top of gin-qa in a child, then the SDD team flow and the BA epic that builds on it.
 
 ## Order
 
 ```mermaid
 flowchart LR
     MG[milestone-gates] --> TP[team-progress]
+    MG --> MC[milestone-capacity]
     RA[roadmap-areas] --> ES[epic-shape-docs]
     AR[approval-roles] --> ES
     SG[ws-ship-gate] --> BM[ws-branch-model]
@@ -59,26 +60,37 @@ flowchart LR
 
 | Wave | Epics |
 |---|---|
-| 1 | `gin-workflow-milestone-gates`, `gin-workflow-roadmap-areas` |
+| 1 | `gin-workflow-milestone-gates`, `gin-workflow-milestone-capacity`, `gin-workflow-roadmap-areas` |
 | 2 | `gin-workflow-ws-ship-gate`, `gin-workflow-qa-workspace`, `gin-workflow-approval-roles` |
 | 3 | `gin-workflow-team-progress`, `gin-workflow-epic-shape-docs`, `gin-workflow-ws-branch-model` |
 | 4 | `gin-workflow-ws-child-setup`, `gin-workflow-ws-entry-rules`, `gin-workflow-qa-lifecycle` |
 | 5 | `gin-workflow-sdd-team-flow`, `gin-workflow-ba-workspace` |
 
-With 1 lane the epics run in the listed order: milestone-gates, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-child-setup, ws-entry-rules, qa-lifecycle, sdd-team-flow, ba-workspace. Estimates total 19 working days; only the first three fit before the deadline.
+With 1 lane the epics run in the listed order: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-child-setup, ws-entry-rules, qa-lifecycle, sdd-team-flow, ba-workspace. Estimates total 21 working days; only the first two fit before the deadline.
 
 ## Unassigned
 
-### Shared gate state and milestone forecast
+### Shared gate state and forecast fidelity
 Epic: gin-workflow-milestone-gates
 Estimate: 2
-Complexity: high: gate readiness moves from the local event log to the epic bead; one capacity model
-Goal: `gin milestone` readiness and `orchestration_ready` read gate state from the epic bead, so every member's machine shows the same answer, and the forecast uses one capacity model.
-Scope: `spec_confirmed`/`spec_not_ready` and `orchestration_ready` read the epic's shared gate metadata, not only `.agent-workflow/runtime/events.jsonl`; one capacity model for the roadmap bound and the `show` schedule (lanes vs scarcest role group); remaining work for in-progress epics; unestimated epics shown in the finish; `late` defined in the docs; the deadline shown by `gin milestone show`; member availability; warnings for the integration date and exit criteria.
-Out of scope: progress views (`gin-workflow-team-progress`); gin-console changes beyond added JSON keys.
+Complexity: high: gate readiness moves from the local event log to the epic bead
+Goal: `gin milestone` readiness and `orchestration_ready` read gate state from the epic bead, so every member's machine shows the same answer, and the forecast counts the remaining work of in-progress epics.
+Scope: `spec_confirmed`/`spec_not_ready` read the epic's shared `gates` metadata, with `.agent-workflow/runtime/events.jsonl` as the fallback; a `spec_due` warning for epics of `planned` milestones; `orchestration_ready` shared through the epic bead; in-progress epics scheduled by remaining work; unestimated epics placed with a flagged default; the deadline shown by `gin milestone show`; `late` defined in the docs.
+Out of scope: the capacity model, member availability, exit criteria, and split warnings (`gin-workflow-milestone-capacity`); progress views (`gin-workflow-team-progress`); gin-console changes beyond added JSON keys.
 Depends on:
-Evidence: synthesis "Shared gate state for milestone and lifecycle routing" (PM-5, BA-5, BE-LEAD-5) and "Milestone capacity, forecast, and exit criteria" (PM-4, PM-6, PM-12, PM-17, PM-18, QA-15); `milestone_cli.py:132-148`, `milestone.py:171-177,231-246`, `lifecycle_cli.py:87-88,426`.
-Risks: the JSON read by gin-console must only gain keys; a shared gate state needs the epic metadata written at record time.
+Evidence: synthesis "Shared gate state for milestone and lifecycle routing" (PM-5, BA-5, BE-LEAD-5) and part of "Milestone capacity, forecast, and exit criteria" (PM-6); `milestone_cli.py:128-138`, `milestone.py:171-177,231-246`, `lifecycle_cli.py:87-88,184-185,426-428`.
+Risks: the JSON read by gin-console must only gain keys; gate values in `gin state` stay `satisfied`/`unmet` strings.
+
+### Milestone capacity model, exit criteria, and split warnings
+Epic: gin-workflow-milestone-capacity
+Estimate: 2
+Complexity: medium: team config gains member availability
+Goal: the roadmap bound and the `gin milestone` schedule use one capacity model by role group with member availability and QA, milestones store an integration date and exit criteria and warn when they fail, and the roadmap warns about an epic larger than its milestone.
+Scope: default lanes no longer count the PM and BA as builders; member days off; QA counted in the Load bound; integration date and exit criteria keys on a milestone; `show` warns after the integration date and on open `discovered-from` bug beads; a roadmap warning when an estimate exceeds the milestone's working days.
+Out of scope: shared gate state and forecast fidelity (`gin-workflow-milestone-gates`); progress views (`gin-workflow-team-progress`).
+Depends on: gin-workflow-milestone-gates
+Evidence: synthesis "Milestone capacity, forecast, and exit criteria" (PM-4, PM-12, PM-17, PM-18, QA-15); `milestone_cli.py:141-148`, `plugins/gin-workflow/src/skills/roadmap/SKILL.md:17-25`, `references/way-of-working.md:21`.
+Risks: an availability schema in the team config; the roadmap skill budget.
 
 ### Roadmap areas on tracks, contract and integration epics
 Epic: gin-workflow-roadmap-areas
