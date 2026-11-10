@@ -430,7 +430,7 @@ class SpecReadinessTests(unittest.TestCase):
         self.assertEqual(0, milestone.list_payload(beads, TODAY, False)["milestones"][0]["warnings"])
 
 
-class SpecReadinessTests(unittest.TestCase):
+class SpecDueTests(unittest.TestCase):
     def codes(self, result, epic_id):
         return [w["code"] for w in rows(result)[epic_id]["warnings"]]
 
@@ -451,6 +451,20 @@ class SpecReadinessTests(unittest.TestCase):
         result = milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, frozenset({"A"}))
         self.assertNotIn("spec_due", self.codes(result, "A"))
         self.assertNotIn("spec_due", self.codes(result, "B"))
+
+    def spec_codes(self, start, confirmed=frozenset()):
+        beads = world(milestone_bead(start=start, end="2026-11-30"), bead("A", parent="m1", minutes=days(1)))
+        return self.codes(milestone.schedule(beads["m1"], beads, D(start), TODAY, 1, confirmed), "A")
+
+    def test_spec_due_when_the_planned_start_is_already_past(self):
+        self.assertIn("spec_due", self.spec_codes("2026-10-26"))
+
+    def test_spec_due_boundary_is_the_fifth_working_day(self):
+        self.assertIn("spec_due", self.spec_codes("2026-11-04"))
+        self.assertNotIn("spec_due", self.spec_codes("2026-11-05"))
+
+    def test_no_spec_due_when_readiness_is_unknown(self):
+        self.assertNotIn("spec_due", self.spec_codes("2026-11-02", None))
 
     def test_kicked_off_milestone_warns_spec_not_ready_never_spec_due(self):
         beads = world(milestone_bead(start="2026-11-02", end="2026-11-20", kickoff="2026-10-28"),
