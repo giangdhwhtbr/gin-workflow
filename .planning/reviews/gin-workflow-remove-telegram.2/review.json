@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "changes-requested",
+  "review_state": "implementation-in-progress",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-remove-telegram.2",
       "checkpoint_ref": "refs/gin/review/gin-workflow-remove-telegram.2",
       "review_base_sha": "b7b470454b5fab29290cd791755d2994711cba4d",
-      "reviewed_source_sha": "75fa08989b393231c508cd005592f9e11d7c90ed",
-      "checkpoint_sha": "75fa08989b393231c508cd005592f9e11d7c90ed",
+      "reviewed_source_sha": "638abf82391c262fd136a89c798a2a77e7d42d06",
+      "checkpoint_sha": "638abf82391c262fd136a89c798a2a77e7d42d06",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "7e107885589a734fc4b4146efb4051e4866fea4e3991bc71b5b0f0cafbde3900",
-      "reviewed_source_tree_hash": "7e107885589a734fc4b4146efb4051e4866fea4e3991bc71b5b0f0cafbde3900",
+      "source_tree_hash": "f449e23a2a94bebb9150e8cf5b63effa13b4900b125f391b295bca7191788677",
+      "reviewed_source_tree_hash": "f449e23a2a94bebb9150e8cf5b63effa13b4900b125f391b295bca7191788677",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 8,
+  "ledger_revision": 11,
   "next_finding_number": 1,
   "findings": {
     "rollback-version-key-nonnumeric": {
       "finding_id": "rollback-version-key-nonnumeric",
       "severity": "MINOR",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -196,6 +196,63 @@
       },
       "previous_event_hash": "6527125f36ee59150a9d33768ba1372bbd7aff9384ad0623bd2a0b8f35df73c3",
       "event_hash": "0a6e71bf30f60429470053ec934884cbd70783000c63495228936be2b85e6d67"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "implementation-in-progress",
+      "timestamp": "2026-11-11T23:23:27.083092Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "implementation-in-progress"
+      },
+      "previous_event_hash": "0a6e71bf30f60429470053ec934884cbd70783000c63495228936be2b85e6d67",
+      "event_hash": "b4db20c8bccfe8877a32395abdec4bed3304c3d34155da4a6a4000c0f9da2fa0"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-11T23:23:27.271300Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "finding_id": "rollback-version-key-nonnumeric"
+      },
+      "previous_event_hash": "b4db20c8bccfe8877a32395abdec4bed3304c3d34155da4a6a4000c0f9da2fa0",
+      "event_hash": "1c490a13f1d8bb806d38375cc52b4205af5cff761c4d9518e302286750217776"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-11T23:23:27.689474Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-remove-telegram.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-remove-telegram.2",
+            "review_base_sha": "b7b470454b5fab29290cd791755d2994711cba4d",
+            "reviewed_source_sha": "638abf82391c262fd136a89c798a2a77e7d42d06",
+            "checkpoint_sha": "638abf82391c262fd136a89c798a2a77e7d42d06",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "f449e23a2a94bebb9150e8cf5b63effa13b4900b125f391b295bca7191788677",
+            "reviewed_source_tree_hash": "f449e23a2a94bebb9150e8cf5b63effa13b4900b125f391b295bca7191788677",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "1c490a13f1d8bb806d38375cc52b4205af5cff761c4d9518e302286750217776",
+      "event_hash": "80cd07ae6866b7e26593892b79c40de65d521c4fbf82ab54ab73410c70afe94a"
     }
   ]
 }
