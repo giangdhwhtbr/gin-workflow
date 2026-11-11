@@ -37,6 +37,7 @@ Stages load these when needed; you can also invoke them directly.
 | `parallel-agents` | Work several independent tasks concurrently, one bounded agent per domain |
 | `learn` | Capture durable decisions and lessons, and reconcile project knowledge at ship |
 | `sdd` | Stage rules for `artifacts.layout: sdd`: change folders, REQ-IDs, trace, spec review, archive ([guide](../guides/sdd.md)) |
+| `qa-track` | Rules for a track routed to the `qa` provider role: the matching gin-qa skill, gin-qa validation, and the commit |
 | `team` | Stage rules for team mode: identity, PR-proven gates, areas and owners, claims, Beads sync ([guide](../guides/team.md)) |
 
 ## gin: setup and maintenance

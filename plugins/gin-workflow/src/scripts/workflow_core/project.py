@@ -78,10 +78,10 @@ def project_settings(config: Mapping[str, Any]) -> ProjectSettings:
 
 
 ROLES_BY_SHAPE = {
-    "frontend": ("frontend", "review", "docs", "general"),
-    "backend": ("backend", "review", "docs", "general"),
-    "fullstack": ("frontend", "backend", "review", "docs", "general"),
-    "library": ("frontend", "backend", "review", "docs", "general"),
+    "frontend": ("frontend", "review", "docs", "qa", "general"),
+    "backend": ("backend", "review", "docs", "qa", "general"),
+    "fullstack": ("frontend", "backend", "review", "docs", "qa", "general"),
+    "library": ("frontend", "backend", "review", "docs", "qa", "general"),
 }
 
 

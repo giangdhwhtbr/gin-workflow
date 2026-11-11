@@ -9,8 +9,6 @@ description: Implement and validate exactly one ready work unit at its manifest 
 
 # Execute
 
-Implement one ready work unit inside its approved scope and record evidence.
-
 ## 1. Select and review
 1. Require `orchestration_ready`. For a standalone bead, claim it first (`gin task update <bead> --claim`; with Beads, `record` sets it `in_progress` and a later claim is refused). Then record it as its own epic: `gin record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later `state`/`record` call. An epic labelled `roadmap` with no confirmed spec: refuse and recommend `/discuss <epic-id>`; never record it as its own epic.
 2. Resume first: `gin task list --parent <epic> --status in_progress`; if empty, use `task ready`. Claim with `task update <id> --claim`.
@@ -32,7 +30,7 @@ Implement one ready work unit inside its approved scope and record evidence.
 ## 3. Worker dispatch
 Dispatch each track using this loop:
 1. `gin routes dispatch --workflow-id <w> --task-id <id> --json` gives the route.
-2. When `provider` is the main harness `claude` or `antigravity`, always spawn `gin:developer` natively, never in this session: `claude` `Agent` with `model`; `antigravity` `invoke_subagent(TypeName="developer", Model="inherit")`, which runs the session's model (no model ID; it caps the route). Give it a bounded context: track text, file scope, `gin rules` output, worktree path, validation commands (never the parent transcript or secrets). Otherwise (a provider other than the main harness, or `codex`/`opencode`/`copilot`), dispatch via `gin-orchestrator dispatch` per [worker lifecycle](references/worker-lifecycle.md); without it, `claude`/`antigravity` spawn natively as above; others implement the track in this session with that context and note `in_session` on the bead.
+2. When `provider` is the main harness `claude` or `antigravity`, always spawn `gin:developer` natively, never in this session: `claude` `Agent` with `model`; `antigravity` `invoke_subagent(TypeName="developer", Model="inherit")`, which runs the session's model (no model ID; it caps the route). Give it a bounded context: track text, file scope, `gin rules` output, worktree path, validation commands (never the parent transcript or secrets). Otherwise (a provider other than the main harness, or `codex`/`opencode`/`copilot`), dispatch via `gin-orchestrator dispatch` per [worker lifecycle](references/worker-lifecycle.md); without it, `claude`/`antigravity` spawn natively as above; others implement the track in this session with that context and note `in_session` on the bead. A track routed to `qa` also follows the `qa-track` skill.
 3. After each worker result, run `gin usage collect --bead <epic> --best-effort`. If `routes dispatch` exits 3 (`over_budget`), `gin notify --event needs_input "<epic>: over budget"`, leave the bead `in_progress` with a note, and ask the user to raise `usage.budget_usd` or stop.
 4. On `done`, check the commits and command output, then request review.
 5. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise `gin notify --event needs_input "<track>: <question>"` and leave the bead `in_progress` with a note.

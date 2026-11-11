@@ -10,7 +10,7 @@ from workflow_core.budget import STAGES, description_chars, stage_chain, stage_c
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "plugins/gin-workflow/src"
-SHARED_SKILLS = ("learn", "sdd", "team", "worktrees", "debugging", "review-response", "parallel-agents")
+SHARED_SKILLS = ("learn", "sdd", "team", "worktrees", "debugging", "review-response", "parallel-agents", "qa-track")
 BANNED = ("ContextManifest", "ArtifactRegistry", "ApprovalDecision", "load_effective_config")
 
 
@@ -164,6 +164,12 @@ class TestBudgetLimits(unittest.TestCase):
         for heading in ("## Gates", "## discuss", "## plan", "## orchestrate", "## execute", "## ship"):
             with self.subTest(heading=heading):
                 self.assertIn(heading, guide)
+
+    def test_execute_names_qa_track_on_demand(self):
+        qa_skill = (SRC / "skills/qa-track/SKILL.md").resolve()
+        text = (SRC / "skills/execute/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`qa-track`", text)
+        self.assertNotIn(qa_skill, stage_chain(SRC, "execute"))
 
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), *((f"skills/{name}/SKILL.md", 6_000) for name in SHARED_SKILLS),

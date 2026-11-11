@@ -37,6 +37,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `parallel-agents` | Làm nhiều task độc lập đồng thời, mỗi domain một agent có phạm vi rõ |
 | `learn` | Ghi lại các quyết định và bài học lâu dài, và đối chiếu tri thức dự án khi ship |
 | `sdd` | Quy tắc stage cho `artifacts.layout: sdd`: change folder, REQ-ID, trace, spec review, archive ([hướng dẫn](../guides/sdd.md)) |
+| `qa-track` | Quy tắc cho track được route tới provider role `qa`: skill gin-qa phù hợp, kiểm tra bằng gin-qa, và commit |
 | `team` | Quy tắc stage cho chế độ nhóm: danh tính, cổng được chứng minh bằng PR, khu vực và owner, claim, đồng bộ Beads ([hướng dẫn](../guides/team.md)) |
 
 ## gin: setup và bảo trì { #gin-setup-and-maintenance }
