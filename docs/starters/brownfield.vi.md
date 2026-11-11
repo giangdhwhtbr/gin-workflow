@@ -89,12 +89,12 @@ flowchart LR
 Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
-Trả lời `stage: brownfield`, `shape: fullstack`, `workspace` cho kiểu bố trí repository, và `sdd` cho layout spec. Sau đó điền `workspace.repos` trong `.agent-workflow/config.yaml`:
+Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó đặt `artifacts.layout: sdd` và điền `workspace.repos` trong `.agent-workflow/config.yaml`:
 
 ```yaml
 artifacts:
   layout: sdd
-  test_globs: ["**/src/test/**", "**/test_*.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**"]
+  test_globs: ["**/src/test/**", "**/test_*.py", "**/*_test.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**"]
 workspace:
   repos:
     - {path: legacy/shop-portal, url: git@github.com:acme/shop-portal.git, frozen: true}
@@ -114,7 +114,7 @@ workspace:
     - {path: .beads, url: git@github.com:acme/beads.git, shape: beads}
 ```
 
-Cây test của Maven được thêm vào các glob mặc định để `gin specs trace` tìm thấy test của các service.
+Danh sách `test_globs` là các glob mặc định cộng thêm cây test của Maven, vì danh sách được cấu hình sẽ thay thế các giá trị mặc định. Nhờ vậy `gin specs trace` tìm thấy test của các service.
 
 Sau đó clone tất cả và cài hook trong từng repository:
 

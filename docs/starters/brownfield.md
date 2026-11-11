@@ -89,12 +89,12 @@ flowchart LR
 Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
-Answer `stage: brownfield`, `shape: fullstack`, `workspace` for the repository layout, and `sdd` for the spec layout. Then fill `workspace.repos` in `.agent-workflow/config.yaml`:
+Answer `stage: brownfield`, `shape: fullstack`, and `workspace` for the repository layout. Then set `artifacts.layout: sdd` and fill `workspace.repos` in `.agent-workflow/config.yaml`:
 
 ```yaml
 artifacts:
   layout: sdd
-  test_globs: ["**/src/test/**", "**/test_*.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**"]
+  test_globs: ["**/src/test/**", "**/test_*.py", "**/*_test.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**"]
 workspace:
   repos:
     - {path: legacy/shop-portal, url: git@github.com:acme/shop-portal.git, frozen: true}
@@ -114,7 +114,7 @@ workspace:
     - {path: .beads, url: git@github.com:acme/beads.git, shape: beads}
 ```
 
-The Maven test tree is added to the default globs so `gin specs trace` finds the services' tests.
+The `test_globs` list is the default globs plus the Maven test tree, because a configured list replaces the defaults. This lets `gin specs trace` find the services' tests.
 
 Then clone everything and install the hooks in each repository:
 
