@@ -71,6 +71,14 @@ def _findings(errors: list[str], output_format: str, ok: str) -> int:
     return 1 if errors else 0
 
 
+def _qa_root(root: Path) -> str | None:
+    try:
+        found = workspace.qa_root(root, Path.cwd())
+    except workspace.WorkspaceError as error:
+        raise specs.SpecsError(str(error)) from error
+    return str(found) if found else None
+
+
 def _run(args: argparse.Namespace) -> int:
     root = args.repository.resolve()
     if args.command == "template":
@@ -96,6 +104,7 @@ def _run(args: argparse.Namespace) -> int:
             specs.require_layout(cfg, "sdd")
             change = specs.find_change(root, cfg, args.change)
         result = requirements(root, config, cfg, change)
+        result = {**result, "root": str(root), "qa_root": _qa_root(root)}
         _emit(result, args.format, "\n".join(f"{row['id']} {row['section']} {row['hash'][:8]} {row['title']}"
                                              for row in result["requirements"]))
         return 0

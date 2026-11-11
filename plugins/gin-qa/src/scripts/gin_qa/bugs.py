@@ -57,13 +57,15 @@ def _workflow_epic(root: Path, topic: str) -> str | None:
 
 
 def epic_of(root: Path, eff: Effective, case: tc.Case) -> str | None:
-    """Legacy: the spec named in `Source:` (its `Epic:` line, else the epic of its `Workflow:`).
-    SDD: the first REQ whose change has an epic."""
+    """Legacy: the spec named in `Source:` (its `Epic:` line, else the epic of its `Workflow:`), read from the project
+    root, which holds the specs and the tracker (`root` is the QA home's repository). SDD: the first REQ whose change
+    has an epic."""
+    project = eff.project_root
     source = case.fields.get("Source")
     if source:
         relative = source.split("#", 1)[0].strip()
-        path = (root / relative).resolve()
-        if root.resolve() not in path.parents:
+        path = (project / relative).resolve()
+        if project.resolve() not in path.parents:
             raise QaError(f"{case.id}: {relative} is outside the repository")
         try:
             text = path.read_text(encoding="utf-8")
@@ -72,7 +74,7 @@ def epic_of(root: Path, eff: Effective, case: tc.Case) -> str | None:
         if found := _EPIC.search(text):
             return found.group(1)
         topic = _WORKFLOW.search(text)
-        return _workflow_epic(root, topic.group(1)) if topic else None
+        return _workflow_epic(project, topic.group(1)) if topic else None
     return next((eff.reqs[req]["epic"] for req, _ in case.reqs if eff.reqs.get(req, {}).get("epic")), None)
 
 
@@ -103,14 +105,15 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     for value in (actual, *evidence, *(item for item in (external_ref, discovered_from, run) if item is not None)):
         tc.one_line(value)
     case = tc.find(root, eff.cases_dir, case_id)
+    project = eff.project_root  # Beads runs against the project root; the case files live under `root`
     if case.type != "manual":
         raise ValueError(f"{case_id}: is a {case.type or 'untyped'} case; cases bug files bugs for manual cases only")
     run = run if run is not None else case.fields.get("Run")
     previous = case.fields.get("Bug")
     if previous:
-        old, _ = _show(root, previous)  # a value that is not a readable bead counts as no open bug
+        old, _ = _show(project, previous)  # a value that is not a readable bead counts as no open bug
         if old is not None and old.get("status") not in (None, "closed"):
-            added = _gin_workflow(root, "task", "update", previous, "--append-notes", rerun_note(run, actual, evidence))
+            added = _gin_workflow(project, "task", "update", previous, "--append-notes", rerun_note(run, actual, evidence))
             if added.returncode != 0:  # before the case changes, so the tester can run this again
                 raise QaError(added.stderr.strip() or f"gin task update exited {added.returncode}")
             row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, previous)
@@ -119,7 +122,7 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     epic = discovered_from or epic_of(root, eff, case)
     if epic is None:
         raise QaError(f"no epic for {case_id}; pass --discovered-from <bead>")
-    found, failure = _show(root, epic)
+    found, failure = _show(project, epic)
     if failure:
         raise QaError(failure)
     if found is None:
@@ -129,7 +132,7 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     argv = ["task", "create", "-t", "bug", "--title", f"{case_id}: {case.title}".replace('"', "'"),
             "--body-file", "-", "--deps", f"discovered-from:{epic}", "-p", priority,
             *(["--external-ref", external_ref] if external_ref else []), "--json"]
-    created = _gin_workflow(root, *argv, stdin=description(case, run, previous, actual, evidence))
+    created = _gin_workflow(project, *argv, stdin=description(case, run, previous, actual, evidence))
     if created.returncode != 0:
         raise QaError(created.stderr.strip() or f"gin task create exited {created.returncode}")
     bug = (_record(created.stdout) or {}).get("id")

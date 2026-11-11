@@ -132,20 +132,20 @@ Mục `## Way of working` của template (Foundation, Spec cadence, Build, Integ
 
 ## Guideline và trường của test case { #test-case-guidelines-and-fields }
 
-Add-on gin-qa được tùy biến qua file guidelines (`qa/guidelines.md`) và các trường metadata bổ sung.
+Add-on gin-qa được tùy biến qua file guidelines (`guidelines.md` trong [QA home](qa.md#the-qa-home)) và các trường metadata bổ sung.
 
 ### File guidelines { #the-guidelines-file }
 
-`/gin-qa:setup` ghi `qa/guidelines.md` từ một buổi phỏng vấn; nếu chưa có, `/gin-qa:cases` tạo file từ template ở lần dùng đầu. Agent đọc file này trước khi soạn test case, và các rule của nó ghi đè mặc định.
+`/gin-qa:setup` ghi `guidelines.md` trong QA home từ một buổi phỏng vấn; nếu chưa có, `/gin-qa:cases` tạo file từ template ở lần dùng đầu. Agent đọc file này trước khi soạn test case, và các rule của nó ghi đè mặc định.
 
-Sửa `qa/guidelines.md` để tùy biến:
+Sửa `guidelines.md` trong QA home để tùy biến:
 - Language: Ép buộc các bước test bằng tiếng Việt, tiếng Anh, hoặc song ngữ.
 - Types: các loại case đang dùng, mỗi loại một dòng ``- `<type>`: <what it covers>`` dưới `## Types`, được kiểm tra bởi [`gin-qa cases check`](../reference/cli.md#gin-qa-cases-check).
 - Manual runs và bugs: tham chiếu lần chạy mà `/gin-qa:run` đề xuất (`## Manual runs`), và liệu một bug có cần tham chiếu tracker bên ngoài hay không (`## Bugs`).
 - Extra fields: Khai báo các tag metadata riêng của nhóm.
 - End-to-end rules: Định nghĩa cơ chế đăng nhập (như `storageState`), fixture người dùng test, hoặc chiến lược locator.
 
-Ví dụ `qa/guidelines.md`:
+Ví dụ `guidelines.md`:
 ```markdown
 # Test case guidelines
 
@@ -200,12 +200,12 @@ Parser của gin-qa giữ mọi dòng trường khác trong header của một c
 - Notification email is sent to `test@example.com`
 ```
 
-Lưu thành `qa/cases/auth/TC-AUTH-005-lockout.e2e.md`.
+Lưu thành `cases/auth/TC-AUTH-005-lockout.e2e.md` trong QA home.
 
 `gin-qa cases export --format json` liệt kê mọi trường tùy chỉnh (`Jira`, `Severity`, `Component`, và các trường khác) dưới `fields` trong đầu ra JSON. `Result`, `Run`, và `Bug` được dành riêng cho `gin-qa cases result`. `REQ`, `Source`, `Priority`, và `Type` giữ ý nghĩa riêng và không nằm trong `fields`.
 
 ## Evidence fixture end-to-end { #the-end-to-end-evidence-fixture }
 
-`gin-qa e2e init`, lệnh mà `/gin-qa:e2e` chạy, sao chép fixture vào `qa/e2e/evidence.ts`. File này thuộc về repository của bạn, nên cứ thoải mái sửa, nhưng hãy giữ nguyên cấu trúc của `result.json` mà nó ghi: `gin-qa e2e check` và `gin-qa e2e export` đọc file đó.
+`gin-qa e2e init`, lệnh mà `/gin-qa:e2e` chạy, sao chép fixture vào `e2e/evidence.ts` trong QA home. File này thuộc về repository của bạn, nên cứ thoải mái sửa, nhưng hãy giữ nguyên cấu trúc của `result.json` mà nó ghi: `gin-qa e2e check` và `gin-qa e2e export` đọc file đó.
 
-Template Playwright config được sao chép theo cách tương tự: `gin-qa e2e init` chỉ ghi `playwright.config.ts` khi gốc repository chưa có `playwright.config.*`, và file được ghi là của bạn để sửa.
+Template Playwright config được sao chép theo cách tương tự: `gin-qa e2e init` chỉ ghi `playwright.config.ts` khi thư mục Playwright chưa có `playwright.config.*`. Đó là thư mục `e2e` của QA home, hoặc gốc repository với thiết lập cũ ở gốc. File được ghi là của bạn để sửa.

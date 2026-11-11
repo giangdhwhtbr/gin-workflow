@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -12,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-workfl
 
 from workflow_core import workspace  # noqa: E402
 from workflow_core.schemas import validate_config_schema  # noqa: E402
+
+LAUNCHER = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts/gin"
 
 
 def git(root, *argv):
@@ -175,6 +178,63 @@ class ResolutionTests(unittest.TestCase):
                           "branch": None}, by_path["apps/web"])
         self.assertIsNone(workspace.summary(workspace.locate(init_repo(self.base / "plain"))))
         self.assertIsNone(workspace.summary(workspace.locate(self.root))["current_repo"])
+
+
+class QaRootTests(unittest.TestCase):
+    QA = "    - path: {path}\n      url: git@example.com:acme/{path}.git\n      shape: qa\n"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name).resolve()
+        self.root = make_workspace(self.base)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def add_qa(self, *paths):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + "".join(self.QA.format(path=p) for p in paths),
+                          encoding="utf-8")
+        for path in paths:
+            init_repo(self.root / path)
+
+    def test_none_without_a_workspace_or_a_qa_entry(self):
+        self.assertIsNone(workspace.qa_root(self.root, self.root))
+        plain = init_repo(self.base / "plain")
+        self.assertIsNone(workspace.qa_root(plain, plain))
+
+    def test_child_checkout_and_its_linked_worktree(self):
+        self.add_qa("qa")
+        qa = self.root / "qa"
+        self.assertEqual(qa, workspace.qa_root(self.root, self.root))
+        self.assertEqual(qa, workspace.qa_root(self.root, qa))
+        wt = self.base / "wt"
+        git(qa, "worktree", "add", "-b", "t", str(wt))
+        self.assertEqual(wt, workspace.qa_root(self.root, wt))
+
+    def test_several_qa_entries_are_refused(self):
+        self.add_qa("qa", "qa2")
+        with self.assertRaises(workspace.WorkspaceError) as caught:
+            workspace.qa_root(self.root, self.root)
+        self.assertIn("qa", str(caught.exception))
+        self.assertIn("qa2", str(caught.exception))
+
+    def test_specs_reqs_reports_root_and_qa_root(self):
+        self.add_qa("qa")
+        qa = self.root / "qa"
+        out = subprocess.run([sys.executable, str(LAUNCHER), "specs", "reqs", "--format", "json"], cwd=qa,
+                             capture_output=True, text=True)
+        self.assertEqual(0, out.returncode, out.stderr)
+        payload = json.loads(out.stdout)
+        self.assertEqual((str(self.root), str(qa)), (payload["root"], payload["qa_root"]))
+        self.assertIn("requirements", payload)
+
+    def test_specs_reqs_with_several_qa_entries_exits_2(self):
+        self.add_qa("qa", "qa2")
+        out = subprocess.run([sys.executable, str(LAUNCHER), "specs", "reqs", "--format", "json"], cwd=self.root,
+                             capture_output=True, text=True)
+        self.assertEqual(2, out.returncode)
+        self.assertIn("more than one shape: qa entry", out.stderr)
 
 
 if __name__ == "__main__":

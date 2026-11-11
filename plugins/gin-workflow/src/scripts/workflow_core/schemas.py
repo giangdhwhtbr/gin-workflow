@@ -271,7 +271,8 @@ CONFIG_SCHEMA: dict[str, Any] = {
         "workspace": _WORKSPACE,
         "qa": {
             "type": "object",
-            "properties": {"cases": {"type": "string", "minLength": 1},
+            "properties": {"dir": {"type": "string", "minLength": 1},
+                           "cases": {"type": "string", "minLength": 1},
                            "guidelines": {"type": "string", "minLength": 1},
                            "e2e": {"type": "string", "minLength": 1}},
             "additionalProperties": False,

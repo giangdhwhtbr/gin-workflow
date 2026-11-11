@@ -8,7 +8,7 @@ description: Set up QA for a project from one interview - guidelines, README, an
 `/gin-qa:setup`. Writes the QA rules and process of this repository. It writes no case, test, or spec, and edits no case file.
 
 1. Preconditions: `gin` and `gin-qa` are on `PATH` and `.agent-workflow/generated/effective-config.yaml` exists. Otherwise stop and name what to install or run: `install.sh --plugin gin-qa` (or `--plugin all`) from a gin-workflow clone or through `remote-install.sh`, or `/setup`.
-2. Paths: the guidelines file is `qa.guidelines` in `.agent-workflow/config.yaml` (default `qa/guidelines.md`), and `README.md` sits next to it. The project skill is `.claude/skills/<name>-qa/SKILL.md`. `<name>` is the repository root's folder name in lower case, with each run of characters outside `a-z0-9` replaced by `-` and leading and trailing `-` removed.
+2. Paths: the guidelines file is `qa.guidelines` in `.agent-workflow/config.yaml` (default `guidelines.md` in the QA home: the `shape: qa` workspace child, else `qa.dir`, default `qa`), and `README.md` sits next to it. The project skill is `.claude/skills/<name>-qa/SKILL.md`. `<name>` is the repository root's folder name in lower case, with each run of characters outside `a-z0-9` replaced by `-` and leading and trailing `-` removed.
 3. Read what exists: the guidelines, the README, the project skill, and `gin-qa cases export --format json`. Take every answer they already give:
    - the types: from `## Types`, from a bullet that lists this project's types, and from the `type` of each exported case;
    - the automated types: from `## Automated types`;

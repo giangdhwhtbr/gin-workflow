@@ -161,6 +161,7 @@ class TestInitConfig(E2eCase):
     def test_writes_the_config_with_the_e2e_folder_and_base_url(self):
         config = self.root / ".agent-workflow/config.yaml"
         config.write_text(config.read_text() + "qa:\n  e2e: tests/e2e\n")
+        write(self.root, "package.json", '{"scripts": {"e2e": "playwright test"}}')  # a root Playwright setup
         result = self.e2e("init", "--base-url", "http://127.0.0.1:8080")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("wrote playwright.config.ts (baseURL http://127.0.0.1:8080)", result.stdout)
@@ -174,12 +175,12 @@ class TestInitConfig(E2eCase):
 
     def test_default_url_and_the_config_is_never_overwritten(self):
         self.assertEqual(0, self.e2e("init").returncode)
-        config = self.root / "playwright.config.ts"
+        config = self.root / "qa/e2e/playwright.config.ts"
         self.assertIn("process.env.E2E_BASE_URL ?? 'http://localhost:3000'", config.read_text())
         before = config.read_bytes()
         result = self.e2e("init", "--base-url", "http://example.test")
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("playwright.config.ts exists; --base-url not applied", result.stdout)
+        self.assertIn("qa/e2e/playwright.config.ts exists; --base-url not applied", result.stdout)
         self.assertEqual(before, config.read_bytes())
         self.assertNotIn("not applied", self.e2e("init").stdout)
 
@@ -277,6 +278,7 @@ class TestRunAndEvidence(E2eCase):
         self.assertEqual(0, self.e2e("init").returncode)
         write(self.root, "node_modules/@playwright/test/package.json", "{}")
         self.write_spec()
+        self.pkg = self.root / "qa/e2e"  # a new setup: Playwright runs in the e2e folder
 
     def run_e2e(self, *args: str):
         return self.e2e("run", *args, "--format", "json", path=os.pathsep.join([str(self.npx), TOOLS_PATH]))
@@ -287,9 +289,9 @@ class TestRunAndEvidence(E2eCase):
         payload = json.loads(result.stdout)
         self.assertEqual((0, []), (payload["playwright_exit"], payload["findings"]))
         self.assertRegex(payload["run"], r"^qa/evidence/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d$")
-        self.assertEqual(["playwright", "test", "qa/e2e/auth/tc-auth-001.spec.ts",
-                          "--output", f"{payload['run']}/playwright"],
-                         json.loads((self.root / ".npx-args").read_text()))
+        self.assertEqual(["playwright", "test", "auth/tc-auth-001.spec.ts",
+                          "--output", str(self.root / payload["run"] / "playwright")],
+                         json.loads((self.pkg / ".npx-args").read_text()))
         record = json.loads((self.root / payload["run"] / "run.json").read_text())
         self.assertEqual((["qa/e2e/auth/tc-auth-001.spec.ts"], 0), (record["specs"], record["playwright_exit"]))
         self.assertNotEqual(payload["run"], json.loads(self.run_e2e("auth").stdout)["run"])
@@ -305,10 +307,10 @@ class TestRunAndEvidence(E2eCase):
         self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
 
     def test_worst_result_over_projects_and_missing_results(self):
-        (self.root / ".fake-skip").write_text("TC-AUTH-001")
+        (self.pkg / ".fake-skip").write_text("TC-AUTH-001")
         payload = json.loads(self.run_e2e().stdout)
         self.assertEqual([{"tc": "TC-AUTH-001", "result": "blocked"}], payload["recorded"])
-        (self.root / ".fake-skip").unlink()
+        (self.pkg / ".fake-skip").unlink()
         folder = json.loads(self.run_e2e().stdout)["run"]
         case_dir = self.root / folder / "tc-auth-001"
         data = json.loads((case_dir / "result.json").read_text())
@@ -339,10 +341,10 @@ class TestRunAndEvidence(E2eCase):
             self.assertEqual(0, self.e2e("check", "--run", folder).returncode)
 
     def test_run_exit_codes(self):
-        (self.root / ".fake-exit").write_text("1")
+        (self.pkg / ".fake-exit").write_text("1")
         self.assertEqual(1, self.run_e2e().returncode)
-        (self.root / ".fake-exit").write_text("0")
-        (self.root / ".fake-skip").write_text("TC-AUTH-001")
+        (self.pkg / ".fake-exit").write_text("0")
+        (self.pkg / ".fake-skip").write_text("TC-AUTH-001")
         result = self.run_e2e()
         self.assertEqual(1, result.returncode)
         self.assertIn("no result.json", json.loads(result.stdout)["findings"][0])
@@ -482,6 +484,10 @@ class TestInitInstall(E2eCase):
             python_stub(self.bin, name, FAKE_MANAGER.format(python=sys.executable))
         write(self.root, "package.json", '{"name": "app"}\n')
 
+    def root_setup(self) -> None:
+        """A project with Playwright at the root, which `init --install` keeps using."""
+        write(self.root, "playwright.config.js", "module.exports = {};\n")
+
     def calls(self) -> list[str]:
         log = self.root / ".pm-calls"
         return log.read_text().splitlines() if log.exists() else []
@@ -491,6 +497,7 @@ class TestInitInstall(E2eCase):
         self.assertEqual([], self.calls())
 
     def test_the_manager_follows_the_lockfile(self):
+        self.root_setup()
         for lockfile, expected in (
                 (None, ["npm install -D @playwright/test", "npx playwright install chromium"]),
                 ("pnpm-lock.yaml", ["pnpm add -D @playwright/test", "pnpm exec playwright install chromium"]),
@@ -505,16 +512,19 @@ class TestInitInstall(E2eCase):
                 (self.root / (lockfile or "none")).unlink(missing_ok=True)
 
     def test_adds_the_script_and_keeps_the_rest_of_package_json(self):
+        self.root_setup()
         self.assertEqual(0, self.e2e("init", "--install").returncode)
         data = json.loads((self.root / "package.json").read_text())
         self.assertEqual({"name": "app", "scripts": {"e2e": "playwright test"}}, data)
 
     def test_an_installed_package_is_not_installed_again(self):
+        self.root_setup()
         write(self.root, "node_modules/@playwright/test/package.json", "{}")
         self.assertEqual(0, self.e2e("init", "--install").returncode)
         self.assertEqual(["npx playwright install chromium"], self.calls())
 
     def test_a_failed_install_exits_2_and_names_the_commands(self):
+        self.root_setup()
         write(self.root, ".pm-exit", "3")
         result = self.e2e("init", "--install")
         self.assertEqual(2, result.returncode)
@@ -522,6 +532,7 @@ class TestInitInstall(E2eCase):
         self.assertIn("npx playwright install chromium", result.stderr)
 
     def test_no_package_json_exits_2_and_writes_nothing(self):
+        self.root_setup()
         (self.root / "package.json").unlink()
         result = self.e2e("init", "--install")
         self.assertEqual(2, result.returncode)
@@ -529,6 +540,7 @@ class TestInitInstall(E2eCase):
         self.assertFalse((self.root / "qa/e2e/evidence.ts").exists())
 
     def test_a_bad_package_json_exits_2_before_anything_is_installed_or_written(self):
+        self.root_setup()
         for text in ("{not json", "[]", '{"scripts": []}'):
             with self.subTest(text=text):
                 write(self.root, "package.json", text)

@@ -10,7 +10,7 @@ Before adding more features, epic `gin-workflow-process-review` checked how the 
 - A persona's wrong line numbers with correct content were deferred to the synthesis track, which cites the corrected lines, instead of re-running an `opus`/`high` persona.
 
 **Consequences**
-- P1 items for the next roadmap: the ship gate refuses pull requests of workspace children (fixed by `gin-workflow-ws-ship-gate`, 2026-11-10); gin-qa cannot run from the `qa` child or a track worktree (open: `gin-workflow-qa-workspace`); `plan_approved: area_lead` deadlocks when one `be_lead` leads every area, and `ship: [qe, be_lead]` lets a lead merge without QA (fixed by `gin-workflow-approval-roles`, 2026-11-10; see [approval-policies](approval-policies.md)).
+- P1 items for the next roadmap: the ship gate refuses pull requests of workspace children (fixed by `gin-workflow-ws-ship-gate`, 2026-11-10); gin-qa cannot run from the `qa` child or a track worktree (fixed by `gin-workflow-qa-workspace`, 2026-11-11; see [gin-qa-qa-home](gin-qa-qa-home.md)); `plan_approved: area_lead` deadlocks when one `be_lead` leads every area, and `ship: [qe, be_lead]` lets a lead merge without QA (fixed by `gin-workflow-approval-roles`, 2026-11-10; see [approval-policies](approval-policies.md)).
 - Persona reports cite `file:line` but can cite wrong lines; `check.py` only checks that the path is tracked, so a reviewer must spot-check line content.
 - `gin:developer` has no Agent tool, so a track whose work is a set of agent runs is launched from the main session.
 - Re-running a persona produces a different set of findings, so reports are re-run only when unusable, never patched by hand.

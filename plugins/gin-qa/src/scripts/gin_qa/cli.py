@@ -10,14 +10,14 @@ from typing import Any, Sequence
 
 from . import cases as tc
 from . import bugs, e2e, report, tests
-from .reqs import Effective, QaError, resolve, specs_reqs
+from .reqs import Effective, QaError, locate, specs_reqs
 
 VERSION = "0.11"
 
 
 def _parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin-qa cases")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -56,7 +56,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def _e2e_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin-qa e2e")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -73,7 +73,7 @@ def _e2e_parser() -> argparse.ArgumentParser:
 
 def _tests_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repository", type=Path, default=Path.cwd())
+    common.add_argument("--repository", type=Path, default=None)
     common.add_argument("--format", choices=("text", "json"), default="text")
     parser = argparse.ArgumentParser(prog="gin-qa tests")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -95,7 +95,7 @@ def _emit(payload: dict[str, Any], output_format: str, text: str) -> None:
 def _scope(root: Path, eff: Effective, capability: str | None, change: str | None) -> tuple[set[str], set[str]]:
     """REQ-IDs to cover and REQ-IDs removed, for a capability, a change, or everything."""
     if change:
-        rows = specs_reqs(root, change)["requirements"]
+        rows = specs_reqs(eff.project_root, change)["requirements"]
         return ({row["id"] for row in rows if row["section"] != "REMOVED"},
                 {row["id"] for row in rows if row["section"] == "REMOVED"})
     if capability:
@@ -209,8 +209,7 @@ def _reference(eff: Effective, reqs: list[str], source: str | None) -> tuple[str
 
 
 def _run(args: argparse.Namespace) -> int:
-    root = args.repository.resolve()
-    eff = resolve(specs_reqs(root))
+    root, eff = locate(args.repository)
     if args.command == "next-id":
         found = tc.next_id(root, eff.cases_dir, args.capability)
         _emit({"id": found}, args.format, found)
@@ -260,8 +259,7 @@ def _run(args: argparse.Namespace) -> int:
 
 
 def _run_e2e(args: argparse.Namespace) -> int:
-    root = args.repository.resolve()
-    eff = resolve(specs_reqs(root))
+    root, eff = locate(args.repository)
     if args.command == "init":
         done = e2e.init(root, eff, args.base_url, args.install)
         _emit({"done": done}, args.format, "\n".join(done) or "already initialized")
@@ -290,8 +288,7 @@ def _run_e2e(args: argparse.Namespace) -> int:
 
 
 def _run_tests(args: argparse.Namespace) -> int:
-    root = args.repository.resolve()
-    eff = resolve(specs_reqs(root))
+    root, eff = locate(args.repository)
     if args.command == "plan":
         work = tests.plan(root, eff, args.capability, args.kind)
         lines = [f"{kind} {row['tc']} {row['type']}" + (f" {row['file']}:{row['line']}" if "file" in row else "")
@@ -313,14 +310,14 @@ def _report_parser() -> argparse.ArgumentParser:
     parser.add_argument("capability", nargs="?")
     parser.add_argument("--out", help="report folder, relative to the repository; must be missing or empty")
     parser.add_argument("--zip", action="store_true", dest="archive")
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     return parser
 
 
 def _run_report(args: argparse.Namespace) -> int:
-    root = args.repository.resolve()
-    payload = report.build(root, resolve(specs_reqs(root)), args.capability, args.out, args.archive)
+    root, eff = locate(args.repository)
+    payload = report.build(root, eff, args.capability, args.out, args.archive)
     for run in payload["missing_evidence"]:
         print(f"gin-qa: evidence not found: {run}", file=sys.stderr)
     _emit(payload, args.format, "\n".join(filter(None, (payload["report"], payload["zip"]))))

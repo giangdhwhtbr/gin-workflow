@@ -176,7 +176,7 @@ Present when the repository is the parent of several repositories ([guide](../gu
 
 ### `qa`
 
-Used by the `gin-qa` add-on: `cases` (default `qa/cases`), `guidelines` (default `qa/guidelines.md`), `e2e` (default `qa/e2e`).
+Used by the `gin-qa` add-on: `dir` (default `qa`, a path inside the repository), `cases` (default `qa/cases`), `guidelines` (default `qa/guidelines.md`), `e2e` (default `qa/e2e`). `dir` is the QA home of a single repository and is ignored when the workspace has a `shape: qa` child, which is the QA home instead; it needs gin-workflow 3.1 or later. The defaults of the other keys are under the QA home, and an explicit value is relative to the repository that holds it. See [the QA home](../guides/qa.md#the-qa-home).
 
 ## `orchestrator.local.yaml`
 

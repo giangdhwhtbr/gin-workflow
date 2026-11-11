@@ -1,6 +1,6 @@
 ---
 name: cases
-description: Write or update test cases from gin specs, one file per case in qa/cases/<capability>/, traced to REQ-IDs, checked by the gin-qa CLI.
+description: Write or update test cases from gin specs, one file per case in cases/<capability>/ of the QA home, traced to REQ-IDs, checked by the gin-qa CLI.
 ---
 
 # Test Cases

@@ -132,20 +132,20 @@ The template's `## Way of working` section (Foundation, Spec cadence, Build, Int
 
 ## Test case guidelines and fields
 
-The gin-qa add-on is customized through the guidelines file (`qa/guidelines.md`) and extra metadata fields.
+The gin-qa add-on is customized through the guidelines file (`guidelines.md` in the [QA home](qa.md#the-qa-home)) and extra metadata fields.
 
 ### The guidelines file
 
-`/gin-qa:setup` writes `qa/guidelines.md` from an interview; without it, `/gin-qa:cases` creates the file from the template on first use. The agent reads this file before drafting test cases, and its rules override the defaults.
+`/gin-qa:setup` writes `guidelines.md` in the QA home from an interview; without it, `/gin-qa:cases` creates the file from the template on first use. The agent reads this file before drafting test cases, and its rules override the defaults.
 
-Edit `qa/guidelines.md` to customize:
+Edit `guidelines.md` in the QA home to customize:
 - Language: Enforce Vietnamese, English, or bilingual test steps.
 - Types: the case types in use, one ``- `<type>`: <what it covers>`` line each under `## Types`, checked by [`gin-qa cases check`](../reference/cli.md#gin-qa-cases-check).
 - Manual runs and bugs: the run reference `/gin-qa:run` proposes (`## Manual runs`), and whether a bug needs an external tracker reference (`## Bugs`).
 - Extra fields: Declare team-specific metadata tags.
 - End-to-end rules: Define sign-in mechanisms (such as `storageState`), test user fixtures, or locator strategies.
 
-Example `qa/guidelines.md`:
+Example `guidelines.md`:
 ```markdown
 # Test case guidelines
 
@@ -200,12 +200,12 @@ The gin-qa parser keeps any other field line in a case's header. The agent adds 
 - Notification email is sent to `test@example.com`
 ```
 
-Saved as `qa/cases/auth/TC-AUTH-005-lockout.e2e.md`.
+Saved as `cases/auth/TC-AUTH-005-lockout.e2e.md` in the QA home.
 
 `gin-qa cases export --format json` lists every custom field (`Jira`, `Severity`, `Component`, and others) under `fields` in its JSON output. `Result`, `Run`, and `Bug` are reserved for `gin-qa cases result`. `REQ`, `Source`, `Priority`, and `Type` keep their own meanings and stay out of `fields`.
 
 ## The end-to-end evidence fixture
 
-`gin-qa e2e init`, which `/gin-qa:e2e` runs, copies the fixture to `qa/e2e/evidence.ts`. The file belongs to your repository, so edit it freely, but keep the shape of the `result.json` it writes: `gin-qa e2e check` and `gin-qa e2e export` read it.
+`gin-qa e2e init`, which `/gin-qa:e2e` runs, copies the fixture to `e2e/evidence.ts` in the QA home. The file belongs to your repository, so edit it freely, but keep the shape of the `result.json` it writes: `gin-qa e2e check` and `gin-qa e2e export` read it.
 
-The Playwright config template is copied the same way: `gin-qa e2e init` writes `playwright.config.ts` only when the repository root has no `playwright.config.*`, and the written file is yours to edit.
+The Playwright config template is copied the same way: `gin-qa e2e init` writes `playwright.config.ts` only when the Playwright folder has no `playwright.config.*`. That is the `e2e` folder of the QA home, or the repository root for an existing root setup. The written file 

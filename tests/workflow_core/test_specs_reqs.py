@@ -107,6 +107,18 @@ class TestSpecsReqs(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("other", result.stderr)
 
+    def test_qa_dir_is_a_string_key(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        original = config.read_text()
+        config.write_text(original + "qa:\n  dir: new-app/testing\n")
+        self.assertEqual({"dir": "new-app/testing"}, self.payload()["qa"])
+        for value in ("5", '""'):
+            with self.subTest(dir=value):
+                config.write_text(original + f"qa:\n  dir: {value}\n")
+                result = reqs(self.root)
+                self.assertEqual(2, result.returncode)
+                self.assertIn("qa", result.stderr)
+
     def test_legacy_layout_has_no_requirements(self):
         legacy = make_repo(Path(self.tmp.name) / "legacy", layout="legacy")
         result = reqs(legacy)

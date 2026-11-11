@@ -23,7 +23,7 @@ workspace:
 ```
 
 - `frozen: true` marks a read-only repository. It is cloned shallow and never gets hooks, tracks, or worktrees.
-- `shape: qa` marks the automation repository. `gin-qa` writes `qa/cases/`, `qa/e2e/`, and `qa/evidence/` into it.
+- `shape: qa` marks the automation repository. It is the [QA home](qa.md#the-qa-home): `gin-qa` writes `cases/`, `e2e/`, and `evidence/` into it.
 - `shape: beads` at `.beads` holds the shared Beads database.
 - `verify.checks` are the commands the hooks of that repository run, in that repository.
 
@@ -103,7 +103,7 @@ Read the spec and plan from the parent path the bead links. A track edits nothin
 
 ## QA
 
-Open: the `qa` repository. It is the automation repository, so the cases, specs, and evidence live in it.
+Open: the `qa` child, the QA home. Config, specs, and Beads stay in the parent; gin-qa reads them through `gin specs reqs`. If the child is not cloned, run `gin workspace clone <path>`.
 
 | Stage | Command |
 |---|---|

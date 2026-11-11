@@ -22,19 +22,34 @@ curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/rem
 
 This installs the plugin for each harness and links the `gin-qa` launcher into `~/.local/bin`.
 
+## The QA home
+
+Everything gin-qa writes lives in one folder, the QA home:
+
+- In a [workspace](workspace.md), the QA home is the child with `shape: qa`. Its path and name are free. gin-qa finds it by shape, from that child, from a worktree of it, or from anywhere in the project. `qa.dir` is ignored there.
+- In a single repository, the QA home is the `qa.dir` folder (default `qa`). `qa.dir` must be a path inside the repository.
+
+The QA home holds `cases/`, `guidelines.md`, `evidence/`, and `e2e/`. `evidence/` sits next to the e2e folder, which is in the QA home by default. gin-qa adds `evidence/` to the `.gitignore` of the repository that holds the QA home.
+
+`e2e/` is the Playwright project: its own `package.json`, `playwright.config.ts`, and the specs. `gin-qa e2e init` creates `e2e/package.json` when it is missing. npm and `npx` run in `e2e/`, and the lockfile is read there.
+
+Explicit `qa.cases`, `qa.e2e`, and `qa.guidelines` are relative to the repository that holds the QA home. An existing setup is not moved: a single repository with a `playwright.config.*` or a `package.json` `e2e` script at the root, and no `qa.dir`, keeps Playwright at the root.
+
+Config, specs, and Beads stay in the project root, the parent of the workspace. gin-qa reads them through `gin specs reqs`. If the QA child is not cloned, run `gin workspace clone <path>`. If gin is older than this, gin-qa stops with "this gin is too old for gin-qa; reinstall gin-workflow". `qa.dir` and the QA home need gin-workflow 3.1 or later.
+
 ## Setup: `/gin-qa:setup`
 
-`/gin-qa:setup` sets up QA in a repository from one interview. It reads what `qa/guidelines.md`, `qa/README.md`, and the case files already say, and asks only for what they leave open. The questions cover the case types, the language, the test command of each automated type, the manual run reference and cadence, the external tracker reference, and when a report is made. It shows each change before writing it:
+`/gin-qa:setup` sets up QA in a repository from one interview. It reads what the guidelines file, `README.md` next to it, and the case files already say, and asks only for what they leave open. The questions cover the case types, the language, the test command of each automated type, the manual run reference and cadence, the external tracker reference, and when a report is made. It shows each change before writing it:
 
-- `qa/guidelines.md`: the `Language:` line and the sections `Types`, `Automated types`, `Manual runs`, and `Bugs`. Other sections, such as `E2E specs`, are left as they are.
-- `qa/README.md`: the `Process` section.
+- `guidelines.md` in the QA home: the `Language:` line and the sections `Types`, `Automated types`, `Manual runs`, and `Bugs`. Other sections, such as `E2E specs`, are left as they are.
+- `README.md` in the QA home: the `Process` section.
 - `.claude/skills/<name>-qa/SKILL.md`, where `<name>` is the repository folder name in lower case with each run of other characters replaced by `-`: a project skill that tells an agent which gin-qa skill runs each step, and points to the guidelines and README. It copies no rules, so editing the guidelines does not make it stale. After a gin-qa upgrade, rerun `/gin-qa:setup` to see its difference against the current template.
 
 It ends with `gin-qa cases check`, plus `gin-qa tests check` when automated types are declared, and does not commit. The project skill is written for Claude Code; on another harness, copy the `.claude/skills/<name>-qa/` folder to the project skill folder that harness reads. In OpenCode the skill is `@gin-qa-setup`, so `@setup` stays gin-workflow's setup.
 
 ## Test cases: `/gin-qa:cases`
 
-`/gin-qa:cases <capability>` (or `--change <epic>`) writes one file per case into `qa/cases/<capability>/` (`qa.cases`), following the team rules in `qa/guidelines.md` (`qa.guidelines`). On first use it creates the guidelines file and `qa/README.md`, a guide for testers, from templates.
+`/gin-qa:cases <capability>` (or `--change <epic>`) writes one file per case into `cases/<capability>/` of the QA home (`qa.cases`), following the team rules in `guidelines.md` (`qa.guidelines`). On first use it creates the guidelines file and `README.md`, a guide for testers, from templates.
 
 ```markdown
 # TC-AUTH-004: Fifth failed login locks the account
@@ -90,14 +105,14 @@ The skill never edits case files and never commits.
 
 ## End-to-end specs: `/gin-qa:e2e`
 
-`/gin-qa:e2e <capability>` turns `.e2e.md` cases into Playwright specs under `qa/e2e/<capability>/` (`qa.e2e`), one spec per case:
+`/gin-qa:e2e <capability>` turns `.e2e.md` cases into Playwright specs under `e2e/<capability>/` of the QA home (`qa.e2e`), one spec per case:
 
-- `gin-qa e2e init` copies the evidence fixture `qa/e2e/evidence.ts` (yours to edit), adds `qa/evidence/` to `.gitignore`, and writes `playwright.config.ts` at the repository root when there is none: specs under `qa/e2e`, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
+- `gin-qa e2e init` copies the evidence fixture `e2e/evidence.ts` (yours to edit), adds `evidence/` to `.gitignore`, and creates `e2e/package.json` when missing. It writes `e2e/playwright.config.ts` when there is none (at the repository root for an existing root setup). The config has specs under the e2e folder, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
 - The skill builds each spec step by step against the running application, reading the ARIA snapshot (`NN.aria.yml`) and URL the fixture records after every step, and reviews the screenshots before reporting a case. Where the harness has subagents it gives each case to the `gin-qa:e2e-tester` agent at the middle model and `low` effort, several cases at a time (`--parallel N`, default 3).
-- `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `qa/evidence/`. It records each case's result in its case file and lists them under `recorded` in the JSON output.
+- `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `evidence/` in the QA home. It records each case's result in its case file and lists them under `recorded` in the JSON output.
 - `gin-qa e2e check --run <folder>` checks a run's evidence; `gin-qa e2e export --run <folder> --format json` exports it.
 
-`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the lockfile (pnpm, yarn, else npm) and adds the `e2e` script to `package.json`; without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template, and otherwise tells you to merge by hand.
+`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the lockfile (pnpm, yarn, else npm) and adds the `e2e` script to the Playwright project's `package.json`. Without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template. Otherwise it tells you to merge by hand.
 
 Your project provides `@playwright/test` 1.49 or later. `init` writes a starting Playwright config once; after that the config is yours (`baseURL`, browsers, video, trace, `webServer`), and `init` never overwrites it.
 
@@ -105,7 +120,7 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
 
 `/gin-qa:tests <capability> --type <type>` writes, runs, and checks the tests of cases whose type is neither `e2e` nor `manual`, such as `api` or `unit`, in the project's own test framework:
 
-- `qa/guidelines.md` declares each such type under `## Automated types`: the globs of its test files (relative to the repository root, never absolute or containing `..`) and the command that runs them. The skill proposes the declaration when it is missing.
+- `guidelines.md` declares each such type under `## Automated types`: the globs of its test files (relative to the repository root, the repository that holds the QA home, never absolute or containing `..`) and the command that runs them. The skill proposes the declaration when it is missing.
 
   ```markdown
   ## Automated types
@@ -115,18 +130,18 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
   - Run: `uv run --project backend pytest {files} --junitxml={junit}`
   ```
 
-  `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root, without a shell. `{files}` paths are relative to that root, so a runner option that changes folder (`uv run --directory`, `pnpm -C`) cannot take `{files}`.
+  `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root (the repository that holds the QA home), without a shell. `{files}` paths are relative to that root, so a runner option that changes folder (`uv run --directory`, `pnpm -C`) cannot take `{files}`.
 - A test carries the marker `TC: <TC-ID>@<hash8>`, by convention in a comment line above it, and a name holding the TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` and `check` compare the marker with the case, as `gin-qa e2e` does with a spec's header; `gin-qa tests pin` updates it.
-- `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `qa/evidence/<UTC time>-<type>/` and records each case's result in its case file. The [CLI reference](../reference/cli.md#gin-qa-tests) gives the result rules. `gin-qa tests run` adds `qa/evidence/` to `.gitignore`.
+- `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `evidence/<UTC time>-<type>/` of the QA home and records each case's result in its case file. The [CLI reference](../reference/cli.md#gin-qa-tests) gives the result rules. `gin-qa tests run` adds `evidence/` to `.gitignore`.
 
 ## Report: `/gin-qa:report`
 
 `/gin-qa:report [capability]` runs `gin-qa report` and writes one folder you can send; `--zip` also writes `<folder>.zip` next to it:
 
-- The folder is `qa/evidence/report-<UTC time>/`; `--out <dir>` picks another, which must be missing or empty. It holds `index.html` and a copy of each e2e screenshot the report shows, so it opens offline from any location. A report under `qa/evidence/` is covered by the `.gitignore` entry that `gin-qa report` adds, so it stays out of version control.
+- The folder is `evidence/report-<UTC time>/` in the QA home; `--out <dir>` picks another, which must be missing or empty. It holds `index.html` and a copy of each e2e screenshot the report shows, so it opens offline from any location. A report under `evidence/` is covered by the `.gitignore` entry that `gin-qa report` adds, so it stays out of version control.
 - The page counts cases per capability, type, priority, and result in four bar charts; a click on a bar filters the case table. The table has a search over ID and title and one filter per chart.
 - A click on a case opens its fields, preconditions, test data, steps, expected results, result, run, and bug, and for an e2e case each step of the run its `Run` line names, per Playwright project: status, URL, error, and screenshot.
-- Each case shows the run its `Run` line names. When that folder is gone, the case shows `evidence not found: <run>` and the command lists the run under `missing_evidence`. A `Run` outside `qa/evidence/`, such as a manual run reference, and a `gin-qa tests run` folder are shown as text.
+- Each case shows the run its `Run` line names. When that folder is gone, the case shows `evidence not found: <run>` and the command lists the run under `missing_evidence`. A `Run` outside `evidence/`, such as a manual run reference, and a `gin-qa tests run` folder are shown as text.
 - A case moved from e2e to manual keeps its row and gains a "moved from e2e" mark. The section "Moved from e2e to manual" lists each with its date, reason, and result, and appears only when there is one.
 
 ## Moving a flaky e2e case to manual
@@ -166,7 +181,7 @@ Then run `/gin-qa:run`, which walks the case by hand. To go back, rename the fil
 
 ## Team rules
 
-`/gin-qa:cases` and `/gin-qa:e2e` read `qa/guidelines.md` (`qa.guidelines`) first, and its rules override their defaults. Two example rules:
+`/gin-qa:cases` and `/gin-qa:e2e` read `guidelines.md` (`qa.guidelines`) first, and its rules override their defaults. Two example rules:
 
 - Every requirement with a `Priority: high` case has at least one `.e2e.md` case.
 - Steps start with an action verb: Navigate, Enter, Click, Verify.
