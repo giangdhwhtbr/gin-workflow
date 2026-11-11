@@ -41,7 +41,7 @@ Source: `.planning/reviews/2026-11-07-process-review/synthesis.md` (26 clusters,
 
 ## Strategy
 
-Fix the planning tools first, because every later epic is planned with them: shared gate state and forecast fidelity, then the capacity model and exit criteria, then roadmap areas on tracks with contract and integration epics. The three blockers follow: the ship gate for child pull requests, gin-qa in a child, and approval roles. `ws-ship-gate` and `approval-roles` both edit `team.py`, so they run back to back. Progress views build on the shared gate state. The docs epic for the epic rule comes after the roadmap and approval epics it describes. Workspace branch, setup, and rule epics follow, then the QA lifecycle on top of gin-qa in a child, then the SDD team flow and the BA epic that builds on it.
+Fix the planning tools first, because every later epic is planned with them: shared gate state and forecast fidelity, then the capacity model and exit criteria, then roadmap areas on tracks with contract and integration epics. The three blockers follow: the ship gate for child pull requests, gin-qa in a child, and approval roles. `ws-ship-gate` and `approval-roles` both edit `team.py`, so they run back to back. Progress views build on the shared gate state. The docs epic for the epic rule comes after the roadmap and approval epics it describes. Workspace branch, setup, and rule epics follow, then the QA lifecycle on top of gin-qa in a child and evidence from automated runs, then the SDD team flow, legacy parity on its starter, and the BA epic that builds on it.
 
 ## Order
 
@@ -53,6 +53,8 @@ flowchart LR
     AR[approval-roles] --> ES
     SG[ws-ship-gate] --> BM[ws-branch-model]
     QW[qa-workspace] --> QL[qa-lifecycle]
+    QE[qa-evidence]
+    QP[qa-parity]
     SD[sdd-team-flow] --> BA[ba-workspace]
     CS[ws-child-setup]
     ER[ws-entry-rules]
@@ -64,9 +66,10 @@ flowchart LR
 | 2 | `gin-workflow-ws-ship-gate`, `gin-workflow-qa-workspace`, `gin-workflow-approval-roles` |
 | 3 | `gin-workflow-team-progress`, `gin-workflow-epic-shape-docs`, `gin-workflow-ws-branch-model` |
 | 4 | `gin-workflow-ws-child-setup`, `gin-workflow-ws-entry-rules`, `gin-workflow-qa-lifecycle` |
-| 5 | `gin-workflow-sdd-team-flow`, `gin-workflow-ba-workspace` |
+| 5 | `gin-workflow-sdd-team-flow`, `gin-workflow-qa-evidence` |
+| 6 | `gin-workflow-ba-workspace`, `gin-workflow-qa-parity` |
 
-With 1 lane the epics run in the listed order: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-child-setup, ws-entry-rules, qa-lifecycle, sdd-team-flow, ba-workspace. Estimates total 21 working days; only the first two fit before the deadline.
+With 1 lane the epics run in the listed order: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-child-setup, ws-entry-rules, qa-lifecycle, qa-evidence, sdd-team-flow, qa-parity, ba-workspace. Shipped by 2026-11-11: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, qa-lifecycle; the 9 open epics total 13 working days, past the deadline.
 
 ## Unassigned
 
@@ -163,10 +166,10 @@ Epic: gin-workflow-ws-branch-model
 Estimate: 2
 Complexity: high: cross-module: orchestrate, worktrees, takeover, review ledger, quick
 Goal: one flow for child `feat/<topic>` branches, track worktree creation on claim, track pull request bases, review ledgers, closing a multi-member epic, read-only sibling repositories for a track, and `/gin:quick` in team mode.
-Scope: members create their own track worktree and child branch on claim; `team takeover` fetches from the child; review ledgers stay out of service repositories; a track declares read-only siblings and how to run the service and app it is tested against; quick in team mode ends with a pull request and ship approval.
+Scope: members create their own track worktree and child branch on claim; `team takeover` fetches from the child; review ledgers stay out of service repositories; a track declares read-only siblings and how to run the service and app it is tested against; quick in team mode ends with a pull request and ship approval; `record shipped --evidence` takes several pull request URLs; `team deps` searches a child's pull requests.
 Out of scope: the ship gate check itself (`gin-workflow-ws-ship-gate`).
 Depends on: gin-workflow-ws-ship-gate
-Evidence: synthesis "Branch and pull request model for workspace children" (BE-LEAD-4, BE-LEAD-14, BE-LEAD-15, FE-LEAD-14, BE-LEAD-10, FE-LEAD-16, PM-13), "Track environment with read-only siblings and running services" (BE-LEAD-26, FE-LEAD-10, QA-12), "Quick in team mode" (PM-16, QA-18, BE-LEAD-17, FE-LEAD-18); `team_beads.py:226,329`, `review_ledger/cli.py:42-44`.
+Evidence: spec `2026-11-10-ws-ship-gate-design.md` handed over BE-LEAD-13 and BE-LEAD-16; synthesis "Branch and pull request model for workspace children" (BE-LEAD-4, BE-LEAD-14, BE-LEAD-15, FE-LEAD-14, BE-LEAD-10, FE-LEAD-16, PM-13), "Track environment with read-only siblings and running services" (BE-LEAD-26, FE-LEAD-10, QA-12), "Quick in team mode" (PM-16, QA-18, BE-LEAD-17, FE-LEAD-18); `team_beads.py:226,329`, `review_ledger/cli.py:42-44`.
 Risks: largest epic; may split into two plans in `/discuss`.
 
 ### Workspace onboarding, frozen legacy access, and team init per child
@@ -191,16 +194,27 @@ Depends on:
 Evidence: synthesis "Per-entry checks, rule packs, and shape in a workspace" (FE-LEAD-7, FE-LEAD-8, BE-LEAD-23, FE-LEAD-17, BE-LEAD-22, FE-LEAD-9, FE-LEAD-20) and "Tech-doc and rules for a Java and JSP legacy" (BE-LEAD-9, BA-13, FE-LEAD-22); `rules_checks.py:22-28,47-58`, `rules.py:247-254`, `execute/SKILL.md:23`, `worktrees/SKILL.md:39`.
 Risks: new rule packs need their own tests and budgets.
 
-### QA tracks, acceptance cases, test evidence, and legacy parity
+### QA tracks and acceptance cases in the lifecycle
 Epic: gin-workflow-qa-lifecycle
 Estimate: 2
 Complexity: medium: execute, review, ship, and gin-qa skills
-Goal: execute runs QA tracks through gin-qa, review and ship check acceptance cases, run evidence is published beyond the tester's machine, automated failures file bug beads, and parity tests have an owner and a legacy reference.
-Scope: a QA track path in `/gin:execute`; ship and spec checklists per pull request kind; a gin-qa coverage check in ship; evidence publishing; bug beads from e2e and API test failures; a case field for the legacy reference and the build to run against.
-Out of scope: gin-qa root resolution (`gin-workflow-qa-workspace`).
+Goal: execute runs QA tracks through gin-qa, review and ship check acceptance cases, and the checklists fit each pull request kind.
+Scope: the `qa` provider role and the `qa-track` skill; a gin-qa case check in ship; gin-qa coverage rows for the reviewer; ship and spec checklists per pull request kind.
+Out of scope: gin-qa root resolution (`gin-workflow-qa-workspace`); evidence and defects (`gin-workflow-qa-evidence`); legacy parity (`gin-workflow-qa-parity`).
 Depends on: gin-workflow-qa-workspace
-Evidence: synthesis "QA tracks and acceptance cases in the lifecycle" (QA-6, QA-7, QA-13, QA-14, QA-20), "Test evidence and defect tracking" (QA-8, QA-9, QA-17), "Legacy parity testing" (QA-10, BE-LEAD-24); `ship/SKILL.md:16-18`, `run/SKILL.md:16`.
+Evidence: synthesis "QA tracks and acceptance cases in the lifecycle" (QA-6, QA-7, QA-13, QA-14, QA-20); `ship/SKILL.md:16-18`. Shipped 2026-11-11 (merge 4bac0ff5).
 Risks: stage skill budgets of 12,000 characters.
+
+### Test evidence and defects from automated runs
+Epic: gin-workflow-qa-evidence
+Estimate: 1
+Complexity: low: gin-qa e2e, tests, report skills and bugs.py
+Goal: run evidence outlives the tester's machine, automated e2e and API failures file bug beads, and a bug lands on the right epic.
+Scope: a publish step (`gin-qa report --zip` attached to the pull request or a CI artifact, its URL in the approval comment); `/gin-qa:e2e` and `/gin-qa:tests` offer `gin-qa cases bug` for each product defect; `gin-qa cases bug` asks which epic when a case's REQs map to several.
+Out of scope: legacy parity (`gin-workflow-qa-parity`); the QA track and ship check (`gin-workflow-qa-lifecycle`, shipped).
+Depends on:
+Evidence: synthesis "Test evidence and defect tracking" (QA-8, QA-9, QA-17); `docs/guides/qa.md:126,183`, `plugins/gin-qa/src/skills/report/SKILL.md:13`, `plugins/gin-qa/src/skills/e2e/SKILL.md:18`, `plugins/gin-qa/src/skills/tests/SKILL.md:26`, `plugins/gin-qa/src/scripts/gin_qa/bugs.py:59-76`.
+Risks: where a CI artifact URL comes from differs per host; gin-qa skill budgets of 6,000 characters.
 
 ### SDD layout and change flow for a team workspace
 Epic: gin-workflow-sdd-team-flow
@@ -223,3 +237,14 @@ Out of scope: the SDD change flow (`gin-workflow-sdd-team-flow`).
 Depends on: gin-workflow-sdd-team-flow
 Evidence: synthesis "Capture and mockups in a workspace" (BA-14, BA-15, FE-LEAD-15) and "BA during build" (BA-7, BA-10); `mockup/SKILL.md:18-19,34`.
 Risks: the mockup conflict for a 1-1 copy (BA-14 vs FE-LEAD-15) is decided in `/discuss`.
+
+### Legacy parity testing
+Epic: gin-workflow-qa-parity
+Estimate: 1
+Complexity: low: case format, gin-qa cases skill, brownfield starter
+Goal: parity tests have one owner, a case field for the legacy reference, and a stated build to run against.
+Scope: a case field for the legacy reference (confirmed capture folder, screen, recorded payload path); `/gin-qa:cases` reads confirmed `assets/<date>/legacy/` folders when it writes cases; the brownfield starter names the parity owner, where parity tests run (service `verify.checks` or the `qa` api type), and against which running build.
+Out of scope: the SDD capture step in the starter (`gin-workflow-sdd-team-flow`).
+Depends on:
+Evidence: synthesis "Legacy parity testing" (QA-10, BE-LEAD-24); `docs/starters/brownfield.md:5,345,379-389`, `plugins/gin-qa/src/skills/cases/SKILL.md:15`, `docs/roles.md:73`.
+Risks: edits `docs/starters/brownfield.md` like `sdd-team-flow`, so it runs after it.
