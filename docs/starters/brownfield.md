@@ -121,7 +121,7 @@ gin setup doctor
 
 Put in the prompt: the six repositories above with the stack of each (Maven for the services, npm for the apps), and the shared Beads repository.
 
-`legacy/shop-portal` is `frozen`: it is cloned shallow, read for the survey and the parity tests, and never gets hooks, tracks, or worktrees. `.beads` is the entry that holds the shared Beads database. `qa` is the automation repository, so `gin-qa` keeps writing `qa/cases/`, `qa/e2e/`, and `qa/evidence/` into it. Every path is added to the parent `.gitignore`, so the parent tracks no child. Each engineer clones only the repositories they work on; see the [workspace guide](../guides/workspace.md).
+`legacy/shop-portal` is `frozen`: it is cloned shallow, read for the survey and the parity tests, and never gets hooks, tracks, or worktrees. `.beads` is the entry that holds the shared Beads database. `qa` is the automation repository, so it is the [QA home](../guides/qa.md#the-qa-home) and `gin-qa` keeps writing `cases/`, `e2e/`, and `evidence/` into it. Every path is added to the parent `.gitignore`, so the parent tracks no child. Each engineer clones only the repositories they work on; see the [workspace guide](../guides/workspace.md).
 
 The alternative is one repository with the legacy code as a git subtree:
 
@@ -170,7 +170,7 @@ Put in the prompt: the seven members with their git emails and roles, the four a
 
 The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin team init` (add `--ci` for a CI workflow), then you commit on a branch, push, and open a pull request. Merge it. A member answers as a member: it checks `gin team whoami` finds your `git config user.email`, installs the commit-msg hook (`gin team hooks`), asks you to log in (`gh auth login` or `glab auth login`), runs `bd init --remote <remote>` when the team shares Beads, and ends with `gin setup doctor`. Nothing is written back to the repository.
 
-`/gin-qa:setup` reads what `qa/` already says and writes `qa/guidelines.md` (the `## Types`, `## Automated types`, `## Manual runs`, and `## Bugs` sections), `qa/README.md`, and a project QA skill under `.claude/skills/`. See the [QA add-on](../guides/qa.md#setup-gin-qasetup).
+`/gin-qa:setup` reads what the QA home already says and writes its `guidelines.md` (the `## Types`, `## Automated types`, `## Manual runs`, and `## Bugs` sections), `README.md`, and a project QA skill under `.claude/skills/`. See the [QA add-on](../guides/qa.md#setup-gin-qasetup).
 
 **You get:** the `team:` block, `.github/CODEOWNERS` (`.gitlab/CODEOWNERS` on GitLab), a pull request template, a commit-msg hook on every clone, and the QA guidelines.
 
