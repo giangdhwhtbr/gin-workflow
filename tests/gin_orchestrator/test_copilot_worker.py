@@ -408,7 +408,6 @@ class CopilotWorkerTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "fake",
                         "evidence": "fake",
-                       
                     },
                     "orchestrator": {
                         "roles": {"backend": {"preferred": ["copilot"]}},

@@ -61,7 +61,6 @@ class ProviderRegistryTests(unittest.TestCase):
                     "workspace": "fake",
                     "review": "fake",
                     "evidence": "fake",
-                   
                 },
             },
             Path(root),
@@ -657,7 +656,6 @@ class ProviderRegistryTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "fake",
                         "evidence": "fake",
-                       
                     },
                 },
                 Path(directory),
@@ -682,7 +680,7 @@ class ProviderRegistryTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "fake",
                         "evidence": "fake",
-                       
+                        "notifications": "telegram",
                     },
                 },
                 Path(directory),
@@ -704,7 +702,6 @@ class ProviderRegistryTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "fake",
                         "evidence": "fake",
-                       
                     },
                 },
                 Path(directory),

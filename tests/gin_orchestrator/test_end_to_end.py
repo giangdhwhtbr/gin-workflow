@@ -607,7 +607,6 @@ class WorkflowEndToEndTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "review-ledger",
                         "evidence": "fake",
-                       
                     },
                     "routing": {
                         "roles": {
