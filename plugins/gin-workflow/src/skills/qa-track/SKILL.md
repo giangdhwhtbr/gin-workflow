@@ -15,7 +15,7 @@ A track whose plan entry has `Provider role: qa` changes QA files in the QA home
 
 ## Ship check
 
-With `gin-qa` on PATH and `project.layout: sdd`, run `gin-qa cases check --change <epic> --format json`. Exit 1 stops ship with its findings (missing or stale cases). Otherwise ship says the QA check was skipped.
+With `gin-qa` on PATH and `project.layout: sdd`, run `gin-qa cases check --change <epic> --format json`. Exit 1 stops ship with its findings (missing or stale cases); exit 2 (usage or environment error) is reported and the check counts as skipped. Without gin-qa or the SDD layout, ship says the QA check was skipped.
 
 ## Review coverage
 
