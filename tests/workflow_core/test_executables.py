@@ -72,7 +72,7 @@ class ExecutablesTests(unittest.TestCase):
         found = {"bd": str(self.fake), "git": os.path.abspath("/usr/bin/git")}
         path = write_local(self.root, found)
         self.assertEqual((found, []), read_local(self.root))
-        self.assertTrue(path.read_text(encoding="utf-8").startswith('schema_version: "2.9"'))
+        self.assertTrue(path.read_text(encoding="utf-8").startswith('schema_version: "2.10"'))
 
     def test_cache_is_per_root_and_clearable(self):
         write_local(self.root, {"bd": str(self.fake)})

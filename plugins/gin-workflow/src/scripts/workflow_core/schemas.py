@@ -7,8 +7,13 @@ from typing import Any, Mapping
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.9"
-SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9")
+SUPPORTED_SCHEMA_VERSION = "2.10"
+SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10")
+
+
+def version_key(version: str) -> tuple[int, ...]:
+    """Order dotted versions numerically, so "2.10" follows "2.9"."""
+    return tuple(int(part) for part in str(version).split("."))
 
 _SHAPES = ["frontend", "backend", "fullstack", "library"]
 _ROLES = {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}}
@@ -255,11 +260,6 @@ CONFIG_SCHEMA: dict[str, Any] = {
         "clarify": {
             "type": "object",
             "properties": {"max_questions": {"type": "integer", "minimum": 1}},
-            "additionalProperties": False,
-        },
-        "notifications": {
-            "type": "object",
-            "properties": {"telegram": {"type": "boolean"}},
             "additionalProperties": False,
         },
         "usage": {

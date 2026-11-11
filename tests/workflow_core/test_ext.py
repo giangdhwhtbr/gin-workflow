@@ -38,7 +38,6 @@ EXPECTED = [
     "load_effective_config",
     "main_checkout",
     "map_route",
-    "notify",
     "require_yaml",
     "resolve_harness_executable",
     "route_diagnostics",
