@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "review_state": "implementation-in-progress",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-remove-telegram.3",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-remove-telegram.3",
+      "review_base_sha": "8e190dfd9d03a2b2fe168a6209af8d7a9b1f22d5",
+      "reviewed_source_sha": "93d9fa2c15e17738da7808cd1685fbd9a736fde7",
+      "checkpoint_sha": "93d9fa2c15e17738da7808cd1685fbd9a736fde7",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "689e64c84f38ad717289c8d5f386241780c4d8b47a8fb40e3afdf82e5ccde9e8",
+      "reviewed_source_tree_hash": "689e64c84f38ad717289c8d5f386241780c4d8b47a8fb40e3afdf82e5ccde9e8",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 2,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-11T23:42:50.077918Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-remove-telegram.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-remove-telegram.3",
+            "review_base_sha": "8e190dfd9d03a2b2fe168a6209af8d7a9b1f22d5",
+            "reviewed_source_sha": "182476f4cc4b36e52e1847342a482b652879289b",
+            "checkpoint_sha": "182476f4cc4b36e52e1847342a482b652879289b",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "689e64c84f38ad717289c8d5f386241780c4d8b47a8fb40e3afdf82e5ccde9e8",
+            "reviewed_source_tree_hash": "689e64c84f38ad717289c8d5f386241780c4d8b47a8fb40e3afdf82e5ccde9e8",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:claude:main",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "0b402c71191600099ab68c1309813103319aa5d37bedbf9bae9aae48bfbb6424"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-11T23:42:50.393082Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-remove-telegram.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-remove-telegram.3",
+            "review_base_sha": "8e190dfd9d03a2b2fe168a6209af8d7a9b1f22d5",
+            "reviewed_source_sha": "93d9fa2c15e17738da7808cd1685fbd9a736fde7",
+            "checkpoint_sha": "93d9fa2c15e17738da7808cd1685fbd9a736fde7",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "689e64c84f38ad717289c8d5f386241780c4d8b47a8fb40e3afdf82e5ccde9e8",
+            "reviewed_source_tree_hash": "689e64c84f38ad717289c8d5f386241780c4d8b47a8fb40e3afdf82e5ccde9e8",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "0b402c71191600099ab68c1309813103319aa5d37bedbf9bae9aae48bfbb6424",
+      "event_hash": "c038d266098d40a8351c32fb47e14057f509a02637df2bbf1ead821fbb0b482f"
+    }
+  ]
+}
