@@ -23,7 +23,7 @@ workspace:
 ```
 
 - `frozen: true` đánh dấu repository chỉ đọc. Nó được clone nông (shallow) và không bao giờ có hook, track hay worktree.
-- `shape: qa` đánh dấu repository automation. `gin-qa` ghi `qa/cases/`, `qa/e2e/` và `qa/evidence/` vào đó.
+- `shape: qa` đánh dấu repository automation. Nó là [QA home](qa.md#the-qa-home): `gin-qa` ghi `cases/`, `e2e/` và `evidence/` vào đó.
 - `shape: beads` tại `.beads` giữ cơ sở dữ liệu Beads dùng chung.
 - `verify.checks` là các lệnh mà hook của repository đó chạy, trong chính repository đó.
 
@@ -103,7 +103,7 @@ Mở: `<parent>/.planning/worktrees/<track-id>`. Đó là worktree của một s
 
 ## QA { #qa }
 
-Mở: repository `qa`. Đó là repository automation, nên test case, spec và evidence nằm trong đó.
+Mở: repository con `qa`, tức QA home. Config, spec và Beads nằm ở repository cha; gin-qa đọc chúng qua `gin specs reqs`. Nếu repository con chưa được clone, chạy `gin workspace clone <path>`.
 
 | Stage | Lệnh |
 |---|---|

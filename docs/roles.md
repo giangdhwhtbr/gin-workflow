@@ -22,7 +22,7 @@ In [team mode](guides/team.md) each member holds roles, each area of the reposit
 | Tech lead | `/gin:setup`, `/gin:team-setup` (as lead), `/gin:tech-doc`, `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` with the SDD layout), `.planning/plans/` (`04-plan.md` with the SDD layout), area source and test paths | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved` for the areas they lead; the [sole-holder fallback](guides/team.md#approval-policies) covers a role whose only holder is the author |
 | Frontend lead | `/gin:plan` (reviews it for their areas), `/gin:review`, `/gin:ship`, plus the developer skills | source and test paths of the app areas they lead | `feat/<topic>-t<N>` | `plan_approved` for the app areas they lead; may be one of the `any` roles of `ship` |
 | Developer | `/gin:execute`, `/gin:review`, `/gin:ship` for their own tracks, `/gin:quick`, `/gin:progress` | source and unit and integration test paths in their areas; in a workspace, the child repository of the track | `feat/<topic>-t<N>` per track | peer code reviews |
-| Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `qa/cases/`, `qa/e2e/`, `qa/evidence/` | reviews the developer's pull request | `ship` |
+| Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `cases/`, `e2e/`, `evidence/` in the [QA home](guides/qa.md#the-qa-home) | reviews the developer's pull request | `ship` |
 
 ## What each role reads
 

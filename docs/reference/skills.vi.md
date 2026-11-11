@@ -62,11 +62,11 @@ Xem [QA](../guides/qa.md).
 
 | Skill | Mục đích |
 |---|---|
-| `cases` | Viết hoặc cập nhật test case từ spec, mỗi case một file dưới `qa/cases/<capability>/`, truy vết tới REQ-ID |
+| `cases` | Viết hoặc cập nhật test case từ spec, mỗi case một file dưới `cases/<capability>/` của [QA home](../guides/qa.md#the-qa-home), truy vết tới REQ-ID |
 | `e2e` | Viết, chạy và kiểm tra các Playwright spec cho các case `Type: e2e` bằng cách khám phá ứng dụng đang chạy |
 | `report` | Viết báo cáo HTML offline của các test case, kèm biểu đồ, bộ lọc và ảnh chụp e2e theo từng bước |
 | `run` | Cùng tester đi qua các manual case của một capability, ghi từng kết quả, và tạo một bug bead liên kết với epic của case cho mỗi lỗi |
-| `setup` | Thiết lập QA trong repository từ một buổi phỏng vấn: các guideline, `qa/README.md`, và một skill QA của dự án (`gin-qa-setup` trong OpenCode) |
+| `setup` | Thiết lập QA trong repository từ một buổi phỏng vấn: các guideline, `README.md` trong QA home, và một skill QA của dự án (`gin-qa-setup` trong OpenCode) |
 | `tests` | Viết, chạy và kiểm tra test của các loại tự động đã khai báo ngoài e2e (`api`, `unit`, ...) trong test framework riêng của dự án |
 
 Ở harness có subagent, `e2e` giao mỗi case cho agent `e2e-tester` của add-on ở model tầm trung và effort `low`.

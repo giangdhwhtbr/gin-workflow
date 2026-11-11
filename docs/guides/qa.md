@@ -27,9 +27,11 @@ This installs the plugin for each harness and links the `gin-qa` launcher into `
 Everything gin-qa writes lives in one folder, the QA home:
 
 - In a [workspace](workspace.md), the QA home is the child with `shape: qa`. Its path and name are free. gin-qa finds it by shape, from that child, from a worktree of it, or from anywhere in the project. `qa.dir` is ignored there.
-- In a single repository, the QA home is the `qa.dir` folder (default `qa`).
+- In a single repository, the QA home is the `qa.dir` folder (default `qa`). `qa.dir` must be a path inside the repository.
 
-The QA home holds `cases/`, `guidelines.md`, `evidence/` (gitignored by gin-qa), and `e2e/`. `e2e/` is the Playwright project: its own `package.json`, `playwright.config.ts`, and the specs. `gin-qa e2e init` creates `e2e/package.json` when it is missing, and npm and `npx` run in `e2e/`.
+The QA home holds `cases/`, `guidelines.md`, `evidence/`, and `e2e/`. `evidence/` sits next to the e2e folder, which is in the QA home by default. gin-qa adds `evidence/` to the `.gitignore` of the repository that holds the QA home.
+
+`e2e/` is the Playwright project: its own `package.json`, `playwright.config.ts`, and the specs. `gin-qa e2e init` creates `e2e/package.json` when it is missing. npm and `npx` run in `e2e/`, and the lockfile is read there.
 
 Explicit `qa.cases`, `qa.e2e`, and `qa.guidelines` are relative to the repository that holds the QA home. An existing setup is not moved: a single repository with a `playwright.config.*` or a `package.json` `e2e` script at the root, and no `qa.dir`, keeps Playwright at the root.
 
@@ -105,12 +107,12 @@ The skill never edits case files and never commits.
 
 `/gin-qa:e2e <capability>` turns `.e2e.md` cases into Playwright specs under `e2e/<capability>/` of the QA home (`qa.e2e`), one spec per case:
 
-- `gin-qa e2e init` copies the evidence fixture `e2e/evidence.ts` (yours to edit), adds `evidence/` to `.gitignore`, creates `e2e/package.json` when missing, and writes `e2e/playwright.config.ts` when there is none (at the repository root for an existing root setup): specs under the e2e folder, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
+- `gin-qa e2e init` copies the evidence fixture `e2e/evidence.ts` (yours to edit), adds `evidence/` to `.gitignore`, and creates `e2e/package.json` when missing. It writes `e2e/playwright.config.ts` when there is none (at the repository root for an existing root setup). The config has specs under the e2e folder, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
 - The skill builds each spec step by step against the running application, reading the ARIA snapshot (`NN.aria.yml`) and URL the fixture records after every step, and reviews the screenshots before reporting a case. Where the harness has subagents it gives each case to the `gin-qa:e2e-tester` agent at the middle model and `low` effort, several cases at a time (`--parallel N`, default 3).
 - `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `evidence/` in the QA home. It records each case's result in its case file and lists them under `recorded` in the JSON output.
 - `gin-qa e2e check --run <folder>` checks a run's evidence; `gin-qa e2e export --run <folder> --format json` exports it.
 
-`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the lockfile (pnpm, yarn, else npm) and adds the `e2e` script to the Playwright project's `package.json`; without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template, and otherwise tells you to merge by hand.
+`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the lockfile (pnpm, yarn, else npm) and adds the `e2e` script to the Playwright project's `package.json`. Without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template. Otherwise it tells you to merge by hand.
 
 Your project provides `@playwright/test` 1.49 or later. `init` writes a starting Playwright config once; after that the config is yours (`baseURL`, browsers, video, trace, `webServer`), and `init` never overwrites it.
 
@@ -118,7 +120,7 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
 
 `/gin-qa:tests <capability> --type <type>` writes, runs, and checks the tests of cases whose type is neither `e2e` nor `manual`, such as `api` or `unit`, in the project's own test framework:
 
-- `guidelines.md` declares each such type under `## Automated types`: the globs of its test files (relative to the repository root, never absolute or containing `..`) and the command that runs them. The skill proposes the declaration when it is missing.
+- `guidelines.md` declares each such type under `## Automated types`: the globs of its test files (relative to the repository root, the repository that holds the QA home, never absolute or containing `..`) and the command that runs them. The skill proposes the declaration when it is missing.
 
   ```markdown
   ## Automated types
@@ -128,7 +130,7 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
   - Run: `uv run --project backend pytest {files} --junitxml={junit}`
   ```
 
-  `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root, without a shell. `{files}` paths are relative to that root, so a runner option that changes folder (`uv run --directory`, `pnpm -C`) cannot take `{files}`.
+  `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root (the repository that holds the QA home), without a shell. `{files}` paths are relative to that root, so a runner option that changes folder (`uv run --directory`, `pnpm -C`) cannot take `{files}`.
 - A test carries the marker `TC: <TC-ID>@<hash8>`, by convention in a comment line above it, and a name holding the TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` and `check` compare the marker with the case, as `gin-qa e2e` does with a spec's header; `gin-qa tests pin` updates it.
 - `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `evidence/<UTC time>-<type>/` of the QA home and records each case's result in its case file. The [CLI reference](../reference/cli.md#gin-qa-tests) gives the result rules. `gin-qa tests run` adds `evidence/` to `.gitignore`.
 

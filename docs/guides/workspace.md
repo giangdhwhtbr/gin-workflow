@@ -23,7 +23,7 @@ workspace:
 ```
 
 - `frozen: true` marks a read-only repository. It is cloned shallow and never gets hooks, tracks, or worktrees.
-- `shape: qa` marks the automation repository. it is the [QA home](qa.md#the-qa-home): `gin-qa` writes `cases/`, `e2e/`, and `evidence/` into it.
+- `shape: qa` marks the automation repository. It is the [QA home](qa.md#the-qa-home): `gin-qa` writes `cases/`, `e2e/`, and `evidence/` into it.
 - `shape: beads` at `.beads` holds the shared Beads database.
 - `verify.checks` are the commands the hooks of that repository run, in that repository.
 

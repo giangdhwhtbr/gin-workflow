@@ -22,19 +22,34 @@ curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/rem
 
 Lệnh này cài plugin cho từng harness và liên kết launcher `gin-qa` vào `~/.local/bin`.
 
+## QA home { #the-qa-home }
+
+Mọi thứ gin-qa ghi nằm trong một thư mục, QA home:
+
+- Trong một [workspace](workspace.md), QA home là repository con có `shape: qa`. Path và tên của nó tự do. gin-qa tìm nó theo shape, từ repository con đó, từ một worktree của nó, hoặc từ bất kỳ đâu trong dự án. `qa.dir` bị bỏ qua ở đó.
+- Trong một repository đơn, QA home là thư mục `qa.dir` (mặc định `qa`). `qa.dir` phải là một path nằm trong repository.
+
+QA home chứa `cases/`, `guidelines.md`, `evidence/` và `e2e/`. `evidence/` nằm cạnh thư mục e2e, mà mặc định nằm trong QA home. gin-qa thêm `evidence/` vào `.gitignore` của repository chứa QA home.
+
+`e2e/` là Playwright project: có `package.json` riêng, `playwright.config.ts`, và các spec. `gin-qa e2e init` tạo `e2e/package.json` khi chưa có. npm và `npx` chạy trong `e2e/`, và lockfile được đọc ở đó.
+
+`qa.cases`, `qa.e2e` và `qa.guidelines` tường minh là tương đối so với repository chứa QA home. Một thiết lập cũ không bị di chuyển: repository đơn có `playwright.config.*` hoặc script `e2e` trong `package.json` ở gốc, và không có `qa.dir`, giữ Playwright ở gốc.
+
+Config, spec và Beads nằm ở gốc dự án, repository cha của workspace. gin-qa đọc chúng qua `gin specs reqs`. Nếu repository con QA chưa được clone, chạy `gin workspace clone <path>`. Nếu gin cũ hơn mức này, gin-qa dừng với "this gin is too old for gin-qa; reinstall gin-workflow". `qa.dir` và QA home cần gin-workflow 3.1 trở lên.
+
 ## Thiết lập: `/gin-qa:setup` { #setup-gin-qasetup }
 
-`/gin-qa:setup` thiết lập QA trong một repository qua một buổi phỏng vấn. Nó đọc những gì `qa/guidelines.md`, `qa/README.md`, và các file case đã nói, và chỉ hỏi những gì chúng còn bỏ ngỏ. Các câu hỏi gồm các loại case, ngôn ngữ, lệnh test của từng loại tự động, tham chiếu lần chạy thủ công và nhịp chạy, tham chiếu tracker bên ngoài, và khi nào tạo báo cáo. Nó hiển thị từng thay đổi trước khi ghi:
+`/gin-qa:setup` thiết lập QA trong một repository qua một buổi phỏng vấn. Nó đọc những gì file guidelines, `README.md` cạnh nó, và các file case đã nói, và chỉ hỏi những gì chúng còn bỏ ngỏ. Các câu hỏi gồm các loại case, ngôn ngữ, lệnh test của từng loại tự động, tham chiếu lần chạy thủ công và nhịp chạy, tham chiếu tracker bên ngoài, và khi nào tạo báo cáo. Nó hiển thị từng thay đổi trước khi ghi:
 
-- `qa/guidelines.md`: dòng `Language:` và các mục `Types`, `Automated types`, `Manual runs`, và `Bugs`. Các mục khác, như `E2E specs`, được giữ nguyên.
-- `qa/README.md`: mục `Process`.
+- `guidelines.md` trong QA home: dòng `Language:` và các mục `Types`, `Automated types`, `Manual runs`, và `Bugs`. Các mục khác, như `E2E specs`, được giữ nguyên.
+- `README.md` trong QA home: mục `Process`.
 - `.claude/skills/<name>-qa/SKILL.md`, trong đó `<name>` là tên thư mục repository viết thường với mỗi chuỗi ký tự khác được thay bằng `-`: một project skill cho agent biết skill gin-qa nào chạy từng bước, và trỏ tới guidelines và README. Nó không sao chép rule nào, nên sửa guidelines không làm nó lỗi thời. Sau khi nâng cấp gin-qa, chạy lại `/gin-qa:setup` để xem khác biệt của nó so với template hiện tại.
 
 Nó kết thúc bằng `gin-qa cases check`, cộng thêm `gin-qa tests check` khi có khai báo loại tự động, và không commit. Project skill được viết cho Claude Code; trên harness khác, hãy sao chép thư mục `.claude/skills/<name>-qa/` vào thư mục project skill mà harness đó đọc. Trong OpenCode, skill này là `@gin-qa-setup`, nên `@setup` vẫn là setup của gin-workflow.
 
 ## Test case: `/gin-qa:cases` { #test-cases-gin-qacases }
 
-`/gin-qa:cases <capability>` (hoặc `--change <epic>`) ghi mỗi case một file vào `qa/cases/<capability>/` (`qa.cases`), theo các rule của nhóm trong `qa/guidelines.md` (`qa.guidelines`). Lần đầu dùng, nó tạo file guidelines và `qa/README.md`, một hướng dẫn cho tester, từ các template.
+`/gin-qa:cases <capability>` (hoặc `--change <epic>`) ghi mỗi case một file vào `cases/<capability>/` của QA home (`qa.cases`), theo các rule của nhóm trong `guidelines.md` (`qa.guidelines`). Lần đầu dùng, nó tạo file guidelines và `README.md`, một hướng dẫn cho tester, từ các template.
 
 ```markdown
 # TC-AUTH-004: Fifth failed login locks the account
@@ -90,14 +105,14 @@ Skill không bao giờ sửa file case và không bao giờ commit.
 
 ## Spec end-to-end: `/gin-qa:e2e` { #end-to-end-specs-gin-qae2e }
 
-`/gin-qa:e2e <capability>` biến các case `.e2e.md` thành Playwright spec dưới `qa/e2e/<capability>/` (`qa.e2e`), mỗi case một spec:
+`/gin-qa:e2e <capability>` biến các case `.e2e.md` thành Playwright spec dưới `e2e/<capability>/` của QA home (`qa.e2e`), mỗi case một spec:
 
-- `gin-qa e2e init` sao chép evidence fixture `qa/e2e/evidence.ts` (bạn tự sửa), thêm `qa/evidence/` vào `.gitignore`, và ghi `playwright.config.ts` ở gốc repository khi chưa có: spec dưới `qa/e2e`, `baseURL` từ `E2E_BASE_URL` hoặc giá trị `--base-url` (mặc định `http://localhost:3000`), retry trên CI, trace ở lần retry đầu, reporter `list` và `junit` (báo cáo JUnit nằm trong thư mục lần chạy), và một project `chromium`.
+- `gin-qa e2e init` sao chép evidence fixture `e2e/evidence.ts` (bạn tự sửa), thêm `evidence/` vào `.gitignore`, và tạo `e2e/package.json` khi chưa có. Nó ghi `e2e/playwright.config.ts` khi chưa có (ở gốc repository với thiết lập cũ ở gốc). Config có spec dưới thư mục e2e, `baseURL` từ `E2E_BASE_URL` hoặc giá trị `--base-url` (mặc định `http://localhost:3000`), retry trên CI, trace ở lần retry đầu, reporter `list` và `junit` (báo cáo JUnit nằm trong thư mục lần chạy), và một project `chromium`.
 - Skill dựng từng spec theo từng bước với ứng dụng đang chạy, đọc ARIA snapshot (`NN.aria.yml`) và URL mà fixture ghi lại sau mỗi bước, và xem lại các screenshot trước khi báo cáo một case. Nơi harness có subagent, nó giao mỗi case cho agent `gin-qa:e2e-tester` ở model trung bình và effort `low`, nhiều case cùng lúc (`--parallel N`, mặc định 3).
-- `gin-qa e2e run` chạy chúng; mỗi lần chạy để lại một screenshot cho mỗi bước và một `result.json` cho mỗi case (và cho mỗi Playwright project khi config có đặt tên project) dưới `qa/evidence/`. Nó ghi kết quả của từng case vào file case và liệt kê chúng dưới `recorded` trong đầu ra JSON.
+- `gin-qa e2e run` chạy chúng; mỗi lần chạy để lại một screenshot cho mỗi bước và một `result.json` cho mỗi case (và cho mỗi Playwright project khi config có đặt tên project) dưới `evidence/` trong QA home. Nó ghi kết quả của từng case vào file case và liệt kê chúng dưới `recorded` trong đầu ra JSON.
 - `gin-qa e2e check --run <folder>` kiểm tra evidence của một lần chạy; `gin-qa e2e export --run <folder> --format json` xuất nó.
 
-`gin-qa e2e init --install` còn cài `@playwright/test` và chromium bằng trình quản lý gói của lockfile (pnpm, yarn, nếu không thì npm) và thêm script `e2e` vào `package.json`; không có cờ, `init` chỉ nêu các bước đó. Với fixture chưa có `ariaSnapshot`, `init` gộp snapshot từng bước khi fixture khớp template, và nếu không thì bảo bạn gộp bằng tay.
+`gin-qa e2e init --install` còn cài `@playwright/test` và chromium bằng trình quản lý gói của lockfile (pnpm, yarn, nếu không thì npm) và thêm script `e2e` vào `package.json` của Playwright project. Không có cờ, `init` chỉ nêu các bước đó. Với fixture chưa có `ariaSnapshot`, `init` gộp snapshot từng bước khi fixture khớp template. Nếu không, nó bảo bạn gộp bằng tay.
 
 Dự án của bạn cung cấp `@playwright/test` 1.49 trở lên. `init` ghi một Playwright config khởi đầu một lần; sau đó config là của bạn (`baseURL`, trình duyệt, video, trace, `webServer`), và `init` không bao giờ ghi đè nó.
 
@@ -105,7 +120,7 @@ Dự án của bạn cung cấp `@playwright/test` 1.49 trở lên. `init` ghi m
 
 `/gin-qa:tests <capability> --type <type>` viết, chạy, và kiểm tra test của các case có loại không phải `e2e` cũng không phải `manual`, như `api` hay `unit`, trong test framework riêng của dự án:
 
-- `qa/guidelines.md` khai báo từng loại như vậy dưới `## Automated types`: các glob của file test (tương đối so với gốc repository, không bao giờ là đường dẫn tuyệt đối hay chứa `..`) và lệnh chạy chúng. Skill đề xuất khai báo khi nó còn thiếu.
+- `guidelines.md` khai báo từng loại như vậy dưới `## Automated types`: các glob của file test (tương đối so với gốc repository, tức repository chứa QA home, không bao giờ là đường dẫn tuyệt đối hay chứa `..`) và lệnh chạy chúng. Skill đề xuất khai báo khi nó còn thiếu.
 
   ```markdown
   ## Automated types
@@ -115,18 +130,18 @@ Dự án của bạn cung cấp `@playwright/test` 1.49 trở lên. `init` ghi m
   - Run: `uv run --project backend pytest {files} --junitxml={junit}`
   ```
 
-  `{junit}` (bắt buộc) là file JUnit XML mà lệnh phải ghi; `{files}` (tùy chọn) là các file test của những case đang chạy. Lệnh chạy từ gốc repository, không qua shell. Các path của `{files}` tương đối so với gốc đó, nên một tùy chọn của runner đổi thư mục (`uv run --directory`, `pnpm -C`) không thể nhận `{files}`.
+  `{junit}` (bắt buộc) là file JUnit XML mà lệnh phải ghi; `{files}` (tùy chọn) là các file test của những case đang chạy. Lệnh chạy từ gốc repository (repository chứa QA home), không qua shell. Các path của `{files}` tương đối so với gốc đó, nên một tùy chọn của runner đổi thư mục (`uv run --directory`, `pnpm -C`) không thể nhận `{files}`.
 - Một test mang marker `TC: <TC-ID>@<hash8>`, theo quy ước nằm trong một dòng comment phía trên nó, và một tên chứa TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` và `check` so marker với case, như `gin-qa e2e` làm với header của một spec; `gin-qa tests pin` cập nhật nó.
-- `gin-qa tests run --type <type> [TC-ID|capability]` chạy lệnh vào `qa/evidence/<UTC time>-<type>/` và ghi kết quả của từng case vào file case. [Tài liệu tham chiếu CLI](../reference/cli.md#gin-qa-tests) nêu các quy tắc về kết quả. `gin-qa tests run` thêm `qa/evidence/` vào `.gitignore`.
+- `gin-qa tests run --type <type> [TC-ID|capability]` chạy lệnh vào `evidence/<UTC time>-<type>/` của QA home và ghi kết quả của từng case vào file case. [Tài liệu tham chiếu CLI](../reference/cli.md#gin-qa-tests) nêu các quy tắc về kết quả. `gin-qa tests run` thêm `evidence/` vào `.gitignore`.
 
 ## Báo cáo: `/gin-qa:report` { #report-gin-qareport }
 
 `/gin-qa:report [capability]` chạy `gin-qa report` và ghi một thư mục bạn có thể gửi đi; `--zip` còn ghi `<folder>.zip` ngay cạnh nó:
 
-- Thư mục là `qa/evidence/report-<UTC time>/`; `--out <dir>` chọn nơi khác, nơi đó phải chưa tồn tại hoặc rỗng. Nó chứa `index.html` và một bản sao của mỗi screenshot e2e mà báo cáo hiển thị, nên mở được offline từ bất kỳ vị trí nào. Báo cáo dưới `qa/evidence/` nằm trong mục `.gitignore` mà `gin-qa report` thêm vào, nên nó không vào version control.
+- Thư mục là `evidence/report-<UTC time>/` trong QA home; `--out <dir>` chọn nơi khác, nơi đó phải chưa tồn tại hoặc rỗng. Nó chứa `index.html` và một bản sao của mỗi screenshot e2e mà báo cáo hiển thị, nên mở được offline từ bất kỳ vị trí nào. Báo cáo dưới `evidence/` nằm trong mục `.gitignore` mà `gin-qa report` thêm vào, nên nó không vào version control.
 - Trang đếm số case theo capability, loại, mức ưu tiên, và kết quả trong bốn biểu đồ cột; nhấp vào một cột sẽ lọc bảng case. Bảng có ô tìm kiếm theo ID và tiêu đề, và một bộ lọc cho mỗi biểu đồ.
 - Nhấp vào một case sẽ mở các trường, precondition, test data, các bước, kết quả mong đợi, kết quả, lần chạy, và bug của nó, và với một case e2e là từng bước của lần chạy mà dòng `Run` của nó nêu, theo từng Playwright project: trạng thái, URL, lỗi, và screenshot.
-- Mỗi case hiển thị lần chạy mà dòng `Run` của nó nêu. Khi thư mục đó đã mất, case hiển thị `evidence not found: <run>` và lệnh liệt kê lần chạy dưới `missing_evidence`. Một `Run` nằm ngoài `qa/evidence/`, như tham chiếu lần chạy thủ công, và một thư mục `gin-qa tests run` được hiển thị dưới dạng văn bản.
+- Mỗi case hiển thị lần chạy mà dòng `Run` của nó nêu. Khi thư mục đó đã mất, case hiển thị `evidence not found: <run>` và lệnh liệt kê lần chạy dưới `missing_evidence`. Một `Run` nằm ngoài `evidence/`, như tham chiếu lần chạy thủ công, và một thư mục `gin-qa tests run` được hiển thị dưới dạng văn bản.
 - Một case chuyển từ e2e sang manual giữ nguyên hàng của nó và có thêm dấu "moved from e2e". Mục "Moved from e2e to manual" liệt kê từng case với ngày, lý do, và kết quả, và chỉ xuất hiện khi có case như vậy.
 
 ## Chuyển một case e2e không ổn định sang manual { #moving-a-flaky-e2e-case-to-manual }
@@ -168,7 +183,7 @@ Các prompt dưới đây được dán nguyên văn nên giữ tiếng Anh.
 
 ## Rule của nhóm { #team-rules }
 
-`/gin-qa:cases` và `/gin-qa:e2e` đọc `qa/guidelines.md` (`qa.guidelines`) trước, và các rule của nó ghi đè mặc định của chúng. Hai rule ví dụ:
+`/gin-qa:cases` và `/gin-qa:e2e` đọc `guidelines.md` (`qa.guidelines`) trước, và các rule của nó ghi đè mặc định của chúng. Hai rule ví dụ:
 
 - Mọi requirement có một case `Priority: high` đều có ít nhất một case `.e2e.md`.
 - Các bước bắt đầu bằng một động từ hành động: Navigate, Enter, Click, Verify.
