@@ -13,7 +13,7 @@ Epic `gin-workflow-qa-lifecycle` (2026-11-11), cluster A of the process review "
 
 **Consequences**
 - The plan put `gin-qa` commands directly into ship and sdd; the full suite caught the core invariant, and the commands moved into `qa-track`. Check core-invariant tests when a plan names an add-on inside `plugins/gin-workflow/src` (templates too: the PR template says "QA cases check").
-- Budgets are tight: execute chain 11,950 of 12,000, review 11,971, `sdd/SKILL.md` 5,987 of 6,000. New guidance belongs in on-demand skills.
+- Budgets are tight: execute chain 11,950 of 12,000, review 11,971, `sdd/SKILL.md` 5,987 of 6,000 (5,966 after `gin-workflow-sdd-team-flow`, see [sdd-team-flow](sdd-team-flow.md)). New guidance belongs in on-demand skills.
 - A post-approval fix needs the reviewer to move the ledger `review-approved` → `implementation-in-progress` (reviewer role only), then checkpoint, `review-requested`, and a new review.
 - `gin-qa api run` does not exist; API cases run with `gin-qa tests run --type api`.
 
