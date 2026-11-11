@@ -12,3 +12,11 @@ A track whose plan entry has `Provider role: qa` changes QA files in the QA home
 3. Validate before review: `gin-qa cases check --change <epic>`; add `gin-qa tests check` when the track changed tests and `gin-qa e2e check` when it changed e2e specs. Exit 1 lists findings: fix them before review.
 4. gin-qa skills never commit. The developer commits the track's files on the track branch with the track's bead in the message, as execute requires.
 5. Review and close follow execute's Complete steps.
+
+## Ship check
+
+With `gin-qa` on PATH and `project.layout: sdd`, run `gin-qa cases check --change <epic> --format json`. Exit 1 stops ship with its findings (missing or stale cases). Otherwise ship says the QA check was skipped.
+
+## Review coverage
+
+With gin-qa installed, the reviewer treats `missing` or `stale` rows of `gin-qa cases plan --change <epic> --format json` for the track's REQs as missing tests.
