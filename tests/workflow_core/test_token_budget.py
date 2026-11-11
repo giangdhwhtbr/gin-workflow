@@ -208,6 +208,15 @@ class TestBudgetLimits(unittest.TestCase):
                 with self.subTest(path=str(path.relative_to(SRC)), token=token):
                     self.assertNotIn(token, text)
 
+    def test_ship_runs_the_gin_qa_check(self):
+        text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("gin-qa cases check --change <epic>", text)
+        self.assertIn("skipped", text)
+
+    def test_sdd_reviewer_reads_gin_qa_plan(self):
+        text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("gin-qa cases plan --change <epic>", text)
+
 
 if __name__ == "__main__":
     unittest.main()
