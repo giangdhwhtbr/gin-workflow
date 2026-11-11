@@ -151,10 +151,10 @@ execution_strategy:
   4. `setup_service.py`: remove the `credentials_warning` import and the `notifications`/`telegram` block (582-584); add after the `model_tiers` action (452) `if "notifications" in effective_cfg: backend_actions.append(<doctor message>)`; change `not in ("2.8", "2.9")` (447) to `version_key(...) < version_key("2.8")`, `target_version in ("2.8", "2.9")` (658) to `>= version_key("2.8")`, `target_version == "2.9"` (663) to `>= version_key("2.9")`, and `not in ("2.8", "2.9")` (722) to `< version_key("2.8")` (guard a missing `restored_version` as `"0"`).
   5. `cli.py`: remove `"notify"` from `TOP_COMMANDS` and the `notify` dispatch branch. `ext.py`: remove the import and `__all__` entry. Delete `notify.py` and `tests/workflow_core/test_notify.py`. `registry.py:211,217`: replace both literal tuples with `SUPPORTED_CONFIG_VERSIONS` (import it from `workflow_core.ext`). `executables.py:85`, `config.full.yaml`, `orchestrator.local.example.yaml`: `"2.10"`.
   6. Other tests: `test_ext.py` drop `"notify"`; `test_schema_2_8.py` delete `test_notifications_telegram_is_an_optional_boolean`; `test_workspace_cli_resolution.py` replace `test_notify_from_a_child_reads_the_parent_config` with `test_notify_is_not_a_command` (running `notify` from the child exits non-zero and stderr names an invalid choice or unknown command); in `test_configuration.py:218` swap `"notifications"` for another nested mapping the secret scan still sees (e.g. `"usage": {"api_key": "sk-literal"}` if that test only checks secret detection; keep the asserted error). Run `grep -rn '"2\.9"' tests | grep -i "current\|CURRENT\|SUPPORTED_SCHEMA"` and update any test asserting the current version.
-  7. Migrate this repository's config: `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m workflow_core.cli setup update --to-version 2.10 --approve` from the worktree root; check `.agent-workflow/config.yaml` has `schema_version: '2.10'` (quoted) and no `notifications`. Remove the backup it writes if it lands inside the worktree's tracked tree (`git status`).
+  7. Deferred to ship (user decision 2026-11-11): the pre-commit hook runs the installed `gin`, which rejects a 2.10 config. After the merge to `master` and `./install.sh`, run `gin setup update --to-version 2.10 --approve` in the main checkout, check `.agent-workflow/config.yaml` has the quoted `"2.10"` and no `notifications`, and commit it.
   8. `python3 -m pytest -n auto` → pass (docs-only failures from Track 3 do not exist yet: `test_skill_routing.py` still finds the notify text; if it fails here, it is fixed in Track 3 and noted in the commit body).
   9. Commit: `feat(config)!: schema 2.10 removes notifications; drop gin notify (remove-telegram)`.
-- **Acceptance criteria**: spec requirements 1, 2, 3, 7; US-1 (first two bullets); US-2.
+- **Acceptance criteria**: spec requirements 1, 2, 3 (requirement 7 at ship, step 7); US-1 (first two bullets); US-2.
 - **Estimated complexity**: high
 
 ### Track 3: skills, references, and docs without notifications
@@ -195,7 +195,7 @@ execution_strategy:
 - [ ] `python3 -m pytest -n auto` passes
 - [ ] `grep -rniE "telegram|gin notify|notify --event" plugins docs` returns nothing
 - [ ] `gin setup doctor` (after reinstall) reports no notification action on this repository
-- [ ] `.agent-workflow/config.yaml` is on `"2.10"` without `notifications`
+- [ ] At ship, after merge and `./install.sh`: `.agent-workflow/config.yaml` is on `"2.10"` without `notifications` (Track 2 step 7)
 
 ## Notes
 - The user may override `Model:` and `Effort:` before plan approval.
