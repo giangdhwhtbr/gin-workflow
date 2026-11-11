@@ -60,11 +60,28 @@ def failing_stub(stderr: str, code: int) -> str:
     return f'#!/bin/sh\necho "{stderr}" >&2\nexit {code}\n'
 
 
-def qa(root: Path, bin_dir: Path | None, *args: str, group: str = "cases",
-       path: str = TOOLS_PATH) -> subprocess.CompletedProcess[str]:
+def qa(root: Path | None, bin_dir: Path | None, *args: str, group: str = "cases",
+       path: str = TOOLS_PATH, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """`gin-qa <group> <args>` with `--repository root` (none when `root` is None: the project comes from `cwd`)."""
     search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
-    return subprocess.run([sys.executable, str(QA_LAUNCHER), group, *args, "--repository", str(root)],
-                          capture_output=True, text=True, env={**os.environ, "PATH": search})
+    return subprocess.run([sys.executable, str(QA_LAUNCHER), group, *args, *(["--repository", str(root)] if root else [])],
+                          capture_output=True, text=True, env={**os.environ, "PATH": search}, cwd=cwd)
+
+
+def make_workspace_qa(base: Path, *, clone: bool = True) -> tuple[Path, Path]:
+    """(parent, child): a workspace parent whose manifest lists `qa` (shape: qa) and, when `clone`, the `qa`
+    repository with one commit at `parent/qa`."""
+    parent = make_repo(Path(base) / "parent", extra="workspace:\n  repos:\n    - path: qa\n"
+                       "      url: git@example.com:org/qa.git\n      shape: qa\n")
+    child = Path(parent) / "qa"
+    if clone:
+        child.mkdir()
+        for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.com"),
+                     ("config", "user.name", "T")):
+            subprocess.run(["git", *args], cwd=child, check=True, capture_output=True)
+        write(child, "README.md", "qa\n")
+        commit_all(child, "init")
+    return parent, child
 
 
 def hash8(root: Path, bin_dir: Path, req: str) -> str:

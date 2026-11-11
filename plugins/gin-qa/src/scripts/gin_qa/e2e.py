@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import os
+import posixpath
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -181,6 +182,11 @@ def check_base_url(value: str) -> str:
     return value
 
 
+def _package(root: Path, eff: Effective) -> Path:
+    """The folder of the Playwright project: the files root, or `eff.package_dir` under it."""
+    return root / eff.package_dir if eff.package_dir else root
+
+
 def _has_e2e_script(root: Path) -> bool:
     try:
         scripts = json.loads((root / "package.json").read_text(encoding="utf-8")).get("scripts")
@@ -221,11 +227,11 @@ def _commands(root: Path) -> tuple[list[str], list[str]]:
     return [*add, "@playwright/test"], [*run, "playwright", "install", "chromium"]
 
 
-def _read_package(root: Path) -> dict[str, Any]:
+def _read_package(root: Path, eff: Effective) -> dict[str, Any]:
     """`package.json` as an object whose `scripts`, when present, is an object; QaError otherwise."""
-    path = root / "package.json"
+    path = _package(root, eff) / "package.json"
     if not path.is_file():
-        raise QaError("no package.json at the repository root; create one before --install")
+        raise QaError(f"no package.json in {eff.package_dir or 'the repository root'}; create one before --install")
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -235,24 +241,25 @@ def _read_package(root: Path) -> dict[str, Any]:
     return data
 
 
-def _install(root: Path) -> list[str]:
+def _install(root: Path, eff: Effective) -> list[str]:
     """Installs Playwright and chromium and adds the `e2e` script; a failure names the commands to run by hand."""
-    package, browser = _commands(root)
+    pkg = _package(root, eff)
+    package, browser = _commands(pkg)
     by_hand = " && ".join(" ".join(argv) for argv in (package, browser))
     done: list[str] = []
-    for argv in ([] if _playwright(root) else [package]) + [browser]:
+    for argv in ([] if _playwright(pkg) else [package]) + [browser]:
         program = shutil.which(argv[0])
         if program is None:
             raise QaError(f"{argv[0]}: not found; run by hand: {by_hand}")
-        result = subprocess.run([program, *argv[1:]], cwd=root, capture_output=True, text=True)
+        result = subprocess.run([program, *argv[1:]], cwd=pkg, capture_output=True, text=True)
         if result.returncode != 0:
             raise QaError(f"{' '.join(argv)} failed: {result.stderr.strip()[-300:]}; run by hand: {by_hand}")
         done.append(f"ran {' '.join(argv)}")
-    if not _has_e2e_script(root):
+    if not _has_e2e_script(pkg):
         # re-read: the manager may have rewritten package.json
-        data = _read_package(root)
+        data = _read_package(root, eff)
         data.setdefault("scripts", {})["e2e"] = "playwright test"
-        tc.write_atomic(root / "package.json", json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        tc.write_atomic(pkg / "package.json", json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         done.append('added "e2e": "playwright test" to package.json')
     return done
 
@@ -262,7 +269,8 @@ def init(root: Path, eff: Effective, base_url: str | None = None, install: bool 
     Returns what it did."""
     url = check_base_url(DEFAULT_BASE_URL if base_url is None else base_url)
     if install:
-        _read_package(root)  # before the first side effect
+        _read_package(root, eff)  # before the first side effect
+    pkg = _package(root, eff)
     done: list[str] = []
     target = root / eff.e2e_dir / FIXTURE
     if not target.exists():
@@ -274,26 +282,29 @@ def init(root: Path, eff: Effective, base_url: str | None = None, install: bool 
         done += [merged] if merged else []
     if ignore_evidence(root, eff):
         done.append(f"added /{evidence_root(eff)}/ to .gitignore")
-    existing = next((name for name in CONFIG_NAMES if (root / name).exists()), None)
+    existing = next((name for name in CONFIG_NAMES if (pkg / name).exists()), None)
     if existing is None:
         text = _template(CONFIG).read_text(encoding="utf-8")
-        (root / CONFIG).write_text(text.replace("__E2E_DIR__", eff.e2e_dir).replace("__BASE_URL__", url),
-                                   encoding="utf-8")
-        done.append(f"wrote {CONFIG} (baseURL {url})")
+        test_dir = posixpath.relpath(eff.e2e_dir, eff.package_dir or ".")  # `.` when the config sits in the e2e folder
+        pkg.mkdir(parents=True, exist_ok=True)
+        (pkg / CONFIG).write_text(text.replace("__E2E_DIR__", test_dir).replace("__BASE_URL__", url),
+                                  encoding="utf-8")
+        shown = f"{eff.package_dir}/{CONFIG}" if eff.package_dir else CONFIG
+        done.append(f"wrote {shown} (baseURL {url})")
     elif base_url is not None:
         done.append(f"{existing} exists; --base-url not applied")
     if install:
-        return done + _install(root)
-    if _playwright(root) is None:
+        return done + _install(root, eff)
+    if _playwright(pkg) is None:
         done.append("@playwright/test is not installed here: npm install -D @playwright/test && "
                     "npx playwright install chromium")
-    if not _has_e2e_script(root):
+    if not _has_e2e_script(pkg):
         done.append('add "e2e": "playwright test" to the package.json scripts')
     return done
 
 
-def _playwright(root: Path) -> Path | None:
-    for base in (root, *root.parents):
+def _playwright(pkg: Path) -> Path | None:
+    for base in (pkg, *pkg.parents):
         if (base / "node_modules/@playwright/test/package.json").is_file():
             return base
     return None
@@ -354,7 +365,8 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
     npx = shutil.which("npx")
     if npx is None:
         raise QaError("npx is not on PATH; install Node.js")
-    if _playwright(root) is None:
+    pkg = _package(root, eff)
+    if _playwright(pkg) is None:
         raise QaError("@playwright/test is not installed: npm install -D @playwright/test")
     specs = _selected(root, eff, targets)
     if not specs:
@@ -363,8 +375,12 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
     record = {"started": datetime.now(timezone.utc).isoformat(), "specs": specs, "playwright_exit": None}
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     # Each run gets its own Playwright output folder: the shared default is wiped when a run starts.
-    result = subprocess.run([npx, "playwright", "test", *specs, "--output", f"{folder}/playwright"],
-                            cwd=root, stdout=sys.stderr,
+    # In the root project the paths stay relative to the files root; in a package folder, relative to it, and the
+    # output absolute.
+    output = f"{folder}/playwright" if not eff.package_dir else str(root / folder / "playwright")
+    arguments = [posixpath.relpath(spec, eff.package_dir or ".") for spec in specs]
+    result = subprocess.run([npx, "playwright", "test", *arguments, "--output", output],
+                            cwd=pkg, stdout=sys.stderr,
                             env={**os.environ, "GIN_QA_RUN_DIR": str(root / folder)})
     record["playwright_exit"] = result.returncode
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
