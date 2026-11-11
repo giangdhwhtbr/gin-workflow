@@ -157,6 +157,23 @@ def repository_root(value: Path | None) -> Path:
     return Path(value).resolve() if value is not None else project_root(Path.cwd())
 
 
+def qa_root(root: Path, cwd: Path) -> Path | None:
+    """The `shape: qa` child of the workspace at `root`; the worktree of it when `cwd` is inside one; else None."""
+    found = load(root)
+    entries = [repo for repo in found.repos if repo.shape == "qa"] if found else []
+    if not entries:
+        return None
+    if len(entries) > 1:
+        raise WorkspaceError("more than one shape: qa entry: " + ", ".join(repo.path for repo in entries))
+    checkout = found.checkout(entries[0])
+    if checkout.is_dir() and main_checkout(Path(cwd).resolve()) == checkout.resolve():
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, capture_output=True,
+                             check=False)
+        if top.returncode == 0 and top.stdout.strip():
+            return Path(top.stdout.strip())
+    return checkout
+
+
 def branch(path: Path) -> str | None:
     done = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=path, text=True,
                           capture_output=True, check=False)
