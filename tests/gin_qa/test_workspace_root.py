@@ -65,6 +65,8 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         before = {name: (parent / name).exists() for name in names}
         result = qa(None, self.bin, "init", "--base-url", "http://localhost:3000", group="e2e", cwd=child)
         self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("created e2e/package.json", result.stdout)
+        self.assertEqual({"name": "qa-e2e", "private": True}, json.loads((child / "e2e/package.json").read_text()))
         self.assertIn("testDir: '.'", (child / "e2e/playwright.config.ts").read_text())
         self.assertTrue((child / "e2e/evidence.ts").is_file())
         self.assertIn("/evidence/", (child / ".gitignore").read_text().splitlines())
@@ -81,6 +83,37 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         self.assertIn("testDir: '.'", (root / "new-app/testing/e2e/playwright.config.ts").read_text())
         self.assertFalse((root / "playwright.config.ts").exists() or (root / "qa").exists())
         self.assertIn("/new-app/testing/evidence/", (root / ".gitignore").read_text().splitlines())
+
+    def test_qa_dir_wins_over_a_root_playwright_setup(self):
+        root = self.single("qa:\n  dir: new-app/testing\n")
+        write(root, "playwright.config.ts", "export default {};\n")
+        write(root, "package.json", '{"scripts": {"e2e": "playwright test"}}\n')
+        result = qa(root, self.bin, "init", group="e2e")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("wrote new-app/testing/e2e/playwright.config.ts", result.stdout)
+        self.assertTrue((root / "new-app/testing/e2e/package.json").is_file())
+        self.assertEqual("export default {};\n", (root / "playwright.config.ts").read_text())
+        self.assertEqual('{"scripts": {"e2e": "playwright test"}}\n', (root / "package.json").read_text())
+
+    def test_e2e_run_with_a_nested_qa_dir_runs_playwright_in_its_e2e_folder(self):
+        root = self.single("qa:\n  dir: new-app/testing\n")
+        home = "new-app/testing"
+        cases = write(root, f"{home}/cases/auth.md",
+                      cases_file("auth", case("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000")))
+        self.assertEqual(0, qa(root, self.bin, "init", group="e2e").returncode)
+        write(root, "node_modules/@playwright/test/package.json", "{}")
+        pinned = hash8(parse_file(cases, f"{home}/cases/auth.md")[0][0])
+        write(root, f"{home}/e2e/auth/tc-auth-001.spec.ts", spec_text("TC-AUTH-001", pinned))
+        npx = self.base / "npx-bin"
+        python_stub(npx, "npx", FAKE_NPX)
+        result = qa(root, self.bin, "run", "--format", "json", group="e2e",
+                    path=os.pathsep.join([str(npx), TOOLS_PATH]))
+        self.assertEqual(0, result.returncode, result.stderr)
+        run = json.loads(result.stdout)["run"]
+        self.assertRegex(run, rf"^{home}/evidence/\d{{4}}-")
+        self.assertEqual(["playwright", "test", "auth/tc-auth-001.spec.ts", "--output",
+                          str(root / run / "playwright")],
+                         json.loads((root / home / "e2e/.npx-args").read_text()))
 
     def test_qa_dir_outside_is_refused(self):
         root = self.single("qa:\n  dir: ../x\n")
@@ -112,18 +145,18 @@ class TestQaWorkspaceRoot(unittest.TestCase):
             python_stub(self.bin, name, FAKE_MANAGER.format(python=sys.executable))
         result = qa(root, self.bin, "init", group="e2e")
         self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("created qa/e2e/package.json", result.stdout)
         self.assertIn("wrote qa/e2e/playwright.config.ts", result.stdout)
         self.assertIn("testDir: '.'", (root / "qa/e2e/playwright.config.ts").read_text())
+        self.assertEqual({"name": "qa-e2e", "private": True}, json.loads((root / "qa/e2e/package.json").read_text()))
         self.assertFalse((root / "playwright.config.ts").exists() or (root / "package.json").exists())
-        missing = qa(root, self.bin, "init", "--install", group="e2e")
-        self.assertEqual(2, missing.returncode)
-        self.assertIn("no package.json in qa/e2e", missing.stderr)
-        write(root, "qa/e2e/package.json", '{"name": "qa"}\n')
+        self.assertEqual(0, qa(root, self.bin, "init", group="e2e").returncode)  # the package.json is kept as it is
         installed = qa(root, self.bin, "init", "--install", group="e2e")
         self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertNotIn("created", installed.stdout)
         self.assertEqual(["npm install -D @playwright/test", "npx playwright install chromium"],
                          (root / "qa/e2e/.pm-calls").read_text().splitlines())
-        self.assertEqual({"name": "qa", "scripts": {"e2e": "playwright test"}},
+        self.assertEqual({"name": "qa-e2e", "private": True, "scripts": {"e2e": "playwright test"}},
                          json.loads((root / "qa/e2e/package.json").read_text()))
         self.assertFalse((root / "package.json").exists() or (root / ".pm-calls").exists())
 

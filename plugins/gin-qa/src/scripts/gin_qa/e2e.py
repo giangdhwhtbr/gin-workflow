@@ -264,14 +264,25 @@ def _install(root: Path, eff: Effective) -> list[str]:
     return done
 
 
+def _package_name(root: Path, eff: Effective) -> str:
+    """`<QA home folder>-e2e` as an npm name: the folder above the e2e folder, else the files root's own name."""
+    home = PurePosixPath(eff.package_dir).parent.name or root.name
+    return (re.sub(r"[^a-z0-9._-]+", "-", home.lower()).strip("._-") or "qa") + "-e2e"
+
+
 def init(root: Path, eff: Effective, base_url: str | None = None, install: bool = False) -> list[str]:
     """Copies the fixture, ignores the evidence folder, and writes the Playwright config; never overwrites.
     Returns what it did."""
     url = check_base_url(DEFAULT_BASE_URL if base_url is None else base_url)
-    if install:
-        _read_package(root, eff)  # before the first side effect
     pkg = _package(root, eff)
     done: list[str] = []
+    if eff.package_dir and not (pkg / "package.json").is_file():  # a fresh QA home: the Playwright project starts here
+        pkg.mkdir(parents=True, exist_ok=True)
+        tc.write_atomic(pkg / "package.json", json.dumps({"name": _package_name(root, eff), "private": True},
+                                                         indent=2) + "\n")
+        done.append(f"created {eff.package_dir}/package.json")
+    if install:
+        _read_package(root, eff)  # before the next side effect
     target = root / eff.e2e_dir / FIXTURE
     if not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)

@@ -486,7 +486,7 @@ class TestInitInstall(E2eCase):
 
     def root_setup(self) -> None:
         """A project with Playwright at the root, which `init --install` keeps using."""
-        write(self.root, "playwright.config.ts", "export default {};\n")
+        write(self.root, "playwright.config.js", "module.exports = {};\n")
 
     def calls(self) -> list[str]:
         log = self.root / ".pm-calls"
@@ -532,6 +532,7 @@ class TestInitInstall(E2eCase):
         self.assertIn("npx playwright install chromium", result.stderr)
 
     def test_no_package_json_exits_2_and_writes_nothing(self):
+        self.root_setup()
         (self.root / "package.json").unlink()
         result = self.e2e("init", "--install")
         self.assertEqual(2, result.returncode)
@@ -539,6 +540,7 @@ class TestInitInstall(E2eCase):
         self.assertFalse((self.root / "qa/e2e/evidence.ts").exists())
 
     def test_a_bad_package_json_exits_2_before_anything_is_installed_or_written(self):
+        self.root_setup()
         for text in ("{not json", "[]", '{"scripts": []}'):
             with self.subTest(text=text):
                 write(self.root, "package.json", text)
