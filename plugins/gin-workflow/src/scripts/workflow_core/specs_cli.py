@@ -146,8 +146,11 @@ def _run(args: argparse.Namespace) -> int:
             print(f"warning: {warning}", file=sys.stderr)
         return _findings(errors + found, args.format, "ok")
     if args.command == "hash":
-        block, digest = specs.requirement_hash(root, cfg, args.req_id)
-        _emit({"id": block.id, "hash": digest}, args.format, f"<!-- base: {digest} -->")
+        block, digest, source = specs.requirement_hash(root, cfg, args.req_id)
+        _emit({"id": block.id, "hash": digest, "change": source.name if source else None}, args.format,
+              f"<!-- base: {digest} -->")
+        if source and args.format != "json":
+            print(f"note: {block.id} is added by open change {source.name}; archive it first", file=sys.stderr)
         return 0
     if args.command == "export":
         from .specs_export import export

@@ -27,6 +27,10 @@ The system SHALL reject a wrong password and count the failure.
 - WHEN they submit a wrong password
 - THEN they see "Invalid credentials" and the failure count grows
 """
+MODIFIED_003 = ("### REQ-AUTH-003: Lock account after failed logins\n<!-- base: {base} -->\n"
+                "The system SHALL lock an account for 30 minutes after 5 failed logins.\n\n"
+                "#### Scenario: fifth failure locks\n- GIVEN a user with 4 failed logins\n"
+                "- WHEN the next login fails\n- THEN the account is locked\n")
 
 
 class TestArchive(unittest.TestCase):
@@ -124,6 +128,26 @@ class TestArchive(unittest.TestCase):
         auth = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
         self.assertIn(source, auth)
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
+
+
+    def test_modified_on_in_flight_req_waits_for_its_change(self):
+        first = make_change(self.root)
+        base = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-003")[1]
+        second = make_change(self.root, "ep-2-longer", epic="ep-2",
+                             spec_delta=delta(modified=MODIFIED_003.format(base=base)))
+        commit_all(self.root)
+        living = self.root / "docs/specs/auth/spec.md"
+        before = living.read_text(encoding="utf-8")
+        with self.assertRaises(ArchiveConflict) as raised:
+            archive(self.root, self.cfg, second, today=TODAY)
+        self.assertIn("REQ-AUTH-003 is added by ep-1-lockout; archive ep-1-lockout first", raised.exception.errors)
+        self.assertEqual(before, living.read_text(encoding="utf-8"))
+        archive(self.root, self.cfg, first, today=TODAY)
+        commit_all(self.root)
+        archive(self.root, self.cfg, second, today=TODAY)
+        after = living.read_text(encoding="utf-8")
+        self.assertIn("30 minutes", after)
+        self.assertNotIn("15 minutes", after)
 
 
 class TestTraceAndStatus(unittest.TestCase):

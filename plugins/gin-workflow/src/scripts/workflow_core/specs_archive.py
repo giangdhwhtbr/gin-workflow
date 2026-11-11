@@ -9,7 +9,7 @@ import subprocess
 from typing import Any, Mapping
 
 from .atomic import atomic_write_many
-from .specs import (Block, SpecsError, block_hash, delta_blocks, lint_change, living_blocks, parse_blocks,
+from .specs import (Block, SpecsError, block_hash, delta_blocks, in_flight_blocks, lint_change, living_blocks, parse_blocks,
                     render, specs_dir, template_text, _BASE)
 
 
@@ -61,6 +61,12 @@ def archive(root: Path, cfg: Mapping[str, Any], change: Path, *, today: date | N
             if block.base != current:
                 errors.append(f"{block.id}: living block changed since the delta was written "
                               f"(base {str(block.base)[:12]}, now {current[:12]}); update the delta")
+    in_flight = in_flight_blocks(root, cfg, exclude=change)
+    for block in blocks:
+        added = in_flight.get(block.id, [])
+        if block.section in ("MODIFIED", "REMOVED") and block.id not in living and len(added) == 1:
+            name = added[0][0].name
+            errors.append(f"{block.id} is added by {name}; archive {name} first")
     if errors:
         raise ArchiveConflict(errors)
     target = Path(cfg["changes"]) / "archive" / f"{(today or date.today()).isoformat()}-{change.name}"
