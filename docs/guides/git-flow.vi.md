@@ -59,6 +59,8 @@ Mỗi phần việc PHẢI có branch riêng, và tên branch PHẢI cho thấy 
 
 Một branch PHẢI chứa đúng một loại công việc. Spec và plan không dùng chung branch.
 
+Thư mục asset không có branch riêng: thư mục đã xác nhận vào nhánh gốc cùng pull request của spec mà change folder trích dẫn nó ([hình ảnh và mockup](sdd.md#images-and-mockups)).
+
 ## Commit { #commits }
 
 Mọi commit message PHẢI theo quy ước đặt trong `team.commit_convention`. Hook commit-msg do `gin team hooks` cài sẽ kiểm tra message khi commit, và CI kiểm tra lại trên pull request.
@@ -75,6 +77,7 @@ Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò 
 | Spec | `spec/<topic>` | các vai trò được liệt kê cho `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | các vai trò được liệt kê cho `plan_approved` | `plan_approved` |
 | Track | `feat/<topic>-t<N>` | các vai trò được liệt kê cho `ship` | `ship` |
+| Archive vào living spec | phần tích hợp của epic: merge feature branch, hoặc pull request của repository cha trong workspace | các vai trò được liệt kê cho `ship`; theo quy ước của nhóm, BA review phần diff của living spec | `ship` |
 
 Tác giả PHẢI điền template pull request do `gin team init` ghi. Template có các trường sau:
 
@@ -90,10 +93,12 @@ Tác giả PHẢI điền template pull request do `gin team init` ghi. Template
 
 Mỗi pull request PHẢI được review bởi một thành viên giữ approving role của gate đó. Mỗi người review PHẢI dùng checklist của vai trò mình bên dưới. Các checklist là quy tắc của chính thoả thuận này và là quy ước của team, team có thể đổi.
 
-BA review một spec và kiểm tra rằng:
+BA dùng checklist này trên các pull request spec do thành viên khác tạo.
+
+Người duyệt một spec kiểm tra rằng:
 
 - mỗi user story có acceptance criteria;
-- mỗi requirement có một dòng `Source:` nêu nguồn gốc của nó;
+- mỗi requirement lấy từ một đầu vào có một dòng `Source:` nêu tên nó;
 - các edge case của hệ thống cũ đã được phủ;
 - mọi requirement đều test được: mỗi acceptance criterion nêu một kết quả quan sát được.
 
@@ -151,7 +156,7 @@ Khi gin từ chối pull request, gin liệt kê các approval còn thiếu. Th�
 
 Khi host báo conflict, tác giả PHẢI cập nhật branch từ base branch, giải quyết conflict và xin review lại. Approval trước đó không còn giá trị.
 
-Thay đổi requirement sau khi plan được approve PHẢI nằm trong một change folder mới, không sửa spec đã approve. [Living spec SDD](sdd.md) mô tả cách làm.
+Thay đổi requirement sau khi plan được approve PHẢI nằm trong một change folder mới, không sửa spec đã approve. [Living spec SDD](sdd.md#changing-a-requirement-after-plan-approval) mô tả cách làm.
 
 ## Quy trình theo từng host { #host-procedures }
 

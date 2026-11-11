@@ -67,7 +67,7 @@ flowchart LR
   A --> B["tech-doc<br/>Tech Lead"]
   B --> C["roadmap<br/>PM"]
   C --> D["Milestone<br/>PM"]
-  D --> E["discuss epic<br/>BA"]
+  D --> CA["capture + mockup<br/>BA"] --> E["discuss epic<br/>BA"]
   E --> F["plan + orchestrate<br/>Tech Lead"]
   F --> G["Test cases<br/>QE"]
   G --> H["execute<br/>Dev"]
@@ -89,9 +89,12 @@ flowchart LR
 Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
-Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó điền `workspace.repos` trong `.agent-workflow/config.yaml`:
+Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó đặt `artifacts.layout: sdd` và điền `workspace.repos` trong `.agent-workflow/config.yaml`:
 
 ```yaml
+artifacts:
+  layout: sdd
+  test_globs: ["**/src/test/**", "**/test_*.py", "**/*_test.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**"]
 workspace:
   repos:
     - {path: legacy/shop-portal, url: git@github.com:acme/shop-portal.git, frozen: true}
@@ -110,6 +113,8 @@ workspace:
     - {path: qa, url: git@github.com:acme/qa.git, shape: qa}
     - {path: .beads, url: git@github.com:acme/beads.git, shape: beads}
 ```
+
+Danh sách `test_globs` là các glob mặc định cộng thêm cây test của Maven, vì danh sách được cấu hình sẽ thay thế các giá trị mặc định. Nhờ vậy `gin specs trace` tìm thấy test của các service.
 
 Sau đó clone tất cả và cài hook trong từng repository:
 
@@ -270,6 +275,29 @@ Lặp lại cho từng milestone. Khi các milestone đóng, số epic đang m�
 
 **Lỗi thường gặp:** chọn một epic có blocker nằm ở milestone sau (`external_blocker`); để epic không có ước lượng (`unestimated`); lập kế hoạch vượt quá ngày kết thúc (`overflow`); kick-off milestone khi epic chưa có spec được xác nhận (`spec_not_ready`).
 
+## Chụp và mockup (BA) { #capture-and-mockup-ba }
+
+**Ai làm:** BA.
+
+**Làm ở đâu:** repository cha.
+
+**Prompt**
+```text
+/gin-ba:capture catalog --date 2026-11-12
+Screenshots: the JSP catalog list and the product detail page, from the legacy system.
+```
+```text
+/gin-ba:mockup catalog
+```
+
+Đưa vào prompt: ảnh chụp màn hình legacy của danh sách catalog và trang chi tiết sản phẩm. Chỉ chạy `/gin-ba:mockup catalog` khi UI mới khác UI legacy.
+
+**Kết quả:** một thư mục có ngày dưới `docs/specs/catalog/assets/`, với `Kind: legacy` trong `description.md`, và một thư mục mockup khi UI thay đổi. Ảnh chụp nằm dưới `legacy/` trong thư mục có ngày. Cả hai skill đều để thư mục chưa commit.
+
+**Cổng hoặc phê duyệt:** không có. BA xác nhận từng thư mục bằng `gin specs assets confirm catalog --date 2026-11-12`. `/gin:discuss` chỉ trích dẫn thư mục đã xác nhận và commit chúng cùng thư mục change, như [hình ảnh và mockup](../guides/sdd.md#images-and-mockups) mô tả. Xem thêm [living spec trong lúc migration](../guides/sdd.md#living-specs-during-a-migration) và [hướng dẫn cho BA](../guides/ba.md).
+
+**Lỗi thường gặp:** commit một thư mục asset trên nhánh riêng; chạy discuss trước khi các thư mục được xác nhận.
+
 ## Discuss một epic { #discuss-an-epic }
 
 **Ai làm:** BA.
@@ -285,7 +313,7 @@ API contract: GET /api/products?category=&page= and GET /api/products/{id}, with
 Out of scope: search and reviews.
 ```
 
-Đưa vào prompt: hành vi người dùng nhìn thấy của luồng JSP bạn thay thế, các edge case và quy tắc validation của nó (xem [Ghi lại hành vi hiện tại trước](#capture-current-behavior-first)), hợp đồng REST API mà service mới phải đáp ứng, và những gì nằm ngoài phạm vi.
+Đưa vào prompt: hành vi người dùng nhìn thấy của luồng JSP bạn thay thế, các edge case và quy tắc validation của nó (xem [Hành vi legacy và living spec](#legacy-behavior-and-living-specs)), hợp đồng REST API mà service mới phải đáp ứng, và những gì nằm ngoài phạm vi.
 
 **Kết quả:** cuộc thảo luận bắt đầu từ epic và mục roadmap của nó và dùng lại epic đó (không tạo epic mới). Spec được dựng từ template `design-spec.md` (hoặc `proposal.md` với layout SDD) và có mục `## User Stories`. Mỗi story có acceptance criteria và, với REQ-ID, một dòng `REQ:`.
 
@@ -293,13 +321,14 @@ Out of scope: search and reviews.
 
 **Lỗi thường gặp:** tạo epic thứ hai bằng tay; story không có acceptance criteria; bỏ qua các edge case của legacy.
 
-### Ghi lại hành vi hiện tại trước { #capture-current-behavior-first }
+### Hành vi legacy và living spec { #legacy-behavior-and-living-specs }
 
-Trước khi thay đổi một capability, hãy mô tả hành vi hiện tại của nó dưới dạng living spec, gồm các edge case của legacy, quy tắc validation và mã lỗi. Xem [chuyển sang layout SDD](../guides/sdd.md#migrating) để biết cách thiết lập.
+Living spec mô tả hệ thống mới. Hành vi legacy nằm trong các thư mục `Kind: legacy` đã xác nhận, và mỗi requirement lấy từ đó nêu thư mục của nó trong dòng `Source:`. Xem [living spec trong lúc migration](../guides/sdd.md#living-specs-during-a-migration).
 
 ```markdown
-### REQ-AUTH-001: Legacy password hashing support
-The authentication service MUST verify legacy MD5/SHA1 hashes while upgrading authenticated users to bcrypt/argon2id.
+### REQ-CATALOG-001: Hide unpublished products
+The catalog API SHALL omit hidden products from the product list.
+Source: `assets/2026-11-12/description.md`
 ```
 
 Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (path, method, request, response, mã lỗi), để API mới và các mock của SPA được xây từ cùng một nguồn.

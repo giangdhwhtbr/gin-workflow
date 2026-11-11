@@ -17,6 +17,11 @@ from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta,
 from workflow_core import docs_check, specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
+MODIFIED_003 = ("### REQ-AUTH-003: Lock account after failed logins\n<!-- base: {base} -->\n"
+                "The system SHALL lock an account for 30 minutes after 5 failed logins.\n\n"
+                "#### Scenario: fifth failure locks\n- GIVEN a user with 4 failed logins\n"
+                "- WHEN the next login fails\n- THEN the account is locked\n")
+
 
 def run_specs(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run([sys.executable, str(LAUNCHER), "specs", *args, "--repository", str(root)],
@@ -314,6 +319,41 @@ class TestRepositoryCommands(unittest.TestCase):
         with self.assertRaises(SpecsError):
             specs.renumber(self.root, self.cfg, change, "REQ-AUTH-003", "REQ-AUTH-002", against="HEAD")
 
+    def test_lint_accepts_modified_on_in_flight_req(self):
+        make_change(self.root)
+        block, base, source = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-003")
+        self.assertEqual("ep-1-lockout", source.name)
+        self.assertEqual(specs.block_hash(ADDED_BLOCK), base)
+        second = make_change(self.root, "ep-2-longer", epic="ep-2",
+                             spec_delta=delta(modified=MODIFIED_003.format(base=base)))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, second))
+        removed = make_change(self.root, "ep-4-drop", epic="ep-4", spec_delta=delta(
+            removed=f"### REQ-AUTH-003: Lock account after failed logins\n<!-- base: {base} -->\nReason: dropped\n"))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, removed))
+
+    def test_lint_rejects_req_neither_living_nor_in_flight(self):
+        change = make_change(self.root, spec_delta=delta(
+            modified=MODIFIED_003.format(base="0" * 64).replace("REQ-AUTH-003", "REQ-AUTH-999")))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any(e.endswith("REQ-AUTH-999 is not in the living spec or an open change") for e in errors), errors)
+
+    def test_req_added_by_two_open_changes(self):
+        make_change(self.root)
+        make_change(self.root, "ep-3-dup", epic="ep-3")
+        message = "REQ-AUTH-003 is added by ep-1-lockout and ep-3-dup; renumber one"
+        with self.assertRaises(SpecsError) as raised:
+            specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-003")
+        self.assertEqual(message, str(raised.exception))
+        third = make_change(self.root, "ep-5-third", epic="ep-5",
+                            spec_delta=delta(modified=MODIFIED_003.format(base="0" * 64)))
+        errors = specs.lint_change(self.root, self.cfg, third)
+        self.assertTrue(any(e.endswith(message) for e in errors), errors)
+
+    def test_living_hash_unchanged(self):
+        block, digest, source = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")
+        self.assertIsNone(source)
+        self.assertEqual(specs.block_hash(block.text), digest)
+
 
 class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
@@ -386,6 +426,19 @@ class TestSpecsCli(unittest.TestCase):
             self.assertEqual(1, linted.returncode)
             self.assertEqual("findings", json.loads(linted.stdout)["status"])
             self.assertEqual(2, run_specs(root, "lint", "--change", "nope").returncode)
+
+
+    def test_hash_names_in_flight_change(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = make_repo(Path(directory))
+            write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            make_change(root)
+            as_json = run_specs(root, "hash", "REQ-AUTH-003", "--format", "json")
+            self.assertEqual("ep-1-lockout", json.loads(as_json.stdout)["change"])
+            as_text = run_specs(root, "hash", "REQ-AUTH-003")
+            self.assertTrue(as_text.stdout.startswith("<!-- base: "))
+            self.assertIn("note: REQ-AUTH-003 is added by open change ep-1-lockout; archive it first", as_text.stderr)
+            self.assertIsNone(json.loads(run_specs(root, "hash", "REQ-AUTH-001", "--format", "json").stdout)["change"])
 
 
 if __name__ == "__main__":

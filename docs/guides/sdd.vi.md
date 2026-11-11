@@ -1,6 +1,6 @@
 # Phát triển hướng đặc tả (layout SDD) { #spec-driven-development-sdd-layout }
 
-Theo mặc định (`artifacts.layout: legacy`), mỗi thay đổi có một spec ghi ngày trong `.planning/specs/` và một plan trong `.planning/plans/`, và chúng nằm yên nơi được ghi. Layout SDD thay vào đó giữ các **living spec**: một spec cho mỗi capability luôn mô tả hành vi hiện tại, với các requirement được đánh số mà test và bead trỏ tới. Mỗi thay đổi đề xuất một delta cho các spec đó, và ship sẽ merge delta vào.
+Theo mặc định (`artifacts.layout: legacy`), mỗi thay đổi có một spec ghi ngày trong `.planning/specs/` và một plan trong `.planning/plans/`, và chúng nằm yên nơi được ghi. Layout SDD thay vào đó giữ các **living spec**: một spec cho mỗi capability luôn mô tả hành vi hiện tại, với các requirement được đánh số mà test và bead trỏ tới. Mỗi thay đổi đề xuất một delta cho các spec đó, và ship sẽ merge delta vào. Một dự án viết lại giữ hành vi của hệ thống cũ ra ngoài các spec đó; xem [living spec trong quá trình chuyển đổi](#living-specs-during-a-migration).
 
 Setup đề xuất `artifacts.layout: sdd` cho dự án greenfield. Một repository có sẵn chuyển đổi bằng `/gin:migrate-specs`, lệnh này di chuyển các spec và plan trong `.planning` rồi đặt layout; `gin setup doctor` gợi ý nó khi có spec legacy.
 
@@ -48,7 +48,9 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin specs next-id <cap>`.
+- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin specs next-id <cap>`, lệnh này quét cây làm việc, các worktree và các nhánh remote.
+- Trong một [workspace](workspace.md), requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha, còn các repository con chỉ tham chiếu tới chúng.
+- `gin specs lint --against <base>` báo một id `ADDED` mà nhánh gốc đã dùng, và `gin specs renumber` sửa nó. Skill `sdd` chạy lệnh lint đó trước pull request của spec và khi ship.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
 - `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
@@ -75,6 +77,8 @@ docs/specs/reports/assets/
 `gin specs assets add <capability> <files> [--date D]` chép các file, từ bất kỳ đâu trên đĩa, vào thư mục có tên ngày và ghi `description.md` với `Kind:`, `Previous:` và `Confirmed: no` khi chưa có. `gin specs assets confirm <capability> --date D` đặt `Confirmed:` thành hôm nay. Cả hai thoát với mã 2 khi từ chối; xem [tham chiếu CLI](../reference/cli.md#gin-specs).
 
 `specs lint` báo thư mục có tên ngày mà thiếu `description.md`, giá trị `Confirmed:` không phải `no` cũng không phải ngày, và mọi thay đổi trong thư mục đã xác nhận trên nhánh gốc. Nhánh gốc là `--against <ref>`, nếu không thì merge-base với `main` hoặc `master`; không có thì lint cảnh báo và bỏ qua kiểm tra này. Thư mục xác nhận trên nhánh hiện tại chỉ được kiểm tra sau khi nó vào nhánh gốc, và `assets add` từ chối nó trước đó. File phẳng trong `assets/` và thư mục không mang tên ngày ISO vẫn hợp lệ và không bị kiểm tra.
+
+Thư mục đã xác nhận không có branch riêng. `/gin:discuss` commit nó cùng change folder trích dẫn nó, trên `spec/<epic>-<slug>`, để những người duyệt spec duyệt nó cùng spec ([pull request](git-flow.md#pull-requests)). Thư mục đã xác nhận mà không change nào trích dẫn thì không được commit.
 
 Mỗi `description.md` có một dòng `Confirmed:`. Dòng này là `no` cho tới khi BA xác nhận đầu vào, sau đó là ngày ISO của lần xác nhận đó, và thư mục đã xác nhận không bao giờ bị sửa. Trong discuss, agent đọc `description.md` và `mockup/index.html` (nếu có) của từng thư mục có tên ngày của các capability bị ảnh hưởng, chỉ trích dẫn thư mục đã xác nhận, và hỏi về các thư mục còn lại. Một requirement lấy từ đầu vào thêm dòng `Source:` sau câu statement:
 
@@ -156,8 +160,18 @@ Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id
 | `plan` | Ghi `<change>/04-plan.md`; mỗi track liệt kê `Requirements: REQ-...`, và mọi requirement được thêm hoặc sửa đều thuộc về một track. |
 | `orchestrate` | Tái sử dụng epic; mỗi track bead nhận `--spec-id <epic>-<slug>` và các label `req:<REQ-ID>`. |
 | `execute` / review | Test mới hoặc đã đổi mang REQ-ID trong tên test hoặc trong một comment; reviewer kiểm tra mỗi scenario đều có test. |
-| `ship` | `specs archive --change <epic>` merge delta vào các living spec và chuyển thư mục sang `changes/archive/`. Xung đột sẽ dừng ship. |
+| `ship` | `specs archive --change <epic>` merge delta vào các living spec và chuyển thư mục sang `changes/archive/`. Xung đột sẽ dừng ship. Archive vào cùng lúc với tích hợp, và theo quy ước của nhóm, BA review phần diff của living spec ([pull request](git-flow.md#pull-requests)). |
 | `quick` | Không bao giờ tạo thư mục change; thay đổi hành vi mà một requirement mô tả cần vòng đời đầy đủ. |
+
+## Living spec trong quá trình chuyển đổi { #living-specs-during-a-migration }
+
+Khi viết lại hệ thống, các living spec mô tả hệ thống mới đã ship. Hành vi của hệ thống cũ nằm trong các thư mục asset `Kind: legacy`, do `/gin-ba:capture` hoặc `gin specs assets add --legacy` ghi. Một requirement lấy từ hành vi đó nêu tên thư mục trong dòng `Source:`. Một dự án không viết lại thì gieo living spec từ hành vi hiện tại, như [Chuyển đổi](#migrating) mô tả.
+
+## Thay đổi requirement sau khi plan được duyệt { #changing-a-requirement-after-plan-approval }
+
+Không bao giờ sửa change folder đã duyệt. Hãy viết một change folder mới có khối `MODIFIED` hoặc `REMOVED` mà `<!-- base: <hash> -->` lấy từ `gin specs hash <REQ-ID>`. Điều này đúng dù requirement đã ship hay một change đang mở khác vẫn còn thêm nó. Với requirement chưa ship, hash lấy từ khối `ADDED` của change đó; với đầu ra dạng text, lệnh in một ghi chú ra stderr; với đầu ra JSON, khóa `change` nêu tên change đó.
+
+Với khối `MODIFIED` hoặc `REMOVED`, `gin specs lint` báo `<REQ> is not in the living spec or an open change` khi cả hai đều không có id, và `<REQ> is added by <a> and <b>; renumber one` khi hai change đang mở cùng thêm nó. `gin specs archive` của change mới dừng với `<REQ> is added by <change>; archive <change> first` cho tới khi change kia được archive. Với [add-on QA](qa.md), `gin-qa cases plan` cho biết test case nào đã lỗi thời.
 
 ## Chuyển đổi { #migrating }
 

@@ -1,6 +1,6 @@
 # Spec-driven development (SDD layout)
 
-By default (`artifacts.layout: legacy`) each change gets a dated spec in `.planning/specs/` and a plan in `.planning/plans/`, and they stay where they were written. The SDD layout keeps **living specs** instead: one spec per capability that always describes current behavior, with numbered requirements that tests and beads point to. Every change proposes a delta to those specs, and shipping merges the delta in.
+By default (`artifacts.layout: legacy`) each change gets a dated spec in `.planning/specs/` and a plan in `.planning/plans/`, and they stay where they were written. The SDD layout keeps **living specs** instead: one spec per capability that always describes current behavior, with numbered requirements that tests and beads point to. Every change proposes a delta to those specs, and shipping merges the delta in. A rewrite keeps the old system's behavior out of them; see [living specs during a migration](#living-specs-during-a-migration).
 
 Setup proposes `artifacts.layout: sdd` for a greenfield project. An existing repository switches with `/gin:migrate-specs`, which moves its `.planning` specs and plans and sets the layout; `gin setup doctor` suggests it when legacy specs exist.
 
@@ -48,7 +48,9 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin specs next-id <cap>`.
+- IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin specs next-id <cap>`, which scans the working tree, the worktrees, and the remote branches.
+- In a [workspace](workspace.md), requirements and their REQ-IDs live only in the parent's specs, and the children only reference them.
+- `gin specs lint --against <base>` reports an `ADDED` id that the base already uses, and `gin specs renumber` fixes it. The `sdd` skill runs that lint before the spec pull request and at ship.
 - Each block has one `SHALL` or `MUST` statement and at least one GIVEN/WHEN/THEN scenario. The EARS patterns (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) are preferred.
 - A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
 - `gin specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
@@ -75,6 +77,8 @@ Name the folder by the ISO date the inputs arrived. By convention, a new batch o
 `gin specs assets add <capability> <files> [--date D]` copies the files, from anywhere on disk, into the dated folder and writes `description.md` with `Kind:`, `Previous:`, and `Confirmed: no` when it is missing. `gin specs assets confirm <capability> --date D` sets `Confirmed:` to today. Both exit 2 on refusal; see the [CLI reference](../reference/cli.md#gin-specs).
 
 `specs lint` reports a dated folder without `description.md`, a `Confirmed:` value that is neither `no` nor a date, and any change to a folder confirmed on the base branch. The base is `--against <ref>`, else the merge-base with `main` or `master`; without one, lint warns and skips that check. A folder confirmed on the current branch is checked only after it reaches the base, and `assets add` refuses it before that. Flat files under `assets/` and folders not named by an ISO date stay valid and are not checked.
+
+A confirmed folder has no branch of its own. `/gin:discuss` commits it with the change folder that cites it, on `spec/<epic>-<slug>`, so the spec approvers approve it with the spec ([pull requests](git-flow.md#pull-requests)). A confirmed folder that no change cites stays uncommitted.
 
 Each `description.md` has a `Confirmed:` line. It reads `no` until the BA confirms the inputs, then the ISO date of that confirmation, and a confirmed folder is never edited. In discuss, the agent reads `description.md` and any `mockup/index.html` of each dated folder of the affected capabilities, cites only confirmed folders, and asks about the others. A requirement taken from an input adds a `Source:` line after its statement:
 
@@ -156,8 +160,18 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 | `plan` | Writes `<change>/04-plan.md`; each track lists `Requirements: REQ-...`, and every added or modified requirement belongs to a track. |
 | `orchestrate` | Reuses the epic; each track bead gets `--spec-id <epic>-<slug>` and `req:<REQ-ID>` labels. |
 | `execute` / review | New or changed tests carry the REQ-ID in the test name or a comment; the reviewer checks each scenario has a test. |
-| `ship` | `specs archive --change <epic>` merges the delta into the living specs and moves the folder to `changes/archive/`. A conflict stops ship. |
+| `ship` | `specs archive --change <epic>` merges the delta into the living specs and moves the folder to `changes/archive/`. A conflict stops ship. The archive lands with the integration, and by team convention the BA reviews the living-spec diff ([pull requests](git-flow.md#pull-requests)). |
 | `quick` | Never creates a change folder; a change to behavior a requirement describes needs the full lifecycle. |
+
+## Living specs during a migration
+
+During a rewrite, the living specs describe the shipped new system. The old system's behavior stays in `Kind: legacy` asset folders, which `/gin-ba:capture` or `gin specs assets add --legacy` writes. A requirement taken from that behavior names the folder in its `Source:` line. A project that is not rewritten seeds its living specs from current behavior, as [Migrating](#migrating) describes.
+
+## Changing a requirement after plan approval
+
+The approved change folder is never edited. Write a new change folder with a `MODIFIED` or `REMOVED` block whose `<!-- base: <hash> -->` comes from `gin specs hash <REQ-ID>`. That holds whether the requirement has shipped or another open change still adds it. For an unshipped requirement, the hash comes from the `ADDED` block of that change, and in text output the command prints a note on stderr; in JSON output the `change` key names that change.
+
+For a `MODIFIED` or `REMOVED` block, `gin specs lint` reports `<REQ> is not in the living spec or an open change` when neither has the id, and `<REQ> is added by <a> and <b>; renumber one` when two open changes add it. `gin specs archive` of the new change stops with `<REQ> is added by <change>; archive <change> first` until that change is archived. With the [QA add-on](qa.md), `gin-qa cases plan` shows which test cases went stale.
 
 ## Migrating
 

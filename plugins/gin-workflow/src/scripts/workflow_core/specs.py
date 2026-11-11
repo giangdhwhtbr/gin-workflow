@@ -385,13 +385,32 @@ _USE_CASE_REQS = re.compile(r"^Requirements:[ \t]*(.*)$", re.MULTILINE)
 _MAIN_FLOW = re.compile(r"^## Main flow[ \t]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 
 
+def open_changes(root: Path, cfg: Mapping[str, Any]) -> list[Path]:
+    """Change folders that are not archived and have a spec delta, sorted by name."""
+    base = changes_dir(root, cfg)
+    return [change for change in (sorted(base.iterdir()) if base.is_dir() else [])
+            if change.is_dir() and change.name != "archive" and change_file(change, "spec-delta").is_file()]
+
+
+def in_flight_blocks(root: Path, cfg: Mapping[str, Any], *,
+                     exclude: Path | None = None) -> dict[str, list[tuple[Path, Block]]]:
+    """ADDED blocks of open changes (other than `exclude`) whose REQ-ID is not in a living spec yet."""
+    living = living_blocks(root, cfg)
+    found: dict[str, list[tuple[Path, Block]]] = {}
+    for change in open_changes(root, cfg):
+        if exclude is not None and change.resolve() == Path(exclude).resolve():
+            continue
+        for block in delta_blocks(root, change)[0]:
+            if block.section == "ADDED" and block.id not in living:
+                found.setdefault(block.id, []).append((change, block))
+    return found
+
+
 def _known_req_ids(root: Path, cfg: Mapping[str, Any]) -> set[str]:
     """REQ-IDs in a living spec, or ADDED or MODIFIED in an open change folder."""
     known = set(living_blocks(root, cfg))
-    base = changes_dir(root, cfg)
-    for change in sorted(base.iterdir()) if base.is_dir() else []:
-        if change.is_dir() and change.name != "archive" and change_file(change, "spec-delta").is_file():
-            known |= {b.id for b in delta_blocks(root, change)[0] if b.section in ("ADDED", "MODIFIED")}
+    for change in open_changes(root, cfg):
+        known |= {b.id for b in delta_blocks(root, change)[0] if b.section in ("ADDED", "MODIFIED")}
     return known
 
 
@@ -443,6 +462,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
     blocks, errors = delta_blocks(root, change)
     path = shown(root, change_file(change, "spec-delta"))
     living = living_blocks(root, cfg)
+    in_flight = in_flight_blocks(root, cfg, exclude=change)
     seen: set[str] = set()
     for block in blocks:
         where = f"{path}:{block.start + 1}"
@@ -457,7 +477,11 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
             errors += [f"{where}: {message}" for message in lint_block(block)]
         elif block.section in ("MODIFIED", "REMOVED"):
             if block.id not in living:
-                errors.append(f"{where}: {block.id} is not in the living spec")
+                added = in_flight.get(block.id, [])
+                if not added:
+                    errors.append(f"{where}: {block.id} is not in the living spec or an open change")
+                elif len(added) > 1:
+                    errors.append(f"{where}: {block.id} is added by {' and '.join(c.name for c, _ in added)}; renumber one")
             if block.base is None:
                 errors.append(f"{where}: {block.id} needs '<!-- base: <hash> -->' (gin specs hash {block.id})")
             if block.section == "MODIFIED":
@@ -582,12 +606,19 @@ def new_change(root: Path, cfg: Mapping[str, Any], slug: str, epic: str, title: 
     return change
 
 
-def requirement_hash(root: Path, cfg: Mapping[str, Any], req_id: str) -> tuple[Block, str]:
+def requirement_hash(root: Path, cfg: Mapping[str, Any], req_id: str) -> tuple[Block, str, Path | None]:
+    """The block, its hash, and the open change that adds it (None for a living block)."""
     living = living_blocks(root, cfg)
-    if req_id not in living:
-        raise SpecsError(f"{req_id} is not in the living spec")
-    block = living[req_id][1]
-    return block, block_hash(block.text)
+    if req_id in living:
+        block = living[req_id][1]
+        return block, block_hash(block.text), None
+    added = in_flight_blocks(root, cfg).get(req_id, [])
+    if not added:
+        raise SpecsError(f"{req_id} is not in the living spec or an open change")
+    if len(added) > 1:
+        raise SpecsError(f"{req_id} is added by {' and '.join(c.name for c, _ in added)}; renumber one")
+    change, block = added[0]
+    return block, block_hash(block.text), change
 
 
 def _bd(root: Path, argv: Sequence[str]) -> Any:

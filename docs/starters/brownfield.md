@@ -67,7 +67,7 @@ flowchart LR
   A --> B["tech-doc<br/>Tech Lead"]
   B --> C["roadmap<br/>PM"]
   C --> D["Milestone<br/>PM"]
-  D --> E["discuss epic<br/>BA"]
+  D --> CA["capture + mockup<br/>BA"] --> E["discuss epic<br/>BA"]
   E --> F["plan + orchestrate<br/>Tech Lead"]
   F --> G["Test cases<br/>QE"]
   G --> H["execute<br/>Dev"]
@@ -89,9 +89,12 @@ flowchart LR
 Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
-Answer `stage: brownfield`, `shape: fullstack`, and `workspace` for the repository layout. Then fill `workspace.repos` in `.agent-workflow/config.yaml`:
+Answer `stage: brownfield`, `shape: fullstack`, and `workspace` for the repository layout. Then set `artifacts.layout: sdd` and fill `workspace.repos` in `.agent-workflow/config.yaml`:
 
 ```yaml
+artifacts:
+  layout: sdd
+  test_globs: ["**/src/test/**", "**/test_*.py", "**/*_test.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**"]
 workspace:
   repos:
     - {path: legacy/shop-portal, url: git@github.com:acme/shop-portal.git, frozen: true}
@@ -110,6 +113,8 @@ workspace:
     - {path: qa, url: git@github.com:acme/qa.git, shape: qa}
     - {path: .beads, url: git@github.com:acme/beads.git, shape: beads}
 ```
+
+The `test_globs` list is the default globs plus the Maven test tree, because a configured list replaces the defaults. This lets `gin specs trace` find the services' tests.
 
 Then clone everything and install the hooks in each repository:
 
@@ -270,6 +275,29 @@ Repeat for each milestone. As milestones close, the open epic count in the forec
 
 **Common mistakes:** picking an epic whose blocker sits in a later milestone (`external_blocker`); leaving epics without an estimate (`unestimated`); planning past the end date (`overflow`); kicking off a milestone whose epics have no confirmed spec (`spec_not_ready`).
 
+## Capture and mockup (BA)
+
+**Who:** BA.
+
+**Where:** the parent.
+
+**Prompt**
+```text
+/gin-ba:capture catalog --date 2026-11-12
+Screenshots: the JSP catalog list and the product detail page, from the legacy system.
+```
+```text
+/gin-ba:mockup catalog
+```
+
+Put in the prompt: the legacy screenshots of the catalog list and the product detail page. Run `/gin-ba:mockup catalog` only when the new UI differs from the legacy one.
+
+**You get:** a dated folder under `docs/specs/catalog/assets/` with `Kind: legacy` in its `description.md`, and a mockup folder when the UI changes. The screenshots sit under `legacy/` in the dated folder. Both skills leave the folders uncommitted.
+
+**Gate or approval:** none. The BA confirms each folder with `gin specs assets confirm catalog --date 2026-11-12`. `/gin:discuss` cites only confirmed folders and commits them with the change folder, as [images and mockups](../guides/sdd.md#images-and-mockups) describes. See also [living specs during a migration](../guides/sdd.md#living-specs-during-a-migration) and the [BA guide](../guides/ba.md).
+
+**Common mistakes:** committing an asset folder on its own branch; running discuss before the folders are confirmed.
+
 ## Discuss an epic
 
 **Who:** BA.
@@ -285,7 +313,7 @@ API contract: GET /api/products?category=&page= and GET /api/products/{id}, with
 Out of scope: search and reviews.
 ```
 
-Put in the prompt: the user-visible behavior of the JSP flow you replace, its edge cases and validation rules (see [Capture current behavior first](#capture-current-behavior-first)), the REST API contract the new service must meet, and what is out of scope.
+Put in the prompt: the user-visible behavior of the JSP flow you replace, its edge cases and validation rules (see [Legacy behavior and living specs](#legacy-behavior-and-living-specs)), the REST API contract the new service must meet, and what is out of scope.
 
 **You get:** the discussion starts from the epic and its roadmap entry and reuses it (no new epic). The spec is built from the `design-spec.md` template (or `proposal.md` with the SDD layout) and has a `## User Stories` section. Every story has acceptance criteria and, with REQ-IDs, a `REQ:` line.
 
@@ -293,13 +321,14 @@ Put in the prompt: the user-visible behavior of the JSP flow you replace, its ed
 
 **Common mistakes:** creating a second epic by hand; stories without acceptance criteria; skipping the legacy edge cases.
 
-### Capture current behavior first
+### Legacy behavior and living specs
 
-Before changing a capability, describe its current behavior as living specs, including the legacy edge cases, validation rules, and error codes. See [migrating to the SDD layout](../guides/sdd.md#migrating) for the setup.
+Living specs describe the new system. The legacy behavior stays in the confirmed `Kind: legacy` folders, and each requirement taken from it names its folder in a `Source:` line. See [living specs during a migration](../guides/sdd.md#living-specs-during-a-migration).
 
 ```markdown
-### REQ-AUTH-001: Legacy password hashing support
-The authentication service MUST verify legacy MD5/SHA1 hashes while upgrading authenticated users to bcrypt/argon2id.
+### REQ-CATALOG-001: Hide unpublished products
+The catalog API SHALL omit hidden products from the product list.
+Source: `assets/2026-11-12/description.md`
 ```
 
 Write the REST contract of each endpoint the same way (path, method, request, response, error codes), so the new API and the SPA mocks are built from one source.

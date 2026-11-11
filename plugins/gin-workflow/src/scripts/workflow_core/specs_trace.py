@@ -7,6 +7,7 @@ import subprocess
 from typing import Any, Mapping
 
 from .specs import REQ_ID, SpecsError, change_file, delta_blocks, test_files
+from .workspace import load
 
 
 def _tracked(root: Path) -> list[str]:
@@ -14,6 +15,11 @@ def _tracked(root: Path) -> list[str]:
     if listed.returncode == 0:
         return listed.stdout.splitlines()
     return [path.relative_to(root).as_posix() for path in Path(root).rglob("*") if path.is_file()]
+
+
+def _child_tracked(checkout: Path) -> list[str] | None:
+    listed = subprocess.run(["git", "ls-files"], cwd=checkout, text=True, capture_output=True, check=False)
+    return listed.stdout.splitlines() if listed.returncode == 0 else None
 
 
 def _tests_md_rows(path: Path) -> list[tuple[str, set[str], str]]:
@@ -35,7 +41,18 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
         raise SpecsError("; ".join(errors))
     wanted = [block.id for block in blocks if block.section in ("ADDED", "MODIFIED")]
     sources: dict[str, list[str]] = {req: [] for req in wanted}
-    for relative in test_files(root, cfg, _tracked(root)):
+    candidates = list(test_files(root, cfg, _tracked(root)))
+    skipped: list[str] = []
+    space = load(root)
+    for repo in (space.repos if space else []):
+        if not repo.workable:
+            continue
+        tracked = _child_tracked(space.checkout(repo)) if space.present(repo) else None
+        if tracked is None:
+            skipped.append(repo.path)
+            continue
+        candidates += [f"{repo.path}/{path}" for path in test_files(root, cfg, tracked)]
+    for relative in candidates:
         try:
             text = (Path(root) / relative).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
@@ -50,7 +67,7 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
     requirements = [{"id": req, "status": "covered" if sources[req] else "missing", "sources": sorted(sources[req])}
                     for req in wanted]
     return {"change": change.name, "requirements": requirements,
-            "missing": [row["id"] for row in requirements if row["status"] == "missing"]}
+            "missing": [row["id"] for row in requirements if row["status"] == "missing"], "skipped": skipped}
 
 
 def status(root: Path, change: Path) -> dict[str, Any]:

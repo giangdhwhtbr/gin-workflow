@@ -146,8 +146,11 @@ def _run(args: argparse.Namespace) -> int:
             print(f"warning: {warning}", file=sys.stderr)
         return _findings(errors + found, args.format, "ok")
     if args.command == "hash":
-        block, digest = specs.requirement_hash(root, cfg, args.req_id)
-        _emit({"id": block.id, "hash": digest}, args.format, f"<!-- base: {digest} -->")
+        block, digest, source = specs.requirement_hash(root, cfg, args.req_id)
+        _emit({"id": block.id, "hash": digest, "change": source.name if source else None}, args.format,
+              f"<!-- base: {digest} -->")
+        if source and args.format != "json":
+            print(f"note: {block.id} is added by open change {source.name}; archive it first", file=sys.stderr)
         return 0
     if args.command == "export":
         from .specs_export import export
@@ -182,6 +185,7 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "trace":
         result = trace(root, cfg, change)
         lines = [f"{row['id']}: {row['status']} {' '.join(row['sources'])}".rstrip() for row in result["requirements"]]
+        lines += [f"skipped: {path}" for path in result["skipped"]]
         _emit(result, args.format, "\n".join(lines))
         return 1 if result["missing"] else 0
     result = status(root, change)
