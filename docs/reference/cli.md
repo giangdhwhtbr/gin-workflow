@@ -138,7 +138,7 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 | `template NAME` | Print a spec template |
 | `renumber OLD NEW --change C [--against REF]` | Rename a requirement id in a change and its beads |
 | `archive --change C` | Merge a change's spec delta into the living specs and archive the change; a new capability's `spec.md` links each file in its `diagrams/` under `## Diagrams` and in its `use-cases/` under `## Use Cases` |
-| `trace --change C` | Show which tests and sources cover each requirement |
+| `trace --change C` | Show which tests and sources cover each requirement; in a workspace it also scans every cloned child that is neither frozen nor the Beads repository, names each source by its workspace path, and lists children it could not scan under `skipped` |
 | `status --change C` | Show a change's review status, URL, and merge commit |
 | `reqs [--change C]` | List requirements with section, hash, and the epic of the change that holds them; the JSON also carries `root` (the project root) and `qa_root` (the `shape: qa` workspace child, or the worktree of it you run from; null without one) |
 | `export (CAP \| --all) [--out FILE]` | Write the living specs of one capability, or of every capability, into one printable SRS HTML file with each chapter's purpose, use cases, diagrams, requirements, and assets (default `srs-CAP.html` or `srs.html` at the repository root, overwritten), from the templates `srs.html` and `srs-capability.html`; images are embedded, diagrams load Mermaid from jsDelivr; a local image not found, outside the repository, or not an image is listed and exits 1 |

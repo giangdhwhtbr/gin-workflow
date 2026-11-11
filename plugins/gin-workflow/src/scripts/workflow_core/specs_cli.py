@@ -185,6 +185,7 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "trace":
         result = trace(root, cfg, change)
         lines = [f"{row['id']}: {row['status']} {' '.join(row['sources'])}".rstrip() for row in result["requirements"]]
+        lines += [f"skipped: {path}" for path in result["skipped"]]
         _emit(result, args.format, "\n".join(lines))
         return 1 if result["missing"] else 0
     result = status(root, change)

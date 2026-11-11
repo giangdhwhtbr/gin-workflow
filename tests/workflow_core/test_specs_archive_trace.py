@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
                             make_change, make_repo, write, write_activity, STATE, USE_CASE)
+from test_workspace import init_repo, make_workspace  # noqa: E402
 from workflow_core import specs, specs_trace  # noqa: E402
 from workflow_core.specs_archive import ArchiveConflict, archive  # noqa: E402
 
@@ -169,6 +170,7 @@ class TestTraceAndStatus(unittest.TestCase):
         result = specs_trace.trace(self.root, self.cfg, self.change)
         self.assertEqual(["REQ-AUTH-002"], result["missing"])
         self.assertEqual(["tests/test_lockout.py"], result["requirements"][0]["sources"])
+        self.assertEqual([], result["skipped"])
         write(self.root, "docs/changes/ep-1-lockout/05-tests.md",
               "| TC | REQ | type | evidence |\n|---|---|---|---|\n| TC-1 | REQ-AUTH-002 | manual | screenshot.png |\n"
               "| TC-2 | REQ-AUTH-002 | manual | - |\n")
@@ -198,6 +200,51 @@ class TestTraceAndStatus(unittest.TestCase):
                 mock.patch("workflow_core.specs_trace.subprocess.run", return_value=self._gh("", 1)):
             with self.assertRaises(specs.SpecsError):
                 specs_trace.status(self.root, self.change)
+
+
+class TestTraceWorkspace(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = make_workspace(Path(self.tmp.name))
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + "artifacts:\n  layout: sdd\n", encoding="utf-8")
+        write(self.root, ".gitignore", "services/\napps/\nlegacy/\n")
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(self.root)
+        self.change = make_change(self.root)
+        commit_all(self.root)
+        api = self.root / "services/api"
+        write(api, "tests/test_lock.py", "def test_lock():  # REQ-AUTH-003\n    pass\n")
+        commit_all(api)
+        portal = init_repo(self.root / "legacy/portal")
+        write(portal, "tests/test_old.py", "def test_old():  # REQ-AUTH-003\n    pass\n")
+        commit_all(portal)
+        self.cfg = specs.sdd_config(specs.load_config(self.root))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_child_tests_count_with_their_path(self):
+        result = specs_trace.trace(self.root, self.cfg, self.change)
+        self.assertEqual("covered", result["requirements"][0]["status"])
+        self.assertEqual(["services/api/tests/test_lock.py"], result["requirements"][0]["sources"])
+        self.assertEqual(["apps/web"], result["skipped"])
+
+    def test_globs_match_relative_to_the_child(self):
+        result = specs_trace.trace(self.root, {**self.cfg, "test_globs": ["tests/**"]}, self.change)
+        self.assertEqual(["services/api/tests/test_lock.py"], result["requirements"][0]["sources"])
+
+    def test_failing_child_is_skipped(self):
+        with mock.patch.object(specs_trace, "_child_tracked", return_value=None):
+            result = specs_trace.trace(self.root, self.cfg, self.change)
+        self.assertEqual(["REQ-AUTH-003"], result["missing"])
+        self.assertEqual(["services/api", "apps/web"], result["skipped"])
+
+    def test_cli_text_lists_skipped_children(self):
+        run = subprocess.run([sys.executable, str(LAUNCHER), "specs", "trace", "--change", "ep-1",
+                              "--repository", str(self.root)], text=True, capture_output=True, check=False)
+        self.assertEqual(0, run.returncode, run.stderr)
+        self.assertIn("skipped: apps/web", run.stdout)
 
 
 class TestEndToEnd(unittest.TestCase):
