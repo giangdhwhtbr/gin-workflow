@@ -23,7 +23,7 @@ Write `<change>/04-plan.md`. Each track's Metadata adds `Requirements: REQ-…`;
 Reuse the epic as parent. Each track bead: `gin task create --parent <epic> --spec-id <epic>-<slug> --labels req:<REQ-ID>,…` from its `Requirements:`.
 
 ## execute and review
-New or changed tests carry the REQ-ID in the test name or a comment (`# REQ-AUTH-003`). The reviewer checks that each scenario of the track's REQs has a test and, with gin-qa installed, treats `missing` or `stale` rows of `gin-qa cases plan --change <epic> --format json` for those REQs as missing tests.
+New or changed tests carry the REQ-ID in the test name or a comment (`# REQ-AUTH-003`). The reviewer checks that each scenario of the track's REQs has a test and treats the acceptance-coverage rows of the `qa-track` skill (Review coverage) that are missing or stale as missing tests.
 
 ## ship
 Before presenting options, run `specs lint --change <epic> --against <base>` and `specs trace --change <epic>`. A `missing` REQ is a warning under `easy` rigor and stops ship under `standard` and `strict`. A duplicate ID on the base: `specs renumber <old> <new> --change <epic>`, then rerun both. Then on the feature branch: `specs archive --change <epic>`, commit (`docs(specs): archive <epic>`). Exit 1 (a living block changed since the delta, or lint findings) stops ship: show the findings, ask the user.

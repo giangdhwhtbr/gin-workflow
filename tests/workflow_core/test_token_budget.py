@@ -209,13 +209,18 @@ class TestBudgetLimits(unittest.TestCase):
                     self.assertNotIn(token, text)
 
     def test_ship_runs_the_gin_qa_check(self):
+        qa_skill = (SRC / "skills/qa-track/SKILL.md").resolve()
         text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("gin-qa cases check --change <epic>", text)
+        self.assertIn("`qa-track`", text)
         self.assertIn("skipped", text)
+        self.assertNotIn(qa_skill, stage_chain(SRC, "ship"))
+        self.assertIn("gin-qa cases check --change <epic>", qa_skill.read_text(encoding="utf-8"))
 
     def test_sdd_reviewer_reads_gin_qa_plan(self):
+        qa_skill = (SRC / "skills/qa-track/SKILL.md").resolve()
         text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("gin-qa cases plan --change <epic>", text)
+        self.assertIn("`qa-track`", text)
+        self.assertIn("gin-qa cases plan --change <epic>", qa_skill.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
