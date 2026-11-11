@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-requested",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-sdd-team-flow.1",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-sdd-team-flow.1",
+      "review_base_sha": "078bdc0decff949abf996139ea19e7b5fe487eea",
+      "reviewed_source_sha": "940ce46aff0d1e04f658a764f195d5178bcdfe72",
+      "checkpoint_sha": "940ce46aff0d1e04f658a764f195d5178bcdfe72",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "05a77a25e041bca4ed261dc42c3309c96737bd540c8c727cbe787dde85402920",
+      "reviewed_source_tree_hash": "05a77a25e041bca4ed261dc42c3309c96737bd540c8c727cbe787dde85402920",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 3,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-11T15:50:28.537950Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-sdd-team-flow.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-sdd-team-flow.1",
+            "review_base_sha": "078bdc0decff949abf996139ea19e7b5fe487eea",
+            "reviewed_source_sha": "9e63e5143bcc8302233290fb63e43b7e3d94b872",
+            "checkpoint_sha": "9e63e5143bcc8302233290fb63e43b7e3d94b872",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "05a77a25e041bca4ed261dc42c3309c96737bd540c8c727cbe787dde85402920",
+            "reviewed_source_tree_hash": "05a77a25e041bca4ed261dc42c3309c96737bd540c8c727cbe787dde85402920",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:claude:main",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "62150388a028a4757dd39817841050f49d71999cc500db8796c35b18b8383c64"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-11T15:50:32.838830Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-sdd-team-flow.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-sdd-team-flow.1",
+            "review_base_sha": "078bdc0decff949abf996139ea19e7b5fe487eea",
+            "reviewed_source_sha": "940ce46aff0d1e04f658a764f195d5178bcdfe72",
+            "checkpoint_sha": "940ce46aff0d1e04f658a764f195d5178bcdfe72",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "05a77a25e041bca4ed261dc42c3309c96737bd540c8c727cbe787dde85402920",
+            "reviewed_source_tree_hash": "05a77a25e041bca4ed261dc42c3309c96737bd540c8c727cbe787dde85402920",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "62150388a028a4757dd39817841050f49d71999cc500db8796c35b18b8383c64",
+      "event_hash": "5dc89f2e1713ae7ecb42a6810073f8bcd4ec466c279283ddf592f188133fbfca"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-11T15:50:32.961005Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "5dc89f2e1713ae7ecb42a6810073f8bcd4ec466c279283ddf592f188133fbfca",
+      "event_hash": "ddabe894c3a10b3d237ce310d994d146f30c02d61268a100480c3784a3b85447"
+    }
+  ]
+}
