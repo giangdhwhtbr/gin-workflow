@@ -69,7 +69,7 @@ class TestPresets(unittest.TestCase):
                                            task_tracking="markdown",
                                            verify_commands={"lint": "pnpm run lint", "test": "pnpm run test: unit"}))
         validate_portable_config(config)
-        self.assertEqual(["docs", "frontend", "general", "review"],
+        self.assertEqual(["docs", "frontend", "general", "qa", "review"],
                          sorted(config["routing"]["roles"]))
         self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"]["frontend"])
         self.assertEqual("session", config["routing"]["review"]["independence"])
@@ -80,15 +80,22 @@ class TestPresets(unittest.TestCase):
         settings = project_settings(config)
         self.assertEqual(("frontend", "standard", "single"), (settings.shape, settings.rigor, settings.provider_mode))
 
+    def test_every_shape_preset_routes_qa_to_the_main_harness(self):
+        from workflow_core.project import ROLES_BY_SHAPE
+        for shape in ROLES_BY_SHAPE:
+            self.assertIn("qa", ROLES_BY_SHAPE[shape])
+            config = _apply(preset_assignments(stage="brownfield", shape=shape, rigor="standard"))
+            self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"]["qa"])
+
     def test_preset_backend_standard_includes_single_harness_and_task_tracking(self):
         config = _apply(preset_assignments(stage="brownfield", shape="backend", rigor="standard", task_tracking="markdown"))
         validate_portable_config(config)
         self.assertEqual("single", config["provider_mode"])
         self.assertEqual("session", config["routing"]["review"]["independence"])
         self.assertEqual("markdown", config["providers"]["task_tracking"])
-        self.assertEqual(["backend", "docs", "general", "review"],
+        self.assertEqual(["backend", "docs", "general", "qa", "review"],
                          sorted(config["routing"]["roles"]))
-        for role in ("backend", "docs", "general", "review"):
+        for role in ("backend", "docs", "general", "qa", "review"):
             self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"][role])
 
     def test_rejects_unknown_values(self):

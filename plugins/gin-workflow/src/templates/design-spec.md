@@ -16,6 +16,8 @@ Status: draft for user review.
 
 ## Testing
 
+<!-- Each acceptance criterion names an observable outcome a tester can check. -->
+
 ## Open Technical Questions
 
 <!-- In team mode, a discuss run by a member with no technical role lists each technical point it does not

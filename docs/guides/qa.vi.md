@@ -192,14 +192,31 @@ Các prompt dưới đây được dán nguyên văn nên giữ tiếng Anh.
 
 ## Checklist phê duyệt ship { #ship-approval-checklist }
 
-Khi `team.approvals.ship` liệt kê một role tester, tester duyệt commit mới nhất của pull request của developer sau khi kiểm tra:
+Khi `team.approvals.ship` liệt kê một role tester, tester duyệt commit mới nhất của pull request của developer. Các mục kiểm tra phụ thuộc loại pull request. Với bố cục SDD, `/gin:ship` tự chạy `gin-qa cases check` và dừng khi có case thiếu hoặc lỗi thời, nên tester không phải lặp lại bước đó cho gate này.
 
+### Pull request contract
+
+- Các test contract hoặc schema pass.
+- `gin-qa cases check --change <epic>` thoát với mã 0.
+
+### Pull request service
+
+- `gin-qa tests run --type api` pass cho các case `api` trên service.
 - `gin-qa cases plan` không báo case `missing` hay `stale` nào.
-- `gin-qa cases check` thoát với mã 0.
-- `gin-qa e2e run` pass, và `gin-qa e2e check --run <folder>` thoát với mã 0 trên evidence của nó.
-- Bình luận phê duyệt nêu thư mục evidence (một quy ước của nhóm).
 
-Một commit được push sau phê duyệt cần phê duyệt mới ([chế độ team](team.md)).
+### Pull request app
+
+- `gin-qa e2e run` pass trên các mock.
+- `gin-qa e2e check --run <folder>` thoát với mã 0 trên evidence của nó.
+
+Bình luận phê duyệt nêu thư mục evidence (một quy ước của nhóm). Một commit được push sau phê duyệt cần phê duyệt mới ([chế độ team](team.md)).
+
+### Nghiệm thu tích hợp
+
+QA nghiệm thu điểm tích hợp của milestone một lần khi:
+
+- `gin-qa e2e run` xanh trên API thật cho mọi flag đã bật;
+- không còn bug bead nào mở trên các epic đã tích hợp.
 
 ## Lệnh { #commands }
 

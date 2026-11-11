@@ -10,7 +10,7 @@ from workflow_core.budget import STAGES, description_chars, stage_chain, stage_c
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "plugins/gin-workflow/src"
-SHARED_SKILLS = ("learn", "sdd", "team", "worktrees", "debugging", "review-response", "parallel-agents")
+SHARED_SKILLS = ("learn", "sdd", "team", "worktrees", "debugging", "review-response", "parallel-agents", "qa-track")
 BANNED = ("ContextManifest", "ArtifactRegistry", "ApprovalDecision", "load_effective_config")
 
 
@@ -165,6 +165,12 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(heading=heading):
                 self.assertIn(heading, guide)
 
+    def test_execute_names_qa_track_on_demand(self):
+        qa_skill = (SRC / "skills/qa-track/SKILL.md").resolve()
+        text = (SRC / "skills/execute/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`qa-track`", text)
+        self.assertNotIn(qa_skill, stage_chain(SRC, "execute"))
+
     def test_commands_agents_and_shared_skills_within_budget(self):
         limits = [("agents/*.md", 4_000), *((f"skills/{name}/SKILL.md", 6_000) for name in SHARED_SKILLS),
                   ("references/shape-*.md", 1_500)]
@@ -201,6 +207,20 @@ class TestBudgetLimits(unittest.TestCase):
             for token in BANNED:
                 with self.subTest(path=str(path.relative_to(SRC)), token=token):
                     self.assertNotIn(token, text)
+
+    def test_ship_runs_the_gin_qa_check(self):
+        qa_skill = (SRC / "skills/qa-track/SKILL.md").resolve()
+        text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`qa-track`", text)
+        self.assertIn("skipped", text)
+        self.assertNotIn(qa_skill, stage_chain(SRC, "ship"))
+        self.assertIn("gin-qa cases check --change <epic>", qa_skill.read_text(encoding="utf-8"))
+
+    def test_sdd_reviewer_reads_gin_qa_plan(self):
+        qa_skill = (SRC / "skills/qa-track/SKILL.md").resolve()
+        text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`qa-track`", text)
+        self.assertIn("gin-qa cases plan --change <epic>", qa_skill.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
