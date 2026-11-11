@@ -70,7 +70,7 @@ Everyone except the tech lead starts from [joining a team](guides/team.md#join-i
 ## Keeping work apart
 
 - Branches, pull requests, review, and merge: follow the [team git agreement](guides/git-flow.md).
-- Requirement changes after plan approval (a team convention): do not edit the in-flight spec. With the SDD layout, the change goes in a new change folder whose `MODIFIED` block carries the base hash of the requirement it replaces, and `gin-qa cases plan` shows which test cases went stale.
+- Requirement changes after plan approval (a team convention): do not edit the in-flight spec. With the SDD layout, see [changing a requirement after plan approval](guides/sdd.md#changing-a-requirement-after-plan-approval); `gin-qa cases plan` shows which test cases went stale.
 - Tests (a team convention): developers own unit and integration tests next to the code; testers own acceptance cases and end-to-end specs under `qa/`. Give each its own area in `team.areas`, so plans keep them apart.
 - Worktrees: each track runs in its own worktree created by `/gin:orchestrate`.
 - Technical questions: in team mode a member with no technical role is asked business questions only in `/gin:discuss`. Each technical point becomes an open `TQ-<n>` that `/gin:plan` settles, and `record plan-approved` refuses while one is open ([team mode](guides/team.md) has the split).

@@ -74,7 +74,7 @@ Open: the parent. Everything happens there, from a parent session worktree.
 | Spec review | the review of the spec pull request |
 | Progress | `/gin:progress`, `/gin:report` |
 
-Specs and plans are committed to the parent.
+Specs and plans are committed to the parent. Requirements and their REQ-IDs live only in the parent's specs; children reference them in tests, and `gin specs trace` scans every cloned child ([REQ-IDs](sdd.md#requirements)).
 
 ## Tech lead
 
@@ -84,7 +84,7 @@ Open: the parent for setup, plan, orchestrate, and ship.
 |---|---|
 | Plan | `/gin:plan` writes tracks that each carry `Repo: <path>`; `gin record plan-approved` refuses a track with no `Repo:`, an unknown or frozen repository, the beads entry, or files outside its repository |
 | Orchestrate | `/gin:orchestrate` creates one worktree per track inside the named child; a missing clone stops with the exact `gin workspace clone <path>` command |
-| Ship | `/gin:ship` from the parent integrates one repository at a time, the parent last; `team check --gate ship` and `record shipped` accept a child's pull request. They compare it with the HEAD of the child checkout or track worktree you run them from, else the child's main checkout |
+| Ship | `/gin:ship` from the parent integrates one repository at a time, the parent last; `team check --gate ship` and `record shipped` accept a child's pull request. They compare it with the HEAD of the child checkout or track worktree you run them from, else the child's main checkout; the parent's integration carries the archive into the living spec, and the BA reviews that diff |
 
 For a standalone bead, `gin record shipped --evidence "<repo>:<merge commit>; ...; parent:<merge commit>"` records one merge commit per repository; gin does not check that each repository was merged. An epic is shipped when its parent bead is closed after the human-confirmed merges.
 

@@ -68,7 +68,7 @@ Skill đặt `Kind:` là `new` cho thư mục có tên ngày đầu tiên của 
 
 Xác nhận làm thư mục bị đóng băng, nhờ đó `/gin:discuss` có thể trích dẫn nó. Nói rõ điều này trong cuộc trò chuyện; skill sau đó chạy `gin specs assets confirm <capability> --date <date>`, lệnh đặt `Confirmed:` thành hôm nay.
 
-Các skill không bao giờ xác nhận thay BA và không bao giờ commit. BA tự xem lại và commit thư mục. Discuss hỏi về các thư mục chưa xác nhận thay vì trích dẫn chúng.
+Các skill không bao giờ xác nhận thay BA và không bao giờ commit. BA xem lại thư mục; `/gin:discuss` commit nó cùng change folder trích dẫn nó ([hình ảnh và mockup](sdd.md#images-and-mockups)). Discuss hỏi về các thư mục chưa xác nhận thay vì trích dẫn chúng.
 
 ### Thảo luận epic { #discuss-the-epic }
 
@@ -93,9 +93,10 @@ Hai lệnh chia sẻ spec với những người không đọc repository. `gin 
 Đây là thực hành của nhóm, không phải hành vi công cụ ép buộc.
 
 - Ghi lại hành vi hệ thống cũ và REST contract trước khi viết requirement, để biết các edge case.
-- Thay đổi requirement sau khi plan được duyệt đi vào một change folder mới có khối `MODIFIED` mang base hash; xem [tách biệt công việc](../roles.md#keeping-work-apart).
+- Thay đổi requirement sau khi plan được duyệt đi vào một change folder mới; xem [thay đổi requirement sau khi plan được duyệt](sdd.md#changing-a-requirement-after-plan-approval).
 - Requirement của một tính năng, gồm cả UI, nằm trong capability của tính năng đó. Capability `ui` chỉ chứa những gì dùng chung cho nhiều trang.
-- BA xem lại và commit các thư mục asset, vì các skill không bao giờ commit.
+- Thư mục asset đã xác nhận vào nhánh gốc cùng pull request của spec; xem [hình ảnh và mockup](sdd.md#images-and-mockups).
+- Hành vi cũ nằm trong các thư mục `Kind: legacy`; xem [living spec trong quá trình chuyển đổi](sdd.md#living-specs-during-a-migration).
 
 Các lỗi thường gặp:
 

@@ -59,6 +59,8 @@ Every piece of work SHALL have its own branch, and the branch name SHALL show th
 
 A branch SHALL carry one kind of work. A spec and a plan do not share a branch.
 
+Asset folders have no branch of their own: a confirmed folder reaches the base with the spec pull request whose change folder cites it ([images and mockups](sdd.md#images-and-mockups)).
+
 ## Commits
 
 Every commit message SHALL follow the convention set in `team.commit_convention`. The commit-msg hook that `gin team hooks` installs checks the message when you commit, and CI checks it again on the pull request.
@@ -75,6 +77,7 @@ Every artifact that has a gate SHALL reach the base branch through a pull reques
 | Spec | `spec/<topic>` | roles listed for `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | roles listed for `plan_approved` | `plan_approved` |
 | Track | `feat/<topic>-t<N>` | roles listed for `ship` | `ship` |
+| Archive into the living spec | the integration of the epic: the feature branch merge, or the parent's pull request in a workspace | roles listed for `ship`; the BA reviews the living-spec diff | `ship` |
 
 The author SHALL fill the pull request template that `gin team init` writes. It has these fields:
 
@@ -90,10 +93,12 @@ The author SHALL fill the pull request template that `gin team init` writes. It 
 
 Each pull request SHALL be reviewed by a member who holds an approving role for its gate. Each reviewer SHALL use the checklist for their role below. The checklists are the agreement's own rule and a team convention that the team may change.
 
-The BA reviews a spec and checks that:
+The BA uses this checklist on spec pull requests that other members author.
+
+The approver of a spec checks that:
 
 - every user story has acceptance criteria;
-- every requirement has a `Source:` line that names where it comes from;
+- every requirement taken from an input has a `Source:` line that names it;
 - the edge cases of the old system are covered;
 - every requirement can be tested: each acceptance criterion names an observable outcome.
 
@@ -151,7 +156,7 @@ When gin rejects the pull request, it lists the missing approvals. The member SH
 
 When the host reports a conflict, the author SHALL update the branch from the base branch, resolve the conflict, and ask for review again. The earlier approval no longer counts.
 
-A requirement change after plan approval SHALL go in a new change folder, not in the approved spec. [SDD living specs](sdd.md) shows how.
+A requirement change after plan approval SHALL go in a new change folder, not in the approved spec. [SDD living specs](sdd.md#changing-a-requirement-after-plan-approval) shows how.
 
 ## Host procedures
 

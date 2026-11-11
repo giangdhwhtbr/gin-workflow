@@ -68,7 +68,7 @@ The skill sets `Kind:` to `new` for a capability's first dated folder and `chang
 
 Confirming freezes a folder, so `/gin:discuss` can cite it. Say so explicitly in the conversation; the skill then runs `gin specs assets confirm <capability> --date <date>`, which sets `Confirmed:` to today.
 
-The skills never confirm on your behalf and never commit. Review the folder and commit it yourself. Discuss asks about folders you have not confirmed instead of citing them.
+The skills never confirm on your behalf and never commit. Review the folder; `/gin:discuss` commits it with the change folder that cites it ([images and mockups](sdd.md#images-and-mockups)). Discuss asks about folders you have not confirmed instead of citing them.
 
 ### Discuss the epic
 
@@ -93,9 +93,10 @@ Two commands share the spec with people who do not read the repository. `gin spe
 These are team practices, not behaviour the tool enforces.
 
 - Capture the legacy behaviour and the REST contract before writing requirements, so the edge cases are known.
-- A requirement change after plan approval goes in a new change folder whose `MODIFIED` block carries the base hash; see [keeping work apart](../roles.md#keeping-work-apart).
+- A requirement change after plan approval goes in a new change folder; see [changing a requirement after plan approval](sdd.md#changing-a-requirement-after-plan-approval).
 - A feature's requirements, its UI included, live in the feature's capability. A `ui` capability holds only what spans pages.
-- The BA reviews and commits asset folders, because the skills never do.
+- Confirmed asset folders reach the base with the spec pull request; see [images and mockups](sdd.md#images-and-mockups).
+- Legacy behaviour stays in `Kind: legacy` folders; see [living specs during a migration](sdd.md#living-specs-during-a-migration).
 
 Common mistakes:
 

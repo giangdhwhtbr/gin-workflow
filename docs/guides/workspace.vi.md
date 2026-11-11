@@ -74,7 +74,7 @@ Mở: repository cha. Mọi việc diễn ra ở đó, từ một session worktr
 | Review spec | review pull request của spec |
 | Tiến độ | `/gin:progress`, `/gin:report` |
 
-Spec và plan được commit vào repository cha.
+Spec và plan được commit vào repository cha. Requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha; các repository con tham chiếu tới chúng trong test, và `gin specs trace` quét mọi repository con đã clone ([REQ-ID](sdd.md#requirements)).
 
 ## Tech lead { #tech-lead }
 
@@ -84,7 +84,7 @@ Mở: repository cha cho setup, plan, orchestrate và ship.
 |---|---|
 | Plan | `/gin:plan` ghi các track, mỗi track mang `Repo: <path>`; `gin record plan-approved` từ chối track không có `Repo:`, repository không xác định hoặc `frozen`, mục beads, hoặc file nằm ngoài repository của nó |
 | Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>` |
-| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng |
+| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng; phần tích hợp của repository cha đưa archive vào living spec, và BA review phần diff đó |
 
 Với một bead độc lập, `gin record shipped --evidence "<repo>:<merge commit>; ...; parent:<merge commit>"` ghi một merge commit cho mỗi repository; gin không kiểm tra từng repository đã được merge hay chưa. Một epic là shipped khi bead cha của nó được đóng sau các lần merge do con người xác nhận.
 
