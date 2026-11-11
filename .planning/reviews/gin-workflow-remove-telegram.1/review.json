@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "review-approved",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 12,
+  "ledger_revision": 17,
   "next_finding_number": 1,
   "findings": {
     "leftover-notifications-test-has-no-leftover-key": {
       "finding_id": "leftover-notifications-test-has-no-leftover-key",
       "severity": "IMPORTANT",
-      "status": "fixed-awaiting-verification",
+      "status": "verified",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -267,6 +267,98 @@
       },
       "previous_event_hash": "bd9e62f63168e9e736f5d9b14badd7a999d774cb52f4a08823e47a4d88408e21",
       "event_hash": "d62f04973496695efc05cd0111fe1da9b0032df94da4058d1a94ba92864249f5"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-11T16:58:29.214349Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-472189bf"
+      },
+      "payload": {
+        "lease_id": "8138bd4eb91d4375b014190a155e8cba",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-472189bf",
+        "acquired_at": "2026-11-11T16:58:29.213463Z",
+        "expires_at": "2026-11-11T17:08:29.213463Z"
+      },
+      "previous_event_hash": "d62f04973496695efc05cd0111fe1da9b0032df94da4058d1a94ba92864249f5",
+      "event_hash": "a74ce3943c249f16538800a897ee1ba99d9bf5d30fcea6bab0f3b4d792d02406"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "review-started",
+      "timestamp": "2026-11-11T16:58:29.235634Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-472189bf"
+      },
+      "payload": {},
+      "previous_event_hash": "a74ce3943c249f16538800a897ee1ba99d9bf5d30fcea6bab0f3b4d792d02406",
+      "event_hash": "e72aa63ab53e7070e7806d020d112fb8710c85b9b13c008729371606bf2d16bf"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "finding-verified",
+      "timestamp": "2026-11-11T16:58:37.267086Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-472189bf"
+      },
+      "payload": {
+        "finding_id": "leftover-notifications-test-has-no-leftover-key"
+      },
+      "previous_event_hash": "e72aa63ab53e7070e7806d020d112fb8710c85b9b13c008729371606bf2d16bf",
+      "event_hash": "f02d5bbcd7d4fb072d33a54492ccb04cebc6d455d62d20e8cd72610640eb1bae"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "review-approved",
+      "timestamp": "2026-11-11T16:58:37.467043Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-472189bf"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-remove-telegram.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-remove-telegram.1",
+            "review_base_sha": "956f05031f9df51da1141439c4de80a7ea59b885",
+            "reviewed_source_sha": "2384d2100856480cb8491328febf32428db77635",
+            "checkpoint_sha": "2384d2100856480cb8491328febf32428db77635",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "d226899a01ce2de495044311a33dde4d27ca325615edfd743506257515bbc162",
+            "reviewed_source_tree_hash": "d226899a01ce2de495044311a33dde4d27ca325615edfd743506257515bbc162",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": [
+          "leftover-notifications-test-has-no-leftover-key"
+        ]
+      },
+      "previous_event_hash": "f02d5bbcd7d4fb072d33a54492ccb04cebc6d455d62d20e8cd72610640eb1bae",
+      "event_hash": "26e10dafce45a259a21c18a37ee659ff2a5a19aeee9142374e8870a530304dd5"
+    },
+    {
+      "event_id": "EV-000017",
+      "action": "lease-released",
+      "timestamp": "2026-11-11T16:58:41.915717Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-472189bf"
+      },
+      "payload": {
+        "lease_id": "8138bd4eb91d4375b014190a155e8cba",
+        "released_at": "2026-11-11T16:58:41.914905Z"
+      },
+      "previous_event_hash": "26e10dafce45a259a21c18a37ee659ff2a5a19aeee9142374e8870a530304dd5",
+      "event_hash": "3be6e6f31950c05dad4b4cf9ae18c56b992fb4c0091e44e1481ad79c5b9a1203"
     }
   ]
 }
