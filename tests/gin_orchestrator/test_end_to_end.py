@@ -297,7 +297,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
             portable["orchestrator"]["roles"]["review"] = {"preferred": ["codex"], "fallback": ["claude"]}
             portable["providers"] = {
                 "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                "review": "fake", "evidence": "fake", "notifications": "fake",
+                "review": "fake", "evidence": "fake",
             }
             effective = EffectiveConfig(portable, repository)
             local_raw = yaml.safe_load(
@@ -607,7 +607,7 @@ class WorkflowEndToEndTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "review-ledger",
                         "evidence": "fake",
-                        "notifications": "fake",
+                       
                     },
                     "routing": {
                         "roles": {
@@ -1035,8 +1035,6 @@ class WorkflowEndToEndTests(unittest.TestCase):
                 "providers.review=fake",
                 "--set",
                 "providers.evidence=fake",
-                "--set",
-                "providers.notifications=fake",
                 "--set",
                 "integrations.fake.api_key=secret_ref:env:FAKE_PROVIDER_TOKEN",
             )

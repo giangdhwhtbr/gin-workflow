@@ -28,7 +28,6 @@ from .contracts import (
     EvidenceAuthority,
     EvidenceProvider,
     KnowledgeProvider,
-    NotificationProvider,
     ProviderMetadata,
     ReviewProvider,
     TaskTrackingProvider,
@@ -40,13 +39,11 @@ from .evidence_authority import build_composite_evidence_authority
 from .fakes import (
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
-    FakeNotificationProvider,
     FakeReviewProvider,
     FakeTaskTrackingProvider,
     FakeWorkspaceProvider,
 )
 from .knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider
-from .notifications import TelegramNotificationProvider
 from .review import ReviewLedgerProvider
 from .task_tracking_cli import CliTaskTrackingProvider
 from .workspace import WorktreeWorkspaceProvider
@@ -98,7 +95,6 @@ _DEFAULTS = {
     "workspace": "worktrees",
     "review": "review-ledger",
     "evidence": "filesystem",
-    "notifications": "telegram",
 }
 
 
@@ -129,7 +125,6 @@ class ProviderRegistry:
     workspace: WorkspaceProvider
     review: ReviewProvider
     evidence: EvidenceProvider
-    notifications: NotificationProvider
     worker: RoutedWorkerDispatcher | None = None
     worker_timeout_seconds: float = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"])
     worker_max_retries: int = int(ORCHESTRATOR_DEFAULTS["worker"]["max_retries"])
@@ -159,7 +154,6 @@ class ProviderRegistry:
         workspace_name, workspace_options = _entry(config, "workspace")
         review_name, _ = _entry(config, "review")
         evidence_name, evidence_options = _entry(config, "evidence")
-        notification_name, _ = _entry(config, "notifications")
 
         if task_name in {"beads", "markdown"}:
             task_tracking: TaskTrackingProvider = CliTaskTrackingProvider(root)
@@ -230,13 +224,6 @@ class ProviderRegistry:
             evidence = FakeEvidenceProvider(authority=evidence_authority)
         else:
             raise RegistryError(f"unknown evidence provider: {evidence_name}")
-
-        if notification_name == "telegram":
-            notifications: NotificationProvider = TelegramNotificationProvider(root)
-        elif notification_name == "fake":
-            notifications = FakeNotificationProvider()
-        else:
-            raise RegistryError(f"unknown notifications provider: {notification_name}")
 
         worker = None
         configured_timeout = float(ORCHESTRATOR_DEFAULTS["worker"]["timeout_seconds"])
@@ -478,7 +465,6 @@ class ProviderRegistry:
             workspace,
             review,
             evidence,
-            notifications,
             worker,
             configured_timeout,
             configured_retries,
@@ -506,7 +492,6 @@ class ProviderRegistry:
             "workspace": self.workspace.metadata,
             "review": self.review.metadata,
             "evidence": self.evidence.metadata,
-            "notifications": self.notifications.metadata,
         }
 
     def get(self, provider_type: str):
@@ -530,5 +515,4 @@ class ProviderRegistry:
             max_parallel_workers=self.worker_max_parallel,
             max_retries=self.worker_max_retries,
             worker_timeout_seconds=self.worker_timeout_seconds,
-            notifications=self.notifications,
         )

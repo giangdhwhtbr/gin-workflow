@@ -15,7 +15,6 @@ from gin_orchestrator.contracts import (  # noqa: E402
     EvidenceQuery,
     EvidenceRecord,
     KnowledgeProposal,
-    NotificationRequest,
     OperationStatus,
     ProviderHealth,
     ReviewRequest,
@@ -25,14 +24,12 @@ from gin_orchestrator.contracts import (  # noqa: E402
     WorkspaceRequest,
 )
 from gin_orchestrator.knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider  # noqa: E402
-from gin_orchestrator.notifications import TelegramNotificationProvider  # noqa: E402
 from gin_orchestrator.review import ReviewLedgerProvider  # noqa: E402
 from gin_orchestrator.task_tracking_cli import CliTaskTrackingProvider  # noqa: E402
 from gin_orchestrator.workspace import WorktreeWorkspaceProvider  # noqa: E402
 from gin_orchestrator.fakes import (  # noqa: E402
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
-    FakeNotificationProvider,
     FakeReviewProvider,
     FakeTaskTrackingProvider,
     FakeWorkspaceProvider,
@@ -185,24 +182,23 @@ class ProviderContractTests(unittest.TestCase):
             self.assertIs(OperationStatus.SUCCESS, cleaned.status)
             self.assertTrue(replay.idempotent)
 
-    def test_review_and_notification_providers_share_normalized_contract(self):
+    def test_no_notification_symbols_exported(self):
+        import gin_orchestrator
+
+        self.assertFalse(any("Notification" in name for name in gin_orchestrator.__all__))
+        self.assertFalse(hasattr(gin_orchestrator, "TelegramNotificationProvider"))
+
+    def test_review_provider_normalized_contract(self):
         reviews = FakeReviewProvider()
-        notifications = FakeNotificationProvider()
 
         requested = reviews.request(
             ReviewRequest(task_id="task-1", actor_id="worker-1"),
             idempotency_key="review-1",
         )
         status = reviews.status("task-1")
-        notified = notifications.notify(
-            NotificationRequest(event="review_requested", message="Task is ready"),
-            idempotency_key="notify-1",
-        )
 
         self.assertEqual("review-requested", requested.value.state)
         self.assertEqual(requested.value, status.value)
-        self.assertIs(OperationStatus.SUCCESS, notified.status)
-        self.assertEqual("Task is ready", notifications.sent[0].message)
 
     def test_all_fakes_share_invalid_success_replay_and_unavailable_semantics(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -244,13 +240,6 @@ class ProviderContractTests(unittest.TestCase):
                     lambda item: item.record(evidence, idempotency_key="key"),
                     lambda item: item.record(evidence, idempotency_key="key"),
                     lambda item: item.query(EvidenceQuery(task_id="task-1")),
-                ),
-                (
-                    FakeNotificationProvider(),
-                    lambda item: item.notify(NotificationRequest("", ""), idempotency_key="bad"),
-                    lambda item: item.notify(NotificationRequest("event", "message"), idempotency_key="key"),
-                    lambda item: item.notify(NotificationRequest("event", "message"), idempotency_key="key"),
-                    lambda item: item.notify(NotificationRequest("event", "message"), idempotency_key="other"),
                 ),
             )
             for provider, invalid, succeed, replay, unavailable in cases:
@@ -333,42 +322,6 @@ class ProviderContractTests(unittest.TestCase):
         self.assertIs(
             OperationStatus.UNAVAILABLE,
             CliTaskTrackingProvider(Path.cwd(), runner=missing_executable).read_task("task-7").status,
-        )
-
-        sent = []
-
-        def recording_sender(root, event, message):
-            sent.append((root, event, message))
-            return None
-
-        notifications = TelegramNotificationProvider(Path.cwd(), sender=recording_sender)
-        self.assertEqual(frozenset({"notification.send"}), notifications.capabilities)
-        self.assertIs(
-            OperationStatus.INVALID,
-            notifications.notify(NotificationRequest("", ""), idempotency_key="bad").status,
-        )
-        request = NotificationRequest("worker_finished", "t1: completed")
-        delivered = notifications.notify(request, idempotency_key="send")
-        replayed = notifications.notify(request, idempotency_key="send")
-        self.assertIs(OperationStatus.SUCCESS, delivered.status)
-        self.assertTrue(delivered.value.delivered)
-        self.assertTrue(replayed.idempotent)
-        self.assertEqual([(Path.cwd().resolve(), "worker_finished", "t1: completed")], sent)
-
-        failing = TelegramNotificationProvider(
-            Path.cwd(), sender=lambda root, event, message: "telegram delivery failed (HTTP 500)"
-        )
-        unavailable = failing.notify(request, idempotency_key="offline")
-        self.assertIs(OperationStatus.UNAVAILABLE, unavailable.status)
-        self.assertIn("telegram delivery failed (HTTP 500)", str(unavailable))
-
-        def rejecting_sender(root, event, message):
-            raise ValueError("unknown event")
-
-        rejected = TelegramNotificationProvider(Path.cwd(), sender=rejecting_sender)
-        self.assertIs(
-            OperationStatus.INVALID,
-            rejected.notify(request, idempotency_key="rejected").status,
         )
 
     def test_knowledge_adapters_only_return_proposals_and_normalize_unavailable(self):

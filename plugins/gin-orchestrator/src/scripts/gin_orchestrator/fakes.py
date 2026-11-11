@@ -18,8 +18,6 @@ from .contracts import (
     KnowledgeProposal,
     KnowledgeProposalRecord,
     KnowledgeRecord,
-    NotificationReceipt,
-    NotificationRequest,
     OperationStatus,
     ProviderBase,
     ProviderResult,
@@ -503,23 +501,3 @@ class FakeEvidenceProvider(ProviderBase):
             )
         )
 
-
-class FakeNotificationProvider(ProviderBase):
-    provider_name = "fake"
-    provider_type = "notifications"
-    capabilities = frozenset({"notification.send"})
-
-    def __init__(self, *, available: bool = True) -> None:
-        super().__init__(available=available)
-        self.sent: list[NotificationRequest] = []
-
-    def notify(self, request: NotificationRequest, *, idempotency_key: str) -> ProviderResult[NotificationReceipt]:
-        if guarded := self._guard():
-            return guarded
-        if replay := self._replay("notify", idempotency_key, request):
-            return replay
-        if not request.event or not request.message or not idempotency_key:
-            return ProviderResult.invalid("event, message, and idempotency_key are required")
-        self.sent.append(request)
-        receipt = NotificationReceipt(request.event, True)
-        return self._remember("notify", idempotency_key, request, ProviderResult.success(receipt))

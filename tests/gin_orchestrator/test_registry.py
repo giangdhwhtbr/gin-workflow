@@ -23,13 +23,11 @@ from gin_orchestrator.evidence import CompositeEvidenceAuthority, FileEvidencePr
 from gin_orchestrator.fakes import (  # noqa: E402
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
-    FakeNotificationProvider,
     FakeReviewProvider,
     FakeTaskTrackingProvider,
     FakeWorkspaceProvider,
 )
 from gin_orchestrator.knowledge import RepositoryKnowledgeProvider  # noqa: E402
-from gin_orchestrator.notifications import TelegramNotificationProvider  # noqa: E402
 from gin_orchestrator.native_cli import (  # noqa: E402
     FailureKind,
     NativeCliError,
@@ -63,7 +61,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "workspace": "fake",
                     "review": "fake",
                     "evidence": "fake",
-                    "notifications": "fake",
+                   
                 },
             },
             Path(root),
@@ -75,7 +73,7 @@ class ProviderRegistryTests(unittest.TestCase):
             "harness": "codex",
             "providers": {
                 "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                "review": "fake", "evidence": "fake", "notifications": "fake",
+                "review": "fake", "evidence": "fake",
             },
             "orchestrator": {
                 "roles": {
@@ -287,7 +285,7 @@ class ProviderRegistryTests(unittest.TestCase):
                 "harness": "claude",
                 "providers": {
                     "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                    "review": "fake", "evidence": "fake", "notifications": "fake",
+                    "review": "fake", "evidence": "fake",
                 },
                 "orchestrator": {
                     "roles": {
@@ -318,7 +316,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "harness": "codex",
                     "providers": {
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                        "review": "fake", "evidence": "fake",
                     },
                     "orchestrator": {
                         "roles": {"backend": {"preferred": ["claude"], "fallback": ["main_harness"]}},
@@ -588,7 +586,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "harness": "codex",
                     "providers": {
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                        "review": "fake", "evidence": "fake",
                     },
                     "orchestrator": {
                         "roles": {"backend": {"preferred": ["codex"], "fallback": []}},
@@ -659,7 +657,7 @@ class ProviderRegistryTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "fake",
                         "evidence": "fake",
-                        "notifications": "fake",
+                       
                     },
                 },
                 Path(directory),
@@ -672,7 +670,28 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertIsInstance(registry.workspace, FakeWorkspaceProvider)
             self.assertIsInstance(registry.review, FakeReviewProvider)
             self.assertIsInstance(registry.evidence, FakeEvidenceProvider)
-            self.assertIsInstance(registry.notifications, FakeNotificationProvider)
+
+    def test_leftover_notifications_provider_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = EffectiveConfig(
+                {
+                    "schema_version": "2.1",
+                    "providers": {
+                        "task_tracking": "fake",
+                        "knowledge": "fake",
+                        "workspace": "fake",
+                        "review": "fake",
+                        "evidence": "fake",
+                       
+                    },
+                },
+                Path(directory),
+            )
+
+            registry = ProviderRegistry.from_config(config)
+
+            self.assertFalse(hasattr(registry, "notifications"))
+            self.assertNotIn("notifications", registry.metadata)
 
     def test_builds_registry_through_exact_from_effective_config_api(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -685,7 +704,7 @@ class ProviderRegistryTests(unittest.TestCase):
                         "workspace": "fake",
                         "review": "fake",
                         "evidence": "fake",
-                        "notifications": "fake",
+                       
                     },
                 },
                 Path(directory),
@@ -716,7 +735,6 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertIsInstance(registry.workspace, WorktreeWorkspaceProvider)
             self.assertIsInstance(registry.review, ReviewLedgerProvider)
             self.assertIsInstance(registry.evidence, FileEvidenceProvider)
-            self.assertIsInstance(registry.notifications, TelegramNotificationProvider)
 
     def test_rejects_nondefault_worktree_root_that_safety_scripts_cannot_honor(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -833,7 +851,6 @@ class ProviderRegistryTests(unittest.TestCase):
             self.assertEqual(17, scheduler.worker_timeout_seconds)
             self.assertEqual(3, scheduler.max_retries)
             self.assertEqual(2, scheduler.max_parallel_workers)
-            self.assertIs(registry.notifications, scheduler.notifications)
 
     @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_registry_health_cache_distinguishes_codex_effort_and_probes_antigravity(self):
@@ -885,7 +902,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "harness": "codex",
                     "providers": {
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                        "review": "fake", "evidence": "fake",
                     },
                     "orchestrator": {
                         "roles": {"backend": {"preferred": ["codex", "antigravity"], "fallback": []}},
@@ -975,7 +992,7 @@ class ProviderRegistryTests(unittest.TestCase):
                         "models": {"antigravity": {"models": ["gemini-3.8-flash"]}},
                         "providers": {
                             "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                            "review": "fake", "evidence": "fake", "notifications": "fake",
+                            "review": "fake", "evidence": "fake",
                         },
                         "orchestrator": {
                             "roles": {"backend": {"preferred": ["antigravity"], "fallback": []}},
@@ -1057,7 +1074,7 @@ class ProviderRegistryTests(unittest.TestCase):
                     "harness": provider,
                     "providers": {
                         "task_tracking": "fake", "knowledge": "fake", "workspace": "fake",
-                        "review": "fake", "evidence": "fake", "notifications": "fake",
+                        "review": "fake", "evidence": "fake",
                     },
                     "orchestrator": {
                         "roles": {"backend": {"preferred": [provider], "fallback": []}},
