@@ -160,7 +160,7 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 | `plan` | Writes `<change>/04-plan.md`; each track lists `Requirements: REQ-...`, and every added or modified requirement belongs to a track. |
 | `orchestrate` | Reuses the epic; each track bead gets `--spec-id <epic>-<slug>` and `req:<REQ-ID>` labels. |
 | `execute` / review | New or changed tests carry the REQ-ID in the test name or a comment; the reviewer checks each scenario has a test. |
-| `ship` | `specs archive --change <epic>` merges the delta into the living specs and moves the folder to `changes/archive/`. A conflict stops ship. The archive lands with the integration, and the BA reviews the living-spec diff ([pull requests](git-flow.md#pull-requests)). |
+| `ship` | `specs archive --change <epic>` merges the delta into the living specs and moves the folder to `changes/archive/`. A conflict stops ship. The archive lands with the integration, and by team convention the BA reviews the living-spec diff ([pull requests](git-flow.md#pull-requests)). |
 | `quick` | Never creates a change folder; a change to behavior a requirement describes needs the full lifecycle. |
 
 ## Living specs during a migration
@@ -169,7 +169,7 @@ During a rewrite, the living specs describe the shipped new system. The old syst
 
 ## Changing a requirement after plan approval
 
-The approved change folder is never edited. Write a new change folder with a `MODIFIED` or `REMOVED` block whose `<!-- base: <hash> -->` comes from `gin specs hash <REQ-ID>`. That holds whether the requirement has shipped or another open change still adds it. For an unshipped requirement, the hash comes from the `ADDED` block of that change, and the command prints a note on stderr and names that change in the `change` key of its JSON output.
+The approved change folder is never edited. Write a new change folder with a `MODIFIED` or `REMOVED` block whose `<!-- base: <hash> -->` comes from `gin specs hash <REQ-ID>`. That holds whether the requirement has shipped or another open change still adds it. For an unshipped requirement, the hash comes from the `ADDED` block of that change, and in text output the command prints a note on stderr; in JSON output the `change` key names that change.
 
 For a `MODIFIED` or `REMOVED` block, `gin specs lint` reports `<REQ> is not in the living spec or an open change` when neither has the id, and `<REQ> is added by <a> and <b>; renumber one` when two open changes add it. `gin specs archive` of the new change stops with `<REQ> is added by <change>; archive <change> first` until that change is archived. With the [QA add-on](qa.md), `gin-qa cases plan` shows which test cases went stale.
 

@@ -77,7 +77,7 @@ Every artifact that has a gate SHALL reach the base branch through a pull reques
 | Spec | `spec/<topic>` | roles listed for `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | roles listed for `plan_approved` | `plan_approved` |
 | Track | `feat/<topic>-t<N>` | roles listed for `ship` | `ship` |
-| Archive into the living spec | the integration of the epic: the feature branch merge, or the parent's pull request in a workspace | roles listed for `ship`; the BA reviews the living-spec diff | `ship` |
+| Archive into the living spec | the integration of the epic: the feature branch merge, or the parent's pull request in a workspace | roles listed for `ship`; by convention, the BA reviews the living-spec diff | `ship` |
 
 The author SHALL fill the pull request template that `gin team init` writes. It has these fields:
 

@@ -26,7 +26,7 @@ Reuse the epic as parent. Each track bead: `gin task create --parent <epic> --sp
 New or changed tests carry the REQ-ID in the test name or a comment (`# REQ-AUTH-003`). The reviewer checks that each scenario of the track's REQs has a test and treats the acceptance-coverage rows of the `qa-track` skill (Review coverage) that are missing or stale as missing tests.
 
 ## ship
-Before presenting options, run `specs lint --change <epic> --against <base>` and `specs trace --change <epic>`. A `missing` REQ is a warning under `easy` rigor and stops ship under `standard` and `strict`. A duplicate ID on the base: `specs renumber`, then rerun both. Then on the feature branch: `specs archive --change <epic>`, commit (`docs(specs): archive <epic>`); the BA reviews the living-spec diff in the integration. Exit 1 (a living block changed since the delta, or lint findings) stops ship: show the findings, ask the user.
+Before presenting options, run `specs lint --change <epic> --against <base>` and `specs trace --change <epic>`. A `missing` REQ is a warning under `easy` rigor and stops ship under `standard` and `strict`. A duplicate ID on the base: `specs renumber`, then rerun both. Then on the feature branch: `specs archive --change <epic>`, commit (`docs(specs): archive <epic>`); by team convention the BA reviews the living-spec diff in the integration. Exit 1 (a living block changed since the delta, or lint findings) stops ship: show the findings, ask the user.
 
 ## quick
 Never creates a change folder. If the change alters behavior a living-spec REQ describes, stop and recommend the full lifecycle.

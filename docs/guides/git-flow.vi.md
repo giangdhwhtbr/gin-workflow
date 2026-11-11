@@ -77,7 +77,7 @@ Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò 
 | Spec | `spec/<topic>` | các vai trò được liệt kê cho `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | các vai trò được liệt kê cho `plan_approved` | `plan_approved` |
 | Track | `feat/<topic>-t<N>` | các vai trò được liệt kê cho `ship` | `ship` |
-| Archive vào living spec | phần tích hợp của epic: merge feature branch, hoặc pull request của repository cha trong workspace | các vai trò được liệt kê cho `ship`; BA review phần diff của living spec | `ship` |
+| Archive vào living spec | phần tích hợp của epic: merge feature branch, hoặc pull request của repository cha trong workspace | các vai trò được liệt kê cho `ship`; theo quy ước của nhóm, BA review phần diff của living spec | `ship` |
 
 Tác giả PHẢI điền template pull request do `gin team init` ghi. Template có các trường sau:
 
