@@ -17,4 +17,4 @@ Knowledge lives in `.planning/knowledge/` (the configured `artifacts.knowledge`)
 1. Find the records related to the task.
 2. Update their status with a short evidence-backed summary and references.
 3. Correct contradictions or stale statements in related decisions and indexes.
-4. Close beads only after the updates are written, or after any skipped or declined update is stated in the handoff. A notification never counts as reconciliation.
+4. Close beads only after the updates are written, or after any skipped or declined update is stated in the handoff.

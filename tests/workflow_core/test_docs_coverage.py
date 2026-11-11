@@ -14,6 +14,7 @@ SCRIPTS = ROOT / "plugins/gin-workflow/src/scripts"
 LINK = re.compile(r"\]\(([^)\s]+)\)")
 MERMAID = re.compile(r"```mermaid\n(\S+)")
 BEADS_DEFAULT = re.compile(r"(?i)beads[^.\n]{0,40}\b(default|required)\b|\b(default|required)\b[^.\n]{0,40}beads")
+NOTIFICATION = re.compile(r"telegram|gin notify|notify --event|notifications\.\w", re.IGNORECASE)
 TYPES = {"flowchart", "graph", "sequenceDiagram", "stateDiagram-v2", "stateDiagram", "classDiagram", "erDiagram"}
 sys.path.insert(0, str(SCRIPTS))
 
@@ -80,11 +81,12 @@ class DocsCoverageTests(unittest.TestCase):
         bad = [str(p.relative_to(ROOT)) for p in pages() if "workflow_providers" in p.read_text(encoding="utf-8")]
         self.assertEqual(bad, [])
 
-    def test_no_doc_mentions_telegram_sh(self):
-        targets = sorted(set(pages()) | set(ROOT.glob("plugins/*/src/skills/**/*.md")) | set(ROOT.glob("plugins/*/src/agents/*.md")) | {ROOT / "install.sh", ROOT / "install.ps1"})
+    def test_no_doc_or_skill_mentions_notifications(self):
+        targets = sorted(set(pages()) | set(ROOT.glob("plugins/*/src/skills/**/*.md")) | set(ROOT.glob("plugins/*/src/agents/*.md"))
+                         | set(ROOT.glob("plugins/*/src/references/*.md")) | {ROOT / "install.sh", ROOT / "install.ps1"})
         bad = [f"{p.relative_to(ROOT)}:{n}: {line.strip()}" for p in targets if p.exists()
                for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
-               if "telegram.sh" in line or "telegram-notify" in line]
+               if NOTIFICATION.search(line)]
         self.assertEqual(bad, [])
 
     def test_style_check_catches_each_rule(self):
