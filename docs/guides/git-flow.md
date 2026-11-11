@@ -94,7 +94,10 @@ The BA reviews a spec and checks that:
 
 - every user story has acceptance criteria;
 - every requirement has a `Source:` line that names where it comes from;
-- the edge cases of the old system are covered.
+- the edge cases of the old system are covered;
+- every requirement can be tested: each acceptance criterion names an observable outcome.
+
+The team may also request a non-gating `qe` review on spec pull requests. CODEOWNERS on the spec folders is the host's mechanism for this; it is advice, and gin does not enforce it.
 
 The tester reviews a developer's pull request and checks that:
 

@@ -190,14 +190,31 @@ File format, extra fields, and end-to-end rules: [customizing templates](customi
 
 ## Ship approval checklist
 
-With `team.approvals.ship` listing a tester role, the tester approves the latest commit of the developer's pull request after checking:
+With `team.approvals.ship` listing a tester role, the tester approves the latest commit of the developer's pull request. The checks depend on the kind of pull request. Under the SDD layout, `/gin:ship` runs `gin-qa cases check` itself and stops on missing or stale cases, so the tester does not repeat it for that gate.
 
+### Contract pull request
+
+- The contract or schema tests are green.
+- `gin-qa cases check --change <epic>` exits 0.
+
+### Service pull request
+
+- `gin-qa tests run --type api` passes for the `api` cases against the service.
 - `gin-qa cases plan` reports no `missing` and no `stale` cases.
-- `gin-qa cases check` exits 0.
-- `gin-qa e2e run` passes, and `gin-qa e2e check --run <folder>` exits 0 on its evidence.
-- The approval comment names the evidence folder (a team convention).
 
-A commit pushed after the approval needs a new approval ([team mode](team.md)).
+### App pull request
+
+- `gin-qa e2e run` passes against the mocks.
+- `gin-qa e2e check --run <folder>` exits 0 on its evidence.
+
+The approval comment names the evidence folder (a team convention). A commit pushed after the approval needs a new approval ([team mode](team.md)).
+
+### Integration sign-off
+
+QA signs off the milestone integration point once:
+
+- `gin-qa e2e run` is green against the real API for every flag turned on;
+- no bug bead is open on the integrated epics.
 
 ## Commands
 

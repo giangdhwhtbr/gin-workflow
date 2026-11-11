@@ -17,4 +17,5 @@ Beads: <!-- bead ids -->
 - [ ] Commits follow the team commit convention
 - [ ] Every changed requirement has a test or a `05-tests.md` row
 - [ ] `gin specs lint` passes (SDD layout)
+- [ ] Acceptance cases for the changed REQs exist and pass (QA cases check)
 - [ ] Review comments resolved

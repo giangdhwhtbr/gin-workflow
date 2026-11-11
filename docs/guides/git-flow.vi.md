@@ -94,7 +94,10 @@ BA review một spec và kiểm tra rằng:
 
 - mỗi user story có acceptance criteria;
 - mỗi requirement có một dòng `Source:` nêu nguồn gốc của nó;
-- các edge case của hệ thống cũ đã được phủ.
+- các edge case của hệ thống cũ đã được phủ;
+- mọi requirement đều test được: mỗi acceptance criterion nêu một kết quả quan sát được.
+
+Team cũng có thể yêu cầu một review `qe` không chặn gate trên các pull request spec. CODEOWNERS trên các thư mục spec là cơ chế của host cho việc này; đây chỉ là gợi ý, gin không áp đặt.
 
 Tester review pull request của developer và kiểm tra rằng:
 
