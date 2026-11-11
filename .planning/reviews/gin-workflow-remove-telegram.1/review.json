@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "implementation-in-progress",
+  "review_state": "review-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,7 +24,7 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 11,
+  "ledger_revision": 12,
   "next_finding_number": 1,
   "findings": {
     "leftover-notifications-test-has-no-leftover-key": {
@@ -253,6 +253,20 @@
       },
       "previous_event_hash": "7190c05e38df9f80b4f37aca2b131d22b3b4474821ae85f609213f10b343d042",
       "event_hash": "bd9e62f63168e9e736f5d9b14badd7a999d774cb52f4a08823e47a4d88408e21"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "review-requested",
+      "timestamp": "2026-11-11T16:52:54.806414Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "bd9e62f63168e9e736f5d9b14badd7a999d774cb52f4a08823e47a4d88408e21",
+      "event_hash": "d62f04973496695efc05cd0111fe1da9b0032df94da4058d1a94ba92864249f5"
     }
   ]
 }
