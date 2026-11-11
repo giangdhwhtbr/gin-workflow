@@ -292,7 +292,8 @@ def init(root: Path, eff: Effective, base_url: str | None = None, install: bool 
         shown = f"{eff.package_dir}/{CONFIG}" if eff.package_dir else CONFIG
         done.append(f"wrote {shown} (baseURL {url})")
     elif base_url is not None:
-        done.append(f"{existing} exists; --base-url not applied")
+        shown = f"{eff.package_dir}/{existing}" if eff.package_dir else existing
+        done.append(f"{shown} exists; --base-url not applied")
     if install:
         return done + _install(root, eff)
     if _playwright(pkg) is None:

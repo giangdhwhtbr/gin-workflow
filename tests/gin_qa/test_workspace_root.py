@@ -14,29 +14,13 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
-from test_e2e_cli import FAKE_NPX, spec_text  # noqa: E402
+from test_e2e_cli import FAKE_MANAGER, FAKE_NPX, spec_text  # noqa: E402
 from qa_fixtures import (AUTH_SPEC, TOOLS_PATH, case, case_file, cases_file, commit_all, gin_workflow_bin,  # noqa: E402
                          make_repo, make_workspace_qa, python_stub, qa, write)
-from qa_fixtures import LAUNCHER as GIN_LAUNCHER  # noqa: E402
 from gin_qa.cases import hash8, parse_file  # noqa: E402
 
 # A `gin` from before `root` was reported: its `specs reqs` payload has no `root`.
 OLD_GIN = '#!/bin/sh\necho \'{"layout": "sdd", "requirements": [], "qa": {}}\'\n'
-
-# The real `gin` with `qa.dir` added to the `specs reqs` payload: the config schema does not know `qa.dir` yet, so
-# these tests exercise gin-qa's reading of the payload, not the core's validation.
-QA_DIR_GIN = '''#!{python}
-import json, subprocess, sys
-done = subprocess.run([sys.executable, {launcher!r}, *sys.argv[1:]], capture_output=True, text=True)
-if sys.argv[1:3] == ["specs", "reqs"] and done.returncode == 0:
-    payload = json.loads(done.stdout)
-    payload["qa"] = {{**(payload.get("qa") or {{}}), "dir": {qa_dir!r}}}
-    print(json.dumps(payload))
-else:
-    sys.stdout.write(done.stdout)
-    sys.stderr.write(done.stderr)
-sys.exit(done.returncode)
-'''
 
 
 class TestQaWorkspaceRoot(unittest.TestCase):
@@ -55,14 +39,10 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         commit_all(child, "case")
         return parent, child
 
-    def single(self) -> Path:
-        root = make_repo(self.base / "repo")
+    def single(self, qa_block: str = "") -> Path:
+        root = make_repo(self.base / "repo", extra=qa_block)
         write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
         return root
-
-    def gin_with_qa_dir(self, qa_dir: str) -> Path:
-        body = QA_DIR_GIN.format(python=sys.executable, launcher=str(GIN_LAUNCHER), qa_dir=qa_dir)
-        return python_stub(self.base / "dirbin", "gin", body).parent
 
     def test_next_id_from_the_child_uses_child_history(self):
         parent, child = self.workspace()
@@ -91,20 +71,20 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         self.assertEqual(before, {name: (parent / name).exists() for name in names})
 
     def test_single_repo_qa_dir(self):
-        root, bin_dir = self.single(), self.gin_with_qa_dir("new-app/testing")
-        written = qa(root, bin_dir, "new", "auth", "--type", "manual", "--title", "Sign in", "--req",
+        root = self.single("qa:\n  dir: new-app/testing\n")
+        written = qa(root, self.bin, "new", "auth", "--type", "manual", "--title", "Sign in", "--req",
                      "REQ-AUTH-001", "--format", "json")
         self.assertEqual(0, written.returncode, written.stderr)
         self.assertTrue(json.loads(written.stdout)["file"].startswith("new-app/testing/cases/"))
-        result = qa(root, bin_dir, "init", group="e2e")
+        result = qa(root, self.bin, "init", group="e2e")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("testDir: '.'", (root / "new-app/testing/e2e/playwright.config.ts").read_text())
         self.assertFalse((root / "playwright.config.ts").exists() or (root / "qa").exists())
         self.assertIn("/new-app/testing/evidence/", (root / ".gitignore").read_text().splitlines())
 
     def test_qa_dir_outside_is_refused(self):
-        root = self.single()
-        result = qa(root, self.gin_with_qa_dir("../x"), "next-id", "auth")
+        root = self.single("qa:\n  dir: ../x\n")
+        result = qa(root, self.bin, "next-id", "auth")
         self.assertEqual(2, result.returncode)
         self.assertIn("must be a path inside the repository", result.stderr)
 
@@ -125,6 +105,27 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         self.assertEqual(["playwright", "test", "qa/e2e/auth/tc-auth-001.spec.ts", "--output",
                           f"{json.loads(result.stdout)['run']}/playwright"],
                          json.loads((root / ".npx-args").read_text()))
+
+    def test_a_fresh_single_repo_gets_its_playwright_project_in_qa_e2e(self):
+        root = self.single()
+        for name in ("npm", "npx"):
+            python_stub(self.bin, name, FAKE_MANAGER.format(python=sys.executable))
+        result = qa(root, self.bin, "init", group="e2e")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("wrote qa/e2e/playwright.config.ts", result.stdout)
+        self.assertIn("testDir: '.'", (root / "qa/e2e/playwright.config.ts").read_text())
+        self.assertFalse((root / "playwright.config.ts").exists() or (root / "package.json").exists())
+        missing = qa(root, self.bin, "init", "--install", group="e2e")
+        self.assertEqual(2, missing.returncode)
+        self.assertIn("no package.json in qa/e2e", missing.stderr)
+        write(root, "qa/e2e/package.json", '{"name": "qa"}\n')
+        installed = qa(root, self.bin, "init", "--install", group="e2e")
+        self.assertEqual(0, installed.returncode, installed.stderr)
+        self.assertEqual(["npm install -D @playwright/test", "npx playwright install chromium"],
+                         (root / "qa/e2e/.pm-calls").read_text().splitlines())
+        self.assertEqual({"name": "qa", "scripts": {"e2e": "playwright test"}},
+                         json.loads((root / "qa/e2e/package.json").read_text()))
+        self.assertFalse((root / "package.json").exists() or (root / ".pm-calls").exists())
 
     def test_e2e_run_from_the_child_runs_playwright_in_its_e2e_folder(self):
         _, child = self.workspace()

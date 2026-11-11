@@ -69,6 +69,17 @@ def _under(home: str, name: str) -> str:
     return posixpath.normpath(posixpath.join(home, name))
 
 
+def _root_playwright(root: Path) -> bool:
+    """Whether `root` already holds a Playwright project: a `playwright.config.*`, or a package.json with an `e2e` script."""
+    if any(root.glob("playwright.config.*")):
+        return True
+    try:
+        scripts = json.loads((root / "package.json").read_text(encoding="utf-8")).get("scripts")
+    except (OSError, ValueError, AttributeError):
+        return False
+    return isinstance(scripts, dict) and "e2e" in scripts
+
+
 def resolve(payload: dict[str, Any], qa_home: str = "qa") -> Effective:
     """An open change's ADDED/MODIFIED block wins over the living block; its REMOVED block removes the REQ.
 
@@ -82,9 +93,7 @@ def resolve(payload: dict[str, Any], qa_home: str = "qa") -> Effective:
                           _inside("guidelines", qa["guidelines"]) if "guidelines" in qa
                           else _under(qa_home, "guidelines.md"),
                           list(payload.get("test_globs", [])), e2e_dir)
-    # A single repository without `qa.dir` keeps its Playwright project at the root, as before (this covers a root
-    # `playwright.config.*` or `e2e` script); a QA repository or an explicit `qa.dir` puts it in the e2e folder.
-    effective.package_dir = "" if "dir" not in qa and qa_home != "." else e2e_dir
+    effective.package_dir = e2e_dir  # `locate` keeps the files root for an existing root setup
     owner: dict[str, str] = {}
     for row in payload["requirements"]:
         req, change = row["id"], row["change"]
@@ -117,4 +126,6 @@ def locate(repository: Path | None, change: str | None = None) -> tuple[Path, Ef
         files_root, home = project, _inside("dir", qa.get("dir", "qa"))
     eff = resolve(payload, home)
     eff.project_root = project
+    if not payload.get("qa_root") and "dir" not in qa and _root_playwright(files_root):
+        eff.package_dir = ""  # R6: an existing root setup keeps the root
     return files_root, eff
