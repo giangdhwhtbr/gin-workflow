@@ -35,7 +35,7 @@ Comments considered: 1, latest 2026-11-11T08:10:59Z
 
 ## Requirements
 
-R1. The provider role `qa` is available by default: the routing presets of every project shape include it, routed to the main harness like `docs` and `general`. Existing configs that define their own roles keep them; a missing `qa` role in an existing effective config is added by `gin setup refresh` the way other preset roles are.
+R1. The provider role `qa` is available by default: the routing presets of every project shape include it, routed to the main harness like `docs` and `general`. Existing configs that define their own roles keep them; presets apply only when setup proposes assignments (`gin setup preset`), and `gin setup refresh` does not add preset roles, so an existing project adds `qa` by re-running setup or by configuring the role.
 
 R2. A new on-demand skill `plugins/gin-workflow/src/skills/qa-track/SKILL.md` (`qa-track`) describes the QA track: it is dispatched to `gin:developer` like any track, with the gin-qa skill that matches its files (`gin-qa:cases`, `gin-qa:tests`, or `gin-qa:e2e`) as the instructions and `gin rules --files` for the case files; it is validated with `gin-qa cases check --change <epic>`, plus `gin-qa e2e check` or `gin-qa tests check` when it changed e2e specs or tests; the developer commits in the track's worktree (the `qa` child's worktree in a workspace) because gin-qa skills do not commit; review and close follow the normal execute steps.
 
