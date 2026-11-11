@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `changes-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-remove-telegram.1`
 - **Base SHA:** `956f05031f9df51da1141439c4de80a7ea59b885`
-- **Reviewed SHA:** `6d8ff4db1a6709f1103abf15ae1a51569eee7326`
+- **Reviewed SHA:** `2384d2100856480cb8491328febf32428db77635`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-remove-telegram.1`
-- **Checkpoint SHA:** `6d8ff4db1a6709f1103abf15ae1a51569eee7326`
+- **Checkpoint SHA:** `2384d2100856480cb8491328febf32428db77635`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `49d8fd5a9d84825d4f33c4ae0bde8227e8fa4fd78adce09e18b8af5893cece45`
+- **Tree Hash:** `d226899a01ce2de495044311a33dde4d27ca325615edfd743506257515bbc162`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,11 +29,11 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `leftover-notifications-test-has-no-leftover-key` | `IMPORTANT` | `open` | 0 | - |
+| `leftover-notifications-test-has-no-leftover-key` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `leftover-notifications-test-has-no-leftover-key` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -48,3 +48,6 @@
 | `EV-000006` | `2026-11-11T16:46:42.901385Z` | `finding-created` | `reviewer:claude:session-472189bf` (reviewer) |
 | `EV-000007` | `2026-11-11T16:46:43.027551Z` | `changes-requested` | `reviewer:claude:session-472189bf` (reviewer) |
 | `EV-000008` | `2026-11-11T16:46:43.255564Z` | `lease-released` | `reviewer:claude:session-472189bf` (reviewer) |
+| `EV-000009` | `2026-11-11T16:47:43.771617Z` | `implementation-in-progress` | `implementer:claude:main` (worker) |
+| `EV-000010` | `2026-11-11T16:47:43.904978Z` | `finding-fixed` | `implementer:claude:main` (worker) |
+| `EV-000011` | `2026-11-11T16:47:44.238947Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
