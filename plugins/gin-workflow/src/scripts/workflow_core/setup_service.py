@@ -723,7 +723,8 @@ def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **
     local_dir = main / ".agent-workflow"
     old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
     restored_version = str(result.get("restored_version") or "0")
-    if version_key(restored_version) < version_key("2.8") and new_local.is_file() and not old_local.exists():
+    pre_2_8 = restored_version not in SUPPORTED_CONFIG_VERSIONS or version_key(restored_version) < version_key("2.8")
+    if pre_2_8 and new_local.is_file() and not old_local.exists():
         if not dry_run:
             os.replace(new_local, old_local)
         result.setdefault("actions", []).append(f"rename {new_local.relative_to(main).as_posix()} to {old_local.name}")

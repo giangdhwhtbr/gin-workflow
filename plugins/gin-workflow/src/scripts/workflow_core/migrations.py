@@ -11,7 +11,7 @@ from typing import Any, Mapping
 
 from .atomic import atomic_write_many, atomic_write_bytes
 from .configuration import WORKER_ROUTING_KEYS, require_yaml, role_providers, validate_portable_config
-from .schemas import SUPPORTED_CONFIG_VERSIONS, version_key
+from .schemas import SUPPORTED_CONFIG_VERSIONS, version_key  # noqa: F401  (version_key re-exported for setup_service)
 
 
 CURRENT_VERSION = "2.10"

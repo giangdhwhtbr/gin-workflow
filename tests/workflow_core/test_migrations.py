@@ -298,6 +298,30 @@ setup_cli_version: '2.2'
             self.assertEqual(local_before, (workflow / "orchestrator.local.yaml").read_bytes())
             self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
 
+    def test_rollback_tolerates_a_non_numeric_backup_version(self):
+        import hashlib
+        import json
+
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, V29, {"providers": {}})
+            backup = workflow / "backups" / "hand-edited"
+            backup.mkdir(parents=True)
+            content = b"schema_version: 2.9-rc\n"
+            (backup / "config.yaml").write_bytes(content)
+            (backup / "metadata.json").write_text(json.dumps({
+                "backup_schema_version": "1",
+                "from_version": "2.9-rc",
+                "to_version": "2.10",
+                "config_sha256": hashlib.sha256(content).hexdigest(),
+            }), encoding="utf-8")
+
+            result = setup_service.rollback(repository, backup=backup)
+
+            self.assertEqual(content, (workflow / "config.yaml").read_bytes())
+            self.assertIn("rename .agent-workflow/orchestrator.local.yaml to providers.local.yaml", result["actions"])
+            self.assertTrue((workflow / "providers.local.yaml").is_file())
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+
     def test_version_key_orders_2_10_after_2_9(self):
         self.assertGreater(version_key("2.10"), version_key("2.9"))
         self.assertEqual((2, 10), version_key("2.10"))
