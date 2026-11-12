@@ -1,6 +1,6 @@
-schema_version: "2.9"
-workflow_version: "2.9"
-setup_cli_version: "2.9"
+schema_version: "2.10"
+workflow_version: "2.10"
+setup_cli_version: "2.10"
 harness: codex
 provider_mode: multi
 

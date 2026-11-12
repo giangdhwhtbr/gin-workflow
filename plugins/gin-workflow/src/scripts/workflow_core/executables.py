@@ -82,7 +82,7 @@ def detect(names: Iterable[str] = KNOWN_TOOLS, root: Path | None = None) -> dict
 
 def write_local(root: Path, found: Mapping[str, str]) -> Path:
     path = _base(root) / LOCAL_FILE
-    lines = ['schema_version: "2.9"', "executables:"] + [f"  {k}: {v}" for k, v in found.items()]
+    lines = ['schema_version: "2.10"', "executables:"] + [f"  {k}: {v}" for k, v in found.items()]
     atomic_write_text(path, "\n".join(lines) + "\n")
     clear_cache()
     return path

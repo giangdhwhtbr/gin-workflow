@@ -96,7 +96,7 @@ Without pytest, `PYTHONPATH=plugins/gin-workflow/src/scripts python3 -m unittest
 - relative links resolve, including in the plugin READMEs;
 - Mermaid blocks name a diagram type;
 - no line calls Beads the default or required, unless it also says optional;
-- no page mentions the removed worker-routing key of the old schema or the removed Telegram shell script.
+- no page mentions the removed worker-routing key of the old schema or the removed notification feature.
 
 Adding a skill or a subcommand means documenting it.
 

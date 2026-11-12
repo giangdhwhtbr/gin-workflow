@@ -36,13 +36,15 @@ Portable layers are validated before anything is written. A command key (such as
 
 ## Versions and migration
 
-`schema_version`, `workflow_version`, and `setup_cli_version` are separate compatibility channels; the current value of each is `2.9`. When the installed CLI is newer, `gin setup update` proposes the registered migration and applies it with `--approve`, after writing a validated backup to `.agent-workflow/backups/`. `rollback --backup PATH` restores one. Migrations change configuration only; they never move plans, Beads data, review ledgers, worktrees, or other artifacts.
+`schema_version`, `workflow_version`, and `setup_cli_version` are separate compatibility channels; the current value of each is `2.10`. When the installed CLI is newer, `gin setup update` proposes the registered migration and applies it with `--approve`, after writing a validated backup to `.agent-workflow/backups/`. `rollback --backup PATH` restores one. Migrations change configuration only; they never move plans, Beads data, review ledgers, worktrees, or other artifacts.
 
 In schema 2.8, worker routing configuration (`concurrency`, `queue`, `worker`, `circuit_breaker`, and roles naming worker providers) moves under `orchestrator:`. `gin setup update --to-version 2.8 --approve` preserves explicit settings, defaults an unset `providers.task_tracking` to `beads`, and renames `providers.local.yaml` to `orchestrator.local.yaml`.
 
 Schema 2.9 replaces `model_tiers` with the [`models`](#models) catalog. `gin setup update --to-version 2.9` removes `model_tiers` and keeps every other key. For each provider in `orchestrator.local.yaml` that still lists tier `models:` and has no `models` entry yet, it proposes a catalog entry: the tier models in `low`, `medium`, `high` order, without duplicates. When any tier declared an effort, the entry also gets the provider's default `efforts` from the built-in catalog; otherwise it lists models only. With `--approve` it writes those entries to `config.yaml` and removes `models:` from `orchestrator.local.yaml`, keeping `executable`.
 
 A schema 2.9 configuration that sets `model_tiers` is rejected. On an older schema, `gin setup doctor` reports `model_tiers`, and it reports tier `models:` left in `orchestrator.local.yaml`, which gin-orchestrator refuses to load.
+
+Schema 2.10 removes `notifications`: `gin setup update --to-version 2.10` drops the key and keeps every other key. A schema 2.10 configuration that sets `notifications` is rejected. On an older schema, `gin setup doctor` reports `notifications` as ignored since schema 2.10.
 
 ## Keys
 
@@ -85,16 +87,6 @@ Rigor presets:
 ### `clarify`
 
 `max_questions` (default 8): cap on clarifying questions in `/discuss` and `/roadmap`; at the cap the agent proposes splitting the scope into smaller epics or lists the rest as assumptions.
-
-### `notifications`
-
-`telegram` (boolean, optional, default off): one-way Telegram notifications for lifecycle events (`needs_input`, `run_finished`, `worker_finished`, `worker_failed`). Enable with:
-
-```bash
-gin setup configure --set notifications.telegram=true --approve
-```
-
-Credentials are read from `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the environment. `gin setup doctor` warns when `notifications.telegram` is enabled but either credential is missing.
 
 ### `usage`
 
@@ -183,7 +175,7 @@ Used by the `gin-qa` add-on: `dir` (default `qa`, a path inside the repository),
 Used by gin-orchestrator at runtime; `setup doctor` and the 2.9 migration also read it. It holds one executable per worker harness; models come from the [`models`](#models) catalog. Before schema 2.8 this file was `providers.local.yaml`; `gin setup update --to-version 2.8 --approve` renames it.
 
 ```yaml
-schema_version: "2.9"
+schema_version: "2.10"
 providers:
   claude:
     executable: claude
@@ -202,7 +194,7 @@ gin-orchestrator rejects a provider entry with any key besides `executable`; a `
 `setup init` and `setup refresh` record where each external CLI lives on this machine, so a harness whose `PATH` differs from your shell still finds it. Only the tools found are listed.
 
 ```yaml
-schema_version: "2.9"
+schema_version: "2.10"
 executables:
   git: /usr/bin/git
   bd: /home/me/.local/bin/bd

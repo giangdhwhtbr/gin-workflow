@@ -18,7 +18,7 @@ from .setup_service import COMMANDS, SetupError
 
 CLI_VERSION = "3.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
-                "reviewer", "hooks", "evidence", "task", "routes", "notify", "paths", "goal", "worktree", "workspace", "milestone")
+                "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "worktree", "workspace", "milestone")
 
 
 ACTIONS = {
@@ -98,9 +98,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
         if argv[0] == "routes":
             from .routes import main as routes_main
             return routes_main(argv[1:])
-        if argv[0] == "notify":
-            from .notify import main as notify_main
-            return notify_main(argv[1:])
         if argv[0] == "paths":
             import json
             from pathlib import Path

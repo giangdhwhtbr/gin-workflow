@@ -1,4 +1,4 @@
-schema_version: "2.9"
+schema_version: "2.10"
 providers:
   claude:
     executable: claude

@@ -215,7 +215,7 @@ class ConfigurationTests(unittest.TestCase):
             {"schema_version": "2.3", "workflow_version": "9.9"},
             {"schema_version": "2.3", "setup_cli_version": "9.9"},
             {"schema_version": "2.3", "worker": {"model": "gpt-5.6"}},
-            {"schema_version": "2.3", "notifications": {"api_key": "sk-literal"}},
+            {"schema_version": "2.3", "usage": {"api_key": "sk-literal"}},
             {"schema_version": "2.3", "provider": {"command": ["bd", "ready"]}},
             {"schema_version": "2.3", "secret_ref": "not a valid reference"},
             {

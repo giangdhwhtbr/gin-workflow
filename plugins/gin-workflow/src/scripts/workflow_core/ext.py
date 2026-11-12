@@ -27,7 +27,6 @@ from .identity import AcceptanceIdentity, RepositorySnapshot
 from .locking import file_lock
 from .manifests import ContextManifest, ContextRequest, create_context_manifest
 from .models import EffectiveConfig, freeze, thaw
-from .notify import notify
 from .provider_config import (
     DEFAULT_EXECUTABLES,
     PROVIDER_DEFAULT,
@@ -78,7 +77,6 @@ __all__ = [
     "load_effective_config",
     "main_checkout",
     "map_route",
-    "notify",
     "require_yaml",
     "resolve_harness_executable",
     "route_diagnostics",

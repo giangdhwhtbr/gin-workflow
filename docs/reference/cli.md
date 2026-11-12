@@ -298,16 +298,6 @@ Both actions always print JSON; `--json` is accepted and changes nothing.
 
 Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it or without a resolved route, an invalid configuration, an unknown provider, or a manifest route outside its provider's catalog on `--escalate`, nothing left to escalate to, or invalid arguments; 3 the epic is over budget (`dispatch`).
 
-## `gin notify`
-
-```
-gin notify --event EVENT [--repository DIR] MESSAGE
-```
-
-Sends a one-way notification message to Telegram. It is a no-op unless `notifications.telegram` is true. The four supported events are `needs_input`, `run_finished`, `worker_finished`, and `worker_failed`. Credentials are read from the `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` environment variables. If delivery fails or credentials are missing, a warning is printed to stderr and the command exits 0.
-
-Exit codes: 0 message sent, disabled, or delivery warning; 2 invalid arguments or unknown event.
-
 ## `gin paths`
 
 ```

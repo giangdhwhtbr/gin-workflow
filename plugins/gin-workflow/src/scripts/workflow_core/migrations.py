@@ -11,10 +11,10 @@ from typing import Any, Mapping
 
 from .atomic import atomic_write_many, atomic_write_bytes
 from .configuration import WORKER_ROUTING_KEYS, require_yaml, role_providers, validate_portable_config
-from .schemas import SUPPORTED_CONFIG_VERSIONS
+from .schemas import SUPPORTED_CONFIG_VERSIONS, version_key  # noqa: F401  (version_key re-exported for setup_service)
 
 
-CURRENT_VERSION = "2.9"
+CURRENT_VERSION = "2.10"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -130,6 +130,15 @@ def _migrate_2_8_to_2_9(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_2_9_to_2_10(config: dict[str, Any]) -> dict[str, Any]:
+    """Outbound notifications are removed; `notifications` goes."""
+    migrated = copy.deepcopy(dict(config))
+    migrated.pop("notifications", None)
+    for field in ("schema_version", "workflow_version", "setup_cli_version"):
+        migrated[field] = "2.10"
+    return migrated
+
+
 _MIGRATIONS = {
     ("2.0", "2.1"): _migrate_2_0_to_2_1,
     ("2.1", "2.2"): _migrate_2_1_to_2_2,
@@ -140,6 +149,7 @@ _MIGRATIONS = {
     ("2.6", "2.7"): _migrate_2_6_to_2_7,
     ("2.7", "2.8"): _migrate_2_7_to_2_8,
     ("2.8", "2.9"): _migrate_2_8_to_2_9,
+    ("2.9", "2.10"): _migrate_2_9_to_2_10,
 }
 _NEXT_STEP = {source: target for source, target in _MIGRATIONS}
 
