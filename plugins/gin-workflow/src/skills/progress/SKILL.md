@@ -15,5 +15,6 @@ Read-only status report.
 2. Group as Pending, Active, Complete, and Failed. Recommend active dependencies first, then ready work by priority, then root blockers.
 3. Add review status (`python3 review-ledger.py status --bead-id <id>`) and gate state (`gin state --format json`) when relevant, and recent `/quick` runs (`recent_quick` in `gin state`).
 4. Report open gate waivers (gates shown as `waived(<reason>)` by `gin state`) and check their follow-up tasks with `gin task show`, so waivers do not become a habit.
-5. Label worker and worktree details as derived runtime metadata, never authoritative state.
-6. Return the report. Never mutate state or chain into another stage.
+5. With Beads, for each open epic in the report, list each `[gin question] <track>:` comment (`gin task comments <epic> --json`) that has no newer `[gin answer] <track>:` comment, with its date and text, as open questions for the BA. The markdown backend has no comments.
+6. Label worker and worktree details as derived runtime metadata, never authoritative state.
+7. Return the report. Never mutate state or chain into another stage.
