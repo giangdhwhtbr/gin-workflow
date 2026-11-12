@@ -17,6 +17,7 @@ Epic `gin-workflow-epic-shape-docs` (2026-11-12), process review clusters "One e
 - Docs: `docs/guides/workspace.md`, `docs/roles.md`, `docs/starters/brownfield.md`, `docs/reference/skills.md`, and `.vi.md` pairs; `plugins/gin-workflow/src/skills/roadmap/references/capability-epics.md`
 - `.planning/specs/2026-11-12-epic-shape-docs-design.md`, `.planning/plans/2026-11-12-epic-shape-docs.md`
 - Beads: `gin-workflow-epic-shape-docs`, `.1`, `.2`; bug `gin-workflow-syug`
+- Related: [approval-policies](approval-policies.md), [review-ledger-cycle-limit](review-ledger-cycle-limit.md)
 
 **Scope**
 How epics, tracks, and API contracts are owned and approved in a workspace, and the starter's worked example.
