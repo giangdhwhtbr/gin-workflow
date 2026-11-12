@@ -84,8 +84,7 @@ execution_strategy:
   - Modify `docs/reference/cli.md:136` (`assets confirm` row)
   - Test `tests/workflow_core/test_specs_assets.py`
 - **Provider role**: `backend`
-- **Model:** `sonnet`
-- **Effort:** `medium`
+- **Model:** `claude-sonnet-5-5`
 - **Why:** bounded change to one function and its CLI flag, with every output and refusal fixed by the spec.
 - **Interfaces**:
   - `specs_assets.confirm(root, cfg, cap, day, *, agreed_with: str | None = None, today: date | None = None) -> dict[str, str | None]` returning `{"description", "confirmed", "confirmed_by", "agreed_with"}`.
@@ -118,8 +117,7 @@ execution_strategy:
   - Modify `plugins/gin-workflow/src/skills/ship/SKILL.md:16` (step 1 warning)
   - Test `tests/workflow_core/test_token_budget.py`, `tests/workflow_core/test_skill_routing.py`, `tests/gin_orchestrator/test_routed_worker.py` (existing; run, do not change unless a new assertion below)
 - **Provider role**: `docs`
-- **Model:** `sonnet`
-- **Effort:** `medium`
+- **Model:** `claude-sonnet-5-5`
 - **Why:** skill text in three stage skills with exact wording, under a 12,000-character chain limit that leaves execute 50 characters of headroom.
 - **Steps**:
   1. Baseline: `cd plugins/gin-workflow/src/scripts && python3 -c "from pathlib import Path; from workflow_core.budget import stage_chars; [print(s, stage_chars(Path('..').resolve(), s)) for s in ('execute','progress','ship')]"` → execute 11950, progress 4818, ship 10831.
@@ -142,8 +140,7 @@ execution_strategy:
   - Modify `plugins/gin-ba/src/skills/capture/SKILL.md:29` (step 6: `--agreed-with`)
   - Test `tests/gin_ba/test_ba_packaging.py` (existing budget and link checks)
 - **Provider role**: `docs`
-- **Model:** `sonnet`
-- **Effort:** `low`
+- **Model:** `claude-sonnet-5-5`
 - **Why:** skill text edits in two files with the wording fixed by the spec; packaging tests cover budgets and links.
 - **Steps**:
   1. `mockup/SKILL.md`, before step 3, a new step (renumber after it): "When the BA says the new screens copy the legacy ones without change, write nothing: the confirmed capture folder is the input for `/gin:discuss`. Say so and stop."
@@ -167,8 +164,7 @@ execution_strategy:
   - Modify `docs/guides/workspace.md:65-77` (PM and BA table) and `docs/guides/workspace.vi.md`
   - Modify `docs/starters/brownfield.md` (Capture and mockup section: `--agreed-with`; Execute or Ship section: `[gin accept]`) and `docs/starters/brownfield.vi.md`
 - **Provider role**: `docs`
-- **Model:** `sonnet`
-- **Effort:** `medium`
+- **Model:** `claude-sonnet-5-5`
 - **Why:** documentation of shipped behaviour across seven pages and five translations, with one home per fact (`lifecycle.md` for comment kinds, `ba.md` for BA practice) and a roadmap reference inside a skill folder.
 - **Steps**:
   1. `lifecycle.md:27` (one home for comment kinds): add, after the `[gin roadmap]` sentence, "Execute adds a `[gin question] <track>: <question>` comment when the spec and plan do not answer a worker's question, and resumes the track when a newer `[gin answer] <track>: <answer>` comment exists; `/gin:progress` lists unanswered questions. The BA adds `[gin accept] <epic>: <what was checked>` once per epic, and ship warns when a team with a `ba` member ships an epic without it."
@@ -203,3 +199,4 @@ execution_strategy:
 - Deliverable merge-holds (e.g. "remain open until human-confirmed merge") apply exclusively to the Parent Bead. Individual track beads must close upon passing tests and code review to unblock downstream dependent tracks.
 - Test hygiene: new tests above any `__main__` guard, no duplicate names.
 - `docs/concepts/lifecycle.md` has no Vietnamese translation.
+- Routes changed after approval (user, 2026-11-12): config schema 2.10 (`1391bf49`) lists `haiku`, `claude-sonnet-5-5`, `opus` and no efforts for `claude`, so every track uses `claude-sonnet-5-5` without `Effort:`.
