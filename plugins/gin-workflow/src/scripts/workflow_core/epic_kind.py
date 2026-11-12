@@ -35,12 +35,9 @@ def spec_kind(text: str) -> str | None:
     return found[0] if found else None
 
 
-def label_kind(labels: Sequence[str]) -> str | None:
-    """The value of the first `kind:<value>` label, or None."""
-    for label in labels:
-        if label.startswith("kind:"):
-            return label[len("kind:"):]
-    return None
+def label_kinds(labels: Sequence[str]) -> list[str]:
+    """The distinct values of the `kind:<value>` labels, in label order."""
+    return list(dict.fromkeys(label[len("kind:"):] for label in labels if label.startswith("kind:")))
 
 
 def invalid(value: str | None) -> str | None:
@@ -99,23 +96,64 @@ def _kind_source(target: Path) -> Path:
     return change_file(target.parent, "proposal") if target.name in in_change else target
 
 
+# bd's message for an id no bead has: `Error fetching <id>: no issue found matching "<id>"`.
+_BD_NOT_FOUND = "no issue found matching"
+# bd's message in a project without a Beads database.
+_BD_NO_DATABASE = "no beads database found"
+# tasks.query_result's cause for any failing markdown query.
+_MARKDOWN_FAILED = "markdown task query failed"
+
+
+def _bead_labels(root: Path, workflow_id: str) -> tuple[list[str], str | None]:
+    """(labels, None) of the `workflow_id` bead, ([], None) when no bead has that id, or ([], cause) when the tracker
+    cannot answer. No bead means bd's not-found; outside team mode (which requires Beads) also bd's missing database;
+    or a markdown `show` that fails while `list` still reads the task files (it then fails only on an unknown id)."""
+    from . import tasks
+    from .team import team_for_repo
+
+    shown, cause = tasks.query_result(root, ["show", workflow_id])
+    if cause is None:
+        record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
+        if not isinstance(record, Mapping):
+            return [], "unexpected show output"
+        return list(record.get("labels") or ()), None
+    if _BD_NOT_FOUND in cause or (_BD_NO_DATABASE in cause and team_for_repo(root) is None):
+        return [], None
+    if cause == _MARKDOWN_FAILED and tasks.query_result(root, ["list", "--limit", "1"])[1] is None:
+        return [], None
+    return [], cause
+
+
+def _bead_kind(root: Path, workflow_id: str) -> tuple[str | None, str | None]:
+    """(the bead's kind or None, None), or (None, error) when its kind cannot be read or its `kind:` labels are invalid
+    or several."""
+    labels, cause = _bead_labels(root, workflow_id)
+    if cause:
+        return None, f"cannot read the kind of epic {workflow_id}: {cause}"
+    kinds = label_kinds(labels)
+    if len(kinds) > 1:
+        return None, f"epic {workflow_id} has several kind labels: {', '.join(kinds)}"
+    kind = kinds[0] if kinds else None
+    error = invalid(kind)
+    return (None, f"epic {workflow_id}: {error}") if error else (kind, None)
+
+
 def lookup(root: Path, workflow_id: str | None, spec_path: Path | str | None) -> tuple[str, str | None]:
     """(kind, error): the `kind:` label of the `workflow_id` bead, else the `Kind:` line of `spec_path`, else DEFAULT.
 
-    A workflow id that is not a bead, or a tracker that is unavailable, gives no bead kind. The error names both
-    kinds when the bead and the spec disagree."""
-    from . import tasks
-
+    A workflow id that names no bead gives no bead kind. A bead whose kind cannot be read (the tracker fails, or its
+    `kind:` labels are invalid or several) gives DEFAULT and the error, never the spec's kind. A mismatch gives the
+    bead's kind and an error naming both kinds and the file the spec's `Kind:` was read from."""
     bead = None
     if workflow_id:
-        shown = tasks.query(root, ["show", workflow_id])
-        record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
-        if isinstance(record, Mapping):
-            bead = label_kind(record.get("labels") or ())
+        bead, error = _bead_kind(Path(root), workflow_id)
+        if error:
+            return DEFAULT, error
     spec = None
     source = _kind_source(Path(root) / spec_path) if spec_path else None
     if source is not None and source.is_file():
         spec = spec_kind(source.read_text(encoding="utf-8", errors="replace"))
     if bead and spec and bead != spec:
-        return bead, f"kind mismatch: epic {workflow_id} is kind:{bead}, spec {spec_path} says Kind: {spec}"
+        shown = source.relative_to(root).as_posix() if source.is_relative_to(Path(root)) else str(source)
+        return bead, f"kind mismatch: epic {workflow_id} is kind:{bead}, spec {shown} says Kind: {spec}"
     return bead or spec or DEFAULT, None

@@ -522,6 +522,7 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if team is not None:
         from .team import TeamError, authorize_waiver
 
+        # A kind that cannot be read comes back as capability, the default policy.
         kind = epic_kind.lookup(repo_path, workflow_id, None)[0] if args.gate == "requirement_confirmed" else None
         try:
             actor = authorize_waiver(repo_path, team, None if args.clear_blocker else args.gate, actor=actor, kind=kind)

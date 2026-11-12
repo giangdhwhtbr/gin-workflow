@@ -482,6 +482,12 @@ class TestLifecycleCLI(unittest.TestCase):
         spec.write_text("# Login\n\nKind: technical\n")
         code, err = record()
         self.assertEqual(0, code, err)
+        # A tracker that cannot answer refuses the record instead of trusting the spec's Kind:.
+        fake_cli(bin_dir, "bd", [{"argv": ["show"], "exit": 1, "stderr": "Error: failed to connect to dolt server\n"}])
+        args[-1] = "ep-2"
+        code, err = record()
+        self.assertEqual(1, code)
+        self.assertIn("cannot read the kind of epic ep-2: bd exited 1: Error: failed to connect to dolt server", err)
 
     def test_record_is_scoped_to_workflow_id(self):
         cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),

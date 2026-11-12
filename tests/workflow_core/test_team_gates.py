@@ -65,9 +65,11 @@ class GateCase(unittest.TestCase):
         return [json.loads(line) for line in path.read_text().splitlines()] if path.is_file() else []
 
     def bd(self, beads: dict[str, dict]) -> None:
-        """A fake bd: `show <id> --json` answers from `beads`; `list ... --json` returns []; updates succeed."""
+        """A fake bd: `show <id> --json` answers from `beads`, else bd's not-found; `list ... --json` returns [];
+        updates succeed."""
         rules = [{"argv": ["show", bead], "stdout": [row]} for bead, row in beads.items()]
-        rules += [{"argv": ["show"], "exit": 1, "stderr": "not found"}, {"argv": ["list"], "stdout": []},
+        rules += [{"argv": ["show"], "exit": 1, "stderr": 'Error fetching w: no issue found matching "w"\n'},
+                  {"argv": ["list"], "stdout": []},
                   {"argv": ["update"], "stdout": ""}]
         fake_cli(self.bin, "bd", rules)
 
@@ -944,12 +946,15 @@ class TestKindApproval(GateCase):
 
     def setUp(self):
         super().setUp()
-        team = TEAM.format(host="github").replace("requirement_confirmed: [ba, be_lead, fe_lead]",
-                                                  "requirement_confirmed: {capability: [ba], technical: [be_lead]}")
-        write(self.root, ".agent-workflow/config.yaml",
-              f"schema_version: '2.7'\nproviders:\n  task_tracking: beads\n{team}")
-        resolve_effective_config(self.root)
+        self.configure("{capability: [ba], technical: [be_lead]}")
         self.gh(gh_pr(author="em-dev", files=[SPEC_PATH], reviews=[("binh-dev", "APPROVED", "c")]))
+
+    def configure(self, requirement: str, extra: str = "") -> None:
+        team = TEAM.format(host="github").replace("requirement_confirmed: [ba, be_lead, fe_lead]",
+                                                  f"requirement_confirmed: {requirement}")
+        write(self.root, ".agent-workflow/config.yaml",
+              f"schema_version: '2.7'\nproviders:\n  task_tracking: beads\n{extra}{team}")
+        resolve_effective_config(self.root)
 
     def epic(self, *labels: str) -> None:
         self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open", "labels": list(labels), "metadata": {}}})
@@ -1026,6 +1031,75 @@ class TestKindApproval(GateCase):
         denied = unblock()
         self.assertEqual(2, denied.returncode)
         self.assertIn("waiving requirement_confirmed needs one of the roles ba", denied.stdout + denied.stderr)
+
+    def test_an_unreadable_epic_kind_refuses_record_and_check_and_waives_as_capability(self):
+        """F-1: a failing tracker, or a missing Beads database in team mode, never lets the spec's Kind: pick the
+        policy."""
+        self.spec("technical")
+        for failure in ("Error: failed to connect to dolt server", "Error: no beads database found"):
+            with self.subTest(failure=failure):
+                fake_cli(self.bin, "bd", [{"argv": ["show"], "exit": 1, "stderr": failure + "\n"},
+                                          {"argv": ["list"], "stdout": []}, {"argv": ["update"], "stdout": ""}])
+                reason = f"cannot read the kind of epic e-1: bd exited 1: {failure}"
+                result = self.record_epic()
+                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertIn(reason, result.stderr)
+                self.assertEqual([], self.events())
+                code, payload = self.check("--workflow-id", "e-1")
+                self.assertEqual((1, "rejected", [reason]), (code, payload["status"], payload["reasons"]))
+                denied = run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--workflow-id", "e-1",
+                                 "--reason", "r", env=self.env)
+                self.assertEqual(2, denied.returncode)
+                self.assertIn("waiving requirement_confirmed needs one of the roles ba", denied.stdout + denied.stderr)
+
+    def test_an_invalid_or_doubled_kind_label_is_refused(self):
+        """F-2: the bead's kind: label is validated, never taken unchecked."""
+        self.spec()
+        self.epic("kind:foo")
+        code, payload = self.check("--workflow-id", "e-1")
+        self.assertEqual((1, ["epic e-1: Kind: foo is not one of capability, technical, parity"]),
+                         (code, payload["reasons"]))
+        self.epic("kind:technical", "kind:capability")
+        result = self.record_epic()
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("epic e-1 has several kind labels: technical, capability", result.stderr)
+        self.assertEqual([], self.events())
+
+    def test_sdd_change_without_a_spec_delta_is_approved_through_its_proposal(self):
+        """F-3, epic-kinds R6: a technical change may have no 02-spec-delta.md; the PR's proposal is the artifact."""
+        self.configure("{capability: [ba], technical: [be_lead]}", "artifacts:\n  layout: sdd\n")
+        change = "docs/changes/2026-11-12-cache"
+        proposal = f"{change}/01-proposal.md"
+        write(self.root, proposal, "# Proposal\n\nEpic: e-1\nKind: technical\n")
+        self.gh(gh_pr(author="em-dev", files=[proposal, f"{change}/03-design.md"],
+                      reviews=[("binh-dev", "APPROVED", "c")]))
+        self.epic("kind:technical")
+        code, payload = self.check("--workflow-id", "e-1")
+        self.assertEqual((0, "ok", proposal, "technical"),
+                         (code, payload["status"], payload["artifact"], payload["kind"]))
+        self.epic("kind:capability")
+        code, payload = self.check("--workflow-id", "e-1")
+        self.assertEqual((1, [f"kind mismatch: epic e-1 is kind:capability, spec {proposal} says Kind: technical"]),
+                         (code, payload["reasons"]))
+        # A change that has a spec delta is approved through it, so a PR without the delta names no spec.
+        write(self.root, f"{change}/02-spec-delta.md", "# Spec Delta\n")
+        result = run_cli(self.root, "team", "check", PR, "--gate", "requirement_confirmed", env=self.env)
+        self.assertEqual(2, result.returncode, result.stdout)
+        self.assertIn("the PR must change exactly one spec file (found: none)", result.stderr)
+
+    def test_a_policy_for_any_kind_needs_a_merged_pr(self):
+        """F-4: with no approvers for technical epics, their requirement is still proven by a merged PR."""
+        self.configure("{capability: [ba], technical: []}")
+        self.epic("kind:technical")
+        self.spec("technical")
+        local = run_cli(self.root, "record", "requirement-confirmed", "--evidence", SPEC_PATH, "--workflow-id", "e-1",
+                        env=self.env)
+        self.assertEqual(2, local.returncode, local.stderr)
+        self.assertIn("requirement_confirmed needs a PR/MR URL as --evidence in team mode", local.stderr)
+        self.gh(gh_pr(author="em-dev", files=[SPEC_PATH], reviews=[]))
+        result = self.record_epic()
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual((PR, []), (self.events()[-1]["payload"]["pr_url"], self.events()[-1]["payload"]["approvers"]))
 
 
 if __name__ == "__main__":

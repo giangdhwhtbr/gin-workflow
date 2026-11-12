@@ -49,11 +49,11 @@ Kind: technical
         self.assertIsNone(epic_kind.spec_kind(fenced_only))
         self.assertIsNone(epic_kind.spec_kind_line(fenced_only))
 
-    def test_label_kind(self):
-        self.assertIsNone(epic_kind.label_kind([]))
-        self.assertIsNone(epic_kind.label_kind(["roadmap", "team-ready"]))
-        self.assertEqual("technical", epic_kind.label_kind(["roadmap", "kind:technical"]))
-        self.assertEqual("parity", epic_kind.label_kind(["kind:parity", "kind:technical"]))
+    def test_label_kinds(self):
+        self.assertEqual([], epic_kind.label_kinds([]))
+        self.assertEqual([], epic_kind.label_kinds(["roadmap", "team-ready"]))
+        self.assertEqual(["technical"], epic_kind.label_kinds(["roadmap", "kind:technical", "kind:technical"]))
+        self.assertEqual(["parity", "technical"], epic_kind.label_kinds(["kind:parity", "kind:technical"]))
 
     def test_invalid_message(self):
         self.assertIsNone(epic_kind.invalid(None))
@@ -141,8 +141,12 @@ Kind: technical
             )
 
 
+NOT_FOUND = 'bd exited 1: Error fetching e-1: no issue found matching "e-1"'
+
+
 class TestLookup(unittest.TestCase):
-    """epic-kinds R2, R4, R9: the bead's `kind:` label, else the spec's `Kind:` line, else capability."""
+    """epic-kinds R2, R4, R9: the bead's `kind:` label, else the spec's `Kind:` line, else capability. A bead whose
+    kind cannot be read is an error: the spec's `Kind:` never stands in for it."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -152,15 +156,15 @@ class TestLookup(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def lookup(self, shown, workflow_id, spec_path):
-        with mock.patch("workflow_core.tasks.query", return_value=shown) as query:
+    def lookup(self, shown, workflow_id, spec_path, cause=None):
+        with mock.patch("workflow_core.tasks.query_result", return_value=(shown, cause)) as query:
             return epic_kind.lookup(self.root, workflow_id, spec_path), query
 
     def test_default_without_a_bead_or_a_spec(self):
         result, query = self.lookup(None, None, None)
         self.assertEqual(("capability", None), result)
         query.assert_not_called()
-        self.assertEqual(("capability", None), self.lookup(None, "e-1", "missing.md")[0])
+        self.assertEqual(("capability", None), self.lookup(None, "e-1", "missing.md", NOT_FOUND)[0])
 
     def test_bead_label_in_either_json_shape(self):
         for shown in ([{"id": "e-1", "labels": ["roadmap", "kind:parity"]}], {"id": "e-1", "labels": ["kind:parity"]}):
@@ -170,11 +174,43 @@ class TestLookup(unittest.TestCase):
                 query.assert_called_once_with(self.root, ["show", "e-1"])
 
     def test_spec_kind_when_the_bead_has_none(self):
-        # None: the tracker is unavailable or the workflow id is not a bead.
-        for shown in (None, [{"id": "e-1", "labels": ["roadmap"]}], [{"id": "e-1"}]):
+        # bd's not-found: the workflow id is not a bead; or a bead without a kind: label.
+        for shown, cause in ((None, NOT_FOUND), ([{"id": "e-1", "labels": ["roadmap"]}], None),
+                             ([{"id": "e-1"}], None)):
             with self.subTest(shown=shown):
-                self.assertEqual(("technical", None), self.lookup(shown, "e-1", "spec.md")[0])
+                self.assertEqual(("technical", None), self.lookup(shown, "e-1", "spec.md", cause)[0])
         self.assertEqual(("technical", None), self.lookup(None, None, self.root / "spec.md")[0])
+
+    def test_unreadable_bead_is_an_error_not_the_spec_kind(self):
+        for cause in ("bd not found", "bd timed out after 30s", "bd exited 1: Error: failed to connect to dolt server",
+                      "invalid JSON from bd"):
+            with self.subTest(cause=cause):
+                self.assertEqual(("capability", f"cannot read the kind of epic e-1: {cause}"),
+                                 self.lookup(None, "e-1", "spec.md", cause)[0])
+        self.assertEqual(("capability", "cannot read the kind of epic e-1: unexpected show output"),
+                         self.lookup([{"id": "e-1"}, {"id": "e-2"}], "e-1", "spec.md")[0])
+
+    def test_a_missing_beads_database_is_no_bead_outside_team_mode(self):
+        cause = "bd exited 1: Error: no beads database found"
+        self.assertEqual(("technical", None), self.lookup(None, "e-1", "spec.md", cause)[0])
+
+    def test_markdown_tasks_tell_an_unknown_id_from_unreadable_files(self):
+        self.assertEqual(("technical", None), epic_kind.lookup(self.root, "e-1", "spec.md"))
+        write(self.root, ".planning/tasks/e-1/e-1.md", "---\nid: e-1\ntitle: Epic\nlabels: [kind:parity]\n---\n")
+        self.assertEqual(("parity", None), epic_kind.lookup(self.root, "e-1", None))
+        write(self.root, ".planning/tasks/e-2/e-2.md", "no frontmatter\n")
+        kind, error = epic_kind.lookup(self.root, "e-3", "spec.md")
+        self.assertEqual(("capability", "cannot read the kind of epic e-3: markdown task query failed"), (kind, error))
+
+    def test_invalid_or_several_kind_labels_are_errors(self):
+        self.assertEqual(
+            ("capability", "epic e-1: Kind: foo is not one of capability, technical, parity"),
+            self.lookup([{"id": "e-1", "labels": ["kind:foo"]}], "e-1", "spec.md")[0])
+        self.assertEqual(
+            ("capability", "epic e-1 has several kind labels: technical, capability"),
+            self.lookup([{"id": "e-1", "labels": ["kind:technical", "roadmap", "kind:capability"]}], "e-1", None)[0])
+        self.assertEqual(("technical", None),
+                         self.lookup([{"id": "e-1", "labels": ["kind:technical", "kind:technical"]}], "e-1", None)[0])
 
     def test_agreeing_kinds(self):
         self.assertEqual(("technical", None), self.lookup([{"labels": ["kind:technical"]}], "e-1", "spec.md")[0])
@@ -190,8 +226,9 @@ class TestLookup(unittest.TestCase):
         for path in ("docs/changes/c-1", "docs/changes/c-1/02-spec-delta.md", "docs/changes/c-1/01-proposal.md"):
             with self.subTest(path=path):
                 self.assertEqual(("parity", None), self.lookup(None, None, path)[0])
+        # The mismatch names the file the Kind: line was read from.
         result, _ = self.lookup([{"labels": ["kind:technical"]}], "e-1", "docs/changes/c-1/02-spec-delta.md")
-        self.assertEqual("kind mismatch: epic e-1 is kind:technical, spec docs/changes/c-1/02-spec-delta.md "
+        self.assertEqual("kind mismatch: epic e-1 is kind:technical, spec docs/changes/c-1/01-proposal.md "
                          "says Kind: parity", result[1])
 
 

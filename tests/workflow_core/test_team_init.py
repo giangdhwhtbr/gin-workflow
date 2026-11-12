@@ -255,6 +255,16 @@ class TestTeamDoctor(unittest.TestCase):
         self.assertNotIn("Traceback", failed.stderr)
         self.assertIn("team.strict: team.approvals.ship has no role policy", failed.stderr)
 
+    def test_spec_review_is_checked_when_any_kind_needs_a_pr(self):
+        """F-4: doctor asks for PR spec review whenever `record requirement-confirmed` needs a PR."""
+        team = TEAM.format(host="github").replace("requirement_confirmed: [ba, be_lead, fe_lead]",
+                                                  "requirement_confirmed: {capability: [], technical: [be_lead]}")
+        root = make_team_repo(self.base / "kinds", team=team)
+        fake_cli(self.bin, "gh", [{"argv": ["auth", "status"], "stdout": "ok"}])
+        detail = self.doctor(root)["checks_details"]["team"]
+        self.assertIs(False, detail["checks"].get("spec_review"))
+        self.assertIn("set artifacts.spec_review: pr (requirement_confirmed needs PR approval)", detail["actions"])
+
     def test_spec_review_chat_and_gitlab_note(self):
         root = make_team_repo(self.base / "g", host="gitlab")
         fake_cli(self.bin, "glab", [{"argv": ["auth", "status"], "exit": 1}])

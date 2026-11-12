@@ -177,7 +177,7 @@ def single_holder_notes(team: TeamConfig) -> list[str]:
 
 def doctor_report(root: Path, team: TeamConfig, config: Mapping[str, Any]) -> dict[str, Any]:
     """`setup doctor` section for team mode: every check plus one fix per failing check."""
-    from .team import current_member, has_policy
+    from .team import current_member, needs_pr
 
     host = adapter(team.host)
     extra = host.doctor_checks(root)
@@ -190,7 +190,7 @@ def doctor_report(root: Path, team: TeamConfig, config: Mapping[str, Any]) -> di
     }
     if team.commit_convention != "none":
         checks["hook"] = hook_active(root)
-    if has_policy("requirement_confirmed", team):
+    if needs_pr("requirement_confirmed", team):
         checks["spec_review"] = sdd_config(config)["spec_review"] == "pr"
     if team.beads_remote:
         bd = tool("bd", root)
