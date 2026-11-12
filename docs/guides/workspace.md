@@ -76,6 +76,8 @@ Open: the parent. Everything happens there, from a parent session worktree.
 | Questions during build | answer `[gin question]` comments; see [during the build](ba.md#during-the-build) |
 | Acceptance | `[gin accept]` per epic |
 
+Who runs discuss for which kind of epic is in [who owns what](../roles.md#who-owns-what).
+
 Specs and plans are committed to the parent. Requirements and their REQ-IDs live only in the parent's specs; children reference them in tests, and `gin specs trace` scans every cloned child ([REQ-IDs](sdd.md#requirements)).
 
 ## Tech lead
@@ -117,7 +119,11 @@ Open: the `qa` child, the QA home. Config, specs, and Beads stay in the parent; 
 
 ## Contract
 
-The confirmed spec of a capability's epic is its API contract, and `requirement_confirmed` is the moment it is frozen. When the contract uses an OpenAPI file, the file lives in the parent repository and the spec links it. The service track and the app track of the epic read the same spec; the app track generates its mocks from it. A contract change after plan approval goes back through `/discuss`, so the spec, the plan, and both tracks change together. The roadmap adds one `<capability> integration` epic per capability, blocked by the build epics, for the day the flag turns on.
+The spec of a capability's epic is its API contract. The business part is frozen at `requirement_confirmed`. In [team mode](team.md), when the discuss runner has no technical role, `/gin:discuss` writes each contract detail (path, method, fields, error codes) as `- TQ-<n>:` under `## Open Technical Questions`. `/gin:plan` answers each with a `Decision:` line, and `plan_approved` freezes those details; the lead of each area the plan touches approves the plan (`plan_approved: area_lead`), so the providing and the consuming area both approve them. Otherwise the runner settles the contract details in discuss, and `requirement_confirmed` freezes them with the rest of the spec. When the contract uses an OpenAPI file, the file lives in the parent repository and the spec links it. The service track and the app track of the epic read the same spec; the app track generates its mocks from it. A contract change after plan approval goes back through `/discuss`, so the spec, the plan, and both tracks change together. The roadmap adds one `<capability> integration` epic per capability, blocked by the build epics, for the day the flag turns on.
+
+## Shared packages
+
+A shared package is a `shape: library` entry of `workspace.repos`. A change to it is a track in that repository, inside the capability epic that needs it. Each app that adopts the change does so in its own track, which depends on the library track (`gin task dep add <blocked> <blocker>`). Publishing the package and bumping its version in the apps follow the team's release practice, a convention gin does not enforce. gin pins no child versions; see [Limits](#limits).
 
 ## Commands
 
@@ -135,7 +141,7 @@ All of them run from anywhere inside the workspace, including a child. `gin stat
 
 ## Limits
 
-- One track per repository. A capability that needs a service and an app is one epic with two tracks, one in each repository; a track never spans two repositories.
+- A capability epic has at least one track in each repository it changes, and a track never spans two repositories; one repository may hold several tracks of the epic. QA work for the capability is one or more tracks in the `shape: qa` repository inside the same epic, not a separate epic.
 - `project.packages` is ignored for workspace entries.
 - There is no version pinning: the parent does not record which commit of a child it expects.
 - A child cloned outside its manifest path, or a repository not in the manifest, is standalone. `gin` treats it as an ordinary repository and `gin workspace status` shows the entry as missing.

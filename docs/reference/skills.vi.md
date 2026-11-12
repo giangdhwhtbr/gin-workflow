@@ -118,8 +118,8 @@ Mỗi stage cần model và effort nào được nêu trong [Dùng AI hiệu qu�
 
 ```text
 /gin:setup
-Stage: brownfield. Shape: fullstack. Monorepo: yes.
-Directories: legacy/ (Struts, subtree), services/api/ (Maven), apps/web/ (npm), qa/.
+Stage: brownfield. Shape: fullstack. Workspace: yes.
+Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 ```
 
 `team-setup` với tư cách lead:
@@ -127,9 +127,9 @@ Directories: legacy/ (Struts, subtree), services/api/ (Maven), apps/web/ (npm), 
 ```text
 /gin:team-setup
 Host: github. Commit convention: conventional.
-Members: lan@example.com pm; an@example.com ba; binh@example.com be_lead; em@example.com and dung@example.com be_dev; hoa@example.com fe_dev; chi@example.com qe.
-Areas: legacy legacy/**, api services/api/**, web apps/web/**, qa qa/**, each led by be_lead.
-Approvals: requirement_confirmed [ba, be_lead], plan_approved area_lead, ship [qe, be_lead], roadmap [pm, be_lead].
+Members: lan@example.com pm; an@example.com ba; binh@example.com be_lead; em@example.com and dung@example.com be_dev; hoa@example.com fe_lead and fe_dev; chi@example.com qe.
+Areas: legacy legacy/shop-portal/** (read-only), api services/** led by be_lead, web apps/** led by fe_lead, qa qa/** led by be_lead.
+Approvals: requirement_confirmed {all: [ba], any: [be_lead, fe_lead]}, plan_approved area_lead, ship {all: [qe], any: [be_lead, fe_lead]}, roadmap [pm, be_lead].
 Permissions: milestone [pm].
 ```
 
@@ -176,7 +176,7 @@ Leave out: the cart and checkout epics.
 
 ```text
 /gin:discuss <epic-id>
-Replace the catalog JSP flow. Describe the legacy edge cases and validation rules, give an explicit REST contract per endpoint, and state what is out of scope.
+Replace the catalog JSP flow. Describe the legacy edge cases and validation rules, and state what is out of scope.
 ```
 
 `plan` (Binh, trên seat Premium):
@@ -184,12 +184,13 @@ Replace the catalog JSP flow. Describe the legacy edge cases and validation rule
 ```text
 /gin:plan
 Split the epic into single-area tracks, each with Area, Owner, Provider role, Model, Effort, and Files.
-Track 1: Area qa, Owner chi@example.com, Provider role general, Files: Create qa/cases/catalog/**. Cases for the catalog capability, one file per case.
-Track 2: Area api, Owner em@example.com, Provider role backend, Files: Create services/api/... Spring Boot API, facade, and parity tests.
-Track 3: Area web, Owner hoa@example.com, Provider role frontend, Files: Create apps/web/... React UI against contract mocks.
-Track 4: Area web, Owner hoa@example.com, Dependencies: Track 2, Track 3, Files: Modify apps/web/... Replace the mocks with real API calls.
-Track 5: Area legacy, Owner binh@example.com, Dependencies: Track 2, Files: Modify legacy/... Router cutover to the facade, opus and high.
-Track 6: Area qa, Owner chi@example.com, Dependencies: Track 1, Track 4, Track 5, Provider role general, Files: Create qa/e2e/catalog/... API tests, E2E, manual runs, and the HTML report.
+Track 1: Area qa, Repo qa, Owner chi@example.com, Provider role general, Files: Create cases/catalog/**. Cases for the catalog capability, one file per case.
+Track 2: Area api, Repo services/catalog-api, Owner em@example.com, Provider role backend, Files: Create src/... Spring Boot API, facade, and parity tests.
+Track 3: Area web, Repo apps/web-shop, Owner hoa@example.com, Provider role frontend, Files: Create src/... React UI against contract mocks.
+Track 4: Area web, Repo apps/web-shop, Owner hoa@example.com, Dependencies: Track 2, Track 3, Files: Modify src/... Replace the mocks with real API calls.
+Track 5: Area api, Repo services/order-api, Owner binh@example.com, Dependencies: Track 2, Files: Modify src/... Router cutover to the facade, opus and high.
+Track 6: Area qa, Repo qa, Owner chi@example.com, Dependencies: Track 1, Track 4, Track 5, Provider role general, Files: Create e2e/catalog/... API tests, E2E, manual runs, and the HTML report.
+Answer each TQ-<n> with the endpoint contract.
 Bounded tracks run at sonnet and medium or haiku and low. Check the plan with gin team check-plan.
 ```
 

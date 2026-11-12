@@ -17,11 +17,13 @@ Trong [chế độ nhóm](guides/team.md), mỗi thành viên giữ các vai tr�
 
 | Vai trò | Skill | File | Branch | Phê duyệt |
 |---|---|---|---|---|
-| PM | `/gin:roadmap`, `/gin:progress`, `/gin:report`; `/gin:roadmap --milestone` ghi milestone, giới hạn bởi `team.permissions.milestone` | `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) | `roadmap/<topic>` | `roadmap` |
-| BA | `/gin-ba:capture`, `/gin-ba:mockup`, `/gin:discuss`, `/gin:explain`, `/gin:tech-doc`, `/gin:progress`, `gin task comment` (`[gin answer]`, `[gin accept]`) | `.planning/specs/` (`docs/specs/` và `docs/changes/` với layout SDD) | `spec/<topic>` (`spec/<epic>-<slug>` với layout SDD) | `requirement_confirmed` |
-| Tech lead | `/gin:setup`, `/gin:team-setup` (với tư cách lead), `/gin:tech-doc`, `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` với layout SDD), `.planning/plans/` (`04-plan.md` với layout SDD), đường dẫn source và test của khu vực | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; người phê duyệt dự phòng cho `roadmap`, `requirement_confirmed` và `ship` khi một vai trò chỉ có một người giữ |
+| PM | `/gin:roadmap`, `/gin:progress`, `/gin:report`; `/gin:roadmap --milestone` ghi milestone, giới hạn bởi `team.permissions.milestone`; sở hữu deadline và scope của roadmap | `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) | `roadmap/<topic>` | `roadmap` |
+| BA | `/gin-ba:capture`, `/gin-ba:mockup`, `/gin:discuss` (epic capability), `/gin:explain`, `/gin:tech-doc`, `/gin:progress`, `gin task comment` (`[gin answer]`, `[gin accept]`) | `.planning/specs/` (`docs/specs/` và `docs/changes/` với layout SDD) | `spec/<topic>` (`spec/<epic>-<slug>` với layout SDD) | `requirement_confirmed` |
+| Tech lead | `/gin:setup`, `/gin:team-setup` (với tư cách lead), `/gin:tech-doc`, `/gin:discuss` (epic thuần kỹ thuật, như epic integration hoặc platform), `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` với layout SDD), `.planning/plans/` (`04-plan.md` với layout SDD), đường dẫn source và test của khu vực | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-t<N>` | `plan_approved`; người phê duyệt dự phòng cho `roadmap`, `requirement_confirmed` và `ship` khi một vai trò chỉ có một người giữ; thứ tự `roadmap` và các epic kỹ thuật cùng với PM, khi được liệt kê trong `team.approvals.roadmap` |
 | Developer | `/gin:execute`, `/gin:review`, `/gin:ship` cho các track của chính mình, `/gin:quick`, `/gin:progress` | đường dẫn source và unit test, integration test trong khu vực của họ | `feat/<topic>-t<N>` cho mỗi track | peer code review |
 | Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `cases/`, `e2e/`, `evidence/` trong [QA home](guides/qa.md#the-qa-home) | review pull request của developer | `ship` |
+
+BA, người thường không có vai trò kỹ thuật, chạy discuss cho epic capability; ở chế độ nhóm, mỗi chi tiết contract khi đó trở thành một câu hỏi kỹ thuật mà tech lead quyết định ở plan; xem [contract](guides/workspace.md#contract).
 
 ## Mỗi vai trò đọc gì { #what-each-role-reads }
 
