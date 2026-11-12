@@ -356,7 +356,7 @@ Put in the prompt: the constraints of the migration (facade first, dual-write or
 
 **You get:** a plan with tracks per area and owner (`gin team check-plan <plan>` must pass), then one track bead per track under the reused epic, including the QA tracks, an isolated worktree per track, and dependencies. Members claim their beads with `gin team claim <bead>`.
 
-**Gate or approval:** with `plan_approved: area_lead`, the lead of each area the plan touches approves the plan pull request: Binh and Hoa, as the leads of `api` and `web`.
+**Gate or approval:** with `plan_approved: area_lead`, the lead of each area the plan touches approves the plan pull request. Binh wrote the plan and is the only `be_lead`, so his `api` and `qa` approvals are skipped with a note once Hoa, the `web` lead, approves.
 
 **Common mistakes:** a track that touches two areas, for example `services/` and `apps/`; run `gin team check-plan <plan>` before asking for approval.
 

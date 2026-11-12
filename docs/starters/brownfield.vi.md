@@ -356,7 +356,7 @@ Leave every track bead unassigned; members take theirs with gin team claim.
 
 **Kết quả:** một plan với các track theo khu vực và owner (`gin team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, một worktree cô lập cho mỗi track, và các dependency. Thành viên claim bead của mình bằng `gin team claim <bead>`.
 
-**Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, lead của từng khu vực mà plan đụng tới duyệt pull request của plan: Binh và Hoa, là lead của `api` và `web`.
+**Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, lead của từng khu vực mà plan đụng tới duyệt pull request của plan. Binh viết plan và là `be_lead` duy nhất, nên phê duyệt `api` và `qa` của anh ấy được bỏ qua kèm ghi chú khi Hoa, lead của `web`, đã duyệt.
 
 **Lỗi thường gặp:** một track đụng tới hai khu vực, ví dụ `services/` và `apps/`; hãy chạy `gin team check-plan <plan>` trước khi xin duyệt.
 
