@@ -150,7 +150,17 @@ class Fixture(unittest.TestCase):
         self.codex = base / "codex-empty"
         self.bin = base / "bin"
         track = {"issue_type": "task", "parent": "ep1"}
+        list_rows = [
+            {"id": "ep1", "issue_type": "epic", "title": "Epic", "started_at": None, "closed_at": None},
+            {"id": "ep1.1", "title": "T1", **track, "started_at": iso(9.1), "closed_at": iso(10)},
+            {"id": "ep1.2", "title": "T2", **track, "started_at": iso(10.5), "closed_at": iso(11)},
+            {"id": "b1", "issue_type": "bug",
+             "dependencies": [{"issue_id": "b1", "depends_on_id": "ep1.1", "type": "discovered-from"}]},
+            {"id": "t9", "issue_type": "task",
+             "dependencies": [{"issue_id": "t9", "depends_on_id": "ep1.1", "type": "discovered-from"}]},
+        ]
         self.rules = [
+            {"argv": ["list", "--all", "-n", "0"], "stdout": list_rows},
             {"argv": ["show", "ep1"], "stdout": [{"id": "ep1", "issue_type": "epic", "title": "Epic",
                                                  "started_at": None, "closed_at": None}]},
             {"argv": ["show", "ep1.1"], "stdout": [{"id": "ep1.1", "title": "T1", **track,
@@ -260,6 +270,23 @@ class CollectTests(Fixture):
             with self.assertRaises(usage.UsageError):
                 self.collect("ep1.1")
 
+    def test_collect_reads_list_once_and_each_history_once_without_show_or_dep_list(self):
+        self.collect("ep1")
+        recorded = calls(self.bin)
+        list_calls = [c for c in recorded if c[1] == "list"]
+        self.assertEqual(len(list_calls), 1)
+        self.assertEqual(list_calls[0][1:5], ["list", "--all", "-n", "0"])
+        history_beads = [c[2] for c in recorded if c[1] == "history"]
+        self.assertEqual(history_beads, ["ep1", "ep1.1", "ep1.2"])
+        update_calls = [c for c in recorded if c[1] == "update"]
+        self.assertEqual(len(update_calls), 1)
+        self.assertFalse(any(c[1] == "show" for c in recorded))
+        self.assertFalse(any(c[1:3] == ["dep", "list"] for c in recorded))
+
+    def test_collect_unknown_bead_raises_usage_error(self):
+        with self.assertRaisesRegex(usage.UsageError, "no such bead"):
+            self.collect("unknown")
+
 
 class ReportTests(Fixture):
     def rows(self):
@@ -279,7 +306,7 @@ class ReportTests(Fixture):
 
     def setUp(self):
         super().setUp()
-        self.rules.insert(0, {"argv": ["list", "--all"], "stdout": self.rows()})
+        self.rules.insert(0, {"argv": ["list", "--all", "-n", "0"], "stdout": self.rows()})
         fake_cli(self.bin, "bd", self.rules)
 
     def test_epic_report_counts_children_inside_the_epic(self):

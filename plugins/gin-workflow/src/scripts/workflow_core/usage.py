@@ -190,13 +190,31 @@ def empty_quality() -> dict[str, Any]:
             "findings": {severity: 0 for severity in _SEVERITIES}, "waivers": 0}
 
 
-def quality(repo: Path, bead: str, *, workflows: set[str], events: Sequence | None = None) -> dict[str, Any]:
+def quality(repo: Path, bead: str, *, workflows: set[str], events: Sequence | None = None,
+            history: Sequence[Mapping[str, Any]] | None = None,
+            rows: Sequence[Mapping[str, Any]] | None = None) -> dict[str, Any]:
     result = empty_quality()
-    history = _list(_bd(repo, ["history", bead, "--json"]))
-    statuses = [(row.get("Issue") or {}).get("status") for row in reversed(history)]
+    hist = _list(_bd(repo, ["history", bead, "--json"])) if history is None else _list(history)
+    statuses = [(row.get("Issue") or {}).get("status") for row in reversed(hist)]
     result["reopens"] = sum(1 for before, after in zip(statuses, statuses[1:]) if before == "closed" != after)
-    found = _list(_bd(repo, ["dep", "list", bead, "--direction=up", "--type", "discovered-from", "--json"]))
-    result["bugs"] = sum(1 for item in found if item.get("issue_type") == "bug")
+    if rows is not None:
+        def _discovered_from(row: Mapping[str, Any]) -> bool:
+            if row.get("issue_type") != "bug":
+                return False
+            deps = row.get("dependencies")
+            if not isinstance(deps, Iterable) or isinstance(deps, (str, bytes)):
+                return False
+            return any(
+                isinstance(dep, Mapping)
+                and dep.get("depends_on_id") == bead
+                and dep.get("type") == "discovered-from"
+                for dep in deps
+            )
+
+        result["bugs"] = sum(1 for row in rows if _discovered_from(row))
+    else:
+        found = _list(_bd(repo, ["dep", "list", bead, "--direction=up", "--type", "discovered-from", "--json"]))
+        result["bugs"] = sum(1 for item in found if item.get("issue_type") == "bug")
     ledger = _ledger(repo, bead)
     if ledger is not None:
         actions = [entry.get("action") for entry in ledger.get("events") or () if isinstance(entry, Mapping)]
@@ -275,18 +293,14 @@ def summarize(by_stage: Mapping[str, Sequence[UsageRecord]], prices: Mapping[str
     return document
 
 
-def _span(repo: Path, bead: str, shown: Mapping[str, Any], now: datetime) -> BeadSpan:
-    history = _list(_bd(repo, ["history", bead, "--json"]))
-    starts = [_ts((row.get("Issue") or {}).get("started_at")) for row in history] + [_ts(shown.get("started_at"))]
+def _span(repo: Path, bead: str, shown: Mapping[str, Any], now: datetime,
+          history: Sequence[Mapping[str, Any]] | None = None) -> BeadSpan:
+    hist = _list(_bd(repo, ["history", bead, "--json"])) if history is None else _list(history)
+    starts = [_ts((row.get("Issue") or {}).get("started_at")) for row in hist] + [_ts(shown.get("started_at"))]
     starts = [value for value in starts if value is not None]
     ledger = _ledger(repo, bead)
     return BeadSpan(bead, shown.get("parent") or None, min(starts) if starts else None,
                     _ts(shown.get("closed_at")), review_intervals(ledger, now=now) if ledger else ())
-
-
-def _children(repo: Path, epic: str) -> list[str]:
-    rows = _list(_bd(repo, ["dep", "list", epic, "--direction=up", "--type", "parent-child", "--json"]))
-    return sorted(str(row["id"]) for row in rows if row.get("id"))
 
 
 def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: Path | None = None,
@@ -295,14 +309,26 @@ def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: 
     repo = main_checkout(Path(repo).resolve())
     now = now or datetime.now(timezone.utc)
     prices = load_prices(repo)
-    shown = _show(repo, bead)
+    rows = _list(_bd(repo, ["list", "--all", "-n", "0", "--json"]))
+    by_id = {row["id"]: row for row in rows if "id" in row}
+    shown = by_id.get(bead)
+    if not isinstance(shown, dict):
+        raise UsageError(f"bd show {bead}: no such bead")
     is_epic = shown.get("issue_type") == "epic"
     epic = bead if is_epic else (shown.get("parent") or None)
-    children = _children(repo, epic) if epic else []
-    spans = {bead: _span(repo, bead, shown, now)}
+    children = sorted(str(row["id"]) for row in rows if row.get("parent") == epic and row.get("id")) if epic else []
+    histories: dict[str, list[dict[str, Any]]] = {}
+
+    def get_history(target: str) -> list[dict[str, Any]]:
+        if target not in histories:
+            histories[target] = _list(_bd(repo, ["history", target, "--json"]))
+        return histories[target]
+
+    spans = {bead: _span(repo, bead, shown, now, history=get_history(bead))}
     for other in ([epic] if epic and epic != bead else []) + children:
         if other not in spans:
-            spans[other] = _span(repo, other, _show(repo, other), now)
+            other_shown = by_id.get(other, {})
+            spans[other] = _span(repo, other, other_shown, now, history=get_history(other))
     events = _events(repo)
     gates, epic_of = gates_from_events(events)
     scans = {"claude_code": claude_code_records(repo, claude_root), "codex": codex_records(repo, codex_root)}
@@ -319,11 +345,12 @@ def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: 
         if owner in members:
             by_stage.setdefault(stage, []).extend(items)
     owned_workflows = {bead} | {workflow for workflow, owner in epic_of.items() if owner == bead}
-    total_quality = quality(repo, bead, workflows=owned_workflows, events=events)
+    total_quality = quality(repo, bead, workflows=owned_workflows, events=events, history=get_history(bead), rows=rows)
     unattributed = None
     if is_epic:
         for child in children:
-            _add_quality(total_quality, quality(repo, child, workflows={child}, events=events))
+            _add_quality(total_quality,
+                         quality(repo, child, workflows={child}, events=events, history=get_history(child), rows=rows))
         own_gates = [gate.ts for gate in gates if epic_of.get(gate.workflow_id, gate.workflow_id) == bead]
         start = min(own_gates) if own_gates else spans[bead].start
         end = spans[bead].end or now
