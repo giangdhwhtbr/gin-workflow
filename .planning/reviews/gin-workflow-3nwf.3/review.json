@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "review-approved",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 16,
+  "ledger_revision": 23,
   "next_finding_number": 4,
   "findings": {
     "F-1": {
       "finding_id": "F-1",
       "severity": "IMPORTANT",
-      "status": "fixed-awaiting-verification",
+      "status": "verified",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F-2": {
       "finding_id": "F-2",
       "severity": "IMPORTANT",
-      "status": "fixed-awaiting-verification",
+      "status": "verified",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -58,7 +58,7 @@
     "F-3": {
       "finding_id": "F-3",
       "severity": "MINOR",
-      "status": "fixed-awaiting-verification",
+      "status": "verified",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -353,6 +353,128 @@
       },
       "previous_event_hash": "7054544412a2b15dd97af7d29fa59a2b250f6aa236f13ccaffb4d11678ba9eb8",
       "event_hash": "bb685f51e7378efc14a64dec0b168b9563339de9d79c04a719a64f81f4fc0bb1"
+    },
+    {
+      "event_id": "EV-000017",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-12T16:53:57.138395Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a"
+      },
+      "payload": {
+        "lease_id": "babfd035eb524aada9fec3eab8184420",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a",
+        "acquired_at": "2026-11-12T16:53:57.137527Z",
+        "expires_at": "2026-11-12T17:03:57.137527Z"
+      },
+      "previous_event_hash": "bb685f51e7378efc14a64dec0b168b9563339de9d79c04a719a64f81f4fc0bb1",
+      "event_hash": "3278173a58b6f11175944f12300b71eacbb031b10efeb350233dda3c50159323"
+    },
+    {
+      "event_id": "EV-000018",
+      "action": "review-started",
+      "timestamp": "2026-11-12T16:53:57.156419Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a"
+      },
+      "payload": {},
+      "previous_event_hash": "3278173a58b6f11175944f12300b71eacbb031b10efeb350233dda3c50159323",
+      "event_hash": "094026b084716c12af0241347156ae2639200706c0734c4d055074eb411fd779"
+    },
+    {
+      "event_id": "EV-000019",
+      "action": "finding-verified",
+      "timestamp": "2026-11-12T16:54:02.639537Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a"
+      },
+      "payload": {
+        "finding_id": "F-1"
+      },
+      "previous_event_hash": "094026b084716c12af0241347156ae2639200706c0734c4d055074eb411fd779",
+      "event_hash": "e6ed0c071309194d45c45b5f0f0921c8538b291dd2e3c3dd9b0a8ccb1a1159e9"
+    },
+    {
+      "event_id": "EV-000020",
+      "action": "finding-verified",
+      "timestamp": "2026-11-12T16:54:02.767051Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a"
+      },
+      "payload": {
+        "finding_id": "F-2"
+      },
+      "previous_event_hash": "e6ed0c071309194d45c45b5f0f0921c8538b291dd2e3c3dd9b0a8ccb1a1159e9",
+      "event_hash": "3fd20a272fabb52571e287578b1e79ea4b3f7721ba4f477b0cb7e3650022b316"
+    },
+    {
+      "event_id": "EV-000021",
+      "action": "finding-verified",
+      "timestamp": "2026-11-12T16:54:02.890107Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a"
+      },
+      "payload": {
+        "finding_id": "F-3"
+      },
+      "previous_event_hash": "3fd20a272fabb52571e287578b1e79ea4b3f7721ba4f477b0cb7e3650022b316",
+      "event_hash": "e7d1cf5177470d26e11aebc46f7343df5b4e0660819d1cac2f5ad826fa2dfc8e"
+    },
+    {
+      "event_id": "EV-000022",
+      "action": "review-approved",
+      "timestamp": "2026-11-12T16:54:09.047134Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-3nwf.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-3nwf.3",
+            "review_base_sha": "ecba55db32b89087103a36f61b60fb263427487d",
+            "reviewed_source_sha": "1a2400316f18bf5945bc8be34ab36335d75914a7",
+            "checkpoint_sha": "1a2400316f18bf5945bc8be34ab36335d75914a7",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "b9c12db01ff1612fa652f670e4d99b031dbe4bc4e78253acfa7fc45a1ac0f883",
+            "reviewed_source_tree_hash": "b9c12db01ff1612fa652f670e4d99b031dbe4bc4e78253acfa7fc45a1ac0f883",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": [
+          "F-1",
+          "F-2",
+          "F-3"
+        ]
+      },
+      "previous_event_hash": "e7d1cf5177470d26e11aebc46f7343df5b4e0660819d1cac2f5ad826fa2dfc8e",
+      "event_hash": "a05805eda37e2d3877b4d64b1fe01d7c4a9ca0720c66ed6f076bb6f6d1e93a5a"
+    },
+    {
+      "event_id": "EV-000023",
+      "action": "lease-released",
+      "timestamp": "2026-11-12T16:54:09.288255Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-07c61e6a"
+      },
+      "payload": {
+        "lease_id": "babfd035eb524aada9fec3eab8184420",
+        "released_at": "2026-11-12T16:54:09.287403Z"
+      },
+      "previous_event_hash": "a05805eda37e2d3877b4d64b1fe01d7c4a9ca0720c66ed6f076bb6f6d1e93a5a",
+      "event_hash": "b98d8d26e0043e5f0d9106a8b357eff9d9558621f2548c254b3645982a30510e"
     }
   ]
 }
