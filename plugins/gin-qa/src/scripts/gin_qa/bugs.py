@@ -1,4 +1,4 @@
-"""`gin-qa cases bug`: file a bug bead for a failed manual case, linked to the epic the case was written for."""
+"""`gin-qa cases bug`: file a bug bead for a failed case, linked to the epic the case was written for."""
 
 from __future__ import annotations
 
@@ -56,10 +56,10 @@ def _workflow_epic(root: Path, topic: str) -> str | None:
     return epic if isinstance(epic, str) and epic else None
 
 
-def epic_of(root: Path, eff: Effective, case: tc.Case) -> str | None:
+def epic_of(root: Path, eff: Effective, case: tc.Case) -> list[str]:
     """Legacy: the spec named in `Source:` (its `Epic:` line, else the epic of its `Workflow:`), read from the project
-    root, which holds the specs and the tracker (`root` is the QA home's repository). SDD: the first REQ whose change
-    has an epic."""
+    root, which holds the specs and the tracker (`root` is the QA home's repository), as a list of one or none. SDD:
+    every epic of the case's REQs, in REQ order."""
     project = eff.project_root
     source = case.fields.get("Source")
     if source:
@@ -72,10 +72,11 @@ def epic_of(root: Path, eff: Effective, case: tc.Case) -> str | None:
         except (OSError, UnicodeDecodeError) as error:
             raise QaError(f"{case.id}: cannot read {relative}: {getattr(error, 'strerror', None) or error}") from error
         if found := _EPIC.search(text):
-            return found.group(1)
+            return [found.group(1)]
         topic = _WORKFLOW.search(text)
-        return _workflow_epic(project, topic.group(1)) if topic else None
-    return next((eff.reqs[req]["epic"] for req, _ in case.reqs if eff.reqs.get(req, {}).get("epic")), None)
+        epic = _workflow_epic(project, topic.group(1)) if topic else None
+        return [epic] if epic else []
+    return list(dict.fromkeys(eff.reqs[req]["epic"] for req, _ in case.reqs if eff.reqs.get(req, {}).get("epic")))
 
 
 def description(case: tc.Case, run: str | None, previous: str | None, actual: str, evidence: list[str]) -> str:
@@ -101,13 +102,11 @@ def rerun_note(run: str | None, actual: str, evidence: list[str]) -> str:
 def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: list[str], *,
              external_ref: str | None = None, discovered_from: str | None = None,
              run: str | None = None) -> dict[str, Any]:
-    """Record `failed` on a manual case with its open bug, or with a new bug bead filed against the case's epic."""
+    """Record `failed` on a case with its open bug, or with a new bug bead filed against the case's epic."""
     for value in (actual, *evidence, *(item for item in (external_ref, discovered_from, run) if item is not None)):
         tc.one_line(value)
     case = tc.find(root, eff.cases_dir, case_id)
     project = eff.project_root  # Beads runs against the project root; the case files live under `root`
-    if case.type != "manual":
-        raise ValueError(f"{case_id}: is a {case.type or 'untyped'} case; cases bug files bugs for manual cases only")
     run = run if run is not None else case.fields.get("Run")
     previous = case.fields.get("Bug")
     if previous:
@@ -119,9 +118,15 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
             row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, previous)
             return {"tc": case_id, "bug": previous, "epic": None, "created": False, "appended": True,
                     "file": row["file"]}
-    epic = discovered_from or epic_of(root, eff, case)
-    if epic is None:
-        raise QaError(f"no epic for {case_id}; pass --discovered-from <bead>")
+    if discovered_from:
+        epic = discovered_from
+    else:
+        epics = epic_of(root, eff, case)
+        if not epics:
+            raise QaError(f"no epic for {case_id}; pass --discovered-from <bead>")
+        if len(epics) > 1:
+            raise QaError(f"several epics for {case_id}: {', '.join(epics)}; pass --discovered-from <bead>")
+        epic = epics[0]
     found, failure = _show(project, epic)
     if failure:
         raise QaError(failure)
