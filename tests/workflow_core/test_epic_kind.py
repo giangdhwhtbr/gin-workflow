@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 from tests.workflow_core.specs_fixtures import make_repo, write
 from workflow_core import epic_kind
@@ -138,6 +139,60 @@ Kind: technical
                 [f"spec.md: Parity with: {p_unconf} is not confirmed"],
                 epic_kind.parity_errors(root, text_two, "spec.md"),
             )
+
+
+class TestLookup(unittest.TestCase):
+    """epic-kinds R2, R4, R9: the bead's `kind:` label, else the spec's `Kind:` line, else capability."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        write(self.root, "spec.md", "# Spec\n\nKind: technical\n")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def lookup(self, shown, workflow_id, spec_path):
+        with mock.patch("workflow_core.tasks.query", return_value=shown) as query:
+            return epic_kind.lookup(self.root, workflow_id, spec_path), query
+
+    def test_default_without_a_bead_or_a_spec(self):
+        result, query = self.lookup(None, None, None)
+        self.assertEqual(("capability", None), result)
+        query.assert_not_called()
+        self.assertEqual(("capability", None), self.lookup(None, "e-1", "missing.md")[0])
+
+    def test_bead_label_in_either_json_shape(self):
+        for shown in ([{"id": "e-1", "labels": ["roadmap", "kind:parity"]}], {"id": "e-1", "labels": ["kind:parity"]}):
+            with self.subTest(shown=shown):
+                result, query = self.lookup(shown, "e-1", None)
+                self.assertEqual(("parity", None), result)
+                query.assert_called_once_with(self.root, ["show", "e-1"])
+
+    def test_spec_kind_when_the_bead_has_none(self):
+        # None: the tracker is unavailable or the workflow id is not a bead.
+        for shown in (None, [{"id": "e-1", "labels": ["roadmap"]}], [{"id": "e-1"}]):
+            with self.subTest(shown=shown):
+                self.assertEqual(("technical", None), self.lookup(shown, "e-1", "spec.md")[0])
+        self.assertEqual(("technical", None), self.lookup(None, None, self.root / "spec.md")[0])
+
+    def test_agreeing_kinds(self):
+        self.assertEqual(("technical", None), self.lookup([{"labels": ["kind:technical"]}], "e-1", "spec.md")[0])
+
+    def test_mismatch_names_both_kinds(self):
+        result, _ = self.lookup([{"id": "e-1", "labels": ["kind:capability"]}], "e-1", "spec.md")
+        self.assertEqual(("capability", "kind mismatch: epic e-1 is kind:capability, spec spec.md says Kind: technical"),
+                         result)
+
+    def test_sdd_change_takes_the_kind_of_its_proposal(self):
+        write(self.root, "docs/changes/c-1/01-proposal.md", "# Proposal\n\nEpic: e-1\nKind: parity\n")
+        write(self.root, "docs/changes/c-1/02-spec-delta.md", "# Spec Delta\n")
+        for path in ("docs/changes/c-1", "docs/changes/c-1/02-spec-delta.md", "docs/changes/c-1/01-proposal.md"):
+            with self.subTest(path=path):
+                self.assertEqual(("parity", None), self.lookup(None, None, path)[0])
+        result, _ = self.lookup([{"labels": ["kind:technical"]}], "e-1", "docs/changes/c-1/02-spec-delta.md")
+        self.assertEqual("kind mismatch: epic e-1 is kind:technical, spec docs/changes/c-1/02-spec-delta.md "
+                         "says Kind: parity", result[1])
 
 
 if __name__ == "__main__":

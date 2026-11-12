@@ -15,7 +15,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import LAUNCHER, PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, resolve_effective_config, validate_portable_config  # noqa: E402
-from workflow_core.team import check_plan, check_plan_repos, load_team, plan_tracks, repo_slug  # noqa: E402
+from workflow_core.epic_kind import KINDS  # noqa: E402
+from workflow_core.team import (  # noqa: E402
+    can_waive, check_plan, check_plan_repos, gate_roles, has_policy, load_team, plan_tracks, policy_for, repo_slug)
 from workflow_core.workspace import Workspace, repos_from  # noqa: E402
 from workflow_core.team_host import fetch_pr  # noqa: E402
 
@@ -899,6 +901,131 @@ class TestObjectPolicies(GateCase):
         self.assertIn("team.approvals.ship: role phantom is held by no member", errors)
         raw["approvals"] = {"ship": {"all": [], "any": []}}
         self.assertIn("team.approvals.ship: all and any are both empty", validate_team(raw))
+
+
+class TestKindPolicies(unittest.TestCase):
+    """epic-kinds R8: `requirement_confirmed` per epic kind; a single policy applies to every kind."""
+
+    @staticmethod
+    def team(requirement):
+        raw = yaml.safe_load(TEAM.format(host="github"))
+        raw["team"]["approvals"]["requirement_confirmed"] = requirement
+        return load_team(raw)
+
+    def test_policy_for_picks_the_kind_and_falls_back_to_capability(self):
+        team = self.team({"capability": ["ba"], "technical": {"any": ["be_lead"]}})
+        for kind, policy in ((None, ["ba"]), ("capability", ["ba"]), ("technical", {"any": ["be_lead"]}),
+                             ("parity", ["ba"])):
+            with self.subTest(kind=kind):
+                self.assertEqual(policy, policy_for(team, "requirement_confirmed", kind))
+        self.assertEqual("area_lead", policy_for(team, "plan_approved", "technical"))
+
+    def test_single_policy_applies_to_every_kind(self):
+        for policy in (["ba", "be_lead"], {"all": ["ba"], "any": ["be_lead"]}):
+            team = self.team(policy)
+            for kind in (None, *KINDS):
+                with self.subTest(policy=policy, kind=kind):
+                    self.assertEqual(policy, policy_for(team, "requirement_confirmed", kind))
+
+    def test_waiver_and_policy_presence_follow_the_kind(self):
+        team = self.team({"capability": ["ba"], "technical": ["be_lead"], "parity": []})
+        lead, analyst = team.member("binh@corp.com"), team.member("an@corp.com")
+        self.assertEqual({"be_lead"}, gate_roles("requirement_confirmed", team, "technical"))
+        self.assertEqual((True, False), (can_waive(lead, "requirement_confirmed", team, "technical"),
+                                         can_waive(lead, "requirement_confirmed", team)))
+        self.assertEqual((True, False), (can_waive(analyst, "requirement_confirmed", team, "capability"),
+                                         can_waive(analyst, "requirement_confirmed", team, "technical")))
+        self.assertEqual((True, False), (has_policy("requirement_confirmed", team),
+                                         has_policy("requirement_confirmed", team, "parity")))
+
+
+class TestKindApproval(GateCase):
+    """epic-kinds R4, R9, US-1, US-3: record, team check, and unblock use the policy of the epic's kind."""
+
+    def setUp(self):
+        super().setUp()
+        team = TEAM.format(host="github").replace("requirement_confirmed: [ba, be_lead, fe_lead]",
+                                                  "requirement_confirmed: {capability: [ba], technical: [be_lead]}")
+        write(self.root, ".agent-workflow/config.yaml",
+              f"schema_version: '2.7'\nproviders:\n  task_tracking: beads\n{team}")
+        resolve_effective_config(self.root)
+        self.gh(gh_pr(author="em-dev", files=[SPEC_PATH], reviews=[("binh-dev", "APPROVED", "c")]))
+
+    def epic(self, *labels: str) -> None:
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open", "labels": list(labels), "metadata": {}}})
+
+    def spec(self, kind: str = "") -> None:
+        write(self.root, SPEC_PATH, "# Login\n\n" + (f"Kind: {kind}\n" if kind else ""))
+
+    def record_epic(self):
+        return run_cli(self.root, "record", "requirement-confirmed", "--evidence", PR, "--workflow-id", "e-1",
+                       env=self.env)
+
+    def check(self, *extra: str) -> tuple[int, dict]:
+        result = run_cli(self.root, "team", "check", PR, "--gate", "requirement_confirmed", "--format", "json",
+                         *extra, env=self.env)
+        return result.returncode, json.loads(result.stdout)
+
+    def test_technical_epic_is_confirmed_by_its_lead(self):
+        self.epic("roadmap", "kind:technical")
+        self.spec("technical")
+        result = self.record_epic()
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(SPEC_PATH, self.events()[-1]["payload"]["artifact"])
+
+    def test_epic_and_spec_without_a_kind_need_the_capability_policy(self):
+        self.epic("roadmap")
+        self.spec()
+        result = self.record_epic()
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("missing approval from one of ba", result.stderr)
+        self.assertEqual([], self.events())
+
+    def test_spec_kind_decides_when_the_bead_has_none(self):
+        self.epic("roadmap")
+        self.spec("technical")
+        result = self.record_epic()
+        self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_kind_mismatch_is_refused_naming_both(self):
+        self.epic("kind:technical")
+        self.spec("capability")
+        for extra in ((), ("--spec", SPEC_PATH)):
+            with self.subTest(extra=extra):
+                result = run_cli(self.root, "record", "requirement-confirmed", "--evidence", PR, "--workflow-id", "e-1",
+                                 *extra, env=self.env)
+                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertIn(f"kind mismatch: epic e-1 is kind:technical, spec {SPEC_PATH} says Kind: capability",
+                              result.stderr)
+        self.assertEqual([], self.events())
+
+    def test_team_check_reports_the_kind(self):
+        self.epic("kind:technical")
+        self.spec("technical")
+        code, payload = self.check("--workflow-id", "e-1")
+        self.assertEqual((0, "ok", "technical"), (code, payload["status"], payload["kind"]))
+        self.spec()
+        code, payload = self.check()
+        self.assertEqual((1, "capability", ["missing approval from one of ba"]),
+                         (code, payload["kind"], payload["reasons"]))
+        self.spec("capability")
+        code, payload = self.check("--workflow-id", "e-1")
+        self.assertEqual(1, code)
+        self.assertEqual([f"kind mismatch: epic e-1 is kind:technical, spec {SPEC_PATH} says Kind: capability"],
+                         payload["reasons"])
+
+    def test_waiver_needs_a_role_of_the_epic_kind(self):
+        def unblock():
+            return run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--workflow-id", "e-1",
+                           "--reason", "r", env=self.env)
+
+        self.epic("kind:technical")
+        allowed = unblock()
+        self.assertEqual(0, allowed.returncode, allowed.stdout + allowed.stderr)
+        self.epic("roadmap")
+        denied = unblock()
+        self.assertEqual(2, denied.returncode)
+        self.assertIn("waiving requirement_confirmed needs one of the roles ba", denied.stdout + denied.stderr)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 import os
 from pathlib import Path
@@ -88,6 +89,14 @@ class TestTeamInit(unittest.TestCase):
         root = make_team_repo(self.base / "object-all", team=team.replace("lead: fe_lead", "lead: be_lead"))
         run_cli(root, "team", "init")
         self.assertIn("/.planning/specs/ @an-ba @binh-dev\n", (root / ".github/CODEOWNERS").read_text())
+
+    def test_codeowners_spec_owners_cover_every_kind(self):
+        """epic-kinds R8: the spec folders are owned by the approvers of every kind plus the area leads."""
+        team = TEAM.format(host="github").replace("requirement_confirmed: [ba, be_lead, fe_lead]",
+                                                  "requirement_confirmed: {capability: [ba], parity: {all: [qe]}}")
+        root = make_team_repo(self.base / "kinds", team=team)
+        self.assertEqual(0, run_cli(root, "team", "init").returncode)
+        self.assertIn("/.planning/specs/ @an-ba @binh-dev @chi-fe @dung-qe\n", (root / ".github/CODEOWNERS").read_text())
 
     def test_legacy_marker_file_is_rewritten(self):
         root = make_team_repo(self.base / "legacy")
@@ -185,6 +194,13 @@ class TestSingleHolderNotes(unittest.TestCase):
     def test_second_holder_removes_the_note(self):
         notes = single_holder_notes(self._team("qe2@x.com"))
         self.assertFalse([note for note in notes if note.startswith("ship:")])
+
+    def test_per_kind_policy_notes_name_the_kind(self):
+        team = replace(self._team(), approvals={"requirement_confirmed": {"capability": {"all": ["ba"]},
+                                                                          "technical": {"all": ["pm"]}}})
+        notes = single_holder_notes(team)
+        self.assertIn("requirement_confirmed.capability: ba has one holder (an)", notes)
+        self.assertIn("requirement_confirmed.technical: pm has one holder (lan)", notes)
 
 
 if __name__ == "__main__":

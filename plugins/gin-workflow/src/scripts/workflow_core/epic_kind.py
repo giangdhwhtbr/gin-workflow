@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
-from typing import Sequence
+from typing import Mapping, Sequence
 
 KINDS = ("capability", "technical", "parity")
 DEFAULT = "capability"
@@ -87,3 +87,35 @@ def parity_errors(root: Path, text: str, label: str) -> list[str]:
             continue
 
     return errors
+
+
+def _kind_source(target: Path) -> Path:
+    """The file holding a spec's `Kind:` line: the proposal of an SDD change folder or of a file in one."""
+    from .specs import CHANGE_FILES, change_file
+
+    if target.is_dir():
+        return change_file(target, "proposal")
+    in_change = {CHANGE_FILES["proposal"], CHANGE_FILES["spec-delta"], "proposal.md", "spec-delta.md"}
+    return change_file(target.parent, "proposal") if target.name in in_change else target
+
+
+def lookup(root: Path, workflow_id: str | None, spec_path: Path | str | None) -> tuple[str, str | None]:
+    """(kind, error): the `kind:` label of the `workflow_id` bead, else the `Kind:` line of `spec_path`, else DEFAULT.
+
+    A workflow id that is not a bead, or a tracker that is unavailable, gives no bead kind. The error names both
+    kinds when the bead and the spec disagree."""
+    from . import tasks
+
+    bead = None
+    if workflow_id:
+        shown = tasks.query(root, ["show", workflow_id])
+        record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
+        if isinstance(record, Mapping):
+            bead = label_kind(record.get("labels") or ())
+    spec = None
+    source = _kind_source(Path(root) / spec_path) if spec_path else None
+    if source is not None and source.is_file():
+        spec = spec_kind(source.read_text(encoding="utf-8", errors="replace"))
+    if bead and spec and bead != spec:
+        return bead, f"kind mismatch: epic {workflow_id} is kind:{bead}, spec {spec_path} says Kind: {spec}"
+    return bead or spec or DEFAULT, None
