@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "review-in-progress",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -23,10 +23,46 @@
     "allowed_generated_paths": [],
     "nested_repository_paths": []
   },
-  "active_lease": null,
-  "ledger_revision": 3,
+  "active_lease": {
+    "lease_id": "9d96ef84eb8840fd9dcdef5dda79a433",
+    "actor_role": "reviewer",
+    "actor_id": "reviewer:claude:session-e7e4d3e7",
+    "acquired_at": "2026-11-12T05:19:42.159868Z",
+    "expires_at": "2026-11-12T05:29:42.159868Z",
+    "current_ledger_revision": 7
+  },
+  "ledger_revision": 7,
   "next_finding_number": 1,
-  "findings": {},
+  "findings": {
+    "F1-cli-ref-stale": {
+      "finding_id": "F1-cli-ref-stale",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F2-skill-points-to-repo-doc": {
+      "finding_id": "F2-skill-points-to-repo-doc",
+      "severity": "SUGGESTION",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
   "events": [
     {
       "event_id": "EV-000001",
@@ -107,6 +143,66 @@
       },
       "previous_event_hash": "d58ac2cd54c702bde2ee0890cf9851cb43ca965d28d0c4d5a3cf547899e48194",
       "event_hash": "e6e76f56d14e3815d2a699fb11320bb09daae8c7d99d11d5969ce28fa18f3368"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-12T05:19:42.160681Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e7e4d3e7"
+      },
+      "payload": {
+        "lease_id": "9d96ef84eb8840fd9dcdef5dda79a433",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-e7e4d3e7",
+        "acquired_at": "2026-11-12T05:19:42.159868Z",
+        "expires_at": "2026-11-12T05:29:42.159868Z"
+      },
+      "previous_event_hash": "e6e76f56d14e3815d2a699fb11320bb09daae8c7d99d11d5969ce28fa18f3368",
+      "event_hash": "7ab1aafdfceed16fb590440508f2e26cf16f2e96e5847cc1ac459532efc0891d"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-12T05:19:42.177077Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e7e4d3e7"
+      },
+      "payload": {},
+      "previous_event_hash": "7ab1aafdfceed16fb590440508f2e26cf16f2e96e5847cc1ac459532efc0891d",
+      "event_hash": "470a7655030205014f5a532d94f227e46b29a590aeaaf2e32c850e63a49304a5"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-12T05:19:46.237461Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e7e4d3e7"
+      },
+      "payload": {
+        "finding_id": "F1-cli-ref-stale",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "470a7655030205014f5a532d94f227e46b29a590aeaaf2e32c850e63a49304a5",
+      "event_hash": "7d43d3825dfe1b2c7c79f8a801085315e461d0f697835836c9c4125052556a11"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-created",
+      "timestamp": "2026-11-12T05:19:46.363173Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-e7e4d3e7"
+      },
+      "payload": {
+        "finding_id": "F2-skill-points-to-repo-doc",
+        "severity": "SUGGESTION"
+      },
+      "previous_event_hash": "7d43d3825dfe1b2c7c79f8a801085315e461d0f697835836c9c4125052556a11",
+      "event_hash": "7fe962fce56775c77bacebd7b8c02ba0d148f40baa0529a85c67ad1b74df896d"
     }
   ]
 }
