@@ -104,6 +104,8 @@ The approver of a spec checks that:
 
 The team may also request a non-gating `qe` review on spec pull requests. CODEOWNERS on the spec folders is the host's mechanism for this; it is advice, and gin does not enforce it.
 
+The BA does not review track pull requests. The BA accepts each epic once, against the QA report ([during the build](ba.md#during-the-build)).
+
 The tester reviews a developer's pull request and checks that:
 
 - every acceptance criterion in the spec is met;

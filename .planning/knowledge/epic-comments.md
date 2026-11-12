@@ -16,6 +16,7 @@ Epic `gin-workflow-sjow` (2026-11-07). A roadmap epic was discussed and planned 
 - `tests/workflow_core/test_epic_comments.py` pins the skill text by substrings on single lines; a rewording of those lines must keep the needles.
 - Cross-repository `external:` dependencies (gin-harness) get no comment: `bd` does not resolve them.
 - Not run: a real `/discuss` on an epic with comments, and a real `/ship` with open dependents.
+- Since `gin-workflow-ba-workspace`, execute, progress, and ship also use `[gin question]`, `[gin answer]`, and `[gin accept]` comments; see [ba-workspace](ba-workspace.md).
 
 **References**
 - `plugins/gin-workflow/src/skills/{discuss,plan,ship,roadmap}/SKILL.md`; `tests/workflow_core/test_epic_comments.py`

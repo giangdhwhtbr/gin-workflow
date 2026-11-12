@@ -60,13 +60,13 @@ Run `/gin-ba:mockup <capability>` to build screens the customer can click throug
 
 Each screen is a `<section id>` that opens by URL hash. A requirement can then cite `mockup/index.html#<screen-id>`. A screen with empty, error or loading states can switch between them on the page.
 
-The look comes from the product's existing UI, else the `frontend-design` skill when the harness provides it, else the skill's built-in skeleton. A missing `frontend-design` skill is not an error. Revise the mockup in the conversation until you are satisfied.
+The look comes from the product's existing UI, else the `frontend-design` skill when the harness provides it, else the skill's built-in skeleton. A missing `frontend-design` skill is not an error. In a workspace, the existing UI is the cloned `shape: frontend` child, so the mockup reuses its tokens and components. A 1-1 copy of the legacy screens needs no mockup. Revise the mockup in the conversation until you are satisfied.
 
 The skill sets `Kind:` to `new` for a capability's first dated folder and `change` after that. For `change`, `## Changes` lists what differs from `Previous:`.
 
 ### Confirm the inputs
 
-Confirming freezes a folder, so `/gin:discuss` can cite it. Say so explicitly in the conversation; the skill then runs `gin specs assets confirm <capability> --date <date>`, which sets `Confirmed:` to today.
+Confirming freezes a folder, so `/gin:discuss` can cite it. Say so explicitly in the conversation; the skill then runs `gin specs assets confirm <capability> --date <date>`, which sets `Confirmed:` to today. Confirm also writes `Confirmed by:` with your git `user.email`, and `Agreed with:` when you pass `--agreed-with <text>` to name who else agreed. In team mode the mockup skill asks for the frontend area lead's agreement before it confirms; `/gin-ba:capture` asks who else agreed.
 
 The skills never confirm on your behalf and never commit. Review the folder; `/gin:discuss` commits it with the change folder that cites it ([images and mockups](sdd.md#images-and-mockups)). Discuss asks about folders you have not confirmed instead of citing them.
 
@@ -87,6 +87,16 @@ With `chat`, the gate is recorded when you confirm in the conversation. When `te
 ### Export and explain
 
 Two commands share the spec with people who do not read the repository. `gin specs export <capability>` writes an SRS as one HTML file, and `/gin:explain <capability>` writes an interactive page. See [exporting an SRS](sdd.md#exporting-an-srs) and [explaining a capability](sdd.md#explaining-a-capability).
+
+### During the build
+
+Execute posts a `[gin question] <track>: <question>` comment when the spec and plan do not answer a worker's question. Run `/gin:progress` to list the unanswered ones. Answer each with `gin task comment <epic> "[gin answer] <track>: <answer>"`, and execute resumes the track.
+
+When an answer changes a requirement after plan approval, also follow [changing a requirement after plan approval](sdd.md#changing-a-requirement-after-plan-approval).
+
+After the epic's tracks close, review the `/gin-qa:report` output. For an epic behind a feature flag, do this at the milestone integration point. Then add `gin task comment <epic> "[gin accept] <epic>: <what was checked>"`.
+
+Acceptance is a team convention. Ship checks it with a warning only and continues without it. See [epic comments](../concepts/lifecycle.md#stages-and-gates) for all comment kinds.
 
 ## Conventions
 

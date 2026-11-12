@@ -60,13 +60,13 @@ Chạy `/gin-ba:mockup <capability>` để dựng các màn hình mà khách hà
 
 Mỗi màn hình là một `<section id>` mở bằng URL hash. Nhờ vậy requirement có thể trích dẫn `mockup/index.html#<screen-id>`. Màn hình có trạng thái trống, lỗi hoặc đang tải chuyển qua lại được giữa các trạng thái trên trang.
 
-Giao diện lấy từ UI hiện có của sản phẩm, nếu không thì từ skill `frontend-design` khi harness cung cấp, nếu không nữa thì từ khung dựng sẵn của skill. Thiếu skill `frontend-design` không phải là lỗi. Chỉnh mockup trong cuộc trò chuyện cho tới khi đạt yêu cầu.
+Giao diện lấy từ UI hiện có của sản phẩm, nếu không thì từ skill `frontend-design` khi harness cung cấp, nếu không nữa thì từ khung dựng sẵn của skill. Thiếu skill `frontend-design` không phải là lỗi. Trong workspace, UI hiện có là repository con `shape: frontend` đã clone, nên mockup dùng lại token và component của nó. Bản sao 1-1 của các màn hình cũ không cần mockup. Chỉnh mockup trong cuộc trò chuyện cho tới khi đạt yêu cầu.
 
 Skill đặt `Kind:` là `new` cho thư mục có tên ngày đầu tiên của capability và `change` sau đó. Với `change`, `## Changes` liệt kê điểm khác so với `Previous:`.
 
 ### Xác nhận đầu vào { #confirm-the-inputs }
 
-Xác nhận làm thư mục bị đóng băng, nhờ đó `/gin:discuss` có thể trích dẫn nó. Nói rõ điều này trong cuộc trò chuyện; skill sau đó chạy `gin specs assets confirm <capability> --date <date>`, lệnh đặt `Confirmed:` thành hôm nay.
+Xác nhận làm thư mục bị đóng băng, nhờ đó `/gin:discuss` có thể trích dẫn nó. Nói rõ điều này trong cuộc trò chuyện; skill sau đó chạy `gin specs assets confirm <capability> --date <date>`, lệnh đặt `Confirmed:` thành hôm nay. Confirm cũng ghi `Confirmed by:` bằng git `user.email` của BA, và `Agreed with:` khi BA truyền `--agreed-with <text>` để nêu ai khác đã đồng ý. Trong chế độ nhóm, skill mockup hỏi sự đồng ý của lead khu vực frontend trước khi xác nhận; `/gin-ba:capture` hỏi ai khác đã đồng ý.
 
 Các skill không bao giờ xác nhận thay BA và không bao giờ commit. BA xem lại thư mục; `/gin:discuss` commit nó cùng change folder trích dẫn nó ([hình ảnh và mockup](sdd.md#images-and-mockups)). Discuss hỏi về các thư mục chưa xác nhận thay vì trích dẫn chúng.
 
@@ -87,6 +87,16 @@ Với `chat`, gate được ghi khi BA xác nhận trong cuộc trò chuyện. K
 ### Xuất và giải thích { #export-and-explain }
 
 Hai lệnh chia sẻ spec với những người không đọc repository. `gin specs export <capability>` ghi SRS thành một file HTML, và `/gin:explain <capability>` ghi một trang tương tác. Xem [xuất SRS](sdd.md#exporting-an-srs) và [giải thích một capability](sdd.md#explaining-a-capability).
+
+### Trong lúc build { #during-the-build }
+
+Execute đăng comment `[gin question] <track>: <question>` khi spec và plan không trả lời được câu hỏi của worker. Chạy `/gin:progress` để liệt kê các câu chưa được trả lời. Trả lời từng câu bằng `gin task comment <epic> "[gin answer] <track>: <answer>"`, và execute tiếp tục track.
+
+Khi một câu trả lời thay đổi requirement sau khi plan được duyệt, cũng làm theo [thay đổi requirement sau khi plan được duyệt](sdd.md#changing-a-requirement-after-plan-approval).
+
+Sau khi các track của epic đóng, xem lại đầu ra của `/gin-qa:report`. Với epic nằm sau feature flag, làm việc này tại điểm tích hợp của milestone. Sau đó thêm `gin task comment <epic> "[gin accept] <epic>: <what was checked>"`.
+
+Nghiệm thu là quy ước của nhóm. Ship chỉ kiểm tra nó bằng một cảnh báo và vẫn tiếp tục khi thiếu. Xem [comment của epic](../concepts/lifecycle.md#stages-and-gates) để biết mọi loại comment.
 
 ## Quy ước { #conventions }
 

@@ -294,7 +294,7 @@ Screenshots: the JSP catalog list and the product detail page, from the legacy s
 
 **Kết quả:** một thư mục có ngày dưới `docs/specs/catalog/assets/`, với `Kind: legacy` trong `description.md`, và một thư mục mockup khi UI thay đổi. Ảnh chụp nằm dưới `legacy/` trong thư mục có ngày. Cả hai skill đều để thư mục chưa commit.
 
-**Cổng hoặc phê duyệt:** không có. BA xác nhận từng thư mục bằng `gin specs assets confirm catalog --date 2026-11-12`. `/gin:discuss` chỉ trích dẫn thư mục đã xác nhận và commit chúng cùng thư mục change, như [hình ảnh và mockup](../guides/sdd.md#images-and-mockups) mô tả. Xem thêm [living spec trong lúc migration](../guides/sdd.md#living-specs-during-a-migration) và [hướng dẫn cho BA](../guides/ba.md).
+**Cổng hoặc phê duyệt:** không có. BA xác nhận từng thư mục bằng `gin specs assets confirm catalog --date 2026-11-12`, và `--agreed-with` ghi lại ai khác đã đồng ý (xem [hướng dẫn cho BA](../guides/ba.md)). `/gin:discuss` chỉ trích dẫn thư mục đã xác nhận và commit chúng cùng thư mục change, như [hình ảnh và mockup](../guides/sdd.md#images-and-mockups) mô tả. Xem thêm [living spec trong lúc migration](../guides/sdd.md#living-specs-during-a-migration) và [hướng dẫn cho BA](../guides/ba.md).
 
 **Lỗi thường gặp:** commit một thư mục asset trên nhánh riêng; chạy discuss trước khi các thư mục được xác nhận.
 
@@ -507,7 +507,7 @@ Open a pull request instead of merging locally; Chi approves the latest commit f
 
 **Kết quả:** sản phẩm bàn giao đã merge. Ở chế độ nhóm, bằng chứng PR của cổng được ghi vào metadata `gates` của epic bead, để đồng đội thấy nó trong `gin state` mà không cần event store cục bộ của bạn.
 
-**Cổng hoặc phê duyệt:** merge vào base branch cần phê duyệt rõ ràng; phê duyệt `ship` trên commit mới nhất được kiểm tra trước.
+**Cổng hoặc phê duyệt:** BA nghiệm thu mỗi epic bằng một comment nghiệm thu trước khi ship ([trong lúc build](../guides/ba.md#during-the-build)). Merge vào base branch cần phê duyệt rõ ràng; phê duyệt `ship` trên commit mới nhất được kiểm tra trước.
 
 **Lỗi thường gặp:** ship track của một thành viên như thể tính năng đã hoàn tất; lead tuyên bố epic xong khi mọi pull request của track đã merge.
 

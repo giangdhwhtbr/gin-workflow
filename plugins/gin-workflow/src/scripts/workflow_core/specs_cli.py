@@ -58,6 +58,7 @@ def _parser() -> argparse.ArgumentParser:
     item = assets.add_parser("confirm", parents=[common])
     item.add_argument("cap")
     item.add_argument("--date", required=True)
+    item.add_argument("--agreed-with")
     return parser
 
 
@@ -120,7 +121,7 @@ def _run(args: argparse.Namespace) -> int:
                          new_capability=args.new_capability)
             _emit(result, args.format, "\n".join([result["folder"], *result["files"]]))
         else:
-            result = confirm(root, cfg, args.cap, args.date)
+            result = confirm(root, cfg, args.cap, args.date, agreed_with=args.agreed_with)
             _emit(result, args.format, f"{result['description']}: Confirmed: {result['confirmed']}")
         return 0
     if args.command == "new":
