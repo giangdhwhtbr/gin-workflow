@@ -22,6 +22,12 @@ class TestEpicKind(unittest.TestCase):
         self.assertEqual("parity", epic_kind.spec_kind("Kind: parity\n"))
         self.assertEqual("capability", epic_kind.spec_kind("Kind:   capability  \n"))
 
+    def test_spec_kind_line(self):
+        self.assertIsNone(epic_kind.spec_kind_line(""))
+        self.assertIsNone(epic_kind.spec_kind_line("# Title\n\nSome text\n"))
+        self.assertEqual(("technical", 3), epic_kind.spec_kind_line("# Title\n\nKind: technical\n"))
+        self.assertEqual(("parity", 1), epic_kind.spec_kind_line("Kind: parity\n"))
+
     def test_spec_kind_ignores_code_fences(self):
         text = """# Title
 
@@ -32,6 +38,7 @@ Kind: technical
 Kind: parity
 """
         self.assertEqual("parity", epic_kind.spec_kind(text))
+        self.assertEqual(("parity", 7), epic_kind.spec_kind_line(text))
 
         fenced_only = """# Title
 ```
@@ -39,6 +46,7 @@ Kind: technical
 ```
 """
         self.assertIsNone(epic_kind.spec_kind(fenced_only))
+        self.assertIsNone(epic_kind.spec_kind_line(fenced_only))
 
     def test_label_kind(self):
         self.assertIsNone(epic_kind.label_kind([]))
@@ -122,6 +130,13 @@ Kind: technical
             self.assertEqual(
                 [f"spec.md: Parity with: {p_unconf} is not confirmed"],
                 epic_kind.parity_errors(root, text_unconf, "spec.md"),
+            )
+
+            # 7. Two folders: one good, one unconfirmed -> exactly one error
+            text_two = f"Parity with: `{p_good}`, `{p_unconf}`\n"
+            self.assertEqual(
+                [f"spec.md: Parity with: {p_unconf} is not confirmed"],
+                epic_kind.parity_errors(root, text_two, "spec.md"),
             )
 
 

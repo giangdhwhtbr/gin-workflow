@@ -475,7 +475,7 @@ class TestEpicKindsInSpecs(unittest.TestCase):
     def test_kind_invalid_fails_lint(self):
         spec = write(self.root, "spec.md", "# Other\n\nKind: other\n\n### US-1: a\n\nAcceptance criteria:\n- x\n")
         self.assertEqual(
-            ["Kind: other is not one of capability, technical, parity"],
+            [f"{specs.shown(self.root, spec)}:3: Kind: other is not one of capability, technical, parity"],
             specs.lint_design_spec(spec, self.root),
         )
 
@@ -484,6 +484,54 @@ class TestEpicKindsInSpecs(unittest.TestCase):
         self.assertEqual(
             [f"{spec}:1: no user stories (### US-<n>:)"],
             specs.lint_design_spec(spec, self.root),
+        )
+
+    def test_lint_design_spec_without_root_resolves_git_toplevel(self):
+        p_good = "docs/specs/catalog/assets/2026-11-01"
+        write(self.root, f"{p_good}/description.md", "Kind: legacy\nConfirmed: 2026-11-02\n")
+        spec = write(self.root, "sub/spec.md", f"# Parity\n\nKind: parity\nParity with: `{p_good}`\n")
+        self.assertEqual([], specs.lint_design_spec(spec))
+
+    def test_lint_change_proposal_kinds(self):
+        sdd_root = make_repo(Path(self.tmp.name) / "sdd_repo")
+        write(sdd_root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(sdd_root)
+        cfg = specs.sdd_config(specs.load_config(sdd_root))
+        change = make_change(sdd_root)
+
+        # 1. Proposal Kind: parity with a bad folder (missing folder)
+        write(sdd_root, "docs/changes/ep-1-lockout/01-proposal.md",
+              "# Lockout\n\nEpic: ep-1\nKind: parity\nParity with: `docs/specs/catalog/assets/missing`\n")
+        errors = specs.lint_change(sdd_root, cfg, change)
+        self.assertTrue(
+            any("docs/changes/ep-1-lockout/01-proposal.md: Parity with: docs/specs/catalog/assets/missing is missing" in e for e in errors),
+            errors,
+        )
+
+        # 2. Proposal Kind: parity with confirmed Kind: legacy folder passes
+        p_good = "docs/specs/catalog/assets/2026-11-01"
+        write(sdd_root, f"{p_good}/description.md", "Kind: legacy\nConfirmed: 2026-11-02\n")
+        commit_all(sdd_root)
+        write(sdd_root, "docs/changes/ep-1-lockout/01-proposal.md",
+              f"# Lockout\n\nEpic: ep-1\nKind: parity\nParity with: `{p_good}`\n")
+        self.assertEqual([], specs.lint_change(sdd_root, cfg, change))
+
+        # 3. Proposal Kind: other fails with invalid-kind message including location
+        write(sdd_root, "docs/changes/ep-1-lockout/01-proposal.md",
+              "# Lockout\n\nEpic: ep-1\nKind: other\n")
+        errors = specs.lint_change(sdd_root, cfg, change)
+        self.assertIn(
+            "docs/changes/ep-1-lockout/01-proposal.md:4: Kind: other is not one of capability, technical, parity",
+            errors,
+        )
+
+    def test_cli_specs_lint_spec_invalid_kind(self):
+        spec = write(self.root, "spec.md", "# Other\n\nKind: other\n\n### US-1: a\n\nAcceptance criteria:\n- x\n")
+        result = run_specs(self.root, "lint", "--spec", str(spec))
+        self.assertEqual(1, result.returncode)
+        self.assertIn(
+            f"{specs.shown(self.root, spec)}:3: Kind: other is not one of capability, technical, parity",
+            result.stdout,
         )
 
 

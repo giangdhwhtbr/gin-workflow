@@ -15,6 +15,7 @@ from typing import Any, Mapping, Sequence
 
 from .atomic import atomic_write_many
 from .configuration import resolve_effective_config
+from . import epic_kind
 from .executables import tool
 
 DEFAULT_TEST_GLOBS = ("**/test_*.py", "**/*_test.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**")
@@ -70,15 +71,22 @@ _PLACEHOLDER = re.compile(r"\{\{|\bTBD\b|\bTODO\b")
 
 def lint_design_spec(path: Path, root: Path | None = None) -> list[str]:
     """Legacy design spec: user stories with acceptance criteria and no placeholder left outside code."""
-    from . import epic_kind
-
     errors, story, state, fenced = [], None, "", False
     stories = 0
     text = path.read_text(encoding="utf-8")
-    spec_k = epic_kind.spec_kind(text)
-    inv = epic_kind.invalid(spec_k)
-    if inv:
-        errors.append(inv)
+    repo_root = root
+    if repo_root is None:
+        toplevel = _git(path.parent, "rev-parse", "--show-toplevel")
+        repo_root = Path(toplevel.stdout.strip()) if toplevel.returncode == 0 else path.parent
+    shown_path = shown(repo_root, path)
+
+    found_kind = epic_kind.spec_kind_line(text)
+    spec_k = found_kind[0] if found_kind else None
+    if found_kind:
+        val, line_no = found_kind
+        inv = epic_kind.invalid(val)
+        if inv:
+            errors.append(f"{shown_path}:{line_no}: {inv}")
 
     def close() -> None:
         if story and state != "bullet":
@@ -107,11 +115,6 @@ def lint_design_spec(path: Path, root: Path | None = None) -> list[str]:
         errors.append(f"{path}:1: no user stories (### US-<n>:)")
 
     if spec_k == "parity":
-        repo_root = root
-        if repo_root is None:
-            toplevel = _git(path.parent, "rev-parse", "--show-toplevel")
-            repo_root = Path(toplevel.stdout.strip()) if toplevel.returncode == 0 else path.parent
-        shown_path = shown(repo_root, path) if repo_root else str(path)
         errors += epic_kind.parity_errors(repo_root, text, shown_path)
 
     return errors
@@ -344,8 +347,7 @@ def change_epic(change: Path) -> str:
 
 
 def change_kind(change: Path) -> str:
-    from . import epic_kind
-
+    """The declared kind from proposal.md, or default ('capability')."""
     proposal = change_file(change, "proposal")
     if proposal.is_file():
         kind_val = epic_kind.spec_kind(proposal.read_text(encoding="utf-8"))
@@ -531,16 +533,19 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
     design = change_file(change, "design")
     questions = technical_questions(design, shown(root, design))[1] if design.is_file() else []
 
-    from . import epic_kind
     proposal = change_file(change, "proposal")
     if proposal.is_file():
         p_text = proposal.read_text(encoding="utf-8")
-        p_kind = epic_kind.spec_kind(p_text)
-        inv = epic_kind.invalid(p_kind)
-        if inv:
-            errors.append(inv)
+        shown_prop = shown(root, proposal)
+        found_p_kind = epic_kind.spec_kind_line(p_text)
+        p_kind = found_p_kind[0] if found_p_kind else None
+        if found_p_kind:
+            val, line_no = found_p_kind
+            inv = epic_kind.invalid(val)
+            if inv:
+                errors.append(f"{shown_prop}:{line_no}: {inv}")
         if p_kind == "parity":
-            errors += epic_kind.parity_errors(root, p_text, shown(root, proposal))
+            errors += epic_kind.parity_errors(root, p_text, shown_prop)
 
     return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg)
 

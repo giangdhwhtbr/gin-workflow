@@ -12,14 +12,12 @@ DEFAULT = "capability"
 _KIND_LINE = re.compile(r"^Kind:\s*(\S+)")
 _PARITY_LINE = re.compile(r"^Parity with:\s*(.*)$", re.MULTILINE)
 _BACKTICKED = re.compile(r"`([^`]+)`")
-_CONFIRMED = re.compile(r"^Confirmed:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
-_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
-def spec_kind(text: str) -> str | None:
-    r"""The value of the first `^Kind:\s*(\S+)` line outside code fences, or None."""
+def spec_kind_line(text: str) -> tuple[str, int] | None:
+    r"""The (value, 1-based line number) of the first `^Kind:\s*(\S+)` line outside code fences, or None."""
     fenced = False
-    for line in text.splitlines():
+    for line_no, line in enumerate(text.splitlines(), start=1):
         if line.lstrip().startswith("```"):
             fenced = not fenced
             continue
@@ -27,8 +25,14 @@ def spec_kind(text: str) -> str | None:
             continue
         match = _KIND_LINE.match(line)
         if match:
-            return match.group(1)
+            return match.group(1), line_no
     return None
+
+
+def spec_kind(text: str) -> str | None:
+    r"""The value of the first `^Kind:\s*(\S+)` line outside code fences, or None."""
+    found = spec_kind_line(text)
+    return found[0] if found else None
 
 
 def label_kind(labels: Sequence[str]) -> str | None:
