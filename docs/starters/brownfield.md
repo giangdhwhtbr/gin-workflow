@@ -50,14 +50,14 @@ team:
     web: {paths: ["apps/**"], lead: fe_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
-    requirement_confirmed: [ba, be_lead]
+    requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}
     plan_approved: area_lead
     ship: {all: [qe], any: [be_lead, fe_lead]}
     roadmap: [pm, be_lead]
   permissions: {milestone: [pm]}
 ```
 
-The areas do not overlap, so every plan track stays inside one of them. A gate is never approved by the author of its pull request. Lan has no second `pm` and An no second `ba`, so Binh approves their roadmap and spec pull requests. The `ship` policy uses the object form, which needs gin-workflow 3.1 or later: `all` roles must each approve, and one `any` role must approve. Chi is the only `qe`, so on Chi's own QA pull request the `qe` role is skipped with a note, and Binh or Hoa approves. Binh and Hoa each lead an area, so `gin setup doctor` notes that `qe`, `be_lead`, and `fe_lead` have one holder. The fallback applies only while the author is the sole holder; add a second holder to remove it. Only Lan, the one `pm`, may run `gin milestone` writes.
+The areas do not overlap, so every plan track stays inside one of them. No gate is approved by the author of its pull request. `requirement_confirmed` and `ship` use the object form, which needs gin-workflow 3.1 or later: every `all` role must approve, and one `any` role must approve. An is the only `ba`, so on a spec An authors the `ba` role is skipped with the note "ba skipped: the author is its only holder", and Binh or Hoa approves. When Binh authors the spec of a technical epic, An and Hoa approve. Chi is the only `qe`, so on Chi's own QA pull request the `qe` role is skipped the same way, and Binh or Hoa approves. Lan has no second `pm`, so Binh approves Lan's roadmap pull requests (`roadmap: [pm, be_lead]`). Binh and Hoa each lead an area, so `gin setup doctor` notes that `qe`, `be_lead`, and `fe_lead` have one holder. The fallback applies only while the author is the sole holder; add a second holder to remove it. Only Lan, the one `pm`, may run `gin milestone` writes.
 
 ## The flow at a glance
 
@@ -154,7 +154,7 @@ In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.pack
 /gin:team-setup
 Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_lead and fe_dev), chi@example.com (qe).
 Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads legacy, api, and qa; Hoa leads web.
-Approvals: requirement_confirmed by ba and be_lead; plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
+Approvals: requirement_confirmed by ba and one of be_lead or fe_lead; plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
 Permissions: only the pm changes milestones.
 ```
 
@@ -309,15 +309,14 @@ Put in the prompt: the legacy screenshots of the catalog list and the product de
 /gin:discuss shop-portal-catalog-read
 Replace the JSP catalog list and product detail pages.
 Legacy rules: hidden products never show; the price comes from the customer's price list and falls back to the list price; out-of-stock items show "Notify me".
-API contract: GET /api/products?category=&page= and GET /api/products/{id}, with the same fields as the JSP model.
 Out of scope: search and reviews.
 ```
 
-Put in the prompt: the user-visible behavior of the JSP flow you replace, its edge cases and validation rules (see [Legacy behavior and living specs](#legacy-behavior-and-living-specs)), the REST API contract the new service must meet, and what is out of scope.
+Put in the prompt: the user-visible behavior of the JSP flow you replace, its edge cases and validation rules (see [Legacy behavior and living specs](#legacy-behavior-and-living-specs)), and what is out of scope. An has no technical role, so discuss records each contract detail (path, method, fields, error codes) as a technical question for the tech lead (see [the contract](../guides/workspace.md#contract)).
 
 **You get:** the discussion starts from the epic and its roadmap entry and reuses it (no new epic). The spec is built from the `design-spec.md` template (or `proposal.md` with the SDD layout) and has a `## User Stories` section. Every story has acceptance criteria and, with REQ-IDs, a `REQ:` line.
 
-**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. With `requirement_confirmed: [ba, be_lead]`, Binh approves it (An cannot approve his own); the gate is recorded with the PR URL after the merge. Once it is confirmed, backend, frontend, and QA can work in parallel against the same contract.
+**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. With `requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}`, An's own `ba` role is skipped because An is the author, and Binh or Hoa approves; the gate is recorded with the PR URL after the merge. Once it is confirmed, the business part of the contract is frozen; the technical details are frozen at plan approval.
 
 **Common mistakes:** creating a second epic by hand; stories without acceptance criteria; skipping the legacy edge cases.
 
@@ -330,8 +329,6 @@ Living specs describe the new system. The legacy behavior stays in the confirmed
 The catalog API SHALL omit hidden products from the product list.
 Source: `assets/2026-11-12/description.md`
 ```
-
-Write the REST contract of each endpoint the same way (path, method, request, response, error codes), so the new API and the SPA mocks are built from one source.
 
 ## Plan and orchestrate
 
@@ -347,6 +344,7 @@ Rollback: route the facade back to the JSP pages when the parity tests fail afte
 Parallel: QA cases, the catalog API, and the SPA against contract mocks.
 Seats: the router cutover track goes to Binh on a Premium seat.
 Each track names its repository, for example Repo: services/catalog-api.
+Answer each TQ-<n> with the contract of its endpoint.
 ```
 ```text
 /gin:orchestrate shop-portal-catalog-read
@@ -354,11 +352,11 @@ Create the track beads and worktrees from the approved plan.
 Leave every track bead unassigned; members take theirs with gin team claim.
 ```
 
-Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat. Each track carries `Repo: <path>`, for example `Repo: services/order-api`.
+Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat. Each track carries `Repo: <path>`, for example `Repo: services/order-api`. The tech lead also answers each `TQ-<n>` that discuss left, with the path, method, request, response, and error codes of the endpoint, so the new API and the SPA mocks are built from one source. Plan approval freezes those answers.
 
 **You get:** a plan with tracks per area and owner (`gin team check-plan <plan>` must pass), then one track bead per track under the reused epic, including the QA tracks, an isolated worktree per track, and dependencies. Members claim their beads with `gin team claim <bead>`.
 
-**Gate or approval:** with `plan_approved: area_lead`, the area lead approves the plan pull request.
+**Gate or approval:** with `plan_approved: area_lead`, the lead of each area the plan touches approves the plan pull request: Binh and Hoa, as the leads of `api` and `web`.
 
 **Common mistakes:** a track that touches two areas, for example `services/` and `apps/`; run `gin team check-plan <plan>` before asking for approval.
 
@@ -366,16 +364,16 @@ Put in the prompt: the constraints of the migration (facade first, dual-write or
 
 Modernize one bounded context at a time behind a stable facade or router instead of an all-at-once rewrite. Traffic for modernized endpoints goes to the new implementation while unmigrated requests pass through to the legacy core. The facade or gateway is your own infrastructure; gin-workflow does not provide one. The `team.areas` above keep every track inside the modernized repositories; the frozen `legacy` area exists only so `/gin:tech-doc` can read it, and no track targets it.
 
-In `/gin:discuss`, settle the data migration strategy (dual-write or backfill) and the rollback criteria, and in `/gin:plan` split the epic into single-area tracks:
+In `/gin:discuss`, settle the data migration strategy (dual-write or backfill) and the rollback criteria, and in `/gin:plan` split the epic into single-area tracks. It is one epic for the capability, with tracks in each repository it changes ([workspace limits](../guides/workspace.md#limits)):
 
-| Track | Area | Owner | Work |
-|---|---|---|---|
-| 1 | `qa` | Chi | Test cases for the catalog capability, one file per case |
-| 2 | `api` | Em | Spring Boot API, facade, and parity tests against the contract |
-| 3 | `web` | Hoa | React UI built against contract mocks |
-| 4 | `web` | Hoa | Integration: replace the mocks with real API calls |
-| 5 | `api` (`services/order-api`) | Binh | Router cutover to the new facade, on a Premium seat with a high effort |
-| 6 | `qa` | Chi | API tests, E2E, manual runs, and the report |
+| Track | Area | Repo | Owner | Work |
+|---|---|---|---|---|
+| 1 | `qa` | `qa` | Chi | Test cases for the catalog capability, one file per case |
+| 2 | `api` | `services/catalog-api` | Em | Spring Boot API, facade, and parity tests against the contract |
+| 3 | `web` | `apps/web-shop` | Hoa | React UI built against contract mocks |
+| 4 | `web` | `apps/web-shop` | Hoa | Integration: replace the mocks with real API calls |
+| 5 | `api` | `services/order-api` | Binh | Router cutover to the new facade, on a Premium seat with a high effort |
+| 6 | `qa` | `qa` | Chi | API tests, E2E, manual runs, and the report |
 
 ```mermaid
 flowchart LR
@@ -384,7 +382,7 @@ flowchart LR
   S --> T3["Track 3 web mocks"]
   T2 --> T4["Track 4 web integration"]
   T3 --> T4
-  T2 --> T5["Track 5 legacy cutover"]
+  T2 --> T5["Track 5 router cutover"]
   T1 --> T6["Track 6 qa E2E and report"]
   T4 --> T6
   T5 --> T6

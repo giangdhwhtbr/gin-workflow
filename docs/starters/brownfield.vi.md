@@ -27,7 +27,7 @@ Nhóm có bảy người. Lan và Binh giữ hai seat Claude Team Premium, nên 
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | Công việc API |
 | Dung | `be_dev` | [Developer](../roles.md#developer) | Công việc API |
-| Hoa | `fe_dev` | [Developer](../roles.md#developer) | Công việc React SPA |
+| Hoa | `fe_lead`, `fe_dev` | [Frontend lead](../roles.md#who-owns-what) | Công việc React SPA, duyệt plan của web |
 | Chi | `qe` | [Tester](../roles.md#tester) | Test case, E2E, phê duyệt ship |
 
 Khối `team:` trong `.agent-workflow/config.yaml` (do `/gin:team-setup` ghi):
@@ -42,22 +42,22 @@ team:
     binh@example.com: {roles: [be_lead], login: binh-dev}
     em@example.com: {roles: [be_dev], login: em-dev}
     dung@example.com: {roles: [be_dev], login: dung-dev}
-    hoa@example.com: {roles: [fe_dev], login: hoa-dev}
+    hoa@example.com: {roles: [fe_lead, fe_dev], login: hoa-dev}
     chi@example.com: {roles: [qe], login: chi-qe}
   areas:
     legacy: {paths: ["legacy/shop-portal/**"], lead: be_lead, roles: [be_dev]}  # read-only: for tech-doc reading, no track targets it
     api: {paths: ["services/**"], lead: be_lead, roles: [be_dev]}
-    web: {paths: ["apps/**"], lead: be_lead, roles: [fe_dev]}
+    web: {paths: ["apps/**"], lead: fe_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
-    requirement_confirmed: [ba, be_lead]
+    requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}
     plan_approved: area_lead
-    ship: [qe, be_lead]
+    ship: {all: [qe], any: [be_lead, fe_lead]}
     roadmap: [pm, be_lead]
   permissions: {milestone: [pm]}
 ```
 
-Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Một cổng không bao giờ do tác giả của pull request duyệt, nên mỗi vai trò phê duyệt cần người giữ thứ hai. Lan không có `pm` thứ hai và An không có `ba` thứ hai, nên Binh duyệt pull request roadmap và spec của họ. Vì lý do tương tự, `ship` liệt kê `be_lead` bên cạnh `qe`: Binh duyệt các pull request track QA của chính Chi, và Chi duyệt của các developer. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
+Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Không cổng nào do tác giả của pull request duyệt. `requirement_confirmed` và `ship` dùng dạng object, cần gin-workflow 3.1 trở lên: mọi vai trò `all` phải duyệt, và một vai trò `any` phải duyệt. An là `ba` duy nhất, nên với spec do An viết, vai trò `ba` bị bỏ qua kèm ghi chú "ba skipped: the author is its only holder", và Binh hoặc Hoa duyệt. Khi Binh viết spec của một epic kỹ thuật, An và Hoa duyệt. Chi là `qe` duy nhất, nên với pull request QA của chính Chi, vai trò `qe` bị bỏ qua tương tự, và Binh hoặc Hoa duyệt. Lan không có `pm` thứ hai, nên Binh duyệt các pull request roadmap của Lan (`roadmap: [pm, be_lead]`). Binh và Hoa mỗi người dẫn một khu vực, nên `gin setup doctor` ghi chú rằng `qe`, `be_lead` và `fe_lead` chỉ có một người giữ. Cơ chế bỏ qua chỉ áp dụng khi tác giả là người giữ duy nhất; thêm người giữ thứ hai để bỏ nó. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
 
 ## Toàn cảnh luồng làm việc { #the-flow-at-a-glance }
 
@@ -152,9 +152,9 @@ mkdir -p services/api apps/web qa
 **Prompt (Tech Lead)**
 ```text
 /gin:team-setup
-Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_dev), chi@example.com (qe).
-Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads all four.
-Approvals: requirement_confirmed by ba and be_lead; plan_approved by the area lead; ship by qe and be_lead; roadmap by pm and be_lead.
+Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_lead and fe_dev), chi@example.com (qe).
+Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads legacy, api, and qa; Hoa leads web.
+Approvals: requirement_confirmed by ba and one of be_lead or fe_lead; plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
 Permissions: only the pm changes milestones.
 ```
 
@@ -309,15 +309,14 @@ Screenshots: the JSP catalog list and the product detail page, from the legacy s
 /gin:discuss shop-portal-catalog-read
 Replace the JSP catalog list and product detail pages.
 Legacy rules: hidden products never show; the price comes from the customer's price list and falls back to the list price; out-of-stock items show "Notify me".
-API contract: GET /api/products?category=&page= and GET /api/products/{id}, with the same fields as the JSP model.
 Out of scope: search and reviews.
 ```
 
-Đưa vào prompt: hành vi người dùng nhìn thấy của luồng JSP bạn thay thế, các edge case và quy tắc validation của nó (xem [Hành vi legacy và living spec](#legacy-behavior-and-living-specs)), hợp đồng REST API mà service mới phải đáp ứng, và những gì nằm ngoài phạm vi.
+Đưa vào prompt: hành vi người dùng nhìn thấy của luồng JSP bạn thay thế, các edge case và quy tắc validation của nó (xem [Hành vi legacy và living spec](#legacy-behavior-and-living-specs)), và những gì nằm ngoài phạm vi. An không có vai trò kỹ thuật, nên discuss ghi mỗi chi tiết của hợp đồng (path, method, field, mã lỗi) thành một câu hỏi kỹ thuật cho tech lead (xem [hợp đồng](../guides/workspace.md#contract)).
 
 **Kết quả:** cuộc thảo luận bắt đầu từ epic và mục roadmap của nó và dùng lại epic đó (không tạo epic mới). Spec được dựng từ template `design-spec.md` (hoặc `proposal.md` với layout SDD) và có mục `## User Stories`. Mỗi story có acceptance criteria và, với REQ-ID, một dòng `REQ:`.
 
-**Cổng hoặc phê duyệt:** spec được commit trên `spec/<topic>` và mở dưới dạng pull request. Với `requirement_confirmed: [ba, be_lead]`, Binh duyệt nó (An không thể tự duyệt); cổng được ghi nhận cùng URL của PR sau khi merge. Một khi đã được xác nhận, backend, frontend và QA có thể làm song song trên cùng một hợp đồng.
+**Cổng hoặc phê duyệt:** spec được commit trên `spec/<topic>` và mở dưới dạng pull request. Với `requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}`, vai trò `ba` của chính An bị bỏ qua vì An là tác giả, và Binh hoặc Hoa duyệt; cổng được ghi nhận cùng URL của PR sau khi merge. Một khi đã được xác nhận, phần nghiệp vụ của hợp đồng bị đóng băng; các chi tiết kỹ thuật bị đóng băng khi plan được duyệt.
 
 **Lỗi thường gặp:** tạo epic thứ hai bằng tay; story không có acceptance criteria; bỏ qua các edge case của legacy.
 
@@ -330,8 +329,6 @@ Living spec mô tả hệ thống mới. Hành vi legacy nằm trong các thư m
 The catalog API SHALL omit hidden products from the product list.
 Source: `assets/2026-11-12/description.md`
 ```
-
-Hãy viết hợp đồng REST của từng endpoint theo cách tương tự (path, method, request, response, mã lỗi), để API mới và các mock của SPA được xây từ cùng một nguồn.
 
 ## Plan và orchestrate { #plan-and-orchestrate }
 
@@ -347,6 +344,7 @@ Rollback: route the facade back to the JSP pages when the parity tests fail afte
 Parallel: QA cases, the catalog API, and the SPA against contract mocks.
 Seats: the router cutover track goes to Binh on a Premium seat.
 Each track names its repository, for example Repo: services/catalog-api.
+Answer each TQ-<n> with the contract of its endpoint.
 ```
 ```text
 /gin:orchestrate shop-portal-catalog-read
@@ -354,11 +352,11 @@ Create the track beads and worktrees from the approved plan.
 Leave every track bead unassigned; members take theirs with gin team claim.
 ```
 
-Đưa vào prompt: các ràng buộc của migration (facade trước, dual-write hay backfill, tiêu chí rollback), các track nào có thể chạy song song, và ai giữ seat Premium. Mỗi track mang `Repo: <path>`, ví dụ `Repo: services/order-api`.
+Đưa vào prompt: các ràng buộc của migration (facade trước, dual-write hay backfill, tiêu chí rollback), các track nào có thể chạy song song, và ai giữ seat Premium. Mỗi track mang `Repo: <path>`, ví dụ `Repo: services/order-api`. Tech lead cũng trả lời từng `TQ-<n>` mà discuss để lại, bằng path, method, request, response và mã lỗi của endpoint, để API mới và các mock của SPA được xây từ cùng một nguồn. Duyệt plan đóng băng các câu trả lời đó.
 
 **Kết quả:** một plan với các track theo khu vực và owner (`gin team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, một worktree cô lập cho mỗi track, và các dependency. Thành viên claim bead của mình bằng `gin team claim <bead>`.
 
-**Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, area lead duyệt pull request của plan.
+**Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, lead của từng khu vực mà plan đụng tới duyệt pull request của plan: Binh và Hoa, là lead của `api` và `web`.
 
 **Lỗi thường gặp:** một track đụng tới hai khu vực, ví dụ `services/` và `apps/`; hãy chạy `gin team check-plan <plan>` trước khi xin duyệt.
 
@@ -366,16 +364,16 @@ Leave every track bead unassigned; members take theirs with gin team claim.
 
 Hiện đại hóa từng bounded context một phía sau một facade hoặc router ổn định thay vì viết lại tất cả cùng lúc. Traffic của các endpoint đã hiện đại hóa đi tới bản triển khai mới, còn các request chưa migrate được chuyển tiếp xuống lõi legacy. Facade hoặc gateway là hạ tầng của riêng bạn; gin-workflow không cung cấp. Các `team.areas` ở trên giữ mọi track trong các repository đã hiện đại hóa; khu vực `legacy` bị đóng băng chỉ tồn tại để `/gin:tech-doc` đọc, và không track nào nhắm tới nó.
 
-Trong `/gin:discuss`, hãy chốt chiến lược data migration (dual-write hoặc backfill) và tiêu chí rollback, còn trong `/gin:plan` hãy chia epic thành các track một khu vực:
+Trong `/gin:discuss`, hãy chốt chiến lược data migration (dual-write hoặc backfill) và tiêu chí rollback, còn trong `/gin:plan` hãy chia epic thành các track một khu vực. Đó là một epic cho capability, với các track ở mỗi repository mà nó thay đổi ([giới hạn của workspace](../guides/workspace.md#limits)):
 
-| Track | Khu vực | Owner | Công việc |
-|---|---|---|---|
-| 1 | `qa` | Chi | Test case cho capability catalog, mỗi case một file |
-| 2 | `api` | Em | Spring Boot API, facade và parity test theo hợp đồng |
-| 3 | `web` | Hoa | React UI xây dựa trên contract mock |
-| 4 | `web` | Hoa | Tích hợp: thay các mock bằng lời gọi API thật |
-| 5 | `api` (`services/order-api`) | Binh | Router cutover sang facade mới, trên seat Premium với effort cao |
-| 6 | `qa` | Chi | API test, E2E, manual run và báo cáo |
+| Track | Khu vực | Repo | Owner | Công việc |
+|---|---|---|---|---|
+| 1 | `qa` | `qa` | Chi | Test case cho capability catalog, mỗi case một file |
+| 2 | `api` | `services/catalog-api` | Em | Spring Boot API, facade và parity test theo hợp đồng |
+| 3 | `web` | `apps/web-shop` | Hoa | React UI xây dựa trên contract mock |
+| 4 | `web` | `apps/web-shop` | Hoa | Tích hợp: thay các mock bằng lời gọi API thật |
+| 5 | `api` | `services/order-api` | Binh | Router cutover sang facade mới, trên seat Premium với effort cao |
+| 6 | `qa` | `qa` | Chi | API test, E2E, manual run và báo cáo |
 
 ```mermaid
 flowchart LR
@@ -384,7 +382,7 @@ flowchart LR
   S --> T3["Track 3 web mocks"]
   T2 --> T4["Track 4 web integration"]
   T3 --> T4
-  T2 --> T5["Track 5 legacy cutover"]
+  T2 --> T5["Track 5 router cutover"]
   T1 --> T6["Track 6 qa E2E and report"]
   T4 --> T6
   T5 --> T6
