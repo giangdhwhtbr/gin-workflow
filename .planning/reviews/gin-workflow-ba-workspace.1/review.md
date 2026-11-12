@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000019`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `ac56884`, Tree Hash: `7e44143`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,16 +33,16 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
-| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-1` | `MINOR` | `verified` | 0 | - |
+| `F-2` | `MINOR` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-2` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -59,3 +63,9 @@
 | `EV-000012` | `2026-11-12T03:12:45.426632Z` | `finding-fixed` | `implementer:antigravity:gemini` (worker) |
 | `EV-000013` | `2026-11-12T03:12:45.745126Z` | `source-checkpoint-created` | `implementer:antigravity:gemini` (worker) |
 | `EV-000014` | `2026-11-12T03:12:45.867728Z` | `review-requested` | `implementer:antigravity:gemini` (worker) |
+| `EV-000015` | `2026-11-12T03:13:13.411703Z` | `lease-acquired` | `reviewer:claude` (reviewer) |
+| `EV-000016` | `2026-11-12T03:13:13.430491Z` | `review-started` | `reviewer:claude` (reviewer) |
+| `EV-000017` | `2026-11-12T03:13:22.923033Z` | `finding-verified` | `reviewer:claude` (reviewer) |
+| `EV-000018` | `2026-11-12T03:13:23.050443Z` | `finding-verified` | `reviewer:claude` (reviewer) |
+| `EV-000019` | `2026-11-12T03:13:23.247933Z` | `review-approved` | `reviewer:claude` (reviewer) |
+| `EV-000020` | `2026-11-12T03:13:23.473109Z` | `lease-released` | `reviewer:claude` (reviewer) |
