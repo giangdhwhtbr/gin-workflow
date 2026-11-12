@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-epic-shape-docs.1",
       "checkpoint_ref": "refs/gin/review/gin-workflow-epic-shape-docs.1",
       "review_base_sha": "5daf8efa97906d383806027a6da2da94e1a4d41d",
-      "reviewed_source_sha": "d3718b3b783d60e57d32a946b4f678cf428e886c",
-      "checkpoint_sha": "d3718b3b783d60e57d32a946b4f678cf428e886c",
+      "reviewed_source_sha": "c5af09013c8548cabfee39258229303b86d9c5e2",
+      "checkpoint_sha": "c5af09013c8548cabfee39258229303b86d9c5e2",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "d440becb922407f1c5c60a7af4833ba751e0453dbfb07785494611f3c538957d",
-      "reviewed_source_tree_hash": "d440becb922407f1c5c60a7af4833ba751e0453dbfb07785494611f3c538957d",
+      "source_tree_hash": "f586a2925622d075f74b230f4edc6f5efc61923d173292aa18556eef28c7a8a8",
+      "reviewed_source_tree_hash": "f586a2925622d075f74b230f4edc6f5efc61923d173292aa18556eef28c7a8a8",
       "source_identity_status": "complete"
     }
   ],
@@ -24,9 +24,38 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 3,
-  "next_finding_number": 1,
-  "findings": {},
+  "ledger_revision": 14,
+  "next_finding_number": 3,
+  "findings": {
+    "F-1": {
+      "finding_id": "F-1",
+      "severity": "IMPORTANT",
+      "status": "fixed-awaiting-verification",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F-2": {
+      "finding_id": "F-2",
+      "severity": "IMPORTANT",
+      "status": "deferral-proposed",
+      "clarification_count": 0,
+      "deferral_reason": "capability-epics.md is a roadmap skill reference; the epic's spec excludes skill file changes (Docs only), so the alignment moves to a follow-up bead",
+      "follow_up_bead_id": "gin-workflow-8zbt",
+      "follow_up_bead_title": "capability-epics.md: align tracks per repository and contract freeze with workspace.md",
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
   "events": [
     {
       "event_id": "EV-000001",
@@ -107,6 +136,183 @@
       },
       "previous_event_hash": "8ac960847995c4033568c8f4859d6325731a3a038d1ee1c87b85c68f3b44cd7b",
       "event_hash": "a68be62bb0508555d469d4ac81b081e09c5aeb3e09c7ece6c8bf8aa0d18fd441"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-12T12:56:12.353726Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-945d9d96"
+      },
+      "payload": {
+        "lease_id": "9016f00a7a5e4e02aa4ce49123d4c6e7",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-945d9d96",
+        "acquired_at": "2026-11-12T12:56:12.352850Z",
+        "expires_at": "2026-11-12T13:06:12.352850Z"
+      },
+      "previous_event_hash": "a68be62bb0508555d469d4ac81b081e09c5aeb3e09c7ece6c8bf8aa0d18fd441",
+      "event_hash": "e8609426a5a02486e9c9c40b513b211e6e50601d14413c1f055b0821a0f01611"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-12T12:56:12.378390Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-945d9d96"
+      },
+      "payload": {},
+      "previous_event_hash": "e8609426a5a02486e9c9c40b513b211e6e50601d14413c1f055b0821a0f01611",
+      "event_hash": "3004fe38ba3dfea7cb37ed5d4cf139cbe057e3d2f924db2c13d5fcb927a91738"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-12T12:56:23.859686Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-945d9d96"
+      },
+      "payload": {
+        "finding_id": "F-1",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "3004fe38ba3dfea7cb37ed5d4cf139cbe057e3d2f924db2c13d5fcb927a91738",
+      "event_hash": "74b69e20cf3edc01e951e0b4de02f2f007b96b897772aa697cb47e33ba0ffc18"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-created",
+      "timestamp": "2026-11-12T12:56:23.990100Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-945d9d96"
+      },
+      "payload": {
+        "finding_id": "F-2",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "74b69e20cf3edc01e951e0b4de02f2f007b96b897772aa697cb47e33ba0ffc18",
+      "event_hash": "eedf37d85c57fa5cb4a556c138b668d56d4d9ce88bd1f9a101fcf90cf66b384c"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "changes-requested",
+      "timestamp": "2026-11-12T12:56:24.111754Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-945d9d96"
+      },
+      "payload": {
+        "to": "changes-requested"
+      },
+      "previous_event_hash": "eedf37d85c57fa5cb4a556c138b668d56d4d9ce88bd1f9a101fcf90cf66b384c",
+      "event_hash": "b13a8c159ec84f4d73c2a661d0c3cdbb7699503445bbe12979f3bfa17cf49a7f"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "lease-released",
+      "timestamp": "2026-11-12T12:56:24.338606Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-945d9d96"
+      },
+      "payload": {
+        "lease_id": "9016f00a7a5e4e02aa4ce49123d4c6e7",
+        "released_at": "2026-11-12T12:56:24.337770Z"
+      },
+      "previous_event_hash": "b13a8c159ec84f4d73c2a661d0c3cdbb7699503445bbe12979f3bfa17cf49a7f",
+      "event_hash": "edf90eaf596f6ffb3696c048e9fb3de7d69c8f76298da4ed1756da3fede942b2"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "implementation-in-progress",
+      "timestamp": "2026-11-12T12:57:03.354101Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "implementation-in-progress"
+      },
+      "previous_event_hash": "edf90eaf596f6ffb3696c048e9fb3de7d69c8f76298da4ed1756da3fede942b2",
+      "event_hash": "d254bf1b7d554a4d8152a2863d664a32fba4de5a4671e4b9e62493466e8fed3a"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-12T12:57:52.011122Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "finding_id": "F-1"
+      },
+      "previous_event_hash": "d254bf1b7d554a4d8152a2863d664a32fba4de5a4671e4b9e62493466e8fed3a",
+      "event_hash": "f6cfa3a8eb504f6562e5a9c8e8fb85b4a32f79f5bd30eb6de7436b73f220bd8e"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "deferral-proposed",
+      "timestamp": "2026-11-12T12:57:52.140805Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "finding_id": "F-2",
+        "reason": "capability-epics.md is a roadmap skill reference; the epic's spec excludes skill file changes (Docs only), so the alignment moves to a follow-up bead",
+        "follow_up_bead_id": "gin-workflow-8zbt",
+        "follow_up_bead_title": "capability-epics.md: align tracks per repository and contract freeze with workspace.md"
+      },
+      "previous_event_hash": "f6cfa3a8eb504f6562e5a9c8e8fb85b4a32f79f5bd30eb6de7436b73f220bd8e",
+      "event_hash": "aa5df95f135f4f63a06cfc0bcdb399f594e9953dd5ad9aaed750e822d5996cec"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-12T12:57:52.418353Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-epic-shape-docs.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-epic-shape-docs.1",
+            "review_base_sha": "5daf8efa97906d383806027a6da2da94e1a4d41d",
+            "reviewed_source_sha": "c5af09013c8548cabfee39258229303b86d9c5e2",
+            "checkpoint_sha": "c5af09013c8548cabfee39258229303b86d9c5e2",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "f586a2925622d075f74b230f4edc6f5efc61923d173292aa18556eef28c7a8a8",
+            "reviewed_source_tree_hash": "f586a2925622d075f74b230f4edc6f5efc61923d173292aa18556eef28c7a8a8",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "aa5df95f135f4f63a06cfc0bcdb399f594e9953dd5ad9aaed750e822d5996cec",
+      "event_hash": "0d31186c7b4d2979a812a1fd96e482033d80b0fbfb2077a989a02ef16e085fc7"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "review-requested",
+      "timestamp": "2026-11-12T12:57:52.541553Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "0d31186c7b4d2979a812a1fd96e482033d80b0fbfb2077a989a02ef16e085fc7",
+      "event_hash": "0871bd38b441e87e0adfc8b3e52eb8c1ce2e7fee10ae384ade070cf4bd0f8436"
     }
   ]
 }
