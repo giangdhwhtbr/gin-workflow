@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "review_state": "implementation-in-progress",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-qa-parity.2",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-qa-parity.2",
+      "review_base_sha": "e0efb33a5c21e43646ca10502228fa178ac39b66",
+      "reviewed_source_sha": "209fde3aa317d7094828624a06c1de69bd885e36",
+      "checkpoint_sha": "209fde3aa317d7094828624a06c1de69bd885e36",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "32c423e4883cf5286b07b1c77c8bd2f9ab7d501efdecd47d46b14262ce28ea62",
+      "reviewed_source_tree_hash": "32c423e4883cf5286b07b1c77c8bd2f9ab7d501efdecd47d46b14262ce28ea62",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 2,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-12T23:37:11.039300Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-qa-parity.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qa-parity.2",
+            "review_base_sha": "e0efb33a5c21e43646ca10502228fa178ac39b66",
+            "reviewed_source_sha": "0071408670341daea2df9e3b86c50ba1aec40d06",
+            "checkpoint_sha": "0071408670341daea2df9e3b86c50ba1aec40d06",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "32c423e4883cf5286b07b1c77c8bd2f9ab7d501efdecd47d46b14262ce28ea62",
+            "reviewed_source_tree_hash": "32c423e4883cf5286b07b1c77c8bd2f9ab7d501efdecd47d46b14262ce28ea62",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:claude:main",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "2eeef00b54ea98f9c722af6a89b4ca938bff018a982691cedad90554aac4b4cd"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-12T23:37:11.312218Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-qa-parity.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qa-parity.2",
+            "review_base_sha": "e0efb33a5c21e43646ca10502228fa178ac39b66",
+            "reviewed_source_sha": "209fde3aa317d7094828624a06c1de69bd885e36",
+            "checkpoint_sha": "209fde3aa317d7094828624a06c1de69bd885e36",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "32c423e4883cf5286b07b1c77c8bd2f9ab7d501efdecd47d46b14262ce28ea62",
+            "reviewed_source_tree_hash": "32c423e4883cf5286b07b1c77c8bd2f9ab7d501efdecd47d46b14262ce28ea62",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "2eeef00b54ea98f9c722af6a89b4ca938bff018a982691cedad90554aac4b4cd",
+      "event_hash": "74157b69d4d6149dec1c5b6e93b40ad3aaca9a87463fbb40f99c68cc99aabcf7"
+    }
+  ]
+}
