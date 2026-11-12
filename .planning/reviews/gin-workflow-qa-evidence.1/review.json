@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "review_state": "implementation-in-progress",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-qa-evidence.1",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-qa-evidence.1",
+      "review_base_sha": "cc73c5cee91a802b559533f6ac475710189a62e6",
+      "reviewed_source_sha": "110521d8b5cfc27f96dba8596bd7ef6cc87467b7",
+      "checkpoint_sha": "110521d8b5cfc27f96dba8596bd7ef6cc87467b7",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "cfe0b38bc371d74ed466772741c77b76dfee895119648c8c561cd977c9a95991",
+      "reviewed_source_tree_hash": "cfe0b38bc371d74ed466772741c77b76dfee895119648c8c561cd977c9a95991",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 2,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-12T04:55:40.972707Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-qa-evidence.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qa-evidence.1",
+            "review_base_sha": "cc73c5cee91a802b559533f6ac475710189a62e6",
+            "reviewed_source_sha": "849cb54c29facae1013ddb6d634e8d2e0cd209bc",
+            "checkpoint_sha": "849cb54c29facae1013ddb6d634e8d2e0cd209bc",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "cfe0b38bc371d74ed466772741c77b76dfee895119648c8c561cd977c9a95991",
+            "reviewed_source_tree_hash": "cfe0b38bc371d74ed466772741c77b76dfee895119648c8c561cd977c9a95991",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:claude:main",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "5dac6f18a20f03eeef45a03794a3446250de54c32a4ad7fafde392f8a5c73837"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-12T04:55:41.291485Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-qa-evidence.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-qa-evidence.1",
+            "review_base_sha": "cc73c5cee91a802b559533f6ac475710189a62e6",
+            "reviewed_source_sha": "110521d8b5cfc27f96dba8596bd7ef6cc87467b7",
+            "checkpoint_sha": "110521d8b5cfc27f96dba8596bd7ef6cc87467b7",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "cfe0b38bc371d74ed466772741c77b76dfee895119648c8c561cd977c9a95991",
+            "reviewed_source_tree_hash": "cfe0b38bc371d74ed466772741c77b76dfee895119648c8c561cd977c9a95991",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "5dac6f18a20f03eeef45a03794a3446250de54c32a4ad7fafde392f8a5c73837",
+      "event_hash": "cb84b985b66dc6d52601d380c7be9e8995b07510ffc47e94023f065ab8c67373"
+    }
+  ]
+}
