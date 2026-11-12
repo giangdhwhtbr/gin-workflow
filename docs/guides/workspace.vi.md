@@ -76,6 +76,8 @@ Mở: repository cha. Mọi việc diễn ra ở đó, từ một session worktr
 | Câu hỏi trong lúc build | trả lời các comment `[gin question]`; xem [trong lúc build](ba.md#during-the-build) |
 | Nghiệm thu | `[gin accept]` cho mỗi epic |
 
+Ai chạy discuss cho loại epic nào được nêu ở [ai sở hữu gì](../roles.md#who-owns-what).
+
 Spec và plan được commit vào repository cha. Requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha; các repository con tham chiếu tới chúng trong test, và `gin specs trace` quét mọi repository con đã clone ([REQ-ID](sdd.md#requirements)).
 
 ## Tech lead { #tech-lead }
@@ -115,6 +117,14 @@ Mở: repository con `qa`, tức QA home. Config, spec và Beads nằm ở repos
 | End-to-end | `/gin-qa:e2e`, `/gin-qa:run` |
 | Báo cáo | `/gin-qa:report` |
 
+## Hợp đồng { #contract }
+
+Spec của epic một capability là API contract của nó. Phần nghiệp vụ của spec được đóng băng tại `requirement_confirmed`. `/gin:discuss` ghi mỗi chi tiết của contract (path, method, field, mã lỗi) thành `- TQ-<n>:` dưới `## Open Technical Questions` ([team mode](team.md)). `/gin:plan` trả lời từng câu bằng một dòng `Decision:`. Contract được đóng băng tại `plan_approved`, do lead của mỗi khu vực mà plan đụng tới phê duyệt (`plan_approved: area_lead`), nên cả khu vực cung cấp lẫn khu vực tiêu thụ đều phê duyệt nó. Khi contract dùng file OpenAPI, file nằm trong repository cha và spec liên kết tới nó. Track của service và track của app trong epic đọc cùng một spec; track của app sinh mock từ đó. Thay đổi contract sau khi plan được duyệt quay lại `/discuss`, để spec, plan và cả hai track thay đổi cùng nhau. Roadmap thêm một epic `<capability> integration` cho mỗi capability, bị chặn bởi các epic build, cho ngày bật flag.
+
+## Package dùng chung { #shared-packages }
+
+Package dùng chung là một mục `shape: library` của `workspace.repos`. Thay đổi nó là một track trong repository đó, nằm trong epic capability cần nó. Mỗi app áp dụng thay đổi làm việc đó trong track riêng, track này phụ thuộc vào track của library (`gin task dep add <blocked> <blocker>`). Việc publish package và nâng phiên bản trong các app theo thực hành release của nhóm, một quy ước mà gin không ép buộc. gin không ghim phiên bản của repository con; xem [Giới hạn](#limits).
+
 ## Lệnh { #commands }
 
 | Lệnh | Làm gì |
@@ -131,8 +141,7 @@ Tất cả chạy được từ bất kỳ đâu trong workspace, kể cả tron
 
 ## Giới hạn { #limits }
 
-- Một epic nằm trong một repo con. Thay đổi cần cả service lẫn app là hai epic, hoặc hai track của một epic có phụ thuộc trong Beads; một track không bao giờ trải trên hai repo.
-- Một repository cho mỗi track. Một thay đổi đụng tới hai repository là hai track.
+- Một epic capability có ít nhất một track trong mỗi repository nó thay đổi, và một track không bao giờ trải trên hai repository; một repository có thể giữ nhiều track của epic. Công việc QA cho capability là một hoặc nhiều track trong repository `shape: qa`, nằm trong cùng epic, không phải một epic riêng.
 - `project.packages` bị bỏ qua với các mục workspace.
 - Không có ghim phiên bản: repository cha không ghi lại commit nào của repository con mà nó mong đợi.
 - Một repository con được clone ngoài path manifest của nó, hoặc một repository không có trong manifest, là độc lập. `gin` coi nó là repository thông thường và `gin workspace status` hiển thị mục đó là missing.
