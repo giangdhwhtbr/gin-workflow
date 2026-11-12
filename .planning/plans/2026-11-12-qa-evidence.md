@@ -117,6 +117,7 @@ execution_strategy:
   - Modify `plugins/gin-qa/src/skills/tests/SKILL.md:26,28` (offer bugs for product defects)
   - Modify `plugins/gin-qa/src/skills/run/SKILL.md:17` (several epics)
   - Modify `docs/guides/qa.md:137-146,205-210` (publish section, CI snippets, App pull request line, `cases bug` scope)
+  - Modify `docs/reference/cli.md` (`gin-qa cases bug`: any case type, several-epics exit 2; added in review, user approval 2026-11-12)
   - Test `tests/gin_qa/test_packaging.py` (unchanged; must pass)
 - **Provider role**: `docs`
 - **Model:** `haiku`
