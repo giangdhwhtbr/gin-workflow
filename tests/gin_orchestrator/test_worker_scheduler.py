@@ -554,10 +554,9 @@ class WorkerSchedulerTests(unittest.TestCase):
             worktrees = root / "worktrees"
             executable = root / "sleeping-claude"
             executable.write_text(
-                "#!/usr/bin/env python3\n"
-                "import os, time\n"
-                "open('native.pid', 'w').write(str(os.getpid()))\n"
-                "time.sleep(5)\n",
+                "#!/bin/sh\n"
+                "echo $$ > native.pid\n"
+                "exec sleep 5\n",
                 encoding="utf-8",
             )
             executable.chmod(0o755)
@@ -576,7 +575,7 @@ class WorkerSchedulerTests(unittest.TestCase):
                 task_tracking=tasks,
                 workspace=FakeWorkspaceProvider(worktrees),
                 max_parallel_workers=1,
-                worker_timeout_seconds=0.2,
+                worker_timeout_seconds=1.0,
             )
 
             outcome = scheduler.schedule((item,))
