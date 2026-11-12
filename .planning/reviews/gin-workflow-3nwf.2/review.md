@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-3nwf.2`
 - **Base SHA:** `243a8063d20d8fd8c0ade3b0369d5d5cd7c35407`
-- **Reviewed SHA:** `23659b14246efdce8b040c0450311948f20df43b`
+- **Reviewed SHA:** `ca327349505a77094f632a824767bad7c2df17eb`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-3nwf.2`
-- **Checkpoint SHA:** `23659b14246efdce8b040c0450311948f20df43b`
+- **Checkpoint SHA:** `ca327349505a77094f632a824767bad7c2df17eb`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `13c8b1a359af52f7a2403e3377a2fe63903870133272096c431ce7a9b69b7c68`
+- **Tree Hash:** `8de2bab3ea9295db753b40d7557e2324058adfd9907ce66cec32b66da56ed0b4`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,26 +29,26 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `open` | 0 | - |
-| `F-2` | `MINOR` | `open` | 0 | - |
-| `F-3` | `MINOR` | `open` | 0 | - |
-| `F-4` | `MINOR` | `open` | 0 | - |
+| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-3` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-4` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-2` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-3` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-4` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -67,3 +67,9 @@
 | `EV-000010` | `2026-11-12T16:09:06.497154Z` | `changes-requested` | `reviewer:claude:session-f3dc7054` (reviewer) |
 | `EV-000011` | `2026-11-12T16:09:13.564164Z` | `lease-released` | `reviewer:claude:session-f3dc7054` (reviewer) |
 | `EV-000012` | `2026-11-12T16:10:11.965323Z` | `implementation-in-progress` | `implementer:claude:opus` (worker) |
+| `EV-000013` | `2026-11-12T16:35:26.395790Z` | `finding-fixed` | `implementer:claude:opus` (worker) |
+| `EV-000014` | `2026-11-12T16:35:26.519071Z` | `finding-fixed` | `implementer:claude:opus` (worker) |
+| `EV-000015` | `2026-11-12T16:35:26.640491Z` | `finding-fixed` | `implementer:claude:opus` (worker) |
+| `EV-000016` | `2026-11-12T16:35:26.765960Z` | `finding-fixed` | `implementer:claude:opus` (worker) |
+| `EV-000017` | `2026-11-12T16:35:27.100918Z` | `source-checkpoint-created` | `implementer:claude:opus` (worker) |
+| `EV-000018` | `2026-11-12T16:35:27.226583Z` | `review-requested` | `implementer:claude:opus` (worker) |
