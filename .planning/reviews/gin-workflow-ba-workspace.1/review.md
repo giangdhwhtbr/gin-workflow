@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-ba-workspace.1`
 - **Base SHA:** `0e5c267947d3ca970342a67d8cf80861c77bd136`
-- **Reviewed SHA:** `435ee485342acb307a416f6ea9582ec367951cc3`
+- **Reviewed SHA:** `ac5688499fc9a78ec4d42236645d8455cd499f45`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-ba-workspace.1`
-- **Checkpoint SHA:** `435ee485342acb307a416f6ea9582ec367951cc3`
+- **Checkpoint SHA:** `ac5688499fc9a78ec4d42236645d8455cd499f45`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `b84f0df490be0a5ab0107df346b02b43f057782334cf6bcd2a858e40b03112bb`
+- **Tree Hash:** `7e441431f926d0963831b59476024842ada3f3d6a3cf5ce6bcfd784e44f6edb5`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -27,10 +27,20 @@
 - **Allowed Generated Paths:**
 
 ## Findings Summary
-*No findings recorded.*
+| Finding ID | Severity | Status | Clarification Count | Linked Bead |
+| :--- | :--- | :--- | :---: | :--- |
+| `F-1` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
-*No detailed findings.*
+### `F-1` (MINOR)
+- **Status:** `fixed-awaiting-verification`
+- **Clarification Count:** 0
+
+### `F-2` (MINOR)
+- **Status:** `fixed-awaiting-verification`
+- **Clarification Count:** 0
+
 
 ## Event Chronology
 | Event ID | Timestamp | Action | Actor |
@@ -38,3 +48,14 @@
 | `EV-000001` | `2026-11-12T03:07:19.101591Z` | `ledger-created` | `implementer:antigravity:gemini` (worker) |
 | `EV-000002` | `2026-11-12T03:07:19.423558Z` | `source-checkpoint-created` | `implementer:antigravity:gemini` (worker) |
 | `EV-000003` | `2026-11-12T03:07:19.547482Z` | `review-requested` | `implementer:antigravity:gemini` (worker) |
+| `EV-000004` | `2026-11-12T03:07:37.287163Z` | `lease-acquired` | `reviewer:claude` (reviewer) |
+| `EV-000005` | `2026-11-12T03:07:37.312153Z` | `review-started` | `reviewer:claude` (reviewer) |
+| `EV-000006` | `2026-11-12T03:08:06.002083Z` | `finding-created` | `reviewer:claude` (reviewer) |
+| `EV-000007` | `2026-11-12T03:08:06.144176Z` | `finding-created` | `reviewer:claude` (reviewer) |
+| `EV-000008` | `2026-11-12T03:08:10.224766Z` | `changes-requested` | `reviewer:claude` (reviewer) |
+| `EV-000009` | `2026-11-12T03:08:10.462256Z` | `lease-released` | `reviewer:claude` (reviewer) |
+| `EV-000010` | `2026-11-12T03:08:34.875056Z` | `implementation-in-progress` | `implementer:antigravity:gemini` (worker) |
+| `EV-000011` | `2026-11-12T03:12:45.308100Z` | `finding-fixed` | `implementer:antigravity:gemini` (worker) |
+| `EV-000012` | `2026-11-12T03:12:45.426632Z` | `finding-fixed` | `implementer:antigravity:gemini` (worker) |
+| `EV-000013` | `2026-11-12T03:12:45.745126Z` | `source-checkpoint-created` | `implementer:antigravity:gemini` (worker) |
+| `EV-000014` | `2026-11-12T03:12:45.867728Z` | `review-requested` | `implementer:antigravity:gemini` (worker) |
