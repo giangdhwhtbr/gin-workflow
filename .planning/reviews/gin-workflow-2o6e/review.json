@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-requested",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-2o6e",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-2o6e",
+      "review_base_sha": "456bc219090533fef68aef3bb346806c80f0621b",
+      "reviewed_source_sha": "7b9bcfe0cbb528c097b4b3c423e096f3b8938dff",
+      "checkpoint_sha": "7b9bcfe0cbb528c097b4b3c423e096f3b8938dff",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "5c104ee919c5f48a8a3c59117bd5969f55a85b4217ff4a5adb78dba42f070154",
+      "reviewed_source_tree_hash": "5c104ee919c5f48a8a3c59117bd5969f55a85b4217ff4a5adb78dba42f070154",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 3,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-12T08:48:27.126300Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:gemini"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-2o6e",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-2o6e",
+            "review_base_sha": "456bc219090533fef68aef3bb346806c80f0621b",
+            "reviewed_source_sha": "b5bce1219c8104149836da58ab116c8d5535c707",
+            "checkpoint_sha": "b5bce1219c8104149836da58ab116c8d5535c707",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "5c104ee919c5f48a8a3c59117bd5969f55a85b4217ff4a5adb78dba42f070154",
+            "reviewed_source_tree_hash": "5c104ee919c5f48a8a3c59117bd5969f55a85b4217ff4a5adb78dba42f070154",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:antigravity:gemini",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "f5cadadb895aedfdf508ae2ca0f72813357092d99cb347df4d84a7bd12f8783f"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-12T08:48:27.538047Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:gemini"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-2o6e",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-2o6e",
+            "review_base_sha": "456bc219090533fef68aef3bb346806c80f0621b",
+            "reviewed_source_sha": "7b9bcfe0cbb528c097b4b3c423e096f3b8938dff",
+            "checkpoint_sha": "7b9bcfe0cbb528c097b4b3c423e096f3b8938dff",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "5c104ee919c5f48a8a3c59117bd5969f55a85b4217ff4a5adb78dba42f070154",
+            "reviewed_source_tree_hash": "5c104ee919c5f48a8a3c59117bd5969f55a85b4217ff4a5adb78dba42f070154",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "f5cadadb895aedfdf508ae2ca0f72813357092d99cb347df4d84a7bd12f8783f",
+      "event_hash": "6f25f8376b5f97b34c67b1db07af94ff6b6104813a9e429e8e489ed4e5c0569b"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-12T08:48:27.681564Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:gemini"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "6f25f8376b5f97b34c67b1db07af94ff6b6104813a9e429e8e489ed4e5c0569b",
+      "event_hash": "f27c5f118dafb9fa6e7cabcd5d562f934807d489606082501693e59124c05873"
+    }
+  ]
+}
