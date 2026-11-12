@@ -5,11 +5,6 @@ models:
     - gemini-3.8-flash-low
     - gemini-3.8-flash-medium
     - gemini-3.8-flash-high
-  claude:
-    models:
-    - haiku
-    - claude-sonnet-5-5
-    - opus
   codex:
     models:
     - gpt-6-luna
