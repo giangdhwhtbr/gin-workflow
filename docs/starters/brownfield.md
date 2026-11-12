@@ -294,7 +294,7 @@ Put in the prompt: the legacy screenshots of the catalog list and the product de
 
 **You get:** a dated folder under `docs/specs/catalog/assets/` with `Kind: legacy` in its `description.md`, and a mockup folder when the UI changes. The screenshots sit under `legacy/` in the dated folder. Both skills leave the folders uncommitted.
 
-**Gate or approval:** none. The BA confirms each folder with `gin specs assets confirm catalog --date 2026-11-12`. `/gin:discuss` cites only confirmed folders and commits them with the change folder, as [images and mockups](../guides/sdd.md#images-and-mockups) describes. See also [living specs during a migration](../guides/sdd.md#living-specs-during-a-migration) and the [BA guide](../guides/ba.md).
+**Gate or approval:** none. The BA confirms each folder with `gin specs assets confirm catalog --date 2026-11-12`, and `--agreed-with` records who else agreed (see the [BA guide](../guides/ba.md)). `/gin:discuss` cites only confirmed folders and commits them with the change folder, as [images and mockups](../guides/sdd.md#images-and-mockups) describes. See also [living specs during a migration](../guides/sdd.md#living-specs-during-a-migration) and the [BA guide](../guides/ba.md).
 
 **Common mistakes:** committing an asset folder on its own branch; running discuss before the folders are confirmed.
 
@@ -507,7 +507,7 @@ Put in the prompt: the epic and whether to merge now or keep the branch.
 
 **You get:** the merged deliverable. In team mode the gate's PR proof is written to the epic bead's `gates` metadata, so teammates see it in `gin state` without your local event store.
 
-**Gate or approval:** merging into the base branch needs explicit approval; the `ship` approval on the latest commit is checked first.
+**Gate or approval:** the BA accepts each epic with an acceptance comment before ship ([during the build](../guides/ba.md#during-the-build)). Merging into the base branch needs explicit approval; the `ship` approval on the latest commit is checked first.
 
 **Common mistakes:** shipping one member's track as if the feature were complete; the lead declares the epic done once every track pull request has merged.
 

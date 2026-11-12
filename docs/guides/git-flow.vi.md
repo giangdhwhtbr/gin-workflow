@@ -104,6 +104,8 @@ Người duyệt một spec kiểm tra rằng:
 
 Team cũng có thể yêu cầu một review `qe` không chặn gate trên các pull request spec. CODEOWNERS trên các thư mục spec là cơ chế của host cho việc này; đây chỉ là gợi ý, gin không áp đặt.
 
+BA không review pull request của track. BA nghiệm thu mỗi epic một lần, dựa trên báo cáo QA ([trong lúc build](ba.md#during-the-build)).
+
 Tester review pull request của developer và kiểm tra rằng:
 
 - mọi acceptance criterion trong spec đều được đáp ứng;

@@ -73,6 +73,8 @@ Open: the parent. Everything happens there, from a parent session worktree.
 | Documenting the current system | `/gin:tech-doc` (reads `legacy/shop-portal` when it is present) |
 | Spec review | the review of the spec pull request |
 | Progress | `/gin:progress`, `/gin:report` |
+| Questions during build | answer `[gin question]` comments; see [during the build](ba.md#during-the-build) |
+| Acceptance | `[gin accept]` per epic |
 
 Specs and plans are committed to the parent. Requirements and their REQ-IDs live only in the parent's specs; children reference them in tests, and `gin specs trace` scans every cloned child ([REQ-IDs](sdd.md#requirements)).
 

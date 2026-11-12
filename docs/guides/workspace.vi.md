@@ -73,6 +73,8 @@ Mở: repository cha. Mọi việc diễn ra ở đó, từ một session worktr
 | Mô tả hệ thống hiện tại | `/gin:tech-doc` (đọc `legacy/shop-portal` khi nó có mặt) |
 | Review spec | review pull request của spec |
 | Tiến độ | `/gin:progress`, `/gin:report` |
+| Câu hỏi trong lúc build | trả lời các comment `[gin question]`; xem [trong lúc build](ba.md#during-the-build) |
+| Nghiệm thu | `[gin accept]` cho mỗi epic |
 
 Spec và plan được commit vào repository cha. Requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha; các repository con tham chiếu tới chúng trong test, và `gin specs trace` quét mọi repository con đã clone ([REQ-ID](sdd.md#requirements)).
 
