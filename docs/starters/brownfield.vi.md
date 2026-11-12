@@ -50,14 +50,17 @@ team:
     web: {paths: ["apps/**"], lead: fe_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
-    requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}
+    requirement_confirmed:
+      capability: {all: [ba], any: [be_lead, fe_lead]}
+      technical: [be_lead, fe_lead]
+      parity: [ba]
     plan_approved: area_lead
     ship: {all: [qe], any: [be_lead, fe_lead]}
     roadmap: [pm, be_lead]
   permissions: {milestone: [pm]}
 ```
 
-Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Không cổng nào do tác giả của pull request duyệt. `requirement_confirmed` và `ship` dùng dạng object, cần gin-workflow 3.1 trở lên: mọi vai trò `all` phải duyệt, và một vai trò `any` phải duyệt. An là `ba` duy nhất, nên với spec do An viết, vai trò `ba` bị bỏ qua kèm ghi chú "ba skipped: the author is its only holder", và Binh hoặc Hoa duyệt. Khi Binh viết spec của một epic kỹ thuật, An và Hoa duyệt. Chi là `qe` duy nhất, nên với pull request QA của chính Chi, vai trò `qe` bị bỏ qua tương tự, và Binh hoặc Hoa duyệt. Lan không có `pm` thứ hai, nên Binh duyệt các pull request roadmap của Lan (`roadmap: [pm, be_lead]`). Binh và Hoa mỗi người dẫn một khu vực, nên `gin setup doctor` ghi chú rằng `qe`, `be_lead` và `fe_lead` chỉ có một người giữ. Cơ chế bỏ qua chỉ áp dụng khi tác giả là người giữ duy nhất; thêm người giữ thứ hai để bỏ nó. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
+Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Không cổng nào do tác giả của pull request duyệt. `requirement_confirmed` giữ một chính sách cho mỗi [loại epic](../guides/team.md#policy-per-epic-kind), còn `capability` và `ship` dùng dạng object: mọi vai trò `all` phải duyệt, và một vai trò `any` phải duyệt. Tác giả không bao giờ duyệt. An là `ba` duy nhất, nên với spec capability do An viết, vai trò `ba` bị bỏ qua kèm ghi chú "ba skipped: the author is its only holder", và Binh hoặc Hoa duyệt. Spec technical chỉ cần một lead: khi Binh viết nó thì Hoa duyệt, không có BA tham gia. Spec parity cần một `ba` khác tác giả, nên Binh viết nó từ bản capture đã xác nhận của An và An duyệt. Chi là `qe` duy nhất, nên với pull request QA của chính Chi, vai trò `qe` bị bỏ qua tương tự, và Binh hoặc Hoa duyệt. Lan không có `pm` thứ hai, nên Binh duyệt các pull request roadmap của Lan (`roadmap: [pm, be_lead]`). Binh và Hoa mỗi người dẫn một khu vực, nên `gin setup doctor` ghi chú rằng `qe`, `be_lead` và `fe_lead` chỉ có một người giữ. Cơ chế bỏ qua chỉ áp dụng khi tác giả là người giữ duy nhất; thêm người giữ thứ hai để bỏ nó. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
 
 ## Toàn cảnh luồng làm việc { #the-flow-at-a-glance }
 
@@ -154,7 +157,7 @@ mkdir -p services/api apps/web qa
 /gin:team-setup
 Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_lead and fe_dev), chi@example.com (qe).
 Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads legacy, api, and qa; Hoa leads web.
-Approvals: requirement_confirmed by ba and one of be_lead or fe_lead; plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
+Approvals: requirement_confirmed by kind (capability: ba and one of be_lead or fe_lead; technical: be_lead or fe_lead; parity: ba); plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
 Permissions: only the pm changes milestones.
 ```
 
@@ -232,6 +235,8 @@ gin task graph --all
 ```
 
 Trang Dependencies của gin-console hiển thị cùng đồ thị đó. Từ đó chọn việc làm trước: các epic không có blocker đang mở, và epic mở khóa được nhiều epic khác nhất (ở đây là API facade).
+
+Mỗi mục roadmap có một dòng `Kind:`, và các epic nhận label `kind:<kind>` tương ứng (xem [loại epic](../concepts/lifecycle.md#epic-kinds)). Ở đây `shop-portal-catalog-read` là `capability`, API facade là `technical` (`Kind: technical`, không có hành vi người dùng thấy), và `shop-portal-cart-parity` là `parity` (`Kind: parity`, port 1-1 các trang giỏ hàng mà An đã capture). Mỗi loại có chính sách `requirement_confirmed` riêng trong khối `team` ở trên.
 
 **Cổng hoặc phê duyệt:** với `team.approvals.roadmap: [pm, be_lead]`, roadmap đi qua một pull request mà Binh duyệt (Lan không thể tự duyệt). Chạy lại prompt với URL của PR; skill kiểm tra nó bằng `gin team check <url> --gate roadmap`, rồi tạo các epic.
 
@@ -316,7 +321,7 @@ Out of scope: search and reviews.
 
 **Kết quả:** cuộc thảo luận bắt đầu từ epic và mục roadmap của nó và dùng lại epic đó (không tạo epic mới). Spec được dựng từ template `design-spec.md` (hoặc `proposal.md` với layout SDD) và có mục `## User Stories`. Mỗi story có acceptance criteria và, với REQ-ID, một dòng `REQ:`.
 
-**Cổng hoặc phê duyệt:** spec được commit trên `spec/<topic>` và mở dưới dạng pull request. Với `requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}`, vai trò `ba` của chính An bị bỏ qua vì An là tác giả, và Binh hoặc Hoa duyệt; cổng được ghi nhận cùng URL của PR sau khi merge. Một khi đã được xác nhận, phần nghiệp vụ của hợp đồng bị đóng băng; các chi tiết kỹ thuật bị đóng băng khi plan được duyệt.
+**Cổng hoặc phê duyệt:** spec được commit trên `spec/<topic>` và mở dưới dạng pull request. Với epic capability, chính sách `capability` áp dụng: vai trò `ba` của chính An bị bỏ qua vì An là tác giả, và Binh hoặc Hoa duyệt. Epic technical hoặc parity dùng chính sách riêng (xem [Tổng quan roadmap](#roadmap-overview)). Cổng được ghi nhận cùng URL của PR sau khi merge. Một khi đã được xác nhận, phần nghiệp vụ của hợp đồng bị đóng băng; các chi tiết kỹ thuật bị đóng băng khi plan được duyệt.
 
 **Lỗi thường gặp:** tạo epic thứ hai bằng tay; story không có acceptance criteria; bỏ qua các edge case của legacy.
 

@@ -8,7 +8,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 
 | Stage | Does | Closes with | Gate recorded by |
 |---|---|---|---|
-| `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/`, and waits for your confirmation | `requirement_confirmed` | `gin record requirement-confirmed --evidence <spec> --actor <id>` |
+| `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/` (a technical design for a technical epic, see [epic kinds](#epic-kinds)), and waits for your confirmation | `requirement_confirmed` | `gin record requirement-confirmed --evidence <spec> --actor <id>` |
 | `plan` | First settles each open technical question (`TQ-<n>`) of the design doc, then writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role, and a model and effort from the model catalog each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
 | `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>`; sets the epic bead to `in_progress` |
 | `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
@@ -29,6 +29,22 @@ Epic comments are advisory, and no gate reads them. When `ship` closes an epic, 
 ### Standalone beads
 
 A pre-existing bead can skip discuss and plan: claim it first (`task update <bead> --claim`, because with the beads backend `record` sets it `in_progress` and `--claim` then refuses an unassigned bead). Then record it as its own epic with `record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later call. The bead's description and acceptance criteria stand in for the spec and plan, so `requirement_confirmed` and `plan_approved` count as satisfied while the bead has no children; no waiver is needed. `implementation_complete` is then the bead itself closed, and after the merge `record shipped --workflow-id <bead> --evidence <merge commit> --actor <id>` marks it shipped.
+
+### Epic kinds
+
+An epic has one kind: `capability` (the default), `technical`, or `parity`. The kind decides what `discuss` writes, what `specs lint` requires, and which approval policy the `requirement_confirmed` gate uses.
+
+| Kind | Use it for | Spec | Approval |
+|---|---|---|---|
+| `capability` | New or changed behavior that users see | User stories, and with the SDD layout a spec delta, use cases, and activity diagrams | The `capability` policy |
+| `technical` | Work with no user-visible behavior, such as a platform or integration epic | A technical design (`gin specs template technical-design.md`) with no user stories | The `technical` policy |
+| `parity` | A 1-1 port of legacy behavior that a BA already captured | A spec that cites the confirmed legacy folders on a `Parity with:` line and writes stories or REQs only for the deltas | The `parity` policy |
+
+The epic bead's `kind:<kind>` label is the source. `/roadmap` writes a `Kind:` line per epic and the label on the epics it creates, and `discuss` asks once for an epic without the label. The spec repeats the kind on a `Kind:` line: in the design spec with the legacy layout, in `01-proposal.md` with the SDD layout. A capability spec may omit the line. An epic without a label counts as `capability`.
+
+`gin record requirement-confirmed --workflow-id <epic>` refuses a label and a spec line that disagree, an unknown kind, two `kind:` labels, and a tracker it cannot read, with the message `cannot read the kind of epic <id>: <cause>`. Outside team mode, a missing Beads database counts as an epic without a label. Changing the kind after the spec is confirmed needs a new `discuss`.
+
+The spec rules per kind are in the [CLI reference](../reference/cli.md#gin-specs) and, for the SDD layout, in [SDD](../guides/sdd.md#epic-kinds). The approval policy per kind is in [Team mode](../guides/team.md#approval-policies). The discuss steps per kind are in the `epic-kinds` reference of the `discuss` skill.
 
 ## Execute and review
 
@@ -99,4 +115,5 @@ You approve the design (confirmation), the plan, production-impacting parallel w
 
 - With the SDD layout (`artifacts.layout: sdd`), `discuss` writes a change folder with REQ-IDs instead of a dated spec, tests carry the REQ-IDs, and `ship` archives the change into the living specs. See [SDD](../guides/sdd.md).
 - In team mode (`team:` configured), gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member. A member with no technical role gets business questions only in `discuss`, and `plan` settles the technical questions it leaves. See [Team mode](../guides/team.md).
+- Epic kinds (`capability`, `technical`, `parity`) change the spec `discuss` writes, the lint rules, and in team mode the approval policy; see [epic kinds](#epic-kinds).
 - `easy` rigor skips worktrees and uses a self check; `strict` rigor always isolates and requires a review ledger.

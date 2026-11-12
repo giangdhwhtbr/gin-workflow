@@ -163,6 +163,14 @@ Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id
 | `ship` | `specs archive --change <epic>` merge delta vào các living spec và chuyển thư mục sang `changes/archive/`. Xung đột sẽ dừng ship. Archive vào cùng lúc với tích hợp, và theo quy ước của nhóm, BA review phần diff của living spec ([pull request](git-flow.md#pull-requests)). |
 | `quick` | Không bao giờ tạo thư mục change; thay đổi hành vi mà một requirement mô tả cần vòng đời đầy đủ. |
 
+## Loại epic { #epic-kinds }
+
+Các [loại epic](../concepts/lifecycle.md#epic-kinds) thay đổi change folder như sau. `01-proposal.md` mang `Epic: <id>` và một dòng `Kind:`, và label `kind:` của epic bead phải khớp với nó.
+
+- Một thay đổi `capability` như đã mô tả ở trên.
+- Một thay đổi `technical` viết `03-design.md` và không cần user story, use case hay activity diagram. `02-spec-delta.md` của nó có thể vắng hoặc rỗng: `specs lint --change` vẫn qua, `specs trace` không có gì để trace, và `specs archive` chuyển folder sang `changes/archive/` mà không gộp requirement. Mọi khối `ADDED`, `MODIFIED` hoặc `REMOVED` nó có vẫn được kiểm tra như thường.
+- Một thay đổi `parity` thêm dòng `Parity with:` vào `01-proposal.md`, gọi tên các folder asset `Kind: legacy` đã xác nhận dưới dạng path trong backtick, tính từ gốc repository. Lint từ chối folder không tồn tại, không phải `Kind: legacy`, hoặc chưa xác nhận. Khối requirement chỉ viết cho phần khác biệt so với hành vi đó.
+
 ## Living spec trong quá trình chuyển đổi { #living-specs-during-a-migration }
 
 Khi viết lại hệ thống, các living spec mô tả hệ thống mới đã ship. Hành vi của hệ thống cũ nằm trong các thư mục asset `Kind: legacy`, do `/gin-ba:capture` hoặc `gin specs assets add --legacy` ghi. Một requirement lấy từ hành vi đó nêu tên thư mục trong dòng `Source:`. Một dự án không viết lại thì gieo living spec từ hành vi hiện tại, như [Chuyển đổi](#migrating) mô tả.

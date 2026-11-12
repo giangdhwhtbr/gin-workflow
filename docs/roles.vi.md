@@ -23,7 +23,7 @@ Trong [chế độ nhóm](guides/team.md), mỗi thành viên giữ các vai tr�
 | Developer | `/gin:execute`, `/gin:review`, `/gin:ship` cho các track của chính mình, `/gin:quick`, `/gin:progress` | đường dẫn source và unit test, integration test trong khu vực của họ | `feat/<topic>-t<N>` cho mỗi track | peer code review |
 | Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `cases/`, `e2e/`, `evidence/` trong [QA home](guides/qa.md#the-qa-home) | review pull request của developer | `ship` |
 
-BA, người thường không có vai trò kỹ thuật, chạy discuss cho epic capability; ở chế độ nhóm, mỗi chi tiết contract khi đó trở thành một câu hỏi kỹ thuật mà tech lead quyết định ở plan; xem [contract](guides/workspace.md#contract).
+BA, người thường không có vai trò kỹ thuật, chạy discuss cho epic capability; ở chế độ nhóm, mỗi chi tiết contract khi đó trở thành một câu hỏi kỹ thuật mà tech lead quyết định ở plan; xem [contract](guides/workspace.md#contract). [Loại](concepts/lifecycle.md#epic-kinds) của epic quyết định ai duyệt spec của nó: epic `technical` có thể chỉ cần các lead, và epic `parity` cần BA đã xác nhận bản capture legacy; xem [chính sách theo loại epic](guides/team.md#policy-per-epic-kind).
 
 ## Mỗi vai trò đọc gì { #what-each-role-reads }
 

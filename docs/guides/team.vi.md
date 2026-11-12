@@ -40,6 +40,41 @@ team:
     roadmap: [pm]
 ```
 
+## Chính sách phê duyệt { #approval-policies }
+
+Chính sách của một cổng có ba dạng. Danh sách role cần một thành viên giữ một role trong danh sách duyệt. `{all: [roles], any: [roles]}` cần mọi role `all` và một role `any`. `plan_approved: area_lead` cần lead của từng area mà plan chạm tới. Riêng `requirement_confirmed` còn nhận [một map theo loại epic](#policy-per-epic-kind).
+
+```yaml
+  approvals:
+    ship: {all: [qe], any: [be_lead, fe_lead]}
+```
+
+Không cổng nào do tác giả pull request duyệt. Khi tác giả là người giữ duy nhất của một role `all` và chính sách có role `any`, role `all` bị bỏ qua và `team check` in "<role> skipped: the author is its only holder"; role `any` vẫn phải duyệt. Không có role `any` thì check từ chối: "<role> has no holder other than the author; add a holder or an `any` role". Với `plan_approved: area_lead`, lead area duy nhất là tác giả bị bỏ qua khi lead của một area khác đã duyệt. `gin setup doctor` ghi chú mỗi role `all` và mỗi lead area chỉ có đúng một thành viên giữ.
+
+Khi người giữ role vắng mặt, người dùng quyết định cho `requirement_confirmed` và `plan_approved`: một thành viên giữ role trong chính sách của cổng đó có thể chạy `gin unblock --gate <gate> --reason ...`. `ship` không thể waive: thêm người giữ thứ hai của role vào `team.members` rồi chạy lại check.
+
+### Chính sách theo loại epic { #policy-per-epic-kind }
+
+`requirement_confirmed` có thể giữ một chính sách cho mỗi [loại epic](../concepts/lifecycle.md#epic-kinds). Viết một map với khóa `capability` (bắt buộc) và tùy chọn `technical`, `parity`. Không khóa nào khác hợp lệ.
+
+```yaml
+  approvals:
+    requirement_confirmed:
+      capability: {all: [ba], any: [be_lead, fe_lead]}
+      technical: [be_lead, fe_lead]
+      parity: [ba]
+```
+
+Loại không có khóa dùng chính sách `capability`. Một chính sách đơn, như các ví dụ trên, áp dụng cho mọi loại. Dạng map cần một bản phát hành gin-workflow có epic kind. gin cũ hơn từ chối config ở bước kiểm tra schema, nên hãy cập nhật cho mọi thành viên trước.
+
+gin lấy loại từ label `kind:<kind>` của epic bead:
+
+- `gin team check --gate requirement_confirmed <url> --workflow-id <epic>` áp dụng chính sách của loại epic đó, và JSON của nó có thêm `kind`.
+- `gin record requirement-confirmed --workflow-id <epic>` chọn cùng chính sách đó.
+- `gin unblock --gate requirement_confirmed` chấp nhận người giữ một role trong chính sách của loại đó. Khi gin không đọc được loại, nó dùng chính sách `capability`.
+
+Spec đi qua pull request khi bất kỳ loại nào có chính sách. Với layout SDD, một thay đổi technical có thể không có `02-spec-delta.md`, nên `01-proposal.md` của pull request là artifact spec mà check tìm.
+
 ## Tham gia (member) { #join-it-member }
 
 Cài [điều kiện tiên quyết](../getting-started.md#prerequisites) trước, và đừng chạy `/gin:setup`: lead đã cấu hình repository rồi.

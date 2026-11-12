@@ -22,7 +22,7 @@ The BA owns the specs and the `requirement_confirmed` gate. The table lists what
 | Branch | `spec/<epic>-<slug>` |
 | Gate | `requirement_confirmed` |
 
-In [team mode](team.md) the gate takes the roles listed in `team.approvals`. A member with a listed role, who is not the pull request author, must approve the spec pull request before the gate is recorded.
+In [team mode](team.md) the gate takes the roles listed in `team.approvals`. A member with a listed role, who is not the pull request author, must approve the spec pull request before the gate is recorded. The policy depends on the epic's [kind](../concepts/lifecycle.md#epic-kinds): a `technical` epic may need no BA, and a `parity` epic cites your confirmed `Kind: legacy` folders on a `Parity with:` line ([policy per epic kind](team.md#policy-per-epic-kind)).
 
 ## Steps
 
