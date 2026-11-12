@@ -1,4 +1,4 @@
-"""`gin-qa cases bug`: the epic of a manual case, the bug bead filed through `gin task`, and the result."""
+"""`gin-qa cases bug`: the epic of a case of any type, the bug bead filed through `gin task`, and the result."""
 
 from __future__ import annotations
 
@@ -129,6 +129,42 @@ class TestLegacy(BugCase):
             self.assertIn(line, text)
         self.assertTrue(all(Path(call["cwd"]).resolve() == self.root.resolve() for call in self.calls()))
 
+    def test_an_e2e_case_files_a_bug_and_records_it(self):
+        path = write(self.root, "qa/cases/auth/TC-AUTH-002-sign-in.e2e.md", CASE.replace("TC-AUTH-001", "TC-AUTH-002"))
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED})
+        result = self.bug("TC-AUTH-002", "--actual", "Redirect loop", "--run", "e2e 2026-11-12")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertTrue(path.is_file())
+        self.assert_filed_and_recorded(path)
+
+    def test_an_api_case_files_a_bug_and_records_it(self):
+        path = write(self.root, "qa/cases/auth/TC-AUTH-003-sign-in.api.md", CASE.replace("TC-AUTH-001", "TC-AUTH-003"))
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED})
+        result = self.bug("TC-AUTH-003", "--actual", "401 on valid login", "--run", "api 2026-11-12")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assert_filed_and_recorded(path)
+
+    def assert_filed_and_recorded(self, path: Path) -> None:
+        [call] = self.creates()
+        self.assertEqual(["task", "create", "-t", "bug"], call["argv"][:4])
+        self.assertEqual("discovered-from:gw-epic", self.option(call["argv"], "--deps"))
+        text = path.read_text(encoding="utf-8")
+        for line in ("- **Result:** failed\n", "- **Bug:** gw-bug1\n"):
+            self.assertIn(line, text)
+        self.assertRegex(text, r"- \*\*Run:\*\* (e2e|api) 2026-11-12\n")
+
+    def test_a_re_run_of_an_e2e_case_appends_to_its_open_bug(self):
+        path = write(self.root, "qa/cases/auth/TC-AUTH-002-sign-in.e2e.md",
+                     CASE.replace("TC-AUTH-001", "TC-AUTH-002").replace(
+                         "- **Priority:** low\n", "- **Priority:** low\n- **Result:** failed\n- **Bug:** gw-7\n"))
+        self.answer({"task show gw-7": shown("gw-7", "open"), "task update gw-7": {}})
+        result = self.bug("TC-AUTH-002", "--actual", "Still looping", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        row = json.loads(result.stdout)
+        self.assertEqual((False, True, "gw-7"), (row["created"], row["appended"], row["bug"]))
+        self.assertEqual([], self.creates())
+        self.assertIn("- **Bug:** gw-7\n", path.read_text(encoding="utf-8"))
+
     def test_keeps_the_current_run_and_names_a_bug_value_that_is_not_a_bead(self):
         write(self.root, FILE, CASE.replace("- **Priority:** low\n",
                                             "- **Result:** failed\n- **Run:** manual 2026-01-01\n- **Bug:** JIRA-12\n"))
@@ -223,7 +259,6 @@ class TestLegacy(BugCase):
         write(self.root, "qa/cases/auth/TC-AUTH-004.manual.md", case_file("TC-AUTH-004", "Source: ../outside.md#US-1"))
         before = self.path.read_text(encoding="utf-8")
         for args, error in (
-                (("TC-AUTH-002", "--actual", "x"), "TC-AUTH-002: is a e2e case; cases bug files bugs for manual"),
                 (("TC-AUTH-003", "--actual", "x"), "TC-AUTH-003: cannot read missing.md"),
                 (("TC-AUTH-004", "--actual", "x"), "TC-AUTH-004: ../outside.md is outside the repository"),
                 (("TC-AUTH-099", "--actual", "x"), "TC-AUTH-099: no such test case"),
@@ -274,7 +309,7 @@ class TestSdd(BugCase):
     def ref(self, *reqs: str) -> str:
         return "REQ: " + ", ".join(f"{req}@{hash8(self.root, self.bin, req)}" for req in reqs)
 
-    def test_the_epic_comes_from_the_first_req_in_a_change(self):
+    def test_one_epic_files_without_a_choice(self):
         write(self.root, "qa/cases/auth/TC-AUTH-001.manual.md",
               case_file("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-003")))
         self.answer({"task show ep-1": shown("ep-1", "in_progress"), "task create": CREATED})
@@ -284,6 +319,23 @@ class TestSdd(BugCase):
         [call] = self.creates()
         self.assertEqual("discovered-from:ep-1", self.option(call["argv"], "--deps"))
         self.assertEqual("1", self.option(call["argv"], "-p"))
+
+    def test_several_epics_exit_2_until_one_is_chosen(self):
+        make_change(self.root, "ep-2-other", epic="ep-2",
+                    spec_delta=delta(added=ADDED_BLOCK.replace("REQ-AUTH-003", "REQ-AUTH-004")))
+        path = write(self.root, "qa/cases/auth/TC-AUTH-001.manual.md",
+                     case_file("TC-AUTH-001", self.ref("REQ-AUTH-003", "REQ-AUTH-004")))
+        before = path.read_text(encoding="utf-8")
+        result = self.bug("TC-AUTH-001", "--actual", "Error")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("several epics for TC-AUTH-001: ep-1, ep-2", result.stderr)
+        self.assertEqual([], self.creates())
+        self.assertEqual(before, path.read_text(encoding="utf-8"))
+        self.answer({"task show ep-2": shown("ep-2", "open"), "task create": CREATED})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--discovered-from", "ep-2")
+        self.assertEqual(0, result.returncode, result.stderr)
+        [call] = self.creates()
+        self.assertEqual("discovered-from:ep-2", self.option(call["argv"], "--deps"))
 
     def test_living_reqs_only_have_no_epic(self):
         write(self.root, "qa/cases/auth/TC-AUTH-001.manual.md", case_file("TC-AUTH-001", self.ref("REQ-AUTH-001")))

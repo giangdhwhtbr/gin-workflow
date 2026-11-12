@@ -11,7 +11,7 @@ Epic `gin-workflow-qa-setup` (2026-11-04) added `/gin-qa:setup`, which writes `q
 
 **Consequences**
 - gin-qa's `report` is still renamed `gin-workflow-report` in OpenCode and clashes with gin-workflow's `report`; not fixed by this epic.
-- `External reference: required` in `## Bugs` is enforced by the `/gin-qa:run` skill, not by `gin-qa cases bug`; a direct CLI call can file a bug without a reference.
+- `External reference: required` in `## Bugs` is enforced by the `/gin-qa:run`, `/gin-qa:e2e`, and `/gin-qa:tests` skills (since `gin-workflow-qa-evidence`), not by `gin-qa cases bug`; a direct CLI call can file a bug without a reference.
 - The `install.ps1` rename was not executed on this host (no `pwsh`); it mirrors the `report` branch.
 
 **References**

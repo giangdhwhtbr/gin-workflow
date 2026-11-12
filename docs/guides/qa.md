@@ -95,6 +95,7 @@ A failure asks for what happened, evidence references, and an optional external 
 
 - The bug is a bead filed through `gin task create`, linked to the case's epic with `discovered-from`. `gin usage collect` on that epic counts it in `quality.bugs`, and the [usage report](../reference/cli.md#gin-usage) shows the count from the last collect.
 - The epic comes from the case's spec or change; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for the lookup. With no epic, the skill offers the open epics of the repository to pick from.
+- `gin-qa cases bug` files a bug for a case of any type. When the case's REQs belong to several epics, it exits 2 and names them; `--discovered-from` picks one.
 - The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.
 - When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence go into the bead's notes as one `Re-run` line. A closed bug gets a new bug that names it as the previous bug; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for other values.
 - Teams that track bugs in Jira or Linear file the ticket there and pass its key with `--external-ref`; the flag only records the key on the bead.
@@ -109,6 +110,7 @@ The skill never edits case files and never commits.
 
 - `gin-qa e2e init` copies the evidence fixture `e2e/evidence.ts` (yours to edit), adds `evidence/` to `.gitignore`, and creates `e2e/package.json` when missing. It writes `e2e/playwright.config.ts` when there is none (at the repository root for an existing root setup). The config has specs under the e2e folder, `baseURL` from `E2E_BASE_URL` or the `--base-url` value (default `http://localhost:3000`), CI retries, trace on first retry, `list` and `junit` reporters (the JUnit report lands in the run folder), and one `chromium` project.
 - The skill builds each spec step by step against the running application, reading the ARIA snapshot (`NN.aria.yml`) and URL the fixture records after every step, and reviews the screenshots before reporting a case. Where the harness has subagents it gives each case to the `gin-qa:e2e-tester` agent at the middle model and `low` effort, several cases at a time (`--parallel N`, default 3).
+- After the run, the skill offers `gin-qa cases bug` for each product defect (`app_defect`) the user chooses to file.
 - `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `evidence/` in the QA home. It records each case's result in its case file and lists them under `recorded` in the JSON output.
 - `gin-qa e2e check --run <folder>` checks a run's evidence; `gin-qa e2e export --run <folder> --format json` exports it.
 
@@ -131,6 +133,7 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
   ```
 
   `{junit}` (required) is the JUnit XML file the command must write; `{files}` (optional) is the test files of the cases being run. The command runs from the repository root (the repository that holds the QA home), without a shell. `{files}` paths are relative to that root, so a runner option that changes folder (`uv run --directory`, `pnpm -C`) cannot take `{files}`.
+- The skill offers `gin-qa cases bug` for each product defect the user chooses to file.
 - A test carries the marker `TC: <TC-ID>@<hash8>`, by convention in a comment line above it, and a name holding the TC-ID (`test_tc_auth_004_...`). `gin-qa tests plan` and `check` compare the marker with the case, as `gin-qa e2e` does with a spec's header; `gin-qa tests pin` updates it.
 - `gin-qa tests run --type <type> [TC-ID|capability]` runs the command into `evidence/<UTC time>-<type>/` of the QA home and records each case's result in its case file. The [CLI reference](../reference/cli.md#gin-qa-tests) gives the result rules. `gin-qa tests run` adds `evidence/` to `.gitignore`.
 
@@ -143,6 +146,41 @@ Your project provides `@playwright/test` 1.49 or later. `init` writes a starting
 - A click on a case opens its fields, preconditions, test data, steps, expected results, result, run, and bug, and for an e2e case each step of the run its `Run` line names, per Playwright project: status, URL, error, and screenshot.
 - Each case shows the run its `Run` line names. When that folder is gone, the case shows `evidence not found: <run>` and the command lists the run under `missing_evidence`. A `Run` outside `evidence/`, such as a manual run reference, and a `gin-qa tests run` folder are shown as text.
 - A case moved from e2e to manual keeps its row and gains a "moved from e2e" mark. The section "Moved from e2e to manual" lists each with its date, reason, and result, and appears only when there is one.
+
+### Publish the evidence
+
+The report zip is the evidence a reviewer opens. With CI, upload it as an artifact also when the tests fail, and give the artifact URL in the approval comment. Without CI, attach the zip to a pull request comment.
+
+GitHub Actions:
+
+```yaml
+# GitHub Actions: steps of the job that runs the e2e tests
+- run: gin-qa e2e run
+- if: always()
+  run: gin-qa report --zip --out qa/evidence/report
+- if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: qa-report
+    path: qa/evidence/report.zip
+```
+
+GitLab CI:
+
+```yaml
+# GitLab CI
+e2e:
+  script:
+    - gin-qa e2e run
+  after_script:
+    - gin-qa report --zip --out qa/evidence/report
+  artifacts:
+    when: always
+    paths:
+      - qa/evidence/report.zip
+```
+
+The paths assume the QA home is `qa`; use your QA home's `evidence/` folder.
 
 ## Moving a flaky e2e case to manual
 
@@ -207,7 +245,7 @@ With `team.approvals.ship` listing a tester role, the tester approves the latest
 - `gin-qa e2e run` passes against the mocks.
 - `gin-qa e2e check --run <folder>` exits 0 on its evidence.
 
-The approval comment names the evidence folder (a team convention). A commit pushed after the approval needs a new approval ([team mode](team.md)).
+The approval comment gives the URL of the report artifact, or the pull request comment with the report zip (a team convention). A commit pushed after the approval needs a new approval ([team mode](team.md)).
 
 ### Integration sign-off
 
