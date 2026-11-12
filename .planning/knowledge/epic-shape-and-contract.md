@@ -6,7 +6,7 @@ Epic `gin-workflow-epic-shape-docs` (2026-11-12), process review clusters "One e
 **Decision/Solution**
 - A capability epic has at least one track in each repository it changes; one repository may hold several tracks; QA work is tracks in the `shape: qa` repository of the same epic; a shared `library` change is a track the app tracks depend on (`docs/guides/workspace.md` Limits and Shared packages; `roadmap/references/capability-epics.md` agrees).
 - The BA runs discuss for a capability epic; an area lead runs it for a purely technical epic (`docs/roles.md`). In team mode, when the runner has no technical role, contract details become `- TQ-<n>:` lines; plan answers them and `plan_approved` (area leads) freezes them; otherwise `requirement_confirmed` freezes them with the spec (`workspace.md` Contract).
-- The starter uses `requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}`: the BA approves the business part, a lead approves the technical part, and the sole-holder fallback covers the author.
+- The starter uses `requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}`: the BA approves the business part, a lead approves the technical part, and the sole-holder fallback covers the author. Since [epic-kinds](epic-kinds.md) this is the starter's `capability` policy; `technical` needs only `be_lead` or `fe_lead`, and `parity` needs `ba`.
 
 **Consequences**
 - No code changed: the contract approval by consuming leads comes from `plan_approved: area_lead`, not from a new `requirement_confirmed` policy.
