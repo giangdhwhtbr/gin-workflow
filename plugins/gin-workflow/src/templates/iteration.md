@@ -4,7 +4,7 @@
      the inputs arrived. Kind: new (first requirements), change (the customer's changes after an earlier folder),
      or legacy (screenshots of an existing feature, kept under legacy/). A new batch of inputs gets a new folder;
      never edit an older one. `gin specs assets add` creates the folder and fills Kind and Previous;
-     `gin specs assets confirm` sets Confirmed. Confirmed: no until the BA confirms the inputs, then the ISO date of that
+     `gin specs assets confirm` sets Confirmed, adds Confirmed by (the git user.email), and adds Agreed with when `--agreed-with` names who else agreed. Confirmed: no until the BA confirms the inputs, then the ISO date of that
      confirmation; a confirmed folder is frozen, and only a confirmed folder is cited as a requirement source. -->
 
 Kind:

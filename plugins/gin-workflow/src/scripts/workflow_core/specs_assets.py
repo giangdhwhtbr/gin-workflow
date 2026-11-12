@@ -10,6 +10,7 @@ from typing import Any, Mapping, Sequence
 
 from . import specs
 from .atomic import atomic_write_many
+from .team import git_email
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 _CONFIRMED = re.compile(r"^Confirmed:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
@@ -106,7 +107,8 @@ def add(root: Path, cfg: Mapping[str, Any], cap: str, files: Sequence[Path], *, 
             "created": created, "files": copied}
 
 
-def confirm(root: Path, cfg: Mapping[str, Any], cap: str, day: str, *, today: date | None = None) -> dict[str, str]:
+def confirm(root: Path, cfg: Mapping[str, Any], cap: str, day: str, *, agreed_with: str | None = None,
+            today: date | None = None) -> dict[str, str | None]:
     if not specs._CAP.match(cap):
         raise specs.SpecsError(f"capability {cap!r} must match [a-z][a-z0-9-]*")
     description = specs.specs_dir(root, cfg) / cap / "assets" / _day(day, None) / "description.md"
@@ -116,10 +118,17 @@ def confirm(root: Path, cfg: Mapping[str, Any], cap: str, day: str, *, today: da
     text = description.read_text(encoding="utf-8")
     if when := confirmed_date(text):
         raise specs.SpecsError(f"{shown} is already confirmed on {when}")
+    email = git_email(root)
+    if not email:
+        raise specs.SpecsError("set git user.email before confirming")
     stamp = (today or date.today()).isoformat()
-    atomic_write_many({description: _set_field(text, "Confirmed", stamp, after="Previous").encode("utf-8")},
-                      mode=0o644)
-    return {"description": shown, "confirmed": stamp}
+    text = _set_field(text, "Confirmed", stamp, after="Previous")
+    text = _set_field(text, "Confirmed by", email, after="Confirmed")
+    cleaned_agreed = agreed_with.strip() if agreed_with else None
+    if cleaned_agreed:
+        text = _set_field(text, "Agreed with", cleaned_agreed, after="Confirmed by")
+    atomic_write_many({description: text.encode("utf-8")}, mode=0o644)
+    return {"description": shown, "confirmed": stamp, "confirmed_by": email, "agreed_with": cleaned_agreed}
 
 
 def confirmed_value_errors(root: Path, cfg: Mapping[str, Any]) -> list[str]:

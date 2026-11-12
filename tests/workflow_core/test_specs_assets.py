@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -140,19 +141,36 @@ class TestAssetsConfirm(AssetsCase):
 
     def test_confirm_sets_today(self):
         self.add()
-        self.assertEqual({"description": f"{FOLDER}/description.md", "confirmed": "2026-11-09"}, self.confirm())
-        self.assertIn("Confirmed: 2026-11-09\n", self.description())
+        self.assertEqual({"description": f"{FOLDER}/description.md", "confirmed": "2026-11-09",
+                          "confirmed_by": "t@example.com", "agreed_with": None}, self.confirm())
+        self.assertIn("Confirmed: 2026-11-09\nConfirmed by: t@example.com\n", self.description())
         self.assertNotIn("\nConfirmed: no\n", self.description())
         with self.assertRaisesRegex(SpecsError, "already confirmed on 2026-11-09"):
             self.confirm()
 
+    def test_confirm_records_who_agreed(self):
+        self.add()
+        result = specs_assets.confirm(self.root, self.cfg, "orders", "2026-11-07",
+                                      agreed_with="fe_lead Binh", today=date(2026, 11, 9))
+        self.assertIn("Confirmed by: t@example.com\nAgreed with: fe_lead Binh\n", self.description())
+        self.assertEqual("fe_lead Binh", result["agreed_with"])
+
+    def test_confirm_needs_a_git_email(self):
+        self.add()
+        before = self.description()
+        with unittest.mock.patch("workflow_core.specs_assets.git_email", return_value=""):
+            with self.assertRaisesRegex(SpecsError, "set git user.email before confirming"):
+                self.confirm()
+        self.assertEqual(before, self.description())
+
     def test_confirm_inserts_a_missing_line(self):
         write(self.root, f"{FOLDER}/description.md", "# orders: 2026-11-07\n\nKind: change\nPrevious: none\n\n## Summary\n")
         self.confirm()
-        self.assertIn("Previous: none\nConfirmed: 2026-11-09\n", self.description())
+        self.assertIn("Previous: none\nConfirmed: 2026-11-09\nConfirmed by: t@example.com\n", self.description())
         write(self.root, "docs/specs/orders/assets/2026-11-08/description.md", "# orders: 2026-11-08\n\n## Summary\n")
         self.confirm("2026-11-08")
-        self.assertTrue(self.description("2026-11-08").startswith("# orders: 2026-11-08\nConfirmed: 2026-11-09\n"))
+        self.assertTrue(self.description("2026-11-08").startswith(
+            "# orders: 2026-11-08\nConfirmed: 2026-11-09\nConfirmed by: t@example.com\n"))
 
     def test_confirm_needs_the_folder(self):
         with self.assertRaisesRegex(SpecsError, "run gin specs assets add first"):
@@ -164,6 +182,13 @@ class TestAssetsConfirm(AssetsCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(f"{FOLDER}/description.md: Confirmed: {date.today().isoformat()}\n", result.stdout)
         self.assertEqual(2, run_specs(self.root, "assets", "confirm", "orders").returncode)
+        self.add(day="2026-11-08")
+        result = run_specs(self.root, "assets", "confirm", "orders", "--date", "2026-11-08",
+                           "--agreed-with", "pm An", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual("t@example.com", payload["confirmed_by"])
+        self.assertEqual("pm An", payload["agreed_with"])
 
 
 CONFIRMED = "docs/specs/orders/assets/2026-11-01"
@@ -240,3 +265,13 @@ class TestAssetLint(AssetsCase):
         result = run_specs(self.root, "lint")
         self.assertEqual(1, result.returncode)
         self.assertIn(findings[0], result.stdout)
+
+    def test_lint_accepts_folders_without_sign_off_lines(self):
+        self.confirm_on_main()
+        findings, _ = self.lint()
+        self.assertEqual([], [f for f in findings if "Confirmed:" in f])
+        write(self.root, "docs/specs/orders/assets/2026-11-02/description.md",
+              "# orders: 2026-11-02\n\nKind: new\nPrevious: none\nConfirmed: 2026-11-02\n"
+              "Confirmed by: x@y\nAgreed with: z\n")
+        findings, _ = self.lint()
+        self.assertEqual([], [f for f in findings if "Confirmed:" in f])
