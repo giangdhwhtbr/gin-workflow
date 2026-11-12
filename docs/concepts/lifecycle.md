@@ -42,7 +42,7 @@ An epic has one kind: `capability` (the default), `technical`, or `parity`. The 
 
 The epic bead's `kind:<kind>` label is the source. `/roadmap` writes a `Kind:` line per epic and the label on the epics it creates, and `discuss` asks once for an epic without the label. The spec repeats the kind on a `Kind:` line: in the design spec with the legacy layout, in `01-proposal.md` with the SDD layout. A capability spec may omit the line. An epic without a label counts as `capability`.
 
-`gin record requirement-confirmed --workflow-id <epic>` refuses a label and a spec line that disagree, an unknown kind, two `kind:` labels, and a tracker it cannot read, with the message `cannot read the kind of epic <id>: <cause>`. Outside team mode, a missing Beads database counts as an epic without a label. Changing the kind after the spec is confirmed needs a new `discuss`.
+`gin record requirement-confirmed --workflow-id <epic>` refuses a label and a spec line that disagree, an unknown kind, and two `kind:` labels. It also refuses a tracker it cannot read, with the message `cannot read the kind of epic <id>: <cause>`. Outside team mode, a missing Beads database counts as an epic without a label. Changing the kind after the spec is confirmed needs a new `discuss`.
 
 The spec rules per kind are in the [CLI reference](../reference/cli.md#gin-specs) and, for the SDD layout, in [SDD](../guides/sdd.md#epic-kinds). The approval policy per kind is in [Team mode](../guides/team.md#approval-policies). The discuss steps per kind are in the `epic-kinds` reference of the `discuss` skill.
 

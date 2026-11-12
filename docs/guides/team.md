@@ -61,7 +61,7 @@ A gate policy has three forms; `requirement_confirmed` also takes a [map per kin
       parity: [ba]
 ```
 
-A kind without a key uses the `capability` policy. A single policy, as in the earlier examples, applies to every kind. The map form needs a gin-workflow release that includes epic kinds. An older gin refuses the config at schema validation, so update every member first.
+A kind without a key uses the `capability` policy. A single policy, as in the earlier examples, applies to every kind. The map form needs gin-workflow 3.1 or later. An older gin refuses the config at schema validation, so update every member first.
 
 gin takes the kind from the epic bead's `kind:<kind>` label:
 

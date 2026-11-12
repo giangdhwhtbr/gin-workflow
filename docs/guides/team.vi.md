@@ -42,7 +42,7 @@ team:
 
 ## Chính sách phê duyệt { #approval-policies }
 
-Chính sách của một cổng có ba dạng. Danh sách role cần một thành viên giữ một role trong danh sách duyệt. `{all: [roles], any: [roles]}` cần mọi role `all` và một role `any`. `plan_approved: area_lead` cần lead của từng area mà plan chạm tới. Riêng `requirement_confirmed` còn nhận [một map theo loại epic](#policy-per-epic-kind).
+Chính sách của một cổng có ba dạng. Danh sách role cần một thành viên giữ một role trong danh sách duyệt. `{all: [roles], any: [roles]}` cần mọi role `all` và một role `any`, và cần gin-workflow 3.1 trở lên. `plan_approved: area_lead` cần lead của từng area mà plan chạm tới. Riêng `requirement_confirmed` còn nhận [một map theo loại epic](#policy-per-epic-kind).
 
 ```yaml
   approvals:
@@ -65,7 +65,7 @@ Khi người giữ role vắng mặt, người dùng quyết định cho `requir
       parity: [ba]
 ```
 
-Loại không có khóa dùng chính sách `capability`. Một chính sách đơn, như các ví dụ trên, áp dụng cho mọi loại. Dạng map cần một bản phát hành gin-workflow có epic kind. gin cũ hơn từ chối config ở bước kiểm tra schema, nên hãy cập nhật cho mọi thành viên trước.
+Loại không có khóa dùng chính sách `capability`. Một chính sách đơn, như các ví dụ trên, áp dụng cho mọi loại. Dạng map cần gin-workflow 3.1 trở lên. gin cũ hơn từ chối config ở bước kiểm tra schema, nên hãy cập nhật cho mọi thành viên trước.
 
 gin lấy loại từ label `kind:<kind>` của epic bead:
 
