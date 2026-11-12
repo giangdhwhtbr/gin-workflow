@@ -13,3 +13,10 @@ The confirmed spec of the epic is the API contract of the capability. `requireme
 
 ## Integration epic
 With `--milestone`, propose one epic titled `<capability> integration` for each capability listed in `Integrates:` of the milestone block. It depends on the capability's build epics, its scope is "turn the flag on and run the E2E suite against the real API", and it belongs to the milestone of that integration point. It carries `Tracks:` only when the flag flip or the E2E run belongs to a specific repository.
+
+## Kind
+Each entry has `Kind: capability|technical|parity`. Propose the kind per epic, and the PM confirms it. Integration epics are `technical`.
+
+Create epics with `--labels roadmap,kind:<kind>`.
+
+When the kind of an existing epic changes, run `gin task update <id> --remove-label kind:<old> --add-label kind:<new>`. Skip this for an `in_progress` or adopted epic, and apply the `[gin roadmap]` comment rule of the sync instead.
