@@ -272,6 +272,48 @@ class TestEndToEnd(unittest.TestCase):
             self.assertIn(req, (root / "docs/specs/auth/spec.md").read_text(encoding="utf-8"))
             self.assertEqual(0, self.run_specs(root, "lint").returncode)
 
+    def test_technical_change_empty_delta_lint_trace_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = make_repo(Path(directory) / "repo")
+            write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            write_activity(root)
+            commit_all(root)
+            # Create a technical change without 02-spec-delta.md
+            change = Path(root) / "docs/changes/ep-2-tech"
+            write(root, "docs/changes/ep-2-tech/01-proposal.md", "# Refactor\n\nEpic: ep-2\nKind: technical\n")
+            write(root, "docs/changes/ep-2-tech/05-tests.md", "| TC | REQ | type | evidence |\n|---|---|---|---|\n")
+            cfg = specs.sdd_config(specs.load_config(root))
+
+            # 1. lint_change does not error on missing spec-delta, and does not require activity diagrams
+            errors = specs.lint_change(root, cfg, change)
+            self.assertEqual([], errors)
+
+            # 2. trace returns empty requirements and missing
+            traced = specs_trace.trace(root, cfg, change)
+            self.assertEqual("ep-2-tech", traced["change"])
+            self.assertEqual([], traced["requirements"])
+            self.assertEqual([], traced["missing"])
+            self.assertEqual([], traced["skipped"])
+
+            # 3. archive succeeds and updates no specs
+            commit_all(root)
+            archived = archive(root, cfg, change, today=TODAY)
+            self.assertEqual("ep-2-tech", archived["change"])
+            self.assertEqual([], archived["specs"])
+            self.assertEqual([], archived["added"])
+            self.assertEqual([], archived["modified"])
+            self.assertEqual([], archived["removed"])
+            self.assertTrue((root / "docs/changes/archive/2026-10-03-ep-2-tech").is_dir())
+            self.assertFalse(change.exists())
+
+            # 4. A technical change that DOES contain an ADDED block still needs its activity diagram
+            change3 = Path(root) / "docs/changes/ep-3-tech"
+            write(root, "docs/changes/ep-3-tech/01-proposal.md", "# Tech With Added\n\nEpic: ep-3\nKind: technical\n")
+            write(root, "docs/changes/ep-3-tech/02-spec-delta.md", delta(added=ADDED_BLOCK.replace("auth", "billing").replace("AUTH", "BILLING")))
+            write(root, "docs/changes/ep-3-tech/05-tests.md", "| TC | REQ | type | evidence |\n|---|---|---|---|\n")
+            errors3 = specs.lint_change(root, cfg, change3)
+            self.assertTrue(any("billing: no activity diagram in docs/specs/billing/diagrams/" in e for e in errors3), errors3)
+
 
 if __name__ == "__main__":
     unittest.main()

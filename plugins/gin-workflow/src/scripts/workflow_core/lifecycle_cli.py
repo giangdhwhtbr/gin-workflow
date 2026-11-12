@@ -260,7 +260,7 @@ def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
     config = resolve_effective_config(repo_path, write=False).config.to_dict()
     if project_settings(config).layout != "legacy":
         return []
-    return lint_design_spec(path)
+    return lint_design_spec(path, repo_path)
 
 
 def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
