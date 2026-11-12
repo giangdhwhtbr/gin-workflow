@@ -29,6 +29,7 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--gate", required=True, choices=team_core.GATES)
     item.add_argument("--plan")
     item.add_argument("--spec")
+    item.add_argument("--workflow-id", help="the epic bead whose kind: label picks the requirement_confirmed policy")
     sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
     sub.add_parser("ready", parents=[common])
     sub.add_parser("claim", parents=[common]).add_argument("bead")
@@ -105,15 +106,15 @@ def _run(args: argparse.Namespace) -> int:
         return _findings(findings, args.format, "ok")
     if args.command == "check":
         notes: list[str] = []
-        pr, artifact, reasons = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan,
-                                                      spec=args.spec, notes=notes)
+        pr, artifact, reasons, kind = team_core.verify_gate(root, team, args.gate, args.url, plan=args.plan,
+                                                            spec=args.spec, notes=notes, workflow_id=args.workflow_id)
         key = adapter(team.host).identity_key
         for member in team.members.values():
             if not getattr(member, key):
                 print(f"warning: {member.email} has no {key}; its approvals cannot be matched", file=sys.stderr)
         payload = {"status": "rejected" if reasons else "ok", "gate": args.gate, "url": pr.url, "reasons": reasons,
                    "approvers": team_core.approver_payload(pr, team, on_commit=pr.head_sha if args.gate == "ship" else None),
-                   "artifact": artifact, "notes": notes}
+                   "artifact": artifact, "notes": notes, "kind": kind}
         _emit(payload, args.format, "\n".join([*(f"note: {note}" for note in notes),
                                                *(reasons or [f"ok: {args.gate} {pr.url}"])]))
         return 1 if reasons else 0

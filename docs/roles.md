@@ -24,7 +24,7 @@ In [team mode](guides/team.md) each member holds roles, each area of the reposit
 | Developer | `/gin:execute`, `/gin:review`, `/gin:ship` for their own tracks, `/gin:quick`, `/gin:progress` | source and unit and integration test paths in their areas; in a workspace, the child repository of the track | `feat/<topic>-t<N>` per track | peer code reviews |
 | Tester | `/gin-qa:setup`, `/gin-qa:cases`, `/gin-qa:run`, `/gin-qa:e2e`, `/gin-qa:tests`, `/gin-qa:report`, `/gin:progress` | `cases/`, `e2e/`, `evidence/` in the [QA home](guides/qa.md#the-qa-home) | reviews the developer's pull request | `ship` |
 
-The BA, who usually has no technical role, runs discuss for a capability epic; in team mode each contract detail then becomes a technical question that the tech lead decides in plan; see [the contract](guides/workspace.md#contract).
+The BA, who usually has no technical role, runs discuss for a capability epic; in team mode each contract detail then becomes a technical question that the tech lead decides in plan; see [the contract](guides/workspace.md#contract). The epic's [kind](concepts/lifecycle.md#epic-kinds) decides who approves its spec: a `technical` epic can go to the leads alone, and a `parity` epic to the BA who confirmed the legacy capture; see [policy per epic kind](guides/team.md#policy-per-epic-kind).
 
 ## What each role reads
 

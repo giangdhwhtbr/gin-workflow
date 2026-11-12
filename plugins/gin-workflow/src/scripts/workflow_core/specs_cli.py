@@ -111,7 +111,7 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     if args.command == "lint" and args.spec:
         specs.require_layout(cfg, "legacy")
-        return _findings(specs.lint_design_spec(args.spec), args.format, "ok")
+        return _findings(specs.lint_design_spec(args.spec, root), args.format, "ok")
     specs.require_layout(cfg, "sdd")
     if args.command == "assets":
         from .specs_assets import add, confirm

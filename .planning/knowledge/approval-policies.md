@@ -22,7 +22,7 @@ Epic `gin-workflow-approval-roles` (2026-11-10), from the process review P1 clus
 - Docs: `docs/guides/team.md` (Approval policies), `docs/reference/config.md`, `docs/roles.md`, `docs/starters/brownfield.md`
 - `.planning/specs/2026-11-10-approval-roles-design.md`, `.planning/plans/2026-11-10-approval-roles.md`
 - Beads: `gin-workflow-approval-roles`, `.1`, `.2`
-- Related: [process-review](process-review.md), [team-hosts](team-hosts.md)
+- Related: [process-review](process-review.md), [team-hosts](team-hosts.md), [epic-kinds](epic-kinds.md) (`requirement_confirmed` per epic kind through `team.policy_for`)
 
 **Scope**
 Team-mode gate approval policies and the brownfield starter's team block.

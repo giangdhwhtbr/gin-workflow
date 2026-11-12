@@ -163,6 +163,14 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 | `ship` | `specs archive --change <epic>` merges the delta into the living specs and moves the folder to `changes/archive/`. A conflict stops ship. The archive lands with the integration, and by team convention the BA reviews the living-spec diff ([pull requests](git-flow.md#pull-requests)). |
 | `quick` | Never creates a change folder; a change to behavior a requirement describes needs the full lifecycle. |
 
+## Epic kinds { #epic-kinds }
+
+The [epic kinds](../concepts/lifecycle.md#epic-kinds) change the change folder as follows. `01-proposal.md` carries `Epic: <id>` and a `Kind:` line, and the epic bead's `kind:` label must agree with it.
+
+- A `capability` change is as described above.
+- A `technical` change writes `03-design.md` and needs no user stories, use cases, or activity diagrams. Its `02-spec-delta.md` may be missing or empty: `specs lint --change` passes, `specs trace` has nothing to trace, and `specs archive` moves the folder to `changes/archive/` without merging requirements. Any `ADDED`, `MODIFIED`, or `REMOVED` block it does contain is checked as usual.
+- A `parity` change adds a `Parity with:` line to `01-proposal.md` that names the confirmed `Kind: legacy` asset folders as backticked paths relative to the repository root. Lint refuses a folder that is missing, not `Kind: legacy`, or not confirmed. Requirement blocks are written only for the deltas from that behavior.
+
 ## Living specs during a migration
 
 During a rewrite, the living specs describe the shipped new system. The old system's behavior stays in `Kind: legacy` asset folders, which `/gin-ba:capture` or `gin specs assets add --legacy` writes. A requirement taken from that behavior names the folder in its `Source:` line. A project that is not rewritten seeds its living specs from current behavior, as [Migrating](#migrating) describes.

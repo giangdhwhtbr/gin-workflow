@@ -310,7 +310,7 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_docs_have_a_single_copy_outside_the_bundle(self):
         references = ROOT / "plugins/gin-workflow/src/references"
         packaged = sorted(path.name for path in references.glob("*.md"))
-        self.assertEqual(["docs-style.md", "shape-backend.md", "shape-frontend.md", "stage-contract.md"], packaged)
+        self.assertEqual(["docs-style.md", "epic-kinds.md", "shape-backend.md", "shape-frontend.md", "stage-contract.md"], packaged)
 
     def test_use_cases_guide_has_every_case_and_readme_links_it(self):
         content = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")

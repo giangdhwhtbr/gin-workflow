@@ -50,14 +50,17 @@ team:
     web: {paths: ["apps/**"], lead: fe_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
-    requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}
+    requirement_confirmed:
+      capability: {all: [ba], any: [be_lead, fe_lead]}
+      technical: [be_lead, fe_lead]
+      parity: [ba]
     plan_approved: area_lead
     ship: {all: [qe], any: [be_lead, fe_lead]}
     roadmap: [pm, be_lead]
   permissions: {milestone: [pm]}
 ```
 
-The areas do not overlap, so every plan track stays inside one of them. No gate is approved by the author of its pull request. `requirement_confirmed` and `ship` use the object form, which needs gin-workflow 3.1 or later: every `all` role must approve, and one `any` role must approve. An is the only `ba`, so on a spec An authors the `ba` role is skipped with the note "ba skipped: the author is its only holder", and Binh or Hoa approves. When Binh authors the spec of a technical epic, An and Hoa approve. Chi is the only `qe`, so on Chi's own QA pull request the `qe` role is skipped the same way, and Binh or Hoa approves. Lan has no second `pm`, so Binh approves Lan's roadmap pull requests (`roadmap: [pm, be_lead]`). Binh and Hoa each lead an area, so `gin setup doctor` notes that `qe`, `be_lead`, and `fe_lead` have one holder. The fallback applies only while the author is the sole holder; add a second holder to remove it. Only Lan, the one `pm`, may run `gin milestone` writes.
+The areas do not overlap, so every plan track stays inside one of them. No gate is approved by the author of its pull request. `requirement_confirmed` holds one policy per [epic kind](../guides/team.md#policy-per-epic-kind), and `capability` and `ship` use the object form: every `all` role must approve, and one `any` role must approve. The author never approves. An is the only `ba`, so on a capability spec An authors the `ba` role is skipped with the note "ba skipped: the author is its only holder", and Binh or Hoa approves. A technical spec needs only a lead: when Binh authors it, Hoa approves, and no BA is involved. A parity spec needs a `ba` other than its author, so Binh writes it from An's confirmed capture and An approves. Chi is the only `qe`, so on Chi's own QA pull request the `qe` role is skipped the same way, and Binh or Hoa approves. Lan has no second `pm`, so Binh approves Lan's roadmap pull requests (`roadmap: [pm, be_lead]`). Binh and Hoa each lead an area, so `gin setup doctor` notes that `qe`, `be_lead`, and `fe_lead` have one holder. The fallback applies only while the author is the sole holder; add a second holder to remove it. Only Lan, the one `pm`, may run `gin milestone` writes.
 
 ## The flow at a glance
 
@@ -154,7 +157,7 @@ In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.pack
 /gin:team-setup
 Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_lead and fe_dev), chi@example.com (qe).
 Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads legacy, api, and qa; Hoa leads web.
-Approvals: requirement_confirmed by ba and one of be_lead or fe_lead; plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
+Approvals: requirement_confirmed by kind (capability: ba and one of be_lead or fe_lead; technical: be_lead or fe_lead; parity: ba); plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
 Permissions: only the pm changes milestones.
 ```
 
@@ -232,6 +235,8 @@ gin task graph --all
 ```
 
 The gin-console Dependencies page shows the same graph. Choose what goes first from it: epics with no open blocker, and the one that unblocks the most others (here the API facade).
+
+Each roadmap entry has a `Kind:` line, and the epics get the matching `kind:<kind>` label (see [epic kinds](../concepts/lifecycle.md#epic-kinds)). Here `shop-portal-catalog-read` is `capability`, the API facade is `technical` (`Kind: technical`, no user-visible behavior), and `shop-portal-cart-parity` is `parity` (`Kind: parity`, a 1-1 port of the cart pages An already captured). Each kind has its own `requirement_confirmed` policy in the `team` block above.
 
 **Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin team check <url> --gate roadmap`, then creates the epics.
 
@@ -316,7 +321,7 @@ Put in the prompt: the user-visible behavior of the JSP flow you replace, its ed
 
 **You get:** the discussion starts from the epic and its roadmap entry and reuses it (no new epic). The spec is built from the `design-spec.md` template (or `proposal.md` with the SDD layout) and has a `## User Stories` section. Every story has acceptance criteria and, with REQ-IDs, a `REQ:` line.
 
-**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. With `requirement_confirmed: {all: [ba], any: [be_lead, fe_lead]}`, An's own `ba` role is skipped because An is the author, and Binh or Hoa approves; the gate is recorded with the PR URL after the merge. Once it is confirmed, the business part of the contract is frozen; the technical details are frozen at plan approval.
+**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. For a capability epic, the `capability` policy applies: An's own `ba` role is skipped because An is the author, and Binh or Hoa approves. A technical or parity epic uses its own policy (see [Roadmap overview](#roadmap-overview)). The gate is recorded with the PR URL after the merge. Once it is confirmed, the business part of the contract is frozen; the technical details are frozen at plan approval.
 
 **Common mistakes:** creating a second epic by hand; stories without acceptance criteria; skipping the legacy edge cases.
 

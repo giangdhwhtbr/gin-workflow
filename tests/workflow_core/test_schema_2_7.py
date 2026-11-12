@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -106,6 +107,43 @@ class TestSchema27(unittest.TestCase):
         self.assertEqual([], validate_team({**raw, "strict": False}))
         self.assertEqual([], validate_team({**raw, "approvals": {"requirement_confirmed": ["dev"], "ship": ["dev"]},
                                             "areas": {"api": {"paths": ["api/**"], "lead": "dev"}}}))
+
+    def test_requirement_confirmed_per_kind_map(self):
+        """epic-kinds R8, US-4: the per-kind map validates next to today's forms; its errors name the key."""
+        for valid in ({"capability": ["ba"]}, ["ba", "be_lead"], {"all": ["ba"], "any": ["be_lead"]},
+                      {"capability": {"all": ["ba"], "any": ["be_lead"]}, "technical": ["be_lead"], "parity": []}):
+            with self.subTest(valid=valid):
+                validate_portable_config({"schema_version": "2.7",
+                                          "team": {**RAW, "approvals": {"requirement_confirmed": valid}}})
+        for bad, message in (({"technical": ["be_lead"]}, "'capability' is a required property"),
+                             ({"capability": ["ba"], "review": ["be_lead"]}, "'review' was unexpected"),
+                             ({"capability": ["ba"], "all": ["ba"]}, "requirement_confirmed"),
+                             ({"capability": {"every": ["ba"]}}, "requirement_confirmed.capability")):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ConfigValidationError, re.escape(message)):
+                validate_portable_config({"schema_version": "2.7",
+                                          "team": {**RAW, "approvals": {"requirement_confirmed": bad}}})
+        with self.assertRaises(ConfigValidationError):  # the map is for requirement_confirmed only
+            validate_portable_config({"schema_version": "2.7",
+                                      "team": {**RAW, "approvals": {"ship": {"capability": ["qe"]}}}})
+
+    def test_per_kind_policies_follow_the_semantic_rules(self):
+        kinds = {"capability": ["ba"], "technical": ["ghost"], "parity": {"all": [], "any": []}}
+        self.assertEqual(["team.approvals.requirement_confirmed.parity: all and any are both empty",
+                          "team.approvals.requirement_confirmed.technical: role ghost is held by no member"],
+                         validate_team({**RAW, "approvals": {"requirement_confirmed": kinds}}))
+        strict = {**RAW, "strict": True, "approvals": {"ship": ["qe"]}}
+        for kinds, missing in (({"capability": [], "technical": ["be_lead"]}, "capability"),
+                               ({"capability": ["ba"], "parity": []}, "parity")):
+            with self.subTest(kinds=kinds):
+                self.assertEqual([f"team.strict: team.approvals.requirement_confirmed.{missing} has no role policy"],
+                                 validate_team({**strict, "approvals": {**strict["approvals"],
+                                                                        "requirement_confirmed": kinds}}))
+        aws = {"host": "codecommit",
+               "members": {"a@x.io": {"roles": ["ba"], "login": "a", "aws_identity": "a"},
+                           "b@x.io": {"roles": ["be_lead"], "login": "b"}},
+               "approvals": {"requirement_confirmed": {"capability": ["ba"], "technical": ["be_lead"]}}}
+        self.assertEqual(["team.members: b@x.io holds approving role be_lead but has no aws_identity "
+                          "(required on host codecommit)"], validate_team(aws))
 
 
 class TestTechnicalMember(unittest.TestCase):

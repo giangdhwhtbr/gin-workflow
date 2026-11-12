@@ -16,7 +16,7 @@ from .configuration import ConfigValidationError, resolve_effective_config
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .project import project_settings
 from .tasks import backend as tasks_backend
-from . import orchestrator_client, workspace
+from . import epic_kind, orchestrator_client, workspace
 from .team import load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
@@ -260,7 +260,7 @@ def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
     config = resolve_effective_config(repo_path, write=False).config.to_dict()
     if project_settings(config).layout != "legacy":
         return []
-    return lint_design_spec(path)
+    return lint_design_spec(path, repo_path)
 
 
 def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
@@ -298,6 +298,10 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if errors:
             return {"status": "rejected", "message": "requirement-confirmed refused: spec lint failed\n"
                     + "\n".join(errors)}, 1
+        # Team mode also checks the spec a PR resolves to (authorize_record); evidence is then a URL.
+        mismatch = epic_kind.lookup(Path(args.repository).resolve(), args.workflow_id, args.spec or args.evidence)[1]
+        if mismatch:
+            return {"status": "rejected", "message": f"requirement-confirmed refused: {mismatch}"}, 1
     if args.gate == "plan-approved":
         from .specs import SpecsError
 
@@ -330,7 +334,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         try:
             actor, team_payload = authorize_record(Path(args.repository).resolve(), team, args.gate.replace("-", "_"),
                                                    args.evidence, actor=args.actor, plan=args.plan,
-                                                   spec=args.spec)
+                                                   spec=args.spec, workflow_id=args.workflow_id)
         except (TeamError, HostUnavailable) as error:
             return {"status": "error", "message": str(error)}, 2
         except TeamRejected as rejected:
@@ -518,8 +522,10 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if team is not None:
         from .team import TeamError, authorize_waiver
 
+        # A kind that cannot be read comes back as capability, the default policy.
+        kind = epic_kind.lookup(repo_path, workflow_id, None)[0] if args.gate == "requirement_confirmed" else None
         try:
-            actor = authorize_waiver(repo_path, team, None if args.clear_blocker else args.gate, actor=actor)
+            actor = authorize_waiver(repo_path, team, None if args.clear_blocker else args.gate, actor=actor, kind=kind)
         except TeamError as error:
             return {"status": "error", "message": str(error)}, 2
     elif not actor:

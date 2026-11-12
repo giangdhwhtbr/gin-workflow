@@ -42,12 +42,34 @@ team:
 
 ## Approval policies
 
-A gate policy has three forms. A role list needs approval from one member holding a listed role. `{all: [roles], any: [roles]}` needs every `all` role and one `any` role, and needs gin-workflow 3.1 or later. `plan_approved: area_lead` needs the lead of each area the plan touches.
+A gate policy has three forms; `requirement_confirmed` also takes a [map per kind](#policy-per-epic-kind). A role list needs approval from one member holding a listed role. `{all: [roles], any: [roles]}` needs every `all` role and one `any` role, and needs gin-workflow 3.1 or later. `plan_approved: area_lead` needs the lead of each area the plan touches.
 
 ```yaml
   approvals:
     ship: {all: [qe], any: [be_lead, fe_lead]}
 ```
+
+### Policy per epic kind
+
+`requirement_confirmed` may hold one policy per [epic kind](../concepts/lifecycle.md#epic-kinds). Write a map with the key `capability` (required) and optionally `technical` and `parity`. No other key is valid.
+
+```yaml
+  approvals:
+    requirement_confirmed:
+      capability: {all: [ba], any: [be_lead, fe_lead]}
+      technical: [be_lead, fe_lead]
+      parity: [ba]
+```
+
+A kind without a key uses the `capability` policy. A single policy, as in the earlier examples, applies to every kind. The map form needs gin-workflow 3.1 or later. An older gin refuses the config at schema validation, so update every member first.
+
+gin takes the kind from the epic bead's `kind:<kind>` label:
+
+- `gin team check --gate requirement_confirmed <url> --workflow-id <epic>` applies the policy of the epic's kind, and its JSON output gains `kind`.
+- `gin record requirement-confirmed --workflow-id <epic>` picks the same policy.
+- `gin unblock --gate requirement_confirmed` accepts a holder of a role in that kind's policy. When gin cannot read the kind, it uses the `capability` policy.
+
+The spec goes through a pull request when any kind has a policy. With the SDD layout, a technical change may have no `02-spec-delta.md`, so the pull request's `01-proposal.md` is the spec artifact the check looks for.
 
 No gate is approved by the pull request author. When the author is the only holder of an `all` role and the policy has an `any` role, the `all` role is skipped and `team check` prints "<role> skipped: the author is its only holder"; the `any` role must still approve. Without an `any` role the check refuses: "<role> has no holder other than the author; add a holder or an `any` role". For `plan_approved: area_lead`, a sole-holder area lead is skipped when the lead of another area approved, with the note "<lead> for area <name> skipped: ...". `gin setup doctor` notes each `all` role and area lead that exactly one member holds.
 

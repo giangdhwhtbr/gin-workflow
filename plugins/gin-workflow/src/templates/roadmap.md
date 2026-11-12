@@ -51,6 +51,7 @@ Integration point: {{integration_date}}
 Epic: {{epic_id}}
 Milestone: {{milestone_id}}
 Estimate: {{estimate_days}}
+Kind:
 Complexity: {{complexity}}
 Goal:
 Scope:

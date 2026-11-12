@@ -10,6 +10,7 @@ import sys
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlparse
 
+from .epic_kind import DEFAULT, KINDS, lookup
 from .hosts import DEFAULT_HOST, HOSTS, adapter
 from .workspace import Workspace
 
@@ -111,10 +112,11 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
             identities[identity.lower()] = str(email)
         held.update(spec.get("roles", ()))
     needed: list[tuple[str, str]] = []
-    for gate, policy in (raw.get("approvals") or {}).items():
-        needed += [(role, f"team.approvals.{gate}") for role in sum(policy_parts(policy), [])]
-        if isinstance(policy, Mapping) and not any(policy_parts(policy)):
-            errors.append(f"team.approvals.{gate}: all and any are both empty")
+    for gate, gate_policy in (raw.get("approvals") or {}).items():
+        for name, policy in policy_entries(gate, gate_policy):
+            needed += [(role, f"team.approvals.{name}") for role in sum(policy_parts(policy), [])]
+            if isinstance(policy, Mapping) and not any(policy_parts(policy)):
+                errors.append(f"team.approvals.{name}: all and any are both empty")
     for key, roles in (raw.get("permissions") or {}).items():
         needed += [(role, f"team.permissions.{key}") for role in roles]
     for name, area in areas.items():
@@ -130,7 +132,8 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
                 errors.append(f"team.areas: {name} and {other} overlap ({prefix!r} vs {other_prefix!r})")
     host = raw.get("host", DEFAULT_HOST)
     if host in HOSTS and adapter(host).identity_key == "aws_identity":
-        policies = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}.values()
+        policies = [policy for gate, gate_policy in {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}.items()
+                    for _, policy in policy_entries(gate, gate_policy)]
         approving = {role for policy in policies for role in set().union(*policy_parts(policy))}
         if "area_lead" in policies:
             approving |= {area.get("lead", "") for area in areas.values()}
@@ -141,8 +144,9 @@ def validate_team(raw: Mapping[str, Any]) -> list[str]:
                               f"aws_identity (required on host {host})")
     if raw.get("strict"):
         approvals = {**DEFAULT_APPROVALS, **dict(raw.get("approvals") or {})}
-        errors += [f"team.strict: team.approvals.{gate} has no role policy" for gate in POLICY_GATES
-                   if not _has_policy(approvals.get(gate, []), areas)]
+        errors += [f"team.strict: team.approvals.{name} has no role policy" for gate in POLICY_GATES
+                   for name, policy in policy_entries(gate, approvals.get(gate, []))
+                   if not _has_policy(policy, areas)]
     return errors
 
 
@@ -425,6 +429,19 @@ def _is_artifact(path: str, gate: str, changes: str) -> bool:
         path.startswith(f"{changes}/") and path.endswith((f"/{role}.md", f"/{CHANGE_FILES[role]}")))
 
 
+def _deltaless_proposals(files: Sequence[str], root: Path, changes: str) -> list[str]:
+    """The proposal of each change folder the PR touches that has no spec delta, in the PR or in the checkout: a
+    technical change may have none (epic-kinds R6), so its proposal holds the requirement and the `Kind:` line."""
+    from .specs import CHANGE_FILES, change_file
+
+    names = {*CHANGE_FILES.values(), *(f"{role}.md" for role in CHANGE_FILES)}
+    touched = {item.rsplit("/", 1)[0] for item in files
+               if item.startswith(f"{changes}/") and item.rsplit("/", 1)[-1] in names}
+    with_delta = {item.rsplit("/", 1)[0] for item in files if _is_artifact(item, "requirement_confirmed", changes)}
+    return [f"{folder}/{change_file(root / folder, 'proposal').name}" for folder in sorted(touched - with_delta)
+            if not change_file(root / folder, "spec-delta").is_file()]
+
+
 def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> str:
     """The spec, plan, or roadmap the gate approves: the selector, else the one candidate the PR changes."""
     from .specs import load_config, sdd_config
@@ -437,6 +454,8 @@ def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> st
     kind, flag = ("spec", "--spec") if gate == "requirement_confirmed" else ("plan", "--plan")
     changes = str(cfg["changes"]).strip("/")
     candidates = [item for item in pr.files if _is_artifact(item, gate, changes)]
+    if gate == "requirement_confirmed":
+        candidates += _deltaless_proposals(pr.files, Path(root), changes)
     if len(candidates) != 1:
         raise TeamError(f"the PR must change exactly one {kind} file (found: {', '.join(candidates) or 'none'}); "
                         f"pass {flag} <path>")
@@ -445,10 +464,10 @@ def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> st
 
 def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact: str = "",
                    local_head: str = "", expected_repo: str = "", accepted: Sequence[str] = (),
-                   notes: list[str] | None = None) -> list[str]:
-    """Reasons the PR does not satisfy the gate's policy (empty = pass); skipped sole-holder roles are appended
-    to `notes` when given."""
-    policy = team.approvals.get("ship" if gate == "shipped" else gate, [])
+                   notes: list[str] | None = None, kind: str | None = None) -> list[str]:
+    """Reasons the PR does not satisfy the gate's policy for the epic `kind` (empty = pass); skipped sole-holder
+    roles are appended to `notes` when given."""
+    policy = policy_for(team, "ship" if gate == "shipped" else gate, kind)
     reasons: list[str] = []
     host = adapter(team.host)
     expected, actual = host.repo_id(expected_repo or origin_url(Path(root))), host.repo_id(pr.url, pr=True)
@@ -511,6 +530,22 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     return reasons
 
 
+def _kind_map(policy: Any) -> bool:
+    """A per-kind `requirement_confirmed` map: its `capability` key tells it from an `{all, any}` policy."""
+    return isinstance(policy, Mapping) and "capability" in policy
+
+
+def policy_entries(gate: str, policy: Any) -> list[tuple[str, Any]]:
+    """(name, policy) for each policy a gate holds: `<gate>.<kind>` per entry of a kind map, else the gate."""
+    return [(f"{gate}.{kind}", entry) for kind, entry in policy.items()] if _kind_map(policy) else [(gate, policy)]
+
+
+def policy_for(team: TeamConfig, gate: str, kind: str | None = None) -> Any:
+    """The gate's policy; a kind map gives the entry of `kind` (default capability), else its capability entry."""
+    policy = team.approvals.get(gate, [])
+    return policy.get(kind or DEFAULT, policy["capability"]) if _kind_map(policy) else policy
+
+
 def policy_parts(policy: Any) -> tuple[list[str], list[str]]:
     """(roles that must each approve, roles of which one must approve)."""
     if isinstance(policy, Mapping):
@@ -533,20 +568,26 @@ def _sole_holder(team: TeamConfig, role: str, author: Member | None) -> bool:
         member is author for member in team.members.values() if role in member.roles)
 
 
-def gate_roles(gate: str, team: TeamConfig) -> set[str]:
-    return policy_roles(team.approvals.get(gate, []), team)
+def gate_roles(gate: str, team: TeamConfig, kind: str | None = None) -> set[str]:
+    return policy_roles(policy_for(team, gate, kind), team)
 
 
 def _has_policy(policy: Any, areas: Mapping[str, Any]) -> bool:
     return policy == "area_lead" and bool(areas) or bool(set().union(*policy_parts(policy)))
 
 
-def has_policy(gate: str, team: TeamConfig) -> bool:
-    return _has_policy(team.approvals.get(gate, []), team.areas)
+def has_policy(gate: str, team: TeamConfig, kind: str | None = None) -> bool:
+    return _has_policy(policy_for(team, gate, kind), team.areas)
 
 
-def can_waive(member: Member, gate: str, team: TeamConfig) -> bool:
-    roles = gate_roles(gate, team)
+def needs_pr(gate: str, team: TeamConfig) -> bool:
+    """True when recording `gate` needs PR proof: it has a policy for any epic kind. The kind is known only once the
+    PR names its spec, so `record` and doctor's `spec_review` check use this, not one kind's policy."""
+    return any(has_policy(gate, team, kind) for kind in KINDS)
+
+
+def can_waive(member: Member, gate: str, team: TeamConfig, kind: str | None = None) -> bool:
+    roles = gate_roles(gate, team, kind)
     return not roles or bool(roles & set(member.roles))
 
 
@@ -574,9 +615,12 @@ def _head(root: Path) -> str:
 
 
 def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str | None = None,
-                spec: str | None = None, notes: list[str] | None = None) -> tuple[Any, str, list[str]]:
-    """Fetch the PR/MR and return it, the approved artifact, and the reasons it fails the gate
-    (HostUnavailable propagates); skipped sole-holder roles are appended to `notes` when given."""
+                spec: str | None = None, notes: list[str] | None = None,
+                workflow_id: str | None = None) -> tuple[Any, str, list[str], str | None]:
+    """Fetch the PR/MR and return it, the approved artifact, the reasons it fails the gate, and the epic kind whose
+    policy applied: for requirement_confirmed, `epic_kind.lookup` of `workflow_id` and the resolved spec (a kind
+    mismatch is the one reason), else None. HostUnavailable propagates; skipped sole-holder roles are appended to
+    `notes` when given."""
     from .team_host import fetch_pr
 
     if not url.startswith(("https://", "http://")):
@@ -584,23 +628,27 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
     pr = fetch_pr(url, team.host, Path(root))
     artifact = "" if gate in ("ship", "shipped") else resolve_artifact(
         pr, Path(root), gate, plan if gate == "plan_approved" else spec)
+    kind, mismatch = lookup(Path(root), workflow_id, artifact) if gate == "requirement_confirmed" else (None, None)
+    if mismatch:
+        return pr, artifact, [mismatch], kind
     expected, head_dir, accepted = (repo_for_pr(Path(root), team, url) if gate in ("ship", "shipped")
                                     else ("", Path(root), []))
     head = _head(head_dir) if gate == "ship" else ""
     reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head,
-                             expected_repo=expected, accepted=accepted, notes=notes)
-    return pr, artifact, reasons
+                             expected_repo=expected, accepted=accepted, notes=notes, kind=kind)
+    return pr, artifact, reasons, kind
 
 
 def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, actor: str | None = None,
-                     plan: str | None = None, spec: str | None = None) -> tuple[str, dict[str, Any]]:
-    """Team-mode `record`: the member's email as actor plus, for a gate with a policy, the PR proof."""
+                     plan: str | None = None, spec: str | None = None,
+                     workflow_id: str | None = None) -> tuple[str, dict[str, Any]]:
+    """Team-mode `record`: the member's email as actor plus, for a gate that `needs_pr`, the PR proof."""
     member = require_member(root, team, actor)
-    if (gate not in GATES and gate != "shipped") or not has_policy("ship" if gate == "shipped" else gate, team):
+    if (gate not in GATES and gate != "shipped") or not needs_pr("ship" if gate == "shipped" else gate, team):
         return member.email, {}
     if gate == "shipped" and not evidence.startswith(("https://", "http://")):
         raise TeamError("shipped needs the PR URL as --evidence in team mode")
-    pr, artifact, reasons = verify_gate(root, team, gate, evidence, plan=plan, spec=spec)
+    pr, artifact, reasons, _ = verify_gate(root, team, gate, evidence, plan=plan, spec=spec, workflow_id=workflow_id)
     if reasons:
         raise TeamRejected(reasons)
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
@@ -609,8 +657,9 @@ def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, 
                           **({"artifact": artifact} if artifact else {})}
 
 
-def authorize_waiver(root: Path, team: TeamConfig, gate: str | None, *, actor: str | None = None) -> str:
+def authorize_waiver(root: Path, team: TeamConfig, gate: str | None, *, actor: str | None = None,
+                     kind: str | None = None) -> str:
     member = require_member(root, team, actor)
-    if gate and not can_waive(member, gate, team):
-        raise TeamError(f"waiving {gate} needs one of the roles {', '.join(sorted(gate_roles(gate, team)))}")
+    if gate and not can_waive(member, gate, team, kind):
+        raise TeamError(f"waiving {gate} needs one of the roles {', '.join(sorted(gate_roles(gate, team, kind)))}")
     return member.email

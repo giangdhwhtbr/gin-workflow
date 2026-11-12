@@ -455,6 +455,40 @@ class TestLifecycleCLI(unittest.TestCase):
     def test_us5_non_markdown_evidence_is_not_linted(self):
         self.assertEqual(0, self._record_requirement("chat 2026-10-31")[0])
 
+    def test_record_requirement_refuses_an_epic_kind_mismatch(self):
+        """epic-kinds R4, US-3: the spec's `Kind:` must match the epic bead's `kind:` label."""
+        from workflow_core.configuration import resolve_effective_config
+
+        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.7'\nproviders:\n  task_tracking: beads\n")
+        resolve_effective_config(self.repo_path)
+        bin_dir = self.repo_path / "fakebin"
+        fake_cli(bin_dir, "bd", [{"argv": ["show", "ep-1"], "stdout": [{"id": "ep-1", "labels": ["kind:technical"]}]}])
+        spec = self.repo_path / "spec.md"
+        args = ["record", "requirement-confirmed", "--repository", str(self.repo_path), "--evidence", "spec.md",
+                "--actor", "user", "--workflow-id", "ep-1"]
+
+        def record() -> tuple[int, str]:
+            stderr = io.StringIO()
+            with mock.patch.dict(os.environ, path_with(bin_dir)), contextlib.redirect_stderr(stderr), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                return cli_main(args), stderr.getvalue()
+
+        spec.write_text("# Login\n\nKind: capability\n\n### US-1: a\n\nAcceptance criteria:\n- x\n")
+        code, err = record()
+        self.assertEqual(1, code)
+        self.assertIn("kind mismatch: epic ep-1 is kind:technical, spec spec.md says Kind: capability", err)
+        events = WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").read_all()
+        self.assertFalse([event for event in events if event.event_type == "requirement.confirmed"])
+        spec.write_text("# Login\n\nKind: technical\n")
+        code, err = record()
+        self.assertEqual(0, code, err)
+        # A tracker that cannot answer refuses the record instead of trusting the spec's Kind:.
+        fake_cli(bin_dir, "bd", [{"argv": ["show"], "exit": 1, "stderr": "Error: failed to connect to dolt server\n"}])
+        args[-1] = "ep-2"
+        code, err = record()
+        self.assertEqual(1, code)
+        self.assertIn("cannot read the kind of epic ep-2: bd exited 1: Error: failed to connect to dolt server", err)
+
     def test_record_is_scoped_to_workflow_id(self):
         cli_main(["record", "requirement-confirmed", "--repository", str(self.repo_path),
                   "--evidence", "spec.md", "--actor", "user", "--workflow-id", "other"])

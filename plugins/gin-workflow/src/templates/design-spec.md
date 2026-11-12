@@ -1,9 +1,11 @@
 # {{title}}
 
 Epic: {{epic}}
+Kind: capability
 Status: draft for user review.
 
 <!-- Written by /discuss with the legacy layout. Drop the Epic line when there is none.
+     Kind is capability, technical, or parity; for technical epics see technical-design.md.
      User Stories come from `gin specs template user-story.md`. -->
 
 ## Goal and scope

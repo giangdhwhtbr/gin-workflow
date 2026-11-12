@@ -22,7 +22,7 @@ BA sở hữu các spec và gate `requirement_confirmed`. Bảng dưới liệt 
 | Branch | `spec/<epic>-<slug>` |
 | Gate | `requirement_confirmed` |
 
-Trong [chế độ nhóm](team.md), gate nhận các vai trò liệt kê trong `team.approvals`. Một thành viên có vai trò được liệt kê, không phải tác giả pull request, phải duyệt spec pull request trước khi gate được ghi.
+Trong [chế độ nhóm](team.md), gate nhận các vai trò liệt kê trong `team.approvals`. Một thành viên có vai trò được liệt kê, không phải tác giả pull request, phải duyệt spec pull request trước khi gate được ghi. Chính sách phụ thuộc vào [loại](../concepts/lifecycle.md#epic-kinds) của epic: epic `technical` có thể không cần BA, và epic `parity` dẫn các folder `Kind: legacy` đã xác nhận của BA trên dòng `Parity with:` ([chính sách theo loại epic](team.md#policy-per-epic-kind)).
 
 ## Các bước { #steps }
 
