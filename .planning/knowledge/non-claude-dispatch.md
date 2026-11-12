@@ -15,6 +15,9 @@ Epic `gin-workflow-dura` (shipped 2026-11-04) made tracks, reviews, and explorat
 - Behavior change: a `timeout` is no longer retried automatically.
 - New providers need an entry in `_resolve_worker_agent`, the install translators, and `ORCHESTRATOR_DEFAULTS` users rather than local defaults.
 - Stage skill text for dispatch must keep each stage chain within the 12,000-character budget (`tests/workflow_core/test_token_budget.py`).
+- `--stage execute` rejects a workspace outside `.planning/worktrees/` with `worker.unavailable` reason `workspace_unavailable` and the dispatch result `worker_routes_unavailable` (seen 2026-11-12 with `.claude/worktrees/<name>`): create the track worktree with `gin worktree create` first.
+- Antigravity workers (`gemini-3.8-flash-*`, 2026-11-12) often commit correct work and still return `invalid_result_contract` (status or `tests` objects outside the contract); check the worktree's commits before re-dispatching, then verify diff and tests in the main session. See [ba-workspace](ba-workspace.md).
+- A scheduler test that cancels a real child process must give the child time to start: `test_scheduler_timeout_cancels_started_native_process` flaked when a `python3` child was cancelled at 0.2s before writing its pid; it now uses a `/bin/sh` child with `exec sleep` and a 1.0s timeout (`gin-workflow-2o6e`).
 
 **References**
 - Spec `.planning/specs/2026-11-03-non-claude-dispatch-design.md`; plan `.planning/plans/2026-11-03-non-claude-dispatch.md`

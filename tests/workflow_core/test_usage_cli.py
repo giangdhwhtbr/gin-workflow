@@ -45,7 +45,8 @@ class UsageCliTests(unittest.TestCase):
             {"argv": ["update"], "stdout": ""},
             {"argv": ["list", "--all"], "stdout": [
                 {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
-                 "closed_at": "2026-10-04T10:00:00Z", "metadata": {"ai_usage": json.dumps(USAGE)}},
+                 "started_at": "2026-10-04T09:00:00Z", "closed_at": "2026-10-04T10:00:00Z",
+                 "metadata": {"ai_usage": json.dumps(USAGE)}},
                 {"id": "t2", "title": "T2", "issue_type": "task", "status": "closed",
                  "closed_at": "2026-10-04T10:00:00Z"}]},
         ])
@@ -126,6 +127,8 @@ class UsageCliTests(unittest.TestCase):
         write(self.repo, ".agent-workflow/config.yaml",
               "schema_version: '2.8'\nproviders:\n  task_tracking: beads\nusage:\n  budget_usd: 10\n")
         fake_cli(self.bin, "bd", [
+            {"argv": ["list", "--all"], "stdout": [{"id": "e1", "issue_type": "epic", "title": "E1",
+                                                    "started_at": "2026-10-04T09:00:00Z", "closed_at": None}]},
             {"argv": ["show", "e1"], "stdout": [{"id": "e1", "issue_type": "epic", "title": "E1",
                                                 "started_at": "2026-10-04T09:00:00Z", "closed_at": None}]},
             {"argv": ["history", "e1"], "stdout": []},
