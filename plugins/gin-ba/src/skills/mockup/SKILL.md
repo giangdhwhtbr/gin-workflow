@@ -34,4 +34,4 @@ description: Build an interactive, self-contained HTML mockup of a capability's 
    - in team mode, when a `team.areas` entry in `.agent-workflow/config.yaml` has a `paths` glob matching the frontend child's path (or the UI path read in step 4), ask the BA to get that area's `lead` role to agree first;
    - then run `gin specs assets confirm <cap> --date <date> --agreed-with "<names>"`, omitting the flag when no one else agreed.
    Report the path and the next command, `/gin:discuss`.
-9. Never confirm on the BA's behalf: only the BA's explicit answer runs `gin specs assets confirm`. Do not commit; the BA reviews and commits the folder.
+9. Never confirm on the BA's behalf: only the BA's explicit answer runs `gin specs assets confirm`. Do not commit; `/gin:discuss` commits the confirmed folder with the change folder that cites it.
