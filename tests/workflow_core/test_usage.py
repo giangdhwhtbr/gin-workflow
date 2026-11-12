@@ -287,6 +287,15 @@ class CollectTests(Fixture):
         with self.assertRaisesRegex(usage.UsageError, "no such bead"):
             self.collect("unknown")
 
+    def test_collect_missing_parent_raises_usage_error(self):
+        self.rules[0]["stdout"] = [
+            {"id": "ep1.1", "title": "T1", "issue_type": "task", "parent": "missing",
+             "started_at": iso(9.1), "closed_at": iso(10)},
+        ]
+        fake_cli(self.bin, "bd", self.rules)
+        with self.assertRaisesRegex(usage.UsageError, "no such bead"):
+            self.collect("ep1.1")
+
 
 class ReportTests(Fixture):
     def rows(self):

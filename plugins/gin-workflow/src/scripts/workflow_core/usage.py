@@ -154,6 +154,13 @@ def _show(repo: Path, bead: str) -> dict[str, Any]:
     return data
 
 
+def _row(by_id: Mapping[str, Any], bead: str) -> dict[str, Any]:
+    row = by_id.get(bead)
+    if not isinstance(row, dict):
+        raise UsageError(f"bd show {bead}: no such bead")
+    return row
+
+
 def _list(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
@@ -198,20 +205,9 @@ def quality(repo: Path, bead: str, *, workflows: set[str], events: Sequence | No
     statuses = [(row.get("Issue") or {}).get("status") for row in reversed(hist)]
     result["reopens"] = sum(1 for before, after in zip(statuses, statuses[1:]) if before == "closed" != after)
     if rows is not None:
-        def _discovered_from(row: Mapping[str, Any]) -> bool:
-            if row.get("issue_type") != "bug":
-                return False
-            deps = row.get("dependencies")
-            if not isinstance(deps, Iterable) or isinstance(deps, (str, bytes)):
-                return False
-            return any(
-                isinstance(dep, Mapping)
-                and dep.get("depends_on_id") == bead
-                and dep.get("type") == "discovered-from"
-                for dep in deps
-            )
-
-        result["bugs"] = sum(1 for row in rows if _discovered_from(row))
+        result["bugs"] = sum(1 for row in rows if row.get("issue_type") == "bug" and any(
+            dep.get("depends_on_id") == bead and dep.get("type") == "discovered-from"
+            for dep in row.get("dependencies") or ()))
     else:
         found = _list(_bd(repo, ["dep", "list", bead, "--direction=up", "--type", "discovered-from", "--json"]))
         result["bugs"] = sum(1 for item in found if item.get("issue_type") == "bug")
@@ -311,9 +307,7 @@ def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: 
     prices = load_prices(repo)
     rows = _list(_bd(repo, ["list", "--all", "-n", "0", "--json"]))
     by_id = {row["id"]: row for row in rows if "id" in row}
-    shown = by_id.get(bead)
-    if not isinstance(shown, dict):
-        raise UsageError(f"bd show {bead}: no such bead")
+    shown = _row(by_id, bead)
     is_epic = shown.get("issue_type") == "epic"
     epic = bead if is_epic else (shown.get("parent") or None)
     children = sorted(str(row["id"]) for row in rows if row.get("parent") == epic and row.get("id")) if epic else []
@@ -327,7 +321,7 @@ def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: 
     spans = {bead: _span(repo, bead, shown, now, history=get_history(bead))}
     for other in ([epic] if epic and epic != bead else []) + children:
         if other not in spans:
-            other_shown = by_id.get(other, {})
+            other_shown = _row(by_id, other)
             spans[other] = _span(repo, other, other_shown, now, history=get_history(other))
     events = _events(repo)
     gates, epic_of = gates_from_events(events)
