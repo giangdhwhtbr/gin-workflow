@@ -155,6 +155,20 @@ class TestAssetsConfirm(AssetsCase):
         self.assertIn("Confirmed by: t@example.com\nAgreed with: fe_lead Binh\n", self.description())
         self.assertEqual("fe_lead Binh", result["agreed_with"])
 
+    def test_confirm_whitespace_only_agreed_with_omits_line_and_returns_none(self):
+        self.add()
+        result = specs_assets.confirm(self.root, self.cfg, "orders", "2026-11-07",
+                                      agreed_with="   ", today=date(2026, 11, 9))
+        self.assertNotIn("Agreed with:", self.description())
+        self.assertIsNone(result["agreed_with"])
+
+    def test_confirm_multiline_agreed_with_collapses_to_single_line(self):
+        self.add()
+        result = specs_assets.confirm(self.root, self.cfg, "orders", "2026-11-07",
+                                      agreed_with="pm An\nfe_lead Binh", today=date(2026, 11, 9))
+        self.assertIn("Confirmed by: t@example.com\nAgreed with: pm An fe_lead Binh\n", self.description())
+        self.assertEqual("pm An fe_lead Binh", result["agreed_with"])
+
     def test_confirm_needs_a_git_email(self):
         self.add()
         before = self.description()

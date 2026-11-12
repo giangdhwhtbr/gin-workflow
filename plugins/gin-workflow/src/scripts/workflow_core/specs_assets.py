@@ -124,7 +124,7 @@ def confirm(root: Path, cfg: Mapping[str, Any], cap: str, day: str, *, agreed_wi
     stamp = (today or date.today()).isoformat()
     text = _set_field(text, "Confirmed", stamp, after="Previous")
     text = _set_field(text, "Confirmed by", email, after="Confirmed")
-    cleaned_agreed = agreed_with.strip() if agreed_with else None
+    cleaned_agreed = " ".join((agreed_with or "").split()) or None
     if cleaned_agreed:
         text = _set_field(text, "Agreed with", cleaned_agreed, after="Confirmed by")
     atomic_write_many({description: text.encode("utf-8")}, mode=0o644)
