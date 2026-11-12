@@ -17,15 +17,15 @@ from .models import (
     ResolvedConfig,
     thaw,
 )
-from .schemas import SUPPORTED_CONFIG_VERSIONS, SUPPORTED_SCHEMA_VERSION, validate_config_schema
+from .schemas import SUPPORTED_CONFIG_VERSIONS, SUPPORTED_SCHEMA_VERSION, validate_config_schema, version_key
 
 
 class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.9"
-SUPPORTED_SETUP_CLI_VERSION = "2.9"
+SUPPORTED_WORKFLOW_VERSION = "2.10"
+SUPPORTED_SETUP_CLI_VERSION = "2.10"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {
@@ -189,6 +189,15 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
         task_tracking.get("name") if isinstance(task_tracking, Mapping) else task_tracking
     ) == "markdown":
         raise ConfigValidationError("team mode requires Beads; providers.task_tracking: markdown is not supported")
+    schema_version = str(config.get("schema_version", ""))
+    if (
+        schema_version in SUPPORTED_CONFIG_VERSIONS
+        and version_key(schema_version) >= version_key("2.10")
+        and "notifications" in config
+    ):
+        raise ConfigValidationError(
+            "notifications was removed in schema 2.10; run gin setup update --to-version 2.10 --approve"
+        )
     try:
         validate_config_schema(config)
     except DependencyUnavailableError:
@@ -205,12 +214,12 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
             raise ConfigValidationError(
                 f"unsupported {field} {config[field]!r}; expected one of {SUPPORTED_CONFIG_VERSIONS!r}"
             )
-    if str(config.get("schema_version")) == "2.9" and "model_tiers" in config:
+    if version_key(schema_version) >= version_key("2.9") and "model_tiers" in config:
         raise ConfigValidationError("model_tiers was removed in schema 2.9; list models per harness under models:")
     routing = config.get("routing", {})
     if isinstance(routing, Mapping):
         roles = routing.get("roles", {})
-        if str(config.get("schema_version")) in ("2.8", "2.9"):
+        if version_key(schema_version) >= version_key("2.8"):
             if legacy_worker_routing(config):
                 raise ConfigValidationError(
                     "worker routing (routing.concurrency, queue, worker, circuit_breaker, or a role naming a "

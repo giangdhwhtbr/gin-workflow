@@ -17,7 +17,7 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("needs_clarification", text)
         self.assertIn("--escalate", text)
         self.assertIn("routes dispatch --workflow-id <w> --task-id <id> --escalate", text)
-        self.assertIn('notify --event needs_input "', text)
+        self.assertNotIn("notify --event", text)
 
     def test_review_skill_uses_model_and_effort(self):
         text = (SRC / "skills/review/SKILL.md").read_text(encoding="utf-8")

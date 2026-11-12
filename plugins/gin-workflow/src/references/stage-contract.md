@@ -11,10 +11,10 @@ Quality checks (lint, typecheck, tests, build) run in git hooks, not in a stage:
 Standalone bead (no plan): use `--workflow-id <bead>` on every `state` and `record` call for it. `record orchestration-ready --workflow-id <bead> --epic <bead>` makes the bead its own epic; its description stands in for the spec and plan, so `requirement_confirmed` and `plan_approved` count as satisfied while it has no child beads. `implementation_complete` is then the bead closed, and `record shipped --workflow-id <bead> --evidence <merge commit> --actor <id>` marks it shipped after the merge.
 
 ## Evidence
-Valid: test/command output, review-ledger state, bead IDs, spec/plan paths. Never: self-assessment, summaries, or notification delivery.
+Valid: test/command output, review-ledger state, bead IDs, spec/plan paths. Never: self-assessment or summaries.
 
 ## Approvals
-Get explicit user confirmation in the harness before each action below, and record it where the table says before acting. A notification is never approval.
+Get explicit user confirmation in the harness before each action below, and record it where the table says before acting.
 
 | Action | Recorded as |
 |---|---|
@@ -26,9 +26,6 @@ Get explicit user confirmation in the harness before each action below, and reco
 | Merge into the base branch | the merge commit in the handoff |
 | Force-push (only when the user asks) | the handoff |
 | Discard work (the user types `discard`) | the handoff |
-
-## Notifications
-Before stopping to wait for the user (a confirmation, an approval, a choice, `human_decision_required`, a blocker), run `gin notify --event needs_input "<what you need>"`. It does nothing unless `notifications.telegram` is on, and a message is never approval.
 
 ## Context
 Load only the requirement, file scope, and validation intent. Look up symbols, tests, and knowledge on demand: `codegraph explore "<query>"` when `.codegraph/` exists, else grep/read. Build an artifact from `gin specs template <name>` when one exists; never invent its structure.

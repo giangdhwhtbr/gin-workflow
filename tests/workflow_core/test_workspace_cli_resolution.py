@@ -90,16 +90,11 @@ class ResolutionFromChildTests(unittest.TestCase):
         self.assertEqual(0, done.returncode, done.stderr)
         self.assertTrue(self.state(wt, "--workflow-id", "x")["gates"]["requirement_confirmed"])
 
-    def test_notify_from_a_child_reads_the_parent_config(self):
-        config = self.root / ".agent-workflow/config.yaml"
-        config.write_text(config.read_text() + "notifications:\n  telegram: true\n")
-        self.assertEqual(0, run(self.root, "setup", "refresh", "--format", "json").returncode)
-        done = run(self.child, "notify", "--event", "needs_input", "x",
-                   env={"TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": ""})
-        self.assertEqual(0, done.returncode, done.stderr)
-        # the parent's telegram switch is on, so the missing credentials are reported (a child-only read stays silent)
-        self.assertIn("telegram_credentials_missing", done.stderr)
-        self.assertNotIn("setup is required", done.stderr)
+    def test_notify_is_not_a_command(self):
+        refused = run(self.child, "notify", "--event", "needs_input", "x")
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("usage: gin {", refused.stderr)  # the unknown-command usage line
+        self.assertNotIn("notify", refused.stderr)
 
     @unittest.skipIf(os.name == "nt", "runs a #! bd stub from PATH, which needs POSIX")
     def test_task_runs_bd_at_the_workspace_root(self):

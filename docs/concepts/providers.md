@@ -14,7 +14,6 @@ Skills work through the provider-neutral capabilities below.
 | Review | request review, terminal review state, findings |
 | Evidence | record and query evidence; decide whether acceptance evidence is complete |
 | Knowledge | search and propose knowledge; workers never write permanent knowledge |
-| Notifications | optional delivery only (`gin notify`, behind `notifications.telegram`) |
 
 Selecting a provider never authorizes a lifecycle transition; gates and approvals still apply.
 

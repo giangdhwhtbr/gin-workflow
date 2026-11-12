@@ -7,16 +7,19 @@ import unittest
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
 from workflow_core.migrations import (  # noqa: E402
     MigrationError,
     apply_migration,
     migrate_config,
     rollback_migration,
+    version_key,
 )
 from workflow_core import setup_service  # noqa: E402
 
 
 V28 = {"schema_version": "2.8", "workflow_version": "2.8", "setup_cli_version": "2.8", "harness": "claude"}
+V29 = {**V28, "schema_version": "2.9", "workflow_version": "2.9", "setup_cli_version": "2.9"}
 LOCAL_WITH_MODELS = {
     "schema_version": "2.8",
     "providers": {
@@ -294,6 +297,79 @@ setup_cli_version: '2.2'
 
             self.assertEqual(local_before, (workflow / "orchestrator.local.yaml").read_bytes())
             self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
+
+    def test_rollback_tolerates_a_non_numeric_backup_version(self):
+        import hashlib
+        import json
+
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, V29, {"providers": {}})
+            backup = workflow / "backups" / "hand-edited"
+            backup.mkdir(parents=True)
+            content = b"schema_version: 2.9-rc\n"
+            (backup / "config.yaml").write_bytes(content)
+            (backup / "metadata.json").write_text(json.dumps({
+                "backup_schema_version": "1",
+                "from_version": "2.9-rc",
+                "to_version": "2.10",
+                "config_sha256": hashlib.sha256(content).hexdigest(),
+            }), encoding="utf-8")
+
+            result = setup_service.rollback(repository, backup=backup)
+
+            self.assertEqual(content, (workflow / "config.yaml").read_bytes())
+            self.assertIn("rename .agent-workflow/orchestrator.local.yaml to providers.local.yaml", result["actions"])
+            self.assertTrue((workflow / "providers.local.yaml").is_file())
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+
+    def test_version_key_orders_2_10_after_2_9(self):
+        self.assertGreater(version_key("2.10"), version_key("2.9"))
+        self.assertEqual((2, 10), version_key("2.10"))
+
+    def test_migrates_2_9_to_2_10_dropping_notifications(self):
+        routing = {"roles": {"backend": {"preferred": ["main_harness"]}}, "review": {"max_cycles": 3}}
+        config = {**V29, "notifications": {"telegram": True}, "routing": routing}
+
+        migrated = migrate_config(config, "2.10")
+
+        for field in ("schema_version", "workflow_version", "setup_cli_version"):
+            self.assertEqual("2.10", migrated[field])
+        self.assertNotIn("notifications", migrated)
+        self.assertEqual(routing, migrated["routing"])
+        self.assertIn("notifications", config)
+
+    def test_2_10_config_with_notifications_is_rejected(self):
+        migrated_2_10 = migrate_config(V29, "2.10")
+
+        with self.assertRaises(ConfigValidationError) as raised:
+            validate_portable_config({**migrated_2_10, "notifications": {"telegram": True}})
+
+        self.assertIn("removed in schema 2.10", str(raised.exception))
+        self.assertIn("gin setup update --to-version 2.10 --approve", str(raised.exception))
+
+    def test_update_2_8_to_2_10_still_moves_local_tier_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, V28, LOCAL_WITH_MODELS)
+            yaml = setup_service.require_yaml()
+
+            result = setup_service.update(repository, target_version="2.10", approve=True)
+
+            self.assertEqual("migrated", result["status"])
+            raw = (workflow / "config.yaml").read_text(encoding="utf-8")
+            config = yaml.safe_load(raw)
+            self.assertEqual("2.10", config["schema_version"])
+            self.assertEqual({
+                "codex": {"models": ["m1", "m2"], "efforts": ["low", "medium", "high", "xhigh"]},
+                "antigravity": {"models": ["a", "b"]},
+            }, config["models"])
+            local = yaml.safe_load((workflow / "orchestrator.local.yaml").read_text(encoding="utf-8"))
+            self.assertEqual({"codex": {"executable": "codex"}, "antigravity": {"executable": "agy"}}, local["providers"])
+
+    def test_doctor_reports_notifications_on_older_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, {**V29, "notifications": {"telegram": True}})
+            actions = setup_service.doctor(repository)["actions"]
+            self.assertTrue(any("notifications is ignored since schema 2.10" in action for action in actions), actions)
 
 
 if __name__ == "__main__":

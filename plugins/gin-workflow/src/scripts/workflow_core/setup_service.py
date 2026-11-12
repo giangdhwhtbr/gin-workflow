@@ -22,15 +22,15 @@ from .migrations import (
     migrate_config,
     propose_migration,
     rollback_migration,
+    version_key,
 )
 from .executable_resolver import resolve_harness_executable
 from .provider_config import DEFAULT_EXECUTABLES
-from .notify import credentials_warning
 from . import agents_block
 from . import orchestrator_client
 from . import snapshot
 from . import workspace as workspace_mod
-from .schemas import require_jsonschema
+from .schemas import SUPPORTED_CONFIG_VERSIONS, require_jsonschema
 
 
 INIT_ACTIONS = [
@@ -444,12 +444,19 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 "artifacts.worktrees is not supported; worktrees always live under .planning/worktrees. "
                 "Remove it from your configuration"
             )
-        if str(user_cfg.get("schema_version", "")) not in ("2.8", "2.9") and legacy_worker_routing(user_cfg):
+        user_schema = str(user_cfg.get("schema_version", ""))
+        if (
+            user_schema not in SUPPORTED_CONFIG_VERSIONS or version_key(user_schema) < version_key("2.8")
+        ) and legacy_worker_routing(user_cfg):
             backend_actions.append(
                 "worker routing under routing: is ignored; run gin setup update --to-version 2.8 --approve"
             )
         if "model_tiers" in effective_cfg:
             backend_actions.append("model_tiers is ignored since schema 2.9; list models per harness under models:")
+        if "notifications" in effective_cfg:
+            backend_actions.append(
+                "notifications is ignored since schema 2.10; run gin setup update --to-version 2.10 --approve"
+            )
         local_path = main_checkout(root) / ".agent-workflow/orchestrator.local.yaml"
         if local_path.is_file() and _local_tier_models(_read_local_file(local_path)):
             backend_actions.append(
@@ -579,10 +586,6 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
                 if warn:
                     actions.append(warn)
 
-        if isinstance(effective.get("notifications"), Mapping) and effective["notifications"].get("telegram") is True:
-            if warn := credentials_warning(os.environ):
-                actions.append(warn)
-
     stale = snapshot.check(Path(__file__).absolute().parents[1])
     checks_details["snapshot"] = {"warning": stale}
     if stale:
@@ -655,12 +658,12 @@ def update(
     main = main_checkout(root)
     local_dir = main / ".agent-workflow"
     old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
-    rename_local = target_version in ("2.8", "2.9") and old_local.is_file() and not new_local.exists()
+    rename_local = version_key(target_version) >= version_key("2.8") and old_local.is_file() and not new_local.exists()
     local_source = old_local if rename_local else new_local
     local_actions: list[str] = []
     local_writes: dict[Path, bytes] = {}
     local_backup: dict[str, bytes] = {}
-    if target_version == "2.9" and local_source.is_file():
+    if version_key(target_version) >= version_key("2.9") and local_source.is_file():
         local = _read_local_file(local_source)
         tiered = _local_tier_models(local)
         if tiered:
@@ -719,7 +722,9 @@ def rollback(repository: Path, *, backup: Path | None, dry_run: bool = False, **
     main = main_checkout(root)
     local_dir = main / ".agent-workflow"
     old_local, new_local = local_dir / "providers.local.yaml", local_dir / "orchestrator.local.yaml"
-    if str(result.get("restored_version", "")) not in ("2.8", "2.9") and new_local.is_file() and not old_local.exists():
+    restored_version = str(result.get("restored_version") or "0")
+    pre_2_8 = restored_version not in SUPPORTED_CONFIG_VERSIONS or version_key(restored_version) < version_key("2.8")
+    if pre_2_8 and new_local.is_file() and not old_local.exists():
         if not dry_run:
             os.replace(new_local, old_local)
         result.setdefault("actions", []).append(f"rename {new_local.relative_to(main).as_posix()} to {old_local.name}")

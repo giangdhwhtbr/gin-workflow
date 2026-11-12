@@ -329,9 +329,9 @@ class SetupCliTests(unittest.TestCase):
                 {
                     "harness": "codex",
                     "policy": {"mode": "guarded"},
-                    "schema_version": "2.9",
-                    "setup_cli_version": "2.9",
-                    "workflow_version": "2.9",
+                    "schema_version": "2.10",
+                    "setup_cli_version": "2.10",
+                    "workflow_version": "2.10",
                 },
                 payload["configuration"],
             )
@@ -938,30 +938,18 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(res.stdout)
             self.assertEqual([], payload["models"])
 
-    def test_doctor_warns_when_telegram_is_on_without_credentials(self):
+    def test_doctor_never_reports_telegram_credentials(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
             self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
 
             base_env = {k: v for k, v in os.environ.items() if not k.startswith("TELEGRAM_")}
-            res = self.run_cli(repository, "doctor", env=base_env)
-            self.assertEqual(0, res.returncode, res.stderr)
-            payload = json.loads(res.stdout)
-            self.assertFalse(any("telegram_credentials_missing" in a for a in payload.get("actions", [])))
-
-            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "notifications.telegram=true").returncode)
-
-            res = self.run_cli(repository, "doctor", env=base_env)
-            self.assertEqual(0, res.returncode, res.stderr)
-            payload = json.loads(res.stdout)
-            self.assertTrue(any("telegram_credentials_missing" in a for a in payload.get("actions", [])))
-
             with_creds = {**base_env, "TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"}
-            res = self.run_cli(repository, "doctor", env=with_creds)
-            self.assertEqual(0, res.returncode, res.stderr)
-            payload = json.loads(res.stdout)
-            self.assertFalse(any("telegram_credentials_missing" in a for a in payload.get("actions", [])))
-
+            for env in (base_env, with_creds):
+                res = self.run_cli(repository, "doctor", env=env)
+                self.assertEqual(0, res.returncode, res.stderr)
+                payload = json.loads(res.stdout)
+                self.assertFalse(any("telegram" in a.lower() for a in payload.get("actions", [])), payload)
 
 if __name__ == "__main__":
     unittest.main()

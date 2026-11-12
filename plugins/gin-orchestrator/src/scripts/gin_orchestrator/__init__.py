@@ -10,9 +10,6 @@ from .contracts import (
     KnowledgeProposalRecord,
     KnowledgeProvider,
     KnowledgeRecord,
-    NotificationProvider,
-    NotificationReceipt,
-    NotificationRequest,
     OperationStatus,
     ProviderHealth,
     ProviderMetadata,
@@ -32,13 +29,11 @@ from .evidence import FileEvidenceProvider
 from .fakes import (
     FakeEvidenceProvider,
     FakeKnowledgeProvider,
-    FakeNotificationProvider,
     FakeReviewProvider,
     FakeTaskTrackingProvider,
     FakeWorkspaceProvider,
 )
 from .knowledge import ObsidianKnowledgeProvider, RepositoryKnowledgeProvider
-from .notifications import TelegramNotificationProvider
 from .registry import ProviderRegistry, RegistryError
 from .review import ReviewLedgerProvider
 from .routed_worker import RoutedWorkerDispatcher, RoutedWorkerReceipt
@@ -54,7 +49,6 @@ __all__ = [
     "EvidenceRecord",
     "FakeEvidenceProvider",
     "FakeKnowledgeProvider",
-    "FakeNotificationProvider",
     "FakeReviewProvider",
     "FakeTaskTrackingProvider",
     "FakeWorkspaceProvider",
@@ -63,9 +57,6 @@ __all__ = [
     "KnowledgeProposalRecord",
     "KnowledgeProvider",
     "KnowledgeRecord",
-    "NotificationProvider",
-    "NotificationReceipt",
-    "NotificationRequest",
     "ObsidianKnowledgeProvider",
     "OperationStatus",
     "ProviderHealth",
@@ -84,7 +75,6 @@ __all__ = [
     "TaskCreateRequest",
     "TaskRecord",
     "TaskTrackingProvider",
-    "TelegramNotificationProvider",
     "WorkspaceProvider",
     "WorkspaceRecord",
     "WorkspaceRequest",

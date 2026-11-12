@@ -754,18 +754,6 @@ def evaluate_evidence_completeness(
     return EvidenceCompleteness(task_id, True, (), tuple(selected), tuple(diagnostics))
 
 
-@dataclass(frozen=True)
-class NotificationRequest:
-    event: str
-    message: str
-
-
-@dataclass(frozen=True)
-class NotificationReceipt:
-    event: str
-    delivered: bool
-
-
 class ProviderBase:
     """Shared health and in-process replay handling; adapters own external calls."""
 
@@ -916,10 +904,3 @@ class EvidenceProvider(Protocol):
         task_id: str,
         acceptance_identity: AcceptanceIdentity | None = None,
     ) -> ProviderResult[EvidenceCompleteness]: ...
-
-
-@runtime_checkable
-class NotificationProvider(Protocol):
-    metadata: ProviderMetadata
-
-    def notify(self, request: NotificationRequest, *, idempotency_key: str) -> ProviderResult[NotificationReceipt]: ...

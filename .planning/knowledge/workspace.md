@@ -25,7 +25,7 @@ Epic `gin-workflow-workspace` (discussed and shipped 2026-11-07 to 2026-11-08). 
 - Not built: version pinning across repositories, `project.packages` inside a child, submodule support.
 
 **References**
-- `plugins/gin-workflow/src/scripts/workflow_core/{workspace,workspace_cli,hooks,verification,worktrees,lifecycle_cli,cli,tasks,team,team_cli,routes,assignments,schemas,setup_service,notify}.py`
+- `plugins/gin-workflow/src/scripts/workflow_core/{workspace,workspace_cli,hooks,verification,worktrees,lifecycle_cli,cli,tasks,team,team_cli,routes,assignments,schemas,setup_service}.py`
 - Tests: `tests/workflow_core/{test_workspace,test_workspace_cli,test_workspace_cli_resolution,test_hooks,test_worktrees,test_team_gates,test_specs_technical_questions,test_routes_cli,test_lifecycle_cli}.py`
 - Docs: `docs/guides/workspace.md` (and `.vi.md`), `docs/starters/brownfield.md`, `docs/reference/{config,cli}.md`, `docs/concepts/{state-model,lifecycle}.md`, `docs/guides/claude-workflow.md`, `docs/roles.md`
 - `.planning/specs/2026-11-07-workspace-design.md`, `.planning/plans/2026-11-07-workspace.md`
