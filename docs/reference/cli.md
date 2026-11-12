@@ -419,22 +419,22 @@ Output: text `TC-AUTH-001 passed`; JSON `{"tc", "result", "run", "bug", "file"}`
 
 ### `gin-qa cases bug`
 
-`gin-qa cases bug <TC-ID> --actual TEXT [--evidence REF]... [--external-ref REF] [--discovered-from BEAD] [--run REF]` records `failed` on a manual case and files a bug bead for it.
+`gin-qa cases bug <TC-ID> --actual TEXT [--evidence REF]... [--external-ref REF] [--discovered-from BEAD] [--run REF]` records `failed` on a case of any type and files a bug bead for it.
 
 - When the case's `Bug:` is a bead that `gin task show` reports with a `status` other than `closed`, no bead is created, the case keeps that bug, and `epic` is `null`. No epic is needed.
 - When the bug is open, the new actual result is added to its notes with `gin task update --append-notes`, as one line, `Re-run <date>; Run: <ref>; Actual: <text>; Evidence: <refs>`; the `Run` and `Evidence` parts are left out when empty, and double quotes become single quotes. A failed update exits 2 and leaves the case unchanged.
 - A `Bug:` value that is not a bead, or that `task show` cannot read, counts as no open bug; the new bug names it as `Previous bug`.
 - Otherwise the epic is found:
   - from the spec named in `Source:`, which must be inside the repository: its `Epic:` line, or the `epic` of `gin state --workflow-id <topic>` for its `Workflow: <topic>` line;
-  - or, with REQs, the `epic` of the first of the case's REQs that has one in `gin specs reqs`.
+  - or, with REQs, the distinct `epic` values of the case's REQs in `gin specs reqs`, in REQ order; it needs exactly one.
 - `--discovered-from` replaces the epic found. The epic must be a bead `gin task show` can read.
 - It then runs `gin task create -t bug --title "<TC-ID>: <title>" --body-file - --deps discovered-from:<epic> -p <priority> [--external-ref REF] --json` in the repository, with the description on stdin. Then it writes `Result: failed`, the run (`--run`, else the case's current `Run`), and the new bug.
 
 Exit 2, writing nothing, when:
 
-- the ID does not exist, or the case is not `manual`;
+- the ID does not exist;
 - an option value is empty or not one printable line;
-- no epic is found (`no epic for <TC-ID>; pass --discovered-from <bead>`), or the epic is not a bead (`<epic>: no such bead; pass --discovered-from <bead>`);
+- no epic is found (`no epic for <TC-ID>; pass --discovered-from <bead>`), the REQs name several (`several epics for <TC-ID>: <epic>, <epic>; pass --discovered-from <bead>`), or the epic is not a bead (`<epic>: no such bead; pass --discovered-from <bead>`);
 - the spec named in `Source:` is outside the repository or cannot be read;
 - `task show` on the epic fails for another reason, or `task create` fails (their stderr is passed on).
 
