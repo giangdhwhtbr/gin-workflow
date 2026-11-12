@@ -1,13 +1,9 @@
 # Code Review Ledger
 
-**Bead Status:** `review-in-progress`
+**Bead Status:** `changes-requested`
 
 ## Active Lease
-- **Lease ID:** `9d96ef84eb8840fd9dcdef5dda79a433`
-- **Actor:** `reviewer:claude:session-e7e4d3e7` (reviewer)
-- **Acquired:** `2026-11-12T05:19:42.159868Z`
-- **Expires:** `2026-11-12T05:29:42.159868Z`
-- **Ledger Revision:** `7`
+*No active lease.*
 
 ## Review Approval
 *Not approved or approval has been invalidated.*
@@ -56,3 +52,5 @@
 | `EV-000005` | `2026-11-12T05:19:42.177077Z` | `review-started` | `reviewer:claude:session-e7e4d3e7` (reviewer) |
 | `EV-000006` | `2026-11-12T05:19:46.237461Z` | `finding-created` | `reviewer:claude:session-e7e4d3e7` (reviewer) |
 | `EV-000007` | `2026-11-12T05:19:46.363173Z` | `finding-created` | `reviewer:claude:session-e7e4d3e7` (reviewer) |
+| `EV-000008` | `2026-11-12T05:19:55.886727Z` | `changes-requested` | `reviewer:claude:session-e7e4d3e7` (reviewer) |
+| `EV-000009` | `2026-11-12T05:19:56.117870Z` | `lease-released` | `reviewer:claude:session-e7e4d3e7` (reviewer) |
