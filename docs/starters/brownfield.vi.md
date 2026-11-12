@@ -369,11 +369,11 @@ Trong `/gin:discuss`, hãy chốt chiến lược data migration (dual-write ho�
 | Track | Khu vực | Repo | Owner | Công việc |
 |---|---|---|---|---|
 | 1 | `qa` | `qa` | Chi | Test case cho capability catalog, mỗi case một file |
-| 2 | `api` | `services/catalog-api` | Em | Spring Boot API, facade và parity test theo hợp đồng |
+| 2 | `api` | `services/catalog-api` | Em | Spring Boot API và facade, cùng unit test và integration test |
 | 3 | `web` | `apps/web-shop` | Hoa | React UI xây dựa trên contract mock |
 | 4 | `web` | `apps/web-shop` | Hoa | Tích hợp: thay các mock bằng lời gọi API thật |
 | 5 | `api` | `services/order-api` | Binh | Router cutover sang facade mới, trên seat Premium với effort cao |
-| 6 | `qa` | `qa` | Chi | API test, E2E, manual run và báo cáo |
+| 6 | `qa` | `qa` | Chi | Parity test và API test, E2E, manual run và báo cáo |
 
 ```mermaid
 flowchart LR
@@ -388,7 +388,7 @@ flowchart LR
   T5 --> T6
 ```
 
-Các script kiểm tra parity và dữ liệu chạy trong hook `pre-push` khi lệnh `verify.checks.test` chạy chúng ([cấu hình](../reference/config.md#verifychecks)).
+Unit test và integration test chạy trong hook `pre-push` qua `verify.checks.test` của service ([cấu hình](../reference/config.md#verifychecks)); parity test chạy từ `qa/` bằng `/gin-qa:tests --type api`.
 
 ## Test case { #test-cases }
 
@@ -404,18 +404,14 @@ Legacy behaviors the new API must match: hidden products never listed; customer 
 ```
 ```text
 /gin-qa:tests catalog --type api
-Compare the new API with the legacy pages on payloads recorded from staging.
+Compare the new API, built from this pull request, with the payloads recorded from the legacy system on staging under qa/legacy/catalog/.
 ```
 
 Đưa vào prompt: epic, và các hành vi legacy mà API mới phải khớp.
 
-Unit test qua không chứng tỏ code mới hành xử như code cũ. Parity test so sánh hai bên:
+Unit test qua không chứng tỏ code mới hành xử như code cũ. Tester sở hữu parity test (một quy ước của nhóm): các case `api` có dòng `Legacy:` nêu màn hình capture đã xác nhận và một payload được ghi lại một lần từ hệ thống legacy trên staging, rồi commit dưới `qa/legacy/catalog/`. Chúng chạy trên service mới được build từ nhánh pull request, trong CI hoặc chạy cục bộ, và khẳng định không có khác biệt ngoài dự kiến nào so với payload đã ghi lại.
 
-1. Thu thập các payload production hoặc staging đã ghi lại (Golden Master).
-2. Chạy từng payload trên cả bản triển khai legacy lẫn bản hiện đại.
-3. Khẳng định không có khác biệt ngoài dự kiến nào trong các response.
-
-**Kết quả:** mỗi case một file dưới `qa/cases/catalog/`, ví dụ `TC-CATALOG-001-list-products.api.md`, `TC-CATALOG-002-search-by-name.e2e.md` và `TC-CATALOG-003-legacy-pagination.manual.md`. Mỗi case gắn với một requirement và content hash của nó, và `gin-qa cases pin` ghi lại hash sau khi một case được cập nhật; `gin-qa cases plan` đánh dấu các case đã lỗi thời. Các loại `api`, `e2e` và `manual` được liệt kê dưới `## Types` trong `qa/guidelines.md`. `/gin-qa:tests` viết và chạy các test `api` từ các glob `Tests:` và lệnh `Run:` khai báo dưới `## Automated types`. Một repository vẫn còn file case phẳng theo từng capability thì chuyển nó một lần bằng `gin-qa cases split catalog`.
+**Kết quả:** mỗi case một file dưới `qa/cases/catalog/`, ví dụ `TC-CATALOG-001-list-products.api.md`, `TC-CATALOG-002-search-by-name.e2e.md` và `TC-CATALOG-003-legacy-pagination.manual.md`. Mỗi case gắn với một requirement và content hash của nó, và `gin-qa cases pin` ghi lại hash sau khi một case được cập nhật; `gin-qa cases plan` đánh dấu các case đã lỗi thời. Các loại `api`, `e2e` và `manual` được liệt kê dưới `## Types` trong `qa/guidelines.md`. `/gin-qa:tests` viết và chạy các test `api` từ các glob `Tests:` và lệnh `Run:` khai báo dưới `## Automated types`. Một repository vẫn còn file case phẳng theo từng capability thì chuyển nó một lần bằng `gin-qa cases split catalog`. Case được viết từ một capture legacy đã xác nhận mang `Legacy:`.
 
 **Cổng hoặc phê duyệt:** không có.
 
