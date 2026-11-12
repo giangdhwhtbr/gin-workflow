@@ -13,11 +13,11 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-epic-shape-docs.1`
 - **Base SHA:** `5daf8efa97906d383806027a6da2da94e1a4d41d`
-- **Reviewed SHA:** `74dd5c8e2c664593bd8049391854698b80db219b`
+- **Reviewed SHA:** `a1a8b4ed72ed5c9ab4e03c79116959b6ac45a9da`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-epic-shape-docs.1`
-- **Checkpoint SHA:** `74dd5c8e2c664593bd8049391854698b80db219b`
+- **Checkpoint SHA:** `a1a8b4ed72ed5c9ab4e03c79116959b6ac45a9da`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
 - **Tree Hash:** `866cc1cbfee9b5bfce3e8f7fb26ffb0b1e3afe3f9481c44cfdfe179bbb03b8d9`
 
@@ -69,3 +69,4 @@
 | `EV-000020` | `2026-11-12T13:00:55.871217Z` | `lease-acquired` | `reviewer:claude:session-945d9d96` (reviewer) |
 | `EV-000021` | `2026-11-12T13:01:08.746520Z` | `changes-requested` | `reviewer:claude:session-945d9d96` (reviewer) |
 | `EV-000022` | `2026-11-12T13:01:08.980354Z` | `lease-released` | `reviewer:claude:session-945d9d96` (reviewer) |
+| `EV-000023` | `2026-11-12T13:03:20.211937Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
