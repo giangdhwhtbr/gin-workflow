@@ -77,6 +77,7 @@ execution_strategy:
   - Modify `docs/guides/workspace.vi.md` (same sections; anchors `{ #contract }`, `{ #limits }`, `{ #shared-packages }`)
   - Modify `docs/roles.md:20-22` (PM, BA, Tech lead rows) and `:70-76` (Keeping work apart, only if a sentence there restates discuss ownership)
   - Modify `docs/roles.vi.md` (same)
+  - Modify `plugins/gin-workflow/src/skills/roadmap/references/capability-epics.md:6,12` (added after review F-2, user approved 2026-11-12: align tracks per repository and the contract freeze with workspace.md)
 - **Provider role**: `docs`
 - **Model:** `sonnet`
 - **Effort:** `low`
@@ -152,4 +153,5 @@ execution_strategy:
 - The user may override `Model:` and `Effort:` before plan approval.
 - Provider roles describe responsibility rather than filename patterns.
 - Deliverable merge-holds (e.g. "remain open until human-confirmed merge") apply exclusively to the Parent Bead. Individual track beads must close upon passing tests and code review to unblock downstream dependent tracks.
+- Scope change (user, 2026-11-12): Track 1 also aligns `capability-epics.md` lines 6 and 12 with workspace.md Limits and Contract (review finding F-2), overriding the spec's "no skill file changes" for this one reference file; follow-up bead gin-workflow-8zbt closed as superseded.
 - `test_walkthrough_docs.py` checks that every `gin <command>` cited in the starter exists in the CLI reference; avoid prose like `gin accept` that reads as a command.
