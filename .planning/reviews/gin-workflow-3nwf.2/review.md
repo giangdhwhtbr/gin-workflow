@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -27,10 +27,30 @@
 - **Allowed Generated Paths:**
 
 ## Findings Summary
-*No findings recorded.*
+| Finding ID | Severity | Status | Clarification Count | Linked Bead |
+| :--- | :--- | :--- | :---: | :--- |
+| `F-1` | `IMPORTANT` | `open` | 0 | - |
+| `F-2` | `MINOR` | `open` | 0 | - |
+| `F-3` | `MINOR` | `open` | 0 | - |
+| `F-4` | `MINOR` | `open` | 0 | - |
 
 ## Findings Detail
-*No detailed findings.*
+### `F-1` (IMPORTANT)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F-2` (MINOR)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F-3` (MINOR)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F-4` (MINOR)
+- **Status:** `open`
+- **Clarification Count:** 0
+
 
 ## Event Chronology
 | Event ID | Timestamp | Action | Actor |
@@ -38,3 +58,12 @@
 | `EV-000001` | `2026-11-12T15:58:50.016857Z` | `ledger-created` | `implementer:claude:opus` (worker) |
 | `EV-000002` | `2026-11-12T15:58:50.354815Z` | `source-checkpoint-created` | `implementer:claude:opus` (worker) |
 | `EV-000003` | `2026-11-12T15:58:50.481520Z` | `review-requested` | `implementer:claude:opus` (worker) |
+| `EV-000004` | `2026-11-12T16:08:46.145162Z` | `lease-acquired` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000005` | `2026-11-12T16:08:46.169984Z` | `review-started` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000006` | `2026-11-12T16:08:52.490787Z` | `finding-created` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000007` | `2026-11-12T16:08:55.807628Z` | `finding-created` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000008` | `2026-11-12T16:08:59.339119Z` | `finding-created` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000009` | `2026-11-12T16:09:03.030311Z` | `finding-created` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000010` | `2026-11-12T16:09:06.497154Z` | `changes-requested` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000011` | `2026-11-12T16:09:13.564164Z` | `lease-released` | `reviewer:claude:session-f3dc7054` (reviewer) |
+| `EV-000012` | `2026-11-12T16:10:11.965323Z` | `implementation-in-progress` | `implementer:claude:opus` (worker) |
