@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -27,10 +27,25 @@
 - **Allowed Generated Paths:**
 
 ## Findings Summary
-*No findings recorded.*
+| Finding ID | Severity | Status | Clarification Count | Linked Bead |
+| :--- | :--- | :--- | :---: | :--- |
+| `F-1` | `IMPORTANT` | `open` | 0 | - |
+| `F-2` | `MINOR` | `open` | 0 | - |
+| `F-3` | `MINOR` | `open` | 0 | - |
 
 ## Findings Detail
-*No detailed findings.*
+### `F-1` (IMPORTANT)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F-2` (MINOR)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F-3` (MINOR)
+- **Status:** `open`
+- **Clarification Count:** 0
+
 
 ## Event Chronology
 | Event ID | Timestamp | Action | Actor |
@@ -38,3 +53,11 @@
 | `EV-000001` | `2026-11-12T16:59:11.104725Z` | `ledger-created` | `implementer:claude:main` (worker) |
 | `EV-000002` | `2026-11-12T16:59:11.393104Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
 | `EV-000003` | `2026-11-12T16:59:11.518397Z` | `review-requested` | `implementer:claude:main` (worker) |
+| `EV-000004` | `2026-11-12T17:01:39.656251Z` | `lease-acquired` | `reviewer:claude:session-15ca8116` (reviewer) |
+| `EV-000005` | `2026-11-12T17:01:39.678261Z` | `review-started` | `reviewer:claude:session-15ca8116` (reviewer) |
+| `EV-000006` | `2026-11-12T17:01:48.579577Z` | `finding-created` | `reviewer:claude:session-15ca8116` (reviewer) |
+| `EV-000007` | `2026-11-12T17:01:48.709236Z` | `finding-created` | `reviewer:claude:session-15ca8116` (reviewer) |
+| `EV-000008` | `2026-11-12T17:01:48.833576Z` | `finding-created` | `reviewer:claude:session-15ca8116` (reviewer) |
+| `EV-000009` | `2026-11-12T17:01:48.957298Z` | `changes-requested` | `reviewer:claude:session-15ca8116` (reviewer) |
+| `EV-000010` | `2026-11-12T17:01:49.189735Z` | `lease-released` | `reviewer:claude:session-15ca8116` (reviewer) |
+| `EV-000011` | `2026-11-12T17:02:15.907371Z` | `implementation-in-progress` | `implementer:claude:main` (worker) |
