@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-requested",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-3nwf.4",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-3nwf.4",
+      "review_base_sha": "f1a909e0513bdd47961c7b7b954bead040ac5a71",
+      "reviewed_source_sha": "aaaf8127700593b766c5e0d55bda7945ac61cf46",
+      "checkpoint_sha": "aaaf8127700593b766c5e0d55bda7945ac61cf46",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "b1c967141881096a5f2a6c79d453cea88020273491adb425838fd8bedaa9cf5e",
+      "reviewed_source_tree_hash": "b1c967141881096a5f2a6c79d453cea88020273491adb425838fd8bedaa9cf5e",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 3,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-12T16:59:11.104725Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-3nwf.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-3nwf.4",
+            "review_base_sha": "f1a909e0513bdd47961c7b7b954bead040ac5a71",
+            "reviewed_source_sha": "ab113a06f280c81efc2aa91e321713c1da5e2b2c",
+            "checkpoint_sha": "ab113a06f280c81efc2aa91e321713c1da5e2b2c",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "b1c967141881096a5f2a6c79d453cea88020273491adb425838fd8bedaa9cf5e",
+            "reviewed_source_tree_hash": "b1c967141881096a5f2a6c79d453cea88020273491adb425838fd8bedaa9cf5e",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:claude:main",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "d5182c6e4bbb6bc57b8d56556744bd9a9f9c718d9ee9a741da6a0b3da873609c"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-12T16:59:11.393104Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-3nwf.4",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-3nwf.4",
+            "review_base_sha": "f1a909e0513bdd47961c7b7b954bead040ac5a71",
+            "reviewed_source_sha": "aaaf8127700593b766c5e0d55bda7945ac61cf46",
+            "checkpoint_sha": "aaaf8127700593b766c5e0d55bda7945ac61cf46",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "b1c967141881096a5f2a6c79d453cea88020273491adb425838fd8bedaa9cf5e",
+            "reviewed_source_tree_hash": "b1c967141881096a5f2a6c79d453cea88020273491adb425838fd8bedaa9cf5e",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "d5182c6e4bbb6bc57b8d56556744bd9a9f9c718d9ee9a741da6a0b3da873609c",
+      "event_hash": "f2a7b4121fe3b995831b43ed82781764d90b05635aa75b8ea41538a1bca11069"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-12T16:59:11.518397Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "f2a7b4121fe3b995831b43ed82781764d90b05635aa75b8ea41538a1bca11069",
+      "event_hash": "b22a8c2a27e2aa0d7504643d9521f657c4bcc1df8a0223f1facf67cb84cb95ac"
+    }
+  ]
+}
