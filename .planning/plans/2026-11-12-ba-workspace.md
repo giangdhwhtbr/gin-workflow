@@ -111,25 +111,22 @@ execution_strategy:
 ### Track 2: Questions, answers, and acceptance in execute, progress, and ship
 - **Dependencies**: Track 1
 - **Files**:
-  - Modify `plugins/gin-workflow/src/skills/execute/SKILL.md:36` (step 5), `:43` (drop the parenthetical "(squash-merge checks fetch the refs)")
-  - Modify `plugins/gin-workflow/src/skills/execute/references/delegation-policy.md:3` (first paragraph)
-  - Modify `plugins/gin-workflow/src/skills/progress/SKILL.md:17-18` (new step after step 4)
+  - Modify `plugins/gin-workflow/src/skills/execute/SKILL.md:36` (step 5)
+  - Modify `plugins/gin-workflow/src/skills/progress/SKILL.md` (new step after step 4)
   - Modify `plugins/gin-workflow/src/skills/ship/SKILL.md:16` (step 1 warning)
-  - Test `tests/workflow_core/test_token_budget.py`, `tests/workflow_core/test_skill_routing.py`, `tests/gin_orchestrator/test_routed_worker.py` (existing; run, do not change unless a new assertion below)
+  - Test `tests/workflow_core/test_token_budget.py`, `tests/workflow_core/test_skill_routing.py` (existing; run, do not change)
 - **Provider role**: `docs`
 - **Model:** `claude-sonnet-5-5`
-- **Why:** skill text in three stage skills with exact wording, under a 12,000-character chain limit that leaves execute 50 characters of headroom.
+- **Why:** skill text in three stage skills with exact wording, under the 12,000-character stage chain limit.
 - **Steps**:
-  1. Baseline: `cd plugins/gin-workflow/src/scripts && python3 -c "from pathlib import Path; from workflow_core.budget import stage_chars; [print(s, stage_chars(Path('..').resolve(), s)) for s in ('execute','progress','ship')]"` → execute 11950, progress 4818, ship 10831.
+  1. Baseline: `cd plugins/gin-workflow/src/scripts && python3 -c "from pathlib import Path; from workflow_core.budget import stage_chars; [print(s, stage_chars(Path('..').resolve(), s)) for s in ('execute','progress','ship')]"` → execute 11269, progress 4482, ship 10495 (after merging master at schema 2.10, which removed `gin notify`).
   2. `execute/SKILL.md` step 5 becomes exactly:
-     `5. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise (Beads) `gin task comment <epic> "[gin question] <track>: <question>"`, `gin notify --event needs_input "<track>: <question>"`, and leave the bead `in_progress` with a note. On resume, a newer `[gin answer] <track>:` comment (`gin task comments <epic> --json`) answers it.`
-     In section 4 step 3 delete " (squash-merge checks fetch the refs)".
-  3. `delegation-policy.md` first paragraph becomes: "Tracks are dispatched with `gin routes dispatch`; the route comes from the assignment manifest." Keep the rest of the file unchanged (`test_skill_routing.py:126-136` and `test_routed_worker.py:523-530` check "routes dispatch", the four statuses, "never lowered", "one isolated worktree per worker", "A requested route is never lowered").
-  4. `progress/SKILL.md`: insert after step 4 and renumber the rest: "5. With Beads, for each open epic in the report, list each `[gin question] <track>:` comment (`gin task comments <epic> --json`) that has no newer `[gin answer] <track>:` comment, with its date and text, as open questions for the BA. The markdown backend has no comments."
-  5. `ship/SKILL.md` step 1, after the `review_waivers` sentence: "When `team.members` in `.agent-workflow/config.yaml` has a member with the role `ba` and `gin task comments <epic> --json` has no `[gin accept]` comment, warn `no BA acceptance ([gin accept]) on <epic>` and continue; skip this check with the markdown backend."
-  6. Run step 1's command → execute ≤ 12000 (expected 11976: +172 in step 5, −37 in section 4, −109 in delegation-policy.md), progress ≤ 12000, ship ≤ 12000. If execute is over, shorten only the new step 5 text while keeping every instruction in it, and report what changed.
-  7. `python3 -m pytest tests/workflow_core/test_token_budget.py tests/workflow_core/test_skill_routing.py tests/gin_orchestrator/test_routed_worker.py tests/gin_orchestrator/test_harness_packaging.py -q` → pass.
-  8. Commit: `feat(skills): [gin question] and [gin answer] in execute and progress, [gin accept] warning in ship (gin-workflow-ba-workspace)`.
+     `5. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise (Beads) add `gin task comment <epic> "[gin question] <track>: <question>"`, ask the user, and leave the bead `in_progress` with a note. On resume, a newer `[gin answer] <track>:` comment (`gin task comments <epic> --json`) answers it.`
+  3. `progress/SKILL.md`: insert after step 4 and renumber the rest: "5. With Beads, for each open epic in the report, list each `[gin question] <track>:` comment (`gin task comments <epic> --json`) that has no newer `[gin answer] <track>:` comment, with its date and text, as open questions for the BA. The markdown backend has no comments."
+  4. `ship/SKILL.md` step 1, after the `review_waivers` sentence: "When `team.members` in `.agent-workflow/config.yaml` has a member with the role `ba` and `gin task comments <epic> --json` has no `[gin accept]` comment, warn `no BA acceptance ([gin accept]) on <epic>` and continue; skip this check with the markdown backend."
+  5. Run step 1's command → execute, progress, and ship each ≤ 12000.
+  6. `python3 -m pytest tests/workflow_core/test_token_budget.py tests/workflow_core/test_skill_routing.py tests/gin_orchestrator/test_routed_worker.py tests/gin_orchestrator/test_harness_packaging.py -q` → pass.
+  7. Commit: `feat(skills): [gin question] and [gin answer] in execute and progress, [gin accept] warning in ship (gin-workflow-ba-workspace)`.
 - **Acceptance criteria**: R5, R6, R8, R9; US-3 and US-4 criterion 3; budgets hold.
 - **Estimated complexity**: low
 
@@ -200,3 +197,4 @@ execution_strategy:
 - Test hygiene: new tests above any `__main__` guard, no duplicate names.
 - `docs/concepts/lifecycle.md` has no Vietnamese translation.
 - Routes changed after approval (user, 2026-11-12): config schema 2.10 (`1391bf49`) lists `haiku`, `claude-sonnet-5-5`, `opus` and no efforts for `claude`, so every track uses `claude-sonnet-5-5` without `Effort:`.
+- Track 2 rebased on master (2026-11-12): schema 2.10 (`gin-workflow-remove-telegram`) removed `gin notify`; execute step 5 now says "ask the user", so R5's "notifies" is that step, and the execute chain (11,269) needs no offset.
