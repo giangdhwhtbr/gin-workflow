@@ -35,7 +35,7 @@ In `multi` mode without gin-orchestrator, or when it fails, gin-workflow resolve
 
 ## Dispatch and fallback
 
-Stage worker execution delegates to `gin-orchestrator dispatch`. At dispatch, `RoutedWorkerDispatcher` rechecks each candidate in order:
+Stage worker execution delegates to `gin-orchestrator dispatch`. An `execute` worker's `--workspace` must sit under `.planning/worktrees/` of the repository; without `--repository`, dispatch takes the repository that holds the workspace's `.planning/worktrees/` folder (else the current directory), so it can run from inside a track worktree. A workspace outside it is refused with `worker.unavailable` reason `workspace_unavailable`. At dispatch, `RoutedWorkerDispatcher` rechecks each candidate in order:
 
 1. Health: the CLI starts and supports the flags the adapter needs (`claude -p`, `codex exec`, `agy --print --sandbox`, `opencode run --auto --format json`, or `copilot`). Antigravity and OpenCode with an explicit model also need proven model selection.
 2. Circuit breaker: infrastructure failures (quota, rate limit, authentication, service, timeout, crash, invalid model) count against a provider and model. The first quota or authentication failure opens the circuit at once; other kinds open it at `circuit_breaker.failure_threshold`. An open circuit stays open for `cooldown_seconds`, then allows `half_open_max_probes` trial runs. Task, test, review, and invalid-result failures do not count against the provider. Only quota, rate-limit, and service failures are retried (up to `worker.max_retries`), and the retry receives the prior attempt's `changed_files`; a timeout is not retried.
