@@ -69,8 +69,29 @@ def _split(argv: Sequence[str], waiving: bool) -> tuple[list[str], list[str], st
     return ids, forward, waive, actor
 
 
+def _has_review_ledger(root: Path, bead: str) -> bool:
+    from .checkout import main_checkout
+    from .usage_attribution import worktrees
+
+    main = main_checkout(root)
+    roots = [root, main] + [tree.path for tree in worktrees(main)]
+    seen: set[Path] = set()
+    for base in roots:
+        if base in seen:
+            continue
+        seen.add(base)
+        for relative in (f".planning/reviews/{bead}/review.json", f".planning/{bead}/review.json"):
+            try:
+                if (base / relative).is_file():
+                    return True
+            except OSError:
+                pass
+    return False
+
+
 def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
     """Return the `close` argv to forward to the backend, or the error that refuses the whole close."""
+    from .checkout import main_checkout
     from .configuration import resolve_effective_config
     from .events import EventPersistenceError
     from .prep import is_prep
@@ -78,7 +99,8 @@ def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
     from .tasks import query_result
 
     waiving = any(t == "--waive-review" or t.startswith("--waive-review=") for t in argv)
-    ledger = project_settings(resolve_effective_config(root, write=False).config.to_dict()).review_ledger
+    main = main_checkout(root)
+    ledger = project_settings(resolve_effective_config(main, write=False).config.to_dict()).review_ledger
     if not waiving and not ledger:
         return list(argv), None
     ids, forward, waive, actor = _split(argv, waiving)
@@ -93,8 +115,7 @@ def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
             return forward, f"{bead}: tracker unavailable: {cause}"
         record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
         if isinstance(record, Mapping) and is_prep(record):
-            from .usage import _ledger
-            if _ledger(root, bead) is None:
+            if not _has_review_ledger(root, bead):
                 continue
         if isinstance(record, Mapping) and record.get("parent"):
             state = _review_state(root, bead)
