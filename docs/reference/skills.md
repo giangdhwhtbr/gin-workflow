@@ -56,7 +56,7 @@ Stages load these when needed; you can also invoke them directly.
 |---|---|
 | `write-doc` | Write or update a standalone document (README, runbook or guide, ADR, changelog) from its template, and check it with `gin docs check` |
 | `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing, and a glossary of non-English business terms) from repository evidence, or reground existing pages against the code, on request only |
-| `explain` | Write one interactive HTML page that explains an SDD capability or an active change: a short narrative, then its requirements, stories, diagrams, and dated asset folders ([guide](../guides/sdd.md#explaining-a-capability)) |
+| `explain` | Write one interactive HTML page that explains an SDD capability or an active change: a short narrative, then its requirements, stories, diagrams, and dated asset folders; with `--legacy`, the legacy code of a capability in frozen workspace apps ([guide](../guides/sdd.md#explaining-a-capability)) |
 
 ## gin-qa (optional add-on)
 

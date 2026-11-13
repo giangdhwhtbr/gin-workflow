@@ -56,7 +56,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 |---|---|
 | `write-doc` | Viết hoặc cập nhật một tài liệu độc lập (README, runbook hoặc guide, ADR, changelog) từ template của nó, và kiểm tra bằng `gin docs check` |
 | `tech-doc` | Viết tài liệu kỹ thuật (tính năng, API, stack, kiến trúc, quy ước, testing, và bảng thuật ngữ cho các thuật ngữ nghiệp vụ không phải tiếng Anh) từ bằng chứng trong repository, hoặc đối chiếu lại các trang hiện có với code, chỉ khi được yêu cầu |
-| `explain` | Viết một trang HTML tương tác giải thích một capability SDD hoặc một change đang mở: một đoạn tóm tắt ngắn, rồi các requirement, story, sơ đồ, và các thư mục asset theo ngày của nó ([hướng dẫn](../guides/sdd.md#explaining-a-capability)) |
+| `explain` | Viết một trang HTML tương tác giải thích một capability SDD hoặc một change đang mở: một đoạn tóm tắt ngắn, rồi các requirement, story, sơ đồ, và các thư mục asset theo ngày của nó; với `--legacy`, là mã legacy của một capability trong các app workspace `frozen` ([hướng dẫn](../guides/sdd.md#explaining-a-capability)) |
 
 ## gin-qa (add-on tùy chọn) { #gin-qa-optional-add-on }
 
