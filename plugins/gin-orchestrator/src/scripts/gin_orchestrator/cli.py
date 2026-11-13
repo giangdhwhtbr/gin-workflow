@@ -213,8 +213,20 @@ def _configure(args: argparse.Namespace) -> dict[str, Any]:
     return {"status": "configured", "actions": actions}
 
 
+def _dispatch_root(repository: Path | None, workspace: Path) -> Path:
+    """`--repository` when given; else the repository whose `.planning/worktrees/` holds the workspace, else the
+    current directory. Execute workers must sit under the root's `.planning/worktrees/`, so a dispatch run from
+    inside a track worktree has to find the repository that owns it."""
+    if repository is not None:
+        return repository.resolve()
+    for parent in workspace.resolve().parents:
+        if parent.name == "worktrees" and parent.parent.name == ".planning":
+            return parent.parent.parent
+    return Path.cwd().resolve()
+
+
 def _dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
-    root = args.repository.resolve()
+    root = _dispatch_root(args.repository, Path(args.workspace))
     objective = (
         args.objective_file.read_text(encoding="utf-8").strip()
         if args.objective_file is not None
@@ -329,8 +341,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     dispatch.add_argument("--provider", default=None)
     for command in (version, health, models, resolve, reviewer, doctor, configure, dispatch):
         command.add_argument("--json", action="store_true")
-    for command in (resolve, reviewer, doctor, configure, dispatch):
+    for command in (resolve, reviewer, doctor, configure):
         command.add_argument("--repository", type=Path, default=Path.cwd())
+    dispatch.add_argument("--repository", type=Path, default=None)
     args = parser.parse_args(argv)
     try:
         if args.command == "version":

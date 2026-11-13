@@ -17,7 +17,7 @@ from tests.gin_orchestrator import paths  # noqa: F401
 from gin_orchestrator.native_cli import list_models  # noqa: E402
 
 
-def run(*argv: str, path: str | None = None) -> subprocess.CompletedProcess[str]:
+def run(*argv: str, path: str | None = None, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "PYTHONPATH": os.pathsep.join((str(paths.CORE_SCRIPTS), str(paths.ORCH_SCRIPTS)))}
     if path is not None:
         env["PATH"] = path + os.pathsep + env["PATH"]
@@ -27,6 +27,7 @@ def run(*argv: str, path: str | None = None) -> subprocess.CompletedProcess[str]
         capture_output=True,
         text=True,
         check=False,
+        cwd=cwd,
     )
 
 
@@ -152,6 +153,53 @@ class ContractCliTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual("completed", payload["status"])
             self.assertEqual("task-1", payload["task_id"])
+
+    @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
+    def test_dispatch_from_inside_a_track_worktree_finds_the_owning_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            bin_dir = base / "bin"
+            bin_dir.mkdir()
+            stub = bin_dir / "codex"
+            stub.write_text(CODEX_WORKER_STUB, encoding="utf-8")
+            stub.chmod(0o755)
+
+            repo = base / "repo"
+            workflow = repo / ".agent-workflow"
+            workflow.mkdir(parents=True)
+            git(repo, "init", "-q", "-b", "main")
+            (workflow / "config.yaml").write_text(
+                yaml.safe_dump({
+                    "schema_version": "2.9",
+                    "workflow_version": "2.9",
+                    "provider_mode": "single",
+                    "harness": "codex",
+                }),
+                encoding="utf-8",
+            )
+            launcher = paths.CORE_SCRIPTS / "gin"
+            subprocess.run([sys.executable, str(launcher), "setup", "refresh", "--repository", str(repo)], check=True, capture_output=True)
+
+            worktree = repo / ".planning/worktrees/task-1"
+            worktree.mkdir(parents=True)
+
+            # No --repository, run from inside the track: the root is the repository that owns .planning/worktrees.
+            result = run(
+                "dispatch",
+                "--workflow-id", "wf-1",
+                "--task-id", "task-1",
+                "--role", "backend",
+                "--model", "gpt-6-astra",
+                "--workspace", str(worktree),
+                "--objective", "Implement task 1",
+                "--stage", "execute",
+                "--provider", "codex",
+                "--json",
+                path=str(bin_dir),
+                cwd=worktree,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertEqual("completed", json.loads(result.stdout)["status"])
 
     @unittest.skipIf(os.name == "nt", "runs a #! stub script, which needs POSIX")
     def test_dispatch_rejects_main_checkout_workspace_for_execute_stage(self):
