@@ -72,7 +72,7 @@ Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md
 
 - Branch, pull request, review và merge: tuân theo [thoả thuận git của team](guides/git-flow.md).
 - Thay đổi yêu cầu sau khi plan được duyệt (một quy ước của nhóm): đừng sửa spec đang chạy. Với layout SDD, xem [thay đổi requirement sau khi plan được duyệt](guides/sdd.md#changing-a-requirement-after-plan-approval); `gin-qa cases plan` cho biết test case nào đã lỗi thời.
-- Test (một quy ước của nhóm): developer sở hữu unit test và integration test nằm cạnh code; tester sở hữu acceptance case và end-to-end spec dưới `qa/`. Hãy cho mỗi loại một khu vực riêng trong `team.areas` để plan giữ chúng tách biệt.
+- Test (một quy ước của nhóm): developer sở hữu unit test và integration test nằm cạnh code; tester sở hữu acceptance case và end-to-end spec dưới `qa/`; parity test so với hệ thống legacy cũng do tester sở hữu. Hãy cho mỗi loại một khu vực riêng trong `team.areas` để plan giữ chúng tách biệt.
 - Worktree: mỗi track chạy trong worktree riêng do `/gin:orchestrate` tạo.
 - Câu hỏi kỹ thuật: ở chế độ nhóm, thành viên không có vai trò kỹ thuật chỉ được hỏi câu hỏi nghiệp vụ trong `/gin:discuss`. Mỗi điểm kỹ thuật trở thành một `TQ-<n>` còn mở để `/gin:plan` giải quyết, và `record plan-approved` từ chối khi còn một câu mở ([chế độ nhóm](guides/team.md) có chi tiết về cách chia).
 - Claim, bàn giao và phê duyệt ([chế độ nhóm](guides/team.md) có chi tiết):
