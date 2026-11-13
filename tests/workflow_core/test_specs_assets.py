@@ -240,6 +240,31 @@ class TestAssetsList(AssetsCase):
         rows = specs_assets.listing(self.root, self.cfg, "orders")
         self.assertEqual(["Before", "Real"], rows[0]["screens"])
 
+    def screens(self, body):
+        write(self.root, f"{self.FIRST}/description.md", "# orders\n\n## As-is behaviour\n\n" + body)
+        return specs_assets.listing(self.root, self.cfg, "orders")[0]["screens"]
+
+    def test_a_longer_fence_holds_a_shorter_example(self):
+        self.assertEqual(["Real"], self.screens("````md\n```\n### Inside\n```\n````\n### Real\n"))
+
+    def test_a_closing_looking_line_with_an_info_string_does_not_close(self):
+        self.assertEqual([], self.screens("```\n```yaml\n### Inside\n"))
+
+    def test_a_fence_line_indented_four_spaces_does_not_toggle(self):
+        self.assertEqual(["After"], self.screens("    ```\n### After\n"))
+
+    def test_an_unclosed_fence_hides_later_headings(self):
+        self.assertEqual(["Before"], self.screens("### Before\n```\n### Hidden\n"))
+
+    def test_a_tilde_line_inside_a_backtick_fence_does_not_close(self):
+        self.assertEqual([], self.screens("```\n~~~\n### Inside\n```\n"))
+
+    def test_a_description_that_is_a_directory_exits_2_naming_the_path(self):
+        (self.root / self.FIRST / "description.md").mkdir(parents=True)
+        result = run_specs(self.root, "assets", "list", "orders")
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn(f"{self.FIRST}/description.md", result.stderr)
+
     def test_a_non_utf8_description_exits_2_naming_the_file(self):
         path = self.root / self.FIRST / "description.md"
         path.parent.mkdir(parents=True)

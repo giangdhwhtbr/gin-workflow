@@ -132,17 +132,21 @@ def confirm(root: Path, cfg: Mapping[str, Any], cap: str, day: str, *, agreed_wi
     return {"description": shown, "confirmed": stamp, "confirmed_by": email, "agreed_with": cleaned_agreed}
 
 
+_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+
+
 def _screens(text: str) -> list[str]:
     """The `### ` headings between `## As-is behaviour` and the next `## ` heading."""
     screens: list[str] = []
     inside = False
     fence = ""
     for line in text.splitlines():
-        marker = line.lstrip()[:3]
-        if marker in ("```", "~~~"):
-            fence = "" if fence == marker else fence or marker
-        elif fence:
-            continue
+        run = _FENCE.match(line)
+        if fence:
+            if run and run[1][0] == fence[0] and len(run[1]) >= len(fence) and not run[2].strip():
+                fence = ""
+        elif run:
+            fence = run[1]
         elif line.startswith("## "):
             inside = line.strip() == "## As-is behaviour"
         elif inside and line.startswith("### "):
@@ -157,7 +161,9 @@ def listing(root: Path, cfg: Mapping[str, Any], cap: str) -> list[dict[str, Any]
     for name in _dated(assets):
         description = assets / name / "description.md"
         try:
-            text = description.read_text(encoding="utf-8") if description.is_file() else ""
+            text = description.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            text = ""
         except (UnicodeDecodeError, OSError) as error:
             raise specs.SpecsError(f"cannot read {specs.shown(root, description)}: {error}") from error
         kind = _KIND.search(text)
