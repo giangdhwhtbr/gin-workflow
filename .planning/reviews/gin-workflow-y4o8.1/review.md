@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000016`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `0cfea7f`, Tree Hash: `3c0488a`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,11 +33,11 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-1` | `IMPORTANT` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -52,3 +56,8 @@
 | `EV-000010` | `2026-11-13T01:50:36.325818Z` | `finding-fixed` | `implementer:claude:main` (worker) |
 | `EV-000011` | `2026-11-13T01:50:36.771686Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
 | `EV-000012` | `2026-11-13T01:50:36.936458Z` | `review-requested` | `implementer:claude:main` (worker) |
+| `EV-000013` | `2026-11-13T01:55:03.767821Z` | `lease-acquired` | `reviewer:claude:session-y4o8r1` (reviewer) |
+| `EV-000014` | `2026-11-13T01:55:03.800456Z` | `review-started` | `reviewer:claude:session-y4o8r1` (reviewer) |
+| `EV-000015` | `2026-11-13T01:55:07.553598Z` | `finding-verified` | `reviewer:claude:session-y4o8r1` (reviewer) |
+| `EV-000016` | `2026-11-13T01:55:12.258160Z` | `review-approved` | `reviewer:claude:session-y4o8r1` (reviewer) |
+| `EV-000017` | `2026-11-13T01:55:16.256822Z` | `lease-released` | `reviewer:claude:session-y4o8r1` (reviewer) |
