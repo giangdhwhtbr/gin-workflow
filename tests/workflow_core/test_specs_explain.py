@@ -229,9 +229,6 @@ class TestNarrativeAndPaths(unittest.TestCase):
             self.assertNotIn("note", html)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 SHOP_WORKSPACE = "workspace:\n  repos:\n    - path: legacy/shop-portal\n      url: u\n      frozen: true\n"
 
@@ -298,3 +295,18 @@ class TestLegacy(unittest.TestCase):
             self.assertIn("needs a workspace", none.stderr)
             self.assertFalse((root / OUT).exists())
             self.assertFalse((plain / OUT).exists())
+
+    def test_legacy_kind_is_escaped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_repo(Path(tmp) / "repo", extra=SHOP_WORKSPACE.replace("shop-portal", "a&b"))
+            write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            write_activity(root)
+            result = run_specs(root, "explain", "auth", "--legacy", "a&b")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            html = (root / OUT / "legacy/a&b/auth/auth.html").read_text(encoding="utf-8")
+            self.assertIn("legacy capability (a&amp;b)", html)
+            self.assertNotIn("legacy capability (a&b)", html)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -257,7 +257,7 @@ def explain(root: Path, cfg: Mapping[str, Any], name: str, narrative: str | None
     sections = "\n".join(f'<section class="tab" id="{key}"><h2>{label}</h2>\n{bodies[key]}</section>'
                          for key, label in present)
     shown_kind = f"legacy capability ({legacy})" if legacy is not None else kind
-    html = fill(document, {"title": escape(title), "kind": shown_kind, "date": (today or date.today()).isoformat(),
+    html = fill(document, {"title": escape(title), "kind": escape(shown_kind), "date": (today or date.today()).isoformat(),
                            "nav": nav, "sections": sections})
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
