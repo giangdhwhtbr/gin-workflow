@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "review_state": "implementation-in-progress",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-explain-legacy.1",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-explain-legacy.1",
+      "review_base_sha": "20ad64d08b585c4c166b15d05d6bee98a78edb06",
+      "reviewed_source_sha": "8ba0cd82dc5f23307a1a4902ad14f90eee3ae90d",
+      "checkpoint_sha": "8ba0cd82dc5f23307a1a4902ad14f90eee3ae90d",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "edeed6809d90654f26a49e8065d24e1d0ec0ba1f9d139061a9f8b098aa8866c7",
+      "reviewed_source_tree_hash": "edeed6809d90654f26a49e8065d24e1d0ec0ba1f9d139061a9f8b098aa8866c7",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 2,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-13T01:46:12.852136Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-explain-legacy.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-explain-legacy.1",
+            "review_base_sha": "20ad64d08b585c4c166b15d05d6bee98a78edb06",
+            "reviewed_source_sha": "16f98e2fe2876c0c4b34bf1588fc3c83c6559251",
+            "checkpoint_sha": "16f98e2fe2876c0c4b34bf1588fc3c83c6559251",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "edeed6809d90654f26a49e8065d24e1d0ec0ba1f9d139061a9f8b098aa8866c7",
+            "reviewed_source_tree_hash": "edeed6809d90654f26a49e8065d24e1d0ec0ba1f9d139061a9f8b098aa8866c7",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:claude:main",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "35877c213a3b7870f5355c15c475019ce78bdecf27ec2ec16ab2bb80905bc397"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-13T01:46:13.285782Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-explain-legacy.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-explain-legacy.1",
+            "review_base_sha": "20ad64d08b585c4c166b15d05d6bee98a78edb06",
+            "reviewed_source_sha": "8ba0cd82dc5f23307a1a4902ad14f90eee3ae90d",
+            "checkpoint_sha": "8ba0cd82dc5f23307a1a4902ad14f90eee3ae90d",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "edeed6809d90654f26a49e8065d24e1d0ec0ba1f9d139061a9f8b098aa8866c7",
+            "reviewed_source_tree_hash": "edeed6809d90654f26a49e8065d24e1d0ec0ba1f9d139061a9f8b098aa8866c7",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "35877c213a3b7870f5355c15c475019ce78bdecf27ec2ec16ab2bb80905bc397",
+      "event_hash": "87c5b856245079c76dd9c1b2d6a7df77f3c676d5bf7fe784b59bb54fe0b79a01"
+    }
+  ]
+}
