@@ -183,3 +183,22 @@ class CloseGuardTests(unittest.TestCase):
         self.assertEqual(["close", "prep-clean"], forward)
         events = WorkflowEventStore(self.root / ".agent-workflow/runtime/events.jsonl").read_all()
         self.assertEqual([], [e for e in events if e.event_type == "review.waived"])
+
+    def test_prep_task_with_unreadable_ledger_path_is_refused(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-unreadable", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep Unreadable", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        ledger_path = self.root / ".planning/reviews/prep-unreadable/review.json"
+        orig_is_file = Path.is_file
+
+        def fake_is_file(path_obj):
+            if path_obj == ledger_path or str(path_obj).endswith(".planning/reviews/prep-unreadable/review.json"):
+                raise PermissionError(f"Permission denied: {path_obj}")
+            return orig_is_file(path_obj)
+
+        with mock.patch("pathlib.Path.is_file", autospec=True, side_effect=fake_is_file):
+            forward, error = close_guard.check(self.root, ["close", "prep-unreadable"])
+        self.assertIsNotNone(error)
+        self.assertIn("prep-unreadable: review ledger not approved", error)
+

@@ -85,7 +85,7 @@ def _has_review_ledger(root: Path, bead: str) -> bool:
                 if (base / relative).is_file():
                     return True
             except OSError:
-                pass
+                return True
     return False
 
 
