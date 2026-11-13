@@ -23,3 +23,4 @@ Epic `gin-workflow-spec-iterations` (2026-11-05). With the SDD layout, `<specs>/
 
 **Scope**
 SDD layout only: specs lint, the `iteration.md` template, gin-sdd discuss, and the SDD guide.
+- Since `gin-workflow-qa-parity`, `gin specs assets list <cap> --format json` reports each dated folder (`date`, `kind`, `confirmed`, `path`, `screens` from `### ` headings under `## As-is behaviour`); with the legacy layout it lists nothing and exits 0. `/gin-qa:cases` uses it to write cases from confirmed `legacy` folders; see [qa-parity](qa-parity.md).
