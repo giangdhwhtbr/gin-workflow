@@ -6,7 +6,7 @@ Read on `/roadmap`. Tailor each block to the team roles and the tech-doc set, pr
 First milestone, 2 weeks by default, shorter when the tech-doc set shows the pieces exist: CI/CD, environments, auth, feature flags, app shell, contract convention (OpenAPI first), and onboarding. In onboarding each member sets up the environment and learns the tools and the gin skills the team installed on one small capability. Feature epics depend on the foundation epics they need.
 
 ## Spec cadence
-The BA confirms the specs of milestone N+1 during milestone N. `Spec ready by:` of a milestone is its kickoff date, else its start date. At kickoff, `gin milestone show <id>` warns `spec_not_ready` for an open epic without a confirmed spec. Name those epics and the BA work due before kickoff.
+The BA confirms the specs of milestone N+1 during milestone N. `Spec ready by:` of a milestone is its kickoff date, else its start date. At kickoff, `gin milestone show <id>` warns `spec_not_ready` for an open epic without a confirmed spec. Name those epics and the BA work due before kickoff, and run `/allocate --milestone <id>` to create that work as prep tasks.
 
 ## Build
 Contract first: the OpenAPI contract of a capability is agreed before BE and FE start, then both build in parallel. FE runs against mocks generated from the contract (MSW handlers from orval, for example). For a migration the first FE target is a 1-1 copy of the legacy UI. Sequence capabilities by spec readiness and by real API or data needs only. Keep `Depends on:` minimal.

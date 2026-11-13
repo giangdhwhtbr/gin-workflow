@@ -270,5 +270,26 @@ class TaskMarkdownTests(unittest.TestCase):
             self.assertEqual(1, code, head)
             self.assertIn(str(bad), err, head)
 
+    def test_create_no_inherit_labels_and_exclude_label_filters(self):
+        created = self.q("create", "Prep", "--no-inherit-labels", "--labels", "prep,prep:capture")
+        self.assertIsNotNone(created)
+        shown = self.q("show", created["id"])[0]
+        self.assertEqual(["prep", "prep:capture"], shown["labels"])
+
+        plain = self.q("create", "Plain", "--labels", "track:1")
+        multi = self.q("create", "Multi", "--labels", "other,tag")
+
+        listed = self.q("list", "--exclude-label", "prep")
+        self.assertEqual({plain["id"], multi["id"]}, {t["id"] for t in listed})
+
+        ready = self.q("ready", "--exclude-label", "prep")
+        self.assertEqual({plain["id"], multi["id"]}, {t["id"] for t in ready})
+
+        listed_comma = self.q("list", "--exclude-label", "prep,track:1")
+        self.assertEqual([multi["id"]], [t["id"] for t in listed_comma])
+        ready_comma = self.q("ready", "--exclude-label", "prep,track:1")
+        self.assertEqual([multi["id"]], [t["id"] for t in ready_comma])
+
+
 if __name__ == "__main__":
     unittest.main()

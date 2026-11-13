@@ -48,6 +48,7 @@ Stages load these when needed; you can also invoke them directly.
 | `migrate-specs` | Move a legacy `.planning` specs and plans layout into the SDD `docs/` layout |
 | `beads-migration` | Move a repository's `.beads` directory into `~/gin-beads/<repo>` and symlink it back |
 | `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics with a project deadline and an estimate per epic; reconcile both on re-run; propose the team's way of working (Foundation, Spec cadence, Build, Integration, Quality, Load) for the PM to confirm; rate each epic's complexity; report the `gin milestone list` forecast; with the SDD layout each epic carries `Capabilities:`; `--milestone <id>` plans a dated milestone with its own lanes, a `Spec ready by:` date, and an integration point |
+| `allocate` | Propose, assign, and create prep tasks (`capture`, `mockup`, `spike`, `question`, `other`) under roadmap epics before discuss, for one epic or a milestone (`--milestone <id>`); the lead confirms one table first, and a re-run proposes only differences |
 
 ## gin: documentation
 

@@ -533,5 +533,151 @@ class TestTeamBeadsSync(unittest.TestCase):
         self.assertEqual("binh@corp.com", show(self.lead, self.bead)["assignee"])
 
 
+class TestTeamBeadsReadyFakeBd(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = make_team_repo(Path(self.tmp.name) / "repo", email="an@corp.com")
+        self.bin = Path(self.tmp.name) / "bin"
+        self.team = team_for_repo(self.root)
+        self.ba = self.team.member("an@corp.com")
+        self.lead = self.team.member("binh@corp.com")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_ready_with_prep_tasks_sorting_and_exclusions(self):
+        rules = [
+            {"argv": ["ready", "--explain"], "stdout": {"ready": []}},
+            {"argv": ["ready", "--exclude-type", "milestone"], "stdout": [
+                {"id": "ready-2", "title": "Ready 2", "assignee": "an@corp.com", "labels": [], "priority": 2},
+                {"id": "ready-1", "title": "Ready 1", "assignee": "an@corp.com", "labels": [], "priority": 1},
+            ]},
+            {"argv": ["blocked"], "stdout": [
+                {"id": "prep-ba", "title": "BA Prep", "blocked_by": ["epic-1"], "labels": ["prep", "prep:capture"],
+                 "priority": 1, "assignee": "an@corp.com"},
+                {"id": "prep-blocked", "title": "Blocked Prep", "blocked_by": ["epic-1"],
+                 "labels": ["prep", "prep:spike"], "priority": 0, "assignee": "an@corp.com"},
+                {"id": "prep-other", "title": "Other Prep", "blocked_by": ["epic-1"],
+                 "labels": ["prep", "prep:mockup"], "priority": 0, "assignee": "binh@corp.com"},
+            ]},
+            {"argv": ["list", "--label", "prep", "--status", "open", "--limit", "0"], "stdout": [
+                {"id": "prep-ba", "title": "BA Prep", "parent": "epic-1", "labels": ["prep", "prep:capture"],
+                 "priority": 1, "assignee": "an@corp.com",
+                 "dependencies": [{"depends_on_id": "epic-1", "type": "parent-child"}]},
+                {"id": "prep-blocked", "title": "Blocked Prep", "parent": "epic-1", "labels": ["prep", "prep:spike"],
+                 "priority": 0, "assignee": "an@corp.com",
+                 "dependencies": [{"depends_on_id": "epic-1", "type": "parent-child"},
+                                  {"depends_on_id": "other", "type": "blocks"}]},
+                {"id": "prep-other", "title": "Other Prep", "parent": "epic-1", "labels": ["prep", "prep:mockup"],
+                 "priority": 0, "assignee": "binh@corp.com",
+                 "dependencies": [{"depends_on_id": "epic-1", "type": "parent-child"}]},
+            ]},
+            {"argv": ["list", "--status", "in_progress"], "stdout": [
+                {"id": "exp-2", "title": "Expired 2", "assignee": "em@corp.com", "labels": ["area:backend"],
+                 "priority": 2, "metadata": {"claim": {"expires_at": "2000-01-01T00:00:00Z"}}},
+                {"id": "exp-1", "title": "Expired 1", "assignee": "em@corp.com", "labels": ["area:backend"],
+                 "priority": 1, "metadata": {"claim": {"expires_at": "2000-01-01T00:00:00Z"}}},
+                {"id": "exp-prep", "title": "Expired Prep", "assignee": "em@corp.com",
+                 "labels": ["area:backend", "prep", "prep:spike"], "priority": 0,
+                 "metadata": {"claim": {"expires_at": "2000-01-01T00:00:00Z"}}},
+            ]},
+        ]
+        fake_cli(self.bin, "bd", rules)
+
+        with mock.patch.dict(os.environ, path_with(self.bin)):
+            # 1. BA sees prep-ba (held by epic-1), but not prep-blocked or prep-other
+            # Also ready rows sorted by priority then id: ready-1 (p1), prep-ba (p1), ready-2 (p2)
+            # prep-ba and ready-1 both have priority 1; prep-ba < ready-1
+            rows = team_beads.ready(self.root, self.team, self.ba)
+            self.assertEqual(["prep-ba", "ready-1", "ready-2"], [r["id"] for r in rows])
+            for r in rows:
+                self.assertIn("priority", r)
+                self.assertIsNotNone(r["priority"])
+
+            # 2. exclude=["prep"] drops prep rows from ready group
+            rows_no_prep = team_beads.ready(self.root, self.team, self.ba, exclude=["prep"])
+            self.assertEqual(["ready-1", "ready-2"], [r["id"] for r in rows_no_prep])
+
+            # 3. For lead (in area:backend): sees expired claims after ready rows, sorted by priority then id
+            lead_rows = team_beads.ready(self.root, self.team, self.lead)
+            # Expired claim rows: exp-prep (p0), exp-1 (p1), exp-2 (p2)
+            self.assertEqual(["exp-prep", "exp-1", "exp-2"], [r["id"] for r in lead_rows if "expired_claim" in r])
+
+            # 4. exclude=["prep"] drops prep rows from expired-claim group too
+            lead_no_prep = team_beads.ready(self.root, self.team, self.lead, exclude=["prep"])
+            self.assertEqual(["exp-1", "exp-2"], [r["id"] for r in lead_no_prep if "expired_claim" in r])
+
+            # 5. CLI invocation passes exclude-label
+            cli_res = run_cli(self.root, "team", "ready", "--exclude-label", "prep", "--format", "json",
+                              env=path_with(self.bin))
+            self.assertEqual(0, cli_res.returncode, cli_res.stderr)
+            cli_data = json.loads(cli_res.stdout)["ready"]
+            self.assertEqual(["ready-1", "ready-2"], [r["id"] for r in cli_data])
+
+    def test_failing_bd_blocked_raises_team_error(self):
+        rules = [
+            {"argv": ["ready", "--explain"], "stdout": {"ready": []}},
+            {"argv": ["ready", "--exclude-type", "milestone"], "stdout": []},
+            {"argv": ["blocked"], "exit": 1, "stderr": "database disk image is malformed\n"},
+        ]
+        fake_cli(self.bin, "bd", rules)
+        with mock.patch.dict(os.environ, path_with(self.bin)):
+            with self.assertRaises(team_beads.TeamError) as cm:
+                team_beads.ready(self.root, self.team, self.ba)
+            self.assertIn("bd blocked failed: database disk image is malformed", str(cm.exception))
+
+    def test_failing_bd_list_raises_team_error(self):
+        rules = [
+            {"argv": ["ready", "--explain"], "stdout": {"ready": []}},
+            {"argv": ["ready", "--exclude-type", "milestone"], "stdout": []},
+            {"argv": ["blocked"], "stdout": []},
+            {"argv": ["list", "--label", "prep", "--status", "open", "--limit", "0"], "exit": 1,
+             "stderr": "database disk image is malformed\n"},
+        ]
+        fake_cli(self.bin, "bd", rules)
+        with mock.patch.dict(os.environ, path_with(self.bin)):
+            with self.assertRaises(team_beads.TeamError):
+                team_beads.ready(self.root, self.team, self.ba)
+
+    def test_exclude_label_comma_separated_drops_both_labels(self):
+        rules = [
+            {"argv": ["ready", "--explain"], "stdout": {"ready": []}},
+            {"argv": ["ready", "--exclude-type", "milestone"], "stdout": [
+                {"id": "a", "title": "A", "assignee": "an@corp.com", "labels": ["x"], "priority": 1},
+                {"id": "b", "title": "B", "assignee": "an@corp.com", "labels": ["y"], "priority": 1},
+                {"id": "c", "title": "C", "assignee": "an@corp.com", "labels": [], "priority": 1},
+            ]},
+            {"argv": ["blocked"], "stdout": []},
+            {"argv": ["list", "--label", "prep", "--status", "open", "--limit", "0"], "stdout": []},
+            {"argv": ["list", "--status", "in_progress"], "stdout": []},
+        ]
+        fake_cli(self.bin, "bd", rules)
+        with mock.patch.dict(os.environ, path_with(self.bin)):
+            cli_res = run_cli(self.root, "team", "ready", "--exclude-label", "x,y", "--format", "json",
+                              env=path_with(self.bin))
+            self.assertEqual(0, cli_res.returncode, cli_res.stderr)
+            self.assertEqual(["c"], [r["id"] for r in json.loads(cli_res.stdout)["ready"]])
+
+    def test_project_with_no_prep_tasks_returns_same_rows_ordered_by_priority(self):
+        rules = [
+            {"argv": ["ready", "--explain"], "stdout": {"ready": []}},
+            {"argv": ["ready", "--exclude-type", "milestone"], "stdout": [
+                {"id": "t-b", "title": "B", "assignee": "an@corp.com", "labels": [], "priority": 2},
+                {"id": "t-c", "title": "C", "assignee": "an@corp.com", "labels": [], "priority": 1},
+                {"id": "t-a", "title": "A", "assignee": "an@corp.com", "labels": []},  # priority None -> 99
+            ]},
+            {"argv": ["blocked"], "stdout": []},
+            {"argv": ["list", "--label", "prep", "--status", "open", "--limit", "0"], "stdout": []},
+            {"argv": ["list", "--status", "in_progress"], "stdout": []},
+        ]
+        fake_cli(self.bin, "bd", rules)
+        with mock.patch.dict(os.environ, path_with(self.bin)):
+            rows = team_beads.ready(self.root, self.team, self.ba)
+            self.assertEqual(["t-c", "t-b", "t-a"], [r["id"] for r in rows])
+            self.assertIsNone(rows[2]["priority"])
+            self.assertEqual(1, rows[0]["priority"])
+            self.assertEqual(2, rows[1]["priority"])
+
+
 if __name__ == "__main__":
     unittest.main()

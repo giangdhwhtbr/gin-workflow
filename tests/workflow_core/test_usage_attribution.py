@@ -150,6 +150,15 @@ class AttributeTests(unittest.TestCase):
         self.assertEqual(self.run_one(rec(5), collecting="ep1", spans={"ep1": self.spans["ep1"]}),
                          {(UNATTRIBUTED, ""): 1})
 
+    def test_open_prep_span_does_not_stop_the_ship_window(self):
+        self.gates = self.gates[:3]
+        self.spans["prep1"] = BeadSpan("prep1", "ep1", at(9), None, prep=True)
+        self.assertEqual(self.run_one(rec(13), collecting="ep1"), {("ep1", "ship"): 1})
+
+    def test_prep_span_overlapping_track_worktree_time_is_not_holder(self):
+        self.spans["prep1"] = BeadSpan("prep1", "ep1", at(9), at(10), prep=True)
+        self.assertEqual(self.run_one(rec(9.6, TREE.path)), {("ep1.1", "review"): 1})
+
 
 class WorktreeListTests(unittest.TestCase):
     def test_excludes_worktrees_outside_the_repository(self):

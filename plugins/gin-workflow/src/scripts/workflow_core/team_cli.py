@@ -31,7 +31,8 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--spec")
     item.add_argument("--workflow-id", help="the epic bead whose kind: label picks the requirement_confirmed policy")
     sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
-    sub.add_parser("ready", parents=[common])
+    item = sub.add_parser("ready", parents=[common])
+    item.add_argument("--exclude-label", action="append")
     sub.add_parser("claim", parents=[common]).add_argument("bead")
     item = sub.add_parser("reassign", parents=[common])
     item.add_argument("bead")
@@ -130,7 +131,7 @@ def _run(args: argparse.Namespace) -> int:
 
     try:
         if args.command == "ready":
-            rows = team_beads.ready(root, team, member)
+            rows = team_beads.ready(root, team, member, exclude=args.exclude_label or ())
             _emit({"ready": rows}, args.format, "\n".join(
                 f"{row['id']} {row['title']}" + (f" (expired claim: {row['expired_claim']})" if row.get("expired_claim") else "")
                 for row in rows))

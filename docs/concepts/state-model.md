@@ -23,7 +23,7 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 - The parent bead (epic) is the deliverable. It stays open until a human-confirmed merge; closing it is what marks the workflow `shipped`. Merge holds belong only here.
 - A track bead exists for each plan track (`gin task create --parent <epic>`), with technical acceptance criteria only: code in scope, tests passing, review approved. A track closes as soon as those hold, which unblocks its dependents. It never waits for the parent's merge.
 
-`implementation_complete` is derived from the task tracker: every child of the epic recorded at `orchestration-ready` is closed.
+`implementation_complete` is derived from the task tracker: every child of the epic recorded at `orchestration-ready` is closed, except [prep tasks](lifecycle.md#prep-tasks).
 
 ## Plans and specs
 

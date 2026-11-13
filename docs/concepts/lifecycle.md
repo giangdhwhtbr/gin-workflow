@@ -11,7 +11,7 @@ Before the first stage, a repository needs `/setup` once ([Configuration](../ref
 | `discuss` | Clarifies the requirement one question at a time, proposes approaches, writes the design spec to `.planning/specs/` (a technical design for a technical epic, see [epic kinds](#epic-kinds)), and waits for your confirmation | `requirement_confirmed` | `gin record requirement-confirmed --evidence <spec> --actor <id>` |
 | `plan` | First settles each open technical question (`TQ-<n>`) of the design doc, then writes `.planning/plans/<date>-<feature>.md`: tracks with files, interfaces, test-first steps, a provider role, and a model and effort from the model catalog each; waits for your approval | `plan_approved` | `record plan-approved --evidence <plan> --actor <id>` |
 | `orchestrate` | Creates the epic and one track bead per plan track, mirrors dependencies, resolves provider routes, creates the worktree | `orchestration_ready` | `record orchestration-ready --epic <epic> --evidence <ids; worktree; branch> --actor <id>`; sets the epic bead to `in_progress` |
-| `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic is closed |
+| `execute` | Implements one ready track test-first, gets it reviewed, collects usage, closes it; repeat per track | `implementation_complete` | derived: every child of the epic that is not a [prep task](#prep-tasks) is closed |
 | `ship` | Offers merge, pull request, keep, or discard; runs the one you choose; cleans up; closes the epic | `shipped` | derived: the epic is closed |
 
 Every `record` needs `--actor <id>`; in team mode the actor comes from `git config user.email`. One stage invocation does one stage and stops; it never starts the next one. `workflow` reads the state and runs the stage that comes next. Each feature uses its own `--workflow-id` (for example the spec's topic slug) so gates from different features do not mix; without one, `default-workflow` is used.
@@ -45,6 +45,23 @@ The epic bead's `kind:<kind>` label is the source. `/roadmap` writes a `Kind:` l
 `gin record requirement-confirmed --workflow-id <epic>` refuses a label and a spec line that disagree, an unknown kind, and two `kind:` labels. It also refuses a tracker it cannot read, with the message `cannot read the kind of epic <id>: <cause>`. Outside team mode, a missing Beads database counts as an epic without a label. Changing the kind after the spec is confirmed needs a new `discuss`.
 
 The spec rules per kind are in the [CLI reference](../reference/cli.md#gin-specs) and, for the SDD layout, in [SDD](../guides/sdd.md#epic-kinds). The approval policy per kind is in [Team mode](../guides/team.md#approval-policies). The discuss steps per kind are in the `epic-kinds` reference of the `discuss` skill.
+
+## Prep tasks
+
+A prep task is pre-discuss work on an epic: a capture, a mockup, a spike, or a question that a member finishes before the spec is written. It is a child bead of the epic with the labels `prep` and `prep:<type>`, where the type is `capture`, `mockup`, `spike`, `question`, or `other`. It is created with `--no-inherit-labels`, so it does not copy the epic's labels. `prep` is a reserved label: a bead that also has a `track:` or `req:` label counts as a track, not a prep task.
+
+The tech lead runs `/gin:allocate <epic>`, or `/gin:allocate --milestone <id>` for every epic of a milestone. The skill proposes tasks from its prep catalog, assigns them to members who hold the matching role, and creates them once the lead confirms the table. In team mode it stops unless `team.beads_sync` is set ([team mode](../guides/team.md#prep-tasks)). Every member must update gin before the lead runs it, because an older gin treats a prep task as a track.
+
+A prep task is not implementation work, and the stages treat it so:
+
+- `implementation_complete` counts every child of the recorded epic that is not a prep task. An epic whose only children are prep tasks behaves as an epic without children.
+- `gin record orchestration-ready --epic <prep>` is refused with `orchestration-ready refused: <id> is a prep task, not implementation work`.
+- `gin goal`, the milestone forecast (`remaining_days`), and the usage tracks ignore prep tasks. Their cost still counts toward the epic.
+- `execute` skips prep tasks. `discuss` warns about open ones and continues.
+- `task close` needs no review ledger for a prep task that has none in the main checkout or in any worktree. One that has a ledger follows the normal rule, and a path it cannot read counts as a ledger. The guard reads `project.review_ledger` from the main checkout's configuration for every bead.
+- `ship` lists closed prep tasks as closed without review. It closes open ones with `not needed: <epic> shipped` before the epic, because `bd` refuses to close an epic with an open child.
+
+The assignee closes the task with `gin task close <id> --reason "<output>"`. Where to find prep tasks is in the [BA guide](../guides/ba.md#prep-tasks).
 
 ## Execute and review
 

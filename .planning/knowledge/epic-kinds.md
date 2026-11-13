@@ -24,7 +24,7 @@ Epic `gin-workflow-3nwf` (workflow `epic-kinds`, 2026-11-12). In team mode, pure
 - Docs: `docs/concepts/lifecycle.md` (Epic kinds), `docs/guides/team.md` (Policy per epic kind), `docs/reference/config.md`, `docs/reference/cli.md`, `docs/guides/sdd.md`, `docs/roles.md`, `docs/guides/ba.md`, `docs/starters/brownfield.md`, and `.vi.md` pairs
 - `.planning/specs/2026-11-12-epic-kinds-design.md`, `.planning/plans/2026-11-12-epic-kinds.md`
 - Beads: `gin-workflow-3nwf`, `.1` to `.4`
-- Related: [approval-policies](approval-policies.md), [epic-shape-and-contract](epic-shape-and-contract.md), [non-claude-dispatch](non-claude-dispatch.md)
+- Related: [approval-policies](approval-policies.md), [epic-shape-and-contract](epic-shape-and-contract.md), [non-claude-dispatch](non-claude-dispatch.md), [prep-tasks](prep-tasks.md) (pre-discuss work per kind)
 
 **Scope**
 How an epic's kind is set, checked, and used to choose spec content, lint rules, and the `requirement_confirmed` approval.

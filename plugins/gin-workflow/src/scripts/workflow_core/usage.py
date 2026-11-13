@@ -17,6 +17,7 @@ from .checkout import main_checkout
 from .events import WorkflowEventStore
 from .configuration import ConfigValidationError, require_yaml, resolve_effective_config
 from .executables import tool
+from .prep import is_prep
 from .usage_attribution import (
     UNATTRIBUTED, BeadSpan, Worktree, attribute, gates_from_events, review_intervals, worktrees,
 )
@@ -296,7 +297,8 @@ def _span(repo: Path, bead: str, shown: Mapping[str, Any], now: datetime,
     starts = [value for value in starts if value is not None]
     ledger = _ledger(repo, bead)
     return BeadSpan(bead, shown.get("parent") or None, min(starts) if starts else None,
-                    _ts(shown.get("closed_at")), review_intervals(ledger, now=now) if ledger else ())
+                    _ts(shown.get("closed_at")), review_intervals(ledger, now=now) if ledger else (),
+                    prep=is_prep(shown))
 
 
 def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: Path | None = None,
@@ -343,6 +345,8 @@ def collect(repo: Path, bead: str, *, now: datetime | None = None, claude_root: 
     unattributed = None
     if is_epic:
         for child in children:
+            if is_prep(_row(by_id, child)):
+                continue
             _add_quality(total_quality,
                          quality(repo, child, workflows={child}, events=events, history=get_history(child), rows=rows))
         own_gates = [gate.ts for gate in gates if epic_of.get(gate.workflow_id, gate.workflow_id) == bead]

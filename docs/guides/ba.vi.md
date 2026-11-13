@@ -90,6 +90,12 @@ Hai lệnh chia sẻ spec với những người không đọc repository. `gin 
 
 `/gin:explain <capability> --legacy` ghi một trang cho mỗi ứng dụng frozen có mã triển khai capability đó. Trang giải thích mã của ứng dụng làm gì, để bạn so sánh với trang spec. `artifacts.explain` có thể trỏ đến một thư mục trong repository nội bộ của workspace; việc commit thư mục đó là một quy ước của nhóm mà gin không bắt buộc.
 
+### Prep task { #prep-tasks }
+
+Tech lead có thể giao cho bạn [prep task](../concepts/lifecycle.md#prep-tasks) trước spec, như capture hoặc mockup. Ở chế độ nhóm, `gin team ready` liệt kê chúng. Nếu không, chạy `gin task list --label prep --status open,in_progress`.
+
+Hoàn thành output mà task nêu, rồi đóng bằng `gin task close <id> --reason "<output>"`. Với task `spike` hoặc `question`, trước tiên trả lời trên epic bằng `gin task comment <epic> "[gin answer] <prep-id>: <answer>"`. Ở chế độ nhóm, chạy `gin team sync` sau khi đóng.
+
 ### Trong lúc build { #during-the-build }
 
 Execute đăng comment `[gin question] <track>: <question>` khi spec và plan không trả lời được câu hỏi của worker. Chạy `/gin:progress` để liệt kê các câu chưa được trả lời. Trả lời từng câu bằng `gin task comment <epic> "[gin answer] <track>: <answer>"`, và execute tiếp tục track.

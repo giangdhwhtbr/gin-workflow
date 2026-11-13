@@ -32,6 +32,7 @@ class BeadSpan:
     start: datetime | None
     end: datetime | None
     review: tuple[tuple[datetime, datetime], ...] = ()
+    prep: bool = False
 
 
 @dataclass(frozen=True)
@@ -131,7 +132,7 @@ def attribute(records: Iterable[UsageRecord], *, repo: Path, spans: Mapping[str,
     gates = sorted(gates, key=lambda gate: gate.ts)
     owner_of = lambda workflow: epic_of.get(workflow, workflow)  # noqa: E731
     ship: tuple[datetime, datetime] | None = None
-    tracks = [span for span in spans.values() if span.parent == collecting] if collecting is not None else []
+    tracks = [span for span in spans.values() if span.parent == collecting and not span.prep] if collecting is not None else []
     if tracks and all(track.end is not None for track in tracks):
         # Ship is the collecting epic's own work after implementation completes (its last track closes) until
         # the epic closes, while no other workflow has recorded a gate since; otherwise every finished epic would
@@ -154,7 +155,7 @@ def _key(record, repo, spans, trees, gates, owner_of, collecting, ship, now) -> 
             continue
         name = tree.path.name
         holders = [span for span in spans.values()
-                   if (span.bead == name or span.parent == name) and span.start is not None
+                   if not span.prep and (span.bead == name or span.parent == name) and span.start is not None
                    and span.start <= record.ts <= (span.end or now)]
         if len(holders) != 1:
             if not in_path:

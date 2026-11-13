@@ -864,6 +864,90 @@ class TestLifecycleCLI(unittest.TestCase):
         warnings = self._us6_warnings(complete=False)
         self.assertFalse(any("reconcile knowledge" in w for w in warnings), warnings)
 
+    def test_orchestrated_epic_tracks_closed_prep_open_satisfied(self):
+        from unittest.mock import patch
+        self._record_orchestration("ep-1")
+        children = [
+            {"id": "ep-1.1", "status": "closed", "labels": ["track:1"]},
+            {"id": "ep-1.2", "status": "open", "labels": ["prep", "prep:capture"]},
+        ]
+        def fake_beads(repo, argv):
+            if argv[:2] == ["list", "--parent"]:
+                return children, None
+            if argv[0] == "show":
+                return [{"id": "ep-1", "status": "open"}], None
+            raise AssertionError(argv)
+
+        with patch("workflow_core.lifecycle_cli._beads_json", fake_beads):
+            self.assertEqual("satisfied", self._state_gates()["implementation_complete"])
+            # Reopening the prep task still leaves implementation_complete satisfied:
+            children[1]["status"] = "in_progress"
+            self.assertEqual("satisfied", self._state_gates()["implementation_complete"])
+
+    def test_team_mode_unorchestrated_epic_with_closed_prep_tasks_not_satisfied(self):
+        from unittest.mock import patch, Mock
+        children = [
+            {"id": "ep-shared.1", "status": "closed", "labels": ["prep", "prep:capture"]},
+        ]
+        def fake_beads(repo, argv):
+            if argv[:2] == ["list", "--parent"]:
+                return children, None
+            if argv[0] == "show":
+                return [{"id": "ep-shared", "status": "open"}], None
+            raise AssertionError(argv)
+
+        with patch("workflow_core.lifecycle_cli.load_team", return_value=Mock()), \
+             patch("workflow_core.lifecycle_cli.team_summary", return_value={}), \
+             patch("workflow_core.lifecycle_cli.tasks_backend", return_value="beads"), \
+             patch("workflow_core.team_beads.shared_gates", return_value=("ep-shared", set(), None)), \
+             patch("workflow_core.lifecycle_cli._beads_json", fake_beads):
+            self.assertEqual("unmet", self._state_gates()["implementation_complete"])
+
+    def test_record_shipped_standalone_with_only_prep_children_not_refused(self):
+        from unittest.mock import patch
+        self._record_orchestration(epic="standalone-1")
+        prep_children = [{"id": "p.1", "status": "closed", "labels": ["prep", "prep:mockup"]}]
+        def fake_beads(repo, argv):
+            if argv[:2] == ["list", "--parent"]:
+                return prep_children, None
+            if argv[0] == "show":
+                return [{"id": "standalone-1", "status": "closed"}], None
+            raise AssertionError(argv)
+        with patch("workflow_core.lifecycle_cli._beads_json", fake_beads):
+            code = cli_main(["record", "shipped", "--repository", str(self.repo_path),
+                             "--evidence", "merged into main", "--actor", "user"])
+            self.assertEqual(0, code)
+
+    def test_record_orchestration_ready_refuses_prep_task(self):
+        from unittest.mock import patch
+        prep_bead = [{"id": "prep-1", "status": "open", "labels": ["prep", "prep:spike"]}]
+        with patch("workflow_core.lifecycle_cli._beads_json", return_value=(prep_bead, None)):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = cli_main(["record", "orchestration-ready", "--repository", str(self.repo_path),
+                                 "--evidence", "beads", "--actor", "user", "--format", "json",
+                                 "--epic", "prep-1"])
+            self.assertEqual(1, code)
+            result = json.loads(out.getvalue())
+            self.assertEqual("rejected", result["status"])
+            self.assertEqual("orchestration-ready refused: prep-1 is a prep task, not implementation work",
+                             result["message"])
+
+    def test_record_orchestration_ready_with_tracker_failing_records_as_today(self):
+        code, result, _ = self._record_with_fake_bd(
+            [{"argv": ["show"], "exit": 1, "stderr": "bd unavailable"}],
+            "--epic", "ep-1")
+        self.assertEqual((0, "recorded"), (code, result["status"]))
+
+    def test_lifecycle_cli_uses_tracks_of(self):
+        from unittest.mock import patch
+        from workflow_core import prep
+        self._record_orchestration("ep-1")
+        with patch("workflow_core.lifecycle_cli.tracks_of", wraps=prep.tracks_of) as mock_tracks_of:
+            with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"])):
+                self._state_gates()
+                mock_tracks_of.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -100,3 +100,105 @@ class CloseGuardTests(unittest.TestCase):
         self.init(ledger=True)
         with mock.patch.object(close_guard, "_review_state", return_value=None):
             self.assertEqual((["close", "ep-1.1"], None), close_guard.check(self.root, ["close", "ep-1.1"]))
+
+    def test_prep_task_without_ledger_closes_without_waiver(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-1", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        closed = gw(self.root, "task", "close", "prep-1", "--reason", "captured")
+        self.assertEqual(0, closed.returncode, closed.stderr)
+        self.assertEqual("closed", self.status("prep-1"))
+        events = WorkflowEventStore(self.root / ".agent-workflow/runtime/events.jsonl").read_all()
+        self.assertEqual([], [e for e in events if e.event_type == "review.waived"])
+
+    def test_prep_task_with_ledger_in_worktree_unapproved_is_refused(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-2", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep 2", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        wt_dir = self.root / ".planning/worktrees/wt"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "wt-branch", str(wt_dir)], cwd=self.root, check=True)
+        ledger_path = wt_dir / ".planning/reviews/prep-2/review.json"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger_path.write_text(json.dumps({"events": []}), encoding="utf-8")
+        closed = gw(self.root, "task", "close", "prep-2", "--reason", "done")
+        self.assertEqual(2, closed.returncode, closed.stderr)
+        self.assertIn("prep-2: review ledger not approved", closed.stderr)
+        self.assertEqual("open", self.status("prep-2"))
+
+    def test_prep_task_tracker_failure_is_refused(self):
+        self.init(ledger=True)
+        with mock.patch("workflow_core.tasks.query_result", return_value=(None, "bd crashed")):
+            forward, error = close_guard.check(self.root, ["close", "prep-1"])
+        self.assertIn("tracker unavailable: bd crashed", error)
+
+    def test_prep_task_with_ledger_in_main_closed_from_worktree_is_refused(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-wt", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep WT", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        ledger_path = self.root / ".planning/reviews/prep-wt/review.json"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger_path.write_text(json.dumps({"events": []}), encoding="utf-8")
+        wt_dir = self.root / ".planning/worktrees/wt"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "wt-branch", str(wt_dir)], cwd=self.root, check=True)
+        forward, error = close_guard.check(wt_dir, ["close", "prep-wt"])
+        self.assertIsNotNone(error)
+        self.assertIn("prep-wt: review ledger not approved", error)
+
+    def test_prep_task_with_ledger_in_main_closed_from_subdirectory_is_refused(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-sub", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep Sub", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        ledger_path = self.root / ".planning/reviews/prep-sub/review.json"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger_path.write_text(json.dumps({"events": []}), encoding="utf-8")
+        sub_dir = self.root / "sub"
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        forward, error = close_guard.check(sub_dir, ["close", "prep-sub"])
+        self.assertIsNotNone(error)
+        self.assertIn("prep-sub: review ledger not approved", error)
+
+    def test_prep_task_with_broken_ledger_is_refused(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-broken", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep Broken", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        ledger_path = self.root / ".planning/reviews/prep-broken/review.json"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger_path.write_text("not valid json", encoding="utf-8")
+        forward, error = close_guard.check(self.root, ["close", "prep-broken"])
+        self.assertIsNotNone(error)
+        self.assertIn("prep-broken: review ledger not approved", error)
+
+    def test_prep_task_without_ledger_allowed_through_check(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-clean", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep Clean", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        forward, error = close_guard.check(self.root, ["close", "prep-clean"])
+        self.assertIsNone(error)
+        self.assertEqual(["close", "prep-clean"], forward)
+        events = WorkflowEventStore(self.root / ".agent-workflow/runtime/events.jsonl").read_all()
+        self.assertEqual([], [e for e in events if e.event_type == "review.waived"])
+
+    def test_prep_task_with_unreadable_ledger_path_is_refused(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-unreadable", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep Unreadable", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        ledger_path = self.root / ".planning/reviews/prep-unreadable/review.json"
+        orig_is_file = Path.is_file
+
+        def fake_is_file(path_obj):
+            if path_obj == ledger_path or str(path_obj).endswith(".planning/reviews/prep-unreadable/review.json"):
+                raise PermissionError(f"Permission denied: {path_obj}")
+            return orig_is_file(path_obj)
+
+        with mock.patch("pathlib.Path.is_file", autospec=True, side_effect=fake_is_file):
+            forward, error = close_guard.check(self.root, ["close", "prep-unreadable"])
+        self.assertIsNotNone(error)
+        self.assertIn("prep-unreadable: review ledger not approved", error)
+

@@ -204,6 +204,7 @@ def _parser() -> argparse.ArgumentParser:
     create.add_argument("--notes", default="")
     create.add_argument("--priority", "-p")
     create.add_argument("--assignee", "-a")
+    create.add_argument("--no-inherit-labels", action="store_true")
 
     show = command("show")
     show.add_argument("ids", nargs="+")
@@ -232,13 +233,15 @@ def _parser() -> argparse.ArgumentParser:
     listing = command("list")
     listing.add_argument("--status", "-s", action="append")
     listing.add_argument("--label", "-l", action="append")
+    listing.add_argument("--exclude-label", action="append")
     listing.add_argument("--parent")
     listing.add_argument("--assignee", "-a")
     listing.add_argument("--type", "-t")
     listing.add_argument("--all", action="store_true")
     listing.add_argument("--limit", "-n", type=int, default=0)
 
-    command("ready")
+    ready = command("ready")
+    ready.add_argument("--exclude-label", action="append")
     command("blocked")
 
     dep = command("dep")
@@ -293,17 +296,21 @@ def _execute(root: Path, args: argparse.Namespace) -> Any:
         if command == "list":
             statuses = _csv(args.status)
             labels = _csv(args.label)
+            exclude_labels = set(_csv(args.exclude_label))
             found = [task for task in tasks.values()
                      if (args.all or statuses or task["status"] != "closed")
                      and (not statuses or task["status"] in statuses)
                      and all(label in task["labels"] for label in labels)
+                     and not any(label in task["labels"] for label in exclude_labels)
                      and (not args.parent or task.get("parent") == args.parent)
                      and (not args.assignee or task.get("assignee") == args.assignee)
                      and (not args.type or task["issue_type"] == args.type)]
             return [as_json(task) for task in found[: args.limit or None]]
         if command == "ready":
+            exclude_labels = set(_csv(args.exclude_label))
             return [as_json(task) for task in tasks.values()
-                    if task["status"] == "open" and not _blockers(tasks, task)]
+                    if task["status"] == "open" and not _blockers(tasks, task)
+                    and not any(label in task["labels"] for label in exclude_labels)]
         if command == "blocked":
             return [{**as_json(task), "blocked_by": _blockers(tasks, task)} for task in tasks.values()
                     if task["status"] != "closed" and _blockers(tasks, task)]
