@@ -11,7 +11,6 @@ from typing import Any, Mapping
 from . import specs
 from .specs_export import MEDIA_TYPES, Embed, _section, _template, _title, data_uri, fill, markdown_html
 
-OUT_DIR = ".agent-workflow/runtime/explain"
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _STORY = re.compile(r"^### US-\d+:")
 _REQ_LINE = re.compile(r"^REQ:(.*)$", re.MULTILINE)
@@ -219,13 +218,32 @@ def _change(root: Path, cfg: Mapping[str, Any], change: Path, embed: Embed) -> t
     }
 
 
+def _require_frozen_app(root: Path, kind: str, legacy: str) -> None:
+    from . import workspace
+
+    if kind != "capability":
+        raise specs.SpecsError("--legacy explains a capability, not a change")
+    found = workspace.locate(root).workspace
+    if found is None:
+        raise specs.SpecsError("--legacy needs a workspace with frozen entries")
+    apps = [repo.path.rsplit("/", 1)[-1] for repo in found.repos if repo.frozen]
+    if legacy not in apps:
+        raise specs.SpecsError(f"no frozen app {legacy}; frozen apps: {', '.join(apps) or 'none'}")
+
+
 def explain(root: Path, cfg: Mapping[str, Any], name: str, narrative: str | None = None, out: str | None = None,
-            today: date | None = None) -> dict[str, Any]:
+            today: date | None = None, legacy: str | None = None) -> dict[str, Any]:
     kind, target = _resolve(root, cfg, name)
     folder_name = target.parent.name if kind == "capability" else target.name
-    path = (root / (out or f"{OUT_DIR}/{folder_name}.html")).resolve()
+    if legacy is not None:
+        _require_frozen_app(root, kind, legacy)
+        folder = Path("legacy") / legacy / folder_name
+    else:
+        folder = Path(folder_name)
+    path = (root / (out or str(Path(cfg["explain"]) / folder / f"{folder_name}.html"))).resolve()
     if not path.is_relative_to(root):
-        raise specs.SpecsError(f"--out must stay inside the repository: {out}")
+        raise specs.SpecsError(f"--out must stay inside the repository: {out}" if out
+                               else f"artifacts.explain must stay inside the repository: {cfg['explain']}")
     embed = Embed(root)
     summary = _narrative(root, narrative, embed)
     document = _template(root, "explain.html", embed)
@@ -238,7 +256,8 @@ def explain(root: Path, cfg: Mapping[str, Any], name: str, narrative: str | None
     nav = "".join(f'<a href="#{key}">{label}</a>' for key, label in present)
     sections = "\n".join(f'<section class="tab" id="{key}"><h2>{label}</h2>\n{bodies[key]}</section>'
                          for key, label in present)
-    html = fill(document, {"title": escape(title), "kind": kind, "date": (today or date.today()).isoformat(),
+    shown_kind = f"legacy capability ({legacy})" if legacy is not None else kind
+    html = fill(document, {"title": escape(title), "kind": shown_kind, "date": (today or date.today()).isoformat(),
                            "nav": nav, "sections": sections})
     try:
         path.parent.mkdir(parents=True, exist_ok=True)

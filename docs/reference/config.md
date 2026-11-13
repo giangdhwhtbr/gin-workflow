@@ -102,6 +102,7 @@ Rigor presets:
 | `runtime`, `evidence` | `.agent-workflow/runtime`, `.agent-workflow/runtime/evidence` | runtime state |
 | `layout` | `legacy` | `sdd` turns on living specs |
 | `specs`, `changes`, `adr`, `codebase` | `docs/specs`, `docs/changes`, `docs/adr`, `docs/codebase` | SDD folders |
+| `explain` | `.agent-workflow/runtime/explain` | folder for `specs explain` pages: `<explain>/<name>/<name>.html`, and `<explain>/legacy/<app>/<cap>/<cap>.html` with `--legacy` |
 | `spec_review` | `chat` | SDD spec review: `chat` or `pr` |
 | `test_globs` | `**/test_*.py`, `**/*_test.py`, `**/*.test.*`, `**/*.spec.*`, `tests/**`, `__tests__/**` | globs that identify test files for `specs trace` |
 

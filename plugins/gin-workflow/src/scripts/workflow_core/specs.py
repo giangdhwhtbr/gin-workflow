@@ -21,7 +21,7 @@ from .executables import tool
 DEFAULT_TEST_GLOBS = ("**/test_*.py", "**/*_test.py", "**/*.test.*", "**/*.spec.*", "tests/**", "__tests__/**")
 SDD_DEFAULTS: dict[str, Any] = {
     "layout": "legacy", "specs": "docs/specs", "changes": "docs/changes", "adr": "docs/adr",
-    "codebase": "docs/codebase", "spec_review": "chat", "test_globs": list(DEFAULT_TEST_GLOBS),
+    "codebase": "docs/codebase", "explain": ".agent-workflow/runtime/explain", "spec_review": "chat", "test_globs": list(DEFAULT_TEST_GLOBS),
 }
 DELTA_SECTIONS = ("ADDED", "MODIFIED", "REMOVED")
 # Change-folder files in reading order; the template for each is `<role>.md`.

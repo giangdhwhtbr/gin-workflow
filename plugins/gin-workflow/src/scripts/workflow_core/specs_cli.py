@@ -45,6 +45,7 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("name")
     item.add_argument("--narrative")
     item.add_argument("--out")
+    item.add_argument("--legacy")
     item = sub.add_parser("migrate", parents=[common])
     item.add_argument("--dry-run", action="store_true")
     item.add_argument("--force", action="store_true")
@@ -178,7 +179,7 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "explain":
         from .specs_explain import explain
 
-        result = explain(root, cfg, args.name, args.narrative, args.out)
+        result = explain(root, cfg, args.name, args.narrative, args.out, legacy=args.legacy)
         _emit(result, args.format, "\n".join([result["path"], *(f"missing image: {m}" for m in result["missing"])]))
         return 1 if result["missing"] else 0
     change = specs.find_change(root, cfg, args.change)

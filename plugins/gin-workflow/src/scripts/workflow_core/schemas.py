@@ -124,7 +124,7 @@ CONFIG_SCHEMA: dict[str, Any] = {
             },
             "propertyNames": {
                 "enum": ["plans", "beads", "worktrees", "knowledge", "evidence", "runtime",
-                         "layout", "specs", "changes", "adr", "codebase", "spec_review", "test_globs"]
+                         "layout", "specs", "changes", "adr", "codebase", "explain", "spec_review", "test_globs"]
             },
             "additionalProperties": {"type": "string", "minLength": 1},
         },
