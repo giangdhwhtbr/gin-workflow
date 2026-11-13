@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `changes-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-explain-legacy.1`
 - **Base SHA:** `20ad64d08b585c4c166b15d05d6bee98a78edb06`
-- **Reviewed SHA:** `8ba0cd82dc5f23307a1a4902ad14f90eee3ae90d`
+- **Reviewed SHA:** `70e4604f9d668762390a8887b8480b1830607bf6`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-explain-legacy.1`
-- **Checkpoint SHA:** `8ba0cd82dc5f23307a1a4902ad14f90eee3ae90d`
+- **Checkpoint SHA:** `70e4604f9d668762390a8887b8480b1830607bf6`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `edeed6809d90654f26a49e8065d24e1d0ec0ba1f9d139061a9f8b098aa8866c7`
+- **Tree Hash:** `567737ba5fec462f5c1d82b7690e039a93822809e2eaeabc26ccd0066e794230`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,11 +29,11 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F1` | `MINOR` | `open` | 0 | - |
+| `F1` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F1` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -48,3 +48,6 @@
 | `EV-000006` | `2026-11-13T01:53:28.953246Z` | `finding-created` | `reviewer:claude:session-297918ec` (reviewer) |
 | `EV-000007` | `2026-11-13T01:53:32.421584Z` | `changes-requested` | `reviewer:claude:session-297918ec` (reviewer) |
 | `EV-000008` | `2026-11-13T01:53:36.745542Z` | `lease-released` | `reviewer:claude:session-297918ec` (reviewer) |
+| `EV-000009` | `2026-11-13T01:54:18.044515Z` | `implementation-in-progress` | `implementer:claude:main` (worker) |
+| `EV-000010` | `2026-11-13T01:54:18.177977Z` | `finding-fixed` | `implementer:claude:main` (worker) |
+| `EV-000011` | `2026-11-13T01:54:18.516285Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
