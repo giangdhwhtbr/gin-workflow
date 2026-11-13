@@ -133,7 +133,7 @@ File tải Mermaid từ jsDelivr ở một phiên bản cố định để vẽ 
 
 ## Giải thích một capability { #explaining-a-capability }
 
-`/gin:explain <capability>` viết một trang tương tác về một capability. Agent đọc spec, sơ đồ, và các thư mục theo ngày của nó, viết một đoạn tóm tắt ngắn có trích REQ-ID, rồi chạy `gin specs explain <capability> --narrative <file>`. Trang là `.agent-workflow/runtime/explain/<capability>.html`; `gin setup` bỏ qua thư mục đó, nên trang không bao giờ được commit, và mỗi lần chạy sẽ ghi đè nó. Chạy riêng lệnh để có trang mà không có đoạn tóm tắt.
+`/gin:explain <capability>` viết một trang tương tác về một capability. Agent đọc spec, sơ đồ, và các thư mục theo ngày của nó, viết một đoạn tóm tắt ngắn có trích REQ-ID, rồi chạy `gin specs explain <capability> --narrative <file>`. Trang là `<explain>/<capability>/<capability>.html`, với `<explain>` là `artifacts.explain` (mặc định `.agent-workflow/runtime/explain`); `gin setup` bỏ qua thư mục mặc định đó, nên trang không bao giờ được commit, và mỗi lần chạy sẽ ghi đè nó. `/gin:explain <capability> --legacy` thay vào đó ghi một trang cho mỗi ứng dụng frozen của workspace, từ mã của ứng dụng đó. Chạy riêng lệnh để có trang mà không có đoạn tóm tắt.
 
 Trang có một tab cho mỗi phần có nội dung:
 

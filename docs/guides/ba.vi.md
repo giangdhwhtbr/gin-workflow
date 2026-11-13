@@ -88,6 +88,8 @@ Với `chat`, gate được ghi khi BA xác nhận trong cuộc trò chuyện. K
 
 Hai lệnh chia sẻ spec với những người không đọc repository. `gin specs export <capability>` ghi SRS thành một file HTML, và `/gin:explain <capability>` ghi một trang tương tác. Xem [xuất SRS](sdd.md#exporting-an-srs) và [giải thích một capability](sdd.md#explaining-a-capability).
 
+`/gin:explain <capability> --legacy` ghi một trang cho mỗi ứng dụng frozen có mã triển khai capability đó. Trang giải thích mã của ứng dụng làm gì, để bạn so sánh với trang spec. `artifacts.explain` có thể trỏ đến một thư mục trong repository nội bộ của workspace; việc commit thư mục đó là một quy ước của nhóm mà gin không bắt buộc.
+
 ### Trong lúc build { #during-the-build }
 
 Execute đăng comment `[gin question] <track>: <question>` khi spec và plan không trả lời được câu hỏi của worker. Chạy `/gin:progress` để liệt kê các câu chưa được trả lời. Trả lời từng câu bằng `gin task comment <epic> "[gin answer] <track>: <answer>"`, và execute tiếp tục track.
@@ -121,7 +123,8 @@ Các lỗi thường gặp:
 | `/gin-ba:capture <cap> [--date D] [paths]` | `assets/<D>/description.md` với `Kind: legacy` |
 | `/gin-ba:mockup <cap> [--date D]` | `assets/<D>/mockup/index.html` và `assets/<D>/description.md` |
 | `/gin:discuss` | change folder, requirement và sơ đồ |
-| `/gin:explain <cap>` | `.agent-workflow/runtime/explain/<cap>.html` |
+| `/gin:explain <cap>` | `<explain>/<cap>/<cap>.html` |
+| `/gin:explain <cap> --legacy` | `<explain>/legacy/<app>/<cap>/<cap>.html` |
 | `gin specs export <cap>` | `srs-<cap>.html` |
 
 ## Danh sách đọc { #reading-list }
