@@ -274,6 +274,24 @@ def parse_args():
     p_app_d.add_argument("--actor-id", required=True)
     p_app_d.add_argument("--lease-id")
 
+    # Withdraw Deferral
+    p_wd = subparsers.add_parser("withdraw-deferral", help="Take back a proposed deferral.")
+    p_wd.add_argument("--bead-id", required=True)
+    p_wd.add_argument("--finding-id", required=True)
+    p_wd.add_argument("--reason", required=True)
+    p_wd.add_argument("--actor-role", default="worker")
+    p_wd.add_argument("--actor-id", required=True)
+    p_wd.add_argument("--lease-id")
+
+    # Require Human Decision
+    p_rhd = subparsers.add_parser("require-human-decision", help="Escalate a finding to a human decision.")
+    p_rhd.add_argument("--bead-id", required=True)
+    p_rhd.add_argument("--finding-id", required=True)
+    p_rhd.add_argument("--reason", required=True)
+    p_rhd.add_argument("--actor-role", default="reviewer")
+    p_rhd.add_argument("--actor-id", required=True)
+    p_rhd.add_argument("--lease-id")
+
     # Verify Finding
     p_ver = subparsers.add_parser("verify-finding", help="Verify finding fix.")
     p_ver.add_argument("--bead-id", required=True)
@@ -383,7 +401,7 @@ def parse_args():
     # Record Human Decision
     p_hum_d = subparsers.add_parser("record-human-decision", help="Record a human decision.")
     p_hum_d.add_argument("--bead-id", required=True)
-    p_hum_d.add_argument("--finding-id", required=True)
+    p_hum_d.add_argument("--finding-id")
     p_hum_d.add_argument("--question", required=True)
     p_hum_d.add_argument("--decision", required=True)
     p_hum_d.add_argument("--reason", required=True)
@@ -629,6 +647,22 @@ def main():
             )
             print(f"Approved deferral for finding {args.finding_id}")
 
+        elif args.command == "withdraw-deferral":
+            payload = {"finding_id": args.finding_id, "reason": args.reason}
+            mutate_ledger(
+                args.bead_id, "deferral-withdrawn", payload,
+                args.actor_role, args.actor_id, lease_id=args.lease_id
+            )
+            print(f"Withdrew deferral for finding {args.finding_id}")
+
+        elif args.command == "require-human-decision":
+            payload = {"finding_id": args.finding_id, "reason": args.reason}
+            mutate_ledger(
+                args.bead_id, "human-decision-required", payload,
+                args.actor_role, args.actor_id, lease_id=args.lease_id
+            )
+            print(f"Required a human decision for finding {args.finding_id}")
+
         elif args.command == "verify-finding":
             payload = {"finding_id": args.finding_id}
             mutate_ledger(
@@ -749,16 +783,18 @@ def main():
 
         elif args.command == "record-human-decision":
             payload = {
-                "finding_id": args.finding_id,
                 "question": args.question,
                 "decision": args.decision,
                 "reason": args.reason
             }
+            if args.finding_id:
+                payload = {"finding_id": args.finding_id, **payload}
             mutate_ledger(
                 args.bead_id, "human-decision-recorded", payload,
                 args.actor_role, args.actor_id, bypass_lease=True
             )
-            print(f"Recorded human decision for finding {args.finding_id}")
+            print(f"Recorded human decision for finding {args.finding_id}" if args.finding_id
+                  else "Recorded human decision for the review")
 
         elif args.command == "waive-finding":
             payload = {"finding_id": args.finding_id, "reason": args.reason}

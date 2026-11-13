@@ -370,6 +370,14 @@ class ReviewProjection:
                 self.findings[fid].follow_up_bead_id = payload.get("follow_up_bead_id")
                 self.findings[fid].follow_up_bead_title = payload.get("follow_up_bead_title")
 
+        elif action == EventActions.DEFERRAL_WITHDRAWN:
+            fid = payload["finding_id"]
+            if fid in self.findings:
+                self.findings[fid].status = "open"
+                self.findings[fid].deferral_reason = None
+                self.findings[fid].follow_up_bead_id = None
+                self.findings[fid].follow_up_bead_title = None
+
         elif action == EventActions.DEFERRAL_APPROVED:
             fid = payload["finding_id"]
             if fid in self.findings:
@@ -397,7 +405,7 @@ class ReviewProjection:
 
         elif action == EventActions.HUMAN_DECISION_RECORDED:
             self.decided_since_cycle = True
-            fid = payload["finding_id"]
+            fid = payload.get("finding_id")
             if fid in self.findings:
                 self.findings[fid].status = "human-decision-recorded"
                 self.findings[fid].decision = payload.get("decision")

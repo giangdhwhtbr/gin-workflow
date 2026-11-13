@@ -532,6 +532,10 @@ def _mutate_ledger_unlocked(
             validate_lease_for_write(proj, lease_id, now)
 
     # 3. FSM / Validation Checks
+    # A decision for the whole review has no finding FSM check, so enforce the human role here.
+    if action == "human-decision-recorded" and "finding_id" not in payload and actor_role != "human":
+        raise ValueError(f"only a human may record a human decision (got role {actor_role})")
+
     # a. Finding Status Transitions
     if "finding_id" in payload:
         fid = payload["finding_id"]
@@ -545,6 +549,7 @@ def _mutate_ledger_unlocked(
             "clarification-provided": "clarification-provided",
             "deferral-proposed": "deferral-proposed",
             "deferral-approved": "deferred-verified",
+            "deferral-withdrawn": "open",
             "finding-verified": "verified",
             "finding-withdrawn": "withdrawn",
             "finding-accepted-as-is": "accepted-as-is",

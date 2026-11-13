@@ -67,6 +67,7 @@ def validate_finding_transition(
         # Deferrals
         ("deferral-proposed", "deferred-verified"): {"reviewer"},          # Shortcut for Minor/Suggestion
         ("deferral-proposed", "human-decision-required"): {"reviewer"},     # Path for Important
+        ("deferral-proposed", "open"): {"worker"},                         # Worker takes back a declined deferral
         ("deferred-awaiting-verification", "deferred-verified"): {"reviewer"}, # Final verification of deferrals
     }
 
