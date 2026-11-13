@@ -11,7 +11,7 @@ Epic `gin-workflow-epic-shape-docs` (2026-11-12), process review clusters "One e
 **Consequences**
 - No code changed: the contract approval by consuming leads comes from `plan_approved: area_lead`, not from a new `requirement_confirmed` policy.
 - When the plan author is the only lead of an area, `plan_approved: area_lead` skips that lead once another area's lead approves; starter text must say so.
-- review-ledger cannot move an IMPORTANT finding out of `deferral-proposed` when the human declines the deferral, and `cleanup` skips open beads; the ledger was removed with `git rm` and recreated (bug `gin-workflow-syug`). Do not propose a deferral for an IMPORTANT finding before the user decides.
+- review-ledger cannot move an IMPORTANT finding out of `deferral-proposed` when the human declines the deferral, and `cleanup` skips open beads; the ledger was removed with `git rm` and recreated (bug `gin-workflow-syug`, fixed 2026-11-13 with `withdraw-deferral` and `require-human-decision`; see [review-ledger-cycle-limit](review-ledger-cycle-limit.md)).
 
 **References**
 - Docs: `docs/guides/workspace.md`, `docs/roles.md`, `docs/starters/brownfield.md`, `docs/reference/skills.md`, and `.vi.md` pairs; `plugins/gin-workflow/src/skills/roadmap/references/capability-epics.md`
