@@ -15,7 +15,7 @@ Dispatch one agent per independent problem domain and let them work concurrently
 Do not use it for related failures (fixing one may fix the others), exploratory debugging, work that needs whole-system understanding, or agents that would edit the same files. Production-impacting parallel work or an execution-strategy change needs approval (stage-contract Approvals).
 
 ## Pattern
-1. **Group** the work by what it affects, and confirm each group is dependency-ready (`gin task ready`).
+1. **Group** the work by what it affects, and confirm each group is dependency-ready (`gin task ready --exclude-label prep`).
 2. **Brief each agent** with:
    - one focused goal (one test file, subsystem, or bead);
    - its dependencies;

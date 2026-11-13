@@ -149,3 +149,49 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(file=path.name):
                 self.assertIn("gin-orchestrator dispatch", text)
 
+
+    def test_allocate_creates_prep_tasks_without_inherited_labels(self):
+        text = (SRC / "skills/allocate/SKILL.md").read_text(encoding="utf-8")
+        for needle in ("--no-inherit-labels --labels prep,prep:<type>", "team.beads_sync",
+                       "gin milestone show <id> --json", "[gin answer] <prep-id>:"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        self.assertNotIn("gin-ba", text)
+
+    def test_prep_catalog_lists_the_five_types(self):
+        text = (SRC / "skills/allocate/references/prep-catalog.md").read_text(encoding="utf-8")
+        for kind in ("capture", "mockup", "spike", "question", "other"):
+            with self.subTest(kind=kind):
+                self.assertIn(f"`{kind}`", text)
+
+    def test_execute_excludes_prep_tasks(self):
+        lines = (SRC / "skills/execute/SKILL.md").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[13].count("--exclude-label prep"), 2)
+        self.assertIn("team ready --exclude-label prep", lines[14])
+        self.assertEqual(len([line for line in lines if "project.team" in line]), 1)
+
+    def test_ship_skips_prep_tasks_in_ledger_checks_and_closes_them(self):
+        text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
+        ledger = next(line for line in text.splitlines() if "review-ledger.py validate" in line)
+        self.assertIn("`prep`", ledger)
+        self.assertIn("closed without review", ledger)
+        self.assertIn("not needed: <epic> shipped", text)
+        self.assertIn("gin task ready --exclude-label prep", text)
+
+    def test_discuss_reads_prep_tasks(self):
+        text = (SRC / "skills/discuss/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("--label prep --all --json", text)
+
+    def test_ready_work_excludes_prep_tasks(self):
+        for name in ("orchestrate", "progress", "parallel-agents"):
+            text = (SRC / f"skills/{name}/SKILL.md").read_text(encoding="utf-8")
+            with self.subTest(skill=name):
+                self.assertIn("gin task ready --exclude-label prep", text)
+
+    def test_roadmap_cadence_points_to_allocate(self):
+        text = (SRC / "skills/roadmap/references/way-of-working.md").read_text(encoding="utf-8")
+        self.assertIn("/allocate --milestone <id>", text)
+
+    def test_implementation_complete_ignores_prep_children(self):
+        text = (SRC / "references/stage-contract.md").read_text(encoding="utf-8")
+        self.assertIn("not labelled `prep`", text)

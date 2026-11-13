@@ -11,8 +11,8 @@ description: Implement and validate exactly one ready work unit at its manifest 
 
 ## 1. Select and review
 1. Require `orchestration_ready`. For a standalone bead, claim it first (`gin task update <bead> --claim`; with Beads, `record` sets it `in_progress` and a later claim is refused). Then record it as its own epic: `gin record orchestration-ready --workflow-id <bead> --epic <bead> --evidence <bead> --actor <id>`, and pass `--workflow-id <bead>` to every later `state`/`record` call. An epic labelled `roadmap` with no confirmed spec: refuse and recommend `/discuss <epic-id>`; never record it as its own epic.
-2. Resume first: `gin task list --parent <epic> --status in_progress`; if empty, use `task ready`. Claim with `task update <id> --claim`.
-   With `project.team.enabled`, add `--assignee <git user.email>` to that list; `team ready` and `team claim <id>` (`team` skill) replace `task ready` and `--claim`.
+2. Resume first: `gin task list --parent <epic> --status in_progress --exclude-label prep`; if empty, use `task ready --exclude-label prep`. Claim with `task update <id> --claim`. A bead labelled `prep` is pre-discuss work, not a track: refuse it.
+   With `project.team.enabled`, add `--assignee <git user.email>` to that list; `team ready --exclude-label prep` and `team claim <id>` (`team` skill) replace `task ready` and `--claim`.
 3. Resolve file scope and validation intent from the plan track, or from the task description and acceptance criteria for a standalone unit. Review critically and raise concerns before starting.
 4. Work in the isolated worktree. Never implement on main/master without explicit consent. In a workspace the worktree is the track's `Repo:` (`worktrees` skill, Workspace).
 

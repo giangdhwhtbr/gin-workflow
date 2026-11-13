@@ -48,6 +48,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `migrate-specs` | Chuyển layout spec và plan `.planning` cũ sang layout SDD `docs/` |
 | `beads-migration` | Chuyển thư mục `.beads` của repository vào `~/gin-beads/<repo>` và tạo symlink ngược lại |
 | `roadmap` | Biến bộ tech-doc hoặc một product brief thành roadmap đã xác nhận cùng các epic Beads phụ thuộc nhau, kèm hạn chót dự án và ước lượng cho mỗi epic; đối chiếu cả hai khi chạy lại; đề xuất cách làm việc của team (Foundation, Spec cadence, Build, Integration, Quality, Load) để PM xác nhận; đánh giá độ phức tạp của từng epic; báo cáo dự báo của `gin milestone list`; với layout SDD mỗi epic mang dòng `Capabilities:`; `--milestone <id>` lập kế hoạch cho một milestone có ngày với lane riêng, ngày `Spec ready by:`, và integration point |
+| `allocate` | Đề xuất, giao và tạo các prep task (`capture`, `mockup`, `spike`, `question`, `other`) dưới epic roadmap trước discuss, cho một epic hoặc một milestone (`--milestone <id>`); lead xác nhận một bảng trước, và lần chạy lại chỉ đề xuất phần khác biệt |
 
 ## gin: tài liệu { #gin-documentation }
 
