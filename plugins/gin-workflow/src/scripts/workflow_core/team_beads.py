@@ -9,10 +9,11 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from . import tasks, worktrees
 from .executables import tool
+from .prep import is_prep
 from .team import Area, Member, TeamConfig, TeamError
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
@@ -84,30 +85,97 @@ def _areas_of(team: TeamConfig, issue: Mapping[str, Any]) -> list[Area]:
             if (name := label[5:]) in team.areas]
 
 
-def ready(root: Path, team: TeamConfig, member: Member) -> list[dict[str, Any]]:
+def _row_priority_key(row: dict[str, Any]) -> tuple[int, str]:
+    priority = row.get("priority")
+    if priority is not None:
+        try:
+            return (int(priority), str(row["id"]))
+        except (ValueError, TypeError):
+            pass
+    return (99, str(row["id"]))
+
+
+def ready(root: Path, team: TeamConfig, member: Member, exclude: Sequence[str] = ()) -> list[dict[str, Any]]:
     mine = set(team.areas_for(member))
     held = tasks.held_by_external(root, tool("bd", root) or "bd")
     if held is None:
         raise TeamError("bd ready --explain failed, so external dependencies cannot be checked")
-    result = []
-    for issue in tasks.without_held(_bd_json(root, ["ready", "--exclude-type", "milestone"]), held):
+    excluded = {part.strip() for val in exclude for part in val.split(",") if part.strip()}
+    ready_group: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _matches_target(issue: Mapping[str, Any]) -> tuple[bool, str, list[str], bool]:
         assignee = (issue.get("assignee") or "").lower()
         labels = issue.get("labels") or []
         areas = {label[5:] for label in labels if label.startswith("area:")}
         released = RELEASED in labels
-        if assignee == member.email or (not assignee and (released or areas & mine or (not areas and not team.areas))):
-            result.append({"id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
-                           "areas": sorted(areas), "released": released})
-    seen = {row["id"] for row in result}
+        matches = bool(
+            assignee == member.email
+            or (not assignee and (released or areas & mine or (not areas and not team.areas)))
+        )
+        return matches, assignee, sorted(areas), released
+
+    for issue in tasks.without_held(_bd_json(root, ["ready", "--exclude-type", "milestone"]), held):
+        labels = issue.get("labels") or []
+        if any(label in excluded for label in labels):
+            continue
+        matches, assignee, areas, released = _matches_target(issue)
+        if matches:
+            ready_group.append({
+                "id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
+                "areas": areas, "released": released, "priority": issue.get("priority"),
+            })
+            seen.add(issue["id"])
+
+    blocked = _bd_json(root, ["blocked"])
+    preps = {row["id"]: row for row in _bd_json(root, ["list", "--label", "prep", "--status", "open", "--limit", "0"])}
+    for b_row in blocked:
+        bid = b_row.get("id")
+        if bid not in preps:
+            continue
+        prep_row = preps[bid]
+        parent = prep_row.get("parent")
+        if not parent or b_row.get("blocked_by") != [parent]:
+            continue
+        if not is_prep(prep_row):
+            continue
+        if any(dep.get("type") == "blocks" for dep in prep_row.get("dependencies") or []):
+            continue
+        issue = {**b_row, **prep_row}
+        labels = issue.get("labels") or []
+        if any(label in excluded for label in labels):
+            continue
+        if issue["id"] in seen:
+            continue
+        matches, assignee, areas, released = _matches_target(issue)
+        if matches:
+            ready_group.append({
+                "id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
+                "areas": areas, "released": released, "priority": issue.get("priority"),
+            })
+            seen.add(issue["id"])
+
+    ready_group.sort(key=_row_priority_key)
+
     now = utc_now()
+    expired_group: list[dict[str, Any]] = []
     for issue in tasks.without_held(_bd_json(root, ["list", "--status", "in_progress"]), held):
+        labels = issue.get("labels") or []
+        if any(label in excluded for label in labels):
+            continue
         assignee = (issue.get("assignee") or "").lower()
-        areas = {label[5:] for label in issue.get("labels") or [] if label.startswith("area:")}
+        areas = {label[5:] for label in labels if label.startswith("area:")}
         if issue["id"] not in seen and assignee and assignee != member.email and claim_expired(issue, now) \
                 and (areas & mine or (not areas and not team.areas)):
-            result.append({"id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
-                           "areas": sorted(areas), "expired_claim": assignee})
-    return result
+            expired_group.append({
+                "id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
+                "areas": sorted(areas), "expired_claim": assignee, "priority": issue.get("priority"),
+            })
+            seen.add(issue["id"])
+
+    expired_group.sort(key=_row_priority_key)
+
+    return ready_group + expired_group
 
 
 def sync(root: Path) -> dict[str, Any]:
