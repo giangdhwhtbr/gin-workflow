@@ -133,7 +133,7 @@ The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; w
 
 ## Explaining a capability
 
-`/gin:explain <capability>` writes one interactive page about a capability. The agent reads its spec, diagrams, and dated folders, writes a short summary that cites REQ-IDs, and runs `gin specs explain <capability> --narrative <file>`. The page is `.agent-workflow/runtime/explain/<capability>.html`; `gin setup` ignores that folder, so the page is never committed, and each run overwrites it. Run the command alone to get the page without the summary.
+`/gin:explain <capability>` writes one interactive page about a capability. The agent reads its spec, diagrams, and dated folders, writes a short summary that cites REQ-IDs, and runs `gin specs explain <capability> --narrative <file>`. The page is `<explain>/<capability>/<capability>.html`, where `<explain>` is `artifacts.explain` (default `.agent-workflow/runtime/explain`); `gin setup` ignores that default folder, so the page is never committed, and each run overwrites it. `/gin:explain <capability> --legacy` writes one page per frozen workspace app instead, from the code of that app. Run the command alone to get the page without the summary.
 
 The page has one tab per section with content:
 

@@ -25,7 +25,8 @@ class TestSchema26(unittest.TestCase):
     def test_sdd_artifact_keys_validate(self):
         validate_portable_config({"schema_version": "2.6", "artifacts": {
             "layout": "sdd", "specs": "docs/specs", "changes": "docs/changes", "adr": "docs/adr",
-            "codebase": "docs/codebase", "spec_review": "pr", "test_globs": ["tests/**"]}})
+            "codebase": "docs/codebase", "spec_review": "pr", "test_globs": ["tests/**"],
+            "explain": "internal-docs/explain"}})
         for bad in ({"layout": "openspec"}, {"spec_review": "email"}, {"test_globs": "tests/**"},
                     {"test_globs": [""]}, {"specs": ""}, {"unknown": "x"}):
             with self.subTest(bad=bad), self.assertRaises(ConfigValidationError):

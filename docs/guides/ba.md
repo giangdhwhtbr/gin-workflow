@@ -88,6 +88,8 @@ With `chat`, the gate is recorded when you confirm in the conversation. When `te
 
 Two commands share the spec with people who do not read the repository. `gin specs export <capability>` writes an SRS as one HTML file, and `/gin:explain <capability>` writes an interactive page. See [exporting an SRS](sdd.md#exporting-an-srs) and [explaining a capability](sdd.md#explaining-a-capability).
 
+`/gin:explain <capability> --legacy` writes one page per frozen legacy app that has code for the capability. The page explains what that app's code does, so you can compare it with the spec page. `artifacts.explain` can name a folder in an internal repository of the workspace; committing that folder is a team convention that gin does not enforce.
+
 ### During the build
 
 Execute posts a `[gin question] <track>: <question>` comment when the spec and plan do not answer a worker's question. Run `/gin:progress` to list the unanswered ones. Answer each with `gin task comment <epic> "[gin answer] <track>: <answer>"`, and execute resumes the track.
@@ -121,7 +123,8 @@ Common mistakes:
 | `/gin-ba:capture <cap> [--date D] [paths]` | `assets/<D>/description.md` with `Kind: legacy` |
 | `/gin-ba:mockup <cap> [--date D]` | `assets/<D>/mockup/index.html` and `assets/<D>/description.md` |
 | `/gin:discuss` | the change folder, requirements and diagrams |
-| `/gin:explain <cap>` | `.agent-workflow/runtime/explain/<cap>.html` |
+| `/gin:explain <cap>` | `<explain>/<cap>/<cap>.html` |
+| `/gin:explain <cap> --legacy` | `<explain>/legacy/<app>/<cap>/<cap>.html` |
 | `gin specs export <cap>` | `srs-<cap>.html` |
 
 ## Reading list

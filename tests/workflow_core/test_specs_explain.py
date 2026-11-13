@@ -59,7 +59,7 @@ def auth_repo(base: str, spec: str = AUTH_SPEC) -> Path:
 
 
 def page(root: Path, name: str) -> str:
-    return (root / OUT / f"{name}.html").read_text(encoding="utf-8")
+    return (root / OUT / name / f"{name}.html").read_text(encoding="utf-8")
 
 
 class TestCapability(unittest.TestCase):
@@ -68,7 +68,7 @@ class TestCapability(unittest.TestCase):
             root = auth_repo(tmp, AUTH_SPEC + ADMIN_SECTION)
             result = run_specs(root, "explain", "auth")
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-            self.assertEqual(f"{OUT}/auth.html", result.stdout.strip())
+            self.assertEqual(f"{OUT}/auth/auth.html", result.stdout.strip())
             html = page(root, "auth")
             for needle in ('href="#overview"', 'href="#requirements"', 'href="#diagrams"', 'id="req-search"',
                            '<article class="card" id="REQ-AUTH-001">', "Sign-in.",
@@ -155,7 +155,7 @@ class TestChange(unittest.TestCase):
             write(root, "docs/specs/auth/assets/2026-06-01/description.md", "# auth: 2026-06-01\n\nConfirmed: no\n")
             result = run_specs(root, "explain", "ep-1", "--format", "json")
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-            self.assertEqual({"path": f"{OUT}/ep-1-lockout.html", "kind": "change", "missing": []},
+            self.assertEqual({"path": f"{OUT}/ep-1-lockout/ep-1-lockout.html", "kind": "change", "missing": []},
                              json.loads(result.stdout))
             html = page(root, "ep-1-lockout")
             self.assertLess(html.index("<h3>ADDED</h3>"), html.index("<h3>MODIFIED</h3>"))
@@ -227,6 +227,85 @@ class TestNarrativeAndPaths(unittest.TestCase):
             html = page(root, "auth")
             self.assertTrue(html.startswith("<h1>Auth</h1>"))
             self.assertNotIn("note", html)
+
+
+
+SHOP_WORKSPACE = "workspace:\n  repos:\n    - path: legacy/shop-portal\n      url: u\n      frozen: true\n"
+
+
+class TestFolders(unittest.TestCase):
+    def test_artifacts_explain_sets_the_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_repo(Path(tmp) / "repo", extra="  explain: internal-docs/explain\n")
+            write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            write_activity(root)
+            result = run_specs(root, "explain", "auth")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertEqual("internal-docs/explain/auth/auth.html", result.stdout.strip())
+            self.assertTrue((root / "internal-docs/explain/auth/auth.html").is_file())
+
+    def test_change_page_has_its_own_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = auth_repo(tmp)
+            write(root, "docs/changes/ep-1-lockout/01-proposal.md", proposal("REQ-AUTH-001"))
+            result = run_specs(root, "explain", "ep-1-lockout")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertTrue((root / OUT / "ep-1-lockout/ep-1-lockout.html").is_file())
+
+    def test_artifacts_explain_outside_the_repository_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_repo(Path(tmp) / "repo", extra="  explain: ../out\n")
+            write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            write_activity(root)
+            result = run_specs(root, "explain", "auth")
+            self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+            self.assertIn("artifacts.explain", result.stderr)
+            self.assertFalse((Path(tmp) / "out").exists())
+
+
+class TestLegacy(unittest.TestCase):
+    def workspace_repo(self, base: str) -> Path:
+        root = make_repo(Path(base) / "repo", extra=SHOP_WORKSPACE)
+        write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(root)
+        return root
+
+    def test_legacy_app_page_path_and_kind(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.workspace_repo(tmp)
+            result = run_specs(root, "explain", "auth", "--legacy", "shop-portal")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertEqual(f"{OUT}/legacy/shop-portal/auth/auth.html", result.stdout.strip())
+            self.assertIn("legacy capability (shop-portal)",
+                          (root / OUT / "legacy/shop-portal/auth/auth.html").read_text(encoding="utf-8"))
+
+    def test_legacy_refusals_exit_2_and_write_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.workspace_repo(tmp)
+            write(root, "docs/changes/ep-1-lockout/01-proposal.md", proposal("REQ-AUTH-001"))
+            unknown = run_specs(root, "explain", "auth", "--legacy", "other")
+            self.assertEqual(2, unknown.returncode)
+            self.assertIn("shop-portal", unknown.stderr)
+            change = run_specs(root, "explain", "ep-1-lockout", "--legacy", "shop-portal")
+            self.assertEqual(2, change.returncode)
+            self.assertIn("capability, not a change", change.stderr)
+            plain = auth_repo(str(Path(tmp) / "plain"))
+            none = run_specs(plain, "explain", "auth", "--legacy", "shop-portal")
+            self.assertEqual(2, none.returncode)
+            self.assertIn("needs a workspace", none.stderr)
+            self.assertFalse((root / OUT).exists())
+            self.assertFalse((plain / OUT).exists())
+
+    def test_legacy_kind_is_escaped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_repo(Path(tmp) / "repo", extra=SHOP_WORKSPACE.replace("shop-portal", "a&b"))
+            write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            write_activity(root)
+            result = run_specs(root, "explain", "auth", "--legacy", "a&b")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            html = (root / OUT / "legacy/a&b/auth/auth.html").read_text(encoding="utf-8")
+            self.assertIn("legacy capability (a&amp;b)", html)
+            self.assertNotIn("legacy capability (a&b)", html)
 
 
 if __name__ == "__main__":
