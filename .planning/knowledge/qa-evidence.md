@@ -11,7 +11,7 @@ Epic `gin-workflow-qa-evidence` (2026-11-12, spec `.planning/specs/2026-11-12-qa
 **Consequences**
 - A skill must not name a path in this repository (such as `docs/guides/qa.md`): the skill runs in the user's project, where that file does not exist.
 - A behaviour change in a gin-qa command also needs `docs/reference/cli.md`, not only the QA guide; review of `.2` caught the stale reference.
-- With gin-orchestrator healthy, the `backend` role routes to antigravity by `by_tier`; when its executable (`agy`) is unavailable, dispatch fails with `worker_routes_unavailable` and the track runs on the fallback.
+- With gin-orchestrator healthy, the `backend` role routes to antigravity by `by_tier`. Dispatch failed with `worker_routes_unavailable` because the track worktree was nested under `.claude/worktrees/<feature>/.planning/worktrees/`, not the main checkout's `.planning/worktrees/` (`worker.unavailable` reason `workspace_unavailable`; see [non-claude-dispatch](non-claude-dispatch.md)); antigravity itself was healthy. The tracks ran on the fallback.
 
 **References**
 - `plugins/gin-qa/src/scripts/gin_qa/bugs.py` (`epic_of`, `file_bug`), `plugins/gin-qa/src/skills/{report,e2e,tests,run}/SKILL.md`, `docs/guides/qa.md` (Publish the evidence), `docs/reference/cli.md` (`gin-qa cases bug`)
