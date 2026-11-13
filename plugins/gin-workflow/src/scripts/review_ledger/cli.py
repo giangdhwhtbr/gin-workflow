@@ -545,6 +545,7 @@ def _mutate_ledger_unlocked(
             "clarification-provided": "clarification-provided",
             "deferral-proposed": "deferral-proposed",
             "deferral-approved": "deferred-verified",
+            "deferral-withdrawn": "open",
             "finding-verified": "verified",
             "finding-withdrawn": "withdrawn",
             "finding-accepted-as-is": "accepted-as-is",

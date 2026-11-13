@@ -8,7 +8,7 @@ from review_ledger.schema import EventActions
 
 class TestSchema(unittest.TestCase):
     def test_schema_actions_defined(self):
-        self.assertEqual(len(EventActions.ALL_ACTIONS), 35)
+        self.assertEqual(len(EventActions.ALL_ACTIONS), 36)
         self.assertIn("ledger-created", EventActions.ALL_ACTIONS)
         self.assertIn("review-approved", EventActions.ALL_ACTIONS)
         # An action is only reachable if it is registered here; finding-reopened

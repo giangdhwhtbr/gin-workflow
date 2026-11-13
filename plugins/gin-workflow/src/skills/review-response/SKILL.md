@@ -12,6 +12,7 @@ Load the open findings with `python3 review-ledger.py status --bead-id <bead-id>
 - **Fix** (valid, in scope): change the tree first, then `fix-finding --finding-id <id>`. This moves the finding to `fixed-awaiting-verification`, and only the reviewer can make it terminal. Never mark a fix you then revert.
 - **Dispute** (wrong): `dispute-finding --finding-id <id> --reason "<technical reason>"`.
 - **Defer** (valid, out of scope): `propose-deferral --finding-id <id> --reason "<why>" --follow-up-bead-id <id> --follow-up-bead-title "<title>"`.
+  When the reviewer declines the deferral, run `withdraw-deferral --finding-id <id> --reason "<why>"` and fix the finding. An IMPORTANT deferral needs the reviewer's `require-human-decision`, then the human's `waive-finding` (accept) or `record-human-decision`.
 - **Clarify**: `provide-clarification --finding-id <id> --clarification "<text>"`.
 - **Scope widening**: if a valid fix must touch a file outside the ledger's included paths, `checkpoint` refuses it ("Unrelated working-tree changes detected outside review scope"). Do not revert the fix or re-run `init`; run `change-scope --reason "<why>" --add-include <path>`. This invalidates the active approval, so a fresh review round follows. Prefer it over deferring when the fix belongs to this change.
 
