@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "review-approved",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,7 +24,7 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 3,
+  "ledger_revision": 7,
   "next_finding_number": 1,
   "findings": {},
   "events": [
@@ -107,6 +107,82 @@
       },
       "previous_event_hash": "5b77b57d40a318da1e35b02e1d355428ef9f28e10cacceac548ad9ae0a289e2c",
       "event_hash": "515848a4ade847b5abd32bcc0c1702d594b63a76df3ad24b6ec080c9a4d77859"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-13T02:30:33.845036Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-9080da42"
+      },
+      "payload": {
+        "lease_id": "d39a23b099ab42b89e101bcd79f09230",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-9080da42",
+        "acquired_at": "2026-11-13T02:30:33.844186Z",
+        "expires_at": "2026-11-13T02:40:33.844186Z"
+      },
+      "previous_event_hash": "515848a4ade847b5abd32bcc0c1702d594b63a76df3ad24b6ec080c9a4d77859",
+      "event_hash": "0b8abb35e4b29066fb13913f1a6c59a5658b41d48dd8eeb740bc94309c2d60b3"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-13T02:30:33.873057Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-9080da42"
+      },
+      "payload": {},
+      "previous_event_hash": "0b8abb35e4b29066fb13913f1a6c59a5658b41d48dd8eeb740bc94309c2d60b3",
+      "event_hash": "b736d67b080d67dae9b0de92241b4daee8b6b82d3f56c9a2a007340cfb8dac8f"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "review-approved",
+      "timestamp": "2026-11-13T02:30:40.428494Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-9080da42"
+      },
+      "payload": {
+        "approved_repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-y4o8.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-y4o8.2",
+            "review_base_sha": "1c9412008ece935abfe0330af5eb6e1b028d7f84",
+            "reviewed_source_sha": "0d1b12221f80f6329937a1f7e2121050f3b76ad1",
+            "checkpoint_sha": "0d1b12221f80f6329937a1f7e2121050f3b76ad1",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "c0afea23729266b4619b0ce816e0923e26bbac66f4c37950ed141e69b2f0bbd4",
+            "reviewed_source_tree_hash": "c0afea23729266b4619b0ce816e0923e26bbac66f4c37950ed141e69b2f0bbd4",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+        "terminal_findings": []
+      },
+      "previous_event_hash": "b736d67b080d67dae9b0de92241b4daee8b6b82d3f56c9a2a007340cfb8dac8f",
+      "event_hash": "ea7c7c2c0f00473168a484c551ee8ed66b7778f15d4517c581ce79c800974723"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "lease-released",
+      "timestamp": "2026-11-13T02:30:40.668207Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-9080da42"
+      },
+      "payload": {
+        "lease_id": "d39a23b099ab42b89e101bcd79f09230",
+        "released_at": "2026-11-13T02:30:40.667373Z"
+      },
+      "previous_event_hash": "ea7c7c2c0f00473168a484c551ee8ed66b7778f15d4517c581ce79c800974723",
+      "event_hash": "269bb446107fa0f9591e2ff9fe6457e2d63ee01b6782077c5fca7a808b6e1dda"
     }
   ]
 }
