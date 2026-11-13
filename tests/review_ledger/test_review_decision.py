@@ -107,6 +107,18 @@ class TestReviewDecisionWithoutFinding(unittest.TestCase):
                 "--reason", "r", "--actor-id", "lead@x")
         self.assertEqual(0, self.start().returncode)
 
+    def test_only_a_human_records_a_decision_for_the_review(self):
+        self.reach_max_cycles_with_fixed_finding()
+        from review_ledger.cli import load_ledger
+        log_before, _ = load_ledger(BEAD, base_dir=self.test_dir)
+        for role in ("worker", "reviewer"):
+            refused = self.decide("--actor-role", role)
+            self.assertNotEqual(0, refused.returncode, role)
+        log_after, proj = load_ledger(BEAD, base_dir=self.test_dir)
+        self.assertEqual(len(log_before.events), len(log_after.events))
+        self.assertFalse(proj.decided_since_cycle)
+        self.assertEqual(1, self.start().returncode)
+
     def test_decision_with_finding_id_still_needs_human_decision_required(self):
         self.reach_max_cycles_with_fixed_finding()
         refused = self.decide("--finding-id", "F-1")
