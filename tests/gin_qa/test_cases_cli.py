@@ -251,7 +251,12 @@ class TestIdsAndExport(QaCase):
         for number, value, message in (
                 (1, ",", "Legacy: needs at least one reference"),
                 (2, "/etc/x.json", "Legacy: /etc/x.json must be a relative path inside the repository"),
-                (3, "../other/x.json", "Legacy: ../other/x.json must be a relative path inside the repository")):
+                (3, "../other/x.json", "Legacy: ../other/x.json must be a relative path inside the repository"),
+                (4, r"..\x", r"Legacy: ..\x must be a relative path inside the repository"),
+                (5, r"a\..\b", r"Legacy: a\..\b must be a relative path inside the repository"),
+                (6, "#screen", "Legacy: #screen needs a path before #"),
+                (7, r"C:\x", r"Legacy: C:\x must be a relative path inside the repository"),
+                (8, "C:/x", "Legacy: C:/x must be a relative path inside the repository")):
             with self.subTest(value=value):
                 tc = f"TC-AUTH-{number:03d}"
                 self.write_cases(case(tc, good, extra=f"Legacy: {value}\n"))
