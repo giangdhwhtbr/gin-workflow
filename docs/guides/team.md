@@ -102,6 +102,12 @@ To hand a track over (a member runs out of quota or is away), the current assign
 
 A member's ship covers only their own tracks. The lead declares the feature complete once every track pull request has merged (the `team` skill's rule).
 
+## Prep tasks
+
+Prep tasks (pre-discuss capture, mockup, spike, and question work; see [lifecycle](../concepts/lifecycle.md#prep-tasks)) are created by the lead's `/gin:allocate` and need `team.beads_sync`. Without it they would exist only in the lead's database and no member would see them. The skill runs `gin team sync` before and after writing, and the assignee runs it after closing a task.
+
+`gin team ready` lists a member's prep tasks with the rest of their ready work, in priority order ([command](../reference/cli.md#gin-team)).
+
 ## Host settings
 
 Each host needs a logged-in CLI and branch protection on the integration branch. The login commands are `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, and `aws configure` or `aws sso login`. The `team` skill's `references/hosts.md` lists them with the open-pull-request command and settings per host. `gin setup doctor` reports a missing CLI or login with the fix to run.

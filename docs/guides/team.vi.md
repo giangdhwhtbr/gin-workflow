@@ -102,6 +102,12 @@ Việc ghi milestone theo `team.permissions.milestone`, và với Beads dùng ch
 
 Ship của một thành viên chỉ bao gồm các track của chính họ. Lead tuyên bố tính năng hoàn tất khi mọi pull request của track đã merge (quy tắc của skill `team`).
 
+## Prep task { #prep-tasks }
+
+Prep task (việc capture, mockup, spike và câu hỏi trước discuss; xem [vòng đời](../concepts/lifecycle.md#prep-tasks)) do `/gin:allocate` của lead tạo và cần `team.beads_sync`. Thiếu nó, chúng chỉ nằm trong cơ sở dữ liệu của lead và không thành viên nào thấy. Skill chạy `gin team sync` trước và sau khi ghi, và người được giao chạy lệnh này sau khi đóng task.
+
+`gin team ready` liệt kê prep task của thành viên cùng với việc sẵn sàng khác, theo thứ tự priority ([lệnh](../reference/cli.md#gin-team)).
+
 ## Thiết lập trên host { #host-settings }
 
 Mỗi host cần một CLI đã đăng nhập và branch protection trên integration branch. Các lệnh login là `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, và `aws configure` hoặc `aws sso login`. File `references/hosts.md` của skill `team` liệt kê chúng cùng lệnh mở pull request và các thiết lập của từng host. `gin setup doctor` báo CLI hoặc login còn thiếu cùng cách sửa.

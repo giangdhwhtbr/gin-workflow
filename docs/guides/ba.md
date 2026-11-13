@@ -88,6 +88,12 @@ With `chat`, the gate is recorded when you confirm in the conversation. When `te
 
 Two commands share the spec with people who do not read the repository. `gin specs export <capability>` writes an SRS as one HTML file, and `/gin:explain <capability>` writes an interactive page. See [exporting an SRS](sdd.md#exporting-an-srs) and [explaining a capability](sdd.md#explaining-a-capability).
 
+### Prep tasks
+
+The tech lead may assign you [prep tasks](../concepts/lifecycle.md#prep-tasks) before the spec, such as a capture or a mockup. In team mode, `gin team ready` lists them. Otherwise run `gin task list --label prep --status open,in_progress`.
+
+Finish the output the task names, then close it with `gin task close <id> --reason "<output>"`. For a `spike` or `question` task, first answer on the epic with `gin task comment <epic> "[gin answer] <prep-id>: <answer>"`. In team mode, run `gin team sync` after closing.
+
 ### During the build
 
 Execute posts a `[gin question] <track>: <question>` comment when the spec and plan do not answer a worker's question. Run `/gin:progress` to list the unanswered ones. Answer each with `gin task comment <epic> "[gin answer] <track>: <answer>"`, and execute resumes the track.

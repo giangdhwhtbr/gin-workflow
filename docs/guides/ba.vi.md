@@ -88,6 +88,12 @@ Với `chat`, gate được ghi khi BA xác nhận trong cuộc trò chuyện. K
 
 Hai lệnh chia sẻ spec với những người không đọc repository. `gin specs export <capability>` ghi SRS thành một file HTML, và `/gin:explain <capability>` ghi một trang tương tác. Xem [xuất SRS](sdd.md#exporting-an-srs) và [giải thích một capability](sdd.md#explaining-a-capability).
 
+### Prep task { #prep-tasks }
+
+Tech lead có thể giao cho bạn [prep task](../concepts/lifecycle.md#prep-tasks) trước spec, như capture hoặc mockup. Ở chế độ nhóm, `gin team ready` liệt kê chúng. Nếu không, chạy `gin task list --label prep --status open,in_progress`.
+
+Hoàn thành output mà task nêu, rồi đóng bằng `gin task close <id> --reason "<output>"`. Với task `spike` hoặc `question`, trước tiên trả lời trên epic bằng `gin task comment <epic> "[gin answer] <prep-id>: <answer>"`. Ở chế độ nhóm, chạy `gin team sync` sau khi đóng.
+
 ### Trong lúc build { #during-the-build }
 
 Execute đăng comment `[gin question] <track>: <question>` khi spec và plan không trả lời được câu hỏi của worker. Chạy `/gin:progress` để liệt kê các câu chưa được trả lời. Trả lời từng câu bằng `gin task comment <epic> "[gin answer] <track>: <answer>"`, và execute tiếp tục track.
