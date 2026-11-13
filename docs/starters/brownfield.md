@@ -374,11 +374,11 @@ In `/gin:discuss`, settle the data migration strategy (dual-write or backfill) a
 | Track | Area | Repo | Owner | Work |
 |---|---|---|---|---|
 | 1 | `qa` | `qa` | Chi | Test cases for the catalog capability, one file per case |
-| 2 | `api` | `services/catalog-api` | Em | Spring Boot API, facade, and parity tests against the contract |
+| 2 | `api` | `services/catalog-api` | Em | Spring Boot API and facade, with unit and integration tests |
 | 3 | `web` | `apps/web-shop` | Hoa | React UI built against contract mocks |
 | 4 | `web` | `apps/web-shop` | Hoa | Integration: replace the mocks with real API calls |
 | 5 | `api` | `services/order-api` | Binh | Router cutover to the new facade, on a Premium seat with a high effort |
-| 6 | `qa` | `qa` | Chi | API tests, E2E, manual runs, and the report |
+| 6 | `qa` | `qa` | Chi | Parity and API tests, E2E, manual runs, and the report |
 
 ```mermaid
 flowchart LR
@@ -393,7 +393,7 @@ flowchart LR
   T5 --> T6
 ```
 
-Parity and data validation scripts run in the `pre-push` hook when the `verify.checks.test` command runs them ([configuration](../reference/config.md#verifychecks)).
+Unit and integration tests run in the `pre-push` hook through the service's `verify.checks.test` ([configuration](../reference/config.md#verifychecks)); parity tests run from `qa/` with `/gin-qa:tests --type api`.
 
 ## Test cases
 
@@ -409,18 +409,14 @@ Legacy behaviors the new API must match: hidden products never listed; customer 
 ```
 ```text
 /gin-qa:tests catalog --type api
-Compare the new API with the legacy pages on payloads recorded from staging.
+Compare the new API, built from this pull request, with the payloads recorded from the legacy system on staging under qa/legacy/catalog/.
 ```
 
 Put in the prompt: the epic, and the legacy behaviors that the new API must match.
 
-Passing unit tests does not show that the new code behaves like the old. Parity tests compare the two:
+Passing unit tests does not show that the new code behaves like the old. The tester owns the parity tests (a team convention): `api` cases whose `Legacy:` line names the confirmed capture screen and a payload recorded once from the legacy system on staging and committed under `qa/legacy/catalog/`. They run against the new service built from the pull request branch, in CI or locally, and assert no unexpected difference from the recorded payload.
 
-1. Capture recorded production or staging payloads (Golden Master).
-2. Run each payload against both the legacy and the modern implementation.
-3. Assert zero unexpected difference in the responses.
-
-**You get:** one file per case under `qa/cases/catalog/`, for example `TC-CATALOG-001-list-products.api.md`, `TC-CATALOG-002-search-by-name.e2e.md`, and `TC-CATALOG-003-legacy-pagination.manual.md`. Each case is tied to a requirement and its content hash, and `gin-qa cases pin` records the hash again after a case is updated; `gin-qa cases plan` flags cases that went stale. The types `api`, `e2e`, and `manual` are listed under `## Types` in `qa/guidelines.md`. `/gin-qa:tests` writes and runs the `api` tests from the `Tests:` globs and the `Run:` command declared under `## Automated types`. A repository that still has the flat per-capability case file converts it once with `gin-qa cases split catalog`.
+**You get:** one file per case under `qa/cases/catalog/`, for example `TC-CATALOG-001-list-products.api.md`, `TC-CATALOG-002-search-by-name.e2e.md`, and `TC-CATALOG-003-legacy-pagination.manual.md`. Each case is tied to a requirement and its content hash, and `gin-qa cases pin` records the hash again after a case is updated; `gin-qa cases plan` flags cases that went stale. The types `api`, `e2e`, and `manual` are listed under `## Types` in `qa/guidelines.md`. `/gin-qa:tests` writes and runs the `api` tests from the `Tests:` globs and the `Run:` command declared under `## Automated types`. A repository that still has the flat per-capability case file converts it once with `gin-qa cases split catalog`. Cases written from a confirmed legacy capture carry `Legacy:`.
 
 **Gate or approval:** none.
 

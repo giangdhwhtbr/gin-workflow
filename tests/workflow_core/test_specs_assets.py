@@ -205,6 +205,60 @@ class TestAssetsConfirm(AssetsCase):
         self.assertEqual("pm An", payload["agreed_with"])
 
 
+class TestAssetsList(AssetsCase):
+    FIRST = "docs/specs/orders/assets/2026-05-11"
+    SECOND = "docs/specs/orders/assets/2026-06-01"
+
+    def make_folders(self):
+        write(self.root, f"{self.FIRST}/description.md",
+              "# orders: 2026-05-11\n\nKind: legacy\nPrevious: none\nConfirmed: no\n\n"
+              "## As-is behaviour\n\n### Order list\ntext\n### Order form\ntext\n\n"
+              "## Rules\n\n### Not a screen\n")
+        specs_assets.confirm(self.root, self.cfg, "orders", "2026-05-11", today=date(2026, 5, 12))
+        write(self.root, f"{self.SECOND}/description.md",
+              "# orders: 2026-06-01\n\nKind: change\nPrevious: assets/2026-05-11/\nConfirmed: no\n")
+
+    def test_lists_dated_folders_oldest_first_with_kind_confirmed_and_screens(self):
+        self.make_folders()
+        self.assertEqual([
+            {"date": "2026-05-11", "kind": "legacy", "confirmed": "2026-05-12",
+             "path": f"{self.FIRST}/description.md", "screens": ["Order list", "Order form"]},
+            {"date": "2026-06-01", "kind": "change", "confirmed": None,
+             "path": f"{self.SECOND}/description.md", "screens": []},
+        ], specs_assets.listing(self.root, self.cfg, "orders"))
+
+    def test_a_folder_without_description_has_empty_values(self):
+        (self.root / self.FIRST).mkdir(parents=True)
+        self.assertEqual([{"date": "2026-05-11", "kind": None, "confirmed": None,
+                           "path": f"{self.FIRST}/description.md", "screens": []}],
+                         specs_assets.listing(self.root, self.cfg, "orders"))
+
+    def test_a_capability_without_assets_is_an_empty_list(self):
+        result = run_specs(self.root, "assets", "list", "orders", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], json.loads(result.stdout))
+
+    def test_unknown_capability_exits_2(self):
+        result = run_specs(self.root, "assets", "list", "order")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("did you mean orders", result.stderr)
+
+    def test_text_output_one_line_per_folder(self):
+        self.make_folders()
+        result = run_specs(self.root, "assets", "list", "orders")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([f"2026-05-11 legacy 2026-05-12 {self.FIRST}/description.md",
+                          f"2026-06-01 change not confirmed {self.SECOND}/description.md"],
+                         result.stdout.splitlines())
+
+    def test_legacy_layout_lists_nothing(self):
+        legacy = make_repo(Path(self._tmp.name) / "legacy", layout="legacy")
+        result = run_specs(legacy, "assets", "list", "orders", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], json.loads(result.stdout))
+        self.assertEqual("", run_specs(legacy, "assets", "list", "orders").stdout)
+
+
 CONFIRMED = "docs/specs/orders/assets/2026-11-01"
 
 

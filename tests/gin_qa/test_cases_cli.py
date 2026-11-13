@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -228,7 +229,36 @@ class TestIdsAndExport(QaCase):
             "type": "e2e", "priority": "high", "fields": {"Owner": "qa-team"},
             "preconditions": ["a user exists"], "steps": ["Open /login", 'Click "Sign in"'],
             "expected": ["The dashboard is shown"], "result": "not run", "run": "", "bug": "", "moved_from_e2e": None,
-            "test_data": []}], rows)
+            "test_data": [], "legacy": []}], rows)
+
+    def test_legacy_field_is_exported_and_checked_clean(self):
+        extra = "Legacy: docs/specs/catalog/assets/2026-10-01/description.md#Product list, qa/legacy/catalog/list.json\n"
+        self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-002"), extra=extra))
+        self.assertEqual([], self.findings())
+        row = self.run_json("export")["cases"][0]
+        self.assertEqual(["docs/specs/catalog/assets/2026-10-01/description.md#Product list",
+                          "qa/legacy/catalog/list.json"], row["legacy"])
+        self.assertEqual({}, row["fields"])
+
+    def test_legacy_field_does_not_change_the_hash(self):
+        ref = "REQ: REQ-AUTH-001@00000000"
+        plain = parse_file_text(case("TC-AUTH-001", ref))
+        legacy = parse_file_text(case("TC-AUTH-001", ref, extra="Legacy: qa/legacy/auth/x.json\n"))
+        self.assertEqual(case_hash8(plain), case_hash8(legacy))
+
+    def test_legacy_field_findings(self):
+        good = self.ref("REQ-AUTH-001", "REQ-AUTH-002")
+        for number, value, message in (
+                (1, ",", "Legacy: needs at least one reference"),
+                (2, "/etc/x.json", "Legacy: /etc/x.json must be a relative path inside the repository"),
+                (3, "../other/x.json", "Legacy: ../other/x.json must be a relative path inside the repository")):
+            with self.subTest(value=value):
+                tc = f"TC-AUTH-{number:03d}"
+                self.write_cases(case(tc, good, extra=f"Legacy: {value}\n"))
+                found = self.findings()
+                self.assertEqual(1, len(found), found)
+                self.assertRegex(found[0], rf"^qa/cases/auth\.md:\d+: {tc}: {re.escape(message)}$")
+                self.assertEqual(1, qa(self.root, self.bin, "check").returncode)
 
 
 class TestCaseFiles(QaCase):

@@ -26,7 +26,8 @@ RESULTS = ("passed", "failed", "blocked", "not run")
 RESULT_FIELDS = ("Result", "Run", "Bug")
 MOVED_FIELD = "Moved from e2e"
 _MOVED = re.compile(r"^(\d{4}-\d{2}-\d{2}): (\S.*)$")
-KNOWN_FIELDS = ("REQ", "Source", "Type", "Priority", MOVED_FIELD, *RESULT_FIELDS)
+LEGACY_FIELD = "Legacy"
+KNOWN_FIELDS = ("REQ", "Source", "Type", "Priority", MOVED_FIELD, LEGACY_FIELD, *RESULT_FIELDS)
 
 
 def _heading(level: str) -> re.Pattern[str]:
@@ -113,7 +114,20 @@ def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, er
     if moved is not None and not _MOVED.match(moved):
         errors.append(f"{path}:{case.field_lines[MOVED_FIELD]}: {case.id}: {MOVED_FIELD}: is "
                       f"'<YYYY-MM-DD>: <reason>'; got {moved!r}")
+    if LEGACY_FIELD in case.fields:
+        at = f"{path}:{case.field_lines[LEGACY_FIELD]}: {case.id}: {LEGACY_FIELD}:"
+        refs = legacy_refs(case)
+        if not refs:
+            errors.append(f"{at} needs at least one reference")
+        for item in refs:
+            target = PurePosixPath(item.split("#", 1)[0])
+            if target.is_absolute() or re.match(r"^[A-Za-z]:", target.as_posix()) or ".." in target.parts:
+                errors.append(f"{at} {item} must be a relative path inside the repository")
     return case
+
+
+def legacy_refs(case: Case) -> list[str]:
+    return [item for item in (part.strip() for part in case.fields.get(LEGACY_FIELD, "").split(",")) if item]
 
 
 def _lines(path: Path) -> list[str]:
@@ -491,4 +505,5 @@ def as_dict(case: Case) -> dict[str, object]:
             "preconditions": case.preconditions, "steps": case.steps, "expected": case.expected,
             "result": case.fields.get("Result", "not run"), "run": case.fields.get("Run", ""),
             "bug": case.fields.get("Bug", ""),
-            "moved_from_e2e": moved_from_e2e(case), "test_data": case.test_data}
+            "moved_from_e2e": moved_from_e2e(case), "test_data": case.test_data,
+            "legacy": legacy_refs(case)}

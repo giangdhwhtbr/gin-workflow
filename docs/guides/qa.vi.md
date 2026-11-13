@@ -81,6 +81,7 @@ Lưu thành `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 - `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]` ghi các dòng `Result`, `Run`, và `Bug`. Không bao giờ sửa chúng bằng tay.
 - Một file phẳng `qa/cases/<capability>.md` từ các phiên bản trước vẫn dùng được. `gin-qa cases split <capability>` ghi mỗi case một file và xóa file phẳng.
 - Trong layout legacy (không có REQ-ID), case dùng `Source: <spec path>#<heading>` và `check` chỉ bao gồm cấu trúc và ID.
+- `Legacy:` (tùy chọn) nêu hành vi legacy mà một case kiểm tra: một màn hình capture đã xác nhận (`<specs>/<cap>/assets/<date>/description.md#<screen>`) và các payload đã ghi lại dưới `legacy/<capability>/` trong QA home, là các đường dẫn tương đối phân tách bằng dấu phẩy. Nó không làm thay đổi hash của case. `/gin-qa:cases` điền trường này từ các thư mục `legacy` đã xác nhận mà `gin specs assets list` báo cáo.
 - `gin-qa cases export --format json` liệt kê mọi case cùng `result`, `run`, `bug`, và `test_data` cho công cụ của riêng bạn; `/gin-qa:report` dựng báo cáo HTML từ cùng dữ liệu.
 
 Requirement và hash của chúng đến từ các living spec, nên [layout SDD](sdd.md) cho khả năng truy vết tốt nhất.

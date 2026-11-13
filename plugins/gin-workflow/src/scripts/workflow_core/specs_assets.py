@@ -14,6 +14,7 @@ from .team import git_email
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 _CONFIRMED = re.compile(r"^Confirmed:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
+_KIND = re.compile(r"^Kind:[ \t]*(\S+)", re.MULTILINE)
 
 
 def _is_day(value: str) -> bool:
@@ -129,6 +130,32 @@ def confirm(root: Path, cfg: Mapping[str, Any], cap: str, day: str, *, agreed_wi
         text = _set_field(text, "Agreed with", cleaned_agreed, after="Confirmed by")
     atomic_write_many({description: text.encode("utf-8")}, mode=0o644)
     return {"description": shown, "confirmed": stamp, "confirmed_by": email, "agreed_with": cleaned_agreed}
+
+
+def _screens(text: str) -> list[str]:
+    """The `### ` headings between `## As-is behaviour` and the next `## ` heading."""
+    screens: list[str] = []
+    inside = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            inside = line.strip() == "## As-is behaviour"
+        elif inside and line.startswith("### "):
+            screens.append(line[4:].strip())
+    return screens
+
+
+def listing(root: Path, cfg: Mapping[str, Any], cap: str) -> list[dict[str, Any]]:
+    """One row per dated asset folder of `cap`, oldest first."""
+    assets = _capability(root, cfg, cap, False) / "assets"
+    rows = []
+    for name in _dated(assets):
+        description = assets / name / "description.md"
+        text = description.read_text(encoding="utf-8") if description.is_file() else ""
+        kind = _KIND.search(text)
+        rows.append({"date": name, "kind": kind.group(1) if kind else None,
+                     "confirmed": confirmed_date(text), "path": description.relative_to(root).as_posix(),
+                     "screens": _screens(text)})
+    return rows
 
 
 def confirmed_value_errors(root: Path, cfg: Mapping[str, Any]) -> list[str]:

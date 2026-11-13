@@ -81,6 +81,7 @@ Saved as `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 - `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]` writes the `Result`, `Run`, and `Bug` lines. Never edit them by hand.
 - A flat `qa/cases/<capability>.md` file from earlier versions still works. `gin-qa cases split <capability>` writes one file per case and removes the flat file.
 - In the legacy layout (no REQ-IDs) cases use `Source: <spec path>#<heading>` and `check` covers structure and IDs only.
+- `Legacy:` (optional) names the legacy behavior a case checks: a confirmed capture screen (`<specs>/<cap>/assets/<date>/description.md#<screen>`) and recorded payloads under `legacy/<capability>/` in the QA home, comma-separated relative paths. It does not change the case hash. `/gin-qa:cases` fills it from the confirmed `legacy` folders that `gin specs assets list` reports.
 - `gin-qa cases export --format json` lists every case with `result`, `run`, `bug`, and `test_data` for your own tooling; `/gin-qa:report` builds an HTML report from the same data.
 
 Requirements and their hashes come from the living specs, so the [SDD layout](sdd.md) gives the most traceability.

@@ -2,6 +2,7 @@
 
 - **REQ:** REQ-AUTH-001@1a2b3c4d
 - **Priority:** high
+- **Legacy:** docs/specs/auth/assets/2026-05-11/description.md#Sign in
 
 **Preconditions:**
 - user alice@example.com exists

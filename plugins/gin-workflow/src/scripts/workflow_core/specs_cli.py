@@ -59,6 +59,8 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("cap")
     item.add_argument("--date", required=True)
     item.add_argument("--agreed-with")
+    item = assets.add_parser("list", parents=[common])
+    item.add_argument("cap")
     return parser
 
 
@@ -112,11 +114,23 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "lint" and args.spec:
         specs.require_layout(cfg, "legacy")
         return _findings(specs.lint_design_spec(args.spec, root), args.format, "ok")
+    if args.command == "assets" and args.assets_command == "list" and cfg["layout"] != "sdd":
+        if args.format == "json":
+            print("[]")
+        return 0
     specs.require_layout(cfg, "sdd")
     if args.command == "assets":
-        from .specs_assets import add, confirm
+        from .specs_assets import add, confirm, listing
 
-        if args.assets_command == "add":
+        if args.assets_command == "list":
+            rows = listing(root, cfg, args.cap)
+            lines = [f"{row['date']} {row['kind'] or '-'} {row['confirmed'] or 'not confirmed'} {row['path']}"
+                     for row in rows]
+            if args.format == "json":
+                print(json.dumps(rows, indent=2))
+            elif lines:
+                print("\n".join(lines))
+        elif args.assets_command == "add":
             result = add(root, cfg, args.cap, args.files, day=args.date, legacy=args.legacy,
                          new_capability=args.new_capability)
             _emit(result, args.format, "\n".join([result["folder"], *result["files"]]))
