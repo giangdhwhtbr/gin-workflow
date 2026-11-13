@@ -34,7 +34,7 @@ Epic `gin-workflow-57fw` (2026-11-08). Milestones are sprints, so a project-wide
 - `.planning/specs/2026-11-08-roadmap-deadline-forecast-design.md`, `.planning/plans/2026-11-08-roadmap-deadline-forecast.md`
 - Commits `3c70329`, `4d4507b`, `4278702`, `4104d02`, `24928d6`, `5ef30c9`, `ed72371`, `dfc968a`, `d5c25f8`, `28b2cd2`
 - Beads: `gin-workflow-57fw`, `gin-workflow-57fw.1` to `.5`
-- Related: [epic-comments](epic-comments.md), [workspace](workspace.md)
+- Related: [epic-comments](epic-comments.md), [workspace](workspace.md), [prep-tasks](prep-tasks.md) (`remaining_days` counts tracks only)
 
 **Scope**
 `gin milestone` scheduling and forecast, the roadmap file's Constraints lines, and `/roadmap` with the Beads task backend.
