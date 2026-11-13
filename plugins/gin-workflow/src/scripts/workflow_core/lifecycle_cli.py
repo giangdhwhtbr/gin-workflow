@@ -14,6 +14,7 @@ from .catalog import catalog_for
 from .checkout import main_checkout
 from .configuration import ConfigValidationError, resolve_effective_config
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
+from .prep import is_prep, tracks_of
 from .project import project_settings
 from .tasks import backend as tasks_backend
 from . import epic_kind, orchestrator_client, workspace
@@ -128,6 +129,8 @@ def _delivery_state(
     children, cause = _beads_json(repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
     if cause:
         return unknown, None, cause
+    if isinstance(children, list):
+        children = tracks_of(children)
     if children == []:
         closed, cause = _bead_closed(repo_path, epic)
         if cause:
@@ -175,6 +178,8 @@ def _record_refusal(
         repo_path, ["list", "--parent", epic, "--all", "--limit", "0"])
     if cause:
         return {"status": "error", "message": f"shipped not recorded: tracker unavailable: {cause}"}, 2
+    if isinstance(children, list):
+        children = tracks_of(children)
     if children != []:
         return {"status": "error", "message": "shipped is recordable only for a standalone bead recorded as its own "
                 "epic (orchestration-ready --epic <bead>); an epic with children ships by closing it"}, 2
@@ -293,6 +298,12 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
+    if args.gate == "orchestration-ready" and args.epic:
+        root = Path(args.repository).resolve()
+        shown, cause = _beads_json(root, ["show", args.epic])
+        record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
+        if cause is None and isinstance(record, Mapping) and is_prep(record):
+            return {"status": "rejected", "message": f"orchestration-ready refused: {args.epic} is a prep task, not implementation work"}, 1
     if args.gate == "requirement-confirmed":
         errors = _spec_lint_errors(Path(args.repository).resolve(), args.evidence)
         if errors:

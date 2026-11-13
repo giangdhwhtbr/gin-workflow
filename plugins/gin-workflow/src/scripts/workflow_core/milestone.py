@@ -10,6 +10,8 @@ import re
 import statistics
 from typing import Any, Mapping, Sequence
 
+from .prep import tracks_of
+
 SCHEMA = 1
 WORKDAY_MINUTES = 480
 SPEC_DUE_DAYS = 5
@@ -184,7 +186,7 @@ def remaining_days(epic: Mapping[str, Any], beads: Beads, today: date) -> int | 
     days = estimate_days(epic.get("estimated_minutes"))
     if days is None or epic.get("status") != "in_progress":
         return days
-    tracks = [bead for bead in beads.values() if bead.get("parent") == epic["id"] and bead.get("issue_type") != "epic"]
+    tracks = tracks_of([bead for bead in beads.values() if bead.get("parent") == epic["id"] and bead.get("issue_type") != "epic"])
     if tracks:
         still_open = sum(track.get("status") != "closed" for track in tracks)
         return max(1, math.ceil(days * still_open / len(tracks)))

@@ -13,6 +13,7 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
+from .prep import tracks_of
 from .tasks import query
 from . import workspace
 
@@ -59,6 +60,8 @@ def main(argv: Sequence[str]) -> int:
         print(f"error: no epic recorded for {args.workflow_id}; run /gin:orchestrate first", file=sys.stderr)
         return 1
     tracks = query(args.repository, ["list", "--parent", epic, "--all", "--limit", "0"])
+    if isinstance(tracks, list):
+        tracks = tracks_of(tracks)
     if tracks == []:
         tracks = query(args.repository, ["show", epic])
     if not isinstance(tracks, list):

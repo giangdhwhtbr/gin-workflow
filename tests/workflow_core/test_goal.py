@@ -93,6 +93,36 @@ class TestGoalCommand(unittest.TestCase):
         self.assertIn("/goal tracks bead of epic bead", out)
         self.assertIn("Or stop after 6 turns.", out)
 
+    def test_gin_goal_lists_no_prep_task(self):
+        self.record("epic")
+        prep_track = {**track("e.prep", labels=["prep", "prep:capture"])}
+        regular_track = track("e.1")
+        code, out = self.run_goal(lambda root, argv: [prep_track, regular_track])
+        self.assertEqual(0, code)
+        self.assertIn("/goal tracks e.1 of epic epic", out)
+        self.assertNotIn("e.prep", out)
+
+    def test_epic_with_only_prep_children_prints_line_for_epic_without_children(self):
+        self.record("epic")
+        prep_track = {**track("e.prep", labels=["prep", "prep:mockup"])}
+        def beads(root, argv):
+            if argv[0] == "list":
+                return [prep_track]
+            return [{**track("epic"), "dependencies": []}]
+        code, out = self.run_goal(beads)
+        self.assertEqual(0, code)
+        self.assertIn("/goal tracks epic of epic epic", out)
+        self.assertNotIn("e.prep", out)
+
+    def test_goal_uses_tracks_of(self):
+        from unittest.mock import patch
+        from workflow_core import prep
+        self.record("epic")
+        with patch("workflow_core.goal.tracks_of", wraps=prep.tracks_of) as mock_tracks_of:
+            code, out = self.run_goal(lambda root, argv: [track("e.1")])
+            self.assertEqual(0, code)
+            mock_tracks_of.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()

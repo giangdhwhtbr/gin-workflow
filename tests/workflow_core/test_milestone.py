@@ -491,10 +491,37 @@ class SpecDueTests(unittest.TestCase):
 class PlannedDaysTests(unittest.TestCase):
     def test_in_progress_with_tracks_uses_the_open_share(self):
         beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(4), status="in_progress"),
-                      *[bead(f"A.{n}", type="task", parent="A", status="closed" if n == 1 else "open") for n in (1, 2, 3, 4)])
+            *[bead(f"A.{n}", type="task", parent="A", status="closed" if n == 1 else "open") for n in (1, 2, 3, 4)])
         row = rows(plan(beads))["A"]
         self.assertEqual((3, 4), (row["remaining_days"], row["estimate_days"]))
         self.assertEqual(("2026-11-02", "2026-11-04"), span(row))
+
+    def test_in_progress_with_tracks_and_prep_tasks_counts_only_tracks(self):
+        epic = bead("A", parent="m1", minutes=days(4), status="in_progress")
+        tracks = [
+            bead("A.1", type="task", parent="A", status="open", labels=["track:1"]),
+            bead("A.2", type="task", parent="A", status="closed", labels=["track:2"]),
+        ]
+        preps = [
+            bead("A.p1", type="task", parent="A", status="closed", labels=["prep", "prep:capture"]),
+            bead("A.p2", type="task", parent="A", status="closed", labels=["prep", "prep:mockup"]),
+            bead("A.p3", type="task", parent="A", status="closed", labels=["prep", "prep:spike"]),
+        ]
+        b_world = world(milestone_bead(), epic, *tracks, *preps)
+        row = rows(plan(b_world))["A"]
+        # 2 tracks (1 open), 3 closed prep tasks => ceil(4 * 1 / 2) = 2
+        self.assertEqual(2, row["remaining_days"])
+        self.assertEqual(2, milestone.remaining_days(epic, b_world, TODAY))
+
+    def test_milestone_remaining_days_uses_tracks_of(self):
+        from unittest.mock import patch
+        from workflow_core import prep
+        epic = bead("A", parent="m1", minutes=days(4), status="in_progress")
+        track1 = bead("A.1", type="task", parent="A", status="open", labels=["track:1"])
+        b_world = world(milestone_bead(), epic, track1)
+        with patch("workflow_core.milestone.tracks_of", wraps=prep.tracks_of) as mock_tracks_of:
+            milestone.remaining_days(epic, b_world, TODAY)
+            mock_tracks_of.assert_called()
 
     def test_in_progress_without_tracks_subtracts_elapsed_working_days(self):
         beads = world(milestone_bead(), bead("A", parent="m1", minutes=days(3), status="in_progress",

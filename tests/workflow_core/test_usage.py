@@ -241,6 +241,25 @@ class CollectTests(Fixture):
         self.assertEqual(doc["children"], ["ep1.1", "ep1.2"])
         self.assertEqual(doc["unattributed"], {"tokens": 0, "cost": 0.0})
 
+    def test_collect_epic_with_reopened_prep_child(self):
+        prep_child = {
+            "id": "ep1.prep", "title": "Prep 1", "issue_type": "task", "parent": "ep1",
+            "labels": ["prep", "prep:capture"], "started_at": iso(9.1), "closed_at": iso(10),
+        }
+        self.rules[0]["stdout"].append(prep_child)
+        self.rules.append({
+            "argv": ["history", "ep1.prep"],
+            "stdout": [{"Issue": {"status": "in_progress"}}, {"Issue": {"status": "closed"}},
+                       {"Issue": {"status": "in_progress"}}],
+        })
+        fake_cli(self.bin, "bd", self.rules)
+        doc = self.collect("ep1")
+        self.assertIn("ep1.prep", doc["children"])
+        # ep1.1 had 1 reopen; ep1.prep has 1 reopen, but prep reopens are not added to epic quality
+        self.assertEqual(1, doc["quality"]["reopens"])
+        span = usage._span(self.repo, "ep1.prep", prep_child, at(14), history=[])
+        self.assertTrue(span.prep)
+
     def test_closed_epic_counts_unattributed_only_until_it_closed(self):
         self.rules[0]["stdout"][0]["closed_at"] = iso(12.5)
         for rule in self.rules:

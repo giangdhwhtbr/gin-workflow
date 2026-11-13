@@ -100,3 +100,35 @@ class CloseGuardTests(unittest.TestCase):
         self.init(ledger=True)
         with mock.patch.object(close_guard, "_review_state", return_value=None):
             self.assertEqual((["close", "ep-1.1"], None), close_guard.check(self.root, ["close", "ep-1.1"]))
+
+    def test_prep_task_without_ledger_closes_without_waiver(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-1", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        closed = gw(self.root, "task", "close", "prep-1", "--reason", "captured")
+        self.assertEqual(0, closed.returncode, closed.stderr)
+        self.assertEqual("closed", self.status("prep-1"))
+        events = WorkflowEventStore(self.root / ".agent-workflow/runtime/events.jsonl").read_all()
+        self.assertEqual([], [e for e in events if e.event_type == "review.waived"])
+
+    def test_prep_task_with_ledger_in_worktree_unapproved_is_refused(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-2", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep 2", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        wt_dir = self.root / ".planning/worktrees/wt"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "wt-branch", str(wt_dir)], cwd=self.root, check=True)
+        ledger_path = wt_dir / ".planning/reviews/prep-2/review.json"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger_path.write_text(json.dumps({"events": []}), encoding="utf-8")
+        closed = gw(self.root, "task", "close", "prep-2", "--reason", "done")
+        self.assertEqual(2, closed.returncode, closed.stderr)
+        self.assertIn("prep-2: review ledger not approved", closed.stderr)
+        self.assertEqual("open", self.status("prep-2"))
+
+    def test_prep_task_tracker_failure_is_refused(self):
+        self.init(ledger=True)
+        with mock.patch("workflow_core.tasks.query_result", return_value=(None, "bd crashed")):
+            forward, error = close_guard.check(self.root, ["close", "prep-1"])
+        self.assertIn("tracker unavailable: bd crashed", error)

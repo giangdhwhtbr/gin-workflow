@@ -73,6 +73,7 @@ def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
     """Return the `close` argv to forward to the backend, or the error that refuses the whole close."""
     from .configuration import resolve_effective_config
     from .events import EventPersistenceError
+    from .prep import is_prep
     from .project import project_settings
     from .tasks import query_result
 
@@ -91,6 +92,10 @@ def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
         if cause:
             return forward, f"{bead}: tracker unavailable: {cause}"
         record = shown[0] if isinstance(shown, list) and len(shown) == 1 else shown
+        if isinstance(record, Mapping) and is_prep(record):
+            from .usage import _ledger
+            if _ledger(root, bead) is None:
+                continue
         if isinstance(record, Mapping) and record.get("parent"):
             state = _review_state(root, bead)
             if state:
