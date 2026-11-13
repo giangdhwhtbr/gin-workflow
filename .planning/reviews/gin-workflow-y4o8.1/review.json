@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "implementation-in-progress",
+  "review_state": "review-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-y4o8.1",
       "checkpoint_ref": "refs/gin/review/gin-workflow-y4o8.1",
       "review_base_sha": "fd48ea472c39c86cde8bd09aa2c42108bf944a47",
-      "reviewed_source_sha": "789893cc0e283a243eba23e4176247b36aca20bd",
-      "checkpoint_sha": "789893cc0e283a243eba23e4176247b36aca20bd",
+      "reviewed_source_sha": "0cfea7fd53476c69d8e9b98f55e22e116a563fbd",
+      "checkpoint_sha": "0cfea7fd53476c69d8e9b98f55e22e116a563fbd",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "14b05650b802cd77a2a8e9d860dabf14d4d2a5ba51c159637044a6af45f3304a",
-      "reviewed_source_tree_hash": "14b05650b802cd77a2a8e9d860dabf14d4d2a5ba51c159637044a6af45f3304a",
+      "source_tree_hash": "3c0488a3f4f76b13498872b3ecb7f6a83ed2bd657c2c9301e2548d1a238cf07b",
+      "reviewed_source_tree_hash": "3c0488a3f4f76b13498872b3ecb7f6a83ed2bd657c2c9301e2548d1a238cf07b",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 9,
+  "ledger_revision": 12,
   "next_finding_number": 2,
   "findings": {
     "F-1": {
       "finding_id": "F-1",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -210,6 +210,63 @@
       },
       "previous_event_hash": "c79c3c62b53404ee2fd31b0cdcd7ab6ee2ce357ead7b736101f4f6b79d0fab3e",
       "event_hash": "06fdaba3550a87e1b590cacf5f667864061767dfa03095837aa31b15d25e13b6"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-13T01:50:36.325818Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "finding_id": "F-1"
+      },
+      "previous_event_hash": "06fdaba3550a87e1b590cacf5f667864061767dfa03095837aa31b15d25e13b6",
+      "event_hash": "bf3a28332b3b29b8951efa365991ab6a18cc3e4ca03c9158077688c3c30adebf"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-13T01:50:36.771686Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-y4o8.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-y4o8.1",
+            "review_base_sha": "fd48ea472c39c86cde8bd09aa2c42108bf944a47",
+            "reviewed_source_sha": "0cfea7fd53476c69d8e9b98f55e22e116a563fbd",
+            "checkpoint_sha": "0cfea7fd53476c69d8e9b98f55e22e116a563fbd",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "3c0488a3f4f76b13498872b3ecb7f6a83ed2bd657c2c9301e2548d1a238cf07b",
+            "reviewed_source_tree_hash": "3c0488a3f4f76b13498872b3ecb7f6a83ed2bd657c2c9301e2548d1a238cf07b",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "bf3a28332b3b29b8951efa365991ab6a18cc3e4ca03c9158077688c3c30adebf",
+      "event_hash": "eee7b17580758598d401f7d223cebda8a998963bab1e2ce60ec2e2141a724f57"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "review-requested",
+      "timestamp": "2026-11-13T01:50:36.936458Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "eee7b17580758598d401f7d223cebda8a998963bab1e2ce60ec2e2141a724f57",
+      "event_hash": "efadce7d3df919b4c4d3f29df7a2c819526cf2f693b96763ee8bdb01ce42dfe8"
     }
   ]
 }
