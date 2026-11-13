@@ -405,7 +405,7 @@ class ReviewProjection:
 
         elif action == EventActions.HUMAN_DECISION_RECORDED:
             self.decided_since_cycle = True
-            fid = payload["finding_id"]
+            fid = payload.get("finding_id")
             if fid in self.findings:
                 self.findings[fid].status = "human-decision-recorded"
                 self.findings[fid].decision = payload.get("decision")

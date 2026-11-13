@@ -401,7 +401,7 @@ def parse_args():
     # Record Human Decision
     p_hum_d = subparsers.add_parser("record-human-decision", help="Record a human decision.")
     p_hum_d.add_argument("--bead-id", required=True)
-    p_hum_d.add_argument("--finding-id", required=True)
+    p_hum_d.add_argument("--finding-id")
     p_hum_d.add_argument("--question", required=True)
     p_hum_d.add_argument("--decision", required=True)
     p_hum_d.add_argument("--reason", required=True)
@@ -783,16 +783,18 @@ def main():
 
         elif args.command == "record-human-decision":
             payload = {
-                "finding_id": args.finding_id,
                 "question": args.question,
                 "decision": args.decision,
                 "reason": args.reason
             }
+            if args.finding_id:
+                payload = {"finding_id": args.finding_id, **payload}
             mutate_ledger(
                 args.bead_id, "human-decision-recorded", payload,
                 args.actor_role, args.actor_id, bypass_lease=True
             )
-            print(f"Recorded human decision for finding {args.finding_id}")
+            print(f"Recorded human decision for finding {args.finding_id}" if args.finding_id
+                  else "Recorded human decision for the review")
 
         elif args.command == "waive-finding":
             payload = {"finding_id": args.finding_id, "reason": args.reason}

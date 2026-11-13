@@ -27,4 +27,4 @@ Review after every track, after a major feature, and before merge; never skip be
 7. Write each ledger command with literal flags, never in shell variables (zsh does not split them); check its exit code and report only what its output shows. Run tests in the foreground with a timeout, and never stop a process you did not start.
 
 ## Cycles
-Each unresolved revision is a new review cycle. `start-review` exits 1 at the maximum review cycles (`routing.review.max_cycles`, passed as `init --max-cycles`) with `max review cycles (N) reached`; return `human_decision_required` instead of retrying. Never loop unbounded. Never manufacture approval.
+Each unresolved revision is a new review cycle. `start-review` exits 1 at the maximum review cycles (`routing.review.max_cycles`, passed as `init --max-cycles`) with `max review cycles (N) reached`; return `human_decision_required` instead of retrying. When the human allows another cycle, `record-human-decision --question "<q>" --decision "<d>" --reason "<why>" --actor-id <human>` without `--finding-id` lets `start-review` run once more. Never loop unbounded. Never manufacture approval.

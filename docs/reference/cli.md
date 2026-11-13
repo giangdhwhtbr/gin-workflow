@@ -380,7 +380,7 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 | Inspection | `status`, `validate` (`--in-history` for an earlier track on a shared branch or after a squash merge), `render` (`--check` for drift) |
 | Housekeeping | `push-refs` (force-pushes each repository's review ref to `origin`), `cleanup` (`--bead-id` or `--all-closed`; also deletes the bead's `refs/gin/review/` refs, locally and on `origin`) |
 
-`init --max-cycles N` caps `start-review` to N review cycles (a cycle is one `review-started` event) until `record-human-decision`; at the limit, a review whose findings are all terminal may still start as a verification pass. The init actor is stored as `owner` and may not start a review. `status --format json` adds `owner`, `max_cycles`, `cycles`.
+`init --max-cycles N` caps `start-review` to N review cycles (a cycle is one `review-started` event) until `record-human-decision`; `record-human-decision` without `--finding-id` records a decision for the review and lets one more `start-review` run; at the limit, a review whose findings are all terminal may still start as a verification pass. The init actor is stored as `owner` and may not start a review. `status --format json` adds `owner`, `max_cycles`, `cycles`.
 
 `change-scope` and `reject` invalidate an active approval. `approve` refuses when the working source tree differs from the reviewed checkpoint.
 
