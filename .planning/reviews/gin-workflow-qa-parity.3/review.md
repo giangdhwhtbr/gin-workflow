@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -51,3 +51,4 @@
 | `EV-000009` | `2026-11-13T00:08:17.346555Z` | `implementation-in-progress` | `implementer:claude:main` (worker) |
 | `EV-000010` | `2026-11-13T00:08:17.470976Z` | `finding-fixed` | `implementer:claude:main` (worker) |
 | `EV-000011` | `2026-11-13T00:08:17.803030Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
+| `EV-000012` | `2026-11-13T00:13:53.484831Z` | `review-requested` | `implementer:claude:main` (worker) |
