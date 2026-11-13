@@ -120,7 +120,11 @@ def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, er
         if not refs:
             errors.append(f"{at} needs at least one reference")
         for item in refs:
-            target = PurePosixPath(item.split("#", 1)[0])
+            path_part = item.split("#", 1)[0].replace("\\", "/")
+            if not path_part:
+                errors.append(f"{at} {item} needs a path before #")
+                continue
+            target = PurePosixPath(path_part)
             if target.is_absolute() or re.match(r"^[A-Za-z]:", target.as_posix()) or ".." in target.parts:
                 errors.append(f"{at} {item} must be a relative path inside the repository")
     return case
