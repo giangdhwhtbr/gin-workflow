@@ -136,8 +136,14 @@ def _screens(text: str) -> list[str]:
     """The `### ` headings between `## As-is behaviour` and the next `## ` heading."""
     screens: list[str] = []
     inside = False
+    fence = ""
     for line in text.splitlines():
-        if line.startswith("## "):
+        marker = line.lstrip()[:3]
+        if marker in ("```", "~~~"):
+            fence = "" if fence == marker else fence or marker
+        elif fence:
+            continue
+        elif line.startswith("## "):
             inside = line.strip() == "## As-is behaviour"
         elif inside and line.startswith("### "):
             screens.append(line[4:].strip())
@@ -150,7 +156,10 @@ def listing(root: Path, cfg: Mapping[str, Any], cap: str) -> list[dict[str, Any]
     rows = []
     for name in _dated(assets):
         description = assets / name / "description.md"
-        text = description.read_text(encoding="utf-8") if description.is_file() else ""
+        try:
+            text = description.read_text(encoding="utf-8") if description.is_file() else ""
+        except (UnicodeDecodeError, OSError) as error:
+            raise specs.SpecsError(f"cannot read {specs.shown(root, description)}: {error}") from error
         kind = _KIND.search(text)
         rows.append({"date": name, "kind": kind.group(1) if kind else None,
                      "confirmed": confirmed_date(text), "path": description.relative_to(root).as_posix(),

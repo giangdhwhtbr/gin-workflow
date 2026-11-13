@@ -233,6 +233,21 @@ class TestAssetsList(AssetsCase):
                            "path": f"{self.FIRST}/description.md", "screens": []}],
                          specs_assets.listing(self.root, self.cfg, "orders"))
 
+    def test_headings_inside_a_fenced_block_are_not_screens(self):
+        write(self.root, f"{self.FIRST}/description.md",
+              "# orders\n\n## As-is behaviour\n\n### Before\n```\n### fake\n## Not a section\n```\n"
+              "~~~\n### tilde fake\n~~~\n### Real\n")
+        rows = specs_assets.listing(self.root, self.cfg, "orders")
+        self.assertEqual(["Before", "Real"], rows[0]["screens"])
+
+    def test_a_non_utf8_description_exits_2_naming_the_file(self):
+        path = self.root / self.FIRST / "description.md"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"# orders \xff\xfe\n")
+        result = run_specs(self.root, "assets", "list", "orders")
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn(f"{self.FIRST}/description.md", result.stderr)
+
     def test_a_capability_without_assets_is_an_empty_list(self):
         result = run_specs(self.root, "assets", "list", "orders", "--format", "json")
         self.assertEqual(0, result.returncode, result.stderr)
