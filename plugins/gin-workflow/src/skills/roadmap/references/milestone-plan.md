@@ -20,12 +20,21 @@ Fill the milestones in `end` order by dependency layer:
 When the PM states the demo of a milestone first, the epics that demo needs go into that milestone or an earlier one; name each one that does not fit. An epic that fits no milestone stays under `## Unassigned` with the reason (blocked, or over capacity). When the last milestone that holds epics ends after `Deadline:`, name the overflow in working days. Revise until the PM confirms; write nothing before that.
 
 ## Write
-In step 6, after the sync, and after the roadmap PR merges when `team.approvals.roadmap` lists roles, write in this order:
-1. For each milestone of the plan that Beads lacks, run `gin milestone create "<title>" --start <date> --end <date>`; it prints the new id.
-2. Per milestone, run `gin milestone move <epic>... --to <id>` for its epics that have no milestone in Beads.
-3. Then run `gin milestone estimate <epic> <days>` under the estimates rule of step 6.
+Milestones are created before the file is written, so the file carries their ids. Membership and estimates follow the sync.
 
-The team permission check of `--milestone` step 1 applies before the first write. Failures follow `--milestone` step 5.
+In step 5, after the PM confirms and before the file is written:
+1. Run the team permission check of `--milestone` step 1.
+2. For each milestone of the plan that Beads lacks, run `gin milestone create "<title>" --start <date> --end <date>`; it prints the new id.
+
+A failure stops before the file is written and is reported as in `--milestone` step 5. A created milestone holds no epic until step 6, so a rejected roadmap PR leaves only empty milestones, which the next run reuses.
+
+Step 5 then writes each milestone block as `--milestone` step 4 describes: the `## Milestone: <title>` heading, `Outcome:`, `Demo:`, `Spec ready by:`, the `Integration point:` block, and `Milestone: <id>` and `Estimate:` per epic.
+
+In step 6, after the sync, and after the roadmap PR merges when `team.approvals.roadmap` lists roles:
+1. Per milestone, run `gin milestone move <epic>... --to <id>` for its epics that have no milestone in Beads.
+2. Then run `gin milestone estimate <epic> <days>` under the estimates rule of step 6.
+
+Failures follow `--milestone` step 5.
 
 ## Re-run
 Beads wins for membership and estimates. Compare each milestone's `gin milestone show <id> --json` with the file and report each difference without writing Beads. Propose an allocation only for the epics without a milestone. `/roadmap --milestone <id>` changes one milestone later.
