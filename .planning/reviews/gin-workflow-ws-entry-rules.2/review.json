@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "changes-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,9 +24,38 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 3,
+  "ledger_revision": 9,
   "next_finding_number": 1,
-  "findings": {},
+  "findings": {
+    "F1-doctor-crash-on-unreadable-child-manifest": {
+      "finding_id": "F1-doctor-crash-on-unreadable-child-manifest",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F2-test-gaps-unknown-entry-pack-and-worktree": {
+      "finding_id": "F2-test-gaps-unknown-entry-pack-and-worktree",
+      "severity": "SUGGESTION",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
   "events": [
     {
       "event_id": "EV-000001",
@@ -107,6 +136,95 @@
       },
       "previous_event_hash": "3a1cf44ae70de9d8a948c0e53091fc110da1b328530efe030d888a314614c8b0",
       "event_hash": "4adba4c2e80a8e0d7ce40076ed51158d5556550819f8af42a10cc51c2dea7c65"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-14T10:00:48.416794Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude"
+      },
+      "payload": {
+        "lease_id": "d65409b9e52e44c9b745ac8161919624",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude",
+        "acquired_at": "2026-11-14T10:00:48.415825Z",
+        "expires_at": "2026-11-14T10:10:48.415825Z"
+      },
+      "previous_event_hash": "4adba4c2e80a8e0d7ce40076ed51158d5556550819f8af42a10cc51c2dea7c65",
+      "event_hash": "9b44ac03362d165ef3ec19407b681d55201bbae52ea029501eafee79246b8a6c"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-14T10:00:48.444290Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude"
+      },
+      "payload": {},
+      "previous_event_hash": "9b44ac03362d165ef3ec19407b681d55201bbae52ea029501eafee79246b8a6c",
+      "event_hash": "7fcebc3606aed4b7c9a9890ca34cb5617b3a8e697892bfee9110b0cd50059abc"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-14T10:02:03.053601Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude"
+      },
+      "payload": {
+        "finding_id": "F1-doctor-crash-on-unreadable-child-manifest",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "7fcebc3606aed4b7c9a9890ca34cb5617b3a8e697892bfee9110b0cd50059abc",
+      "event_hash": "ef2ef0dbf4646f4fbc6a713274d4416c8c942990da6e34caf70b1484b99fcad8"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-created",
+      "timestamp": "2026-11-14T10:02:03.285769Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude"
+      },
+      "payload": {
+        "finding_id": "F2-test-gaps-unknown-entry-pack-and-worktree",
+        "severity": "SUGGESTION"
+      },
+      "previous_event_hash": "ef2ef0dbf4646f4fbc6a713274d4416c8c942990da6e34caf70b1484b99fcad8",
+      "event_hash": "2544e407fc89be0844d3310fb692311e7d149d1df92a31ad961226a9968db1a0"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "changes-requested",
+      "timestamp": "2026-11-14T10:02:08.365913Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude"
+      },
+      "payload": {
+        "to": "changes-requested"
+      },
+      "previous_event_hash": "2544e407fc89be0844d3310fb692311e7d149d1df92a31ad961226a9968db1a0",
+      "event_hash": "c0222aea590cabaab5506ae6a529e7c93f4f994ae50655813f050d769859e468"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "lease-released",
+      "timestamp": "2026-11-14T10:02:12.588229Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude"
+      },
+      "payload": {
+        "lease_id": "d65409b9e52e44c9b745ac8161919624",
+        "released_at": "2026-11-14T10:02:12.587416Z"
+      },
+      "previous_event_hash": "c0222aea590cabaab5506ae6a529e7c93f4f994ae50655813f050d769859e468",
+      "event_hash": "e5ace3ae9e21840a3353750fd427a94f1c8057c46756e0745d8e172b0da7a1a9"
     }
   ]
 }
