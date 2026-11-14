@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-ws-branch-model.1`
 - **Base SHA:** `a206ba5f230e80110d66844cface0b2965e2a46d`
-- **Reviewed SHA:** `e1a306d33502e4ee03d2ee3be751b9b2467d9545`
+- **Reviewed SHA:** `f90e717fe469e3e3f25293d145273588b50e43cf`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-ws-branch-model.1`
-- **Checkpoint SHA:** `e1a306d33502e4ee03d2ee3be751b9b2467d9545`
+- **Checkpoint SHA:** `f90e717fe469e3e3f25293d145273588b50e43cf`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `4c279239812c08c9473ddb3cb0da416137db6848c0a06cda46da27d4d994d9d5`
+- **Tree Hash:** `374b90c796c66ba263a95a53b1d70d2a3f8f6690bc571810a9bc5e75306bdca2`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,31 +29,31 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `open` | 0 | - |
-| `F-2` | `MINOR` | `open` | 0 | - |
-| `F-3` | `MINOR` | `open` | 0 | - |
-| `F-4` | `MINOR` | `open` | 0 | - |
-| `F-5` | `MINOR` | `open` | 0 | - |
+| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-3` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-4` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-5` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-2` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-3` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-4` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-5` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -73,3 +73,9 @@
 | `EV-000011` | `2026-11-14T15:12:20.897829Z` | `changes-requested` | `reviewer:claude:session-1256df35` (reviewer) |
 | `EV-000012` | `2026-11-14T15:12:21.291768Z` | `lease-released` | `reviewer:claude:session-1256df35` (reviewer) |
 | `EV-000013` | `2026-11-14T15:13:12.906918Z` | `implementation-in-progress` | `worker:claude:session-main` (worker) |
+| `EV-000014` | `2026-11-14T15:21:10.863467Z` | `source-checkpoint-created` | `worker:claude:session-main` (worker) |
+| `EV-000015` | `2026-11-14T15:21:10.987160Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000016` | `2026-11-14T15:21:11.108147Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000017` | `2026-11-14T15:21:11.233029Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000018` | `2026-11-14T15:21:11.359130Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000019` | `2026-11-14T15:21:11.482520Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
