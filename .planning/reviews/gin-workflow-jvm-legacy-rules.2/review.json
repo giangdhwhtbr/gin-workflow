@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "changes-requested",
+  "review_state": "implementation-in-progress",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.2",
       "checkpoint_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.2",
       "review_base_sha": "aea00b7cd137401e835f13eb0ec9cb748da5ea77",
-      "reviewed_source_sha": "ad1e8d6bf786302606fa6ab87fb06ea76106a844",
-      "checkpoint_sha": "ad1e8d6bf786302606fa6ab87fb06ea76106a844",
+      "reviewed_source_sha": "b548b60fc83a49377a654a79b60cbbfa779dc0e7",
+      "checkpoint_sha": "b548b60fc83a49377a654a79b60cbbfa779dc0e7",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "ddb0ac6de9d2caa80870536b2a1c5bfc0c821cecae1f4f062934ce98822a9576",
-      "reviewed_source_tree_hash": "ddb0ac6de9d2caa80870536b2a1c5bfc0c821cecae1f4f062934ce98822a9576",
+      "source_tree_hash": "3155100bf63b2627286ecd4304b9f518944e195e2130bd9472c66bc3745583d9",
+      "reviewed_source_tree_hash": "3155100bf63b2627286ecd4304b9f518944e195e2130bd9472c66bc3745583d9",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 9,
+  "ledger_revision": 13,
   "next_finding_number": 3,
   "findings": {
     "F1": {
       "finding_id": "F1",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F2": {
       "finding_id": "F2",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -225,6 +225,77 @@
       },
       "previous_event_hash": "cd5680ee4a2a0904c7ef80e237300a6d373db2960aa7384673362e6a1aa870d3",
       "event_hash": "e2b442401fab7b6f4d62385f90ac4ea7b1a47b9bd24ffea1a0a182bded9441c6"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "implementation-in-progress",
+      "timestamp": "2026-11-14T13:54:53.769277Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "to": "implementation-in-progress"
+      },
+      "previous_event_hash": "e2b442401fab7b6f4d62385f90ac4ea7b1a47b9bd24ffea1a0a182bded9441c6",
+      "event_hash": "6c75bf26847b740765fb9b7d291ac80aad1a90c414dd9994ab3568d6b6b0b35a"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T13:54:53.912754Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "finding_id": "F1"
+      },
+      "previous_event_hash": "6c75bf26847b740765fb9b7d291ac80aad1a90c414dd9994ab3568d6b6b0b35a",
+      "event_hash": "434bdb62d427eaaa5171658c352ffeafcd59c33e3773403a2ed045668b0a190c"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T13:54:54.034841Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "finding_id": "F2"
+      },
+      "previous_event_hash": "434bdb62d427eaaa5171658c352ffeafcd59c33e3773403a2ed045668b0a190c",
+      "event_hash": "6fe8fb3ae48999e3b5d60f32a2a2a33dd8f62c393c10dbd0a3ae074ffd115257"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-14T13:54:54.365178Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.2",
+            "review_base_sha": "aea00b7cd137401e835f13eb0ec9cb748da5ea77",
+            "reviewed_source_sha": "b548b60fc83a49377a654a79b60cbbfa779dc0e7",
+            "checkpoint_sha": "b548b60fc83a49377a654a79b60cbbfa779dc0e7",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "3155100bf63b2627286ecd4304b9f518944e195e2130bd9472c66bc3745583d9",
+            "reviewed_source_tree_hash": "3155100bf63b2627286ecd4304b9f518944e195e2130bd9472c66bc3745583d9",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "6fe8fb3ae48999e3b5d60f32a2a2a33dd8f62c393c10dbd0a3ae074ffd115257",
+      "event_hash": "3fbcd9c1c499206249466de352b84b69f1b1911c6ab54d083d6160f42e79b99d"
     }
   ]
 }
