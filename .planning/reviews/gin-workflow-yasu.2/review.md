@@ -1,12 +1,20 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
-*No active lease.*
+- **Lease ID:** `e74a6657b2014227848a21b34d2bf2db`
+- **Actor:** `reviewer:claude:yasu2` (reviewer)
+- **Acquired:** `2026-11-14T17:04:58.110988Z`
+- **Expires:** `2026-11-14T17:14:58.110988Z`
+- **Ledger Revision:** `5`
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000005`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `8a56433`, Tree Hash: `830b262`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -37,3 +45,6 @@
 | :--- | :--- | :--- | :--- |
 | `EV-000001` | `2026-11-14T17:04:30.271319Z` | `ledger-created` | `implementer:claude:main` (worker) |
 | `EV-000002` | `2026-11-14T17:04:30.673468Z` | `review-requested` | `implementer:claude:main` (worker) |
+| `EV-000003` | `2026-11-14T17:04:58.111827Z` | `lease-acquired` | `reviewer:claude:yasu2` (reviewer) |
+| `EV-000004` | `2026-11-14T17:04:58.154483Z` | `review-started` | `reviewer:claude:yasu2` (reviewer) |
+| `EV-000005` | `2026-11-14T17:05:02.292910Z` | `review-approved` | `reviewer:claude:yasu2` (reviewer) |
