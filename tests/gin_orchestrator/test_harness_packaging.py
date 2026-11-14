@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -93,10 +94,18 @@ REQUIRED_ARTIFACTS = (
 )
 
 
+# setUpClass rebuilds the shared plugins/*/dist, which every test of the class reads. Under
+# pytest -n the class's tests can run on several workers, each rebuilding dist, so the class holds
+# an exclusive lock from setUpClass to tearDownClass: one worker builds and reads dist at a time.
 @unittest.skipIf(os.name == "nt", "runs install.sh, which needs bash")
 class HarnessPackagingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        import fcntl  # POSIX only; the class is skipped on Windows
+
+        key = hashlib.sha256(str(ROOT.resolve()).encode("utf-8")).hexdigest()[:12]
+        cls.dist_lock = open(Path(tempfile.gettempdir()) / f"gin-harness-dist-{key}.lock", "w")
+        fcntl.flock(cls.dist_lock, fcntl.LOCK_EX)
         cls.temporary_home = tempfile.TemporaryDirectory()
         shutil.rmtree(ROOT / "plugins/gin-workflow/dist", ignore_errors=True)
         shutil.rmtree(ROOT / "plugins/gin-workflow-advanced/dist", ignore_errors=True)
@@ -115,6 +124,7 @@ class HarnessPackagingTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.temporary_home.cleanup()
+        cls.dist_lock.close()  # closing releases the lock
 
     def test_dry_run_builds_every_harness_layout(self):
         self.assertEqual(0, self.install.returncode, self.install.stderr)
@@ -192,7 +202,7 @@ class HarnessPackagingTests(unittest.TestCase):
         root = str(self.dist / "copilot/gin")
 
         def run(command, payload, **env):
-            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME")}
+            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME", "WORKTREE_PATH")}
             return subprocess.run(["bash", "-c", command], input=json.dumps(payload), capture_output=True,
                                   text=True, env={**base, **env})
 
