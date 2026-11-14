@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-ws-branch-model.2`
 - **Base SHA:** `827fc04d5cc65e8638da6ce6da1e4d75dc18f7f2`
-- **Reviewed SHA:** `a5b3b22489390bb21145391e89c02a9ffacec27e`
+- **Reviewed SHA:** `ffb8ecfbd62779dfc3b779cdf2ca6305b607e81f`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-ws-branch-model.2`
-- **Checkpoint SHA:** `a5b3b22489390bb21145391e89c02a9ffacec27e`
+- **Checkpoint SHA:** `ffb8ecfbd62779dfc3b779cdf2ca6305b607e81f`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `6f740ce600e285823d94439a5aff186954d33c3ff0ff166f1c6e1349ad7520f2`
+- **Tree Hash:** `490cb46e2affd8fefddb9b433c3a89296983aed4f72614e9d0023614875cb170`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,27 +29,27 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `CRITICAL` | `open` | 0 | - |
-| `F-2` | `IMPORTANT` | `open` | 0 | - |
-| `F-3` | `IMPORTANT` | `open` | 0 | - |
-| `F-4` | `MINOR` | `open` | 0 | - |
+| `F-1` | `CRITICAL` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-3` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-4` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 | `F-5` | `MINOR` | `deferral-proposed` | 0 | `gin-workflow-xmbz` |
 
 ## Findings Detail
 ### `F-1` (CRITICAL)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-2` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-3` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-4` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-5` (MINOR)
@@ -78,3 +78,8 @@
 | `EV-000014` | `2026-11-14T16:42:07.028139Z` | `deferral-proposed` | `worker:claude:session-main` (worker) |
 | `EV-000015` | `2026-11-14T16:42:30.979044Z` | `deferral-withdrawn` | `worker:claude:session-main` (worker) |
 | `EV-000016` | `2026-11-14T16:42:31.126251Z` | `deferral-proposed` | `worker:claude:session-main` (worker) |
+| `EV-000017` | `2026-11-14T17:05:52.425192Z` | `source-checkpoint-created` | `worker:claude:session-main` (worker) |
+| `EV-000018` | `2026-11-14T17:05:52.764341Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000019` | `2026-11-14T17:05:53.055913Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000020` | `2026-11-14T17:05:53.688756Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000021` | `2026-11-14T17:05:54.066722Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
