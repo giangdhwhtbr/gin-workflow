@@ -352,13 +352,13 @@ Answer each TQ-<n> with the contract of its endpoint.
 ```
 ```text
 /gin:orchestrate shop-portal-catalog-read
-Create the track beads and worktrees from the approved plan.
+Create the track beads from the approved plan.
 Leave every track bead unassigned; members take theirs with gin team claim.
 ```
 
 Put in the prompt: the constraints of the migration (facade first, dual-write or backfill, rollback criteria), which tracks may run in parallel, and who holds a Premium seat. Each track carries `Repo: <path>`, for example `Repo: services/order-api`. The tech lead also answers each `TQ-<n>` that discuss left, with the path, method, request, response, and error codes of the endpoint, so the new API and the SPA mocks are built from one source. Plan approval freezes those answers.
 
-**You get:** a plan with tracks per area and owner (`gin team check-plan <plan>` must pass), then one track bead per track under the reused epic, including the QA tracks, an isolated worktree per track, and dependencies. Members claim their beads with `gin team claim <bead>`.
+**You get:** a plan with tracks per area and owner (`gin team check-plan <plan>` must pass), then one track bead per track under the reused epic, including the QA tracks, and dependencies. Orchestrate creates no worktree: tracks start from the default branch once the spec and plan pull requests have merged, and `gin team claim <bead>` creates each worktree.
 
 **Gate or approval:** with `plan_approved: area_lead`, the lead of each area the plan touches approves the plan pull request. Binh wrote the plan and is the only `be_lead`, so his `api` and `qa` approvals are skipped with a note once Hoa, the `web` lead, approves.
 
@@ -425,7 +425,7 @@ Passing unit tests does not show that the new code behaves like the old. The tes
 
 **Who:** Developer (Em and Dung for the API tracks, Hoa for the SPA tracks).
 
-**Where:** the track worktree `<parent>/.planning/worktrees/<track-id>` (one service or one app).
+**Where:** a parent checkout on `feat/shop-portal-catalog-read` for the claim, then the track worktree `<parent>/.planning/worktrees/<track-id>` (one service or one app).
 
 **Prompt**
 ```bash
@@ -440,7 +440,7 @@ Stay inside that repository and run its checks before closing the track.
 
 Put in the prompt: the track bead to work on, if you want to choose it yourself.
 
-`team ready` lists the beads in your areas. `team claim` writes a lease of `team.claim_ttl_hours` (default 48); claim again to renew it, and an expired lease lets another member take the bead. If a member is away or out of quota, push the track branch and run:
+`team ready` lists the beads in your areas. `team claim` writes a lease of `team.claim_ttl_hours` (default 48); claim again to renew it, and an expired lease lets another member take the bead. It then creates the track worktree on `feat/<topic>-t<N>`, from `origin/<default_branch>` of the track's repository. The review ledger of the track goes to the parent's `.planning/reviews/<bead>/`; commit and push it after each ledger session. If a member is away or out of quota, push the track branch and run:
 
 ```bash
 gin team reassign <bead> dung@example.com
@@ -507,7 +507,7 @@ Put in the prompt: the epic and whether to merge now or keep the branch.
 
 **Gate or approval:** the BA accepts each epic with an acceptance comment before ship ([during the build](../guides/ba.md#during-the-build)). Merging into the base branch needs explicit approval; the `ship` approval on the latest commit is checked first.
 
-**Common mistakes:** shipping one member's track as if the feature were complete; the lead declares the epic done once every track pull request has merged.
+**Common mistakes:** shipping one member's track as if the feature were complete. Once every track pull request and the parent's `feat/<topic>` pull request have merged, an area lead runs `gin team complete <epic>`.
 
 ## Milestone review and spill-over
 

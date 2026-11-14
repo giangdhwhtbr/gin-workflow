@@ -9,7 +9,7 @@ description: Request or perform an independent bead review recorded in the revie
 
 # Review
 
-Review after every track, after a major feature, and before merge; never skip because "it's simple". A completed implementation starts review; it is not evidence that the task may close. Ledgers live in `.planning/reviews/<bead-id>/` (legacy fallback `.planning/<bead-id>/`). All commands are `python3 review-ledger.py <cmd> --bead-id <bead-id> ...`; never hand-write or copy `review.json`.
+Review after every track, after a major feature, and before merge; never skip because "it's simple". A completed implementation starts review; it is not evidence that the task may close. Ledgers live in `.planning/reviews/<bead-id>/` (legacy fallback `.planning/<bead-id>/`); in a workspace, a child track's ledger lives in the parent's `.planning/reviews/`, which `review-ledger.py` finds from the track worktree (team mode: the `team` skill). All commands are `python3 review-ledger.py <cmd> --bead-id <bead-id> ...`; never hand-write or copy `review.json`.
 
 ## Requesting (implementer)
 1. `init --repo-id <id> [--repo-path <worktree>] [--include <scope>] --max-cycles <project.max_cycles from state --format json>` once (idempotent), then `checkpoint --repo-id <id> --commit-msg "<msg>" --actor-id <id>` to snapshot the reviewed tree, then `gin evidence run` in the worktree (fix any failure first), then `transition-requested --to review-requested --actor-role worker --actor-id <id>`; without it the reviewer cannot approve. After `changes-requested`: fix, `transition-requested --to implementation-in-progress`, checkpoint, and request review again.

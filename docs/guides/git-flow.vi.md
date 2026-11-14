@@ -49,13 +49,16 @@ Base branch được bảo vệ. Thành viên PHẢI KHÔNG commit trực tiếp
 
 Mỗi phần việc PHẢI có branch riêng, và tên branch PHẢI cho thấy loại công việc.
 
-| Loại công việc | Tên branch |
-|---|---|
-| Roadmap | `roadmap/<topic>` |
-| Spec | `spec/<topic>`, hoặc `spec/<epic>-<slug>` với [layout SDD](sdd.md) |
-| Plan | `plan/<topic>` |
-| Track của plan | `feat/<topic>-t<N>`, trong đó `<N>` là số thứ tự track |
-| Việc khác | `chore/<topic>` |
+| Loại công việc | Tên branch | Tách từ |
+|---|---|---|
+| Roadmap | `roadmap/<topic>` | base branch |
+| Spec | `spec/<topic>`, hoặc `spec/<epic>-<slug>` với [layout SDD](sdd.md) | base branch |
+| Plan | `plan/<topic>` | base branch |
+| Track của plan | `feat/<topic>-t<N>`, trong đó `<N>` là số thứ tự track | base branch của repository chứa track |
+| Tích hợp ở repository cha trong [workspace](workspace.md) | `feat/<topic>` | base branch của repository cha |
+| Việc khác | `chore/<topic>` | base branch |
+
+Track bắt đầu sau khi pull request của spec và plan đã merge. Trong workspace, base branch của repository con là cài đặt `default_branch` của nó; base branch của repository cha là branch mà `origin/HEAD` chỉ tới, nếu không có thì `main`.
 
 Một branch PHẢI chứa đúng một loại công việc. Spec và plan không dùng chung branch.
 
@@ -77,6 +80,7 @@ Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò 
 | Spec | `spec/<topic>` | các vai trò được liệt kê cho `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | các vai trò được liệt kê cho `plan_approved` | `plan_approved` |
 | Track | `feat/<topic>-t<N>` | các vai trò được liệt kê cho `ship` | `ship` |
+| Tích hợp ở repository cha trong workspace | `feat/<topic>` | các vai trò được liệt kê cho `ship` | `ship` |
 | Archive vào living spec | phần tích hợp của epic: merge feature branch, hoặc pull request của repository cha trong workspace | các vai trò được liệt kê cho `ship`; theo quy ước của nhóm, BA review phần diff của living spec | `ship` |
 
 Tác giả PHẢI điền template pull request do `gin team init` ghi. Template có các trường sau:

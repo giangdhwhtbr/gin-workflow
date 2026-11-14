@@ -352,13 +352,13 @@ Answer each TQ-<n> with the contract of its endpoint.
 ```
 ```text
 /gin:orchestrate shop-portal-catalog-read
-Create the track beads and worktrees from the approved plan.
+Create the track beads from the approved plan.
 Leave every track bead unassigned; members take theirs with gin team claim.
 ```
 
 Đưa vào prompt: các ràng buộc của migration (facade trước, dual-write hay backfill, tiêu chí rollback), các track nào có thể chạy song song, và ai giữ seat Premium. Mỗi track mang `Repo: <path>`, ví dụ `Repo: services/order-api`. Tech lead cũng trả lời từng `TQ-<n>` mà discuss để lại, bằng path, method, request, response và mã lỗi của endpoint, để API mới và các mock của SPA được xây từ cùng một nguồn. Duyệt plan đóng băng các câu trả lời đó.
 
-**Kết quả:** một plan với các track theo khu vực và owner (`gin team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, một worktree cô lập cho mỗi track, và các dependency. Thành viên claim bead của mình bằng `gin team claim <bead>`.
+**Kết quả:** một plan với các track theo khu vực và owner (`gin team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, và các dependency. Orchestrate không tạo worktree: track bắt đầu từ default branch sau khi pull request của spec và plan đã merge, và `gin team claim <bead>` tạo từng worktree.
 
 **Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, lead của từng khu vực mà plan đụng tới duyệt pull request của plan. Binh viết plan và là `be_lead` duy nhất, nên phê duyệt `api` và `qa` của anh ấy được bỏ qua kèm ghi chú khi Hoa, lead của `web`, đã duyệt.
 
@@ -425,7 +425,7 @@ Unit test qua không chứng tỏ code mới hành xử như code cũ. Tester s�
 
 **Ai làm:** Developer (Em và Dung cho các track API, Hoa cho các track SPA).
 
-**Làm ở đâu:** worktree của track `<parent>/.planning/worktrees/<track-id>` (một service hoặc một app).
+**Làm ở đâu:** checkout của repository cha trên `feat/shop-portal-catalog-read` để claim, rồi worktree của track `<parent>/.planning/worktrees/<track-id>` (một service hoặc một app).
 
 **Prompt**
 ```bash
@@ -440,7 +440,7 @@ Stay inside that repository and run its checks before closing the track.
 
 Đưa vào prompt: track bead cần làm, nếu bạn muốn tự chọn.
 
-`team ready` liệt kê các bead trong khu vực của bạn. `team claim` ghi một lease dài `team.claim_ttl_hours` (mặc định 48); claim lại để gia hạn, và khi lease hết hạn thì thành viên khác có thể nhận bead. Nếu một thành viên vắng mặt hoặc hết quota, hãy push track branch và chạy:
+`team ready` liệt kê các bead trong khu vực của bạn. `team claim` ghi một lease dài `team.claim_ttl_hours` (mặc định 48); claim lại để gia hạn, và khi lease hết hạn thì thành viên khác có thể nhận bead. Sau đó lệnh tạo worktree của track trên `feat/<topic>-t<N>`, từ `origin/<default_branch>` của repository chứa track. Review ledger của track nằm trong `.planning/reviews/<bead>/` của repository cha; commit và push nó sau mỗi phiên ledger. Nếu một thành viên vắng mặt hoặc hết quota, hãy push track branch và chạy:
 
 ```bash
 gin team reassign <bead> dung@example.com
@@ -507,7 +507,7 @@ Open a pull request instead of merging locally; Chi approves the latest commit f
 
 **Cổng hoặc phê duyệt:** BA nghiệm thu mỗi epic bằng một comment nghiệm thu trước khi ship ([trong lúc build](../guides/ba.md#during-the-build)). Merge vào base branch cần phê duyệt rõ ràng; phê duyệt `ship` trên commit mới nhất được kiểm tra trước.
 
-**Lỗi thường gặp:** ship track của một thành viên như thể tính năng đã hoàn tất; lead tuyên bố epic xong khi mọi pull request của track đã merge.
+**Lỗi thường gặp:** ship track của một thành viên như thể tính năng đã hoàn tất; khi mọi pull request của track và pull request `feat/<topic>` của repository cha đã merge, area lead chạy `gin team complete <epic>`.
 
 ## Review milestone và spill-over { #milestone-review-and-spill-over }
 

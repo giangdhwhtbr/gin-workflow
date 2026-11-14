@@ -261,3 +261,22 @@ class SkillRoutingTests(unittest.TestCase):
                 text = read(f"skills/{skill}/SKILL.md")
                 self.assertIn("gin workspace clone <path>", text)
                 self.assertIn("gin workspace status --json", text)
+
+    def test_team_branch_model_is_in_the_skills(self):
+        def read(rel):
+            return (SRC / rel).read_text(encoding="utf-8")
+
+        self.assertIn("references/workspace.md", read("skills/team/SKILL.md"))
+        ref = read("skills/team/references/workspace.md")
+        for needle in ("gin team claim <bead>", "gin team complete <epic>",
+                       "git pull --rebase", "origin/<default_branch>"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, ref)
+        orchestrate = read("skills/orchestrate/SKILL.md")
+        self.assertIn("gin team claim", orchestrate)
+        self.assertIn("default branch after the spec and plan pull requests merge", orchestrate)
+        self.assertIn("committed on `plan/<topic>`", read("skills/plan/SKILL.md"))
+        review = next(l for l in read("skills/review/SKILL.md").splitlines()
+                      if "parent" in l and ".planning/reviews/" in l and "workspace" in l)
+        self.assertIn("review-ledger.py", review)
+        self.assertIn("gin team complete <epic>", read("skills/ship/SKILL.md"))

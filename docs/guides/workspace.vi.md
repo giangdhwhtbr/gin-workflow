@@ -94,8 +94,8 @@ Mở: repository cha cho setup, plan, orchestrate và ship.
 | Stage | Lệnh |
 |---|---|
 | Plan | `/gin:plan` ghi các track, mỗi track mang `Repo: <path>`; `gin record plan-approved` từ chối track không có `Repo:`, repository không xác định hoặc `frozen`, mục beads, hoặc file nằm ngoài repository của nó |
-| Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>` |
-| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng; phần tích hợp của repository cha đưa archive vào living spec, và theo quy ước của nhóm, BA review phần diff đó |
+| Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>`. Ở [team mode](team.md) nó không tạo branch hay worktree của repository con và push `feat/<topic>` của repository cha; `gin team claim` của mỗi thành viên tạo worktree của họ |
+| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng (ở team mode, mỗi track và `feat/<topic>` của repository cha đi qua pull request, rồi area lead chạy `gin team complete <epic>`); phần tích hợp của repository cha đưa archive vào living spec, và theo quy ước của nhóm, BA review phần diff đó |
 
 Với một bead độc lập, `gin record shipped --evidence "<repo>:<merge commit>; ...; parent:<merge commit>"` ghi một merge commit cho mỗi repository; gin không kiểm tra từng repository đã được merge hay chưa. Một epic là shipped khi bead cha của nó được đóng sau các lần merge do con người xác nhận.
 
@@ -106,11 +106,11 @@ Mở: `<parent>/.planning/worktrees/<track-id>`. Đó là worktree của một s
 | Stage | Lệnh |
 |---|---|
 | Tìm track | `gin task` hoặc `/gin:progress` từ bất kỳ đâu trong workspace liệt kê các track sẵn sàng; worktree của một track là `<parent>/.planning/worktrees/<track-id>` |
-| Triển khai | `/gin:execute` trong worktree; commit và push vào repository đó |
-| Review | `/gin:review` trong worktree |
+| Triển khai | `/gin:execute` trong worktree; commit và push vào repository đó. Ở team mode, chạy `gin team claim <bead>` từ checkout của repository cha (hoặc một worktree của nó) trên `feat/<topic>`; lệnh tạo worktree |
+| Review | `/gin:review` trong worktree. Ledger được ghi vào `.planning/reviews/<bead>/` của repository cha; ở team mode, chạy `git pull --rebase` trước và commit rồi push thư mục đó sau mỗi phiên ledger (quy ước của skill `team`) |
 | Thay đổi nhỏ | `/gin:quick` bên trong repository con; nó commit trên một branch của repository con và chạy check của repository con đó |
 
-Đọc spec và plan từ đường dẫn của repository cha mà bead liên kết tới. Một track không sửa gì trong repository cha. Hook trong repository con chỉ chạy `verify.checks` của repository đó.
+Đọc spec và plan từ đường dẫn của repository cha mà bead liên kết tới. Một track không sửa gì trong repository cha, ngoài review ledger của nó. Hook trong repository con chỉ chạy `verify.checks` của repository đó.
 
 ## QA { #qa }
 

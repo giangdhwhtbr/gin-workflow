@@ -49,13 +49,16 @@ The base branch is protected. Members SHALL NOT commit to it directly.
 
 Every piece of work SHALL have its own branch, and the branch name SHALL show the kind of work.
 
-| Kind of work | Branch name |
-|---|---|
-| Roadmap | `roadmap/<topic>` |
-| Spec | `spec/<topic>`, or `spec/<epic>-<slug>` with the [SDD layout](sdd.md) |
-| Plan | `plan/<topic>` |
-| Track of a plan | `feat/<topic>-t<N>`, where `<N>` is the track number |
-| Other work | `chore/<topic>` |
+| Kind of work | Branch name | Starts from |
+|---|---|---|
+| Roadmap | `roadmap/<topic>` | the base branch |
+| Spec | `spec/<topic>`, or `spec/<epic>-<slug>` with the [SDD layout](sdd.md) | the base branch |
+| Plan | `plan/<topic>` | the base branch |
+| Track of a plan | `feat/<topic>-t<N>`, where `<N>` is the track number | the base branch of the track's repository |
+| Parent integration in a [workspace](workspace.md) | `feat/<topic>` | the base branch of the parent |
+| Other work | `chore/<topic>` | the base branch |
+
+A track starts after the spec and plan pull requests have merged. In a workspace, the base branch of a child is its `default_branch` setting; the base branch of the parent is the branch its `origin/HEAD` names, else `main`.
 
 A branch SHALL carry one kind of work. A spec and a plan do not share a branch.
 
@@ -77,6 +80,7 @@ Every artifact that has a gate SHALL reach the base branch through a pull reques
 | Spec | `spec/<topic>` | roles listed for `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | roles listed for `plan_approved` | `plan_approved` |
 | Track | `feat/<topic>-t<N>` | roles listed for `ship` | `ship` |
+| Parent integration in a workspace | `feat/<topic>` | roles listed for `ship` | `ship` |
 | Archive into the living spec | the integration of the epic: the feature branch merge, or the parent's pull request in a workspace | roles listed for `ship`; by convention, the BA reviews the living-spec diff | `ship` |
 
 The author SHALL fill the pull request template that `gin team init` writes. It has these fields:

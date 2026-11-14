@@ -94,8 +94,8 @@ Open: the parent for setup, plan, orchestrate, and ship.
 | Stage | Command |
 |---|---|
 | Plan | `/gin:plan` writes tracks that each carry `Repo: <path>`; `gin record plan-approved` refuses a track with no `Repo:`, an unknown or frozen repository, the beads entry, or files outside its repository |
-| Orchestrate | `/gin:orchestrate` creates one worktree per track inside the named child; a missing clone stops with the exact `gin workspace clone <path>` command |
-| Ship | `/gin:ship` from the parent integrates one repository at a time, the parent last; `team check --gate ship` and `record shipped` accept a child's pull request. They compare it with the HEAD of the child checkout or track worktree you run them from, else the child's main checkout; the parent's integration carries the archive into the living spec, and by team convention the BA reviews that diff |
+| Orchestrate | `/gin:orchestrate` creates one worktree per track inside the named child; a missing clone stops with the exact `gin workspace clone <path>` command. In [team mode](team.md) it creates no child branch or worktree and pushes the parent's `feat/<topic>`; each member's `gin team claim` creates their worktree |
+| Ship | `/gin:ship` from the parent integrates one repository at a time, the parent last (in team mode, each track and the parent's `feat/<topic>` go through pull requests, then an area lead runs `gin team complete <epic>`); `team check --gate ship` and `record shipped` accept a child's pull request. They compare it with the HEAD of the child checkout or track worktree you run them from, else the child's main checkout; the parent's integration carries the archive into the living spec, and by team convention the BA reviews that diff |
 
 For a standalone bead, `gin record shipped --evidence "<repo>:<merge commit>; ...; parent:<merge commit>"` records one merge commit per repository; gin does not check that each repository was merged. An epic is shipped when its parent bead is closed after the human-confirmed merges.
 
@@ -106,11 +106,11 @@ Open: `<parent>/.planning/worktrees/<track-id>`. It is a worktree of one service
 | Stage | Command |
 |---|---|
 | Find a track | `gin task` or `/gin:progress` from anywhere in the workspace lists ready tracks; the worktree of a track is `<parent>/.planning/worktrees/<track-id>` |
-| Implement | `/gin:execute` in the worktree; commit and push to that repository |
-| Review | `/gin:review` in the worktree |
+| Implement | `/gin:execute` in the worktree; commit and push to that repository. In team mode, run `gin team claim <bead>` from a parent checkout (or a worktree of it) on `feat/<topic>`; it creates the worktree |
+| Review | `/gin:review` in the worktree. The ledger is written to the parent's `.planning/reviews/<bead>/`; in team mode, `git pull --rebase` before and a commit and push of that folder after each ledger session (a convention of the `team` skill) |
 | Small change | `/gin:quick` inside the child; it commits on a branch of the child and runs that child's checks |
 
-Read the spec and plan from the parent path the bead links. A track edits nothing in the parent. Hooks in the child run that repository's `verify.checks` only.
+Read the spec and plan from the parent path the bead links. A track edits nothing in the parent except its review ledger. Hooks in the child run that repository's `verify.checks` only.
 
 ## QA
 
