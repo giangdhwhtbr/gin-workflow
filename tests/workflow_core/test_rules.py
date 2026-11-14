@@ -231,6 +231,119 @@ class TestCli(unittest.TestCase):
             self.assertEqual(2, result.returncode)
             self.assertIn("rules error", result.stderr)
 
+    def test_rules_in_workspace_child(self):
+        from tests.workflow_core.test_workspace import init_repo
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            root = init_repo(base / "ws")
+            (root / ".agent-workflow").mkdir()
+            manifest = """schema_version: '2.9'
+rules:
+  packs: [core]
+workspace:
+  repos:
+    - path: apps/web
+      url: git@example.com:acme/web.git
+      shape: frontend
+      rules:
+        packs: [react, nextjs]
+    - path: services/api
+      url: git@example.com:acme/api.git
+      shape: backend
+"""
+            (root / ".agent-workflow/config.yaml").write_text(manifest, encoding="utf-8")
+            web = init_repo(root / "apps/web")
+            api = init_repo(root / "services/api")
+            page = web / "app/page.tsx"
+            page.parent.mkdir(parents=True, exist_ok=True)
+            page.write_text("// page", encoding="utf-8")
+            _pack(web / ".agent-workflow/rules", "web-ui", "applies_to: ['app/**']", "- `x`: Web rule.\n")
+
+            def run_rules(cwd: Path, *args: str):
+                return subprocess.run([sys.executable, str(SCRIPTS / "gin"), "rules", *args],
+                                      cwd=cwd, env={"PYTHONPATH": str(SCRIPTS), "PATH": "/usr/bin:/bin"},
+                                      capture_output=True, text=True, check=False)
+
+            # 1. cwd apps/web with --files app/page.tsx selects nextjs and react
+            res = run_rules(web, "--files", "app/page.tsx", "--format", "json")
+            self.assertEqual(0, res.returncode, res.stderr)
+            packs = [p["id"] for p in json.loads(res.stdout)["packs"]]
+            self.assertIn("nextjs", packs)
+            self.assertIn("react", packs)
+            self.assertIn("web-ui", packs)  # project rules come from the child checkout
+            listed = run_rules(web, "--list", "--format", "json")
+            self.assertTrue({"react", "nextjs", "web-ui"} <= {row["id"] for row in json.loads(listed.stdout)["packs"]})
+
+            # 2. the same in an entry without packs selects only the parent's
+            res_api = run_rules(api, "--files", "app/page.tsx", "--format", "json")
+            self.assertEqual(0, res_api.returncode, res_api.stderr)
+            api_packs = [p["id"] for p in json.loads(res_api.stdout)["packs"]]
+            self.assertNotIn("nextjs", api_packs)
+            self.assertNotIn("react", api_packs)
+            self.assertIn("core", api_packs)
+
+            # 3. an absolute path to apps/web/app/page.tsx from the child matches nextjs
+            res_abs = run_rules(web, "--files", str(page.resolve()), "--format", "json")
+            self.assertEqual(0, res_abs.returncode, res_abs.stderr)
+            abs_packs = [p["id"] for p in json.loads(res_abs.stdout)["packs"]]
+            self.assertIn("nextjs", abs_packs)
+            self.assertIn("react", abs_packs)
+
+            # 4. from the parent with --files apps/web/app/page.tsx the output is unchanged from today
+            res_parent = run_rules(root, "--files", "apps/web/app/page.tsx", "--format", "json")
+            self.assertEqual(0, res_parent.returncode, res_parent.stderr)
+            parent_packs = [p["id"] for p in json.loads(res_parent.stdout)["packs"]]
+            self.assertNotIn("nextjs", parent_packs)
+            self.assertNotIn("react", parent_packs)
+            self.assertIn("core", parent_packs)
+            explicit = run_rules(web, "--repository", str(root), "--files", "apps/web/app/page.tsx",
+                                 "--format", "json")
+            self.assertEqual(explicit.stdout, res_parent.stdout)
+
+    def test_workspace_entry_unknown_pack_and_linked_worktree(self):
+        from tests.workflow_core.test_workspace import git, init_repo
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            root = init_repo(base / "ws")
+            (root / ".agent-workflow").mkdir()
+            (root / ".agent-workflow/config.yaml").write_text("""schema_version: '2.9'
+workspace:
+  repos:
+    - path: apps/web
+      url: git@example.com:acme/web.git
+      shape: frontend
+      rules:
+        packs: [react, nextjs]
+    - path: services/api
+      url: git@example.com:acme/api.git
+      shape: backend
+      rules:
+        packs: [nope]
+""", encoding="utf-8")
+            web = init_repo(root / "apps/web")
+            api = init_repo(root / "services/api")
+
+            def gin(cwd: Path, *args: str):
+                return subprocess.run([sys.executable, str(SCRIPTS / "gin"), *args],
+                                      cwd=cwd, env={"PYTHONPATH": str(SCRIPTS), "PATH": "/usr/bin:/bin"},
+                                      capture_output=True, text=True, check=False)
+
+            # 1. an unknown pack listed by the entry is warned on stderr, not fatal
+            res = gin(api, "rules", "--files", "src/a.py")
+            self.assertEqual(0, res.returncode, res.stderr)
+            self.assertIn("warning: unknown rule pack 'nope' ignored", res.stderr)
+
+            # 2. a linked worktree of the child resolves to the same entry
+            linked = base / "web-linked"
+            git(web, "worktree", "add", "-q", "-b", "feat/x", str(linked))
+            res_wt = gin(linked, "rules", "--files", "app/page.tsx", "--format", "json")
+            self.assertEqual(0, res_wt.returncode, res_wt.stderr)
+            self.assertTrue({"react", "nextjs"} <= {p["id"] for p in json.loads(res_wt.stdout)["packs"]})
+            doctor = gin(linked, "setup", "doctor", "--format", "json")
+            self.assertEqual("apps/web", json.loads(doctor.stdout)["checks_details"]["entry"]["path"])
+
 
 if __name__ == "__main__":
     unittest.main()

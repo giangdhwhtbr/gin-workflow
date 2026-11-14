@@ -37,6 +37,8 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 
 `--workspace` (on `preset` and `init`) writes an empty `workspace.repos` list and, on `init`, the parent `.gitignore` entries.
 
+In a workspace child, or a worktree of one, `doctor` without `--repository` checks that entry: `checks_details.entry` (`path`, `shape`), `verify_commands.missing` against the entry's `verify.checks`, its hooks, and its rules with the entry's packs added. From the parent, `checks_details.workspace.repos.<path>.proposed_packs` lists the packs each entry could add, with an action `workspace: <path>: rules.packs could add <a>, <b>`. A child whose manifest cannot be read gets `workspace: <path>: cannot detect rule packs: <error>`.
+
 Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--probe`, `--harness`.
 
 `doctor --probe` and `models` read provider health and model lists through the [orchestrator contract](orchestrator-contract.md).
@@ -49,7 +51,7 @@ Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a requ
 gin state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 ```
 
-Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, `epic` (the epic recorded at `orchestration-ready` for the workflow id, or `null`), and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`.
+Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, `epic` (the epic recorded at `orchestration-ready` for the workflow id, or `null`), and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`. The `workspace` key is `null` outside a workspace; inside one, `workspace.current` is the entry the command runs in (`path`, `shape`, `checks`), and `null` in the parent.
 
 A gate reads `unknown` when `state` cannot read the task tracker or the event log. The decision is then `hold`. `warnings` and `remedies` carry the cause: `tracker unavailable: <cause>` or `event log unreadable: <error>; waivers not applied`.
 
@@ -116,6 +118,8 @@ gin rules --list
 ```
 
 `--files` prints the rule text for the given files: the `core` and `lean` packs, `docs` when a Markdown file is given, plus every enabled pack whose globs match. The output is trimmed to the task budget; critical bullets are never trimmed. `--list` shows each pack with its source, tier, size, and impact counts. See [Configuration](config.md#rules).
+
+In a workspace child, or a worktree of one, without `--repository`, the entry's `rules.packs` are added to the parent's, the child's `.agent-workflow/rules` project rules load, and an absolute `--files` path inside the child is taken relative to it. `--list` uses the same merged packs.
 
 Exit codes: 0 success; 2 invalid configuration or rule pack.
 
@@ -259,6 +263,8 @@ gin evidence check [--commit SHA] [--repository DIR] [--json]
 ```
 
 When every `pre-push` verify command passes on a tree with no tracked changes, `hooks run pre-push` and `evidence run` append a `checks.passed` event (workflow id `checks`; payload `tree`, `hook`, `commands`) to `.agent-workflow/runtime/events.jsonl` in the main checkout. A record that cannot be written prints a warning and never changes the exit code. `pre-commit` records nothing, because it runs no `test`.
+
+In a workspace child, or a worktree of one, `run` and `check` without `--repository` act on that checkout and its entry's `verify.checks`. `check` reads the record from the parent's event log, where the child's `pre-push` hook writes it. An explicit `--repository` keeps its meaning.
 
 `run` runs the `pre-push` verify commands on the checked-out commit. The `review` skill runs it after `checkpoint`, because the branch is pushed only after review. It refuses with exit 2 when a tracked file differs from `HEAD`. Like the hook, it exits 0 without rerunning when a record for the same tree already covers the commands.
 
