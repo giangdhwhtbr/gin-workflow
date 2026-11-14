@@ -331,6 +331,35 @@ class WorkerDispatchTests(unittest.TestCase):
         with self.assertRaisesRegex(WorkerResultContractError, "invalid_result_contract"):
             normalize_worker_result(malformed, request())
 
+    def test_result_contract_normalizes_status_synonyms_and_commit_objects(self):
+        raw = valid_result()
+        raw["status"] = "Done"
+        raw["commits"] = [{"sha": "abc", "message": "x"}, "def", {"hash": "ghi"}]
+        raw["changed_files"] = [{"path": "a.py"}, {"file": "b.py"}, "c.py"]
+
+        result = normalize_worker_result(raw, request())
+
+        self.assertEqual("completed", result.status)
+        self.assertEqual(("abc", "def", "ghi"), result.commits)
+        self.assertEqual(("a.py", "b.py", "c.py"), result.changed_files)
+        for synonym in ("success", "succeeded", "COMPLETE"):
+            raw = valid_result()
+            raw["status"] = synonym
+            self.assertEqual("completed", normalize_worker_result(raw, request()).status)
+        raw = valid_result()
+        raw["status"] = "error"
+        self.assertEqual("failed", normalize_worker_result(raw, request()).status)
+
+    def test_result_contract_still_rejects_unknown_status_and_commit_without_sha(self):
+        unknown = valid_result()
+        unknown["status"] = "finished-ish"
+        with self.assertRaisesRegex(WorkerResultContractError, "status must be"):
+            normalize_worker_result(unknown, request())
+        no_sha = valid_result()
+        no_sha["commits"] = [{"message": "x"}]
+        with self.assertRaisesRegex(WorkerResultContractError, "commits must be a list"):
+            normalize_worker_result(no_sha, request())
+
     def test_dispatcher_emits_lifecycle_once_when_result_is_collected_repeatedly(self):
         with tempfile.TemporaryDirectory() as directory:
             store = WorkflowEventStore(Path(directory) / "events.jsonl")

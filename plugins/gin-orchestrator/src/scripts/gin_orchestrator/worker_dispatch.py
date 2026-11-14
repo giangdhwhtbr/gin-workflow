@@ -461,6 +461,40 @@ class WorkerReceipt:
     fallback_used: bool = False
 
 
+_STATUS_SYNONYMS = {
+    "done": "completed",
+    "success": "completed",
+    "succeeded": "completed",
+    "complete": "completed",
+    "error": "failed",
+}
+
+
+def _coerce_entries(value: object, keys: tuple[str, ...]) -> object:
+    """Reduce worker-written objects like {"sha": ...} to their string; leave the rest to the contract."""
+    if not isinstance(value, (list, tuple)):
+        return value
+    coerced = []
+    for item in value:
+        if isinstance(item, Mapping):
+            item = next((item[key] for key in keys if isinstance(item.get(key), str)), item)
+        coerced.append(item)
+    return coerced
+
+
+def _normalize_worker_wording(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Map status synonyms and commit/file objects workers emit onto the contract shape."""
+    value = dict(value)
+    status = value.get("status")
+    if isinstance(status, str):
+        value["status"] = _STATUS_SYNONYMS.get(status.strip().lower(), status)
+    if "commits" in value:
+        value["commits"] = _coerce_entries(value["commits"], ("sha", "hash", "commit"))
+    if "changed_files" in value:
+        value["changed_files"] = _coerce_entries(value["changed_files"], ("path", "file"))
+    return value
+
+
 def _string_tuple(value: object, field_name: str) -> tuple[str, ...]:
     if not isinstance(value, (list, tuple)) or any(not isinstance(item, str) for item in value):
         raise _invalid_result(f"{field_name} must be a list of strings")
@@ -544,6 +578,7 @@ def normalize_worker_result(
         }
     if not isinstance(value, Mapping):
         raise _invalid_result("result must be an object")
+    value = _normalize_worker_wording(value)
     missing = [field_name for field_name in REQUIRED_RESULT_FIELDS if field_name not in value]
     if missing:
         raise _invalid_result(f"missing fields: {', '.join(missing)}")
