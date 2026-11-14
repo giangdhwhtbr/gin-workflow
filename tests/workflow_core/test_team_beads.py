@@ -723,7 +723,9 @@ class TestTeamClaimWorktree(unittest.TestCase):
         git(self.base, "init", "-q", "--bare", "-b", "main", str(parent_bare))
         self.root = make_team_repo(self.base / "ws", extra=(
             "workspace:\n  repos:\n    - path: services/order-api\n"
-            f"      url: file://{self.child_bare}\n      default_branch: main\n      shape: backend\n"))
+            f"      url: file://{self.child_bare}\n      default_branch: main\n      shape: backend\n"
+            "    - path: libs/legacy\n      url: file:///nowhere/legacy.git\n      frozen: true\n"
+            "    - path: .beads\n      url: file:///nowhere/beads.git\n      shape: beads\n"))
         git(self.root, "remote", "set-url", "origin", str(parent_bare))
         git(self.root, "commit", "-q", "--allow-empty", "-m", "parent base")
         git(self.root, "push", "-q", "origin", "main")
@@ -854,11 +856,76 @@ class TestTeamClaimWorktree(unittest.TestCase):
         taken = run_cli(self.root, "team", "takeover", bead, "--format", "json")
         self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
         result = json.loads(taken.stdout)
-        self.assertEqual((str(target), "feat/x-t2"), (result["worktree"], result["branch"]))
+        self.assertEqual((str(target), "feat/x-t2", True),
+                         (result["worktree"], result["branch"], result["created"]))
         self.assertEqual("handed off", (target / "work.txt").read_text(encoding="utf-8"))
         common = Path(git(target, "rev-parse", "--path-format=absolute", "--git-common-dir").strip())
         self.assertEqual((self.child_dir / ".git").resolve(), common.resolve())
         self.assertEqual("em@corp.com", show(self.root, bead)["assignee"])
+
+    def test_claim_after_a_worktree_cleanup_reuses_the_local_track_branch(self):
+        bead = self.track_bead("Again")
+        claimed = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        target = self.target / bead
+        (target / "work.txt").write_text("kept", encoding="utf-8")
+        git(target, "add", "work.txt")
+        git(target, "commit", "-q", "-m", "work")
+        work = git(target, "rev-parse", "HEAD").strip()
+        worktrees.cleanup(self.child_dir, bead, self.root)
+        again = run_cli(self.root, "team", "claim", bead, "--format", "json")
+        self.assertEqual(0, again.returncode, again.stdout + again.stderr)
+        data = json.loads(again.stdout)
+        self.assertEqual(("feat/x-t2", True), (data["branch"], data["created"]))
+        self.assertEqual("feat/x-t2", git(target, "rev-parse", "--abbrev-ref", "HEAD").strip())
+        self.assertEqual(work, git(target, "rev-parse", "HEAD").strip())
+
+    def test_claim_checks_out_a_track_branch_found_only_on_the_child_origin(self):
+        # a previous owner pushed feat/x-t2 to the child's origin; this machine has never seen it
+        git(self.scratch, "checkout", "-q", "-b", "feat/x-t2")
+        (self.scratch / "previous.txt").write_text("previous owner", encoding="utf-8")
+        git(self.scratch, "add", "previous.txt")
+        git(self.scratch, "commit", "-q", "-m", "previous owner")
+        git(self.scratch, "push", "-q", str(self.child_bare), "feat/x-t2")
+        previous = git(self.scratch, "rev-parse", "HEAD").strip()
+        bead = self.track_bead("Released track")
+        claimed = run_cli(self.root, "team", "claim", bead, "--format", "json")
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        target = self.target / bead
+        self.assertEqual("feat/x-t2", git(target, "rev-parse", "--abbrev-ref", "HEAD").strip())
+        self.assertEqual(previous, git(target, "rev-parse", "HEAD").strip())
+
+    def test_track_branch_name_git_refuses_is_refused_before_the_lease(self):
+        bead = self.track_bead("Spaced", "Plan: .planning/plans/2026-11-14-a b.md, Track 1\nRepo: services/order-api")
+        refused = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("feat/a b-t1", refused.stdout)
+        self.assertNotIn("the claim is kept", refused.stdout)
+        self.assertFalse(show(self.root, bead).get("assignee"))
+        self.assertFalse(self.target.exists())
+
+    def test_frozen_and_beads_entries_are_refused_before_the_lease(self):
+        for repo, reason in (("libs/legacy", "Repo: libs/legacy is frozen"),
+                             (".beads", "Repo: .beads is the beads repository")):
+            with self.subTest(repo=repo):
+                bead = self.track_bead(repo, f"Plan: .planning/plans/2026-11-14-x.md, Track 2\nRepo: {repo}")
+                refused = run_cli(self.root, "team", "claim", bead)
+                self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+                self.assertIn(reason, refused.stdout)
+                self.assertFalse(show(self.root, bead).get("assignee"))
+
+    def test_a_directory_at_the_target_that_is_no_worktree_of_the_child_is_refused(self):
+        bead = self.track_bead("Stray")
+        stray = self.target / bead
+        stray.mkdir(parents=True)
+        plain = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(1, plain.returncode, plain.stdout + plain.stderr)
+        self.assertIn(f"{stray} is not a worktree of {self.child_dir}; remove it", plain.stdout)
+        stray.rmdir()
+        worktrees.create(self.root, bead, "feat/other")  # a worktree of the parent, not of the child
+        parent = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(1, parent.returncode, parent.stdout + parent.stderr)
+        self.assertIn(f"{stray} is not a worktree of {self.child_dir}; remove it", parent.stdout)
 
 
 if __name__ == "__main__":

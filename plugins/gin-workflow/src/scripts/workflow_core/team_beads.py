@@ -215,36 +215,70 @@ def default_branch(repo: Path, entry: workspace.Repo | None) -> str:
 
 
 def _track_repo(root: Path, repo: str | None) -> tuple[Path, workspace.Repo | None]:
-    """The track's repository: the cloned workspace child its `Repo:` names, else `root`."""
+    """The track's repository: the cloned, workable workspace child its `Repo:` names, else `root`."""
     if repo is None:
         return root, None
     space = workspace.locate(root).workspace
     entry = space.repo(repo) if space is not None else None
     if entry is None:
         raise SyncConflict(f"Repo: {repo} is not in workspace.repos")
+    if entry.frozen:
+        raise SyncConflict(f"Repo: {repo} is frozen")
+    if entry.shape == "beads":
+        raise SyncConflict(f"Repo: {repo} is the beads repository")
     if not space.present(entry):
         raise SyncConflict(f"{repo} is not cloned; run gin workspace clone {repo}")
     return space.checkout(entry), entry
 
 
-def track_worktree(root: Path, issue: Mapping[str, Any], bead: str) -> dict[str, Any] | None:
-    """The worktree `.planning/worktrees/<bead>` on `feat/<topic>-t<N>`, created from `origin/<default>` of the
-    track's repository unless it exists; None for a bead without a `Plan: <path>, Track <N>` line."""
-    track = track_of(issue)
-    if track is None:
-        return None
+def _track_place(root: Path, track: tuple[str, int, str | None]) -> tuple[Path, workspace.Repo | None, str]:
+    """(repository, workspace entry or None, branch `feat/<topic>-t<N>`); refuses a `Repo:` or a branch name git
+    would not accept, so claim can check both before the lease."""
     topic, number, repo = track
     repo_dir, entry = _track_repo(root, repo)
     branch = f"feat/{topic}-t{number}"
     try:
+        worktrees._git(repo_dir, "check-ref-format", "--branch", branch)
+    except RuntimeError as error:
+        raise SyncConflict(f"invalid track branch {branch!r} from the Plan: line: {error}") from error
+    return repo_dir, entry, branch
+
+
+def _worktree_of(target: Path, repo_dir: Path) -> bool:
+    """True when `target` is the top of a worktree that shares the git directory of `repo_dir`."""
+    try:
+        top, common = worktrees._git(target, "rev-parse", "--path-format=absolute", "--show-toplevel",
+                                     "--git-common-dir").splitlines()
+    except (RuntimeError, ValueError):  # not inside a git repository, or not the two lines asked for
+        return False
+    own = worktrees._git(repo_dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return Path(top).resolve() == target.resolve() and Path(common).resolve() == Path(own).resolve()
+
+
+def track_worktree(root: Path, issue: Mapping[str, Any], bead: str) -> dict[str, Any] | None:
+    """The worktree `.planning/worktrees/<bead>` on `feat/<topic>-t<N>` in the track's repository: kept when it
+    exists, else checked out from the local or `origin` branch, else created from `origin/<default>`; None for a
+    bead without a `Plan: <path>, Track <N>` line."""
+    track = track_of(issue)
+    if track is None:
+        return None
+    repo_dir, entry, branch = _track_place(root, track)
+    try:
         target = worktrees._target(repo_dir, bead, root)
         if target.exists():
+            if not _worktree_of(target, repo_dir):
+                raise SyncConflict(f"{target} is not a worktree of {repo_dir}; remove it")
             return {"worktree": str(target), "branch": worktrees._git(target, "rev-parse", "--abbrev-ref", "HEAD"),
                     "created": False}
-        worktrees._git(repo_dir, "check-ref-format", "--branch", branch)
-        default = default_branch(repo_dir, entry)
-        worktrees._git(repo_dir, "fetch", "origin", default)
-        worktrees.create(repo_dir, bead, branch, f"origin/{default}", root)
+        if worktrees._git(repo_dir, "branch", "--list", branch):
+            worktrees.checkout(repo_dir, bead, branch, root)
+        elif worktrees._git(repo_dir, "ls-remote", "--heads", "origin", f"refs/heads/{branch}"):
+            worktrees._git(repo_dir, "fetch", "origin", branch)
+            worktrees.checkout(repo_dir, bead, branch, root)
+        else:
+            default = default_branch(repo_dir, entry)
+            worktrees._git(repo_dir, "fetch", "origin", default)
+            worktrees.create(repo_dir, bead, branch, f"origin/{default}", root)
     except (RuntimeError, ValueError) as error:
         raise SyncConflict(str(error)) from error
     return {"worktree": str(target), "branch": branch, "created": True}
@@ -261,7 +295,7 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
         raise SyncConflict(f"{member.email} may not own tracks in {', '.join(ineligible)}")
     track = track_of(issue)
     if track is not None:
-        _track_repo(root, track[2])  # an unknown or uncloned child refuses before the lease
+        _track_place(root, track)  # an unusable child or branch name refuses before the lease
     holder = (issue.get("assignee") or "").lower()
     expires_at = _expires(team)
     lease = json.dumps({"holder": member.email, "expires_at": expires_at})
@@ -480,7 +514,7 @@ def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch:
     except SyncConflict as error:
         raise SyncConflict(f"{error}; worktree left at {path}; remove it with gin worktree cleanup {bead}") from error
     print(f"next: gin team deps --bead {bead}", file=sys.stderr)
-    return {**result, "branch": branch, "worktree": str(path)}
+    return {**result, "branch": branch, "worktree": str(path), "created": True}
 
 
 def _tracks_in(body: str) -> tuple[str, set[int]]:
