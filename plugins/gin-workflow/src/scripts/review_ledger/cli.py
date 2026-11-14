@@ -19,7 +19,7 @@ from review_ledger.git_adapter import SourceCheckpoint, create_source_checkpoint
 from review_ledger.schema import EventActions
 from review_ledger.source_identity import canonicalize_scope
 from workflow_core.atomic import atomic_write_many
-from workflow_core.checkout import main_checkout
+from workflow_core import workspace
 from workflow_core.locking import file_lock
 from workflow_core.identity import AcceptanceIdentity, RepositorySnapshot
 from review_ledger.cleanup import cleanup_review_ledgers, is_bead_closed
@@ -352,11 +352,11 @@ def initialize_ledger(
         }],
         "source_scope": canonical_scope,
     }
-    # A workspace child's track worktree: validate --in-history searches its checkout once the worktree is gone.
-    # Only a checkout inside the ledger root is recorded, so nothing changes outside a workspace.
-    history, root = main_checkout(Path(resolved_repo)), Path(ledger_root).resolve()
-    if history != Path(resolved_repo).resolve() and root in history.parents:
-        payload["repositories"][0]["history_path"] = history.relative_to(root).as_posix()
+    # A workspace child (a track worktree or the checkout): validate --in-history finds the child's checkout through
+    # its workspace.repos path once the worktree is gone. Outside a workspace nothing is recorded.
+    entry = workspace.locate(Path(resolved_repo)).entry
+    if entry is not None:
+        payload["repositories"][0]["history_path"] = entry.path
     payload.update(
         build_acceptance_identity_payload(
             task_id=bead_id,

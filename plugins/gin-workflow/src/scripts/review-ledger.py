@@ -45,7 +45,7 @@ from review_ledger.source_identity import (
 
 
 from review_ledger.bead_fsm import TERMINAL_FINDING_STATUSES
-from workflow_core import workspace, worktrees
+from workflow_core import workspace
 
 
 def run_from_ledger_root(args):
@@ -56,26 +56,34 @@ def run_from_ledger_root(args):
         args.repo_path = os.path.abspath(args.repo_path)
     root = workspace.ledger_root(start)
     if args.command == "init" and args.repo_path is None:
-        args.repo_path = worktrees._git(start, "rev-parse", "--show-toplevel") if root != start else "."
+        # another root means `start` is in a checkout of a workspace child: review that checkout's toplevel
+        args.repo_path = str(workspace.current(start).checkout) if root != start else "."
     os.chdir(root)
 
 
 def history_root(repo_id, repo):
-    """The repository whose history holds the approved source: `repository_path`, else the recorded `history_path`
-    (the child checkout of a removed workspace track worktree); None when neither is a repository root."""
+    """The repository whose history holds the approved source: `repository_path`; once a workspace child's track
+    worktree is gone, the checkout of the child its `history_path` names in `workspace.repos`, found from any
+    parent checkout; None when the ledger records neither."""
     repo_path = repo.get("repository_path", ".")
     if is_git_repo_root(repo_path):
         return repo_path
     history = repo.get("history_path")
     if history is None:
         return None
-    root = Path.cwd().resolve()  # the ledger root: main runs every command from it
-    if not isinstance(history, str) or not (root / history).resolve().is_relative_to(root):
+    space = workspace.locate(Path.cwd()).workspace
+    entry = space.repo(history) if space is not None else None
+    if entry is None:
         raise ValueError(
-            f"Ledger validation failed for repository '{repo_id}': history_path {history!r} escapes the ledger root "
-            f"{root}."
+            f"Ledger validation failed for repository '{repo_id}': history_path {history!r} is not in workspace.repos."
         )
-    return history if is_git_repo_root(history) else None
+    checkout = space.checkout(entry)
+    if not is_git_repo_root(str(checkout)):
+        raise ValueError(
+            f"Ledger validation failed for repository '{repo_id}': {entry.path} is not cloned; "
+            f"run gin workspace clone {entry.path}."
+        )
+    return str(checkout)
 
 
 def validate_ledger(bead_id, in_history, visited):

@@ -972,12 +972,22 @@ class TestTeamClaimWorktree(unittest.TestCase):
         self.assertEqual(sha, git(self.child_dir, "rev-parse", ref).strip())
         self.assertEqual("handed off", (target / "work.txt").read_text(encoding="utf-8"))
 
-    def test_handoff_pushes_a_parent_feat_branch_without_upstream_and_a_rejected_push_keeps_the_bead(self):
+    def test_handoff_pushes_only_a_parent_feat_branch_and_a_rejected_push_keeps_the_bead(self):
         parent_bare = self.base / "remotes/parent.git"
-        git(self.root, "checkout", "-q", "-b", "feat/x")  # never pushed
-        bead = self.track_bead("New parent branch")
+        bead = self.track_bead("Parent branch")
         claimed = run_cli(self.root, "team", "claim", bead)
         self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        # the parent's main with a commit its upstream lacks: a handoff never pushes it
+        git(self.root, "push", "-q", "-u", "origin", "main")
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "ledger on main")
+        on_main = run_cli(self.root, "team", "handoff", bead, "em@corp.com")
+        self.assertEqual(1, on_main.returncode, on_main.stdout + on_main.stderr)
+        self.assertIn(f"main in {self.root} has commits that are not pushed; commit the review ledger on the "
+                      "parent's feat/<topic>", on_main.stdout)
+        self.assertNotEqual(git(self.root, "rev-parse", "HEAD"), git(parent_bare, "rev-parse", "main"))
+        self.assertEqual("binh@corp.com", show(self.root, bead)["assignee"])
+        # a feat/ branch that was never pushed is pushed with an upstream
+        git(self.root, "checkout", "-q", "-b", "feat/x")
         git(self.root, "remote", "set-url", "origin", str(self.base / "missing.git"))
         refused = run_cli(self.root, "team", "handoff", bead, "em@corp.com")
         self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)

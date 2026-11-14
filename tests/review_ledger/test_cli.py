@@ -1248,6 +1248,10 @@ class TestWorkspaceLedgerRoot(unittest.TestCase):
         (parent / ".agent-workflow/config.yaml").write_text(
             "workspace:\n  repos:\n    - path: services/order-api\n"
             f"      url: file://{bare}\n      default_branch: main\n      shape: backend\n", encoding="utf-8")
+        (parent / ".gitignore").write_text("services/order-api/\n.planning/worktrees/\n", encoding="utf-8")
+        for args in (("config", "user.email", "t@example.com"), ("config", "user.name", "T"), ("add", "-A"),
+                     ("commit", "-qm", "parent base")):
+            _git(parent, *args)
         child = parent / "services/order-api"
         _git(base, "clone", "-q", str(bare), str(child))
         _git(child, "config", "user.email", "t@example.com")
@@ -1279,11 +1283,33 @@ class TestWorkspaceLedgerRoot(unittest.TestCase):
         _git(cwd, "commit", "-qm", name)
         return _git(cwd, "rev-parse", "HEAD")
 
-    def track_worktree(self, bead):
-        """`.planning/worktrees/<bead>` of the parent: a worktree of the child on feat/x-t1, as gin team claim makes."""
-        worktree = self.parent / ".planning/worktrees" / bead
+    def track_worktree(self, bead, holder=None):
+        """`.planning/worktrees/<bead>` of the parent checkout `holder` (default: the main one): a worktree of the
+        child on feat/x-t1, as gin team claim makes."""
+        worktree = (holder or self.parent) / ".planning/worktrees" / bead
         _git(self.child, "worktree", "add", "-q", "-b", "feat/x-t1", str(worktree), "main")
         return worktree
+
+    def review(self, worker, reviewer, bead):
+        self.ok(worker, "transition-requested", "--bead-id", bead, "--to", "review-requested", "--actor-id", "w1")
+        lease = self.ok(reviewer, "start-review", "--bead-id", bead, "--actor-role", "reviewer",
+                        "--actor-id", REVIEWER).strip().split()[-1].rstrip(".")
+        self.ok(reviewer, "approve", "--bead-id", bead, "--actor-role", "reviewer", "--actor-id", REVIEWER,
+                "--lease-id", lease)
+
+    def assert_history_checked(self, holder, worktree, bead):
+        """validate --in-history from `holder` passes with the track worktree; once it is removed, the child
+        checkout's history is searched: it fails until the track merges into the child's main."""
+        self.assertIn("approved source matches commit",
+                      self.ok(holder, "validate", "--bead-id", bead, "--in-history"))
+        _git(self.child, "worktree", "remove", str(worktree))
+        unmerged = _ledger(holder, "validate", "--bead-id", bead, "--in-history")
+        self.assertEqual(1, unmerged.returncode, unmerged.stdout + unmerged.stderr)
+        self.assertIn("matches the approved source tree", unmerged.stderr)
+        _git(self.child, "merge", "-q", "--ff-only", "feat/x-t1")
+        merged = _git(self.child, "rev-parse", "HEAD")
+        self.assertIn(f"approved source matches commit {merged}",
+                      self.ok(holder, "validate", "--bead-id", bead, "--in-history"))
 
     def test_child_track_ledger_lives_in_the_parent_and_validates_from_the_child_checkout(self):
         worktree = self.track_worktree("b-1")
@@ -1306,44 +1332,54 @@ class TestWorkspaceLedgerRoot(unittest.TestCase):
         self.ok(self.parent, "push-refs", "--bead-id", "b-1")
         self.assertEqual(_git(self.child, "rev-parse", "refs/gin/review/b-1"),
                          _git(self.child_bare, "rev-parse", "refs/gin/review/b-1"))
-        # the reviewer works from the parent: the same ledger
-        self.ok(worktree, "transition-requested", "--bead-id", "b-1", "--to", "review-requested", "--actor-id", "w1")
-        lease = self.ok(self.parent, "start-review", "--bead-id", "b-1", "--actor-role", "reviewer",
-                        "--actor-id", REVIEWER).strip().split()[-1].rstrip(".")
-        self.ok(self.parent, "approve", "--bead-id", "b-1", "--actor-role", "reviewer", "--actor-id", REVIEWER,
-                "--lease-id", lease)
-        self.assertIn("approved source matches commit",
-                      self.ok(self.parent, "validate", "--bead-id", "b-1", "--in-history"))
-        # without the worktree, the history of the child checkout is searched: main lacks the track until it merges
-        _git(self.child, "worktree", "remove", str(worktree))
-        unmerged = _ledger(self.parent, "validate", "--bead-id", "b-1", "--in-history")
-        self.assertEqual(1, unmerged.returncode, unmerged.stdout + unmerged.stderr)
-        self.assertIn("matches the approved source tree", unmerged.stderr)
-        _git(self.child, "merge", "-q", "--ff-only", "feat/x-t1")
-        merged = _git(self.child, "rev-parse", "HEAD")
-        self.assertIn(f"approved source matches commit {merged}",
-                      self.ok(self.parent, "validate", "--bead-id", "b-1", "--in-history"))
+        self.review(worktree, self.parent, "b-1")  # the reviewer works from the parent: the same ledger
+        self.assert_history_checked(self.parent, worktree, "b-1")
+
+    def test_a_ledger_in_a_parent_worktree_validates_from_the_workspace_child_checkout(self):
+        # members work from a worktree of the parent; the child checkout stays in the parent's main checkout
+        holder = self.base / "parent-feat"
+        _git(self.parent, "worktree", "add", "-q", "-b", "feat/x", str(holder))
+        worktree = self.track_worktree("b-5", holder)
+        self.commit(worktree, "work.py", "print('work')\n")
+        self.ok(worktree, "init", "--bead-id", "b-5", "--repo-id", "order-api", "--review-ref", "refs/gin/review/b-5",
+                "--base-sha", "main", "--actor-id", "w1")
+        repository = _repository(holder / ".planning/reviews/b-5/review.json")
+        self.assertEqual((".planning/worktrees/b-5", "services/order-api"),
+                         (repository["repository_path"], repository["history_path"]))
+        self.assertFalse((self.parent / ".planning/reviews").exists())
+        self.review(worktree, holder, "b-5")
+        self.assert_history_checked(holder, worktree, "b-5")
 
     def test_a_review_in_a_child_checkout_keeps_its_ledger_in_the_parent(self):
         # a relative --repo-path is read against the directory the command was run in
         self.ok(self.child, "init", "--bead-id", "b-2", "--repo-id", "order-api", "--repo-path", ".",
                 "--review-ref", "refs/gin/review/b-2", "--actor-id", "w1")
         repository = _repository(self.parent / ".planning/reviews/b-2/review.json")
-        self.assertEqual("services/order-api", repository["repository_path"])
-        self.assertNotIn("history_path", repository)
+        self.assertEqual(("services/order-api", "services/order-api"),
+                         (repository["repository_path"], repository["history_path"]))
         self.assertFalse((self.child / ".planning").exists())
         _git(self.child, "rev-parse", "--verify", "refs/gin/review/b-2")
 
-    def test_a_history_path_that_escapes_the_ledger_root_is_refused(self):
-        outside = self.base / "outside"
-        _git(self.base, "clone", "-q", str(self.child), str(outside))
-        mutate_ledger("b-3", "ledger-created", {"repositories": [{
-            "repository_id": "order-api", "repository_path": ".planning/worktrees/b-3", "history_path": "../outside",
-            "reviewed_source_tree_hash": "0" * 64, "review_base_sha": "HEAD"}]}, "worker", "w1",
-            base_dir=str(self.parent))
-        refused = _ledger(self.parent, "validate", "--bead-id", "b-3", "--in-history")
-        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
-        self.assertIn("history_path '../outside' escapes the ledger root", refused.stderr)
+    def test_validate_refuses_a_history_path_outside_workspace_repos_or_not_cloned(self):
+        _git(self.base, "clone", "-q", str(self.child), str(self.base / "outside"))  # a repository, but no entry
+        for bead, history in (("b-3", "../outside"), ("b-6", "services/order-api")):
+            mutate_ledger(bead, "ledger-created", {"repositories": [{
+                "repository_id": "order-api", "repository_path": f".planning/worktrees/{bead}",
+                "history_path": history, "reviewed_source_tree_hash": "0" * 64, "review_base_sha": "HEAD"}]},
+                "worker", "w1", base_dir=str(self.parent))
+        # the child is not cloned on this machine: say how to get it instead of passing without a check
+        shutil.move(str(self.child), str(self.base / "moved"))
+        ledger = self.parent / ".planning/reviews/b-6/review.json"
+        before = ledger.read_bytes()
+        missing = _ledger(self.parent, "validate", "--bead-id", "b-6", "--in-history")
+        self.assertEqual(1, missing.returncode, missing.stdout + missing.stderr)
+        self.assertIn("repository 'order-api': services/order-api is not cloned; "
+                      "run gin workspace clone services/order-api", missing.stderr)
+        self.assertEqual(before, ledger.read_bytes())
+        self.assertFalse(self.child.exists())
+        outside = _ledger(self.parent, "validate", "--bead-id", "b-3", "--in-history")
+        self.assertEqual(1, outside.returncode, outside.stdout + outside.stderr)
+        self.assertIn("repository 'order-api': history_path '../outside' is not in workspace.repos", outside.stderr)
 
     def test_a_malformed_workspace_manifest_is_reported_and_nothing_is_written(self):
         (self.parent / ".agent-workflow/config.yaml").write_text("workspace:\n  repos: services\n", encoding="utf-8")

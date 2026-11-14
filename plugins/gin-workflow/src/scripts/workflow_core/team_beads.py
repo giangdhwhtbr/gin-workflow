@@ -409,8 +409,8 @@ def _ledger_ref(worktree: Path, bead: str) -> str:
 
 
 def _push_ledger_branch(worktree: Path) -> None:
-    """Push the parent branch that holds a workspace child track's ledger: when it has commits its upstream lacks,
-    or when it is a `feat/` branch without an upstream."""
+    """Push the parent's `feat/` branch that holds a workspace child track's ledger: when it has commits its upstream
+    lacks, or when it has no upstream. Any other branch with such commits is refused, never pushed."""
     root = workspace.ledger_root(worktree)
     if root.resolve() == worktree.resolve():
         return
@@ -419,10 +419,15 @@ def _push_ledger_branch(worktree: Path) -> None:
     except RuntimeError as error:
         raise SyncConflict(f"cannot read the branch of {root}, which holds the review ledger: {error}") from error
     try:
-        push = int(worktrees._git(root, "rev-list", "--count", "@{u}..HEAD")) > 0
+        ahead: int | None = int(worktrees._git(root, "rev-list", "--count", "@{u}..HEAD"))
     except RuntimeError:  # no upstream
-        push = branch.startswith("feat/")
-    if push:
+        ahead = None
+    if not branch.startswith("feat/"):
+        if ahead:
+            raise SyncConflict(f"{branch} in {root} has commits that are not pushed; commit the review ledger on the "
+                               f"parent's feat/<topic> and hand off again")
+        return  # nothing unpushed, or no upstream to compare with
+    if ahead is None or ahead > 0:
         try:
             worktrees._git(root, "push", "-u", "origin", branch)
         except RuntimeError as error:
