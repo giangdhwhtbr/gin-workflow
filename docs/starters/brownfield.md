@@ -92,7 +92,7 @@ flowchart LR
 Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
-Answer `stage: brownfield`, `shape: fullstack`, and `workspace` for the repository layout. Then set `artifacts.layout: sdd` and fill `workspace.repos` in `.agent-workflow/config.yaml`:
+Answer `stage: brownfield`, `shape: fullstack`, and `workspace` for the repository layout. Then set `artifacts.layout: sdd`. Setup asks for each repository and records it with `gin workspace add` (run it yourself to add one later), so `.agent-workflow/config.yaml` ends up with `workspace.repos` like this:
 
 ```yaml
 artifacts:
@@ -119,11 +119,10 @@ workspace:
 
 The `test_globs` list is the default globs plus the Maven test tree, because a configured list replaces the defaults. This lets `gin specs trace` find the services' tests.
 
-Then clone everything and install the hooks in each repository:
+Then clone everything; the clone installs the hooks in each repository:
 
 ```bash
 gin workspace clone --all
-gin hooks install --all-repos
 gin setup doctor
 ```
 
@@ -144,7 +143,7 @@ In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.pack
 
 **Gate or approval:** none.
 
-**Common mistakes:** running `/gin:setup` inside a child instead of the parent; leaving a path in `.gitmodules` while it is also in `workspace.repos` (`gin setup doctor` reports it as still a submodule); forgetting `gin hooks install --all-repos`, so a child has no hooks.
+**Common mistakes:** running `/gin:setup` inside a child instead of the parent; leaving a path in `.gitmodules` while it is also in `workspace.repos` (`gin setup doctor` reports it as still a submodule); cloning a child with plain `git clone`, so it has no hooks (`gin hooks install --all-repos` adds them).
 
 ## Setup and team setup
 
@@ -176,7 +175,7 @@ The api type: tests under qa/api/, run with npm test.
 
 Put in the prompt: the seven members with their git emails and roles, the four areas with their paths, and `permissions: {milestone: [pm]}` so only the PM changes milestones. For `/gin-qa:setup`: the case types `api`, `e2e`, and `manual`, and the test command of the `api` type.
 
-The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin team init` (add `--ci` for a CI workflow), then you commit on a branch, push, and open a pull request. Merge it. A member answers as a member: it checks `gin team whoami` finds your `git config user.email`, installs the commit-msg hook (`gin team hooks`), asks you to log in (`gh auth login` or `glab auth login`), runs `bd init --remote <remote>` when the team shares Beads, and ends with `gin setup doctor`. Nothing is written back to the repository.
+The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin team init` (add `--ci` for a CI workflow), then you commit on a branch, push, and open a pull request. Merge it. In a workspace it also runs `gin team init --all-repos`, which writes the same files into each cloned child; commit and open a pull request in each child too. A member answers as a member: it checks `gin team whoami` finds your `git config user.email`, installs the commit-msg hook (`gin team hooks`), asks you to log in (`gh auth login` or `glab auth login`), runs `bd init --remote <remote>` when the team shares Beads, and ends with `gin setup doctor`. Nothing is written back to the repository.
 
 `/gin-qa:setup` reads what the QA home already says and writes its `guidelines.md` (the `## Types`, `## Automated types`, `## Manual runs`, and `## Bugs` sections), `README.md`, and a project QA skill under `.claude/skills/`. See the [QA add-on](../guides/qa.md#setup-gin-qasetup).
 

@@ -92,7 +92,7 @@ flowchart LR
 Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
-Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó đặt `artifacts.layout: sdd` và điền `workspace.repos` trong `.agent-workflow/config.yaml`:
+Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó đặt `artifacts.layout: sdd`. Setup hỏi từng repository và ghi nó bằng `gin workspace add` (tự chạy lệnh này khi cần thêm một repository sau), nên `.agent-workflow/config.yaml` có `workspace.repos` như sau:
 
 ```yaml
 artifacts:
@@ -119,11 +119,10 @@ workspace:
 
 Danh sách `test_globs` là các glob mặc định cộng thêm cây test của Maven, vì danh sách được cấu hình sẽ thay thế các giá trị mặc định. Nhờ vậy `gin specs trace` tìm thấy test của các service.
 
-Sau đó clone tất cả và cài hook trong từng repository:
+Sau đó clone tất cả; bước clone cài hook trong từng repository:
 
 ```bash
 gin workspace clone --all
-gin hooks install --all-repos
 gin setup doctor
 ```
 
@@ -144,7 +143,7 @@ mkdir -p services/api apps/web qa
 
 **Cổng hoặc phê duyệt:** không có.
 
-**Lỗi thường gặp:** chạy `/gin:setup` trong một repository con thay vì repository cha; để một path trong `.gitmodules` trong khi nó cũng có trong `workspace.repos` (`gin setup doctor` báo là vẫn còn submodule); quên `gin hooks install --all-repos` nên một repository con không có hook.
+**Lỗi thường gặp:** chạy `/gin:setup` trong một repository con thay vì repository cha; để một path trong `.gitmodules` trong khi nó cũng có trong `workspace.repos` (`gin setup doctor` báo là vẫn còn submodule); clone một repository con bằng `git clone` thông thường nên nó không có hook (`gin hooks install --all-repos` bổ sung hook).
 
 ## Setup và team setup { #setup-and-team-setup }
 
@@ -176,7 +175,7 @@ The api type: tests under qa/api/, run with npm test.
 
 Đưa vào prompt: bảy thành viên cùng git email và vai trò của họ, bốn khu vực cùng đường dẫn, và `permissions: {milestone: [pm]}` để chỉ PM thay đổi milestone. Với `/gin-qa:setup`: các loại case `api`, `e2e` và `manual`, và lệnh test của loại `api`.
 
-Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, chạy `gin team init` (thêm `--ci` cho một workflow CI), rồi bạn commit trên một branch, push và mở pull request. Hãy merge nó. Một thành viên trả lời với tư cách thành viên: nó kiểm tra `gin team whoami` tìm thấy `git config user.email` của bạn, cài commit-msg hook (`gin team hooks`), yêu cầu bạn đăng nhập (`gh auth login` hoặc `glab auth login`), chạy `bd init --remote <remote>` khi nhóm dùng chung Beads, và kết thúc bằng `gin setup doctor`. Không có gì được ghi ngược vào repository.
+Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, chạy `gin team init` (thêm `--ci` cho một workflow CI), rồi bạn commit trên một branch, push và mở pull request. Hãy merge nó. Trong workspace, nó còn chạy `gin team init --all-repos`, lệnh ghi các file tương tự vào từng repository con đã clone; hãy commit và mở pull request trong từng repository con. Một thành viên trả lời với tư cách thành viên: nó kiểm tra `gin team whoami` tìm thấy `git config user.email` của bạn, cài commit-msg hook (`gin team hooks`), yêu cầu bạn đăng nhập (`gh auth login` hoặc `glab auth login`), chạy `bd init --remote <remote>` khi nhóm dùng chung Beads, và kết thúc bằng `gin setup doctor`. Không có gì được ghi ngược vào repository.
 
 `/gin-qa:setup` đọc những gì QA home đã nói và ghi `guidelines.md` của nó (các mục `## Types`, `## Automated types`, `## Manual runs` và `## Bugs`), `README.md`, và một skill QA của dự án dưới `.claude/skills/`. Xem [add-on QA](../guides/qa.md#setup-gin-qasetup).
 

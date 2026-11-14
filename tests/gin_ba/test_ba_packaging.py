@@ -67,6 +67,11 @@ class BaPackagingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, capture)
 
+    def test_capture_hints_an_uncloned_frozen_legacy(self):
+        capture = (BA / "src/skills/capture/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("gin workspace status --json", capture)
+        self.assertIn("gin workspace clone <path>", capture)
+
     def test_no_code_or_agents(self):
         self.assertFalse((BA / "src/scripts").exists())
         self.assertFalse((BA / "src/agents").exists())

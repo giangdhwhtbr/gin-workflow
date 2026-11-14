@@ -246,3 +246,18 @@ class SkillRoutingTests(unittest.TestCase):
         reconcile = next(i for i, l in enumerate(lines) if "reconcile knowledge per `learn`" in l)
         present = next(i for i, l in enumerate(lines) if l.startswith("4. Present"))
         self.assertLess(reconcile, present)
+
+    def test_workspace_skills_use_child_aware_commands(self):
+        def read(rel):
+            return (SRC / rel).read_text(encoding="utf-8")
+
+        self.assertIn("gin hooks status --all-repos", read("skills/ship/SKILL.md"))
+        setup = read("skills/setup/SKILL.md")
+        self.assertIn("gin workspace add", setup)
+        self.assertIn("gin team init --all-repos", setup)
+        self.assertNotIn("gin hooks install --all-repos", setup)
+        for skill in ("tech-doc", "explain", "discuss"):
+            with self.subTest(skill=skill):
+                text = read(f"skills/{skill}/SKILL.md")
+                self.assertIn("gin workspace clone <path>", text)
+                self.assertIn("gin workspace status --json", text)

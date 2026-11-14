@@ -15,7 +15,7 @@ description: Describe an existing feature from screenshots in a dated asset fold
    - Add the screenshots the BA names, from inside or outside the repository: `gin specs assets add <cap> <files...> --legacy --date <date>`. It copies them under `<date>/legacy/`, accepts only `.png`, `.jpg`, `.jpeg`, `.webp`, or `.gif`, and writes `description.md` with `Kind: legacy`, `Previous:`, and `Confirmed: no` when it is missing. On exit 2, report its message and stop; a folder whose `description.md` reads `Confirmed: <YYYY-MM-DD>` is frozen: ask for a new date and never edit it.
    - With no files named and none under `<date>/legacy/`, ask the BA for the screenshot paths.
    - Ask once who gave the screenshots for `Source:`.
-3. Read each screenshot in name order. Read the code paths the user named, and only those, to confirm a field's type, whether it is required, or a rule; never widen the search on your own.
+3. Read each screenshot in name order. Read the code paths the user named, and only those, to confirm a field's type, whether it is required, or a rule; never widen the search on your own. In a workspace, run `gin workspace status --json`; for each row with `frozen: true` and `present: false`, print `gin workspace clone <path>` and continue without it; when the command fails, say the state of the frozen entries is unknown, give the error, and continue.
 4. Write `description.md` per [references/legacy-description.md](references/legacy-description.md):
    - keep the header lines and the template sections;
    - `## Summary`: what the feature does today, in two or three sentences;
