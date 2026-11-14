@@ -18,7 +18,7 @@ description: Implement and validate exactly one ready work unit at its manifest 
 
 ## 2. Implement
 - Follow the plan steps exactly, test first. Keep changes minimal and in scope.
-- Read the shape appendix for `project.shape` from `gin state --format json` (plugin `references/shape-<shape>.md`) before editing.
+- Read the shape appendix (plugin `references/shape-<shape>.md`) for `workspace.current.shape` from `gin state --format json`, else `project.shape`, before editing.
 - With `project.layout: sdd`, tests carry the track's REQ-IDs (the `sdd` skill).
 - Run `gin rules --files <scope files>` and give its output to the `developer` agent. Rules never widen the scope.
 - On a `greenfield` project, a task that sets up lint, typecheck, or test starts from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin setup doctor --format json`.

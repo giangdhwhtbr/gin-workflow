@@ -37,6 +37,10 @@ flowchart TD
   W -.->|"worktree of one child"| S
 ```
 
+## Cài đặt theo từng mục { #per-entry-settings }
+
+`shape`, `verify.checks` và `rules.packs` của mỗi mục chỉ áp dụng bên trong repository đó. Từ một repository con hoặc worktree của nó, `gin state` báo mục này dưới dạng `workspace.current`. `gin evidence run` chạy các check của mục, `gin rules` cộng packs của mục vào packs của repository cha, và `gin setup doctor` báo cáo về check và rule của mục. Các skill execute và worktrees đọc shape và lệnh test từ `workspace.current`. Các khóa nằm trong [cấu hình](../reference/config.md#workspace) và các lệnh nằm trong [tham chiếu CLI](../reference/cli.md).
+
 ## Thiết lập một lần { #setup-once }
 
 Tech lead thực hiện phần này.
@@ -135,7 +139,7 @@ Package dùng chung là một mục `shape: library` của `workspace.repos`. Th
 | `gin hooks status --all-repos` | In trạng thái hook và tên check của mọi repository đã clone có `verify.checks`, trừ mục frozen và beads, dưới dạng JSON; exit 1 khi có một repository không ok |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Tạo worktree của track cho một repository con dưới `.planning/worktrees/` của repository cha |
 | `gin worktree cleanup --repository <repo> <track-id>` | Gỡ nó |
-| `gin state --format json` | Khóa `workspace` là `null` ngoài workspace; nếu không nó chứa `root`, `current_repo` và `repos[]` với `path`, `shape`, `frozen`, `present` và `branch` |
+| `gin state --format json` | Khóa `workspace` là `null` ngoài workspace; nếu không nó chứa `root`, `current_repo`, `current` (mục bạn đang chạy lệnh, hoặc `null` ở repository cha) và `repos[]` với `path`, `shape`, `frozen`, `present` và `branch` |
 
 Tất cả chạy được từ bất kỳ đâu trong workspace, kể cả trong một repository con. `gin state` bên trong repository con in cùng các gate và epic như ở repository cha. Xem [tham chiếu CLI](../reference/cli.md#gin-workspace).
 

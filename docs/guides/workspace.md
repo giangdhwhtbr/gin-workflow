@@ -37,6 +37,10 @@ flowchart TD
   W -.->|"worktree of one child"| S
 ```
 
+## Per-entry settings
+
+Each entry's `shape`, `verify.checks`, and `rules.packs` apply inside that repository. From a child or its worktree, `gin state` reports the entry as `workspace.current`. `gin evidence run` runs the entry's checks, `gin rules` adds its packs to the parent's, and `gin setup doctor` reports on its checks and rules. The execute and worktrees skills read the shape and the test command from `workspace.current`. The keys are in [configuration](../reference/config.md#workspace) and the commands in the [CLI reference](../reference/cli.md).
+
 ## Setup once
 
 The tech lead does this.
@@ -135,7 +139,7 @@ A shared package is a `shape: library` entry of `workspace.repos`. A change to i
 | `gin hooks status --all-repos` | Prints the hook states and check names of every cloned repository that has `verify.checks`, except frozen and beads entries, as JSON; exits 1 when one is not ok |
 | `gin worktree create --repository <repo> <track-id> <branch> [base]` | Creates the track worktree of one child under the parent `.planning/worktrees/` |
 | `gin worktree cleanup --repository <repo> <track-id>` | Removes it |
-| `gin state --format json` | The `workspace` key is `null` outside a workspace; otherwise it holds `root`, `current_repo`, and `repos[]` with `path`, `shape`, `frozen`, `present`, and `branch` |
+| `gin state --format json` | The `workspace` key is `null` outside a workspace; otherwise it holds `root`, `current_repo`, `current` (the entry you run from, or `null` in the parent), and `repos[]` with `path`, `shape`, `frozen`, `present`, and `branch` |
 
 All of them run from anywhere inside the workspace, including a child. `gin state` inside a child prints the same gates and epic as in the parent. See the [CLI reference](../reference/cli.md#gin-workspace).
 
