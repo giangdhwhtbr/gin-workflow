@@ -387,9 +387,13 @@ def refresh(repository: Path, *, dry_run: bool = False, **_: Any) -> dict[str, A
         "generate .agent-workflow/generated/effective-config.yaml",
         "generate .agent-workflow/generated/config-provenance.yaml",
         "write .agent-workflow/executables.local.yaml",
+        "write .agent-workflow/.gitignore",
     ]
     if not dry_run:
         write_local(root, detect_tools(root=root))
+        # a repository set up before a local file existed lacks its ignore line
+        ignore_path = root / ".agent-workflow/.gitignore"
+        atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
     if writes:
         actions.append("update AGENTS.md gin block")
     return {
