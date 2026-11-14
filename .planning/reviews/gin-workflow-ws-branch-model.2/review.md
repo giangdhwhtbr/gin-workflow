@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000030`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `ffb8ecf`, Tree Hash: `490cb46`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,31 +33,31 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `CRITICAL` | `fixed-awaiting-verification` | 0 | - |
-| `F-2` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
-| `F-3` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
-| `F-4` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
-| `F-5` | `MINOR` | `deferral-proposed` | 0 | `gin-workflow-xmbz` |
+| `F-1` | `CRITICAL` | `verified` | 0 | - |
+| `F-2` | `IMPORTANT` | `verified` | 0 | - |
+| `F-3` | `IMPORTANT` | `verified` | 0 | - |
+| `F-4` | `MINOR` | `verified` | 0 | - |
+| `F-5` | `MINOR` | `deferred-verified` | 0 | `gin-workflow-xmbz` |
 
 ## Findings Detail
 ### `F-1` (CRITICAL)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-2` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-3` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-4` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-5` (MINOR)
-- **Status:** `deferral-proposed`
+- **Status:** `deferred-verified`
 - **Clarification Count:** 0
 - **Deferral Reason:** close guard lookup lives in tasks.py and close_guard.py, outside Track 2's file scope; tracked by a follow-up bead
 - **Follow-up Bead:** `gin-workflow-xmbz` (*gin task close reads a workspace child track's review ledger from workspace.ledger_root*)
@@ -84,3 +88,12 @@
 | `EV-000020` | `2026-11-14T17:05:53.688756Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
 | `EV-000021` | `2026-11-14T17:05:54.066722Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
 | `EV-000022` | `2026-11-14T17:20:53.217713Z` | `review-requested` | `worker:claude:session-main` (worker) |
+| `EV-000023` | `2026-11-14T17:25:07.001704Z` | `lease-acquired` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000024` | `2026-11-14T17:25:07.032470Z` | `review-started` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000025` | `2026-11-14T17:25:14.042278Z` | `finding-verified` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000026` | `2026-11-14T17:25:14.179214Z` | `finding-verified` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000027` | `2026-11-14T17:25:14.302127Z` | `finding-verified` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000028` | `2026-11-14T17:25:14.425129Z` | `finding-verified` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000029` | `2026-11-14T17:25:14.547515Z` | `deferral-approved` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000030` | `2026-11-14T17:25:19.737197Z` | `review-approved` | `reviewer:claude:session-de96d290` (reviewer) |
+| `EV-000031` | `2026-11-14T17:25:19.972390Z` | `lease-released` | `reviewer:claude:session-de96d290` (reviewer) |
