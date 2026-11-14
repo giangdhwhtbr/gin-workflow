@@ -156,15 +156,14 @@ def commit(
         located = workspace.locate(primary_repo)
         if located.entry is not None and located.entry.default_branch:
             default_branches.add(located.entry.default_branch)
-    except Exception:
-        pass
+    except workspace.WorkspaceError:
+        pass  # a broken workspace config leaves only main/master as default branches
 
     is_default = current_branch in default_branches
-    should_create = is_default or (branch is not None and branch != current_branch)
     commit_branch = current_branch
     created_branch = False
 
-    if should_create:
+    if is_default:
         if branch is not None:
             target_name = branch
         else:
@@ -222,7 +221,7 @@ def commit(
     commit_sha = sha_proc.stdout.strip()
 
     diff_proc = subprocess.run(
-        ["git", "-C", str(primary_repo), "diff-tree", "--no-commit-id", "--name-only", "-r", commit_sha],
+        ["git", "-C", str(primary_repo), "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", commit_sha],
         capture_output=True,
         text=True,
         check=False,

@@ -153,6 +153,26 @@ class TestScopedCommit(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(git(self.repo, "branch", "--show-current"), "qa/my-cases")
 
+    def test_feature_branch_ignores_branch_option(self):
+        git(self.repo, "checkout", "-q", "-b", "feat/mine")
+        (self.repo / "qa").mkdir()
+        (self.repo / "qa/a.md").write_text("a", encoding="utf-8")
+        result = commit(self.repo, ["qa"], "save", branch="qa/other")
+        self.assertFalse(result["created_branch"])
+        self.assertEqual(git(self.repo, "branch", "--show-current"), "feat/mine")
+        self.assertEqual(git(self.repo, "branch", "--list", "qa/other"), "")
+
+    def test_first_commit_in_empty_repository_lists_files(self):
+        empty = self.base / "empty"
+        empty.mkdir()
+        git(empty, "init", "-q", "-b", "feature")
+        git(empty, "config", "user.email", "tester@example.com")
+        git(empty, "config", "user.name", "Tester")
+        (empty / "qa").mkdir()
+        (empty / "qa/a.md").write_text("a", encoding="utf-8")
+        result = commit(empty, ["qa"], "first")
+        self.assertEqual(result["files"], ["qa/a.md"])
+
     def test_workspace_child_default_branch(self):
         # Create a workspace parent and a child
         ws_root = self.base / "workspace"
