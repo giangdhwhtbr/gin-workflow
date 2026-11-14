@@ -16,8 +16,8 @@ Read this when `gin state --format json` reports `workspace` and `project.team.e
 ## Ledgers
 
 - A child track's ledger is written to the parent's `.planning/reviews/<bead>/` on `feat/<topic>`; `review-ledger.py` finds it from the track worktree. Checkpoint commits and the review ref stay in the child.
-- Every ledger session, implementer or reviewer, starts with `git pull --rebase` on `feat/<topic>` and ends with a commit of `.planning/reviews/<bead>/` and a push.
-- `team handoff` pushes that branch and `team takeover` pulls it.
+- Every ledger session, implementer or reviewer, starts with `git pull --rebase` on `feat/<topic>` and ends with a commit of `.planning/reviews/<bead>/` and a push. This is a team convention; the tools do not do it.
+- For a child track, `team handoff` pushes the parent's `feat/<topic>` when it has unpushed ledger commits (it refuses another branch with such commits), and `team takeover` pulls it when it has an upstream.
 
 ## Closing
 

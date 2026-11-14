@@ -507,7 +507,7 @@ Open a pull request instead of merging locally; Chi approves the latest commit f
 
 **Cổng hoặc phê duyệt:** BA nghiệm thu mỗi epic bằng một comment nghiệm thu trước khi ship ([trong lúc build](../guides/ba.md#during-the-build)). Merge vào base branch cần phê duyệt rõ ràng; phê duyệt `ship` trên commit mới nhất được kiểm tra trước.
 
-**Lỗi thường gặp:** ship track của một thành viên như thể tính năng đã hoàn tất; khi mọi pull request của track và pull request `feat/<topic>` của repository cha đã merge, area lead chạy `gin team complete <epic>`.
+**Lỗi thường gặp:** ship track của một thành viên như thể tính năng đã hoàn tất; khi mọi pull request của track và, nếu `feat/<topic>` có trên `origin` của repository cha, cả pull request của nó đã merge, area lead chạy `gin team complete <epic>`.
 
 ## Review milestone và spill-over { #milestone-review-and-spill-over }
 

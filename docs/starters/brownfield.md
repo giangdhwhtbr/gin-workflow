@@ -507,7 +507,7 @@ Put in the prompt: the epic and whether to merge now or keep the branch.
 
 **Gate or approval:** the BA accepts each epic with an acceptance comment before ship ([during the build](../guides/ba.md#during-the-build)). Merging into the base branch needs explicit approval; the `ship` approval on the latest commit is checked first.
 
-**Common mistakes:** shipping one member's track as if the feature were complete. Once every track pull request and the parent's `feat/<topic>` pull request have merged, an area lead runs `gin team complete <epic>`.
+**Common mistakes:** shipping one member's track as if the feature were complete. Once every track pull request and, when `feat/<topic>` exists on the parent's `origin`, its pull request have merged, an area lead runs `gin team complete <epic>`.
 
 ## Milestone review and spill-over
 
