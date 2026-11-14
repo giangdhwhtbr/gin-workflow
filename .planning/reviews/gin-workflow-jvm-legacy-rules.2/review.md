@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -37,3 +37,4 @@
 | :--- | :--- | :--- | :--- |
 | `EV-000001` | `2026-11-14T13:49:34.487835Z` | `ledger-created` | `implementer:antigravity:worker` (worker) |
 | `EV-000002` | `2026-11-14T13:49:34.823101Z` | `source-checkpoint-created` | `implementer:antigravity:worker` (worker) |
+| `EV-000003` | `2026-11-14T13:53:17.062020Z` | `review-requested` | `implementer:antigravity:worker` (worker) |
