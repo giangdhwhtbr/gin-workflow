@@ -20,8 +20,12 @@ from . import workspace
 HUMAN_GATE = "human-gate"
 
 
-def goal_text(epic: str, tracks: Sequence[dict[str, Any]], workflow_id: str = "ID") -> str:
-    """The /goal line for the open tracks the agent can finish, or a line saying why there is none."""
+def goal_text(epic: str, tracks: Sequence[dict[str, Any]], workflow_id: str, review_ledger: bool) -> str:
+    """The /goal line for the open tracks the agent can finish, or a line saying why there is none.
+
+    The review clause is part of the condition only when the review ledger is on; otherwise no ledger
+    exists and no waiver is recorded, so the clause could never be met.
+    """
     found = {track["id"]: track for track in tracks if track.get("status") != "closed"}
     blockers = {bead: {dep.get("depends_on_id") for dep in track.get("dependencies") or []
                        if dep.get("type", "blocks") == "blocks"} & found.keys()
@@ -39,14 +43,20 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]], workflow_id: str = "I
         named = ", ".join(f"{bead} ({open_tracks[bead].get('title', '')})" for bead in gates)
         return f"No goal: every open track of epic {epic} waits on a human: {named}."
     text = (f"/goal tracks {', '.join(runnable)} of epic {epic} are closed in Beads (`gin task show`), "
-            f"`gin state --workflow-id {workflow_id} --format json` shows `implementation_complete` satisfied, "
-            f"and each of those tracks has a review ledger of `review-approved` or is listed in `review_waivers`.")
+            f"`gin state --workflow-id {workflow_id} --format json` shows `implementation_complete` satisfied")
+    if review_ledger:
+        text += (", and for each of those tracks `python3 review-ledger.py status --bead-id <id>` shows an approved "
+                 "state (`review-approved` or later) or the track is listed in `review_waivers`")
+    text += "."
     if held:
         text += f" Do not start {', '.join(bead for bead in open_tracks if bead in held)}: they need a human."
     return text
 
 
 def main(argv: Sequence[str]) -> int:
+    from .checkout import main_checkout
+    from .configuration import resolve_effective_config
+    from .project import project_settings
     from .lifecycle_cli import _get_event_store, _recorded_epic
 
     parser = argparse.ArgumentParser(prog="gin goal")
@@ -66,5 +76,6 @@ def main(argv: Sequence[str]) -> int:
     if not isinstance(tracks, list):
         print("error: the task backend is unavailable", file=sys.stderr)
         return 1
-    print(goal_text(epic, tracks, args.workflow_id))
+    config = resolve_effective_config(main_checkout(args.repository), write=False).config.to_dict()
+    print(goal_text(epic, tracks, args.workflow_id, project_settings(config).review_ledger))
     return 0
