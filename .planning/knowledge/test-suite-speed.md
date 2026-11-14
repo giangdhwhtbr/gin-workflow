@@ -20,6 +20,11 @@ Bead `gin-workflow-a21c` (2026-11-14). Every track runs the full suite at least 
 - `gin task ready` hands bd's output straight to the terminal when nothing is held, so an in-process run cannot capture it; those tests stay subprocesses.
 - A new test that runs `gin` or `gin-qa` should use the in-process helpers unless it is the subcommand's one subprocess test. A new line-by-line scan should report one subtest per file.
 - Wall-clock scheduler tests flaked under parallel load (`gin-workflow-2o6e`, `gin-workflow-mj2c`, `gin-workflow-el1d`); each fix widened the window a timer must hit. To prove such a fix, shift the timer delay in a scratch copy of the test: CPU-burning processes do not reproduce a race between threads of one Python process (el1d: 0/200 failures with 4 burners and 0/100 with 16, while a 40 ms later timer reproduced the failure). Loops under artificial load cost most of el1d's 42 minutes; do not use them.
+- Team fixture pitfalls (`gin-workflow-team-progress.1`):
+  - `tasks.query_result` uses the markdown backend until `.agent-workflow/generated/effective-config.yaml` exists, and `team_fixtures.make_team_repo` does not write it; call `resolve_effective_config(root)` before faking bd through `query_result` or `epic_kind.lookup`.
+  - The fake bd answers by argv prefix and ignores filters such as `--status` and `--all`; a test that must prove a status filter needs the filter in Python.
+  - `check_approval` drops the author's own approval, and `team_fixtures.gh_pr` defaults the author to `an-ba`; a test that needs a ba approval sets another author.
+  - To prove fail-first for a committed change without `git stash`, `git archive <base> pytest.ini tests plugins/gin-workflow/src` into a scratch folder, copy the new tests in, and run pytest there.
 - Copied fixtures keep `core.hooksPath` and the Dolt backup URL of the template. This has no effect today, but it would matter if a test ran hooks or a Dolt backup.
 
 **References**
