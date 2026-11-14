@@ -11,13 +11,15 @@ import subprocess
 import sys
 from typing import Any, Mapping, Sequence
 
-from . import tasks, worktrees
+from . import tasks, workspace, worktrees
 from .executables import tool
 from .prep import is_prep
 from .team import Area, Member, TeamConfig, TeamError
+from .team_pending import _TRACK_LINE, topic_of
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
+_REPO_LINE = re.compile(r"^Repo:\s*`?([^`\s]+)`?\s*$", re.M)
 _TRACKS_LINE = re.compile(r"^Tracks:\s*([\d,\s]+)$", re.M)
 RELEASED = "released"
 
@@ -191,6 +193,63 @@ def sync(root: Path) -> dict[str, Any]:
     return {"status": "synced"}
 
 
+def track_of(issue: Mapping[str, Any]) -> tuple[str, int, str | None] | None:
+    """(topic, track number, `Repo:` path or None) from the description; None without `Plan: <path>, Track <N>`."""
+    body = str(issue.get("description") or "")
+    track = _TRACK_LINE.search(body)
+    if track is None:
+        return None
+    repo = _REPO_LINE.search(body)
+    return topic_of(track[1]), int(track[2]), repo[1] if repo else None
+
+
+def default_branch(repo: Path, entry: workspace.Repo | None) -> str:
+    """A child's `default_branch`; else the branch `origin/HEAD` of `repo` names; else `main`."""
+    if entry is not None:
+        return entry.default_branch
+    try:
+        head = worktrees._git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+    except RuntimeError:
+        return "main"
+    return head.removeprefix("origin/") or "main"
+
+
+def _track_repo(root: Path, repo: str | None) -> tuple[Path, workspace.Repo | None]:
+    """The track's repository: the cloned workspace child its `Repo:` names, else `root`."""
+    if repo is None:
+        return root, None
+    space = workspace.locate(root).workspace
+    entry = space.repo(repo) if space is not None else None
+    if entry is None:
+        raise SyncConflict(f"Repo: {repo} is not in workspace.repos")
+    if not space.present(entry):
+        raise SyncConflict(f"{repo} is not cloned; run gin workspace clone {repo}")
+    return space.checkout(entry), entry
+
+
+def track_worktree(root: Path, issue: Mapping[str, Any], bead: str) -> dict[str, Any] | None:
+    """The worktree `.planning/worktrees/<bead>` on `feat/<topic>-t<N>`, created from `origin/<default>` of the
+    track's repository unless it exists; None for a bead without a `Plan: <path>, Track <N>` line."""
+    track = track_of(issue)
+    if track is None:
+        return None
+    topic, number, repo = track
+    repo_dir, entry = _track_repo(root, repo)
+    branch = f"feat/{topic}-t{number}"
+    try:
+        target = worktrees._target(repo_dir, bead, root)
+        if target.exists():
+            return {"worktree": str(target), "branch": worktrees._git(target, "rev-parse", "--abbrev-ref", "HEAD"),
+                    "created": False}
+        worktrees._git(repo_dir, "check-ref-format", "--branch", branch)
+        default = default_branch(repo_dir, entry)
+        worktrees._git(repo_dir, "fetch", "origin", default)
+        worktrees.create(repo_dir, bead, branch, f"origin/{default}", root)
+    except (RuntimeError, ValueError) as error:
+        raise SyncConflict(str(error)) from error
+    return {"worktree": str(target), "branch": branch, "created": True}
+
+
 def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, Any]:
     """Claim or renew a bead; an expired lease held by someone else is taken over with a note."""
     if team.beads_remote:
@@ -200,6 +259,9 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
     ineligible = [] if released else [area.name for area in _areas_of(team, issue) if not team.eligible(member, area)]
     if ineligible:
         raise SyncConflict(f"{member.email} may not own tracks in {', '.join(ineligible)}")
+    track = track_of(issue)
+    if track is not None:
+        _track_repo(root, track[2])  # an unknown or uncloned child refuses before the lease
     holder = (issue.get("assignee") or "").lower()
     expires_at = _expires(team)
     lease = json.dumps({"holder": member.email, "expires_at": expires_at})
@@ -216,8 +278,12 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
+    try:
+        made = track_worktree(root, issue, bead)
+    except SyncConflict as error:
+        raise SyncConflict(f"{error}; the claim is kept; run gin team claim {bead} again") from error
     return {"status": "renewed" if holder == member.email else "claimed", "bead": bead, "assignee": member.email,
-            "expires_at": expires_at, "advisory": not team.beads_remote}
+            "expires_at": expires_at, "advisory": not team.beads_remote, **(made or {})}
 
 
 def push(root: Path, team: TeamConfig) -> None:
@@ -376,14 +442,17 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
 
 
 def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch: str | None = None) -> dict[str, Any]:
-    """Fetch the handed-off branch, check it out at .planning/worktrees/<bead>, fetch the review ref, claim."""
+    """Fetch the handed-off branch in the track's repository (the bead's workspace `Repo:`, else `root`), check it
+    out at .planning/worktrees/<bead>, fetch the review ref, claim."""
     git_dir = (root / worktrees._git(root, "rev-parse", "--git-dir")).resolve()
     common = (root / worktrees._git(root, "rev-parse", "--git-common-dir")).resolve()
-    if git_dir != common:
-        raise SyncConflict("run gin team takeover from the main checkout, not a linked worktree")
     if team.beads_remote:
         sync(root)
     issue = _show(root, bead)
+    track = track_of(issue)
+    repo_dir, entry = _track_repo(root, track[2] if track else None)
+    if entry is None and git_dir != common:
+        raise SyncConflict("run gin team takeover from the main checkout, not a linked worktree")
     branch = branch or str(handoff_of(issue).get("branch") or "")
     if not branch:
         raise SyncConflict(f"no handoff branch recorded for {bead}; pass --branch <name>")
@@ -394,8 +463,8 @@ def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch:
     except RuntimeError as error:
         raise SyncConflict(f"invalid branch name {branch!r} in the handoff metadata: {error}") from error
     try:
-        worktrees._git(root, "fetch", "origin", branch)
-        path = worktrees.checkout(root, bead, branch)
+        worktrees._git(repo_dir, "fetch", "origin", branch)
+        path = worktrees.checkout(repo_dir, bead, branch, root)
     except (RuntimeError, ValueError) as error:
         raise SyncConflict(str(error)) from error
     try:

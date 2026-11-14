@@ -701,5 +701,166 @@ class TestTeamBeadsReadyFakeBd(unittest.TestCase):
             self.assertEqual(2, rows[1]["priority"])
 
 
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamClaimWorktree(unittest.TestCase):
+    """R3, R4, US-1, US-2: claim creates the track worktree in the bead's `Repo:`; takeover works in that child."""
+
+    PLAN = "Plan: .planning/plans/2026-11-14-x.md, Track 2\nRepo: services/order-api"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.base = Path(self.tmp.name).resolve()
+        self.child_bare = self.base / "remotes/order-api.git"
+        git(self.base, "init", "-q", "--bare", "-b", "main", str(self.child_bare))
+        self.scratch = self.base / "scratch"
+        self.scratch.mkdir()
+        git(self.scratch, "init", "-q", "-b", "main")
+        git(self.scratch, "config", "user.email", "binh@corp.com")
+        git(self.scratch, "config", "user.name", "T")
+        self.child_head = self.child_commit("README.md", "order-api\n")
+        parent_bare = self.base / "remotes/parent.git"
+        git(self.base, "init", "-q", "--bare", "-b", "main", str(parent_bare))
+        self.root = make_team_repo(self.base / "ws", extra=(
+            "workspace:\n  repos:\n    - path: services/order-api\n"
+            f"      url: file://{self.child_bare}\n      default_branch: main\n      shape: backend\n"))
+        git(self.root, "remote", "set-url", "origin", str(parent_bare))
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "parent base")
+        git(self.root, "push", "-q", "origin", "main")
+        init_beads(self.root)
+        self.child_dir = self.root / "services/order-api"
+        git(self.root, "clone", "-q", str(self.child_bare), str(self.child_dir))
+        git(self.child_dir, "config", "user.email", "binh@corp.com")
+        git(self.child_dir, "config", "user.name", "T")
+        self.target = self.root / ".planning/worktrees"
+
+    def child_commit(self, name: str, text: str) -> str:
+        """Commit `name` on the child's origin `main` from a scratch clone; returns the new sha."""
+        (self.scratch / name).write_text(text, encoding="utf-8")
+        git(self.scratch, "add", name)
+        git(self.scratch, "commit", "-q", "-m", name)
+        git(self.scratch, "push", "-q", str(self.child_bare), "main")
+        return git(self.scratch, "rev-parse", "HEAD").strip()
+
+    def track_bead(self, title: str, description: str = PLAN) -> str:
+        bead = create(self.root, title, "area:backend")
+        bd(self.root, "update", bead, "--description", description)
+        return bead
+
+    def test_claim_creates_the_child_worktree_from_the_fetched_default_branch(self):
+        # origin/main of the child moves after the clone: claim must fetch it and branch from the new tip
+        tip = self.child_commit("api.txt", "v2\n")
+        bead = self.track_bead("Order track")
+        claimed = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        target = self.target / bead
+        self.assertIn(f"claimed {bead} at {target} on feat/x-t2", claimed.stdout)
+        self.assertEqual("feat/x-t2", git(target, "rev-parse", "--abbrev-ref", "HEAD").strip())
+        self.assertEqual(tip, git(target, "rev-parse", "HEAD").strip())
+        self.assertNotEqual(self.child_head, tip)
+        common = Path(git(target, "rev-parse", "--path-format=absolute", "--git-common-dir").strip())
+        self.assertEqual((self.child_dir / ".git").resolve(), common.resolve())
+        self.assertEqual("binh@corp.com", show(self.root, bead)["assignee"])
+
+    def test_claiming_again_renews_the_lease_and_keeps_the_worktree(self):
+        bead = self.track_bead("Order track")
+        first = run_cli(self.root, "team", "claim", bead, "--format", "json")
+        self.assertEqual(0, first.returncode, first.stdout + first.stderr)
+        self.assertTrue(json.loads(first.stdout)["created"])
+        marker = self.target / bead / "work.txt"
+        marker.write_text("in progress", encoding="utf-8")
+        again = run_cli(self.root, "team", "claim", bead, "--format", "json")
+        self.assertEqual(0, again.returncode, again.stdout + again.stderr)
+        data = json.loads(again.stdout)
+        self.assertEqual({"status": "renewed", "worktree": str(self.target / bead), "branch": "feat/x-t2",
+                          "created": False}, {key: data[key] for key in ("status", "worktree", "branch", "created")})
+        self.assertEqual("in progress", marker.read_text(encoding="utf-8"))
+        text = run_cli(self.root, "team", "claim", bead)
+        self.assertIn(f"renewed {bead} at {self.target / bead} on feat/x-t2", text.stdout)
+
+    def test_uncloned_child_refuses_claim_and_takeover_without_a_lease(self):
+        shutil.rmtree(self.child_dir)
+        bead = self.track_bead("Uncloned")
+        refused = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("gin workspace clone services/order-api", refused.stdout)
+        self.assertFalse(show(self.root, bead).get("assignee"))
+        taken = run_cli(self.root, "team", "takeover", bead, "--branch", "feat/x-t2")
+        self.assertEqual(1, taken.returncode, taken.stdout + taken.stderr)
+        self.assertIn("gin workspace clone services/order-api", taken.stdout)
+        self.assertFalse(show(self.root, bead).get("assignee"))
+
+    def test_repo_outside_the_workspace_is_refused_without_a_lease(self):
+        bead = self.track_bead("Elsewhere", "Plan: .planning/plans/2026-11-14-x.md, Track 2\nRepo: ../evil")
+        refused = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("Repo: ../evil is not in workspace.repos", refused.stdout)
+        self.assertFalse(show(self.root, bead).get("assignee"))
+        self.assertFalse(self.target.exists())
+
+    def test_fetch_failure_keeps_the_lease_and_says_to_claim_again(self):
+        git(self.child_dir, "remote", "set-url", "origin", str(self.base / "missing.git"))
+        bead = self.track_bead("Fetch fail")
+        failed = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(1, failed.returncode, failed.stdout + failed.stderr)
+        self.assertIn(f"the claim is kept; run gin team claim {bead} again", failed.stdout)
+        self.assertEqual("binh@corp.com", show(self.root, bead)["assignee"])
+        self.assertFalse((self.target / bead).exists())
+
+    def test_bead_without_a_plan_line_gets_the_lease_only(self):
+        bead = create(self.root, "No plan", "area:backend")
+        claimed = run_cli(self.root, "team", "claim", bead, "--format", "json")
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        self.assertEqual({"status", "bead", "assignee", "expires_at", "advisory"}, set(json.loads(claimed.stdout)))
+        self.assertFalse(self.target.exists())
+
+    def test_single_repository_team_creates_the_worktree_in_the_parent(self):
+        origin = self.base / "remotes/single.git"
+        git(self.base, "init", "-q", "--bare", "-b", "main", str(origin))
+        root = make_team_repo(self.base / "single")
+        git(root, "remote", "set-url", "origin", str(origin))
+        git(root, "commit", "-q", "--allow-empty", "-m", "base")
+        git(root, "push", "-q", "origin", "main")
+        # origin/HEAD names trunk, a branch ahead of main: the default branch comes from it
+        git(root, "commit", "-q", "--allow-empty", "-m", "trunk only")
+        git(root, "push", "-q", "origin", "HEAD:trunk")
+        base = git(root, "rev-parse", "HEAD").strip()
+        git(root, "reset", "-q", "--hard", "HEAD~1")
+        git(root, "remote", "set-head", "origin", "trunk")
+        init_beads(root)
+        bead = create(root, "Single", "area:backend")
+        bd(root, "update", bead, "--description", "Plan: .planning/plans/2026-11-14-y.md, Track 1")
+        claimed = run_cli(root, "team", "claim", bead)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        target = root / ".planning/worktrees" / bead
+        self.assertEqual("feat/y-t1", git(target, "rev-parse", "--abbrev-ref", "HEAD").strip())
+        self.assertEqual(base, git(target, "rev-parse", "HEAD").strip())
+
+    def test_takeover_of_a_child_track_checks_it_out_in_the_child(self):
+        bead = self.track_bead("Takeover")
+        claimed = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        target = self.target / bead
+        (target / "work.txt").write_text("handed off", encoding="utf-8")
+        git(target, "add", "work.txt")
+        git(target, "commit", "-q", "-m", "work")
+        handed = run_cli(self.root, "team", "handoff", bead, "em@corp.com")
+        self.assertEqual(0, handed.returncode, handed.stdout + handed.stderr)
+        # em's machine: no worktree, no local branch, no remote-tracking ref for it
+        worktrees.cleanup(self.child_dir, bead, self.root)
+        git(self.child_dir, "branch", "-D", "feat/x-t2")
+        git(self.child_dir, "update-ref", "-d", "refs/remotes/origin/feat/x-t2")
+        git(self.root, "config", "user.email", "em@corp.com")
+        taken = run_cli(self.root, "team", "takeover", bead, "--format", "json")
+        self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        result = json.loads(taken.stdout)
+        self.assertEqual((str(target), "feat/x-t2"), (result["worktree"], result["branch"]))
+        self.assertEqual("handed off", (target / "work.txt").read_text(encoding="utf-8"))
+        common = Path(git(target, "rev-parse", "--path-format=absolute", "--git-common-dir").strip())
+        self.assertEqual((self.child_dir / ".git").resolve(), common.resolve())
+        self.assertEqual("em@corp.com", show(self.root, bead)["assignee"])
+
+
 if __name__ == "__main__":
     unittest.main()
+
