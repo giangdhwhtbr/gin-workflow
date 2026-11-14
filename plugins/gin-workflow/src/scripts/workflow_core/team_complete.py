@@ -23,6 +23,8 @@ def complete(root: Path, team: TeamConfig, member: Member, epic: str) -> dict[st
         raise TeamError("only an area lead completes an epic")
 
     issue = team_beads._show(root, epic)
+    if not issue:
+        raise TeamError(f"{epic} not found")
     if issue.get("issue_type") != "epic":
         raise TeamError(f"{epic} is not an epic")
 
@@ -30,7 +32,7 @@ def complete(root: Path, team: TeamConfig, member: Member, epic: str) -> dict[st
                       key=_child_sort_key)
     missing: list[str] = []
     pull_requests: list[str] = []
-    first_topic: str | None = None
+    topics: set[str] = set()
 
     for child in children:
         if "prep" not in (child.get("labels") or []) and child.get("status") != "closed":
@@ -38,8 +40,7 @@ def complete(root: Path, team: TeamConfig, member: Member, epic: str) -> dict[st
 
         track = team_beads.track_of(child)
         if track is not None:
-            if first_topic is None:
-                first_topic = track[0]
+            topics.add(track[0])
             try:
                 repo_dir, _entry, branch = team_beads._track_place(root, track)
             except team_beads.SyncConflict as conflict:
@@ -55,37 +56,42 @@ def complete(root: Path, team: TeamConfig, member: Member, epic: str) -> dict[st
                 if pr.url not in pull_requests:
                     pull_requests.append(pr.url)
 
-    if first_topic is not None:
-        space = workspace.locate(root).workspace
-        if space is not None:
-            ref = f"refs/heads/feat/{first_topic}"
-            try:
-                proc = subprocess.run(["git", "ls-remote", "--heads", "origin", ref],
-                                      cwd=root, text=True, capture_output=True, check=False)
-            except (OSError, subprocess.SubprocessError) as error:
-                raise TeamError(f"git ls-remote failed in parent repository {root}: {error}") from error
-            if proc.returncode != 0:
-                raise TeamError(f"git ls-remote failed in parent repository {root}: {proc.stderr.strip()}")
-            if proc.stdout.strip():
-                parent_branch = f"feat/{first_topic}"
-                parent_pr = team_host.pr_for_branch(team.host, parent_branch, root)
-                if parent_pr is None:
-                    missing.append(f"{parent_branch}: no pull request")
-                elif parent_pr.state != "merged":
-                    missing.append(f"{parent_branch}: {parent_pr.state}")
-                else:
-                    if parent_pr.url not in pull_requests:
-                        pull_requests.append(parent_pr.url)
+    in_workspace = bool(topics) and workspace.locate(root).workspace is not None
+    for topic in sorted(topics) if in_workspace else []:
+        parent_branch = f"feat/{topic}"
+        try:
+            proc = subprocess.run(["git", "ls-remote", "--heads", "origin", f"refs/heads/{parent_branch}"],
+                                  cwd=root, text=True, capture_output=True, check=False)
+        except (OSError, subprocess.SubprocessError) as error:
+            raise TeamError(f"git ls-remote failed in parent repository {root}: {error}") from error
+        if proc.returncode != 0:
+            raise TeamError(f"git ls-remote failed in parent repository {root}: {proc.stderr.strip()}")
+        if not proc.stdout.strip():
+            continue
+        parent_pr = team_host.pr_for_branch(team.host, parent_branch, root)
+        if parent_pr is None:
+            missing.append(f"{parent_branch}: no pull request")
+        elif parent_pr.state != "merged":
+            missing.append(f"{parent_branch}: {parent_pr.state}")
+        elif parent_pr.url not in pull_requests:
+            pull_requests.append(parent_pr.url)
 
     if missing:
         return {"status": "incomplete", "epic": epic, "pull_requests": pull_requests, "missing": missing}
 
+    closed_prep: list[str] = []
+    for child in children:
+        if child.get("status") != "closed":
+            done = team_beads._bd(root, ["close", child["id"], "--reason", f"not needed: {epic} shipped"],
+                                  actor=member.email)
+            if done.returncode != 0:
+                raise TeamError(f"bd close failed: {done.stderr.strip()}")
+            closed_prep.append(child["id"])
+
     reason = f"shipped: {', '.join(pull_requests)}" if pull_requests else "shipped"
-    argv = ["close", epic, "--reason", reason]
-    if any(child.get("status") != "closed" for child in children):
-        argv.append("--force")  # only open prep children remain; bd refuses to close an epic over them
-    completed = team_beads._bd(root, argv, actor=member.email)
+    completed = team_beads._bd(root, ["close", epic, "--reason", reason], actor=member.email)
     if completed.returncode != 0:
         raise TeamError(f"bd close failed: {completed.stderr.strip()}")
 
-    return {"status": "completed", "epic": epic, "pull_requests": pull_requests, "missing": []}
+    return {"status": "completed", "epic": epic, "pull_requests": pull_requests, "missing": [],
+            "closed_prep": closed_prep}

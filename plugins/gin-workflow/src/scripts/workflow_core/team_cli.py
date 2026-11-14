@@ -290,6 +290,7 @@ def _run(args: argparse.Namespace) -> int:
             result = team_complete.complete(root, team, member, args.epic)
             if result["status"] == "completed":
                 lines = [f"completed {args.epic}"] + [f"merged {url}" for url in result["pull_requests"]]
+                lines += [f"closed prep {bead}" for bead in result["closed_prep"]]
                 if team.beads_remote:
                     lines.append("next: gin team sync")
                 _emit(result, args.format, "\n".join(lines))

@@ -161,8 +161,7 @@ class TestTeamComplete(unittest.TestCase):
         self.assertEqual(2, result.returncode, result.stdout + result.stderr)
         self.assertIn(f"{self.t1} is not an epic", result.stderr)
 
-    def test_open_prep_child_does_not_block_completion(self):
-        create(self.root, "Capture notes", "prep", parent=self.epic)
+    def merged_gh(self) -> None:
         self.gh(
             {"argv": ["pr", "list", "--head", "feat/login-t1"],
              "stdout": [{"url": "https://github.com/org/app/pull/1", "state": "MERGED",
@@ -171,38 +170,64 @@ class TestTeamComplete(unittest.TestCase):
              "stdout": [{"url": "https://github.com/org/app/pull/2", "state": "MERGED",
                          "mergeCommit": {"oid": "m" * 40}}]},
         )
+
+    def test_open_prep_child_is_closed_with_a_reason_before_the_epic(self):
+        prep = create(self.root, "Capture notes", "prep", parent=self.epic)
+        self.merged_gh()
         result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn(f"closed prep {prep}", result.stdout)
         self.assertEqual("closed", show(self.root, self.epic)["status"])
+        prep_data = show(self.root, prep)
+        self.assertEqual("closed", prep_data["status"])
+        self.assertEqual(f"not needed: {self.epic} shipped", prep_data.get("close_reason"))
 
-    def test_json_format_and_sync_hint(self):
-        extra = "  beads_sync:\n    remote: origin\n"
-        write(self.root, ".agent-workflow/config.yaml",
-              f"schema_version: '2.7'\n{TEAM.format(host='github')}{extra}")
-        resolve_effective_config(self.root)
-        self.gh(
-            {"argv": ["pr", "list", "--head", "feat/login-t1"],
-             "stdout": [{"url": "https://github.com/org/app/pull/1", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-            {"argv": ["pr", "list", "--head", "feat/login-t2"],
-             "stdout": [{"url": "https://github.com/org/app/pull/2", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-        )
-        json_res = run_cli(self.root, "team", "complete", self.epic, "--format", "json", env=self.env)
-        self.assertEqual(0, json_res.returncode, json_res.stdout + json_res.stderr)
-        payload = json.loads(json_res.stdout)
+    def test_closed_prep_is_listed_in_json(self):
+        prep = create(self.root, "Capture notes", "prep", parent=self.epic)
+        self.merged_gh()
+        result = run_cli(self.root, "team", "complete", self.epic, "--format", "json", env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([prep], json.loads(result.stdout)["closed_prep"])
+
+    def test_json_format(self):
+        self.merged_gh()
+        result = run_cli(self.root, "team", "complete", self.epic, "--format", "json", env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
         self.assertEqual("completed", payload["status"])
         self.assertEqual(self.epic, payload["epic"])
         self.assertEqual([], payload["missing"])
         self.assertEqual(["https://github.com/org/app/pull/1", "https://github.com/org/app/pull/2"],
                          payload["pull_requests"])
 
-        # Also verify text format prints next: gin team sync
-        # First reopen epic so we can run complete in text format
-        bd(self.root, "reopen", self.epic)
-        text_res = run_cli(self.root, "team", "complete", self.epic, env=self.env)
-        self.assertEqual(0, text_res.returncode, text_res.stdout + text_res.stderr)
-        self.assertIn("next: gin team sync", text_res.stdout)
+    def test_sync_hint_when_beads_sync_is_configured(self):
+        extra = "  beads_sync:\n    remote: origin\n"
+        write(self.root, ".agent-workflow/config.yaml",
+              f"schema_version: '2.7'\n{TEAM.format(host='github')}{extra}")
+        resolve_effective_config(self.root)
+        self.merged_gh()
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("next: gin team sync", result.stdout)
+
+    def test_unknown_epic_exits_2(self):
+        self.gh()
+        result = run_cli(self.root, "team", "complete", "t-nope", env=self.env)
+        self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+
+    def test_failed_bd_close_exits_2_and_reports_nothing_completed(self):
+        real = shutil.which("bd")
+        script = self.bin / "bd"
+        self.bin.mkdir(parents=True, exist_ok=True)
+        script.write_text(f'#!/bin/sh\nif [ "$1" = close ]; then echo "close refused" >&2; exit 1; fi\n'
+                          f'exec {real} "$@"\n', encoding="utf-8")
+        script.chmod(0o755)
+        self.merged_gh()
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+        self.assertIn("close refused", result.stderr)
+        self.assertNotIn("completed", result.stdout)
+        self.assertEqual("open", show(self.root, self.epic)["status"])
 
 
 class TestTeamCompleteWorkspace(unittest.TestCase):
@@ -274,3 +299,53 @@ class TestTeamCompleteWorkspace(unittest.TestCase):
         self.assertIn(f"incomplete {self.epic}", result.stdout)
         self.assertIn(f"missing {self.t1}: services/order-api is not cloned; run gin workspace clone services/order-api",
                       result.stdout)
+
+    def push_parent_branch(self, topic: str) -> None:
+        git(self.root, "branch", f"feat/{topic}")
+        git(self.root, "push", "-q", "origin", f"feat/{topic}")
+
+    def track_pr(self, topic: str, url: str) -> dict:
+        return {"argv": ["pr", "list", "--head", f"feat/{topic}-t1"],
+                "stdout": [{"url": url, "state": "MERGED", "mergeCommit": {"oid": "m" * 40}}]}
+
+    def test_merged_parent_pull_request_is_listed_in_the_close_reason(self):
+        self.push_parent_branch("order")
+        self.gh(self.track_pr("order", "https://github.com/org/child/pull/1"),
+                {"argv": ["pr", "list", "--head", "feat/order"],
+                 "stdout": [{"url": "https://github.com/org/parent/pull/10", "state": "MERGED",
+                             "mergeCommit": {"oid": "m" * 40}}]})
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("merged https://github.com/org/parent/pull/10", result.stdout)
+        self.assertIn("https://github.com/org/parent/pull/10", show(self.root, self.epic).get("close_reason") or "")
+
+    def test_parent_branch_without_pull_request_is_missing(self):
+        self.push_parent_branch("order")
+        self.gh(self.track_pr("order", "https://github.com/org/child/pull/1"))
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("missing feat/order: no pull request", result.stdout)
+        self.assertEqual("open", show(self.root, self.epic)["status"])
+
+    def test_ls_remote_failure_exits_2(self):
+        git(self.root, "remote", "set-url", "origin", str(self.base / "does-not-exist.git"))
+        self.gh(self.track_pr("order", "https://github.com/org/child/pull/1"))
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+        self.assertIn("git ls-remote failed in parent repository", result.stderr)
+        self.assertEqual("open", show(self.root, self.epic)["status"])
+
+    def test_every_plan_topic_is_checked_on_the_parent(self):
+        t2 = create(self.root, "Cart track", parent=self.epic,
+                    description="Plan: .planning/plans/2026-11-14-cart.md, Track 1\nRepo: services/order-api")
+        bd(self.root, "close", t2)
+        self.push_parent_branch("cart")
+        self.gh(self.track_pr("order", "https://github.com/org/child/pull/1"),
+                self.track_pr("cart", "https://github.com/org/child/pull/2"),
+                {"argv": ["pr", "list", "--head", "feat/cart"],
+                 "stdout": [{"url": "https://github.com/org/parent/pull/11", "state": "OPEN",
+                             "mergeCommit": None}]})
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("missing feat/cart: open", result.stdout)
+        self.assertEqual("open", show(self.root, self.epic)["status"])
