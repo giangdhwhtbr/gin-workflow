@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import os
 from pathlib import Path
@@ -17,26 +15,13 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with  # noqa: E402
-from team_fixtures import run_cli as run_cli_subprocess  # noqa: E402
-from workflow_core import cli, executables, team_beads, worktrees  # noqa: E402
+# One test per subcommand keeps the subprocess; the rest run gin in this process.
+from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as run_cli  # noqa: E402
+from workflow_core import team_beads, worktrees  # noqa: E402
 from workflow_core.team import TeamConfig, team_for_repo  # noqa: E402
 
 HAS_BD = shutil.which("bd") is not None
 HAS_DOLT = shutil.which("dolt") is not None
-
-
-def run_cli(root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-    """`gin <args> --repository <root>` run from `root` in this process: the result of `run_cli_subprocess` without
-    starting an interpreter (about 0.4 s a call). One test per subcommand keeps the subprocess."""
-    out, err = io.StringIO(), io.StringIO()
-    executables.clear_cache()
-    with mock.patch.dict(os.environ, env or {}), contextlib.chdir(root), \
-            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            code = cli.main([*args, "--repository", str(root)])
-        except SystemExit as error:  # argparse exits 2 on a usage error
-            code = error.code if isinstance(error.code, int) else 0 if error.code is None else 1
-    return subprocess.CompletedProcess(list(args), code, out.getvalue(), err.getvalue())
 
 
 def bd(root: Path, *args: str, actor: str = "") -> str:

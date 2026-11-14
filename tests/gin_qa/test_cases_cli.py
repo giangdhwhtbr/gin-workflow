@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import io
 import json
-import os
 import re
 from pathlib import Path
 import shutil
@@ -13,30 +12,16 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
 from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, case_file, cases_file, commit_all, delta, failing_stub, gin_workflow_bin,  # noqa: E402
                          make_change, make_repo, write, write_activity)
-from qa_fixtures import TOOLS_PATH, qa as qa_subprocess  # noqa: E402
-from gin_qa import cli as qa_cli  # noqa: E402
+# One test per subcommand keeps the subprocess; the rest run gin-qa in this process.
+from qa_fixtures import qa as qa_subprocess, qa_in_process as qa  # noqa: E402
 from gin_qa.cases import as_dict, hash8 as case_hash8, parse_case_file, parse_file  # noqa: E402
 from workflow_core import cli as gin_cli  # noqa: E402
-
-
-def qa(root: Path | None, bin_dir: Path | None, *args: str, group: str = "cases",
-       path: str = TOOLS_PATH) -> subprocess.CompletedProcess[str]:
-    """`gin-qa <group> <args>` in this process with the same PATH: the result of `qa_subprocess` without starting an
-    interpreter. One test per subcommand keeps the subprocess."""
-    search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
-    argv = [group, *args, *(["--repository", str(root)] if root else [])]
-    out, err = io.StringIO(), io.StringIO()
-    with mock.patch.dict(os.environ, {"PATH": search}), contextlib.redirect_stdout(out), \
-            contextlib.redirect_stderr(err):
-        code = qa_cli.main(argv)
-    return subprocess.CompletedProcess(argv, code, out.getvalue(), err.getvalue())
 
 
 def hash8(root: Path, bin_dir: Path, req: str) -> str:

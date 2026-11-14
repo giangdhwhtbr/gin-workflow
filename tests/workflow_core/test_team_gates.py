@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
 import os
 import json
 from pathlib import Path
@@ -16,8 +14,8 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import LAUNCHER, PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, write  # noqa: E402
-from team_fixtures import run_cli as run_cli_subprocess  # noqa: E402
-from workflow_core import cli, executables  # noqa: E402
+# One test per subcommand keeps the subprocess; the rest run gin in this process.
+from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as run_cli  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, resolve_effective_config, validate_portable_config  # noqa: E402
 from workflow_core.epic_kind import KINDS  # noqa: E402
 from workflow_core.team import (  # noqa: E402
@@ -38,20 +36,6 @@ WORKSPACE = """workspace:
     - {path: .beads, url: u4, shape: beads}
 """
 SPEC_PATH = ".planning/specs/2026-10-03-login-design.md"
-
-
-def run_cli(root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-    """`gin <args> --repository <root>` run from `root` in this process: the result of `run_cli_subprocess` without
-    starting an interpreter (about 0.4 s a call). One test per subcommand keeps the subprocess."""
-    out, err = io.StringIO(), io.StringIO()
-    executables.clear_cache()
-    with mock.patch.dict(os.environ, env or {}), contextlib.chdir(root), \
-            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            code = cli.main([*args, "--repository", str(root)])
-        except SystemExit as error:  # argparse exits 2 on a usage error
-            code = error.code if isinstance(error.code, int) else 0 if error.code is None else 1
-    return subprocess.CompletedProcess(list(args), code, out.getvalue(), err.getvalue())
 
 
 class GateCase(unittest.TestCase):

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -12,31 +11,13 @@ import sys
 import tempfile
 import textwrap
 import unittest
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
 from qa_fixtures import AUTH_SPEC, QA_LAUNCHER, TOOLS_PATH, case, cases_file, gin_workflow_bin, make_repo, python_stub, write  # noqa: E402
-from qa_fixtures import qa as qa_subprocess  # noqa: E402
-from gin_qa import cli as qa_cli  # noqa: E402
+from qa_fixtures import qa as qa_subprocess, qa_in_process  # noqa: E402
 from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
-
-
-def qa(root: Path, bin_dir: Path, *args: str, group: str = "e2e",
-       path: str = TOOLS_PATH) -> subprocess.CompletedProcess[str]:
-    """`gin-qa <group> <args>` in this process with the same PATH: the result of `qa_subprocess` without starting an
-    interpreter. Output goes through temporary files because `e2e run` hands its stderr to Playwright. One test per
-    subcommand keeps the subprocess."""
-    search = os.pathsep.join([str(bin_dir), path])
-    argv = [group, *args, "--repository", str(root)]
-    with tempfile.TemporaryFile("w+", encoding="utf-8") as out, tempfile.TemporaryFile("w+", encoding="utf-8") as err:
-        with mock.patch.dict(os.environ, {"PATH": search}), contextlib.redirect_stdout(out), \
-                contextlib.redirect_stderr(err):
-            code = qa_cli.main(argv)
-        out.seek(0)
-        err.seek(0)
-        return subprocess.CompletedProcess(argv, code, out.read(), err.read())
 
 FAKE_NPX = textwrap.dedent('''\
     #!{python}
@@ -97,7 +78,8 @@ class E2eCase(unittest.TestCase):
         self.tmp.cleanup()
 
     def e2e(self, *args: str, path: str = TOOLS_PATH):
-        return qa(self.root, self.bin, *args, group="e2e", path=path)
+        # One test per subcommand keeps the subprocess (`qa_subprocess`); the rest run gin-qa in this process.
+        return qa_in_process(self.root, self.bin, *args, group="e2e", path=path, through_files=True)
 
     def run_json(self, *args: str) -> dict:
         result = self.e2e(*args, "--format", "json")
