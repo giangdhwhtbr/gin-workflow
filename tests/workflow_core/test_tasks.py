@@ -232,6 +232,17 @@ class ExternalDependencyTests(unittest.TestCase):
         self.assertEqual(0, done.returncode, done.stderr)
         self.assertIn(waiting, {issue["id"] for issue in json.loads(done.stdout)})
 
+    def test_only_blocking_dependency_types_hold_an_unshipped_external_ref(self):
+        related = self.create(self.consumer, "related to api")
+        discovered = self.create(self.consumer, "discovered from api")
+        blocked = self.create(self.consumer, "waits on api")
+        self.bd(self.consumer, "dep", "add", related, "external:prov:cap", "--type", "related")
+        self.bd(self.consumer, "dep", "add", discovered, "external:prov:cap", "--type", "discovered-from")
+        self.bd(self.consumer, "dep", "add", blocked, "external:prov:cap", "--type", "blocks")
+
+        ids, _ = self.ready()
+        self.assertEqual({related, discovered}, ids)
+
     def test_req_015_ready_lists_epics_not_milestones(self):
         milestone = self.create(self.consumer, "M", "--type", "milestone")
         epic = self.create(self.consumer, "E", "--type", "epic")

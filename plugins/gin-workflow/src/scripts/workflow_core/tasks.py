@@ -71,11 +71,17 @@ def _shipped(root: Path, executable: str, ref: str) -> bool:
     return bool(found)
 
 
+# Dependency types for which bd 1.0.5 lists an external ref in `resolved_blockers` of `bd ready --explain`
+# (probed with `bd dep add <id> external:p:c --type <t>`); every other type leaves the bead ready.
+_BLOCKING_TYPES = frozenset({"blocks", "conditional-blocks", "waits-for"})
+
+
 def held_in(root: Path, executable: str, result: Any) -> dict[str, list[str]]:
     """Ready beads in a bd ready result (a list, or the `--explain` dict) with an unshipped external dependency.
 
     bd 1.0.5 reports those as resolved. A list carries each bead's `dependencies`; the explain dict its
-    `resolved_blockers`. Each distinct ref is looked up once.
+    `resolved_blockers`. Each distinct ref is looked up once. It reads the `dependencies` that `bd ready --json`
+    returns; a bd that omits them releases nothing it cannot see (accepted: bd 1.0.5 emits them).
     """
     shipped: dict[str, bool] = {}
     held: dict[str, list[str]] = {}
@@ -83,7 +89,8 @@ def held_in(root: Path, executable: str, result: Any) -> dict[str, list[str]]:
         if "resolved_blockers" in issue:
             refs = list(issue["resolved_blockers"] or [])
         else:
-            refs = [dependency.get("depends_on_id") for dependency in issue.get("dependencies") or []]
+            refs = [dependency.get("depends_on_id") for dependency in issue.get("dependencies") or []
+                    if dependency.get("type") in _BLOCKING_TYPES]
         refs = [ref for ref in refs if str(ref).startswith("external:")]
         for ref in refs:
             if ref not in shipped:
