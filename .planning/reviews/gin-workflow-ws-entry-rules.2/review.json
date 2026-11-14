@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "changes-requested",
+  "review_state": "implementation-in-progress",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
       "checkpoint_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
       "review_base_sha": "6938bf8c26ac5ab6b29c923a1189503c4b87a1d3",
-      "reviewed_source_sha": "2cb46cd0df0890659325797a1a2091123dce3173",
-      "checkpoint_sha": "2cb46cd0df0890659325797a1a2091123dce3173",
+      "reviewed_source_sha": "4f7a43442ebcbf7e86d70206bcd867a867945190",
+      "checkpoint_sha": "4f7a43442ebcbf7e86d70206bcd867a867945190",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
-      "reviewed_source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
+      "source_tree_hash": "b58e1431becc110f91e8b37be4eb134aff31509f37c512675926ba19b2b31a06",
+      "reviewed_source_tree_hash": "b58e1431becc110f91e8b37be4eb134aff31509f37c512675926ba19b2b31a06",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 9,
+  "ledger_revision": 13,
   "next_finding_number": 1,
   "findings": {
     "F1-doctor-crash-on-unreadable-child-manifest": {
       "finding_id": "F1-doctor-crash-on-unreadable-child-manifest",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F2-test-gaps-unknown-entry-pack-and-worktree": {
       "finding_id": "F2-test-gaps-unknown-entry-pack-and-worktree",
       "severity": "SUGGESTION",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -225,6 +225,77 @@
       },
       "previous_event_hash": "c0222aea590cabaab5506ae6a529e7c93f4f994ae50655813f050d769859e468",
       "event_hash": "e5ace3ae9e21840a3353750fd427a94f1c8057c46756e0745d8e172b0da7a1a9"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "implementation-in-progress",
+      "timestamp": "2026-11-14T10:04:34.761775Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "to": "implementation-in-progress"
+      },
+      "previous_event_hash": "e5ace3ae9e21840a3353750fd427a94f1c8057c46756e0745d8e172b0da7a1a9",
+      "event_hash": "0a210ede6e70a3de48840da7f738c0a44584ee45b7da86555f013942bafd31de"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T10:04:34.884862Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "finding_id": "F1-doctor-crash-on-unreadable-child-manifest"
+      },
+      "previous_event_hash": "0a210ede6e70a3de48840da7f738c0a44584ee45b7da86555f013942bafd31de",
+      "event_hash": "88de4b68cbef66beb30a37528a2dcc8f2c48cd62dffabb6fe9ae81ef42e8194f"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T10:04:35.009162Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "finding_id": "F2-test-gaps-unknown-entry-pack-and-worktree"
+      },
+      "previous_event_hash": "88de4b68cbef66beb30a37528a2dcc8f2c48cd62dffabb6fe9ae81ef42e8194f",
+      "event_hash": "0196bbcdc29ffae39ff9ec526867f074a37f029db00c1c300307caa8419e5186"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-14T10:04:35.340821Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+            "review_base_sha": "6938bf8c26ac5ab6b29c923a1189503c4b87a1d3",
+            "reviewed_source_sha": "4f7a43442ebcbf7e86d70206bcd867a867945190",
+            "checkpoint_sha": "4f7a43442ebcbf7e86d70206bcd867a867945190",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "b58e1431becc110f91e8b37be4eb134aff31509f37c512675926ba19b2b31a06",
+            "reviewed_source_tree_hash": "b58e1431becc110f91e8b37be4eb134aff31509f37c512675926ba19b2b31a06",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "0196bbcdc29ffae39ff9ec526867f074a37f029db00c1c300307caa8419e5186",
+      "event_hash": "0cdbe04eab39d54451ab52ccf17d8120380abe319e87b02c31bd9cc020ff90ff"
     }
   ]
 }

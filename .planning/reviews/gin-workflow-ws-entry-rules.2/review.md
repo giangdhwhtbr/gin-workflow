@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `changes-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-ws-entry-rules.2`
 - **Base SHA:** `6938bf8c26ac5ab6b29c923a1189503c4b87a1d3`
-- **Reviewed SHA:** `2cb46cd0df0890659325797a1a2091123dce3173`
+- **Reviewed SHA:** `4f7a43442ebcbf7e86d70206bcd867a867945190`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-ws-entry-rules.2`
-- **Checkpoint SHA:** `2cb46cd0df0890659325797a1a2091123dce3173`
+- **Checkpoint SHA:** `4f7a43442ebcbf7e86d70206bcd867a867945190`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4`
+- **Tree Hash:** `b58e1431becc110f91e8b37be4eb134aff31509f37c512675926ba19b2b31a06`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,16 +29,16 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F1-doctor-crash-on-unreadable-child-manifest` | `IMPORTANT` | `open` | 0 | - |
-| `F2-test-gaps-unknown-entry-pack-and-worktree` | `SUGGESTION` | `open` | 0 | - |
+| `F1-doctor-crash-on-unreadable-child-manifest` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F2-test-gaps-unknown-entry-pack-and-worktree` | `SUGGESTION` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F1-doctor-crash-on-unreadable-child-manifest` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F2-test-gaps-unknown-entry-pack-and-worktree` (SUGGESTION)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -54,3 +54,7 @@
 | `EV-000007` | `2026-11-14T10:02:03.285769Z` | `finding-created` | `reviewer:claude` (reviewer) |
 | `EV-000008` | `2026-11-14T10:02:08.365913Z` | `changes-requested` | `reviewer:claude` (reviewer) |
 | `EV-000009` | `2026-11-14T10:02:12.588229Z` | `lease-released` | `reviewer:claude` (reviewer) |
+| `EV-000010` | `2026-11-14T10:04:34.761775Z` | `implementation-in-progress` | `implementer:antigravity:worker` (worker) |
+| `EV-000011` | `2026-11-14T10:04:34.884862Z` | `finding-fixed` | `implementer:antigravity:worker` (worker) |
+| `EV-000012` | `2026-11-14T10:04:35.009162Z` | `finding-fixed` | `implementer:antigravity:worker` (worker) |
+| `EV-000013` | `2026-11-14T10:04:35.340821Z` | `source-checkpoint-created` | `implementer:antigravity:worker` (worker) |
