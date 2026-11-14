@@ -252,6 +252,13 @@ def doctor(root: Path, space: Workspace) -> dict[str, Any]:
                                                            if "=" in line) if key.strip() == "path"}
     repos: dict[str, dict[str, Any]] = {}
     actions: list[str] = []
+    from .rules import RulesError, load_plugin_packs, plugin_rules_dir
+    from .rules_checks import propose_packs
+
+    try:
+        plugin = load_plugin_packs(plugin_rules_dir())
+    except RulesError:  # unreadable plugin packs: the rules doctor reports them; skip the proposals
+        plugin = None
     for repo in space.repos:
         present = space.present(repo)
         submodule = repo.path in submodule_paths
@@ -268,6 +275,12 @@ def doctor(root: Path, space: Workspace) -> dict[str, Any]:
             except subprocess.CalledProcessError:  # a broken clone is a finding, not a crash
                 found = ["is not a readable git repository"]
             actions.extend(f"{repo.path}: {action}" for action in found)
+        if present and repo.workable and plugin is not None:
+            checkout = space.checkout(repo)
+            proposed = sorted(set(propose_packs(checkout, plugin)) - {"core"} - set(repo.packs))
+            repos[repo.path]["proposed_packs"] = proposed
+            if proposed:
+                actions.append(f"{repo.path}: rules.packs could add {', '.join(proposed)}")
         if f"/{repo.path}" not in ignored:
             actions.append(f"{repo.path} is not in .gitignore; gin workspace clone adds it")
         if submodule:

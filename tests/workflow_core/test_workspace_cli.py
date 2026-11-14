@@ -183,6 +183,41 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertIn("/services/api", lines)
         self.assertNotIn("/apps/web", lines)
 
+    def test_doctor_in_child_and_workspace_pack_proposals(self):
+        self._init()
+        run(self.root, "workspace", "clone", "services/api", "apps/web")
+        pkg = self.root / "apps/web/package.json"
+        pkg.write_text(json.dumps({"dependencies": {"react": "^18.0.0"}}), encoding="utf-8")
+
+        # 1. doctor from child reports checks_details.entry.path and verify_commands.missing from entry's checks
+        doctor_child = json.loads(run(self.root / "services/api", "setup", "doctor", "--format", "json").stdout)
+        self.assertEqual("services/api", doctor_child["checks_details"]["entry"]["path"])
+        self.assertEqual("backend", doctor_child["checks_details"]["entry"]["shape"])
+        self.assertEqual(["lint", "typecheck", "build"], doctor_child["checks_details"]["verify_commands"]["missing"])
+
+        # 2. doctor from parent does not have entry in checks_details
+        doctor_parent = json.loads(run(self.root, "setup", "doctor", "--format", "json").stdout)
+        self.assertNotIn("entry", doctor_parent["checks_details"])
+        explicit = run(self.root / "services/api", "setup", "doctor", "--repository", str(self.root), "--format", "json")
+        self.assertEqual(doctor_parent, json.loads(explicit.stdout))
+
+        # 3. workspace section proposes react for apps/web whose package.json depends on react and lists no packs
+        self.assertIn("react", doctor_parent["checks_details"]["workspace"]["repos"]["apps/web"]["proposed_packs"])
+        self.assertTrue(any("workspace: apps/web: rules.packs could add" in a and "react" in a for a in doctor_parent["actions"]))
+
+        # 4. proposes nothing once the entry lists it
+        cfg_path = self.root / ".agent-workflow/config.yaml"
+        text = cfg_path.read_text(encoding="utf-8")
+        updated = text.replace("path: apps/web\n      url: file://",
+                               "path: apps/web\n      rules:\n        packs: [react, typescript]\n      url: file://")
+        cfg_path.write_text(updated, encoding="utf-8")
+        doctor_parent2 = json.loads(run(self.root, "setup", "doctor", "--format", "json").stdout)
+        self.assertEqual([], doctor_parent2["checks_details"]["workspace"]["repos"]["apps/web"]["proposed_packs"])
+        self.assertFalse(any("apps/web: rules.packs could add" in a for a in doctor_parent2["actions"]))
+        doctor_web = json.loads(run(self.root / "apps/web", "setup", "doctor", "--format", "json").stdout)
+        self.assertIn("react", doctor_web["checks_details"]["rules"]["packs"])
+        self.assertNotIn("react", doctor_parent2["checks_details"]["rules"]["packs"])
+
 
 if __name__ == "__main__":
     unittest.main()
