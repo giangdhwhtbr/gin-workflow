@@ -33,7 +33,7 @@
 | `F-2` | `IMPORTANT` | `open` | 0 | - |
 | `F-3` | `IMPORTANT` | `open` | 0 | - |
 | `F-4` | `MINOR` | `open` | 0 | - |
-| `F-5` | `MINOR` | `deferral-proposed` | 0 | - |
+| `F-5` | `MINOR` | `deferral-proposed` | 0 | `gin-workflow-xmbz` |
 
 ## Findings Detail
 ### `F-1` (CRITICAL)
@@ -56,6 +56,7 @@
 - **Status:** `deferral-proposed`
 - **Clarification Count:** 0
 - **Deferral Reason:** close guard lookup lives in tasks.py and close_guard.py, outside Track 2's file scope; tracked by a follow-up bead
+- **Follow-up Bead:** `gin-workflow-xmbz` (*gin task close reads a workspace child track's review ledger from workspace.ledger_root*)
 
 
 ## Event Chronology
@@ -75,3 +76,5 @@
 | `EV-000012` | `2026-11-14T16:41:04.610899Z` | `lease-released` | `reviewer:claude:session-de96d290` (reviewer) |
 | `EV-000013` | `2026-11-14T16:42:06.885291Z` | `implementation-in-progress` | `worker:claude:session-main` (worker) |
 | `EV-000014` | `2026-11-14T16:42:07.028139Z` | `deferral-proposed` | `worker:claude:session-main` (worker) |
+| `EV-000015` | `2026-11-14T16:42:30.979044Z` | `deferral-withdrawn` | `worker:claude:session-main` (worker) |
+| `EV-000016` | `2026-11-14T16:42:31.126251Z` | `deferral-proposed` | `worker:claude:session-main` (worker) |

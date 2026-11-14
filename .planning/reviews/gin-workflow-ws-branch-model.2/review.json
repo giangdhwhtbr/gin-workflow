@@ -24,7 +24,7 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 14,
+  "ledger_revision": 16,
   "next_finding_number": 6,
   "findings": {
     "F-1": {
@@ -89,7 +89,7 @@
       "status": "deferral-proposed",
       "clarification_count": 0,
       "deferral_reason": "close guard lookup lives in tasks.py and close_guard.py, outside Track 2's file scope; tracked by a follow-up bead",
-      "follow_up_bead_id": "",
+      "follow_up_bead_id": "gin-workflow-xmbz",
       "follow_up_bead_title": "gin task close reads a workspace child track's review ledger from workspace.ledger_root",
       "decision": null,
       "waived_reason": null,
@@ -343,6 +343,38 @@
       },
       "previous_event_hash": "b7e98fdacfd5dc2665aa5e582e76fca725aa9a26c3105bb85dfa5219d357ff67",
       "event_hash": "b25ed9f40d0c34d46ee6a78a5c4a0d822f5706e4526e90a0cd96b3eb64bea5ef"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "deferral-withdrawn",
+      "timestamp": "2026-11-14T16:42:30.979044Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-5",
+        "reason": "the proposal was recorded without the follow-up bead id"
+      },
+      "previous_event_hash": "b25ed9f40d0c34d46ee6a78a5c4a0d822f5706e4526e90a0cd96b3eb64bea5ef",
+      "event_hash": "2347aa5a5be94d96521d187149f93012808b03e1c15161f790408dbaa4e3a5f9"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "deferral-proposed",
+      "timestamp": "2026-11-14T16:42:31.126251Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-5",
+        "reason": "close guard lookup lives in tasks.py and close_guard.py, outside Track 2's file scope; tracked by a follow-up bead",
+        "follow_up_bead_id": "gin-workflow-xmbz",
+        "follow_up_bead_title": "gin task close reads a workspace child track's review ledger from workspace.ledger_root"
+      },
+      "previous_event_hash": "2347aa5a5be94d96521d187149f93012808b03e1c15161f790408dbaa4e3a5f9",
+      "event_hash": "52826b1c3540a93e08be5613bf6570617a013e6c108de5e060938859645915ca"
     }
   ]
 }
