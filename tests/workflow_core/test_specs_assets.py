@@ -259,6 +259,13 @@ class TestAssetsList(AssetsCase):
     def test_a_tilde_line_inside_a_backtick_fence_does_not_close(self):
         self.assertEqual([], self.screens("```\n~~~\n### Inside\n```\n"))
 
+    def test_inline_code_with_three_backticks_is_not_a_fence(self):
+        body = "### Order list\n```status``` shows the state.\n\n### Order form\n"
+        self.assertEqual(["Order list", "Order form"], self.screens(body))
+
+    def test_a_tilde_fence_may_have_a_backtick_in_its_info_string(self):
+        self.assertEqual(["After"], self.screens("~~~ a`b\n### Inside\n~~~\n### After\n"))
+
     def test_a_description_that_is_a_directory_exits_2_naming_the_path(self):
         (self.root / self.FIRST / "description.md").mkdir(parents=True)
         result = run_specs(self.root, "assets", "list", "orders")
