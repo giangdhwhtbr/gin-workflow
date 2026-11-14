@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 
+import pytest
 import yaml
 
 
@@ -93,6 +94,9 @@ REQUIRED_ARTIFACTS = (
 )
 
 
+# setUpClass rebuilds the shared plugins/*/dist, so every test of the class must run
+# on one xdist worker (pytest.ini sets --dist loadgroup); two builders would race.
+@pytest.mark.xdist_group("harness-packaging-dist")
 @unittest.skipIf(os.name == "nt", "runs install.sh, which needs bash")
 class HarnessPackagingTests(unittest.TestCase):
     @classmethod
@@ -192,7 +196,7 @@ class HarnessPackagingTests(unittest.TestCase):
         root = str(self.dist / "copilot/gin")
 
         def run(command, payload, **env):
-            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME")}
+            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME", "WORKTREE_PATH")}
             return subprocess.run(["bash", "-c", command], input=json.dumps(payload), capture_output=True,
                                   text=True, env={**base, **env})
 
