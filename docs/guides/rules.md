@@ -15,9 +15,12 @@ Rule packs are short checklists that the agent follows when it writes code and t
 | `nextjs` | framework (needs `react`) | `app/`, `pages/`, `middleware.ts` | via `rules.packs` |
 | `node-api` | framework | `*.ts`, `*.js` and variants | via `rules.packs` |
 | `fastapi` | framework (needs `python`) | `*.py` | via `rules.packs` |
+| `java` | language | `*.java` | via `rules.packs` |
+| `spring` | framework (needs `java`) | `*.java` | via `rules.packs` |
+| `jvm-templates` | framework | `*.jsp`, `*.jspf`, `*.tag`, `*.vm` | via `rules.packs` |
 | `glossary` | framework | every file | via `rules.packs`; setup proposes it when `11-GLOSSARY.md` exists |
 
-Setup proposes language and framework packs from what it detects (dependencies, `tsconfig.json`, `pyproject.toml`). `core` covers scope, secrets, error handling, input validation, behavior tests, reuse, naming, and single-purpose functions. `lean` asks for the shortest correct solution. It says to reuse what exists, prefer the standard library, the platform, and installed dependencies, and add nothing speculative. It never allows cutting validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). `docs` checks that Markdown matches the code, calls practices the code does not enforce conventions, and keeps each fact on one page. It also checks the style: sentence-case headings, short sentences, and no dashes, bold-label list items, or emoji. Its ideas come from [technical-writer](https://github.com/riekelt/technical-writer) (MIT).
+Setup proposes language and framework packs from what it detects (dependencies, `tsconfig.json`, `pyproject.toml`, Maven and Gradle build files, `WEB-INF/web.xml`). `core` covers scope, secrets, error handling, input validation, behavior tests, reuse, naming, and single-purpose functions. `lean` asks for the shortest correct solution. It says to reuse what exists, prefer the standard library, the platform, and installed dependencies, and add nothing speculative. It never allows cutting validation, error handling, security, accessibility, or required tests. Its ideas come from [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). `docs` checks that Markdown matches the code, calls practices the code does not enforce conventions, and keeps each fact on one page. It also checks the style: sentence-case headings, short sentences, and no dashes, bold-label list items, or emoji. Its ideas come from [technical-writer](https://github.com/riekelt/technical-writer) (MIT).
 
 ## Configure
 

@@ -85,3 +85,19 @@ class TechDocSkillTests(unittest.TestCase):
         self.assertIn("| Term | Lang | Existing English | Candidate | Evidence |", text)
         for heading in ("## Terms", "## Conflicts", "## Inference And Uncertainty", "## Follow-up"):
             self.assertIn(heading, text)
+
+    def test_scouting_references_are_linked_and_name_their_apis(self):
+        """JVM routes and WebView shells (requirements 4, 5, 6; US-2; US-3)."""
+        self.assertIn("[jvm-routes.md](references/jvm-routes.md)", self.text)
+        self.assertIn("[webview-shells.md](references/webview-shells.md)", self.text)
+        self.assertIn("each workspace entry, frozen ones included, gets its own scout", self.text)
+        references = SKILL_PATH.parent / "references"
+        expected = {
+            "jvm-routes.md": ("@RequestMapping", "@Path", "struts-config.xml", "servlet-mapping",
+                              "VelocityViewServlet", "#parse"),
+            "webview-shells.md": ("loadUrl", "WKWebView", "addJavascriptInterface", "WKScriptMessageHandler"),
+        }
+        for name, phrases in expected.items():
+            body = (references / name).read_text(encoding="utf-8")
+            for phrase in phrases:
+                self.assertIn(phrase, body, f"{name} lacks {phrase}")

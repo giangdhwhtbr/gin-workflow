@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
-from workflow_core.rules import load_plugin_packs  # noqa: E402
+from workflow_core.rules import Pack, load_plugin_packs  # noqa: E402
 from workflow_core.rules_checks import (  # noqa: E402
     check_tool, conflict_warnings, propose_packs, rules_doctor, tool_check_report)
 
@@ -63,6 +63,59 @@ class TestPropose(unittest.TestCase):
         self.assertEqual(["core", "typescript", "nextjs", "react"],
                          propose_packs(root, PLUGIN, stack_intent="Next.js app"))
         self.assertEqual(["core"], propose_packs(root, PLUGIN))
+
+    def test_build_file_mentions(self):
+        fake_pack = Pack(
+            id="fake-spring",
+            tier="framework",
+            source="plugin",
+            applies_to=("**/*.java",),
+            requires=(),
+            bullets=(),
+            why={},
+            meta={"detect": {"build_file_mentions": ["org.springframework", "spring-boot"]}},
+            path=Path("/fake/fake-spring.md"),
+        )
+        plugin = {**PLUGIN, "fake-spring": fake_pack}
+
+        # root pom.xml naming spring-boot-starter-web -> proposed
+        root = _repo({"pom.xml": "<dependency>spring-boot-starter-web</dependency>"})
+        self.assertIn("fake-spring", propose_packs(root, plugin))
+
+        # app/build.gradle naming org.springframework.boot -> proposed
+        root = _repo({"app/build.gradle": 'implementation "org.springframework.boot:spring-boot"'})
+        self.assertIn("fake-spring", propose_packs(root, plugin))
+
+        # build.gradle.kts with upper-case Org.SpringFramework -> proposed
+        root = _repo({"build.gradle.kts": 'implementation("Org.SpringFramework:spring-core")'})
+        self.assertIn("fake-spring", propose_packs(root, plugin))
+
+        # pom.xml without the tokens -> not proposed
+        root = _repo({"pom.xml": "<dependency>junit</dependency>"})
+        self.assertNotIn("fake-spring", propose_packs(root, plugin))
+
+        # a pom.xml with invalid UTF-8 bytes -> no exception, not proposed
+        root = Path(tempfile.mkdtemp())
+        (root / "pom.xml").write_bytes(b"\xff\xfe\x00\x01spring-boot")
+        self.assertNotIn("fake-spring", propose_packs(root, plugin))
+
+        # stack_intent="spring-boot service" -> proposed
+        root = _repo({"README.md": "# new"})
+        self.assertIn("fake-spring", propose_packs(root, plugin, stack_intent="spring-boot service"))
+
+    def test_jvm_and_template_packs_proposed(self):
+        plugin = load_plugin_packs(ROOT / "plugins/gin-workflow/src/rules")
+        root = _repo({"pom.xml": "<dependency>spring-boot-starter-web</dependency>"})
+        self.assertEqual(["core", "java", "spring"], propose_packs(root, plugin))
+
+        root = _repo({"pom.xml": "<project></project>"})
+        self.assertEqual(["core", "java"], propose_packs(root, plugin))
+
+        root = _repo({"WebContent/WEB-INF/web.xml": "<web-app></web-app>"})
+        self.assertEqual(["core", "jvm-templates"], propose_packs(root, plugin))
+
+        root = _repo({"pom.xml": "<dependency>velocity-tools</dependency>"})
+        self.assertEqual(["core", "java", "jvm-templates"], propose_packs(root, plugin))
 
 
 class TestToolChecks(unittest.TestCase):
