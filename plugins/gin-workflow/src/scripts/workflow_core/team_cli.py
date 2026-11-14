@@ -21,8 +21,10 @@ def _parser() -> argparse.ArgumentParser:
     item = sub.add_parser("init", parents=[common])
     item.add_argument("--ci", action="store_true")
     item.add_argument("--force", action="store_true")
+    item.add_argument("--all-repos", action="store_true")
     sub.add_parser("codeowners", parents=[common]).add_argument("--check", action="store_true")
-    sub.add_parser("hooks", parents=[common])
+    item = sub.add_parser("hooks", parents=[common])
+    item.add_argument("--all-repos", action="store_true")
     sub.add_parser("whoami", parents=[common])
     item = sub.add_parser("check", parents=[common])
     item.add_argument("url")
@@ -79,6 +81,57 @@ def _run(args: argparse.Namespace) -> int:
         from . import team_init
 
         if args.command == "init":
+            if args.all_repos:
+                located = workspace.locate(root)
+                if located.workspace is None:
+                    raise team_core.TeamError("not in a workspace")
+                space = located.workspace
+                gap = team_init.gate_policy_gap(team)
+                repos: list[dict[str, Any]] = []
+                parent_res = team_init.init(root, team, config, ci=args.ci, force=args.force)
+                repos.append({"path": ".", **parent_res})
+                has_error = False
+                for repo in space.repos:
+                    if (reason := workspace.skip_reason(space, repo)) is not None:
+                        repos.append({"path": repo.path, "skipped_repo": reason})
+                        continue
+                    target = space.checkout(repo)
+                    try:
+                        child_res = team_init.init(target, team, config, ci=args.ci, force=args.force, child=repo.path)
+                    except OSError as error:
+                        repos.append({"path": repo.path, "error": str(error)})
+                        has_error = True
+                        continue
+                    row = {"path": repo.path, **child_res}
+                    if team_init.codeowners(team, config, child=repo.path) is None:
+                        row["note"] = f"no area covers {repo.path}"
+                    repos.append(row)
+
+                text_lines: list[str] = []
+                for row in repos:
+                    p = row["path"]
+                    if "skipped_repo" in row:
+                        text_lines.append(f"{p}: skipped ({row['skipped_repo']})")
+                    elif "error" in row:
+                        text_lines.append(f"{p}: error: {row['error']}")
+                    else:
+                        for item in row.get("written", []):
+                            text_lines.append(f"{p}: wrote {item}")
+                        for item in row.get("unchanged", []):
+                            text_lines.append(f"{p}: unchanged {item}")
+                        for item in row.get("skipped", []):
+                            text_lines.append(f"{p}: skipped {item} (no marker; --force overwrites)")
+                        if "note" in row:
+                            text_lines.append(f"{p}: note: {row['note']}")
+                if gap:
+                    text_lines.append(f"warning: gates without a role policy: {', '.join(gap)} (set team.approvals.<gate>, "
+                                      "or team.strict: true to require one)")
+                written_children = [row["path"] for row in repos if row["path"] != "." and row.get("written")]
+                if written_children:
+                    text_lines.append(f"commit and open a pull request in: {', '.join(written_children)}")
+                _emit({"repos": repos, "warnings": gap}, args.format, "\n".join(text_lines))
+                return 1 if has_error else 0
+
             result = team_init.init(root, team, config, ci=args.ci, force=args.force)
             lines = [f"wrote {item}" for item in result["written"]]
             lines += [f"unchanged {item}" for item in result["unchanged"]]
@@ -90,6 +143,38 @@ def _run(args: argparse.Namespace) -> int:
             _emit({**result, "warnings": gap}, args.format, "\n".join(lines))
             return 0
         if args.command == "hooks":
+            if args.all_repos:
+                located = workspace.locate(root)
+                if located.workspace is None:
+                    raise team_core.TeamError("not in a workspace")
+                space = located.workspace
+                mapping = {"active": 0, "installed": 0, "occupied": 1, "missing": 2}
+                codes: list[int] = []
+                repos: list[dict[str, Any]] = []
+                text_lines: list[str] = []
+
+                parent_res = team_init.install_hook(root)
+                codes.append(mapping[parent_res["status"]])
+                repos.append({"path": ".", "status": parent_res["status"], "hook": parent_res["path"]})
+                text_lines.append(f".: {parent_res['status']}: {parent_res['path']}")
+
+                for repo in space.repos:
+                    if workspace.skip_reason(space, repo) is not None:
+                        continue
+                    child_dir = space.checkout(repo)
+                    res = team_init.install_hook(child_dir)
+                    codes.append(mapping[res["status"]])
+                    row = {"path": repo.path, "status": res["status"], "hook": res["path"]}
+                    if res["status"] == "missing":
+                        row["hint"] = "run gin team init --all-repos"
+                        text_lines.append(f"{repo.path}: missing: {res['path']} (run gin team init --all-repos)")
+                    else:
+                        text_lines.append(f"{repo.path}: {res['status']}: {res['path']}")
+                    repos.append(row)
+
+                _emit({"repos": repos}, args.format, "\n".join(text_lines))
+                return max(codes)
+
             result = team_init.install_hook(root)
             _emit(result, args.format, f"{result['status']}: {result['path']}")
             return {"active": 0, "installed": 0, "missing": 2, "occupied": 1}[result["status"]]

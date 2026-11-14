@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 from pathlib import Path
 import subprocess
 from typing import Any, Mapping
@@ -32,10 +33,39 @@ def _logins(team: TeamConfig, roles: set[str]) -> list[str]:
     return sorted(f"@{member.login}" for member in team.members.values() if roles & set(member.roles))
 
 
-def codeowners(team: TeamConfig, config: Mapping[str, Any]) -> str:
+def reroot(glob: str, child: str) -> str | None:
+    """Re-root an area glob into the child at path `child`."""
+    glob_segs = [s for s in glob.strip("/").split("/") if s]
+    child_segs = [s for s in child.strip("/").split("/") if s]
+    for i, c_seg in enumerate(child_segs):
+        if i >= len(glob_segs):
+            return None
+        g_seg = glob_segs[i]
+        if g_seg == "**":
+            return "/**"
+        if not fnmatch.fnmatchcase(c_seg, g_seg):
+            return None
+    remaining = glob_segs[len(child_segs):]
+    if not remaining:
+        return "/**"
+    return "/" + "/".join(remaining)
+
+
+def codeowners(team: TeamConfig, config: Mapping[str, Any], child: str | None = None) -> str | None:
     """Area globs owned by the area lead; plan and spec folders owned by the approvers of those gates."""
     lines = [f"# {MARKER}; edit team: in .agent-workflow/config.yaml and rerun", ""]
     leads = {area.lead for area in team.areas.values()}
+    if child is not None:
+        area_lines = []
+        for area in team.areas.values():
+            owners = _logins(team, {area.lead})
+            for glob in area.paths:
+                rerooted = reroot(glob, child)
+                if rerooted is not None:
+                    area_lines.append(f"{rerooted} {' '.join(owners)}")
+        if not area_lines:
+            return None
+        return "\n".join(lines + area_lines) + "\n"
     for area in team.areas.values():
         owners = _logins(team, {area.lead})
         lines += [f"/{glob} {' '.join(owners)}" for glob in area.paths]
@@ -52,7 +82,8 @@ def codeowners(team: TeamConfig, config: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def planned_files(root: Path, team: TeamConfig, config: Mapping[str, Any], *, ci: bool) -> dict[str, str]:
+def planned_files(root: Path, team: TeamConfig, config: Mapping[str, Any], *, ci: bool,
+                  child: str | None = None) -> dict[str, str]:
     host = adapter(team.host)
     names = host.files
     if ci and (names.ci is None or names.ci_template is None):
@@ -60,7 +91,9 @@ def planned_files(root: Path, team: TeamConfig, config: Mapping[str, Any], *, ci
     values = {"convention": team.commit_convention}
     files: dict[str, str] = {}
     if names.codeowners is not None:
-        files[names.codeowners] = codeowners(team, config)
+        owners = codeowners(team, config, child=child)
+        if owners is not None:
+            files[names.codeowners] = owners
     if names.template is not None:
         files[names.template] = template_text(root, "team/pull_request_template.md")
     files[HOOK] = render(template_text(root, "team/commit-msg"), values)
@@ -70,10 +103,10 @@ def planned_files(root: Path, team: TeamConfig, config: Mapping[str, Any], *, ci
 
 
 def init(root: Path, team: TeamConfig, config: Mapping[str, Any], *, ci: bool = False,
-         force: bool = False) -> dict[str, Any]:
+         force: bool = False, child: str | None = None) -> dict[str, Any]:
     written, skipped, unchanged = [], [], []
     writes: dict[Path, bytes] = {}
-    for relative, text in planned_files(root, team, config, ci=ci).items():
+    for relative, text in planned_files(root, team, config, ci=ci, child=child).items():
         path = Path(root) / relative
         if path.is_file():
             current = path.read_text(encoding="utf-8")

@@ -180,9 +180,9 @@ Opt-in team mode, active when the configuration has a `team:` section.
 
 | Command | Purpose |
 |---|---|
-| `init [--ci] [--force]` | Write CODEOWNERS, the pull request template, and the commit-msg hook; `--ci` adds the CI workflow; `--force` overwrites files it did not generate. On `codecommit` it writes only the commit-msg hook, and `--ci` exits 2 because CodeCommit has no CI workflow file |
+| `init [--ci] [--force] [--all-repos]` | Write CODEOWNERS, the pull request template, and the commit-msg hook; `--ci` adds the CI workflow; `--force` overwrites files it did not generate. With `--all-repos`, write into each workable cloned child in the workspace with re-rooted CODEOWNERS globs. On `codecommit` it writes only the commit-msg hook, and `--ci` exits 2 because CodeCommit has no CI workflow file |
 | `codeowners [--check]` | Print CODEOWNERS, or check it is up to date. Exits 2 on `codecommit`, which has no CODEOWNERS file |
-| `hooks` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing) |
+| `hooks [--all-repos]` | Install the commit-msg hook into git (exit 1 if another hook occupies it, 2 if the hook file is missing). With `--all-repos`, install into each workable cloned child in the workspace |
 | `whoami` | Show your member entry, roles, areas, and whether you hold a technical role (an area `lead` or a role in an area's `roles`), from `git config user.email` |
 | `check URL --gate GATE [--plan P] [--spec S] [--workflow-id EPIC]` | Check a pull request of this repository against the approval policy of `GATE` (`requirement_confirmed`, `plan_approved`, `ship`, or `roadmap`). With `--workflow-id`, `requirement_confirmed` applies the policy of the epic's kind and the JSON carries `kind` ([per-kind policies](../guides/team.md#policy-per-epic-kind)). Every gate but `ship` also needs the pull request merged and changing the gate's spec, plan, or roadmap file. Nothing is recorded |
 | `check-plan PLAN` | Check a plan's `Area:` and `Owner:` fields, that the paths in each track's `Files` block stay inside its area, and that no path is listed by two tracks |

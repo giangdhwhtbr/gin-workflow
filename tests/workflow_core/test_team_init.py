@@ -16,7 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from team_fixtures import TEAM, fake_cli, git, make_team_repo, path_with, run_cli, write  # noqa: E402
 
 from workflow_core.team import load_team  # noqa: E402
-from workflow_core.team_init import single_holder_notes  # noqa: E402
+from workflow_core.team_init import reroot, single_holder_notes  # noqa: E402
+from test_workspace import init_repo  # noqa: E402
 
 GITHUB = [".github/CODEOWNERS", ".github/pull_request_template.md", ".githooks/commit-msg"]
 GITLAB = [".gitlab/CODEOWNERS", ".gitlab/merge_request_templates/Default.md", ".githooks/commit-msg"]
@@ -278,3 +279,158 @@ class TestTeamDoctor(unittest.TestCase):
         payload = self.doctor(root)
         self.assertNotIn("team", payload["checks_details"])
         self.assertNotIn("team", payload["checks"])
+
+
+class TestTeamAllRepos(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_reroot_cases(self):
+        cases = [
+            ("services/order-api/src/**", "services/order-api", "/src/**"),
+            ("services/*/src/**", "services/order-api", "/src/**"),
+            ("services/**", "services/order-api", "/**"),
+            ("**", "apps/web", "/**"),
+            ("services/order-api", "services/order-api", "/**"),
+            ("web/**", "services/order-api", None),
+            ("services", "services/order-api", None),
+            ("tests/services/**", "services/order-api", None),
+        ]
+        for glob, child, expected in cases:
+            with self.subTest(glob=glob, child=child):
+                self.assertEqual(expected, reroot(glob, child))
+
+    def test_all_repos_init_and_hooks(self):
+        manifest = """workspace:
+  repos:
+    - path: services/order-api
+      url: file:///unused
+      shape: backend
+    - path: web/shop
+      url: file:///unused
+      shape: frontend
+    - path: docs/wiki
+      url: file:///unused
+      shape: library
+    - path: legacy/portal
+      url: file:///unused
+      frozen: true
+    - path: .beads
+      url: file:///unused
+      shape: beads
+    - path: services/billing
+      url: file:///unused
+      shape: backend
+"""
+        root = make_team_repo(self.base / "ws", extra=manifest)
+        init_repo(root / "services/order-api")
+        init_repo(root / "web/shop")
+        init_repo(root / "docs/wiki")
+        init_repo(root / "legacy/portal")
+        init_repo(root / ".beads")
+
+        # 1. team init --all-repos exits 0
+        res = run_cli(root, "team", "init", "--all-repos")
+        self.assertEqual(0, res.returncode, res.stderr)
+        self.assertTrue(
+            res.stdout.strip().endswith("commit and open a pull request in: services/order-api, web/shop, docs/wiki"),
+            res.stdout,
+        )
+
+        # check parent files
+        co_parent = (root / ".github/CODEOWNERS").read_text()
+        self.assertIn("/services/** @binh-dev", co_parent)
+        self.assertIn("/.planning/specs/", co_parent)
+
+        # check children files
+        co_order = (root / "services/order-api/.github/CODEOWNERS").read_text()
+        self.assertIn("/** @binh-dev", co_order)
+        self.assertNotIn("/.planning/", co_order)
+
+        co_web = (root / "web/shop/.github/CODEOWNERS").read_text()
+        self.assertIn("/** @chi-fe", co_web)
+
+        self.assertFalse((root / "docs/wiki/.github/CODEOWNERS").exists())
+        self.assertTrue((root / "docs/wiki/.github/pull_request_template.md").exists())
+        self.assertTrue((root / "docs/wiki/.githooks/commit-msg").exists())
+
+        # check json output
+        json_res = run_cli(root, "team", "init", "--all-repos", "--format", "json")
+        self.assertEqual(0, json_res.returncode, json_res.stderr)
+        payload = json.loads(json_res.stdout)
+        repos_by_path = {row["path"]: row for row in payload["repos"]}
+        self.assertEqual("frozen", repos_by_path["legacy/portal"].get("skipped_repo"))
+        self.assertEqual("beads", repos_by_path[".beads"].get("skipped_repo"))
+        self.assertEqual("not cloned", repos_by_path["services/billing"].get("skipped_repo"))
+        self.assertEqual("no area covers docs/wiki", repos_by_path["docs/wiki"].get("note"))
+
+        # 2. child CODEOWNERS without marker kept unless --force
+        write(root / "web/shop", ".github/CODEOWNERS", "# custom codeowners\n")
+        res_skipped = run_cli(root, "team", "init", "--all-repos", "--format", "json")
+        self.assertEqual(0, res_skipped.returncode)
+        payload_skipped = json.loads(res_skipped.stdout)
+        web_row = next(r for r in payload_skipped["repos"] if r["path"] == "web/shop")
+        self.assertIn(".github/CODEOWNERS", web_row["skipped"])
+        self.assertEqual("# custom codeowners\n", (root / "web/shop/.github/CODEOWNERS").read_text())
+
+        res_forced = run_cli(root, "team", "init", "--all-repos", "--force")
+        self.assertEqual(0, res_forced.returncode)
+        self.assertIn("/** @chi-fe", (root / "web/shop/.github/CODEOWNERS").read_text())
+
+        # 3. outside a workspace exits 2
+        solo = make_team_repo(self.base / "solo")
+        res_solo = run_cli(solo, "team", "init", "--all-repos")
+        self.assertEqual(2, res_solo.returncode)
+        self.assertIn("not in a workspace", res_solo.stderr)
+
+        res_hooks_solo = run_cli(solo, "team", "hooks", "--all-repos")
+        self.assertEqual(2, res_hooks_solo.returncode)
+        self.assertIn("not in a workspace", res_hooks_solo.stderr)
+
+        # 4. team hooks --all-repos reports installed for each workable cloned child
+        res_hooks = run_cli(root, "team", "hooks", "--all-repos")
+        self.assertEqual(0, res_hooks.returncode, res_hooks.stderr)
+        self.assertIn("services/order-api: installed:", res_hooks.stdout)
+        self.assertIn("web/shop: installed:", res_hooks.stdout)
+        self.assertIn("docs/wiki: installed:", res_hooks.stdout)
+
+        # child without .githooks/commit-msg reports missing with run gin team init --all-repos and exit 2
+        (root / "docs/wiki/.githooks/commit-msg").unlink()
+        res_missing = run_cli(root, "team", "hooks", "--all-repos")
+        self.assertEqual(2, res_missing.returncode)
+        self.assertIn("docs/wiki: missing:", res_missing.stdout)
+        self.assertIn("run gin team init --all-repos", res_missing.stdout)
+
+    def test_all_repos_child_write_error(self):
+        manifest = """workspace:
+  repos:
+    - path: services/order-api
+      url: file:///unused
+      shape: backend
+    - path: web/shop
+      url: file:///unused
+      shape: frontend
+"""
+        root = make_team_repo(self.base / "ws-err", extra=manifest)
+        init_repo(root / "services/order-api")
+        init_repo(root / "web/shop")
+
+        # make web/shop unwriteable
+        gh_dir = root / "web/shop/.github"
+        gh_dir.mkdir(parents=True, exist_ok=True)
+        gh_dir.chmod(0o444)
+        try:
+            res = run_cli(root, "team", "init", "--all-repos", "--format", "json")
+            self.assertEqual(1, res.returncode)
+            payload = json.loads(res.stdout)
+            repos_by_path = {row["path"]: row for row in payload["repos"]}
+            self.assertIn("error", repos_by_path["web/shop"])
+            self.assertIn("written", repos_by_path["services/order-api"])
+        finally:
+            gh_dir.chmod(0o755)
+
+
