@@ -76,7 +76,10 @@ class UsageCliTests(unittest.TestCase):
         done = run_cli(self.repo, "usage", "report", "--format", "json", env=self.env)
         self.assertEqual(done.returncode, 0, done.stderr)
         out = json.loads(done.stdout)
-        self.assertEqual(set(out), {"beads", "totals", "unpriced", "unattributed", "not_collected"})
+        self.assertEqual(set(out), {"beads", "totals", "unpriced", "unattributed", "not_collected",
+                                    "partial", "partial_reasons"})
+        self.assertTrue(out["partial"])
+        self.assertEqual(out["partial_reasons"], ["not_collected", "unpriced"])
         self.assertEqual(out["not_collected"], ["t2"])
         text = run_cli(self.repo, "usage", "report", env=self.env).stdout
         self.assertIn("t1", text)
@@ -84,6 +87,26 @@ class UsageCliTests(unittest.TestCase):
         self.assertIn("role subagent claude-sonnet-5-5: input=1 output=2 cache_read=0 cache_write=0 cost=2.5", text)
         self.assertIn("m9", text)
         self.assertIn("not collected: t2", text)
+        self.assertIn("partial: not_collected, unpriced", text)
+        lines = text.splitlines()
+        total_idx = next(i for i, line in enumerate(lines) if line.startswith("total:"))
+        self.assertEqual(lines[total_idx + 1], "partial: not_collected, unpriced")
+
+    def test_report_clean_has_no_partial_line(self):
+        clean = {"version": 1, "cost": 1.0,
+                 "models": {"m1": {"input": 1, "output": 1, "cache_read": 0, "cache_write": 0, "cost": 1.0}},
+                 "stages": {"execute": {"tokens": 2, "cost": 1.0}}, "unpriced": [],
+                 "sources": {"claude_code": "ok"}, "skipped_lines": 0,
+                 "collected_at": "2026-10-04T12:00:00Z",
+                 "quality": {}, "unattributed": {"tokens": 0, "cost": 0.0}}
+        fake_cli(self.bin, "bd", [
+            {"argv": ["list", "--all"], "stdout": [
+                {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+                 "closed_at": "2026-10-04T10:00:00Z", "metadata": {"ai_usage": json.dumps(clean)}}]}
+        ])
+        done = run_cli(self.repo, "usage", "report", env=self.env)
+        self.assertEqual(done.returncode, 0)
+        self.assertNotIn("partial:", done.stdout)
 
     def test_report_renders_legacy_summary_without_roles(self):
         legacy = {"version": 1, "cost": 1.0,

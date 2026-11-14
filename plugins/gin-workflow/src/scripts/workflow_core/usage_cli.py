@@ -44,6 +44,8 @@ def _money(value: Any) -> str:
 def _report_text(out: dict[str, Any]) -> str:
     lines = [f"{entry['bead']}  {_money(entry.get('cost'))}  {entry.get('title', '')}" for entry in out["beads"]]
     lines.append(f"total: {_money(out['totals']['cost'])}")
+    if out.get("partial"):
+        lines.append(f"partial: {', '.join(out['partial_reasons'])}")
     for name, values in sorted(out["totals"]["models"].items()):
         tokens = " ".join(f"{key}={values[key]}" for key in ("input", "output", "cache_read", "cache_write"))
         lines.append(f"model {name}: {tokens} cost={_money(values['cost'])}")

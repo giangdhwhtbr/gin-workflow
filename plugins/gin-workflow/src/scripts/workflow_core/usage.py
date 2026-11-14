@@ -426,11 +426,40 @@ def report(repo: Path, *, bead: str | None = None, epic: str | None = None, sinc
     tokens = sum(part.get("tokens", 0) for part in parts)
     priced = [part["cost"] for part in parts if part.get("cost") is not None]
     unattributed = {"tokens": tokens, "cost": round(sum(priced), 4) if priced or not tokens else None}
+    unpriced = sorted({name for entry in top for name in entry.get("unpriced") or ()})
+    not_collected = [row["id"] for row, doc in collected if doc is None]
+    docs = [doc for _, doc in collected if doc is not None]
+    has_doc_ids = {row["id"] for row, doc in collected if doc is not None and "id" in row}
+    reasons: set[str] = set()
+    if any(row.get("parent") in has_doc_ids for row, doc in collected if doc is not None and row.get("parent")):
+        reasons.add("children_not_merged")
+    if not_collected:
+        reasons.add("not_collected")
+    if unattributed["tokens"] > 0:
+        reasons.add("unattributed")
+    if any(any(status != "ok" for status in (doc.get("sources") or {}).values()) or
+           (doc.get("skipped_lines") or 0) > 0 for doc in docs):
+        reasons.add("log_sources")
+    for row, doc in collected:
+        if doc is None:
+            continue
+        cat = _ts(doc.get("collected_at"))
+        if cat is None:
+            continue
+        child_closed = [_ts(c.get("closed_at")) for c in selected if c.get("parent") == row.get("id")]
+        valid_closed = [ts for ts in child_closed if ts is not None]
+        if valid_closed and cat < max(valid_closed):
+            reasons.add("stale")
+    if unpriced:
+        reasons.add("unpriced")
+    partial_reasons = sorted(reasons)
     return {
         "beads": beads,
         "totals": {"cost": round(sum(costs), 4) if costs or not models else None, "models": models, "roles": roles,
                    "stages": stages},
-        "unpriced": sorted({name for entry in top for name in entry.get("unpriced") or ()}),
+        "unpriced": unpriced,
         "unattributed": unattributed,
-        "not_collected": [row["id"] for row, doc in collected if doc is None],
+        "not_collected": not_collected,
+        "partial": bool(partial_reasons),
+        "partial_reasons": partial_reasons,
     }
