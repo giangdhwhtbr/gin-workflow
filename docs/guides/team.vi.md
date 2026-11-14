@@ -106,6 +106,8 @@ Ship của một thành viên chỉ bao gồm các track của chính họ. Lead
 
 Prep task (việc capture, mockup, spike và câu hỏi trước discuss; xem [vòng đời](../concepts/lifecycle.md#prep-tasks)) do `/gin:allocate` của lead tạo và cần `team.beads_sync`. Thiếu nó, chúng chỉ nằm trong cơ sở dữ liệu của lead và không thành viên nào thấy. Skill chạy `gin team sync` trước và sau khi ghi, và người được giao chạy lệnh này sau khi đóng task.
 
+Một learning đăng dưới dạng comment `[gin learn]` chỉ đến các máy khác sau `gin team sync`: đăng trước, rồi sync.
+
 `gin team ready` liệt kê prep task của thành viên cùng với việc sẵn sàng khác, theo thứ tự priority ([lệnh](../reference/cli.md#gin-team)).
 
 ## Thiết lập trên host { #host-settings }
