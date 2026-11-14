@@ -28,7 +28,7 @@ git rev-parse --show-superproject-working-tree   # prints a path => submodule, t
 Install with the project's own tooling: `pnpm install` / `yarn install` / `npm ci` (lockfile-driven), `cargo build`, `pip install -r requirements.txt` or `poetry install`/`uv sync`, `go mod download`. Skip what does not apply.
 
 ## 3. Baseline
-Run the project test command: `workspace.current.checks.test` from `gin state --format json` in a workspace child, else the configured `verify.commands`. If it fails, report the failures and ask whether to proceed or investigate. If it passes, report: `Worktree ready at <path>; tests passing (<N>, 0 failures)`.
+Run the project test command. In a workspace child it is `workspace.current.checks.test` from `gin state --format json`; when that is missing, report that the entry has no test check and ask, and never run the parent's commands, which belong to another repository. Outside a workspace child it is the configured `verify.commands`. If it fails, report the failures and ask whether to proceed or investigate. If it passes, report: `Worktree ready at <path>; tests passing (<N>, 0 failures)`.
 
 ## Cleanup
 Only after merge or a confirmed discard: from the main checkout (never from inside the worktree), run `gin worktree cleanup <track-id>`, then `git worktree prune`, then delete the branch. Keep the worktree for PR and keep-as-is outcomes.
