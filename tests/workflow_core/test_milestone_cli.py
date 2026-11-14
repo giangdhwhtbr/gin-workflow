@@ -42,6 +42,17 @@ def make_template(directory, *assignments):
     return root
 
 
+def beads_store(root):
+    """The bytes of the Dolt store files (`.beads/embeddeddolt/<db>/.dolt/noms`). bd reads leave them as they are and
+    any write changes the manifest and journal, so equal snapshots mean nothing was written; a snapshot costs a few ms
+    where `bd list` costs 0.3 s."""
+    store = {path.relative_to(root).as_posix(): path.read_bytes()
+             for path in sorted((root / ".beads/embeddeddolt").glob("*/.dolt/noms/**/*")) if path.is_file()}
+    if not store:
+        raise AssertionError(f"no Dolt store under {root / '.beads/embeddeddolt'}")
+    return store
+
+
 def cached_beads(cache, name, root, build):
     """Give `root` the `.beads` that `build()` writes there: built by the first test that asks, then copied (bd writes
     take about a second each, a copy a few ms)."""
@@ -207,12 +218,12 @@ class MilestoneCliTests(unittest.TestCase):
 
     def test_req_009_preview_does_not_write(self):
         self.seed()
-        before = self.bd("show", "t-m1", "--json")
+        before = beads_store(self.root)
         code, out, err = self.run_cli("show", "t-m1", "--start", "2026-11-16", "--json")
         self.assertEqual(0, code, err)
         payload = json.loads(out)
         self.assertEqual(("2026-11-16", True), (payload["schedule_start"], payload["preview"]))
-        self.assertEqual(before, self.bd("show", "t-m1", "--json"))
+        self.assertEqual(before, beads_store(self.root))
 
     def test_req_011_cycle_fails_show_but_not_list(self):
         self.seed()
@@ -282,10 +293,10 @@ class MilestoneCliTests(unittest.TestCase):
         self.epic("t-x", "X", "t-e0")
 
     def refused(self, *argv):
-        before = self.bd("list", "--all", "--limit", "0", "--json")
+        before = beads_store(self.root)
         code, _, err = self.run_cli(*argv)
         self.assertEqual(1, code, err)
-        self.assertEqual(before, self.bd("list", "--all", "--limit", "0", "--json"))
+        self.assertEqual(before, beads_store(self.root))
         return err
 
     def write_roadmap(self, body):
