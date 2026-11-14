@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-ws-child-setup.1`
 - **Base SHA:** `545558d8a8483401b31c91d40471124caab54b28`
-- **Reviewed SHA:** `1c1fb211c7a1bd61d5d83b4b44fbaacf2cfd5af4`
+- **Reviewed SHA:** `2d14f18d0c072e245a4aa8d38f6f06e5f5444b65`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-ws-child-setup.1`
-- **Checkpoint SHA:** `1c1fb211c7a1bd61d5d83b4b44fbaacf2cfd5af4`
+- **Checkpoint SHA:** `2d14f18d0c072e245a4aa8d38f6f06e5f5444b65`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `0c7161855bb20f6a124339e1f0022e278341190c8c22bc9ad4ea5b0ba07529f8`
+- **Tree Hash:** `655d4c339f398dd8884c47f683e07d98065c501d35b25a33550760a65b259aa2`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,21 +29,21 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `open` | 0 | - |
-| `F-2` | `IMPORTANT` | `open` | 0 | - |
-| `F-3` | `MINOR` | `open` | 0 | - |
+| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-3` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-2` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-3` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -61,3 +61,7 @@
 | `EV-000009` | `2026-11-14T11:08:57.855156Z` | `changes-requested` | `reviewer:claude:session-cs1r1` (reviewer) |
 | `EV-000010` | `2026-11-14T11:08:58.087487Z` | `lease-released` | `reviewer:claude:session-cs1r1` (reviewer) |
 | `EV-000011` | `2026-11-14T11:09:21.922458Z` | `implementation-in-progress` | `worker:claude:session-main` (worker) |
+| `EV-000012` | `2026-11-14T11:14:58.695784Z` | `source-checkpoint-created` | `worker:claude:session-main` (worker) |
+| `EV-000013` | `2026-11-14T11:14:58.822857Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000014` | `2026-11-14T11:14:58.944499Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000015` | `2026-11-14T11:14:59.064946Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
