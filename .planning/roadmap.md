@@ -57,7 +57,7 @@ flowchart LR
     QP[qa-parity]
     SD[sdd-team-flow] --> BA[ba-workspace]
     CS[ws-child-setup]
-    ER[ws-entry-rules]
+    ER[ws-entry-rules] --> JL[jvm-legacy-rules]
 ```
 
 | Wave | Epics |
@@ -66,10 +66,10 @@ flowchart LR
 | 2 | `gin-workflow-ws-ship-gate`, `gin-workflow-qa-workspace`, `gin-workflow-approval-roles` |
 | 3 | `gin-workflow-team-progress`, `gin-workflow-epic-shape-docs`, `gin-workflow-ws-branch-model` |
 | 4 | `gin-workflow-ws-child-setup`, `gin-workflow-ws-entry-rules`, `gin-workflow-qa-lifecycle` |
-| 5 | `gin-workflow-sdd-team-flow`, `gin-workflow-qa-evidence` |
+| 5 | `gin-workflow-sdd-team-flow`, `gin-workflow-qa-evidence`, `gin-workflow-jvm-legacy-rules` |
 | 6 | `gin-workflow-ba-workspace`, `gin-workflow-qa-parity` |
 
-With 1 lane the epics run in the listed order: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-child-setup, ws-entry-rules, qa-lifecycle, qa-evidence, sdd-team-flow, qa-parity, ba-workspace. Shipped by 2026-11-11: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, qa-lifecycle; the 9 open epics total 13 working days, past the deadline.
+With 1 lane the epics run in the listed order: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-child-setup, ws-entry-rules, jvm-legacy-rules, qa-lifecycle, qa-evidence, sdd-team-flow, qa-parity, ba-workspace. Shipped by 2026-11-11: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, qa-lifecycle; the 10 open epics total 13 working days, past the deadline.
 
 ## Unassigned
 
@@ -183,15 +183,26 @@ Depends on:
 Evidence: synthesis "Workspace onboarding and frozen legacy access" (PM-1, PM-2, BA-2, BE-LEAD-12, BE-LEAD-25) and "Team init for every workspace child" (BE-LEAD-3, FE-LEAD-2); `team_init.py:41,125-137`, `docs/guides/workspace.md:63`.
 Risks: writing into child repositories needs each child's default branch and host.
 
-### Per-entry checks, rule packs, shape, and a Java and JSP legacy
+### Per-entry checks, rule packs, and shape in a workspace
 Epic: gin-workflow-ws-entry-rules
-Estimate: 2
-Complexity: medium: doctor, rules, worktrees, tech-doc
-Goal: doctor, worktrees, and execute use the current entry's `verify.checks`, rule packs, and shape appendix instead of the parent's, `java` and `spring` rule packs exist, and tech-doc scouts Spring, JAX-RS, Struts, and JSP routes per entry.
-Scope: rule-pack detection per entry `package.json` and build files; shape appendix by entry shape in execute; `java` and `spring` packs; tech-doc route scouting for JVM web stacks.
-Out of scope: team init per child (`gin-workflow-ws-child-setup`).
+Estimate: 1
+Complexity: medium: doctor, rules, worktrees
+Goal: doctor, worktrees, and execute use the current entry's `verify.checks`, rule packs, and shape appendix instead of the parent's.
+Scope: rule-pack detection per entry `package.json` and build files; shape appendix by entry shape in execute.
+Out of scope: team init per child (`gin-workflow-ws-child-setup`); `java` and `spring` rule packs and tech-doc route scouting for JVM web stacks (`gin-workflow-jvm-legacy-rules`).
 Depends on:
-Evidence: synthesis "Per-entry checks, rule packs, and shape in a workspace" (FE-LEAD-7, FE-LEAD-8, BE-LEAD-23, FE-LEAD-17, BE-LEAD-22, FE-LEAD-9, FE-LEAD-20) and "Tech-doc and rules for a Java and JSP legacy" (BE-LEAD-9, BA-13, FE-LEAD-22); `rules_checks.py:22-28,47-58`, `rules.py:247-254`, `execute/SKILL.md:23`, `worktrees/SKILL.md:39`.
+Evidence: synthesis "Per-entry checks, rule packs, and shape in a workspace" (FE-LEAD-7, FE-LEAD-8, BE-LEAD-23, FE-LEAD-17, BE-LEAD-22, FE-LEAD-9, FE-LEAD-20); `rules_checks.py:22-28,47-58`, `rules.py:247-254`, `execute/SKILL.md:23`, `worktrees/SKILL.md:39`.
+Risks: none beyond the tests each change needs.
+
+### Java and Spring rule packs and JVM route scouting in tech-doc
+Epic: gin-workflow-jvm-legacy-rules
+Estimate: 1
+Complexity: medium: rule packs, tech-doc
+Goal: the `java` and `spring` rule packs exist, and `/gin:tech-doc` scouts Spring, JAX-RS, Struts, and JSP routes per workspace entry.
+Scope: `java` and `spring` rule packs in `plugins/gin-workflow/src/rules/` with `applies_to`, `detect` from build files `pom.xml` and `build.gradle`, tests, and budgets like the other packs; tech-doc route scouting for Spring, JAX-RS, Struts, and JSP per entry.
+Out of scope: per-entry checks, pack detection and selection, and shape (`gin-workflow-ws-entry-rules`).
+Depends on: gin-workflow-ws-entry-rules
+Evidence: synthesis "Tech-doc and rules for a Java and JSP legacy" (BE-LEAD-9, BA-13, FE-LEAD-22).
 Risks: new rule packs need their own tests and budgets.
 
 ### QA tracks and acceptance cases in the lifecycle
