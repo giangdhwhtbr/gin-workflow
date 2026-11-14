@@ -100,7 +100,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return routes_main(argv[1:])
         if argv[0] == "paths":
             import json
-            from pathlib import Path
             print(json.dumps({"lib_dir": str(Path(__file__).resolve().parents[1])}))
             return 0
         if argv[0] == "goal":
@@ -153,6 +152,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
     action = options.pop("action")
     output_format = options.pop("format")
     try:
+        if action == "doctor" and options.get("repository") is None:
+            here = workspace.current(Path.cwd())
+            if here.checkout is not None:
+                options["current"] = here.checkout
         options["repository"] = workspace.repository_root(options["repository"])
         payload = COMMANDS[action](**options)
     except DependencyUnavailableError as error:

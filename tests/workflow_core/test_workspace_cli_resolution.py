@@ -55,11 +55,15 @@ class ResolutionFromChildTests(unittest.TestCase):
         git(self.child, "worktree", "add", "-b", "feat/x-t1", str(wt), "main")
         parent, child, linked = (self.state(cwd, "--workflow-id", "w") for cwd in (self.root, self.child, wt))
         self.assertTrue(parent["gates"]["requirement_confirmed"])
-        for key in ("gates", "decision", "epic"):
+        for key in ("gates", "decision", "epic", "project"):
             self.assertEqual(parent[key], child[key], key)
             self.assertEqual(parent[key], linked[key], key)
         self.assertEqual([None, "services/api", "services/api"],
                          [s["workspace"]["current_repo"] for s in (parent, child, linked)])
+        self.assertIsNone(parent["workspace"]["current"])
+        expected_current = {"path": "services/api", "shape": "backend", "checks": {"test": "echo api-test"}}
+        self.assertEqual(expected_current, child["workspace"]["current"])
+        self.assertEqual(expected_current, linked["workspace"]["current"])
         self.assertEqual(str(self.root), child["workspace"]["root"])
 
     def test_explicit_repository_is_taken_as_given(self):

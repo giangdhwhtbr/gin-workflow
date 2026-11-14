@@ -4,3 +4,4 @@ generated/
 runtime/
 backups/
 orchestrator.local.yaml
+executables.local.yaml

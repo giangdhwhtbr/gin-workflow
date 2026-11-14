@@ -387,9 +387,13 @@ def refresh(repository: Path, *, dry_run: bool = False, **_: Any) -> dict[str, A
         "generate .agent-workflow/generated/effective-config.yaml",
         "generate .agent-workflow/generated/config-provenance.yaml",
         "write .agent-workflow/executables.local.yaml",
+        "write .agent-workflow/.gitignore",
     ]
     if not dry_run:
         write_local(root, detect_tools(root=root))
+        # a repository set up before a local file existed lacks its ignore line
+        ignore_path = root / ".agent-workflow/.gitignore"
+        atomic_write_bytes(ignore_path, _merged_provider_gitignore(ignore_path))
     if writes:
         actions.append("update AGENTS.md gin block")
     return {
@@ -419,9 +423,10 @@ def status(repository: Path, **_: Any) -> dict[str, Any]:
     }
 
 
-def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]:
+def doctor(repository: Path, *, probe: bool = False, current: Path | None = None, **_: Any) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
+    entry = workspace_mod.locate(current).entry if current is not None else None
     checks: dict[str, bool] = {"repository": root.is_dir(), "initialized": False, "configuration": False}
     checks_details: dict[str, Any] = {}
     config = root / ".agent-workflow/config.yaml"
@@ -484,12 +489,15 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
     hook_actions: list[str] = []
     if checks["configuration"]:
         settings = project_settings(effective_cfg)
-        missing = [k for k in ("lint", "typecheck", "test", "build") if not settings.verify_commands.get(k)]
+        if entry is not None:
+            checks_details["entry"] = {"path": entry.path, "shape": entry.shape}
+        commands, checked = (entry.checks, current) if entry is not None else (settings.verify_commands, root)
+        missing = [k for k in ("lint", "typecheck", "test", "build") if not commands.get(k)]
         checks_details["verify_commands"] = {"missing": missing}
-        if settings.verify_commands:
+        if commands:
             from .hooks import findings as hook_findings
 
-            checks_details["hooks"], found = hook_findings(root)
+            checks_details["hooks"], found = hook_findings(checked)
             hook_actions = [f"hooks: {action}" for action in found]
         detected = detect_project(root)
         if settings.stage == "greenfield" and detected["stage"] == "brownfield":
@@ -528,7 +536,12 @@ def doctor(repository: Path, *, probe: bool = False, **_: Any) -> dict[str, Any]
         from .rules_checks import rules_doctor
 
         effective = effective_cfg
-        rules_detail = rules_doctor(root, effective)
+        if entry is not None:
+            from .rules import entry_config
+
+            rules_detail = rules_doctor(current, entry_config(effective, entry))
+        else:
+            rules_detail = rules_doctor(root, effective)
         checks_details["rules"] = rules_detail
         for item in rules_detail.get("tool_checks", []):
             if item["status"] == "missing":

@@ -238,6 +238,13 @@ def list_packs(plugin: Mapping[str, Pack], project: Sequence[Pack], config: Mapp
             for pack in rows]
 
 
+def entry_config(parent_config: Mapping[str, Any], entry: workspace.Repo) -> dict[str, Any]:
+    """The parent's config with `rules.packs` extended by the entry's packs (order kept, duplicates dropped)."""
+    packs, _ = rules_config(parent_config)
+    section = parent_config.get("rules") if isinstance(parent_config.get("rules"), Mapping) else {}
+    return {**parent_config, "rules": {**section, "packs": list(dict.fromkeys([*packs, *entry.packs]))}}
+
+
 def _load_config(repository: Path) -> Mapping[str, Any]:
     if not (repository / ".agent-workflow/config.yaml").is_file():
         return {}
@@ -265,10 +272,16 @@ def main(arguments: Sequence[str]) -> int:
         args = parser.parse_args(list(arguments))
     except SystemExit as error:
         return error.code if isinstance(error.code, int) else 2
-    args.repository = workspace.repository_root(args.repository)
-    repository = args.repository.resolve()
+    here = workspace.current(Path.cwd()) if args.repository is None else None
+    child = here.checkout if here is not None else None
+    if child is not None:  # a workspace child: the parent's config plus the entry's packs, the child's own rules
+        repository, config_root = child.resolve(), here.located.root.resolve()
+    else:
+        repository = config_root = workspace.repository_root(args.repository).resolve()
     try:
-        config = _load_config(repository)
+        config = _load_config(config_root)
+        if child is not None:
+            config = entry_config(config, here.located.entry)
         plugin = load_plugin_packs(plugin_rules_dir())
         project = load_project_rules(repository)
     except (RulesError, ValueError) as error:
