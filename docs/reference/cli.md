@@ -26,7 +26,7 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode\|copilot`) | no |
 | `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the `gin` block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block | yes |
 | `configure` | Changes repository configuration (`--set key=value`) | yes |
-| `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration, rewrites `executables.local.yaml`, and re-renders an existing `AGENTS.md` block (never creates one) | yes |
+| `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration, rewrites `executables.local.yaml`, adds any missing local-file entry to `.agent-workflow/.gitignore`, and re-renders an existing `AGENTS.md` block (never creates one) | yes |
 | `update` | Proposes, then with `--approve` applies, a registered schema migration (`--to-version`) | yes |
 | `doctor` | Checks configuration, main harness executable, verify commands, rule tool checks, external CLI paths, the code index, and the `AGENTS.md` block (`ok`, `stale`, `absent`, `invalid`) | no |
 | `status` | Shows whether the repository is initialized and the generated files exist | no |

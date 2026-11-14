@@ -506,6 +506,22 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, self.run_cli(repository, "refresh").returncode)
             self.assertNotIn(gone, target.read_text(encoding="utf-8"))
 
+    def test_refresh_adds_missing_local_entries_to_an_older_gitignore(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            ignore = repository / ".agent-workflow/.gitignore"
+            older = "# kept comment\ngenerated/\nruntime/\nbackups/\norchestrator.local.yaml\n"
+            ignore.write_text(older, encoding="utf-8")
+            self.assertEqual(0, self.run_cli(repository, "refresh", "--dry-run").returncode)
+            self.assertEqual(older, ignore.read_text(encoding="utf-8"))
+            self.assertEqual(0, self.run_cli(repository, "refresh").returncode)
+            lines = ignore.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(older.splitlines(), lines[:5])
+            self.assertIn("executables.local.yaml", lines)
+            self.assertIn("providers.local.yaml", lines)
+            self.assertEqual(len(lines), len(set(lines)))
+
     def test_doctor_reports_stale_and_missing_executables(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
