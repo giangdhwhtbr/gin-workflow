@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-ws-child-setup.3",
       "checkpoint_ref": "refs/gin/review/gin-workflow-ws-child-setup.3",
       "review_base_sha": "90b40a4eb1ac156947be713d31476aefb7b5cf29",
-      "reviewed_source_sha": "5103ef11227c6e648c72dc373464f032cf7ce7ec",
-      "checkpoint_sha": "5103ef11227c6e648c72dc373464f032cf7ce7ec",
+      "reviewed_source_sha": "89260555cb6a55600a133b8d2314f652a7b68ceb",
+      "checkpoint_sha": "89260555cb6a55600a133b8d2314f652a7b68ceb",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "ddfdb47f59507a622c76852c9bd598caccf3e63212663765568a50e865872eb7",
-      "reviewed_source_tree_hash": "ddfdb47f59507a622c76852c9bd598caccf3e63212663765568a50e865872eb7",
+      "source_tree_hash": "11c4bbf24799d53790ebf9fd9cfc1d3e5a77299ebcdad5a8939599b1469ea37c",
+      "reviewed_source_tree_hash": "11c4bbf24799d53790ebf9fd9cfc1d3e5a77299ebcdad5a8939599b1469ea37c",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 10,
+  "ledger_revision": 13,
   "next_finding_number": 3,
   "findings": {
     "F-1": {
       "finding_id": "F-1",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F-2": {
       "finding_id": "F-2",
       "severity": "MINOR",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -239,6 +239,63 @@
       },
       "previous_event_hash": "39d39a3424af4c204ab06f744dff480a3589b7d8ff633d38b3926abb12a9e284",
       "event_hash": "8b2f59d1d91f0f26dd38461e427a2200854fc44e1e734c326096c0e53fe6a379"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-14T12:21:57.456905Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ws-child-setup.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ws-child-setup.3",
+            "review_base_sha": "90b40a4eb1ac156947be713d31476aefb7b5cf29",
+            "reviewed_source_sha": "89260555cb6a55600a133b8d2314f652a7b68ceb",
+            "checkpoint_sha": "89260555cb6a55600a133b8d2314f652a7b68ceb",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "11c4bbf24799d53790ebf9fd9cfc1d3e5a77299ebcdad5a8939599b1469ea37c",
+            "reviewed_source_tree_hash": "11c4bbf24799d53790ebf9fd9cfc1d3e5a77299ebcdad5a8939599b1469ea37c",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "8b2f59d1d91f0f26dd38461e427a2200854fc44e1e734c326096c0e53fe6a379",
+      "event_hash": "ccfb7574c14d0320cfe4859f308394043e1e86a457ea568ae11448fe199e9c50"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T12:21:57.585875Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-1"
+      },
+      "previous_event_hash": "ccfb7574c14d0320cfe4859f308394043e1e86a457ea568ae11448fe199e9c50",
+      "event_hash": "3914ce21edd7d2b720f196955bd88733492e9a7226b7960726b8c6259b770c02"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T12:21:57.709583Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-2"
+      },
+      "previous_event_hash": "3914ce21edd7d2b720f196955bd88733492e9a7226b7960726b8c6259b770c02",
+      "event_hash": "78fe33721e46d0a05edd955465db36899c816525d43449413ec73bf3f015caf4"
     }
   ]
 }

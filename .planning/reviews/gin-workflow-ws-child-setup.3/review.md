@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-ws-child-setup.3`
 - **Base SHA:** `90b40a4eb1ac156947be713d31476aefb7b5cf29`
-- **Reviewed SHA:** `5103ef11227c6e648c72dc373464f032cf7ce7ec`
+- **Reviewed SHA:** `89260555cb6a55600a133b8d2314f652a7b68ceb`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-ws-child-setup.3`
-- **Checkpoint SHA:** `5103ef11227c6e648c72dc373464f032cf7ce7ec`
+- **Checkpoint SHA:** `89260555cb6a55600a133b8d2314f652a7b68ceb`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `ddfdb47f59507a622c76852c9bd598caccf3e63212663765568a50e865872eb7`
+- **Tree Hash:** `11c4bbf24799d53790ebf9fd9cfc1d3e5a77299ebcdad5a8939599b1469ea37c`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,16 +29,16 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `open` | 0 | - |
-| `F-2` | `MINOR` | `open` | 0 | - |
+| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-2` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -55,3 +55,6 @@
 | `EV-000008` | `2026-11-14T12:10:55.140552Z` | `changes-requested` | `reviewer:claude:session-cs3r1` (reviewer) |
 | `EV-000009` | `2026-11-14T12:10:55.368994Z` | `lease-released` | `reviewer:claude:session-cs3r1` (reviewer) |
 | `EV-000010` | `2026-11-14T12:11:18.511755Z` | `implementation-in-progress` | `worker:claude:session-main` (worker) |
+| `EV-000011` | `2026-11-14T12:21:57.456905Z` | `source-checkpoint-created` | `worker:claude:session-main` (worker) |
+| `EV-000012` | `2026-11-14T12:21:57.585875Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
+| `EV-000013` | `2026-11-14T12:21:57.709583Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
