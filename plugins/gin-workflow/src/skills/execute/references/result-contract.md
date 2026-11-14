@@ -11,6 +11,6 @@ A worker result is accepted only when it contains every required field:
 - `evidence`: list of structured objects
 - `blockers`: list of strings
 
-`knowledge_candidates` is an optional list of objects with `fact` and `evidence`, normalized to an empty list when omitted; execute posts each as `[gin learn]`.
+`knowledge_candidates` is an optional list of mappings, normalized to an empty list when omitted; execute posts the `fact` and `evidence` of each entry as `[gin learn]` and reports an entry without `fact` instead of posting it.
 
 Missing fields, invalid field types, unsupported status, or a mismatched task identity fail with `invalid_result_contract`.
