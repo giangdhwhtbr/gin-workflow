@@ -145,7 +145,7 @@ def _screens(text: str) -> list[str]:
         if fence:
             if run and run[1][0] == fence[0] and len(run[1]) >= len(fence) and not run[2].strip():
                 fence = ""
-        elif run:
+        elif run and not (run[1][0] == "`" and "`" in run[2]):  # a backtick fence's info string has no backtick
             fence = run[1]
         elif line.startswith("## "):
             inside = line.strip() == "## As-is behaviour"
