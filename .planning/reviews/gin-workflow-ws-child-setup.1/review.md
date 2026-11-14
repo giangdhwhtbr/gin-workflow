@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -27,10 +27,25 @@
 - **Allowed Generated Paths:**
 
 ## Findings Summary
-*No findings recorded.*
+| Finding ID | Severity | Status | Clarification Count | Linked Bead |
+| :--- | :--- | :--- | :---: | :--- |
+| `F-1` | `IMPORTANT` | `open` | 0 | - |
+| `F-2` | `IMPORTANT` | `open` | 0 | - |
+| `F-3` | `MINOR` | `open` | 0 | - |
 
 ## Findings Detail
-*No detailed findings.*
+### `F-1` (IMPORTANT)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F-2` (IMPORTANT)
+- **Status:** `open`
+- **Clarification Count:** 0
+
+### `F-3` (MINOR)
+- **Status:** `open`
+- **Clarification Count:** 0
+
 
 ## Event Chronology
 | Event ID | Timestamp | Action | Actor |
@@ -38,3 +53,11 @@
 | `EV-000001` | `2026-11-14T11:01:32.247153Z` | `ledger-created` | `worker:claude:session-main` (worker) |
 | `EV-000002` | `2026-11-14T11:01:33.040940Z` | `source-checkpoint-created` | `worker:claude:session-main` (worker) |
 | `EV-000003` | `2026-11-14T11:07:42.479271Z` | `review-requested` | `worker:claude:session-main` (worker) |
+| `EV-000004` | `2026-11-14T11:08:53.249829Z` | `lease-acquired` | `reviewer:claude:session-cs1r1` (reviewer) |
+| `EV-000005` | `2026-11-14T11:08:53.271237Z` | `review-started` | `reviewer:claude:session-cs1r1` (reviewer) |
+| `EV-000006` | `2026-11-14T11:08:57.486286Z` | `finding-created` | `reviewer:claude:session-cs1r1` (reviewer) |
+| `EV-000007` | `2026-11-14T11:08:57.612399Z` | `finding-created` | `reviewer:claude:session-cs1r1` (reviewer) |
+| `EV-000008` | `2026-11-14T11:08:57.734086Z` | `finding-created` | `reviewer:claude:session-cs1r1` (reviewer) |
+| `EV-000009` | `2026-11-14T11:08:57.855156Z` | `changes-requested` | `reviewer:claude:session-cs1r1` (reviewer) |
+| `EV-000010` | `2026-11-14T11:08:58.087487Z` | `lease-released` | `reviewer:claude:session-cs1r1` (reviewer) |
+| `EV-000011` | `2026-11-14T11:09:21.922458Z` | `implementation-in-progress` | `worker:claude:session-main` (worker) |
