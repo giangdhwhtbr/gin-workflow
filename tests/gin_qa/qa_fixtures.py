@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import shutil
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tests/workflow_core"))
@@ -66,6 +70,29 @@ def qa(root: Path | None, bin_dir: Path | None, *args: str, group: str = "cases"
     search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
     return subprocess.run([sys.executable, str(QA_LAUNCHER), group, *args, *(["--repository", str(root)] if root else [])],
                           capture_output=True, text=True, env={**os.environ, "PATH": search}, cwd=cwd)
+
+
+def qa_in_process(root: Path | None, bin_dir: Path | None, *args: str, group: str = "cases", path: str = TOOLS_PATH,
+                  through_files: bool = False) -> subprocess.CompletedProcess[str]:
+    """What `qa` returns, without starting an interpreter: `gin_qa.cli.main` with the same PATH. With `through_files`
+    the output goes through temporary files, which a child given `stdout=sys.stderr` can write to (`e2e run` hands
+    its stderr to Playwright)."""
+    from gin_qa import cli as qa_cli
+
+    search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
+    argv = [group, *args, *(["--repository", str(root)] if root else [])]
+    with contextlib.ExitStack() as stack:
+        if through_files:
+            out = stack.enter_context(tempfile.TemporaryFile("w+", encoding="utf-8"))
+            err = stack.enter_context(tempfile.TemporaryFile("w+", encoding="utf-8"))
+        else:
+            out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, {"PATH": search}), contextlib.redirect_stdout(out), \
+                contextlib.redirect_stderr(err):
+            code = qa_cli.main(argv)
+        out.seek(0)
+        err.seek(0)
+        return subprocess.CompletedProcess(argv, code, out.read(), err.read())
 
 
 def make_workspace_qa(base: Path, *, clone: bool = True) -> tuple[Path, Path]:

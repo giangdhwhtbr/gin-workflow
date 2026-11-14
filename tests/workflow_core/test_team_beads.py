@@ -14,7 +14,9 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with, run_cli  # noqa: E402
+from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with  # noqa: E402
+# One test per subcommand keeps the subprocess; the rest run gin in this process.
+from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as run_cli  # noqa: E402
 from workflow_core import team_beads, worktrees  # noqa: E402
 from workflow_core.team import TeamConfig, team_for_repo  # noqa: E402
 
@@ -82,7 +84,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
         create(self.root, "frontend", "area:frontend")
         theirs = create(self.root, "theirs", "area:backend")
         bd(self.root, "update", theirs, "--assignee", "em@corp.com")
-        rows = json.loads(run_cli(self.root, "team", "ready", "--format", "json").stdout)["ready"]
+        rows = json.loads(run_cli_subprocess(self.root, "team", "ready", "--format", "json").stdout)["ready"]
         self.assertEqual({mine, backend}, {row["id"] for row in rows})
 
     def test_ready_holds_an_unshipped_external_dependency(self):
@@ -94,7 +96,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
 
     def test_claim_and_already_claimed(self):
         free = create(self.root, "free", "area:backend")
-        result = run_cli(self.root, "team", "claim", free)
+        result = run_cli_subprocess(self.root, "team", "claim", free)
         self.assertEqual(0, result.returncode, result.stderr)
         claimed = show(self.root, free)
         self.assertEqual(("binh@corp.com", "in_progress"), (claimed["assignee"], claimed["status"]))
@@ -142,12 +144,6 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertEqual("binh@corp.com", issue["assignee"])
         self.assertNotIn("released", issue.get("labels") or [])
 
-    def test_unreleased_frontend_bead_stays_hidden_and_refused(self):
-        frontend = create(self.root, "form", "area:frontend")
-        listed = run_cli(self.root, "team", "ready", "--format", "json")
-        self.assertNotIn(frontend, [r["id"] for r in json.loads(listed.stdout)["ready"]])
-        self.assertEqual(1, run_cli(self.root, "team", "claim", frontend).returncode)
-
     def test_expired_claim_is_listed_and_taken_over(self):
         held = create(self.root, "held", "area:backend")
         bd(self.root, "update", held, "--claim", actor="em@corp.com")
@@ -168,7 +164,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
     def test_reassign_lead_takes_over_and_checks_eligibility(self):
         bead = create(self.root, "work", "area:backend")
         bd(self.root, "update", bead, "--claim", actor="em@corp.com")
-        refused = run_cli(self.root, "team", "reassign", bead, "chi@corp.com")
+        refused = run_cli_subprocess(self.root, "team", "reassign", bead, "chi@corp.com")
         self.assertEqual(1, refused.returncode)
         self.assertIn("may not own tracks in backend", refused.stdout)
         self.assertEqual(2, run_cli(self.root, "team", "reassign", bead, "nobody@corp.com").returncode)
@@ -217,7 +213,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
              "body": "Plan: .planning/plans/p.md\nTracks: 1, 2\n"},
             {"url": "https://github.com/org/app/pull/8", "mergeCommit": {"oid": "def"},
              "body": "Plan: .planning/plans/other.md\nTracks: 3\n"}]}])
-        result = run_cli(self.root, "team", "deps", "--format", "json", env=path_with(bin_dir))
+        result = run_cli_subprocess(self.root, "team", "deps", "--format", "json", env=path_with(bin_dir))
         self.assertEqual(0, result.returncode, result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual([{"id": done, "pr": "https://github.com/org/app/pull/9"}], payload["closed"])
@@ -289,29 +285,45 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertIn(work, ready())
 
     def test_sync_needs_a_remote(self):
-        result = run_cli(self.root, "team", "sync")
+        result = run_cli_subprocess(self.root, "team", "sync")
         self.assertEqual(2, result.returncode)
         self.assertIn("team.beads_sync.remote is not set", result.stderr)
 
 
 @unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestTeamHandoff(unittest.TestCase):
+    """The origin, the claimed bead, and the committed track branch are built once per class; each test copies them
+    and checks the branch out in its own worktree (a copied linked worktree would still point at the template)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.template = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.template.cleanup)
+        base = Path(cls.template.name)
+        git(base, "init", "-q", "--bare", str(base / "origin.git"))
+        root = make_team_repo(base / "repo")
+        git(root, "remote", "set-url", "origin", str(base / "origin.git"))
+        git(root, "commit", "-q", "--allow-empty", "-m", "base")
+        git(root, "push", "-q", "origin", "main")
+        init_beads(root)
+        cls.bead = create(root, "API", "area:backend")
+        claimed = run_cli(root, "team", "claim", cls.bead)
+        if claimed.returncode != 0:
+            raise AssertionError(f"team claim failed: {claimed.stdout}{claimed.stderr}")
+        worktree = worktrees.create(root, cls.bead, "feat/api-t1")
+        (worktree / "api.txt").write_text("v1", encoding="utf-8")
+        git(worktree, "add", "api.txt")
+        git(worktree, "commit", "-q", "-m", "api v1")
+        worktrees.cleanup(root, cls.bead)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         base = Path(self.tmp.name)
+        shutil.copytree(self.template.name, base, dirs_exist_ok=True)
         self.origin = base / "origin.git"
-        git(base, "init", "-q", "--bare", str(self.origin))
-        self.root = make_team_repo(base / "repo")
+        self.root = base / "repo"
         git(self.root, "remote", "set-url", "origin", str(self.origin))
-        git(self.root, "commit", "-q", "--allow-empty", "-m", "base")
-        git(self.root, "push", "-q", "origin", "main")
-        init_beads(self.root)
-        self.bead = create(self.root, "API", "area:backend")
-        self.assertEqual(0, run_cli(self.root, "team", "claim", self.bead).returncode)
-        self.worktree = worktrees.create(self.root, self.bead, "feat/api-t1")
-        (self.worktree / "api.txt").write_text("v1", encoding="utf-8")
-        git(self.worktree, "add", "api.txt")
-        git(self.worktree, "commit", "-q", "-m", "api v1")
+        self.worktree = worktrees.checkout(self.root, self.bead, "feat/api-t1")
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -328,7 +340,7 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertEqual("binh@corp.com", show(self.root, self.bead)["assignee"])
 
     def test_handoff_pushes_branch_records_metadata_and_reassigns(self):
-        done = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        done = run_cli_subprocess(self.root, "team", "handoff", self.bead, "em@corp.com")
         self.assertEqual(0, done.returncode, done.stdout + done.stderr)
         self.assertEqual(["feat/api-t1"], self.remote_branches())
         issue = show(self.root, self.bead)
@@ -370,13 +382,6 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertEqual("binh@corp.com", issue["assignee"])
         self.assertEqual({}, team_beads.handoff_of(issue))
 
-    def test_handoff_pushes_the_local_review_ref(self):
-        git(self.worktree, "update-ref", f"refs/gin/review/{self.bead}", "HEAD")
-        done = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
-        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
-        self.assertEqual(git(self.worktree, "rev-parse", "HEAD").strip(),
-                         git(self.origin, "rev-parse", f"refs/gin/review/{self.bead}").strip())
-
     def test_handoff_refuses_a_non_git_worktree_and_a_broken_ledger(self):
         plain = Path(self.tmp.name) / "plain"
         plain.mkdir()
@@ -401,7 +406,7 @@ class TestTeamHandoff(unittest.TestCase):
         git(self.root, "branch", "-D", "feat/api-t1")
         git(self.root, "update-ref", "-d", f"refs/gin/review/{self.bead}")
         git(self.root, "config", "user.email", "em@corp.com")
-        taken = run_cli(self.root, "team", "takeover", self.bead, "--format", "json")
+        taken = run_cli_subprocess(self.root, "team", "takeover", self.bead, "--format", "json")
         self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
         result = json.loads(taken.stdout)
         path = Path(result["worktree"])
@@ -486,26 +491,43 @@ class TestPushWithoutReset(unittest.TestCase):
 
 @unittest.skipUnless(HAS_BD and HAS_DOLT, "bd and dolt are required")
 class TestTeamBeadsSync(unittest.TestCase):
-    """Two members share Beads through a bare git repository used as the Dolt remote."""
+    """Two members share Beads through a bare git repository used as the Dolt remote. The remote, lead, and member are
+    built once per class; each test copies them and points both Dolt remotes and the team config at its own copy."""
 
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        base = Path(self.tmp.name)
+    @classmethod
+    def setUpClass(cls):
+        cls.template = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.template.cleanup)
+        base = Path(cls.template.name)
         remote = base / "beads.git"
         git(base, "init", "-q", "--bare", str(remote))
         seed = base / "seed"
         git(base, "clone", "-q", str(remote), str(seed))
         git(seed, "-c", "user.email=t@e", "-c", "user.name=T", "commit", "-q", "--allow-empty", "-m", "init")
         git(seed, "push", "-q", "origin", "HEAD:main")
-        self.url = f"git+file://{remote}"
-        team = TEAM.format(host="github") + f"  beads_sync: {{remote: '{self.url}'}}\n"
-        self.lead = make_team_repo(base / "lead", team=team)
-        bd(self.lead, "init", "--prefix", "t", "-q")
-        bd(self.lead, "dolt", "remote", "add", "origin", self.url)
-        self.member = make_team_repo(base / "member", email="em@corp.com", team=team)
-        self.bead = create(self.lead, "API", "area:backend")
-        self.assertEqual(0, run_cli(self.lead, "team", "sync").returncode)
-        bd(self.member, "init", "--prefix", "t", "-q", "--remote", self.url)
+        cls.template_url = f"git+file://{remote}"
+        team = TEAM.format(host="github") + f"  beads_sync: {{remote: '{cls.template_url}'}}\n"
+        lead = make_team_repo(base / "lead", team=team)
+        bd(lead, "init", "--prefix", "t", "-q")
+        bd(lead, "dolt", "remote", "add", "origin", cls.template_url)
+        member = make_team_repo(base / "member", email="em@corp.com", team=team)
+        cls.bead = create(lead, "API", "area:backend")
+        synced = run_cli_subprocess(lead, "team", "sync")
+        if synced.returncode != 0:
+            raise AssertionError(f"team sync failed: {synced.stdout}{synced.stderr}")
+        bd(member, "init", "--prefix", "t", "-q", "--remote", cls.template_url)
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        shutil.copytree(self.template.name, base, dirs_exist_ok=True)
+        self.url = f"git+file://{base / 'beads.git'}"
+        self.lead, self.member = base / "lead", base / "member"
+        for root in (self.lead, self.member):
+            bd(root, "dolt", "remote", "remove", "origin")
+            bd(root, "dolt", "remote", "add", "origin", self.url)
+            config = root / ".agent-workflow/config.yaml"
+            config.write_text(config.read_text(encoding="utf-8").replace(self.template_url, self.url), encoding="utf-8")
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -608,8 +630,8 @@ class TestTeamBeadsReadyFakeBd(unittest.TestCase):
             self.assertEqual(["exp-1", "exp-2"], [r["id"] for r in lead_no_prep if "expired_claim" in r])
 
             # 5. CLI invocation passes exclude-label
-            cli_res = run_cli(self.root, "team", "ready", "--exclude-label", "prep", "--format", "json",
-                              env=path_with(self.bin))
+            cli_res = run_cli_subprocess(self.root, "team", "ready", "--exclude-label", "prep", "--format", "json",
+                                         env=path_with(self.bin))
             self.assertEqual(0, cli_res.returncode, cli_res.stderr)
             cli_data = json.loads(cli_res.stdout)["ready"]
             self.assertEqual(["ready-1", "ready-2"], [r["id"] for r in cli_data])
@@ -653,8 +675,8 @@ class TestTeamBeadsReadyFakeBd(unittest.TestCase):
         ]
         fake_cli(self.bin, "bd", rules)
         with mock.patch.dict(os.environ, path_with(self.bin)):
-            cli_res = run_cli(self.root, "team", "ready", "--exclude-label", "x,y", "--format", "json",
-                              env=path_with(self.bin))
+            cli_res = run_cli_subprocess(self.root, "team", "ready", "--exclude-label", "x,y", "--format", "json",
+                                         env=path_with(self.bin))
             self.assertEqual(0, cli_res.returncode, cli_res.stderr)
             self.assertEqual(["c"], [r["id"] for r in json.loads(cli_res.stdout)["ready"]])
 

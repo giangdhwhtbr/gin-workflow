@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import functools
+import io
 import json
 import os
 from pathlib import Path
@@ -11,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 if str(SCRIPTS) not in sys.path:
@@ -178,3 +181,19 @@ def gitea_pr(number: int = 5, *, merged: bool = True, state: str = "", author: s
 def run_cli(root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, str(LAUNCHER), *args, "--repository", str(root)], cwd=root, text=True,
                           capture_output=True, env={**os.environ, **(env or {})}, check=False)
+
+
+def run_cli_in_process(root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """What `run_cli` returns, without starting an interpreter (about 0.4 s a call): `gin <args> --repository <root>`
+    through `workflow_core.cli.main`, run from `root` with `env` added to the environment."""
+    from workflow_core import cli, executables
+
+    out, err = io.StringIO(), io.StringIO()
+    executables.clear_cache()
+    with mock.patch.dict(os.environ, env or {}), contextlib.chdir(root), \
+            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        try:
+            code = cli.main([*args, "--repository", str(root)])
+        except SystemExit as error:  # argparse exits 2 on a usage error
+            code = error.code if isinstance(error.code, int) else 0 if error.code is None else 1
+    return subprocess.CompletedProcess(list(args), code, out.getvalue(), err.getvalue())

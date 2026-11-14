@@ -16,6 +16,12 @@ REVIEWER = "reviewer:other:model"
 class SequentialTracks(unittest.TestCase):
     """Track A is approved at commit A; track B then changes the branch and is approved at commit B."""
 
+    @classmethod
+    def setUpClass(cls):
+        cls.cache = tempfile.mkdtemp()
+        cls.addClassCleanup(shutil.rmtree, cls.cache, ignore_errors=True)
+        cls.two_track_commits = None  # (base, commit A, commit B) once the first test built the two tracks
+
     def setUp(self):
         self.repo = tempfile.mkdtemp()
         for args in (["init", "-q"], ["config", "user.email", "t@example.com"], ["config", "user.name", "T"]):
@@ -62,10 +68,20 @@ class SequentialTracks(unittest.TestCase):
         self.ok("approve", "--bead-id", bead, "--actor-role", "reviewer", "--actor-id", REVIEWER, "--lease-id", lease)
 
     def two_tracks(self):
+        """The first test that asks runs the ten ledger commands and keeps a copy of the repository; later tests
+        replace their repository with a copy of it."""
+        saved = os.path.join(self.cache, "two-tracks")
+        if self.two_track_commits is not None:
+            shutil.rmtree(self.repo)
+            shutil.copytree(saved, self.repo)
+            self.base, commit_a, commit_b = self.two_track_commits
+            return commit_a, commit_b
         commit_a = self.commit("src/a.py", "a = 2\n", "track A")
         self.approve_track("bead-a", self.base)
         commit_b = self.commit("src/b.py", "b = 1\n", "track B")
         self.approve_track("bead-b", commit_a)
+        shutil.copytree(self.repo, saved)
+        type(self).two_track_commits = (self.base, commit_a, commit_b)
         return commit_a, commit_b
 
     def test_earlier_track_fails_at_head_but_passes_in_history(self):
@@ -156,8 +172,8 @@ class SequentialTracks(unittest.TestCase):
         self.addCleanup(shutil.rmtree, origin, ignore_errors=True)
         self.addCleanup(shutil.rmtree, clone, ignore_errors=True)
         subprocess.run(["git", "init", "-q", "--bare", origin], check=True)
-        self.git("remote", "add", "origin", origin)
         self.two_tracks()
+        self.git("remote", "add", "origin", origin)
         self.git("push", "-q", "origin", *pushed_refs)
         self.squash_into_main_line()
         self.git("push", "-q", "origin", "main-line")

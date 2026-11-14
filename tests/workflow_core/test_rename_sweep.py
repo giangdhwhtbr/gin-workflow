@@ -42,20 +42,23 @@ def scanned():
 
 
 class RenameSweepTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.files = list(scanned())  # read once for the three tests
+
+    def assert_no_line_matches(self, pattern):
+        """One subtest per file (pytest reports every subtest, so one per line took seconds); it fails on the first
+        matching line of the file and names it."""
+        for rel, text in self.files:
+            with self.subTest(file=rel):
+                for number, line in enumerate(text.splitlines(), 1):
+                    self.assertIsNone(pattern.search(line), f"{rel}:{number} matches {pattern.pattern}: {line}")
+
     def test_no_old_command_or_namespace(self):
-        for rel, text in scanned():
-            for number, line in enumerate(text.splitlines(), 1):
-                with self.subTest(file=rel, line=number):
-                    self.assertIsNone(COMMAND.search(line), line)
+        self.assert_no_line_matches(COMMAND)
 
     def test_no_old_skill_name(self):
-        for rel, text in scanned():
-            for number, line in enumerate(text.splitlines(), 1):
-                with self.subTest(file=rel, line=number):
-                    self.assertIsNone(OLD_SKILL.search(line), line)
+        self.assert_no_line_matches(OLD_SKILL)
 
     def test_no_bare_program_name_in_code_span(self):
-        for rel, text in scanned():
-            for number, line in enumerate(text.splitlines(), 1):
-                with self.subTest(file=rel, line=number):
-                    self.assertIsNone(BARE_PROGRAM.search(line), line)
+        self.assert_no_line_matches(BARE_PROGRAM)

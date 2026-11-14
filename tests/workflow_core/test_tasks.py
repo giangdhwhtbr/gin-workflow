@@ -160,25 +160,37 @@ class TaskDispatchTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("bd"), "bd is not installed")
 class ExternalDependencyTests(unittest.TestCase):
-    """bd 1.0.5 counts every external:<project>:<capability> blocker as resolved; task ready holds them."""
+    """bd 1.0.5 counts every external:<project>:<capability> blocker as resolved; task ready holds them. The provider
+    and the set-up consumer are built once per class; each test copies them (the external path is relative)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._template = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls._template.cleanup)
+        base = Path(cls._template.name)
+        provider, consumer = base / "prov", base / "cons"
+        for root, prefix in ((provider, "p"), (consumer, "c")):
+            root.mkdir()
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            init_beads(root, prefix)
+        cls.bd(consumer, "config", "set", "external_projects.prov", "../prov/.beads")
+        (consumer / ".claude").mkdir(exist_ok=True)
+        done = gw(consumer, "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
+                  "--set", "providers.task_tracking=beads")
+        if done.returncode != 0:
+            raise AssertionError(f"setup init failed: {done.stdout}{done.stderr}")
 
     def setUp(self):
         self._directory = tempfile.TemporaryDirectory()
         base = Path(self._directory.name)
+        shutil.copytree(self._template.name, base, dirs_exist_ok=True)
         self.provider, self.consumer = base / "prov", base / "cons"
-        for root, prefix in ((self.provider, "p"), (self.consumer, "c")):
-            root.mkdir()
-            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-            init_beads(root, prefix)
-        self.bd(self.consumer, "config", "set", "external_projects.prov", "../prov/.beads")
-        (self.consumer / ".claude").mkdir(exist_ok=True)
-        gw(self.consumer, "setup", "init", "--harness", "claude", "--non-interactive", "--approve",
-           "--set", "providers.task_tracking=beads")
 
     def tearDown(self):
         self._directory.cleanup()
 
-    def bd(self, root, *args):
+    @staticmethod
+    def bd(root, *args):
         return subprocess.run(["bd", *args], cwd=root, env=ENV, check=True, capture_output=True, text=True,
                               stdin=subprocess.DEVNULL, timeout=60).stdout
 
@@ -212,24 +224,19 @@ class ExternalDependencyTests(unittest.TestCase):
         ids, _ = self.ready()
         self.assertEqual({free, waiting}, ids)
 
+        # the relative external path (../prov/.beads) also resolves from a subdirectory
+        subdirectory = self.consumer / "nested" / "deeper"
+        subdirectory.mkdir(parents=True)
+        done = gw(subdirectory, "task", "ready", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertIn(waiting, {issue["id"] for issue in json.loads(done.stdout)})
+
     def test_req_015_ready_lists_epics_not_milestones(self):
         milestone = self.create(self.consumer, "M", "--type", "milestone")
         epic = self.create(self.consumer, "E", "--type", "epic")
         self.bd(self.consumer, "update", epic, "--parent", milestone)
         ids, _ = self.ready()
         self.assertEqual({epic}, ids)
-
-    def test_relative_external_path_resolves_from_a_subdirectory(self):
-        provides = self.create(self.provider, "api", "-l", "export:cap")
-        waiting = self.create(self.consumer, "uses api")
-        self.bd(self.consumer, "dep", "add", waiting, "external:prov:cap")
-        self.bd(self.provider, "close", provides, "--reason", "done")
-        self.bd(self.provider, "ship", "cap")
-        subdirectory = self.consumer / "nested" / "deeper"
-        subdirectory.mkdir(parents=True)
-        done = gw(subdirectory, "task", "ready", "--json")
-        self.assertEqual(0, done.returncode, done.stderr)
-        self.assertIn(waiting, {issue["id"] for issue in json.loads(done.stdout)})
 
 
 class ExternalDependencyFailureTests(unittest.TestCase):
