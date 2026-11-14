@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "review_state": "implementation-in-progress",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+      "review_base_sha": "6938bf8c26ac5ab6b29c923a1189503c4b87a1d3",
+      "reviewed_source_sha": "2cb46cd0df0890659325797a1a2091123dce3173",
+      "checkpoint_sha": "2cb46cd0df0890659325797a1a2091123dce3173",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
+      "reviewed_source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 2,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-14T09:55:49.893548Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+            "review_base_sha": "6938bf8c26ac5ab6b29c923a1189503c4b87a1d3",
+            "reviewed_source_sha": "910895ab23ea52cd81b397d0c162e2272776c659",
+            "checkpoint_sha": "910895ab23ea52cd81b397d0c162e2272776c659",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
+            "reviewed_source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:antigravity:worker",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "159ebfb9617f1dd3fab52968fadc73d0c10aac2d27e2c94912b392523bebdfba"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-14T09:55:50.163965Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:antigravity:worker"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ws-entry-rules.2",
+            "review_base_sha": "6938bf8c26ac5ab6b29c923a1189503c4b87a1d3",
+            "reviewed_source_sha": "2cb46cd0df0890659325797a1a2091123dce3173",
+            "checkpoint_sha": "2cb46cd0df0890659325797a1a2091123dce3173",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
+            "reviewed_source_tree_hash": "c7363777b7d19a4e87a91a30f8d4124d02cbae1abbbe68db5a42d6ccdc2c7ca4",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "159ebfb9617f1dd3fab52968fadc73d0c10aac2d27e2c94912b392523bebdfba",
+      "event_hash": "3a1cf44ae70de9d8a948c0e53091fc110da1b328530efe030d888a314614c8b0"
+    }
+  ]
+}
