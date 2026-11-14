@@ -865,7 +865,8 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertFalse(any("reconcile knowledge" in w for w in warnings), warnings)
 
     def _beads_learn_warnings(self, comments=None, complete=True, knowledge_commit=False,
-                              beads_error=None, team_mode=False, shared_epic=None):
+                              beads_error=None, team_mode=False, shared_epic=None,
+                              unreadable_events=False):
         self._git_repo()
         knowledge = self.repo_path / ".planning/knowledge"
         knowledge.mkdir(parents=True)
@@ -894,6 +895,8 @@ class TestLifecycleCLI(unittest.TestCase):
             mock.patch("workflow_core.lifecycle_cli._beads_json", side_effect=fake_beads_json),
             mock.patch("sys.stdout", new=out_io),
         ]
+        if unreadable_events:
+            patches.append(mock.patch.object(WorkflowEventStore, "read_all", side_effect=OSError("event log unreadable")))
         if team_mode:
             from workflow_core.team import TeamConfig
             patches.append(mock.patch("workflow_core.lifecycle_cli.load_team", return_value=TeamConfig()))
@@ -938,6 +941,29 @@ class TestLifecycleCLI(unittest.TestCase):
         comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00Z"}]
         warnings = self._beads_learn_warnings(comments=comments, team_mode=True, shared_epic="epic")
         self.assertTrue(any("1 learn comments not yet in .planning/knowledge" in w for w in warnings), warnings)
+
+    def test_beads_learn_comment_naive_created_at_warns(self):
+        comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00"}]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=True)
+        self.assertTrue(any("1 learn comments not yet in .planning/knowledge" in w for w in warnings), warnings)
+
+    def test_beads_learn_comment_unparseable_created_at_warns(self):
+        comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "not-a-datetime"}]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=True)
+        self.assertTrue(any("1 learn comments not yet in .planning/knowledge" in w for w in warnings), warnings)
+
+    def test_beads_non_dict_comment_item_ignored(self):
+        comments = [
+            "not a dict",
+            {"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00Z"},
+        ]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=True)
+        self.assertTrue(any("1 learn comments not yet in .planning/knowledge" in w for w in warnings), warnings)
+
+    def test_beads_unreadable_events_log_gives_no_learn_warning(self):
+        comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00Z"}]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=True, unreadable_events=True)
+        self.assertFalse(any("learn comments not yet in" in w for w in warnings), warnings)
 
     def test_orchestrated_epic_tracks_closed_prep_open_satisfied(self):
         from unittest.mock import patch

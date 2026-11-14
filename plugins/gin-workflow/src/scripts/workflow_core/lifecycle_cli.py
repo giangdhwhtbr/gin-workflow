@@ -427,6 +427,9 @@ def _learn_comment_warning(repo_path: Path, knowledge: Path, epic: str | None) -
         except ValueError:
             pending.append(item)
             continue
+        if created.tzinfo is None:
+            pending.append(item)
+            continue
         if last is None or created > last:
             pending.append(item)
     if not pending:
