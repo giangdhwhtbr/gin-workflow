@@ -864,6 +864,81 @@ class TestLifecycleCLI(unittest.TestCase):
         warnings = self._us6_warnings(complete=False)
         self.assertFalse(any("reconcile knowledge" in w for w in warnings), warnings)
 
+    def _beads_learn_warnings(self, comments=None, complete=True, knowledge_commit=False,
+                              beads_error=None, team_mode=False, shared_epic=None):
+        self._git_repo()
+        knowledge = self.repo_path / ".planning/knowledge"
+        knowledge.mkdir(parents=True)
+        (knowledge / "note.md").write_text("n\n")
+        if not team_mode:
+            WorkflowEventStore(self.workflow_dir / "runtime/events.jsonl").append(WorkflowEvent.create(
+                event_type="orchestration.ready", workflow_id="default-workflow", actor="user",
+                payload={"epic": "epic"}, timestamp="2026-10-01T00:00:00Z", idempotency_key="us6-beads"))
+        if knowledge_commit:
+            self._git("add", ".planning/knowledge")
+            subprocess.run(["git", "commit", "-q", "-m", "knowledge"], cwd=self.repo_path, check=True,
+                           env={**os.environ, "GIT_COMMITTER_DATE": "2026-10-02T00:00:00Z"})
+        delivery = {"orchestration_ready": True, "implementation_complete": complete, "shipped": False}
+
+        def fake_beads_json(repo, argv):
+            if argv[:2] == ["comments", "epic"]:
+                if beads_error:
+                    return None, beads_error
+                return comments if comments is not None else [], None
+            return [], None
+
+        out_io = io.StringIO()
+        patches = [
+            mock.patch("workflow_core.lifecycle_cli._delivery_state", return_value=(delivery, False, None)),
+            mock.patch("workflow_core.lifecycle_cli.tasks_backend", return_value="beads"),
+            mock.patch("workflow_core.lifecycle_cli._beads_json", side_effect=fake_beads_json),
+            mock.patch("sys.stdout", new=out_io),
+        ]
+        if team_mode:
+            from workflow_core.team import TeamConfig
+            patches.append(mock.patch("workflow_core.lifecycle_cli.load_team", return_value=TeamConfig()))
+            patches.append(mock.patch("workflow_core.team_beads.shared_gates", return_value=(shared_epic or "epic", {}, None)))
+
+        with contextlib.ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json"])
+            return json.loads(out_io.getvalue())["warnings"]
+
+    def test_beads_learn_comment_after_knowledge_commit_warns(self):
+        comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00Z"}]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=True)
+        self.assertTrue(any("1 learn comments not yet in .planning/knowledge" in w for w in warnings), warnings)
+
+    def test_beads_knowledge_commit_after_comment_gives_no_warning(self):
+        comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-01T12:00:00Z"}]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=True)
+        self.assertFalse(any("learn comments not yet in" in w for w in warnings), warnings)
+
+    def test_beads_comments_without_gin_learn_give_no_warning(self):
+        comments = [{"id": 1, "text": "[gin question] what is this?", "created_at": "2026-10-03T00:00:00Z"}]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=True)
+        self.assertFalse(any("learn comments not yet in" in w for w in warnings), warnings)
+
+    def test_beads_learn_comment_with_no_knowledge_commit_warns(self):
+        comments = [{"id": 1, "text": "  [gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00Z"}]
+        warnings = self._beads_learn_warnings(comments=comments, knowledge_commit=False)
+        self.assertTrue(any("1 learn comments not yet in .planning/knowledge" in w for w in warnings), warnings)
+
+    def test_beads_tracker_failure_gives_no_warning(self):
+        warnings = self._beads_learn_warnings(beads_error="bd failed")
+        self.assertFalse(any("learn comments not yet in" in w for w in warnings), warnings)
+
+    def test_beads_no_warning_before_implementation_complete(self):
+        comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00Z"}]
+        warnings = self._beads_learn_warnings(comments=comments, complete=False)
+        self.assertFalse(any("learn comments not yet in" in w for w in warnings), warnings)
+
+    def test_beads_team_mode_no_local_event_learn_comment_warns(self):
+        comments = [{"id": 1, "text": "[gin learn] discuss -: fact", "created_at": "2026-10-03T00:00:00Z"}]
+        warnings = self._beads_learn_warnings(comments=comments, team_mode=True, shared_epic="epic")
+        self.assertTrue(any("1 learn comments not yet in .planning/knowledge" in w for w in warnings), warnings)
+
     def test_orchestrated_epic_tracks_closed_prep_open_satisfied(self):
         from unittest.mock import patch
         self._record_orchestration("ep-1")
