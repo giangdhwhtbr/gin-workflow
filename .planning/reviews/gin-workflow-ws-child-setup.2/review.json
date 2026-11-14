@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-ws-child-setup.2",
       "checkpoint_ref": "refs/gin/review/gin-workflow-ws-child-setup.2",
       "review_base_sha": "015576efbc367cafd817605fc6bf6af6f566c027",
-      "reviewed_source_sha": "c64b7fa86953c90ee020c3f060a219f5a3ebeefc",
-      "checkpoint_sha": "c64b7fa86953c90ee020c3f060a219f5a3ebeefc",
+      "reviewed_source_sha": "4b1a51dc0f2745e6b54da8824369dc958c81bdcc",
+      "checkpoint_sha": "4b1a51dc0f2745e6b54da8824369dc958c81bdcc",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "872ac73c5e112bf4b01cf13af6bfbe2d44360098917871be91f40bc3e69ccd86",
-      "reviewed_source_tree_hash": "872ac73c5e112bf4b01cf13af6bfbe2d44360098917871be91f40bc3e69ccd86",
+      "source_tree_hash": "1dcc9d076373bb030009d39eddfbeb65729d9e77829319b95cda82d0437131ac",
+      "reviewed_source_tree_hash": "1dcc9d076373bb030009d39eddfbeb65729d9e77829319b95cda82d0437131ac",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 13,
+  "ledger_revision": 19,
   "next_finding_number": 6,
   "findings": {
     "F-1": {
       "finding_id": "F-1",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F-2": {
       "finding_id": "F-2",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -58,7 +58,7 @@
     "F-3": {
       "finding_id": "F-3",
       "severity": "MINOR",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -72,7 +72,7 @@
     "F-4": {
       "finding_id": "F-4",
       "severity": "MINOR",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -86,7 +86,7 @@
     "F-5": {
       "finding_id": "F-5",
       "severity": "MINOR",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -326,6 +326,105 @@
       },
       "previous_event_hash": "3fad23a52ad391db453b441a7ad9a52b3d0a527c48165dda0c81179a276fef33",
       "event_hash": "54ef3a7b9defc97ff28ef13622573ff4d6220cba6942f5ea188e2bb8b93d4162"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-14T11:46:25.618624Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-ws-child-setup.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-ws-child-setup.2",
+            "review_base_sha": "015576efbc367cafd817605fc6bf6af6f566c027",
+            "reviewed_source_sha": "4b1a51dc0f2745e6b54da8824369dc958c81bdcc",
+            "checkpoint_sha": "4b1a51dc0f2745e6b54da8824369dc958c81bdcc",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "1dcc9d076373bb030009d39eddfbeb65729d9e77829319b95cda82d0437131ac",
+            "reviewed_source_tree_hash": "1dcc9d076373bb030009d39eddfbeb65729d9e77829319b95cda82d0437131ac",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "54ef3a7b9defc97ff28ef13622573ff4d6220cba6942f5ea188e2bb8b93d4162",
+      "event_hash": "a5a49d649fa0a0dac9d9a4364e7ab5fe5c8781adb7efc6f41d343b1ba25a9330"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T11:46:25.746144Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-1"
+      },
+      "previous_event_hash": "a5a49d649fa0a0dac9d9a4364e7ab5fe5c8781adb7efc6f41d343b1ba25a9330",
+      "event_hash": "b65eed04ad1175021fb6abda87444d8037aaa607d20b82177c75a33f363b778b"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T11:46:25.865532Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-2"
+      },
+      "previous_event_hash": "b65eed04ad1175021fb6abda87444d8037aaa607d20b82177c75a33f363b778b",
+      "event_hash": "767ea9653a9d239629295ef745a84ba9a9890d7f607f9a3d32c7f1f213f3388a"
+    },
+    {
+      "event_id": "EV-000017",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T11:46:25.986013Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-3"
+      },
+      "previous_event_hash": "767ea9653a9d239629295ef745a84ba9a9890d7f607f9a3d32c7f1f213f3388a",
+      "event_hash": "660ee34078eb4c9d903066dce8d536e29b842c4e8f329235d9de65e89e40015b"
+    },
+    {
+      "event_id": "EV-000018",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T11:46:26.108958Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-4"
+      },
+      "previous_event_hash": "660ee34078eb4c9d903066dce8d536e29b842c4e8f329235d9de65e89e40015b",
+      "event_hash": "70d1304a6e4c83bd4ab0bc43556461a1875aa56f6fa89c5c076439a1f28fc1b0"
+    },
+    {
+      "event_id": "EV-000019",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T11:46:26.230422Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-5"
+      },
+      "previous_event_hash": "70d1304a6e4c83bd4ab0bc43556461a1875aa56f6fa89c5c076439a1f28fc1b0",
+      "event_hash": "1f8b5c6cf52571d7bca4d68a525e06ba05899e5d1fd3b6137d2860d4244d1f53"
     }
   ]
 }
