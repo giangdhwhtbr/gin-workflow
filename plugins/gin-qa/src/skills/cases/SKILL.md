@@ -18,7 +18,7 @@ description: Write or update test cases from gin specs, one file per case in cas
 9. `Test data`: write it when a case needs specific records or values. Each item is a literal value or a rule for producing one ("a unique 15-digit IMEI per run"). Name credentials only by environment variable; never write a secret value.
 10. Never edit `Result`, `Run`, or `Bug` lines by hand. `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]` writes them.
 11. Repeat `check` (add `--change <epic>` when scoped to a change) until it exits 0. Then report the cases added, changed, and removed.
-12. Do not commit; the user reviews and commits.
+12. After the user reviews, ask whether to save the work. Only on a yes, run `gin commit <cases>/<capability>/ -m "<capability>: <what was written>"` and report the branch and that it is not pushed; on exit 2, show the message and change nothing.
 
 Legacy layout (no REQ-IDs): cases use `Source: <spec path>#<heading>` instead of `REQ:`; `plan` has no work list and `check` covers structure and IDs only.
 

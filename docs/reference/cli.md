@@ -346,7 +346,7 @@ The new branch name uses `--branch` when specified, or `gin/<slug>-<YYYY-MM-DD>`
 Other staged or unstaged changes outside the named paths remain in the working tree.
 The command stages and commits only the named paths and never calls `git push`.
 
-Exit codes: 0 on success or when there is nothing to commit; 2 on usage errors or failed checks; or the exit code of a failing git commit hook.
+Exit codes: 0 on success or when there is nothing to commit; 2 on usage errors or failed checks. A failing git hook makes `git commit` fail. `gin commit` exits with git's exit code, not the hook's own status.
 
 Output: text prints committed file count, branch, commit SHA, committed paths, and `Not pushed.`. JSON output returns `{"repository", "branch", "created_branch", "commit", "files", "pushed"}` or `{"repository", "branch", "created_branch", "nothing_to_commit", "files", "pushed"}`.
 
