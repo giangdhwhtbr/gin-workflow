@@ -34,6 +34,8 @@ REQUIRED_ARTIFACTS = (
     "skills/tech-doc/references/jvm-routes.md",
     "skills/tech-doc/references/webview-shells.md",
     "skills/tech-doc/references/jvm-data.md",
+    "skills/roadmap/references/manager-view.md",
+    "skills/roadmap/references/milestone-plan.md",
     "skills/ship/SKILL.md",
     "skills/review/SKILL.md",
     "references/stage-contract.md",
