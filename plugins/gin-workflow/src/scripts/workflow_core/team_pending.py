@@ -9,7 +9,7 @@ from typing import Any, Sequence
 
 from . import tasks, team as team_core, team_host
 from .team import TeamConfig, TeamError
-from .team_host import HostCliMissing, HostUnavailable
+from .team_host import HostUnavailable
 
 _TRACK_LINE = re.compile(r"^Plan:\s*`?([^`,\n]+?)`?,\s*Track\s+(\d+)\b", re.MULTILINE)
 _EPIC_LINE = re.compile(r"^(?:Epic|Workflow):\s*(\S+)", re.MULTILINE)
@@ -41,19 +41,26 @@ def topic_of(plan_path: str) -> str:
 
 def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]:
     """(branch, kind, epic) in text order: remote `spec/*` and `plan/*` heads (epic read later), `feat/<topic>` per
-    epic when the ship gate has roles, and `feat/<topic>-t<N>` per open track bead."""
+    open epic with track beads of any status when the ship gate has roles, and `feat/<topic>-t<N>` per open track
+    bead."""
     heads = [line.split("\trefs/heads/", 1)[1] for line in git(root, "ls-remote", "--heads", "origin").splitlines()
              if "\trefs/heads/" in line]
     found: list[tuple[str, str, str | None]] = [(head, "spec", None) for head in heads if head.startswith("spec/")]
     found += [(head, "plan", None) for head in heads if head.startswith("plan/")]
+    beads = _beads(root, ["list", "--all", "--limit", "0"])  # closed tracks still name the ship branch
+    live = {bead["id"] for bead in beads if bead.get("status") in ("open", "in_progress")}
     tracks: dict[str, str] = {}
     topics: dict[str, str] = {}
-    for bead in _beads(root, ["list", "--status", "open,in_progress", "--limit", "0"]):
+    for bead in beads:
         match = _TRACK_LINE.search(bead.get("description") or "")
-        if bead.get("parent") and match:
-            topic = topic_of(match[1])
-            tracks[f"feat/{topic}-t{match[2]}"] = bead["parent"]
-            topics.setdefault(bead["parent"], topic)
+        epic = bead.get("parent")
+        if not (epic and match):
+            continue
+        topic = topic_of(match[1])
+        if bead["id"] in live:
+            tracks[f"feat/{topic}-t{match[2]}"] = epic
+        if epic in live:
+            topics.setdefault(epic, topic)
     if team_core.gate_roles("ship", team):
         found += [(f"feat/{topic}", "ship", epic) for epic, topic in topics.items()]
     return found + [(branch, "track", epic) for branch, epic in tracks.items()]
@@ -75,12 +82,13 @@ def branch_documents(root: Path, branch: str, files: Sequence[str]) -> dict[str,
 def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
             milestone: str | None = None) -> list[dict[str, Any]]:
     """One row per open pull request of a candidate branch: gate rows carry as `missing` the reasons the gate's
-    policy gives before merge, with the branch's spec or plan text as the artifact; track rows only their approvers. A
-    failed lookup gives its row `error`; a missing host CLI raises."""
+    policy gives before merge, with the branch's spec or plan text as the artifact; track rows only their approvers.
+    A host failure before any host call has succeeded raises; after that, a failed lookup gives its row `error`."""
     keep = {workflow_id} if workflow_id else None
     if milestone:
         keep = {bead["id"] for bead in _beads(root, ["list", "--parent", milestone, "--type", "epic", "--limit", "0"])}
     rows: list[dict[str, Any]] = []
+    reached = False  # a host call succeeded, so a later host failure belongs to its row
     for branch, kind, epic in candidates(root, team):
         if keep is not None and epic is not None and epic not in keep:
             continue
@@ -88,6 +96,7 @@ def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
                                "approvals": [], "missing": [], "notes": []}
         try:
             found = team_host.pr_for_branch(team.host, branch, root)
+            reached = True
             if found is None or found.state != "open":
                 continue
             row["url"] = found.url
@@ -104,9 +113,9 @@ def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
                 row["missing"] = team_core.verify_gate(root, team, row["gate"], found.url, notes=row["notes"],
                                                        workflow_id=row["epic"], before_merge=True,
                                                        artifact_text=text)[2]
-        except HostCliMissing:
-            raise
         except (HostUnavailable, TeamError) as error:
+            if isinstance(error, HostUnavailable) and not reached:
+                raise
             row["error"] = str(error)
         if keep is None or row["epic"] in keep:
             rows.append(row)

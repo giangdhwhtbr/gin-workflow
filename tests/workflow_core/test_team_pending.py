@@ -26,6 +26,8 @@ SPEC_PATH = ".planning/specs/2026-10-03-login-design.md"
 PLAN_PATH = ".planning/plans/2026-10-03-login.md"
 ASSET = ".planning/specs/assets/2026-10-03/login.png"  # binary: never read from the branch
 TRACK = {"id": "e-1.2", "parent": "e-1", "status": "open", "description": f"Form\n\nPlan: {PLAN_PATH}, Track 2\n"}
+CLOSED_TRACK = {**TRACK, "status": "closed"}
+EPIC = {"id": "e-1", "issue_type": "epic", "status": "open", "description": "Login"}
 
 
 class TestTopicOf(unittest.TestCase):
@@ -131,17 +133,24 @@ class TestGateRows(PendingCase):
         self.assertEqual([], self.pending())
         self.assertEqual(1, self.git.call_count)  # ls-remote only: nothing is fetched for a closed PR
 
-    def test_open_epic_pr_is_a_ship_row_when_ship_has_roles(self):
-        self.bd(TRACK)
+    def test_open_epic_whose_tracks_all_closed_gives_a_ship_row(self):
+        self.bd(EPIC, CLOSED_TRACK)
         git(self.root, "commit", "-q", "--allow-empty", "-m", "feat: x")  # local HEAD is not the PR head
         self.gh(("feat/login", gh_pr(PR_SHIP, state="OPEN", author="binh-dev", files=["services/auth/login.py"])))
         [row] = self.pending()
         self.assertEqual(("ship", "feat/login", "e-1", ["missing approval from one of qe"]),
                          (row["gate"], row["branch"], row["epic"], row["missing"]))
+        self.assertEqual([["gh", "pr", "list", "--head", "feat/login"]],
+                         [call[:5] for call in calls(self.bin) if call[:3] == ["gh", "pr", "list"]])
+
+    def test_closed_epic_gives_no_ship_candidate(self):
+        self.bd({**EPIC, "status": "closed"}, CLOSED_TRACK)
+        self.assertEqual([], self.pending())
+        self.assertEqual([], [call for call in calls(self.bin) if call[0] == "gh"])
 
     def test_no_ship_candidate_without_ship_roles(self):
         self.configure("    ship: [qe]\n", "")
-        self.bd(TRACK)
+        self.bd(EPIC, TRACK)
         self.assertEqual([], self.pending())
         self.assertEqual([["gh", "pr", "list", "--head", "feat/login-t2"]],
                          [call[:5] for call in calls(self.bin) if call[0] == "gh"])
@@ -180,6 +189,14 @@ class TestFiltersAndErrors(PendingCase):
         result = run_cli(self.root, "team", "pending", env={"PATH": str(only_bd)})
         self.assertEqual(2, result.returncode)
         self.assertIn("gh is not installed", result.stderr)
+
+    def test_host_failing_before_any_lookup_succeeds_exits_2_naming_the_cause(self):
+        self.branches.update({"spec/login": {}, "spec/other": {}})
+        fake_cli(self.bin, "gh", [{"argv": ["pr"], "exit": 1, "stderr": "HTTP 401: Bad credentials"}])
+        result = run_cli(self.root, "team", "pending", env=self.env)
+        self.assertEqual((2, ""), (result.returncode, result.stdout))
+        self.assertIn("gh pr failed: HTTP 401: Bad credentials", result.stderr)
+        self.assertEqual(1, len([call for call in calls(self.bin) if call[0] == "gh"]))
 
     def test_failed_git_ls_remote_exits_2_naming_it(self):
         git(self.root, "remote", "set-url", "origin", str(Path(self.tmp.name) / "missing.git"))

@@ -93,8 +93,8 @@ execution_strategy:
   - `team_pending.topic_of(plan_path: str) -> str`: the plan file stem without a leading `YYYY-MM-DD-` (`.planning/plans/2026-11-14-team-progress.md` gives `team-progress`).
   - `team_pending.candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]`: `(branch, kind, epic)` with `kind` one of `spec`, `plan`, `ship`, `track`:
     - `git ls-remote --heads origin` (timeout 30 s): every `refs/heads/spec/*` as `spec` and `refs/heads/plan/*` as `plan`, epic None (resolved from the file later);
-    - every open or in-progress bead with a parent whose description has `Plan: <path>, Track <N>`: `feat/<topic>-t<N>` as `track` with the parent as epic;
-    - when `team.approvals.get("ship")` has roles: `feat/<topic>` once per epic seen on those track beads, as `ship`;
+    - one `bd list --all --limit 0` read; every open or in-progress bead with a parent whose description has `Plan: <path>, Track <N>`: `feat/<topic>-t<N>` as `track` with the parent as epic;
+    - when `team.approvals.get("ship")` has roles: `feat/<topic>` once per open or in-progress epic, from its track beads of any status (`/ship` runs after every track is closed), as `ship`;
     - a failed `git ls-remote` raises `TeamError("git ls-remote failed: <stderr>")`.
   - `team_pending.branch_documents(root: Path, branch: str, files: Sequence[str]) -> dict[str, str]`: the text of each changed `.md` file under `.planning/specs/`, `.planning/plans/`, or an SDD change folder, from one `git fetch --quiet origin refs/heads/<branch>` and `git show FETCH_HEAD:<file>`; the row's epic is the value of the first `Epic:` or `Workflow:` line, None when none is found.
   - `team_pending.pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None, milestone: str | None = None) -> list[dict[str, Any]]`:
@@ -102,9 +102,9 @@ execution_strategy:
     - row: `{"gate": "requirement_confirmed" | "plan_approved" | "ship" | None, "branch", "url", "author", "epic", "approvals": [login, ...], "missing": [...], "notes": [...]}`;
     - for `spec`, `plan`, and `ship` rows: `notes = []`; `_, _, reasons, _ = team.verify_gate(root, team, gate, pr.url, notes=notes, workflow_id=epic, before_merge=True, artifact_text=<the artifact's text from branch_documents>)`; `missing = reasons`;
     - for `track` rows: `gate` None, `missing` `[]`, approvals only;
-    - a `HostUnavailable` or `TeamError` on one candidate gives that row with `"error": str(error)` and the other fields it has; `HostCliMissing` aborts the whole call (raised);
+    - a `HostUnavailable` (`HostCliMissing` included) before any host call of the run has succeeded aborts the whole call (raised); after one success, a `HostUnavailable` or `TeamError` on one candidate gives that row `"error": str(error)` and the other fields it has;
     - `workflow_id` keeps rows whose epic equals it; `milestone` keeps rows whose epic is a child epic of that milestone (`bd list --parent <milestone> --type epic --json`).
-  - `gin team pending [--workflow-id <epic> | --milestone <id>] [--format json]`: team mode off gives exit 2 and `team mode is off`; `HostCliMissing`, `HostUnavailable`, and a failed `git ls-remote` give exit 2 with the cause (the existing `except` at `team_cli.py:192`); JSON `{"pending": rows}`; text groups rows by gate, then the track pull requests, one line each: `<gate or track> <url> <epic> missing: <reasons or ->`.
+  - `gin team pending [--workflow-id <epic> | --milestone <id>] [--format json]`: team mode off gives exit 2 and `team mode is off`; `HostCliMissing` or `HostUnavailable` before any host call succeeds, a failed `git ls-remote`, and unreadable Beads give exit 2 with the cause (the existing `except` at `team_cli.py:192`); JSON `{"pending": rows}`; text groups rows by gate, then the track pull requests, one line each: `<gate or track> <url> <epic> missing: <reasons or ->`.
 - **Steps**:
   1. Failing tests in `tests/workflow_core/test_team_pending.py` with `team_fixtures.make_team_repo` (a temporary team repository with an `origin` remote) and the host fakes `fake_cli` and `gh_pr`:
      - `topic_of` strips the date;
