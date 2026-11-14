@@ -83,30 +83,34 @@ def codeowners(team: TeamConfig, config: Mapping[str, Any], child: str | None = 
 
 
 def planned_files(root: Path, team: TeamConfig, config: Mapping[str, Any], *, ci: bool,
-                  child: str | None = None) -> dict[str, str]:
+                  child: str | None = None,
+                  template_root: Path | None = None) -> dict[str, str]:
     host = adapter(team.host)
     names = host.files
     if ci and (names.ci is None or names.ci_template is None):
         raise TeamError(host.ci_unsupported or f"team.host {team.host} has no CI workflow file")
     values = {"convention": team.commit_convention}
     files: dict[str, str] = {}
+    tpl_root = template_root or root
     if names.codeowners is not None:
         owners = codeowners(team, config, child=child)
         if owners is not None:
             files[names.codeowners] = owners
     if names.template is not None:
-        files[names.template] = template_text(root, "team/pull_request_template.md")
-    files[HOOK] = render(template_text(root, "team/commit-msg"), values)
+        files[names.template] = template_text(tpl_root, "team/pull_request_template.md")
+    files[HOOK] = render(template_text(tpl_root, "team/commit-msg"), values)
     if ci:
-        files[names.ci] = render(template_text(root, names.ci_template), values)
+        files[names.ci] = render(template_text(tpl_root, names.ci_template), values)
     return files
 
 
 def init(root: Path, team: TeamConfig, config: Mapping[str, Any], *, ci: bool = False,
-         force: bool = False, child: str | None = None) -> dict[str, Any]:
+         force: bool = False, child: str | None = None,
+         template_root: Path | None = None) -> dict[str, Any]:
     written, skipped, unchanged = [], [], []
     writes: dict[Path, bytes] = {}
-    for relative, text in planned_files(root, team, config, ci=ci, child=child).items():
+    for relative, text in planned_files(root, team, config, ci=ci, child=child,
+                                        template_root=template_root).items():
         path = Path(root) / relative
         if path.is_file():
             current = path.read_text(encoding="utf-8")

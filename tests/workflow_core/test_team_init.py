@@ -405,6 +405,14 @@ class TestTeamAllRepos(unittest.TestCase):
         self.assertIn("docs/wiki: missing:", res_missing.stdout)
         self.assertIn("run gin team init --all-repos", res_missing.stdout)
 
+        # check --format json rows of hooks --all-repos including the missing row's hint
+        res_missing_json = run_cli(root, "team", "hooks", "--all-repos", "--format", "json")
+        self.assertEqual(2, res_missing_json.returncode)
+        payload = json.loads(res_missing_json.stdout)
+        repos_by_path = {row["path"]: row for row in payload["repos"]}
+        self.assertEqual("missing", repos_by_path["docs/wiki"].get("status"))
+        self.assertEqual("run gin team init --all-repos", repos_by_path["docs/wiki"].get("hint"))
+
     def test_all_repos_child_write_error(self):
         manifest = """workspace:
   repos:
@@ -432,5 +440,95 @@ class TestTeamAllRepos(unittest.TestCase):
             self.assertIn("written", repos_by_path["services/order-api"])
         finally:
             gh_dir.chmod(0o755)
+
+    @unittest.skipIf(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+                     "chmod 0o500 read-only directory test not supported on Windows or as root")
+    def test_all_repos_hooks_readonly_dir(self):
+        manifest = """workspace:
+  repos:
+    - path: services/order-api
+      url: file:///unused
+      shape: backend
+    - path: web/shop
+      url: file:///unused
+      shape: frontend
+"""
+        root = make_team_repo(self.base / "ws-ro", extra=manifest)
+        init_repo(root / "services/order-api")
+        init_repo(root / "web/shop")
+        run_cli(root, "team", "init", "--all-repos")
+
+        # Make services/order-api/.git/hooks read-only
+        hooks_dir = root / "services/order-api/.git/hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        hooks_dir.chmod(0o500)
+        try:
+            # text mode: error line, other children reported, no traceback on stderr, exit 1
+            res_text = run_cli(root, "team", "hooks", "--all-repos")
+            self.assertEqual(1, res_text.returncode)
+            self.assertNotIn("Traceback", res_text.stderr)
+            self.assertIn("services/order-api: error:", res_text.stdout)
+            self.assertIn("web/shop:", res_text.stdout)
+
+            # json mode: status error, other children reported, exit 1
+            res_json = run_cli(root, "team", "hooks", "--all-repos", "--format", "json")
+            self.assertEqual(1, res_json.returncode)
+            self.assertNotIn("Traceback", res_json.stderr)
+            payload = json.loads(res_json.stdout)
+            repos_by_path = {row["path"]: row for row in payload["repos"]}
+            self.assertEqual("error", repos_by_path["services/order-api"].get("status"))
+            self.assertIn("error", repos_by_path["services/order-api"])
+            self.assertIn(repos_by_path["web/shop"].get("status"), ("installed", "active"))
+        finally:
+            hooks_dir.chmod(0o755)
+
+    def test_all_repos_hooks_occupied_child(self):
+        manifest = """workspace:
+  repos:
+    - path: services/order-api
+      url: file:///unused
+      shape: backend
+    - path: web/shop
+      url: file:///unused
+      shape: frontend
+"""
+        root = make_team_repo(self.base / "ws-occ", extra=manifest)
+        init_repo(root / "services/order-api")
+        init_repo(root / "web/shop")
+        run_cli(root, "team", "init", "--all-repos")
+
+        # Place a non-gin commit-msg hook in services/order-api active hooks directory
+        child_hooks = root / "services/order-api/.git/hooks"
+        child_hooks.mkdir(parents=True, exist_ok=True)
+        (child_hooks / "commit-msg").write_text("#!/bin/sh\n# custom non-gin hook\nexit 0\n")
+
+        res = run_cli(root, "team", "hooks", "--all-repos", "--format", "json")
+        self.assertEqual(1, res.returncode)
+        payload = json.loads(res.stdout)
+        repos_by_path = {row["path"]: row for row in payload["repos"]}
+        self.assertEqual("occupied", repos_by_path["services/order-api"].get("status"))
+
+    def test_all_repos_parent_template_override(self):
+        manifest = """workspace:
+  repos:
+    - path: web/shop
+      url: file:///unused
+      shape: frontend
+"""
+        root = make_team_repo(self.base / "ws-tpl", extra=manifest)
+        init_repo(root / "web/shop")
+
+        # Put a custom template in parent's .agent-workflow/templates/team/pull_request_template.md
+        custom_pr_tpl = "<!-- Custom parent PR template -->\n## Summary\n"
+        write(root, ".agent-workflow/templates/team/pull_request_template.md", custom_pr_tpl)
+
+        res = run_cli(root, "team", "init", "--all-repos")
+        self.assertEqual(0, res.returncode, res.stderr)
+
+        # Parent gets the custom template
+        self.assertEqual(custom_pr_tpl, (root / ".github/pull_request_template.md").read_text())
+        # Child web/shop also gets the parent's custom template
+        self.assertEqual(custom_pr_tpl, (root / "web/shop/.github/pull_request_template.md").read_text())
+
 
 

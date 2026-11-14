@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
 import sys
 from typing import Any, Sequence
 
@@ -97,7 +98,8 @@ def _run(args: argparse.Namespace) -> int:
                         continue
                     target = space.checkout(repo)
                     try:
-                        child_res = team_init.init(target, team, config, ci=args.ci, force=args.force, child=repo.path)
+                        child_res = team_init.init(target, team, config, ci=args.ci, force=args.force, child=repo.path,
+                                                   template_root=root)
                     except OSError as error:
                         repos.append({"path": repo.path, "error": str(error)})
                         has_error = True
@@ -153,16 +155,28 @@ def _run(args: argparse.Namespace) -> int:
                 repos: list[dict[str, Any]] = []
                 text_lines: list[str] = []
 
-                parent_res = team_init.install_hook(root)
-                codes.append(mapping[parent_res["status"]])
-                repos.append({"path": ".", "status": parent_res["status"], "hook": parent_res["path"]})
-                text_lines.append(f".: {parent_res['status']}: {parent_res['path']}")
+                try:
+                    parent_res = team_init.install_hook(root)
+                except (OSError, subprocess.CalledProcessError) as error:
+                    codes.append(1)
+                    repos.append({"path": ".", "status": "error", "error": str(error)})
+                    text_lines.append(f".: error: {error}")
+                else:
+                    codes.append(mapping[parent_res["status"]])
+                    repos.append({"path": ".", "status": parent_res["status"], "hook": parent_res["path"]})
+                    text_lines.append(f".: {parent_res['status']}: {parent_res['path']}")
 
                 for repo in space.repos:
                     if workspace.skip_reason(space, repo) is not None:
                         continue
                     child_dir = space.checkout(repo)
-                    res = team_init.install_hook(child_dir)
+                    try:
+                        res = team_init.install_hook(child_dir)
+                    except (OSError, subprocess.CalledProcessError) as error:
+                        codes.append(1)
+                        repos.append({"path": repo.path, "status": "error", "error": str(error)})
+                        text_lines.append(f"{repo.path}: error: {error}")
+                        continue
                     codes.append(mapping[res["status"]])
                     row = {"path": repo.path, "status": res["status"], "hook": res["path"]}
                     if res["status"] == "missing":
