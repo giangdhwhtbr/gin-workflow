@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000019`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `81ff10e`, Tree Hash: `426df51`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,16 +33,16 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
-| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-1` | `MINOR` | `verified` | 0 | - |
+| `F-2` | `MINOR` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-2` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -59,3 +63,9 @@
 | `EV-000012` | `2026-11-14T05:29:39.862964Z` | `finding-fixed` | `implementer:claude:main` (worker) |
 | `EV-000013` | `2026-11-14T05:29:40.200797Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
 | `EV-000014` | `2026-11-14T05:29:40.323798Z` | `review-requested` | `implementer:claude:main` (worker) |
+| `EV-000015` | `2026-11-14T05:30:01.000525Z` | `lease-acquired` | `reviewer:claude:session-f37e0c18` (reviewer) |
+| `EV-000016` | `2026-11-14T05:30:01.026933Z` | `review-started` | `reviewer:claude:session-f37e0c18` (reviewer) |
+| `EV-000017` | `2026-11-14T05:30:05.184112Z` | `finding-verified` | `reviewer:claude:session-f37e0c18` (reviewer) |
+| `EV-000018` | `2026-11-14T05:30:05.316154Z` | `finding-verified` | `reviewer:claude:session-f37e0c18` (reviewer) |
+| `EV-000019` | `2026-11-14T05:30:05.519788Z` | `review-approved` | `reviewer:claude:session-f37e0c18` (reviewer) |
+| `EV-000020` | `2026-11-14T05:30:05.753019Z` | `lease-released` | `reviewer:claude:session-f37e0c18` (reviewer) |
