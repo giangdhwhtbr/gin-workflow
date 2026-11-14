@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-a21c`
 - **Base SHA:** `1e486fbbac7c47b091e201ef8a5e184e0d981e90`
-- **Reviewed SHA:** `3a79c4ff6c38559f2b3e0b6eeaed23419a03eb8b`
+- **Reviewed SHA:** `254be58dc42e53f8d73c620dccdde8c8475d773b`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-a21c`
-- **Checkpoint SHA:** `3a79c4ff6c38559f2b3e0b6eeaed23419a03eb8b`
+- **Checkpoint SHA:** `254be58dc42e53f8d73c620dccdde8c8475d773b`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `6212de1e2f16c676bfe6870ff2f1e0058793327a15e73b760f3006c2333c3a23`
+- **Tree Hash:** `39247c2213cd002fbf4b70e319de0d9d0cdeda3e4365ae980f810280018b33cd`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,11 +29,11 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `MINOR` | `open` | 0 | - |
+| `F-1` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -49,3 +49,6 @@
 | `EV-000007` | `2026-11-14T02:36:48.477323Z` | `changes-requested` | `reviewer:claude:session-387d7622` (reviewer) |
 | `EV-000008` | `2026-11-14T02:36:48.824364Z` | `lease-released` | `reviewer:claude:session-387d7622` (reviewer) |
 | `EV-000009` | `2026-11-14T02:37:48.550108Z` | `implementation-in-progress` | `implementer:claude:main` (worker) |
+| `EV-000010` | `2026-11-14T02:43:01.686782Z` | `finding-fixed` | `implementer:claude:main` (worker) |
+| `EV-000011` | `2026-11-14T02:43:02.043371Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
+| `EV-000012` | `2026-11-14T02:43:02.171578Z` | `review-requested` | `implementer:claude:main` (worker) |
