@@ -96,40 +96,19 @@ class HarnessPackagingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temporary_home = tempfile.TemporaryDirectory()
-        cls.dist = ROOT / "plugins/gin-workflow/dist"
+        shutil.rmtree(ROOT / "plugins/gin-workflow/dist", ignore_errors=True)
+        shutil.rmtree(ROOT / "plugins/gin-workflow-advanced/dist", ignore_errors=True)
         environment = os.environ.copy()
         environment["HOME"] = cls.temporary_home.name
-        import fcntl
-        marker = Path(tempfile.gettempdir()) / f"gin_harness_pkg_{os.getppid()}.json"
-        lock_path = Path(tempfile.gettempdir()) / "gin_harness_pkg.lock"
-        with open(lock_path, "w") as lock_file:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-            try:
-                if not marker.is_file():
-                    shutil.rmtree(ROOT / "plugins/gin-workflow/dist", ignore_errors=True)
-                    shutil.rmtree(ROOT / "plugins/gin-workflow-advanced/dist", ignore_errors=True)
-                    cls.install = subprocess.run(
-                        ["bash", "install.sh", "--platform", "all", "--dry-run"],
-                        cwd=ROOT,
-                        env=environment,
-                        text=True,
-                        capture_output=True,
-                        check=False,
-                    )
-                    marker.write_text(json.dumps({
-                        "returncode": cls.install.returncode,
-                        "stderr": cls.install.stderr,
-                    }), encoding="utf-8")
-                else:
-                    data = json.loads(marker.read_text(encoding="utf-8"))
-                    cls.install = subprocess.CompletedProcess(
-                        args=["bash", "install.sh", "--platform", "all", "--dry-run"],
-                        returncode=data["returncode"],
-                        stdout="",
-                        stderr=data["stderr"],
-                    )
-            finally:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        cls.install = subprocess.run(
+            ["bash", "install.sh", "--platform", "all", "--dry-run"],
+            cwd=ROOT,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        cls.dist = ROOT / "plugins/gin-workflow/dist"
 
     @classmethod
     def tearDownClass(cls):
@@ -211,7 +190,7 @@ class HarnessPackagingTests(unittest.TestCase):
         root = str(self.dist / "copilot/gin")
 
         def run(command, payload, **env):
-            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME", "WORKTREE_PATH")}
+            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME")}
             return subprocess.run(["bash", "-c", command], input=json.dumps(payload), capture_output=True,
                                   text=True, env={**base, **env})
 
