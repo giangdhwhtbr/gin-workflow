@@ -12,6 +12,7 @@ Epic `gin-workflow-docs-refresh` (2026-11-08). After the BA-flow epics, the rena
 **Consequences**
 - `tests/workflow_core/test_walkthrough_docs.py` forbids the word "sprint" in `docs/starters/brownfield.md` and requires every `gin` command it cites to appear in `docs/reference/cli.md`. Run the docs tests (`test_docs_check.py`, `test_docs_coverage.py`, `test_walkthrough_docs.py`) before the full suite.
 - The `docs` rule pack forbids numbered headings; a plan that numbers sections loses to the rule.
+- A docs sentence that says a skill runs a command needs a grep of that skill: `brownfield.md` claimed `team-setup` runs `gin team init --all-repos`, while `team-setup/SKILL.md:13` runs only `gin team init` (`gin-workflow-ws-child-setup.4`, review F-1).
 - `gin evidence run | tail` hides the run's exit code; confirm with `gin evidence check` before requesting review.
 - An open finding of any severity, SUGGESTION included, blocks `review-ledger.py approve`; a reviewer cannot withdraw it, so the implementer fixes it (`fix-finding`) or proposes a deferral.
 - `gin:developer` and `gin:docs-writer` have no Skill tool: give them the path of the Vietnamese skill (`~/.claude/plugins/marketplaces/vietnamese-language-skill/skills/vietnamese-tech-writing/SKILL.md`, its `references/`, and `scripts/validate_copy.py --register eng-impersonal`).
