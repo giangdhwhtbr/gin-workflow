@@ -218,6 +218,21 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertIn("react", doctor_web["checks_details"]["rules"]["packs"])
         self.assertNotIn("react", doctor_parent2["checks_details"]["rules"]["packs"])
 
+    def test_doctor_reports_an_unreadable_child_manifest_instead_of_crashing(self):
+        self._init()
+        run(self.root, "workspace", "clone", "services/api", "apps/web")
+        (self.root / "apps/web/pnpm-workspace.yaml").write_bytes(b"packages:\n  - '\xff'\n")
+        (self.root / "services/api/package.json").write_text(
+            json.dumps({"dependencies": {"react": "^18.0.0"}}), encoding="utf-8")
+        done = run(self.root, "setup", "doctor", "--format", "json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        doctor = json.loads(done.stdout)
+        self.assertTrue(any(a.startswith("workspace: apps/web: cannot detect rule packs: ")
+                            for a in doctor["actions"]), doctor["actions"])
+        repos = doctor["checks_details"]["workspace"]["repos"]
+        self.assertNotIn("proposed_packs", repos["apps/web"])
+        self.assertIn("react", repos["services/api"]["proposed_packs"])
+
 
 if __name__ == "__main__":
     unittest.main()

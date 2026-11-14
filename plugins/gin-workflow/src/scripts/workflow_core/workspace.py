@@ -276,11 +276,15 @@ def doctor(root: Path, space: Workspace) -> dict[str, Any]:
                 found = ["is not a readable git repository"]
             actions.extend(f"{repo.path}: {action}" for action in found)
         if present and repo.workable and plugin is not None:
-            checkout = space.checkout(repo)
-            proposed = sorted(set(propose_packs(checkout, plugin)) - {"core"} - set(repo.packs))
-            repos[repo.path]["proposed_packs"] = proposed
-            if proposed:
-                actions.append(f"{repo.path}: rules.packs could add {', '.join(proposed)}")
+            try:
+                detected = propose_packs(space.checkout(repo), plugin)
+            except (OSError, ValueError) as error:  # an unreadable manifest is a finding, not a crash
+                actions.append(f"{repo.path}: cannot detect rule packs: {error}")
+            else:
+                proposed = sorted(set(detected) - {"core"} - set(repo.packs))
+                repos[repo.path]["proposed_packs"] = proposed
+                if proposed:
+                    actions.append(f"{repo.path}: rules.packs could add {', '.join(proposed)}")
         if f"/{repo.path}" not in ignored:
             actions.append(f"{repo.path} is not in .gitignore; gin workspace clone adds it")
         if submodule:
