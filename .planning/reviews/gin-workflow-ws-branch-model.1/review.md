@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000028`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `f90e717`, Tree Hash: `374b90c`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,31 +33,31 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
-| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
-| `F-3` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
-| `F-4` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
-| `F-5` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
+| `F-1` | `IMPORTANT` | `verified` | 0 | - |
+| `F-2` | `MINOR` | `verified` | 0 | - |
+| `F-3` | `MINOR` | `verified` | 0 | - |
+| `F-4` | `MINOR` | `verified` | 0 | - |
+| `F-5` | `MINOR` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-2` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-3` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-4` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-5` (MINOR)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -80,3 +84,12 @@
 | `EV-000018` | `2026-11-14T15:21:11.359130Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
 | `EV-000019` | `2026-11-14T15:21:11.482520Z` | `finding-fixed` | `worker:claude:session-main` (worker) |
 | `EV-000020` | `2026-11-14T15:44:19.903872Z` | `review-requested` | `worker:claude:session-main` (worker) |
+| `EV-000021` | `2026-11-14T15:46:57.185531Z` | `lease-acquired` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000022` | `2026-11-14T15:46:57.208939Z` | `review-started` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000023` | `2026-11-14T15:47:03.576543Z` | `finding-verified` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000024` | `2026-11-14T15:47:03.737970Z` | `finding-verified` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000025` | `2026-11-14T15:47:03.977475Z` | `finding-verified` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000026` | `2026-11-14T15:47:04.110163Z` | `finding-verified` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000027` | `2026-11-14T15:47:04.266692Z` | `finding-verified` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000028` | `2026-11-14T15:47:07.976149Z` | `review-approved` | `reviewer:claude:session-1256df35` (reviewer) |
+| `EV-000029` | `2026-11-14T15:47:11.599180Z` | `lease-released` | `reviewer:claude:session-1256df35` (reviewer) |
