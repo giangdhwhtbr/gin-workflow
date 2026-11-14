@@ -9,6 +9,7 @@ import subprocess
 import sys
 from typing import Any, Sequence
 
+from . import setup_service
 from . import workspace as ws
 
 
@@ -68,10 +69,81 @@ def _text(rows: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def add(
+    root: Path,
+    path: str,
+    *,
+    url: str,
+    shape: str = "",
+    frozen: bool = False,
+    default_branch: str | None = None,
+    checks: Sequence[str] = (),
+) -> dict[str, Any]:
+    done = _run_git(["rev-parse", "--show-toplevel"], cwd=root)
+    if done.returncode:
+        raise ws.WorkspaceError(f"not a git repository: {root}")
+    top = Path(done.stdout.strip()).resolve()
+    config_path = top / ".agent-workflow/config.yaml"
+    if not config_path.is_file():
+        raise ws.WorkspaceError("not a workspace parent: run /gin:setup and answer workspace")
+    yaml = ws.require_yaml()
+    try:
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as error:
+        raise ws.WorkspaceError(f"{config_path}: {error}") from error
+    if not isinstance(config, dict):
+        raise ws.WorkspaceError("not a workspace parent: run /gin:setup and answer workspace")
+    workspace_block = config.get("workspace")
+    if not isinstance(workspace_block, dict):
+        raise ws.WorkspaceError("not a workspace parent: run /gin:setup and answer workspace")
+    existing = workspace_block.get("repos")
+    if not isinstance(existing, list):
+        raise ws.WorkspaceError("not a workspace parent: run /gin:setup and answer workspace")
+    parsed_checks: dict[str, str] = {}
+    for item in checks:
+        if "=" not in item:
+            raise ws.WorkspaceError(f"--check must be NAME=COMMAND: {item}")
+        name, command = item.split("=", 1)
+        name = name.strip()
+        command = command.strip()
+        if not name or not command:
+            raise ws.WorkspaceError(f"--check must be NAME=COMMAND: {item}")
+        parsed_checks[name] = command
+    raw: dict[str, Any] = {"path": path, "url": url}
+    if shape:
+        raw["shape"] = shape
+    if frozen:
+        raw["frozen"] = True
+    if default_branch:
+        raw["default_branch"] = default_branch
+    if parsed_checks:
+        raw["verify"] = {"checks": parsed_checks}
+    ws.repos_from({"workspace": {"repos": [*existing, raw]}})
+    try:
+        setup_service.configure(
+            top,
+            assignments=[f"workspace.repos={json.dumps([*existing, raw])}"],
+            approve=True,
+        )
+    except setup_service.SetupError as error:
+        raise ws.WorkspaceError(str(error)) from error
+    return {"path": path, "added": True, "next": f"gin workspace clone {path}"}
+
+
 def main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="gin workspace",
                                      description="clone the repositories of workspace.repos and show their state")
     commands = parser.add_subparsers(dest="command", required=True)
+    add_parser = commands.add_parser(
+        "add", help="record a repository entry in workspace.repos",
+        description="record a repository entry in workspace.repos; validates the entry and writes through configure")
+    add_parser.add_argument("path", help="manifest path of the repository")
+    add_parser.add_argument("--url", required=True, help="git clone URL of the repository")
+    add_parser.add_argument("--shape", default="", help="repository shape: frontend, backend, library, qa, beads")
+    add_parser.add_argument("--frozen", action="store_true", help="mark the repository as read-only legacy code")
+    add_parser.add_argument("--default-branch", default=None, help="default git branch to clone (default: main)")
+    add_parser.add_argument("--check", dest="checks", action="append", default=[], metavar="NAME=COMMAND",
+                            help="verification check to configure (repeatable)")
     clone_parser = commands.add_parser(
         "clone", help="clone the named entries, or every entry with --all, at their manifest paths",
         description="clone the named entries, or every entry with --all, at their manifest paths; "
@@ -81,13 +153,25 @@ def main(argv: Sequence[str]) -> int:
     status_parser = commands.add_parser(
         "status", help="one line per entry: path, present or missing, branch, clean or dirty, frozen",
         description="one line per entry: path, present or missing, branch, clean or dirty, frozen")
-    for sub in (clone_parser, status_parser):
+    for sub in (add_parser, clone_parser, status_parser):
         sub.add_argument("--repository", type=Path, default=None,
                          help="a directory inside the workspace (default: the current directory)")
         sub.add_argument("--json", dest="as_json", action="store_true", help="print JSON instead of text")
     args = parser.parse_args(list(argv))
     start = args.repository if args.repository is not None else Path.cwd()
     try:
+        if args.command == "add":
+            result = add(
+                start,
+                args.path,
+                url=args.url,
+                shape=args.shape,
+                frozen=args.frozen,
+                default_branch=args.default_branch,
+                checks=args.checks,
+            )
+            print(json.dumps(result) if args.as_json else f"added {result['path']}; next: {result['next']}")
+            return 0
         located = ws.locate(start)
         if located.workspace is None:
             raise ws.WorkspaceError(f"not in a workspace: {Path(start).resolve()}")

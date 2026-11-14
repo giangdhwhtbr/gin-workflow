@@ -183,6 +183,84 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertIn("/services/api", lines)
         self.assertNotIn("/apps/web", lines)
 
+    def test_add_duplicate_refused(self):
+        before = (self.root / ".agent-workflow/config.yaml").read_bytes()
+        done = run(self.root, "workspace", "add", "services/api", "--url", "file:///x", "--shape", "backend")
+        self.assertEqual(1, done.returncode)
+        self.assertIn("duplicate path", done.stderr)
+        self.assertEqual(before, (self.root / ".agent-workflow/config.yaml").read_bytes())
+
+
+class WorkspaceAddTests(unittest.TestCase):
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.base = Path(directory.name).resolve()
+        self.root = init_repo(self.base / "ws")
+        (self.root / ".agent-workflow").mkdir()
+        (self.root / ".agent-workflow/config.yaml").write_text(
+            "schema_version: '2.9'\nharness: claude\nworkspace:\n  repos: []\n", encoding="utf-8"
+        )
+
+    def test_add_success_and_status(self):
+        done = run(self.root, "workspace", "add", "services/order-api", "--url", "file:///x",
+                   "--shape", "backend", "--check", "test=true")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertIn("added services/order-api; next: gin workspace clone services/order-api", done.stdout)
+        status = json.loads(run(self.root, "workspace", "status", "--json").stdout)
+        entry = next((item for item in status["repos"] if item["path"] == "services/order-api"), None)
+        self.assertIsNotNone(entry)
+        self.assertFalse(entry["present"])
+        from workflow_core import workspace as ws
+        yaml = ws.require_yaml()
+        config = yaml.safe_load((self.root / ".agent-workflow/config.yaml").read_text(encoding="utf-8"))
+        saved = next(item for item in config["workspace"]["repos"] if item["path"] == "services/order-api")
+        self.assertEqual({"checks": {"test": "true"}}, saved.get("verify"))
+
+    def test_add_frozen_without_shape_accepted(self):
+        done = run(self.root, "workspace", "add", "legacy/portal", "--url", "file:///x", "--frozen")
+        self.assertEqual(0, done.returncode, done.stderr)
+        from workflow_core import workspace as ws
+        yaml = ws.require_yaml()
+        config = yaml.safe_load((self.root / ".agent-workflow/config.yaml").read_text(encoding="utf-8"))
+        saved = next(item for item in config["workspace"]["repos"] if item["path"] == "legacy/portal")
+        self.assertTrue(saved.get("frozen"))
+        self.assertNotIn("shape", saved)
+
+    def test_add_invalid_shape_refused(self):
+        before = (self.root / ".agent-workflow/config.yaml").read_bytes()
+        done = run(self.root, "workspace", "add", "services/order-api", "--url", "file:///x", "--shape", "web")
+        self.assertEqual(1, done.returncode)
+        self.assertEqual(before, (self.root / ".agent-workflow/config.yaml").read_bytes())
+
+    def test_add_invalid_check_refused(self):
+        before = (self.root / ".agent-workflow/config.yaml").read_bytes()
+        done = run(self.root, "workspace", "add", "services/order-api", "--url", "file:///x",
+                   "--shape", "backend", "--check", "test")
+        self.assertEqual(1, done.returncode)
+        self.assertIn("--check must be NAME=COMMAND", done.stderr)
+        self.assertEqual(before, (self.root / ".agent-workflow/config.yaml").read_bytes())
+
+    def test_add_outside_workspace_parent_refused(self):
+        no_ws = init_repo(self.base / "no_ws")
+        (no_ws / ".agent-workflow").mkdir()
+        (no_ws / ".agent-workflow/config.yaml").write_text(
+            "schema_version: '2.9'\nharness: claude\n", encoding="utf-8"
+        )
+        done = run(no_ws, "workspace", "add", "services/order-api", "--url", "file:///x", "--shape", "backend")
+        self.assertEqual(1, done.returncode)
+        self.assertIn("run /gin:setup and answer workspace", done.stderr)
+
+    def test_add_help_describes_flags(self):
+        done = run(self.root, "workspace", "add", "--help")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertIn("--url", done.stdout)
+        self.assertIn("--shape", done.stdout)
+        self.assertIn("--frozen", done.stdout)
+        self.assertIn("--default-branch", done.stdout)
+        self.assertIn("--check", done.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -323,13 +323,14 @@ Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is un
 ## `gin workspace`
 
 ```
+gin workspace add PATH --url URL [--shape SHAPE] [--frozen] [--default-branch BRANCH] [--check NAME=COMMAND ...] [--repository DIR] [--json]
 gin workspace clone [--repository DIR] [--json] [--all | PATH ...]
 gin workspace status [--repository DIR] [--json]
 ```
 
-A workspace is a parent repository whose `workspace.repos` lists child repositories ([configuration](config.md#workspace)). `clone` clones the named entries, or every entry with `--all`, at their manifest paths from their `url` and `default_branch`; a `frozen` entry is cloned with `--depth 1`; an entry already present is reported as `present`; each path gets a `/<path>` line in the parent `.gitignore`. `status` prints one line per entry: path, `present` or `missing`, branch, `clean` or `dirty`, and `frozen`. Both commands run from anywhere inside the workspace, including a child repository.
+A workspace is a parent repository whose `workspace.repos` lists child repositories ([configuration](config.md#workspace)). `add` records a repository entry in `workspace.repos` of the parent repository and writes it through setup configuration. It validates the entry, refuses duplicate or nested paths, and prints the clone command to run next. `clone` clones the named entries, or every entry with `--all`, at their manifest paths from their `url` and `default_branch`. A `frozen` entry is cloned with `--depth 1`. An entry already present is reported as `present`. Each path gets a `/<path>` line in the parent `.gitignore`. `status` prints one line per entry: path, `present` or `missing`, branch, `clean` or `dirty`, and `frozen`. `clone` and `status` run from anywhere inside the workspace, including a child repository.
 
-Exit codes: 0 done; 1 outside a workspace, an unknown path, or a git failure (message on stderr); 2 invalid arguments.
+Exit codes: 0 done; 1 outside a workspace parent, duplicate path, validation error, or a git failure (message on stderr); 2 invalid arguments.
 
 ## `gin worktree`
 
