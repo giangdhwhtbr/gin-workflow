@@ -7,7 +7,6 @@ import subprocess
 import tempfile
 import unittest
 
-import pytest
 import yaml
 
 
@@ -94,9 +93,8 @@ REQUIRED_ARTIFACTS = (
 )
 
 
-# setUpClass rebuilds the shared plugins/*/dist, so every test of the class must run
-# on one xdist worker (pytest.ini sets --dist loadgroup); two builders would race.
-@pytest.mark.xdist_group("harness-packaging-dist")
+# setUpClass rebuilds the shared plugins/*/dist, so every test of the class must run on
+# one xdist worker; tests/conftest.py groups it (two builders would race).
 @unittest.skipIf(os.name == "nt", "runs install.sh, which needs bash")
 class HarnessPackagingTests(unittest.TestCase):
     @classmethod
