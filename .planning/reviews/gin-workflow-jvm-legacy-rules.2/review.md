@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -58,3 +58,4 @@
 | `EV-000011` | `2026-11-14T13:54:53.912754Z` | `finding-fixed` | `implementer:antigravity:worker` (worker) |
 | `EV-000012` | `2026-11-14T13:54:54.034841Z` | `finding-fixed` | `implementer:antigravity:worker` (worker) |
 | `EV-000013` | `2026-11-14T13:54:54.365178Z` | `source-checkpoint-created` | `implementer:antigravity:worker` (worker) |
+| `EV-000014` | `2026-11-14T13:58:36.399431Z` | `review-requested` | `implementer:antigravity:worker` (worker) |
