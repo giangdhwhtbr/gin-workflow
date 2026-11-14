@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "implementation-in-progress",
+  "review_state": "review-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,7 +24,7 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 19,
+  "ledger_revision": 20,
   "next_finding_number": 6,
   "findings": {
     "F-1": {
@@ -425,6 +425,20 @@
       },
       "previous_event_hash": "70d1304a6e4c83bd4ab0bc43556461a1875aa56f6fa89c5c076439a1f28fc1b0",
       "event_hash": "1f8b5c6cf52571d7bca4d68a525e06ba05899e5d1fd3b6137d2860d4244d1f53"
+    },
+    {
+      "event_id": "EV-000020",
+      "action": "review-requested",
+      "timestamp": "2026-11-14T11:50:20.936137Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "1f8b5c6cf52571d7bca4d68a525e06ba05899e5d1fd3b6137d2860d4244d1f53",
+      "event_hash": "de9d04be38c180745d45609447c35139f06c34c991da0027c0fdb8f19cc3cd75"
     }
   ]
 }
