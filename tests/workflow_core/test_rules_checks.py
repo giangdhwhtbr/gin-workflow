@@ -103,6 +103,20 @@ class TestPropose(unittest.TestCase):
         root = _repo({"README.md": "# new"})
         self.assertIn("fake-spring", propose_packs(root, plugin, stack_intent="spring-boot service"))
 
+    def test_jvm_and_template_packs_proposed(self):
+        plugin = load_plugin_packs(ROOT / "plugins/gin-workflow/src/rules")
+        root = _repo({"pom.xml": "<dependency>spring-boot-starter-web</dependency>"})
+        self.assertEqual(["core", "java", "spring"], propose_packs(root, plugin))
+
+        root = _repo({"pom.xml": "<project></project>"})
+        self.assertEqual(["core", "java"], propose_packs(root, plugin))
+
+        root = _repo({"WebContent/WEB-INF/web.xml": "<web-app></web-app>"})
+        self.assertEqual(["core", "jvm-templates"], propose_packs(root, plugin))
+
+        root = _repo({"pom.xml": "<dependency>velocity-tools</dependency>"})
+        self.assertEqual(["core", "java", "jvm-templates"], propose_packs(root, plugin))
+
 
 class TestToolChecks(unittest.TestCase):
     def test_tsconfig_strict(self):
