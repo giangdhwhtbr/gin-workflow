@@ -97,6 +97,7 @@ _WORKSPACE = {
                     "frozen": {"type": "boolean"},
                     "default_branch": {"type": "string", "minLength": 1},
                     "verify": {"type": "object", "properties": {"checks": _CHECKS}, "additionalProperties": False},
+                    "rules": {"type": "object", "properties": {"packs": {"type": "array", "items": {"type": "string", "minLength": 1}}}, "additionalProperties": False},
                 },
                 "additionalProperties": False,
             },

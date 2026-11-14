@@ -117,6 +117,31 @@ class ManifestTests(unittest.TestCase):
             validate_config_schema({"schema_version": "2.9", "workspace": {"repos": [
                 {"path": "a", "url": "u", "shape": "fullstack"}]}})
 
+    def test_repos_from_parses_rules_packs(self):
+        repos = workspace.repos_from({"workspace": {"repos": [
+            {"path": "services/api", "url": "u", "shape": "backend", "rules": {"packs": ["react"]}},
+            {"path": "apps/web", "url": "u2", "shape": "frontend"},
+        ]}})
+        self.assertEqual(("react",), repos[0].packs)
+        self.assertEqual((), repos[1].packs)
+
+    def test_repos_from_rejects_bad_rules_packs(self):
+        with self.assertRaises(workspace.WorkspaceError) as caught:
+            workspace.repos_from({"workspace": {"repos": [
+                {"path": "services/api", "url": "u", "shape": "backend", "rules": {"packs": [""]}},
+            ]}})
+        self.assertIn("rules.packs must be a list of pack names", str(caught.exception))
+
+    def test_schema_accepts_rules_packs(self):
+        validate_config_schema({
+            "schema_version": "2.9",
+            "workspace": {
+                "repos": [
+                    {"path": "services/api", "url": "u", "shape": "backend", "rules": {"packs": ["react"]}},
+                ],
+            },
+        })
+
     def test_repo_of_uses_the_longest_prefix(self):
         ws = workspace.Workspace(Path("/ws"), workspace.repos_from(
             {"workspace": {"repos": [{"path": "services/api", "url": "u", "shape": "backend"},
@@ -167,10 +192,39 @@ class ResolutionTests(unittest.TestCase):
         self.assertEqual(self.child, workspace.repository_root(self.child))
         self.assertEqual(self.root, workspace.project_root(self.child))
 
+    def test_current(self):
+        parent = workspace.current(self.root)
+        self.assertIsNone(parent.checkout)
+        self.assertIsNone(parent.located.entry)
+
+        child = workspace.current(self.child)
+        self.assertEqual(self.child, child.checkout)
+        self.assertIsNotNone(child.located.entry)
+        self.assertEqual("services/api", child.located.entry.path)
+
+        (self.child / "nested").mkdir()
+        nested = workspace.current(self.child / "nested")
+        self.assertEqual(self.child, nested.checkout)
+        self.assertEqual("services/api", nested.located.entry.path)
+
+        wt = self.root / ".planning/worktrees/t1"
+        wt.parent.mkdir(parents=True)
+        git(self.child, "worktree", "add", "-b", "feat/x-t1", str(wt), "main")
+        linked = workspace.current(wt)
+        self.assertEqual(wt, linked.checkout)
+        self.assertEqual("services/api", linked.located.entry.path)
+
+        plain = init_repo(self.base / "plain")
+        outside = workspace.current(plain)
+        self.assertIsNone(outside.checkout)
+        self.assertIsNone(outside.located.entry)
+
     def test_summary(self):
         child = workspace.summary(workspace.locate(self.child))
         self.assertEqual(str(self.root), child["root"])
         self.assertEqual("services/api", child["current_repo"])
+        self.assertEqual({"path": "services/api", "shape": "backend", "checks": {"test": "echo api-test"}},
+                         child["current"])
         by_path = {r["path"]: r for r in child["repos"]}
         self.assertEqual({"path": "services/api", "shape": "backend", "frozen": False, "present": True,
                           "branch": "main"}, by_path["services/api"])
@@ -178,6 +232,7 @@ class ResolutionTests(unittest.TestCase):
                           "branch": None}, by_path["apps/web"])
         self.assertIsNone(workspace.summary(workspace.locate(init_repo(self.base / "plain"))))
         self.assertIsNone(workspace.summary(workspace.locate(self.root))["current_repo"])
+        self.assertIsNone(workspace.summary(workspace.locate(self.root))["current"])
 
 
 class QaRootTests(unittest.TestCase):

@@ -90,11 +90,19 @@ def main(argv: Sequence[str]) -> int:
     checker.add_argument("--commit")
     checker.add_argument("--json", action="store_true")
     args = parser.parse_args(list(argv))
-    args.repository = workspace.repository_root(args.repository)
-    root = args.repository.resolve()
+    events_root = None
+    if args.repository is None:
+        here = workspace.current(Path.cwd())
+        if here.checkout:
+            root = here.checkout
+            events_root = here.located.root
+        else:
+            root = workspace.repository_root(None).resolve()
+    else:
+        root = workspace.repository_root(args.repository).resolve()
     if args.command == "run":
         return run(root)
-    found, reason = check(root, args.commit)
+    found, reason = check(root, args.commit, events_root=events_root)
     if args.json:
         print(json.dumps({"record": found, "reason": reason}))
     elif found:

@@ -33,6 +33,7 @@ class Repo:
     frozen: bool = False
     default_branch: str = "main"
     checks: Mapping[str, str] = field(default_factory=dict)
+    packs: tuple[str, ...] = ()
 
     @property
     def workable(self) -> bool:
@@ -69,6 +70,12 @@ class Located:
     entry: Repo | None         # the manifest entry of `repo` when it is a child
 
 
+@dataclass(frozen=True)
+class Current:
+    located: Located
+    checkout: Path | None
+
+
 def _entry(raw: Mapping[str, Any]) -> Repo:
     given = str(raw.get("path", "")).strip()
     pure = PurePosixPath(given)
@@ -92,7 +99,16 @@ def _entry(raw: Mapping[str, Any]) -> Repo:
             raise WorkspaceError(f"workspace.repos: {path}: unknown check {name}")
         if str(command).strip():
             checks[name] = str(command)
-    return Repo(path, url, shape, frozen, str(raw.get("default_branch", "main")), checks)
+    raw_rules = raw.get("rules") or {}
+    raw_packs = raw_rules.get("packs", []) if isinstance(raw_rules, Mapping) else None
+    if not isinstance(raw_packs, list):
+        raise WorkspaceError(f"workspace.repos: {path}: rules.packs must be a list of pack names")
+    packs: list[str] = []
+    for pack in raw_packs:
+        if not isinstance(pack, str) or not pack.strip():
+            raise WorkspaceError(f"workspace.repos: {path}: rules.packs must be a list of pack names")
+        packs.append(pack.strip())
+    return Repo(path, url, shape, frozen, str(raw.get("default_branch", "main")), checks, tuple(packs))
 
 
 def repos_from(config: Mapping[str, Any]) -> tuple[Repo, ...]:
@@ -174,6 +190,17 @@ def qa_root(root: Path, cwd: Path) -> Path | None:
     return checkout
 
 
+def current(cwd: Path) -> Current:
+    located = locate(cwd)
+    checkout = None
+    if located.entry is not None:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, capture_output=True,
+                             check=False)
+        if top.returncode == 0 and top.stdout.strip():
+            checkout = Path(top.stdout.strip())
+    return Current(located, checkout)
+
+
 def branch(path: Path) -> str | None:
     done = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=path, text=True,
                           capture_output=True, check=False)
@@ -185,9 +212,11 @@ def summary(located: Located) -> dict[str, Any] | None:
     if located.workspace is None:
         return None
     workspace = located.workspace
+    entry = located.entry
     return {
         "root": str(workspace.root),
-        "current_repo": located.entry.path if located.entry else None,
+        "current_repo": entry.path if entry else None,
+        "current": {"path": entry.path, "shape": entry.shape, "checks": dict(entry.checks)} if entry else None,
         "repos": [{"path": repo.path, "shape": repo.shape, "frozen": repo.frozen,
                    "present": workspace.present(repo),
                    "branch": branch(workspace.checkout(repo)) if workspace.present(repo) else None}

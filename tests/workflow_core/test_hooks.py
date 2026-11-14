@@ -563,3 +563,48 @@ class WorkspaceHookTests(unittest.TestCase):
         self.assertIn("services/api: pre-push: installed", out)
         self.assertEqual("#!/bin/sh\nnpx lint-staged\n", hook.read_text(encoding="utf-8"))
         self.assertIn(f'services/api: add `exec gin hooks run pre-commit "$@"` to {hook} to chain it', err)
+
+
+class WorkspaceEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = make_workspace(Path(directory.name).resolve())
+        self.child = self.root / "services/api"
+        config = self.root / ".agent-workflow/config.yaml"
+        text = config.read_text(encoding="utf-8").replace(
+            'verify: {checks: {test: "echo api-test"}}',
+            'verify: {checks: {test: "touch child-tested"}}')
+        config.write_text(text + "verify:\n  checks:\n    test: touch parent-tested\n", encoding="utf-8")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "config", "--no-verify")
+
+    def run_gin(self, cwd: Path, *args: str) -> subprocess.CompletedProcess:
+        launcher = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts/gin"
+        return subprocess.run([sys.executable, str(launcher), *args], cwd=cwd, text=True, capture_output=True,
+                              check=False)
+
+    def test_evidence_run_in_a_child_runs_entry_checks_and_records_in_workspace(self):
+        done = self.run_gin(self.child, "evidence", "run")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertTrue((self.child / "child-tested").is_file())
+        self.assertFalse((self.root / "parent-tested").exists())
+        self.assertFalse((self.root / "child-tested").exists())
+
+    def test_evidence_check_in_a_child_worktree_finds_record(self):
+        wt = self.root / ".planning/worktrees/t1"
+        git(self.child, "worktree", "add", "-q", str(wt), "-b", "feat/t1", "main")
+        run_done = self.run_gin(wt, "evidence", "run")
+        self.assertEqual(0, run_done.returncode, run_done.stderr)
+        self.assertTrue((wt / "child-tested").is_file())
+        check_done = self.run_gin(wt, "evidence", "check", "--json")
+        self.assertEqual(0, check_done.returncode, check_done.stderr)
+        payload = json.loads(check_done.stdout)
+        self.assertIsNotNone(payload.get("record"))
+        self.assertIn("services/api:test", payload["record"]["commands"])
+
+    def test_evidence_run_in_the_parent_uses_parent_checks(self):
+        done = self.run_gin(self.root, "evidence", "run")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertTrue((self.root / "parent-tested").is_file())
+        self.assertFalse((self.child / "child-tested").exists())
