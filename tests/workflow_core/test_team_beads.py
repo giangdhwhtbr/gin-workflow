@@ -285,7 +285,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertIn(work, ready())
 
     def test_sync_needs_a_remote(self):
-        result = run_cli(self.root, "team", "sync")
+        result = run_cli_subprocess(self.root, "team", "sync")
         self.assertEqual(2, result.returncode)
         self.assertIn("team.beads_sync.remote is not set", result.stderr)
 
