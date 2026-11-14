@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "review_state": "implementation-in-progress",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.3",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.3",
+      "review_base_sha": "7273790734e9c3afef5d0f99b12f634b0fd30cf9",
+      "reviewed_source_sha": "448cbc27cf41630005f51b19d51fd89261e12b07",
+      "checkpoint_sha": "448cbc27cf41630005f51b19d51fd89261e12b07",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "beedc438e630fd09bd43020b979a00181c5fdfd09eb382896dd568acb648b373",
+      "reviewed_source_tree_hash": "beedc438e630fd09bd43020b979a00181c5fdfd09eb382896dd568acb648b373",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 2,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-14T14:02:43.090632Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.3",
+            "review_base_sha": "7273790734e9c3afef5d0f99b12f634b0fd30cf9",
+            "reviewed_source_sha": "89064c8e02391c0f68fb95ddc07f0daacc5c5ef9",
+            "checkpoint_sha": "89064c8e02391c0f68fb95ddc07f0daacc5c5ef9",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "beedc438e630fd09bd43020b979a00181c5fdfd09eb382896dd568acb648b373",
+            "reviewed_source_tree_hash": "beedc438e630fd09bd43020b979a00181c5fdfd09eb382896dd568acb648b373",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "implementer:claude:main",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "5a4084b07021246ec11280bff7f31105e5ddca9a8ed65718a5191a652343ead9"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-14T14:02:43.413279Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.3",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-jvm-legacy-rules.3",
+            "review_base_sha": "7273790734e9c3afef5d0f99b12f634b0fd30cf9",
+            "reviewed_source_sha": "448cbc27cf41630005f51b19d51fd89261e12b07",
+            "checkpoint_sha": "448cbc27cf41630005f51b19d51fd89261e12b07",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "beedc438e630fd09bd43020b979a00181c5fdfd09eb382896dd568acb648b373",
+            "reviewed_source_tree_hash": "beedc438e630fd09bd43020b979a00181c5fdfd09eb382896dd568acb648b373",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "5a4084b07021246ec11280bff7f31105e5ddca9a8ed65718a5191a652343ead9",
+      "event_hash": "2a5f9c15b2a581533ce16b49929e6fabeeaa9e450e1b7be03343e3f3cf17f1cb"
+    }
+  ]
+}
