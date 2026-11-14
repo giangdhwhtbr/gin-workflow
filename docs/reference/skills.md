@@ -47,7 +47,7 @@ Stages load these when needed; you can also invoke them directly.
 | `team-setup` | Set up or join team mode: members, roles, areas, approvals, conventions, hooks, shared Beads |
 | `migrate-specs` | Move a legacy `.planning` specs and plans layout into the SDD `docs/` layout |
 | `beads-migration` | Move a repository's `.beads` directory into `~/gin-beads/<repo>` and symlink it back |
-| `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics with a project deadline and an estimate per epic; reconcile both on re-run; propose the team's way of working (Foundation, Spec cadence, Build, Integration, Quality, Load) for the PM to confirm; rate each epic's complexity; report the `gin milestone list` forecast; with the SDD layout each epic carries `Capabilities:`; `--milestone <id>` plans a dated milestone with its own lanes, a `Spec ready by:` date, and an integration point |
+| `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics with a project deadline and an estimate per epic; reconcile both on re-run; propose the team's way of working (Foundation, Spec cadence, Build, Integration, Quality, Load) for the PM to confirm; rate each epic's complexity; report the `gin milestone list` forecast; with the SDD layout each epic carries `Capabilities:`; a `## Summary` table; `Outcome:` and `Demo:` per milestone; `Features:` and `Legacy:` per epic; a `## Legacy coverage` table when `13-CAPABILITIES.md` exists; a plain run proposes the milestone plan; `--milestone <id>` plans a dated milestone with its own lanes, a `Spec ready by:` date, and an integration point |
 | `allocate` | Propose, assign, and create prep tasks (`capture`, `mockup`, `spike`, `question`, `other`) under roadmap epics before discuss, for one epic or a milestone (`--milestone <id>`); the lead confirms one table first, and a re-run proposes only differences |
 
 ## gin: documentation
@@ -55,7 +55,7 @@ Stages load these when needed; you can also invoke them directly.
 | Skill | Purpose |
 |---|---|
 | `write-doc` | Write or update a standalone document (README, runbook or guide, ADR, changelog) from its template, and check it with `gin docs check` |
-| `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing, and a glossary of non-English business terms) from repository evidence, or reground existing pages against the code, on request only |
+| `tech-doc` | Write technical documentation (features, API, stack, architecture, conventions, testing, a glossary of non-English business terms, a database document `12-DATABASE.md` when the scope has a datastore, and a capability catalog `13-CAPABILITIES.md`) from repository evidence, or reground existing pages against the code, on request only |
 | `explain` | Write one interactive HTML page that explains an SDD capability or an active change: a short narrative, then its requirements, stories, diagrams, and dated asset folders; with `--legacy`, the legacy code of a capability in frozen workspace apps ([guide](../guides/sdd.md#explaining-a-capability)) |
 
 ## gin-qa (optional add-on)
