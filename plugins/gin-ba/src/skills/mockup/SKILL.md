@@ -5,7 +5,7 @@ description: Build an interactive, self-contained HTML mockup of a capability's 
 
 # Mockup
 
-`/gin-ba:mockup <capability> [--date YYYY-MM-DD]`. Writes `<specs>/<cap>/assets/<date>/mockup/index.html` and the `description.md` of that folder. `/gin:discuss` cites the confirmed screens as the source of requirements. Never commit.
+`/gin-ba:mockup <capability> [--date YYYY-MM-DD]`. Writes `<specs>/<cap>/assets/<date>/mockup/index.html` and the `description.md` of that folder. `/gin:discuss` cites the confirmed screens as the source of requirements. Commits only through `gin commit`, on the BA's yes.
 
 1. Preconditions. On a failure, stop and name the fix:
    - `gin` is on `PATH`; otherwise `./install.sh --plugin gin-workflow` (Windows: `.\install.ps1 -Plugin gin-workflow`) from a gin-workflow clone.
@@ -34,4 +34,4 @@ description: Build an interactive, self-contained HTML mockup of a capability's 
    - in team mode, when a `team.areas` entry in `.agent-workflow/config.yaml` has a `paths` glob matching the frontend child's path (or the UI path read in step 4), ask the BA to get that area's `lead` role to agree first;
    - then run `gin specs assets confirm <cap> --date <date> --agreed-with "<names>"`, omitting the flag when no one else agreed.
    Report the path and the next command, `/gin:discuss`.
-9. Never confirm on the BA's behalf: only the BA's explicit answer runs `gin specs assets confirm`. To save the dated folder before `/gin:discuss` commits it, on the BA's yes run `gin commit <specs>/<cap>/assets/<date>/ -m "<capability>: mockup <date>"`. Do not commit; `/gin:discuss` commits the confirmed folder with the change folder that cites it.
+9. Never confirm on the BA's behalf: only the BA's explicit answer runs `gin specs assets confirm`. Do not commit; `/gin:discuss` commits the confirmed folder with the change folder that cites it. The one exception: to save the dated folder before then, on the BA's yes run `gin commit <specs>/<cap>/assets/<date>/ -m "<capability>: mockup <date>"`.

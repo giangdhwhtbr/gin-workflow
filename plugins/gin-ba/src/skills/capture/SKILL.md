@@ -5,7 +5,7 @@ description: Describe an existing feature from screenshots in a dated asset fold
 
 # Legacy Capture
 
-`/gin-ba:capture <capability> [--date YYYY-MM-DD] [code paths...]`. Copies the screenshots the BA names under `<specs>/<cap>/assets/<date>/legacy/`, reads them, and writes the `description.md` of that folder with `Kind: legacy`. `/gin:discuss` starts the requirements of a rebuild from it. Never commit.
+`/gin-ba:capture <capability> [--date YYYY-MM-DD] [code paths...]`. Copies the screenshots the BA names under `<specs>/<cap>/assets/<date>/legacy/`, reads them, and writes the `description.md` of that folder with `Kind: legacy`. `/gin:discuss` starts the requirements of a rebuild from it. Commits only through `gin commit`, on the BA's yes.
 
 1. Preconditions. On a failure, stop and name the fix:
    - `gin` is on `PATH`; otherwise `./install.sh --plugin gin-workflow` (Windows: `.\install.ps1 -Plugin gin-workflow`) from a gin-workflow clone.
@@ -27,4 +27,4 @@ description: Describe an existing feature from screenshots in a dated asset fold
    Never guess: a cell the evidence does not settle reads `?` and gets an open question.
 5. Show the description and revise it on the BA's feedback. Edit only this dated folder.
 6. When the BA explicitly confirms the description, ask who else agreed (business owner, PM), then run `gin specs assets confirm <cap> --date <date> --agreed-with "<names>"`, omitting the flag when no one else agreed. Report the path and the next commands: `/gin-ba:mockup <cap>` for a redesign, or `/gin:discuss`.
-7. Never confirm on the BA's behalf: only the BA's explicit answer runs `gin specs assets confirm`. To save the dated folder before `/gin:discuss` commits it, on the BA's yes run `gin commit <specs>/<cap>/assets/<date>/ -m "<capability>: capture <date>"`. Do not commit; `/gin:discuss` commits the confirmed folder with the change folder that cites it.
+7. Never confirm on the BA's behalf: only the BA's explicit answer runs `gin specs assets confirm`. Do not commit; `/gin:discuss` commits the confirmed folder with the change folder that cites it. The one exception: to save the dated folder before then, on the BA's yes run `gin commit <specs>/<cap>/assets/<date>/ -m "<capability>: capture <date>"`.
