@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "implementation-in-progress",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,9 +24,80 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 3,
-  "next_finding_number": 1,
-  "findings": {},
+  "ledger_revision": 14,
+  "next_finding_number": 6,
+  "findings": {
+    "F-1": {
+      "finding_id": "F-1",
+      "severity": "CRITICAL",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F-2": {
+      "finding_id": "F-2",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F-3": {
+      "finding_id": "F-3",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F-4": {
+      "finding_id": "F-4",
+      "severity": "MINOR",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F-5": {
+      "finding_id": "F-5",
+      "severity": "MINOR",
+      "status": "deferral-proposed",
+      "clarification_count": 0,
+      "deferral_reason": "close guard lookup lives in tasks.py and close_guard.py, outside Track 2's file scope; tracked by a follow-up bead",
+      "follow_up_bead_id": "",
+      "follow_up_bead_title": "gin task close reads a workspace child track's review ledger from workspace.ledger_root",
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
   "events": [
     {
       "event_id": "EV-000001",
@@ -107,6 +178,171 @@
       },
       "previous_event_hash": "4af488a740ef5aa69f274b4c939156336e627387a0519e3e50b59ba41d7c48a2",
       "event_hash": "c8b4593f0df85bd096444e366686705c7042fb3a5cbb432227f6e55e517630ff"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-14T16:40:46.285158Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "lease_id": "3d24c4f65f8e4a14a64e4bd199ae2a0e",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290",
+        "acquired_at": "2026-11-14T16:40:46.284291Z",
+        "expires_at": "2026-11-14T16:50:46.284291Z"
+      },
+      "previous_event_hash": "c8b4593f0df85bd096444e366686705c7042fb3a5cbb432227f6e55e517630ff",
+      "event_hash": "f87ad459eea9ac8711842f4fc26099147f0ec322905727b3b56dea959439cba2"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-14T16:40:46.308640Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {},
+      "previous_event_hash": "f87ad459eea9ac8711842f4fc26099147f0ec322905727b3b56dea959439cba2",
+      "event_hash": "bb4bcc9ad6bbd4789894550b4cf340976837b9aaac26a4523eb699aea77bb48e"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-14T16:40:57.870005Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "finding_id": "F-1",
+        "severity": "CRITICAL"
+      },
+      "previous_event_hash": "bb4bcc9ad6bbd4789894550b4cf340976837b9aaac26a4523eb699aea77bb48e",
+      "event_hash": "3c2a2da23bad810698e9bbf796894fe23effcf7af98d270c721915bb64abf634"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-created",
+      "timestamp": "2026-11-14T16:40:58.014822Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "finding_id": "F-2",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "3c2a2da23bad810698e9bbf796894fe23effcf7af98d270c721915bb64abf634",
+      "event_hash": "ffbe0981bdca3331df82fe343e18dde5fa9d52153bd7bc0dcd8b2143f2bf3874"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "finding-created",
+      "timestamp": "2026-11-14T16:40:58.203809Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "finding_id": "F-3",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "ffbe0981bdca3331df82fe343e18dde5fa9d52153bd7bc0dcd8b2143f2bf3874",
+      "event_hash": "938425b93ad7a609bdb291b333e2d5226510bcdfb96bf4fd8ba67a987d2dbae0"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "finding-created",
+      "timestamp": "2026-11-14T16:40:58.366715Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "finding_id": "F-4",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "938425b93ad7a609bdb291b333e2d5226510bcdfb96bf4fd8ba67a987d2dbae0",
+      "event_hash": "440629c99a623df6b3d735a719196f3f791b332a76328b9b28bfaea691b24437"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "finding-created",
+      "timestamp": "2026-11-14T16:40:58.512156Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "finding_id": "F-5",
+        "severity": "MINOR"
+      },
+      "previous_event_hash": "440629c99a623df6b3d735a719196f3f791b332a76328b9b28bfaea691b24437",
+      "event_hash": "30255d4899ad072c338435f65ba9eced9128be1c0dd3e52bc94134f5f7f92558"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "changes-requested",
+      "timestamp": "2026-11-14T16:41:04.336201Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "to": "changes-requested"
+      },
+      "previous_event_hash": "30255d4899ad072c338435f65ba9eced9128be1c0dd3e52bc94134f5f7f92558",
+      "event_hash": "3645fa31e0cc049b183c51d4a9a34527fabb9376ba83e7f57d39d58dd241c17a"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "lease-released",
+      "timestamp": "2026-11-14T16:41:04.610899Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-de96d290"
+      },
+      "payload": {
+        "lease_id": "3d24c4f65f8e4a14a64e4bd199ae2a0e",
+        "released_at": "2026-11-14T16:41:04.609939Z"
+      },
+      "previous_event_hash": "3645fa31e0cc049b183c51d4a9a34527fabb9376ba83e7f57d39d58dd241c17a",
+      "event_hash": "bcde831e95432cee808fbb5053fef455fcbd0c223b58909de36b59ce251ab77d"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "implementation-in-progress",
+      "timestamp": "2026-11-14T16:42:06.885291Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "to": "implementation-in-progress"
+      },
+      "previous_event_hash": "bcde831e95432cee808fbb5053fef455fcbd0c223b58909de36b59ce251ab77d",
+      "event_hash": "b7e98fdacfd5dc2665aa5e582e76fca725aa9a26c3105bb85dfa5219d357ff67"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "deferral-proposed",
+      "timestamp": "2026-11-14T16:42:07.028139Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:session-main"
+      },
+      "payload": {
+        "finding_id": "F-5",
+        "reason": "close guard lookup lives in tasks.py and close_guard.py, outside Track 2's file scope; tracked by a follow-up bead",
+        "follow_up_bead_id": "",
+        "follow_up_bead_title": "gin task close reads a workspace child track's review ledger from workspace.ledger_root"
+      },
+      "previous_event_hash": "b7e98fdacfd5dc2665aa5e582e76fca725aa9a26c3105bb85dfa5219d357ff67",
+      "event_hash": "b25ed9f40d0c34d46ee6a78a5c4a0d822f5706e4526e90a0cd96b3eb64bea5ef"
     }
   ]
 }
