@@ -92,7 +92,7 @@ flowchart LR
 Repositories: legacy/shop-portal (Struts, frozen), services/order-api and services/catalog-api (Spring Boot, Maven), apps/web-shop and apps/web-admin (React, npm), qa (automation), .beads (shared Beads database).
 Checks: mvn -q test and mvn -q package for the services; npm run lint, npm test and npm run build for the apps.
 ```
-Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó đặt `artifacts.layout: sdd`. Setup hỏi từng repository và ghi nó bằng `gin workspace add` (tự chạy lệnh này khi cần thêm một repository sau), nên `.agent-workflow/config.yaml` có `workspace.repos` như sau:
+Trả lời `stage: brownfield`, `shape: fullstack`, và `workspace` cho kiểu bố trí repository. Sau đó đặt `artifacts.layout: sdd`. Setup hỏi từng repository và ghi vào cấu hình bằng `gin workspace add` (chạy lệnh này khi cần thêm repository về sau), nên `.agent-workflow/config.yaml` có `workspace.repos` như sau:
 
 ```yaml
 artifacts:
@@ -175,7 +175,7 @@ The api type: tests under qa/api/, run with npm test.
 
 Đưa vào prompt: bảy thành viên cùng git email và vai trò của họ, bốn khu vực cùng đường dẫn, và `permissions: {milestone: [pm]}` để chỉ PM thay đổi milestone. Với `/gin-qa:setup`: các loại case `api`, `e2e` và `manual`, và lệnh test của loại `api`.
 
-Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, chạy `gin team init` (thêm `--ci` cho một workflow CI), rồi bạn commit trên một branch, push và mở pull request. Hãy merge nó. Trong workspace, nó còn chạy `gin team init --all-repos`, lệnh ghi các file tương tự vào từng repository con đã clone; hãy commit và mở pull request trong từng repository con. Một thành viên trả lời với tư cách thành viên: nó kiểm tra `gin team whoami` tìm thấy `git config user.email` của bạn, cài commit-msg hook (`gin team hooks`), yêu cầu bạn đăng nhập (`gh auth login` hoặc `glab auth login`), chạy `bd init --remote <remote>` khi nhóm dùng chung Beads, và kết thúc bằng `gin setup doctor`. Không có gì được ghi ngược vào repository.
+Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, chạy `gin team init` (thêm `--ci` cho một workflow CI), rồi bạn commit trên một branch, push và mở pull request. Hãy merge nó. Trong workspace, chạy tiếp `gin team init --all-repos` để ghi các file đó vào từng repository con đã clone, rồi commit và mở pull request trong từng repository con. Một thành viên trả lời với tư cách thành viên: nó kiểm tra `gin team whoami` tìm thấy `git config user.email` của bạn, cài commit-msg hook (`gin team hooks`), yêu cầu bạn đăng nhập (`gh auth login` hoặc `glab auth login`), chạy `bd init --remote <remote>` khi nhóm dùng chung Beads, và kết thúc bằng `gin setup doctor`. Không có gì được ghi ngược vào repository.
 
 `/gin-qa:setup` đọc những gì QA home đã nói và ghi `guidelines.md` của nó (các mục `## Types`, `## Automated types`, `## Manual runs` và `## Bugs`), `README.md`, và một skill QA của dự án dưới `.claude/skills/`. Xem [add-on QA](../guides/qa.md#setup-gin-qasetup).
 

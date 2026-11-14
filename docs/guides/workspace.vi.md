@@ -44,7 +44,7 @@ Tech lead thực hiện phần này.
 1. Tạo repository cha với `docs/` và `.planning/`.
 2. Chạy `/gin:setup` trong repository cha và trả lời `workspace`.
 3. Đăng ký từng repository bằng `gin workspace add <path> --url <url>` (setup sẽ hỏi các giá trị này, còn các flag nằm trong [tham chiếu CLI](../reference/cli.md#gin-workspace)).
-4. Chạy `gin workspace clone --all`. Lệnh này cài hook trong từng bản clone.
+4. Chạy `gin workspace clone --all`. Lệnh này cài các verify hook của mục có check và, ở chế độ team, commit-msg hook.
 5. Ở chế độ team, chạy `/gin:team-setup` và định nghĩa một area cho mỗi repository, ví dụ `services/order-api/**` với lead `be_lead`. Sau đó chạy `gin team init --all-repos`, rồi commit và mở pull request trong từng repository con.
 6. Chạy `gin setup doctor`. Các action `workspace:` của nó nêu rõ bản clone bị thiếu, repository `frontend`, `backend` hoặc `qa` không có check, repository đã clone có `verify.checks` mà hook bị thiếu, cũ (stale) hoặc bị chiếm, path thiếu trong `.gitignore`, hoặc path vẫn còn là git submodule. Hook do công cụ khác sở hữu (husky, lefthook) được giữ nguyên: thêm `exec gin hooks run <hook> "$@"` vào file mà action nêu tên, và `gin` chạy sau nó.
 
@@ -58,9 +58,9 @@ Mọi kỹ sư thực hiện phần này.
 2. Chạy `gin workspace clone <path>` cho các repository bạn làm việc. Kỹ sư backend clone một hoặc hai service; legacy `frozen` chỉ khi họ cần đọc nó.
 3. Mở IDE trên thư mục của repository con, không bao giờ trên repository cha.
 
-Bước clone cài hook. Ngoài repository cha, mỗi vai trò clone thêm:
+Bước clone cài các verify hook của mục có check và, ở chế độ team, commit-msg hook. Ngoài repository cha, mỗi vai trò clone thêm:
 
-- Developer: các repository con họ làm việc.
+- Developer: các repository con cần làm việc.
 - QA: mục `shape: qa`.
 - PM: không cần gì thêm, hoặc `.beads` khi workspace có mục `shape: beads`.
 - BA: những gì PM clone, cộng với các mục legacy `frozen` mà tech-doc, capture và explain đọc.

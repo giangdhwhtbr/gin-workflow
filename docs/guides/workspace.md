@@ -44,7 +44,7 @@ The tech lead does this.
 1. Create the parent repository with `docs/` and `.planning/`.
 2. Run `/gin:setup` in the parent and answer `workspace`.
 3. Register each repository with `gin workspace add <path> --url <url>` (setup asks for them, and the flags are in the [CLI reference](../reference/cli.md#gin-workspace)).
-4. Run `gin workspace clone --all`. It installs the hooks in each clone.
+4. Run `gin workspace clone --all`. It installs the verify hooks of entries that have checks and, in team mode, the commit-msg hook.
 5. In team mode, run `/gin:team-setup` and define one area per repository, for example `services/order-api/**` with lead `be_lead`. Then run `gin team init --all-repos` and commit and open a pull request in each child.
 6. Run `gin setup doctor`. Its `workspace:` actions name a missing clone, a `frontend`, `backend`, or `qa` repository with no checks, a cloned repository with `verify.checks` whose hook is missing, stale, or occupied, a path missing from `.gitignore`, or a path that is still a git submodule. A hook owned by another tool (husky, lefthook) stays as it is: add `exec gin hooks run <hook> "$@"` to the file the action names, and `gin` runs after it.
 
@@ -58,7 +58,7 @@ Every engineer does this.
 2. Run `gin workspace clone <path>` for the repositories you work on. A backend engineer clones one or two services; the frozen legacy only when they need to read it.
 3. Open the IDE on the child directory, never on the parent.
 
-The clone installs the hooks. Beyond the parent, each role clones:
+The clone installs the verify hooks of entries that have checks and, in team mode, the commit-msg hook. Beyond the parent, each role clones:
 
 - A developer: the children they work on.
 - QA: the `shape: qa` entry.
