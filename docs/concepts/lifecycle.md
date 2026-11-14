@@ -100,7 +100,9 @@ At handoff the agent reports what changed, what was validated and what was not, 
 
 `ship` requires `implementation_complete` and a terminal review state, and runs the plain steps above. Under the SDD layout with gin-qa installed, `ship` also runs `gin-qa cases check`, stops on missing or stale cases, and otherwise reports the check as skipped. It then offers four options for a named branch: merge locally, push and open a pull request, keep the branch, or discard (typed confirmation). Merging, opening a pull request, and force-pushing each need your explicit approval. For a merge, it first runs `usage collect` for the epic and deletes the closed tracks' review ledgers in a commit on the feature branch. It then merges, removes the worktree, deletes the branch, and closes the epic, which marks `shipped`. In a workspace ship integrates one repository at a time, the parent last; for a standalone bead, `record shipped` carries one merge commit per repository in `--evidence`.
 
-`state` warns when `implementation_complete` holds and no commit has touched the knowledge directory since `orchestration.ready`; committing a knowledge record (see `learn`) clears it.
+With the Beads backend, `state` warns when `implementation_complete` holds and the epic has `[gin learn]` comments newer than the last commit to the knowledge directory. With the markdown backend, it warns when no commit has touched that directory since `orchestration.ready`. Committing the knowledge records (see `learn`) clears it.
+
+Every stage posts what it learns as `[gin learn] <stage> <track-id|->: <fact>. Evidence: <ref>` on the bead. Before a bead exists, it writes the line under `## Learnings` of the spec or plan. `ship` writes the knowledge records before it offers the options.
 
 ## The quick path
 

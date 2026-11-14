@@ -43,4 +43,5 @@ Include concise handoff details:
 - `Changed`: files edited and the behavior or contract changed.
 - `Verification`: commands run with their output summary, and any checks intentionally not run.
 - `Risks`: residual uncertainty, failing checks, missing approvals, or follow-up work.
+- `Learnings`: reusable facts with evidence for `[gin learn]` (see `learn`), or `none`.
 - `Beads status`: notes updated, closure status, and dependencies or blockers discovered.

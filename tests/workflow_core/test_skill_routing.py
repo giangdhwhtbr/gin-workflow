@@ -195,3 +195,26 @@ class SkillRoutingTests(unittest.TestCase):
     def test_implementation_complete_ignores_prep_children(self):
         text = (SRC / "references/stage-contract.md").read_text(encoding="utf-8")
         self.assertIn("not labelled `prep`", text)
+
+    def test_learn_comments_from_every_stage(self):
+        read = lambda p: (SRC / p).read_text(encoding="utf-8")
+        learn = read("skills/learn/SKILL.md")
+        for needle in ("[gin learn] <stage> <track-id|->:", "## Learnings", "knowledge_candidates", "Reconcile (ship, before the options)"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, learn)
+        self.assertIn("write no comment except `[gin learn]`", read("skills/discuss/SKILL.md"))
+        plan = next(l for l in read("skills/plan/SKILL.md").splitlines() if l.startswith("1. Require"))
+        self.assertIn("other than `[gin learn]`", plan)
+        self.assertIn("as `[gin learn]` per `learn`", read("skills/execute/SKILL.md"))
+        self.assertIn("`Learnings`", read("agents/developer.md"))
+        contract = read("skills/execute/references/result-contract.md")
+        self.assertIn("fact", contract)
+        self.assertIn("evidence", contract)
+
+    def test_ship_writes_knowledge_before_the_options(self):
+        lines = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8").splitlines()
+        allowed = next(l for l in lines if "may touch only" in l)
+        self.assertIn(".planning/knowledge/", allowed)
+        reconcile = next(i for i, l in enumerate(lines) if "reconcile knowledge per `learn`" in l)
+        present = next(i for i, l in enumerate(lines) if l.startswith("4. Present"))
+        self.assertLess(reconcile, present)

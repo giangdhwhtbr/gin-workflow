@@ -24,7 +24,7 @@ Epic `gin-workflow-sjow` (2026-11-07). A roadmap epic was discussed and planned 
 - `.planning/specs/2026-11-07-epic-comments-design.md`, `.planning/plans/2026-11-07-epic-comments.md`
 - Commits `ef01bed`, `6a88cce`, `9eb796e`, `76260bd`, `d42841b`, `f988e84`, `b83434a`
 - Beads: `gin-workflow-sjow`, `gin-workflow-sjow.1` to `.5`
-- Related: [role-aware-discuss](role-aware-discuss.md), [review-ledger-cycle-limit](review-ledger-cycle-limit.md)
+- Related: [role-aware-discuss](role-aware-discuss.md), [review-ledger-cycle-limit](review-ledger-cycle-limit.md), [learn-comments](learn-comments.md) (`[gin learn]`, the one tag Python reads)
 
 **Scope**
 Roadmap epics in `/discuss`, `/plan`, `/ship`, and `/roadmap` with the Beads task backend.

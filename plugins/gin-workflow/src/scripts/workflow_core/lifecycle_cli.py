@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 from pathlib import Path
 import subprocess
@@ -389,15 +390,73 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     return result, 0
 
 
+def _learn_comment_warning(repo_path: Path, knowledge: Path, epic: str | None) -> str | None:
+    if not epic:
+        return None
+    comments, cause = _beads_json(repo_path, ["comments", epic])
+    if cause or not isinstance(comments, list):
+        return None
+    learns = [
+        item for item in comments
+        if isinstance(item, Mapping) and str(item.get("text") or "").lstrip().startswith("[gin learn]")
+    ]
+    if not learns:
+        return None
+    try:
+        done = subprocess.run(["git", "log", "-1", "--format=%cI", "--", str(knowledge)],
+                              cwd=repo_path, capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if done.returncode:
+        return None
+    output = done.stdout.strip()
+    last = None
+    if output:
+        try:
+            last = datetime.fromisoformat(output)
+        except ValueError:
+            return None
+    pending = []
+    for item in learns:
+        raw_created = item.get("created_at")
+        if not raw_created or not isinstance(raw_created, str):
+            pending.append(item)
+            continue
+        try:
+            created = datetime.fromisoformat(raw_created)
+        except ValueError:
+            pending.append(item)
+            continue
+        if created.tzinfo is None:
+            pending.append(item)
+            continue
+        if last is None or created > last:
+            pending.append(item)
+    if not pending:
+        return None
+    shown = knowledge.relative_to(repo_path) if knowledge.is_relative_to(repo_path) else knowledge
+    return f"{len(pending)} learn comments not yet in {shown}; reconcile knowledge (learn) before ship"
+
+
 def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEvent] | None,
-                       workflow_id: str, gates: Mapping[str, bool | None]) -> str | None:
+                       workflow_id: str, gates: Mapping[str, bool | None],
+                       epic: str | None = None) -> str | None:
     """Ship-time reminder: no commit touched the knowledge directory since orchestration-ready."""
-    ready = [e for e in events or () if e.workflow_id == workflow_id and e.event_type == "orchestration.ready"]
-    if not ready or not gates.get("implementation_complete"):
+    if not gates.get("implementation_complete"):
         return None
     try:
         knowledge = resolve_artifact(config, "knowledge")
     except ArtifactResolutionError:
+        return None
+    try:
+        name = tasks_backend(repo_path)
+    except ConfigValidationError:
+        return None
+    if name == "beads":
+        return _learn_comment_warning(repo_path, knowledge, epic)
+
+    ready = [e for e in events or () if e.workflow_id == workflow_id and e.event_type == "orchestration.ready"]
+    if not ready:
         return None
     since = ready[-1].timestamp
     try:
@@ -423,6 +482,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     workflow_id = getattr(args, "workflow_id", None) or "default-workflow"
     scope_hash = getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path)
 
+    warn_epic: str | None = None
     events, log_error = _read_events(event_store)
     if events is None:
         gates_state: dict[str, bool | None] = {gate: None for _, gate in _STAGE_GATES}
@@ -442,6 +502,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             for gate in ("requirement_confirmed", "plan_approved", "orchestration_ready"):
                 if gate in shared:
                     gates_state[gate] = True
+        warn_epic = shared_epic or recorded or None
         delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id,
                                                               epic=shared_epic or None)
         if "shipped" in shared and standalone:
@@ -500,7 +561,8 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "extensions": {"orchestrator": orchestrator_client.status()},
         "workspace": workspace.summary(workspace.locate(getattr(args, "start", repo_path))),
         "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes, *unshared,
-                                 _knowledge_warning(repo_path, config, events, workflow_id, gates_state)) if w],
+                                 _knowledge_warning(repo_path, config, events, workflow_id, gates_state,
+                                                    epic=warn_epic)) if w],
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
             for event in events or ()

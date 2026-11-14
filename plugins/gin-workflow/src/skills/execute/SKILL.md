@@ -25,7 +25,7 @@ description: Implement and validate exactly one ready work unit at its manifest 
 - Validate immediately and keep the command output as evidence. Do not proceed while tests fail or acceptance criteria are unmet.
 - **Stop and ask** on a blocker, a plan gap, an unclear instruction, or repeated validation failure. Leave the bead in progress with a `gin task update <id> --notes` entry; do not guess. Failures route to the `debugging` skill.
 - Scope or execution-strategy changes and production-impacting parallel work need approval (stage-contract Approvals).
-- Record notable decisions or risks per `learn`.
+- Post your learnings and each worker's (`Learnings`, `knowledge_candidates`) as `[gin learn]` per `learn`.
 
 ## 3. Worker dispatch
 Dispatch each track using this loop:
