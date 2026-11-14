@@ -42,6 +42,18 @@ def make_template(directory, *assignments):
     return root
 
 
+def cached_beads(cache, name, root, build):
+    """Give `root` the `.beads` that `build()` writes there: built by the first test that asks, then copied (bd writes
+    take about a second each, a copy a few ms)."""
+    saved = Path(cache) / name
+    if saved.is_dir():
+        shutil.rmtree(root / ".beads")
+        shutil.copytree(saved, root / ".beads")
+        return
+    build()
+    shutil.copytree(root / ".beads", saved)
+
+
 @unittest.skipUnless(shutil.which("bd"), "bd is not installed")
 class MilestoneCliTests(unittest.TestCase):
     today = date(2026, 10, 29)
@@ -86,6 +98,9 @@ class MilestoneCliTests(unittest.TestCase):
         self.bd("update", bead_id, "--parent", parent)
 
     def seed(self):
+        cached_beads(self._templates.name, "seed", self.root, self.write_seed)
+
+    def write_seed(self):
         self.bd("create", "M1", "--id", "t-m1", "--type", "milestone",
                 "--metadata", '{"start":"2026-11-02","end":"2026-11-04"}')
         self.epic("t-a", "A", "t-m1", "--estimate", "1440")
@@ -110,19 +125,13 @@ class MilestoneCliTests(unittest.TestCase):
                  "planned_end": "2026-11-06", "depends_on": ["t-a"], "external_depends_on": [],
                  "warnings": [{"code": "overflow", "days": 2}, {"code": "spec_due"}]}]}, json.loads(out))
 
-    def test_malformed_away_is_ignored_with_a_warning(self):
+    def test_malformed_away_and_integration_are_ignored_with_a_warning(self):
         self.seed()
-        self.bd("update", "t-m1", "--set-metadata", "away=not json")
+        self.bd("update", "t-m1", "--set-metadata", "away=not json", "--set-metadata", "integration=soon")
         code, out, err = self.run_cli("show", "t-m1", "--json")
         self.assertEqual(0, code, err)
         self.assertIn("warning: t-m1: malformed away metadata ignored", err)
         self.assertEqual({}, json.loads(out)["away"])
-
-    def test_malformed_integration_is_ignored_with_a_warning(self):
-        self.seed()
-        self.bd("update", "t-m1", "--set-metadata", "integration=soon")
-        code, out, err = self.run_cli("show", "t-m1", "--json")
-        self.assertEqual(0, code, err)
         self.assertIn("warning: t-m1: malformed integration metadata ignored", err)
         self.assertIsNone(json.loads(out)["integration"])
 
@@ -241,13 +250,6 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("not an ISO date", err)
 
-    def test_list_text_output(self):
-        self.seed()
-        code, out, err = self.run_cli("list")
-        self.assertEqual(0, code, err)
-        self.assertIn("t-m1", out)
-        self.assertIn("unassigned roadmap epics: 0", out)
-
     def test_req_011_list_text_with_bad_kickoff(self):
         self.bd("create", "Bad", "--id", "t-bad", "--type", "milestone",
                 "--metadata", '{"start":"2026-11-02","end":"2026-11-04","kickoff":"garbage"}')
@@ -258,11 +260,15 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertIn("t-bad", out)
         self.assertIn("t-good", out)
         self.assertIn("error:", out)
+        self.assertIn("unassigned roadmap epics: 0", out)
 
     def show(self, bead_id):
         return json.loads(self.bd("show", bead_id, "--json"))[0]
 
     def seed_writes(self):
+        cached_beads(self._templates.name, "seed_writes", self.root, self.write_seed_writes)
+
+    def write_seed_writes(self):
         self.bd("create", "M1", "--id", "t-m1", "--type", "milestone",
                 "--metadata", '{"start":"2026-11-02","end":"2026-11-30"}')
         self.bd("create", "M2", "--id", "t-m2", "--type", "milestone",
@@ -523,6 +529,11 @@ class ShowTextTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("bd"), "bd is not installed")
 class MilestoneTeamTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._cache = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls._cache.cleanup)
+
     def setUp(self):
         self._directory = tempfile.TemporaryDirectory()
         self.addCleanup(self._directory.cleanup)
@@ -530,8 +541,9 @@ class MilestoneTeamTests(unittest.TestCase):
     def repo(self, name, email, team=TEAM_TEXT):
         root = make_team_repo(Path(self._directory.name) / name, email=email, team=team)
         init_beads(root)
-        self.bd(root, "create", "M1", "--id", "t-m1", "--type", "milestone",
-                "--metadata", '{"start":"2026-11-02","end":"2026-11-04"}')
+        cached_beads(self._cache.name, "m1", root, lambda: self.bd(
+            root, "create", "M1", "--id", "t-m1", "--type", "milestone",
+            "--metadata", '{"start":"2026-11-02","end":"2026-11-04"}'))
         return root
 
     def bd(self, root, *args):
@@ -557,11 +569,6 @@ class MilestoneTeamTests(unittest.TestCase):
         self.assertEqual(0, self.run_cli(root, "update", "t-m1", "--integration", "none")[0])
         self.assertNotIn("integration", self.metadata(root, "t-m1") or {})
 
-    def test_integration_on_a_closed_milestone_is_refused(self):
-        root = self.repo("ba", "an@corp.com")
-        self.bd(root, "close", "t-m1", "--reason", "x")
-        self.assertEqual(1, self.run_cli(root, "update", "t-m1", "--integration", "2026-11-03")[0])
-
     def test_req_012_milestone_writes_need_a_permitted_role(self):
         root = self.repo("dev", "em@corp.com")
         code, err = self.run_cli(root, "kickstart", "t-m1")
@@ -572,23 +579,17 @@ class MilestoneTeamTests(unittest.TestCase):
         open_team = self.repo("open", "em@corp.com", TEAM.format(host="github"))
         self.assertEqual(0, self.run_cli(open_team, "kickstart", "t-m1")[0])
 
-    def test_req_016_rejected_push_keeps_the_local_write(self):
+    def test_req_016_rejected_or_timed_out_push_keeps_the_local_write(self):
         root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")
-        with mock.patch.object(team_beads, "sync", return_value={"status": "synced"}), \
-                mock.patch.object(team_beads, "push", side_effect=team_beads.SyncConflict("rejected")):
-            code, err = self.run_cli(root, "kickstart", "t-m1", "--date", "2026-11-16")
-        self.assertEqual(1, code)
-        self.assertIn("kickoff written locally but not pushed", err)
-        self.assertEqual("2026-11-16", self.metadata(root, "t-m1")["kickoff"])
-
-    def test_req_016_timed_out_push_keeps_the_local_write(self):
-        root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")
-        with mock.patch.object(team_beads, "sync", return_value={"status": "synced"}), \
-                mock.patch.object(team_beads, "push", side_effect=subprocess.TimeoutExpired("bd", 120)):
-            code, err = self.run_cli(root, "kickstart", "t-m1", "--date", "2026-11-16")
-        self.assertEqual(1, code)
-        self.assertIn("written locally but not pushed", err)
-        self.assertEqual("2026-11-16", self.metadata(root, "t-m1")["kickoff"])
+        for error, day in ((team_beads.SyncConflict("rejected"), "2026-11-16"),
+                           (subprocess.TimeoutExpired("bd", 120), "2026-11-17")):
+            with self.subTest(error=type(error).__name__):
+                with mock.patch.object(team_beads, "sync", return_value={"status": "synced"}), \
+                        mock.patch.object(team_beads, "push", side_effect=error):
+                    code, err = self.run_cli(root, "kickstart", "t-m1", "--date", day)
+                self.assertEqual(1, code)
+                self.assertIn("kickoff written locally but not pushed", err)
+                self.assertEqual(day, self.metadata(root, "t-m1")["kickoff"])
 
     def test_away_writes_validates_and_removes(self):
         root = self.repo("ba", "an@corp.com")

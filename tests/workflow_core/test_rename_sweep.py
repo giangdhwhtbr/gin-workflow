@@ -42,20 +42,24 @@ def scanned():
 
 
 class RenameSweepTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.files = list(scanned())  # read once for the three tests
+
     def test_no_old_command_or_namespace(self):
-        for rel, text in scanned():
+        for rel, text in self.files:
             for number, line in enumerate(text.splitlines(), 1):
                 with self.subTest(file=rel, line=number):
                     self.assertIsNone(COMMAND.search(line), line)
 
     def test_no_old_skill_name(self):
-        for rel, text in scanned():
+        for rel, text in self.files:
             for number, line in enumerate(text.splitlines(), 1):
                 with self.subTest(file=rel, line=number):
                     self.assertIsNone(OLD_SKILL.search(line), line)
 
     def test_no_bare_program_name_in_code_span(self):
-        for rel, text in scanned():
+        for rel, text in self.files:
             for number, line in enumerate(text.splitlines(), 1):
                 with self.subTest(file=rel, line=number):
                     self.assertIsNone(BARE_PROGRAM.search(line), line)
