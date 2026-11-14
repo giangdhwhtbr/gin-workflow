@@ -27,37 +27,16 @@ orchestrator:
     max_wait_seconds: 600
   roles:
     backend:
-      by_tier:
-        high:
-        - antigravity
-        low:
-        - antigravity
-        medium:
-        - antigravity
       fallback:
       - main_harness
       preferred:
       - main_harness
     frontend:
-      by_tier:
-        high:
-        - antigravity
-        low:
-        - antigravity
-        medium:
-        - antigravity
       fallback:
       - main_harness
       preferred:
       - main_harness
     general:
-      by_tier:
-        high:
-        - antigravity
-        low:
-        - antigravity
-        medium:
-        - antigravity
       fallback:
       - main_harness
       preferred:
