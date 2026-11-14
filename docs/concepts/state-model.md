@@ -42,6 +42,8 @@ Specs (`.planning/specs/<date>-<topic>-design.md`) record the confirmed design; 
 - findings, each moving to a terminal state (`verified`, `withdrawn`, `accepted-as-is`, `deferred-verified`, `human-waived`);
 - approval, which holds only while the tree still matches the approved snapshot; `change-scope` or new commits invalidate it.
 
+In a workspace, a review run in a child's track worktree `<P>/.planning/worktrees/<bead>` keeps its ledger in `<P>/.planning/reviews/<bead>/`, where `<P>` is the parent checkout that holds the worktree. A review run in a child checkout uses the workspace root as `<P>`. Every ledger command runs from `<P>`, while checkpoint commits and `refs/gin/review/<bead>` stay in the child and `push-refs` pushes them to the child's `origin`. The ledger records the worktree as `repository_path`. When the child checkout lies inside `<P>`, the ledger also records it as `history_path`, and `validate --in-history` searches it once the worktree is removed. A `history_path` outside `<P>` fails validation. In team mode, `gin team handoff` pushes the parent branch that holds the ledger when it has unpushed commits, and `gin team takeover` of a child track pulls that branch first. Outside a workspace, the ledger stays under the current directory.
+
 The ledger moves through `implementation-in-progress`, `review-requested`, `review-in-progress`, then `changes-requested`, `blocked-human`, or `review-approved`. Approval needs every finding terminal. Before a merge, ship runs `review-ledger.py cleanup --bead-id <bead>` on the feature branch for each closed track bead and commits the deletion, so it lands with the merge. The command removes the ledger, its local `refs/gin/review/` checkpoint refs, and the same refs on the repository's own `origin`. A ledger's other repositories keep the refs `push-refs` pushed from them. After a pull request merge, the ledger and its pushed ref stay until cleanup runs. `--all-closed` also deletes leftover refs of closed beads whose ledger is already gone; run it on a branch, not on the base.
 
 ## The `.planning/` and `.agent-workflow/` trees
@@ -64,7 +66,7 @@ The ledger moves through `implementation-in-progress`, `review-requested`, `revi
 
 On first setup, `gin setup init` writes `.agent-workflow/.gitignore` with the entries listed in [Configuration](../reference/config.md); `setup configure` does not touch it. `artifacts.*` overrides some of these paths ([Configuration](../reference/config.md#artifacts)); migrations never move these artifacts.
 
-In a workspace the parent owns config, specs, plans, runtime, and beads; each child owns its hooks, branches, and worktrees ([workspace guide](../guides/workspace.md)).
+In a workspace the parent owns config, specs, plans, runtime, beads, and review ledgers; each child owns its hooks, branches, and worktrees ([workspace guide](../guides/workspace.md)).
 
 ## Runtime metadata
 

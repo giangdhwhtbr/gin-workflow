@@ -1211,3 +1211,174 @@ class TestOwnerAndCycles(unittest.TestCase):
         mutate_ledger("bead-t", "ledger-created", payload, "worker", "a@x", base_dir=self.test_dir)
         self.request_review()
         self.assertEqual(0, self.start("a@x").returncode)
+
+
+LEDGER_SCRIPT = str(Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts/review-ledger.py")
+REVIEWER = "reviewer:other:model"
+
+
+def _git(cwd, *args):
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _ledger(cwd, *args):
+    return subprocess.run([sys.executable, LEDGER_SCRIPT, *args], cwd=cwd, capture_output=True, text=True)
+
+
+def _repository(ledger):
+    return json.loads(Path(ledger).read_text(encoding="utf-8"))["repositories"][0]
+
+
+class TestWorkspaceLedgerRoot(unittest.TestCase):
+    """R5, R6, US-3: a review run in a workspace child's track worktree or checkout keeps its ledger in the parent,
+    while checkpoints and review refs stay in the child. The parent, the child's bare origin, and the cloned child
+    are built once per class; each test copies them and adds its own track worktree (a copied linked worktree would
+    still point at the template)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.template = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.template.cleanup)
+        base = Path(cls.template.name).resolve()
+        bare = base / "remotes/order-api.git"
+        _git(base, "init", "-q", "--bare", "-b", "main", str(bare))
+        parent = base / "parent"
+        (parent / ".agent-workflow").mkdir(parents=True)
+        _git(parent, "init", "-q", "-b", "main")
+        (parent / ".agent-workflow/config.yaml").write_text(
+            "workspace:\n  repos:\n    - path: services/order-api\n"
+            f"      url: file://{bare}\n      default_branch: main\n      shape: backend\n", encoding="utf-8")
+        child = parent / "services/order-api"
+        _git(base, "clone", "-q", str(bare), str(child))
+        _git(child, "config", "user.email", "t@example.com")
+        _git(child, "config", "user.name", "T")
+        (child / "api.py").write_text("print('hello')\n", encoding="utf-8")
+        _git(child, "add", "api.py")
+        _git(child, "commit", "-qm", "init child")
+        _git(child, "push", "-q", "origin", "main")
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name).resolve()
+        shutil.copytree(self.template.name, self.base, dirs_exist_ok=True)
+        self.parent = self.base / "parent"
+        self.child = self.parent / "services/order-api"
+        self.child_bare = self.base / "remotes/order-api.git"
+        _git(self.child, "remote", "set-url", "origin", str(self.child_bare))
+
+    def ok(self, cwd, *args):
+        result = _ledger(cwd, *args)
+        if result.returncode != 0:
+            self.fail(f"review-ledger {' '.join(args)} failed: {result.stdout}{result.stderr}")
+        return result.stdout
+
+    def commit(self, cwd, name, text):
+        (Path(cwd) / name).write_text(text, encoding="utf-8")
+        _git(cwd, "add", name)
+        _git(cwd, "commit", "-qm", name)
+        return _git(cwd, "rev-parse", "HEAD")
+
+    def track_worktree(self, bead):
+        """`.planning/worktrees/<bead>` of the parent: a worktree of the child on feat/x-t1, as gin team claim makes."""
+        worktree = self.parent / ".planning/worktrees" / bead
+        _git(self.child, "worktree", "add", "-q", "-b", "feat/x-t1", str(worktree), "main")
+        return worktree
+
+    def test_child_track_ledger_lives_in_the_parent_and_validates_from_the_child_checkout(self):
+        worktree = self.track_worktree("b-1")
+        self.commit(worktree, "work.py", "print('work')\n")
+        self.ok(worktree, "init", "--bead-id", "b-1", "--repo-id", "order-api", "--review-ref", "refs/gin/review/b-1",
+                "--base-sha", "main", "--actor-id", "w1")
+        ledger = self.parent / ".planning/reviews/b-1/review.json"
+        self.assertTrue(ledger.is_file())
+        self.assertFalse((worktree / ".planning").exists())
+        repository = _repository(ledger)
+        self.assertEqual((".planning/worktrees/b-1", "services/order-api"),
+                         (repository["repository_path"], repository["history_path"]))
+        # checkpoint, run from the worktree, snapshots the worktree through the ledger's repository_path
+        self.commit(worktree, "more.py", "print('more')\n")
+        self.ok(worktree, "checkpoint", "--bead-id", "b-1", "--repo-id", "order-api", "--commit-msg", "cp",
+                "--actor-id", "w1")
+        _git(self.child, "cat-file", "-e", "refs/gin/review/b-1:more.py")
+        self.assertNotEqual(0, subprocess.run(["git", "rev-parse", "--verify", "-q", "refs/gin/review/b-1"],
+                                              cwd=self.parent, capture_output=True).returncode)
+        self.ok(self.parent, "push-refs", "--bead-id", "b-1")
+        self.assertEqual(_git(self.child, "rev-parse", "refs/gin/review/b-1"),
+                         _git(self.child_bare, "rev-parse", "refs/gin/review/b-1"))
+        # the reviewer works from the parent: the same ledger
+        self.ok(worktree, "transition-requested", "--bead-id", "b-1", "--to", "review-requested", "--actor-id", "w1")
+        lease = self.ok(self.parent, "start-review", "--bead-id", "b-1", "--actor-role", "reviewer",
+                        "--actor-id", REVIEWER).strip().split()[-1].rstrip(".")
+        self.ok(self.parent, "approve", "--bead-id", "b-1", "--actor-role", "reviewer", "--actor-id", REVIEWER,
+                "--lease-id", lease)
+        self.assertIn("approved source matches commit",
+                      self.ok(self.parent, "validate", "--bead-id", "b-1", "--in-history"))
+        # without the worktree, the history of the child checkout is searched: main lacks the track until it merges
+        _git(self.child, "worktree", "remove", str(worktree))
+        unmerged = _ledger(self.parent, "validate", "--bead-id", "b-1", "--in-history")
+        self.assertEqual(1, unmerged.returncode, unmerged.stdout + unmerged.stderr)
+        self.assertIn("matches the approved source tree", unmerged.stderr)
+        _git(self.child, "merge", "-q", "--ff-only", "feat/x-t1")
+        merged = _git(self.child, "rev-parse", "HEAD")
+        self.assertIn(f"approved source matches commit {merged}",
+                      self.ok(self.parent, "validate", "--bead-id", "b-1", "--in-history"))
+
+    def test_a_review_in_a_child_checkout_keeps_its_ledger_in_the_parent(self):
+        # a relative --repo-path is read against the directory the command was run in
+        self.ok(self.child, "init", "--bead-id", "b-2", "--repo-id", "order-api", "--repo-path", ".",
+                "--review-ref", "refs/gin/review/b-2", "--actor-id", "w1")
+        repository = _repository(self.parent / ".planning/reviews/b-2/review.json")
+        self.assertEqual("services/order-api", repository["repository_path"])
+        self.assertNotIn("history_path", repository)
+        self.assertFalse((self.child / ".planning").exists())
+        _git(self.child, "rev-parse", "--verify", "refs/gin/review/b-2")
+
+    def test_a_history_path_that_escapes_the_ledger_root_is_refused(self):
+        outside = self.base / "outside"
+        _git(self.base, "clone", "-q", str(self.child), str(outside))
+        mutate_ledger("b-3", "ledger-created", {"repositories": [{
+            "repository_id": "order-api", "repository_path": ".planning/worktrees/b-3", "history_path": "../outside",
+            "reviewed_source_tree_hash": "0" * 64, "review_base_sha": "HEAD"}]}, "worker", "w1",
+            base_dir=str(self.parent))
+        refused = _ledger(self.parent, "validate", "--bead-id", "b-3", "--in-history")
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("history_path '../outside' escapes the ledger root", refused.stderr)
+
+    def test_a_malformed_workspace_manifest_is_reported_and_nothing_is_written(self):
+        (self.parent / ".agent-workflow/config.yaml").write_text("workspace:\n  repos: services\n", encoding="utf-8")
+        refused = _ledger(self.child, "init", "--bead-id", "b-4", "--repo-id", "order-api",
+                          "--review-ref", "refs/gin/review/b-4", "--actor-id", "w1")
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("Error: workspace.repos must be a list", refused.stderr)
+        self.assertFalse((self.parent / ".planning").exists())
+        self.assertFalse((self.child / ".planning").exists())
+        self.assertNotEqual(0, subprocess.run(["git", "rev-parse", "--verify", "-q", "refs/gin/review/b-4"],
+                                              cwd=self.child, capture_output=True).returncode)
+
+
+class TestLedgerRootOutsideAWorkspace(unittest.TestCase):
+    """R5: outside a workspace the ledger stays under the current directory, also in an epic worktree under
+    `.planning/worktrees/`, and records no history_path."""
+
+    def assert_ledger_here(self, cwd, bead):
+        result = _ledger(cwd, "init", "--bead-id", bead, "--repo-id", "primary", "--review-ref",
+                         f"refs/gin/review/{bead}", "--actor-id", "w1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        repository = _repository(cwd / ".planning/reviews" / bead / "review.json")
+        self.assertEqual(".", repository["repository_path"])
+        self.assertNotIn("history_path", repository)
+
+    def test_init_writes_under_the_current_directory_without_history_path(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        plain = Path(tmp.name).resolve() / "plain"
+        plain.mkdir()
+        for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.com"),
+                     ("config", "user.name", "T"), ("commit", "-q", "--allow-empty", "-m", "base")):
+            _git(plain, *args)
+        self.assert_ledger_here(plain, "b-5")
+        epic = plain / ".planning/worktrees/epic"
+        _git(plain, "worktree", "add", "-q", "-b", "feat/epic", str(epic))
+        self.assert_ledger_here(epic, "b-6")
+        self.assertFalse((plain / ".planning/reviews/b-6").exists())

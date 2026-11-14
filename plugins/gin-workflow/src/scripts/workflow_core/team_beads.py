@@ -389,9 +389,14 @@ def _track_worktree(root: Path, bead: str, worktree: str | None) -> Path:
     return path
 
 
+def _ledger_file(worktree: Path, bead: str) -> Path:
+    """The bead's review ledger: in the parent for a workspace child's track worktree, else in `worktree`."""
+    return workspace.ledger_root(worktree) / ".planning/reviews" / bead / "review.json"
+
+
 def _ledger_ref(worktree: Path, bead: str) -> str:
     """The review ref the bead's ledger names, else the default refs/gin/review/<bead>."""
-    ledger = worktree / ".planning/reviews" / bead / "review.json"
+    ledger = _ledger_file(worktree, bead)
     default = f"refs/gin/review/{bead}"
     if not ledger.is_file():
         return default
@@ -401,6 +406,40 @@ def _ledger_ref(worktree: Path, bead: str) -> str:
     except (OSError, ValueError, AttributeError) as error:
         raise SyncConflict(f"cannot read review ledger {ledger}: {error}") from error
     return first.get("checkpoint_ref") or first.get("review_ref") or default
+
+
+def _push_ledger_branch(worktree: Path) -> None:
+    """Push the parent branch that holds a workspace child track's ledger: when it has commits its upstream lacks,
+    or when it is a `feat/` branch without an upstream."""
+    root = workspace.ledger_root(worktree)
+    if root.resolve() == worktree.resolve():
+        return
+    try:
+        branch = worktrees._git(root, "rev-parse", "--abbrev-ref", "HEAD")
+    except RuntimeError as error:
+        raise SyncConflict(f"cannot read the branch of {root}, which holds the review ledger: {error}") from error
+    try:
+        push = int(worktrees._git(root, "rev-list", "--count", "@{u}..HEAD")) > 0
+    except RuntimeError:  # no upstream
+        push = branch.startswith("feat/")
+    if push:
+        try:
+            worktrees._git(root, "push", "-u", "origin", branch)
+        except RuntimeError as error:
+            raise SyncConflict(f"git push of {branch} in {root} failed: {error}") from error
+
+
+def _pull_ledger_branch(root: Path) -> None:
+    """`git pull --rebase` of the branch `root` is on when it has an upstream, so the ledger read next is current."""
+    try:
+        worktrees._git(root, "rev-parse", "--abbrev-ref", "@{u}")
+    except RuntimeError:  # no upstream: nothing to pull
+        return
+    branch = worktrees._git(root, "rev-parse", "--abbrev-ref", "HEAD")
+    try:
+        worktrees._git(root, "pull", "--rebase")
+    except RuntimeError as error:
+        raise SyncConflict(f"git pull --rebase of {branch} in {root} failed: {error}") from error
 
 
 def _local_ref(worktree: Path, ref: str) -> bool:
@@ -451,10 +490,11 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
             push_review_ref(str(path), ref)
         except GitAdapterError as error:
             raise SyncConflict(f"review ref push failed for {ref}: {error}") from error
-    elif (path / ".planning/reviews" / bead / "review.json").is_file():
+    elif _ledger_file(path, bead).is_file():
         print(f"no local review ref {ref} for {bead}; nothing to push", file=sys.stderr)
     else:
         print(f"no review ledger for {bead}", file=sys.stderr)
+    _push_ledger_branch(path)
     meta = json.dumps({"branch": branch, "from": member.email, "to": target.email if target else None, "at": utc_now()})
     completed = _bd(root, ["update", bead, "--set-metadata", f"handoff={meta}"], actor=member.email)
     if completed.returncode != 0:
@@ -496,6 +536,8 @@ def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch:
         worktrees._git(root, "check-ref-format", "--branch", branch)
     except RuntimeError as error:
         raise SyncConflict(f"invalid branch name {branch!r} in the handoff metadata: {error}") from error
+    if entry is not None:  # a workspace child's ledger lives on the parent's branch: read its latest state
+        _pull_ledger_branch(root)
     try:
         worktrees._git(repo_dir, "fetch", "origin", branch)
         path = worktrees.checkout(repo_dir, bead, branch, root)

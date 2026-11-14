@@ -14,7 +14,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with  # noqa: E402
+from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with, write  # noqa: E402
 # One test per subcommand keeps the subprocess; the rest run gin in this process.
 from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as run_cli  # noqa: E402
 from workflow_core import team_beads, worktrees  # noqa: E402
@@ -926,6 +926,69 @@ class TestTeamClaimWorktree(unittest.TestCase):
         parent = run_cli(self.root, "team", "claim", bead)
         self.assertEqual(1, parent.returncode, parent.stdout + parent.stderr)
         self.assertIn(f"{stray} is not a worktree of {self.child_dir}; remove it", parent.stdout)
+
+    def test_handoff_pushes_the_parent_ledger_branch_and_takeover_pulls_it_first(self):
+        """R4: the child track's ledger is committed on the parent's feat/x; handoff pushes that branch and the
+        review ref the ledger names; takeover pulls the branch before it reads the ledger."""
+        parent_bare = self.base / "remotes/parent.git"
+        git(self.root, "checkout", "-q", "-b", "feat/x")
+        git(self.root, "push", "-q", "-u", "origin", "feat/x")
+        bead = self.track_bead("Ledger sync")
+        claimed = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        target = self.target / bead
+        (target / "work.txt").write_text("handed off", encoding="utf-8")
+        git(target, "add", "work.txt")
+        git(target, "commit", "-q", "-m", "work")
+        # not the default refs/gin/review/<bead>: only a ledger read in the parent names this ref
+        ref = f"refs/gin/review/{bead}-c2"
+        git(target, "update-ref", ref, "HEAD")
+        sha = git(target, "rev-parse", "HEAD").strip()
+        ledger = f".planning/reviews/{bead}/review.json"
+        write(self.root, ledger, json.dumps({"repositories": [{"checkpoint_ref": ref}]}))
+        git(self.root, "add", ledger)
+        git(self.root, "commit", "-q", "-m", "ledger")
+        ledger_commit = git(self.root, "rev-parse", "HEAD").strip()
+        handed = run_cli(self.root, "team", "handoff", bead, "em@corp.com")
+        self.assertEqual(0, handed.returncode, handed.stdout + handed.stderr)
+        self.assertEqual(ledger_commit, git(parent_bare, "rev-parse", "feat/x").strip())
+        self.assertEqual(sha, git(self.child_bare, "rev-parse", ref).strip())
+        # em's machine: behind the parent's origin, without the track worktree, branch, or review ref
+        git(self.root, "reset", "-q", "--hard", "HEAD~1")
+        worktrees.cleanup(self.child_dir, bead, self.root)
+        git(self.child_dir, "branch", "-D", "feat/x-t2")
+        git(self.child_dir, "update-ref", "-d", "refs/remotes/origin/feat/x-t2")
+        git(self.child_dir, "update-ref", "-d", ref)
+        git(self.root, "config", "user.email", "em@corp.com")
+        stray = write(self.root, ledger, "{}")  # an untracked copy the pull would overwrite: refused before checkout
+        refused = run_cli(self.root, "team", "takeover", bead)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("git pull --rebase of feat/x", refused.stdout)
+        self.assertFalse(target.exists())
+        stray.unlink()
+        taken = run_cli(self.root, "team", "takeover", bead)
+        self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        self.assertEqual(ledger_commit, git(self.root, "rev-parse", "HEAD").strip())
+        self.assertEqual(sha, git(self.child_dir, "rev-parse", ref).strip())
+        self.assertEqual("handed off", (target / "work.txt").read_text(encoding="utf-8"))
+
+    def test_handoff_pushes_a_parent_feat_branch_without_upstream_and_a_rejected_push_keeps_the_bead(self):
+        parent_bare = self.base / "remotes/parent.git"
+        git(self.root, "checkout", "-q", "-b", "feat/x")  # never pushed
+        bead = self.track_bead("New parent branch")
+        claimed = run_cli(self.root, "team", "claim", bead)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        git(self.root, "remote", "set-url", "origin", str(self.base / "missing.git"))
+        refused = run_cli(self.root, "team", "handoff", bead, "em@corp.com")
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn(f"git push of feat/x in {self.root} failed", refused.stdout)
+        self.assertEqual("binh@corp.com", show(self.root, bead)["assignee"])
+        git(self.root, "remote", "set-url", "origin", str(parent_bare))
+        handed = run_cli(self.root, "team", "handoff", bead, "em@corp.com")
+        self.assertEqual(0, handed.returncode, handed.stdout + handed.stderr)
+        self.assertEqual(git(self.root, "rev-parse", "HEAD"), git(parent_bare, "rev-parse", "feat/x"))
+        self.assertEqual("origin/feat/x", git(self.root, "rev-parse", "--abbrev-ref", "@{u}").strip())
+        self.assertEqual("em@corp.com", show(self.root, bead)["assignee"])
 
 
 if __name__ == "__main__":

@@ -45,6 +45,37 @@ from review_ledger.source_identity import (
 
 
 from review_ledger.bead_fsm import TERMINAL_FINDING_STATUSES
+from workflow_core import workspace, worktrees
+
+
+def run_from_ledger_root(args):
+    """Change to the directory that holds `.planning/reviews/`: the parent checkout for a workspace child's track
+    worktree or checkout, else the current directory. Every path a ledger records is relative to it."""
+    start = Path.cwd()
+    if args.command == "init" and args.repo_path is not None:
+        args.repo_path = os.path.abspath(args.repo_path)
+    root = workspace.ledger_root(start)
+    if args.command == "init" and args.repo_path is None:
+        args.repo_path = worktrees._git(start, "rev-parse", "--show-toplevel") if root != start else "."
+    os.chdir(root)
+
+
+def history_root(repo_id, repo):
+    """The repository whose history holds the approved source: `repository_path`, else the recorded `history_path`
+    (the child checkout of a removed workspace track worktree); None when neither is a repository root."""
+    repo_path = repo.get("repository_path", ".")
+    if is_git_repo_root(repo_path):
+        return repo_path
+    history = repo.get("history_path")
+    if history is None:
+        return None
+    root = Path.cwd().resolve()  # the ledger root: main runs every command from it
+    if not isinstance(history, str) or not (root / history).resolve().is_relative_to(root):
+        raise ValueError(
+            f"Ledger validation failed for repository '{repo_id}': history_path {history!r} escapes the ledger root "
+            f"{root}."
+        )
+    return history if is_git_repo_root(history) else None
 
 
 def validate_ledger(bead_id, in_history, visited):
@@ -55,19 +86,20 @@ def validate_ledger(bead_id, in_history, visited):
         repo_path = repo.get("repository_path", ".")
         recorded_hash = repo.get("reviewed_source_tree_hash") or repo.get("source_tree_hash")
         base = repo.get("review_base_sha") or "HEAD"
-        if recorded_hash and is_git_repo_root(repo_path) and in_history:
+        history = history_root(repo_id, repo) if recorded_hash and in_history else None
+        if history is not None:
             try:
-                ensure_review_commit(repo_path, base, review_ref_of(repo, bead_id))
+                ensure_review_commit(history, base, review_ref_of(repo, bead_id))
                 checkpoint = repo.get("checkpoint_sha")
                 if checkpoint:
-                    ensure_review_commit(repo_path, checkpoint, review_ref_of(repo, bead_id))
+                    ensure_review_commit(history, checkpoint, review_ref_of(repo, bead_id))
                 commit = find_reviewed_commit(
-                    repo_id, repo_path, proj.source_scope, base, recorded_hash, checkpoint
+                    repo_id, history, proj.source_scope, base, recorded_hash, checkpoint
                 )
                 print(f"{bead_id}: repository '{repo_id}': approved source matches commit {commit}.")
             except GitAdapterError as error:
                 successor, rejected = approved_successor(
-                    repo_id, repo_path, proj.source_scope, recorded_hash, base, visited
+                    repo_id, history, proj.source_scope, recorded_hash, base, visited
                 )
                 if successor is None:
                     tried = f" Successors rejected: {'; '.join(rejected)}." if rejected else ""
@@ -138,7 +170,7 @@ def parse_args():
     p_init = subparsers.add_parser("init", help="Initialize a new ledger.")
     p_init.add_argument("--bead-id", required=True)
     p_init.add_argument("--repo-id", required=True)
-    p_init.add_argument("--repo-path", default=".")
+    p_init.add_argument("--repo-path")
     p_init.add_argument("--include", dest="included_paths", action="append", default=[])
     p_init.add_argument("--exclude", dest="excluded_paths", action="append", default=[])
     p_init.add_argument("--generated", dest="generated_paths", action="append", default=[])
@@ -463,6 +495,7 @@ def main():
     args = parse_args()
     
     try:
+        run_from_ledger_root(args)
         if args.command == "init":
             if args.max_cycles is not None and args.max_cycles < 1:
                 raise ValueError("--max-cycles must be at least 1")

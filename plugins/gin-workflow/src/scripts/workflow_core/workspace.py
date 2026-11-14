@@ -200,6 +200,22 @@ def qa_root(root: Path, cwd: Path) -> Path | None:
     return checkout
 
 
+def ledger_root(start: Path) -> Path:
+    """The directory that holds `.planning/reviews/` for a review run at `start`: `<P>` for a workspace child's track
+    worktree `<P>/.planning/worktrees/<bead>`, the workspace root inside another checkout of a child, else `start`."""
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=start, text=True, capture_output=True,
+                         check=False)
+    if top.returncode != 0 or not top.stdout.strip():  # not a git repository
+        return start
+    toplevel = Path(top.stdout.strip())
+    located = locate(toplevel)  # a malformed manifest raises WorkspaceError
+    if located.entry is None:
+        return start
+    if toplevel.parent.name == "worktrees" and toplevel.parent.parent.name == ".planning":
+        return toplevel.parent.parent.parent
+    return located.root
+
+
 def current(cwd: Path) -> Current:
     located = locate(cwd)
     checkout = None
