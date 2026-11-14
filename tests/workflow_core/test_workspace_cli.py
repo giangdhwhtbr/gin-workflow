@@ -247,9 +247,53 @@ class WorkspaceAddTests(unittest.TestCase):
         (no_ws / ".agent-workflow/config.yaml").write_text(
             "schema_version: '2.9'\nharness: claude\n", encoding="utf-8"
         )
+        before = (no_ws / ".agent-workflow/config.yaml").read_bytes()
         done = run(no_ws, "workspace", "add", "services/order-api", "--url", "file:///x", "--shape", "backend")
         self.assertEqual(1, done.returncode)
         self.assertIn("run /gin:setup and answer workspace", done.stderr)
+        self.assertEqual(before, (no_ws / ".agent-workflow/config.yaml").read_bytes())
+
+    def test_add_check_with_embedded_equals(self):
+        done = run(self.root, "workspace", "add", "services/order-api", "--url", "file:///x",
+                   "--shape", "backend", "--check", "test=FOO=1 make t")
+        self.assertEqual(0, done.returncode, done.stderr)
+        from workflow_core import workspace as ws
+        yaml = ws.require_yaml()
+        config = yaml.safe_load((self.root / ".agent-workflow/config.yaml").read_text(encoding="utf-8"))
+        saved = next(item for item in config["workspace"]["repos"] if item["path"] == "services/order-api")
+        self.assertEqual({"checks": {"test": "FOO=1 make t"}}, saved.get("verify"))
+
+    def test_add_config_validation_error_reports_clean_error(self):
+        config_path = self.root / ".agent-workflow/config.yaml"
+        config_path.write_text(
+            "schema_version: '2.9'\nharness: claude\nworkspace:\n  repos:\n"
+            "    - path: services/api\n      url: file:///x\n      shape: backend\n      extra_key: 1\n",
+            encoding="utf-8",
+        )
+        before = config_path.read_bytes()
+        done = run(self.root, "workspace", "add", "apps/new", "--url", "file:///x", "--shape", "backend")
+        self.assertEqual(1, done.returncode)
+        self.assertTrue(done.stderr.startswith("error:"), f"stderr does not start with error: {done.stderr}")
+        self.assertNotIn("Traceback", done.stderr)
+        self.assertEqual(before, config_path.read_bytes())
+
+    def test_add_preserves_existing_frozen_and_verify_checks(self):
+        config_path = self.root / ".agent-workflow/config.yaml"
+        config_path.write_text(
+            "schema_version: '2.9'\nharness: claude\nworkspace:\n  repos:\n"
+            "    - path: legacy/portal\n      url: file:///legacy\n      frozen: true\n"
+            "    - path: services/api\n      url: file:///api\n      shape: backend\n"
+            "      verify:\n        checks:\n          test: 'true'\n",
+            encoding="utf-8",
+        )
+        done = run(self.root, "workspace", "add", "apps/web", "--url", "file:///web", "--shape", "frontend")
+        self.assertEqual(0, done.returncode, done.stderr)
+        from workflow_core import workspace as ws
+        yaml = ws.require_yaml()
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        saved = {repo["path"]: repo for repo in config["workspace"]["repos"]}
+        self.assertEqual(True, saved["legacy/portal"].get("frozen"))
+        self.assertEqual({"checks": {"test": "true"}}, saved["services/api"].get("verify"))
 
     def test_add_help_describes_flags(self):
         done = run(self.root, "workspace", "add", "--help")

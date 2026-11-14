@@ -9,6 +9,7 @@ import subprocess
 import sys
 from typing import Any, Sequence
 
+from .configuration import ConfigValidationError
 from . import setup_service
 from . import workspace as ws
 
@@ -125,7 +126,7 @@ def add(
             assignments=[f"workspace.repos={json.dumps([*existing, raw])}"],
             approve=True,
         )
-    except setup_service.SetupError as error:
+    except (setup_service.SetupError, ConfigValidationError) as error:
         raise ws.WorkspaceError(str(error)) from error
     return {"path": path, "added": True, "next": f"gin workspace clone {path}"}
 
