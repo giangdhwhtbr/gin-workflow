@@ -90,16 +90,22 @@ class PendingCase(unittest.TestCase):
 
 
 class TestGateRows(PendingCase):
-    def test_open_spec_pr_is_requirement_confirmed_with_its_epic_and_the_reasons_of_team_check(self):
+    def test_open_spec_pr_is_requirement_confirmed_with_its_epic_and_only_the_missing_role(self):
         self.branches["spec/login"] = {SPEC_PATH: "# Login\n\nEpic: e-1\n"}
         self.gh(("spec/login", gh_pr(PR_SPEC, state="OPEN", author="binh-dev", files=[ASSET, SPEC_PATH],
                                      reviews=[("dung-qe", "APPROVED", "c1")])))
         self.assertEqual([{"gate": "requirement_confirmed", "branch": "spec/login", "url": PR_SPEC,
                            "author": "binh-dev", "epic": "e-1", "approvals": ["dung-qe"],
-                           "missing": ["PR is open, not merged", "missing approval from one of ba, be_lead, fe_lead"],
-                           "notes": []}], self.pending())
+                           "missing": ["missing approval from one of ba, be_lead, fe_lead"], "notes": []}],
+                         self.pending())
         self.assertEqual([("ls-remote", "--heads", "origin"), ("fetch", "--quiet", "origin", "refs/heads/spec/login"),
                           ("show", f"FETCH_HEAD:{SPEC_PATH}")], [call.args[1:] for call in self.git.call_args_list])
+
+    def test_open_spec_pr_whose_approvals_meet_the_policy_misses_nothing(self):
+        self.branches["spec/login"] = {SPEC_PATH: "# Login\n\nEpic: e-1\n"}
+        self.gh(("spec/login", gh_pr(PR_SPEC, state="OPEN", author="binh-dev", files=[SPEC_PATH],
+                                     reviews=[("an-ba", "APPROVED", "c1")])))
+        self.assertEqual([], self.pending()[0]["missing"])
 
     def test_spec_row_applies_the_policy_of_the_epic_kind(self):
         self.configure("requirement_confirmed: [ba, be_lead, fe_lead]",
@@ -108,17 +114,16 @@ class TestGateRows(PendingCase):
         self.branches["spec/login"] = {SPEC_PATH: "# Login\n\nEpic: e-1\n"}
         self.gh(("spec/login", gh_pr(PR_SPEC, state="OPEN", author="em-dev", files=[SPEC_PATH],
                                      reviews=[("an-ba", "APPROVED", "c1")])))
-        self.assertEqual(["PR is open, not merged", "missing approval from one of be_lead"],
-                         self.pending()[0]["missing"])
+        self.assertEqual(["missing approval from one of be_lead"], self.pending()[0]["missing"])
 
-    def test_open_plan_pr_is_plan_approved(self):
-        write(self.root, PLAN_PATH, PLAN)  # plan_approved reads the plan's track areas from the checkout
+    def test_open_plan_pr_names_the_missing_area_leads_from_the_plan_on_its_branch(self):
         self.branches["plan/login"] = {PLAN_PATH: f"{PLAN}\nEpic: e-1\n"}
-        self.gh(("plan/login", gh_pr(PR_PLAN, state="OPEN", author="binh-dev", files=[PLAN_PATH],
-                                     reviews=[("an-ba", "APPROVED", "c1")])))
+        self.gh(("plan/login", gh_pr(PR_PLAN, state="OPEN", author="em-dev", files=[PLAN_PATH],
+                                     reviews=[("binh-dev", "APPROVED", "c1")])))
         [row] = self.pending()
-        self.assertEqual(("plan_approved", "e-1", ["an-ba"]), (row["gate"], row["epic"], row["approvals"]))
-        self.assertIn("missing approval from be_lead for area backend", row["missing"])
+        self.assertFalse((self.root / PLAN_PATH).exists())
+        self.assertEqual(("plan_approved", "e-1", ["binh-dev"], ["missing approval from fe_lead for area frontend"]),
+                         (row["gate"], row["epic"], row["approvals"], row["missing"]))
 
     def test_merged_closed_or_absent_pull_requests_give_no_row(self):
         self.branches.update({"spec/merged": {}, "spec/closed": {}, "plan/none": {}})
@@ -128,10 +133,11 @@ class TestGateRows(PendingCase):
 
     def test_open_epic_pr_is_a_ship_row_when_ship_has_roles(self):
         self.bd(TRACK)
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "feat: x")  # local HEAD is not the PR head
         self.gh(("feat/login", gh_pr(PR_SHIP, state="OPEN", author="binh-dev", files=["services/auth/login.py"])))
         [row] = self.pending()
-        self.assertEqual(("ship", "feat/login", "e-1"), (row["gate"], row["branch"], row["epic"]))
-        self.assertIn("missing approval from one of qe", row["missing"])
+        self.assertEqual(("ship", "feat/login", "e-1", ["missing approval from one of qe"]),
+                         (row["gate"], row["branch"], row["epic"], row["missing"]))
 
     def test_no_ship_candidate_without_ship_roles(self):
         self.configure("    ship: [qe]\n", "")
@@ -215,8 +221,8 @@ class TestText(PendingCase):
         lines = result.stdout.splitlines()
         self.assertEqual(["requirement_confirmed", "requirement_confirmed", "plan_approved", "track"],
                          [line.split()[0] for line in lines])
-        self.assertEqual(f"requirement_confirmed {PR_SPEC} e-1 missing: PR is open, not merged, "
-                         "missing approval from one of ba, be_lead, fe_lead", lines[0])
+        self.assertEqual(f"requirement_confirmed {PR_SPEC} e-1 missing: missing approval from one of ba, be_lead, "
+                         "fe_lead", lines[0])
         self.assertTrue(lines[1].startswith("requirement_confirmed spec/down - missing: - "
                                             "(error: gh pr failed: HTTP 502"), lines[1])
         self.assertEqual(f"track {PR_TRACK} e-1 missing: -", lines[3])

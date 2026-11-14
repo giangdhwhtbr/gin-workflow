@@ -59,28 +59,24 @@ def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]
     return found + [(branch, "track", epic) for branch, epic in tracks.items()]
 
 
-def epic_from_branch(root: Path, branch: str, files: Sequence[str]) -> str | None:
-    """The first `Epic:` or `Workflow:` value in the spec, plan, or SDD change files `files`, read from `branch` on
-    origin; None when none has one."""
+def branch_documents(root: Path, branch: str, files: Sequence[str]) -> dict[str, str]:
+    """The text of each spec, plan, or SDD change `.md` file in `files`, read from `branch` on origin with one fetch."""
     from .specs import load_config, sdd_config
 
     changes = str(sdd_config(load_config(root))["changes"]).strip("/")
     documents = [path for path in files if path.endswith(".md")
                  and path.startswith((".planning/specs/", ".planning/plans/", f"{changes}/"))]
     if not documents:
-        return None
+        return {}
     git(root, "fetch", "--quiet", "origin", f"refs/heads/{branch}")
-    for path in documents:
-        match = _EPIC_LINE.search(git(root, "show", f"FETCH_HEAD:{path}"))
-        if match:
-            return match[1]
-    return None
+    return {path: git(root, "show", f"FETCH_HEAD:{path}") for path in documents}
 
 
 def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
             milestone: str | None = None) -> list[dict[str, Any]]:
-    """One row per open pull request of a candidate branch: gate rows carry the reasons `gin team check` gives as
-    `missing`, track rows only their approvers. A failed lookup gives its row `error`; a missing host CLI raises."""
+    """One row per open pull request of a candidate branch: gate rows carry as `missing` the reasons the gate's
+    policy gives before merge, with the branch's spec or plan text as the artifact; track rows only their approvers. A
+    failed lookup gives its row `error`; a missing host CLI raises."""
     keep = {workflow_id} if workflow_id else None
     if milestone:
         keep = {bead["id"] for bead in _beads(root, ["list", "--parent", milestone, "--type", "epic", "--limit", "0"])}
@@ -99,11 +95,15 @@ def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
             # if the host calls become a cost.
             pr = team_host.fetch_pr(found.url, team.host, root)
             row.update(author=pr.author, approvals=list(dict.fromkeys(login for login, _ in pr.approvals)))
+            text = None
             if kind in ("spec", "plan"):
-                row["epic"] = epic_from_branch(root, branch, pr.files)
+                documents = branch_documents(root, branch, pr.files)
+                row["epic"] = next((match[1] for match in map(_EPIC_LINE.search, documents.values()) if match), None)
+                text = documents.get(team_core.resolve_artifact(pr, root, row["gate"], None))
             if row["gate"]:
                 row["missing"] = team_core.verify_gate(root, team, row["gate"], found.url, notes=row["notes"],
-                                                       workflow_id=row["epic"])[2]
+                                                       workflow_id=row["epic"], before_merge=True,
+                                                       artifact_text=text)[2]
         except HostCliMissing:
             raise
         except (HostUnavailable, TeamError) as error:

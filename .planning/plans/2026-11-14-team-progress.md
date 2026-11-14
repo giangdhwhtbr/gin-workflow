@@ -81,23 +81,26 @@ execution_strategy:
   - Create `plugins/gin-workflow/src/scripts/workflow_core/team_pending.py`
   - Modify `plugins/gin-workflow/src/scripts/workflow_core/team_cli.py:21-49` (parser: `pending`), `:182-194` and the command dispatch (call `team_pending.pending`, text and JSON output)
   - Modify `docs/reference/cli.md` (`gin team` section: `pending`)
+  - Modify `plugins/gin-workflow/src/scripts/workflow_core/team.py` (`check_approval`, `verify_gate`)
   - Test `tests/workflow_core/test_team_pending.py` (new)
+  - Test `tests/workflow_core/test_team_gates.py`
 - **Provider role**: `backend`
 - **Model:** `opus`
 - **Effort:** `medium`
 - **Why:** a new command across team policy, epic kinds, host adapters, git, and Beads; broad context, bounded logic.
 - **Interfaces**:
+  - Scope change (user, 2026-11-14): open-PR checks and artifact text from the PR branch.
   - `team_pending.topic_of(plan_path: str) -> str`: the plan file stem without a leading `YYYY-MM-DD-` (`.planning/plans/2026-11-14-team-progress.md` gives `team-progress`).
   - `team_pending.candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]`: `(branch, kind, epic)` with `kind` one of `spec`, `plan`, `ship`, `track`:
     - `git ls-remote --heads origin` (timeout 30 s): every `refs/heads/spec/*` as `spec` and `refs/heads/plan/*` as `plan`, epic None (resolved from the file later);
     - every open or in-progress bead with a parent whose description has `Plan: <path>, Track <N>`: `feat/<topic>-t<N>` as `track` with the parent as epic;
     - when `team.approvals.get("ship")` has roles: `feat/<topic>` once per epic seen on those track beads, as `ship`;
     - a failed `git ls-remote` raises `TeamError("git ls-remote failed: <stderr>")`.
-  - `team_pending.epic_from_branch(root: Path, branch: str, files: Sequence[str]) -> str | None`: for each changed file under `.planning/specs/`, `.planning/plans/`, or an SDD change folder, `git show origin/<branch>:<file>`; the value of the first `Epic:` or `Workflow:` line; None when none is found.
+  - `team_pending.branch_documents(root: Path, branch: str, files: Sequence[str]) -> dict[str, str]`: the text of each changed `.md` file under `.planning/specs/`, `.planning/plans/`, or an SDD change folder, from one `git fetch --quiet origin refs/heads/<branch>` and `git show FETCH_HEAD:<file>`; the row's epic is the value of the first `Epic:` or `Workflow:` line, None when none is found.
   - `team_pending.pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None, milestone: str | None = None) -> list[dict[str, Any]]`:
     - for each candidate, `team_host.pr_for_branch(team.host, branch, root)`; skip None and any state other than `open`;
     - row: `{"gate": "requirement_confirmed" | "plan_approved" | "ship" | None, "branch", "url", "author", "epic", "approvals": [login, ...], "missing": [...], "notes": [...]}`;
-    - for `spec`, `plan`, and `ship` rows: `notes = []`; `_, _, reasons, _ = team.verify_gate(root, team, gate, pr.url, notes=notes, workflow_id=epic)`; `missing = reasons`;
+    - for `spec`, `plan`, and `ship` rows: `notes = []`; `_, _, reasons, _ = team.verify_gate(root, team, gate, pr.url, notes=notes, workflow_id=epic, before_merge=True, artifact_text=<the artifact's text from branch_documents>)`; `missing = reasons`;
     - for `track` rows: `gate` None, `missing` `[]`, approvals only;
     - a `HostUnavailable` or `TeamError` on one candidate gives that row with `"error": str(error)` and the other fields it has; `HostCliMissing` aborts the whole call (raised);
     - `workflow_id` keeps rows whose epic equals it; `milestone` keeps rows whose epic is a child epic of that milestone (`bd list --parent <milestone> --type epic --json`).
