@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "implementation-in-progress",
+  "review_state": "review-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-fgil.1",
       "checkpoint_ref": "refs/gin/review/gin-workflow-fgil.1",
       "review_base_sha": "c0bf495f62f6963b0eee45d9a14f938f18f3d043",
-      "reviewed_source_sha": "3ff14aa0753c2dec8d7a69c7494271b1ec8a11b3",
-      "checkpoint_sha": "3ff14aa0753c2dec8d7a69c7494271b1ec8a11b3",
+      "reviewed_source_sha": "cfded1f0e3d53e4bd92877468ea81c9237987f87",
+      "checkpoint_sha": "cfded1f0e3d53e4bd92877468ea81c9237987f87",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "d8007bae2ead4e1b432f4e9712e0290111d42424dbee52d7a0739c958689a05c",
-      "reviewed_source_tree_hash": "d8007bae2ead4e1b432f4e9712e0290111d42424dbee52d7a0739c958689a05c",
+      "source_tree_hash": "25af0df9352c3b7b6a7c538e2de86974576a079a3ec85f50849a9864a9cae1e8",
+      "reviewed_source_tree_hash": "25af0df9352c3b7b6a7c538e2de86974576a079a3ec85f50849a9864a9cae1e8",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 10,
+  "ledger_revision": 14,
   "next_finding_number": 3,
   "findings": {
     "F-1": {
       "finding_id": "F-1",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F-2": {
       "finding_id": "F-2",
       "severity": "MINOR",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -239,6 +239,77 @@
       },
       "previous_event_hash": "5e4beb8e9476a15a1a4d038bb55efc9b7d417451cbd0cb02ab0b562f53efc591",
       "event_hash": "6dfa8423fbbaeeabe89d4c93630e2bc6799103c2b2a28c0d855d621d76caaa82"
+    },
+    {
+      "event_id": "EV-000011",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T05:17:45.189691Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "finding_id": "F-1"
+      },
+      "previous_event_hash": "6dfa8423fbbaeeabe89d4c93630e2bc6799103c2b2a28c0d855d621d76caaa82",
+      "event_hash": "b58aa39c5df314fff78acbe1c6cde597e419571d8c83aae763f38edc53835ea9"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-14T05:17:45.314667Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "finding_id": "F-2"
+      },
+      "previous_event_hash": "b58aa39c5df314fff78acbe1c6cde597e419571d8c83aae763f38edc53835ea9",
+      "event_hash": "0d2146b6dae33a853047f88b02ddb16e42bc520b40c85ca606c447a5030c1ca9"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-14T05:17:45.643792Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-fgil.1",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-fgil.1",
+            "review_base_sha": "c0bf495f62f6963b0eee45d9a14f938f18f3d043",
+            "reviewed_source_sha": "cfded1f0e3d53e4bd92877468ea81c9237987f87",
+            "checkpoint_sha": "cfded1f0e3d53e4bd92877468ea81c9237987f87",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "25af0df9352c3b7b6a7c538e2de86974576a079a3ec85f50849a9864a9cae1e8",
+            "reviewed_source_tree_hash": "25af0df9352c3b7b6a7c538e2de86974576a079a3ec85f50849a9864a9cae1e8",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "0d2146b6dae33a853047f88b02ddb16e42bc520b40c85ca606c447a5030c1ca9",
+      "event_hash": "b6ffe33893fde0e060e34a1159b35e8d06d895a8f5fa32d40f2f1a00f1934d00"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "review-requested",
+      "timestamp": "2026-11-14T05:17:45.766122Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "implementer:claude:main"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "b6ffe33893fde0e060e34a1159b35e8d06d895a8f5fa32d40f2f1a00f1934d00",
+      "event_hash": "ccc252fb46842aea8e28e92af019db80299e142152d70d23eaec00b30af23682"
     }
   ]
 }

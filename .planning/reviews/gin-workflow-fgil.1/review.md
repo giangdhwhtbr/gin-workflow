@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-fgil.1`
 - **Base SHA:** `c0bf495f62f6963b0eee45d9a14f938f18f3d043`
-- **Reviewed SHA:** `3ff14aa0753c2dec8d7a69c7494271b1ec8a11b3`
+- **Reviewed SHA:** `cfded1f0e3d53e4bd92877468ea81c9237987f87`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-fgil.1`
-- **Checkpoint SHA:** `3ff14aa0753c2dec8d7a69c7494271b1ec8a11b3`
+- **Checkpoint SHA:** `cfded1f0e3d53e4bd92877468ea81c9237987f87`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `d8007bae2ead4e1b432f4e9712e0290111d42424dbee52d7a0739c958689a05c`
+- **Tree Hash:** `25af0df9352c3b7b6a7c538e2de86974576a079a3ec85f50849a9864a9cae1e8`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,16 +29,16 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `open` | 0 | - |
-| `F-2` | `MINOR` | `open` | 0 | - |
+| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `MINOR` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-2` (MINOR)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -55,3 +55,7 @@
 | `EV-000008` | `2026-11-14T05:08:50.496020Z` | `changes-requested` | `reviewer:claude:session-fgilr1` (reviewer) |
 | `EV-000009` | `2026-11-14T05:08:50.733353Z` | `lease-released` | `reviewer:claude:session-fgilr1` (reviewer) |
 | `EV-000010` | `2026-11-14T05:09:26.845216Z` | `implementation-in-progress` | `implementer:claude:main` (worker) |
+| `EV-000011` | `2026-11-14T05:17:45.189691Z` | `finding-fixed` | `implementer:claude:main` (worker) |
+| `EV-000012` | `2026-11-14T05:17:45.314667Z` | `finding-fixed` | `implementer:claude:main` (worker) |
+| `EV-000013` | `2026-11-14T05:17:45.643792Z` | `source-checkpoint-created` | `implementer:claude:main` (worker) |
+| `EV-000014` | `2026-11-14T05:17:45.766122Z` | `review-requested` | `implementer:claude:main` (worker) |
