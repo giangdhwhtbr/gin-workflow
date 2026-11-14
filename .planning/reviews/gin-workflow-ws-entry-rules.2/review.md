@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000019`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `4f7a434`, Tree Hash: `b58e143`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,16 +33,16 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F1-doctor-crash-on-unreadable-child-manifest` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
-| `F2-test-gaps-unknown-entry-pack-and-worktree` | `SUGGESTION` | `fixed-awaiting-verification` | 0 | - |
+| `F1-doctor-crash-on-unreadable-child-manifest` | `IMPORTANT` | `verified` | 0 | - |
+| `F2-test-gaps-unknown-entry-pack-and-worktree` | `SUGGESTION` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `F1-doctor-crash-on-unreadable-child-manifest` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F2-test-gaps-unknown-entry-pack-and-worktree` (SUGGESTION)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -59,3 +63,9 @@
 | `EV-000012` | `2026-11-14T10:04:35.009162Z` | `finding-fixed` | `implementer:antigravity:worker` (worker) |
 | `EV-000013` | `2026-11-14T10:04:35.340821Z` | `source-checkpoint-created` | `implementer:antigravity:worker` (worker) |
 | `EV-000014` | `2026-11-14T10:08:07.625468Z` | `review-requested` | `implementer:antigravity:worker` (worker) |
+| `EV-000015` | `2026-11-14T10:09:04.462433Z` | `lease-acquired` | `reviewer:claude` (reviewer) |
+| `EV-000016` | `2026-11-14T10:09:04.485956Z` | `review-started` | `reviewer:claude` (reviewer) |
+| `EV-000017` | `2026-11-14T10:09:08.410812Z` | `finding-verified` | `reviewer:claude` (reviewer) |
+| `EV-000018` | `2026-11-14T10:09:08.536855Z` | `finding-verified` | `reviewer:claude` (reviewer) |
+| `EV-000019` | `2026-11-14T10:09:12.262042Z` | `review-approved` | `reviewer:claude` (reviewer) |
+| `EV-000020` | `2026-11-14T10:09:12.493128Z` | `lease-released` | `reviewer:claude` (reviewer) |
