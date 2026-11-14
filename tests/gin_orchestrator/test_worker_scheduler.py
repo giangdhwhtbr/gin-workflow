@@ -487,10 +487,11 @@ class WorkerSchedulerTests(unittest.TestCase):
                 task_tracking=tasks,
                 workspace=FakeWorkspaceProvider(root / "worktrees"),
                 max_parallel_workers=1,
-                worker_timeout_seconds=0.05,
+                worker_timeout_seconds=0.25,
             )
 
-            timer = threading.Timer(0.075, release_receipt.set)
+            # Receipt must land in the 0.25-0.5 s wait after the deadline; mid-window absorbs a late timer.
+            timer = threading.Timer(0.375, release_receipt.set)
             timer.start()
             try:
                 outcome = scheduler.schedule((item,))
