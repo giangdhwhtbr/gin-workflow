@@ -84,9 +84,21 @@ class SkillRoutingTests(unittest.TestCase):
                        "## Unassigned", "Deadline:"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, plan)
-        write = plan[plan.index("## Write"):]
+        write = plan[plan.index("## Write"):plan.index("## Re-run")]
         self.assertLess(write.index("gin milestone create"), write.index("gin milestone move"))
         self.assertLess(write.index("gin milestone move"), write.index("gin milestone estimate"))
+        self.assertIn("existed before this run", write)
+        self.assertIn("`Depends on:` dependencies", write)
+        milestone = text[text.index("## With --milestone <id>"):text.index("## Steps")]
+        step2 = next(line for line in milestone.splitlines() if line.startswith("2. "))
+        self.assertIn("Estimates block of [milestone plan](references/milestone-plan.md)", step2)
+        estimates = plan[plan.index("## Estimates"):plan.index("## Plan")]
+        for needle in ("`requirement.confirmed`", "`(assumed)`", "never ask the PM for estimates"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, estimates)
+        allocation = plan[plan.index("## Allocation"):plan.index("## Write")]
+        self.assertIn("adoption rule of `--milestone` step 3", allocation)
+        self.assertIn("never a closed one", allocation)
 
     def test_sdd_discuss_confirms_capabilities_before_ids(self):
         text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
