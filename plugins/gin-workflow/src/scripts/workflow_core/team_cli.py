@@ -31,6 +31,10 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--spec")
     item.add_argument("--workflow-id", help="the epic bead whose kind: label picks the requirement_confirmed policy")
     sub.add_parser("check-plan", parents=[common]).add_argument("plan", type=Path)
+    item = sub.add_parser("pending", parents=[common])
+    group = item.add_mutually_exclusive_group()
+    group.add_argument("--workflow-id")
+    group.add_argument("--milestone")
     item = sub.add_parser("ready", parents=[common])
     item.add_argument("--exclude-label", action="append")
     sub.add_parser("claim", parents=[common]).add_argument("bead")
@@ -119,6 +123,15 @@ def _run(args: argparse.Namespace) -> int:
         _emit(payload, args.format, "\n".join([*(f"note: {note}" for note in notes),
                                                *(reasons or [f"ok: {args.gate} {pr.url}"])]))
         return 1 if reasons else 0
+    if args.command == "pending":
+        from . import team_pending
+
+        rows = team_pending.pending(root, team, workflow_id=args.workflow_id, milestone=args.milestone)
+        _emit({"pending": rows}, args.format, "\n".join(
+            f"{row['gate'] or 'track'} {row['url'] or row['branch']} {row['epic'] or '-'} "
+            f"missing: {', '.join(row['missing']) or '-'}" + (f" (error: {row['error']})" if "error" in row else "")
+            for row in rows))
+        return 0
     member = team_core.require_member(root, team)
     if args.command == "whoami":
         payload = {"email": member.email, "login": member.login, "roles": list(member.roles),
