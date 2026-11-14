@@ -18,11 +18,9 @@ from .tasks import query
 from . import workspace
 
 HUMAN_GATE = "human-gate"
-TURNS_PER_TRACK = 6
-MAX_TURNS = 30
 
 
-def goal_text(epic: str, tracks: Sequence[dict[str, Any]]) -> str:
+def goal_text(epic: str, tracks: Sequence[dict[str, Any]], workflow_id: str = "ID") -> str:
     """The /goal line for the open tracks the agent can finish, or a line saying why there is none."""
     found = {track["id"]: track for track in tracks if track.get("status") != "closed"}
     blockers = {bead: {dep.get("depends_on_id") for dep in track.get("dependencies") or []
@@ -40,11 +38,12 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]]) -> str:
     if not runnable:
         named = ", ".join(f"{bead} ({open_tracks[bead].get('title', '')})" for bead in gates)
         return f"No goal: every open track of epic {epic} waits on a human: {named}."
-    text = (f"/goal tracks {', '.join(runnable)} of epic {epic} are closed in Beads, each after tests and review "
-            f"passed, executed per /gin:execute on its routed provider or a fallback from its route.")
+    text = (f"/goal tracks {', '.join(runnable)} of epic {epic} are closed in Beads (`gin task show`), "
+            f"`gin state --workflow-id {workflow_id} --format json` shows `implementation_complete` satisfied, "
+            f"and each of those tracks has a review ledger of `review-approved` or is listed in `review_waivers`.")
     if held:
         text += f" Do not start {', '.join(bead for bead in open_tracks if bead in held)}: they need a human."
-    return text + f" Or stop after {min(MAX_TURNS, TURNS_PER_TRACK * len(runnable))} turns."
+    return text
 
 
 def main(argv: Sequence[str]) -> int:
@@ -67,5 +66,5 @@ def main(argv: Sequence[str]) -> int:
     if not isinstance(tracks, list):
         print("error: the task backend is unavailable", file=sys.stderr)
         return 1
-    print(goal_text(epic, tracks))
+    print(goal_text(epic, tracks, args.workflow_id))
     return 0

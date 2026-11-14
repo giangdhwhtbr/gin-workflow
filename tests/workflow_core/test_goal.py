@@ -20,14 +20,19 @@ def track(bead, status="open", labels=(), blocked_by=()):
 
 class TestGoalText(unittest.TestCase):
     def test_all_open_tracks_runnable(self):
-        text = goal_text("epic", [track("e.1", "closed"), track("e.2"), track("e.3", blocked_by=["e.2"])])
+        text = goal_text("epic", [track("e.1", "closed"), track("e.2"), track("e.3", blocked_by=["e.2"])], "wf-1")
         self.assertTrue(text.startswith("/goal "))
         self.assertIn("e.2, e.3", text)
         self.assertNotIn("e.1", text)
-        self.assertIn("Or stop after 12 turns.", text)
         self.assertNotIn("human", text)
-        # A fallback from the track's route is still its route: the evaluator must not demand the primary.
-        self.assertIn("on its routed provider or a fallback from its route", text)
+        # The Stop-hook judge checks durable state shown by commands, never skill wording or turn counts.
+        self.assertNotIn("turns", text)
+        self.assertNotIn("/gin:execute", text)
+        self.assertIn("closed in Beads (`gin task show`)", text)
+        self.assertIn("`gin state --workflow-id wf-1 --format json`", text)
+        self.assertIn("`implementation_complete`", text)
+        self.assertIn("`review-approved`", text)
+        self.assertIn("`review_waivers`", text)
 
     def test_human_gate_and_its_dependents_are_left_out(self):
         tracks = [track("e.1"), track("e.2", blocked_by=["e.1"]), track("e.3", labels=["human-gate"]),
@@ -35,15 +40,11 @@ class TestGoalText(unittest.TestCase):
         text = goal_text("epic", tracks)
         self.assertIn("e.1, e.2 of epic epic", text)
         self.assertIn("Do not start e.3, e.4, e.5", text)
-        self.assertIn("Or stop after 12 turns.", text)
+        self.assertNotIn("turns", text)
 
     def test_tracks_listed_in_dependency_order(self):
         text = goal_text("epic", [track("e.3", blocked_by=["e.2"]), track("e.2", blocked_by=["e.1"]), track("e.1")])
         self.assertIn("tracks e.1, e.2, e.3 of", text)
-
-    def test_turns_capped_at_30(self):
-        text = goal_text("epic", [track(f"e.{i}") for i in range(8)])
-        self.assertIn("Or stop after 30 turns.", text)
 
     def test_no_goal_when_only_human_work_is_left(self):
         text = goal_text("epic", [track("e.1", "closed"), track("e.2", labels=["human-gate"]),
@@ -91,7 +92,7 @@ class TestGoalCommand(unittest.TestCase):
         code, out = self.run_goal(beads)
         self.assertEqual(0, code)
         self.assertIn("/goal tracks bead of epic bead", out)
-        self.assertIn("Or stop after 6 turns.", out)
+        self.assertNotIn("turns", out)
 
     def test_gin_goal_lists_no_prep_task(self):
         self.record("epic")
