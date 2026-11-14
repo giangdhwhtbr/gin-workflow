@@ -188,6 +188,34 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(skill=name):
                 self.assertIn("gin task ready --exclude-label prep", text)
 
+    def test_progress_reports_milestone_approvals_and_qa_state(self):
+        text = (SRC / "skills/progress/SKILL.md").read_text(encoding="utf-8")
+        for needle in (
+            "gin milestone show <id> --json",
+            "plain-language",
+            "--area <name>",
+            "waiting on another area",
+            "gin team pending",
+            "approvals unknown:",
+            "QA state",
+            "--exclude-label prep",
+            "[gin question]",
+            "waived(",
+        ):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        self.assertNotIn("gin-qa", text)
+
+    def test_qa_track_defines_qa_state(self):
+        text = (SRC / "skills/qa-track/SKILL.md").read_text(encoding="utf-8")
+        for needle in (
+            "## QA state",
+            "gin-qa cases plan --change <epic> --format json",
+            "QA state skipped:",
+        ):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+
     def test_roadmap_cadence_points_to_allocate(self):
         text = (SRC / "skills/roadmap/references/way-of-working.md").read_text(encoding="utf-8")
         self.assertIn("/allocate --milestone <id>", text)

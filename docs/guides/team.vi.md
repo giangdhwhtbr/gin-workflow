@@ -100,6 +100,8 @@ Việc ghi milestone theo `team.permissions.milestone`, và với Beads dùng ch
 
 `gin team check --gate <gate> <url>` kiểm tra lại gate của đồng đội mà không ghi nó.
 
+`gin team pending` liệt kê các pull request đang chờ phê duyệt, và `/gin:progress` hiển thị chúng cùng dự báo milestone, trạng thái spec và trạng thái QA. Các trường và exit code nằm trong [tham chiếu lệnh](../reference/cli.md#gin-team).
+
 Ship của một thành viên chỉ bao gồm các track của chính họ. Lead tuyên bố tính năng hoàn tất khi mọi pull request của track đã merge (quy tắc của skill `team`).
 
 ## Prep task { #prep-tasks }

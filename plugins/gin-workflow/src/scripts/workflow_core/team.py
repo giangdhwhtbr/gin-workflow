@@ -246,9 +246,9 @@ def _listed_paths(text: str) -> list[str]:
     return paths
 
 
-def plan_tracks(path: Path) -> list[Track]:
+def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
     """`### Track N:` sections with their Area, Owner, and the paths listed in their Files block; fenced code is
-    skipped."""
+    skipped. `text` is the plan's content when it is not read from `path`."""
     tracks: list[Track] = []
     current: dict[str, Any] | None = None
     fence = ""
@@ -259,7 +259,7 @@ def plan_tracks(path: Path) -> list[Track]:
             tracks.append(Track(current["number"], current["title"], current["area"], current["owner"],
                                 tuple(dict.fromkeys(current["files"])), current["repo"]))
 
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
+    for line in (Path(path).read_text(encoding="utf-8") if text is None else text).splitlines():
         opener = _FENCE.match(line)
         if fence:
             fence = "" if line.strip() == fence else fence
@@ -295,9 +295,9 @@ def plan_tracks(path: Path) -> list[Track]:
     return tracks
 
 
-def check_plan(team: TeamConfig, path: Path) -> list[str]:
+def check_plan(team: TeamConfig, path: Path, text: str | None = None) -> list[str]:
     errors: list[str] = []
-    tracks = plan_tracks(path)
+    tracks = plan_tracks(path, text)
     if not tracks:
         return [f"{path}: no '### Track N:' sections"]
     for track in tracks:
@@ -464,9 +464,11 @@ def resolve_artifact(pr: Any, root: Path, gate: str, selected: str | None) -> st
 
 def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact: str = "",
                    local_head: str = "", expected_repo: str = "", accepted: Sequence[str] = (),
-                   notes: list[str] | None = None, kind: str | None = None) -> list[str]:
+                   notes: list[str] | None = None, kind: str | None = None, before_merge: bool = False,
+                   artifact_text: str | None = None) -> list[str]:
     """Reasons the PR does not satisfy the gate's policy for the epic `kind` (empty = pass); skipped sole-holder
-    roles are appended to `notes` when given."""
+    roles are appended to `notes` when given. `before_merge` drops the merged requirement for an open PR;
+    `artifact_text` is the artifact's content, read instead of `root/artifact` (a plan only on the PR branch)."""
     policy = policy_for(team, "ship" if gate == "shipped" else gate, kind)
     reasons: list[str] = []
     host = adapter(team.host)
@@ -485,7 +487,7 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
         if not approvers and pr.approval_note:
             reasons.append(pr.approval_note)
     else:
-        if not pr.merged:
+        if not pr.merged and not before_merge:
             reasons.append(f"PR is {pr.state}, not merged")
         if artifact not in pr.files:
             reasons.append(f"PR does not change {artifact}")
@@ -493,9 +495,9 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     tracks: list[Track] = []
     if gate == "plan_approved":
         plan = Path(root) / artifact
-        if plan.is_file():
-            reasons += check_plan(team, plan)
-            tracks = plan_tracks(plan)
+        if artifact_text is not None or plan.is_file():
+            reasons += check_plan(team, plan, artifact_text)
+            tracks = plan_tracks(plan, artifact_text)
         else:
             reasons.append(f"{artifact} is not in this checkout; pull the merged plan")
     held = set().union(*approvers.values()) if approvers else set()
@@ -616,11 +618,13 @@ def _head(root: Path) -> str:
 
 def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str | None = None,
                 spec: str | None = None, notes: list[str] | None = None,
-                workflow_id: str | None = None) -> tuple[Any, str, list[str], str | None]:
+                workflow_id: str | None = None, before_merge: bool = False,
+                artifact_text: str | None = None) -> tuple[Any, str, list[str], str | None]:
     """Fetch the PR/MR and return it, the approved artifact, the reasons it fails the gate, and the epic kind whose
     policy applied: for requirement_confirmed, `epic_kind.lookup` of `workflow_id` and the resolved spec (a kind
     mismatch is the one reason), else None. HostUnavailable propagates; skipped sole-holder roles are appended to
-    `notes` when given."""
+    `notes` when given. `before_merge` checks an open PR: no merged requirement and, for ship, no local-HEAD
+    comparison; `artifact_text` is passed to `check_approval`."""
     from .team_host import fetch_pr
 
     if not url.startswith(("https://", "http://")):
@@ -633,9 +637,10 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
         return pr, artifact, [mismatch], kind
     expected, head_dir, accepted = (repo_for_pr(Path(root), team, url) if gate in ("ship", "shipped")
                                     else ("", Path(root), []))
-    head = _head(head_dir) if gate == "ship" else ""
+    head = _head(head_dir) if gate == "ship" and not before_merge else ""
     reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head,
-                             expected_repo=expected, accepted=accepted, notes=notes, kind=kind)
+                             expected_repo=expected, accepted=accepted, notes=notes, kind=kind,
+                             before_merge=before_merge, artifact_text=artifact_text)
     return pr, artifact, reasons, kind
 
 

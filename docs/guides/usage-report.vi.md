@@ -81,6 +81,15 @@ gin usage report --since 2026-10-01 --format json
 
 Hoặc hỏi `/report`. Báo cáo văn bản liệt kê chi phí của từng bead, tổng theo model (token theo loại) và theo stage, các model chưa có giá, mức sử dụng unattributed, và các bead đã đóng nhưng chưa bao giờ được collect (`not collected`). `--format json` trả về đầy đủ các bản tóm tắt cho công cụ của riêng bạn.
 
+Khi các tổng số chỉ mang tính một phần, báo cáo văn bản thêm dòng `partial: <reasons>` sau dòng tổng số, và JSON thêm `partial` cùng `partial_reasons`:
+
+- `children_not_merged`: một epic và một child trực tiếp đều có bản tóm tắt;
+- `not_collected`: một bead trong phạm vi chưa có bản tóm tắt;
+- `unattributed`: số token unattributed lớn hơn không;
+- `log_sources`: một lượt quét log không sạch hoặc bỏ qua các dòng không đọc được;
+- `stale`: một epic được thu thập trước thời điểm đóng mới nhất của các child trực tiếp;
+- `unpriced`: một model trong phạm vi thiếu giá.
+
 ## Giới hạn { #limits }
 
 - Công việc trên Antigravity và OpenCode không được đếm.

@@ -12,6 +12,7 @@ Bead `gin-workflow-y8g6` (2026-11-12). `usage.collect` on an epic ran `bd show` 
 - An epic with N children costs 1 list + (N + 1) history + 1 update; `tests/workflow_core/test_usage.py` asserts the exact call list.
 - The lower-priority call sites the bead named (`review_ledger/cleanup.py`, `team_beads.deps`, `specs.py`) still call bd per bead.
 - `gin-workflow-4sa5` (`gin task ready` runs bd twice) needs a decision on rendering ready output; its evaluation is in the bead notes.
+- Summaries cannot be merged across machines: each `collect` overwrites `ai_usage` from local logs and stores no record identity, so adding a child's summary to its epic's can double count (gin-console's `own_share` subtracts children instead). `gin usage report` marks such totals `partial` with reasons ([team-progress](team-progress.md)).
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/usage.py` (`collect`, `quality`, `_span`, `_row`); `tests/workflow_core/test_usage.py`, `tests/workflow_core/test_usage_cli.py`

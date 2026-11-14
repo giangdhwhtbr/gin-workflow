@@ -16,6 +16,7 @@ During epic `gin-workflow-rm-windows-parity` (2026-11-02) track `.4` reached `ro
 **Consequences**
 - Plan a review so that cycle 3 is a verification pass only.
 - The lease TTL is 600 s: finish the analysis before `start-review`, then write the ledger entries.
+- `gin evidence run` refuses while tracked files differ from HEAD, so commit the ledger changes first. `gin evidence check` on a later ledger-only commit exits 1; the reviewer runs `gin evidence check --commit <tested commit>` (`gin-workflow-team-progress.2` and `.3`).
 
 **References**
 - `plugins/gin-workflow/src/scripts/review_ledger/bead_fsm.py`, `finding_fsm.py`, `cli.py` (`start-review` guard, human-only review decision); `review-ledger.py` (`withdraw-deferral`, `require-human-decision`); tests `tests/review_ledger/test_deferral_decisions.py`, `test_review_decision.py`

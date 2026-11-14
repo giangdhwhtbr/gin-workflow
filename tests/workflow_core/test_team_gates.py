@@ -19,7 +19,8 @@ from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as r
 from workflow_core.configuration import ConfigValidationError, resolve_effective_config, validate_portable_config  # noqa: E402
 from workflow_core.epic_kind import KINDS  # noqa: E402
 from workflow_core.team import (  # noqa: E402
-    can_waive, check_plan, check_plan_repos, gate_roles, has_policy, load_team, plan_tracks, policy_for, repo_slug)
+    can_waive, check_plan, check_plan_repos, gate_roles, has_policy, load_team, plan_tracks, policy_for, repo_slug,
+    verify_gate)
 from workflow_core.workspace import Workspace, repos_from  # noqa: E402
 from workflow_core.team_host import fetch_pr  # noqa: E402
 
@@ -1104,6 +1105,48 @@ class TestKindApproval(GateCase):
         result = self.record_epic()
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual((PR, []), (self.events()[-1]["payload"]["pr_url"], self.events()[-1]["payload"]["approvers"]))
+
+
+class TestBeforeMerge(GateCase):
+    """team-progress R4: `verify_gate(before_merge=True, artifact_text=...)` checks an open PR the way `gin team
+    pending` does; the defaults keep the checks of `gin record` and `gin team check`."""
+
+    def setUp(self):
+        super().setUp()
+        self.team = load_team(yaml.safe_load((self.root / ".agent-workflow/config.yaml").read_text()))
+
+    def verify(self, gate: str, url: str = PR, **options) -> list[str]:
+        with mock.patch.dict(os.environ, self.env):
+            return verify_gate(self.root, self.team, gate, url, **options)[2]
+
+    def test_before_merge_drops_only_the_merged_requirement(self):
+        self.gh(gh_pr(state="OPEN", files=[SPEC_PATH], author="binh-dev", reviews=[("dung-qe", "APPROVED", "c")]))
+        missing = "missing approval from one of ba, be_lead, fe_lead"
+        self.assertEqual(["PR is open, not merged", missing], self.verify("requirement_confirmed"))
+        self.assertEqual([missing], self.verify("requirement_confirmed", before_merge=True))
+
+    def test_before_merge_skips_the_local_head_of_ship_but_not_the_approval_on_the_pr_head(self):
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "feat: x")
+        self.gh(gh_pr(state="OPEN", head="f" * 40, reviews=[("dung-qe", "APPROVED", "old")]))
+        self.assertTrue(any("is not local HEAD" in reason for reason in self.verify("ship")))
+        self.assertEqual(["missing approval from one of qe"], self.verify("ship", before_merge=True))
+
+    def test_before_merge_keeps_the_repository_check(self):
+        other = "https://github.com/other/app/pull/7"
+        fake_cli(self.bin, "gh", [{"argv": ["pr", "view", other], "stdout": gh_pr(
+            other, state="OPEN", author="em-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c")])}])
+        [reason] = self.verify("requirement_confirmed", other, before_merge=True)
+        self.assertTrue(reason.startswith("PR belongs to github.com/other/app, not this repository"), reason)
+
+    def test_artifact_text_stands_in_for_a_plan_missing_from_the_checkout(self):
+        (self.root / PLAN_PATH).unlink()
+        self.gh(gh_pr(state="OPEN", files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c")]))
+        self.assertEqual([f"{PLAN_PATH} is not in this checkout; pull the merged plan"],
+                         self.verify("plan_approved", before_merge=True))
+        self.assertEqual(["missing approval from fe_lead for area frontend"],
+                         self.verify("plan_approved", before_merge=True, artifact_text=PLAN))
+        self.assertIn("Track 1: unknown area nowhere", self.verify(
+            "plan_approved", before_merge=True, artifact_text=PLAN.replace("- Area: backend", "- Area: nowhere")))
 
 
 if __name__ == "__main__":

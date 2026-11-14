@@ -81,6 +81,15 @@ gin usage report --since 2026-10-01 --format json
 
 Or ask `/report`. The text report lists each bead's cost, totals per model (tokens by type) and per stage, unpriced models, unattributed usage, and closed beads that were never collected (`not collected`). `--format json` returns the full summaries for your own tooling.
 
+When totals are partial, the text report adds a `partial: <reasons>` line after the total, and JSON adds `partial` and `partial_reasons`:
+
+- `children_not_merged`: an epic and a direct child both have recorded summaries;
+- `not_collected`: a bead in scope has no recorded summary;
+- `unattributed`: unattributed token count is above zero;
+- `log_sources`: a log scan failed or skipped unreadable lines;
+- `stale`: an epic was collected before the latest close time of its direct children;
+- `unpriced`: a model in scope lacks a price.
+
 ## Limits
 
 - Antigravity and OpenCode work is not counted.

@@ -16,6 +16,7 @@ Read-only usage report. Summaries are written into each bead's metadata (`ai_usa
 3. Present:
    - Each bead: cost, title, and its quality signals.
    - Totals per model (input, output, cache read, cache write, cost) and per stage (`discuss`, `plan`, `orchestrate`, `execute`, `review`, `verify`, `ship`, `quick`).
+   - When totals are partial, show `partial` and its reasons next to the totals.
    - Rework next to cost: reopens, bugs with `discovered-from` the bead, review cycles, rejections, findings by severity, gate waivers.
    - `unpriced` models: their tokens count, their cost does not; prices live in `.agent-workflow/usage-prices.yaml` (USD per million tokens).
    - `unattributed` usage: work that matched no bead or gate.

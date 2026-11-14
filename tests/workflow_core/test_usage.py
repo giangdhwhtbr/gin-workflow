@@ -417,6 +417,122 @@ class ReportTests(Fixture):
                          {"input": 4, "output": 2, "cache_read": 0, "cache_write": 0, "cost": 0.8})
 
 
+class PartialTests(Fixture):
+    def clean_doc(self, **overrides):
+        doc = {
+            "version": 1,
+            "cost": 1.0,
+            "models": {"m1": {"input": 1, "output": 0, "cache_read": 0, "cache_write": 0, "cost": 1.0}},
+            "stages": {"execute": {"tokens": 1, "cost": 1.0}},
+            "unpriced": [],
+            "sources": {"claude_code": "ok"},
+            "skipped_lines": 0,
+            "collected_at": "2026-10-04T12:00:00Z",
+            "quality": usage.empty_quality(),
+            "unattributed": {"tokens": 0, "cost": 0.0},
+        }
+        doc.update(overrides)
+        return doc
+
+    def test_no_reason_is_not_partial(self):
+        row = {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+               "closed_at": "2026-10-04T10:00:00Z",
+               "metadata": {"ai_usage": json.dumps(self.clean_doc())}}
+        self.rules[0]["stdout"] = [row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, bead="t1")
+        self.assertFalse(out["partial"])
+        self.assertEqual(out["partial_reasons"], [])
+
+    def test_children_not_merged(self):
+        epic_row = {"id": "e1", "title": "Epic", "issue_type": "epic", "status": "open",
+                    "metadata": {"ai_usage": json.dumps(self.clean_doc())}}
+        child_row = {"id": "t1", "title": "T1", "issue_type": "task", "parent": "e1", "status": "closed",
+                     "closed_at": "2026-10-04T10:00:00Z",
+                     "metadata": {"ai_usage": json.dumps(self.clean_doc())}}
+        self.rules[0]["stdout"] = [epic_row, child_row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, epic="e1")
+        self.assertTrue(out["partial"])
+        self.assertEqual(out["partial_reasons"], ["children_not_merged"])
+
+    def test_not_collected(self):
+        epic_row = {"id": "e1", "title": "Epic", "issue_type": "epic", "status": "open",
+                    "metadata": {"ai_usage": json.dumps(self.clean_doc())}}
+        child_row = {"id": "t1", "title": "T1", "issue_type": "task", "parent": "e1", "status": "closed",
+                     "closed_at": "2026-10-04T10:00:00Z"}
+        self.rules[0]["stdout"] = [epic_row, child_row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, epic="e1")
+        self.assertTrue(out["partial"])
+        self.assertIn("not_collected", out["partial_reasons"])
+
+    def test_unattributed(self):
+        doc = self.clean_doc(unattributed={"tokens": 10, "cost": 0.1})
+        row = {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+               "closed_at": "2026-10-04T10:00:00Z",
+               "metadata": {"ai_usage": json.dumps(doc)}}
+        self.rules[0]["stdout"] = [row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, bead="t1")
+        self.assertTrue(out["partial"])
+        self.assertEqual(out["partial_reasons"], ["unattributed"])
+
+    def test_log_sources_status_not_ok(self):
+        doc = self.clean_doc(sources={"claude_code": "not_found"})
+        row = {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+               "closed_at": "2026-10-04T10:00:00Z",
+               "metadata": {"ai_usage": json.dumps(doc)}}
+        self.rules[0]["stdout"] = [row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, bead="t1")
+        self.assertTrue(out["partial"])
+        self.assertEqual(out["partial_reasons"], ["log_sources"])
+
+    def test_log_sources_skipped_lines(self):
+        doc = self.clean_doc(skipped_lines=2)
+        row = {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+               "closed_at": "2026-10-04T10:00:00Z",
+               "metadata": {"ai_usage": json.dumps(doc)}}
+        self.rules[0]["stdout"] = [row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, bead="t1")
+        self.assertTrue(out["partial"])
+        self.assertEqual(out["partial_reasons"], ["log_sources"])
+
+    def test_stale(self):
+        epic_doc = self.clean_doc(collected_at="2026-10-04T09:00:00Z")
+        epic_row = {"id": "e1", "title": "Epic", "issue_type": "epic", "status": "open",
+                    "metadata": {"ai_usage": json.dumps(epic_doc)}}
+        child_row = {"id": "t1", "title": "T1", "issue_type": "task", "parent": "e1", "status": "closed",
+                     "closed_at": "2026-10-04T10:00:00Z"}
+        self.rules[0]["stdout"] = [epic_row, child_row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, epic="e1")
+        self.assertTrue(out["partial"])
+        self.assertIn("stale", out["partial_reasons"])
+
+    def test_unpriced(self):
+        doc = self.clean_doc(unpriced=["m9"])
+        row = {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+               "closed_at": "2026-10-04T10:00:00Z",
+               "metadata": {"ai_usage": json.dumps(doc)}}
+        self.rules[0]["stdout"] = [row]
+        fake_cli(self.bin, "bd", self.rules)
+        out = usage.report(self.repo, bead="t1")
+        self.assertTrue(out["partial"])
+        self.assertEqual(out["partial_reasons"], ["unpriced"])
+
+    def test_report_makes_no_bd_update(self):
+        row = {"id": "t1", "title": "T1", "issue_type": "task", "status": "closed",
+               "metadata": {"ai_usage": json.dumps(self.clean_doc())}}
+        self.rules[0]["stdout"] = [row]
+        fake_cli(self.bin, "bd", self.rules)
+        usage.report(self.repo, bead="t1")
+        updates = [argv for argv in calls(self.bin) if len(argv) > 1 and argv[1] == "update"]
+        self.assertEqual(updates, [])
+
+
 class BudgetTests(Fixture):
     def budget(self, value):
         write(self.repo, ".agent-workflow/config.yaml",
