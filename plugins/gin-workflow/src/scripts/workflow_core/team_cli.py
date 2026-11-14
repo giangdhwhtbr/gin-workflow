@@ -53,6 +53,7 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("bead")
     item.add_argument("--branch")
     sub.add_parser("deps", parents=[common]).add_argument("--bead")
+    sub.add_parser("complete", parents=[common]).add_argument("epic")
     sub.add_parser("sync", parents=[common])
     return parser
 
@@ -283,6 +284,19 @@ def _run(args: argparse.Namespace) -> int:
             lines += [f"unresolved {row['id']}: {row['pr']} merged without a merge commit" for row in result["unresolved"]]
             _emit(result, args.format, "\n".join(lines) or "no external placeholders")
             return 1 if result["unresolved"] else 0
+        if args.command == "complete":
+            from . import team_complete
+
+            result = team_complete.complete(root, team, member, args.epic)
+            if result["status"] == "completed":
+                lines = [f"completed {args.epic}"] + [f"merged {url}" for url in result["pull_requests"]]
+                if team.beads_remote:
+                    lines.append("next: gin team sync")
+                _emit(result, args.format, "\n".join(lines))
+                return 0
+            lines = [f"incomplete {args.epic}"] + [f"missing {item}" for item in result["missing"]]
+            _emit(result, args.format, "\n".join(lines))
+            return 1
         if not team.beads_remote:
             raise team_core.TeamError("team.beads_sync.remote is not set")
         _emit(team_beads.sync(root), args.format, "synced")
