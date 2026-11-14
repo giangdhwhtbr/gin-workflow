@@ -27,6 +27,11 @@ def clone(space: ws.Workspace, paths: Sequence[str], all_repos: bool) -> list[di
         raise ws.WorkspaceError("name a repository path or pass --all")
     results: list[dict[str, Any]] = []
     try:
+        from . import hooks, team, team_init
+        try:
+            team_config = team.team_for_repo(space.root)
+        except Exception:
+            team_config = None
         for repo in chosen:
             target = space.checkout(repo)
             if space.present(repo):
@@ -39,7 +44,30 @@ def clone(space: ws.Workspace, paths: Sequence[str], all_repos: bool) -> list[di
                 cloned = [row["path"] for row in results if row["status"] == "cloned"]
                 so_far = f" (cloned so far: {', '.join(cloned)})" if cloned else ""
                 raise ws.WorkspaceError(f"{repo.path}: {done.stderr.strip() or 'git clone failed'}{so_far}")
-            results.append({"path": repo.path, "status": "cloned"})
+            row: dict[str, Any] = {"path": repo.path, "status": "cloned"}
+            if repo.workable:
+                hooks_dict: dict[str, str] = {}
+                if repo.checks:
+                    try:
+                        hook_res = hooks.install(target)
+                        if hook_res.get("status") == "missing":
+                            hooks_dict["pre-commit"] = "missing"
+                            hooks_dict["pre-push"] = "missing"
+                        else:
+                            for hook in ("pre-commit", "pre-push"):
+                                if hook in hook_res.get("hooks", {}):
+                                    hooks_dict[hook] = hook_res["hooks"][hook]
+                    except Exception:
+                        hooks_dict["pre-commit"] = "missing"
+                        hooks_dict["pre-push"] = "missing"
+                if team_config is not None and (target / ".githooks/commit-msg").is_file():
+                    try:
+                        team_res = team_init.install_hook(target)
+                        hooks_dict["commit-msg"] = team_res.get("status", "missing")
+                    except Exception:
+                        hooks_dict["commit-msg"] = "missing"
+                row["hooks"] = hooks_dict
+            results.append(row)
     finally:
         ws.ensure_gitignore(space.root, [f"/{row['path']}" for row in results])
     return results
@@ -178,8 +206,30 @@ def main(argv: Sequence[str]) -> int:
             raise ws.WorkspaceError(f"not in a workspace: {Path(start).resolve()}")
         if args.command == "clone":
             rows = clone(located.workspace, args.paths, args.all_repos)
-            print(json.dumps({"repos": rows}) if args.as_json else
-                  "\n".join(f"{row['path']}: {row['status']}" for row in rows))
+            from .team_init import active_hooks_dir
+            for row in rows:
+                for hook, state in (row.get("hooks") or {}).items():
+                    if state == "occupied":
+                        repo = located.workspace.repo(row["path"])
+                        target = located.workspace.checkout(repo) if repo else located.workspace.root / row["path"]
+                        try:
+                            hook_file = active_hooks_dir(target) / hook
+                        except Exception:
+                            hook_file = target / ".git/hooks" / hook
+                        if hook == "commit-msg":
+                            chain = f'add `exec "$(git rev-parse --show-toplevel)/.githooks/commit-msg" "$@"` to {hook_file} to chain it'
+                        else:
+                            chain = f'add `exec gin hooks run {hook} "$@"` to {hook_file} to chain it'
+                        print(f"{row['path']}: {chain}", file=sys.stderr)
+            if args.as_json:
+                print(json.dumps({"repos": rows}))
+            else:
+                lines = []
+                for row in rows:
+                    lines.append(f"{row['path']}: {row['status']}")
+                    for hook, state in (row.get("hooks") or {}).items():
+                        lines.append(f"{row['path']}: {hook}: {state}")
+                print("\n".join(lines))
         else:
             rows = status(located.workspace)
             print(json.dumps({"repos": rows}) if args.as_json else _text(rows))

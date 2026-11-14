@@ -61,6 +61,16 @@ class Workspace:
         return max(matches, key=lambda repo: len(repo.path)) if matches else None
 
 
+def skip_reason(space: Workspace, repo: Repo) -> str | None:
+    if repo.frozen:
+        return "frozen"
+    if not repo.workable:
+        return repo.shape
+    if not space.present(repo):
+        return "not cloned"
+    return None
+
+
 @dataclass(frozen=True)
 class Located:
     root: Path                 # the project root: the workspace root, or the repository itself

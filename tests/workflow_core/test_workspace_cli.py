@@ -57,6 +57,70 @@ class WorkspaceCliTests(unittest.TestCase):
         text = run(self.root, "workspace", "status").stdout
         self.assertIn("legacy/portal  present  main  clean  frozen", text)
 
+    def test_clone_installs_verify_hooks(self):
+        # R2, US-2: clone installs pre-commit and pre-push when entry has verify.checks
+        done = run(self.root, "workspace", "clone", "services/api", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        data = json.loads(done.stdout)
+        row = data["repos"][0]
+        self.assertEqual("services/api", row["path"])
+        self.assertEqual("cloned", row["status"])
+        self.assertEqual({"pre-commit": "installed", "pre-push": "installed"}, row.get("hooks"))
+        self.assertTrue((self.root / "services/api/.git/hooks/pre-commit").exists())
+
+    def test_clone_without_checks_installs_no_verify_hooks(self):
+        # R2, US-2: clone without checks gives no pre-commit key
+        done = run(self.root, "workspace", "clone", "apps/web", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        data = json.loads(done.stdout)
+        row = data["repos"][0]
+        self.assertEqual("apps/web", row["path"])
+        self.assertEqual("cloned", row["status"])
+        self.assertNotIn("pre-commit", row.get("hooks", {}))
+
+    def test_clone_frozen_and_beads_and_present_have_no_hooks_key(self):
+        # R2, US-2: frozen, beads and present clones have no hooks key
+        done = run(self.root, "workspace", "clone", "--all", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        cloned = {item["path"]: item for item in json.loads(done.stdout)["repos"]}
+        self.assertNotIn("hooks", cloned["legacy/portal"])
+        self.assertNotIn("hooks", cloned[".beads"])
+        again = json.loads(run(self.root, "workspace", "clone", "--all", "--json").stdout)
+        for item in again["repos"]:
+            self.assertEqual("present", item["status"])
+            self.assertNotIn("hooks", item)
+
+    def test_clone_team_commit_msg_hook(self):
+        # R2, US-2: in team mode, child with .githooks/commit-msg gets commit-msg installed
+        from tests.workflow_core.team_fixtures import TEAM
+        config_path = self.root / ".agent-workflow/config.yaml"
+        config_path.write_text(config_path.read_text(encoding="utf-8") + "\n" + TEAM.format(host="github"), encoding="utf-8")
+        scratch = self.base / "scratch/services/api"
+        githooks = scratch / ".githooks"
+        githooks.mkdir(parents=True, exist_ok=True)
+        (githooks / "commit-msg").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        git(scratch, "add", ".githooks/commit-msg")
+        git(scratch, "commit", "-q", "-m", "add commit-msg hook")
+        git(scratch, "push", "-q", str(self.base / "remotes/services/api"), "main")
+        done = run(self.root, "workspace", "clone", "services/api", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        data = json.loads(done.stdout)
+        row = data["repos"][0]
+        self.assertEqual("installed", row.get("hooks", {}).get("commit-msg"))
+
+    def test_clone_occupied_hook_reports_status_and_chain_line(self):
+        # R2, US-2: occupied hook reports occupied, prints chain line to stderr, exits 0
+        template = self.base / "git-template"
+        hooks_dir = template / "hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        (hooks_dir / "pre-commit").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        done = run(self.root, "workspace", "clone", "services/api", "--json", env={"GIT_TEMPLATE_DIR": str(template)})
+        self.assertEqual(0, done.returncode)
+        row = json.loads(done.stdout)["repos"][0]
+        self.assertEqual("occupied", row.get("hooks", {}).get("pre-commit"))
+        self.assertIn('add `exec gin hooks run pre-commit "$@"` to ', done.stderr)
+        self.assertIn("to chain it", done.stderr)
+
     def test_clone_one_and_outside_workspace(self):
         done = run(self.root, "workspace", "clone", "services/api")
         self.assertEqual(0, done.returncode, done.stderr)
@@ -113,6 +177,7 @@ class WorkspaceCliTests(unittest.TestCase):
     def test_doctor_reports_the_hooks_of_each_cloned_child(self):
         self._init()
         run(self.root, "workspace", "clone", "services/api")
+        (self.root / "services/api/.git/hooks/pre-commit").unlink()
         missing = "workspace: services/api: pre-commit is missing; run gin hooks install --all-repos"
         self.assertIn(missing, self._doctor_actions())
         hook = self.root / "services/api/.git/hooks/pre-commit"
