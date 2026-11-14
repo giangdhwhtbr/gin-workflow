@@ -100,6 +100,8 @@ To hand a track over (a member runs out of quota or is away), the current assign
 
 `gin team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
 
+`gin team pending` lists the open pull requests that wait for approval, and `/gin:progress` shows them next to the milestone forecast, spec status, and QA state. Fields and exit codes are in the [command reference](../reference/cli.md#gin-team).
+
 A member's ship covers only their own tracks. The lead declares the feature complete once every track pull request has merged (the `team` skill's rule).
 
 ## Prep tasks
