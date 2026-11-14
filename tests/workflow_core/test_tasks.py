@@ -1,3 +1,4 @@
+import io
 import json
 import os
 from pathlib import Path
@@ -248,12 +249,10 @@ class ExternalDependencyFailureTests(unittest.TestCase):
                            return_value=subprocess.CompletedProcess([], 0, stdout='[{"id": "x-1"}]')), \
                 mock.patch("sys.stderr"):
             self.assertEqual(1, tasks.main(["ready"]))
-            self.assertIsNone(tasks.query(Path("."), ["ready"]))
 
     def test_non_json_ready_output_fails_when_beads_are_held(self):
         with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
                 mock.patch("workflow_core.tasks.tool", return_value="/opt/bd"), \
-                mock.patch("workflow_core.tasks.held_by_external", return_value={"x-1": ["external:p:c"]}), \
                 mock.patch("workflow_core.tasks.subprocess.run",
                            return_value=subprocess.CompletedProcess([], 0, stdout="not json", stderr="")), \
                 mock.patch("sys.stderr"):
@@ -263,6 +262,69 @@ class ExternalDependencyFailureTests(unittest.TestCase):
         explained = {"ready": [{"id": "x-1"}, {"id": "x-2"}], "blocked": []}
         self.assertEqual({"ready": [{"id": "x-2"}], "blocked": []},
                          tasks.without_held(explained, {"x-1": ["external:p:c"]}))
+
+
+class ReadyOneProcessTests(unittest.TestCase):
+    """The JSON ready paths read external dependencies from the one bd ready result they already have."""
+
+    FREE = {"id": "x-1", "dependencies": []}
+    WAITING = {"id": "x-2", "dependencies": [
+        {"issue_id": "x-2", "depends_on_id": "external:p:c", "type": "blocks"},
+        {"issue_id": "x-2", "depends_on_id": "x-1", "type": "blocks"}]}
+    ALSO_WAITING = {"id": "x-3", "dependencies": [
+        {"issue_id": "x-3", "depends_on_id": "external:p:c", "type": "blocks"}]}
+
+    def run_bd(self, ready, call):
+        runs = []
+
+        def fake(argv, **_):
+            runs.append(list(argv))
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(ready), stderr="")
+
+        with mock.patch.object(tasks, "backend", return_value="beads"), \
+                mock.patch.object(tasks, "tool", return_value="/opt/bd"), \
+                mock.patch.object(tasks.workspace, "project_root", return_value=Path(".")), \
+                mock.patch.object(tasks, "_shipped", return_value=False) as shipped, \
+                mock.patch.object(tasks.subprocess, "run", side_effect=fake), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            result = call()
+        return result, runs, shipped, out.getvalue()
+
+    def test_query_result_without_external_dependencies_runs_one_bd(self):
+        (result, _), runs, shipped, _ = self.run_bd(
+            [self.FREE], lambda: tasks.query_result(Path("."), ["ready"]))
+        self.assertEqual([self.FREE], result)
+        self.assertEqual(1, len(runs))
+        shipped.assert_not_called()
+
+    def test_ready_json_without_external_dependencies_runs_one_bd_and_prints_its_json(self):
+        code, runs, shipped, out = self.run_bd([self.FREE], lambda: tasks.main(["ready", "--json"]))
+        self.assertEqual(0, code)
+        self.assertEqual(1, len(runs))
+        self.assertEqual(json.dumps([self.FREE]), out)
+        shipped.assert_not_called()
+
+    def test_unshipped_external_dependency_is_filtered_and_checked_once_per_ref(self):
+        ready = [self.FREE, self.WAITING, self.ALSO_WAITING]
+        (result, _), runs, shipped, _ = self.run_bd(ready, lambda: tasks.query_result(Path("."), ["ready"]))
+        self.assertEqual([self.FREE], result)
+        self.assertEqual(1, len(runs))
+        shipped.assert_called_once_with(Path("."), "/opt/bd", "external:p:c")
+        code, runs, shipped, out = self.run_bd(ready, lambda: tasks.main(["ready", "--json"]))
+        self.assertEqual(0, code)
+        self.assertEqual([self.FREE], json.loads(out))
+        self.assertEqual(1, len(runs))
+        shipped.assert_called_once()
+
+    def test_text_ready_still_explains(self):
+        with mock.patch.object(tasks, "backend", return_value="beads"), \
+                mock.patch.object(tasks, "tool", return_value="/opt/bd"), \
+                mock.patch.object(tasks.workspace, "project_root", return_value=Path(".")), \
+                mock.patch.object(tasks, "held_by_external", return_value={}) as held, \
+                mock.patch.object(tasks.subprocess, "run",
+                                  return_value=subprocess.CompletedProcess([], 0)):
+            self.assertEqual(0, tasks.main(["ready"]))
+        held.assert_called_once()
 
 
 class QueryResultTests(unittest.TestCase):

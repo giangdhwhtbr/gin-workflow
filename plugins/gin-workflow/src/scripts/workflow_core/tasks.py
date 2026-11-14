@@ -71,18 +71,20 @@ def _shipped(root: Path, executable: str, ref: str) -> bool:
     return bool(found)
 
 
-def held_by_external(root: Path, executable: str) -> dict[str, list[str]] | None:
-    """Ready beads with an unshipped external dependency, which bd 1.0.5 reports as resolved.
+def held_in(root: Path, executable: str, result: Any) -> dict[str, list[str]]:
+    """Ready beads in a bd ready result (a list, or the `--explain` dict) with an unshipped external dependency.
 
-    None when bd cannot explain its ready list: callers then fail instead of releasing held beads.
+    bd 1.0.5 reports those as resolved. A list carries each bead's `dependencies`; the explain dict its
+    `resolved_blockers`. Each distinct ref is looked up once.
     """
-    explained = _bd_json(executable, ["ready", "--explain", "-n", "0"], root)
-    if not isinstance(explained, dict):
-        return None
     shipped: dict[str, bool] = {}
     held: dict[str, list[str]] = {}
-    for issue in explained.get("ready") or []:
-        refs = [ref for ref in issue.get("resolved_blockers") or [] if str(ref).startswith("external:")]
+    for issue in (result.get("ready") if isinstance(result, dict) else result) or []:
+        if "resolved_blockers" in issue:
+            refs = list(issue["resolved_blockers"] or [])
+        else:
+            refs = [dependency.get("depends_on_id") for dependency in issue.get("dependencies") or []]
+        refs = [ref for ref in refs if str(ref).startswith("external:")]
         for ref in refs:
             if ref not in shipped:
                 shipped[ref] = _shipped(root, executable, ref)
@@ -90,6 +92,15 @@ def held_by_external(root: Path, executable: str) -> dict[str, list[str]] | None
         if missing:
             held[issue["id"]] = missing
     return held
+
+
+def held_by_external(root: Path, executable: str) -> dict[str, list[str]] | None:
+    """`held_in` for bd's `--explain` ready list; None when bd cannot explain it.
+
+    Callers then fail instead of releasing held beads.
+    """
+    explained = _bd_json(executable, ["ready", "--explain", "-n", "0"], root)
+    return held_in(root, executable, explained) if isinstance(explained, dict) else None
 
 
 def without_held(result: Any, held: Mapping[str, Any]) -> Any:
@@ -102,24 +113,29 @@ def without_held(result: Any, held: Mapping[str, Any]) -> Any:
 
 
 def _ready(executable: str, argv: Sequence[str], root: Path) -> int:
-    held = held_by_external(root, executable)
+    json_output = "--json" in argv
+    held = {} if json_output else held_by_external(root, executable)
     if held is None:
         print("error: bd ready --explain failed, so external dependencies cannot be checked", file=sys.stderr)
         return 1
-    if not held:
+    if not json_output and not held:
         return subprocess.run([executable, *argv], cwd=root, check=False).returncode
     completed = subprocess.run([executable, *argv], cwd=root, text=True, capture_output=True, check=False)
     sys.stderr.write(completed.stderr)
     if completed.returncode != 0:
         sys.stdout.write(completed.stdout)
         return completed.returncode
-    if "--json" in argv:
+    if json_output:
         try:
             issues = json.JSONDecoder().raw_decode(completed.stdout.lstrip())[0]
         except json.JSONDecodeError:
             print("error: bd ready printed no JSON, so external dependencies cannot be applied", file=sys.stderr)
             return 1
-        print(json.dumps(without_held(issues, held), indent=2))
+        held = held_in(root, executable, issues)
+        if held:
+            print(json.dumps(without_held(issues, held), indent=2))
+        else:
+            sys.stdout.write(completed.stdout)
         return 0
     # ponytail: drops the text lines naming a held id; a held parent's indented children stay listed
     pattern = re.compile(r"(?<![\w.-])(" + "|".join(map(re.escape, held)) + r")(?![\w.-])")
@@ -161,10 +177,7 @@ def query_result(root: Path, argv: Sequence[str]) -> tuple[Any, str | None]:
     except json.JSONDecodeError:
         return None, "invalid JSON from bd"
     if argv[:1] == ["ready"]:
-        held = held_by_external(root, executable)
-        if held is None:
-            return None, "bd ready --explain failed"
-        result = without_held(result, held)
+        result = without_held(result, held_in(root, executable, result))
     return result, None
 
 
