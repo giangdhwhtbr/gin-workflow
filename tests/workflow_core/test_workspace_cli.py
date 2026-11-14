@@ -69,14 +69,14 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertTrue((self.root / "services/api/.git/hooks/pre-commit").exists())
 
     def test_clone_without_checks_installs_no_verify_hooks(self):
-        # R2, US-2: clone without checks gives no pre-commit key
+        # R2, US-2: clone without checks gives no pre-commit key (and no hooks key at all)
         done = run(self.root, "workspace", "clone", "apps/web", "--json")
         self.assertEqual(0, done.returncode, done.stderr)
         data = json.loads(done.stdout)
         row = data["repos"][0]
         self.assertEqual("apps/web", row["path"])
         self.assertEqual("cloned", row["status"])
-        self.assertNotIn("pre-commit", row.get("hooks", {}))
+        self.assertNotIn("hooks", row)
 
     def test_clone_frozen_and_beads_and_present_have_no_hooks_key(self):
         # R2, US-2: frozen, beads and present clones have no hooks key
@@ -118,8 +118,66 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertEqual(0, done.returncode)
         row = json.loads(done.stdout)["repos"][0]
         self.assertEqual("occupied", row.get("hooks", {}).get("pre-commit"))
-        self.assertIn('add `exec gin hooks run pre-commit "$@"` to ', done.stderr)
-        self.assertIn("to chain it", done.stderr)
+        expected_hook = self.root / "services/api/.git/hooks/pre-commit"
+        self.assertIn(f'services/api: add `exec gin hooks run pre-commit "$@"` to {expected_hook} to chain it', done.stderr)
+
+    def test_clone_team_commit_msg_occupied_reports_chain_line(self):
+        # R2, US-2: occupied commit-msg hook prints chain line with hook file path to stderr
+        from tests.workflow_core.team_fixtures import TEAM
+        config_path = self.root / ".agent-workflow/config.yaml"
+        config_path.write_text(config_path.read_text(encoding="utf-8") + "\n" + TEAM.format(host="github"), encoding="utf-8")
+        scratch = self.base / "scratch/services/api"
+        githooks = scratch / ".githooks"
+        githooks.mkdir(parents=True, exist_ok=True)
+        (githooks / "commit-msg").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        git(scratch, "add", ".githooks/commit-msg")
+        git(scratch, "commit", "-q", "-m", "add commit-msg hook")
+        git(scratch, "push", "-q", str(self.base / "remotes/services/api"), "main")
+        template = self.base / "git-template-team"
+        hooks_dir = template / "hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        (hooks_dir / "commit-msg").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        done = run(self.root, "workspace", "clone", "services/api", "--json", env={"GIT_TEMPLATE_DIR": str(template)})
+        self.assertEqual(0, done.returncode)
+        row = json.loads(done.stdout)["repos"][0]
+        self.assertEqual("occupied", row.get("hooks", {}).get("commit-msg"))
+        expected_hook = self.root / "services/api/.git/hooks/commit-msg"
+        expected_line = (
+            f'services/api: add `exec "$(git rev-parse --show-toplevel)/.githooks/commit-msg" "$@"` '
+            f'to {expected_hook} to chain it'
+        )
+        self.assertIn(expected_line, done.stderr)
+
+    def test_clone_team_without_commit_msg_gives_no_commit_msg_key(self):
+        # R2, US-2: team mode with a child that has no .githooks/commit-msg gives no commit-msg key
+        from tests.workflow_core.team_fixtures import TEAM
+        config_path = self.root / ".agent-workflow/config.yaml"
+        config_path.write_text(config_path.read_text(encoding="utf-8") + "\n" + TEAM.format(host="github"), encoding="utf-8")
+        done = run(self.root, "workspace", "clone", "services/api", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        data = json.loads(done.stdout)
+        row = data["repos"][0]
+        self.assertNotIn("commit-msg", row.get("hooks", {}))
+
+    def test_clone_team_config_invalid_prints_stderr_and_exits_zero(self):
+        # R2, US-2: parent team: block invalid raises ConfigValidationError/TeamError, exits 0, stderr warning
+        config_path = self.root / ".agent-workflow/config.yaml"
+        config_path.write_text(config_path.read_text(encoding="utf-8") + "\nteam: {members: 5}\n", encoding="utf-8")
+        done = run(self.root, "workspace", "clone", "services/api", "--json")
+        self.assertEqual(0, done.returncode)
+        self.assertIn("team config not loaded, commit-msg hooks not installed:", done.stderr)
+        data = json.loads(done.stdout)
+        row = data["repos"][0]
+        self.assertEqual("cloned", row["status"])
+        self.assertNotIn("commit-msg", row.get("hooks", {}))
+
+    def test_clone_text_output_includes_hooks(self):
+        # R2, US-2: text mode prints <path>: <hook>: <state>
+        done = run(self.root, "workspace", "clone", "services/api")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertIn("services/api: cloned", done.stdout)
+        self.assertIn("services/api: pre-commit: installed", done.stdout)
+        self.assertIn("services/api: pre-push: installed", done.stdout)
 
     def test_clone_one_and_outside_workspace(self):
         done = run(self.root, "workspace", "clone", "services/api")

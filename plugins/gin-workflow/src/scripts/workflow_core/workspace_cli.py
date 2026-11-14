@@ -18,7 +18,12 @@ def _run_git(argv: Sequence[str], cwd: Path | None = None) -> subprocess.Complet
     return subprocess.run(["git", *argv], cwd=cwd, text=True, capture_output=True, check=False)
 
 
-def clone(space: ws.Workspace, paths: Sequence[str], all_repos: bool) -> list[dict[str, Any]]:
+def clone(
+    space: ws.Workspace,
+    paths: Sequence[str],
+    all_repos: bool,
+    notes: list[str] | None = None,
+) -> list[dict[str, Any]]:
     chosen = list(space.repos) if all_repos else [space.repo(path) for path in paths]
     if any(repo is None for repo in chosen):
         missing = [path for path, repo in zip(paths, chosen) if repo is None]
@@ -28,9 +33,12 @@ def clone(space: ws.Workspace, paths: Sequence[str], all_repos: bool) -> list[di
     results: list[dict[str, Any]] = []
     try:
         from . import hooks, team, team_init
+        from .team import TeamError
         try:
             team_config = team.team_for_repo(space.root)
-        except Exception:
+        except (TeamError, ConfigValidationError, OSError) as error:
+            if notes is not None:
+                notes.append(f"team config not loaded, commit-msg hooks not installed: {error}")
             team_config = None
         for repo in chosen:
             target = space.checkout(repo)
@@ -47,7 +55,9 @@ def clone(space: ws.Workspace, paths: Sequence[str], all_repos: bool) -> list[di
             row: dict[str, Any] = {"path": repo.path, "status": "cloned"}
             if repo.workable:
                 hooks_dict: dict[str, str] = {}
+                hook_attempted = False
                 if repo.checks:
+                    hook_attempted = True
                     try:
                         hook_res = hooks.install(target)
                         if hook_res.get("status") == "missing":
@@ -56,17 +66,35 @@ def clone(space: ws.Workspace, paths: Sequence[str], all_repos: bool) -> list[di
                         else:
                             for hook in ("pre-commit", "pre-push"):
                                 if hook in hook_res.get("hooks", {}):
-                                    hooks_dict[hook] = hook_res["hooks"][hook]
-                    except Exception:
-                        hooks_dict["pre-commit"] = "missing"
-                        hooks_dict["pre-push"] = "missing"
+                                    state = hook_res["hooks"][hook]
+                                    hooks_dict[hook] = state
+                                    if state == "occupied" and notes is not None:
+                                        hook_file = Path(hook_res["path"]) / hook
+                                        notes.append(f"{repo.path}: {hooks.chain_hint(hook, hook_file)}")
+                    except (OSError, subprocess.CalledProcessError) as error:
+                        hooks_dict["pre-commit"] = "error"
+                        hooks_dict["pre-push"] = "error"
+                        if notes is not None:
+                            notes.append(f"{repo.path}: pre-commit hook not installed: {error}")
+                            notes.append(f"{repo.path}: pre-push hook not installed: {error}")
                 if team_config is not None and (target / ".githooks/commit-msg").is_file():
+                    hook_attempted = True
                     try:
                         team_res = team_init.install_hook(target)
-                        hooks_dict["commit-msg"] = team_res.get("status", "missing")
-                    except Exception:
-                        hooks_dict["commit-msg"] = "missing"
-                row["hooks"] = hooks_dict
+                        state = team_res.get("status", "missing")
+                        hooks_dict["commit-msg"] = state
+                        if state == "occupied" and notes is not None:
+                            occupied_path = team_res.get("path")
+                            notes.append(
+                                f'{repo.path}: add `exec "$(git rev-parse --show-toplevel)/.githooks/commit-msg" "$@"` '
+                                f'to {occupied_path} to chain it'
+                            )
+                    except (OSError, subprocess.CalledProcessError) as error:
+                        hooks_dict["commit-msg"] = "error"
+                        if notes is not None:
+                            notes.append(f"{repo.path}: commit-msg hook not installed: {error}")
+                if hook_attempted:
+                    row["hooks"] = hooks_dict
             results.append(row)
     finally:
         ws.ensure_gitignore(space.root, [f"/{row['path']}" for row in results])
@@ -205,22 +233,10 @@ def main(argv: Sequence[str]) -> int:
         if located.workspace is None:
             raise ws.WorkspaceError(f"not in a workspace: {Path(start).resolve()}")
         if args.command == "clone":
-            rows = clone(located.workspace, args.paths, args.all_repos)
-            from .team_init import active_hooks_dir
-            for row in rows:
-                for hook, state in (row.get("hooks") or {}).items():
-                    if state == "occupied":
-                        repo = located.workspace.repo(row["path"])
-                        target = located.workspace.checkout(repo) if repo else located.workspace.root / row["path"]
-                        try:
-                            hook_file = active_hooks_dir(target) / hook
-                        except Exception:
-                            hook_file = target / ".git/hooks" / hook
-                        if hook == "commit-msg":
-                            chain = f'add `exec "$(git rev-parse --show-toplevel)/.githooks/commit-msg" "$@"` to {hook_file} to chain it'
-                        else:
-                            chain = f'add `exec gin hooks run {hook} "$@"` to {hook_file} to chain it'
-                        print(f"{row['path']}: {chain}", file=sys.stderr)
+            notes: list[str] = []
+            rows = clone(located.workspace, args.paths, args.all_repos, notes=notes)
+            for note in notes:
+                print(note, file=sys.stderr)
             if args.as_json:
                 print(json.dumps({"repos": rows}))
             else:

@@ -40,6 +40,10 @@ def _ours(text: str) -> bool:
     return MARKER in text or LEGACY_MARKER in text
 
 
+def chain_hint(hook: str, hook_file: Path) -> str:
+    return f'add `exec gin hooks run {hook} "$@"` to {hook_file} to chain it'
+
+
 def install(root: Path) -> dict:
     active = active_hooks_dir(Path(root))
     if not active.is_dir():
@@ -219,8 +223,7 @@ def _install_all(space: workspace.Workspace) -> int:
         for hook, state in result["hooks"].items():
             print(f"{repo.path}: {hook}: {state}")
             if state == "occupied":
-                print(f'{repo.path}: add `exec gin hooks run {hook} "$@"` to {Path(result["path"]) / hook} to chain it',
-                      file=sys.stderr)
+                print(f"{repo.path}: {chain_hint(hook, Path(result['path']) / hook)}", file=sys.stderr)
     return worst
 
 
