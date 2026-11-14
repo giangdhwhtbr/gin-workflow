@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -11,12 +12,31 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
-from qa_fixtures import AUTH_SPEC, QA_LAUNCHER, TOOLS_PATH, case, cases_file, gin_workflow_bin, make_repo, python_stub, qa, write  # noqa: E402
+from qa_fixtures import AUTH_SPEC, QA_LAUNCHER, TOOLS_PATH, case, cases_file, gin_workflow_bin, make_repo, python_stub, write  # noqa: E402
+from qa_fixtures import qa as qa_subprocess  # noqa: E402
+from gin_qa import cli as qa_cli  # noqa: E402
 from gin_qa.cases import hash8 as case_hash8, parse_file  # noqa: E402
+
+
+def qa(root: Path, bin_dir: Path, *args: str, group: str = "e2e",
+       path: str = TOOLS_PATH) -> subprocess.CompletedProcess[str]:
+    """`gin-qa <group> <args>` in this process with the same PATH: the result of `qa_subprocess` without starting an
+    interpreter. Output goes through temporary files because `e2e run` hands its stderr to Playwright. One test per
+    subcommand keeps the subprocess."""
+    search = os.pathsep.join([str(bin_dir), path])
+    argv = [group, *args, "--repository", str(root)]
+    with tempfile.TemporaryFile("w+", encoding="utf-8") as out, tempfile.TemporaryFile("w+", encoding="utf-8") as err:
+        with mock.patch.dict(os.environ, {"PATH": search}), contextlib.redirect_stdout(out), \
+                contextlib.redirect_stderr(err):
+            code = qa_cli.main(argv)
+        out.seek(0)
+        err.seek(0)
+        return subprocess.CompletedProcess(argv, code, out.read(), err.read())
 
 FAKE_NPX = textwrap.dedent('''\
     #!{python}
@@ -95,7 +115,7 @@ class E2eCase(unittest.TestCase):
 
 class TestInitPlanPin(E2eCase):
     def test_init_copies_the_fixture_once_and_ignores_evidence(self):
-        result = self.e2e("init")
+        result = qa_subprocess(self.root, self.bin, "init", group="e2e")
         self.assertEqual(0, result.returncode, result.stderr)
         fixture = self.root / "qa/e2e/evidence.ts"
         self.assertIn("result.json", fixture.read_text())
@@ -110,7 +130,7 @@ class TestInitPlanPin(E2eCase):
         self.assertEqual(1, (self.root / ".gitignore").read_text().splitlines().count("/qa/evidence/"))
 
     def test_plan_rejects_a_tc_id_as_the_capability(self):
-        result = self.e2e("plan", "TC-AUTH-001")
+        result = qa_subprocess(self.root, self.bin, "plan", "TC-AUTH-001", group="e2e")
         self.assertEqual((2, ""), (result.returncode, result.stdout))
         self.assertIn("TC-AUTH-001: a TC-ID, not a capability; pass its capability, for example `auth`",
                       result.stderr)
@@ -132,7 +152,7 @@ class TestInitPlanPin(E2eCase):
     def test_pin_rewrites_or_inserts_only_the_header(self):
         spec = self.write_spec(pinned="00000000")
         body = spec.read_text().split("\n", 1)[1]
-        self.assertEqual(0, self.e2e("pin", "TC-AUTH-001").returncode)
+        self.assertEqual(0, qa_subprocess(self.root, self.bin, "pin", "TC-AUTH-001", group="e2e").returncode)
         self.assertEqual(f"// TC: TC-AUTH-001@{self.tc_hash()}\n{body}", spec.read_text())
         spec.write_text(body)
         self.assertEqual(0, self.e2e("pin", "TC-AUTH-001").returncode)
@@ -244,7 +264,8 @@ class TestE2eFolderConfig(E2eCase):
 class TestCheckSpecs(E2eCase):
     def test_clean_and_unaffected_by_requirement_pins(self):
         self.write_spec()
-        self.assertEqual((0, "ok\n"), (self.e2e("check").returncode, self.e2e("check").stdout))
+        self.assertEqual((0, "ok\n"), (qa_subprocess(self.root, self.bin, "check", group="e2e").returncode,
+                                       self.e2e("check").stdout))
         self.cases.write_text(self.cases.read_text().replace("REQ-AUTH-001@00000000", "REQ-AUTH-001@12345678"))
         self.assertEqual(0, self.e2e("check").returncode)
         self.cases.write_text(self.cases.read_text().replace("Click \"Sign in\"", "Press Enter", 1))
@@ -416,7 +437,8 @@ class TestRunAndEvidence(E2eCase):
 
     def test_export_joins_results_with_repository_paths(self):
         folder = json.loads(self.run_e2e().stdout)["run"]
-        payload = self.run_json("export", "--run", folder)
+        payload = json.loads(qa_subprocess(self.root, self.bin, "export", "--run", folder, "--format", "json",
+                                           group="e2e").stdout)
         self.assertEqual((folder, 0), (payload["run"], payload["playwright_exit"]))
         [row] = payload["cases"]
         self.assertEqual(("TC-AUTH-001", self.tc_hash(), "qa/e2e/auth/tc-auth-001.spec.ts", "passed",

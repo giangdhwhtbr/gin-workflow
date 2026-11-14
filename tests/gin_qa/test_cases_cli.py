@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import os
 import re
 from pathlib import Path
 import shutil
@@ -10,13 +13,42 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
 from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, case_file, cases_file, commit_all, delta, failing_stub, gin_workflow_bin,  # noqa: E402
-                         hash8, make_change, make_repo, qa, write, write_activity)
+                         make_change, make_repo, write, write_activity)
+from qa_fixtures import TOOLS_PATH, qa as qa_subprocess  # noqa: E402
+from gin_qa import cli as qa_cli  # noqa: E402
 from gin_qa.cases import as_dict, hash8 as case_hash8, parse_case_file, parse_file  # noqa: E402
+from workflow_core import cli as gin_cli  # noqa: E402
+
+
+def qa(root: Path | None, bin_dir: Path | None, *args: str, group: str = "cases",
+       path: str = TOOLS_PATH) -> subprocess.CompletedProcess[str]:
+    """`gin-qa <group> <args>` in this process with the same PATH: the result of `qa_subprocess` without starting an
+    interpreter. One test per subcommand keeps the subprocess."""
+    search = os.pathsep.join([*([str(bin_dir)] if bin_dir else []), path])
+    argv = [group, *args, *(["--repository", str(root)] if root else [])]
+    out, err = io.StringIO(), io.StringIO()
+    with mock.patch.dict(os.environ, {"PATH": search}), contextlib.redirect_stdout(out), \
+            contextlib.redirect_stderr(err):
+        code = qa_cli.main(argv)
+    return subprocess.CompletedProcess(argv, code, out.getvalue(), err.getvalue())
+
+
+def hash8(root: Path, bin_dir: Path, req: str) -> str:
+    """The pin hash of `req`: `gin specs reqs` through its entry point in this process (qa_fixtures.hash8 starts a
+    `gin` subprocess for each call)."""
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = gin_cli.main(["specs", "reqs", "--repository", str(root), "--format", "json"])
+    if code != 0:
+        raise AssertionError(f"gin specs reqs exited {code}")
+    rows = [row for row in json.loads(out.getvalue())["requirements"] if row["id"] == req]
+    return rows[-1]["hash"][:8]
 
 
 def parse_file_text(block: str):
@@ -57,7 +89,7 @@ class QaCase(unittest.TestCase):
 
 class TestPlanAndCheck(QaCase):
     def test_plan_lists_missing_with_scenarios_and_paths(self):
-        payload = self.run_json("plan", "auth")
+        payload = json.loads(qa_subprocess(self.root, self.bin, "plan", "auth", "--format", "json").stdout)
         self.assertEqual(("sdd", "qa/cases", "qa/guidelines.md"),
                          (payload["layout"], payload["cases"], payload["guidelines"]))
         self.assertEqual(["REQ-AUTH-001", "REQ-AUTH-002"], [row["req"] for row in payload["missing"]])
@@ -70,7 +102,7 @@ class TestPlanAndCheck(QaCase):
     def test_covered_repository_checks_clean_with_free_fields(self):
         self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001"), extra="Owner: qa-team\nBrowser: firefox\n"),
                          case("TC-AUTH-002", self.ref("REQ-AUTH-001", "REQ-AUTH-002")))
-        result = qa(self.root, self.bin, "check")
+        result = qa_subprocess(self.root, self.bin, "check")
         self.assertEqual((0, "ok\n"), (result.returncode, result.stdout), result.stderr)
 
     def test_uncovered_requirement_is_a_finding(self):
@@ -88,7 +120,7 @@ class TestPlanAndCheck(QaCase):
         self.assertEqual([("TC-AUTH-002", old, new, "docs/specs/auth/spec.md:17")],
                          [(row["tc"], row["pinned"], row["current"], row["source"]) for row in stale])
         before = (self.root / "qa/cases/auth.md").read_text()
-        self.assertEqual(0, qa(self.root, self.bin, "pin", "TC-AUTH-002").returncode)
+        self.assertEqual(0, qa_subprocess(self.root, self.bin, "pin", "TC-AUTH-002").returncode)
         after = (self.root / "qa/cases/auth.md").read_text()
         self.assertEqual(before.replace(f"REQ-AUTH-002@{old}", f"REQ-AUTH-002@{new}"), after)
         self.assertEqual([], self.findings())
@@ -210,7 +242,7 @@ class TestStructure(QaCase):
 
 class TestIdsAndExport(QaCase):
     def test_next_id_never_reuses_a_number(self):
-        first = qa(self.root, self.bin, "next-id", "auth")
+        first = qa_subprocess(self.root, self.bin, "next-id", "auth")
         self.assertEqual("TC-AUTH-001\n", first.stdout, first.stderr)
         self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")), case("TC-AUTH-002", self.ref("REQ-AUTH-002")))
         self.assertEqual("TC-AUTH-003\n", qa(self.root, self.bin, "next-id", "auth").stdout)
@@ -344,7 +376,7 @@ class TestResult(QaCase):
         text = self.path.read_text()
         self.assertIn("- **Priority:** high\n- **Result:** failed\n- **Run:** qa/evidence/r1\n- **Bug:** gw-7\n\n"
                       "**Preconditions:**", text)
-        out = qa(self.root, self.bin, "result", "TC-AUTH-001", "passed", "--format", "json")
+        out = qa_subprocess(self.root, self.bin, "result", "TC-AUTH-001", "passed", "--format", "json")
         self.assertEqual({"tc": "TC-AUTH-001", "result": "passed", "run": "", "bug": "gw-7",
                           "file": "qa/cases/auth/TC-AUTH-001.e2e.md"}, json.loads(out.stdout))
         self.assertIn("- **Priority:** high\n- **Result:** passed\n- **Bug:** gw-7\n\n", self.path.read_text())
@@ -401,7 +433,7 @@ class TestSplit(QaCase):
         manual = case("TC-AUTH-002", good, title="Reset: the password!").replace("Type: e2e", "Type: manual")
         path = self.flat(case("TC-AUTH-001", good, title="Sign in"), manual)
         before = {row["id"]: row["hash8"] for row in self.run_json("export")["cases"]}
-        result = qa(self.root, self.bin, "split", "auth")
+        result = qa_subprocess(self.root, self.bin, "split", "auth")
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertFalse(path.exists())
         self.assertEqual(["TC-AUTH-001-sign-in.e2e.md", "TC-AUTH-002-reset-the-password.manual.md"],
@@ -581,16 +613,16 @@ class TestLegacyAndEnvironment(unittest.TestCase):
 
     def test_missing_or_old_gin_workflow_and_missing_setup_exit_2(self):
         root = make_repo(self.base / "repo")
-        result = qa(root, None, "check")
+        result = qa_subprocess(root, None, "check")
         self.assertEqual(2, result.returncode)
         self.assertIn("gin is not on PATH", result.stderr)
         old = gin_workflow_bin(self.base / "old", failing_stub("error: argument command: invalid choice: 'reqs'", 2))
-        result = qa(root, old, "check")
+        result = qa_subprocess(root, old, "check")
         self.assertEqual(2, result.returncode)
         self.assertIn("no `specs reqs`; reinstall a newer gin-workflow", result.stderr)
         bare = self.base / "bare"
         bare.mkdir()
-        result = qa(bare, gin_workflow_bin(self.base), "check")
+        result = qa_subprocess(bare, gin_workflow_bin(self.base), "check")
         self.assertEqual(2, result.returncode)
         self.assertIn("run /setup once", result.stderr)
 
