@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import json
 from pathlib import Path
@@ -13,7 +15,9 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import LAUNCHER, PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, run_cli, write  # noqa: E402
+from team_fixtures import LAUNCHER, PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, write  # noqa: E402
+from team_fixtures import run_cli as run_cli_subprocess  # noqa: E402
+from workflow_core import cli, executables  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, resolve_effective_config, validate_portable_config  # noqa: E402
 from workflow_core.epic_kind import KINDS  # noqa: E402
 from workflow_core.team import (  # noqa: E402
@@ -34,6 +38,20 @@ WORKSPACE = """workspace:
     - {path: .beads, url: u4, shape: beads}
 """
 SPEC_PATH = ".planning/specs/2026-10-03-login-design.md"
+
+
+def run_cli(root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """`gin <args> --repository <root>` run from `root` in this process: the result of `run_cli_subprocess` without
+    starting an interpreter (about 0.4 s a call). One test per subcommand keeps the subprocess."""
+    out, err = io.StringIO(), io.StringIO()
+    executables.clear_cache()
+    with mock.patch.dict(os.environ, env or {}), contextlib.chdir(root), \
+            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        try:
+            code = cli.main([*args, "--repository", str(root)])
+        except SystemExit as error:  # argparse exits 2 on a usage error
+            code = error.code if isinstance(error.code, int) else 0 if error.code is None else 1
+    return subprocess.CompletedProcess(list(args), code, out.getvalue(), err.getvalue())
 
 
 class GateCase(unittest.TestCase):
@@ -80,7 +98,8 @@ class GateCase(unittest.TestCase):
 class TestRecordGitHub(GateCase):
     def test_requirement_confirmed_by_ba_is_recorded_with_proof(self):
         self.gh(gh_pr(author="binh-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c1")]))
-        result = self.record("requirement-confirmed")
+        result = run_cli_subprocess(self.root, "record", "requirement-confirmed", "--evidence", PR, "--workflow-id", "w",
+                                    env=self.env)
         self.assertEqual(0, result.returncode, result.stderr)
         event = self.events()[-1]
         self.assertEqual("binh@corp.com", event["actor"])
@@ -343,7 +362,8 @@ class TestSharedGates(GateCase):
                  "at": "2026-11-01T00:00:00Z"}
         self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
                          "metadata": {"gates": json.dumps({"plan_approved": proof})}}})
-        state = json.loads(run_cli(self.root, "state", "--workflow-id", "e-1", "--format", "json", env=self.env).stdout)
+        state = json.loads(run_cli_subprocess(self.root, "state", "--workflow-id", "e-1", "--format", "json",
+                                              env=self.env).stdout)
         self.assertEqual("satisfied", state["gates"]["plan_approved"])
         self.assertEqual("unmet", state["gates"]["requirement_confirmed"])
 
@@ -456,7 +476,7 @@ class TestSharedGates(GateCase):
 class TestWaivers(GateCase):
     def test_waiver_needs_a_gate_role(self):
         git(self.root, "config", "user.email", "em@corp.com")
-        denied = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "r")
+        denied = run_cli_subprocess(self.root, "unblock", "--gate", "plan_approved", "--reason", "r")
         self.assertEqual(2, denied.returncode)
         self.assertIn("needs one of the roles be_lead, fe_lead", denied.stdout + denied.stderr)
         git(self.root, "config", "user.email", "chi@corp.com")
@@ -665,7 +685,7 @@ class TestPlanChecks(unittest.TestCase):
         self.assertEqual(["Track 1: web/shared.ts is outside area backend",
                           "Track 1: owner chi@corp.com holds no role allowed in area backend",
                           "Track 2: missing Area:"], check_plan(self.team, path))
-        result = run_cli(self.root, "team", "check-plan", str(path))
+        result = run_cli_subprocess(self.root, "team", "check-plan", str(path))
         self.assertEqual(1, result.returncode)
 
     def test_plan_tracks_reads_repo(self):

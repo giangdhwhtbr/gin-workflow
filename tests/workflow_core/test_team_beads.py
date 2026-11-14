@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -14,12 +16,27 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with, run_cli  # noqa: E402
-from workflow_core import team_beads, worktrees  # noqa: E402
+from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with  # noqa: E402
+from team_fixtures import run_cli as run_cli_subprocess  # noqa: E402
+from workflow_core import cli, executables, team_beads, worktrees  # noqa: E402
 from workflow_core.team import TeamConfig, team_for_repo  # noqa: E402
 
 HAS_BD = shutil.which("bd") is not None
 HAS_DOLT = shutil.which("dolt") is not None
+
+
+def run_cli(root: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """`gin <args> --repository <root>` run from `root` in this process: the result of `run_cli_subprocess` without
+    starting an interpreter (about 0.4 s a call). One test per subcommand keeps the subprocess."""
+    out, err = io.StringIO(), io.StringIO()
+    executables.clear_cache()
+    with mock.patch.dict(os.environ, env or {}), contextlib.chdir(root), \
+            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        try:
+            code = cli.main([*args, "--repository", str(root)])
+        except SystemExit as error:  # argparse exits 2 on a usage error
+            code = error.code if isinstance(error.code, int) else 0 if error.code is None else 1
+    return subprocess.CompletedProcess(list(args), code, out.getvalue(), err.getvalue())
 
 
 def bd(root: Path, *args: str, actor: str = "") -> str:
@@ -82,7 +99,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
         create(self.root, "frontend", "area:frontend")
         theirs = create(self.root, "theirs", "area:backend")
         bd(self.root, "update", theirs, "--assignee", "em@corp.com")
-        rows = json.loads(run_cli(self.root, "team", "ready", "--format", "json").stdout)["ready"]
+        rows = json.loads(run_cli_subprocess(self.root, "team", "ready", "--format", "json").stdout)["ready"]
         self.assertEqual({mine, backend}, {row["id"] for row in rows})
 
     def test_ready_holds_an_unshipped_external_dependency(self):
@@ -94,7 +111,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
 
     def test_claim_and_already_claimed(self):
         free = create(self.root, "free", "area:backend")
-        result = run_cli(self.root, "team", "claim", free)
+        result = run_cli_subprocess(self.root, "team", "claim", free)
         self.assertEqual(0, result.returncode, result.stderr)
         claimed = show(self.root, free)
         self.assertEqual(("binh@corp.com", "in_progress"), (claimed["assignee"], claimed["status"]))
@@ -162,7 +179,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
     def test_reassign_lead_takes_over_and_checks_eligibility(self):
         bead = create(self.root, "work", "area:backend")
         bd(self.root, "update", bead, "--claim", actor="em@corp.com")
-        refused = run_cli(self.root, "team", "reassign", bead, "chi@corp.com")
+        refused = run_cli_subprocess(self.root, "team", "reassign", bead, "chi@corp.com")
         self.assertEqual(1, refused.returncode)
         self.assertIn("may not own tracks in backend", refused.stdout)
         self.assertEqual(2, run_cli(self.root, "team", "reassign", bead, "nobody@corp.com").returncode)
@@ -211,7 +228,7 @@ class TestTeamBeadsLocal(unittest.TestCase):
              "body": "Plan: .planning/plans/p.md\nTracks: 1, 2\n"},
             {"url": "https://github.com/org/app/pull/8", "mergeCommit": {"oid": "def"},
              "body": "Plan: .planning/plans/other.md\nTracks: 3\n"}]}])
-        result = run_cli(self.root, "team", "deps", "--format", "json", env=path_with(bin_dir))
+        result = run_cli_subprocess(self.root, "team", "deps", "--format", "json", env=path_with(bin_dir))
         self.assertEqual(0, result.returncode, result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual([{"id": done, "pr": "https://github.com/org/app/pull/9"}], payload["closed"])
@@ -338,7 +355,7 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertEqual("binh@corp.com", show(self.root, self.bead)["assignee"])
 
     def test_handoff_pushes_branch_records_metadata_and_reassigns(self):
-        done = run_cli(self.root, "team", "handoff", self.bead, "em@corp.com")
+        done = run_cli_subprocess(self.root, "team", "handoff", self.bead, "em@corp.com")
         self.assertEqual(0, done.returncode, done.stdout + done.stderr)
         self.assertEqual(["feat/api-t1"], self.remote_branches())
         issue = show(self.root, self.bead)
@@ -404,7 +421,7 @@ class TestTeamHandoff(unittest.TestCase):
         git(self.root, "branch", "-D", "feat/api-t1")
         git(self.root, "update-ref", "-d", f"refs/gin/review/{self.bead}")
         git(self.root, "config", "user.email", "em@corp.com")
-        taken = run_cli(self.root, "team", "takeover", self.bead, "--format", "json")
+        taken = run_cli_subprocess(self.root, "team", "takeover", self.bead, "--format", "json")
         self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
         result = json.loads(taken.stdout)
         path = Path(result["worktree"])
@@ -510,7 +527,7 @@ class TestTeamBeadsSync(unittest.TestCase):
         bd(lead, "dolt", "remote", "add", "origin", cls.template_url)
         member = make_team_repo(base / "member", email="em@corp.com", team=team)
         cls.bead = create(lead, "API", "area:backend")
-        synced = run_cli(lead, "team", "sync")
+        synced = run_cli_subprocess(lead, "team", "sync")
         if synced.returncode != 0:
             raise AssertionError(f"team sync failed: {synced.stdout}{synced.stderr}")
         bd(member, "init", "--prefix", "t", "-q", "--remote", cls.template_url)
@@ -628,8 +645,8 @@ class TestTeamBeadsReadyFakeBd(unittest.TestCase):
             self.assertEqual(["exp-1", "exp-2"], [r["id"] for r in lead_no_prep if "expired_claim" in r])
 
             # 5. CLI invocation passes exclude-label
-            cli_res = run_cli(self.root, "team", "ready", "--exclude-label", "prep", "--format", "json",
-                              env=path_with(self.bin))
+            cli_res = run_cli_subprocess(self.root, "team", "ready", "--exclude-label", "prep", "--format", "json",
+                                         env=path_with(self.bin))
             self.assertEqual(0, cli_res.returncode, cli_res.stderr)
             cli_data = json.loads(cli_res.stdout)["ready"]
             self.assertEqual(["ready-1", "ready-2"], [r["id"] for r in cli_data])
@@ -673,8 +690,8 @@ class TestTeamBeadsReadyFakeBd(unittest.TestCase):
         ]
         fake_cli(self.bin, "bd", rules)
         with mock.patch.dict(os.environ, path_with(self.bin)):
-            cli_res = run_cli(self.root, "team", "ready", "--exclude-label", "x,y", "--format", "json",
-                              env=path_with(self.bin))
+            cli_res = run_cli_subprocess(self.root, "team", "ready", "--exclude-label", "x,y", "--format", "json",
+                                         env=path_with(self.bin))
             self.assertEqual(0, cli_res.returncode, cli_res.stderr)
             self.assertEqual(["c"], [r["id"] for r in json.loads(cli_res.stdout)["ready"]])
 
