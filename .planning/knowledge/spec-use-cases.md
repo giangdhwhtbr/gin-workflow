@@ -9,16 +9,18 @@ Epic `gin-workflow-fm8l` (2026-11-09). A BA asked to keep use cases next to a ca
 - `_known_req_ids` walks the change folders itself: `specs_reqs.open_changes` cannot be imported from `specs.py` (circular import).
 - `templates/spec.md` has `## Use Cases` between `## Diagrams` and `## Requirements`; archive links `use-cases/*.md` there only when it creates `spec.md` for a new capability.
 - The SRS chapter (`srs-capability.html`, `{{use_cases}}`) prints use cases between Purpose and Diagrams as `<section class="use-case" id="<cap>-<stem>">`.
+- Since `gin-workflow-cyb8` (2026-11-15, after a BA review): the template adds optional `Secondary actors:`, `Trigger:`, `Includes:`, `Extends:` (comma-separated slugs of the same capability), `## Exception flows`, and `## Business rules`, and its comment carries the writing rules (an `Include <slug>` step, the extension point on `Trigger:`, a `Scheduler` actor for scheduled use cases, business rules cite REQ-IDs, each flow ends with `Resume at step N` or `Use case ends`). The slug stays the ID; UC numbering was rejected again. `lint_references` reports an `Includes:`/`Extends:`/`Use case:` slug that is missing or the file itself; `lint_use_cases` accepts a missing `Actor:` on a use case that another use case of the same capability includes, so the diagram does not show it started by an actor. `specs.line_value`/`line_values` read these header lines with comments stripped.
+- `specs export` prepends a generated use case diagram to `{{use_cases}}` (`specs_export.use_case_diagram`): Mermaid `flowchart LR`, a subgraph per capability, actors outside it matched without regard to case or repeated spaces, an actor edge only where `Actor:` is set, `«include»`/`«extend»` edges, generated node IDs, `"` as `#quot;`. It is never stored.
 
 **Consequences**
 - A use case and a diagram with the same file stem in one capability give a duplicate HTML id `<cap>-<stem>` in the SRS (MINOR, left open; fix would be a `uc-` prefix).
 - A project that overrides `srs-capability.html` shows no use cases until it adds `{{use_cases}}`.
-- `skills/sdd/SKILL.md` is capped at 6,000 characters by `test_skill_routing.py` (5,989 after this epic). Trimming it to make room dropped three rules (source order, never delete originals unprompted, reuse a roadmap epic) and took two extra review cycles; compare the old text sentence by sentence before cutting.
+- `skills/sdd/SKILL.md` is capped at 6,000 characters by `test_skill_routing.py` (5,989 after this epic; 5,996 after `gin-workflow-cyb8`, which cut the ship section's BA-review clause and the exit 1 explanation to fit). Trimming it to make room dropped three rules (source order, never delete originals unprompted, reuse a roadmap epic) and took two extra review cycles; compare the old text sentence by sentence before cutting.
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/specs.py`, `specs_export.py`, `specs_archive.py`, `plugins/gin-workflow/src/templates/use-case.md`, `spec.md`, `srs-capability.html`, `plugins/gin-workflow/src/skills/sdd/SKILL.md`, `docs/guides/sdd.md#use-cases`
 - `.planning/specs/2026-11-09-use-cases-design.md`, `.planning/plans/2026-11-09-use-cases.md`, `.planning/reviews/gin-workflow-fm8l.3/`
-- Beads: `gin-workflow-fm8l`, `gin-workflow-fm8l.1`, `gin-workflow-fm8l.2`, `gin-workflow-fm8l.3`
+- Beads: `gin-workflow-fm8l`, `gin-workflow-fm8l.1`, `gin-workflow-fm8l.2`, `gin-workflow-fm8l.3`; `gin-workflow-cyb8` (BA alignment, `.planning/specs/2026-11-15-srs-ba-alignment-design.md`); deferred SRS gaps in `gin-workflow-414v`
 
 **Scope**
 SDD layout only: specs lint, export, and archive, the use-case template, the sdd skill, and the SDD, BA, and template guides.
