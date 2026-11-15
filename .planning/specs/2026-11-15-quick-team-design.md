@@ -47,9 +47,9 @@ Comments considered: 1, latest 2026-11-15T00:27:58Z
 Applies when `project.team.enabled` is true and quick created `quick/<slug>`. It replaces "do not push":
 
 1. Commit on `quick/<slug>`.
-2. Propose the capabilities the change touches, from the changed files and the Capability Map of `13-CAPABILITIES.md` or the capability folders of `docs/specs/` when present; the member confirms or corrects them. For each confirmed capability, with `gin-qa` on `PATH`, run `gin-qa cases plan <capability> --format json` from the QA home and keep the case ids and titles. Without `gin-qa`, without a capability, or on a non-zero exit, the result is `no covering cases found` with the reason.
+2. Propose the capabilities the change touches, from the changed files and the Capability Map of `13-CAPABILITIES.md` or the capability folders of `docs/specs/` when present; the member confirms or corrects them. With `gin-qa` on `PATH`, run `gin-qa cases export --format json` from the QA home and keep the `id` and `title` of each case whose `capability` is a confirmed capability (`gin-qa cases plan` lists missing and stale work, not covering cases). Without `gin-qa`, without a capability, or on a non-zero exit, the result is `no covering cases found` with the reason.
 3. Push `quick/<slug>` to `origin`. The pre-push hook runs as configured.
-4. Open the pull request with the `team.host` command of `team/references/hosts.md`; in a workspace child, against the child's default branch. The description holds: the summary, the verify commands and their results, the covering cases (or `no covering cases found` and why), and the line `Needs ship approval: run gin team check --gate ship <pr-url> before merging.`
+4. Open the pull request with the `team.host` command of `team/references/hosts.md`; in a workspace child, against the child's default branch. The description, passed with the host CLI's body or description option (for example `--body` for `gh`, `--description` for `glab`), holds: the summary, the verify commands and their results, the covering cases (or `no covering cases found` and why), and the line `Needs ship approval: run gin team check --gate ship <pr-url> before merging.`
 5. Write the `[gin quick]` comment (below) with `gin task comment <epic-or-milestone-id> "<text>"`.
 6. `gin record quick-completed` with the pull request URL in `--evidence`.
 7. With `team.beads_sync` set, `gin team sync`.
@@ -100,7 +100,7 @@ As a QA member, I want the quick pull request to list the cases that cover the c
 
 Acceptance criteria:
 - The member confirms the capabilities before the cases are looked up.
-- With gin-qa and a confirmed capability, the description lists the case ids and titles from `gin-qa cases plan`.
+- With gin-qa and a confirmed capability, the description lists the ids and titles of the cases of that capability from `gin-qa cases export`.
 - Otherwise it says `no covering cases found` and why.
 
 ### US-3: See quick pull requests waiting for approval
@@ -123,7 +123,7 @@ Acceptance criteria:
 ## Errors and compatibility
 
 - Solo mode and quick runs on a feature branch behave as today.
-- Without `project.layout: sdd`, `gin-qa cases plan` has no work list (`plugins/gin-qa/src/skills/setup/SKILL.md:10`), so a legacy-layout project gets `no covering cases found` with that reason.
+- `gin-qa cases export` lists cases in every layout, so covering cases do not need `project.layout: sdd`.
 - `gin team pending` JSON gains rows with `epic: null`; consumers that assumed an epic must accept null (gin-console does not read `team pending`; the team skill and `/progress` do).
 - No new labels for beads; `[gin quick]` is a comment convention like `[gin retro]`.
 - Budgets: the quick chain is 5,404 of 8,000 characters and the progress chain 6,944 of 12,000 (`tests/workflow_core/test_token_budget.py`); `team/SKILL.md` (5,984 of 6,000) is not changed.
