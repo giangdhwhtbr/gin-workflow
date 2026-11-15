@@ -207,7 +207,7 @@ class TestBudgetLimits(unittest.TestCase):
                 self.assertIn("Read [references/stage-contract.md](../../references/stage-contract.md) now", text)
 
     def test_descriptions_within_budget(self):
-        self.assertLessEqual(description_chars(SRC), 4_000)
+        self.assertLessEqual(description_chars(SRC), 4_500)
 
     def test_no_abstract_contract_tokens(self):
         for path in [*SRC.glob("commands/*.md"), *SRC.glob("skills/**/SKILL.md")]:

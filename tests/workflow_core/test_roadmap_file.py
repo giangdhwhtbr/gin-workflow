@@ -63,6 +63,21 @@ class ReadRoadmapTests(unittest.TestCase):
             self.assertEqual(Roadmap(date(2027, 3, 31), 3, None), expected)
             self.assertEqual(expected, read_roadmap(Path(managed), "legacy"))
 
+    def test_result_block_changes_neither_deadline_nor_lanes(self):
+        constraints = "- AI capacity: 3 lanes\n- Deadline: 2027-03-31\n\n"
+        result = (
+            "## Milestone: M1\n\nOutcome: Shop live\nDemo: Browse and buy\n"
+            "Result: closed 2027-01-29; delivered 2 of 3 epics; 1 moved to M2\n"
+            "- Outcome: partial; checkout pending\n"
+            "- Spillover: Checkout: payment API late; re-estimate\n\n"
+        )
+        with tempfile.TemporaryDirectory() as plain, tempfile.TemporaryDirectory() as managed:
+            self.write(Path(plain), constraints)
+            self.write(Path(managed), constraints + result)
+            expected = read_roadmap(Path(plain), "legacy")
+            self.assertEqual(Roadmap(date(2027, 3, 31), 3, None), expected)
+            self.assertEqual(expected, read_roadmap(Path(managed), "legacy"))
+
     def test_sdd_layout_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

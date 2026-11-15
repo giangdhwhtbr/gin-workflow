@@ -50,6 +50,7 @@ flowchart LR
 
 Outcome:
 Demo:
+Result:
 Spec ready by: {{spec_ready_by}}
 Integration point: {{integration_date}}
 - Integrates:
