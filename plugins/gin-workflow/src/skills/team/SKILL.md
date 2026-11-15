@@ -9,7 +9,7 @@ Applies only when `gin state --format json` reports `project.team.enabled: true`
 
 ## Gates
 - `record` and `unblock` take the actor from the git email; omit `--actor`.
-- A gate with a policy in `team.approvals` (roles, `{all, any}`, `area_lead`, or `host`) is recorded with `--evidence <PR/MR URL>`; `record` checks that the PR is merged (open is fine for `ship`) and approved by a member holding a listed role, never by its author. Exit 1 lists missing approvals: report them; never switch evidence or waive a gate. `{all, any}` needs each `all` role; a sole-holder author's role is skipped with a note.
+- A gate with a policy in `team.approvals` (roles, `{all, any}`, `area_lead`, or `host`) is recorded with `--evidence <PR/MR URL>`; `record` checks that the PR is merged (open is fine for `ship`) and approved by a member holding a listed role, never by its author. Exit 1 lists missing approvals: report them; never switch evidence or waive a gate. `{all, any}` needs each `all` role.
 - With `host`, ask no approver: `record` and `team check` check only that the PR merged in a known repository; the host's branch protection enforces approvals.
 - `team check --gate <gate> <url>` re-verifies a teammate's gate without recording it.
 - With Beads, `record` mirrors the proof into the epic bead; a teammate's `state --workflow-id <epic>` shows the gate. A `warning:` from `record` means the gate is recorded only locally: report it.
@@ -32,12 +32,12 @@ Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` if the
 - Pick from `team ready`; claim with `team claim <bead>`; exit 1 means someone else holds an unexpired lease or you may not own its area, so pick another; `team ready` marks expired claims you may take over. Without `team.beads_sync` the claim is advisory.
 - Out of quota or away: the assignee or area lead runs `team handoff <bead> <email>` (or `--release` to the pool) from the main checkout; the new owner runs `team takeover <bead>` in theirs. The plan's `Owner:` is not changed.
 - In the track worktree, `team deps --bead <bead>` must exit 0 before implementation; exit 1 names the merge commit to fetch or rebase onto.
-- Branch `feat/<topic>-t<N>` (`<topic>` the plan file name, `<N>` the track number); existing branches keep their names. Commits follow `team.commit_convention`.
+- Branch `feat/<topic>-t<N>` (`<topic>` the plan file name, `<N>` the track number). Commits follow `team.commit_convention`.
 - The PR/MR uses the generated template; fill `Plan:` with the plan path and `Tracks:` with the track numbers; `team deps` on other machines reads them.
 - With `team.beads_sync`, run `team sync` after closing a bead.
 
 ## review
-The track owner never reviews; another member (or an agent run by one) does, unless `project.review: self_check`. Without the ledger, that member posts the verdict and findings as a review on the track's PR; the owner answers there (`review-response`) and closes the track after approval, naming the reviewer. With `project.review_ledger: true`, `init` and `start-review` take `--actor-id` from `team whoami`, so the ledger refuses the owner.
+The track owner never reviews; another member (or their agent) does, unless `project.review: self_check`. Without the ledger, push the track branch and open its PR (stage-contract Approvals) before requesting review; that member posts the verdict and findings as a review on the track's PR; the owner answers there (`review-response`) and closes the track after approval, naming the reviewer. With `project.review_ledger: true`, `init` and `start-review` take `--actor-id` from `team whoami`, so the ledger refuses the owner.
 
 ## ship
 When `team.approvals.ship` has a policy: offer only the PR and keep options, push, open or reuse the PR, ask for approval of the latest commit (with roles, from that role), and before merging run `gin team check --gate ship <pr-url>` (a child PR: from its track worktree); stop if it reports reasons. After the merge, a standalone bead records `gin record shipped --workflow-id <bead> --evidence <pr-url>`; an epic with children ships by closing it as usual. A later push needs a new approval. Host settings: [references/hosts.md](references/hosts.md); when the check reports `approvals still syncing`, retry. Merge per host rules (CODEOWNERS, branch protection). With `team.beads_sync`, run `team sync` after closing the beads. A member's ship reports only their own tracks; the lead declares the feature complete when every track PR has merged.

@@ -396,10 +396,7 @@ class LeanLifecycleSkillTests(unittest.TestCase):
 
     def test_ship_runs_the_suite_once_with_push(self):
         ship = read("skills/ship/SKILL.md")
-        modes = line_with(ship, "Tests follow `project.run_at`")
-        for mode in ("`push`", "`track`", "`host`"):
-            with self.subTest(mode=mode):
-                self.assertIn(mode, modes)
+        self.assertNotIn("Tests follow `project.run_at`", ship)
         self.assertNotIn("Do not run tests: the", ship)
         merge = ship[ship.index("**Merge:**"):ship.index("**PR:**")]
         self.assertLess(merge.index("review-ledger.py cleanup"), merge.index("gin evidence run"))
@@ -436,6 +433,24 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         workspace = merge[merge.index("Workspace:"):]
         self.assertLess(workspace.index("merge its track branches"), workspace.index("gin evidence run"))
         self.assertLess(workspace.index("gin evidence run"), workspace.index("merge `feat/<topic>` into `<default_branch>`"))
+
+    def test_ship_merges_track_branches_outside_a_workspace(self):
+        ship = read("skills/ship/SKILL.md")
+        rule = line_with(ship, "Outside team mode and a workspace, run ship from the `feat/<topic>` checkout")
+        self.assertIn("merge each track branch that has its own worktree into `feat/<topic>`, in plan order", rule)
+        self.assertIn("a conflict stops ship", rule)
+        self.assertLess(ship.index(rule), ship.index("4. Present"))
+        self.assertTrue(line_with(read("skills/orchestrate/SKILL.md"),
+                                  "gives each track a worktree on `feat/<topic>-t<N>` from the spec and plan branch `feat/<topic>`"))
+        self.assertTrue(line_with(read("skills/worktrees/SKILL.md"),
+                                  "Commit in this worktree only (push only in team mode, stage-contract Git)"))
+        self.assertNotIn("Commit and push in this worktree only", read("skills/worktrees/SKILL.md"))
+
+    def test_team_review_opens_the_pr_before_review(self):
+        team = read("skills/team/SKILL.md")
+        review = team[team.index("## review"):team.index("## ship")]
+        self.assertIn("Without the ledger, push the track branch and open its PR (stage-contract Approvals) "
+                      "before requesting review; that member posts", review)
 
     def test_team_and_roadmap_handle_host_approvals(self):
         team = read("skills/team/SKILL.md")

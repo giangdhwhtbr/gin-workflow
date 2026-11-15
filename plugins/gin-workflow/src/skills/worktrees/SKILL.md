@@ -37,6 +37,6 @@ Only after merge or a confirmed discard: from the main checkout (never from insi
 When `gin state --format json` reports `workspace.current_repo`, the worktree is one child repository and the project root is the parent:
 - Strip the `<repo>/` prefix from the plan's `Files:`; paths in the worktree are repo-relative.
 - Read `references/shape-<shape>.md` for `workspace.current.shape` (`backend`, `frontend`); `library` and `qa` have none.
-- Commit and push in this worktree only; the spec and plan live in the parent and are read, never edited, by a track.
+- Commit in this worktree only (push only in team mode, stage-contract Git); the spec and plan live in the parent and are read, never edited, by a track.
 - `gin` commands from inside the worktree resolve the parent: `gin task`, `gin state`, `gin review` need no `--repository`.
 - Cleanup from the parent: `gin worktree cleanup --repository <repo> <track-id>`.
