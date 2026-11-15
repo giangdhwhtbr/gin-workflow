@@ -24,7 +24,7 @@ _HOST = {"const": "host"}  # the host enforces approvals; gin checks the pull re
 _GATE = {"anyOf": [_ROLES, _POLICY, _HOST]}
 _KIND_MAP = {"type": "object", "required": ["capability"], "properties": {kind: _GATE for kind in KINDS},
              "additionalProperties": False}
-# Accepts what anyOf [_ROLES, _POLICY, _KIND_MAP] accepts; an object without `all`/`any` is checked as a kind map
+# Accepts what anyOf [_ROLES, _POLICY, _HOST, _KIND_MAP] accepts; an object without `all`/`any` is checked as a kind map
 # only, so its error names the missing `capability` or the unknown key instead of "not valid under any".
 _REQUIREMENT = {"if": {"type": "object", "propertyNames": {"not": {"enum": ["all", "any"]}}}, "then": _KIND_MAP,
                 "else": _GATE}

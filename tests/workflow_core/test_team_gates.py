@@ -1248,6 +1248,24 @@ class TestHostApprovals(GateCase):
         owners = (self.root / ".github/CODEOWNERS").read_text()
         self.assertIn("/.planning/specs/ @binh-dev @chi-fe\n", owners)  # the area leads only, no spec approver
 
+    def test_a_pr_of_another_repository_is_refused_before_the_host_shortcut(self):
+        self.configure()
+        other = "https://github.com/org/other/pull/3"
+        fake_cli(self.bin, "gh", [{"argv": ["pr", "view", other], "stdout": gh_pr(other, state="OPEN", reviews=[])}])
+        result = self.check_ship(other)
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn("PR belongs to github.com/org/other, not this repository", result.stdout)
+
+    def test_roadmap_host_needs_a_merged_pr_that_changes_the_roadmap(self):
+        self.configure({"ship: [qe]\n": "ship: [qe]\n    roadmap: host\n"})
+        check = ("team", "check", PR, "--gate", "roadmap")
+        self.gh(gh_pr(author="binh-dev", files=[ROADMAP_PATH], reviews=[]))
+        result = run_cli(self.root, *check, env=self.env)
+        self.assertEqual((0, "ok (approvals are enforced by the host)"), (result.returncode, result.stdout.strip()))
+        self.gh(gh_pr(state="OPEN", author="binh-dev", files=[ROADMAP_PATH], reviews=[]))
+        refused = run_cli(self.root, *check, env=self.env)
+        self.assertEqual((1, "PR is open, not merged"), (refused.returncode, refused.stdout.strip()))
+
     def test_a_role_policy_still_needs_its_approval(self):
         self.configure({"ship: [qe]": "ship: [be_lead]"})
         self.gh(gh_pr(state="OPEN", author="em-dev", reviews=[]))
