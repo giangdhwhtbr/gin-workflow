@@ -40,20 +40,23 @@ def _titled(heading: str, html: str) -> str:
 
 
 def _resolve(root: Path, cfg: Mapping[str, Any], name: str, *, spec_optional: bool = False) -> tuple[str, Path]:
-    """(kind, the capability's spec.md or the change folder). With `spec_optional`, a name that is neither a living
-    spec nor a change is a capability whose spec.md does not exist yet."""
-    if not _NAME.match(name):
+    """(kind, the capability's spec.md or the change folder). With `spec_optional` (legacy mode), only a whole
+    change folder name is a change; any other name is a capability whose spec.md may not exist yet."""
+    if not _NAME.fullmatch(name):
         raise specs.SpecsError(f"not a capability or change name: {name!r}")
     living = specs.living_files(root, cfg)
     if name in living:
         return "capability", living[name]
+    if spec_optional:
+        change = specs.changes_dir(root, cfg) / name
+        if change.is_dir() and name != "archive":
+            return "change", change
+        return "capability", specs.specs_dir(root, cfg) / name / "spec.md"
     try:
         return "change", specs.find_change(root, cfg, name)
     except specs.SpecsError as error:
         if "ambiguous" in str(error):
             raise
-        if spec_optional:
-            return "capability", specs.specs_dir(root, cfg) / name / "spec.md"
         raise specs.SpecsError(f"unknown capability or change: {name} (no {cfg['specs']}/{name}/spec.md "
                                f"and no change under {cfg['changes']})") from error
 

@@ -332,12 +332,29 @@ class TestLegacy(unittest.TestCase):
             plain = run_specs(root, "explain", "payments")
             self.assertEqual(2, plain.returncode)
             self.assertIn("unknown capability or change: payments", plain.stderr)
-            other = run_specs(root, "explain", "payments", "--legacy", "other", "--narrative", "n.md")
+            other = run_specs(root, "explain", "payments", "--legacy", "other")
             self.assertEqual(2, other.returncode)
             self.assertIn("no frozen app other", other.stderr)
-            bad = run_specs(root, "explain", "Pay ments", "--legacy", "shop-portal")
-            self.assertEqual(2, bad.returncode)
+            for bad_name in ("Pay ments", "pay\n"):
+                bad = run_specs(root, "explain", bad_name, "--legacy", "shop-portal", "--narrative", "n.md")
+                self.assertEqual(2, bad.returncode, bad_name)
+                self.assertIn("not a capability or change name", bad.stderr)
             self.assertFalse((root / OUT).exists())
+
+    def test_legacy_takes_a_name_as_a_change_only_when_it_is_the_whole_folder_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.workspace_repo(tmp)
+            write(root, "docs/changes/shop-ab12-refunds/01-proposal.md", proposal("REQ-AUTH-001"))
+            write(root, "docs/changes/shop-cd34-returns/01-proposal.md", proposal("REQ-AUTH-001"))
+            write(root, "n.md", "Refunds.\n")
+            for name in ("shop", "shop-ab12"):  # a prefix of two change folders, and of one
+                result = run_specs(root, "explain", name, "--legacy", "shop-portal", "--narrative", "n.md")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertEqual(f"{OUT}/legacy/shop-portal/{name}/{name}.html", result.stdout.strip())
+            whole = run_specs(root, "explain", "shop-ab12-refunds", "--legacy", "shop-portal", "--narrative", "n.md")
+            self.assertEqual(2, whole.returncode)
+            self.assertIn("capability, not a change", whole.stderr)
+            self.assertEqual(2, run_specs(root, "explain", "shop").returncode)  # without --legacy: still ambiguous
 
     def test_legacy_kind_is_escaped(self):
         with tempfile.TemporaryDirectory() as tmp:
