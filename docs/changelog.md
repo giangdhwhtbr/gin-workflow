@@ -2,6 +2,32 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-orchestrator, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.1.2] - 2026-11-15
+
+Use cases and activity diagrams in the SDD layout now follow the SRS a business analyst writes, and technical epics are no longer asked for diagrams.
+
+### Upgrade notes
+
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is.
+- An open SDD change that adds requirements fails `gin specs lint --change <epic> --against <base>` until it adds or changes an activity diagram of that capability. A change that only modifies requirements no longer needs one.
+
+### Added
+
+- The use case template has optional `Secondary actors:`, `Trigger:`, `Includes:`, and `Extends:` lines and `## Exception flows` and `## Business rules` sections. Its comment gives the writing rules a BA expects.
+- `gin specs export` opens each chapter's use cases with a generated use case diagram: actors outside the capability box, an actor edge only where a use case has `Actor:`, and `«include»` and `«extend»` edges.
+- The activity template draws lanes as subgraphs, start and end nodes, labelled decision branches, and a `Use case:` line naming the use case it draws.
+- `gin specs new` takes `--kind capability|technical|parity`. Without it, the kind comes from the epic's `kind:` label, else `capability`.
+
+### Changed
+
+- `gin specs lint` reports an `Includes:`, `Extends:`, or `Use case:` line that names a use case missing from the capability. A use case that another use case includes may omit `Actor:`.
+- With `--change --against <base>`, lint asks for an activity diagram per feature instead of per capability. Each capability with added requirements needs an activity diagram added or changed since the base. Each changed use case with an alternative or exception flow needs a diagram naming it. Each edge leaving a decision in a changed diagram needs a label. An unknown base ref exits 2.
+- `/gin:discuss` settles the kind of every epic, not only a roadmap epic, and SDD discuss labels the epic it creates with `kind:<kind>`.
+
+### Fixed
+
+- A technical change is no longer asked for activity diagrams, even when its spec delta holds requirements. Lint reads the kind from the epic's `kind:` label first, reports a label that disagrees with `Kind:` in `01-proposal.md`, and falls back to that line when Beads cannot answer.
+
 ## [3.1.1] - 2026-11-15
 
 ### Upgrade notes
