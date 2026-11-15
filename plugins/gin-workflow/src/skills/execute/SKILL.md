@@ -34,7 +34,7 @@ Dispatch each track using this loop:
 3. After each worker result, run `gin usage collect --bead <epic> --best-effort`. If `routes dispatch` exits 3 (`over_budget`), leave the bead `in_progress` with a note and ask the user to raise `usage.budget_usd` or stop.
 4. On `done`, check the commits and command output, then request review.
 5. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise (Beads) add `gin task comment <epic> "[gin question] <track>: <question>"`, ask the user, and leave the bead `in_progress` with a note. On resume, a newer `[gin answer] <track>:` comment (`gin task comments <epic> --json`) answers it.
-6. On `failed`, `gin routes dispatch --workflow-id <w> --task-id <id> --escalate "<reason>" --json` and re-dispatch in the same worktree; on exit 2, ask the user.
+6. On `failed` with `invalid_result_contract` and new commits in the worktree, check them as on `done`. On another `failed`, `gin routes dispatch --workflow-id <w> --task-id <id> --escalate "<reason>" --json` and re-dispatch in the same worktree; on exit 2, ask the user.
 7. On `blocked`, ask the user.
 Read [delegation policy](references/delegation-policy.md) and [result contract](references/result-contract.md) before dispatching.
 
