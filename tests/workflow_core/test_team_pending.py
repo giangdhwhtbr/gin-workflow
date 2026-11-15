@@ -22,6 +22,7 @@ from workflow_core.team import TeamError  # noqa: E402
 
 REAL_GIT = team_pending.git
 PR_SPEC, PR_PLAN, PR_SHIP, PR_TRACK = (f"https://github.com/org/app/pull/{number}" for number in (1, 2, 3, 4))
+PR_QUICK = "https://github.com/org/app/pull/5"
 SPEC_PATH = ".planning/specs/2026-10-03-login-design.md"
 PLAN_PATH = ".planning/plans/2026-10-03-login.md"
 ASSET = ".planning/specs/assets/2026-10-03/login.png"  # binary: never read from the branch
@@ -170,6 +171,25 @@ class TestGateRows(PendingCase):
         self.assertEqual([["gh", "pr", "list", "--head", "feat/login-t2"]],
                          [call[:5] for call in calls(self.bin) if call[0] == "gh"])
 
+    def test_open_quick_pr_is_a_ship_row_without_an_epic(self):
+        self.branches["quick/fix-typo"] = {}
+        self.gh(("quick/fix-typo", gh_pr(PR_QUICK, state="OPEN", author="em-dev", files=["web/login.tsx"])))
+        self.assertEqual([("ship", "quick/fix-typo", None, ["missing approval from one of qe"])],
+                         [(row["gate"], row["branch"], row["epic"], row["missing"]) for row in self.pending()])
+
+    def test_quick_pr_without_ship_roles_lists_approvers_and_no_gate(self):
+        self.configure("    ship: [qe]\n", "")
+        self.branches["quick/fix-typo"] = {}
+        self.gh(("quick/fix-typo", gh_pr(PR_QUICK, state="OPEN", author="em-dev", files=["web/login.tsx"],
+                                         reviews=[("binh-dev", "APPROVED", "c1")])))
+        [row] = self.pending()
+        self.assertEqual((None, ["binh-dev"], []), (row["gate"], row["approvals"], row["missing"]))
+
+    def test_closed_or_absent_quick_pr_gives_no_row(self):
+        self.branches.update({"quick/old": {}, "quick/none": {}})
+        self.gh(("quick/old", gh_pr(PR_QUICK, state="MERGED")))
+        self.assertEqual([], self.pending())
+
 
 class TestTrackRows(PendingCase):
     def test_open_track_pr_lists_its_approvers_and_no_gate(self):
@@ -190,6 +210,15 @@ class TestFiltersAndErrors(PendingCase):
         self.assertEqual(["spec/login"], [row["branch"] for row in self.pending("--milestone", "m-1")])
         both = run_cli(self.root, "team", "pending", "--workflow-id", "e-1", "--milestone", "m-1", env=self.env)
         self.assertEqual(2, both.returncode)
+
+    def test_filters_leave_quick_rows_out(self):
+        self.bd(milestone_epics=("e-1",))
+        self.branches["quick/fix-typo"] = {}
+        self.gh(("quick/fix-typo", gh_pr(PR_QUICK, state="OPEN", files=["web/login.tsx"])))
+        self.assertEqual([], self.pending("--workflow-id", "e-1"))
+        self.assertEqual([], self.pending("--milestone", "m-1"))
+        self.assertEqual([], [call for call in calls(self.bin) if call[:5] == ["gh", "pr", "list", "--head", "quick/fix-typo"]])
+        self.assertEqual(["quick/fix-typo"], [row["branch"] for row in self.pending()])
 
     def test_team_mode_off_exits_2(self):
         write(self.root, ".agent-workflow/config.yaml", "schema_version: '2.7'\n")
