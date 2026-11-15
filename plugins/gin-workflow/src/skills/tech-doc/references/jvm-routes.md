@@ -51,7 +51,7 @@ Routes are declared by annotations and by `RouterFunction` beans.
 Velocity is the only template engine in scope. Other engines are noted as uncertain, not scouted.
 
 - Find `VelocityViewServlet` in `web.xml` and its mapping, such as `*.vm`. A mapped template is reachable by URL.
-- For Spring, read the `VelocityViewResolver` bean and record its `prefix` and `suffix`; join them to each returned view name.
+- For Spring 4 and earlier, read the `VelocityViewResolver` or `VelocityLayoutViewResolver` bean and record its `prefix` and `suffix`; join them to each returned view name. Spring 4.3 deprecated both and Spring 5 removed them; on Spring 5 or later look for a project-owned resolver class instead.
 - For Struts 2, collect `type="velocity"` results from `struts.xml`.
 - Follow `#parse` and `#include` to record which templates compose a screen.
 - In each `.vm` file, collect form `action` values and `href` values; each one is a route to match against the declarations above.

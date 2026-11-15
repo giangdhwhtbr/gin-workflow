@@ -8,7 +8,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SKILL_PATH = ROOT / "plugins/gin-workflow/src/skills/tech-doc/SKILL.md"
 TEMPLATES = ROOT / "plugins/gin-workflow/src/templates/codebase"
 READING_ORDER = ["OVERVIEW", "FEATURES", "ARCHITECTURE", "STRUCTURE", "API",
-                 "INTEGRATIONS", "STACK", "CONVENTIONS", "TESTING", "CONCERNS", "GLOSSARY"]
+                 "INTEGRATIONS", "STACK", "CONVENTIONS", "TESTING", "CONCERNS", "GLOSSARY",
+                 "DATABASE", "CAPABILITIES"]
 
 
 class TechDocSkillTests(unittest.TestCase):
@@ -33,8 +34,10 @@ class TechDocSkillTests(unittest.TestCase):
         groups = dict(re.findall(r"(weakest|middle|strongest) model for ([^;|]+)", row))
         self.assertIn("`STACK`", groups["weakest"])
         self.assertIn("`API`", groups["middle"])
+        self.assertIn("`DATABASE`", groups["middle"])
         self.assertIn("`ARCHITECTURE`", groups["strongest"])
         self.assertIn("`CONCERNS`", groups["strongest"])
+        self.assertIn("`CAPABILITIES`", groups["strongest"])
         self.assertNotIn("`STACK`", groups["strongest"])
 
     def test_writers_cite_every_row(self):
@@ -46,6 +49,32 @@ class TechDocSkillTests(unittest.TestCase):
 
     def test_features_after_api(self):
         self.assertIn("`02-FEATURES.md` starts after `05-API.md`", self.text)
+
+    def test_capabilities_start_after_features_api_and_database(self):
+        self.assertIn("`13-CAPABILITIES.md` starts after `02-FEATURES.md`, `05-API.md`, and `12-DATABASE.md`", self.text)
+
+    def test_capabilities_live_at_output_root_and_keep_confirmed_rows(self):
+        self.assertIn("`11-GLOSSARY.md` and `13-CAPABILITIES.md` are the exceptions: they always live at the root of the output folder", self.text)
+        self.assertIn("a `confirmed` capability keeps its name and `Summary`", self.text)
+        self.assertIn("a different grouping or meaning for a `confirmed` capability goes to `Conflicts`", self.text)
+
+    def test_database_rows_cite_evidence_and_file_is_skipped_without_datastore(self):
+        self.assertIn("Every `Tables`, `Access Matrix`, and `Stored Logic` row of `12-DATABASE.md` cites `file:line`", self.text)
+        self.assertIn("Not written when the scope has no datastore", self.text)
+
+    def test_database_and_capability_templates_have_their_sections(self):
+        database = (TEMPLATES / "12-DATABASE.md").read_text(encoding="utf-8")
+        for heading in ("## Datastores", "## Tables", "## Relationships", "## Access Matrix", "## Stored Logic",
+                        "## Migration Notes", "## Inference And Uncertainty", "## Follow-up"):
+            self.assertIn(heading, database)
+        self.assertIn("erDiagram", database)
+        capabilities = (TEMPLATES / "13-CAPABILITIES.md").read_text(encoding="utf-8")
+        self.assertIn("| Capability | Summary | Actors | Services | Scope | Status |", capabilities)
+        self.assertIn("| Capability | Feature | Screens | Endpoints | Tables |", capabilities)
+        self.assertIn("| Capability | Screens | Endpoints | Tables | Batch jobs | Reports | Outbound messages |", capabilities)
+        for heading in ("## Capability Catalog", "## Capability Map", "## Migration Inventory", "## Unmapped",
+                        "## Conflicts", "## Inference And Uncertainty", "## Follow-up"):
+            self.assertIn(heading, capabilities)
 
     def test_regrounding_uses_same_roles(self):
         regrounding_part = self.text.split("## Regrounding existing docs")[-1]
@@ -73,7 +102,7 @@ class TechDocSkillTests(unittest.TestCase):
         self.assertIn(".agent-workflow/templates/codebase/", self.text)
 
     def test_glossary_lives_at_output_root_and_keeps_confirmed_terms(self):
-        self.assertIn("`11-GLOSSARY.md` is the exception: it always lives at the root of the output folder", self.text)
+        self.assertIn("`11-GLOSSARY.md` and `13-CAPABILITIES.md` are the exceptions: they always live at the root of the output folder", self.text)
         self.assertIn("a `confirmed` row keeps its `English`", self.text)
         self.assertIn("goes to `Conflicts`, never into the row", self.text)
         self.assertIn("Only the user sets `confirmed`.", self.text)
@@ -90,12 +119,15 @@ class TechDocSkillTests(unittest.TestCase):
         """JVM routes and WebView shells (requirements 4, 5, 6; US-2; US-3)."""
         self.assertIn("[jvm-routes.md](references/jvm-routes.md)", self.text)
         self.assertIn("[webview-shells.md](references/webview-shells.md)", self.text)
+        self.assertIn("[jvm-data.md](references/jvm-data.md)", self.text)
         self.assertIn("each workspace entry, frozen ones included, gets its own scout", self.text)
         references = SKILL_PATH.parent / "references"
         expected = {
             "jvm-routes.md": ("@RequestMapping", "@Path", "struts-config.xml", "servlet-mapping",
-                              "VelocityViewServlet", "#parse"),
-            "webview-shells.md": ("loadUrl", "WKWebView", "addJavascriptInterface", "WKScriptMessageHandler"),
+                              "VelocityViewServlet", "#parse", "VelocityLayoutViewResolver"),
+            "webview-shells.md": ("loadUrl", "WKWebView", "addJavascriptInterface", "WKScriptMessageHandler",
+                                  "evaluateJavascript", "evaluateJavaScript"),
+            "jvm-data.md": ("@Entity", "hbm.xml", "Liquibase", "JdbcTemplate", "mapper"),
         }
         for name, phrases in expected.items():
             body = (references / name).read_text(encoding="utf-8")

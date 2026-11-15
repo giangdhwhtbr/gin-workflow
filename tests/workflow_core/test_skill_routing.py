@@ -64,6 +64,42 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("02-FEATURES.md", text)
         self.assertLess(text.index("`Capabilities:`"), text.index("5. **Write**"))
 
+    def test_roadmap_manager_view_and_milestone_plan(self):
+        roadmap = SRC / "skills/roadmap"
+        text = (roadmap / "SKILL.md").read_text(encoding="utf-8")
+        for needle in ("[manager view](references/manager-view.md)", "[milestone plan](references/milestone-plan.md)",
+                       "`Features:`", "`Legacy:`", "13-CAPABILITIES.md"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        present = text[text.index("4. **Present the roadmap**"):text.index("5. **Write**")]
+        capabilities = present[present.index("`Capabilities:`"):present.index("`Depends on:`")]
+        self.assertLess(capabilities.index("13-CAPABILITIES.md"), capabilities.index("02-FEATURES.md"))
+        view = (roadmap / "references/manager-view.md").read_text(encoding="utf-8")
+        for needle in ("## Legacy coverage", "`planned`", "`not migrated: <reason>`", "`unplanned`",
+                       "no file paths", "never in Beads"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, view)
+        plan = (roadmap / "references/milestone-plan.md").read_text(encoding="utf-8")
+        for needle in ("gin milestone create", "gin milestone move", "gin milestone estimate", "Beads wins",
+                       "## Unassigned", "Deadline:"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, plan)
+        write = plan[plan.index("## Write"):plan.index("## Re-run")]
+        self.assertLess(write.index("gin milestone create"), write.index("gin milestone move"))
+        self.assertLess(write.index("gin milestone move"), write.index("gin milestone estimate"))
+        self.assertIn("existed before this run", write)
+        self.assertIn("`Depends on:` dependencies", write)
+        milestone = text[text.index("## With --milestone <id>"):text.index("## Steps")]
+        step2 = next(line for line in milestone.splitlines() if line.startswith("2. "))
+        self.assertIn("Estimates block of [milestone plan](references/milestone-plan.md)", step2)
+        estimates = plan[plan.index("## Estimates"):plan.index("## Plan")]
+        for needle in ("`requirement.confirmed`", "`(assumed)`", "never ask the PM for estimates"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, estimates)
+        allocation = plan[plan.index("## Allocation"):plan.index("## Write")]
+        self.assertIn("adoption rule of `--milestone` step 3", allocation)
+        self.assertIn("never a closed one", allocation)
+
     def test_sdd_discuss_confirms_capabilities_before_ids(self):
         text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
         discuss = text[text.index("## discuss"):text.index("## plan")]

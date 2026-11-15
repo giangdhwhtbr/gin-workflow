@@ -130,6 +130,8 @@ Một `src` tương đối trong template được đọc từ gốc repository 
 
 Mục `## Way of working` của template (Foundation, Spec cadence, Build, Integration, Quality, Load) được điền bởi `/gin:roadmap` không kèm tham số, từ `references/way-of-working.md` của skill, và giữ nguyên khi chạy lại. Mỗi khối `## Milestone:` bắt đầu bằng `Spec ready by:` và một khối `Integration point:` (Integrates, Flags on, E2E scope, Exit criteria) do `/gin:roadmap --milestone` ghi. Roadmap không có các dòng này vẫn hợp lệ. Các track bead do `/gin:orchestrate` tạo lấy mô tả từ `task.md`, với các dòng nhãn `Plan:`, `Files:`, `Route:`, `Acceptance:` và `Notes:`. Epic roadmap mang dòng `Complexity:` (`low`, `medium` hoặc `high`) trong cả file roadmap lẫn mô tả bead `epic.md`.
 
+`/gin:roadmap` điền mục `## Summary`, các dòng `Outcome:` và `Demo:` của mỗi milestone, các dòng `Features:` và `Legacy:` của mỗi epic, và mục `## Legacy coverage` khi có `13-CAPABILITIES.md`. Template `epic.md` đưa các dòng `Features:` và `Legacy:` vào mô tả bead của epic. Một template override của cả hai mà thiếu các dòng này vẫn hoạt động bình thường, không có chúng.
+
 ## Guideline và trường của test case { #test-case-guidelines-and-fields }
 
 Add-on gin-qa được tùy biến qua file guidelines (`guidelines.md` trong [QA home](qa.md#the-qa-home)) và các trường metadata bổ sung.

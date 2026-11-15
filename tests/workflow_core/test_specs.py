@@ -386,6 +386,17 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("Route: {{provider_role}} / {{model}} / {{effort}}", task)
             self.assertIn("Complexity: {{complexity}}", run_specs(root, "template", "epic.md").stdout)
             self.assertIn("Complexity:", run_specs(root, "template", "roadmap.md").stdout)
+            roadmap = run_specs(root, "template", "roadmap.md").stdout
+            for needle in ("## Summary", "| Milestone | Period | Outcome | Demo | Epics |", "Outcome:", "Demo:",
+                           "Features:", "Legacy:", "## Legacy coverage",
+                           "| Capability | Legacy screens | Epics | Milestone | Status |"):
+                with self.subTest(needle=needle):
+                    self.assertIn(needle, roadmap)
+            epic = run_specs(root, "template", "epic.md").stdout
+            self.assertIn("Features: {{features}}", epic)
+            self.assertIn("Legacy: {{legacy}}", epic)
+            self.assertNotIn("Demo:", epic)
+            self.assertNotIn("Outcome:", epic)
             iteration = run_specs(root, "template", "iteration.md").stdout
             for needle in ("Kind:", "Source:", "Previous: none", "Confirmed: no", "## Summary", "## Changes", "## Files"):
                 with self.subTest(needle=needle):

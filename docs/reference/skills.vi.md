@@ -47,7 +47,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `team-setup` | Thiết lập hoặc tham gia chế độ nhóm: thành viên, vai trò, khu vực, phê duyệt, quy ước, hook, Beads dùng chung |
 | `migrate-specs` | Chuyển layout spec và plan `.planning` cũ sang layout SDD `docs/` |
 | `beads-migration` | Chuyển thư mục `.beads` của repository vào `~/gin-beads/<repo>` và tạo symlink ngược lại |
-| `roadmap` | Biến bộ tech-doc hoặc một product brief thành roadmap đã xác nhận cùng các epic Beads phụ thuộc nhau, kèm hạn chót dự án và ước lượng cho mỗi epic; đối chiếu cả hai khi chạy lại; đề xuất cách làm việc của team (Foundation, Spec cadence, Build, Integration, Quality, Load) để PM xác nhận; đánh giá độ phức tạp của từng epic; báo cáo dự báo của `gin milestone list`; với layout SDD mỗi epic mang dòng `Capabilities:`; `--milestone <id>` lập kế hoạch cho một milestone có ngày với lane riêng, ngày `Spec ready by:`, và integration point |
+| `roadmap` | Biến bộ tech-doc hoặc một product brief thành roadmap đã xác nhận cùng các epic Beads phụ thuộc nhau, kèm hạn chót dự án và ước lượng cho mỗi epic; đối chiếu cả hai khi chạy lại; đề xuất cách làm việc của team (Foundation, Spec cadence, Build, Integration, Quality, Load) để PM xác nhận; đánh giá độ phức tạp của từng epic; báo cáo dự báo của `gin milestone list`; với layout SDD mỗi epic mang dòng `Capabilities:`; bảng `## Summary`; `Outcome:` và `Demo:` cho mỗi milestone; `Features:` và `Legacy:` cho mỗi epic; bảng `## Legacy coverage` khi có `13-CAPABILITIES.md`; lần chạy không kèm tham số đề xuất kế hoạch milestone; `--milestone <id>` lập kế hoạch cho một milestone có ngày với lane riêng, ngày `Spec ready by:`, và integration point |
 | `allocate` | Đề xuất, giao và tạo các prep task (`capture`, `mockup`, `spike`, `question`, `other`) dưới epic roadmap trước discuss, cho một epic hoặc một milestone (`--milestone <id>`); lead xác nhận một bảng trước, và lần chạy lại chỉ đề xuất phần khác biệt |
 
 ## gin: tài liệu { #gin-documentation }
@@ -55,7 +55,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | Skill | Mục đích |
 |---|---|
 | `write-doc` | Viết hoặc cập nhật một tài liệu độc lập (README, runbook hoặc guide, ADR, changelog) từ template của nó, và kiểm tra bằng `gin docs check` |
-| `tech-doc` | Viết tài liệu kỹ thuật (tính năng, API, stack, kiến trúc, quy ước, testing, và bảng thuật ngữ cho các thuật ngữ nghiệp vụ không phải tiếng Anh) từ bằng chứng trong repository, hoặc đối chiếu lại các trang hiện có với code, chỉ khi được yêu cầu |
+| `tech-doc` | Viết tài liệu kỹ thuật (tính năng, API, stack, kiến trúc, quy ước, testing, bảng thuật ngữ cho các thuật ngữ nghiệp vụ không phải tiếng Anh, tài liệu cơ sở dữ liệu `12-DATABASE.md` khi phạm vi có datastore, và danh mục capability `13-CAPABILITIES.md`) từ bằng chứng trong repository, hoặc đối chiếu lại các trang hiện có với code, chỉ khi được yêu cầu |
 | `explain` | Viết một trang HTML tương tác giải thích một capability SDD hoặc một change đang mở: một đoạn tóm tắt ngắn, rồi các requirement, story, sơ đồ, và các thư mục asset theo ngày của nó; với `--legacy`, là mã legacy của một capability trong các app workspace `frozen` ([hướng dẫn](../guides/sdd.md#explaining-a-capability)) |
 
 ## gin-qa (add-on tùy chọn) { #gin-qa-optional-add-on }

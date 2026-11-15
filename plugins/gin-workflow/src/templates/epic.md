@@ -3,7 +3,9 @@
 
 Scope: {{scope}}
 Out of scope: {{out_of_scope}}
+Features: {{features}}
 Capabilities: {{capabilities}}
+Legacy: {{legacy}}
 Kind: {{kind}}
 Complexity: {{complexity}}
 Evidence: {{evidence}}

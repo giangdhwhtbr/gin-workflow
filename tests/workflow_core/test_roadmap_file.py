@@ -46,6 +46,23 @@ class ReadRoadmapTests(unittest.TestCase):
             self.assertEqual((None, 1), (found.deadline, found.lanes))
             self.assertEqual("Deadline: soon is not a date (YYYY-MM-DD)", found.error)
 
+    def test_manager_view_sections_change_neither_deadline_nor_lanes(self):
+        constraints = "- AI capacity: 3 lanes\n- Deadline: 2027-03-31\n\n"
+        manager_view = (
+            "## Summary\n\n| Milestone | Period | Outcome | Demo | Epics |\n|---|---|---|---|---|\n"
+            "| M1 | 2027-01-04 to 2027-01-29 | Shop live | Browse and buy | Catalog |\n\n"
+            "## Milestone: M1\n\nOutcome: Shop live\nDemo: Browse and buy\n\n"
+            "### Catalog\nEpic: x-catalog\nFeatures: Browse\nLegacy: 12 screens\n\n"
+            "## Legacy coverage\n\n| Capability | Legacy screens | Epics | Milestone | Status |\n|---|---|---|---|---|\n"
+            "| catalog | 12 | x-catalog | M1 | planned |\n"
+        )
+        with tempfile.TemporaryDirectory() as plain, tempfile.TemporaryDirectory() as managed:
+            self.write(Path(plain), constraints)
+            self.write(Path(managed), constraints + manager_view)
+            expected = read_roadmap(Path(plain), "legacy")
+            self.assertEqual(Roadmap(date(2027, 3, 31), 3, None), expected)
+            self.assertEqual(expected, read_roadmap(Path(managed), "legacy"))
+
     def test_sdd_layout_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

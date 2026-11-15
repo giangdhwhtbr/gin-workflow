@@ -6,7 +6,8 @@ Use this reference when the code area is an Android or iOS app that loads server
 
 - Search `WebView.loadUrl`, `loadData`, and `loadDataWithBaseURL`. Record the URL or the base URL each screen loads.
 - Resolve base URLs from `BuildConfig` fields, `build.gradle` build types, and resource strings; record each variant value.
-- Search `addJavascriptInterface` and the `@JavascriptInterface` methods on the bound object. Each method is a bridge method.
+- Search `addJavascriptInterface(obj, "<name>")` and the `@JavascriptInterface` methods on the bound object. Record `<name>`; each method is a bridge method.
+- Search `evaluateJavascript` and `loadUrl("javascript:...")` for app-to-web calls; record the function each one calls.
 - Search `shouldOverrideUrlLoading` and record the URL schemes it intercepts and what it does with them.
 
 ## iOS
@@ -14,6 +15,7 @@ Use this reference when the code area is an Android or iOS app that loads server
 - Search `WKWebView` and `load(URLRequest)` or `loadHTMLString`. Record the URL or the base URL each screen loads.
 - Resolve base URLs from `Info.plist`, `.xcconfig` files, or a configuration type; record each variant value.
 - Search `WKScriptMessageHandler`, `add(_:name:)` on the user content controller, and `window.webkit.messageHandlers.<name>.postMessage` in the web code. Each handler name is a bridge method.
+- Search `evaluateJavaScript` for app-to-web calls; record the function each one calls.
 - Search `decidePolicyFor` in `WKNavigationDelegate` and record the URL schemes it intercepts.
 
 ## Records
