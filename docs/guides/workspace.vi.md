@@ -27,6 +27,8 @@ workspace:
 - `shape: beads` tại `.beads` giữ cơ sở dữ liệu Beads dùng chung.
 - `verify.checks` là các lệnh mà hook của repository đó chạy, trong chính repository đó.
 
+`gin workspace clone` cũng nhận một repository mới, còn rỗng: nó trỏ `HEAD` vào `default_branch`, và commit đầu tiên bạn push sẽ tạo branch đó.
+
 ```mermaid
 flowchart TD
   P["Parent: config, specs, plans, runtime, beads"] --> S["services/order-api"]

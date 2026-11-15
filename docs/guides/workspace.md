@@ -27,6 +27,8 @@ workspace:
 - `shape: beads` at `.beads` holds the shared Beads database.
 - `verify.checks` are the commands the hooks of that repository run, in that repository.
 
+`gin workspace clone` also accepts a new, empty repository: it points `HEAD` at `default_branch`, and the first commit you push creates that branch.
+
 ```mermaid
 flowchart TD
   P["Parent: config, specs, plans, runtime, beads"] --> S["services/order-api"]

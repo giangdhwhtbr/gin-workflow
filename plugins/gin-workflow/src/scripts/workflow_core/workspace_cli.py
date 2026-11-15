@@ -18,6 +18,12 @@ def _run_git(argv: Sequence[str], cwd: Path | None = None) -> subprocess.Complet
     return subprocess.run(["git", *argv], cwd=cwd, text=True, capture_output=True, check=False)
 
 
+def _empty_remote(url: str) -> bool:
+    """True when `git ls-remote --heads` reaches `url` and it lists no branch."""
+    done = _run_git(["ls-remote", "--heads", url])
+    return done.returncode == 0 and not done.stdout.strip()
+
+
 def clone(
     space: ws.Workspace,
     paths: Sequence[str],
@@ -48,11 +54,20 @@ def clone(
             argv = ["clone", "--branch", repo.default_branch, *(["--depth", "1"] if repo.frozen else []),
                     repo.url, str(target)]
             done = _run_git(argv)
+            empty = bool(done.returncode) and _empty_remote(repo.url)
+            if empty:  # `--branch` fails on a remote with no branches; a plain clone succeeds
+                done = _run_git(["clone", repo.url, str(target)])
+                if not done.returncode:
+                    done = _run_git(["symbolic-ref", "HEAD", f"refs/heads/{repo.default_branch}"], target)
             if done.returncode:
                 cloned = [row["path"] for row in results if row["status"] == "cloned"]
                 so_far = f" (cloned so far: {', '.join(cloned)})" if cloned else ""
                 raise ws.WorkspaceError(f"{repo.path}: {done.stderr.strip() or 'git clone failed'}{so_far}")
             row: dict[str, Any] = {"path": repo.path, "status": "cloned"}
+            if empty:
+                row["empty"] = True
+                if notes is not None:
+                    notes.append(f"{repo.path}: empty remote; the first commit on {repo.default_branch} creates the branch")
             if repo.workable:
                 hooks_dict: dict[str, str] = {}
                 hook_attempted = False
