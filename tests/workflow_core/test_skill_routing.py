@@ -431,6 +431,24 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         self.assertIn("`project.run_at: track`", baseline)
         self.assertIn("`push` or `host`", baseline)
 
+    def test_skills_and_developer_carry_the_reads_repositories(self):
+        """R1, R5, R6, R7, R8, US-2, US-3 (gin-workflow-ws-track-env)."""
+        schema = read("skills/plan/plan-schema.md")
+        self.assertTrue(line_with(schema, "**Reads**", "workspace only", "never edits"))
+        self.assertTrue(line_with(read("skills/plan/SKILL.md"), "In a workspace", "`Reads:"))
+        orchestrate = read("skills/orchestrate/SKILL.md")
+        self.assertTrue(line_with(
+            orchestrate, "Put `Repo: <path>`", "`Reads:", "`gin workspace status --json`",
+            "`gin workspace clone", "Outside team mode"))
+        worktrees = read("skills/worktrees/SKILL.md")
+        workspace = worktrees[worktrees.index("## 3. Workspace"):]
+        for needle in ("`Reads:", "`gin workspace status --json`", "`gin workspace clone <path>`",
+                       "`checkout`", "`commit`", "read-only", "Never switch or pull"):
+            self.assertIn(needle, workspace)
+        self.assertTrue(line_with(read("skills/execute/SKILL.md"), "bounded context", "`Reads:` checkouts"))
+        self.assertIn("`Reads:` checkouts", read("skills/execute/references/delegation-policy.md"))
+        self.assertTrue(line_with(read("agents/developer.md"), "`Reads:`", "read-only"))
+
     def test_ship_runs_the_suite_once_with_push(self):
         ship = read("skills/ship/SKILL.md")
         self.assertNotIn("Tests follow `project.run_at`", ship)

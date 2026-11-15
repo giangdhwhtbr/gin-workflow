@@ -30,6 +30,7 @@ Before editing:
 5. Before reporting, test by `project.run_at`, which the dispatching session passes: with `track`, run the `verify_commands` for the project's rigor; with `push` or `host`, run the tests of what you changed, plus lint and typecheck when configured.
 6. Never mask failing verification. Reproduce, fix, and rerun, or report the blocker with evidence.
 7. Escalate out-of-scope changes instead of making them.
+8. A `Reads:` repository is read-only: never edit, commit, switch branch, or pull there.
 
 ## Output
 Report exactly one status: `done`, `needs_clarification`, `failed`, or `blocked`, with supporting evidence:

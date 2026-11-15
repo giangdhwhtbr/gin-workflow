@@ -59,6 +59,7 @@ execution_strategy:
 ### Track 1: {name}
 - **Dependencies**: none | Track N
 - **Repo**: workspace only: the `workspace.repos` path this track changes
+- **Reads**: workspace only, optional: the `workspace.repos` paths this track reads and never edits, comma-separated
 - **Files**: one entry per file, indented under this label. `team check-plan` reads files only from this block: the leading backticked paths of each entry (comma-separated), after an optional `Create`, `Modify`, `Test`, or `Delete`; notes after them are ignored.
   - Create `path/to/new_file.py`
   - Modify `path/to/existing.py:10-40` (what changes)

@@ -40,3 +40,5 @@ When `gin state --format json` reports `workspace.current_repo`, the worktree is
 - Commit in this worktree only (push only in team mode, stage-contract Git); the spec and plan live in the parent and are read, never edited, by a track.
 - `gin` commands from inside the worktree resolve the parent: `gin task`, `gin state`, `gin review` need no `--repository`.
 - Cleanup from the parent: `gin worktree cleanup --repository <repo> <track-id>`.
+
+A track with `Reads:` (plan track or bead description): before the developer starts, take each named repository's row from `gin workspace status --json`. If it is not `present`, stop with `gin workspace clone <path>`. Give the developer its `checkout`, `branch`, and `commit` as read-only context. Never switch or pull that checkout.
