@@ -387,7 +387,7 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("Complexity: {{complexity}}", run_specs(root, "template", "epic.md").stdout)
             self.assertIn("Complexity:", run_specs(root, "template", "roadmap.md").stdout)
             roadmap = run_specs(root, "template", "roadmap.md").stdout
-            for needle in ("## Summary", "| Milestone | Period | Outcome | Demo | Epics |", "Outcome:", "Demo:",
+            for needle in ("## Summary", "| Milestone | Period | Outcome | Demo | Epics |", "Outcome:", "Demo:", "Result:",
                            "Features:", "Legacy:", "## Legacy coverage",
                            "| Capability | Legacy screens | Epics | Milestone | Status |"):
                 with self.subTest(needle=needle):

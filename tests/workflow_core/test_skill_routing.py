@@ -79,6 +79,7 @@ class SkillRoutingTests(unittest.TestCase):
                        "no file paths", "never in Beads"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, view)
+        self.assertIn("written by `/milestone-close`", view)
         plan = (roadmap / "references/milestone-plan.md").read_text(encoding="utf-8")
         for needle in ("gin milestone create", "gin milestone move", "gin milestone estimate", "Beads wins",
                        "## Unassigned", "Deadline:"):
@@ -211,6 +212,28 @@ class SkillRoutingTests(unittest.TestCase):
                 self.assertIn(needle, text)
         self.assertLess(text.index("Went well:"), text.index("Slowed us:"))
         self.assertLess(text.index("Slowed us:"), text.index("Change next:"))
+        for banned in ("sonnet", "opus", "haiku"):
+            self.assertNotIn(banned, text.lower())
+
+    def test_milestone_close_moves_spillover_and_records_the_result(self):
+        text = (SRC / "skills/milestone-close/SKILL.md").read_text(encoding="utf-8")
+        for needle in ("[gin close] <milestone-id>", "Delivered:", "Spillover:", "Outcome:", "Demo:", "Retros:",
+                       "Action:", "earliest `start` after", "`status` is `closed`", "team.permissions.milestone",
+                       "Write nothing until the person running the close confirms", "no retros",
+                       "reason (retro|asked)", "Reconcile steps of the `learn` skill", "gin task remember",
+                       "milestone-close/<milestone-id>", "Never translate the labels",
+                       "## Metrics", "Metrics: completion <closed>/<total>; estimate_accuracy", "capacity_used",
+                       "cost_per_epic", "rework", "never per member", "no earlier metrics", "- Metrics:",
+                       "whose `parent` is not the `bead` of another entry", "both ends included"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        metrics = text[text.index("Metrics: completion"):].split("\n", 1)[0]
+        keys = [metrics.index(key) for key in ("completion", "estimate_accuracy", "capacity_used", "cost_per_epic", "rework")]
+        self.assertEqual(sorted(keys), keys)
+        write = text[text.index("## Write"):]
+        order = [write.index(step) for step in ("gin milestone create", "gin milestone move", "gin milestone estimate",
+                                                "gin task comment", "gin milestone close")]
+        self.assertEqual(sorted(order), order)
         for banned in ("sonnet", "opus", "haiku"):
             self.assertNotIn(banned, text.lower())
 

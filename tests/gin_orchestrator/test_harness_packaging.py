@@ -39,6 +39,7 @@ REQUIRED_ARTIFACTS = (
     "skills/ship/SKILL.md",
     "skills/review/SKILL.md",
     "skills/retro/SKILL.md",
+    "skills/milestone-close/SKILL.md",
     "references/stage-contract.md",
     "references/shape-frontend.md",
     "references/shape-backend.md",
