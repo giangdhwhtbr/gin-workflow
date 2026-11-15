@@ -41,7 +41,8 @@ class SetupCliTests(unittest.TestCase):
         )
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual("gin 3.0", result.stdout.strip())
+        release_version = json.loads((ROOT / "plugins/gin-workflow/plugin.meta.json").read_text(encoding="utf-8"))["version"]
+        self.assertEqual(f"gin {release_version}", result.stdout.strip())
 
     def test_help_describes_every_action(self):
         result = subprocess.run([sys.executable, str(LAUNCHER), "setup", "--help"], cwd=ROOT, text=True,

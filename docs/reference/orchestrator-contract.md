@@ -15,7 +15,7 @@ version --json
 ```
 
 ```json
-{"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=3.0,<4",
+{"contract": 2, "orchestrator_version": "3.1.0", "requires_gin_workflow": ">=3.0,<4",
  "capabilities": ["health", "models", "routes", "reviewer", "doctor", "dispatch"]}
 ```
 

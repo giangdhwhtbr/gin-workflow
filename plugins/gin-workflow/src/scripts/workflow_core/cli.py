@@ -16,7 +16,7 @@ from .project import RIGORS, SHAPES, STAGES
 from .setup_service import COMMANDS, SetupError
 
 
-CLI_VERSION = "3.0"
+CLI_VERSION = "3.1.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
                 "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "commit", "worktree", "workspace", "milestone")
 

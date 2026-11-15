@@ -81,10 +81,11 @@ class ContractV2Tests(unittest.TestCase):
         return path
 
     def test_version_reports_contract_2_and_capabilities(self):
+        release_version = json.loads((paths.ROOT / "plugins/gin-workflow/plugin.meta.json").read_text(encoding="utf-8"))["version"]
         result = run("version", "--json")
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual({"contract": 2, "orchestrator_version": "0.2.0", "requires_gin_workflow": ">=3.0,<4",
+        self.assertEqual({"contract": 2, "orchestrator_version": release_version, "requires_gin_workflow": ">=3.0,<4",
                           "capabilities": ["health", "models", "routes", "reviewer", "doctor", "dispatch"]},
                          json.loads(result.stdout))
 

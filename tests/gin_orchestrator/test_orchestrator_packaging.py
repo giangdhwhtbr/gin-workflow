@@ -24,7 +24,8 @@ class TestPackaging(unittest.TestCase):
                 for key in ("name", "version", "description", "author", "repository"):
                     self.assertEqual(meta[key], manifest[key])
         self.assertEqual("gin-orchestrator", meta["name"])
-        self.assertEqual("0.2.0", meta["version"])
+        release_version = json.loads((ROOT / "plugins/gin-workflow/plugin.meta.json").read_text(encoding="utf-8"))["version"]
+        self.assertEqual(release_version, meta["version"])
         self.assertEqual("./skills/", json.loads((ORCH / "src/.codex-plugin/plugin.json").read_text())["skills"])
         self.assertNotIn("hooks", json.loads((ORCH / "src/.codex-plugin/plugin.json").read_text()))
 

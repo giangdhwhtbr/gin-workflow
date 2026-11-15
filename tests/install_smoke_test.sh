@@ -5,6 +5,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+# The release version is the one in plugins/gin-workflow/plugin.meta.json: every launcher directory and `--version` output carries it.
+RELEASE_VERSION="$(python3 -c 'import json; print(json.load(open("plugins/gin-workflow/plugin.meta.json"))["version"])')"
+
 TEST_HOME="$(mktemp -d)"
 export HOME="$TEST_HOME"
 
@@ -137,7 +140,7 @@ touch plugins/gin-workflow/dist/claude-code/commands/stale-from-old-build.md plu
 assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_not_contains "$output_file" "gin-workflow-advanced"
 assert_contains "$output_file" "would install global Claude Code plugin to"
-assert_contains "$output_file" "would install gin launcher version 3.0 to"
+assert_contains "$output_file" "would install gin launcher version $RELEASE_VERSION to"
 assert_contains "$output_file" "would link gin launcher on PATH at"
 assert_not_contains "$output_file" "gin-qa"
 assert_not_exists "plugins/gin-qa/dist"
@@ -200,7 +203,7 @@ PATH="/usr/bin:/bin" ./install.sh --platform claude --plugin gin-qa --dry-run >"
 assert_contains "$output_file" "Warning: gin is not installed; gin-qa needs it (./install.sh --plugin gin-workflow)."
 assert_contains "$output_file" "Processing plugin: gin-qa"
 assert_not_contains "$output_file" "Processing plugin: gin-workflow"
-assert_contains "$output_file" "would install gin-qa launcher version 0.11 to"
+assert_contains "$output_file" "would install gin-qa launcher version $RELEASE_VERSION to"
 assert_exists "plugins/gin-qa/dist/claude-code/.claude-plugin/plugin.json"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/cases/SKILL.md"
 assert_exists "plugins/gin-qa/dist/claude-code/skills/e2e/SKILL.md"
@@ -235,11 +238,11 @@ assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-ba/sr
 # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
 empty_home="$(mktemp -d)"
 HOME="$empty_home" ./install.sh --platform claude --plugin gin-orchestrator --dry-run >"$output_file"
-assert_contains "$output_file" "gin-orchestrator requires gin 3.0; installing it first."
+assert_contains "$output_file" "gin-orchestrator requires gin $RELEASE_VERSION; installing it first."
 assert_contains "$output_file" "Processing plugin: gin-orchestrator"
-assert_contains "$output_file" "would install gin-orchestrator launcher version 0.1 to"
-assert_line_order "$output_file" "installing it first." "would install gin launcher version 3.0 to"
-assert_line_order "$output_file" "would install gin launcher version 3.0 to" "would install gin-orchestrator launcher version 0.1 to"
+assert_contains "$output_file" "would install gin-orchestrator launcher version $RELEASE_VERSION to"
+assert_line_order "$output_file" "installing it first." "would install gin launcher version $RELEASE_VERSION to"
+assert_line_order "$output_file" "would install gin launcher version $RELEASE_VERSION to" "would install gin-orchestrator launcher version $RELEASE_VERSION to"
 assert_exists "plugins/gin-orchestrator/dist/claude-code/.claude-plugin/plugin.json"
 assert_exists "plugins/gin-orchestrator/dist/claude-code/skills/providers/SKILL.md"
 assert_exists "plugins/gin-orchestrator/dist/claude-code/scripts/gin-orchestrator"
@@ -253,7 +256,7 @@ assert_contains "$output_file" "Processing plugin: gin-qa"
 assert_contains "$output_file" "Processing plugin: gin-orchestrator"
 assert_contains "$output_file" "Processing plugin: gin-ba"
 assert_not_contains "$output_file" "installing it first"
-assert_contains "$output_file" "would install gin-orchestrator launcher version 0.1 to"
+assert_contains "$output_file" "would install gin-orchestrator launcher version $RELEASE_VERSION to"
 rm -rf "$empty_home"
 
 ./install.sh --platform codex --dry-run >"$output_file"
@@ -357,16 +360,16 @@ assert_contains "$MOCK_HOME/.claude/settings.json" '"gin@skills-dir": true'
 assert_not_contains "$MOCK_HOME/.claude/settings.json" 'gin-workflow@skills-dir'
 # The install name is the plugin id from plugin.meta.json, not the plugin directory.
 assert_contains "plugins/gin-workflow/plugin.meta.json" '"name": "gin"'
-assert_exists "$MOCK_HOME/.local/lib/gin/3.0/gin"
-assert_exists "$MOCK_HOME/.local/lib/gin/3.0/workflow_core/cli.py"
-assert_exists "$MOCK_HOME/.local/lib/gin/3.0/.gin-workflow-src.json"
+assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/gin"
+assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/workflow_core/cli.py"
+assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/.gin-workflow-src.json"
 assert_exists "$MOCK_HOME/.local/bin/gin"
 launcher_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin" --version)"
-if [ "$launcher_version" != "gin 3.0" ]; then
+if [ "$launcher_version" != "gin $RELEASE_VERSION" ]; then
   echo "Unexpected launcher version: $launcher_version" >&2
   exit 1
 fi
-assert_exists "$MOCK_HOME/.local/lib/gin/3.0/rules/core.md"
+assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/rules/core.md"
 # PATH registration: once per rc file, chosen by $SHELL, removed on --uninstall, skipped with --no-modify-path.
 path_home="$(mktemp -d)"
 HOME="$path_home" SHELL=/bin/zsh PATH="/usr/bin:/bin" ./install.sh --platform opencode >/dev/null
@@ -387,8 +390,8 @@ case "$rules_list" in
   *"core (plugin, core)"*) ;;
   *) echo "Installed launcher did not list the core rule pack: $rules_list" >&2; exit 1 ;;
 esac
-assert_exists "$MOCK_HOME/.local/lib/gin/3.0/templates/spec-delta.md"
-assert_exists "$MOCK_HOME/.local/lib/gin/3.0/templates/team/commit-msg"
+assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/templates/spec-delta.md"
+assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/templates/team/commit-msg"
 assert_exists "$MOCK_HOME/.claude/skills/gin/templates/proposal.md"
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin" specs --help >/dev/null
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin" setup models --provider claude >/dev/null
@@ -461,13 +464,13 @@ assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/cases/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/e2e/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/tests/SKILL.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin-qa/skills/e2e/references/explore-case.md"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.11/templates/evidence.ts"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.11/templates/playwright.config.ts"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.11/templates/qa-readme.md"
-assert_exists "$MOCK_HOME/.local/lib/gin-qa/0.11/templates/report.html"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/$RELEASE_VERSION/templates/evidence.ts"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/$RELEASE_VERSION/templates/playwright.config.ts"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/$RELEASE_VERSION/templates/qa-readme.md"
+assert_exists "$MOCK_HOME/.local/lib/gin-qa/$RELEASE_VERSION/templates/report.html"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-qa@skills-dir": true'
 qa_version="$(HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin-qa" --version)"
-if [ "$qa_version" != "gin-qa 0.11" ]; then
+if [ "$qa_version" != "gin-qa $RELEASE_VERSION" ]; then
   echo "Unexpected gin-qa launcher version: $qa_version" >&2
   exit 1
 fi
@@ -486,9 +489,9 @@ HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-orchestrator >"$ou
 assert_not_contains "$output_file" "installing it first"
 assert_exists "$MOCK_HOME/.claude/skills/gin-orchestrator/skills/providers/SKILL.md"
 assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-orchestrator@skills-dir": true'
-assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py"
-assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/templates"
-assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/0.1/worktree-create.sh"
+assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/$RELEASE_VERSION/gin_orchestrator/cli.py"
+assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/$RELEASE_VERSION/templates"
+assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/$RELEASE_VERSION/worktree-create.sh"
 orch_version="$(HOME="$MOCK_HOME" PATH="$MOCK_HOME/.local/bin:$PATH" "$MOCK_HOME/.local/bin/gin-orchestrator" version --json)"
 case "$orch_version" in
   *'"contract": 2'*) ;;
@@ -499,8 +502,8 @@ esac
 orch_home="$MOCK_HOME/orchestrator-home"
 mkdir -p "$orch_home"
 HOME="$orch_home" ./install.sh --platform claude --plugin gin-orchestrator >"$output_file" 2>&1
-assert_contains "$output_file" "gin-orchestrator requires gin 3.0; installing it first."
-assert_exists "$orch_home/.local/lib/gin/3.0/workflow_core/cli.py"
+assert_contains "$output_file" "gin-orchestrator requires gin $RELEASE_VERSION; installing it first."
+assert_exists "$orch_home/.local/lib/gin/$RELEASE_VERSION/workflow_core/cli.py"
 assert_exists "$orch_home/.local/bin/gin-orchestrator"
 
 # Success path with the installed launchers: write cases, edit a requirement, re-pin.
@@ -551,16 +554,16 @@ qa_cli check >/dev/null
 qa_e2e() { HOME="$MOCK_HOME" PATH="$MOCK_HOME/.local/bin:$PATH" "$MOCK_HOME/.local/bin/gin-qa" e2e "$@" --repository "$QA_REPO"; }
 qa_e2e init >/dev/null
 assert_exists "$QA_REPO/qa/e2e/evidence.ts"
-assert_contains "$QA_REPO/playwright.config.ts" "testDir: 'qa/e2e'"
+assert_contains "$QA_REPO/qa/e2e/playwright.config.ts" "testDir: '.'"
 assert_contains "$QA_REPO/.gitignore" "/qa/evidence/"
 qa_e2e plan auth >"$output_file"
 assert_contains "$output_file" "missing TC-AUTH-001 qa/e2e/auth/tc-auth-001.spec.ts"
 
 for plugin in gin-workflow gin-qa gin-orchestrator; do
   case "$plugin" in
-    gin-workflow) launcher=gin; old_version=2.1; current_version=3.0 ;;
-    gin-qa) launcher=gin-qa; old_version=0.4; current_version=0.11 ;;
-    gin-orchestrator) launcher=gin-orchestrator; old_version=0.0; current_version=0.1 ;;
+    gin-workflow) launcher=gin; old_version=2.1; current_version="$RELEASE_VERSION" ;;
+    gin-qa) launcher=gin-qa; old_version=0.4; current_version="$RELEASE_VERSION" ;;
+    gin-orchestrator) launcher=gin-orchestrator; old_version=0.0; current_version="$RELEASE_VERSION" ;;
   esac
 
   UPGRADE_HOME="$MOCK_HOME/upgrade-home-$launcher"
@@ -648,7 +651,7 @@ assert_contains "$legacy_home/.claude/settings.json" '"gin@skills-dir": true'
 assert_exists "$legacy_home/.claude/skills/gin/skills/learn/SKILL.md"
 assert_exists "$legacy_home/.config/opencode/skills/gin-workflow"
 legacy_version="$(HOME="$legacy_home" "$legacy_home/.local/bin/gin" --version)"
-if [ "$legacy_version" != "gin 3.0" ]; then
+if [ "$legacy_version" != "gin $RELEASE_VERSION" ]; then
   echo "Unexpected launcher version after the upgrade: $legacy_version" >&2
   exit 1
 fi
@@ -664,8 +667,8 @@ assert_exists "$legacy_home/.config/opencode/agents/gin-mine.md"
 addon_home="$MOCK_HOME/addon-home"
 for addon in gin-qa gin-orchestrator; do
   case "$addon" in
-    gin-qa) addon_version=0.11 ;;
-    gin-orchestrator) addon_version=0.1 ;;
+    gin-qa) addon_version="$RELEASE_VERSION" ;;
+    gin-orchestrator) addon_version="$RELEASE_VERSION" ;;
   esac
   mkdir -p "$addon_home/.local/lib/$addon/$addon_version" "$addon_home/.local/bin"
   printf '%s\n' '# stale add-on copy' > "$addon_home/.local/lib/$addon/$addon_version/$addon"

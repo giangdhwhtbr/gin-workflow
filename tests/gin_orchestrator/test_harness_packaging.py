@@ -249,6 +249,7 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertIn("name: gin-report", (root / "skills/gin-report/SKILL.md").read_text(encoding="utf-8"))
 
     def test_plugin_metadata_and_harness_manifests_publish_current_version(self):
+        release_version = json.loads((ROOT / "plugins/gin-workflow/plugin.meta.json").read_text(encoding="utf-8"))["version"]
         manifests = (
             ROOT / "plugins/gin-workflow/plugin.meta.json",
             ROOT / "plugins/gin-workflow/src/.claude-plugin/plugin.json",
@@ -260,7 +261,7 @@ class HarnessPackagingTests(unittest.TestCase):
         for manifest in manifests:
             with self.subTest(manifest=manifest.relative_to(ROOT)):
                 with manifest.open(encoding="utf-8") as file:
-                    self.assertEqual("3.0.0", json.load(file)["version"])
+                    self.assertEqual(release_version, json.load(file)["version"])
 
     def test_repository_ignores_installations_and_generated_workflow_output(self):
         ignored = (

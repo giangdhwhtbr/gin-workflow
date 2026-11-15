@@ -19,7 +19,8 @@ class BaPackagingTests(unittest.TestCase):
         meta = json.loads((BA / "plugin.meta.json").read_text(encoding="utf-8"))
         claude = json.loads((BA / "src/.claude-plugin/plugin.json").read_text(encoding="utf-8"))
         codex = json.loads((BA / "src/.codex-plugin/plugin.json").read_text(encoding="utf-8"))
-        self.assertEqual(("gin-ba", "0.1.0"), (meta["name"], meta["version"]))
+        release_version = json.loads((ROOT / "plugins/gin-workflow/plugin.meta.json").read_text(encoding="utf-8"))["version"]
+        self.assertEqual(("gin-ba", release_version), (meta["name"], meta["version"]))
         for key in ("name", "version", "description", "author", "repository"):
             with self.subTest(key=key):
                 self.assertEqual(meta[key], claude[key])

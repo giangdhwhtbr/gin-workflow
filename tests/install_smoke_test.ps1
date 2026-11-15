@@ -3,6 +3,8 @@ Set-StrictMode -Version Latest
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $Installer = Join-Path $Root 'install.ps1'
+# The release version is the one in plugins/gin-workflow/plugin.meta.json: every launcher directory and `--version` output carries it.
+$ReleaseVersion = (Get-Content -Raw -LiteralPath (Join-Path $Root 'plugins/gin-workflow/plugin.meta.json') | ConvertFrom-Json).version
 $TestRoot = Join-Path ([IO.Path]::GetTempPath()) ("gin-workflow-install-{0}" -f [guid]::NewGuid().ToString('N'))
 $TestHome = Join-Path $TestRoot 'home'
 $OriginalHome = $env:HOME
@@ -63,13 +65,13 @@ try {
     Assert-Exists $Installer
 
     $dryRunOutput = Invoke-Installer @{ Platform = 'codex'; DryRun = $true }
-    Assert-Contains $dryRunOutput 'would install gin launcher version 3.0'
+    Assert-Contains $dryRunOutput "would install gin launcher version $ReleaseVersion"
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin.cmd'))) 'Dry-run wrote the launcher shim'
     Assert-True (-not $dryRunOutput.Contains('gin-qa', [StringComparison]::Ordinal)) 'Default install processed gin-qa'
 
     $qaDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-qa'; DryRun = $true }
-    Assert-Contains $qaDryRun 'would install gin-qa launcher version 0.11'
+    Assert-Contains $qaDryRun "would install gin-qa launcher version $ReleaseVersion"
     Assert-True (-not $qaDryRun.Contains('Processing plugin: gin-workflow', [StringComparison]::Ordinal)) 'gin-qa install processed gin-workflow'
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/cases/SKILL.md')
     Assert-Exists (Join-Path $Root 'plugins/gin-qa/dist/codex/skills/e2e/SKILL.md')
@@ -87,9 +89,9 @@ try {
 
     # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
     $orchDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true }
-    Assert-Contains $orchDryRun 'gin-orchestrator requires gin 3.0; installing it first.'
-    Assert-Contains $orchDryRun 'would install gin launcher version 3.0'
-    Assert-Contains $orchDryRun 'would install gin-orchestrator launcher version 0.1'
+    Assert-Contains $orchDryRun "gin-orchestrator requires gin $ReleaseVersion; installing it first."
+    Assert-Contains $orchDryRun "would install gin launcher version $ReleaseVersion"
+    Assert-Contains $orchDryRun "would install gin-orchestrator launcher version $ReleaseVersion"
     Assert-True ($orchDryRun.IndexOf('installing it first.', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin launcher', [StringComparison]::Ordinal)) 'gin-workflow was not installed first'
     Assert-True ($orchDryRun.IndexOf('would install gin launcher', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-orchestrator launcher', [StringComparison]::Ordinal)) 'gin-orchestrator was installed before gin-workflow'
     Assert-Exists (Join-Path $Root 'plugins/gin-orchestrator/dist/codex/skills/providers/SKILL.md')
@@ -153,11 +155,11 @@ try {
     Assert-Exists (Join-Path $project '.claude/scripts/safety_check.py')
     $claudeHook = (Get-Content -Raw -LiteralPath (Join-Path $project '.claude/hooks/hooks.json') | ConvertFrom-Json).hooks.PreToolUse[0].hooks[0].command
     Assert-True ($claudeHook -ceq 'python "${CLAUDE_PROJECT_DIR}/.claude/scripts/safety_check.py"') "Unexpected Claude hook command: $claudeHook"
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/workflow_core/cli.py')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/.gin-workflow-src.json')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/rules/core.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/templates/spec-delta.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin/3.0/templates/team/commit-msg')
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/workflow_core/cli.py")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/.gin-workflow-src.json")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/rules/core.md")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/templates/spec-delta.md")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/templates/team/commit-msg")
     Assert-Exists (Join-Path $TestHome '.local/bin/gin.cmd')
 
     $qaProject = Join-Path $TestRoot 'qa-project'
@@ -165,15 +167,15 @@ try {
     Invoke-Installer @{ Platform = 'claude'; Plugin = 'all'; Project = $qaProject } | Out-Null
     Assert-Exists (Join-Path $qaProject '.claude/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $qaProject '.claude/skills/cases/SKILL.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/gin_qa/cli.py')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/evidence.ts')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/playwright.config.ts')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/qa-readme.md')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-qa/0.11/templates/report.html')
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/gin_qa/cli.py")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/templates/evidence.ts")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/templates/playwright.config.ts")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/templates/qa-readme.md")
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/templates/report.html")
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-qa.cmd')
-    Assert-Exists (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/gin_orchestrator/cli.py')
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/templates'))) 'gin-orchestrator copied templates'
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/lib/gin-orchestrator/0.1/worktree-create.sh'))) 'gin-orchestrator copied worktree scripts'
+    Assert-Exists (Join-Path $TestHome ".local/lib/gin-orchestrator/$ReleaseVersion/gin_orchestrator/cli.py")
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome ".local/lib/gin-orchestrator/$ReleaseVersion/templates"))) 'gin-orchestrator copied templates'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome ".local/lib/gin-orchestrator/$ReleaseVersion/worktree-create.sh"))) 'gin-orchestrator copied worktree scripts'
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-orchestrator.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'
@@ -217,15 +219,15 @@ try {
         # -Link falls back to copying without Developer Mode; either way the skill must exist.
         Assert-Exists (Join-Path $linkProject '.claude/skills/setup/SKILL.md')
         $version = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin.cmd') --version
-        Assert-True (($version | Out-String).Trim() -eq 'gin 3.0') "Unexpected launcher version: $version"
+        Assert-True (($version | Out-String).Trim() -eq "gin $ReleaseVersion") "Unexpected launcher version: $version"
         $rulesList = & cmd.exe /d /c (Join-Path $TestHome '.local/bin/gin.cmd') rules --list --repository $TestHome
         Assert-True (($rulesList | Out-String).Contains('core (plugin, core)')) "Launcher did not list the core rule pack: $rulesList"
     }
 
     foreach ($launcherCase in @(
-        @{ Plugin = 'gin-workflow'; Name = 'gin'; Old = '2.1'; Current = '3.0' },
-        @{ Plugin = 'gin-qa'; Name = 'gin-qa'; Old = '0.4'; Current = '0.11' },
-        @{ Plugin = 'gin-orchestrator'; Name = 'gin-orchestrator'; Old = '0.0'; Current = '0.1' }
+        @{ Plugin = 'gin-workflow'; Name = 'gin'; Old = '2.1'; Current = $ReleaseVersion },
+        @{ Plugin = 'gin-qa'; Name = 'gin-qa'; Old = '0.4'; Current = $ReleaseVersion },
+        @{ Plugin = 'gin-orchestrator'; Name = 'gin-orchestrator'; Old = '0.0'; Current = $ReleaseVersion }
     )) {
         $launcherName = $launcherCase.Name
         $managedRoot = Join-Path $TestHome ".local/lib/$launcherName"
@@ -282,7 +284,7 @@ try {
     }
 
     # Installing gin refreshes the add-ons whose launchers the installer manages.
-    $staleAddon = Join-Path $TestHome '.local/lib/gin-qa/0.11/gin-qa'
+    $staleAddon = Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/gin-qa"
     [IO.File]::WriteAllText($staleAddon, '# stale add-on copy')
     $refreshOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project }
     Assert-Contains $refreshOutput 'Refreshing the installed gin-qa add-on.'
@@ -489,7 +491,7 @@ try {
     Assert-Exists $legacyOpenCode
     if ($IsWindows) {
         $legacyVersion = & cmd.exe /d /c (Join-Path $legacyHome '.local/bin/gin.cmd') --version
-        Assert-True (($legacyVersion | Out-String).Trim() -eq 'gin 3.0') "Unexpected launcher version after the upgrade: $legacyVersion"
+        Assert-True (($legacyVersion | Out-String).Trim() -eq "gin $ReleaseVersion") "Unexpected launcher version after the upgrade: $legacyVersion"
     }
 
     Invoke-Installer @{ Platform = 'opencode' } | Out-Null
