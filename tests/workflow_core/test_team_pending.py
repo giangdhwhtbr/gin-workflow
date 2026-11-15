@@ -118,6 +118,21 @@ class TestGateRows(PendingCase):
                                      reviews=[("an-ba", "APPROVED", "c1")])))
         self.assertEqual(["missing approval from one of be_lead"], self.pending()[0]["missing"])
 
+    def test_host_policy_misses_nothing_and_notes_it(self):
+        """lean-lifecycle R1, US-1: an open spec PR under `requirement_confirmed: host` waits only for its merge."""
+        self.configure("requirement_confirmed: [ba, be_lead, fe_lead]", "requirement_confirmed: host")
+        self.branches["spec/login"] = {SPEC_PATH: "# Login\n\nEpic: e-1\n"}
+        self.gh(("spec/login", gh_pr(PR_SPEC, state="OPEN", author="em-dev", files=[SPEC_PATH])))
+        [row] = self.pending()
+        self.assertEqual(([], ["approvals: host"]), (row["missing"], row["notes"]))
+
+    def test_ship_host_gives_a_ship_row_with_the_host_note(self):
+        self.configure("ship: [qe]", "ship: host")
+        self.bd(EPIC, CLOSED_TRACK)
+        self.gh(("feat/login", gh_pr(PR_SHIP, state="OPEN", author="binh-dev", files=["services/auth/login.py"])))
+        [row] = self.pending()
+        self.assertEqual(("ship", [], ["approvals: host"]), (row["gate"], row["missing"], row["notes"]))
+
     def test_open_plan_pr_names_the_missing_area_leads_from_the_plan_on_its_branch(self):
         self.branches["plan/login"] = {PLAN_PATH: f"{PLAN}\nEpic: e-1\n"}
         self.gh(("plan/login", gh_pr(PR_PLAN, state="OPEN", author="em-dev", files=[PLAN_PATH],

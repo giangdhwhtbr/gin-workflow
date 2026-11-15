@@ -787,6 +787,58 @@ class TestChildShipGate(GateCase):
         result = run_cli(self.root, "record", "shipped", "--evidence", CHILD_PR, "--workflow-id", "w", env=self.env)
         self.assertEqual(0, result.returncode, result.stderr)
 
+    def ship_ready(self, *prs: dict) -> None:
+        """Beads on, a closed standalone bead w recorded orchestration-ready, and `gh pr view` answering each PR."""
+        write(self.root, ".agent-workflow/config.yaml",
+              (self.root / ".agent-workflow/config.yaml").read_text() + "providers:\n  task_tracking: beads\n")
+        resolve_effective_config(self.root)
+        self.bd({"w": {"id": "w", "issue_type": "task", "status": "closed", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                                    "--epic", "w", env=self.env).returncode)
+        fake_cli(self.bin, "gh", [{"argv": ["pr", "view", pr["url"]], "stdout": pr} for pr in prs])
+
+    def record_shipped(self, *urls: str):
+        return run_cli(self.root, "record", "shipped", *(arg for url in urls for arg in ("--evidence", url)),
+                       "--workflow-id", "w", env=self.env)
+
+    def shipped_events(self) -> list[dict]:
+        path = self.root / ".agent-workflow/runtime/events.jsonl"
+        return [event for event in map(json.loads, path.read_text().splitlines())
+                if event["event_type"] == "delivery.shipped"]
+
+    def test_record_shipped_takes_one_pr_per_repository(self):
+        """lean-lifecycle R3, R4, US-2: the parent and the child PR prove one shipped record."""
+        self.ship_ready(gh_pr(PR, reviews=[("dung-qe", "APPROVED", "h" * 40)]),
+                        gh_pr(CHILD_PR, head=self.head, reviews=[("dung-qe", "APPROVED", self.head)]))
+        result = self.record_shipped(PR, CHILD_PR)
+        self.assertEqual(0, result.returncode, result.stderr)
+        [event] = self.shipped_events()
+        expected = [{"pr_url": PR, "merge_commit": "m" * 40, "repository": "github.com/org/app"},
+                    {"pr_url": CHILD_PR, "merge_commit": "m" * 40, "repository": "github.com/org/api"}]
+        self.assertEqual((f"{PR}, {CHILD_PR}", PR, expected),
+                         (event["payload"]["evidence"], event["payload"]["pr_url"], event["payload"]["pull_requests"]))
+        update = next(u for u in self.bd_updates() if u[2:4] == ["w", "--set-metadata"] and '"shipped"' in u[4])
+        proof = json.loads(update[4].removeprefix("gates="))["shipped"]
+        self.assertEqual((PR, expected), (proof["pr_url"], proof["pull_requests"]))
+
+    def test_two_prs_of_one_repository_record_nothing(self):
+        other = "https://github.com/org/app/pull/8"
+        self.ship_ready(gh_pr(PR, reviews=[("dung-qe", "APPROVED", "h" * 40)]),
+                        gh_pr(other, reviews=[("dung-qe", "APPROVED", "h" * 40)]))
+        result = self.record_shipped(PR, other)
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn(f"{other}: github.com/org/app is already covered by {PR}", result.stderr)
+        self.assertEqual([], self.shipped_events())
+
+    def test_one_unmerged_pr_refuses_both_naming_it(self):
+        self.ship_ready(gh_pr(PR, reviews=[("dung-qe", "APPROVED", "h" * 40)]),
+                        gh_pr(CHILD_PR, state="OPEN", head=self.head, reviews=[("dung-qe", "APPROVED", self.head)]))
+        result = self.record_shipped(PR, CHILD_PR)
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertIn(f"{CHILD_PR}: PR is open, not merged", result.stderr)
+        self.assertNotIn(f"{PR}:", result.stderr)
+        self.assertEqual([], self.shipped_events())
+
 
 class TestObjectPolicies(GateCase):
     """`{all, any}` approval policies and the sole-holder fallback (gin-workflow-approval-roles R1-R5)."""
@@ -1092,6 +1144,19 @@ class TestKindApproval(GateCase):
         self.assertEqual(2, result.returncode, result.stdout)
         self.assertIn("the PR must change exactly one spec file (found: none)", result.stderr)
 
+    def test_host_for_one_kind_and_roles_for_the_other(self):
+        """lean-lifecycle R1: a kind map may trust the host for capability epics and keep roles for technical ones."""
+        self.configure("{capability: host, technical: [be_lead]}")
+        self.gh(gh_pr(author="em-dev", files=[SPEC_PATH], reviews=[]))
+        self.epic("kind:capability")
+        self.spec("capability")
+        code, payload = self.check("--workflow-id", "e-1")
+        self.assertEqual((0, []), (code, payload["reasons"]))
+        self.epic("kind:technical")
+        self.spec("technical")
+        code, payload = self.check("--workflow-id", "e-1")
+        self.assertEqual((1, ["missing approval from one of be_lead"]), (code, payload["reasons"]))
+
     def test_a_policy_for_any_kind_needs_a_merged_pr(self):
         """F-4: with no approvers for technical epics, their requirement is still proven by a merged PR."""
         self.configure("{capability: [ba], technical: []}")
@@ -1105,6 +1170,100 @@ class TestKindApproval(GateCase):
         result = self.record_epic()
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual((PR, []), (self.events()[-1]["payload"]["pr_url"], self.events()[-1]["payload"]["approvers"]))
+
+
+HOST_GATES = {"requirement_confirmed: [ba, be_lead, fe_lead]": "requirement_confirmed: host",
+              "plan_approved: area_lead": "plan_approved: host", "ship: [qe]": "ship: host"}
+
+
+class TestHostApprovals(GateCase):
+    """lean-lifecycle R1, US-1: `host` trusts a merged PR; gin checks no approver, author, or head commit."""
+
+    def configure(self, gates: dict[str, str] = HOST_GATES, extra: str = "") -> None:
+        team = TEAM.format(host="github")
+        for old, new in gates.items():
+            team = team.replace(old, new)
+        write(self.root, ".agent-workflow/config.yaml", f"schema_version: '2.7'\n{extra}{team}")
+        if extra:
+            resolve_effective_config(self.root)
+
+    def test_record_shipped_trusts_a_merged_pr_and_refuses_an_open_one(self):
+        self.configure(extra="providers:\n  task_tracking: beads\n")
+        self.bd({"w": {"id": "w", "issue_type": "task", "status": "closed", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                                    "--epic", "w", env=self.env).returncode)
+        self.gh(gh_pr(state="OPEN", author="em-dev", reviews=[]))
+        refused = self.record("shipped")
+        self.assertEqual(1, refused.returncode, refused.stderr)
+        self.assertEqual("error: PR is open, not merged", refused.stderr.strip())
+        self.gh(gh_pr(author="em-dev", reviews=[]))
+        result = self.record("shipped")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = self.events()[-1]["payload"]
+        self.assertEqual((PR, [], [{"pr_url": PR, "merge_commit": "m" * 40, "repository": "github.com/org/app"}]),
+                         (payload["pr_url"], payload["approvers"], payload["pull_requests"]))
+
+    def test_team_check_ship_of_an_open_unapproved_pr_skips_the_head(self):
+        self.configure()
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "feat: x")  # local HEAD is not the PR head
+        self.gh(gh_pr(state="OPEN", author="em-dev", head="f" * 40, reviews=[]))
+        result = self.check_ship()
+        self.assertEqual((0, "ok (approvals are enforced by the host)"), (result.returncode, result.stdout.strip()))
+        self.gh(gh_pr(state="CLOSED", author="em-dev", reviews=[]))
+        self.assertEqual("PR is closed", self.check_ship().stdout.strip())
+
+    def test_requirement_confirmed_needs_only_a_merged_pr_that_changes_the_spec(self):
+        self.configure()
+        self.gh(gh_pr(author="em-dev", files=["README.md"], reviews=[]))
+        self.assertIn(f"PR does not change {SPEC_PATH}", self.record("requirement-confirmed", PR, "--spec",
+                                                                     SPEC_PATH).stderr)
+        self.gh(gh_pr(author="em-dev", files=[SPEC_PATH], reviews=[]))
+        result = self.record("requirement-confirmed")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual((PR, []), (self.events()[-1]["payload"]["pr_url"], self.events()[-1]["payload"]["approvers"]))
+
+    def test_plan_approved_still_runs_check_plan(self):
+        self.configure()
+        self.gh(gh_pr(author="em-dev", files=[PLAN_PATH], reviews=[]))
+        write(self.root, PLAN_PATH, PLAN.replace("- Area: backend", "- Area: nowhere"))
+        refused = self.record("plan-approved")
+        self.assertEqual(1, refused.returncode)
+        self.assertIn("unknown area nowhere", refused.stderr)
+        write(self.root, PLAN_PATH, PLAN)
+        self.assertEqual(0, self.record("plan-approved").returncode)
+
+    def test_any_member_waives_a_host_gate(self):
+        self.configure()
+        git(self.root, "config", "user.email", "em@corp.com")
+        for gate in ("requirement_confirmed", "plan_approved"):
+            with self.subTest(gate=gate):
+                result = run_cli(self.root, "unblock", "--gate", gate, "--reason", "r")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_team_init_names_no_gate_without_a_policy_and_no_spec_approver(self):
+        self.configure()
+        result = run_cli(self.root, "team", "init")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertNotIn("gates without a role policy", result.stdout)
+        owners = (self.root / ".github/CODEOWNERS").read_text()
+        self.assertIn("/.planning/specs/ @binh-dev @chi-fe\n", owners)  # the area leads only, no spec approver
+
+    def test_a_role_policy_still_needs_its_approval(self):
+        self.configure({"ship: [qe]": "ship: [be_lead]"})
+        self.gh(gh_pr(state="OPEN", author="em-dev", reviews=[]))
+        self.assertIn("missing approval from one of be_lead", self.check_ship().stdout)
+
+    def test_host_is_the_only_new_string_policy(self):
+        from workflow_core.team import validate_team
+
+        raw = yaml.safe_load(TEAM.format(host="github"))["team"]
+        approvals = {"requirement_confirmed": {"capability": "host", "technical": ["be_lead"]},
+                     "plan_approved": "host", "ship": "host", "roadmap": "host"}
+        validate_portable_config({"schema_version": "2.7", "team": {**raw, "approvals": approvals}})
+        self.assertEqual([], validate_team({**raw, "approvals": approvals, "strict": True}))
+        for gate in ("ship", "requirement_confirmed", "plan_approved", "roadmap"):
+            with self.subTest(gate=gate), self.assertRaises(ConfigValidationError):
+                validate_portable_config({"schema_version": "2.7", "team": {**raw, "approvals": {gate: "hosted"}}})
 
 
 class TestBeforeMerge(GateCase):

@@ -194,6 +194,7 @@ _SHARED_EVENTS = {"requirement.confirmed": "requirement_confirmed", "approval.re
 def _proof(payload: Mapping[str, Any], actor: str, at: str) -> dict[str, Any]:
     return {"pr_url": payload.get("pr_url", ""), "merge_commit": payload.get("merge_commit", ""),
             "approvers": [a.get("email", "") for a in payload.get("approvers", []) if isinstance(a, Mapping)],
+            **({"pull_requests": payload["pull_requests"]} if "pull_requests" in payload else {}),
             "actor": actor, "at": at}
 
 
@@ -297,6 +298,9 @@ def _plan_path(root: Path, value: str | None) -> Path | None:
 
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     event_type, base_payload = _RECORDABLE_GATES[args.gate]
+    if len(args.evidence) > 1 and args.gate != "shipped":
+        return {"status": "error", "message": "only shipped takes several --evidence values"}, 2
+    evidence = ", ".join(args.evidence)
     if args.epic and args.gate != "orchestration-ready":
         return {"status": "error", "message": "--epic applies only to orchestration-ready"}, 2
     if args.gate == "orchestration-ready" and args.epic:
@@ -306,12 +310,12 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if cause is None and isinstance(record, Mapping) and is_prep(record):
             return {"status": "rejected", "message": f"orchestration-ready refused: {args.epic} is a prep task, not implementation work"}, 1
     if args.gate == "requirement-confirmed":
-        errors = _spec_lint_errors(Path(args.repository).resolve(), args.evidence)
+        errors = _spec_lint_errors(Path(args.repository).resolve(), evidence)
         if errors:
             return {"status": "rejected", "message": "requirement-confirmed refused: spec lint failed\n"
                     + "\n".join(errors)}, 1
         # Team mode also checks the spec a PR resolves to (authorize_record); evidence is then a URL.
-        mismatch = epic_kind.lookup(Path(args.repository).resolve(), args.workflow_id, args.spec or args.evidence)[1]
+        mismatch = epic_kind.lookup(Path(args.repository).resolve(), args.workflow_id, args.spec or evidence)[1]
         if mismatch:
             return {"status": "rejected", "message": f"requirement-confirmed refused: {mismatch}"}, 1
     if args.gate == "plan-approved":
@@ -326,7 +330,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                     + "\n".join(open_questions)}, 1
         located = workspace.locate(Path(args.repository).resolve())
         if located.workspace is not None:
-            plan = _plan_path(located.root, args.plan) or _plan_path(located.root, args.evidence)
+            plan = _plan_path(located.root, args.plan) or _plan_path(located.root, evidence)
             if plan is None:
                 return {"status": "rejected",
                         "message": "plan-approved refused: a workspace needs the plan file as --plan or --evidence"}, 1
@@ -353,7 +357,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             return {"status": "rejected", "message": str(rejected), "reasons": rejected.reasons}, 1
     elif not actor:
         return {"status": "error", "message": "--actor is required"}, 2
-    payload = {**base_payload, "evidence": args.evidence, **team_payload}
+    payload = {**base_payload, "evidence": evidence, **team_payload}
     if args.epic:
         payload["epic"] = args.epic
     event = WorkflowEvent.create(
@@ -361,7 +365,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         workflow_id=args.workflow_id,
         actor=actor,
         payload=payload,
-        idempotency_key=f"{args.workflow_id}:{args.gate}:{args.evidence}",
+        idempotency_key=f"{args.workflow_id}:{args.gate}:{evidence}",
     )
     try:
         with store.transaction() as tx:
@@ -796,7 +800,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             print(f"error: {REMOVED_VERIFY_MESSAGE}", file=sys.stderr)
             return 2
         parser.add_argument("gate", choices=tuple(_RECORDABLE_GATES))
-        parser.add_argument("--evidence", required=True)
+        parser.add_argument("--evidence", required=True, action="append",
+                            help="repeatable for shipped: one pull request URL per repository")
         parser.add_argument("--actor", default="", help="required unless team mode derives it from git user.email")
         parser.add_argument("--plan", help="team mode: the plan file a plan-approved PR approves")
         parser.add_argument("--spec", help="team mode: the spec file a requirement-confirmed PR approves")

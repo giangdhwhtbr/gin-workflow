@@ -20,7 +20,8 @@ _SHAPES = ["frontend", "backend", "fullstack", "library"]
 _ROLES = {"type": "array", "uniqueItems": True, "items": {"type": "string", "minLength": 1}}
 _POLICY = {"type": "object", "properties": {"all": _ROLES, "any": _ROLES}, "additionalProperties": False,
            "minProperties": 1}
-_GATE = {"anyOf": [_ROLES, _POLICY]}
+_HOST = {"const": "host"}  # the host enforces approvals; gin checks the pull request only
+_GATE = {"anyOf": [_ROLES, _POLICY, _HOST]}
 _KIND_MAP = {"type": "object", "required": ["capability"], "properties": {kind: _GATE for kind in KINDS},
              "additionalProperties": False}
 # Accepts what anyOf [_ROLES, _POLICY, _KIND_MAP] accepts; an object without `all`/`any` is checked as a kind map
@@ -59,7 +60,7 @@ _TEAM = {
             "type": "object",
             "properties": {
                 "requirement_confirmed": _REQUIREMENT,
-                "plan_approved": {"anyOf": [{"const": "area_lead"}, _ROLES, _POLICY]},
+                "plan_approved": {"anyOf": [{"const": "area_lead"}, _ROLES, _POLICY, _HOST]},
                 "ship": _GATE,
                 "verification_passed": _GATE,  # deprecated: mapped to ship
                 "roadmap": _GATE,

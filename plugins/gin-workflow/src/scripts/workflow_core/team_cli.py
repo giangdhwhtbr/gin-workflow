@@ -220,8 +220,9 @@ def _run(args: argparse.Namespace) -> int:
         payload = {"status": "rejected" if reasons else "ok", "gate": args.gate, "url": pr.url, "reasons": reasons,
                    "approvers": team_core.approver_payload(pr, team, on_commit=pr.head_sha if args.gate == "ship" else None),
                    "artifact": artifact, "notes": notes, "kind": kind}
-        _emit(payload, args.format, "\n".join([*(f"note: {note}" for note in notes),
-                                               *(reasons or [f"ok: {args.gate} {pr.url}"])]))
+        trusted = team_core.policy_for(team, args.gate, kind) == team_core.HOST
+        ok = "ok (approvals are enforced by the host)" if trusted else f"ok: {args.gate} {pr.url}"
+        _emit(payload, args.format, "\n".join([*(f"note: {note}" for note in notes), *(reasons or [ok])]))
         return 1 if reasons else 0
     if args.command == "pending":
         from . import team_pending

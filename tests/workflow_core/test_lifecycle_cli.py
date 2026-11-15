@@ -734,6 +734,21 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
                                       "--actor", "user"]))
 
+    def test_record_takes_several_evidence_values_only_for_shipped(self):
+        """lean-lifecycle R3: plan-approved refuses two values; shipped records them joined by ", "."""
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(2, cli_main(["record", "plan-approved", "--repository", str(self.repo_path),
+                                          "--evidence", "a", "--evidence", "b", "--actor", "user"]))
+        self.assertIn("only shipped takes several --evidence values", err.getvalue())
+        self._record_orchestration(epic="bug-1")
+        with mock.patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads([], epic_status="closed")), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, cli_main(["record", "shipped", "--repository", str(self.repo_path),
+                                          "--evidence", "a", "--evidence", "b", "--actor", "user"]))
+        store = WorkflowEventStore(self.repo_path / ".agent-workflow/runtime/events.jsonl")
+        [event] = [event for event in store.read_all() if event.event_type == "delivery.shipped"]
+        self.assertEqual("a, b", event.payload["evidence"])
+
     def _state_payload(self, workflow_id="default-workflow"):
         with mock.patch("sys.stdout", new=io.StringIO()) as out:
             code = lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json",

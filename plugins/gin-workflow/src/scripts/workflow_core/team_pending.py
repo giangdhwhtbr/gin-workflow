@@ -41,7 +41,7 @@ def topic_of(plan_path: str) -> str:
 
 def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]:
     """(branch, kind, epic) in text order: remote `spec/*` and `plan/*` heads (epic read later), `feat/<topic>` per
-    open epic with track beads of any status when the ship gate has roles, and `feat/<topic>-t<N>` per open track
+    open epic with track beads of any status when the ship gate has a policy, and `feat/<topic>-t<N>` per open track
     bead."""
     heads = [line.split("\trefs/heads/", 1)[1] for line in git(root, "ls-remote", "--heads", "origin").splitlines()
              if "\trefs/heads/" in line]
@@ -61,7 +61,7 @@ def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]
             tracks[f"feat/{topic}-t{match[2]}"] = epic
         if epic in live:
             topics.setdefault(epic, topic)
-    if team_core.gate_roles("ship", team):
+    if team_core.has_policy("ship", team):
         found += [(f"feat/{topic}", "ship", epic) for epic, topic in topics.items()]
     return found + [(branch, "track", epic) for branch, epic in tracks.items()]
 
@@ -82,7 +82,8 @@ def branch_documents(root: Path, branch: str, files: Sequence[str]) -> dict[str,
 def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
             milestone: str | None = None) -> list[dict[str, Any]]:
     """One row per open pull request of a candidate branch: gate rows carry as `missing` the reasons the gate's
-    policy gives before merge, with the branch's spec or plan text as the artifact; track rows only their approvers.
+    policy gives before merge, with the branch's spec or plan text as the artifact, and the note `approvals: host` under
+    a `host` policy; track rows only their approvers.
     A host failure before any host call has succeeded raises; after that, a failed lookup gives its row `error`."""
     keep = {workflow_id} if workflow_id else None
     if milestone:
@@ -110,9 +111,11 @@ def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
                 row["epic"] = next((match[1] for match in map(_EPIC_LINE.search, documents.values()) if match), None)
                 text = documents.get(team_core.resolve_artifact(pr, root, row["gate"], None))
             if row["gate"]:
-                row["missing"] = team_core.verify_gate(root, team, row["gate"], found.url, notes=row["notes"],
-                                                       workflow_id=row["epic"], before_merge=True,
-                                                       artifact_text=text)[2]
+                _, _, row["missing"], epic_kind = team_core.verify_gate(
+                    root, team, row["gate"], found.url, notes=row["notes"], workflow_id=row["epic"], before_merge=True,
+                    artifact_text=text)
+                if team_core.policy_for(team, row["gate"], epic_kind) == team_core.HOST:
+                    row["notes"].append("approvals: host")
         except (HostUnavailable, TeamError) as error:
             if isinstance(error, HostUnavailable) and not reached:
                 raise

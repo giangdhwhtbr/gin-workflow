@@ -18,6 +18,7 @@ GATES = ("requirement_confirmed", "plan_approved", "ship", "roadmap")
 ROADMAP = {"legacy": ".planning/roadmap.md", "sdd": "docs/roadmap.md"}
 DEFAULT_APPROVALS: dict[str, Any] = {"requirement_confirmed": [], "plan_approved": "area_lead", "ship": []}
 POLICY_GATES = ("requirement_confirmed", "plan_approved", "ship")
+HOST = "host"  # policy: the host enforces approvals, so gin checks a merged PR of a known repository only
 _WILDCARDS = re.compile(r"[*?\[]")
 
 
@@ -468,7 +469,8 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
                    artifact_text: str | None = None) -> list[str]:
     """Reasons the PR does not satisfy the gate's policy for the epic `kind` (empty = pass); skipped sole-holder
     roles are appended to `notes` when given. `before_merge` drops the merged requirement for an open PR;
-    `artifact_text` is the artifact's content, read instead of `root/artifact` (a plan only on the PR branch)."""
+    `artifact_text` is the artifact's content, read instead of `root/artifact` (a plan only on the PR branch).
+    A `HOST` policy checks no approver, author, or head commit."""
     policy = policy_for(team, "ship" if gate == "shipped" else gate, kind)
     reasons: list[str] = []
     host = adapter(team.host)
@@ -481,6 +483,8 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
             reasons.append(f"PR is {pr.state}, not merged")
         elif pr.state not in ("open", "merged"):
             reasons.append(f"PR is {pr.state}")
+        if policy == HOST:
+            return reasons
         if local_head and pr.head_sha != local_head:
             reasons.append(f"PR head {pr.head_sha[:12]} is not local HEAD {local_head[:12]}")
         approvers = _approver_roles(pr, team, on_commit=pr.head_sha)
@@ -500,6 +504,8 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
             tracks = plan_tracks(plan, artifact_text)
         else:
             reasons.append(f"{artifact} is not in this checkout; pull the merged plan")
+    if policy == HOST:
+        return reasons
     held = set().union(*approvers.values()) if approvers else set()
     author = team.by_identity(pr.author, adapter(team.host).identity_key)
     if policy == "area_lead":
@@ -575,7 +581,7 @@ def gate_roles(gate: str, team: TeamConfig, kind: str | None = None) -> set[str]
 
 
 def _has_policy(policy: Any, areas: Mapping[str, Any]) -> bool:
-    return policy == "area_lead" and bool(areas) or bool(set().union(*policy_parts(policy)))
+    return policy == HOST or policy == "area_lead" and bool(areas) or bool(set().union(*policy_parts(policy)))
 
 
 def has_policy(gate: str, team: TeamConfig, kind: str | None = None) -> bool:
@@ -637,29 +643,48 @@ def verify_gate(root: Path, team: TeamConfig, gate: str, url: str, *, plan: str 
         return pr, artifact, [mismatch], kind
     expected, head_dir, accepted = (repo_for_pr(Path(root), team, url) if gate in ("ship", "shipped")
                                     else ("", Path(root), []))
-    head = _head(head_dir) if gate == "ship" and not before_merge else ""
+    head = _head(head_dir) if gate == "ship" and not before_merge and policy_for(team, gate) != HOST else ""
     reasons = check_approval(gate, pr, team, root=Path(root), artifact=artifact, local_head=head,
                              expected_repo=expected, accepted=accepted, notes=notes, kind=kind,
                              before_merge=before_merge, artifact_text=artifact_text)
     return pr, artifact, reasons, kind
 
 
-def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str, *, actor: str | None = None,
-                     plan: str | None = None, spec: str | None = None,
+def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str | Sequence[str], *,
+                     actor: str | None = None, plan: str | None = None, spec: str | None = None,
                      workflow_id: str | None = None) -> tuple[str, dict[str, Any]]:
-    """Team-mode `record`: the member's email as actor plus, for a gate that `needs_pr`, the PR proof."""
+    """Team-mode `record`: the member's email as actor plus, for a gate that `needs_pr`, the PR proof. `shipped`
+    takes one PR per repository; each is verified, with its URL before each reason when there are several. The
+    proof is the first PR's, plus `pull_requests` for `shipped`."""
     member = require_member(root, team, actor)
+    urls = [evidence] if isinstance(evidence, str) else list(evidence)
+    if len(urls) > 1 and gate != "shipped":
+        raise TeamError("only shipped takes several --evidence values")
     if (gate not in GATES and gate != "shipped") or not needs_pr("ship" if gate == "shipped" else gate, team):
         return member.email, {}
-    if gate == "shipped" and not evidence.startswith(("https://", "http://")):
+    if gate == "shipped" and not all(url.startswith(("https://", "http://")) for url in urls):
         raise TeamError("shipped needs the PR URL as --evidence in team mode")
-    pr, artifact, reasons, _ = verify_gate(root, team, gate, evidence, plan=plan, spec=spec, workflow_id=workflow_id)
+    host = adapter(team.host)
+    reasons: list[str] = []
+    proofs: list[tuple[Any, str]] = []
+    covered: dict[str, str] = {}
+    for url in urls:
+        pr, artifact, failed, _ = verify_gate(root, team, gate, url, plan=plan, spec=spec, workflow_id=workflow_id)
+        repository = host.repo_id(url, pr=True)
+        if repository in covered:
+            failed.append(f"{repository} is already covered by {covered[repository]}")
+        covered.setdefault(repository, url)
+        reasons += [f"{url}: {reason}" if len(urls) > 1 else reason for reason in failed]
+        proofs.append((pr, artifact))
     if reasons:
         raise TeamRejected(reasons)
+    pr, artifact = proofs[0]
+    shipped = {"pull_requests": [{"pr_url": item.url, "merge_commit": item.merge_commit,
+                                  "repository": host.repo_id(item.url, pr=True)} for item, _ in proofs]}
     return member.email, {"pr_url": pr.url, "merge_commit": pr.merge_commit,
                           "approvers": approver_payload(pr, team, on_commit=pr.head_sha if gate == "shipped" else None),
-                          "repository": adapter(team.host).repo_id(pr.url, pr=True),
-                          **({"artifact": artifact} if artifact else {})}
+                          "repository": host.repo_id(pr.url, pr=True),
+                          **({"artifact": artifact} if artifact else {}), **(shipped if gate == "shipped" else {})}
 
 
 def authorize_waiver(root: Path, team: TeamConfig, gate: str | None, *, actor: str | None = None,
