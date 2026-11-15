@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-quick-team.2`
 - **Base SHA:** `6d90e5393696fe522cff0f842ae86a84a3d2ca0b`
-- **Reviewed SHA:** `1082b3ae0d900b0dc24181b49499af429c0b21c7`
+- **Reviewed SHA:** `7089bbe904f761f5dc7d7a51d4e5fb7f238f4b7f`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-quick-team.2`
-- **Checkpoint SHA:** `1082b3ae0d900b0dc24181b49499af429c0b21c7`
+- **Checkpoint SHA:** `7089bbe904f761f5dc7d7a51d4e5fb7f238f4b7f`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `a660940765beba1e47fb4f1ef7af614de291ac2374a250b1d16608fd5e90742b`
+- **Tree Hash:** `1fcc4ab408db05d80dd0474c6542562ecfd18294cc3f3433d37278906e0f9dce`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,21 +29,21 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `open` | 0 | - |
-| `F-2` | `IMPORTANT` | `open` | 0 | - |
-| `F-3` | `IMPORTANT` | `open` | 0 | - |
+| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-2` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-3` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-2` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 ### `F-3` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -61,3 +61,8 @@
 | `EV-000009` | `2026-11-15T07:38:25.402976Z` | `changes-requested` | `reviewer:claude:session-d52d8cb1` (reviewer) |
 | `EV-000010` | `2026-11-15T07:38:25.689153Z` | `lease-released` | `reviewer:claude:session-d52d8cb1` (reviewer) |
 | `EV-000011` | `2026-11-15T07:39:11.643130Z` | `implementation-in-progress` | `worker:claude:sonnet` (worker) |
+| `EV-000012` | `2026-11-15T07:44:38.451310Z` | `finding-fixed` | `worker:claude:sonnet` (worker) |
+| `EV-000013` | `2026-11-15T07:44:38.603353Z` | `finding-fixed` | `worker:claude:sonnet` (worker) |
+| `EV-000014` | `2026-11-15T07:44:38.756831Z` | `finding-fixed` | `worker:claude:sonnet` (worker) |
+| `EV-000015` | `2026-11-15T07:44:39.131534Z` | `source-checkpoint-created` | `worker:claude:sonnet` (worker) |
+| `EV-000016` | `2026-11-15T07:44:39.283202Z` | `review-requested` | `worker:claude:sonnet` (worker) |

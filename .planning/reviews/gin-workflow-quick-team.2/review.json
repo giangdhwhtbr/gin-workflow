@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "implementation-in-progress",
+  "review_state": "review-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -9,11 +9,11 @@
       "review_ref": "refs/gin/review/gin-workflow-quick-team.2",
       "checkpoint_ref": "refs/gin/review/gin-workflow-quick-team.2",
       "review_base_sha": "6d90e5393696fe522cff0f842ae86a84a3d2ca0b",
-      "reviewed_source_sha": "1082b3ae0d900b0dc24181b49499af429c0b21c7",
-      "checkpoint_sha": "1082b3ae0d900b0dc24181b49499af429c0b21c7",
+      "reviewed_source_sha": "7089bbe904f761f5dc7d7a51d4e5fb7f238f4b7f",
+      "checkpoint_sha": "7089bbe904f761f5dc7d7a51d4e5fb7f238f4b7f",
       "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
-      "source_tree_hash": "a660940765beba1e47fb4f1ef7af614de291ac2374a250b1d16608fd5e90742b",
-      "reviewed_source_tree_hash": "a660940765beba1e47fb4f1ef7af614de291ac2374a250b1d16608fd5e90742b",
+      "source_tree_hash": "1fcc4ab408db05d80dd0474c6542562ecfd18294cc3f3433d37278906e0f9dce",
+      "reviewed_source_tree_hash": "1fcc4ab408db05d80dd0474c6542562ecfd18294cc3f3433d37278906e0f9dce",
       "source_identity_status": "complete"
     }
   ],
@@ -24,13 +24,13 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 11,
+  "ledger_revision": 16,
   "next_finding_number": 4,
   "findings": {
     "F-1": {
       "finding_id": "F-1",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -44,7 +44,7 @@
     "F-2": {
       "finding_id": "F-2",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -58,7 +58,7 @@
     "F-3": {
       "finding_id": "F-3",
       "severity": "IMPORTANT",
-      "status": "open",
+      "status": "fixed-awaiting-verification",
       "clarification_count": 0,
       "deferral_reason": null,
       "follow_up_bead_id": null,
@@ -268,6 +268,91 @@
       },
       "previous_event_hash": "fa5859c735d24a49a732ba58c6e1321a0259f574d47dd368c38e4a6e740fdba7",
       "event_hash": "b59e4422bbcb2c29f290013e4947953bc2fe3864612cc618612f04f7927bb236"
+    },
+    {
+      "event_id": "EV-000012",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-15T07:44:38.451310Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "finding_id": "F-1"
+      },
+      "previous_event_hash": "b59e4422bbcb2c29f290013e4947953bc2fe3864612cc618612f04f7927bb236",
+      "event_hash": "3f9e21b69ee2ac113f97c8ddde30dc9a9d0f3209f9a22226c3f7da4857a89e10"
+    },
+    {
+      "event_id": "EV-000013",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-15T07:44:38.603353Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "finding_id": "F-2"
+      },
+      "previous_event_hash": "3f9e21b69ee2ac113f97c8ddde30dc9a9d0f3209f9a22226c3f7da4857a89e10",
+      "event_hash": "a0e6ca88bb167ae6a7ee7aef890dcc83240ee568455af4a2b1e3a11e942fad01"
+    },
+    {
+      "event_id": "EV-000014",
+      "action": "finding-fixed",
+      "timestamp": "2026-11-15T07:44:38.756831Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "finding_id": "F-3"
+      },
+      "previous_event_hash": "a0e6ca88bb167ae6a7ee7aef890dcc83240ee568455af4a2b1e3a11e942fad01",
+      "event_hash": "a2e0edec32e49fed66b6138022dae1aeb3da9a68e2e5da6f585e880e49d7b903"
+    },
+    {
+      "event_id": "EV-000015",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-15T07:44:39.131534Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-quick-team.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-quick-team.2",
+            "review_base_sha": "6d90e5393696fe522cff0f842ae86a84a3d2ca0b",
+            "reviewed_source_sha": "7089bbe904f761f5dc7d7a51d4e5fb7f238f4b7f",
+            "checkpoint_sha": "7089bbe904f761f5dc7d7a51d4e5fb7f238f4b7f",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "1fcc4ab408db05d80dd0474c6542562ecfd18294cc3f3433d37278906e0f9dce",
+            "reviewed_source_tree_hash": "1fcc4ab408db05d80dd0474c6542562ecfd18294cc3f3433d37278906e0f9dce",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "a2e0edec32e49fed66b6138022dae1aeb3da9a68e2e5da6f585e880e49d7b903",
+      "event_hash": "41b8afe03ed04d3db816e7f1bcb47dec5d585a4e0b9e57077604f5aaabdf31b3"
+    },
+    {
+      "event_id": "EV-000016",
+      "action": "review-requested",
+      "timestamp": "2026-11-15T07:44:39.283202Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "41b8afe03ed04d3db816e7f1bcb47dec5d585a4e0b9e57077604f5aaabdf31b3",
+      "event_hash": "fb8a3052fe48d9201633a7b7f9b58bebdd9b5d8cedd809a276c6b5e684570616"
     }
   ]
 }
