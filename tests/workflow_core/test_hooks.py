@@ -94,11 +94,11 @@ class TestHooksStatus(unittest.TestCase):
         code, report = self.status(root)
         self.assertEqual((0, True, "host", ["lint"]), (code, report["ok"], report["run_at"], report["verify_commands"]))
 
-    def test_run_at_host_without_pre_commit_commands_is_not_ok(self):
+    def test_run_at_host_without_pre_commit_commands_is_still_ok(self):
         root = make_repo(self.tmp.name, lint="", test="true", run_at="host")
         hooks.install(root)
         code, report = self.status(root)
-        self.assertEqual((1, False), (code, report["ok"]))
+        self.assertEqual((0, True, []), (code, report["ok"], report["verify_commands"]))
 
 
 class TestHooksInstall(unittest.TestCase):
@@ -574,6 +574,22 @@ class WorkspaceHookTests(unittest.TestCase):
                           "verify_commands": ["services/api:lint", "services/api:test"], "run_at": "push",
                           "ok": True},
                          report["repos"]["services/api"])
+
+    def test_run_at_host_in_a_child_runs_no_pre_push_and_status_is_ok(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8").replace(
+            "verify:\n  checks:\n    lint: touch parent-lint\n", "verify:\n  run_at: host\n"), encoding="utf-8")
+        child_config = config.read_text(encoding="utf-8").replace('lint: "touch child-lint", test: "true"',
+                                                                  'test: "touch ran-in-child"')
+        config.write_text(child_config, encoding="utf-8")
+        self.hook("install", "--all-repos", "--repository", str(self.root))
+        with mock.patch.object(sys, "stdin", io.StringIO(push_ref(self.child))):
+            code, _, err = self.hook("run", "pre-push", "--repository", str(self.child))
+        self.assertEqual(0, code)
+        self.assertIn("the host CI runs the tests", err)
+        self.assertFalse((self.child / "ran-in-child").exists())
+        code, out, _ = self.hook("status", "--all-repos", "--repository", str(self.root))
+        self.assertEqual((0, True), (code, json.loads(out)["ok"]))
 
     def test_status_all_repos_leaves_out_a_child_without_checks(self):
         init_repo(self.root / "apps/web")

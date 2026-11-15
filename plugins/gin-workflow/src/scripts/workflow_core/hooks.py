@@ -129,7 +129,7 @@ def status_report(root: Path) -> dict[str, Any]:
     hooks = status(root)
     names = sorted(name for _, commands in scoped for name, _ in commands)
     return {"hooks": hooks, "verify_commands": names, "run_at": run_at,
-            "ok": all(state == "ok" for state in hooks.values()) and bool(names)}
+            "ok": all(state == "ok" for state in hooks.values()) and (run_at == "host" or bool(names))}
 
 
 def _pushes_head(root: Path, refs: Sequence[str]) -> bool:

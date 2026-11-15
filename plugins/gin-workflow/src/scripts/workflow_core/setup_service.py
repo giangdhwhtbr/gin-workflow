@@ -492,7 +492,8 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
         if entry is not None:
             checks_details["entry"] = {"path": entry.path, "shape": entry.shape}
         commands, checked = (entry.checks, current) if entry is not None else (settings.verify_commands, root)
-        missing = [k for k in ("lint", "typecheck", "test", "build") if not commands.get(k)]
+        local = ("lint", "typecheck") if settings.run_at == "host" else ("lint", "typecheck", "test", "build")
+        missing = [k for k in local if not commands.get(k)]
         checks_details["verify_commands"] = {"missing": missing, "run_at": settings.run_at}
         if commands:
             from .hooks import findings as hook_findings

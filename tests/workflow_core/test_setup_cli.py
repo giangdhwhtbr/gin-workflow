@@ -461,6 +461,16 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual("success", reset_payload["status"])
             self.assertFalse(override_file.exists())
 
+    def test_doctor_under_run_at_host_lists_only_pre_commit_checks_as_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            subprocess.run(["git", "init"], cwd=repository, check=True, capture_output=True)
+            initialized = self.run_cli(repository, "init", "--approve", "--non-interactive",
+                                       "--set", "verify.run_at=host", "--set", "verify.checks.lint=ruff")
+            self.assertEqual(0, initialized.returncode, initialized.stderr)
+            details = json.loads(self.run_cli(repository, "doctor").stdout)["checks_details"]
+            self.assertEqual({"missing": ["typecheck"], "run_at": "host"}, details["verify_commands"])
+
     @unittest.skipIf(os.name == "nt", "needs an extensionless stub with the POSIX execute bit on PATH")
     def test_doctor_reports_the_main_harness_executable(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
