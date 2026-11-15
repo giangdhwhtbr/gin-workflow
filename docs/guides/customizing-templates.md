@@ -130,7 +130,7 @@ The roadmap template's `## Constraints` has two lines that `gin milestone list` 
 
 The template's `## Way of working` section (Foundation, Spec cadence, Build, Integration, Quality, Load) is filled by a plain `/gin:roadmap` from the skill's `references/way-of-working.md` and kept on re-runs. Each `## Milestone:` block opens with `Spec ready by:` and an `Integration point:` block (Integrates, Flags on, E2E scope, Exit criteria) that `/gin:roadmap --milestone` writes. A roadmap without these lines stays valid. Track beads created by `/gin:orchestrate` take their description from `task.md`, with the `Plan:`, `Files:`, `Route:`, `Acceptance:`, and `Notes:` label lines. Roadmap epics carry a `Complexity:` line (`low`, `medium`, or `high`) in both the roadmap file and the `epic.md` bead description.
 
-`/gin:roadmap` fills the `## Summary` section, the `Outcome:` and `Demo:` lines of each milestone, the `Features:` and `Legacy:` lines of each epic, and the `## Legacy coverage` section when `13-CAPABILITIES.md` exists. The `epic.md` template carries the `Features:` and `Legacy:` lines into the epic's Beads description. A project override of either template without these lines keeps working without them.
+`/gin:roadmap` fills the `## Summary` section, the `Outcome:` and `Demo:` lines of each milestone when a milestone plan is given, the `Features:` and `Legacy:` lines of each epic, and the `## Legacy coverage` section when `13-CAPABILITIES.md` exists. The `epic.md` template carries the `Features:` and `Legacy:` lines into the epic's Beads description. A project override of either template without these lines keeps working without them.
 
 ## Test case guidelines and fields
 

@@ -55,7 +55,7 @@ From the summary, the retros, and the spillover, propose actions, each with a ki
 Present one table: delivered epics; each spillover epic with its target milestone, reason (retro|asked), and decision; the `Outcome:` and `Demo:` results; the metrics and their change; the actions. Revise it until the person running the close confirms.
 
 ## Write
-In this order, after confirmation. A failing step stops the run; report what was written. A re-run continues: moved epics are no longer in the milestone, and a closed milestone is refused, so after a stop past step 5 finish the rest by hand from the report.
+In this order, after confirmation. A failing step stops the run; report what was written. A re-run continues: moved epics are no longer in the milestone, and a closed milestone is refused, so after a stop past step 5 finish the rest by hand from the report. A resumed run lists only the epics it moved itself in `Spillover:`; its report says that moves of the earlier run are not in the comment.
 1. When proposed, `gin milestone create "<title>" --start <date> --end <date>`; it prints the new id.
 2. `gin milestone move <epic>... --to <next-id>` for the spillover epics.
 3. `gin milestone estimate <epic> <days>` for each `estimate` action.
@@ -70,7 +70,7 @@ In this order, after confirmation. A failing step stops the run; report what was
    Metrics: completion <closed>/<total>; estimate_accuracy <n.nn|n/a>; capacity_used <n.nn|n/a>; cost_per_epic <n.nn[ partial]|n/a>; rework <n|n/a>
    Action: way_of_working|estimate|lesson|remember; <text>
    ```
-   `Delivered:` is `none` when no epic closed. One `Spillover:` line per moved epic and one `Action:` line per action; none when there are none. Replace line breaks inside a value with `; `. Never translate the labels: gin-console and later runs parse them.
+   `Delivered:` is `none` when no epic closed. One `Spillover:` line per moved epic and one `Action:` line per confirmed action, so a `remember` fact the PM did not choose gets none; none when there are none. Replace line breaks inside a value with `; `. Never translate the labels: gin-console and later runs parse them.
 5. `gin milestone close <milestone-id> --reason "Delivered <n> of <m> epics; <k> moved to <next-id>"`.
 6. On branch `milestone-close/<milestone-id>` of the main checkout's repository: in the roadmap file, write the milestone's `Result:` block and apply each `way_of_working` action to `## Way of working`; write or update each `lesson` as `.planning/knowledge/<topic>.md` following the Reconcile steps of the `learn` skill (search first, update instead of duplicating); commit. When `team.approvals.roadmap` in `.agent-workflow/config.yaml` lists roles, push and open the pull request as `/roadmap` step 5 does. Without a roadmap file, skip `Result:` and the way-of-working actions and say so; still write the lessons. The `Result:` block, in business words and without file paths:
    ```

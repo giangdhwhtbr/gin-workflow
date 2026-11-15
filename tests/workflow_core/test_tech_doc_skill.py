@@ -51,7 +51,7 @@ class TechDocSkillTests(unittest.TestCase):
         self.assertIn("`02-FEATURES.md` starts after `05-API.md`", self.text)
 
     def test_capabilities_start_after_features_api_and_database(self):
-        self.assertIn("`13-CAPABILITIES.md` starts after `02-FEATURES.md`, `05-API.md`, and `12-DATABASE.md`", self.text)
+        self.assertIn("`13-CAPABILITIES.md` starts after `02-FEATURES.md`, `05-API.md`, and `12-DATABASE.md` when written", self.text)
 
     def test_capabilities_live_at_output_root_and_keep_confirmed_rows(self):
         self.assertIn("`11-GLOSSARY.md` and `13-CAPABILITIES.md` are the exceptions: they always live at the root of the output folder", self.text)
@@ -127,7 +127,7 @@ class TechDocSkillTests(unittest.TestCase):
                               "VelocityViewServlet", "#parse", "VelocityLayoutViewResolver"),
             "webview-shells.md": ("loadUrl", "WKWebView", "addJavascriptInterface", "WKScriptMessageHandler",
                                   "evaluateJavascript", "evaluateJavaScript"),
-            "jvm-data.md": ("@Entity", "hbm.xml", "Liquibase", "JdbcTemplate", "mapper"),
+            "jvm-data.md": ("@Entity", "hbm.xml", "Liquibase", "JdbcTemplate", "mapper", "R__"),
         }
         for name, phrases in expected.items():
             body = (references / name).read_text(encoding="utf-8")
