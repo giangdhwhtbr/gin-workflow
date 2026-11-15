@@ -50,17 +50,14 @@ team:
     web: {paths: ["apps/**"], lead: fe_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
-    requirement_confirmed:
-      capability: {all: [ba], any: [be_lead, fe_lead]}
-      technical: [be_lead, fe_lead]
-      parity: [ba]
-    plan_approved: area_lead
-    ship: {all: [qe], any: [be_lead, fe_lead]}
-    roadmap: [pm, be_lead]
+    requirement_confirmed: host
+    plan_approved: host
+    ship: host
+    roadmap: host
   permissions: {milestone: [pm]}
 ```
 
-Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Không cổng nào do tác giả của pull request duyệt. `requirement_confirmed` giữ một chính sách cho mỗi [loại epic](../guides/team.md#policy-per-epic-kind), còn `capability` và `ship` dùng dạng object: mọi vai trò `all` phải duyệt, và một vai trò `any` phải duyệt. Tác giả không bao giờ duyệt. An là `ba` duy nhất, nên với spec capability do An viết, vai trò `ba` bị bỏ qua kèm ghi chú "ba skipped: the author is its only holder", và Binh hoặc Hoa duyệt. Spec technical chỉ cần một lead: khi Binh viết nó thì Hoa duyệt, không có BA tham gia. Spec parity cần một `ba` khác tác giả, nên Binh viết nó từ bản capture đã xác nhận của An và An duyệt. Chi là `qe` duy nhất, nên với pull request QA của chính Chi, vai trò `qe` bị bỏ qua tương tự, và Binh hoặc Hoa duyệt. Lan không có `pm` thứ hai, nên Binh duyệt các pull request roadmap của Lan (`roadmap: [pm, be_lead]`). Binh và Hoa mỗi người dẫn một khu vực, nên `gin setup doctor` ghi chú rằng `qe`, `be_lead` và `fe_lead` chỉ có một người giữ. Cơ chế bỏ qua chỉ áp dụng khi tác giả là người giữ duy nhất; thêm người giữ thứ hai để bỏ nó. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
+Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Mọi cổng đều là `host`: pull request đã merge là bằng chứng, không có người duyệt nào được kiểm tra, và branch protection của host thực thi các lượt duyệt ([chính sách phê duyệt](../guides/team.md#approval-policies)). Lead bật bắt buộc review, code owner và status check trên base branch. Team muốn kiểm tra role thì có thể liệt kê role cho từng cổng và từng [loại epic](../guides/team.md#policy-per-epic-kind). Bất kỳ thành viên nào cũng có thể waive một cổng `host` waive được. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
 
 ## Toàn cảnh luồng làm việc { #the-flow-at-a-glance }
 
@@ -156,7 +153,7 @@ mkdir -p services/api apps/web qa
 /gin:team-setup
 Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_lead and fe_dev), chi@example.com (qe).
 Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads legacy, api, and qa; Hoa leads web.
-Approvals: requirement_confirmed by kind (capability: ba and one of be_lead or fe_lead; technical: be_lead or fe_lead; parity: ba); plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
+Approvals: host for every gate (the host's branch protection enforces them).
 Permissions: only the pm changes milestones.
 ```
 
@@ -181,9 +178,9 @@ Lead trả lời `team-setup` với tư cách lead. Nó ghi khối `team:`, ch�
 
 **Kết quả:** khối `team:`, `.github/CODEOWNERS` (`.gitlab/CODEOWNERS` trên GitLab), một pull request template, một commit-msg hook trên mỗi bản clone, và các QA guideline.
 
-**Cổng hoặc phê duyệt:** không có. Lead bảo vệ base branch trên host (pull request, một lượt duyệt, "Require review from Code Owners") và, để job CI chạy được `team codeowners --check`, đặt biến repository `GIN_WORKFLOW_INSTALL` (xem [CI](../guides/team.md#ci-optional)).
+**Cổng hoặc phê duyệt:** không có. Lead bảo vệ base branch trên host (pull request, một lượt duyệt, "Require review from Code Owners", required status check), vì phê duyệt `host` dựa vào đó và, để job CI chạy được `team codeowners --check`, đặt biến repository `GIN_WORKFLOW_INSTALL` (xem [CI](../guides/team.md#ci-optional)).
 
-**Lỗi thường gặp:** quên một thành viên hoặc PM trong `members` (khi đó phê duyệt `roadmap` thất bại với "role pm is held by no member" và cách sửa là một pull request khác); git email khác với email trong `members` (`team whoami` không tìm thấy gì); bỏ qua bước đăng nhập host.
+**Lỗi thường gặp:** quên một thành viên hoặc PM trong `members` (khi đó các lệnh ghi `gin milestone` của PM thất bại); git email khác với email trong `members` (`team whoami` không tìm thấy gì); bỏ qua bước đăng nhập host.
 
 ## Khảo sát hệ thống legacy { #survey-the-legacy-system }
 
@@ -237,7 +234,7 @@ Trang Dependencies của gin-console hiển thị cùng đồ thị đó. Từ �
 
 Mỗi mục roadmap có một dòng `Kind:`, và các epic nhận label `kind:<kind>` tương ứng (xem [loại epic](../concepts/lifecycle.md#epic-kinds)). Ở đây `shop-portal-catalog-read` là `capability`, API facade là `technical` (`Kind: technical`, không có hành vi người dùng thấy), và `shop-portal-cart-parity` là `parity` (`Kind: parity`, port 1-1 các trang giỏ hàng mà An đã capture). Mỗi loại có chính sách `requirement_confirmed` riêng trong khối `team` ở trên.
 
-**Cổng hoặc phê duyệt:** với `team.approvals.roadmap: [pm, be_lead]`, roadmap đi qua một pull request mà Binh duyệt (Lan không thể tự duyệt). Chạy lại prompt với URL của PR; skill kiểm tra nó bằng `gin team check <url> --gate roadmap`, rồi tạo các epic.
+**Cổng hoặc phê duyệt:** với `team.approvals.roadmap: host`, roadmap đi qua một pull request mà branch protection của host cho phép merge (Lan cần một reviewer khác chính mình). Chạy lại prompt với URL của PR; skill kiểm tra nó bằng `gin team check <url> --gate roadmap`, rồi tạo các epic.
 
 **Lỗi thường gặp:** sửa epic id trong file roadmap về sau (id không bao giờ đổi một khi đã ghi); mong roadmap đóng hoặc xóa các epic bạn bỏ khỏi file (nó chỉ báo cáo chúng); bắt đầu với epic có nhiều người dùng nhất thay vì epic mở khóa phần còn lại; coi forecast dựa trên ước lượng `(assumed)` là kết quả chắc chắn.
 
@@ -320,7 +317,7 @@ Out of scope: search and reviews.
 
 **Kết quả:** cuộc thảo luận bắt đầu từ epic và mục roadmap của nó và dùng lại epic đó (không tạo epic mới). Spec được dựng từ template `design-spec.md` (hoặc `proposal.md` với layout SDD) và có mục `## User Stories`. Mỗi story có acceptance criteria và, với REQ-ID, một dòng `REQ:`.
 
-**Cổng hoặc phê duyệt:** spec được commit trên `spec/<topic>` và mở dưới dạng pull request. Với epic capability, chính sách `capability` áp dụng: vai trò `ba` của chính An bị bỏ qua vì An là tác giả, và Binh hoặc Hoa duyệt. Epic technical hoặc parity dùng chính sách riêng (xem [Tổng quan roadmap](#roadmap-overview)). Cổng được ghi nhận cùng URL của PR sau khi merge. Một khi đã được xác nhận, phần nghiệp vụ của hợp đồng bị đóng băng; các chi tiết kỹ thuật bị đóng băng khi plan được duyệt.
+**Cổng hoặc phê duyệt:** spec được commit trên `spec/<topic>` và mở dưới dạng pull request. Branch protection của host quyết định ai phải duyệt, ví dụ spec của An cần một lead. Cổng được ghi nhận cùng URL của PR sau khi merge. Một khi đã được xác nhận, phần nghiệp vụ của hợp đồng bị đóng băng; các chi tiết kỹ thuật bị đóng băng khi plan được duyệt.
 
 **Lỗi thường gặp:** tạo epic thứ hai bằng tay; story không có acceptance criteria; bỏ qua các edge case của legacy.
 
@@ -360,7 +357,7 @@ Leave every track bead unassigned; members take theirs with gin team claim.
 
 **Kết quả:** một plan với các track theo khu vực và owner (`gin team check-plan <plan>` phải qua), rồi mỗi track một track bead dưới epic được dùng lại, gồm cả các track QA, và các dependency. Orchestrate không tạo worktree: track bắt đầu từ default branch sau khi pull request của spec và plan đã merge, và `gin team claim <bead>` tạo từng worktree.
 
-**Cổng hoặc phê duyệt:** với `plan_approved: area_lead`, lead của từng khu vực mà plan đụng tới duyệt pull request của plan. Binh viết plan và là `be_lead` duy nhất, nên phê duyệt `api` và `qa` của anh ấy được bỏ qua kèm ghi chú khi Hoa, lead của `web`, đã duyệt.
+**Cổng hoặc phê duyệt:** với `plan_approved: host`, pull request của plan merge khi các luật của host được thỏa, ví dụ CODEOWNERS nêu lead của từng khu vực. `gin team check-plan <plan>` vẫn chạy.
 
 **Lỗi thường gặp:** một track đụng tới hai khu vực, ví dụ `services/` và `apps/`; hãy chạy `gin team check-plan <plan>` trước khi xin duyệt.
 
@@ -392,7 +389,7 @@ flowchart LR
   T5 --> T6
 ```
 
-Unit test và integration test chạy trong hook `pre-push` qua `verify.checks.test` của service ([cấu hình](../reference/config.md#verifychecks)); parity test chạy từ `qa/` bằng `/gin-qa:tests --type api`.
+Nơi chạy bộ test theo `verify.run_at` ([cấu hình](../reference/config.md#verifyrun_at)). Với mặc định `push` của rigor `standard`, một track chỉ chạy test của phần nó đổi, `/gin:ship` chạy `verify.checks` của từng repository một lần trên feature branch trước khi push, và hook `pre-push` dùng lại bản ghi đó. Với `host`, CI của host sở hữu các test. Các check lấy từ `verify.checks.test` của service ([cấu hình](../reference/config.md#verifychecks)); parity test chạy từ `qa/` bằng `/gin-qa:tests --type api`.
 
 ## Test case { #test-cases }
 
@@ -484,7 +481,7 @@ Include the evidence of this run; the report goes to the product owner as a zip.
 - `/gin-qa:run` đi qua các manual case, ghi từng kết quả bằng `gin-qa cases result`, và tạo một bug bead cho mỗi lỗi qua `gin-qa cases bug`, liên kết với epic bằng `discovered-from`.
 - `/gin-qa:report` ghi một thư mục báo cáo HTML offline dưới `qa/evidence/` mà bạn có thể nén và gửi đi.
 
-**Cổng hoặc phê duyệt:** với `ship: [qe, be_lead]`, Chi duyệt commit mới nhất của pull request của developer trước khi nó merge, và Binh duyệt của Chi. Một lần push sau đó cần duyệt lại. Xem [checklist phê duyệt ship](../guides/qa.md#ship-approval-checklist).
+**Cổng hoặc phê duyệt:** với `ship: host`, pull request của developer merge khi branch protection của host được thỏa, ví dụ Chi và một lead duyệt commit mới nhất của nó (bật "Dismiss stale approvals"). Một lần push sau đó cần duyệt lại. Xem [checklist phê duyệt ship](../guides/qa.md#ship-approval-checklist).
 
 **Lỗi thường gặp:** duyệt trước commit cuối; một lần push sau khi duyệt âm thầm làm phê duyệt mất hiệu lực.
 
@@ -498,14 +495,14 @@ Include the evidence of this run; the report goes to the product owner as a zip.
 ```text
 /gin:ship
 Epic: shop-portal-catalog-read.
-Open a pull request instead of merging locally; Chi approves the latest commit first.
+Open a pull request instead of merging locally; the host's required approvals come first.
 ```
 
 Đưa vào prompt: epic, và liệu có merge ngay hay giữ branch.
 
 **Kết quả:** sản phẩm bàn giao đã merge. Ở chế độ nhóm, bằng chứng PR của cổng được ghi vào metadata `gates` của epic bead, để đồng đội thấy nó trong `gin state` mà không cần event store cục bộ của bạn.
 
-**Cổng hoặc phê duyệt:** BA nghiệm thu mỗi epic bằng một comment nghiệm thu trước khi ship ([trong lúc build](../guides/ba.md#during-the-build)). Merge vào base branch cần phê duyệt rõ ràng; phê duyệt `ship` trên commit mới nhất được kiểm tra trước.
+**Cổng hoặc phê duyệt:** BA nghiệm thu mỗi epic bằng một comment nghiệm thu trước khi ship ([trong lúc build](../guides/ba.md#during-the-build)). Merge vào base branch cần phê duyệt rõ ràng; các lượt duyệt và status check bắt buộc của host đến trước.
 
 **Lỗi thường gặp:** ship track của một thành viên như thể tính năng đã hoàn tất; khi mọi pull request của track và, nếu `feat/<topic>` có trên `origin` của repository cha, cả pull request của nó đã merge, area lead chạy `gin team complete <epic>`.
 

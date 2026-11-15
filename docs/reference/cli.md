@@ -267,7 +267,7 @@ When every `pre-push` verify command passes on a tree with no tracked changes, `
 
 In a workspace child, or a worktree of one, `run` and `check` without `--repository` act on that checkout and its entry's `verify.checks`. `check` reads the record from the parent's event log, where the child's `pre-push` hook writes it. An explicit `--repository` keeps its meaning.
 
-`run` runs the `pre-push` verify commands on the checked-out commit; with `verify.run_at: host` it runs nothing and exits 0. The `review` skill runs it after `checkpoint`, because the branch is pushed only after review. It refuses with exit 2 when a tracked file differs from `HEAD`. Like the hook, it exits 0 without rerunning when a record for the same tree already covers the commands.
+`run` runs the `pre-push` verify commands on the checked-out commit; with `verify.run_at: host` it runs nothing and exits 0. With `verify.run_at: track`, the `review` skill runs it before each review request (with the ledger, after `checkpoint`). It refuses with exit 2 when a tracked file differs from `HEAD`. Like the hook, it exits 0 without rerunning when a record for the same tree already covers the commands.
 
 `check` finds the newest record for the tree of `--commit`, or of `HEAD` when no tracked file differs from it, whose commands include `test` or `<package>:test`. It prints the record, or why none matches; `--json` prints `{"record": {"tree", "hook", "commands", "recorded_at"} | null, "reason"}`. The reviewer reruns the tests only when it exits 1.
 

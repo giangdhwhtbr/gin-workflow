@@ -12,7 +12,7 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | `plan` | Turn the confirmed spec into an implementation plan with routed tracks | `plan_approved` |
 | `orchestrate` | Mirror the plan into Beads tracks, resolve provider routes, and prepare an isolated workspace (a worktree unless isolation is disabled with approval) | `orchestration_ready` |
 | `execute` | Implement and validate one ready track, directly or through a routed worker | track closed |
-| `review` | Request or perform an independent review recorded in the review ledger | approved ledger |
+| `review` | Request or perform a bead review (independent or self check), with an optional review ledger | approved review |
 | `ship` | Offer merge, PR, keep, or discard; run the chosen one; close beads and ledgers | `shipped` |
 
 ## gin: entry points and status
@@ -32,8 +32,8 @@ Stages load these when needed; you can also invoke them directly.
 | Skill | Purpose |
 |---|---|
 | `debugging` | Find the root cause of a bug, test failure, or build failure before fixing it |
-| `review-response` | Handle review findings: verify each, then fix, dispute, defer, or clarify in the ledger |
-| `worktrees` | Detect or create an isolated git worktree and check a clean test baseline |
+| `review-response` | Handle review findings: verify each, then fix, dispute, defer, or clarify it (in the ledger when it is on) |
+| `worktrees` | Detect or create an isolated git worktree and, with `run_at: track`, check a clean test baseline |
 | `parallel-agents` | Work several independent tasks concurrently, one bounded agent per domain |
 | `learn` | Capture durable decisions and lessons, and reconcile project knowledge at ship |
 | `sdd` | Stage rules for `artifacts.layout: sdd`: change folders, REQ-IDs, trace, spec review, archive ([guide](../guides/sdd.md)) |

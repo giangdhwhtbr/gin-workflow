@@ -72,7 +72,7 @@ Với giá trị `conventional`, message có dạng `type(scope): subject`, ví 
 
 ## Pull request { #pull-requests }
 
-Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò approve lấy từ `team.approvals` của dự án.
+Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò approve lấy từ `team.approvals` của dự án. Một gate đặt là `host` không có approving role: pull request đã merge là bằng chứng, và branch protection của host (bắt buộc review, code owner, status check) PHẢI thực thi các approval.
 
 | Artifact | Branch | Người approve | Gate |
 |---|---|---|---|
@@ -146,17 +146,17 @@ Gate được ghi từ một pull request đã approve. Skill của stage chạy
 | `requirement_confirmed` | Đã merge | Skill `discuss`, bằng `gin record requirement-confirmed --evidence <PR url>` |
 | `plan_approved` | Đã merge | Skill `plan`, bằng `gin record plan-approved --evidence <PR url>` |
 | `ship`, trước khi merge | Đang mở và đã approve trên commit mới nhất | Skill `ship` kiểm tra bằng `gin team check --gate ship <url>`; lệnh này không ghi gì |
-| `ship`, sau khi merge | Đã merge | Skill `ship`, bằng `gin record shipped --evidence <PR url>`, chỉ cho bead độc lập |
+| `ship`, sau khi merge | Đã merge | Skill `ship`, bằng `gin record shipped --evidence <PR url>`, chỉ cho bead độc lập; bead trải qua nhiều repository lặp `--evidence`, một pull request cho mỗi repository |
 
 Epic có bead con được ship khi bead epic đóng, nên không cần `gin record shipped`.
 
 gin chỉ chấp nhận pull request khi mọi điều kiện sau đều đúng:
 
 - pull request thuộc repository này và thay đổi artifact của gate; khi nó thay đổi nhiều spec hoặc plan, `--spec` hoặc `--plan` chọn một file;
-- một thành viên có approving role đã approve, và người đó không phải tác giả;
+- với role, một thành viên có approving role đã approve, và người đó không phải tác giả; với `host`, gin không kiểm tra người duyệt;
 - với `plan_approved`, `gin team check-plan` cũng phải đạt, và `area_lead` nghĩa là lead của area approve.
 
-Khi gin từ chối pull request, gin liệt kê các approval còn thiếu. Thành viên PHẢI lấy các approval đó rồi nhờ skill chạy lại. Thành viên PHẢI KHÔNG thay bằng chứng khác hoặc xin miễn gate. [Chế độ nhóm](team.md#what-changes-in-each-stage) mô tả cơ chế chi tiết.
+Khi gin từ chối pull request, gin liệt kê các approval còn thiếu. Thành viên PHẢI lấy các approval đó rồi nhờ skill chạy lại. Thành viên PHẢI KHÔNG thay bằng chứng khác hoặc xin miễn gate. [Chế độ nhóm](team.md#what-changes-in-each-stage) mô tả cơ chế chi tiết, gồm cách `gin team deps` tìm pull request của một track trong repository mà track của plan chỉ tới.
 
 ## Conflict và thay đổi sau khi approve { #conflicts-and-changes-after-approval }
 

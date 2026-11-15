@@ -72,7 +72,9 @@ The assignee closes the task with `gin task close <id> --reason "<output>"`. Whe
 - `failed` escalates one step with `gin routes dispatch --escalate`: the next model at the same effort, or the next effort at the strongest model. `needs_clarification` is answered from the spec or plan at the same route. At the top of both lists, on `blocked`, or on a question the spec and plan do not answer, the bead stays in progress with a note and you decide.
 - A track routed to another harness runs there through [gin-orchestrator](../orchestrator/README.md). A track routed to the `qa` provider role follows the `qa-track` skill.
 - Review runs inside `execute`, per track; it is not a router lifecycle stage, and `gin state` has no review gate. `ship` checks the approvals instead.
-- Review is independent of the implementer's session; [Providers](providers.md#independent-review) defines session and provider independence. Findings and approvals are recorded in the review ledger for at most `routing.review.max_cycles` cycles. Findings are answered one by one with the `review-response` skill; there is no silent dismissal.
+- With `project.review: independent`, review is independent of the implementer's session; [Providers](providers.md#independent-review) defines session and provider independence. With `self_check` (`easy`) no reviewer runs. Findings are answered one by one with the `review-response` skill, with no silent dismissal, for at most `project.max_cycles` cycles.
+- Without the review ledger (`project.review_ledger: false`, the default for `easy` and `standard`), the reviewer reports a verdict and findings, nothing is written under `.planning/reviews/`, and the track's close reason names the reviewer, the cycle count, and the finding count. In team mode another member reviews on the track's pull request. With the ledger on (`strict`), findings and approvals are recorded in it (the procedure is in `plugins/gin-workflow/src/skills/review/ledger.md`).
+- Where a track works follows `project.worktree`: `always` gives each track a worktree, `parallel` only a plan with a parallel execution strategy (otherwise tracks commit on `feat/<topic>`), and `never` creates none. In team mode `gin team claim` creates it, and only team mode pushes a track branch; otherwise `ship` merges track branches into `feat/<topic>`.
 - After each worker returns, the agent runs `gin usage collect --bead <epic> --best-effort`. With `usage.budget_usd` set, `routes dispatch` exits 3 once the epic's stored cost reaches 120% of the budget, and the agent asks you to raise the budget or stop.
 - When tests pass and review approves, the agent runs `gin usage collect --bead <id> --best-effort` and closes the track bead. Closing a track needs no merge; it unblocks the dependent tracks. With `project.review_ledger` on, `task close` refuses a track whose ledger has no live approval unless `--waive-review` records why.
 - The feature branch is committed and pushed. The agent never reports "waiting for PR merge" without a real pull request link; it offers to request a pull request or to continue with the next track.
@@ -82,8 +84,14 @@ The assignee closes the task with `gin task close <id> --reason "<output>"`. Whe
 Quality checks are mechanical, so there is no separate verification step: git hooks run them without spending agent tokens (`gin hooks install`; `/setup` runs it):
 
 1. `pre-commit` runs `lint` and `typecheck` from `verify.checks`.
-2. `pre-push` runs `test`, plus `build` at `standard` rigor and `e2e` at `strict`, when the pushed branch is the checked-out HEAD. It stops at the first failure.
+2. `pre-push` runs `test`, plus `build` at `standard` rigor and `e2e` at `strict`, when the pushed branch is the checked-out HEAD. It stops at the first failure, and it reuses a passing `gin evidence run` record for the same tree.
 3. CI is the backstop for large projects: nothing in `ship` proves a hook ran.
+
+`verify.run_at` decides where the full suite runs ([config](../reference/config.md#verifyrun_at)). It defaults to `push` for `easy` and `standard` rigor and to `track` for `strict`.
+
+- `track`: `gin evidence run` before each review request, and a baseline run in a new worktree.
+- `push`: a track runs only the tests of what it changed. `ship` runs `gin evidence run` once on the feature branch before the merge or the pull request push.
+- `host`: gin runs no suite, the pre-push hook runs nothing, and the host CI owns the tests. `/setup` asks whether the host runs CI on pull requests.
 4. `ship` runs a few plain steps instead of re-running the suite. With the review ledger on, every closed track validates (`--in-history`), `render --check` shows no drift, and nothing but spec and review artifacts changed after the newest approval. With SDD, it runs `specs lint` and `specs trace`. A failure stops `ship` and reports; it does not retry. Failures go to `debugging`.
 
 The agent still checks, per track during review, that each spec and plan requirement the track delivers is met in the code, not just the diff.
@@ -130,11 +138,11 @@ A gate is never removed: it is satisfied, or waived on the record with `gin unbl
 
 ## Approvals
 
-You approve the design (confirmation), the plan, production-impacting parallel work, disabling worktree isolation or running on the current branch, data moves, changes to scope or execution strategy, and every merge, pull request, or force-push. An approval is recorded before the action and stays valid while the approved scope is unchanged, within `policy.approval.ttl_seconds` (default 24 hours).
+You approve the design (confirmation), the plan, production-impacting parallel work, disabling worktree isolation or running on the current branch, data moves, changes to scope or execution strategy, and every merge, pull request, or force-push. An approval is recorded before the action and stays valid while the approved scope is unchanged.
 
 ## Variations
 
 - With the SDD layout (`artifacts.layout: sdd`), `discuss` writes a change folder with REQ-IDs instead of a dated spec, tests carry the REQ-IDs, and `ship` archives the change into the living specs. See [SDD](../guides/sdd.md).
-- In team mode (`team:` configured), gates are proven by approved pull requests from the right roles, tracks carry `Area:` and `Owner:`, and beads are claimed per member. A member with no technical role gets business questions only in `discuss`, and `plan` settles the technical questions it leaves. See [Team mode](../guides/team.md).
+- In team mode (`team:` configured), gates are proven by merged pull requests, approved by the right roles or, with `team.approvals.<gate>: host`, by the host's branch protection, tracks carry `Area:` and `Owner:`, and beads are claimed per member. A member with no technical role gets business questions only in `discuss`, and `plan` settles the technical questions it leaves. See [Team mode](../guides/team.md).
 - Epic kinds (`capability`, `technical`, `parity`) change the spec `discuss` writes, the lint rules, and in team mode the approval policy; see [epic kinds](#epic-kinds).
 - `easy` rigor skips worktrees and uses a self check; `strict` rigor always isolates and requires a review ledger.

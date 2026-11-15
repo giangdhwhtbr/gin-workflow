@@ -95,9 +95,9 @@ Mở: repository cha cho setup, plan, orchestrate và ship.
 |---|---|
 | Plan | `/gin:plan` ghi các track, mỗi track mang `Repo: <path>`; `gin record plan-approved` từ chối track không có `Repo:`, repository không xác định hoặc `frozen`, mục beads, hoặc file nằm ngoài repository của nó |
 | Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>`. Ở [team mode](team.md) nó không tạo branch hay worktree của repository con và push `feat/<topic>` của repository cha; `gin team claim` của mỗi thành viên tạo worktree của họ |
-| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng (ở team mode, mỗi track và `feat/<topic>` của repository cha đi qua pull request, rồi area lead chạy `gin team complete <epic>`); phần tích hợp của repository cha đưa archive vào living spec, và theo quy ước của nhóm, BA review phần diff đó |
+| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng (ở team mode, mỗi track và `feat/<topic>` của repository cha đi qua pull request, rồi area lead chạy `gin team complete <epic>`); `team check --gate ship` và `record shipped` nhận pull request của repository con, và `gin team deps` tìm pull request của track của repository con trong repository mà `Repo:` chỉ tới; phần tích hợp của repository cha đưa archive vào living spec, và theo quy ước của nhóm, BA review phần diff đó |
 
-Với một bead độc lập, `gin record shipped --evidence "<repo>:<merge commit>; ...; parent:<merge commit>"` ghi một merge commit cho mỗi repository; gin không kiểm tra từng repository đã được merge hay chưa. Một epic là shipped khi bead cha của nó được đóng sau các lần merge do con người xác nhận.
+Với một bead độc lập ở team mode có chính sách `ship`, lặp `gin record shipped --evidence <pull request URL>`, mỗi repository một URL: gin kiểm tra từng pull request và ghi chúng cùng nhau. Không có chính sách `ship`, bằng chứng là văn bản tự do, ví dụ một merge commit cho mỗi repository, và gin không kiểm tra. Một epic là shipped khi bead cha của nó được đóng sau các lần merge do con người xác nhận.
 
 ## Kỹ sư backend và frontend { #backend-and-frontend-engineers }
 

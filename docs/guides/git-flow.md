@@ -72,7 +72,7 @@ With the value `conventional`, a message reads `type(scope): subject`, for examp
 
 ## Pull requests
 
-Every artifact that has a gate SHALL reach the base branch through a pull request. The roles that approve come from the project's `team.approvals`.
+Every artifact that has a gate SHALL reach the base branch through a pull request. The roles that approve come from the project's `team.approvals`. A gate set to `host` has no approving role: the merged pull request is the proof, and the host's branch protection (required reviews, code owners, required status checks) SHALL enforce the approvals.
 
 | Artifact | Branch | Approved by | Gate |
 |---|---|---|---|
@@ -146,17 +146,17 @@ A gate is recorded from an approved pull request. The stage skill runs the comma
 | `requirement_confirmed` | Merged | The `discuss` skill, with `gin record requirement-confirmed --evidence <PR url>` |
 | `plan_approved` | Merged | The `plan` skill, with `gin record plan-approved --evidence <PR url>` |
 | `ship`, before the merge | Open and approved on its latest commit | The `ship` skill checks it with `gin team check --gate ship <url>`; this records nothing |
-| `ship`, after the merge | Merged | The `ship` skill, with `gin record shipped --evidence <PR url>`, for a standalone bead only |
+| `ship`, after the merge | Merged | The `ship` skill, with `gin record shipped --evidence <PR url>`, for a standalone bead only; a bead that spans repositories repeats `--evidence`, one pull request per repository |
 
 An epic with child beads ships when the epic bead closes, so it needs no `gin record shipped`.
 
 gin accepts the pull request only when all of these hold:
 
 - it belongs to this repository and changes the gate's artifact; when it changes several specs or plans, `--spec` or `--plan` picks one;
-- a member with an approving role has approved it, and that member is not its author;
+- with roles, a member with an approving role has approved it, and that member is not its author; with `host`, gin checks no approver;
 - for `plan_approved`, `gin team check-plan` also passes, and `area_lead` means the area's lead approves.
 
-When gin rejects the pull request, it lists the missing approvals. The member SHALL get those approvals and ask the skill to run again. The member SHALL NOT replace the evidence or ask for a waiver. [Team mode](team.md#what-changes-in-each-stage) holds the mechanics.
+When gin rejects the pull request, it lists the missing approvals. The member SHALL get those approvals and ask the skill to run again. The member SHALL NOT replace the evidence or ask for a waiver. [Team mode](team.md#what-changes-in-each-stage) holds the mechanics, including how `gin team deps` finds a track's pull request in the repository its plan track names.
 
 ## Conflicts and changes after approval
 

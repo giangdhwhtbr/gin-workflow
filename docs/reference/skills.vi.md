@@ -12,7 +12,7 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `plan` | Biến spec đã xác nhận thành plan triển khai với các track đã định tuyến | `plan_approved` |
 | `orchestrate` | Phản chiếu plan thành các track Beads, xác định các provider route, và chuẩn bị workspace cô lập (một worktree, trừ khi việc cô lập bị tắt có phê duyệt) | `orchestration_ready` |
 | `execute` | Triển khai và kiểm chứng một track sẵn sàng, trực tiếp hoặc qua một worker được định tuyến | track được đóng |
-| `review` | Yêu cầu hoặc thực hiện một review độc lập được ghi trong review ledger | ledger được duyệt |
+| `review` | Yêu cầu hoặc thực hiện review cho một bead (độc lập hoặc tự kiểm tra), kèm review ledger tùy chọn | review được duyệt |
 | `ship` | Đưa ra các lựa chọn merge, PR, giữ hoặc bỏ; chạy lựa chọn được chọn; đóng bead và ledger | `shipped` |
 
 ## gin: điểm vào và trạng thái { #gin-entry-points-and-status }
@@ -32,8 +32,8 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | Skill | Mục đích |
 |---|---|
 | `debugging` | Tìm nguyên nhân gốc của lỗi, test thất bại hoặc build thất bại trước khi sửa |
-| `review-response` | Xử lý các phát hiện của review: kiểm chứng từng cái, rồi sửa, phản biện, hoãn hoặc làm rõ trong ledger |
-| `worktrees` | Phát hiện hoặc tạo một git worktree cô lập và kiểm tra baseline test sạch |
+| `review-response` | Xử lý các phát hiện của review: kiểm chứng từng cái, rồi sửa, phản biện, hoãn hoặc làm rõ (trong ledger khi ledger bật) |
+| `worktrees` | Phát hiện hoặc tạo một git worktree cô lập và, với `run_at: track`, kiểm tra baseline test sạch |
 | `parallel-agents` | Làm nhiều task độc lập đồng thời, mỗi domain một agent có phạm vi rõ |
 | `learn` | Ghi lại các quyết định và bài học lâu dài, và đối chiếu tri thức dự án khi ship |
 | `sdd` | Quy tắc stage cho `artifacts.layout: sdd`: change folder, REQ-ID, trace, spec review, archive ([hướng dẫn](../guides/sdd.md)) |

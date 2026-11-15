@@ -50,17 +50,14 @@ team:
     web: {paths: ["apps/**"], lead: fe_lead, roles: [fe_dev]}
     qa: {paths: ["qa/**"], lead: be_lead, roles: [qe]}
   approvals:
-    requirement_confirmed:
-      capability: {all: [ba], any: [be_lead, fe_lead]}
-      technical: [be_lead, fe_lead]
-      parity: [ba]
-    plan_approved: area_lead
-    ship: {all: [qe], any: [be_lead, fe_lead]}
-    roadmap: [pm, be_lead]
+    requirement_confirmed: host
+    plan_approved: host
+    ship: host
+    roadmap: host
   permissions: {milestone: [pm]}
 ```
 
-The areas do not overlap, so every plan track stays inside one of them. No gate is approved by the author of its pull request. `requirement_confirmed` holds one policy per [epic kind](../guides/team.md#policy-per-epic-kind), and `capability` and `ship` use the object form: every `all` role must approve, and one `any` role must approve. The author never approves. An is the only `ba`, so on a capability spec An authors the `ba` role is skipped with the note "ba skipped: the author is its only holder", and Binh or Hoa approves. A technical spec needs only a lead: when Binh authors it, Hoa approves, and no BA is involved. A parity spec needs a `ba` other than its author, so Binh writes it from An's confirmed capture and An approves. Chi is the only `qe`, so on Chi's own QA pull request the `qe` role is skipped the same way, and Binh or Hoa approves. Lan has no second `pm`, so Binh approves Lan's roadmap pull requests (`roadmap: [pm, be_lead]`). Binh and Hoa each lead an area, so `gin setup doctor` notes that `qe`, `be_lead`, and `fe_lead` have one holder. The fallback applies only while the author is the sole holder; add a second holder to remove it. Only Lan, the one `pm`, may run `gin milestone` writes.
+The areas do not overlap, so every plan track stays inside one of them. Every gate is `host`: a merged pull request is the proof, no approver is checked, and the host's branch protection enforces the approvals ([approval policies](../guides/team.md#approval-policies)). The lead turns on required reviews, code owners, and required status checks on the base branch. A team that wants roles checked can list them instead, per gate and per [epic kind](../guides/team.md#policy-per-epic-kind). Any member may waive a `host` gate that is waivable. Only Lan, the one `pm`, may run `gin milestone` writes.
 
 ## The flow at a glance
 
@@ -156,7 +153,7 @@ In that variant, answer `monorepo: true` in `/gin:setup` and add a `project.pack
 /gin:team-setup
 Members: lan@example.com (pm), an@example.com (ba), binh@example.com (be_lead), em@example.com and dung@example.com (be_dev), hoa@example.com (fe_lead and fe_dev), chi@example.com (qe).
 Areas: legacy is legacy/shop-portal/** and read-only; api is services/**; web is apps/**; qa is qa/**. Binh leads legacy, api, and qa; Hoa leads web.
-Approvals: requirement_confirmed by kind (capability: ba and one of be_lead or fe_lead; technical: be_lead or fe_lead; parity: ba); plan_approved by the area lead; ship by qe and one of be_lead or fe_lead; roadmap by pm and be_lead.
+Approvals: host for every gate (the host's branch protection enforces them).
 Permissions: only the pm changes milestones.
 ```
 
@@ -181,9 +178,9 @@ The lead answers `team-setup` as lead. It writes the `team:` block, runs `gin te
 
 **You get:** the `team:` block, `.github/CODEOWNERS` (`.gitlab/CODEOWNERS` on GitLab), a pull request template, a commit-msg hook on every clone, and the QA guidelines.
 
-**Gate or approval:** none. The lead protects the base branch on the host (pull request, one approval, "Require review from Code Owners") and, for the CI job to run `team codeowners --check`, sets the repository variable `GIN_WORKFLOW_INSTALL` (see [CI](../guides/team.md#ci-optional)).
+**Gate or approval:** none. The lead protects the base branch on the host (pull request, one approval, "Require review from Code Owners", required status checks), because `host` approvals rely on it and, for the CI job to run `team codeowners --check`, sets the repository variable `GIN_WORKFLOW_INSTALL` (see [CI](../guides/team.md#ci-optional)).
 
-**Common mistakes:** forgetting a member or the PM in `members` (the `roadmap` approval then fails with "role pm is held by no member" and the fix is another pull request); a git email that differs from the one in `members` (`team whoami` finds nothing); skipping the host login.
+**Common mistakes:** forgetting a member or the PM in `members` (`gin milestone` writes by the PM then fail); a git email that differs from the one in `members` (`team whoami` finds nothing); skipping the host login.
 
 ## Survey the legacy system
 
@@ -237,7 +234,7 @@ The gin-console Dependencies page shows the same graph. Choose what goes first f
 
 Each roadmap entry has a `Kind:` line, and the epics get the matching `kind:<kind>` label (see [epic kinds](../concepts/lifecycle.md#epic-kinds)). Here `shop-portal-catalog-read` is `capability`, the API facade is `technical` (`Kind: technical`, no user-visible behavior), and `shop-portal-cart-parity` is `parity` (`Kind: parity`, a 1-1 port of the cart pages An already captured). Each kind has its own `requirement_confirmed` policy in the `team` block above.
 
-**Gate or approval:** with `team.approvals.roadmap: [pm, be_lead]`, the roadmap goes through a pull request that Binh approves (Lan cannot approve her own). Run the prompt again with the PR URL; the skill checks it with `gin team check <url> --gate roadmap`, then creates the epics.
+**Gate or approval:** with `team.approvals.roadmap: host`, the roadmap goes through a pull request that the host's branch protection lets merge (Lan needs a reviewer other than herself). Run the prompt again with the PR URL; the skill checks it with `gin team check <url> --gate roadmap`, then creates the epics.
 
 **Common mistakes:** editing epic ids in the roadmap file later (ids never change once written); expecting the roadmap to close or delete epics you remove from the file (it only reports them); starting with the epic that has the most users instead of the one that unblocks the rest; reading a forecast built on `(assumed)` estimates as a commitment.
 
@@ -320,7 +317,7 @@ Put in the prompt: the user-visible behavior of the JSP flow you replace, its ed
 
 **You get:** the discussion starts from the epic and its roadmap entry and reuses it (no new epic). The spec is built from the `design-spec.md` template (or `proposal.md` with the SDD layout) and has a `## User Stories` section. Every story has acceptance criteria and, with REQ-IDs, a `REQ:` line.
 
-**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. For a capability epic, the `capability` policy applies: An's own `ba` role is skipped because An is the author, and Binh or Hoa approves. A technical or parity epic uses its own policy (see [Roadmap overview](#roadmap-overview)). The gate is recorded with the PR URL after the merge. Once it is confirmed, the business part of the contract is frozen; the technical details are frozen at plan approval.
+**Gate or approval:** the spec is committed on `spec/<topic>` and opened as a pull request. The host's branch protection decides who must approve, for example An's spec needs a lead. The gate is recorded with the PR URL after the merge. Once it is confirmed, the business part of the contract is frozen; the technical details are frozen at plan approval.
 
 **Common mistakes:** creating a second epic by hand; stories without acceptance criteria; skipping the legacy edge cases.
 
@@ -360,7 +357,7 @@ Put in the prompt: the constraints of the migration (facade first, dual-write or
 
 **You get:** a plan with tracks per area and owner (`gin team check-plan <plan>` must pass), then one track bead per track under the reused epic, including the QA tracks, and dependencies. Orchestrate creates no worktree: tracks start from the default branch once the spec and plan pull requests have merged, and `gin team claim <bead>` creates each worktree.
 
-**Gate or approval:** with `plan_approved: area_lead`, the lead of each area the plan touches approves the plan pull request. Binh wrote the plan and is the only `be_lead`, so his `api` and `qa` approvals are skipped with a note once Hoa, the `web` lead, approves.
+**Gate or approval:** with `plan_approved: host`, the plan pull request merges once the host's rules are met, for example CODEOWNERS naming each area lead. `gin team check-plan <plan>` still runs.
 
 **Common mistakes:** a track that touches two areas, for example `services/` and `apps/`; run `gin team check-plan <plan>` before asking for approval.
 
@@ -392,7 +389,7 @@ flowchart LR
   T5 --> T6
 ```
 
-Unit and integration tests run in the `pre-push` hook through the service's `verify.checks.test` ([configuration](../reference/config.md#verifychecks)); parity tests run from `qa/` with `/gin-qa:tests --type api`.
+Where the suite runs follows `verify.run_at` ([configuration](../reference/config.md#verifyrun_at)). With the `standard` default, `push`, a track runs only the tests of what it changed and `/gin:ship` runs each repository's `verify.checks` once on the feature branch before the push, and the `pre-push` hook reuses that record. With `host`, the host CI owns the tests. The checks come from the service's `verify.checks.test` ([configuration](../reference/config.md#verifychecks)); parity tests run from `qa/` with `/gin-qa:tests --type api`.
 
 ## Test cases
 
@@ -484,7 +481,7 @@ Put in the prompt: the base URL of the SPA, the test accounts (as environment va
 - `/gin-qa:run` walks the manual cases, records each result with `gin-qa cases result`, and files a bug bead per failure through `gin-qa cases bug`, linked to the epic with `discovered-from`.
 - `/gin-qa:report` writes an offline HTML report folder under `qa/evidence/` that you can zip and send.
 
-**Gate or approval:** with `ship: {all: [qe], any: [be_lead, fe_lead]}`, a developer's pull request needs Chi and one lead (Binh or Hoa) to approve its latest commit before it merges. Chi's own QA pull request needs only a lead. A later push needs a new approval. See the [ship approval checklist](../guides/qa.md#ship-approval-checklist).
+**Gate or approval:** with `ship: host`, a developer's pull request merges when the host's branch protection is satisfied, for example Chi and one lead approving its latest commit (turn on "Dismiss stale approvals"). A later push needs a new approval. See the [ship approval checklist](../guides/qa.md#ship-approval-checklist).
 
 **Common mistakes:** approving before the last commit; a push after approval silently invalidates it.
 
@@ -498,14 +495,14 @@ Put in the prompt: the base URL of the SPA, the test accounts (as environment va
 ```text
 /gin:ship
 Epic: shop-portal-catalog-read.
-Open a pull request instead of merging locally; Chi approves the latest commit first.
+Open a pull request instead of merging locally; the host's required approvals come first.
 ```
 
 Put in the prompt: the epic and whether to merge now or keep the branch.
 
 **You get:** the merged deliverable. In team mode the gate's PR proof is written to the epic bead's `gates` metadata, so teammates see it in `gin state` without your local event store.
 
-**Gate or approval:** the BA accepts each epic with an acceptance comment before ship ([during the build](../guides/ba.md#during-the-build)). Merging into the base branch needs explicit approval; the `ship` approval on the latest commit is checked first.
+**Gate or approval:** the BA accepts each epic with an acceptance comment before ship ([during the build](../guides/ba.md#during-the-build)). Merging into the base branch needs explicit approval; the host's required approvals and status checks come first.
 
 **Common mistakes:** shipping one member's track as if the feature were complete. Once every track pull request and, when `feat/<topic>` exists on the parent's `origin`, its pull request have merged, an area lead runs `gin team complete <epic>`.
 
