@@ -22,11 +22,11 @@ Fill the milestones in `end` order by dependency layer:
 When the PM states the demo of a milestone first, the epics that demo needs go into that milestone or an earlier one; name each one that does not fit. An epic that fits no milestone stays under `## Unassigned` with the reason (blocked, or over capacity). When the last milestone with epics ends after `Deadline:`, name the overflow in working days.
 
 ## Write
-In step 5, after the PM confirms and before the file is written, run the team permission check of `--milestone` step 1, then `gin milestone create "<title>" --start <date> --end <date>` for each milestone of the plan whose title `gin milestone list --json` lacks; it prints the new id. A failure stops before the file is written; report it as in `--milestone` step 5. A created milestone holds no epic until step 6, so a rejected roadmap PR leaves only empty milestones, which the next run reuses by title. Step 5 then writes each milestone block as `--milestone` step 4 describes.
+In step 5, after the PM confirms and before the file is written, run the team permission check of `--milestone` step 1. Then run `gin milestone create "<title>" --start <date> --end <date>` for each milestone of the plan whose title `gin milestone list --json` lacks; it prints the new id. A failure stops before the file is written; report it as in `--milestone` step 5. A created milestone holds no epic until step 6: a rejected roadmap PR leaves empty milestones, reused by title next run. Step 5 then writes each milestone block as `--milestone` step 4 describes.
 
 In step 6, after the sync, and after the roadmap PR merges when `team.approvals.roadmap` has a policy, run per milestone `gin milestone move <epic>... --to <id>` for its epics that have no milestone in Beads, then `gin milestone estimate <epic> <days>` under the estimates rule of step 6. Failures follow `--milestone` step 5.
 
-The adopted-epic rule of step 6 covers only epics that existed before this run: an epic the sync creates in this run gets its title, description, and `Depends on:` dependencies, and an existing `open` epic the plan allocates keeps its bead unchanged, as with `--milestone`.
+The adopted-epic rule of step 6 covers only epics that existed before this run. An epic the sync creates gets its title, description, and `Depends on:` dependencies. An existing `open` epic the plan allocates keeps its bead unchanged, as with `--milestone`.
 
 ## Re-run
 Beads wins for membership and estimates. Compare each milestone's `gin milestone show <id> --json` with the file and report each difference without writing Beads. Propose an allocation only for the candidates of the Allocation block. `/roadmap --milestone <id>` changes one milestone later.

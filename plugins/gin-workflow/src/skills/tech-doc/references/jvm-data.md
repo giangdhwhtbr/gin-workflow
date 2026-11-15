@@ -7,6 +7,7 @@ Use this reference when the code area is Java, Kotlin, or Groovy on the JVM. Tag
 Schema definitions establish baseline tables, relations, and stored logic.
 
 - Search `*.sql` DDL files, Flyway `V*__*.sql` under `db/migration`, and Liquibase changelogs (`databaseChangeLog` in XML, YAML, or JSON).
+- Search Flyway repeatable migrations `R__*.sql`; they run again whenever their checksum changes and usually hold views, procedures, and functions. The latest version of each file wins.
 - Record each `CREATE TABLE`, key, index, view, procedure, and trigger.
 - Resolve migration versions in order; the latest migration wins.
 

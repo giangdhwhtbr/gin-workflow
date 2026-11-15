@@ -80,6 +80,10 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, view)
         self.assertIn("written by `/milestone-close`", view)
+        for needle in ("asks for, or proposes, both the `Outcome:` and the `Demo:`", "a name mapped to it",
+                       "the epics it set into each one"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, view)
         plan = (roadmap / "references/milestone-plan.md").read_text(encoding="utf-8")
         for needle in ("gin milestone create", "gin milestone move", "gin milestone estimate", "Beads wins",
                        "## Unassigned", "Deadline:"):
@@ -207,7 +211,8 @@ class SkillRoutingTests(unittest.TestCase):
                        "gin task comment <milestone-id>", "gin milestone show <id> --json",
                        "`status` is `active`", "project.team.me", "gin team sync",
                        "Write nothing until the member confirms", "the newest one counts",
-                       "its close already read the retros", "Never translate the labels"):
+                       "its close already read the retros", "Never translate the labels",
+                       "When its `status` is `closed`"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
         self.assertLess(text.index("Went well:"), text.index("Slowed us:"))
@@ -224,7 +229,8 @@ class SkillRoutingTests(unittest.TestCase):
                        "milestone-close/<milestone-id>", "Never translate the labels",
                        "## Metrics", "Metrics: completion <closed>/<total>; estimate_accuracy", "capacity_used",
                        "cost_per_epic", "rework", "never per member", "no earlier metrics", "- Metrics:",
-                       "whose `parent` is not the `bead` of another entry", "both ends included"):
+                       "whose `parent` is not the `bead` of another entry", "both ends included",
+                       "one `Action:` line per confirmed action", "lists only the epics it moved itself"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
         metrics = text[text.index("Metrics: completion"):].split("\n", 1)[0]
