@@ -127,8 +127,8 @@ class CloseGuardTests(unittest.TestCase):
         self.assertIn("prep-2: review ledger not approved", closed.stderr)
         self.assertEqual("open", self.status("prep-2"))
 
-    def test_workspace_child_track_worktree_reads_ledger_from_parent_worktree(self):
-        self.init(ledger=True)
+    def _child_track_worktree(self, bead):
+        """A workspace child's track worktree `<P>/.planning/worktrees/<bead>` under a parent worktree `<P>`."""
         child = self.root / "apps/web"
         child.mkdir(parents=True)
         subprocess.run(["git", "init", "-q"], cwd=child, check=True)
@@ -139,8 +139,13 @@ class CloseGuardTests(unittest.TestCase):
                           encoding="utf-8")
         parent = self.root / ".planning/worktrees/p"
         subprocess.run(["git", "worktree", "add", "-q", "-b", "p-branch", str(parent)], cwd=self.root, check=True)
-        track = parent / ".planning/worktrees/ep-1.1"
+        track = parent / f".planning/worktrees/{bead}"
         subprocess.run(["git", "worktree", "add", "-q", "-b", "track-branch", str(track)], cwd=child, check=True)
+        return parent, track
+
+    def test_workspace_child_track_worktree_reads_ledger_from_parent_worktree(self):
+        self.init(ledger=True)
+        parent, track = self._child_track_worktree("ep-1.1")
         ledger_path = parent / ".planning/reviews/ep-1.1/review.json"
         ledger_path.parent.mkdir(parents=True)
         ledger_path.write_text(json.dumps({"events": []}), encoding="utf-8")
@@ -148,6 +153,19 @@ class CloseGuardTests(unittest.TestCase):
         self.assertEqual(2, closed.returncode, closed.stderr)
         self.assertIn("ep-1.1: review ledger not approved", closed.stderr)
         self.assertNotIn("no review ledger", closed.stderr)
+
+    def test_prep_task_with_ledger_in_parent_worktree_is_guarded_from_child_track(self):
+        self.init(ledger=True)
+        created = gw(self.root, "task", "create", "--id", "prep-3", "--parent", "ep-1",
+                     "--labels", "prep,prep:capture", "Prep 3", "--json")
+        self.assertEqual(0, created.returncode, created.stderr)
+        parent, track = self._child_track_worktree("prep-3")
+        ledger_path = parent / ".planning/reviews/prep-3/review.json"
+        ledger_path.parent.mkdir(parents=True)
+        ledger_path.write_text(json.dumps({"events": []}), encoding="utf-8")
+        closed = gw(track, "task", "close", "prep-3", "--reason", "done")
+        self.assertEqual(2, closed.returncode, closed.stderr)
+        self.assertIn("prep-3: review ledger not approved", closed.stderr)
 
     def test_prep_task_tracker_failure_is_refused(self):
         self.init(ledger=True)
