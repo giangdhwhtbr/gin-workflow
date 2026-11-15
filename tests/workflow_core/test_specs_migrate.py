@@ -117,6 +117,19 @@ class TestSddReport(unittest.TestCase):
             report = sdd_report(root, {}, defaults, proposed=True)
             self.assertEqual(["login.spec.ts"], report["conflict"]["files"])
 
+    def test_files_gin_writes_in_a_capability_folder_are_not_foreign(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            defaults = dict(specs.SDD_DEFAULTS)
+            for path in ("README.md", "auth/spec.md", "auth/diagrams/login-activity.md", "auth/use-cases/sign-in.md",
+                         "auth/assets/2026-11-11/description.md", "auth/assets/2026-11-11/legacy/login.png"):
+                write(root, f"docs/specs/{path}", "x\n")
+            self.assertNotIn("conflict", sdd_report(root, {}, defaults, proposed=True))
+            foreign = ["auth/notes.txt", "auth/tests/login.spec.ts", "diagrams/overview.md", "login.spec.ts"]
+            for path in foreign:
+                write(root, f"docs/specs/{path}", "x\n")
+            self.assertEqual(foreign, sdd_report(root, {}, defaults, proposed=True)["conflict"]["files"])
+
     def test_setup_preset_proposes_sdd_only_for_greenfield(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

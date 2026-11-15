@@ -107,13 +107,22 @@ def migrate(root: Path, config: Mapping[str, Any], cfg: Mapping[str, Any], *, dr
     return result
 
 
+_CAPABILITY_FOLDERS = ("assets", "diagrams", "use-cases")  # what `gin specs` writes and lints next to spec.md
+
+
 def _foreign(directory: Path) -> list[str]:
-    """Files that do not belong to an SDD specs folder (README.md and <cap>/spec.md)."""
+    """Files that do not belong to an SDD specs folder: all but README.md, <cap>/spec.md, and the files under
+    <cap>/assets, <cap>/diagrams, and <cap>/use-cases."""
     if not directory.is_dir():
         return []
+
+    def owned(path: Path) -> bool:
+        parts = path.relative_to(directory).parts
+        return (path.name == "README.md" or parts[1:] == ("spec.md",)
+                or (len(parts) > 2 and parts[1] in _CAPABILITY_FOLDERS))
+
     return sorted(path.relative_to(directory).as_posix() for path in directory.rglob("*")
-                  if path.is_file() and path.name != "README.md"
-                  and not (path.name == "spec.md" and path.parent.parent == directory))
+                  if path.is_file() and not owned(path))
 
 
 def sdd_report(root: Path, config: Mapping[str, Any], cfg: Mapping[str, Any], *, proposed: bool = False) -> dict[str, Any]:
