@@ -10,7 +10,7 @@ A PM or tech lead closes a milestone in one guided run. Today `gin milestone clo
 
 In scope:
 
-- A new skill `/gin:milestone-close [<milestone-id>]` that summarises the milestone, moves every open epic to the next milestone with a reason and a decision, records the result as a `[gin close]` comment on the milestone bead, closes the milestone, writes a `Result:` block and Way of working changes into the roadmap file, saves lessons as knowledge records, and applies corrected estimates.
+- A new skill `/gin:milestone-close [<milestone-id>]` that summarises the milestone and rates it with team-level metrics compared with the previous closed milestone, moves every open epic to the next milestone with a reason and a decision, records the result as a `[gin close]` comment on the milestone bead, closes the milestone, writes a `Result:` block and Way of working changes into the roadmap file, saves lessons as knowledge records, and applies corrected estimates.
 - `Result:` in the roadmap template, and the rule that `/roadmap` keeps it.
 - The skill description budget raised from 4,000 to 4,500 characters.
 - A row in `docs/reference/skills.md` and `docs/reference/skills.vi.md`.
@@ -21,6 +21,7 @@ Out of scope:
 - Splitting an epic: the skill proposes it; `/roadmap` or `/discuss` does it.
 - Showing `[gin close]` and `[gin retro]` in gin-console (recorded on `gin-console-workflow-catchup`; the console already reads bead comments through `GET /beads/{project}/{bead_id}/comments`).
 - Making retros mandatory.
+- Metrics per member.
 
 Assumptions:
 
@@ -48,6 +49,17 @@ Comments considered: 2, latest 2026-11-15T02:12:48Z
 - From `gin usage report --milestone <id> --format json`: total cost and the rework signals (reopens, bugs found later, review cycles). A non-zero exit is reported and the summary continues without them.
 - From the roadmap file (`.planning/roadmap.md`, or `docs/roadmap.md` with `project.layout: sdd`): the milestone's `Outcome:` and `Demo:`. The skill proposes `reached`, `partial`, or `missed` for each with a one-line note. Without a roadmap file or without these lines, both are `not planned`.
 - From `gin task comments <milestone-id> --json`: the newest `[gin retro]` comment per member. With none, the summary says `no retros`.
+
+### Metrics
+
+Added on 2026-11-15 after the first review, at the user's request. Team level only, never per member, computed during the summary:
+
+- `completion`: closed epics over all epics of the milestone at the start of the run, as `<closed>/<total>`.
+- `estimate_accuracy`: the sum of `estimate_days` over the sum of actual working days, over closed epics that have both; two decimals; 1.00 means on estimate, below 1 means the work took longer. `n/a` without such an epic.
+- `capacity_used`: the sum of `estimate_days` of the closed epics over the milestone's capacity, `lanes` (from `gin milestone show --json`) times its working days from `start` to `end`; two decimals; `n/a` without `lanes` or estimates.
+- `cost_per_epic`: `totals.cost` of `gin usage report --milestone <id> --format json` over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
+- `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads`; `n/a` when the report failed.
+- Comparison: the skill reads the `Metrics:` line of the `[gin close]` comment of the most recently closed milestone (`gin milestone list --all --json`, status `closed`, the latest `end` before this milestone's `start`) and shows the change of each metric. Without one, it says `no earlier metrics`.
 
 ### Next milestone
 
@@ -87,6 +99,7 @@ Spillover: <epic-id> -> <milestone-id>; reason (retro|asked): <text>; decision: 
 Outcome: reached|partial|missed|not planned; <note>
 Demo: reached|partial|missed|not planned; <note>
 Retros: <count>
+Metrics: completion <closed>/<total>; estimate_accuracy <n.nn|n/a>; capacity_used <n.nn|n/a>; cost_per_epic <n.nn[ partial]|n/a>; rework <n|n/a>
 Action: way_of_working|estimate|lesson|remember; <text>
 ```
 
@@ -102,6 +115,7 @@ Action: way_of_working|estimate|lesson|remember; <text>
   Result: closed <YYYY-MM-DD>; delivered <n> of <m> epics; <k> moved to <next milestone title>
   - Outcome: <reached|partial|missed|not planned>; <note>
   - Demo: <reached|partial|missed|not planned>; <note>
+  - Metrics: <closed> of <total> epics done (<percent>%); estimates <accuracy as percent> accurate; <capacity_used as percent> of capacity used; <cost> USD per epic; <rework> reworks
   - Spillover: <epic title>: <reason>; <decision>
   - Actions: <one line per action>
   ```
@@ -149,6 +163,15 @@ Acceptance criteria:
 - Each lesson is a new or updated record under `.planning/knowledge/` in that commit.
 - Each `remember` fact the PM chose is stored with `gin task remember`.
 
+### US-7: Rate the milestone
+As a PM, I want team-level metrics for the milestone compared with the previous one, so that I can see whether the process improves.
+
+Acceptance criteria:
+- The summary shows completion, estimate accuracy, capacity used, cost per epic, and rework, each computed as the Metrics section says, with `n/a` where data is missing.
+- The summary shows the change of each metric against the most recently closed milestone's `Metrics:` line, or `no earlier metrics`.
+- The `[gin close]` comment has one `Metrics:` line with the five keys in that order, and the `Result:` block has a `- Metrics:` line in business words.
+- No metric is computed or shown per member.
+
 ### US-5: No next milestone yet
 As a PM, I want the close to propose the next milestone when none exists, so that spillover always has a place.
 
@@ -172,7 +195,7 @@ Acceptance criteria:
 
 ## Testing
 
-- A skill test reads `plugins/gin-workflow/src/skills/milestone-close/SKILL.md` and asserts: the `[gin close] <milestone-id>` first line and the `Delivered:`, `Spillover:`, `Outcome:`, `Demo:`, `Retros:`, `Action:` labels; the next-milestone rule by `start`; the closed-milestone refusal; the confirmation before any write; the write order create, move, estimate, comment, close; the `learn` Reconcile for lessons; `team.permissions.milestone`; and no concrete model names.
+- A skill test reads `plugins/gin-workflow/src/skills/milestone-close/SKILL.md` and asserts: the `[gin close] <milestone-id>` first line and the `Delivered:`, `Spillover:`, `Outcome:`, `Demo:`, `Retros:`, `Action:` labels; the next-milestone rule by `start`; the closed-milestone refusal; the confirmation before any write; the write order create, move, estimate, comment, close; the `learn` Reconcile for lessons; the `Metrics:` line with its five keys in order, team level only, and the comparison with the previous `[gin close]`; `team.permissions.milestone`; and no concrete model names.
 - The template test asserts `Result:` in the milestone block of `templates/roadmap.md`; a roadmap skill test asserts the keep-`Result:` rule in `manager-view.md`.
 - `tests/workflow_core/test_roadmap_file.py`: a file with a `Result:` block gives the same `Deadline` and lanes.
 - The token budget test passes at 4,500, and the packaging test lists `skills/milestone-close/SKILL.md`.

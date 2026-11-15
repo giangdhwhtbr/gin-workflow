@@ -66,7 +66,7 @@ execution_strategy:
   mode: direct
   workers:
     mode: sequential
-  rationale: One track; the skill, the template line it writes, the keep rule, and the tests change together.
+  rationale: Track 1 builds the skill; Track 2 adds the metrics to the same file after it, so they run one after the other.
 ```
 
 ## Tasks
@@ -210,6 +210,56 @@ Steps:
    - `docs/reference/skills.vi.md`, after its `retro` row, the same in Vietnamese with code and labels verbatim: `| \`milestone-close\` | Đóng một milestone trong một lần chạy: tổng hợp epic đã giao và còn mở, estimate, chi phí, Outcome và Demo, và retro; mọi epic còn mở chuyển sang milestone kế tiếp (theo ngày bắt đầu) kèm lý do lấy từ retro hoặc hỏi người chạy, và một quyết định; sau khi xác nhận, ghi comment \`[gin close]\`, đóng milestone, ghi \`Result:\` và thay đổi way of working vào file roadmap, ghi bài học vào knowledge record, và đặt estimate mới |`
 
 6. Check `description_chars` (`cd plugins/gin-workflow/src/scripts && python3 -c "from pathlib import Path; from workflow_core.budget import description_chars; print(description_chars(Path('..')))"`; expected at most 4500). Run `python3 -m pytest tests/workflow_core/test_skill_routing.py tests/workflow_core/test_specs.py tests/workflow_core/test_roadmap_file.py tests/workflow_core/test_token_budget.py tests/workflow_core/test_docs_coverage.py tests/workflow_core/test_docs_check.py tests/gin_orchestrator/test_harness_packaging.py -q`; expected: all pass. Commit: `feat(skills): /milestone-close moves spillover to the next milestone and records the result (gin-workflow-milestone-close)`.
+
+### Track 2: Milestone metrics
+Added on 2026-11-15 after Track 1's review, at the user's request (spec section Metrics, US-7). Track 1 stays closed; this track builds on its commit.
+- **Dependencies**: Track 1
+- **Files**:
+  - Modify `plugins/gin-workflow/src/skills/milestone-close/SKILL.md` (new `## Metrics` section after `## Summary`; `Metrics:` in the comment and the `Result:` block; the Confirm table)
+  - Modify `docs/reference/skills.md` and `docs/reference/skills.vi.md` (the `milestone-close` rows name the metrics)
+  - Test `tests/workflow_core/test_skill_routing.py` (`test_milestone_close_moves_spillover_and_records_the_result`)
+- **Provider role**: `backend`
+- **Model:** `sonnet`
+- **Effort:** `medium`
+- **Why:** text additions to one skill with exact wording below, plus test assertions.
+- **Acceptance criteria**: US-7 of the spec is in the skill; the tests of step 4 pass.
+- **Estimated complexity**: low
+
+Interfaces consumed (in addition to Track 1): `gin milestone show <id> --json` `lanes`, `start`, `end`; `gin milestone list --all --json` (closed milestones with `end`); `gin usage report --milestone <id> --format json` `totals.cost`, `partial`, `beads[].quality.reopens`, `beads[].quality.bugs` (`plugins/gin-workflow/src/scripts/workflow_core/usage.py:196-198,456-464`).
+
+Steps:
+
+1. Failing test first. In `test_milestone_close_moves_spillover_and_records_the_result`, add to the needle tuple: `"## Metrics"`, `"Metrics: completion <closed>/<total>; estimate_accuracy"`, `"capacity_used"`, `"cost_per_epic"`, `"rework"`, `"never per member"`, `"no earlier metrics"`, `"- Metrics:"`; and add:
+   ```python
+   metrics = text[text.index("Metrics: completion"):].split("\n", 1)[0]
+   keys = [metrics.index(key) for key in ("completion", "estimate_accuracy", "capacity_used", "cost_per_epic", "rework")]
+   self.assertEqual(sorted(keys), keys)
+   ```
+   Run `python3 -m pytest tests/workflow_core/test_skill_routing.py -q -k milestone_close`; expected: fails.
+
+2. Edit `plugins/gin-workflow/src/skills/milestone-close/SKILL.md`:
+   - After the `## Summary` section, insert:
+     ~~~markdown
+     ## Metrics
+     Team level only, never per member. Compute from the data of the summary:
+     - `completion`: closed epics over all epics of the milestone at the start of this run, as `<closed>/<total>`.
+     - `estimate_accuracy`: the sum of `estimate_days` over the sum of actual working days, over the closed epics that have both; two decimals; 1.00 is on estimate, below 1 took longer; `n/a` without such an epic.
+     - `capacity_used`: the sum of `estimate_days` of the closed epics over `lanes` times the working days from `start` to `end` (`gin milestone show <id> --json`); two decimals; `n/a` without `lanes` or estimates.
+     - `cost_per_epic`: `totals.cost` of the usage report over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
+     - `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads`; `n/a` when the report failed.
+
+     Compare with the most recently closed milestone: in `gin milestone list --all --json`, the closed milestone with the latest `end` before this milestone's `start`; read the `Metrics:` line of its newest `[gin close]` comment and show the change of each metric. Without one, say `no earlier metrics`.
+     ~~~
+   - In the `## Confirm` table sentence, add "the metrics and their change" after "the `Outcome:` and `Demo:` results;".
+   - In the `[gin close]` text of Write step 4, insert after the `Retros: <count>` line:
+     `Metrics: completion <closed>/<total>; estimate_accuracy <n.nn|n/a>; capacity_used <n.nn|n/a>; cost_per_epic <n.nn[ partial]|n/a>; rework <n|n/a>`
+   - In the `Result:` block of Write step 6, insert after the `- Demo:` line:
+     `- Metrics: <closed> of <total> epics done (<percent>%); estimates <accuracy as percent> accurate; <capacity_used as percent> of capacity used; <cost> USD per epic; <rework> reworks`
+   - In `## Report`, add "the metrics with their change" after "The closed milestone,".
+
+3. Docs rows: in the `milestone-close` row of `docs/reference/skills.md`, after "and retros;" add " team-level metrics (completion, estimate accuracy, capacity used, cost per epic, rework) compared with the previous closed milestone;". In `docs/reference/skills.vi.md`, after "và retro;" add " các chỉ số ở mức team (completion, estimate accuracy, capacity used, cost per epic, rework) so với milestone đã đóng trước đó;".
+
+4. Run `python3 -m pytest tests/workflow_core/test_skill_routing.py tests/workflow_core/test_docs_coverage.py tests/workflow_core/test_docs_check.py tests/workflow_core/test_token_budget.py -q`; expected: all pass. Commit: `feat(skills): /milestone-close rates the milestone with team-level metrics (gin-workflow-milestone-close)`.
 
 ## Integration
 - **Branch**: feat/milestone-close
