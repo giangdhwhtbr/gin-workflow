@@ -344,7 +344,7 @@ Migration: the facade comes first; the catalog API reads the existing Oracle tab
 Rollback: route the facade back to the JSP pages when the parity tests fail after cutover.
 Parallel: QA cases, the catalog API, and the SPA against contract mocks.
 Seats: the router cutover track goes to Binh on a Premium seat.
-Each track names its repository, for example Repo: services/catalog-api.
+Each track names its repository, for example Repo: services/catalog-api. A track that reads the legacy names it with Reads:, for example Reads: legacy/shop-portal.
 Answer each TQ-<n> with the contract of its endpoint.
 ```
 ```text

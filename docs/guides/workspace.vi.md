@@ -60,7 +60,7 @@ Mọi kỹ sư thực hiện phần này.
 
 1. Clone repository cha.
 2. Chạy `gin workspace clone <path>` cho các repository bạn làm việc. Kỹ sư backend clone một hoặc hai service; legacy `frozen` chỉ khi họ cần đọc nó.
-3. Mở IDE trên thư mục của repository con, không bao giờ trên repository cha.
+3. Mở IDE trên thư mục mà công việc cần. Với một track, đó là worktree `<parent>/.planning/worktrees/<track-id>`. Với setup, roadmap, discuss, plan, orchestrate và ship, đó là repository cha. Với `/gin:quick` trong một repository con, với QA, và với repository mà track khác đọc, đó là checkout chính của repository con đó.
 
 Bước clone cài các verify hook của mục có check và, ở chế độ team, commit-msg hook. Ngoài repository cha, mỗi vai trò clone thêm:
 
@@ -93,8 +93,8 @@ Mở: repository cha cho setup, plan, orchestrate và ship.
 
 | Stage | Lệnh |
 |---|---|
-| Plan | `/gin:plan` ghi các track, mỗi track mang `Repo: <path>`; `gin record plan-approved` từ chối track không có `Repo:`, repository không xác định hoặc `frozen`, mục beads, hoặc file nằm ngoài repository của nó |
-| Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>`. Ở [team mode](team.md) nó không tạo branch hay worktree của repository con và push `feat/<topic>` của repository cha; `gin team claim` của mỗi thành viên tạo worktree của họ |
+| Plan | `/gin:plan` ghi các track, mỗi track mang `Repo: <path>`; `gin record plan-approved` từ chối track không có `Repo:`, repository không xác định hoặc `frozen`, mục beads, hoặc file nằm ngoài repository của nó. Một track còn có thể mang `Reads: <paths>`, các repository nó chỉ đọc và không bao giờ sửa; `gin team check-plan` và `gin record plan-approved` từ chối path không nằm trong `workspace.repos`, mục beads, hoặc `Repo:` của chính track. Repository `frozen` được chấp nhận, và việc nó đã clone hay chưa không được kiểm tra ở đó |
+| Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>`. Nó ghi `Reads: <paths>` vào bead của track và, ngoài team mode, dừng theo cách tương tự khi một repository trong `Reads:` chưa được clone. Ở [team mode](team.md) nó không tạo branch hay worktree của repository con và push `feat/<topic>` của repository cha; `gin team claim` của mỗi thành viên tạo worktree của họ |
 | Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng (ở team mode, mỗi track và `feat/<topic>` của repository cha đi qua pull request, rồi area lead chạy `gin team complete <epic>`); `team check --gate ship` và `record shipped` nhận pull request của repository con, và `team check --gate ship` so nó với HEAD của checkout repository con hoặc worktree của track nơi chạy lệnh, nếu không thì checkout chính của repository con; `gin team deps` tìm pull request của track của repository con trong repository mà `Repo:` chỉ tới; phần tích hợp của repository cha đưa archive vào living spec, và theo quy ước của nhóm, BA review phần diff đó |
 
 Với một bead độc lập ở team mode có chính sách `ship`, lặp `gin record shipped --evidence <pull request URL>`, mỗi repository một URL: gin kiểm tra từng pull request và ghi chúng cùng nhau. Không có chính sách `ship`, bằng chứng là văn bản tự do, ví dụ một merge commit cho mỗi repository, và gin không kiểm tra. Một epic là shipped khi bead cha của nó được đóng sau các lần merge do con người xác nhận.
@@ -112,9 +112,25 @@ Mở: `<parent>/.planning/worktrees/<track-id>`. Đó là worktree của một s
 
 Đọc spec và plan từ đường dẫn của repository cha mà bead liên kết tới. Một track không sửa gì trong repository cha, ngoài review ledger của nó khi ledger bật. Hook trong repository con chỉ chạy `verify.checks` của repository đó.
 
+### Đọc repository khác { #reading-another-repository }
+
+Track cần đọc một repository mà nó không sửa thì nêu repository đó trong `Reads:` của plan. Khi chạy `/gin:execute`, stage lấy dòng của từng repository được nêu từ `gin workspace status --json`. Nếu repository chưa được clone trên máy này, execute dừng kèm `gin workspace clone <path>`. Nếu không, developer nhận `checkout`, `branch` và `commit` của dòng đó làm ngữ cảnh chỉ đọc.
+
+Checkout được đọc đúng như hiện có. gin không bao giờ chuyển branch hay pull nó, nên cần trạng thái mới hơn thì tự pull. Chỉ đọc là một chỉ dẫn cho developer: gin không chặn việc ghi vào đó. Harness giới hạn quyền đọc trong thư mục làm việc sẽ yêu cầu quyền truy cập path này.
+
+## Chạy các dependency của một track { #running-a-tracks-dependencies }
+
+gin không có lệnh hay cấu hình nào cho service, database, compose hoặc environment, và không khởi động gì. Đây là các quy ước của nhóm:
+
+- Mỗi repository tự ghi lệnh chạy của nó.
+- Tổ hợp các service và database chạy bằng công cụ của nhóm: một file compose trong repository cha, hoặc preview environment của host cho một pull request.
+- Track trong plan nêu các lệnh nó cần làm lệnh validation.
+
 ## QA { #qa }
 
 Mở: repository con `qa`, tức QA home. Config, spec và Beads nằm ở repository cha; gin-qa đọc chúng qua `gin specs reqs`. Nếu repository con chưa được clone, chạy `gin workspace clone <path>`.
+
+Để test một track, checkout branch của track trong từng repository con cần test. Khởi động tổ hợp bằng công cụ của nhóm, hoặc dùng preview environment, như trong [chạy các dependency của một track](#running-a-tracks-dependencies). Trong workspace, `run.json` ghi `checkouts`, tức trạng thái của máy đã chạy test; các field nằm trong [tham chiếu CLI](../reference/cli.md#gin-qa). Theo quy ước, người test một preview environment nêu URL pull request của từng repository trong comment nghiệm thu.
 
 | Stage | Lệnh |
 |---|---|
