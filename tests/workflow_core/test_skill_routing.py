@@ -372,7 +372,7 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         execute = read("skills/execute/SKILL.md")
         self.assertTrue(line_with(execute, "`project.worktree: always`", "`parallel`", "`feat/<topic>`"))
         self.assertTrue(line_with(execute, "push-refs", "`project.review_ledger: true`"))
-        self.assertTrue(line_with(execute, "`project.run_at`", "tests of what the track changed"))
+        self.assertTrue(line_with(execute, "`gin rules` output", "`project.run_at`"))
         close = line_with(execute, "gin task close <id>")
         for needle in ("reviewer", "cycle", "finding"):
             with self.subTest(needle=needle):
@@ -392,12 +392,38 @@ class LeanLifecycleSkillTests(unittest.TestCase):
 
     def test_ship_runs_the_suite_once_with_push(self):
         ship = read("skills/ship/SKILL.md")
-        run = line_with(ship, "`project.run_at`", "`push`", "gin evidence run")
-        self.assertTrue(run)
-        self.assertIn("`host`", run)
-        self.assertIn("before any merge", run)
-        self.assertLess(ship.index("gin evidence run"), ship.index("4. Present"))
+        modes = line_with(ship, "Tests follow `project.run_at`")
+        for mode in ("`push`", "`track`", "`host`"):
+            with self.subTest(mode=mode):
+                self.assertIn(mode, modes)
         self.assertNotIn("Do not run tests: the", ship)
+        merge = ship[ship.index("**Merge:**"):ship.index("**PR:**")]
+        self.assertLess(merge.index("review-ledger.py cleanup"), merge.index("gin evidence run"))
+        self.assertLess(merge.index("gin evidence run"), merge.index('git merge "$FEATURE_BRANCH"'))
+        self.assertIn("stops ship before the merge", merge)
+        pr = ship[ship.index("**PR:**"):ship.index("**Keep:**")]
+        self.assertLess(pr.index("gin evidence run"), pr.index("git push -u origin"))
+        self.assertIn("`project.run_at: push`", pr)
+
+    def test_tracks_on_the_epic_branch_push_at_ship(self):
+        execute = read("skills/execute/SKILL.md")
+        self.assertTrue(line_with(execute, "`feat/<topic>`", "pushed at ship"))
+        self.assertTrue(line_with(execute, "own branch", "`project.run_at`"))
+
+    def test_developer_tests_follow_run_at(self):
+        developer = read("agents/developer.md")
+        run = line_with(developer, "`project.run_at`", "`track`")
+        self.assertIn("`push` or `host`", run)
+        self.assertIn("tests of what you changed", run)
+
+    def test_progress_team_and_orchestrate_name_the_ledger_setting(self):
+        progress = read("skills/progress/SKILL.md")
+        self.assertTrue(line_with(progress, "review-ledger.py status", "`project.review_ledger: true`"))
+        self.assertTrue(line_with(progress, "close reason"))
+        team = read("skills/team/SKILL.md")
+        self.assertTrue(line_with(team, "`start-review`", "`project.review_ledger: true`"))
+        self.assertTrue(line_with(team, "track owner", "another member"))
+        self.assertTrue(line_with(read("skills/orchestrate/SKILL.md"), "review ledgers", "`project.review_ledger: true`"))
 
     def test_quick_scopes_tests_by_run_at(self):
         quick = read("skills/quick/SKILL.md")

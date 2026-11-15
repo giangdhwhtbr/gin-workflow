@@ -36,7 +36,7 @@ Track beads get `--labels track:<N>,area:<area>` and `--assignee <owner>` if the
 - With `team.beads_sync`, run `team sync` after closing a bead.
 
 ## review
-`init` and `start-review` take the member email from `team whoami` as `--actor-id`, so the ledger refuses the track owner as reviewer; another member (or an agent run by one) reviews. `init` passes `--max-cycles` from `project.max_cycles` in `state --format json`.
+The track owner never reviews; another member (or an agent run by one) does. With `project.review_ledger: true`, `init` and `start-review` take `--actor-id` from `team whoami`, so the ledger refuses the owner.
 
 ## ship
 When `team.approvals.ship` lists roles: offer only the PR and keep options, push the feature branch, open or reuse the PR, ask that role to approve the latest commit (host approval policy, stage-contract Approvals), and before merging run `gin team check --gate ship <pr-url>` (a child PR: from its track worktree); stop if it reports reasons. After the merge, a standalone bead records `gin record shipped --workflow-id <bead> --evidence <pr-url>`, which checks the approval on the merged PR head; an epic with children ships by closing it as usual. A later push needs a new approval. Per host ([references/hosts.md](references/hosts.md)): GitLab needs 'Reset approvals on push', Gitea 'Dismiss stale approvals', CodeCommit binds approvals to the revision; when the check reports `approvals still syncing`, retry. Merge per host rules (CODEOWNERS, branch protection). With `team.beads_sync`, run `team sync` after closing the beads. A member's ship reports only their own tracks; the lead declares the feature complete when every track PR has merged.

@@ -18,7 +18,7 @@ Read-only status report.
    - Spec: per epic, show `spec_confirmed` (unknown when null), its open spec pull request, and with `project.layout: sdd` the output of `gin specs status --change <epic>` and any confirmed asset folder not committed. The spec pull request is the `gin team pending` row with gate `requirement_confirmed` for that epic; outside team mode, none is shown. If `gin specs status` fails, say spec status is unavailable for that epic.
    - QA state: run the QA state check of the `qa-track` skill when it applies; without it, say the QA state was skipped.
 2. Group as Pending, Active, Complete, and Failed. Recommend active dependencies first, then ready work by priority, then root blockers.
-3. Add review status (`python3 review-ledger.py status --bead-id <id>`) and gate state (`gin state --format json`) when relevant, and recent `/quick` runs (`recent_quick` in `gin state`).
+3. Add review status (with `project.review_ledger: true`, `python3 review-ledger.py status --bead-id <id>`; otherwise the track's close reason or notes) and gate state (`gin state --format json`) when relevant, and recent `/quick` runs (`recent_quick` in `gin state`).
 4. Report open gate waivers (gates shown as `waived(<reason>)` by `gin state`) and check their follow-up tasks with `gin task show`, so waivers do not become a habit.
 5. With Beads, for each open epic in the report, list each `[gin question] <track>:` comment (`gin task comments <epic> --json`) that has no newer `[gin answer] <track>:` comment, with its date and text, as open questions for the BA. The markdown backend has no comments.
 6. Label worker and worktree details as derived runtime metadata, never authoritative state.
