@@ -223,9 +223,12 @@ def current(cwd: Path) -> Current:
 
 
 def branch(path: Path) -> str | None:
-    done = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=path, text=True,
-                          capture_output=True, check=False)
-    return done.stdout.strip() if done.returncode == 0 else None
+    """The checked-out branch; an unborn `HEAD` gives the branch it points at."""
+    for argv in (["rev-parse", "--abbrev-ref", "HEAD"], ["symbolic-ref", "--short", "HEAD"]):
+        done = subprocess.run(["git", *argv], cwd=path, text=True, capture_output=True, check=False)
+        if done.returncode == 0:
+            return done.stdout.strip()
+    return None
 
 
 def summary(located: Located) -> dict[str, Any] | None:
@@ -255,7 +258,13 @@ def ensure_gitignore(root: Path, lines: Sequence[str]) -> list[str]:
     added = [line for line in lines if line not in existing]
     if not added:
         return []
-    block = ([] if GITIGNORE_HEADER in existing else [GITIGNORE_HEADER]) + added
+    if GITIGNORE_HEADER in existing:
+        start = existing.index(GITIGNORE_HEADER)
+        end = next((i for i in range(start, len(existing)) if not existing[i].strip()), len(existing))
+        last = max(i for i in range(start, end) if existing[i].strip())
+        path.write_text("\n".join(existing[:last + 1] + added + existing[last + 1:]) + "\n", encoding="utf-8")
+        return added
+    block = [GITIGNORE_HEADER] + added
     text = ("\n".join(existing).rstrip("\n") + "\n\n" if existing else "") + "\n".join(block) + "\n"
     path.write_text(text, encoding="utf-8")
     return added
