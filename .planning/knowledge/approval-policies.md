@@ -16,6 +16,7 @@ Epic `gin-workflow-approval-roles` (2026-11-10), from the process review P1 clus
 - The `/discuss` design claimed `gin unblock` as the third anti-deadlock layer for every gate; review found `shipped` is non-waivable, and the spec and docs were corrected. Check `NON_WAIVABLE_GATES` before proposing a waiver path.
 - The doctor `note` field is now host notes joined with single-holder notes by "; "; the CodeCommit host note itself contains "; ", so tests compare the first two segments.
 - team `SKILL.md` is at 5,993 of 6,000 characters.
+- `host` is a fourth policy form since `gin-workflow-ws-ship-records` (2026-11-15): pull request proof without any approver check; see [lean-lifecycle](lean-lifecycle.md).
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/{team,schemas,team_cli,team_init}.py`; tests `tests/workflow_core/test_team_gates.py` (`TestObjectPolicies`), `test_team_init.py` (`TestSingleHolderNotes`)
