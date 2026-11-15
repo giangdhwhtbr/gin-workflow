@@ -419,6 +419,38 @@ _USE_CASE_REQS = re.compile(r"^Requirements:[ \t]*(.*)$", re.MULTILINE)
 _MAIN_FLOW = re.compile(r"^## Main flow[ \t]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 
 
+def line_value(text: str, key: str) -> str:
+    """The value of the first `<key>:` line outside `<!-- -->` comments, stripped; '' when absent."""
+    found = re.search(rf"^{re.escape(key)}:[ \t]*(.*)$", _COMMENT.sub("", text), re.MULTILINE)
+    return found.group(1).strip() if found else ""
+
+
+def line_values(text: str, key: str) -> list[str]:
+    """The comma-separated values of the first `<key>:` line, each stripped, empty ones dropped."""
+    return [value.strip() for value in line_value(text, key).split(",") if value.strip()]
+
+
+def lint_references(root: Path, cfg: Mapping[str, Any]) -> list[str]:
+    """`Includes:`/`Extends:` of a use case and `Use case:` of an activity diagram name a use case of the same capability."""
+    base = specs_dir(root, cfg)
+    errors: list[str] = []
+    for cap in sorted(p for p in base.iterdir() if p.is_dir()) if base.is_dir() else []:
+        cases = sorted((cap / USE_CASES_DIR).glob("*.md"))
+        slugs = {path.stem for path in cases}
+        for path in cases:
+            text = path.read_text(encoding="utf-8")
+            for key in ("Includes", "Extends"):
+                for slug in line_values(text, key):
+                    if slug == path.stem:
+                        errors.append(f"{shown(root, path)}: {key} names the use case itself")
+                    elif slug not in slugs:
+                        errors.append(f"{shown(root, path)}: {key} names unknown use case '{slug}'")
+        for path in sorted((cap / DIAGRAMS_DIR).glob("*-activity.md")):
+            errors += [f"{shown(root, path)}: Use case names unknown use case '{slug}'"
+                       for slug in line_values(path.read_text(encoding="utf-8"), "Use case") if slug not in slugs]
+    return errors
+
+
 def open_changes(root: Path, cfg: Mapping[str, Any]) -> list[Path]:
     """Change folders that are not archived and have a spec delta, sorted by name."""
     base = changes_dir(root, cfg)
@@ -452,12 +484,14 @@ def lint_use_cases(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """Every `<specs>/<cap>/use-cases/*.md` has a title, an actor, known REQ-IDs, and a numbered main flow."""
     paths = sorted(specs_dir(root, cfg).glob(f"*/{USE_CASES_DIR}/*.md"))
     known = _known_req_ids(root, cfg) if paths else set()
+    included = {(path.parent, slug) for path in paths
+                for slug in line_values(path.read_text(encoding="utf-8"), "Includes")}
     errors: list[str] = []
     for path in paths:
         text, name = _COMMENT.sub("", path.read_text(encoding="utf-8")), shown(root, path)
         if not re.search(r"^# \S", text, re.MULTILINE):
             errors.append(f"{name}: missing '# <use case name>' title")
-        if not re.search(r"^Actor:[ \t]*\S", text, re.MULTILINE):
+        if not re.search(r"^Actor:[ \t]*\S", text, re.MULTILINE) and (path.parent, path.stem) not in included:
             errors.append(f"{name}: missing 'Actor: <primary actor>' line")
         line = _USE_CASE_REQS.search(text)
         ids = [found.group(0) for found in REQ_ID.finditer(line.group(1))] if line else []
@@ -489,7 +523,7 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
                 errors.append(f"{where}: {block.id} duplicates {seen[block.id]}")
             seen.setdefault(block.id, name)
             errors += [f"{where}: {message}" for message in lint_block(block)]
-    return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg)
+    return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg)
 
 
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
@@ -550,7 +584,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         if p_kind == "parity":
             errors += epic_kind.parity_errors(root, p_text, shown_prop)
 
-    return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg)
+    return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg)
 
 
 _CITED = re.compile(r"`([^`\s]+)`")

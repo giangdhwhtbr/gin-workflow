@@ -13,7 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
-                            make_change, make_repo, write, write_activity, STATE, USE_CASE)
+                            make_change, make_repo, write, write_activity, ACTIVITY, STATE, USE_CASE)
 from workflow_core import docs_check, specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
@@ -354,6 +354,35 @@ class TestRepositoryCommands(unittest.TestCase):
         self.assertIsNone(source)
         self.assertEqual(specs.block_hash(block.text), digest)
 
+    def test_lint_references_of_use_cases_and_activity_diagrams(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE + "Includes: verify-otp, \nExtends: sign-in\n")
+        write(self.root, "docs/specs/auth/diagrams/reset-activity.md", ACTIVITY.replace("# Login\n", "# Reset\n\nUse case: reset\n"))
+        self.assertEqual([
+            "docs/specs/auth/use-cases/sign-in.md: Includes names unknown use case 'verify-otp'",
+            "docs/specs/auth/use-cases/sign-in.md: Extends names the use case itself",
+            "docs/specs/auth/diagrams/reset-activity.md: Use case names unknown use case 'reset'",
+        ], specs.lint_references(self.root, self.cfg))
+        write(self.root, "docs/specs/auth/use-cases/verify-otp.md", USE_CASE.replace("# Sign in", "# Verify OTP"))
+        write(self.root, "docs/specs/auth/use-cases/reset.md", USE_CASE.replace("# Sign in", "# Reset"))
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE + "Includes: verify-otp\nExtends:\n")
+        self.assertEqual([], specs.lint_references(self.root, self.cfg))
+        self.assertEqual(0, run_specs(self.root, "lint").returncode)
+
+    def test_lint_references_ignore_comments_and_the_old_template(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", "<!-- Includes: nothing -->\n" + USE_CASE)
+        self.assertEqual([], specs.lint_references(self.root, self.cfg))
+        self.assertEqual(["a", "b"], specs.line_values("Includes:  a , ,b\n", "Includes"))
+        self.assertEqual("", specs.line_value("Actor:\n", "Actor"))
+
+    def test_lint_use_case_actor_is_optional_only_for_an_included_use_case(self):
+        write(self.root, "docs/specs/auth/use-cases/verify-otp.md",
+              USE_CASE.replace("# Sign in", "# Verify OTP").replace("Actor: Registered user\n", ""))
+        self.assertEqual(["docs/specs/auth/use-cases/verify-otp.md: missing 'Actor: <primary actor>' line"],
+                         specs.lint_use_cases(self.root, self.cfg))
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md",
+              USE_CASE.replace("Requirements:", "Includes: verify-otp\nRequirements:"))
+        self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
+
 
 class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):
@@ -374,7 +403,9 @@ class TestSpecsCli(unittest.TestCase):
             living = run_specs(root, "template", "spec.md").stdout
             self.assertLess(living.index("## Diagrams"), living.index("## Requirements"))
             use_case = run_specs(root, "template", "use-case.md").stdout
-            for needle in ("Actor:", "Requirements:", "## Goal", "## Preconditions", "## Main flow", "## Alternative flows", "## Postconditions"):
+            for needle in ("Actor:", "Requirements:", "## Goal", "## Preconditions", "## Main flow", "## Alternative flows", "## Postconditions",
+                           "Secondary actors:", "Trigger:", "Includes:", "Extends:", "## Exception flows", "## Business rules",
+                           "Scheduler", "Include <slug>", "Resume at step", "Use case ends"):
                 with self.subTest(needle=needle):
                     self.assertIn(needle, use_case)
             self.assertLess(living.index("## Diagrams"), living.index("## Use Cases"))
