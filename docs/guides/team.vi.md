@@ -123,6 +123,8 @@ Mỗi host cần một CLI đã đăng nhập và branch protection trên integr
 
 Đặt `team.host: gitea`. `team init` ghi `.gitea/CODEOWNERS` và `.gitea/PULL_REQUEST_TEMPLATE.md`. Bảo vệ integration branch bằng số approval bắt buộc và bật "Dismiss stale approvals". Dù thế nào, gate `ship` chỉ tính các phê duyệt trên head commit.
 
+Gitea đọc mỗi dòng CODEOWNERS như một biểu thức chính quy, nên `team init` chuyển các glob của area (`web/**` thành `web/.*`, `.planning/plans/` thành `[.]planning/plans/.*`). Glob có dấu cách, `#`, `\` hoặc `^` bị từ chối. Gitea chỉ yêu cầu code owner review, không có thiết lập bắt buộc họ phê duyệt. Sau khi nâng cấp gin, chạy lại `gin team init` (thêm `--force` nếu bạn đã xóa dòng marker được sinh ra) rồi commit `.gitea/CODEOWNERS`; trước đó `gin team codeowners --check` báo drift.
+
 `gt` là CLI của Gitea và cần Gitea 28 trở lên. Đăng nhập một lần cho mỗi instance, và đưa cả subpath vào URL:
 
 ```bash
