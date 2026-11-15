@@ -323,9 +323,33 @@ Exit codes: 0 ok.
 gin goal --workflow-id ID [--repository PATH]
 ```
 
-Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`. The goal lists the open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one. Its turn limit is 6 per track, at most 30. A track run on a fallback from its route counts as run on its routed provider. A standalone bead is its own single track. When no open track is left for the agent, it prints a `No goal:` line instead, which names the human-gate tracks when any wait.
+Prints a Claude Code `/goal` for the epic recorded by `orchestration-ready`. The goal lists the open tracks in dependency order, leaving out every track labelled `human-gate` and every open track that depends on one. The condition is checkable from durable state the agent shows with commands: those tracks are closed in Beads (`gin task show`), `gin state --workflow-id ID --format json` shows `implementation_complete` satisfied. With the review ledger on (`project.review_ledger`, default only in the `strict` preset), the condition adds that each track's `python3 review-ledger.py status --bead-id <id>` shows an approved state (`review-approved` or later) or the track is listed in `review_waivers`; with it off, that clause is left out, because no ledger or waiver exists to show. It has no turn limit. A standalone bead is its own single track. When no open track is left for the agent, it prints a `No goal:` line instead, which names the human-gate tracks when any wait.
 
 Exit codes: 0 ok; 1 no epic recorded for the workflow, or the task backend is unavailable.
+
+## `gin commit`
+
+```
+gin commit <path>... -m <message> [--branch <name>] [--format text|json]
+```
+
+`gin commit` commits only the named files and directories without pushing.
+
+Before any change, the command checks every input.
+The message must be non-empty after trimming whitespace.
+Each path must exist on disk or be tracked in the git index.
+All paths must resolve inside one git repository.
+A detached `HEAD` or invalid branch name exits 2 without modifying repository state.
+
+When there are no changes under the paths, the command creates no branch and prints that there is nothing to commit.
+When the current branch is `main`, `master`, or the workspace entry `default_branch`, it creates a new branch before committing.
+The new branch name uses `--branch` when specified, or `gin/<slug>-<YYYY-MM-DD>` with an incrementing numeric suffix if the branch exists.
+Other staged or unstaged changes outside the named paths remain in the working tree.
+The command stages and commits only the named paths and never calls `git push`.
+
+Exit codes: 0 on success or when there is nothing to commit; 2 on usage errors or failed checks. A failing git hook makes `git commit` fail. `gin commit` exits with git's exit code, not the hook's own status.
+
+Output: text prints committed file count, branch, commit SHA, committed paths, and `Not pushed.`. JSON output returns `{"repository", "branch", "created_branch", "commit", "files", "pushed"}` or `{"repository", "branch", "created_branch", "nothing_to_commit", "files", "pushed"}`.
 
 ## `gin workspace`
 

@@ -106,6 +106,10 @@ After the epic's tracks close, review the `/gin-qa:report` output. For an epic b
 
 Acceptance is a team convention. Ship checks it with a warning only and continues without it. See [epic comments](../concepts/lifecycle.md#stages-and-gates) for all comment kinds.
 
+## Saving your work
+
+The `capture` and `mockup` skills offer to save the dated folder before `/gin:discuss` commits it. On a yes, they run `gin commit` on that folder, which commits only the files in it. On `master` or `main`, or the workspace default branch, `gin commit` first creates a new branch. It never pushes. You or a developer push the branch and open the pull request. The options and exit codes are in the [`gin commit` reference](../reference/cli.md#gin-commit).
+
 ## Conventions
 
 These are team practices, not behaviour the tool enforces.

@@ -12,6 +12,7 @@ from .project_detect import _mentions, _read_json, _workspace_dirs, _workspace_g
 from .rules import Pack, RulesError, load_plugin_packs, plugin_rules_dir, rules_config
 
 _TIER_ORDER = ("core", "language", "framework")
+_BUILD_FILES = ("pom.xml", "build.gradle", "build.gradle.kts")
 _ESLINT_FILES = ("eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", "eslint.config.ts",
                  ".eslintrc", ".eslintrc.json", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.yml", ".eslintrc.yaml")
 _JSONC_TOKENS = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/', re.DOTALL)
@@ -34,6 +35,33 @@ def _py_text(root: Path) -> str:
                    for name in ("pyproject.toml", "requirements.txt") if (root / name).is_file())
 
 
+def _build_text(root: Path) -> str:
+    def read_one(path: Path) -> str:
+        try:
+            if path.is_file():
+                return path.read_text(encoding="utf-8").lower()
+        except (OSError, UnicodeDecodeError):
+            pass
+        return ""
+
+    texts = [read_one(root / name) for name in _BUILD_FILES]
+    try:
+        children = list(root.iterdir())
+    except OSError:
+        children = []
+    for child in children:
+        try:
+            if not child.is_dir() or child.name.startswith(".") or child.name == "node_modules":
+                continue
+        except OSError:
+            continue
+        for name in _BUILD_FILES:
+            text = read_one(child / name)
+            if text:
+                texts.append(text)
+    return "".join(texts)
+
+
 def _with_requires(chosen: set[str], plugin: Mapping[str, Pack]) -> set[str]:
     pending = list(chosen)
     while pending:
@@ -46,16 +74,18 @@ def _with_requires(chosen: set[str], plugin: Mapping[str, Pack]) -> set[str]:
 
 def propose_packs(root: Path, plugin: Mapping[str, Pack], *, stack_intent: str = "") -> list[str]:
     root = Path(root).resolve()
-    deps, py_text, intent = _js_deps(root), _py_text(root), stack_intent.lower()
+    deps, py_text, build_text, intent = _js_deps(root), _py_text(root), _build_text(root), stack_intent.lower()
     chosen = {"core"} & set(plugin)
     for pack in plugin.values():
         detect = pack.meta.get("detect") or {}
         js_names = [str(n) for n in detect.get("package_json_deps", [])]
         py_names = [str(n) for n in detect.get("pyproject_deps", [])]
+        build_names = [str(n).lower() for n in detect.get("build_file_mentions", [])]
         if (any(name in deps for name in js_names)
                 or any(_mentions(py_text, name) for name in py_names)
+                or any(name in build_text for name in build_names)
                 or any((root / str(name)).exists() for name in detect.get("files_exist", []))
-                or (intent and any(_mentions(intent, name.lower()) for name in (pack.id, *js_names, *py_names)))):
+                or (intent and any(_mentions(intent, name.lower()) for name in (pack.id, *js_names, *py_names, *build_names)))):
             chosen.add(pack.id)
     return sorted(_with_requires(chosen, plugin), key=lambda name: (_TIER_ORDER.index(plugin[name].tier), name))
 

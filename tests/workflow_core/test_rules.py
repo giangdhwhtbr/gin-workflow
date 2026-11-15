@@ -147,6 +147,12 @@ class TestPackagedDefaults(unittest.TestCase):
     def test_docs_pack_can_be_disabled(self):
         self.assertEqual(["core", "lean"], self._ids({"rules": {"disabled": ["docs"]}}, ["README.md"]))
 
+    def test_jvm_and_template_packs_selected_by_file_scope(self):
+        config = {"rules": {"packs": ["java", "spring", "jvm-templates"]}}
+        self.assertEqual(["spring", "java", "core", "lean"], self._ids(config, ["src/main/java/App.java"]))
+        self.assertEqual(["jvm-templates", "core", "lean"], self._ids(config, ["src/main/webapp/views/order.vm"]))
+        self.assertEqual(["jvm-templates", "core", "lean"], self._ids(config, ["WEB-INF/jsp/list.jsp"]))
+
 
 class TestBudget(unittest.TestCase):
     def _packs(self, root: Path):

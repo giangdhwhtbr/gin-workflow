@@ -52,6 +52,9 @@ flowchart LR
     RA[roadmap-areas] --> ES[epic-shape-docs]
     AR[approval-roles] --> ES
     SG[ws-ship-gate] --> BM[ws-branch-model]
+    BM --> SR[ws-ship-records]
+    BM --> QT[quick-team]
+    TE[ws-track-env]
     QW[qa-workspace] --> QL[qa-lifecycle]
     QE[qa-evidence]
     QP[qa-parity]
@@ -64,12 +67,12 @@ flowchart LR
 |---|---|
 | 1 | `gin-workflow-milestone-gates`, `gin-workflow-milestone-capacity`, `gin-workflow-roadmap-areas` |
 | 2 | `gin-workflow-ws-ship-gate`, `gin-workflow-qa-workspace`, `gin-workflow-approval-roles` |
-| 3 | `gin-workflow-team-progress`, `gin-workflow-epic-shape-docs`, `gin-workflow-ws-branch-model` |
-| 4 | `gin-workflow-ws-child-setup`, `gin-workflow-ws-entry-rules`, `gin-workflow-qa-lifecycle` |
+| 3 | `gin-workflow-team-progress`, `gin-workflow-epic-shape-docs`, `gin-workflow-ws-branch-model`, `gin-workflow-ws-track-env` |
+| 4 | `gin-workflow-ws-child-setup`, `gin-workflow-ws-entry-rules`, `gin-workflow-qa-lifecycle`, `gin-workflow-ws-ship-records`, `gin-workflow-quick-team` |
 | 5 | `gin-workflow-sdd-team-flow`, `gin-workflow-qa-evidence`, `gin-workflow-jvm-legacy-rules` |
 | 6 | `gin-workflow-ba-workspace`, `gin-workflow-qa-parity` |
 
-With 1 lane the epics run in the listed order: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-child-setup, ws-entry-rules, jvm-legacy-rules, qa-lifecycle, qa-evidence, sdd-team-flow, qa-parity, ba-workspace. Shipped by 2026-11-11: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, qa-lifecycle; the 10 open epics total 13 working days, past the deadline.
+With 1 lane the epics run in the listed order: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, team-progress, epic-shape-docs, ws-branch-model, ws-ship-records, ws-track-env, quick-team, ws-child-setup, ws-entry-rules, jvm-legacy-rules, qa-lifecycle, qa-evidence, sdd-team-flow, qa-parity, ba-workspace. Shipped by 2026-11-11: milestone-gates, milestone-capacity, roadmap-areas, ws-ship-gate, qa-workspace, approval-roles, qa-lifecycle; the 13 open epics total 18 working days, past the deadline.
 
 ## Unassigned
 
@@ -161,16 +164,49 @@ Depends on: gin-workflow-roadmap-areas, gin-workflow-approval-roles
 Evidence: synthesis "One epic rule for features that span repositories" (BA-3, BE-LEAD-8, FE-LEAD-12, QA-5, FE-LEAD-11), "Owner roles for technical epics and milestone writes" (BA-4, BE-LEAD-20, PM-8, FE-LEAD-5, PM-3, BE-LEAD-19), "Prompt templates match the workspace starter" (PM-19, BA-18, QA-16, BE-LEAD-21, FE-LEAD-21).
 Risks: the contract spec approval conflict (BA-4 vs FE-LEAD-5) is decided in `/discuss`.
 
-### Branch, pull request, and track environment model for workspace children
+### Branch, pull request, and review ledger model for workspace children
 Epic: gin-workflow-ws-branch-model
-Estimate: 2
-Complexity: high: cross-module: orchestrate, worktrees, takeover, review ledger, quick
-Goal: one flow for child `feat/<topic>` branches, track worktree creation on claim, track pull request bases, review ledgers, closing a multi-member epic, read-only sibling repositories for a track, and `/gin:quick` in team mode.
-Scope: members create their own track worktree and child branch on claim; `team takeover` fetches from the child; review ledgers stay out of service repositories; a track declares read-only siblings and how to run the service and app it is tested against; quick in team mode ends with a pull request and ship approval; `record shipped --evidence` takes several pull request URLs; `team deps` searches a child's pull requests.
-Out of scope: the ship gate check itself (`gin-workflow-ws-ship-gate`).
+Estimate: 3
+Complexity: high: cross-module: orchestrate, worktrees, claim and takeover, review ledger, ship
+Goal: one flow for child `feat/<topic>` branches, track worktree creation on claim, track pull request bases, review ledgers in a workspace, and closing a multi-member epic.
+Scope: orchestrate pushes the child `feat/<topic>`; members create their own track worktree and child branch on claim; `team takeover` fetches from the child; the base of a child track pull request and one pull request per child at ship; the branch tracks start from after the spec and plan pull requests merge; review ledgers stay out of service repositories; the step and command that close a multi-member epic after its last track pull request merges.
+Out of scope: the ship gate check itself (`gin-workflow-ws-ship-gate`); several pull requests in `record shipped` and `team deps` for children (`gin-workflow-ws-ship-records`); read-only siblings and running services for a track (`gin-workflow-ws-track-env`); `/gin:quick` in team mode (`gin-workflow-quick-team`).
 Depends on: gin-workflow-ws-ship-gate
-Evidence: spec `2026-11-10-ws-ship-gate-design.md` handed over BE-LEAD-13 and BE-LEAD-16; synthesis "Branch and pull request model for workspace children" (BE-LEAD-4, BE-LEAD-14, BE-LEAD-15, FE-LEAD-14, BE-LEAD-10, FE-LEAD-16, PM-13), "Track environment with read-only siblings and running services" (BE-LEAD-26, FE-LEAD-10, QA-12), "Quick in team mode" (PM-16, QA-18, BE-LEAD-17, FE-LEAD-18); `team_beads.py:226,329`, `review_ledger/cli.py:42-44`.
-Risks: largest epic; may split into two plans in `/discuss`.
+Evidence: synthesis "Branch and pull request model for workspace children" (BE-LEAD-4, BE-LEAD-14, BE-LEAD-15, FE-LEAD-14, BE-LEAD-10, FE-LEAD-16, PM-13); `team_beads.py` `takeover`, `review_ledger/cli.py:40-53`, `orchestrate/SKILL.md:24`.
+Risks: largest remaining workspace epic; the pull request base decision shapes orchestrate, worktrees, team, ship, and the git-flow guide.
+
+### Several pull requests in `record shipped` and `team deps` for workspace children
+Epic: gin-workflow-ws-ship-records
+Estimate: 1
+Complexity: medium: team policy, Beads, host adapters
+Goal: `gin record shipped --evidence` takes one pull request URL per repository and checks each, and `gin team deps` searches the pull requests of the child named by a placeholder track's `Repo:`.
+Scope: several URLs in `record shipped` and how `gates.shipped` holds them; `team deps` and `deps_for` for a child's pull requests and HEAD.
+Out of scope: the branch and pull request model (`gin-workflow-ws-branch-model`).
+Depends on: gin-workflow-ws-branch-model
+Evidence: spec `2026-11-10-ws-ship-gate-design.md` handed over BE-LEAD-13 and BE-LEAD-16; `team.py` `verify_gate` and `authorize_record`, `team_beads.py` `deps`.
+Risks: a schema decision for `gates.shipped`, which holds one proof today.
+
+### Track environment with read-only siblings and running services
+Epic: gin-workflow-ws-track-env
+Estimate: 2
+Complexity: medium: plan schema, orchestrate, execute, docs
+Goal: a track declares read-only sibling repositories that orchestrate checks are cloned and execute passes to the developer, and the docs say how to run the service and app combination a track is tested against.
+Scope: a plan line for read-only siblings with `team.Track` and `check_plan_repos`; the clone check in orchestrate; sibling paths in the execute context; one instruction on which directory the IDE opens; running dependent services and a database locally; how QA gets a running combination and records the tested commit of each repository.
+Out of scope: the branch and pull request model (`gin-workflow-ws-branch-model`).
+Depends on:
+Evidence: synthesis "Track environment with read-only siblings and running services" (BE-LEAD-26, FE-LEAD-10, QA-12); `plan-schema.md:61`, `team.py` `Track` and `check_plan_repos`, `docs/guides/workspace.md:63,104`.
+Risks: shares the plan schema and `team.Track` with `gin-workflow-ws-branch-model`; run after it when both change them.
+
+### Quick in team mode
+Epic: gin-workflow-quick-team
+Estimate: 1
+Complexity: medium: quick skill, lifecycle events, progress
+Goal: `/gin:quick` in team mode ends with a push, a pull request, and the ship approval check, lists the cases that cover the change, and can attach to an epic so quick runs show in progress and capacity.
+Scope: the team-mode end of quick, including in a workspace child; covering cases; an epic or milestone link for a quick run and a shared record of it.
+Out of scope: the branch and pull request model (`gin-workflow-ws-branch-model`).
+Depends on: gin-workflow-ws-branch-model
+Evidence: synthesis "Quick in team mode" (PM-16, QA-18, BE-LEAD-17, FE-LEAD-18); `quick/SKILL.md:26`, `lifecycle_cli.py` `quick.completed` and `recent_quick`.
+Risks: quick has no epic or `implementation_complete`, so the ship approval check needs its own rule.
 
 ### Workspace onboarding, frozen legacy access, and team init per child
 Epic: gin-workflow-ws-child-setup

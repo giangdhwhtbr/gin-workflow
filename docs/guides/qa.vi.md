@@ -159,6 +159,10 @@ gin-qa cases to-manual <TC-ID> --reason "<why>"
 
 Sau đó chạy `/gin-qa:run`, nó dẫn bạn đi qua case bằng tay. Để quay lại, đổi tên file về `.e2e.md`, xóa dòng `Moved from e2e:`, và chạy `/gin-qa:e2e`.
 
+## Lưu công việc của bạn { #saving-your-work }
+
+Sau khi bạn xem lại, skill hỏi có lưu công việc không. Khi bạn đồng ý, skill chạy `gin commit` trên các file và thư mục nó vừa ghi, và lệnh chỉ commit đúng những đường dẫn đó. Trên `master` hoặc `main`, hoặc nhánh mặc định của workspace, `gin commit` tạo trước một nhánh mới. Lệnh không bao giờ push. Bạn hoặc một developer sẽ push nhánh và mở pull request. Tùy chọn và mã thoát nằm trong [tham chiếu `gin commit`](../reference/cli.md#gin-commit).
+
 ## Prompt { #prompts }
 
 Các prompt dưới đây được dán nguyên văn nên giữ tiếng Anh.

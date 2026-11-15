@@ -197,6 +197,10 @@ gin-qa cases to-manual <TC-ID> --reason "<why>"
 
 Then run `/gin-qa:run`, which walks the case by hand. To go back, rename the file to `.e2e.md`, remove the `Moved from e2e:` line, and run `/gin-qa:e2e`.
 
+## Saving your work
+
+After you review the output, the skill asks whether to save the work. On a yes, it runs `gin commit` on the files and folders it wrote, and the commit holds only those paths. On `master` or `main`, or the workspace default branch, `gin commit` first creates a new branch. It never pushes. You or a developer push the branch and open the pull request. The options and exit codes are in the [`gin commit` reference](../reference/cli.md#gin-commit).
+
 ## Prompts
 
 ### Cover a requirement in depth

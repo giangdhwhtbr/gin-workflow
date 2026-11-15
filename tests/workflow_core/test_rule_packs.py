@@ -13,7 +13,7 @@ from workflow_core.rules import DEFAULT_PACKS, IMPACTS, TIERS, load_plugin_packs
 
 PACKS = load_plugin_packs(ROOT / "plugins/gin-workflow/src/rules")
 CHECK_KINDS = {"tsconfig_option", "eslint_rule", "pyproject_tool", "file_exists"}
-DETECT_KEYS = {"package_json_deps", "pyproject_deps", "files_exist"}
+DETECT_KEYS = {"package_json_deps", "pyproject_deps", "files_exist", "build_file_mentions"}
 
 
 class TestRulePacks(unittest.TestCase):

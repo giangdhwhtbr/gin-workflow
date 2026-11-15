@@ -106,6 +106,10 @@ Sau khi các track của epic đóng, xem lại đầu ra của `/gin-qa:report`
 
 Nghiệm thu là quy ước của nhóm. Ship chỉ kiểm tra nó bằng một cảnh báo và vẫn tiếp tục khi thiếu. Xem [comment của epic](../concepts/lifecycle.md#stages-and-gates) để biết mọi loại comment.
 
+## Lưu công việc của bạn { #saving-your-work }
+
+Các skill `/gin-ba:capture` và `/gin-ba:mockup` đề nghị lưu thư mục có tên ngày trước khi `/gin:discuss` commit nó. Khi bạn đồng ý, skill chạy `gin commit` trên thư mục đó, và lệnh chỉ commit các file nằm trong thư mục đó. Trên `master` hoặc `main`, hoặc nhánh mặc định của workspace, `gin commit` tạo trước một nhánh mới. Lệnh không bao giờ push. Bạn hoặc một developer sẽ push nhánh và mở pull request. Tùy chọn và mã thoát nằm trong [tham chiếu `gin commit`](../reference/cli.md#gin-commit).
+
 ## Quy ước { #conventions }
 
 Đây là thực hành của nhóm, không phải hành vi công cụ ép buộc.
