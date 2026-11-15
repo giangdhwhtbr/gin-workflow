@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `changes-requested`
 
 ## Active Lease
 *No active lease.*
@@ -27,10 +27,15 @@
 - **Allowed Generated Paths:**
 
 ## Findings Summary
-*No findings recorded.*
+| Finding ID | Severity | Status | Clarification Count | Linked Bead |
+| :--- | :--- | :--- | :---: | :--- |
+| `F-1` | `IMPORTANT` | `open` | 0 | - |
 
 ## Findings Detail
-*No detailed findings.*
+### `F-1` (IMPORTANT)
+- **Status:** `open`
+- **Clarification Count:** 0
+
 
 ## Event Chronology
 | Event ID | Timestamp | Action | Actor |
@@ -38,3 +43,8 @@
 | `EV-000001` | `2026-11-15T04:06:39.016234Z` | `ledger-created` | `worker:claude:sonnet` (worker) |
 | `EV-000002` | `2026-11-15T04:06:39.616820Z` | `source-checkpoint-created` | `worker:claude:sonnet` (worker) |
 | `EV-000003` | `2026-11-15T04:06:39.884232Z` | `review-requested` | `worker:claude:sonnet` (worker) |
+| `EV-000004` | `2026-11-15T04:07:16.143556Z` | `lease-acquired` | `reviewer:claude:session-03661c40` (reviewer) |
+| `EV-000005` | `2026-11-15T04:07:16.173713Z` | `review-started` | `reviewer:claude:session-03661c40` (reviewer) |
+| `EV-000006` | `2026-11-15T04:07:23.687329Z` | `finding-created` | `reviewer:claude:session-03661c40` (reviewer) |
+| `EV-000007` | `2026-11-15T04:07:23.951968Z` | `changes-requested` | `reviewer:claude:session-03661c40` (reviewer) |
+| `EV-000008` | `2026-11-15T04:07:24.404941Z` | `lease-released` | `reviewer:claude:session-03661c40` (reviewer) |
