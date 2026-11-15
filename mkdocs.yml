@@ -87,6 +87,7 @@ plugins:
             CLI: CLI
             Configuration: Cấu hình
             Troubleshooting: Xử lý sự cố
+            Changelog: Nhật ký thay đổi
 
 not_in_nav: |
   /concepts/**
@@ -131,3 +132,4 @@ nav:
       - CLI: reference/cli.md
       - Configuration: reference/config.md
       - Troubleshooting: reference/troubleshooting.md
+  - Changelog: changelog.md

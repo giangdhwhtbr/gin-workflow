@@ -17,6 +17,7 @@ Read it on the [documentation site](https://giangdhwhtbr.github.io/gin-workflow/
 | Orchestrator | [worker harnesses (gin-orchestrator)](docs/orchestrator/README.md), [routing and configuration](docs/orchestrator/routing.md) |
 | Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md), [orchestrator contract](docs/reference/orchestrator-contract.md) |
 | [Contributing](docs/contributing.md) | build, test, release |
+| [Changelog](docs/changelog.md) | what changed in each release |
 
 ## Installation
 
