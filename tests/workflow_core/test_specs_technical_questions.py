@@ -226,6 +226,15 @@ class PlanApprovedWorkspaceTests(unittest.TestCase):
         self.assertIn("plan-approved refused: workspace tracks\nTrack 1: Repo: legacy/portal is frozen", err)
         self.assertEqual("unmet", self.gate())
 
+    def test_unknown_reads_repo_refuses_the_gate(self):
+        write(self.root, ".planning/plans/p.md",
+              self.PLAN.replace("- **Files**:", "- **Reads**: `services/billing`\n- **Files**:"))
+        code, err = self.record()
+        self.assertEqual(1, code)
+        self.assertIn("plan-approved refused: workspace tracks\nTrack 1: Reads: services/billing is not in "
+                      "workspace.repos", err)
+        self.assertEqual("unmet", self.gate())
+
     def test_evidence_without_a_plan_file_is_refused(self):
         code, err = self.record(evidence="pr-123")
         self.assertEqual(1, code)

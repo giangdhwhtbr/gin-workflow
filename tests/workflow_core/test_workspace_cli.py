@@ -52,10 +52,19 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertTrue(all(item["status"] == "present" for item in again["repos"]))
         status = json.loads(run(self.root / "services/api", "workspace", "status", "--json").stdout)
         api = next(item for item in status["repos"] if item["path"] == "services/api")
+        checkout = (self.root / "services/api").resolve()
         self.assertEqual({"path": "services/api", "present": True, "branch": "main", "dirty": False,
-                          "frozen": False}, api)
+                          "frozen": False, "checkout": str(checkout),
+                          "commit": git(checkout, "rev-parse", "HEAD")}, api)
         text = run(self.root, "workspace", "status").stdout
         self.assertIn("legacy/portal  present  main  clean  frozen", text)
+
+    def test_status_of_a_missing_repository_has_checkout_and_no_commit(self):
+        status = json.loads(run(self.root, "workspace", "status", "--json").stdout)
+        web = next(item for item in status["repos"] if item["path"] == "apps/web")
+        self.assertFalse(web["present"])
+        self.assertEqual(str((self.root / "apps/web").resolve()), web["checkout"])
+        self.assertIsNone(web["commit"])
 
     def test_clone_installs_verify_hooks(self):
         # R2, US-2: clone installs pre-commit and pre-push when entry has verify.checks

@@ -105,13 +105,16 @@ def status(space: ws.Workspace) -> list[dict[str, Any]]:
     rows = []
     for repo in space.repos:
         present = space.present(repo)
-        dirty = None
+        dirty = commit = None
         if present:
+            head = _run_git(["rev-parse", "HEAD"], space.checkout(repo))
+            commit = head.stdout.strip() if head.returncode == 0 else None
             porcelain = _run_git(["status", "--porcelain"], space.checkout(repo))
             dirty = bool(porcelain.stdout.strip()) if porcelain.returncode == 0 else None
         rows.append({"path": repo.path, "present": present,
                      "branch": ws.branch(space.checkout(repo)) if present else None,
-                     "dirty": dirty, "frozen": repo.frozen})
+                     "dirty": dirty, "frozen": repo.frozen,
+                     "checkout": str(space.checkout(repo)), "commit": commit})
     return rows
 
 

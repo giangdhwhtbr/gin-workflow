@@ -224,10 +224,12 @@ class Track:
     owner: str
     files: tuple[str, ...]
     repo: str = ""
+    reads: tuple[str, ...] = ()
 
 
 _TRACK = re.compile(r"^### Track (\d+):\s*(.*)$")
 _META = re.compile(r"^-\s*(?:\*\*)?(Area|Owner|Repo)(?:\*\*)?:\s*`?([^`\s]+)`?\s*$")
+_READS = re.compile(r"^-\s*(?:\*\*)?Reads(?:\*\*)?:\s*(.*)$")
 _FILES_LABEL = re.compile(r"^(-\s*)?(?:\*\*)?Files(?:\*\*)?:(?:\*\*)?\s*(.*)$")
 _VERB = re.compile(r"^(?:Create|Modify|Test|Delete)\b:?\s*")
 _PATH = re.compile(r"`([^`\s]+)`")
@@ -258,7 +260,8 @@ def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
     def close() -> None:
         if current is not None:
             tracks.append(Track(current["number"], current["title"], current["area"], current["owner"],
-                                tuple(dict.fromkeys(current["files"])), current["repo"]))
+                                tuple(dict.fromkeys(current["files"])), current["repo"],
+                                tuple(dict.fromkeys(current["reads"]))))
 
     for line in (Path(path).read_text(encoding="utf-8") if text is None else text).splitlines():
         opener = _FENCE.match(line)
@@ -272,7 +275,8 @@ def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
         if heading or (current is not None and line.startswith("## ")):
             close()
             current = None if not heading else {"number": int(heading.group(1)), "title": heading.group(2).strip(),
-                                                 "area": "", "owner": "", "files": [], "repo": ""}
+                                                 "area": "", "owner": "", "files": [], "repo": "",
+                                                 "reads": []}
             files_indent = None
             continue
         if current is None:
@@ -282,6 +286,12 @@ def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
         meta = _META.match(stripped)
         if meta:
             current[meta.group(1).lower()] = meta.group(2)
+            files_indent = None
+            continue
+        reads = _READS.match(stripped)
+        if reads:
+            tokens = (token.strip().removeprefix("`").removesuffix("`").strip() for token in reads.group(1).split(","))
+            current["reads"] += [token for token in tokens if token]
             files_indent = None
             continue
         if files_indent is not None and stripped.startswith("- ") and indent > files_indent:
@@ -337,20 +347,31 @@ def check_plan_repos(space: Workspace, path: Path) -> list[str]:
     errors: list[str] = []
     for track in plan_tracks(path):
         label = f"Track {track.number}"
-        if not track.repo:
-            errors.append(f"{label}: missing Repo:")
-            continue
-        repo = space.repo(track.repo)
-        if repo is None:
-            errors.append(f"{label}: Repo: {track.repo} is not in workspace.repos")
-            continue
-        if repo.frozen:
-            errors.append(f"{label}: Repo: {track.repo} is frozen")
-        elif repo.shape == "beads":
-            errors.append(f"{label}: Repo: {track.repo} is the beads repository")
-        errors += [f"{label}: `{item}` is outside repo {track.repo}" for item in track.files
-                   if space.repo_of(item) != repo]
+        errors += _repo_findings(space, track, label)
+        for item in track.reads:
+            read = space.repo(item)
+            if read is None:
+                errors.append(f"{label}: Reads: {item} is not in workspace.repos")
+            elif read.shape == "beads":
+                errors.append(f"{label}: Reads: {item} is the beads repository")
+            elif item == track.repo:
+                errors.append(f"{label}: Reads: {item} is the track's own Repo:")
     return errors
+
+
+def _repo_findings(space: Workspace, track: Track, label: str) -> list[str]:
+    if not track.repo:
+        return [f"{label}: missing Repo:"]
+    repo = space.repo(track.repo)
+    if repo is None:
+        return [f"{label}: Repo: {track.repo} is not in workspace.repos"]
+    errors: list[str] = []
+    if repo.frozen:
+        errors.append(f"{label}: Repo: {track.repo} is frozen")
+    elif repo.shape == "beads":
+        errors.append(f"{label}: Repo: {track.repo} is the beads repository")
+    return errors + [f"{label}: `{item}` is outside repo {track.repo}" for item in track.files
+                     if space.repo_of(item) != repo]
 
 
 def _approver_roles(pr: Any, team: TeamConfig, *, on_commit: str | None = None) -> dict[str, set[str]]:
