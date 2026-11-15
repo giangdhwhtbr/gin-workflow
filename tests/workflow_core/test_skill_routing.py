@@ -223,7 +223,8 @@ class SkillRoutingTests(unittest.TestCase):
                        "reason (retro|asked)", "Reconcile steps of the `learn` skill", "gin task remember",
                        "milestone-close/<milestone-id>", "Never translate the labels",
                        "## Metrics", "Metrics: completion <closed>/<total>; estimate_accuracy", "capacity_used",
-                       "cost_per_epic", "rework", "never per member", "no earlier metrics", "- Metrics:"):
+                       "cost_per_epic", "rework", "never per member", "no earlier metrics", "- Metrics:",
+                       "whose `parent` is not the `bead` of another entry", "both ends included"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
         metrics = text[text.index("Metrics: completion"):].split("\n", 1)[0]

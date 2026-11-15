@@ -28,11 +28,11 @@ Show, without writing:
 Team level only, never per member. Compute from the data of the summary:
 - `completion`: closed epics over all epics of the milestone at the start of this run, as `<closed>/<total>`.
 - `estimate_accuracy`: the sum of `estimate_days` over the sum of actual working days, over the closed epics that have both; two decimals; 1.00 is on estimate, below 1 took longer; `n/a` without such an epic.
-- `capacity_used`: the sum of `estimate_days` of the closed epics over `lanes` times the working days from `start` to `end` (`gin milestone show <id> --json`); two decimals; `n/a` without `lanes` or estimates.
-- `cost_per_epic`: `totals.cost` of the usage report over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
-- `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads`; `n/a` when the report failed.
+- `capacity_used`: the sum of `estimate_days` of the closed epics over `lanes` times the working days, Monday to Friday, from `start` to `end`, both ends included, no `away` days subtracted (`gin milestone show <id> --json`); two decimals; `n/a` without `lanes` or estimates.
+- `cost_per_epic`: `totals.cost` of the usage report over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `totals.cost` covers every epic of the milestone, open ones included; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
+- `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads` entries whose `parent` is not the `bead` of another entry, because an epic's `quality` already includes its children; `n/a` when the report failed.
 
-Compare with the most recently closed milestone: in `gin milestone list --all --json`, the closed milestone with the latest `end` before this milestone's `start`; read the `Metrics:` line of its newest `[gin close]` comment and show the change of each metric. Without one, say `no earlier metrics`.
+Compare with the most recently closed milestone: in `gin milestone list --all --json`, the closed milestone with the latest `end` before this milestone's `start`; read the `Metrics:` line of its newest `[gin close]` comment and show the change of each metric. Without such a milestone, comment, or `Metrics:` line, say `no earlier metrics`.
 
 ## Next milestone
 The next milestone is the open milestone in `gin milestone list --json` with the earliest `start` after this milestone's `start`. With none, propose a new one starting the first working day after this milestone's `end`, with the same number of working days, and ask the PM for its title; it is created in Write, after confirmation.
