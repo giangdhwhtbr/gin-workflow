@@ -89,8 +89,9 @@ def _has_review_ledger(root: Path, bead: str) -> bool:
     return False
 
 
-def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
-    """Return the `close` argv to forward to the backend, or the error that refuses the whole close."""
+def check(root: Path, argv: Sequence[str], ledger_base: Path | None = None) -> tuple[list[str], str | None]:
+    """Return the `close` argv to forward to the backend, or the error that refuses the whole close.
+    `ledger_base` is where `.planning/reviews/` lives (`workspace.ledger_root`); it defaults to `root`."""
     from .checkout import main_checkout
     from .configuration import resolve_effective_config
     from .events import EventPersistenceError
@@ -118,7 +119,7 @@ def check(root: Path, argv: Sequence[str]) -> tuple[list[str], str | None]:
             if not _has_review_ledger(root, bead):
                 continue
         if isinstance(record, Mapping) and record.get("parent"):
-            state = _review_state(root, bead)
+            state = _review_state(ledger_base or root, bead)
             if state:
                 unreviewed.append((bead, str(record["parent"]), state))
     if unreviewed and waive is None:

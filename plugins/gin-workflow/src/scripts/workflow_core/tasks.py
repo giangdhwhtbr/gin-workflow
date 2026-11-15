@@ -214,7 +214,7 @@ def main(argv: Sequence[str]) -> int:
     if argv[:1] == ["close"]:
         from .close_guard import check
 
-        argv, error = check(root, argv)
+        argv, error = check(root, argv, workspace.ledger_root(Path.cwd()))
         if error:
             print(f"error: {error}", file=sys.stderr)
             return 2

@@ -127,6 +127,28 @@ class CloseGuardTests(unittest.TestCase):
         self.assertIn("prep-2: review ledger not approved", closed.stderr)
         self.assertEqual("open", self.status("prep-2"))
 
+    def test_workspace_child_track_worktree_reads_ledger_from_parent_worktree(self):
+        self.init(ledger=True)
+        child = self.root / "apps/web"
+        child.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q"], cwd=child, check=True)
+        subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "init"], cwd=child, env=ENV, check=True)
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + "workspace:\n  repos:\n"
+                          "    - path: apps/web\n      url: file:///unused\n      shape: frontend\n",
+                          encoding="utf-8")
+        parent = self.root / ".planning/worktrees/p"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "p-branch", str(parent)], cwd=self.root, check=True)
+        track = parent / ".planning/worktrees/ep-1.1"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "track-branch", str(track)], cwd=child, check=True)
+        ledger_path = parent / ".planning/reviews/ep-1.1/review.json"
+        ledger_path.parent.mkdir(parents=True)
+        ledger_path.write_text(json.dumps({"events": []}), encoding="utf-8")
+        closed = gw(track, "task", "close", "ep-1.1", "--reason", "done")
+        self.assertEqual(2, closed.returncode, closed.stderr)
+        self.assertIn("ep-1.1: review ledger not approved", closed.stderr)
+        self.assertNotIn("no review ledger", closed.stderr)
+
     def test_prep_task_tracker_failure_is_refused(self):
         self.init(ledger=True)
         with mock.patch("workflow_core.tasks.query_result", return_value=(None, "bd crashed")):
