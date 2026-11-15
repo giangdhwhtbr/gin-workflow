@@ -1,6 +1,6 @@
 # Nâng cấp lên 3.1 { #upgrading-to-31 }
 
-Phiên bản 3.1 là mốc chuẩn có một con số chung cho cả bộ: gin, gin-qa, gin-orchestrator và gin-ba đều là 3.1.0. Đây cũng là phiên bản đầu tiên đọc `.ginrc`, file ghim phiên bản gin thấp nhất mà một project cần. Danh sách đầy đủ các thay đổi nằm trong [nhật ký thay đổi](../changelog.md#310-2026-11-15).
+Phiên bản 3.1 đưa cả bộ về một số phiên bản chung: gin, gin-qa, gin-orchestrator và gin-ba đều là 3.1.0. Đây cũng là phiên bản đầu tiên đọc `.ginrc`, file ghim phiên bản gin thấp nhất mà một project cần. Danh sách đầy đủ các thay đổi nằm trong [nhật ký thay đổi](../changelog.md#310-2026-11-15).
 
 Một team nâng cấp theo thứ tự sau, và thứ tự này quan trọng:
 
@@ -27,9 +27,9 @@ Hoặc dùng launcher, vốn clone `master` rồi chạy `install.sh`:
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform all
 ```
 
-Thêm `--plugin all` để cập nhật cả các tiện ích mở rộng, hoặc `--plugin gin-qa`, `--plugin gin-ba`, `--plugin gin-orchestrator` cho từng cái. Trên Windows, chạy `install.ps1` như [hướng dẫn Windows](windows.md) mô tả.
+Lần chạy mặc định cập nhật gin và làm mới các tiện ích đã cài: gin-qa và gin-orchestrator khi installer đã cài launcher của chúng, và gin-ba khi `~/.claude/skills/gin-ba` tồn tại. `--plugin all` cài gin và mọi tiện ích. `--plugin gin-qa`, `--plugin gin-ba` hoặc `--plugin gin-orchestrator` chỉ cài đúng tiện ích đó và không cập nhật gin, nên chạy sau lần chạy mặc định. Trên Windows, chạy `install.ps1` như [hướng dẫn Windows](windows.md) mô tả.
 
-Plugin cài từ marketplace được cập nhật qua harness của nó, và cài từ marketplace không cài các CLI, nên vẫn phải chạy installer. Trên Claude Code, chạy `claude plugin update gin@gin-workflow-marketplace` rồi khởi động lại Claude Code. Trên Codex, harness cập nhật plugin; `codex plugin --help` không có lệnh nào cập nhật plugin tại chỗ.
+Plugin cài từ marketplace được cập nhật qua harness của nó, và cài từ marketplace không cài các CLI, nên vẫn phải chạy installer. Trên Claude Code, chạy `claude plugin update gin@gin-workflow-marketplace` rồi khởi động lại Claude Code. Codex không có lệnh nào cập nhật plugin tại chỗ; `codex plugin marketplace upgrade` làm mới marketplace, và installer cập nhật các CLI.
 
 Kiểm tra kết quả:
 
@@ -37,21 +37,20 @@ Kiểm tra kết quả:
 gin version
 ```
 
-Lệnh in ra phiên bản đã cài, bản ghim của project đang đứng, `compatible: yes` hoặc `no`, và phiên bản của gin-qa và gin-orchestrator khi tìm thấy. `gin --version` in ra `gin 3.1.0`. `gin setup doctor` cũng báo gin-qa hoặc gin-orchestrator có phiên bản khác gin; cài lại tiện ích đó bằng `./install.sh --plugin <name>`.
+Lệnh in ra phiên bản đã cài, bản ghim của project hiện tại, `compatible: yes` hoặc `no`, và phiên bản của gin-qa và gin-orchestrator khi tìm thấy. `gin --version` in ra `gin 3.1.0`. `gin setup doctor` cũng báo gin-qa hoặc gin-orchestrator có phiên bản khác gin; cài lại tiện ích đó bằng `./install.sh --plugin <name>`.
 
 ## Cập nhật một project { #update-a-project }
 
 Lead làm việc này một lần cho mỗi project, sau khi mọi member đã cập nhật gin:
 
 1. Chạy `gin setup update` để xem đề xuất, rồi `gin setup update --approve`. Lệnh migrate cấu hình lên schema 2.10 và ghi `.ginrc` với phiên bản đã cài. Lệnh ghi `.ginrc` cả khi không có migration nào đến hạn.
-2. Chạy `gin hooks install` trong bản clone thiếu git hook. `gin setup doctor` báo những hook này.
-3. Commit `.agent-workflow/config.yaml` và `.ginrc`, rồi báo cho team rằng pull request cần gin 3.1.0 trở lên.
+2. Commit `.agent-workflow/config.yaml` và `.ginrc`, rồi báo cho team rằng pull request cần phiên bản gin ghi trong `.ginrc`. Bản ghim là phiên bản lead đã cài, và một lần `gin setup update --approve` sau đó nâng nó lên phiên bản đang cài lúc ấy.
 
 Trong workspace, chỉ làm ở parent. Các child và worktree tìm thấy `.ginrc` của parent. [Tham chiếu cấu hình](../reference/config.md#ginrc) mô tả định dạng file và nơi gin tìm nó. Project không có `.ginrc` thì không bị kiểm tra gì, và `gin setup doctor` báo tình trạng này.
 
 ## Member bị từ chối { #a-member-who-is-refused }
 
-Giả sử project ghim `3.2.0` và gin của bạn là 3.1.0. Khi đó mọi lệnh `gin` đọc project đều dừng và thoát với mã 2, kể cả `gin hooks run`. Vì vậy hook git commit và push thất bại trong project đó cho đến khi bạn cập nhật gin. Member vẫn dùng 3.0 không nhận được thông báo này. Gin 3.0 bỏ qua `.ginrc` và thất bại ở schema cấu hình, đó là lý do mọi member phải cập nhật trước. Thông báo như sau:
+Giả sử project ghim `3.2.0` và gin của bạn là 3.1.0. Khi đó mọi lệnh `gin` đọc project đều dừng và thoát với mã 2, kể cả `gin hooks run`. Vì vậy hook git commit và push thất bại trong project đó cho đến khi bạn cập nhật gin. Member vẫn dùng 3.0 không nhận được thông báo này. Gin 3.0 bỏ qua `.ginrc` và thất bại ở schema cấu hình, đó là lý do mọi member phải cập nhật trước. Member thấy `configuration validation failed at schema_version: '2.10'` thì cập nhật máy như mô tả ở trên. Thông báo như sau:
 
 ```text
 error: gin 3.1.0 is older than this project needs (3.2.0, /path/to/project/.ginrc); update gin: https://giangdhwhtbr.github.io/gin-workflow/guides/upgrading/
@@ -69,6 +68,4 @@ Nhật ký thay đổi liệt kê toàn bộ trong [ghi chú nâng cấp](../cha
 
 - Gin cũ hơn 3.1 bỏ qua `.ginrc`, nên mọi member phải lên 3.1 một lần trước khi bản ghim bảo vệ được ai.
 - Cấu hình chuyển sang schema 2.10, bỏ khóa `notifications`.
-- `verify.run_at` mặc định là `push` ở rigor `easy` và `standard`: một track chỉ chạy test của phần nó thay đổi, và bộ test đầy đủ chạy một lần trước khi push. Để giữ hành vi cũ, chạy `gin setup configure --set verify.run_at=track --approve`.
-- Đừng bật thiết lập team của 3.1, như `team.host: gitea` hoặc `codecommit`, trước khi mọi member đã cập nhật.
-- Cài lại từng tiện ích đang dùng để gin-qa, gin-orchestrator và gin-ba khớp với gin.
+- Các điểm còn lại, như mặc định của `verify.run_at`, thiết lập team và việc cài lại tiện ích, nằm trong [ghi chú nâng cấp](../changelog.md#upgrade-notes).

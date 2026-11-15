@@ -13,7 +13,7 @@ gin, gin-qa, gin-orchestrator, and gin-ba now share one version. This release ad
 - `.ginrc` pins the lowest gin version a project needs, and gin 3.1.0 refuses to run in a project whose pin it does not meet. A new project gets it from `gin setup init`; run `gin version` to see the state.
 - Do not use a 3.1 team setting until every member has updated gin: `team.host: gitea` or `codecommit`, the approval policies `{all: [...], any: [...]}` and `host`, or a `requirement_confirmed` map per epic kind. Older versions reject those configurations.
 - gin, gin-qa, gin-orchestrator, and gin-ba are all 3.1.0. `gin --version` prints `gin 3.1.0` instead of `gin 3.0`, and `gin-qa --version` prints `gin-qa 3.1.0` instead of `gin-qa 0.11`.
-- Reinstall each add-on you use with `./install.sh --plugin <name>`. `gin version` lists the gin-qa and gin-orchestrator versions it finds, and `gin setup doctor` reports one whose version differs from gin's.
+- The default `./install.sh` run refreshes the add-ons already installed. `./install.sh --plugin <name>` alone installs only that add-on and does not update gin, so run it after the default run. `gin version` lists the gin-qa and gin-orchestrator versions it finds, and `gin setup doctor` reports one whose version differs from gin's.
 - Reinstall with the installer to get a session-start check in the Claude Code hooks file. It tells the agent at the start of a session when gin is older than `.ginrc` needs.
 - `verify.run_at` defaults to `push` under `easy` and `standard` rigor: a track runs only the tests of what it changed, and the full suite runs once before the push. Keep the old behavior with `gin setup configure --set verify.run_at=track --approve`.
 - In team mode, `/quick` started on the base branch now pushes `quick/<slug>` and opens a pull request. It used to commit locally and stop.
@@ -32,7 +32,7 @@ gin, gin-qa, gin-orchestrator, and gin-ba now share one version. This release ad
 - A parity change names the confirmed legacy asset folders it matches with `Parity with:`, and `gin specs lint` checks them.
 - `gin record plan-approved` refuses while a technical question (`TQ-<n>`) in the design doc has no `Decision:` line.
 - `gin team pending` lists the open pull requests of spec, plan, track, ship, and quick branches, and what each one still needs under its approval policy.
-- `gin team complete EPIC` closes an epic when every child bead that is not a prep task is closed and the newest pull request of each track has merged. In a workspace, the `feat/<topic>` pull request must have merged too. Only an area lead can run it.
+- `gin team complete EPIC` closes an epic when every child bead that is not a prep task is closed and the newest pull request of each track has merged. In a workspace, when `feat/<topic>` exists on `origin` of the parent repository, its pull request must have merged too. Only an area lead can run it.
 - `gin team claim` creates the track worktree on `feat/<topic>-t<N>` in the repository the track names.
 - `gin team takeover` and `gin team deps` work in a workspace child.
 - `gin record shipped --evidence` can be repeated, one pull request per repository, for an epic that changes several repositories.
