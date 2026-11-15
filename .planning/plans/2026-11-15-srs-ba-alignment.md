@@ -18,6 +18,7 @@ Copied from the spec:
 - Lint checks that each edge leaving a decision node has a label.
 - A `technical` change skips every change-level diagram and use case rule, including the existing one.
 - Revised after a BA review: an included use case needs no `Actor:` and gets no actor edge; the capability rule applies to `ADDED` blocks only; a changed use case needs its own diagram only when it has an alternative or exception flow; activity nodes are declared inside their lanes; actor names match without regard to case or repeated spaces; edges read `«include»`/`«extend»`; actors carry their own class.
+- Extended: a change's kind for lint comes from the epic's `kind:` label first, falling back to `Kind:` of `01-proposal.md` when the tracker cannot answer; `specs new --kind`; `discuss` settles the kind of every epic and SDD discuss labels the epic it creates.
 - Out of scope: `/gin:explain`, the `gin-ba` plugin, a command that writes the use case diagram, Mermaid syntax checks beyond decision-edge labels, swimlane enforcement, the legacy layout.
 
 ## Route Rubric
@@ -55,7 +56,7 @@ Unclear requirements never raise the model or effort.
 - Rationale: surgical change in the existing pattern; no refactor outside the request.
 
 ## Scope
-- In scope: R1–R6 of the spec: templates `use-case.md` and `activity.md`, lint in `specs.py`, the use case diagram in `specs_export.py`, `skills/sdd/SKILL.md`, docs `sdd.md`, `ba.md`, their `.vi.md` versions, `cli.md`, and tests.
+- In scope: R1–R8 of the spec: templates `use-case.md` and `activity.md`, lint in `specs.py`, the use case diagram in `specs_export.py`, `skills/sdd/SKILL.md`, docs `sdd.md`, `ba.md`, their `.vi.md` versions, `cli.md`, and tests.
 - Out of scope: the Global Constraints' out-of-scope list.
 
 ## Execution Strategy
@@ -212,19 +213,21 @@ execution_strategy:
 - **Acceptance criteria**: US-1's criteria; `gin specs template use-case.md` prints every line and section of R1 and the comment rules of R1; a use case from the old template passes `specs lint`.
 - **Estimated complexity**: low
 
-### Track 2: Activity template and change lint per feature (R2, R4)
+### Track 2: Activity template, change lint per feature, and the change's kind (R2, R4, R7)
 - **Dependencies**: Track 1
 - **Files**:
   - Modify `plugins/gin-workflow/src/templates/activity.md` (whole file: `Use case:` line, lanes, guards)
-  - Modify `plugins/gin-workflow/src/scripts/workflow_core/specs.py:394-416` (add `unlabelled_decision_edges`), `:530-535` (replace the per-capability rule with `_feature_diagram_findings`), and near `_git` (add `changed_since`)
+  - Modify `plugins/gin-workflow/src/scripts/workflow_core/specs.py:394-416` (add `unlabelled_decision_edges`), `:530-535` (replace the per-capability rule with `_lint_kind` and `_feature_diagram_findings`), near `_git` (add `changed_since`), and `:644-655` (`new_change` takes `kind`)
+  - Modify `plugins/gin-workflow/src/scripts/workflow_core/specs_cli.py:20-23,143` (`specs new --kind`)
   - Test `tests/workflow_core/test_specs.py`
 - **Provider role**: `backend`
 - **Model:** `sonnet`
 - **Effort:** `high`
 - **Why:** bounded to one module, but the Mermaid edge parsing and the git comparison have many edge cases (arrow forms, inline node shapes, chained lines, untracked files, unresolvable refs).
-- **Interfaces consumed**: `specs.line_values` (Track 1), `specs.change_kind`, `specs._git`, `specs.SpecsError`.
+- **Interfaces consumed**: `specs.line_values` (Track 1), `specs.change_kind`, `specs._git`, `specs.SpecsError`, `epic_kind.lookup(root, workflow_id, spec_path) -> (kind, error)`, `epic_kind.KINDS`.
 - **Interfaces produced**:
   - `specs.changed_since(root: Path, ref: str, folder: Path) -> set[str]`: repository-relative POSIX paths under `folder` added, modified, or renamed since `ref` in the working tree, untracked files included; raises `SpecsError("cannot resolve <ref>")`.
+  - `specs.new_change(root, cfg, slug, epic, title="", today=None, kind: str | None = None) -> Path`: writes `kind` (default: the epic's `kind:` label, else `capability`) on the proposal's `Kind:` line.
   - `specs.has_branch_flows(text: str) -> bool`: the use case has a `### ` heading under `## Alternative flows` or `## Exception flows`, comments ignored.
   - `specs.unlabelled_decision_edges(text: str) -> list[tuple[int, str]]`: `(file line number, decision node id)` per unlabelled edge leaving a `{…}` node in the file's ```` ```mermaid ```` blocks.
 - **Steps**:
@@ -297,6 +300,31 @@ execution_strategy:
          self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
          commit_all(self.root)
          self.assertEqual([], specs.lint_change(self.root, self.cfg, change, against="HEAD"))
+
+     def test_lint_reads_the_kind_from_the_epic_label_first(self):
+         (self.root / "docs/specs/auth/diagrams/login-activity.md").unlink()
+         change = make_change(self.root)
+         write(self.root, "docs/changes/ep-1-lockout/01-proposal.md", "# Lockout\n\nEpic: ep-1\nKind: capability\n")
+         with mock.patch("workflow_core.epic_kind._bead_kind", return_value=("technical", None)):
+             self.assertEqual(["docs/changes/ep-1-lockout/01-proposal.md: kind mismatch: epic ep-1 is kind:technical, "
+                               "spec docs/changes/ep-1-lockout/01-proposal.md says Kind: capability"],
+                              specs.lint_change(self.root, self.cfg, change))
+         write(self.root, "docs/changes/ep-1-lockout/01-proposal.md", "# Lockout\n\nEpic: ep-1\nKind: technical\n")
+         with mock.patch("workflow_core.epic_kind._bead_kind",
+                         return_value=(None, "cannot read the kind of epic ep-1: bd not found")):
+             self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+
+     def test_specs_new_writes_the_kind(self):
+         self.assertIn("Kind: technical\n", (specs.new_change(self.root, self.cfg, "a", "ep-7", kind="technical")
+                                               / "01-proposal.md").read_text(encoding="utf-8"))
+         with mock.patch("workflow_core.epic_kind._bead_kind", return_value=("parity", None)):
+             self.assertIn("Kind: parity\n", (specs.new_change(self.root, self.cfg, "b", "ep-8")
+                                              / "01-proposal.md").read_text(encoding="utf-8"))
+         self.assertIn("Kind: capability\n", (specs.new_change(self.root, self.cfg, "c", "ep-9")
+                                                / "01-proposal.md").read_text(encoding="utf-8"))
+         result = run_specs(self.root, "new", "d", "--epic", "ep-10", "--kind", "technical")
+         self.assertEqual(0, result.returncode, result.stderr)
+         self.assertEqual(2, run_specs(self.root, "new", "e", "--epic", "ep-11", "--kind", "other").returncode)
      ```
      Add `ACTIVITY` (and `delta` if missing) to the `specs_fixtures` import of `test_specs.py`. In `TestSpecsCli`, assert the activity template holds `"Use case:"`, `"subgraph"`, `"-->|2a"`, `"((Start))"`, and `"(((End)))"`.
      Update `test_lint_against_base_flags_id_taken_on_base_but_not_own_change`: its `own` change now also needs a changed activity diagram; call `write_activity(self.root, name="lockout")` before the final `assertEqual([], ...)`.
@@ -413,14 +441,40 @@ execution_strategy:
                             for number, node in unlabelled_decision_edges(path.read_text(encoding="utf-8"))]
          return errors
      ```
+     Add, next to it:
+     ```python
+     def _lint_kind(root: Path, change: Path) -> tuple[str, list[str]]:
+         """The change's kind for lint: the epic's `kind:` label, else `Kind:` of 01-proposal.md, and a mismatch finding.
+
+         When the task tracker cannot answer, the `Kind:` line decides without a finding, so lint works without Beads."""
+         proposal = change_file(change, "proposal")
+         found = _EPIC_LINE.search(proposal.read_text(encoding="utf-8")) if proposal.is_file() else None
+         kind, error = epic_kind.lookup(root, found.group(1) if found else None, shown(root, change))
+         if error is None:
+             return kind, []
+         if error.startswith("kind mismatch"):
+             return kind, [f"{shown(root, proposal)}: {error}"]
+         return change_kind(change), []
+     ```
      In `lint_change`, replace the loop at lines 531-535 (`base = specs_dir(root, cfg)` through the `no activity diagram` append) with:
      ```python
-     if change_kind(change) != "technical":
+     kind, kind_errors = _lint_kind(root, change)
+     errors += kind_errors
+     if kind != "technical":
          errors += _feature_diagram_findings(root, cfg, blocks, against)
      ```
+  6b. `specs new --kind`. In `new_change` (line 644), add the keyword parameter `kind: str | None = None`, and replace its `atomic_write_many(...)` call with:
+     ```python
+     if kind is None:
+         kind = epic_kind.lookup(root, epic, None)[0]
+     texts = {role: render(template_text(root, f"{role}.md"), values) for role in CHANGE_TEMPLATES}
+     texts["proposal"] = re.sub(r"^Kind: \S+$", f"Kind: {kind}", texts["proposal"], count=1, flags=re.MULTILINE)
+     atomic_write_many({change / CHANGE_FILES[role]: text.encode("utf-8") for role, text in texts.items()}, mode=0o644)
+     ```
+     In `specs_cli.py`, after `item.add_argument("--title", default="")` of the `new` parser (line 23), add `item.add_argument("--kind", choices=epic_kind.KINDS)` with `from . import epic_kind` next to the existing `from . import specs, workspace`, and pass `kind=args.kind` to `specs.new_change` (line 143).
   7. Run `python3 -m pytest tests/workflow_core/test_specs.py tests/workflow_core/test_specs_archive_trace.py tests/workflow_core/test_specs_assets.py`: passes. A failing existing test that calls `lint_change(..., against=...)` with requirement blocks but no changed diagram gets `write_activity(self.root, name="<feature>")` before its assertion, not a weaker assertion.
-  8. Commit: `feat(specs): lint asks for an activity diagram per changed feature and use case, with labelled decisions; technical changes skip it`.
-- **Acceptance criteria**: US-3 and US-4's criteria; `specs lint --change C --against nope` exits 2 with `cannot resolve nope`; a `MODIFIED`-only delta and a changed use case without branch flows need no diagram.
+  8. Commit: `feat(specs): lint asks for an activity diagram per changed feature and use case, with labelled decisions; technical changes, read from the epic label first, skip it; specs new takes --kind`.
+- **Acceptance criteria**: US-3 and US-4's criteria and the lint and `specs new` criteria of US-5; `specs lint --change C --against nope` exits 2 with `cannot resolve nope`; a `MODIFIED`-only delta and a changed use case without branch flows need no diagram.
 - **Estimated complexity**: medium
 
 ### Track 3: Use case diagram in the SRS (R5)
@@ -531,10 +585,11 @@ execution_strategy:
 - **Acceptance criteria**: US-2's criteria.
 - **Estimated complexity**: low
 
-### Track 4: Skill and documentation (R6)
+### Track 4: Skills and documentation (R6, R8)
 - **Dependencies**: Track 2, Track 3
 - **Files**:
-  - Modify `plugins/gin-workflow/src/skills/sdd/SKILL.md:13` (discuss step 3)
+  - Modify `plugins/gin-workflow/src/skills/sdd/SKILL.md:12-13` (discuss steps 2 and 3)
+  - Modify `plugins/gin-workflow/src/skills/discuss/SKILL.md:20-21` (step 2, kind for every epic)
   - Modify `docs/guides/sdd.md:111-124` (Use cases), the Diagrams section, `:130` (SRS paragraph), `:171` (technical changes)
   - Modify `docs/guides/sdd.vi.md` (the same sections)
   - Modify `docs/guides/ba.md:79` and `docs/guides/ba.vi.md` (the matching line)
@@ -545,23 +600,35 @@ execution_strategy:
 - **Effort:** `low`
 - **Why:** documentation of behaviour already built, but the skill must be shortened under a hard character budget without dropping tested needles, and the Vietnamese pages must stay natural.
 - **Steps**:
-  1. In `test_sdd_discuss_confirms_capabilities_before_ids`, add the needles `"`Use case: <slug>`"`, `"label on each decision branch"`, and `"alternative or exception flow"`. Run `python3 -m pytest tests/workflow_core/test_skill_routing.py -k sdd`: fails.
+  1. In `test_sdd_discuss_confirms_capabilities_before_ids`, add the needles `"`Use case: <slug>`"`, `"label on each decision branch"`, `"alternative or exception flow"`, `"--labels kind:<kind>"`, `"--kind <kind>"`, and `"Unless the kind is `technical`"`. Add a test in `test_skill_routing.py`:
+     ```python
+     def test_discuss_settles_the_kind_of_every_epic(self):
+         text = (SRC / "skills/discuss/SKILL.md").read_text(encoding="utf-8")
+         clarify = text[text.index("2. **Clarify**"):text.index("3. **Propose")]
+         for needle in ("Without a roadmap epic, settle the kind", "epic kinds", "`project.max_questions`", "refactor"):
+             with self.subTest(needle=needle):
+                 self.assertIn(needle, clarify)
+     ``` Run `python3 -m pytest tests/workflow_core/test_skill_routing.py -k sdd`: fails.
   2. In `skills/sdd/SKILL.md` step 3:
      - after "link it from `## Use Cases` of an existing `spec.md`." add: " One with an alternative or exception flow gets an activity diagram naming it on `Use case: <slug>`, in lanes, with a label on each decision branch."
      - replace "A feature with an actor interacting with the system, or one the user asks for, gets a use case" with "A feature where an actor uses the system, or one the user asks for, gets a use case";
      - replace "Never edit an older dated folder: `specs lint` reports a change to a folder confirmed on the base branch." with "Never edit an older dated folder; lint reports it.".
+     - step 2: replace `gin task create --type epic --title "<title>"` with `gin task create --type epic --title "<title>" --labels kind:<kind>` and `specs new <slug> --epic <epic>` with `specs new <slug> --epic <epic> --kind <kind>`;
+     - step 3: put "Unless the kind is `technical`: " before "Each feature gets an activity diagram"; the use case sentence follows it in the same passage, so the exemption covers both.
      Run `python3 -c "print(len(open('plugins/gin-workflow/src/skills/sdd/SKILL.md', encoding='utf-8').read()))"`: at most 6000. If above, replace "copies the files and writes `description.md`" with "copies the files, writes `description.md`" and "delete an original only when the user asks" with "keep the originals unless the user asks", then measure again.
+  2b. `skills/discuss/SKILL.md` step 2 (**Clarify**), after its first sentence, add: "Without a roadmap epic, settle the kind first (capability, technical, parity; a refactor, migration, or dependency upgrade is technical) unless the request makes it obvious; this question does not count against `project.max_questions`. Then follow [epic kinds](../../references/epic-kinds.md)." Run `python3 -m pytest tests/workflow_core/test_token_budget.py`: the discuss chain stays within 12,000.
   3. `docs/guides/sdd.md`:
      - Use cases section: list the optional lines (`Secondary actors`, `Trigger`, `Includes`, `Extends`) and sections (`## Exception flows`, `## Business rules`); the slug is the ID; an included use case may omit `Actor:`; the template's writing rules (`Include <slug>` step, extension point on `Trigger:`, `Scheduler` actor, business rules cite REQ-IDs, flows end with `Resume at step N` or `Use case ends`); lint reports an `Includes:`/`Extends:` slug that is missing or the file itself; with `--change --against`, each changed use case with an alternative or exception flow needs an activity diagram whose `Use case:` names it.
      - Diagrams section: lanes as `subgraph` with every node declared inside its lane and the edges after the last `end`, `((Start))`/`(((End)))`, a label on each edge leaving a decision starting with the flow ID (`-->|2a invalid|`), the `Use case:` line; Mermaid places lanes as boxes, not aligned swimlanes; with `--change --against <base>`, each capability with `ADDED` requirements needs an activity diagram added or changed since the base (a `MODIFIED`-only change needs none), and changed diagrams need labelled decisions; without `--against`, one activity diagram per capability is enough.
      - SRS paragraph (`:130`): the use cases part opens with a generated use case diagram (actors outside the capability box, matched without regard to case; an actor edge only where a use case has `Actor:`; `«include»` and `«extend»` edges).
      - `:171`: a `technical` change skips the activity diagram and use case rules even when its delta holds blocks; the blocks themselves are still checked.
+     - Epic kinds section (`:166-171`): lint reads the kind from the epic's `kind:` label first, then `Kind:` of `01-proposal.md`, and reports a mismatch; without Beads, `Kind:` decides; `specs new --kind` writes it, defaulting to the epic's label.
      Apply the same content to `docs/guides/sdd.vi.md` in Vietnamese, keeping code, paths, and commands verbatim.
   4. `docs/guides/ba.md:79` and `ba.vi.md`: one sentence that the SRS draws the use case diagram from the use cases, so the BA writes `Actor:`, `Secondary actors:`, `Includes:`, and `Extends:` instead of drawing it.
-  5. `docs/reference/cli.md:150`: in the `lint` row, add that `Actor:` may be omitted by an included use case, the `Includes:`/`Extends:`/`Use case:` slug check, the three `--change --against` rules of R4 with their messages' wording, that `--against` with an unresolvable ref exits 2 for a non-technical change, and that a `technical` change skips the activity diagram rules. `:161`: the `export` row adds the use case diagram.
+  5. `docs/reference/cli.md`: in the `new` row, add `[--kind capability|technical|parity]` and its default (the epic's `kind:` label, else `capability`). `:150`: in the `lint` row, add where `--change` reads the kind (R7) and the mismatch finding, that `Actor:` may be omitted by an included use case, the `Includes:`/`Extends:`/`Use case:` slug check, the three `--change --against` rules of R4 with their messages' wording, that `--against` with an unresolvable ref exits 2 for a non-technical change, and that a `technical` change skips the activity diagram rules. `:161`: the `export` row adds the use case diagram.
   6. Run `python3 -m pytest tests/workflow_core/test_skill_routing.py tests/workflow_core/test_token_budget.py` and `gin docs check docs/guides/sdd.md docs/guides/sdd.vi.md docs/guides/ba.md docs/guides/ba.vi.md docs/reference/cli.md`: passes and exits 0.
-  7. Commit: `docs(specs): use case fields, lanes and guards, the generated use case diagram, and per-feature diagram lint`.
-- **Acceptance criteria**: R6; `skills/sdd/SKILL.md` within 6,000 characters with every tested needle; docs check exits 0.
+  7. Commit: `docs(specs): use case fields, lanes and guards, the generated use case diagram, per-feature diagram lint, and the kind of every epic`.
+- **Acceptance criteria**: R6, R8, and the skill criterion of US-5; `skills/sdd/SKILL.md` within 6,000 characters and the discuss chain within 12,000 with every tested needle; docs check exits 0.
 - **Estimated complexity**: low
 
 ## Integration

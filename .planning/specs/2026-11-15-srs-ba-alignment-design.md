@@ -2,7 +2,7 @@
 
 Workflow: srs-ba-alignment
 Kind: capability
-Status: confirmed by the user on 2026-11-15 (revised after a BA review).
+Status: confirmed by the user on 2026-11-15 (revised after a BA review; extended to the change kind).
 
 ## Goal and scope
 
@@ -12,6 +12,7 @@ With the SDD layout, a capability holds use cases (`<specs>/<cap>/use-cases/<slu
 - the SRS has no use case diagram (actors, use cases, system boundary, include/extend);
 - the activity template shows no swimlanes, does not require a guard on each branch of a decision, and does not say which use case it draws;
 - lint asks for one activity diagram per capability, while the `sdd` skill asks for one per feature: a second feature of a capability passes without its own diagram.
+- technical epics are still asked for activity diagrams: lint ignores the kind when the delta holds requirements; `specs new` always writes `Kind: capability` and `lint_change` reads only that line, not the epic's `kind:` label; the `sdd` skill asks every feature for a diagram; `discuss` settles the kind only for a roadmap epic, and the epic SDD discuss creates carries no `kind:` label.
 
 Confirmed decisions (2026-11-15):
 
@@ -29,6 +30,8 @@ Revised after a BA review (2026-11-15), confirmed by the user:
 - A changed use case needs its own activity diagram only when it has an alternative or exception flow.
 - The activity template declares each node inside its lane and writes the edges between lanes after the last `end`; decision labels start with the flow ID.
 - Actor names are matched without regard to case or repeated spaces; the diagram labels edges `«include»`/`«extend»` and styles actors apart from use cases.
+
+Extended (2026-11-15), confirmed by the user: a change's kind for lint comes from the epic's `kind:` label first (R7); `specs new` writes the kind; `discuss` settles the kind of every epic and SDD discuss labels the epic it creates (R8).
 
 Out of scope (BA review findings for the follow-up epic gin-workflow-414v: an include across capabilities, actor and use case generalization, glossary, NFRs, actor catalogue, business rules catalogue, a UC↔REQ↔test traceability matrix, revision history, a context diagram, diagrams pre-rendered for offline PDF):
 - `/gin:explain` (`specs_explain.py`) and the `gin-ba` plugin.
@@ -134,7 +137,19 @@ No placeholder is added: a project's overridden `srs-capability.html` that keeps
 
 - `plugins/gin-workflow/src/skills/sdd/SKILL.md`, discuss step 3: a use case with an alternative or exception flow gets an activity diagram whose `Use case:` line names it, in lanes, with a label on each decision branch; lint rules are not repeated there. The file stays within its 6,000-character budget (`tests/workflow_core/test_token_budget.py`), so existing wording is shortened to make room.
 - `docs/guides/sdd.md`, `docs/guides/ba.md`, and their `.vi.md` versions: the new use case lines and sections, lanes, guards, the `Use case:` link, the generated use case diagram, and that technical changes skip the change-level rules.
-- `docs/reference/cli.md`: `specs lint` reference checks, the `--against` rules of R4, the technical exemption; `specs export` use case diagram.
+- `docs/reference/cli.md`: `specs lint` reference checks, the `--against` rules of R4, the technical exemption and where lint reads the kind (R7); `specs new --kind`; `specs export` use case diagram.
+- `docs/guides/sdd.md` and `.vi.md` also say where a change's kind comes from (R7) and that `specs new` takes `--kind`.
+
+### R7. Kind of a change
+
+- `lint_change` reads the change's kind with `epic_kind.lookup(root, <Epic: line of 01-proposal.md>, <change folder>)`: the epic bead's `kind:` label, else the `Kind:` line of `01-proposal.md`, else `capability`. A mismatch between the two is a finding: `docs/changes/ep-1-x/01-proposal.md: kind mismatch: epic ep-1 is kind:technical, spec docs/changes/ep-1-x/01-proposal.md says Kind: capability`. When the task tracker cannot answer (no `bd`, no database, a failing query), the `Kind:` line decides and lint adds no finding, so lint keeps working without Beads.
+- `gin specs new <slug> --epic <epic> [--kind capability|technical|parity]` writes the kind on the `Kind:` line of the new `01-proposal.md`. Without `--kind`, it uses the epic's `kind:` label, else `capability`. A project's overridden `proposal.md` without a `Kind:` line is written unchanged.
+
+### R8. Kind in the discuss skills
+
+- `skills/discuss/SKILL.md`: the kind is settled for every epic, not only a roadmap epic: for a new requirement, the first clarifying question asks it unless the request makes it obvious (a refactor, a migration, a dependency upgrade are `technical`), and [epic kinds](../../references/epic-kinds.md) applies from then on. The question does not count against `project.max_questions`.
+- `skills/sdd/SKILL.md`: discuss step 2 creates the epic with `--labels kind:<kind>` and passes `--kind <kind>` to `specs new`; step 3's use case and diagram rules start with "Unless the kind is `technical`".
+- The discuss stage chain stays within its 12,000-character budget and `skills/sdd/SKILL.md` within 6,000 (`tests/workflow_core/test_token_budget.py`).
 
 ## User Stories
 
@@ -181,6 +196,15 @@ Acceptance criteria:
 - Without `--against`, the existing rule applies unchanged.
 - A change whose `01-proposal.md` says `Kind: technical` passes with `ADDED` blocks and no activity diagram, with or without `--against`.
 
+### US-5: Technical epics are never asked for diagrams
+As a developer running a technical epic, I want the workflow to know the epic is technical from start to lint, so that I am not asked for use cases or activity diagrams that describe no user behaviour.
+
+Acceptance criteria:
+- `gin specs new x --epic <id> --kind technical` writes `Kind: technical` in `01-proposal.md`; without `--kind`, an epic labelled `kind:technical` gives the same line, and an unlabelled one gives `Kind: capability`.
+- `specs lint --change` passes a change with `ADDED` blocks and no activity diagram when the epic is labelled `kind:technical`, even if `01-proposal.md` says `Kind: capability`, and reports the kind mismatch.
+- With `bd` unavailable, `specs lint --change` reads `Kind:` from `01-proposal.md` and reports no tracker error.
+- `skills/discuss/SKILL.md` asks the kind for a new requirement; `skills/sdd/SKILL.md` labels the epic `kind:<kind>`, passes `--kind`, and exempts `technical` from use cases and diagrams.
+
 ## Errors and compatibility
 
 - Lint findings exit 1, like the other lint findings; `specs archive` stops on them as today.
@@ -190,14 +214,18 @@ Acceptance criteria:
 - A `technical` change with a delta that failed the old diagram rule now passes.
 - `--against` with a ref git cannot resolve, on a non-technical change: `specs lint --change` exits 2 with `cannot resolve <ref>`, instead of skipping the base checks without a word as `ids_at_ref` does today.
 - The SRS of a project with use cases gains a diagram; that output change is intended.
+- `specs lint --change` makes one task-tracker query per run to read the epic's labels.
+- A change whose epic label and `Kind:` line disagree now gets a lint finding at discuss time, instead of only at `record requirement-confirmed`.
+- `specs new` without `--kind` keeps writing `Kind: capability` for an unlabelled epic, as today.
 - `dist/` is regenerated by the build; no hand edits there.
 
 ## Testing
 
 - `tests/workflow_core/test_specs.py`: reference findings for `Includes`, `Extends` (unknown and self), and `Use case`; empty optional lines; the old template passing; `Actor:` optional for an included use case; R4 with and without `--against`: no changed diagram, an added diagram, a `MODIFIED`-only delta, a changed use case with alternative flows without and with a naming diagram, a changed use case with no alternative or exception flow, decision edges unlabelled and labelled in each arrow form, a chained line, an unchanged diagram ignored, `Kind: technical` skipped, parity applied; templates printing R1 and R2.
 - `tests/workflow_core/test_specs_export.py`: diagram nodes and edges, shared actor, actor names differing in case, no actor edge without `Actor:`, the actor class, `«include»` and `«extend»`, `"` escaping, unknown slug left out, no use cases, overridden template.
-- `tests/workflow_core/test_skill_routing.py`: the `sdd` skill names `Use case:` for activity diagrams.
-- `tests/workflow_core/test_token_budget.py`: the `sdd` skill within budget.
+- `tests/workflow_core/test_specs.py` (R7): kind from a mocked bead label, mismatch finding, tracker unavailable falls back to `Kind:`; `specs new` with `--kind`, with a labelled epic (mocked), with neither.
+- `tests/workflow_core/test_skill_routing.py`: the `sdd` skill names `Use case:` for activity diagrams, `kind:<kind>`, `--kind`, and the technical exemption; the `discuss` skill settles the kind for every epic.
+- `tests/workflow_core/test_token_budget.py`: the `sdd` skill and the discuss chain within budget.
 - `gin-workflow docs check` on the changed docs pages exits 0.
 - Full suite `python3 -m pytest -n auto` through the pre-push hook.
 
