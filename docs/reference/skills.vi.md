@@ -49,6 +49,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `beads-migration` | Chuyển thư mục `.beads` của repository vào `~/gin-beads/<repo>` và tạo symlink ngược lại |
 | `roadmap` | Biến bộ tech-doc hoặc một product brief thành roadmap đã xác nhận cùng các epic Beads phụ thuộc nhau, kèm hạn chót dự án và ước lượng cho mỗi epic; đối chiếu cả hai khi chạy lại; đề xuất cách làm việc của team (Foundation, Spec cadence, Build, Integration, Quality, Load) để PM xác nhận; đánh giá độ phức tạp của từng epic; báo cáo dự báo của `gin milestone list`; với layout SDD mỗi epic mang dòng `Capabilities:`; bảng `## Summary`; `Outcome:` và `Demo:` cho mỗi milestone; `Features:` và `Legacy:` cho mỗi epic; bảng `## Legacy coverage` khi có `13-CAPABILITIES.md`; lần chạy không kèm tham số đề xuất kế hoạch milestone; `--milestone <id>` lập kế hoạch cho một milestone có ngày với lane riêng, ngày `Spec ready by:`, và integration point |
 | `allocate` | Đề xuất, giao và tạo các prep task (`capture`, `mockup`, `spike`, `question`, `other`) dưới epic roadmap trước discuss, cho một epic hoặc một milestone (`--milestone <id>`); lead xác nhận một bảng trước, và lần chạy lại chỉ đề xuất phần khác biệt |
+| `retro` | Ghi retro của một member trên một milestone đang mở thành comment `[gin retro]` trên bead milestone: member xem các epic của mình kèm estimate và số ngày thực tế, trả lời điều gì làm tốt, điều gì làm chậm, nên đổi gì, rồi xác nhận nội dung; chạy lại thì thêm comment mới và comment mới nhất có hiệu lực |
 
 ## gin: tài liệu { #gin-documentation }
 

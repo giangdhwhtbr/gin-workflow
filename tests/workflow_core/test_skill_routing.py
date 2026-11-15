@@ -200,6 +200,20 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(kind=kind):
                 self.assertIn(f"`{kind}`", text)
 
+    def test_retro_records_one_comment_on_an_open_milestone(self):
+        text = (SRC / "skills/retro/SKILL.md").read_text(encoding="utf-8")
+        for needle in ("[gin retro] <milestone-id> <member>", "Went well:", "Slowed us:", "Change next:",
+                       "gin task comment <milestone-id>", "gin milestone show <id> --json",
+                       "`status` is `active`", "project.team.me", "gin team sync",
+                       "Write nothing until the member confirms", "the newest one counts",
+                       "its close already read the retros", "Never translate the labels"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        self.assertLess(text.index("Went well:"), text.index("Slowed us:"))
+        self.assertLess(text.index("Slowed us:"), text.index("Change next:"))
+        for banned in ("sonnet", "opus", "haiku"):
+            self.assertNotIn(banned, text.lower())
+
     def test_execute_excludes_prep_tasks(self):
         lines = (SRC / "skills/execute/SKILL.md").read_text(encoding="utf-8").splitlines()
         self.assertEqual(lines[13].count("--exclude-label prep"), 2)
