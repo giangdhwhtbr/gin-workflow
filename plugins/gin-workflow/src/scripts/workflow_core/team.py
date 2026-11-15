@@ -657,7 +657,9 @@ def authorize_record(root: Path, team: TeamConfig, gate: str, evidence: str | Se
     takes one PR per repository; each is verified, with its URL before each reason when there are several. The
     proof is the first PR's, plus `pull_requests` for `shipped`."""
     member = require_member(root, team, actor)
-    urls = [evidence] if isinstance(evidence, str) else list(evidence)
+    # The PR URL is the first token of each value: a skill may append the merge commit ("<pr url> <sha>").
+    urls = [value.split()[0] if value.split() else value
+            for value in ([evidence] if isinstance(evidence, str) else list(evidence))]
     if len(urls) > 1 and gate != "shipped":
         raise TeamError("only shipped takes several --evidence values")
     if (gate not in GATES and gate != "shipped") or not needs_pr("ship" if gate == "shipped" else gate, team):

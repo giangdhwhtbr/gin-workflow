@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import tempfile
@@ -21,7 +22,7 @@ PR = f"{BASE}/org/app/pulls/5"
 SSH_REMOTE = "ssh://git@git.example.com:2222/org/app.git"
 SPEC_PATH = ".planning/specs/2026-10-03-login-design.md"
 VERSION = "gt version 1.0.0 (2026-10-01)\nhttps://gitea.com/gitea/cli/releases/tag/v1.0.0\nbuilt with go1.27.2\n"
-PAGES = ["-f", "limit=50", "--paginate", "--slurp"]
+PAGES = ["-X", "GET", "-f", "limit=50", "--paginate", "--slurp"]
 
 
 def review(login: str, state: str, commit: str, number: int, *, dismissed: bool = False, stale: bool = False) -> dict:
@@ -161,7 +162,7 @@ class TestSearch(GiteaCase):
     def test_merged_with_text_keeps_only_merged_pull_requests(self):
         self.gt([
             {"argv": ["api", "repos/{owner}/{repo}/issues", "-f", "type=pulls", "-f", "state=closed",
-                      "-f", "q=Plan: p", "-f", "limit=50", "--paginate", "--slurp", "--max-pages", "2"],
+                      "-f", "q=Plan: p", "-X", "GET", "-f", "limit=50", "--paginate", "--slurp", "--max-pages", "2"],
              "stdout": [[{"number": 1}, {"number": 2}], [{"number": 3}]]},
             {"argv": ["api", "repos/{owner}/{repo}/pulls/1"],
              "stdout": {**gitea_pr(1, body="Plan: p\nTracks: 1"), "html_url": f"{BASE}/org/app/pulls/1"}},
@@ -176,7 +177,7 @@ class TestSearch(GiteaCase):
 
     def test_an_https_origin_passes_its_instance_host_to_search_and_branch_lookup(self):
         git(self.root, "remote", "set-url", "origin", f"{BASE}/org/app.git")
-        listing = ["api", "--host", BASE, "repos/{owner}/{repo}/pulls", "-f", "state=all", "-f", "limit=50",
+        listing = ["api", "--host", BASE, "repos/{owner}/{repo}/pulls", "-f", "state=all", "-X", "GET", "-f", "limit=50",
                    "--paginate", "--slurp", "--max-pages", "10"]
         self.gt([{"argv": ["api", "--host", BASE, "repos/{owner}/{repo}/issues"], "stdout": [[{"number": 1}]]},
                  {"argv": ["api", "--host", BASE, "repos/{owner}/{repo}/pulls/1"],
@@ -202,7 +203,7 @@ class TestSearch(GiteaCase):
         self.assertNotIn("--host", calls(self.bin)[0])
 
     def test_pr_for_branch_is_the_newest_pull_request_of_the_branch(self):
-        listing = ["api", "repos/{owner}/{repo}/pulls", "-f", "state=all", "-f", "limit=50", "--paginate", "--slurp",
+        listing = ["api", "repos/{owner}/{repo}/pulls", "-f", "state=all", "-X", "GET", "-f", "limit=50", "--paginate", "--slurp",
                    "--max-pages", "10"]
         pulls = [{**gitea_pr(3, branch="spec/x"), "html_url": "u3"},
                  {**gitea_pr(7, merged=False, state="closed", branch="spec/x"), "html_url": "u7"},
@@ -351,7 +352,20 @@ class TestTeamInit(GiteaCase):
         self.assertIn("'conventional' != 'none'", ci)
         self.assertNotIn("hashFiles", ci)
         self.assertIn("test -f .agent-workflow/config.yaml || exit 0", ci)
-        self.assertIn("/web/** @chi-fe\n", (self.root / ".gitea/CODEOWNERS").read_text())
+        owners = (self.root / ".gitea/CODEOWNERS").read_text()
+        self.assertIn("web/.* @chi-fe\n", owners)
+        patterns = [line.split()[0] for line in owners.splitlines() if line and not line.startswith("#")]
+        for pattern in patterns:
+            self.assertNotIn("\\", pattern)
+            self.assertNotIn("#", pattern)
+            re.compile(f"^{pattern}$")
+
+        def owned(path):
+            return any(re.fullmatch(pattern, path) for pattern in patterns)
+
+        self.assertTrue(owned("web/a.txt"))
+        self.assertTrue(owned(".planning/plans/p.md"))
+        self.assertFalse(owned("xplanning/plans/p.md"))
         self.assertEqual(0, run_cli(self.root, "team", "codeowners", "--check").returncode)
 
 
@@ -383,6 +397,19 @@ class TestGates(GiteaCase):
                           "approvers": [{"login": "an-ba", "email": "an@corp.com", "roles": ["ba"]}],
                           "repository": "git.example.com/org/app", "artifact": SPEC_PATH}, event["payload"])
         self.assertTrue(all(call[3] == BASE for call in calls(self.bin) if call[1] == "api"))
+
+    def test_spec_evidence_with_a_merge_commit_verifies_the_url_alone(self):
+        self.gt(pull_rules(gitea_pr(author="binh-dev"), [review("an-ba", "APPROVED", "c1", 1)], [SPEC_PATH]))
+        result = self.record(evidence=f"{PR} {'m' * 40}")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = self.events()[-1]["payload"]
+        self.assertEqual((f"{PR} {'m' * 40}", PR), (payload["evidence"], payload["pr_url"]))
+
+    def test_a_malformed_url_names_both_schemes(self):
+        result = self.record(evidence=f"{BASE}/org/app/issues/5 abc")
+        self.assertEqual(2, result.returncode)
+        self.assertIn("expected http(s)://<host>[/<subpath>]/<owner>/<repo>/pulls/<n>", result.stderr)
+        self.assertEqual([], self.events())
 
     def test_rejections_record_nothing(self):
         cases = [

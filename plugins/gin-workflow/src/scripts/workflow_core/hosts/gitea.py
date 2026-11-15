@@ -17,8 +17,8 @@ from .base import HostFiles
 
 _INSTANCE = "<instance URL, including any subpath>"   # replaced by the instance the failing call targeted, when known
 _PULL_URL = re.compile(r"^(?P<prefix>.*?)/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pulls/(?P<number>\d+)(?:/.*)?$")
-_EXPECTED = "https://<host>[/<subpath>]/<owner>/<repo>/pulls/<n>"
-_PAGES = ["-f", "limit=50", "--paginate", "--slurp"]   # --slurp: all pages as one JSON array of pages
+_EXPECTED = "http(s)://<host>[/<subpath>]/<owner>/<repo>/pulls/<n>"
+_PAGES = ["-X", "GET", "-f", "limit=50", "--paginate", "--slurp"]   # -X GET: gt refuses --paginate on a request with -f fields otherwise; --slurp: all pages as one JSON array of pages
 _MIN_SERVER = 28
 _COUNTED = ("APPROVED", "REQUEST_CHANGES")             # COMMENT, PENDING and REQUEST_REVIEW decide nothing
 _SEARCH_LIMIT = 100
