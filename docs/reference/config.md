@@ -68,6 +68,8 @@ Schema 2.10 removes `notifications`: `gin setup update --to-version 2.10` drops 
 | `review` | `self_check`, `independent` | from rigor |
 | `review_ledger` | require a review ledger | from rigor |
 
+The resolved `run_at` (from [`verify.run_at`](#verifyrun_at)) also appears under `project` in `gin state --format json`.
+
 Rigor presets:
 
 | Rigor | Worktree | Review | Ledger | `/quick` |
@@ -75,6 +77,10 @@ Rigor presets:
 | `easy` | never | self check | no | allowed |
 | `standard` | for parallel work | independent | no | allowed |
 | `strict` | always | independent | yes | needs a `requirement_confirmed` waiver |
+
+### `verify.run_at`
+
+Where the full suite (`test`, `build`, `e2e`) runs: `track` after each track, `push` once before the push, `host` never locally because the host CI runs it. Optional; the default is `push` under `easy` and `standard` and `track` under `strict`. Any other value is a configuration error. With `host`, `gin hooks run pre-push` and `gin evidence run` run nothing and record nothing, and `gin quick-check` lists only `lint` and `typecheck`. The `pre-commit` hook is unchanged. A workspace child uses the parent's value.
 
 ### `verify.checks`
 

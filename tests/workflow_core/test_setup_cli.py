@@ -591,6 +591,7 @@ class SetupCliTests(unittest.TestCase):
             details = json.loads(result.stdout)["checks_details"]
             self.assertIn("test", details["verify_commands"]["missing"])
             self.assertNotIn("lint", details["verify_commands"]["missing"])
+            self.assertEqual("push", details["verify_commands"]["run_at"])
             self.assertIn("suggestion", details["project_stage"])
             self.assertTrue(details["codegraph"]["indexed"])
             self.assertTrue(details["codegraph"]["stale"])

@@ -270,6 +270,20 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual((0, "allowed", "self_check"), (code, payload["decision"], payload["review"]))
         self.assertEqual({"lint": "l", "typecheck": "t", "test": "u"}, payload["verify_commands"])
 
+    def test_quick_check_reports_run_at_and_host_drops_the_pre_push_commands(self):
+        checks = "verify: {{{run_at}checks: {{lint: l, typecheck: t, test: u, build: b}}}}\n"
+        self._write_config("schema_version: '2.10'\n" + checks.format(run_at=""))
+        payload = self._quick("--changed-files", "1", "--modules", "1")[1]
+        self.assertEqual(("push", {"lint": "l", "typecheck": "t", "test": "u", "build": "b"}),
+                         (payload["run_at"], payload["verify_commands"]))
+        self._write_config("schema_version: '2.10'\n" + checks.format(run_at="run_at: host, "))
+        payload = self._quick("--changed-files", "1", "--modules", "1")[1]
+        self.assertEqual(("host", {"lint": "l", "typecheck": "t"}), (payload["run_at"], payload["verify_commands"]))
+
+    def test_quick_check_review_comes_from_the_project_setting(self):
+        self._write_config("schema_version: '2.10'\nproject: {rigor: standard, review: self_check}\n")
+        self.assertEqual("self_check", self._quick("--changed-files", "1", "--modules", "1")[1]["review"])
+
     def test_quick_check_in_a_child_uses_its_checks(self):
         root = make_workspace(Path(tempfile.mkdtemp()).resolve())
         self.addCleanup(shutil.rmtree, root.parent, True)

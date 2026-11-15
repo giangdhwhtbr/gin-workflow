@@ -38,6 +38,19 @@ class TestProjectSettings(unittest.TestCase):
         self.assertEqual(5, settings.max_questions)
         self.assertEqual(8, project_settings({}).max_questions)
 
+    def test_run_at_defaults_follow_the_rigor_and_an_explicit_value_wins(self):
+        for rigor, expected in (("easy", "push"), ("standard", "push"), ("strict", "track")):
+            self.assertEqual(expected, project_settings({"project": {"rigor": rigor}}).run_at, rigor)
+        host = {"project": {"rigor": "strict"}, "verify": {"run_at": "host"}}
+        self.assertEqual("host", project_settings(host).run_at)
+        self.assertEqual("host", project_settings(host).to_dict()["run_at"])
+
+    def test_run_at_accepts_track_push_host_and_rejects_other_values(self):
+        for value in ("track", "push", "host"):
+            validate_portable_config({"schema_version": "2.10", "verify": {"run_at": value}})
+        with self.assertRaises(ConfigValidationError):
+            validate_portable_config({"schema_version": "2.10", "verify": {"run_at": "nightly"}})
+
     def test_both_versions_validate_and_bad_enum_fails(self):
         validate_portable_config({"schema_version": "2.3"})
         validate_portable_config({"schema_version": "2.4", "project": {"shape": "frontend"}})

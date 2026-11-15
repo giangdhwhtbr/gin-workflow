@@ -39,13 +39,16 @@ def git(root, *args):
     return subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, check=True).stdout.strip()
 
 
-def make_repo(base, *, lint="true", test="true", rigor="standard", extra=""):
+def make_repo(base, *, lint="true", test="true", rigor="standard", extra="", run_at=""):
     root = Path(base)
     git(root, "init", "-q")
     git(root, "config", "user.email", "t@example.com")
     git(root, "config", "user.name", "t")
     (root / ".agent-workflow").mkdir()
-    (root / ".agent-workflow/config.yaml").write_text(CONFIG.format(rigor=rigor, lint=lint, test=test) + extra)
+    text = CONFIG.format(rigor=rigor, lint=lint, test=test)
+    if run_at:
+        text = text.replace("verify:\n", f"verify:\n  run_at: {run_at}\n")
+    (root / ".agent-workflow/config.yaml").write_text(text + extra)
     (root / "f.txt").write_text("x")
     git(root, "add", "-A")
     git(root, "commit", "-qm", "init", "--no-verify")
@@ -83,6 +86,19 @@ class TestHooksStatus(unittest.TestCase):
         hooks.install(root)
         code, report = self.status(root)
         self.assertEqual((1, False, []), (code, report["ok"], report["verify_commands"]))
+
+
+    def test_run_at_host_needs_only_the_pre_commit_commands(self):
+        root = make_repo(self.tmp.name, test="", run_at="host")
+        hooks.install(root)
+        code, report = self.status(root)
+        self.assertEqual((0, True, "host", ["lint"]), (code, report["ok"], report["run_at"], report["verify_commands"]))
+
+    def test_run_at_host_without_pre_commit_commands_is_not_ok(self):
+        root = make_repo(self.tmp.name, lint="", test="true", run_at="host")
+        hooks.install(root)
+        code, report = self.status(root)
+        self.assertEqual((1, False), (code, report["ok"]))
 
 
 class TestHooksInstall(unittest.TestCase):
@@ -234,6 +250,30 @@ class TestHooksRun(unittest.TestCase):
         root = self.repo("a", lint="", test="")
         self.assertEqual(0, hooks.run(root, "pre-commit"))
         self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
+
+    def test_run_at_host_pre_push_runs_nothing_and_records_nothing(self):
+        root = self.repo("h", test="echo ran >> ran.txt; false", run_at="host")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
+            self.assertEqual(0, verification.run(root))
+        self.assertFalse((root / "ran.txt").exists())
+        self.assertIn("gin pre-push: the host CI runs the tests (verify.run_at: host); nothing to run", err.getvalue())
+        self.assertFalse((root / ".agent-workflow/runtime/events.jsonl").exists())
+
+    def test_run_at_host_pre_commit_still_runs_lint(self):
+        root = self.repo("h", lint="false", run_at="host")
+        self.assertNotEqual(0, hooks.run(root, "pre-commit"))
+
+    def test_run_at_push_and_track_still_run_and_skip_a_proven_tree(self):
+        for mode in ("push", "track"):
+            root = self.repo(mode, test="echo run>> ran.txt", run_at=mode)
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
+                self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
+            self.assertEqual("run\n", (root / "ran.txt").read_text(), mode)
+            self.assertIn("already passed on this tree", err.getvalue())
 
     def test_us6_env_prefix_is_split_off_the_command(self):
         calls = []
@@ -531,7 +571,8 @@ class WorkspaceHookTests(unittest.TestCase):
         report = json.loads(out)
         self.assertEqual((0, True), (code, report["ok"]))
         self.assertEqual({"hooks": {"pre-commit": "ok", "pre-push": "ok"},
-                          "verify_commands": ["services/api:lint", "services/api:test"], "ok": True},
+                          "verify_commands": ["services/api:lint", "services/api:test"], "run_at": "push",
+                          "ok": True},
                          report["repos"]["services/api"])
 
     def test_status_all_repos_leaves_out_a_child_without_checks(self):

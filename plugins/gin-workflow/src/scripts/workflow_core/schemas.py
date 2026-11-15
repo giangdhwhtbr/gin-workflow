@@ -260,7 +260,11 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "additionalProperties": False,
         },
         "provider_mode": {"enum": ["single", "multi"]},
-        "verify": {"type": "object", "properties": {"checks": _CHECKS}, "additionalProperties": False},
+        "verify": {
+            "type": "object",
+            "properties": {"checks": _CHECKS, "run_at": {"enum": ["track", "push", "host"]}},
+            "additionalProperties": False,
+        },
         "quick": {
             "type": "object",
             "properties": {"max_files": {"type": "integer", "minimum": 1}},

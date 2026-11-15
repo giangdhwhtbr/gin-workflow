@@ -11,9 +11,12 @@ SHAPES = ("frontend", "backend", "fullstack", "library")
 RIGORS = ("easy", "standard", "strict")
 VERIFY_KEYS = ("lint", "typecheck", "test", "build", "e2e")
 RIGOR_PRESETS: dict[str, dict[str, Any]] = {
-    "easy": {"worktree": "never", "review": "self_check", "review_ledger": False, "max_cycles": 2},
-    "standard": {"worktree": "parallel", "review": "independent", "review_ledger": False, "max_cycles": 2},
-    "strict": {"worktree": "always", "review": "independent", "review_ledger": True, "max_cycles": 2},
+    "easy": {"worktree": "never", "review": "self_check", "review_ledger": False, "max_cycles": 2,
+             "run_at": "push"},
+    "standard": {"worktree": "parallel", "review": "independent", "review_ledger": False, "max_cycles": 2,
+                 "run_at": "push"},
+    "strict": {"worktree": "always", "review": "independent", "review_ledger": True, "max_cycles": 2,
+               "run_at": "track"},
 }
 
 
@@ -32,6 +35,7 @@ class ProjectSettings:
     review: str = "independent"
     review_ledger: bool = False
     max_cycles: int = 2
+    run_at: str = "push"
     quick_max_files: int = 5
     max_questions: int = 8
     layout: str = "legacy"
@@ -70,6 +74,7 @@ def project_settings(config: Mapping[str, Any]) -> ProjectSettings:
         review=str(project.get("review", preset["review"])),
         review_ledger=bool(project.get("review_ledger", preset["review_ledger"])),
         max_cycles=int(review.get("max_cycles", preset["max_cycles"])),
+        run_at=str(_section(config, "verify").get("run_at", preset["run_at"])),
         quick_max_files=int(_section(config, "quick").get("max_files", 5)),
         max_questions=int(_section(config, "clarify").get("max_questions", 8)),
         layout=str(_section(config, "artifacts").get("layout", "legacy")),

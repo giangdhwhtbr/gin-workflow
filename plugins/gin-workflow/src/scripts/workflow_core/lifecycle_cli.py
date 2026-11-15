@@ -679,9 +679,12 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
     config = resolve_effective_config(located.root, write=False).config
     settings = project_settings(config.to_dict())
     verify_commands = dict(located.entry.checks) if located.entry is not None else settings.verify_commands
-    commands = {k: v for k, v in verify_commands.items() if k in _QUICK_COMMANDS[settings.rigor]}
-    base = {"rigor": settings.rigor, "verify_commands": commands,
-            "review": "self_check" if settings.rigor == "easy" else "independent"}
+    allowed = _QUICK_COMMANDS[settings.rigor]
+    if settings.run_at == "host":
+        allowed = tuple(name for name in allowed if name in ("lint", "typecheck"))
+    commands = {k: v for k, v in verify_commands.items() if k in allowed}
+    base = {"rigor": settings.rigor, "verify_commands": commands, "run_at": settings.run_at,
+            "review": settings.review}
     if settings.rigor == "strict":
         store = _get_event_store(repo_path)
         waivers = collect_waivers(store, workflow_id=args.workflow_id,

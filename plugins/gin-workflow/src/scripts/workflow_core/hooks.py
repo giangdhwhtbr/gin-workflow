@@ -102,31 +102,34 @@ def findings(root: Path, install: str = "gin hooks install") -> tuple[dict[str, 
 
 
 def _scoped(root: Path, hook: str | None) -> tuple[list[tuple[Path, list[tuple[str, str]]]], Path, str]:
-    """(cwd, [(name, command)]) groups for `hook` (every check when None), the events root, and the rigor."""
+    """(cwd, [(name, command)]) groups for `hook` (every check when None), the events root, and `verify.run_at`.
+
+    With `run_at: host` the pre-push checks are the host CI's, so "every check" is the pre-commit ones."""
     located = workspace.locate(Path(root))
     settings = project_settings(resolve_effective_config(located.root, write=False).config.to_dict())
     if hook is None:
-        names: tuple[str, ...] = workspace.CHECK_NAMES
+        names: tuple[str, ...] = _PRE_COMMIT if settings.run_at == "host" else workspace.CHECK_NAMES
     else:
         names = _PRE_PUSH.get(settings.rigor, _PRE_PUSH["standard"]) if hook == "pre-push" else _PRE_COMMIT
     if located.entry is not None:
         checks = located.entry.checks
         return ([(Path(root), [(f"{located.entry.path}:{name}", checks[name]) for name in names if checks.get(name)])],
-                located.root, settings.rigor)
+                located.root, settings.run_at)
     scoped = [(root, [(name, settings.verify_commands[name]) for name in names if settings.verify_commands.get(name)])]
     for package in settings.packages:
         checks = (package.get("verify") or {}).get("checks") or {}
         scoped.append((root / package["path"],
                        [(f"{package['path']}:{name}", checks[name]) for name in names if checks.get(name)]))
-    return scoped, root, settings.rigor
+    return scoped, root, settings.run_at
 
 
 def status_report(root: Path) -> dict[str, Any]:
     """What `ship` checks: every hook installed and at least one verify command to run."""
-    scoped, _, _ = _scoped(Path(root), None)
+    scoped, _, run_at = _scoped(Path(root), None)
     hooks = status(root)
     names = sorted(name for _, commands in scoped for name, _ in commands)
-    return {"hooks": hooks, "verify_commands": names, "ok": all(state == "ok" for state in hooks.values()) and bool(names)}
+    return {"hooks": hooks, "verify_commands": names, "run_at": run_at,
+            "ok": all(state == "ok" for state in hooks.values()) and bool(names)}
 
 
 def _pushes_head(root: Path, refs: Sequence[str]) -> bool:
@@ -174,7 +177,10 @@ def run(root: Path, hook: str, refs: Sequence[str] = ()) -> int:
 def verify(root: Path, hook: str) -> int:
     """Run the hook's verify commands; a passing pre-push on a clean tree is recorded."""
     root = Path(root)
-    scoped, events_root, _ = _scoped(root, hook)
+    scoped, events_root, run_at = _scoped(root, hook)
+    if hook == "pre-push" and run_at == "host":
+        print("gin pre-push: the host CI runs the tests (verify.run_at: host); nothing to run", file=sys.stderr)
+        return 0
     if not any(commands for _, commands in scoped):
         print(f"gin: no verify commands configured for {hook}; nothing to run", file=sys.stderr)
         return 0
