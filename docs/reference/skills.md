@@ -49,6 +49,7 @@ Stages load these when needed; you can also invoke them directly.
 | `beads-migration` | Move a repository's `.beads` directory into `~/gin-beads/<repo>` and symlink it back |
 | `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics with a project deadline and an estimate per epic; reconcile both on re-run; propose the team's way of working (Foundation, Spec cadence, Build, Integration, Quality, Load) for the PM to confirm; rate each epic's complexity; report the `gin milestone list` forecast; with the SDD layout each epic carries `Capabilities:`; a `## Summary` table; `Outcome:` and `Demo:` per milestone; `Features:` and `Legacy:` per epic; a `## Legacy coverage` table when `13-CAPABILITIES.md` exists; a plain run proposes the milestone plan; `--milestone <id>` plans a dated milestone with its own lanes, a `Spec ready by:` date, and an integration point |
 | `allocate` | Propose, assign, and create prep tasks (`capture`, `mockup`, `spike`, `question`, `other`) under roadmap epics before discuss, for one epic or a milestone (`--milestone <id>`); the lead confirms one table first, and a re-run proposes only differences |
+| `retro` | Record one member's retro on an open milestone as a `[gin retro]` comment on the milestone bead: the member sees their epics with estimates and actual days, answers what went well, what slowed the work, and what to change, and confirms the text; a re-run adds a comment and the newest one counts |
 
 ## gin: documentation
 
