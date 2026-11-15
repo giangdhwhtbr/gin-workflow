@@ -151,7 +151,8 @@ class TestRepositoryCommands(unittest.TestCase):
         result = run_specs(self.root, "lint")
         self.assertEqual(1, result.returncode)
         self.assertIn(expected[0], result.stdout)
-        write(self.root, "docs/specs/auth/diagrams/login-activity.md", specs.template_text(self.root, "activity.md"))
+        write(self.root, "docs/specs/auth/diagrams/login-activity.md",
+              specs.template_text(self.root, "activity.md").replace("Use case: <slug>\n\n", ""))
         write(self.root, "docs/specs/auth/diagrams/account-state.md", specs.template_text(self.root, "state.md"))
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
 
@@ -225,7 +226,101 @@ class TestRepositoryCommands(unittest.TestCase):
         self.assertEqual(["docs/changes/ep-2-other/02-spec-delta.md:5: REQ-AUTH-003 is already used on main"],
                          [e for e in specs.lint_change(self.root, self.cfg, other, against="main") if "already used" in e])
         own = self.root / "docs/changes/ep-1-lockout"
+        write_activity(self.root, name="lockout")
         self.assertEqual([], specs.lint_change(self.root, self.cfg, own, against="main"))
+
+    def test_unlabelled_decision_edges(self):
+        text = ("# F\n\n```mermaid\nflowchart TD\n  subgraph user[User]\n    a([Start]) --> check{Valid?}\n  end\n"
+                "  %% check --> skipped\n  check -->|yes| b[Save]\n  check --> c[Error]\n  check -- retry --> a\n"
+                "  check -.-> d\n  check -. later .-> d\n  check ==> e\n  check ==>|now| e\n"
+                "  b --> check --> c\n  hex{{Prepare}} --> b\n```\n")
+        self.assertEqual([(10, "check"), (12, "check"), (14, "check")], specs.unlabelled_decision_edges(text))
+        self.assertEqual([], specs.unlabelled_decision_edges("```python\ncheck{x} --> y\n```\n"))
+
+    def test_lint_against_base_needs_a_changed_activity_diagram_per_capability(self):
+        commit_all(self.root)
+        git(self.root, "checkout", "-q", "-b", "feature")
+        change = make_change(self.root)
+        missing = ("auth: no activity diagram added or changed in docs/specs/auth/diagrams/ since main "
+                   "(gin specs template activity.md)")
+        self.assertIn(missing, specs.lint_change(self.root, self.cfg, change, against="main"))
+        self.assertNotIn(missing, specs.lint_change(self.root, self.cfg, change))
+        write_activity(self.root, name="lockout")
+        self.assertNotIn(missing, specs.lint_change(self.root, self.cfg, change, against="main"))
+
+    def test_lint_against_base_needs_no_diagram_for_a_modified_only_delta(self):
+        commit_all(self.root)
+        git(self.root, "checkout", "-q", "-b", "feature")
+        base2 = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")[1]
+        modified = (f"### REQ-AUTH-002: Reject wrong password\n<!-- base: {base2} -->\n"
+                    "The system SHALL reject a wrong password twice.\n\n#### Scenario: wrong password\n"
+                    "- GIVEN a registered user\n- WHEN they submit a wrong password\n- THEN they see an error\n")
+        change = make_change(self.root, spec_delta=delta(modified=modified))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change, against="main"))
+
+    def test_lint_against_base_needs_an_activity_diagram_per_changed_use_case(self):
+        commit_all(self.root)
+        git(self.root, "checkout", "-q", "-b", "feature")
+        change = make_change(self.root)
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
+        finding = "docs/specs/auth/use-cases/sign-in.md: no activity diagram with 'Use case: sign-in'"
+        self.assertIn(finding, specs.lint_change(self.root, self.cfg, change, against="main"))
+        write(self.root, "docs/specs/auth/diagrams/sign-in-activity.md",
+              ACTIVITY.replace("# Login\n", "# Sign in\n\nUse case: sign-in\n"))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change, against="main"))
+        simple = USE_CASE.replace("# Sign in", "# Sign out").split("## Alternative flows")[0] + "## Postconditions\nOut.\n"
+        write(self.root, "docs/specs/auth/use-cases/sign-out.md", simple)
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change, against="main"))
+
+    def test_lint_against_base_checks_decision_labels_only_in_changed_diagrams(self):
+        write(self.root, "docs/specs/auth/diagrams/old-activity.md",
+              "# Old\n\n```mermaid\nflowchart TD\n  q{Ok?} --> r\n```\n")
+        commit_all(self.root)
+        git(self.root, "checkout", "-q", "-b", "feature")
+        change = make_change(self.root)
+        write(self.root, "docs/specs/auth/diagrams/new-activity.md",
+              "# New\n\n```mermaid\nflowchart TD\n  s{Stock?} -->|yes| t\n  s --> u\n```\n")
+        self.assertEqual(["docs/specs/auth/diagrams/new-activity.md:6: edge from decision 's' has no label"],
+                         specs.lint_change(self.root, self.cfg, change, against="main"))
+
+    def test_lint_against_an_unknown_ref_is_a_usage_error(self):
+        change = make_change(self.root)
+        with self.assertRaisesRegex(specs.SpecsError, "cannot resolve nope"):
+            specs.lint_change(self.root, self.cfg, change, against="nope")
+        self.assertEqual(2, run_specs(self.root, "lint", "--change", "ep-1", "--against", "nope").returncode)
+
+    def test_technical_change_skips_diagram_rules(self):
+        (self.root / "docs/specs/auth/diagrams/login-activity.md").unlink()
+        change = make_change(self.root)
+        write(self.root, "docs/changes/ep-1-lockout/01-proposal.md", "# Lockout\n\nEpic: ep-1\nKind: technical\n")
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+        commit_all(self.root)
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change, against="HEAD"))
+
+    def test_lint_reads_the_kind_from_the_epic_label_first(self):
+        (self.root / "docs/specs/auth/diagrams/login-activity.md").unlink()
+        change = make_change(self.root)
+        write(self.root, "docs/changes/ep-1-lockout/01-proposal.md", "# Lockout\n\nEpic: ep-1\nKind: capability\n")
+        with mock.patch("workflow_core.epic_kind._bead_kind", return_value=("technical", None)):
+            self.assertEqual(["docs/changes/ep-1-lockout/01-proposal.md: kind mismatch: epic ep-1 is kind:technical, "
+                              "spec docs/changes/ep-1-lockout/01-proposal.md says Kind: capability"],
+                             specs.lint_change(self.root, self.cfg, change))
+        write(self.root, "docs/changes/ep-1-lockout/01-proposal.md", "# Lockout\n\nEpic: ep-1\nKind: technical\n")
+        with mock.patch("workflow_core.epic_kind._bead_kind",
+                        return_value=(None, "cannot read the kind of epic ep-1: bd not found")):
+            self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+
+    def test_specs_new_writes_the_kind(self):
+        self.assertIn("Kind: technical\n", (specs.new_change(self.root, self.cfg, "a", "ep-7", kind="technical")
+                                              / "01-proposal.md").read_text(encoding="utf-8"))
+        with mock.patch("workflow_core.epic_kind._bead_kind", return_value=("parity", None)):
+            self.assertIn("Kind: parity\n", (specs.new_change(self.root, self.cfg, "b", "ep-8")
+                                             / "01-proposal.md").read_text(encoding="utf-8"))
+        self.assertIn("Kind: capability\n", (specs.new_change(self.root, self.cfg, "c", "ep-9")
+                                               / "01-proposal.md").read_text(encoding="utf-8"))
+        result = run_specs(self.root, "new", "d", "--epic", "ep-10", "--kind", "technical")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(2, run_specs(self.root, "new", "e", "--epic", "ep-11", "--kind", "other").returncode)
 
     def test_find_change_by_full_name_or_epic_prefix(self):
         change = make_change(self.root)
@@ -399,6 +494,10 @@ class TestSpecsCli(unittest.TestCase):
             self.assertIn("Spec ready by:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("Integration point:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("```mermaid\nflowchart TD", run_specs(root, "template", "activity.md").stdout)
+            activity = run_specs(root, "template", "activity.md").stdout
+            for needle in ("Use case:", "subgraph", "-->|2a", "((Start))", "(((End)))"):
+                with self.subTest(needle=needle):
+                    self.assertIn(needle, activity)
             self.assertIn("```mermaid\nstateDiagram-v2", run_specs(root, "template", "state.md").stdout)
             living = run_specs(root, "template", "spec.md").stdout
             self.assertLess(living.index("## Diagrams"), living.index("## Requirements"))

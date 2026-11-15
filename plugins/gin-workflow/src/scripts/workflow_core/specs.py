@@ -415,6 +415,29 @@ def lint_diagrams(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     return errors
 
 
+_DECISION_NODE = re.compile(r"\b([A-Za-z_][\w-]*)\{(?!\{)")
+_EDGE = re.compile(r"^\s*(?P<src>[A-Za-z_][\w-]*)(?:\s*(?:\{[^}]*\}|\[[^\]]*\]|\([^)]*\)+))?\s*"
+                   r"(?:(?P<arrow>-->|-\.->|==>)\s*(?P<pipe>\|)?|(?:--|-\.|==)\s+[^\s>-][^\n]*?(?:-->|\.->|==>))")
+
+
+def unlabelled_decision_edges(text: str) -> list[tuple[int, str]]:
+    """(line number, node id) of each edge leaving a `{…}` decision without a label, in ```mermaid blocks.
+
+    One edge per line: on a chained line only the first edge is read. `%%` comment lines are skipped."""
+    body: list[tuple[int, str]] = []
+    inside = False
+    for number, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            inside = not inside and stripped.startswith("```mermaid")
+        elif inside and not stripped.startswith("%%"):
+            body.append((number, line))
+    decisions = {found.group(1) for _, line in body for found in _DECISION_NODE.finditer(line)}
+    return [(number, edge.group("src")) for number, line in body
+            if (edge := _EDGE.match(line)) and edge.group("src") in decisions
+            and edge.group("arrow") and not edge.group("pipe")]
+
+
 _USE_CASE_REQS = re.compile(r"^Requirements:[ \t]*(.*)$", re.MULTILINE)
 _MAIN_FLOW = re.compile(r"^## Main flow[ \t]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 
@@ -526,6 +549,57 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg)
 
 
+_FLOW_SECTION = re.compile(r"^## (?:Alternative|Exception) flows[ \t]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
+
+
+def has_branch_flows(text: str) -> bool:
+    """A use case with a `### ` flow under `## Alternative flows` or `## Exception flows`."""
+    return any(re.search(r"^### \S", body, re.MULTILINE) for body in _FLOW_SECTION.findall(_COMMENT.sub("", text)))
+
+
+def _feature_diagram_findings(root: Path, cfg: Mapping[str, Any], blocks: list[Block],
+                              against: str | None) -> list[str]:
+    """Activity diagrams a change owes: one per capability it adds to, one per changed use case with branch flows,
+    labelled decisions in changed diagrams. Without `against`, the per-capability rule of old."""
+    base = specs_dir(root, cfg)
+    if not against:
+        caps = sorted({block.cap for block in blocks if block.section in ("ADDED", "MODIFIED")})
+        return [f"{cap}: no activity diagram in {shown(root, base / cap / DIAGRAMS_DIR)}/ "
+                "(gin specs template activity.md)"
+                for cap in caps if not any((base / cap / DIAGRAMS_DIR).glob("*-activity.md"))]
+    caps = sorted({block.cap for block in blocks if block.section == "ADDED"})
+    changed = changed_since(root, against, base)
+    errors = [f"{cap}: no activity diagram added or changed in {shown(root, base / cap / DIAGRAMS_DIR)}/ "
+              f"since {against} (gin specs template activity.md)"
+              for cap in caps
+              if not any(shown(root, p) in changed for p in (base / cap / DIAGRAMS_DIR).glob("*-activity.md"))]
+    for path in sorted(base.glob(f"*/{USE_CASES_DIR}/*.md")):
+        drawn = {slug for diagram in (path.parent.parent / DIAGRAMS_DIR).glob("*-activity.md")
+                 for slug in line_values(diagram.read_text(encoding="utf-8"), "Use case")}
+        if shown(root, path) in changed and has_branch_flows(path.read_text(encoding="utf-8")) \
+                and path.stem not in drawn:
+            errors.append(f"{shown(root, path)}: no activity diagram with 'Use case: {path.stem}'")
+    for path in sorted(base.glob(f"*/{DIAGRAMS_DIR}/*-activity.md")):
+        if shown(root, path) in changed:
+            errors += [f"{shown(root, path)}:{number}: edge from decision '{node}' has no label"
+                       for number, node in unlabelled_decision_edges(path.read_text(encoding="utf-8"))]
+    return errors
+
+
+def _lint_kind(root: Path, change: Path) -> tuple[str, list[str]]:
+    """The change's kind for lint: the epic's `kind:` label, else `Kind:` of 01-proposal.md, and a mismatch finding.
+
+    When the task tracker cannot answer, the `Kind:` line decides without a finding, so lint works without Beads."""
+    proposal = change_file(change, "proposal")
+    found = _EPIC_LINE.search(proposal.read_text(encoding="utf-8")) if proposal.is_file() else None
+    kind, error = epic_kind.lookup(root, found.group(1) if found else None, shown(root, change))
+    if error is None:
+        return kind, []
+    if error.startswith("kind mismatch"):
+        return kind, [f"{shown(root, proposal)}: {error}"]
+    return change_kind(change), []
+
+
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
     blocks, errors = delta_blocks(root, change)
     path = shown(root, change_file(change, "spec-delta"))
@@ -562,11 +636,10 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         for block in blocks:
             if block.section == "ADDED" and block.id in taken:
                 errors.append(f"{path}:{block.start + 1}: {block.id} is already used on {against}")
-    base = specs_dir(root, cfg)
-    for cap in sorted({block.cap for block in blocks if block.section in ("ADDED", "MODIFIED")}):
-        if not any((base / cap / DIAGRAMS_DIR).glob("*-activity.md")):
-            errors.append(f"{cap}: no activity diagram in {shown(root, base / cap / DIAGRAMS_DIR)}/ "
-                          "(gin specs template activity.md)")
+    kind, kind_errors = _lint_kind(root, change)
+    errors += kind_errors
+    if kind != "technical":
+        errors += _feature_diagram_findings(root, cfg, blocks, against)
     design = change_file(change, "design")
     questions = technical_questions(design, shown(root, design))[1] if design.is_file() else []
 
@@ -615,6 +688,16 @@ def _untracked_citations(root: Path, change: Path) -> list[str]:
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, check=False)
+
+
+def changed_since(root: Path, ref: str, folder: Path) -> set[str]:
+    """Repository-relative paths under `folder` added, modified, or renamed since `ref`, untracked files included."""
+    if _git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").returncode != 0:
+        raise SpecsError(f"cannot resolve {ref}")
+    where = shown(root, folder)
+    diff = _git(root, "-c", "core.quotepath=off", "diff", "--name-only", "--diff-filter=AMR", ref, "--", where)
+    untracked = _git(root, "-c", "core.quotepath=off", "ls-files", "--others", "--exclude-standard", "--", where)
+    return set(diff.stdout.splitlines() + untracked.stdout.splitlines())
 
 
 def _ids_in(text: str) -> set[str]:
@@ -676,7 +759,7 @@ def next_id(root: Path, cfg: Mapping[str, Any], cap: str) -> tuple[str, list[str
 
 
 def new_change(root: Path, cfg: Mapping[str, Any], slug: str, epic: str, title: str = "",
-               today: date | None = None) -> Path:
+               today: date | None = None, kind: str | None = None) -> Path:
     if not _SLUG.match(slug):
         raise SpecsError(f"slug {slug!r} must match [a-z0-9][a-z0-9-]*")
     change = changes_dir(root, cfg) / f"{epic}-{slug}"
@@ -684,8 +767,11 @@ def new_change(root: Path, cfg: Mapping[str, Any], slug: str, epic: str, title: 
         raise SpecsError(f"change folder already exists: {change}")
     values = {"epic": epic, "slug": slug, "title": title or slug.replace("-", " ").capitalize(),
               "date": (today or date.today()).isoformat()}
-    atomic_write_many({change / CHANGE_FILES[role]: render(template_text(root, f"{role}.md"), values).encode("utf-8")
-                       for role in CHANGE_TEMPLATES}, mode=0o644)
+    if kind is None:
+        kind = epic_kind.lookup(root, epic, None)[0]
+    texts = {role: render(template_text(root, f"{role}.md"), values) for role in CHANGE_TEMPLATES}
+    texts["proposal"] = re.sub(r"^Kind: \S+$", f"Kind: {kind}", texts["proposal"], count=1, flags=re.MULTILINE)
+    atomic_write_many({change / CHANGE_FILES[role]: text.encode("utf-8") for role, text in texts.items()}, mode=0o644)
     return change
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
-from . import specs, workspace
+from . import epic_kind, specs, workspace
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -21,6 +21,7 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("slug")
     item.add_argument("--epic", required=True)
     item.add_argument("--title", default="")
+    item.add_argument("--kind", choices=epic_kind.KINDS)
     sub.add_parser("next-id", parents=[common]).add_argument("cap")
     item = sub.add_parser("lint", parents=[common])
     item.add_argument("--change")
@@ -140,7 +141,7 @@ def _run(args: argparse.Namespace) -> int:
             _emit(result, args.format, f"{result['description']}: Confirmed: {result['confirmed']}")
         return 0
     if args.command == "new":
-        change = specs.new_change(root, cfg, args.slug, args.epic, args.title)
+        change = specs.new_change(root, cfg, args.slug, args.epic, args.title, kind=args.kind)
         relative = change.relative_to(root).as_posix()
         _emit({"change": change.name, "path": relative}, args.format, relative)
         return 0

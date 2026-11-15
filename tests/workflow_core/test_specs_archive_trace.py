@@ -261,6 +261,7 @@ class TestEndToEnd(unittest.TestCase):
             self.assertEqual(0, self.run_specs(root, "new", "lockout", "--epic", "ep-1").returncode)
             req = self.run_specs(root, "next-id", "auth").stdout.strip()
             write(root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(added=ADDED_BLOCK.replace("REQ-AUTH-003", req)))
+            write_activity(root, name="lockout")
             self.assertEqual(0, self.run_specs(root, "lint", "--change", "ep-1", "--against", "main").returncode)
             self.assertEqual(1, self.run_specs(root, "trace", "--change", "ep-1").returncode)
             write(root, "tests/test_lockout.py", f"def test_lock():  # {req}\n    pass\n")
@@ -306,13 +307,13 @@ class TestEndToEnd(unittest.TestCase):
             self.assertTrue((root / "docs/changes/archive/2026-10-03-ep-2-tech").is_dir())
             self.assertFalse(change.exists())
 
-            # 4. A technical change that DOES contain an ADDED block still needs its activity diagram
+            # 4. A technical change skips the activity diagram rule, even with an ADDED block
             change3 = Path(root) / "docs/changes/ep-3-tech"
             write(root, "docs/changes/ep-3-tech/01-proposal.md", "# Tech With Added\n\nEpic: ep-3\nKind: technical\n")
             write(root, "docs/changes/ep-3-tech/02-spec-delta.md", delta(added=ADDED_BLOCK.replace("auth", "billing").replace("AUTH", "BILLING")))
             write(root, "docs/changes/ep-3-tech/05-tests.md", "| TC | REQ | type | evidence |\n|---|---|---|---|\n")
             errors3 = specs.lint_change(root, cfg, change3)
-            self.assertTrue(any("billing: no activity diagram in docs/specs/billing/diagrams/" in e for e in errors3), errors3)
+            self.assertEqual([], errors3)
 
 
 if __name__ == "__main__":
