@@ -117,11 +117,13 @@ Publishing needs GitHub Pages enabled once, in the repository settings under Pag
 
 ## Releasing
 
-1. Bump the plugin version in `plugins/<plugin>/plugin.meta.json`, `src/.claude-plugin/plugin.json`, and `src/.codex-plugin/plugin.json`; for `gin-orchestrator` also `ORCHESTRATOR_VERSION` in `src/scripts/gin_orchestrator/cli.py`. When a CLI changed, also bump its launcher version: `LAUNCHER_VERSION`, `QA_LAUNCHER_VERSION`, or `ORCH_LAUNCHER_VERSION` in `install.sh`, the matching `$LauncherVersion`, `$QaLauncherVersion`, or `$OrchLauncherVersion` in `install.ps1`, and the version the CLI prints (`CLI_VERSION` in `workflow_core/cli.py`, `VERSION` in `gin_qa/cli.py`). Then update the version assertions in `tests/install_smoke_test.sh`, `tests/install_smoke_test.ps1`, `tests/gin_orchestrator/test_harness_packaging.py`, and, for `gin-orchestrator`, `test_orchestrator_packaging.py`, `test_contract_cli.py`, and `test_contract_v2.py`. `tests/test_version_pins.py` fails when the `gin` or `gin-qa` pins in the installers, the CLI, and the smoke tests disagree.
-2. Run the tests and the smoke test.
-3. Merge to `master` with approval and push.
-4. Tag the merge commit `vX.Y.Z` (the release version) and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`, runs the full test suite, creates the GitHub release with generated notes and the installable source tree attached as `gin-workflow-vX.Y.Z.tar.gz` and `.zip`, then deploys the documentation site. Running the workflow by hand (`workflow_dispatch`) runs the tests and redeploys the site without creating a release. `gin-qa` and `gin-orchestrator` ship in the same release under their own versions.
-5. Reinstall on each machine (`./install.sh --platform all`); marketplace users update through their harness.
+1. Write the new version into every location with `python3 scripts/bump_version.py X.Y.Z`. The whole set (gin, gin-qa, gin-orchestrator, gin-ba) shares one version, and `tests/test_version_pins.py` names any location that differs.
+2. Add a `## [X.Y.Z] - YYYY-MM-DD` section above the previous one in `docs/changelog.md`. Write it from the epics closed since the previous tag (`gin task list --status closed --type epic --json` gives `title`, `closed_at`, and `close_reason`), with an `### Upgrade notes` group for anything a member must do.
+3. When the release needs members to update, raise this repository's `.ginrc` with `gin setup update --approve`.
+4. Run the tests and the smoke test.
+5. Merge to `master` with approval and push.
+6. Tag the merge commit `vX.Y.Z` (the release version) and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`, runs the full test suite, takes the release notes from the changelog section of that version (and fails when there is none), creates the GitHub release with the installable source tree attached as `gin-workflow-vX.Y.Z.tar.gz` and `.zip`, then deploys the documentation site. Running the workflow by hand (`workflow_dispatch`) runs the tests and redeploys the site without creating a release.
+7. Reinstall on each machine (`./install.sh --platform all`); marketplace users update through their harness.
 
 ## Benchmarks
 

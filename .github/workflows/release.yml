@@ -37,11 +37,14 @@ jobs:
           git archive --format=tar.gz --prefix="$prefix/" -o "$prefix.tar.gz" "$GITHUB_REF_NAME" $paths
           git archive --format=zip --prefix="$prefix/" -o "$prefix.zip" "$GITHUB_REF_NAME" $paths
           tar -tzf "$prefix.tar.gz" | grep -q "^$prefix/install.sh$"
+      - name: Release notes from the changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python3 scripts/release_notes.py "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/release-notes.md"
       - name: Create the release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag "gin-workflow-$GITHUB_REF_NAME.tar.gz" "gin-workflow-$GITHUB_REF_NAME.zip"
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md" --verify-tag "gin-workflow-$GITHUB_REF_NAME.tar.gz" "gin-workflow-$GITHUB_REF_NAME.zip"
   pages:
     needs: release
     runs-on: ubuntu-latest
