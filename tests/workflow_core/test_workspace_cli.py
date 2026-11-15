@@ -372,6 +372,42 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertNotIn("proposed_packs", repos["apps/web"])
         self.assertIn("react", repos["services/api"]["proposed_packs"])
 
+    def add_empty_remote(self, default_branch: str = "develop") -> None:
+        bare = self.base / "remotes" / "internal"
+        bare.mkdir(parents=True)
+        git(bare, "init", "-q", "--bare", "-b", "main")
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + f"    - path: internal\n      url: file://{bare}\n"
+                          f"      default_branch: {default_branch}\n      shape: backend\n", encoding="utf-8")
+
+    def test_clone_of_an_empty_remote_points_head_at_the_default_branch(self):
+        self.add_empty_remote()
+        done = run(self.root, "workspace", "clone", "internal", "--json")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertEqual({"path": "internal", "status": "cloned", "empty": True}, json.loads(done.stdout)["repos"][0])
+        self.assertIn("internal: empty remote; the first commit on develop creates the branch", done.stderr)
+        self.assertEqual("refs/heads/develop", git(self.root / "internal", "symbolic-ref", "HEAD").strip())
+        self.assertIn("\n/internal\n", (self.root / ".gitignore").read_text())
+        status = json.loads(run(self.root, "workspace", "status", "--json").stdout)
+        row = next(item for item in status["repos"] if item["path"] == "internal")
+        self.assertEqual((True, "develop"), (row["present"], row["branch"]))
+
+    def test_missing_default_branch_on_a_non_empty_remote_keeps_the_clone_error(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text().replace(
+            "default_branch: main\n      shape: frontend", "default_branch: trunk\n      shape: frontend"), encoding="utf-8")
+        done = run(self.root, "workspace", "clone", "apps/web", "--json")
+        self.assertNotEqual(0, done.returncode)
+        self.assertIn("Remote branch trunk not found", done.stderr)
+        self.assertFalse((self.root / "apps/web").exists())
+
+    def test_ensure_gitignore_inserts_inside_the_workspace_block(self):
+        from workflow_core.workspace import GITIGNORE_HEADER, ensure_gitignore
+        (self.root / ".gitignore").write_text(f"{GITIGNORE_HEADER}\n/apps/web\n\nnode_modules\n", encoding="utf-8")
+        self.assertEqual(["/internal"], ensure_gitignore(self.root, ["/internal"]))
+        self.assertEqual([GITIGNORE_HEADER, "/apps/web", "/internal", "", "node_modules"],
+                         (self.root / ".gitignore").read_text().splitlines())
+
 
 class WorkspaceAddTests(unittest.TestCase):
     def setUp(self):

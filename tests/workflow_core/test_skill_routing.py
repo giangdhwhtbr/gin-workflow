@@ -115,7 +115,8 @@ class SkillRoutingTests(unittest.TestCase):
                        "`<specs>/<cap>/diagrams/<feature>-activity.md`", "`specs template activity.md`",
                        "`specs template state.md`", "three or more states", "`## Data Flow`",
                        "`## Diagrams`", "`<specs>/<cap>/use-cases/<slug>.md`", "`specs template use-case.md`",
-                       "`## Use Cases`"):
+                       "`## Use Cases`",
+                       "with evidence `<pr url>` (no team mode: `<pr url> <merge commit>`)"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, discuss)
         self.assertLess(discuss.index("Capabilities affected"), discuss.index("`specs new <slug> --epic <epic>`"))
