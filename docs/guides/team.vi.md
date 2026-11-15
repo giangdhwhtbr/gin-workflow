@@ -81,6 +81,10 @@ Cài [điều kiện tiên quyết](../getting-started.md#prerequisites) trướ
 
 Chạy `/team-setup` với tư cách member: `gin team whoami` phải tìm thấy `git config user.email` của bạn; `gin team hooks` cài hook commit-msg; đăng nhập bằng `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, hoặc `aws configure` hoặc `aws sso login`, tùy host; với Beads dùng chung, chạy `bd init --remote <remote>`. `gin setup doctor` báo bất cứ thứ gì còn thiếu.
 
+## Nâng bản ghim phiên bản (lead) { #raise-the-version-pin-lead }
+
+Sau khi mọi member đã cập nhật gin, chạy `gin setup update --approve` và commit `.ginrc` cùng kết quả. Từ lúc đó, member có gin cũ hơn bản ghim sẽ bị từ chối, và git hook thất bại với họ cho đến khi họ cập nhật. [Hướng dẫn nâng cấp](upgrading.md) nêu thứ tự và các thông báo.
+
 ## Mỗi stage thay đổi gì { #what-changes-in-each-stage }
 
 Skill `team` chứa các bước chính xác.

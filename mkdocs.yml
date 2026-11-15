@@ -81,6 +81,7 @@ plugins:
             Customizing templates: Tùy chỉnh template
             Rule packs: Bộ quy tắc
             AI usage report: Báo cáo sử dụng AI
+            Upgrading: Nâng cấp
             Recommended tools: Công cụ khuyên dùng
             Windows: Windows
             Skills: Skill
@@ -127,6 +128,7 @@ nav:
       - AI usage report: guides/usage-report.md
       - Recommended tools: guides/recommended-tools.md
       - Windows: guides/windows.md
+      - Upgrading: guides/upgrading.md
   - Reference:
       - Skills: reference/skills.md
       - CLI: reference/cli.md

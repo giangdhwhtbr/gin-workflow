@@ -81,6 +81,10 @@ Install the [prerequisites](../getting-started.md#prerequisites) first, and do n
 
 Run `/team-setup` as a member: `gin team whoami` must find your `git config user.email`; `gin team hooks` installs the commit-msg hook; log in with `gh auth login`, `glab auth login`, `gt auth login --host <instance URL>`, or `aws configure` or `aws sso login`, as your host needs; with shared Beads, `bd init --remote <remote>`. `gin setup doctor` reports anything still missing.
 
+## Raise the version pin (lead)
+
+After every member has updated gin, run `gin setup update --approve` and commit `.ginrc` with the result. From then on, a member whose gin is older than the pin is refused, and the git hooks fail for them until they update. The [upgrade guide](upgrading.md) gives the order and the messages.
+
 ## What changes in each stage
 
 The `team` skill carries the exact steps.

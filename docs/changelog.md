@@ -8,7 +8,7 @@ gin, gin-qa, gin-orchestrator, and gin-ba now share one version. This release ad
 
 ### Upgrade notes
 
-- Update gin on every machine before anyone runs `gin setup update --approve` in a project. Version 3.0 rejects a configuration at schema 2.10, so a member still on it could not work in the project. The upgrade guide gives the order step by step.
+- Update gin on every machine before anyone runs `gin setup update --approve` in a project. Version 3.0 rejects a configuration at schema 2.10, so a member still on it could not work in the project. [The upgrade guide](https://giangdhwhtbr.github.io/gin-workflow/guides/upgrading/) gives the order step by step.
 - Then run `gin setup update --approve` once in each project. It migrates the configuration to schema 2.10, which drops the `notifications` key, and writes `.ginrc` with the installed version.
 - `.ginrc` pins the lowest gin version a project needs, and gin 3.1.0 refuses to run in a project whose pin it does not meet. A new project gets it from `gin setup init`; run `gin version` to see the state.
 - Do not use a 3.1 team setting until every member has updated gin: `team.host: gitea` or `codecommit`, the approval policies `{all: [...], any: [...]}` and `host`, or a `requirement_confirmed` map per epic kind. Older versions reject those configurations.
@@ -32,7 +32,7 @@ gin, gin-qa, gin-orchestrator, and gin-ba now share one version. This release ad
 - A parity change names the confirmed legacy asset folders it matches with `Parity with:`, and `gin specs lint` checks them.
 - `gin record plan-approved` refuses while a technical question (`TQ-<n>`) in the design doc has no `Decision:` line.
 - `gin team pending` lists the open pull requests of spec, plan, track, ship, and quick branches, and what each one still needs under its approval policy.
-- `gin team complete EPIC` closes an epic when every child bead that is not a prep task is closed and the newest pull request of each track has merged. Only an area lead can run it.
+- `gin team complete EPIC` closes an epic when every child bead that is not a prep task is closed and the newest pull request of each track has merged. In a workspace, the `feat/<topic>` pull request must have merged too. Only an area lead can run it.
 - `gin team claim` creates the track worktree on `feat/<topic>-t<N>` in the repository the track names.
 - `gin team takeover` and `gin team deps` work in a workspace child.
 - `gin record shipped --evidence` can be repeated, one pull request per repository, for an epic that changes several repositories.
@@ -53,7 +53,7 @@ gin, gin-qa, gin-orchestrator, and gin-ba now share one version. This release ad
 - A plan track can carry `Reads: <paths>`, the repositories it reads and never edits.
 - `gin team check-plan` and `gin record plan-approved` report a `Reads:` path that is not in `workspace.repos`, is the beads repository, or is the track's own `Repo:`.
 - `gin workspace status --json` rows carry `checkout` and `commit`.
-- `gin commit <path>... -m <message>` commits only the named paths and never pushes. On `main`, `master`, or the default branch of the entry, it first moves to a new branch.
+- `gin commit <path>... -m <message>` commits only the named paths and never pushes. On `main`, `master`, or the `default_branch` of its `workspace.repos` entry, it first moves to a new branch.
 - The gin-qa and gin-ba skills offer `gin commit` after you review what they wrote.
 - `gin specs assets list CAP` lists the dated asset folders of a capability.
 - `gin specs assets confirm` records `Confirmed by:` and, with `--agreed-with`, `Agreed with:`.

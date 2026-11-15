@@ -148,10 +148,17 @@ gin setup configure --set providers.task_tracking=beads --approve
 
 To keep Markdown tasks, set `providers.task_tracking=markdown` the same way.
 
+## `gin <version> is older than this project needs`
+
+Cause: `.ginrc` in the project pins a gin version higher than the one installed, so every `gin` command that reads the project stops, `gin hooks run` included. The git commit and push hooks fail with it.
+
+1. Update gin on your machine as the [upgrade guide](../guides/upgrading.md#update-a-machine) describes.
+2. Run `gin version` and check for `compatible: yes`.
+
 ## Upgrading from gin-workflow 2.x
 
 Version 3.0 renames the CLI to `gin` and the skills to the `gin:` namespace (`/gin:discuss`, `gin:learn`), with no `gin-workflow` alias. `./install.sh` installs `gin` and removes the old `gin-workflow` launcher and plugin installs it manages. It also reinstalls the gin-qa and gin-orchestrator add-ons whose launchers it manages, so they call `gin`; a `--project` install refreshes those launchers too but writes only the plugins named on the command line into the project. A global install also reinstalls gin-ba when `~/.claude/skills/gin-ba` exists, since gin-ba has no launcher.
 
 In each repository, run `gin hooks install`, then `gin setup refresh`; with team mode, also `gin team init`. A hook installed before 3.0 stops the commit with `gin-workflow is not on PATH`, so no check is skipped silently. `gin setup doctor` reports what is still on the old name.
 
-A plugin installed with `claude plugin install gin-workflow@gin-workflow-marketplace` is not upgraded in place: run `claude plugin uninstall gin-workflow`, then `claude plugin install gin@gin-workflow-marketplace`. Scripts and CI jobs that call `gin-workflow` need `gin` instead; the `GIN_WORKFLOW_*` variables keep their names.
+A plugin installed with `claude plugin install gin-workflow@gin-workflow-marketplace` is not upgraded in place: run `claude plugin uninstall gin-workflow`, then `claude plugin install gin@gin-workflow-marketplace`. Scripts and CI jobs that call `gin-workflow` need `gin` instead; the `GIN_WORKFLOW_*` variables keep their names. For the move to 3.1, see the [upgrade guide](../guides/upgrading.md).
