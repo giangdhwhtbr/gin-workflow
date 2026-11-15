@@ -14,6 +14,7 @@ Epic `gin-workflow-y4o8` (workflow `prep-tasks`, 2026-11-13). After `/gin:roadma
 - `prep` is a reserved label. A track mislabelled `prep` without `track:`/`req:` leaves `implementation_complete`; its ledger, if any, still guards the close, and ship lists closed prep tasks as closed without review.
 - An older gin treats a prep task as a track; every member updates gin before `/allocate`.
 - `bd list` returns 50 rows unless `--limit 0`.
+- bd refuses to close an epic with open children, prep ones included. `gin team complete` and ship close open prep children with `--reason "not needed: <epic> shipped"` first; `bd close --force` would leave them open under a closed epic (`gin-workflow-ws-branch-model.3`, review F-1).
 - Execution: antigravity timed out on Track 2 (its two test files take about 190 s) and the route fallback, claude sonnet, finished the uncommitted work. Track 1's close-guard exemption needed a second review cycle (ledger lookup from the main checkout and worktrees).
 - Open: a gin-console follow-up shows prep tasks apart from tracks (progress bar, Gantt, report child counts, ready list).
 

@@ -17,6 +17,7 @@ Epic `gin-workflow-ht4l` (2026-11-07, shipped 2026-11-08). Handing a track over 
 - Tests (`tests/workflow_core/test_team_beads.py` `TestTeamHandoff`, 11 tests) use a bare `origin` created in `setUp` and `git remote set-url`; the second machine is simulated by `worktrees.cleanup` plus `git branch -D` in the same repo. `test_takeover_checks_out_the_handed_off_branch_and_claims` failed once under heavy load with the disk at 100% and never again.
 - The team skill is at 5,843 of 6,000 characters.
 - Not run: a real two-clone handoff with shared Beads (Dolt remote).
+- `gin-workflow-ws-branch-model` (2026-11-15): `claim` now creates the track worktree, and `takeover` of a child bead fetches and checks out in the child; the main-checkout rule stays for beads without a workspace `Repo:`. `handoff` pushes the parent's `feat/` branch when it has unpushed ledger commits and refuses another branch with such commits; `takeover` pulls it first. Lessons: `git worktree add -b` leaves the branch when it fails and `gin worktree cleanup` keeps it, so a retry checks out an existing branch; `git ls-remote --heads origin <name>` matches by suffix, so pass `refs/heads/<name>` and omit `--exit-code` to tell "no branch" from a remote error; comparing `--git-common-dir` alone misses a plain directory inside the parent, so also compare `--show-toplevel` with the path.
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/{team_beads,team_cli,worktrees}.py`
