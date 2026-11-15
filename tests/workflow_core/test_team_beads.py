@@ -1006,6 +1006,7 @@ if __name__ == "__main__":
 
 
 
+@unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestTeamDepsWorkspaceChild(unittest.TestCase):
     """R5, R6, US-3: `team deps` searches the child that owns the blocking track and checks ancestry there."""
 
@@ -1189,6 +1190,7 @@ class TestTeamDepsWorkspaceChild(unittest.TestCase):
         self.assertIn("gin workspace clone services/billing", payload["reasons"][uncloned])
 
 
+@unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestTeamDepsWaitingReasons(unittest.TestCase):
     """R5: placeholders that cannot be resolved wait with a reason; one fixture serves the class (nothing closes)."""
 

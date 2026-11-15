@@ -41,6 +41,10 @@ def show(root: Path, bead: str) -> dict:
     return data[0] if isinstance(data, list) else data
 
 
+HAS_BD = shutil.which("bd") is not None
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestTeamComplete(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -230,6 +234,7 @@ class TestTeamComplete(unittest.TestCase):
         self.assertEqual("open", show(self.root, self.epic)["status"])
 
 
+@unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestTeamCompleteWorkspace(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

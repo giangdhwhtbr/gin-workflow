@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -43,6 +44,7 @@ class ResolutionFromChildTests(unittest.TestCase):
         self.assertIn(done.returncode, (0, 1), done.stderr)
         return json.loads(done.stdout)
 
+    @unittest.skipUnless(shutil.which("bd"), "bd is not installed")
     def test_state_is_the_same_from_parent_child_and_track_worktree(self):
         spec = self.root / ".planning/specs/2026-01-01-w-design.md"
         spec.parent.mkdir(parents=True)
@@ -80,6 +82,7 @@ class ResolutionFromChildTests(unittest.TestCase):
         run(plain, "setup", "init", "--harness", "claude", "--approve", "--format", "json")
         self.assertIsNone(self.state(plain)["workspace"])
 
+    @unittest.skipUnless(shutil.which("bd"), "bd is not installed")
     def test_linked_worktree_of_the_parent_is_its_own_root(self):
         wt = self.base / "parent-wt"
         git(self.root, "worktree", "add", str(wt), "-b", "feat/x", "main")
