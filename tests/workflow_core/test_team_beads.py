@@ -1023,14 +1023,17 @@ class TestTeamDepsWorkspaceChild(unittest.TestCase):
         bd(self.root, "dep", "add", self.work, self.ext)
         self.bin = self.base / "bin"
 
-    def gh(self, commit: str) -> dict[str, str]:
-        """A `gh` that lists the merged pull request only when run in the child directory."""
+    def gh(self, commit: str, parent_commit: str = "") -> dict[str, str]:
+        """A `gh` that lists the merged pull requests of the child (track 2) in the child directory, and of the
+        parent (track 1) in the parent directory when `parent_commit` is given."""
         self.bin.mkdir(exist_ok=True)
-        rows = [{"url": "https://github.com/org/api/pull/4", "mergeCommit": {"oid": commit}, "body": self.BODY}]
+        child = [{"url": "https://github.com/org/api/pull/4", "mergeCommit": {"oid": commit}, "body": self.BODY}]
+        parent = [{"url": "https://github.com/org/app/pull/5", "mergeCommit": {"oid": parent_commit},
+                   "body": "Plan: .planning/plans/p.md\nTracks: 1\n"}] if parent_commit else []
         script = self.bin / "gh"
         script.write_text(f"#!{sys.executable}\nimport json, os, sys\n"
-                          f"if os.getcwd() == {str(self.child_dir)!r}:\n    sys.stdout.write(json.dumps({rows!r}))\n"
-                          "else:\n    sys.stdout.write('[]')\n", encoding="utf-8")
+                          f"rows = {{{str(self.child_dir)!r}: {child!r}, {str(self.root)!r}: {parent!r}}}\n"
+                          "sys.stdout.write(json.dumps(rows.get(os.getcwd(), [])))\n", encoding="utf-8")
         script.chmod(0o755)
         return path_with(self.bin)
 
@@ -1101,3 +1104,122 @@ class TestTeamDepsWorkspaceChild(unittest.TestCase):
         result = run_cli(self.root, "team", "deps", "--bead", self.work, "--format", "json")
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual([self.ext], json.loads(result.stdout)["ok"])
+
+    def placeholder(self, title: str, commit: str, repo: str | None) -> str:
+        """A closed placeholder blocking `self.work`, as an older or a current gin would have left it."""
+        bead = create(self.root, title)
+        bd(self.root, "update", bead, "--set-metadata", f"merge_commit={commit}")
+        if repo is not None:
+            bd(self.root, "update", bead, "--set-metadata", f"repo={repo}")
+        bd(self.root, "dep", "add", self.work, bead)
+        bd(self.root, "close", bead)
+        return bead
+
+    def verdict(self, cwd: Path, bead: str) -> tuple[str, str]:
+        result = self.run_from(cwd, "team", "deps", "--bead", self.work, "--format", "json")
+        payload = json.loads(result.stdout)
+        if bead in payload["ok"]:
+            return "ok", ""
+        return "missing", next(row["reason"] for row in payload["missing"] if row["id"] == bead)
+
+    def claimed_worktree(self) -> Path:
+        self.close_with(self.child_commit("api.txt", "v2\n"))
+        self.assertEqual(0, run_cli(self.root, "team", "claim", self.work).returncode)
+        return self.target / self.work
+
+    def test_placeholder_without_repo_checks_head_of_the_current_repository(self):
+        worktree = self.claimed_worktree()
+        have = git(worktree, "rev-parse", "HEAD").strip()
+        old = self.placeholder("external: old#1", have, None)
+        self.assertEqual(("ok", ""), self.verdict(worktree, old))
+        later = self.child_commit("more.txt", "v3\n")
+        missing = self.placeholder("external: old#2", later, None)
+        self.assertIn("fetch/rebase", self.verdict(worktree, missing)[1])
+
+    def test_parent_placeholder_checks_head_in_the_parent_and_origin_from_a_child(self):
+        worktree = self.claimed_worktree()
+        pushed = git(self.root, "rev-parse", "HEAD").strip()
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "unpushed")
+        local = git(self.root, "rev-parse", "HEAD").strip()
+        on_origin = self.placeholder("external: p#1", pushed, ".")
+        only_local = self.placeholder("external: p#2", local, ".")
+        self.assertEqual(("ok", ""), self.verdict(self.root, on_origin))
+        self.assertEqual(("ok", ""), self.verdict(self.root, only_local))
+        self.assertEqual(("ok", ""), self.verdict(worktree, on_origin))
+        status, reason = self.verdict(worktree, only_local)
+        self.assertEqual(("missing", f"{local} is not on origin/main of {self.root}; run git -C {self.root} fetch origin"),
+                         (status, reason))
+
+    def test_deps_records_dot_for_a_parent_track_in_a_workspace(self):
+        parent_commit = git(self.root, "rev-parse", "HEAD").strip()
+        parent = create(self.root, f"external: {self.PLAN_FILE}#1")
+        result = run_cli(self.root, "team", "deps", "--format", "json", env=self.gh("c" * 40, parent_commit))
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(".", show(self.root, parent)["metadata"]["repo"])
+
+    def test_missing_origin_branch_is_named_instead_of_asking_for_a_fetch(self):
+        worktree = self.claimed_worktree()
+        commit = git(self.root, "rev-parse", "HEAD").strip()
+        git(self.root, "update-ref", "-d", "refs/remotes/origin/main")
+        parent = self.placeholder("external: p#3", commit, ".")
+        self.assertEqual(("missing", f"origin/main does not exist in {self.root}; "
+                                     f"run git -C {self.root} remote set-head origin -a"), self.verdict(worktree, parent))
+
+    def test_track_missing_from_the_plan_waits_with_a_reason(self):
+        lost = create(self.root, f"external: {self.PLAN_FILE}#9")
+        payload = json.loads(run_cli(self.root, "team", "deps", "--format", "json", env=self.gh("abc")).stdout)
+        self.assertIn(lost, payload["waiting"])
+        self.assertEqual(f"track 9 is not in {self.PLAN_FILE}", payload["reasons"][lost])
+
+    def test_each_placeholder_is_handled_and_none_aborts_the_others(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8").replace(
+            "    - path: libs/legacy", "    - path: services/billing\n      url: file:///nowhere/billing.git\n"
+            "      shape: backend\n    - path: libs/legacy"), encoding="utf-8")
+        plan = self.root / self.PLAN_FILE
+        plan.write_text(plan.read_text(encoding="utf-8") + "\n### Track 3: billing\n- **Repo**: services/billing\n", encoding="utf-8")
+        parent = create(self.root, f"external: {self.PLAN_FILE}#1")
+        uncloned = create(self.root, f"external: {self.PLAN_FILE}#3")
+        merged = self.child_commit("api.txt", "v2\n")
+        parent_commit = git(self.root, "rev-parse", "HEAD").strip()
+        payload = json.loads(run_cli(self.root, "team", "deps", "--format", "json",
+                                     env=self.gh(merged, parent_commit)).stdout)
+        self.assertEqual({parent, self.ext}, {row["id"] for row in payload["closed"]})
+        self.assertEqual([uncloned], payload["waiting"])
+        self.assertIn("gin workspace clone services/billing", payload["reasons"][uncloned])
+
+
+class TestTeamDepsWaitingReasons(unittest.TestCase):
+    """R5: placeholders that cannot be resolved wait with a reason; one fixture serves the class (nothing closes)."""
+
+    PLAN_FILE = ".planning/plans/w.md"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fixture = TestTeamClaimWorktree("test_claim_creates_the_child_worktree_from_the_fetched_default_branch")
+        cls.fixture.setUp()
+        cls.root = cls.fixture.root
+        write(cls.root, cls.PLAN_FILE, "### Track 1: frozen\n- **Repo**: libs/legacy\n\n"
+                                       "### Track 2: elsewhere\n- **Repo**: ../evil\n")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.fixture.tmp.cleanup()
+
+    def waiting(self, title: str) -> str:
+        bead = create(self.root, title)
+        payload = json.loads(run_cli(self.root, "team", "deps", "--format", "json").stdout)
+        self.assertIn(bead, payload["waiting"])
+        return payload["reasons"][bead]
+
+    def test_a_frozen_child_waits_with_its_reason(self):
+        self.assertEqual("Repo: libs/legacy is frozen", self.waiting(f"external: {self.PLAN_FILE}#1"))
+
+    def test_a_repo_outside_the_workspace_waits_with_its_reason(self):
+        self.assertEqual("Repo: ../evil is not in workspace.repos", self.waiting(f"external: {self.PLAN_FILE}#2"))
+
+    def test_a_plan_outside_the_root_is_not_read(self):
+        outside = self.root.parent / "x.md"
+        outside.write_text("### Track 1: x\n- **Repo**: services/order-api\n", encoding="utf-8")
+        reason = self.waiting("external: ../x.md#1")
+        self.assertEqual("../x.md is not in this checkout; pull the merged plan", reason)

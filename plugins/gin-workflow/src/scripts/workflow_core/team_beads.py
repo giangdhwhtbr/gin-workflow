@@ -577,8 +577,9 @@ def _delivers(body: str, plan: str, number: int) -> bool:
 
 
 def _blocking_repo(root: Path, plan: str, number: int) -> tuple[Path, str | None]:
-    """The repository of track `number` in `root / plan` and its `Repo:` path; `(root, None)` without one or
-    outside a workspace. Raises SyncConflict when the plan is not in this checkout or the child is not workable."""
+    """The repository of track `number` in `root / plan` and its `Repo:` path (`.` for the parent of a workspace);
+    `(root, None)` outside a workspace, where the plan is not read. Raises SyncConflict when the plan or track is
+    not in this checkout or the child is not workable."""
     if workspace.locate(root).workspace is None:
         return root, None
     path = (root / plan).resolve()
@@ -588,8 +589,10 @@ def _blocking_repo(root: Path, plan: str, number: int) -> tuple[Path, str | None
         tracks = None
     if tracks is None:
         raise SyncConflict(f"{plan} is not in this checkout; pull the merged plan")
-    repo = next((track.repo for track in tracks if track.number == number), "")
-    return (_track_repo(root, repo)[0], repo) if repo else (root, None)
+    track = next((track for track in tracks if track.number == number), None)
+    if track is None:
+        raise SyncConflict(f"track {number} is not in {plan}")
+    return (_track_repo(root, track.repo)[0], track.repo) if track.repo else (root, ".")
 
 
 def deps(root: Path, team: TeamConfig) -> dict[str, Any]:
@@ -631,16 +634,21 @@ def _has_commit(repo: Path, commit: str, ref: str = "HEAD") -> bool:
 
 
 def _reach_reason(root: Path, here: str | None, repo: str | None, commit: str, cwd: Path) -> str:
-    """Why `commit` is not reachable from the repository the placeholder names; "" when it is."""
-    if repo == here:
+    """Why `commit` is not reachable from the repository the placeholder names; "" when it is. `here` is the
+    current repository (None for the parent); `repo` is the placeholder's `repo` (`.` parent, None unrecorded)."""
+    if repo is None or repo == (here or "."):
         top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, capture_output=True,
                              check=False).stdout.strip()
         if top and _has_commit(Path(top), commit):
             return ""
         return f"fetch/rebase onto the plan's integration branch to include {commit}"
-    repo_dir, entry = _track_repo(root, repo)
+    repo_dir, entry = _track_repo(root, None if repo == "." else repo)
     branch = default_branch(repo_dir, entry)
-    if _has_commit(repo_dir, commit, f"origin/{branch}"):
+    ref = f"refs/remotes/origin/{branch}"
+    if subprocess.run(["git", "rev-parse", "--verify", "--quiet", ref], cwd=repo_dir, capture_output=True,
+                      check=False).returncode != 0:
+        return f"origin/{branch} does not exist in {repo_dir}; run git -C {repo_dir} remote set-head origin -a"
+    if _has_commit(repo_dir, commit, ref):
         return ""
     return f"{commit} is not on origin/{branch} of {repo_dir}; run git -C {repo_dir} fetch origin"
 
