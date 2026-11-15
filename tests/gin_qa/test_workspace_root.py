@@ -15,9 +15,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "plugins/gin-qa/src/scripts"))
 
 from test_e2e_cli import FAKE_MANAGER, FAKE_NPX, spec_text  # noqa: E402
+from test_tests_cli import FAKE_RUNNER, GUIDELINES  # noqa: E402
 from qa_fixtures import (AUTH_SPEC, TOOLS_PATH, case, case_file, cases_file, commit_all, gin_workflow_bin,  # noqa: E402
                          make_repo, make_workspace_qa, python_stub, qa, write)
-from gin_qa.cases import hash8, parse_file  # noqa: E402
+from specs_fixtures import LAUNCHER  # noqa: E402
+from gin_qa.cases import hash8, parse_case_file, parse_file  # noqa: E402
 
 # A `gin` from before `root` was reported: its `specs reqs` payload has no `root`.
 OLD_GIN = '#!/bin/sh\necho \'{"layout": "sdd", "requirements": [], "qa": {}}\'\n'
@@ -38,6 +40,60 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         write(child, "cases/auth/TC-AUTH-001-sign-in.md", case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000"))
         commit_all(child, "case")
         return parent, child
+
+    def run_in_workspace(self, bin_dir: Path, kind: str) -> tuple[Path, Path, subprocess.CompletedProcess[str]]:
+        """(parent, child, the result of `gin-qa e2e run` or `gin-qa tests run --type api` from the child)."""
+        parent, child = self.workspace()
+        with (parent / ".agent-workflow/config.yaml").open("a", encoding="utf-8") as config:
+            config.write("    - path: legacy\n      url: git@example.com:org/legacy.git\n      shape: backend\n")  # not cloned
+        npx = self.base / "npx-bin"
+        python_stub(npx, "npx", FAKE_NPX)
+        python_stub(npx, "fake-runner", FAKE_RUNNER)
+        path = os.pathsep.join([str(npx), TOOLS_PATH])
+        if kind == "e2e":
+            cases = write(child, "cases/auth.md", cases_file("auth", case("TC-AUTH-002", "REQ: REQ-AUTH-001@00000000")))
+            self.assertEqual(0, qa(None, bin_dir, "init", group="e2e", cwd=child).returncode)
+            write(child, "e2e/node_modules/@playwright/test/package.json", "{}")
+            write(child, "e2e/auth/tc-auth-002.spec.ts",
+                  spec_text("TC-AUTH-002", hash8(parse_file(cases, "cases/auth.md")[0][0])))
+            return parent, child, qa(None, bin_dir, "run", "--format", "json", group="e2e", cwd=child, path=path)
+        write(child, "guidelines.md", GUIDELINES)
+        case_path = write(child, "cases/auth/TC-AUTH-001-x.api.md", case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000"))
+        pinned = hash8(parse_case_file(case_path, "cases/auth/TC-AUTH-001-x.api.md")[0][0])
+        write(child, "backend/tests/test_auth.py", f"# TC: TC-AUTH-001@{pinned}\ndef test_tc_auth_001():\n    pass\n")
+        commit_all(child, "api case")
+        return parent, child, qa(None, bin_dir, "run", "--type", "api", "--format", "json", group="tests", cwd=child,
+                                 path=path)
+
+    def record(self, child: Path, result: subprocess.CompletedProcess[str]) -> dict:
+        return json.loads((child / json.loads(result.stdout)["run"] / "run.json").read_text())
+
+    def test_run_json_records_the_checkout_of_each_cloned_repository(self):
+        for kind in ("e2e", "tests"):
+            with self.subTest(kind=kind):
+                self.base = Path(tempfile.mkdtemp(dir=self.base))
+                _, child, result = self.run_in_workspace(gin_workflow_bin(self.base), kind)
+                self.assertIn(result.returncode, (0, 1), result.stderr)
+                head = subprocess.run(["git", "-C", str(child), "rev-parse", "HEAD"], capture_output=True, text=True,
+                                      check=True).stdout.strip()
+                rows = self.record(child, result)["checkouts"]
+                self.assertEqual(1, len(rows), rows)  # `legacy` is not cloned, so it has no row
+                self.assertEqual(["branch", "commit", "dirty", "path"], sorted(rows[0]))
+                self.assertEqual(("qa", head, "main"), (rows[0]["path"], rows[0]["commit"], rows[0]["branch"]))
+
+    def test_a_failed_status_command_warns_and_leaves_checkouts_out(self):
+        stub = ('#!/bin/sh\nif [ "$1" = workspace ]; then echo boom >&2; exit 1; fi\n'
+                f'exec "{sys.executable}" "{LAUNCHER}" "$@"\n')
+        if os.name == "nt":
+            self.skipTest("a POSIX shell stub")
+        for kind in ("e2e", "tests"):
+            with self.subTest(kind=kind):
+                self.base = Path(tempfile.mkdtemp(dir=self.base))
+                _, child, result = self.run_in_workspace(gin_workflow_bin(self.base, stub), kind)
+                self.assertIn(result.returncode, (0, 1), result.stderr)
+                warnings = [line for line in result.stderr.splitlines() if line.startswith("gin-qa: checkouts")]
+                self.assertEqual(["gin-qa: checkouts not recorded: boom"], warnings)
+                self.assertNotIn("checkouts", self.record(child, result))
 
     def single(self, qa_block: str = "") -> Path:
         root = make_repo(self.base / "repo", extra=qa_block)

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import posixpath
 import subprocess
+import sys
 from typing import Any
 
 import shutil
@@ -32,6 +33,7 @@ class Effective:
     reqs: dict[str, dict[str, Any]] = field(default_factory=dict)
     removed: dict[str, str] = field(default_factory=dict)
     conflicts: list[str] = field(default_factory=list)
+    workspace: bool = False
 
 
 def specs_reqs(repository: Path | None, change: str | None = None) -> dict[str, Any]:
@@ -54,6 +56,38 @@ def specs_reqs(repository: Path | None, change: str | None = None) -> dict[str, 
     if not isinstance(payload, dict) or not isinstance(payload.get("root"), str) or not payload["root"]:
         raise QaError("this gin is too old for gin-qa; reinstall gin-workflow")
     return payload
+
+
+def workspace_checkouts(eff: Effective) -> list[dict[str, Any]] | None:
+    """The checkout of each cloned workspace repository from `gin workspace status`, or None outside a workspace.
+
+    A failed status command is a warning on stderr and None: it must not fail a test run.
+    """
+    if not eff.workspace:
+        return None
+    executable = shutil.which("gin")
+    if executable is None:
+        print("gin-qa: checkouts not recorded: gin is not on PATH", file=sys.stderr)
+        return None
+    try:
+        result = subprocess.run([executable, "workspace", "status", "--repository", str(eff.project_root), "--json"],
+                                capture_output=True, text=True, cwd=Path.cwd())
+    except OSError as error:
+        print(f"gin-qa: checkouts not recorded: {error}", file=sys.stderr)
+        return None
+    if result.returncode != 0:
+        reason = result.stderr.strip().splitlines()[-1:] or [f"gin workspace status exited {result.returncode}"]
+        print(f"gin-qa: checkouts not recorded: {reason[0]}", file=sys.stderr)
+        return None
+    try:
+        rows = json.loads(result.stdout).get("repos")
+    except (ValueError, AttributeError):
+        rows = None
+    if not isinstance(rows, list):
+        print("gin-qa: checkouts not recorded: gin workspace status printed no repos list", file=sys.stderr)
+        return None
+    return [{key: row.get(key) for key in ("path", "branch", "commit", "dirty")}
+            for row in rows if isinstance(row, dict) and row.get("present")]
 
 
 def _inside(key: str, value: str) -> str:
@@ -126,6 +160,7 @@ def locate(repository: Path | None, change: str | None = None) -> tuple[Path, Ef
         files_root, home = project, _inside("dir", qa.get("dir", "qa"))
     eff = resolve(payload, home)
     eff.project_root = project
+    eff.workspace = bool(payload.get("qa_root"))
     if not payload.get("qa_root") and "dir" not in qa and _root_playwright(files_root):
         eff.package_dir = ""  # R6: an existing root setup keeps the root
     return files_root, eff

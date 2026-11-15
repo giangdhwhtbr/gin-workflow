@@ -512,6 +512,8 @@ Each case in `gin-qa cases export --format json` adds `result` (`not run` withou
 
 `gin-qa e2e run` records each case's result in its case file, the worst over its Playwright projects: `failed`, then `blocked`, then `passed`. A case with no result folder, or an invalid `result.json`, is `blocked`. Its JSON output lists them under `recorded` as `[{"tc", "result"}]`. A recording error is listed under `findings` and does not stop the other cases.
 
+In a workspace, `run.json` of `gin-qa e2e run` and of `gin-qa tests run` also has `checkouts`: one `{"path", "branch", "commit", "dirty"}` row per cloned repository, read from `gin workspace status`. It states the checkout state of the machine that ran the tests, not what an environment deployed. When that command fails, gin-qa prints `gin-qa: checkouts not recorded: <reason>` on stderr, leaves the key out, and the run goes on. Outside a workspace the key is absent.
+
 ### `gin-qa tests`
 
 `gin-qa tests` plans, pins, checks, and runs the tests of the automated types declared under `## Automated types` in the guidelines file (`qa.guidelines`). One `### <type>` per type, with `- Tests:` (backticked globs, relative to the repository root, never absolute or containing `..`) and `- Run:` (one backticked command that holds `{junit}` and optionally `{files}` as a whole argument). `e2e` and `manual` cannot be declared. A declaration error is a finding of `check` and makes the other subcommands exit 2.

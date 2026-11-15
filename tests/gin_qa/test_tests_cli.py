@@ -300,6 +300,7 @@ class TestRun(TestsCase):
         self.assertEqual(1, len(self.runner_args()))
         self.assertEqual([{"tc": "TC-AUTH-001", "result": "passed"}], payload["recorded"])
         self.assertEqual("not run", self.case_fields("TC-AUTH-002")["result"])
+        self.assertNotIn("checkouts", json.loads((self.root / payload["run"] / "run.json").read_text()))
 
     def test_a_case_without_a_matching_test_is_blocked(self):
         write(self.root, ".fake-junit", junit(("test_tc_auth_001", "passed"), ("test_tc_auth_0020", "passed")))

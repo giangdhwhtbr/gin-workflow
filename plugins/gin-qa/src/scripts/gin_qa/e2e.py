@@ -16,7 +16,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from . import cases as tc
-from .reqs import Effective, QaError
+from .reqs import Effective, QaError, workspace_checkouts
 
 HEADER = re.compile(r"^// TC: (TC-[A-Z][A-Z0-9-]*-\d{3,})@([0-9a-f]{8})$")
 FIXTURE = "evidence.ts"
@@ -385,6 +385,9 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
         raise QaError(f"no e2e specs under {eff.e2e_dir}; write them with /gin-qa:e2e")
     folder = new_run_folder(root, eff)
     record = {"started": datetime.now(timezone.utc).isoformat(), "specs": specs, "playwright_exit": None}
+    found = workspace_checkouts(eff)
+    if found is not None:
+        record["checkouts"] = found
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     # Each run gets its own Playwright output folder: the shared default is wiped when a run starts.
     # In the root project the paths stay relative to the files root; in a package folder, relative to it, and the

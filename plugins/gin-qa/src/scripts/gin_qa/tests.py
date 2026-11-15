@@ -17,7 +17,7 @@ from xml.etree import ElementTree
 
 from . import cases as tc
 from .e2e import ignore_evidence, new_run_folder
-from .reqs import Effective, QaError
+from .reqs import Effective, QaError, workspace_checkouts
 
 SECTION = "## Automated types"
 RESERVED = ("e2e", "manual")
@@ -296,6 +296,9 @@ def run(root: Path, eff: Effective, kind: str, targets: list[str]) -> tuple[str,
         command += files if token == "{files}" else [token.replace("{junit}", str(junit))]
     record: dict[str, Any] = {"type": kind, "started": datetime.now(timezone.utc).isoformat(), "command": command,
                               "cases": selected, "exit": None}
+    found = workspace_checkouts(eff)
+    if found is not None:
+        record["checkouts"] = found
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     result = subprocess.run([program, *command[1:]], cwd=root, stdout=sys.stderr)
     record["exit"] = result.returncode

@@ -297,6 +297,7 @@ class TestRunAndEvidence(E2eCase):
                          json.loads((self.pkg / ".npx-args").read_text()))
         record = json.loads((self.root / payload["run"] / "run.json").read_text())
         self.assertEqual((["qa/e2e/auth/tc-auth-001.spec.ts"], 0), (record["specs"], record["playwright_exit"]))
+        self.assertNotIn("checkouts", record)
         self.assertNotEqual(payload["run"], json.loads(self.run_e2e("auth").stdout)["run"])
         self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
 
