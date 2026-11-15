@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `implementation-in-progress`
+**Bead Status:** `review-requested`
 
 ## Active Lease
 *No active lease.*
@@ -13,13 +13,13 @@
 - **Role:** `primary`
 - **Review Ref:** `refs/gin/review/gin-workflow-milestone-close.2`
 - **Base SHA:** `b9433b07c2cd85ccf7beeb7e02c8811f90faa280`
-- **Reviewed SHA:** `f90e58eec12b986a3209a000552778dc82f4096c`
+- **Reviewed SHA:** `5f161444a44e92ba8dc5b363c9a757a7eea3b587`
 - **Source Identity:** `complete`
 - **Repository Path:** `.`
 - **Checkpoint Ref:** `refs/gin/review/gin-workflow-milestone-close.2`
-- **Checkpoint SHA:** `f90e58eec12b986a3209a000552778dc82f4096c`
+- **Checkpoint SHA:** `5f161444a44e92ba8dc5b363c9a757a7eea3b587`
 - **Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
-- **Tree Hash:** `e863bd81649353122555ba16d4e451d538492c6cdb2e531f6de5b0966190c34b`
+- **Tree Hash:** `f490eb1ce53a8c81bf0093a15c19501314a9cebe2d3ee91d853228a3a8f2727c`
 
 ## Source Scope Configuration
 - **Included Paths:**
@@ -29,11 +29,11 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `open` | 0 | - |
+| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `open`
+- **Status:** `fixed-awaiting-verification`
 - **Clarification Count:** 0
 
 
@@ -49,3 +49,6 @@
 | `EV-000007` | `2026-11-15T04:07:23.951968Z` | `changes-requested` | `reviewer:claude:session-03661c40` (reviewer) |
 | `EV-000008` | `2026-11-15T04:07:24.404941Z` | `lease-released` | `reviewer:claude:session-03661c40` (reviewer) |
 | `EV-000009` | `2026-11-15T04:07:51.021590Z` | `implementation-in-progress` | `worker:claude:sonnet` (worker) |
+| `EV-000010` | `2026-11-15T04:18:53.105036Z` | `finding-fixed` | `worker:claude:sonnet` (worker) |
+| `EV-000011` | `2026-11-15T04:18:54.055747Z` | `source-checkpoint-created` | `worker:claude:sonnet` (worker) |
+| `EV-000012` | `2026-11-15T04:18:54.480591Z` | `review-requested` | `worker:claude:sonnet` (worker) |
