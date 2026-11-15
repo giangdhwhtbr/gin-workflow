@@ -478,6 +478,21 @@ class TestRepositoryCommands(unittest.TestCase):
               USE_CASE.replace("Requirements:", "Includes: verify-otp\nRequirements:"))
         self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
 
+    def test_changed_since_in_a_subdirectory_of_the_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            top = Path(tmp) / "top"
+            top.mkdir()
+            git(top, "init", "-q", "-b", "main")
+            git(top, "config", "user.email", "t@example.com")
+            git(top, "config", "user.name", "T")
+            proj = top / "proj"
+            write(proj, "docs/specs/auth/diagrams/a-activity.md", ACTIVITY)
+            commit_all(top, "init")
+            write(proj, "docs/specs/auth/diagrams/a-activity.md", ACTIVITY + "\nmore\n")
+            write(proj, "docs/specs/auth/diagrams/b-activity.md", ACTIVITY)
+            self.assertEqual({"docs/specs/auth/diagrams/a-activity.md", "docs/specs/auth/diagrams/b-activity.md"},
+                             specs.changed_since(proj, "main", proj / "docs/specs"))
+
 
 class TestSpecsCli(unittest.TestCase):
     def test_pm_and_ba_templates_ship_and_can_be_overridden(self):

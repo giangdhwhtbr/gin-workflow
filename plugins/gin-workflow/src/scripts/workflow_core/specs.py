@@ -574,10 +574,11 @@ def _feature_diagram_findings(root: Path, cfg: Mapping[str, Any], blocks: list[B
               for cap in caps
               if not any(shown(root, p) in changed for p in (base / cap / DIAGRAMS_DIR).glob("*-activity.md"))]
     for path in sorted(base.glob(f"*/{USE_CASES_DIR}/*.md")):
+        if shown(root, path) not in changed or not has_branch_flows(path.read_text(encoding="utf-8")):
+            continue
         drawn = {slug for diagram in (path.parent.parent / DIAGRAMS_DIR).glob("*-activity.md")
                  for slug in line_values(diagram.read_text(encoding="utf-8"), "Use case")}
-        if shown(root, path) in changed and has_branch_flows(path.read_text(encoding="utf-8")) \
-                and path.stem not in drawn:
+        if path.stem not in drawn:
             errors.append(f"{shown(root, path)}: no activity diagram with 'Use case: {path.stem}'")
     for path in sorted(base.glob(f"*/{DIAGRAMS_DIR}/*-activity.md")):
         if shown(root, path) in changed:
@@ -691,11 +692,11 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def changed_since(root: Path, ref: str, folder: Path) -> set[str]:
-    """Repository-relative paths under `folder` added, modified, or renamed since `ref`, untracked files included."""
+    """Paths under `folder`, relative to `root`, added, modified, or renamed since `ref`, untracked files included."""
     if _git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").returncode != 0:
         raise SpecsError(f"cannot resolve {ref}")
     where = shown(root, folder)
-    diff = _git(root, "-c", "core.quotepath=off", "diff", "--name-only", "--diff-filter=AMR", ref, "--", where)
+    diff = _git(root, "-c", "core.quotepath=off", "diff", "--name-only", "--relative", "--diff-filter=AMR", ref, "--", where)
     untracked = _git(root, "-c", "core.quotepath=off", "ls-files", "--others", "--exclude-standard", "--", where)
     return set(diff.stdout.splitlines() + untracked.stdout.splitlines())
 
