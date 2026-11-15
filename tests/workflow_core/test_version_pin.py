@@ -101,6 +101,17 @@ class RefusalTests(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn(f"{self.root / '.ginrc'} must hold one version X.Y.Z", result.stderr)
 
+    def test_a_pin_that_is_not_utf8_is_invalid(self):
+        (self.root / ".ginrc").write_bytes(b"\xff\xfe\n")
+        result = run(self.root, "state")
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertEqual(f"error: {self.root / '.ginrc'} must hold one version X.Y.Z\n", result.stderr)
+
+    def test_a_pin_with_a_utf8_byte_order_mark_is_read(self):
+        (self.root / ".ginrc").write_bytes(b"\xef\xbb\xbf" + CLI_VERSION.encode() + b"\r\n")
+        result = run(self.root, "state", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_version_paths_and_version_command_run_in_every_case(self):
         for content in ROWS:
             with self.subTest(pin=content):
@@ -146,6 +157,11 @@ class RefusalTests(unittest.TestCase):
         self.assertEqual(0, run(elsewhere, "state").returncode)
         self.assertEqual(2, run(elsewhere, "state", "--repository", str(self.root)).returncode)
         self.assertEqual(2, run(elsewhere, "state", f"--repository={self.root}").returncode)
+        for option in (["--repo", str(self.root)], [f"--repo={self.root}"], ["--rep", str(self.root)]):
+            with self.subTest(option=option):
+                result = run(elsewhere, "setup", "doctor", *option)
+                self.assertEqual(2, result.returncode, result.stdout)
+                self.assertIn("is older than this project needs", result.stderr)
         self.assertEqual(2, run(elsewhere, "setup", "doctor", "--repository", str(self.root)).returncode)
 
 
@@ -232,6 +248,37 @@ class VersionCommandTests(unittest.TestCase):
                 self.assertEqual(1, len(result.stdout.splitlines()), result.stdout)
                 self.assertIn(needle, result.stdout)
                 self.assertTrue(result.stdout.rstrip("\n").endswith(" " + HOOK_TAIL), result.stdout)
+
+    def test_hook_reports_a_pin_that_is_not_utf8(self):
+        (self.root / ".ginrc").write_bytes(b"\xff\xfe\n")
+        result = run(self.root, "version", "--hook", env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(f"{self.root / '.ginrc'} must hold one version X.Y.Z {HOOK_TAIL}\n", result.stdout)
+
+    def test_the_home_directory_and_above_are_not_searched_from_inside_it(self):
+        home = self.base / "home"
+        inside = home / "work/project"
+        inside.mkdir(parents=True)
+        outside = self.base / "elsewhere/project"
+        outside.mkdir(parents=True)
+        pin(home, HIGHER)
+        pin(self.base, HIGHER)
+        env = {**self.env, "HOME": str(home)}
+        found = json.loads(run(inside, "version", "--format", "json", env=env).stdout)
+        self.assertEqual(("none", None), (found["status"], found["path"]))
+        found = json.loads(run(outside, "version", "--format", "json", env=env).stdout)
+        self.assertEqual(("older", str(self.base / ".ginrc")), (found["status"], found["path"]))
+
+    def test_orchestrator_is_found_through_executables_local_yaml(self):
+        hidden = self.base / "hidden"
+        fake_orchestrator(hidden)
+        (self.root / ".agent-workflow").mkdir()
+        (self.root / ".agent-workflow/executables.local.yaml").write_text(
+            f'schema_version: "2.10"\nexecutables:\n  gin-orchestrator: {hidden / "gin-orchestrator"}\n',
+            encoding="utf-8")
+        env = {**self.env, "PATH": f"{self.bin}{os.pathsep}{Path(sys.executable).parent}"}  # the fake runs python3
+        payload = json.loads(run(self.root, "version", "--format", "json", env=env).stdout)
+        self.assertEqual({"gin-orchestrator": "0.1.0"}, payload["companions"])
 
     def test_hook_exits_zero_when_the_pin_cannot_be_read(self):
         (self.root / ".ginrc").mkdir()

@@ -88,10 +88,13 @@ def _start(argv: Sequence[str]) -> Path:
     """The directory .ginrc is looked up from: the last --repository value, else the current directory."""
     start = None
     for index, argument in enumerate(argv):
-        if argument == "--repository" and index + 1 < len(argv):
+        name, equals, value = argument.partition("=")
+        if len(name) < len("--rep") or not "--repository".startswith(name):  # argparse accepts --rep, --repo, ...
+            continue
+        if equals:
+            start = value
+        elif index + 1 < len(argv):
             start = argv[index + 1]
-        elif argument.startswith("--repository="):
-            start = argument.split("=", 1)[1]
     return Path(start) if start else Path.cwd()
 
 
@@ -111,9 +114,12 @@ def _version(argv: Sequence[str]) -> int:
         if found.status in ("older", "newer_major") or (found.status == "invalid" and found.reason is None):
             print(f"{version_pin.message(found, CLI_VERSION)} Tell the user before any other work.")
         return 0
+    from . import orchestrator_client  # not under --hook: it may start git and read YAML
+
     found = version_pin.verdict(CLI_VERSION, options.repository or Path.cwd())
     compatible = found.status in ("none", "compatible")
-    companions = version_pin.companions()
+    probed = ((version_pin.QA, version_pin.qa_version()), ("gin-orchestrator", orchestrator_client.status().get("version")))
+    companions = {name: version for name, version in probed if version}
     if options.format == "json":
         print(json.dumps({"installed": CLI_VERSION, "required": found.required,
                           "path": str(found.path) if found.path else None, "status": found.status,

@@ -1053,6 +1053,19 @@ class SetupCliTests(unittest.TestCase):
             self.assertNotIn("version", missing["checks"])
             self.assertEqual(payload["status"], missing["status"])
 
+    def test_doctor_reports_a_pin_of_an_older_major_version(self):
+        older_major = f"{int(CLI_VERSION.split('.')[0]) - 1}.9.9"
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            (repository / ".ginrc").write_text(older_major + "\n", encoding="utf-8")
+            result = self.run_cli(repository, "doctor")
+            self.assertEqual(0, result.returncode, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual("newer_major", payload["checks_details"]["version"]["status"])
+            self.assertIn(f"version: .ginrc {older_major} is an older major version; run gin setup update --approve",
+                          payload["actions"])
+
     def test_doctor_never_reports_telegram_credentials(self):
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)

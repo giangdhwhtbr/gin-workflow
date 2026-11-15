@@ -627,6 +627,8 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
     checks_details["version"] = {"installed": installed, "required": found.required, "status": found.status}
     if found.status == "none" and checks["initialized"]:
         actions.append("version: no .ginrc; run gin setup update --approve")
+    elif found.status == "newer_major":
+        actions.append(f"version: .ginrc {found.required} is an older major version; run gin setup update --approve")
     for name, version in ((version_pin.QA, version_pin.qa_version()),
                           ("gin-orchestrator", orchestrator_client.status().get("version"))):
         if version and version != installed:

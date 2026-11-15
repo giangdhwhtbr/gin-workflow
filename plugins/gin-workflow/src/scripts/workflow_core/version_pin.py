@@ -5,7 +5,6 @@ Read before any configuration, so this module imports neither YAML nor another w
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 from pathlib import Path
 import re
 import shutil
@@ -38,8 +37,16 @@ def parse(text: str) -> tuple[int, int, int]:
 
 
 def find(start: Path) -> Path | None:
+    """The nearest .ginrc from `start` upwards. Inside the home directory, the search stops below it."""
     here = Path(start).resolve()
+    try:
+        home = Path.home().resolve()
+    except RuntimeError:  # no home directory can be determined
+        home = None
+    inside_home = home is not None and (here == home or home in here.parents)
     for directory in (here, *here.parents):
+        if inside_home and (directory == home or directory in home.parents):
+            return None
         candidate = directory / FILE
         if candidate.exists():
             return candidate
@@ -51,12 +58,14 @@ def verdict(installed: str, start: Path) -> Verdict:
     if path is None:
         return Verdict("none")
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")
     except OSError as error:
         return Verdict("invalid", path=path, reason=str(error))
+    except UnicodeDecodeError:
+        return Verdict("invalid", path=path)
     try:
         required = parse(text)
-    except (PinError, UnicodeDecodeError):
+    except PinError:
         return Verdict("invalid", path=path)
     have = parse(installed)
     if have[0] > required[0]:
@@ -96,19 +105,3 @@ def qa_version() -> str | None:
     out = _output([QA, "--version"])
     parts = out.split() if out else []
     return parts[1] if len(parts) == 2 and parts[0] == QA else None
-
-
-def orchestrator_version() -> str | None:
-    """`orchestrator_version` from `gin-orchestrator version --json`, or None when it is missing or fails."""
-    out = _output(["gin-orchestrator", "version", "--json"])
-    try:
-        data = json.loads(out) if out else None
-    except ValueError:
-        return None
-    version = data.get("orchestrator_version") if isinstance(data, dict) else None
-    return version if isinstance(version, str) else None
-
-
-def companions() -> dict[str, str]:
-    found = {QA: qa_version(), "gin-orchestrator": orchestrator_version()}
-    return {name: version for name, version in found.items() if version}

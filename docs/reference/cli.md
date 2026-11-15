@@ -9,13 +9,13 @@ The local installer (`install.sh`, `install.ps1`) links `gin` into `~/.local/bin
 
 `gin --version` prints the CLI version. An unknown or missing command prints the command list and exits 2.
 
-`gin` refuses to run in a project whose [`.ginrc`](config.md#ginrc) it does not satisfy. Every command except `gin --version`, `gin paths`, and `gin version` checks the file first. It looks for `.ginrc` in the `--repository` directory when given, else the current directory, then in their parent directories. The refusal also stops `gin hooks run`, so the git hooks fail in that project until gin or the project is updated. A refusal prints one line on stderr and exits 2:
+`gin` refuses to run in a project whose [`.ginrc`](config.md#ginrc) it does not satisfy. Every command except `gin --version`, `gin paths`, and `gin version` checks the file first. It looks for `.ginrc` in the `--repository` directory when given, else the current directory, then in their parent directories, as [`.ginrc`](config.md#ginrc) describes. The refusal also stops `gin hooks run`, so the git hooks fail in that project until gin or the project is updated. A refusal prints one line on stderr and exits 2:
 
 | Case | Message |
 |---|---|
 | Installed version older than the pin | `error: gin <installed> is older than this project needs (<pin>, <path>); update gin: <guide>` |
 | Installed major version newer than the pin | `error: gin <installed> is a newer major version than this project uses (<pin>, <path>); upgrade the project with gin setup update --approve: <guide>` |
-| `.ginrc` is not one version, or cannot be read | `error: <path> must hold one version X.Y.Z`, followed by the read error in parentheses when there is one |
+| `.ginrc` is not one version, is not UTF-8, or cannot be read | `error: <path> must hold one version X.Y.Z`, followed by the read error in parentheses when there is one |
 
 `<guide>` is the [upgrade guide](https://giangdhwhtbr.github.io/gin-workflow/guides/upgrading/). With a newer major version, `gin setup` commands still run, so the project can be upgraded.
 
@@ -51,7 +51,7 @@ In a workspace child, or a worktree of one, `doctor` without `--repository` chec
 
 Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--probe`, `--harness`.
 
-`doctor` reports versions as findings, never as a failed check. `checks_details.version` holds `installed`, `required`, and `status`. An initialized project without `.ginrc` gets `version: no .ginrc; run gin setup update --approve`; a project without `.agent-workflow/config.yaml` does not. A `gin-qa` or `gin-orchestrator` on `PATH` whose version differs from gin's gets `version: <name> <version> differs from gin <installed>; run ./install.sh --plugin <name>`.
+`doctor` reports versions as findings, never as a failed check. `checks_details.version` holds `installed`, `required`, and `status`. An initialized project without `.ginrc` gets `version: no .ginrc; run gin setup update --approve`; a project without `.agent-workflow/config.yaml` does not. A pin of an older major version gets `version: .ginrc <pin> is an older major version; run gin setup update --approve`. A `gin-qa` or `gin-orchestrator`, found as `gin version` finds it, whose version differs from gin's gets `version: <name> <version> differs from gin <installed>; run ./install.sh --plugin <name>`.
 
 `doctor --probe` and `models` read provider health and model lists through the [orchestrator contract](orchestrator-contract.md).
 
@@ -335,7 +335,7 @@ Exit codes: 0 ok.
 gin version [--repository PATH] [--format text|json] [--hook]
 ```
 
-Compares the installed `gin` with the project's [`.ginrc`](config.md#ginrc), found as the refusal finds it. Text output prints `gin <installed>`. When there is a `.ginrc`, it adds `project: <pin> (<path>)` and `compatible: yes` or `no`. An invalid `.ginrc` shows `project: invalid (<path>)` and `compatible: no`. Then it prints `gin-qa <version>` and `gin-orchestrator <version>` for each companion CLI found on `PATH`. A companion that is missing or fails is left out.
+Compares the installed `gin` with the project's [`.ginrc`](config.md#ginrc), found as the refusal finds it. Text output prints `gin <installed>`. When there is a `.ginrc`, it adds `project: <pin> (<path>)` and `compatible: yes` or `no`. An invalid `.ginrc` shows `project: invalid (<path>)` and `compatible: no`. Then it prints `gin-qa <version>` and `gin-orchestrator <version>` for each companion CLI it finds. `gin-qa` is looked up on `PATH`. `gin-orchestrator` is the path in `.agent-workflow/executables.local.yaml` of the current checkout when that names one, else the one on `PATH`. A companion that is missing or fails is left out.
 
 `--format json` prints `{"installed", "required", "path", "status", "compatible", "companions"}`. `status` is `none` (no `.ginrc`), `compatible`, `older`, `newer_major`, or `invalid`. `compatible` is `true` for `none` and `compatible`, so it is `true` without a `.ginrc`. `companions` maps each CLI found to its version.
 

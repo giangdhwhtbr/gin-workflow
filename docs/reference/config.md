@@ -49,7 +49,9 @@ Schema 2.10 removes `notifications`: `gin setup update --to-version 2.10` drops 
 
 ### `.ginrc`
 
-`.ginrc` at the project root holds one line: the minimum gin release version `X.Y.Z` the project needs. It is tracked in git. In a workspace only the parent has one; children and worktrees find it in a parent directory. Any other content is an error.
+`.ginrc` at the project root holds one line: the minimum gin release version `X.Y.Z` the project needs. It is tracked in git. In a workspace only the parent has one; children and worktrees find it in a parent directory. Any other content, or a file that is not UTF-8, is an error; a UTF-8 byte order mark is allowed.
+
+`gin` looks for the file from the working directory, or `--repository`, upwards. Inside your home directory the search stops below it, so a `.ginrc` in the home directory or above pins nothing there. Outside the home directory it continues to the filesystem root. Worktrees that `gin worktree` creates lie under the parent, so they find its `.ginrc`. A worktree you create by hand outside the parent's tree does not.
 
 `gin` compares its own version with the file before it reads the configuration:
 
@@ -60,7 +62,7 @@ Schema 2.10 removes `notifications`: `gin setup update --to-version 2.10` drops 
 | Newer major version | Refused: upgrade the project with `gin setup update --approve`; `gin setup` still runs |
 | No `.ginrc` | No check |
 
-`gin setup init --approve` writes the file with the installed version. `gin setup update` proposes raising a missing or lower pin to the installed version and writes it with `--approve`. `gin setup doctor` reports a project without one. The [CLI reference](cli.md#gin-version) gives the messages and `gin version`. A gin older than 3.1.0 does not read `.ginrc`.
+`gin setup init --approve` writes the file with the installed version. `gin setup update` proposes raising a missing or lower pin to the installed version and writes it with `--approve`. `gin setup doctor` reports a project without one, and a pin of an older major version. The [CLI reference](cli.md#gin-version) gives the messages and `gin version`. A gin older than 3.1.0 does not read `.ginrc`.
 
 ## Keys
 
