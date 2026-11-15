@@ -16,6 +16,7 @@ LAUNCHER = ROOT / "plugins/gin-workflow/src/scripts/gin"
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
 from workflow_core import setup_service  # noqa: E402
+from workflow_core.cli import CLI_VERSION  # noqa: E402
 from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path  # noqa: E402
 
 
@@ -301,6 +302,7 @@ class SetupCliTests(unittest.TestCase):
                     "generate .agent-workflow/generated/config-provenance.yaml",
                     "write .agent-workflow/.gitignore",
                     "write .agent-workflow/executables.local.yaml",
+                    "create .ginrc",
                     "write AGENTS.md gin block",
                     "add @AGENTS.md to CLAUDE.md",
                 ],
@@ -965,6 +967,91 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, res.returncode, res.stderr)
             payload = json.loads(res.stdout)
             self.assertEqual([], payload["models"])
+
+    def test_init_writes_ginrc_with_the_installed_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            result = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("create .ginrc", json.loads(result.stdout)["actions"])
+            self.assertEqual(f"{CLI_VERSION}\n", (repository / ".ginrc").read_text(encoding="utf-8"))
+
+    def test_init_keeps_an_existing_ginrc(self):
+        lower = f"{CLI_VERSION.split('.')[0]}.0.0\n"
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            (repository / ".ginrc").write_text(lower, encoding="utf-8")
+            result = self.run_cli(repository, "init", "--approve", "--non-interactive")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertNotIn("create .ginrc", json.loads(result.stdout)["actions"])
+            self.assertEqual(lower, (repository / ".ginrc").read_text(encoding="utf-8"))
+
+    def test_update_proposes_then_writes_a_missing_ginrc(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            (repository / ".ginrc").unlink()
+
+            preview = self.run_cli(repository, "update")
+            self.assertEqual(0, preview.returncode, preview.stderr)
+            payload = json.loads(preview.stdout)
+            self.assertEqual("migration_available", payload["status"])
+            self.assertEqual([f"write .ginrc none -> {CLI_VERSION}"], payload["actions"])
+            self.assertFalse((repository / ".ginrc").exists())
+
+            applied = self.run_cli(repository, "update", "--approve")
+            self.assertEqual(0, applied.returncode, applied.stderr)
+            self.assertIn(f"write .ginrc none -> {CLI_VERSION}", json.loads(applied.stdout)["actions"])
+            self.assertEqual(f"{CLI_VERSION}\n", (repository / ".ginrc").read_text(encoding="utf-8"))
+
+            again = json.loads(self.run_cli(repository, "update").stdout)
+            self.assertEqual(("up_to_date", []), (again["status"], again["actions"]))
+
+    def test_update_raises_a_lower_ginrc_with_the_configuration_migration(self):
+        lower = f"{CLI_VERSION.split('.')[0]}.0.0"
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workflow = repository / ".agent-workflow"
+            workflow.mkdir()
+            (workflow / "config.yaml").write_text(
+                "schema_version: '2.9'\nworkflow_version: '2.9'\nsetup_cli_version: '2.9'\nharness: claude\n",
+                encoding="utf-8",
+            )
+            (repository / ".ginrc").write_text(lower + "\n", encoding="utf-8")
+
+            preview = json.loads(self.run_cli(repository, "update").stdout)
+            self.assertEqual("migration_available", preview["status"])
+            self.assertIn(f"write .ginrc {lower} -> {CLI_VERSION}", preview["actions"])
+
+            applied = self.run_cli(repository, "update", "--approve")
+            self.assertEqual(0, applied.returncode, applied.stderr)
+            self.assertEqual("migrated", json.loads(applied.stdout)["status"])
+            self.assertEqual(f"{CLI_VERSION}\n", (repository / ".ginrc").read_text(encoding="utf-8"))
+
+    def test_doctor_reports_a_missing_ginrc_and_a_companion_of_another_version(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
+            repository = Path(directory)
+            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive").returncode)
+            payload = json.loads(self.run_cli(repository, "doctor").stdout)
+            self.assertEqual({"installed": CLI_VERSION, "required": CLI_VERSION, "status": "compatible"},
+                             payload["checks_details"]["version"])
+            self.assertFalse(any(action.startswith("version: no .ginrc") for action in payload["actions"]))
+
+            (repository / ".ginrc").unlink()
+            qa = Path(bin_dir) / "gin-qa"
+            qa.write_text("#!/bin/sh\necho 'gin-qa 9.9.9'\n", encoding="utf-8")
+            qa.chmod(0o755)
+            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+            result = self.run_cli(repository, "doctor", env=env)
+            self.assertEqual(0, result.returncode, result.stderr)
+            missing = json.loads(result.stdout)
+            self.assertEqual({"installed": CLI_VERSION, "required": None, "status": "none"},
+                             missing["checks_details"]["version"])
+            self.assertIn("version: no .ginrc; run gin setup update --approve", missing["actions"])
+            self.assertIn(f"version: gin-qa 9.9.9 differs from gin {CLI_VERSION}; run ./install.sh --plugin gin-qa",
+                          missing["actions"])
+            self.assertNotIn("version", missing["checks"])
+            self.assertEqual(payload["status"], missing["status"])
 
     def test_doctor_never_reports_telegram_credentials(self):
         with tempfile.TemporaryDirectory() as directory:

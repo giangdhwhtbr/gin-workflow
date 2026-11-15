@@ -12,6 +12,7 @@ from .atomic import atomic_write_many, atomic_write_bytes
 from .bundles import export_bundle, verify_bundle
 from .catalog import DEFAULT_CATALOGS
 from .checkout import main_checkout
+from .cli import CLI_VERSION
 from .configuration import legacy_worker_routing, require_yaml, resolve_effective_config, validate_portable_config
 from .project import preset_assignments, project_settings
 from .project_detect import detect_project
@@ -29,6 +30,7 @@ from .provider_config import DEFAULT_EXECUTABLES
 from . import agents_block
 from . import orchestrator_client
 from . import snapshot
+from . import version_pin
 from . import workspace as workspace_mod
 from .schemas import SUPPORTED_CONFIG_VERSIONS, require_jsonschema
 
@@ -42,6 +44,7 @@ INIT_ACTIONS = [
     "generate .agent-workflow/generated/config-provenance.yaml",
     "write .agent-workflow/.gitignore",
     "write .agent-workflow/executables.local.yaml",
+    "create .ginrc",
 ]
 
 
@@ -51,6 +54,21 @@ class SetupError(ValueError):
     def __init__(self, message: str, *, status: str = "error") -> None:
         super().__init__(message)
         self.status = status
+
+
+def _pin_update(root: Path) -> tuple[list[str], dict[Path, bytes]]:
+    """The action and write that raise .ginrc to the installed version when it is missing or lower."""
+    installed = CLI_VERSION
+    path = root / version_pin.FILE
+    current = "none"
+    if path.exists():
+        try:
+            current = path.read_text(encoding="utf-8").strip()
+            if version_pin.parse(current) >= version_pin.parse(installed):
+                return [], {}
+        except (OSError, UnicodeDecodeError, version_pin.PinError) as error:
+            raise SetupError(f"{path} must hold one version X.Y.Z: {error}") from error
+    return [f"write .ginrc {current} -> {installed}"], {path: f"{installed}\n".encode("utf-8")}
 
 
 def _agents_writes(root: Path, config: Mapping[str, Any], *, create: bool) -> dict[Path, bytes]:
@@ -260,11 +278,13 @@ def initialize(
     agents_writes = _agents_writes(root, resolved.config.to_dict(), create=True)
     agents_actions = _agents_actions(root, agents_writes)
     config_text = _yaml_text(config)
+    pin = root / version_pin.FILE
+    init_actions = [action for action in INIT_ACTIONS if action != "create .ginrc" or not pin.exists()]
     if dry_run:
         payload = {
             "status": "would_initialize",
             "repository": str(root),
-            "actions": list(INIT_ACTIONS),
+            "actions": init_actions,
             "configuration": config,
         }
         payload["actions"].extend(agents_actions)
@@ -276,6 +296,8 @@ def initialize(
         resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
     }
+    if not pin.exists():
+        writes[pin] = f"{CLI_VERSION}\n".encode("utf-8")
     atomic_write_many(writes)
     write_local(root, detect_tools(root=root))
     for relative in ("backups", "references", "runtime/evidence"):
@@ -283,7 +305,7 @@ def initialize(
     agents_block.write(agents_writes)
     if workspace:
         workspace_mod.ensure_gitignore(root, ["/.beads", ".planning/worktrees/"])
-    actions = list(INIT_ACTIONS)
+    actions = init_actions
     actions.extend(agents_actions)
     return {"status": "initialized", "repository": str(root), "actions": actions}
 
@@ -600,6 +622,16 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
                 if warn:
                     actions.append(warn)
 
+    installed = CLI_VERSION
+    found = version_pin.verdict(installed, root)
+    checks_details["version"] = {"installed": installed, "required": found.required, "status": found.status}
+    if found.status == "none" and checks["initialized"]:
+        actions.append("version: no .ginrc; run gin setup update --approve")
+    for name, version in ((version_pin.QA, version_pin.qa_version()),
+                          ("gin-orchestrator", orchestrator_client.status().get("version"))):
+        if version and version != installed:
+            actions.append(f"version: {name} {version} differs from gin {installed}; run ./install.sh --plugin {name}")
+
     stale = snapshot.check(Path(__file__).absolute().parents[1])
     checks_details["snapshot"] = {"warning": stale}
     if stale:
@@ -695,10 +727,11 @@ def update(
     validate_portable_config(migrated)
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
+    pin_actions, pin_writes = _pin_update(root)
     proposal = propose_migration(root, target_version=target_version)
-    if local_actions and proposal["status"] == "up_to_date":
+    if (local_actions or pin_actions) and proposal["status"] == "up_to_date":
         proposal["status"] = "migration_available"
-    proposal["actions"] = [*proposal.get("actions", ()), *local_actions]
+    proposal["actions"] = [*proposal.get("actions", ()), *local_actions, *pin_actions]
     if rename_local:
         proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main).as_posix()} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
@@ -708,6 +741,7 @@ def update(
         resolved.effective_config_path: _yaml_text(resolved.config.to_dict()).encode("utf-8"),
         resolved.provenance_path: _yaml_text(resolved.provenance.to_dict()).encode("utf-8"),
         **local_writes,
+        **pin_writes,
     }
     res = apply_migration(
         root,
@@ -716,6 +750,11 @@ def update(
         additional_writes=additional_writes,
         backup_files=local_backup,
     )
+    if pin_writes:
+        if res["status"] == "up_to_date":  # no migration ran, so nothing was written yet
+            atomic_write_many(pin_writes)
+            res["status"] = "updated"
+        res.setdefault("actions", []).extend(pin_actions)
     if rename_local:
         if local_writes:
             old_local.unlink()

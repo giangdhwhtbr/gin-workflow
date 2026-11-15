@@ -80,10 +80,12 @@ class TestPackaging(unittest.TestCase):
             self.assertEqual(({}, []), declared(root, Effective("legacy", "qa/cases", "qa/guidelines.md", [])))
 
     def test_core_never_refers_to_gin_qa(self):
-        # The `qa-track` skill is the one core file that exists to drive gin-qa (gin-workflow-qa-lifecycle R2).
-        allowed = CORE / "skills/qa-track/SKILL.md"
+        # The `qa-track` skill is the core file that exists to drive gin-qa (gin-workflow-qa-lifecycle R2).
+        allowed = {CORE / "skills/qa-track/SKILL.md",
+                   # The companion version probe of gin version and gin setup doctor (gin-workflow-b7ip R8, R11).
+                   CORE / "scripts/workflow_core/version_pin.py"}
         for path in sorted(p for p in CORE.rglob("*") if p.is_file() and p.suffix in (".md", ".py", ".yaml", ".json")
-                           and p != allowed):
+                           and p not in allowed):
             with self.subTest(path=str(path.relative_to(CORE))):
                 self.assertNotIn("gin-qa", path.read_text(encoding="utf-8"))
 

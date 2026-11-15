@@ -8,17 +8,12 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
-from .bundles import BundleError
-from .configuration import ConfigValidationError
-from .migrations import CURRENT_VERSION, MigrationError
-from .models import DependencyUnavailableError
-from .project import RIGORS, SHAPES, STAGES
-from .setup_service import COMMANDS, SetupError
-
 
 CLI_VERSION = "3.1.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
-                "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "commit", "worktree", "workspace", "milestone")
+                "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "commit", "worktree", "workspace", "milestone",
+                "version")
+UNPINNED = ("paths", "version")  # commands that run whatever .ginrc says
 
 
 ACTIONS = {
@@ -44,6 +39,10 @@ ACTIONS = {
 
 
 def _parser() -> argparse.ArgumentParser:
+    from .migrations import CURRENT_VERSION
+    from .project import RIGORS, SHAPES, STAGES
+    from .setup_service import COMMANDS
+
     actions = "\n".join(f"  {name:<18} {ACTIONS[name]}" for name in COMMANDS)
     parser = argparse.ArgumentParser(prog="gin setup", formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=f"configure a repository outside the lifecycle\n\nactions:\n{actions}")
@@ -85,6 +84,50 @@ def _emit(payload: dict[str, Any], output_format: str) -> None:
         print(f"- {action}")
 
 
+def _start(argv: Sequence[str]) -> Path:
+    """The directory .ginrc is looked up from: the last --repository value, else the current directory."""
+    start = None
+    for index, argument in enumerate(argv):
+        if argument == "--repository" and index + 1 < len(argv):
+            start = argv[index + 1]
+        elif argument.startswith("--repository="):
+            start = argument.split("=", 1)[1]
+    return Path(start) if start else Path.cwd()
+
+
+def _version(argv: Sequence[str]) -> int:
+    from . import version_pin
+
+    parser = argparse.ArgumentParser(prog="gin version", description="compare the installed gin with the project's .ginrc")
+    parser.add_argument("--repository", type=Path, default=None)
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--hook", action="store_true", help="print one line only when incompatible; always exit 0")
+    options = parser.parse_args(argv)
+    if options.hook:
+        try:
+            found = version_pin.verdict(CLI_VERSION, options.repository or Path.cwd())
+        except OSError:
+            return 0
+        if found.status in ("older", "newer_major") or (found.status == "invalid" and found.reason is None):
+            print(f"{version_pin.message(found, CLI_VERSION)} Tell the user before any other work.")
+        return 0
+    found = version_pin.verdict(CLI_VERSION, options.repository or Path.cwd())
+    compatible = found.status in ("none", "compatible")
+    companions = version_pin.companions()
+    if options.format == "json":
+        print(json.dumps({"installed": CLI_VERSION, "required": found.required,
+                          "path": str(found.path) if found.path else None, "status": found.status,
+                          "compatible": compatible, "companions": companions}, indent=2, sort_keys=True))
+    else:
+        print(f"gin {CLI_VERSION}")
+        if found.path is not None:
+            print(f"project: {found.required or 'invalid'} ({found.path})")
+            print(f"compatible: {'yes' if compatible else 'no'}")
+        for name, version in companions.items():
+            print(f"{name} {version}")
+    return 0 if compatible else 1
+
+
 def main(arguments: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if arguments is None else arguments)
     if argv == ["--version"]:
@@ -93,6 +136,15 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if not argv or argv[0] not in TOP_COMMANDS:
         print(f"usage: gin {{{','.join(TOP_COMMANDS)}}} <command>", file=sys.stderr)
         return 2
+    if argv[0] == "version":
+        return _version(argv[1:])
+    if argv[0] not in UNPINNED:
+        from . import version_pin
+
+        found = version_pin.verdict(CLI_VERSION, _start(argv[1:]))
+        if found.status in ("older", "invalid") or (found.status == "newer_major" and argv[0] != "setup"):
+            print(f"error: {version_pin.message(found, CLI_VERSION)}", file=sys.stderr)
+            return 2
     from . import workspace
     try:
         if argv[0] == "routes":
@@ -150,6 +202,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
     except workspace.WorkspaceError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
+    # Imported here, not at the top: setup_service pulls in YAML, which gin version --hook must not load.
+    from .bundles import BundleError
+    from .configuration import ConfigValidationError
+    from .migrations import MigrationError
+    from .models import DependencyUnavailableError
+    from .setup_service import COMMANDS, SetupError
+
     parsed = _parser().parse_args(argv[1:])
     options = vars(parsed)
     action = options.pop("action")

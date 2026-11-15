@@ -9,6 +9,16 @@ The local installer (`install.sh`, `install.ps1`) links `gin` into `~/.local/bin
 
 `gin --version` prints the CLI version. An unknown or missing command prints the command list and exits 2.
 
+`gin` refuses to run in a project whose [`.ginrc`](config.md#ginrc) it does not satisfy. Every command except `gin --version`, `gin paths`, and `gin version` checks the file first. It looks for `.ginrc` in the `--repository` directory when given, else the current directory, then in their parent directories. The refusal also stops `gin hooks run`, so the git hooks fail in that project until gin or the project is updated. A refusal prints one line on stderr and exits 2:
+
+| Case | Message |
+|---|---|
+| Installed version older than the pin | `error: gin <installed> is older than this project needs (<pin>, <path>); update gin: <guide>` |
+| Installed major version newer than the pin | `error: gin <installed> is a newer major version than this project uses (<pin>, <path>); upgrade the project with gin setup update --approve: <guide>` |
+| `.ginrc` is not one version, or cannot be read | `error: <path> must hold one version X.Y.Z`, followed by the read error in parentheses when there is one |
+
+`<guide>` is the [upgrade guide](https://giangdhwhtbr.github.io/gin-workflow/guides/upgrading/). With a newer major version, `gin setup` commands still run, so the project can be upgraded.
+
 Most commands accept `--repository PATH` (default: the current directory) and `--format text|json` (default `text`). JSON output is what skills parse.
 
 ## `gin setup`
@@ -24,11 +34,11 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
 | `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--workspace`, `--stack-intent`) into `--set` assignments | no |
 | `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode\|copilot`) | no |
-| `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the `gin` block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block | yes |
+| `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the `gin` block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block. A first setup also writes `.ginrc` with the installed version, unless the file exists | yes |
 | `configure` | Changes repository configuration (`--set key=value`) | yes |
 | `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration, rewrites `executables.local.yaml`, adds any missing local-file entry to `.agent-workflow/.gitignore`, and re-renders an existing `AGENTS.md` block (never creates one) | yes |
-| `update` | Proposes, then with `--approve` applies, a registered schema migration (`--to-version`) | yes |
-| `doctor` | Checks configuration, main harness executable, verify commands, rule tool checks, external CLI paths, the code index, and the `AGENTS.md` block (`ok`, `stale`, `absent`, `invalid`) | no |
+| `update` | Proposes, then with `--approve` applies, a registered schema migration (`--to-version`). When `.ginrc` is missing or lower than the installed version, it also proposes `write .ginrc <old or none> -> <installed>` and writes it with `--approve`, with or without a migration | yes |
+| `doctor` | Checks configuration, main harness executable, verify commands, rule tool checks, external CLI paths, the code index, the `AGENTS.md` block (`ok`, `stale`, `absent`, `invalid`), and the [versions](#gin-version) | no |
 | `status` | Shows whether the repository is initialized and the generated files exist | no |
 | `diff` | Shows how generated configuration differs from what the current inputs would produce | no |
 | `rollback` | Restores a validated backup (`--backup PATH`) | yes |
@@ -40,6 +50,8 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 In a workspace child, or a worktree of one, `doctor` without `--repository` checks that entry: `checks_details.entry` (`path`, `shape`), `verify_commands.missing` against the entry's `verify.checks`, its hooks, and its rules with the entry's packs added. From the parent, `checks_details.workspace.repos.<path>.proposed_packs` lists the packs each entry could add, with an action `workspace: <path>: rules.packs could add <a>, <b>`. A child whose manifest cannot be read gets `workspace: <path>: cannot detect rule packs: <error>`.
 
 Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--probe`, `--harness`.
+
+`doctor` reports versions as findings, never as a failed check. `checks_details.version` holds `installed`, `required`, and `status`. An initialized project without `.ginrc` gets `version: no .ginrc; run gin setup update --approve`; a project without `.agent-workflow/config.yaml` does not. A `gin-qa` or `gin-orchestrator` on `PATH` whose version differs from gin's gets `version: <name> <version> differs from gin <installed>; run ./install.sh --plugin <name>`.
 
 `doctor --probe` and `models` read provider health and model lists through the [orchestrator contract](orchestrator-contract.md).
 
@@ -316,6 +328,20 @@ gin paths [--json]
 Prints the path of the directory holding `workflow_core` (`{"lib_dir": "..."}`) for external tools and extension launchers. It always prints JSON; `--json` changes nothing.
 
 Exit codes: 0 ok.
+
+## `gin version`
+
+```
+gin version [--repository PATH] [--format text|json] [--hook]
+```
+
+Compares the installed `gin` with the project's [`.ginrc`](config.md#ginrc), found as the refusal finds it. Text output prints `gin <installed>`. When there is a `.ginrc`, it adds `project: <pin> (<path>)` and `compatible: yes` or `no`. An invalid `.ginrc` shows `project: invalid (<path>)` and `compatible: no`. Then it prints `gin-qa <version>` and `gin-orchestrator <version>` for each companion CLI found on `PATH`. A companion that is missing or fails is left out.
+
+`--format json` prints `{"installed", "required", "path", "status", "compatible", "companions"}`. `status` is `none` (no `.ginrc`), `compatible`, `older`, `newer_major`, or `invalid`. `compatible` is `true` for `none` and `compatible`, so it is `true` without a `.ginrc`. `companions` maps each CLI found to its version.
+
+`--hook` is for session-start hooks. It prints nothing when the versions are compatible or there is no `.ginrc`. Otherwise it prints the refusal message without `error: `, followed by ` Tell the user before any other work.`, on one line. It runs no other program, loads no configuration, and prints nothing when `.ginrc` cannot be read.
+
+Exit codes: 0 compatible or no `.ginrc`; 1 otherwise. `--hook` always exits 0.
 
 ## `gin goal`
 
