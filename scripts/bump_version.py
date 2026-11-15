@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import sys
 
-VERSION_RE = re.compile(r"\d+\.\d+\.\d+")
+VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 PLUGINS = ("gin-workflow", "gin-qa", "gin-orchestrator", "gin-ba")
 JSON_VERSION = re.compile(r'^\s*"version":\s*"([^"]+)"', re.MULTILINE)
 

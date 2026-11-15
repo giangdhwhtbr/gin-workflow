@@ -45,7 +45,7 @@ class BumpVersionTests(unittest.TestCase):
 
     def test_bad_version_raises_and_changes_nothing(self):
         before = self.snapshot()
-        for bad in ("3.1", "3.1.0.1", "v3.1.0", "3.1.x", ""):
+        for bad in ("3.1", "3.1.0.1", "v3.1.0", "3.1.x", "", "\u0663.\u0661.\u0660"):
             with self.assertRaises(ValueError, msg=bad):
                 bump_version.bump(self.tmp, bad)
         self.assertEqual(before, self.snapshot())

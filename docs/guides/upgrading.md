@@ -50,7 +50,7 @@ In a workspace, do this only in the parent. The children and the worktrees find 
 
 ## A member who is refused
 
-Suppose a project pins `3.2.0` and your gin is 3.1.0. Every `gin` command that reads the project then stops and exits 2, `gin hooks run` included. Your git commit and push hooks therefore fail in that project until you update gin. A member still on 3.0 does not get this message. Gin 3.0 ignores `.ginrc` and fails on the configuration schema instead, which is why every member updates first. A member who sees `configuration validation failed at schema_version: '2.10'` updates the machine as described above. The message reads:
+Suppose a project pins `3.2.0` and your gin is 3.1.0. Every `gin` command that reads the project then stops and exits 2, `gin hooks run` included. Your git commit and push hooks therefore fail in that project until you update gin. A member still on 3.0 does not get this message. Gin 3.0 ignores `.ginrc` and fails on the configuration schema instead, which is why every member updates first. A member who sees `configuration validation failed at schema_version: '2.10'` updates the machine as described above. The refusal message reads:
 
 ```text
 error: gin 3.1.0 is older than this project needs (3.2.0, /path/to/project/.ginrc); update gin: https://giangdhwhtbr.github.io/gin-workflow/guides/upgrading/

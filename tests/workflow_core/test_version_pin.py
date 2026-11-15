@@ -162,6 +162,11 @@ class RefusalTests(unittest.TestCase):
                 result = run(elsewhere, "setup", "doctor", *option)
                 self.assertEqual(2, result.returncode, result.stdout)
                 self.assertIn("is older than this project needs", result.stderr)
+        for option in (["--re", str(self.root)], [f"--re={self.root}"]):
+            with self.subTest(option=option):
+                result = run(elsewhere, "state", *option)
+                self.assertEqual(2, result.returncode, result.stdout)
+                self.assertIn("is older than this project needs", result.stderr)
         self.assertEqual(2, run(elsewhere, "setup", "doctor", "--repository", str(self.root)).returncode)
 
 

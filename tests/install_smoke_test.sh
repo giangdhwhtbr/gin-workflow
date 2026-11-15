@@ -670,10 +670,7 @@ assert_exists "$legacy_home/.config/opencode/agents/gin-mine.md"
 # their library copies stop calling the old CLI name.
 addon_home="$MOCK_HOME/addon-home"
 for addon in gin-qa gin-orchestrator; do
-  case "$addon" in
-    gin-qa) addon_version="$RELEASE_VERSION" ;;
-    gin-orchestrator) addon_version="$RELEASE_VERSION" ;;
-  esac
+  addon_version="$RELEASE_VERSION"
   mkdir -p "$addon_home/.local/lib/$addon/$addon_version" "$addon_home/.local/bin"
   printf '%s\n' '# stale add-on copy' > "$addon_home/.local/lib/$addon/$addon_version/$addon"
   ln -s "$addon_home/.local/lib/$addon/$addon_version/$addon" "$addon_home/.local/bin/$addon"

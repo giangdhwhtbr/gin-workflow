@@ -50,7 +50,7 @@ Trong workspace, chỉ làm ở parent. Các child và worktree tìm thấy `.gi
 
 ## Member bị từ chối { #a-member-who-is-refused }
 
-Giả sử project ghim `3.2.0` và gin của bạn là 3.1.0. Khi đó mọi lệnh `gin` đọc project đều dừng và thoát với mã 2, kể cả `gin hooks run`. Vì vậy hook git commit và push thất bại trong project đó cho đến khi bạn cập nhật gin. Member vẫn dùng 3.0 không nhận được thông báo này. Gin 3.0 bỏ qua `.ginrc` và thất bại ở schema cấu hình, đó là lý do mọi member phải cập nhật trước. Member thấy `configuration validation failed at schema_version: '2.10'` thì cập nhật máy như mô tả ở trên. Thông báo như sau:
+Giả sử project ghim `3.2.0` và gin của bạn là 3.1.0. Khi đó mọi lệnh `gin` đọc project đều dừng và thoát với mã 2, kể cả `gin hooks run`. Vì vậy hook git commit và push thất bại trong project đó cho đến khi bạn cập nhật gin. Member vẫn dùng 3.0 không nhận được thông báo này. Gin 3.0 bỏ qua `.ginrc` và thất bại ở schema cấu hình, đó là lý do mọi member phải cập nhật trước. Member thấy `configuration validation failed at schema_version: '2.10'` thì cập nhật máy như mô tả ở trên. Thông báo từ chối như sau:
 
 ```text
 error: gin 3.1.0 is older than this project needs (3.2.0, /path/to/project/.ginrc); update gin: https://giangdhwhtbr.github.io/gin-workflow/guides/upgrading/

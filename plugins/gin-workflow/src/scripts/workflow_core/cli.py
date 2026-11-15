@@ -89,7 +89,7 @@ def _start(argv: Sequence[str]) -> Path:
     start = None
     for index, argument in enumerate(argv):
         name, equals, value = argument.partition("=")
-        if len(name) < len("--rep") or not "--repository".startswith(name):  # argparse accepts --rep, --repo, ...
+        if len(name) < len("--r") or not "--repository".startswith(name):  # argparse accepts --r, --re, --rep, ...
             continue
         if equals:
             start = value
