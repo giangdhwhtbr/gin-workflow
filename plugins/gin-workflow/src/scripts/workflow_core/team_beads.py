@@ -14,7 +14,7 @@ from typing import Any, Mapping, Sequence
 from . import tasks, workspace, worktrees
 from .executables import tool
 from .prep import is_prep
-from .team import Area, Member, TeamConfig, TeamError
+from .team import Area, Member, TeamConfig, TeamError, plan_tracks
 from .team_pending import _TRACK_LINE, topic_of
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
@@ -576,53 +576,100 @@ def _delivers(body: str, plan: str, number: int) -> bool:
     return named == plan and number in numbers
 
 
+def _blocking_repo(root: Path, plan: str, number: int) -> tuple[Path, str | None]:
+    """The repository of track `number` in `root / plan` and its `Repo:` path; `(root, None)` without one or
+    outside a workspace. Raises SyncConflict when the plan is not in this checkout or the child is not workable."""
+    if workspace.locate(root).workspace is None:
+        return root, None
+    path = (root / plan).resolve()
+    try:
+        tracks = plan_tracks(path) if path.is_relative_to(root.resolve()) else None
+    except (OSError, UnicodeDecodeError):
+        tracks = None
+    if tracks is None:
+        raise SyncConflict(f"{plan} is not in this checkout; pull the merged plan")
+    repo = next((track.repo for track in tracks if track.number == number), "")
+    return (_track_repo(root, repo)[0], repo) if repo else (root, None)
+
+
 def deps(root: Path, team: TeamConfig) -> dict[str, Any]:
     from .team_host import merged_with_text
 
-    closed, waiting, unresolved = [], [], []
+    closed, waiting, unresolved, reasons = [], [], [], {}
     for issue in _bd_json(root, ["list", "--status", "open"]):
         match = _EXTERNAL.match(issue.get("title", ""))
         if not match:
             continue
         plan, number = match.group(1), int(match.group(2))
-        found = next((pr for pr in merged_with_text(team.host, plan, root) if _delivers(pr.body, plan, number)), None)
+        try:
+            repo_dir, repo = _blocking_repo(root, plan, number)
+        except SyncConflict as error:
+            waiting.append(issue["id"])
+            reasons[issue["id"]] = str(error)
+            continue
+        found = next((pr for pr in merged_with_text(team.host, plan, repo_dir) if _delivers(pr.body, plan, number)), None)
         if found is None:
             waiting.append(issue["id"])
             continue
         if not found.merge_commit:
             unresolved.append({"id": issue["id"], "pr": found.url})
             continue
-        noted = _bd(root, ["update", issue["id"], "--set-metadata", f"merge_commit={found.merge_commit}"])
+        noted = _bd(root, ["update", issue["id"], "--set-metadata", f"merge_commit={found.merge_commit}"]
+                    + (["--set-metadata", f"repo={repo}"] if repo else []))
         if noted.returncode != 0:
             raise TeamError(f"bd update {issue['id']} failed: {noted.stderr.strip()}")
         done = _bd(root, ["close", issue["id"], "--reason", f"{found.url} merged ({found.merge_commit})"])
         if done.returncode != 0:
             raise TeamError(f"bd close {issue['id']} failed: {done.stderr.strip()}")
         closed.append({"id": issue["id"], "pr": found.url})
-    return {"closed": closed, "waiting": waiting, "unresolved": unresolved}
+    return {"closed": closed, "waiting": waiting, "unresolved": unresolved, "reasons": reasons}
 
 
-def _has_commit(root: Path, commit: str) -> bool:
-    return bool(commit) and subprocess.run(["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=root,
+def _has_commit(repo: Path, commit: str, ref: str = "HEAD") -> bool:
+    return bool(commit) and subprocess.run(["git", "merge-base", "--is-ancestor", commit, ref], cwd=repo,
                                            capture_output=True, check=False).returncode == 0
 
 
-def deps_for(root: Path, bead: str) -> dict[str, Any]:
+def _reach_reason(root: Path, here: str | None, repo: str | None, commit: str, cwd: Path) -> str:
+    """Why `commit` is not reachable from the repository the placeholder names; "" when it is."""
+    if repo == here:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, capture_output=True,
+                             check=False).stdout.strip()
+        if top and _has_commit(Path(top), commit):
+            return ""
+        return f"fetch/rebase onto the plan's integration branch to include {commit}"
+    repo_dir, entry = _track_repo(root, repo)
+    branch = default_branch(repo_dir, entry)
+    if _has_commit(repo_dir, commit, f"origin/{branch}"):
+        return ""
+    return f"{commit} is not on origin/{branch} of {repo_dir}; run git -C {repo_dir} fetch origin"
+
+
+def deps_for(root: Path, bead: str, cwd: Path | None = None) -> dict[str, Any]:
     """The bead's `external:` placeholders: ok only when closed with its merge commit in this workspace."""
+    cwd = Path.cwd() if cwd is None else cwd
+    entry = workspace.locate(cwd).entry
+    here = entry.path if entry is not None else None
     ok, missing = [], []
     for dep in _show(root, bead).get("dependencies") or []:
         match = _EXTERNAL.match(dep.get("title", ""))
         if not match:
             continue
-        commit = str((dep.get("metadata") or {}).get("merge_commit", ""))
+        metadata = dep.get("metadata") or {}
+        commit = str(metadata.get("merge_commit", ""))
         if dep.get("status") != "closed":
             missing.append({"id": dep["id"], "reason": f"{match.group(1)}#{match.group(2)} has not merged; run team deps"})
         elif not commit:
             missing.append({"id": dep["id"], "reason": "no merge commit recorded; run team deps"})
-        elif not _has_commit(root, commit):
-            missing.append({"id": dep["id"], "reason": f"fetch/rebase onto the plan's integration branch to include {commit}"})
         else:
-            ok.append(dep["id"])
+            try:
+                reason = _reach_reason(root, here, metadata.get("repo") or None, commit, cwd)
+            except SyncConflict as error:
+                reason = str(error)
+            if reason:
+                missing.append({"id": dep["id"], "reason": reason})
+            else:
+                ok.append(dep["id"])
     return {"bead": bead, "ok": ok, "missing": missing}
 
 

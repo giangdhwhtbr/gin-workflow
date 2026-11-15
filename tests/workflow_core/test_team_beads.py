@@ -1004,3 +1004,100 @@ class TestTeamClaimWorktree(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+
+
+class TestTeamDepsWorkspaceChild(unittest.TestCase):
+    """R5, R6, US-3: `team deps` searches the child that owns the blocking track and checks ancestry there."""
+
+    PLAN_FILE = ".planning/plans/p.md"
+    BODY = "Plan: .planning/plans/p.md\nTracks: 2\n"
+    child_commit = TestTeamClaimWorktree.child_commit
+
+    def setUp(self):
+        TestTeamClaimWorktree.setUp(self)
+        write(self.root, self.PLAN_FILE, "# P\n\n### Track 1: parent\n- **Files**:\n  - a\n\n"
+                                         "### Track 2: child\n- **Repo**: services/order-api\n- **Files**:\n  - b\n")
+        self.ext = create(self.root, f"external: {self.PLAN_FILE}#2")
+        self.work = create(self.root, "work", "area:backend")
+        bd(self.root, "update", self.work, "--description", TestTeamClaimWorktree.PLAN)
+        bd(self.root, "dep", "add", self.work, self.ext)
+        self.bin = self.base / "bin"
+
+    def gh(self, commit: str) -> dict[str, str]:
+        """A `gh` that lists the merged pull request only when run in the child directory."""
+        self.bin.mkdir(exist_ok=True)
+        rows = [{"url": "https://github.com/org/api/pull/4", "mergeCommit": {"oid": commit}, "body": self.BODY}]
+        script = self.bin / "gh"
+        script.write_text(f"#!{sys.executable}\nimport json, os, sys\n"
+                          f"if os.getcwd() == {str(self.child_dir)!r}:\n    sys.stdout.write(json.dumps({rows!r}))\n"
+                          "else:\n    sys.stdout.write('[]')\n", encoding="utf-8")
+        script.chmod(0o755)
+        return path_with(self.bin)
+
+    def run_from(self, cwd: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+        import contextlib
+        import io
+        from workflow_core import cli, executables
+
+        out, err = io.StringIO(), io.StringIO()
+        executables.clear_cache()
+        with mock.patch.dict(os.environ, env or {}), contextlib.chdir(cwd), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = cli.main([*args, "--repository", str(self.root)])
+        return subprocess.CompletedProcess(list(args), code, out.getvalue(), err.getvalue())
+
+    def test_deps_closes_the_placeholder_from_the_child_pull_request(self):
+        merged = self.child_commit("api.txt", "v2\n")
+        result = run_cli(self.root, "team", "deps", "--format", "json", env=self.gh(merged))
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([{"id": self.ext, "pr": "https://github.com/org/api/pull/4"}], payload["closed"])
+        self.assertEqual({}, payload["reasons"])
+        metadata = show(self.root, self.ext)["metadata"]
+        self.assertEqual((merged, "services/order-api"), (metadata["merge_commit"], metadata["repo"]))
+
+    def test_uncloned_child_leaves_the_placeholder_waiting_with_a_reason(self):
+        shutil.rmtree(self.child_dir)
+        result = run_cli(self.root, "team", "deps", "--format", "json", env=self.gh("abc"))
+        payload = json.loads(result.stdout)
+        self.assertEqual(([self.ext], []), (payload["waiting"], payload["closed"]))
+        self.assertIn("gin workspace clone services/order-api", payload["reasons"][self.ext])
+        text = run_cli(self.root, "team", "deps", env=self.gh("abc"))
+        self.assertIn(f"waiting {self.ext} (", text.stdout)
+        self.assertIn("gin workspace clone services/order-api", text.stdout)
+        self.assertEqual("open", show(self.root, self.ext)["status"])
+
+    def test_missing_plan_file_says_to_pull_the_merged_plan(self):
+        (self.root / self.PLAN_FILE).unlink()
+        payload = json.loads(run_cli(self.root, "team", "deps", "--format", "json", env=self.gh("abc")).stdout)
+        self.assertEqual([self.ext], payload["waiting"])
+        self.assertIn(f"{self.PLAN_FILE} is not in this checkout; pull the merged plan", payload["reasons"][self.ext])
+
+    def close_with(self, commit: str) -> None:
+        self.assertEqual(0, run_cli(self.root, "team", "deps", env=self.gh(commit)).returncode)
+        self.assertEqual("closed", show(self.root, self.ext)["status"])
+
+    def test_bead_check_from_the_child_worktree_uses_that_repository(self):
+        merged = self.child_commit("api.txt", "v2\n")
+        self.close_with(merged)
+        self.assertEqual(0, run_cli(self.root, "team", "claim", self.work).returncode)
+        worktree = self.target / self.work
+        later = self.child_commit("more.txt", "v3\n")
+        self.assertEqual(0, self.run_from(worktree, "team", "deps", "--bead", self.work).returncode)
+        bd(self.root, "update", self.ext, "--set-metadata", f"merge_commit={later}")
+        result = self.run_from(worktree, "team", "deps", "--bead", self.work)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("fetch/rebase", result.stdout)
+        self.assertIn(later, result.stdout)
+
+    def test_bead_check_from_the_parent_uses_origin_of_the_child(self):
+        merged = self.child_commit("api.txt", "v2\n")
+        self.close_with(merged)
+        result = run_cli(self.root, "team", "deps", "--bead", self.work)
+        self.assertEqual(1, result.returncode)
+        self.assertIn(f"run git -C {self.child_dir} fetch origin", result.stdout)
+        self.assertIn("origin/main", result.stdout)
+        git(self.child_dir, "fetch", "-q", "origin")
+        result = run_cli(self.root, "team", "deps", "--bead", self.work, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([self.ext], json.loads(result.stdout)["ok"])

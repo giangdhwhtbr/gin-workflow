@@ -273,7 +273,7 @@ def _run(args: argparse.Namespace) -> int:
             _emit(result, args.format, f"{result['status']} {args.bead} at {result['worktree']} on {result['branch']}")
             return 0
         if args.command == "deps" and args.bead:
-            result = team_beads.deps_for(root, args.bead)
+            result = team_beads.deps_for(root, args.bead, Path.cwd())
             lines = [f"ok {item}" for item in result["ok"]]
             lines += [f"missing {row['id']}: {row['reason']}" for row in result["missing"]]
             _emit(result, args.format, "\n".join(lines) or f"{args.bead} has no external dependencies")
@@ -281,7 +281,8 @@ def _run(args: argparse.Namespace) -> int:
         if args.command == "deps":
             result = team_beads.deps(root, team)
             lines = [f"closed {row['id']} ({row['pr']})" for row in result["closed"]]
-            lines += [f"waiting {item}" for item in result["waiting"]]
+            lines += [f"waiting {item}" + (f" ({result['reasons'][item]})" if item in result["reasons"] else "")
+                      for item in result["waiting"]]
             lines += [f"unresolved {row['id']}: {row['pr']} merged without a merge commit" for row in result["unresolved"]]
             _emit(result, args.format, "\n".join(lines) or "no external placeholders")
             return 1 if result["unresolved"] else 0
