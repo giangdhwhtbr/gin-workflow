@@ -106,11 +106,20 @@ docs/specs/orders/
 
 Bắt đầu từ `gin specs template activity.md` và `state.md`. Discuss sửa chúng trực tiếp trên spec branch, như với asset: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `03-design.md` của change trích dẫn chúng trong `## Data Flow` và `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`, nên chúng được commit và review cùng change. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `diagrams/` dưới `## Diagrams`.
 
-`specs lint` báo `*-activity.md` không có khối mermaid bắt đầu bằng `flowchart` hoặc `graph`, và `*-state.md` không có khối bắt đầu bằng `stateDiagram`; các file khác trong `diagrams/` không bị kiểm tra. `specs lint --change` còn báo mỗi capability có block `ADDED` hoặc `MODIFIED` mà không có `*-activity.md`. Khi nào một entity cần state diagram là quy ước mà lint không kiểm tra.
+`specs lint` báo `*-activity.md` không có khối mermaid bắt đầu bằng `flowchart` hoặc `graph`, và `*-state.md` không có khối bắt đầu bằng `stateDiagram`; các file khác trong `diagrams/` không bị kiểm tra. Khi nào một entity cần state diagram là quy ước mà lint không kiểm tra.
+
+Activity diagram cho thấy ai làm gì theo từng lane. Viết mỗi lane thành một `subgraph`, khai báo mọi node bên trong lane của nó và đặt các edge sau `end` cuối cùng. Đánh dấu điểm bắt đầu `((Start))` và điểm kết thúc `(((End)))`. Gắn nhãn cho mỗi edge đi ra từ một decision, bắt đầu bằng ID của flow trong use case (`-->|2a invalid|`). Sơ đồ của một use case gọi tên nó trên dòng `Use case: <slug>`. Mermaid đặt các lane thành các hộp, không phải swimlane thẳng hàng.
+
+`specs lint --change <epic>` kiểm tra các sơ đồ như sau:
+
+- Không có `--against`, mỗi capability có block `ADDED` hoặc `MODIFIED` cần một `*-activity.md`.
+- Với `--against <base>`, mỗi capability có block `ADDED` cần một activity diagram được thêm hoặc sửa kể từ base. Thay đổi chỉ có block `MODIFIED` không cần.
+- Với `--against <base>`, mỗi use case đã đổi kể từ base và có alternative hoặc exception flow cần một activity diagram có dòng `Use case:` gọi tên nó.
+- Với `--against <base>`, mỗi activity diagram đã đổi kể từ base cần nhãn trên mọi edge đi ra từ một decision.
 
 ## Use case { #use-cases }
 
-Một use case mô tả tương tác của một actor với hệ thống, từng bước. Nó là tùy chọn: thêm khi một feature có actor tương tác với hệ thống, hoặc khi người dùng yêu cầu. Mỗi use case là một file Markdown trong thư mục của capability, bắt đầu từ `gin specs template use-case.md`:
+Một use case mô tả tương tác của một actor với hệ thống, từng bước. Nó là tùy chọn: thêm khi một feature có actor dùng hệ thống, hoặc khi người dùng yêu cầu. Mỗi use case là một file Markdown trong thư mục của capability, bắt đầu từ `gin specs template use-case.md`:
 
 ```text
 docs/specs/orders/
@@ -119,15 +128,15 @@ docs/specs/orders/
     place-order.md         actor, goal, main flow, alternative flows
 ```
 
-Dòng `Requirements:` của nó nêu các REQ-ID mà nó bao phủ. Discuss sửa use case trực tiếp trên spec branch, như với sơ đồ: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `use-cases/` dưới `## Use Cases`.
+Tên file bỏ `.md` là slug và cũng là ID của use case. Dòng `Requirements:` của nó nêu các REQ-ID mà nó bao phủ. Các dòng tùy chọn là `Secondary actors:`, `Trigger:`, `Includes:` và `Extends:` (slug của các use case khác trong cùng capability, cách nhau bằng dấu phẩy); các section tùy chọn là `## Exception flows` và `## Business rules`. Use case được một use case khác include có thể bỏ `Actor:`. Comment của template giữ các quy tắc viết: bước chạy use case được include ghi `Include <slug>`, điểm mở rộng và điều kiện của nó đặt trên `Trigger:`, use case chạy theo lịch có actor `Scheduler`, business rule trích REQ-ID thay vì viết lại, và mỗi flow kết thúc bằng `Resume at step N` hoặc `Use case ends`. Discuss sửa use case trực tiếp trên spec branch, như với sơ đồ: chúng không phải requirement block và không bao giờ đi qua `02-spec-delta.md`. `01-proposal.md` liệt kê chúng trong `## Capabilities Affected`. `specs archive` để nguyên chúng; khi tạo `spec.md` cho một capability mới, nó link mọi file trong `use-cases/` dưới `## Use Cases`.
 
-`specs lint` và `specs lint --change` kiểm tra mỗi file trong `use-cases/` có tiêu đề `# `, dòng `Actor:`, dòng `Requirements:` với ít nhất một REQ-ID, và `## Main flow` có danh sách đánh số. Mỗi REQ-ID phải có trong một living spec, hoặc là `ADDED` hay `MODIFIED` trong `02-spec-delta.md` của một change đang mở (REQ chỉ `REMOVED` ở đó vẫn bị báo); nếu không, lint báo `<REQ> is not in a living spec or an open change`.
+`specs lint` và `specs lint --change` kiểm tra mỗi file trong `use-cases/` có tiêu đề `# `, dòng `Actor:`, dòng `Requirements:` với ít nhất một REQ-ID, và `## Main flow` có danh sách đánh số. Mỗi REQ-ID phải có trong một living spec, hoặc là `ADDED` hay `MODIFIED` trong `02-spec-delta.md` của một change đang mở (REQ chỉ `REMOVED` ở đó vẫn bị báo); nếu không, lint báo `<REQ> is not in a living spec or an open change`. Lint còn báo slug trong `Includes:` hoặc `Extends:` không gọi tên use case nào của capability, hoặc gọi tên chính file đó. [Quy tắc sơ đồ](#diagrams) nêu các use case cần activity diagram.
 
 ## Xuất SRS { #exporting-an-srs }
 
 `gin specs export <capability>` ghi living spec của capability vào một file HTML, `srs-<capability>.html` ở gốc repository. `specs export --all` ghi mọi capability vào `srs.html`, mỗi capability một chương, sắp theo tên. `--out <file>` ghi ra chỗ khác trong repository. File là file sinh ra, nên mỗi lần chạy sẽ ghi đè nó.
 
-Mỗi chương gồm `## Purpose` của capability, các use case, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
+Mỗi chương gồm `## Purpose` của capability, các use case, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Phần use case mở đầu bằng một use case diagram được sinh từ các use case: actor nằm ngoài hộp của capability (tên khớp không phân biệt hoa thường), một edge từ `Actor:` tới use case và từ use case tới từng mục của `Secondary actors:`, cùng các edge nét đứt `«include»` và `«extend»`. Use case không có `Actor:` thì không có edge actor. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
 
 File tải Mermaid từ jsDelivr ở một phiên bản cố định để vẽ sơ đồ; khi không có mạng, nó hiển thị mã nguồn của sơ đồ. Lệnh xuất không lint, nên hãy chạy `specs lint` trước. Một ảnh local không tìm thấy, nằm ngoài repository, hoặc không phải ảnh hiển thị bằng alt text, và lệnh thoát với mã 1 kèm tên ảnh đó. Trang bìa, logo, khách hàng, và thứ tự các phần lấy từ template `srs.html` và `srs-capability.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 
@@ -165,10 +174,10 @@ Mọi lời gọi `state` và `record` cho change đều truyền `--workflow-id
 
 ## Loại epic { #epic-kinds }
 
-Các [loại epic](../concepts/lifecycle.md#epic-kinds) thay đổi change folder như sau. `01-proposal.md` mang `Epic: <id>` và một dòng `Kind:`, và label `kind:` của epic bead phải khớp với nó.
+Các [loại epic](../concepts/lifecycle.md#epic-kinds) thay đổi change folder như sau. `01-proposal.md` mang `Epic: <id>` và một dòng `Kind:`, `specs lint --change` đọc loại từ label `kind:` của epic bead trước, rồi mới từ `Kind:`, và báo khi hai giá trị lệch nhau; không có Beads thì `Kind:` quyết định. `specs new --kind` ghi dòng này và mặc định lấy từ label của epic.
 
 - Một thay đổi `capability` như đã mô tả ở trên.
-- Một thay đổi `technical` viết `03-design.md` và không cần user story, use case hay activity diagram. `02-spec-delta.md` của nó có thể vắng hoặc rỗng: `specs lint --change` vẫn qua, `specs trace` không có gì để trace, và `specs archive` chuyển folder sang `changes/archive/` mà không gộp requirement. Mọi khối `ADDED`, `MODIFIED` hoặc `REMOVED` nó có vẫn được kiểm tra như thường.
+- Một thay đổi `technical` viết `03-design.md` và không cần user story, use case hay activity diagram. `02-spec-delta.md` của nó có thể vắng hoặc rỗng: `specs lint --change` vẫn qua, `specs trace` không có gì để trace, và `specs archive` chuyển folder sang `changes/archive/` mà không gộp requirement. Mọi khối `ADDED`, `MODIFIED` hoặc `REMOVED` nó có vẫn được kiểm tra như thường, nhưng các quy tắc về activity diagram và use case ở trên không áp dụng cho nó.
 - Một thay đổi `parity` thêm dòng `Parity with:` vào `01-proposal.md`, gọi tên các folder asset `Kind: legacy` đã xác nhận dưới dạng path trong backtick, tính từ gốc repository. Lint từ chối folder không tồn tại, không phải `Kind: legacy`, hoặc chưa xác nhận. Khối requirement chỉ viết cho phần khác biệt so với hành vi đó.
 
 ## Living spec trong quá trình chuyển đổi { #living-specs-during-a-migration }

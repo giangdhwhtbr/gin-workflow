@@ -106,11 +106,20 @@ docs/specs/orders/
 
 Start them from `gin specs template activity.md` and `state.md`. Discuss edits them directly on the spec branch, as it does assets: they are not requirement blocks and never go through `02-spec-delta.md`. The change's `03-design.md` cites them under `## Data Flow` and `01-proposal.md` lists them under `## Capabilities Affected`, so they are committed and reviewed with the change. `specs archive` leaves them in place; when it creates `spec.md` for a new capability, it links every file in `diagrams/` under `## Diagrams`.
 
-`specs lint` reports a `*-activity.md` without a mermaid block starting with `flowchart` or `graph`, and a `*-state.md` without one starting with `stateDiagram`; other files in `diagrams/` are not checked. `specs lint --change` also reports each capability with an `ADDED` or `MODIFIED` block but no `*-activity.md`. When an entity needs a state diagram is a convention that lint does not check.
+`specs lint` reports a `*-activity.md` without a mermaid block starting with `flowchart` or `graph`, and a `*-state.md` without one starting with `stateDiagram`; other files in `diagrams/` are not checked. When an entity needs a state diagram is a convention that lint does not check.
+
+An activity diagram shows who does what in lanes. Write each lane as a `subgraph`, declare every node inside its lane, and put the edges after the last `end`. Mark the start `((Start))` and the end `(((End)))`. Label each edge that leaves a decision, starting with the flow ID of the use case (`-->|2a invalid|`). A diagram of a use case names it on a `Use case: <slug>` line. Mermaid places the lanes as boxes, not as aligned swimlanes.
+
+`specs lint --change <epic>` checks the diagrams like this:
+
+- Without `--against`, each capability with an `ADDED` or `MODIFIED` block needs one `*-activity.md`.
+- With `--against <base>`, each capability with an `ADDED` block needs an activity diagram added or changed since the base. A change that only has `MODIFIED` blocks needs none.
+- With `--against <base>`, each use case changed since the base that has an alternative or exception flow needs an activity diagram whose `Use case:` line names it.
+- With `--against <base>`, each activity diagram changed since the base needs a label on every edge that leaves a decision.
 
 ## Use cases
 
-A use case describes one actor's interaction with the system, step by step. It is optional: add one for a feature where an actor interacts with the system, or when the user asks for one. Each is a Markdown file in the capability's folder, started from `gin specs template use-case.md`:
+A use case describes one actor's interaction with the system, step by step. It is optional: add one for a feature where an actor uses the system, or when the user asks for one. Each is a Markdown file in the capability's folder, started from `gin specs template use-case.md`:
 
 ```text
 docs/specs/orders/
@@ -119,15 +128,15 @@ docs/specs/orders/
     place-order.md         actor, goal, main flow, alternative flows
 ```
 
-Its `Requirements:` line names the REQ-IDs it covers. Discuss edits use cases directly on the spec branch, as it does diagrams: they are not requirement blocks and never go through `02-spec-delta.md`. `01-proposal.md` lists them under `## Capabilities Affected`. `specs archive` leaves them in place; when it creates `spec.md` for a new capability, it links every file in `use-cases/` under `## Use Cases`.
+The file name without `.md` is the use case's slug and its ID. Its `Requirements:` line names the REQ-IDs it covers. The optional lines are `Secondary actors:`, `Trigger:`, `Includes:`, and `Extends:` (slugs of other use cases of the same capability, comma-separated); the optional sections are `## Exception flows` and `## Business rules`. A use case that another one includes may omit `Actor:`. The template's comment holds the writing rules: the step where an included use case runs says `Include <slug>`, an extension point and its condition go on `Trigger:`, a use case started on a schedule has the actor `Scheduler`, business rules cite REQ-IDs instead of restating them, and each flow ends with `Resume at step N` or `Use case ends`. Discuss edits use cases directly on the spec branch, as it does diagrams: they are not requirement blocks and never go through `02-spec-delta.md`. `01-proposal.md` lists them under `## Capabilities Affected`. `specs archive` leaves them in place; when it creates `spec.md` for a new capability, it links every file in `use-cases/` under `## Use Cases`.
 
-`specs lint` and `specs lint --change` check each file in `use-cases/` for a `# ` title, an `Actor:` line, a `Requirements:` line with at least one REQ-ID, and a `## Main flow` with a numbered list. Each REQ-ID must be in a living spec, or `ADDED` or `MODIFIED` in an open change's `02-spec-delta.md` (a REQ only `REMOVED` there is reported); otherwise lint reports `<REQ> is not in a living spec or an open change`.
+`specs lint` and `specs lint --change` check each file in `use-cases/` for a `# ` title, an `Actor:` line, a `Requirements:` line with at least one REQ-ID, and a `## Main flow` with a numbered list. Each REQ-ID must be in a living spec, or `ADDED` or `MODIFIED` in an open change's `02-spec-delta.md` (a REQ only `REMOVED` there is reported); otherwise lint reports `<REQ> is not in a living spec or an open change`. Lint also reports an `Includes:` or `Extends:` slug that names no use case of the capability or the file itself. The [diagram rules](#diagrams) cover the use cases that need an activity diagram.
 
 ## Exporting an SRS
 
 `gin specs export <capability>` writes the capability's living spec into one HTML file, `srs-<capability>.html` at the repository root. `specs export --all` writes every capability into `srs.html`, one chapter each, sorted by name. `--out <file>` writes elsewhere in the repository. The file is generated, so each run overwrites it.
 
-Each chapter holds the capability's `## Purpose`, its use cases, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. Open it in a browser and print it to PDF; each chapter starts on a new page.
+Each chapter holds the capability's `## Purpose`, its use cases, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. The use cases part opens with a use case diagram generated from the use cases: actors outside the capability's box (names match without regard to case), an edge from `Actor:` to the use case and from the use case to each `Secondary actors:` entry, and dotted `«include»` and `«extend»` edges. A use case without `Actor:` has no actor edge. Open it in a browser and print it to PDF; each chapter starts on a new page.
 
 The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; without network access it shows their source instead. The export does not lint, so run `specs lint` first. A local image it cannot find, one outside the repository, or a file that is not an image shows as its alt text, and the command exits 1 naming it. The cover, logo, customer, and section order come from the templates `srs.html` and `srs-capability.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 
@@ -165,10 +174,10 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 
 ## Epic kinds { #epic-kinds }
 
-The [epic kinds](../concepts/lifecycle.md#epic-kinds) change the change folder as follows. `01-proposal.md` carries `Epic: <id>` and a `Kind:` line, and the epic bead's `kind:` label must agree with it.
+The [epic kinds](../concepts/lifecycle.md#epic-kinds) change the change folder as follows. `01-proposal.md` carries `Epic: <id>` and a `Kind:` line. `specs lint --change` reads the kind from the epic bead's `kind:` label first, then from `Kind:`, and reports a mismatch between them; without Beads, `Kind:` decides. `specs new --kind` writes the line and defaults to the epic's label.
 
 - A `capability` change is as described above.
-- A `technical` change writes `03-design.md` and needs no user stories, use cases, or activity diagrams. Its `02-spec-delta.md` may be missing or empty: `specs lint --change` passes, `specs trace` has nothing to trace, and `specs archive` moves the folder to `changes/archive/` without merging requirements. Any `ADDED`, `MODIFIED`, or `REMOVED` block it does contain is checked as usual.
+- A `technical` change writes `03-design.md` and needs no user stories, use cases, or activity diagrams. Its `02-spec-delta.md` may be missing or empty: `specs lint --change` passes, `specs trace` has nothing to trace, and `specs archive` moves the folder to `changes/archive/` without merging requirements. Any `ADDED`, `MODIFIED`, or `REMOVED` block it does contain is checked as usual, but the activity diagram and use case rules above do not apply to it.
 - A `parity` change adds a `Parity with:` line to `01-proposal.md` that names the confirmed `Kind: legacy` asset folders as backticked paths relative to the repository root. Lint refuses a folder that is missing, not `Kind: legacy`, or not confirmed. Requirement blocks are written only for the deltas from that behavior.
 
 ## Living specs during a migration

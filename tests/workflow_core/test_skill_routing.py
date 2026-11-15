@@ -115,12 +115,21 @@ class SkillRoutingTests(unittest.TestCase):
                        "`<specs>/<cap>/diagrams/<feature>-activity.md`", "`specs template activity.md`",
                        "`specs template state.md`", "three or more states", "`## Data Flow`",
                        "`## Diagrams`", "`<specs>/<cap>/use-cases/<slug>.md`", "`specs template use-case.md`",
-                       "`## Use Cases`",
+                       "`## Use Cases`", "`Use case: <slug>`", "label on each decision branch",
+                       "alternative or exception flow", "--labels kind:<kind>", "--kind <kind>",
+                       "Unless the kind is `technical`",
                        "with evidence `<pr url>` (no team mode: `<pr url> <merge commit>`)"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, discuss)
-        self.assertLess(discuss.index("Capabilities affected"), discuss.index("`specs new <slug> --epic <epic>`"))
+        self.assertLess(discuss.index("Capabilities affected"), discuss.index("`specs new <slug> --epic <epic> --kind <kind>`"))
         self.assertLessEqual(len(text), 6_000)
+
+    def test_discuss_settles_the_kind_of_every_epic(self):
+        text = (SRC / "skills/discuss/SKILL.md").read_text(encoding="utf-8")
+        clarify = text[text.index("2. **Clarify**"):text.index("3. **Propose")]
+        for needle in ("Without a roadmap epic, settle the kind", "epic kinds", "`project.max_questions`", "refactor"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, clarify)
 
     def test_sdd_discuss_reads_and_cites_confirmed_inputs(self):
         text = (SRC / "skills/sdd/SKILL.md").read_text(encoding="utf-8")
