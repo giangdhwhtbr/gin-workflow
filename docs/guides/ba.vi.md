@@ -82,7 +82,7 @@ Discuss cũng viết các [sơ đồ](sdd.md#diagrams), các [use case](sdd.md#u
 
 Với `artifacts.spec_review: pr`, discuss commit change folder và các file nó trích dẫn lên `spec/<epic>-<slug>` và, sau khi BA đồng ý, mở pull request. Gate chỉ được ghi khi `specs status --change <epic>` báo pull request đã merge.
 
-Với `chat`, gate được ghi khi BA xác nhận trong cuộc trò chuyện. Khi `team.approvals` liệt kê vai trò cho `requirement_confirmed`, dùng luồng pull request. [Chế độ nhóm](team.md) giải thích ai được duyệt.
+Với `chat`, gate được ghi khi BA xác nhận trong cuộc trò chuyện. Khi `team.approvals` liệt kê vai trò hoặc `host` cho `requirement_confirmed`, dùng luồng pull request. [Chế độ nhóm](team.md) giải thích ai được duyệt.
 
 ### Xuất và giải thích { #export-and-explain }
 

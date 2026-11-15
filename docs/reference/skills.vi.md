@@ -13,7 +13,7 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `orchestrate` | Phản chiếu plan thành các track Beads, xác định các provider route, và chuẩn bị workspace cô lập (một worktree, trừ khi việc cô lập bị tắt có phê duyệt) | `orchestration_ready` |
 | `execute` | Triển khai và kiểm chứng một track sẵn sàng, trực tiếp hoặc qua một worker được định tuyến | track được đóng |
 | `review` | Yêu cầu hoặc thực hiện review cho một bead (độc lập hoặc tự kiểm tra), kèm review ledger tùy chọn | review được duyệt |
-| `ship` | Đưa ra các lựa chọn merge, PR, giữ hoặc bỏ; chạy lựa chọn được chọn; đóng bead và ledger | `shipped` |
+| `ship` | Đưa ra các lựa chọn merge, PR, giữ hoặc bỏ; chạy lựa chọn được chọn; đóng bead (và ledger khi ledger bật) | `shipped` |
 
 ## gin: điểm vào và trạng thái { #gin-entry-points-and-status }
 

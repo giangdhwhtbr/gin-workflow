@@ -13,7 +13,7 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | `orchestrate` | Mirror the plan into Beads tracks, resolve provider routes, and prepare an isolated workspace (a worktree unless isolation is disabled with approval) | `orchestration_ready` |
 | `execute` | Implement and validate one ready track, directly or through a routed worker | track closed |
 | `review` | Request or perform a bead review (independent or self check), with an optional review ledger | approved review |
-| `ship` | Offer merge, PR, keep, or discard; run the chosen one; close beads and ledgers | `shipped` |
+| `ship` | Offer merge, PR, keep, or discard; run the chosen one; close beads (and ledgers when on) | `shipped` |
 
 ## gin: entry points and status
 

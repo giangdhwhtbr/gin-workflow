@@ -107,10 +107,10 @@ Open: `<parent>/.planning/worktrees/<track-id>`. It is a worktree of one service
 |---|---|
 | Find a track | `gin task` or `/gin:progress` from anywhere in the workspace lists ready tracks; the worktree of a track is `<parent>/.planning/worktrees/<track-id>` |
 | Implement | `/gin:execute` in the worktree; commit and push to that repository. In team mode, run `gin team claim <bead>` from a parent checkout (or a worktree of it) on `feat/<topic>`; it creates the worktree |
-| Review | `/gin:review` in the worktree. The ledger is written to the parent's `.planning/reviews/<bead>/`; in team mode, `git pull --rebase` before and a commit and push of that folder after each ledger session (a convention of the `team` skill) |
+| Review | `/gin:review` in the worktree. With the review ledger on, it is written to the parent's `.planning/reviews/<bead>/`; in team mode, `git pull --rebase` before and a commit and push of that folder after each ledger session (a convention of the `team` skill) |
 | Small change | `/gin:quick` inside the child; it commits on a branch of the child and runs that child's checks |
 
-Read the spec and plan from the parent path the bead links. A track edits nothing in the parent except its review ledger. Hooks in the child run that repository's `verify.checks` only.
+Read the spec and plan from the parent path the bead links. A track edits nothing in the parent except its review ledger when that is on. Hooks in the child run that repository's `verify.checks` only.
 
 ## QA
 

@@ -72,7 +72,7 @@ With the value `conventional`, a message reads `type(scope): subject`, for examp
 
 ## Pull requests
 
-Every artifact that has a gate SHALL reach the base branch through a pull request. The roles that approve come from the project's `team.approvals`. A gate set to `host` has no approving role: the merged pull request is the proof, and the host's branch protection (required reviews, code owners, required status checks) SHALL enforce the approvals.
+Every artifact that has a gate SHALL reach the base branch through a pull request. The roles that approve come from the project's `team.approvals`. A gate set to `host` has no approving role: the pull request, merged for `shipped`, is the proof, and the host's branch protection (required reviews, code owners, required status checks) SHALL enforce the approvals.
 
 | Artifact | Branch | Approved by | Gate |
 |---|---|---|---|

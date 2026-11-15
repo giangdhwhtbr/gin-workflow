@@ -82,7 +82,7 @@ Discuss also writes the [diagrams](sdd.md#diagrams), any [use cases](sdd.md#use-
 
 With `artifacts.spec_review: pr`, discuss commits the change folder and the files it cites on `spec/<epic>-<slug>` and, after you approve, opens the pull request. The gate is recorded only once `specs status --change <epic>` reports the pull request merged.
 
-With `chat`, the gate is recorded when you confirm in the conversation. When `team.approvals` lists roles for `requirement_confirmed`, use the pull request flow. [Team mode](team.md) explains who may approve it.
+With `chat`, the gate is recorded when you confirm in the conversation. When `team.approvals` lists roles or `host` for `requirement_confirmed`, use the pull request flow. [Team mode](team.md) explains who may approve it.
 
 ### Export and explain
 

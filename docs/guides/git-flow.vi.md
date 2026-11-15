@@ -72,7 +72,7 @@ Với giá trị `conventional`, message có dạng `type(scope): subject`, ví 
 
 ## Pull request { #pull-requests }
 
-Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò approve lấy từ `team.approvals` của dự án. Một gate đặt là `host` không có approving role: pull request đã merge là bằng chứng, và branch protection của host (bắt buộc review, code owner, status check) PHẢI thực thi các approval.
+Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò approve lấy từ `team.approvals` của dự án. Một gate đặt là `host` không có approving role: pull request, đã merge với `shipped`, là bằng chứng, và branch protection của host (bắt buộc review, code owner, status check) PHẢI thực thi các approval.
 
 | Artifact | Branch | Người approve | Gate |
 |---|---|---|---|

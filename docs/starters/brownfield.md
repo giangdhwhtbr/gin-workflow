@@ -27,8 +27,8 @@ The team has seven people. Lan and Binh hold the two Claude Team Premium seats, 
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | API work |
 | Dung | `be_dev` | [Developer](../roles.md#developer) | API work |
-| Hoa | `fe_lead`, `fe_dev` | [Frontend lead](../roles.md#who-owns-what) | React SPA work, web plan approval |
-| Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E, ship approval |
+| Hoa | `fe_lead`, `fe_dev` | [Frontend lead](../roles.md#who-owns-what) | React SPA work |
+| Chi | `qe` | [Tester](../roles.md#tester) | Test cases, E2E |
 
 The `team:` block in `.agent-workflow/config.yaml` (written by `/gin:team-setup`):
 
@@ -389,7 +389,7 @@ flowchart LR
   T5 --> T6
 ```
 
-Where the suite runs follows `verify.run_at` ([configuration](../reference/config.md#verifyrun_at)). With the `standard` default, `push`, a track runs only the tests of what it changed and `/gin:ship` runs each repository's `verify.checks` once on the feature branch before the push, and the `pre-push` hook reuses that record. With `host`, the host CI owns the tests. The checks come from the service's `verify.checks.test` ([configuration](../reference/config.md#verifychecks)); parity tests run from `qa/` with `/gin-qa:tests --type api`.
+Where the suite runs follows `verify.run_at` ([configuration](../reference/config.md#verifyrun_at)). With the `standard` default, `push`, a track runs only the tests of what it changed. `/gin:ship` runs each repository's `verify.checks` once on the feature branch before the push, and the `pre-push` hook reuses that record. With `host`, the host CI owns the tests. The checks come from the service's `verify.checks.test` ([configuration](../reference/config.md#verifychecks)); parity tests run from `qa/` with `/gin-qa:tests --type api`.
 
 ## Test cases
 
@@ -481,7 +481,7 @@ Put in the prompt: the base URL of the SPA, the test accounts (as environment va
 - `/gin-qa:run` walks the manual cases, records each result with `gin-qa cases result`, and files a bug bead per failure through `gin-qa cases bug`, linked to the epic with `discovered-from`.
 - `/gin-qa:report` writes an offline HTML report folder under `qa/evidence/` that you can zip and send.
 
-**Gate or approval:** with `ship: host`, a developer's pull request merges when the host's branch protection is satisfied, for example Chi and one lead approving its latest commit (turn on "Dismiss stale approvals"). A later push needs a new approval. See the [ship approval checklist](../guides/qa.md#ship-approval-checklist).
+**Gate or approval:** with `ship: host`, a developer's pull request merges when the host's branch protection is satisfied, for example Chi and one lead approving its latest commit (turn on "Dismiss stale pull request approvals"). A later push needs a new approval. See the [ship approval checklist](../guides/qa.md#ship-approval-checklist).
 
 **Common mistakes:** approving before the last commit; a push after approval silently invalidates it.
 

@@ -27,8 +27,8 @@ Nhóm có bảy người. Lan và Binh giữ hai seat Claude Team Premium, nên 
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | Công việc API |
 | Dung | `be_dev` | [Developer](../roles.md#developer) | Công việc API |
-| Hoa | `fe_lead`, `fe_dev` | [Frontend lead](../roles.md#who-owns-what) | Công việc React SPA, duyệt plan của web |
-| Chi | `qe` | [Tester](../roles.md#tester) | Test case, E2E, phê duyệt ship |
+| Hoa | `fe_lead`, `fe_dev` | [Frontend lead](../roles.md#who-owns-what) | Công việc React SPA |
+| Chi | `qe` | [Tester](../roles.md#tester) | Test case, E2E |
 
 Khối `team:` trong `.agent-workflow/config.yaml` (do `/gin:team-setup` ghi):
 
@@ -57,7 +57,7 @@ team:
   permissions: {milestone: [pm]}
 ```
 
-Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Mọi cổng đều là `host`: pull request đã merge là bằng chứng, không có người duyệt nào được kiểm tra, và branch protection của host thực thi các lượt duyệt ([chính sách phê duyệt](../guides/team.md#approval-policies)). Lead bật bắt buộc review, code owner và status check trên base branch. Team muốn kiểm tra role thì có thể liệt kê role cho từng cổng và từng [loại epic](../guides/team.md#policy-per-epic-kind). Bất kỳ thành viên nào cũng có thể waive một cổng `host` waive được. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
+Các khu vực không chồng lấn, nên mọi track của plan đều nằm trong một khu vực. Mọi cổng đều là `host`: pull request đã merge là bằng chứng, không có người duyệt nào được kiểm tra, và branch protection của host thực thi các lượt duyệt ([chính sách phê duyệt](../guides/team.md#approval-policies)). Lead bật required review, code owner và status check trên base branch. Team muốn kiểm tra role thì có thể liệt kê role cho từng cổng và từng [loại epic](../guides/team.md#policy-per-epic-kind). Bất kỳ thành viên nào cũng có thể waive một cổng `host` waive được. Chỉ Lan, `pm` duy nhất, được chạy các lệnh ghi của `gin milestone`.
 
 ## Toàn cảnh luồng làm việc { #the-flow-at-a-glance }
 
@@ -389,7 +389,7 @@ flowchart LR
   T5 --> T6
 ```
 
-Nơi chạy bộ test theo `verify.run_at` ([cấu hình](../reference/config.md#verifyrun_at)). Với mặc định `push` của rigor `standard`, một track chỉ chạy test của phần nó đổi, `/gin:ship` chạy `verify.checks` của từng repository một lần trên feature branch trước khi push, và hook `pre-push` dùng lại bản ghi đó. Với `host`, CI của host sở hữu các test. Các check lấy từ `verify.checks.test` của service ([cấu hình](../reference/config.md#verifychecks)); parity test chạy từ `qa/` bằng `/gin-qa:tests --type api`.
+Nơi chạy bộ test theo `verify.run_at` ([cấu hình](../reference/config.md#verifyrun_at)). Với mặc định `push` của rigor `standard`, một track chỉ chạy test của phần nó đổi. `/gin:ship` chạy `verify.checks` của từng repository một lần trên feature branch trước khi push, và hook `pre-push` dùng lại bản ghi đó. Với `host`, CI của host sở hữu các test. Các check lấy từ `verify.checks.test` của service ([cấu hình](../reference/config.md#verifychecks)); parity test chạy từ `qa/` bằng `/gin-qa:tests --type api`.
 
 ## Test case { #test-cases }
 
@@ -481,7 +481,7 @@ Include the evidence of this run; the report goes to the product owner as a zip.
 - `/gin-qa:run` đi qua các manual case, ghi từng kết quả bằng `gin-qa cases result`, và tạo một bug bead cho mỗi lỗi qua `gin-qa cases bug`, liên kết với epic bằng `discovered-from`.
 - `/gin-qa:report` ghi một thư mục báo cáo HTML offline dưới `qa/evidence/` mà bạn có thể nén và gửi đi.
 
-**Cổng hoặc phê duyệt:** với `ship: host`, pull request của developer merge khi branch protection của host được thỏa, ví dụ Chi và một lead duyệt commit mới nhất của nó (bật "Dismiss stale approvals"). Một lần push sau đó cần duyệt lại. Xem [checklist phê duyệt ship](../guides/qa.md#ship-approval-checklist).
+**Cổng hoặc phê duyệt:** với `ship: host`, pull request của developer merge khi branch protection của host được thỏa, ví dụ Chi và một lead duyệt commit mới nhất của nó (bật "Dismiss stale pull request approvals"). Một lần push sau đó cần duyệt lại. Xem [checklist phê duyệt ship](../guides/qa.md#ship-approval-checklist).
 
 **Lỗi thường gặp:** duyệt trước commit cuối; một lần push sau khi duyệt âm thầm làm phê duyệt mất hiệu lực.
 
