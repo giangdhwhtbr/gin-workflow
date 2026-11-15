@@ -221,9 +221,14 @@ class SkillRoutingTests(unittest.TestCase):
                        "Action:", "earliest `start` after", "`status` is `closed`", "team.permissions.milestone",
                        "Write nothing until the person running the close confirms", "no retros",
                        "reason (retro|asked)", "Reconcile steps of the `learn` skill", "gin task remember",
-                       "milestone-close/<milestone-id>", "Never translate the labels"):
+                       "milestone-close/<milestone-id>", "Never translate the labels",
+                       "## Metrics", "Metrics: completion <closed>/<total>; estimate_accuracy", "capacity_used",
+                       "cost_per_epic", "rework", "never per member", "no earlier metrics", "- Metrics:"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
+        metrics = text[text.index("Metrics: completion"):].split("\n", 1)[0]
+        keys = [metrics.index(key) for key in ("completion", "estimate_accuracy", "capacity_used", "cost_per_epic", "rework")]
+        self.assertEqual(sorted(keys), keys)
         write = text[text.index("## Write"):]
         order = [write.index(step) for step in ("gin milestone create", "gin milestone move", "gin milestone estimate",
                                                 "gin task comment", "gin milestone close")]

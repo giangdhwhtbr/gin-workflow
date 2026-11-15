@@ -24,6 +24,16 @@ Show, without writing:
 - The milestone's `Outcome:` and `Demo:` from the roadmap file (`.planning/roadmap.md`, or `docs/roadmap.md` with `project.layout: sdd`); propose `reached`, `partial`, or `missed` for each with a one-line note, or `not planned` when the file or the line is missing.
 - Retros: the newest `[gin retro]` comment per member from `gin task comments <id> --json`; with none, say `no retros`. Retros are optional.
 
+## Metrics
+Team level only, never per member. Compute from the data of the summary:
+- `completion`: closed epics over all epics of the milestone at the start of this run, as `<closed>/<total>`.
+- `estimate_accuracy`: the sum of `estimate_days` over the sum of actual working days, over the closed epics that have both; two decimals; 1.00 is on estimate, below 1 took longer; `n/a` without such an epic.
+- `capacity_used`: the sum of `estimate_days` of the closed epics over `lanes` times the working days from `start` to `end` (`gin milestone show <id> --json`); two decimals; `n/a` without `lanes` or estimates.
+- `cost_per_epic`: `totals.cost` of the usage report over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
+- `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads`; `n/a` when the report failed.
+
+Compare with the most recently closed milestone: in `gin milestone list --all --json`, the closed milestone with the latest `end` before this milestone's `start`; read the `Metrics:` line of its newest `[gin close]` comment and show the change of each metric. Without one, say `no earlier metrics`.
+
 ## Next milestone
 The next milestone is the open milestone in `gin milestone list --json` with the earliest `start` after this milestone's `start`. With none, propose a new one starting the first working day after this milestone's `end`, with the same number of working days, and ask the PM for its title; it is created in Write, after confirmation.
 
@@ -42,7 +52,7 @@ From the summary, the retros, and the spillover, propose actions, each with a ki
 - `remember`: a short fact every session needs; propose it, and keep it only when the PM chooses it.
 
 ## Confirm
-Present one table: delivered epics; each spillover epic with its target milestone, reason (retro|asked), and decision; the `Outcome:` and `Demo:` results; the actions. Revise it until the person running the close confirms.
+Present one table: delivered epics; each spillover epic with its target milestone, reason (retro|asked), and decision; the `Outcome:` and `Demo:` results; the metrics and their change; the actions. Revise it until the person running the close confirms.
 
 ## Write
 In this order, after confirmation. A failing step stops the run; report what was written. A re-run continues: moved epics are no longer in the milestone, and a closed milestone is refused, so after a stop past step 5 finish the rest by hand from the report.
@@ -57,6 +67,7 @@ In this order, after confirmation. A failing step stops the run; report what was
    Outcome: reached|partial|missed|not planned; <note>
    Demo: reached|partial|missed|not planned; <note>
    Retros: <count>
+   Metrics: completion <closed>/<total>; estimate_accuracy <n.nn|n/a>; capacity_used <n.nn|n/a>; cost_per_epic <n.nn[ partial]|n/a>; rework <n|n/a>
    Action: way_of_working|estimate|lesson|remember; <text>
    ```
    `Delivered:` is `none` when no epic closed. One `Spillover:` line per moved epic and one `Action:` line per action; none when there are none. Replace line breaks inside a value with `; `. Never translate the labels: gin-console and later runs parse them.
@@ -66,6 +77,7 @@ In this order, after confirmation. A failing step stops the run; report what was
    Result: closed <YYYY-MM-DD>; delivered <n> of <m> epics; <k> moved to <next milestone title>
    - Outcome: <reached|partial|missed|not planned>; <note>
    - Demo: <reached|partial|missed|not planned>; <note>
+   - Metrics: <closed> of <total> epics done (<percent>%); estimates <accuracy as percent> accurate; <capacity_used as percent> of capacity used; <cost> USD per epic; <rework> reworks
    - Spillover: <epic title>: <reason>; <decision>
    - Actions: <one line per action>
    ```
@@ -73,4 +85,4 @@ In this order, after confirmation. A failing step stops the run; report what was
 8. With `team.beads_sync` set, `gin team sync`.
 
 ## Report
-The closed milestone, the next milestone and its load, each moved epic with its decision, the actions applied, the branch and commit (and pull request), and anything skipped. Next steps: `/progress --milestone <next-id>`, and `/roadmap` or `/discuss <epic>` for each epic to split.
+The closed milestone, the metrics with their change, the next milestone and its load, each moved epic with its decision, the actions applied, the branch and commit (and pull request), and anything skipped. Next steps: `/progress --milestone <next-id>`, and `/roadmap` or `/discuss <epic>` for each epic to split.
