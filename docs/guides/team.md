@@ -100,6 +100,10 @@ To hand a track over (a member runs out of quota or is away), the current assign
 
 `gin team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
 
+## Quick in team mode
+
+In team mode, `/gin:quick` started on the base branch pushes `quick/<slug>` and opens a pull request. Its description lists the covering QA cases by capability and the ship approval line. The skill records a `[gin quick]` comment on the `--epic`, the `--milestone`, or the active milestone, and runs `gin team sync` when shared Beads is set. `gin team pending` lists the open quick pull requests. The person who merges runs `gin team check --gate ship <pr-url>`.
+
 `gin team pending` lists the open pull requests that wait for approval, and `/gin:progress` shows them next to the milestone forecast, spec status, and QA state. Fields and exit codes are in the [command reference](../reference/cli.md#gin-team).
 
 A member's ship covers only their own tracks. Once every track pull request has merged, and, when `feat/<topic>` exists on the parent's `origin`, its pull request too, an area lead runs `gin team complete <epic>`. It closes any open `prep` children, then closes the epic with the merged pull request URLs as the reason. Otherwise it lists what is missing and exits 1 ([command reference](../reference/cli.md#gin-team)).

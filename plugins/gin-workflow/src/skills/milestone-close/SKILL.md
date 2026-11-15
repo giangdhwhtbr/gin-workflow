@@ -23,6 +23,7 @@ Show, without writing:
 - Cost and rework (reopens, bugs found later, review cycles) from `gin usage report --milestone <id> --format json`; on a non-zero exit, report it and continue without them.
 - The milestone's `Outcome:` and `Demo:` from the roadmap file (`.planning/roadmap.md`, or `docs/roadmap.md` with `project.layout: sdd`); propose `reached`, `partial`, or `missed` for each with a one-line note, or `not planned` when the file or the line is missing.
 - Retros: the newest `[gin retro]` comment per member from `gin task comments <id> --json`; with none, say `no retros`. Retros are optional.
+- Quick runs: the number of `[gin quick]` comments on the milestone and its epics.
 
 ## Metrics
 Team level only, never per member. Compute from the data of the summary:

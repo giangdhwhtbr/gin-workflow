@@ -20,7 +20,7 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | Skill | Purpose |
 |---|---|
 | `workflow` | Route the current state to exactly one lifecycle stage, or diagnose a held workflow |
-| `quick` | Small, low-risk change without plan or beads: confirm, implement, verify per rigor, report |
+| `quick` | Small, low-risk change without plan or beads: confirm, implement, verify per rigor, report. In team mode, started on the base branch, it pushes `quick/<slug>`, opens a pull request with the covering cases and the ship approval line, and records a `[gin quick]` comment on an epic or the active milestone |
 | `progress` | Report task status, blockers, open waivers, and next ready work without changing anything; for a milestone it lists the epics with `task list --parent <milestone-id>` |
 | `report` | Report AI usage per bead, epic or milestone (`--milestone <id>`: tokens, cost, quality signals) without changing anything |
 | `setup` | First-time repository configuration and requested setup maintenance |

@@ -122,7 +122,7 @@ Every stage posts what it learns as `[gin learn] <stage> <track-id|->: <fact>. E
 - `escalate`: too large; use the full lifecycle.
 - `refused`: `strict` rigor without a `requirement_confirmed` waiver.
 
-`/quick` commits on the current feature branch, or on a new `quick/<slug>` when started on `main`/`master`. It never pushes. See [Use cases](../guides/use-cases.md#small-change).
+`/quick` commits on the current feature branch, or on a new `quick/<slug>` when started on `main`/`master`. In solo mode it never pushes. In team mode, on a new `quick/<slug>`, it pushes, opens a pull request that needs ship approval, and records the run on the epic or the active milestone (see [Team mode](../guides/team.md)). See [Use cases](../guides/use-cases.md#small-change).
 
 ## Waivers
 
