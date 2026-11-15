@@ -213,6 +213,44 @@ def _assets(folder: Path, root: Path, embed: Embed) -> str:
     return "\n".join(f'<section class="asset-group">{group}</section>' for group in groups)
 
 
+def _quoted(text: str) -> str:
+    return '"' + text.replace('"', "#quot;") + '"'
+
+
+def use_case_diagram(capability: str, folder: Path) -> str:
+    """Mermaid flowchart of a capability's use cases: actors outside the system box, include and extend edges.
+
+    Actor names match without regard to case or repeated spaces; the first spelling met labels the node."""
+    texts = {path.stem: path.read_text(encoding="utf-8") for path in sorted((folder / "use-cases").glob("*.md"))}
+    if not texts:
+        return ""
+    ids = {slug: f"uc{number}" for number, slug in enumerate(texts, 1)}
+    actors: dict[str, tuple[str, str]] = {}
+
+    def actor(name: str) -> str:
+        label = " ".join(name.split())
+        return actors.setdefault(label.casefold(), (f"a{len(actors) + 1}", label))[0]
+
+    nodes: list[str] = []
+    edges: list[str] = []
+    for slug, text in texts.items():
+        heading = re.search(r"^# (\S.*)$", specs._COMMENT.sub("", text), re.MULTILINE)
+        nodes.append(f"    {ids[slug]}([{_quoted(heading.group(1).strip() if heading else slug)}])")
+        primary = specs.line_value(text, "Actor")
+        if primary:
+            edges.append(f"  {actor(primary)} --> {ids[slug]}")
+        edges += [f"  {ids[slug]} --> {actor(name)}" for name in specs.line_values(text, "Secondary actors")]
+        for key, label in (("Includes", "«include»"), ("Extends", "«extend»")):
+            edges += [f"  {ids[slug]} -. {label} .-> {ids[other]}"
+                      for other in specs.line_values(text, key) if other in ids and other != slug]
+    lines = ["flowchart LR", "  classDef actor fill:none,stroke-width:3px",
+             *(f"  {node}[{_quoted(label)}]" for node, label in actors.values()),
+             f"  subgraph system[{_quoted(capability)}]", *nodes, "  end", *edges]
+    if actors:
+        lines.append(f"  class {','.join(node for node, _ in actors.values())} actor")
+    return "\n".join(lines)
+
+
 def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> tuple[str, str]:
     text = spec.read_text(encoding="utf-8")
     folder = spec.parent
@@ -222,6 +260,10 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
         f'<section class="use-case" id="{escape(cap)}-{escape(path.stem)}">'
         f'{markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed)}</section>'
         for path in sorted((folder / "use-cases").glob("*.md")))
+    diagram = use_case_diagram(title, folder)
+    if diagram:
+        use_cases = (f'<section class="use-case-diagram" id="{escape(cap)}-use-case-diagram">'
+                     f'<pre class="mermaid">{escape(diagram)}</pre></section>\n' + use_cases)
     diagrams = "\n".join(
         f'<section class="diagram" id="{escape(cap)}-{escape(path.stem)}">'
         f'{markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed)}</section>'

@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import AUTH_SPEC, LAUNCHER, STATE, USE_CASE, make_repo, write, write_activity  # noqa: E402
 from workflow_core import specs  # noqa: E402
-from workflow_core.specs_export import Embed, export, fill, markdown_html  # noqa: E402
+from workflow_core.specs_export import Embed, export, fill, markdown_html, use_case_diagram  # noqa: E402
 
 PNG = b"\x89PNG\r\n\x1a\nfake-image"
 PNG_URI = "data:image/png;base64," + base64.b64encode(PNG).decode("ascii")
@@ -262,13 +262,52 @@ class TestExport(unittest.TestCase):
             empty = make_repo(Path(directory) / "empty")
             self.assertIn("no capability", run_specs(empty, "export", "--all").stderr)
 
+    def test_use_case_diagram_shows_actors_use_cases_and_relations(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md",
+              USE_CASE.replace("Registered user", "registered  USER").replace(
+                  "Requirements:", 'Secondary actors: Mail "OTP" service\nIncludes: verify-otp\nRequirements:'))
+        write(self.root, "docs/specs/auth/use-cases/verify-otp.md",
+              USE_CASE.replace("# Sign in", "# Verify OTP").replace("Actor: Registered user\n", ""))
+        write(self.root, "docs/specs/auth/use-cases/remember-me.md",
+              USE_CASE.replace("# Sign in", "# Remember me") + "Extends: sign-in, ghost\n")
+        source = use_case_diagram("Auth", self.root / "docs/specs/auth")
+        self.assertEqual("\n".join([
+            "flowchart LR",
+            "  classDef actor fill:none,stroke-width:3px",
+            '  a1["Registered user"]',
+            '  a2["Mail #quot;OTP#quot; service"]',
+            '  subgraph system["Auth"]',
+            '    uc1(["Remember me"])',
+            '    uc2(["Sign in"])',
+            '    uc3(["Verify OTP"])',
+            "  end",
+            "  a1 --> uc1",
+            "  uc1 -. «extend» .-> uc2",
+            "  a1 --> uc2",
+            "  uc2 --> a2",
+            "  uc2 -. «include» .-> uc3",
+            "  class a1,a2 actor",
+        ]), source)
+        self.assertEqual("", use_case_diagram("Billing", self.root / "docs/specs/billing"))
+
+    def test_chapter_starts_use_cases_with_the_diagram(self):
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        html = self.read("srs-auth.html")
+        self.assertIn('<section class="use-case-diagram" id="auth-use-case-diagram"><pre class="mermaid">flowchart LR', html)
+        self.assertEqual(1, html.count('class="use-case-diagram"'))
+        self.assertLess(html.index('class="use-case-diagram"'), html.index('class="use-case" '))
+
+    def test_no_use_cases_no_diagram(self):
+        self.assertEqual(0, run_specs(self.root, "export", "billing").returncode)
+        self.assertNotIn("use-case-diagram", self.read("srs-billing.html"))
+
     def test_template_overrides_embed_logo_and_reorder_sections(self):
         write_bytes(self.root, "docs/brand/logo.png", PNG)
         document = specs.template_text(self.root, "srs.html").replace(
             '<section class="cover">', '<section class="cover">\n  <img class="logo" src="docs/brand/logo.png" alt="Acme">')
         write(self.root, ".agent-workflow/templates/srs.html", document)
         write(self.root, ".agent-workflow/templates/srs-capability.html",
-              '<section class="chapter" id="{{cap}}"><h1>{{capability}}</h1>{{requirements}}{{purpose}}</section>')
+              '<section class="chapter" id="{{cap}}"><h1>{{capability}}</h1>{{requirements}}{{purpose}}{{use_cases}}</section>')
         result = export(self.root, self.cfg, "auth", None, today=date(2026, 11, 6))
         self.assertEqual([], result["missing"])
         html = self.read("srs-auth.html")
@@ -276,6 +315,7 @@ class TestExport(unittest.TestCase):
         self.assertIn('<p class="date">2026-11-06</p>', html)
         self.assertLess(html.index('id="REQ-AUTH-001"'), html.index("Sign-in."))
         self.assertNotIn("auth: 2026-05-11", html)
+        self.assertIn('class="use-case-diagram"', html)
         write(self.root, ".agent-workflow/templates/srs.html", document.replace("docs/brand/logo.png", "docs/brand/gone.png"))
         self.assertEqual(["srs.html: docs/brand/gone.png"], export(self.root, self.cfg, "auth", None)["missing"])
 
