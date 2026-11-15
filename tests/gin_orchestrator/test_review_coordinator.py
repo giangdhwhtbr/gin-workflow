@@ -38,14 +38,16 @@ class ReviewCoordinatorTests(unittest.TestCase):
     def test_review_skills_require_independence_affinity_and_terminal_gate(self):
         plugin = SCRIPTS.parent / "skills"
         review = (plugin / "review/SKILL.md").read_text(encoding="utf-8")
+        ledger = (plugin / "review/ledger.md").read_text(encoding="utf-8")
         receiving = (plugin / "review-response/SKILL.md").read_text(encoding="utf-8")
 
         self.assertIn("must differ from the implementation provider", review)
-        self.assertIn("maximum review cycles", review)
+        self.assertIn("After `project.max_cycles` cycles without approval, ask the user", review)
+        self.assertIn("maximum review cycles", ledger)
         self.assertIn("original provider/model route", review)
-        self.assertIn("transition-requested --to changes-requested --actor-role reviewer", review)
-        self.assertIn("`reject` only invalidates an existing approval", review)
-        self.assertIn("never in shell variables", review)
+        self.assertIn("transition-requested --to changes-requested --actor-role reviewer", ledger)
+        self.assertIn("`reject` only invalidates an existing approval", ledger)
+        self.assertIn("never in shell variables", ledger)
         self.assertIn("never stop a process you did not start", review)
         self.assertIn("same-role fallback at that model and effort or higher", receiving)
         self.assertIn("must not close", receiving)
