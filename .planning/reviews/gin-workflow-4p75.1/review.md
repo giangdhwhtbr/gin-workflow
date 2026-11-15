@@ -1,6 +1,6 @@
 # Code Review Ledger
 
-**Bead Status:** `changes-requested`
+**Bead Status:** `implementation-in-progress`
 
 ## Active Lease
 *No active lease.*
@@ -48,3 +48,4 @@
 | `EV-000006` | `2026-11-15T06:11:22.563187Z` | `changes-requested` | `reviewer:claude:session-f6f509b5` (reviewer) |
 | `EV-000007` | `2026-11-15T06:11:26.337270Z` | `finding-created` | `reviewer:claude:session-f6f509b5` (reviewer) |
 | `EV-000008` | `2026-11-15T06:11:26.624141Z` | `lease-released` | `reviewer:claude:session-f6f509b5` (reviewer) |
+| `EV-000009` | `2026-11-15T06:11:46.596293Z` | `implementation-in-progress` | `worker:claude:sonnet` (worker) |
