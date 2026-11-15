@@ -18,7 +18,7 @@ from .setup_service import COMMANDS, SetupError
 
 CLI_VERSION = "3.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
-                "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "worktree", "workspace", "milestone")
+                "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "commit", "worktree", "workspace", "milestone")
 
 
 ACTIONS = {
@@ -105,6 +105,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
         if argv[0] == "goal":
             from .goal import main as goal_main
             return goal_main(argv[1:])
+        if argv[0] == "commit":
+            from .scoped_commit import main as commit_main
+            return commit_main(argv[1:])
         if argv[0] == "worktree":
             from .worktrees import main as worktrees_main
             return worktrees_main(argv[1:])

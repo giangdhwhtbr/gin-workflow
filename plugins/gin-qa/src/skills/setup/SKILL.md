@@ -33,4 +33,5 @@ description: Set up QA for a project from one interview - guidelines, README, an
    - A finding in a file you wrote: fix it and run the check again.
    - A finding in an existing case file: report it, and offer to add its type to `## Types`. Never edit a case file.
    - End when both print `ok`, or list only findings the user chose to keep.
-8. Report the files created and changed and the check output. The project skill is written for Claude Code only; for other harnesses, `docs/guides/qa.md` says where to copy it. Do not commit; the user reviews and commits.
+8. Report the files created and changed and the check output. The project skill is written for Claude Code only; for other harnesses, `docs/guides/qa.md` says where to copy it.
+9. After the user reviews, ask whether to save the work. Only on a yes, run `gin commit <guidelines> <readme> .claude/skills/<name>-qa/ -m "qa setup: <what was written>"`, with the guidelines, README, and project skill files, then report the branch and that it is not pushed; on exit 2, show the message and change nothing.

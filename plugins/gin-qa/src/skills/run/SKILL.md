@@ -17,4 +17,5 @@ description: Walk the manual test cases of a capability with a tester, record ea
    - `cases bug` exits 2 with `no epic for <TC-ID>`, `several epics for <TC-ID>: ...`, or `no such bead`: offer the epics it lists (id and title from `gin task show`), or else those of `gin task list --type epic --json`, plus another bead id. Run `cases bug` again with `--discovered-from <bead>`. Any other exit 2 (no Beads, no `gin task`): show stderr and ask whether to go on with the next case.
    Each value is one line; ask again for an empty answer. Quote every value for the shell.
 5. End with the number of passed, failed, blocked, and skipped cases, and each bug as `<TC-ID> <bug>`, marked filed (`created: true`) or kept open (`created: false`). A kept bug got the new actual result and evidence in its notes.
-6. Never choose a result or file a bug on your own judgement: the tester gives every answer. Do not commit; the tester reviews and commits the case files.
+6. Never choose a result or file a bug on your own judgement: the tester gives every answer.
+7. After the tester reviews, ask whether to save the work. Only on a yes, run `gin commit <case files> -m "<capability>: <what was written>"`, with the case files whose results changed, then report the branch and that it is not pushed; on exit 2, show the message and change nothing.
