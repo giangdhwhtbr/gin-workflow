@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 from .atomic import atomic_write_many
 from .checkout import main_checkout
-from .specs import CHANGE_FILES, specs_dir, template_text
+from .specs import CAPABILITY_FOLDERS, CHANGE_FILES, specs_dir, template_text
 from .specs_archive import move
 
 _DESIGN = re.compile(r"^(\d{4}-\d{2}-\d{2})-(.+)-design\.md$")
@@ -107,19 +107,16 @@ def migrate(root: Path, config: Mapping[str, Any], cfg: Mapping[str, Any], *, dr
     return result
 
 
-_CAPABILITY_FOLDERS = ("assets", "diagrams", "use-cases")  # what `gin specs` writes and lints next to spec.md
-
-
 def _foreign(directory: Path) -> list[str]:
-    """Files that do not belong to an SDD specs folder: all but README.md, <cap>/spec.md, and the files under
-    <cap>/assets, <cap>/diagrams, and <cap>/use-cases."""
+    """Files that do not belong to an SDD specs folder: all but README.md, <cap>/spec.md, the files under the
+    capability folders of `specs.CAPABILITY_FOLDERS`, and hidden files and folders (`.DS_Store`, `.gitkeep`)."""
     if not directory.is_dir():
         return []
 
     def owned(path: Path) -> bool:
         parts = path.relative_to(directory).parts
-        return (path.name == "README.md" or parts[1:] == ("spec.md",)
-                or (len(parts) > 2 and parts[1] in _CAPABILITY_FOLDERS))
+        return (path.name == "README.md" or parts[1:] == ("spec.md",) or any(part.startswith(".") for part in parts)
+                or (len(parts) > 2 and parts[1] in CAPABILITY_FOLDERS))
 
     return sorted(path.relative_to(directory).as_posix() for path in directory.rglob("*")
                   if path.is_file() and not owned(path))

@@ -35,6 +35,9 @@ _HEADING_LINE = re.compile(r"^### (REQ-[A-Z][A-Z0-9-]*-\d{3,}):", re.MULTILINE)
 _BASE = re.compile(r"^<!-- base: ([0-9a-f]{64}) -->$")
 _STATEMENT = re.compile(r"\b(SHALL|MUST)\b")
 _CAP = re.compile(r"^[a-z][a-z0-9-]*$")
+# The folders of a capability next to its spec.md; the linters below and the SDD check of setup doctor share them.
+ASSETS_DIR, DIAGRAMS_DIR, USE_CASES_DIR = "assets", "diagrams", "use-cases"
+CAPABILITY_FOLDERS = (ASSETS_DIR, DIAGRAMS_DIR, USE_CASES_DIR)
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _EPIC_LINE = re.compile(r"^Epic: (\S+)$", re.MULTILINE)
 
@@ -384,7 +387,7 @@ _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 def lint_iterations(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """Every dated asset folder `<specs>/<cap>/assets/<YYYY-MM-DD>/` has a `description.md`."""
     return [f"{shown(root, folder)}: missing description.md (gin specs template iteration.md)"
-            for folder in sorted(specs_dir(root, cfg).glob("*/assets/*"))
+            for folder in sorted(specs_dir(root, cfg).glob(f"*/{ASSETS_DIR}/*"))
             if folder.is_dir() and _ISO_DATE.match(folder.name) and not (folder / "description.md").is_file()]
 
 
@@ -405,7 +408,7 @@ def _mermaid_types(text: str) -> list[str]:
 def lint_diagrams(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """Every `<specs>/<cap>/diagrams/*-activity.md` / `*-state.md` holds a mermaid block of its kind."""
     errors: list[str] = []
-    for path in sorted(specs_dir(root, cfg).glob("*/diagrams/*.md")):
+    for path in sorted(specs_dir(root, cfg).glob(f"*/{DIAGRAMS_DIR}/*.md")):
         kinds = next((types for suffix, types in _DIAGRAM_KINDS.items() if path.name.endswith(suffix)), None)
         if kinds and not any(kind.startswith(kinds) for kind in _mermaid_types(path.read_text(encoding="utf-8"))):
             errors.append(f"{shown(root, path)}: no mermaid block starting with {' or '.join(kinds)}")
@@ -447,7 +450,7 @@ def _known_req_ids(root: Path, cfg: Mapping[str, Any]) -> set[str]:
 
 def lint_use_cases(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """Every `<specs>/<cap>/use-cases/*.md` has a title, an actor, known REQ-IDs, and a numbered main flow."""
-    paths = sorted(specs_dir(root, cfg).glob("*/use-cases/*.md"))
+    paths = sorted(specs_dir(root, cfg).glob(f"*/{USE_CASES_DIR}/*.md"))
     known = _known_req_ids(root, cfg) if paths else set()
     errors: list[str] = []
     for path in paths:
@@ -527,8 +530,8 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
                 errors.append(f"{path}:{block.start + 1}: {block.id} is already used on {against}")
     base = specs_dir(root, cfg)
     for cap in sorted({block.cap for block in blocks if block.section in ("ADDED", "MODIFIED")}):
-        if not any((base / cap / "diagrams").glob("*-activity.md")):
-            errors.append(f"{cap}: no activity diagram in {shown(root, base / cap / 'diagrams')}/ "
+        if not any((base / cap / DIAGRAMS_DIR).glob("*-activity.md")):
+            errors.append(f"{cap}: no activity diagram in {shown(root, base / cap / DIAGRAMS_DIR)}/ "
                           "(gin specs template activity.md)")
     design = change_file(change, "design")
     questions = technical_questions(design, shown(root, design))[1] if design.is_file() else []

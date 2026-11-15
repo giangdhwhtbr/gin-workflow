@@ -125,6 +125,11 @@ class TestSddReport(unittest.TestCase):
                          "auth/assets/2026-11-11/description.md", "auth/assets/2026-11-11/legacy/login.png"):
                 write(root, f"docs/specs/{path}", "x\n")
             self.assertNotIn("conflict", sdd_report(root, {}, defaults, proposed=True))
+            for path in (".gitkeep", "auth/.DS_Store", "auth/.cache/index"):
+                write(root, f"docs/specs/{path}", "x\n")
+            self.assertNotIn("conflict", sdd_report(root, {}, defaults, proposed=True))
+            self.assertEqual(("assets", "diagrams", "use-cases"),
+                             (specs.ASSETS_DIR, specs.DIAGRAMS_DIR, specs.USE_CASES_DIR))
             foreign = ["auth/notes.txt", "auth/tests/login.spec.ts", "diagrams/overview.md", "login.spec.ts"]
             for path in foreign:
                 write(root, f"docs/specs/{path}", "x\n")
