@@ -15,10 +15,10 @@ A fast path for a small, low-risk change. No plan, no beads, no lifecycle gates.
 2. Estimate the changed files and the source modules they touch (a changed module's tests and docs count as that module), then run `gin quick-check --changed-files N --modules M --format json`:
    - `refused`: stop and point to `/gin:discuss` (strict rigor needs a `requirement_confirmed` waiver first).
    - `escalate`: stop and recommend the full lifecycle.
-   - `allowed`: continue with the returned `verify_commands` and `review` mode.
+   - `allowed`: continue with the returned `verify_commands`, `run_at`, and `review` mode.
    In a workspace, run `/gin:quick` from the repository you change; `quick-check` returns that repository's checks.
 3. Run `gin rules --files <files to change>` and follow its output. Implement the change. Write a failing test first when behavior changes.
-4. Run every returned `verify_commands` entry fresh and keep its output. Under `easy` rigor, scope tests to the changed files when the runner supports it.
+4. Run every returned `verify_commands` entry fresh and keep its output. Scope tests to the changed files, when the runner supports it, if `run_at` (`project.run_at`) is `push`, or under `easy` rigor with `track`. With `host`, `verify_commands` holds only lint and typecheck.
 5. Review:
    - `review: independent`: one review per the `review` skill, with a fresh session or subagent.
    - `review: self_check`: re-read the diff; no debug leftovers, no secrets, and tests cover the change.

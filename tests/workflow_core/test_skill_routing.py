@@ -312,7 +312,109 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("gin team claim", orchestrate)
         self.assertIn("default branch after the spec and plan pull requests merge", orchestrate)
         self.assertIn("committed on `plan/<topic>`", read("skills/plan/SKILL.md"))
-        review = next(l for l in read("skills/review/SKILL.md").splitlines()
+        review = next(l for l in read("skills/review/ledger.md").splitlines()
                       if "parent" in l and ".planning/reviews/" in l and "workspace" in l)
         self.assertIn("review-ledger.py", review)
         self.assertIn("gin team complete <epic>", read("skills/ship/SKILL.md"))
+
+
+def read(rel: str) -> str:
+    return (SRC / rel).read_text(encoding="utf-8")
+
+
+def line_with(text: str, *needles: str) -> str:
+    return next((line for line in text.splitlines() if all(n in line for n in needles)), "")
+
+
+class LeanLifecycleSkillTests(unittest.TestCase):
+    """The skills follow project.run_at, review_ledger, review, and worktree (gin-workflow-ws-ship-records)."""
+
+    def test_review_skill_names_the_ledger_only_when_it_is_on(self):
+        review = read("skills/review/SKILL.md")
+        for command in ("init --repo-id", "checkpoint --repo-id", "transition-requested"):
+            with self.subTest(command=command):
+                self.assertNotIn(command, review)
+        self.assertTrue(line_with(review, "`ledger.md`", "`project.review_ledger: true`"))
+        self.assertTrue(line_with(review, "`project.review_ledger: false`", "review-ledger.py", ".planning/reviews/"))
+        self.assertTrue(line_with(review, "`project.review: self_check`", "secrets"))
+        self.assertTrue(line_with(review, "`project.max_cycles`", "ask the user"))
+        self.assertIn("Never manufacture approval", review)
+
+    def test_ledger_reference_keeps_every_ledger_command(self):
+        ledger = read("skills/review/ledger.md")
+        for needle in ("python3 review-ledger.py <cmd> --bead-id <bead-id>", "init --repo-id", "--max-cycles",
+                       "checkpoint --repo-id", "transition-requested --to review-requested --actor-role worker",
+                       "transition-requested --to implementation-in-progress", "start-review --actor-id",
+                       "--force-takeover", "resync-lease --lease-id", "validate", "add-finding --finding-id",
+                       "verify-finding", "reopen-finding --reason", "approve --actor-id",
+                       "transition-requested --to changes-requested --actor-role reviewer", "`reject`", "render",
+                       "release-lease --actor-id", "literal flags", "max review cycles (N) reached",
+                       "human_decision_required", "record-human-decision --question", "never hand-write"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, ledger)
+        self.assertTrue(line_with(ledger, "gin evidence run", "`project.run_at: track`"))
+
+    def test_review_tests_follow_run_at(self):
+        review = read("skills/review/SKILL.md")
+        self.assertTrue(line_with(review, "`project.run_at: track`", "gin evidence run"))
+        self.assertTrue(line_with(review, "`project.run_at: track`", "gin evidence check"))
+        self.assertTrue(line_with(review, "`push` or `host`", "tests of the changed code"))
+
+    def test_review_response_and_reviewer_use_the_ledger_only_when_on(self):
+        for rel in ("skills/review-response/SKILL.md", "agents/code-reviewer.md"):
+            with self.subTest(path=rel):
+                self.assertIn("`project.review_ledger: true`", read(rel))
+        reviewer = read("agents/code-reviewer.md")
+        self.assertIn("`approved` or `changes requested`", reviewer)
+        self.assertIn("`Id`", reviewer)
+
+    def test_execute_follows_worktree_ledger_and_run_at(self):
+        execute = read("skills/execute/SKILL.md")
+        self.assertTrue(line_with(execute, "`project.worktree: always`", "`parallel`", "`feat/<topic>`"))
+        self.assertTrue(line_with(execute, "push-refs", "`project.review_ledger: true`"))
+        self.assertTrue(line_with(execute, "`project.run_at`", "tests of what the track changed"))
+        close = line_with(execute, "gin task close <id>")
+        for needle in ("reviewer", "cycle", "finding"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, close)
+        for command in ("`init`", "`checkpoint`", "transition-requested"):
+            with self.subTest(command=command):
+                self.assertNotIn(command, execute)
+
+    def test_orchestrate_and_worktrees_follow_the_settings(self):
+        orchestrate = read("skills/orchestrate/SKILL.md")
+        self.assertTrue(line_with(orchestrate, "`project.worktree`", "`always`", "`parallel`", "`feat/<topic>`"))
+        self.assertNotIn("Isolate by default", orchestrate)
+        worktrees = read("skills/worktrees/SKILL.md")
+        baseline = worktrees[worktrees.index("## 3. Baseline"):worktrees.index("## Cleanup")]
+        self.assertIn("`project.run_at: track`", baseline)
+        self.assertIn("`push` or `host`", baseline)
+
+    def test_ship_runs_the_suite_once_with_push(self):
+        ship = read("skills/ship/SKILL.md")
+        run = line_with(ship, "`project.run_at`", "`push`", "gin evidence run")
+        self.assertTrue(run)
+        self.assertIn("`host`", run)
+        self.assertIn("before any merge", run)
+        self.assertLess(ship.index("gin evidence run"), ship.index("4. Present"))
+        self.assertNotIn("Do not run tests: the", ship)
+
+    def test_quick_scopes_tests_by_run_at(self):
+        quick = read("skills/quick/SKILL.md")
+        scope = line_with(quick, "`project.run_at`", "changed files")
+        self.assertIn("`push`", scope)
+        self.assertIn("`host`", scope)
+        self.assertTrue(line_with(quick, "`allowed`", "`run_at`", "`review`"))
+
+    def test_setup_team_setup_workflow_and_contract(self):
+        self.assertIn("--set verify.run_at=host", read("skills/setup/SKILL.md"))
+        self.assertTrue(line_with(read("skills/setup/SKILL.md"), "**Host CI**", "CI on pull requests"))
+        team_setup = read("skills/team-setup/SKILL.md")
+        self.assertTrue(line_with(team_setup, "`host`", "`requirement_confirmed`", "`plan_approved`", "`ship`",
+                                  "`roadmap`"))
+        self.assertTrue(line_with(team_setup, "branch protection", "required status checks"))
+        self.assertNotIn("ttl_seconds", read("skills/workflow/SKILL.md"))
+        contract = read("references/stage-contract.md")
+        self.assertTrue(line_with(contract, "review ledger", "`project.review_ledger`"))
+        self.assertTrue(line_with(contract, "`project.run_at: host`", "pre-push"))
+        self.assertIn("`project.review_ledger: true`", read("skills/team/references/workspace.md"))

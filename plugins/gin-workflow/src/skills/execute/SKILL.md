@@ -14,7 +14,7 @@ description: Implement and validate exactly one ready work unit at its manifest 
 2. Resume first: `gin task list --parent <epic> --status in_progress --exclude-label prep`; if empty, use `task ready --exclude-label prep`. Claim with `task update <id> --claim`. A bead labelled `prep` is pre-discuss work, not a track: refuse it.
    With `project.team.enabled`, add `--assignee <git user.email>` to that list; `team ready --exclude-label prep` and `team claim <id>` (`team` skill) replace `task ready` and `--claim`.
 3. Resolve file scope and validation intent from the plan track, or from the task description and acceptance criteria for a standalone unit. Review critically and raise concerns before starting.
-4. Work in the isolated worktree. Never implement on main/master without explicit consent. In a workspace the worktree is the track's `Repo:` (`worktrees` skill, Workspace).
+4. Worktree (`worktrees` skill): one per track for `project.worktree: always`, or `parallel` with a parallel execution strategy, and always after `team claim` or in a workspace (the track's `Repo:`). Otherwise commit on `feat/<topic>` in the current checkout.
 
 ## 2. Implement
 - Follow the plan steps exactly, test first. Keep changes minimal and in scope.
@@ -24,13 +24,12 @@ description: Implement and validate exactly one ready work unit at its manifest 
 - On a `greenfield` project, a task that sets up lint, typecheck, or test starts from the `suggest` snippets of the missing checks in `checks_details.rules.tool_checks` of `gin setup doctor --format json`.
 - Validate immediately and keep the command output as evidence. Do not proceed while tests fail or acceptance criteria are unmet.
 - **Stop and ask** on a blocker, a plan gap, an unclear instruction, or repeated validation failure. Leave the bead in progress with a `gin task update <id> --notes` entry; do not guess. Failures route to the `debugging` skill.
-- Scope or execution-strategy changes and production-impacting parallel work need approval (stage-contract Approvals).
 - Post your learnings and each worker's (`Learnings`, `knowledge_candidates`) as `[gin learn]` per `learn`.
 
 ## 3. Worker dispatch
 Dispatch each track using this loop:
 1. `gin routes dispatch --workflow-id <w> --task-id <id> --json` gives the route.
-2. When `provider` is the main harness `claude` or `antigravity`, always spawn `gin:developer` natively, never in this session: `claude` `Agent` with `model`; `antigravity` `invoke_subagent(TypeName="developer", Model="inherit")`, which runs the session's model (no model ID; it caps the route). Give it a bounded context: track text, file scope, `gin rules` output, worktree path, validation commands (never the parent transcript or secrets). Otherwise (a provider other than the main harness, or `codex`/`opencode`/`copilot`), dispatch via `gin-orchestrator dispatch` per [worker lifecycle](references/worker-lifecycle.md); without it, `claude`/`antigravity` spawn natively as above; others implement the track in this session with that context and note `in_session` on the bead. A track routed to `qa` also follows the `qa-track` skill.
+2. When `provider` is the main harness `claude` or `antigravity`, always spawn `gin:developer` natively, never in this session: `claude` `Agent` with `model`; `antigravity` `invoke_subagent(TypeName="developer", Model="inherit")`, which runs the session's model (no model ID; it caps the route). Give it a bounded context: track text, file scope, `gin rules` output, worktree path, validation commands (`project.run_at` `push` or `host`: the tests of what the track changed), never the parent transcript or secrets. Otherwise (a provider other than the main harness, or `codex`/`opencode`/`copilot`), dispatch via `gin-orchestrator dispatch` per [worker lifecycle](references/worker-lifecycle.md); without it, `claude`/`antigravity` spawn natively as above; others implement the track in this session with that context and note `in_session` on the bead. A track routed to `qa` also follows the `qa-track` skill.
 3. After each worker result, run `gin usage collect --bead <epic> --best-effort`. If `routes dispatch` exits 3 (`over_budget`), leave the bead `in_progress` with a note and ask the user to raise `usage.budget_usd` or stop.
 4. On `done`, check the commits and command output, then request review.
 5. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise (Beads) add `gin task comment <epic> "[gin question] <track>: <question>"`, ask the user, and leave the bead `in_progress` with a note. On resume, a newer `[gin answer] <track>:` comment (`gin task comments <epic> --json`) answers it.
@@ -39,9 +38,9 @@ Dispatch each track using this loop:
 Read [delegation policy](references/delegation-policy.md) and [result contract](references/result-contract.md) before dispatching.
 
 ## 4. Complete
-1. Request review through the `review` skill and wait for a terminal review state. This session is the implementer there: it runs `init`, `checkpoint`, and `transition-requested --to review-requested --actor-role worker`.
-2. Once tests and review pass, run `gin usage collect --bead <id> --best-effort`, then close the track bead (`gin task close <id> --reason "<evidence>"`); this unblocks dependents and needs no PR or merge.
-3. Commit and push the track branch (stage-contract Git), then `python3 review-ledger.py push-refs --bead-id <id>` (squash-merge checks fetch the refs). Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
+1. Request review (the `review` skill) as its implementer and wait for its outcome.
+2. Once tests and review pass, run `gin usage collect --bead <id> --best-effort`, then close the track bead with `gin task close <id> --reason "<evidence>"` naming the reviewer (or `self_check`), cycle count, and finding count; this unblocks dependents and needs no PR or merge.
+3. Commit and push the track branch (stage-contract Git); with `project.review_ledger: true`, then `python3 review-ledger.py push-refs --bead-id <id>`. Never report "waiting for PR merge" without a real PR link. Stop at handoff and offer two options:
    1. Ask for the command to create a PR from the pushed feature branch.
    2. Keep the pushed feature branch and continue with the next track, using the artifact just produced.
 4. Return `implementation_complete`. Do not invoke `ship`.

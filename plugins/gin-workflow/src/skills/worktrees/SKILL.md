@@ -1,6 +1,6 @@
 ---
 name: worktrees
-description: Use before implementation to detect or create an isolated git worktree and verify a clean test baseline.
+description: Use before implementation to detect or create an isolated git worktree and, when tests run per track, verify a clean test baseline.
 ---
 
 # Worktrees
@@ -13,7 +13,7 @@ GIT_DIR=$(cd "$(git rev-parse --git-dir)" && pwd -P); GIT_COMMON=$(cd "$(git rev
 git rev-parse --show-superproject-working-tree   # prints a path => submodule, treat as a normal repo
 ```
 - `GIT_DIR != GIT_COMMON` (not a submodule): already isolated. Report "Already in isolated workspace at `<path>` on branch `<name>`" (or "detached HEAD, externally managed") and skip to step 2. Never nest worktrees.
-- Otherwise you are in a normal checkout. Isolation is the default; ask only if no preference is declared. Disabling isolation or working on the current branch needs approval (stage-contract Approvals).
+- Otherwise you are in a normal checkout. Create a worktree when `project.worktree` asks for one (the `execute` skill); skipping it needs approval (stage-contract Approvals).
 
 ## 1. Create
 1. **Native tool first.** If the harness provides a worktree tool, use it. `git worktree add` alongside one creates state the harness cannot manage.
@@ -28,7 +28,7 @@ git rev-parse --show-superproject-working-tree   # prints a path => submodule, t
 Install with the project's own tooling: `pnpm install` / `yarn install` / `npm ci` (lockfile-driven), `cargo build`, `pip install -r requirements.txt` or `poetry install`/`uv sync`, `go mod download`. Skip what does not apply.
 
 ## 3. Baseline
-Run the project test command. In a workspace child it is `workspace.current.checks.test` from `gin state --format json`; when that is missing, report that the entry has no test check and ask, and never run the parent's commands, which belong to another repository. Outside a workspace child it is the configured `verify.commands`. If it fails, report the failures and ask whether to proceed or investigate. If it passes, report: `Worktree ready at <path>; tests passing (<N>, 0 failures)`.
+With `push` or `host` as `project.run_at`, skip the baseline and report `Worktree ready at <path>`. With `project.run_at: track`, run the project test command. In a workspace child it is `workspace.current.checks.test` from `gin state --format json`; when that is missing, report that the entry has no test check and ask, and never run the parent's commands, which belong to another repository. Outside a workspace child it is the configured `verify.commands`. If it fails, report the failures and ask whether to proceed or investigate. If it passes, report: `Worktree ready at <path>; tests passing (<N>, 0 failures)`.
 
 ## Cleanup
 Only after merge or a confirmed discard: from the main checkout (never from inside the worktree), run `gin worktree cleanup <track-id>`, then `git worktree prune`, then delete the branch. Keep the worktree for PR and keep-as-is outcomes.

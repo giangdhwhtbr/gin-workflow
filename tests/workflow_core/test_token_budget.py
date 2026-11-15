@@ -173,6 +173,14 @@ class TestBudgetLimits(unittest.TestCase):
             with self.subTest(heading=heading):
                 self.assertIn(heading, guide)
 
+    def test_review_ledger_loads_on_demand(self):
+        ledger = (SRC / "skills/review/ledger.md").resolve()
+        self.assertIn("`ledger.md`", (SRC / "skills/review/SKILL.md").read_text(encoding="utf-8"))
+        for stage in STAGES:
+            with self.subTest(stage=stage):
+                self.assertNotIn(ledger, stage_chain(SRC, stage))
+        self.assertLessEqual(len(ledger.read_text(encoding="utf-8")), 6_000)
+
     def test_execute_names_qa_track_on_demand(self):
         qa_skill = (SRC / "skills/qa-track/SKILL.md").resolve()
         text = (SRC / "skills/execute/SKILL.md").read_text(encoding="utf-8")

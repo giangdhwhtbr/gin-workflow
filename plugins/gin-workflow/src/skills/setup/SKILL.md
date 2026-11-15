@@ -19,13 +19,14 @@ Ask exactly one question at a time and wait for its answer. Do not infer require
 4. **Code index** — Brownfield or legacy only. When `codegraph.installed` is true and it is not `indexed`: offer `codegraph init`, and run it only on approval. When `codegraph.installed` is false: print one line suggesting CodeGraph with https://github.com/giangdhwhtbr/gin-workflow/blob/master/docs/guides/recommended-tools.md; do not ask, install, or wait.
 5. **Task tracking** — `markdown` (default) or `beads` (needs Beads), passed as `--task-tracking`.
 6. **Workspace** — Ask whether this repository is the parent of several repositories (services, apps, a frozen legacy, shared Beads). On yes pass `--workspace` to `preset` and `init`; it writes an empty `workspace.repos` and the parent `.gitignore` lines. Then ask for each repository its `path`, `url`, `shape`, whether it is frozen, its default branch, and its checks, run `gin workspace add` for each, and run `gin workspace clone --all`, which installs the hooks. In team mode, after `/gin:team-setup` run `gin team init --all-repos`, then commit and open a pull request in each child.
+7. **Host CI**: Ask whether the host runs CI on pull requests. On yes add `--set verify.run_at=host`: the host CI runs the test suite and the pre-push hook runs none. On no, the rigor decides (`push`, or `track` under `strict`).
 
 Then:
 1. `gin setup preset --project-stage S --project-shape X --rigor R --task-tracking T [--monorepo] [--workspace] [--stack-intent TEXT] --format json` returns the assignments; add any user edits as extra `--set` assignments.
 2. Run `init --dry-run` with the harness and every assignment. Present `configuration`, the proposed `rule_packs` (the user may add or remove packs as an extra `--set rules.packs=[...]`), each `rule_tool_checks` item with its `suggest` snippet (suggestions only; setup never edits lint or type configs), the exact files/actions, and any validation error. Do not write on dry-run.
 3. Obtain explicit native-harness approval for the proposal.
 4. Run one approved `init` with the same harness and same assignments. The CLI validates before any atomic write.
-5. When `verify.checks` is configured, run `gin hooks install` (quality checks run in `pre-commit`/`pre-push`, not in a lifecycle stage). If it reports `occupied` or `missing`, show the user the printed instruction; never overwrite a hook.
+5. When `verify.checks` is configured, run `gin hooks install` (quality checks run in `pre-commit`/`pre-push`). If it reports `occupied` or `missing`, show the user the printed instruction; never overwrite a hook.
 6. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
 
 Answers become `--set` assignments in `.agent-workflow/config.yaml`.
