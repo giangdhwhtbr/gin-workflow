@@ -32,4 +32,4 @@ With `gin-qa` on PATH and `project.layout: sdd`, run from the QA home, for each 
 Without gin-qa or the SDD layout, or when any command exits non-zero (exit 2 is a usage or environment error; another exit, such as an unknown change, also counts), report `QA state skipped: <reason>` with the command's error.
 
 ## Covering cases
-For a quick change in team mode: with `gin-qa` on `PATH`, run `gin-qa cases plan <capability> --format json` from the QA home for each capability the member confirmed, and keep the case ids and titles. Without gin-qa, or on a non-zero exit, the result is `no covering cases found` and why. Without `project.layout: sdd`, gin-qa has no work list, so the result is `no covering cases found` for that reason.
+For a quick change in team mode: with `gin-qa` on `PATH`, run `gin-qa cases export --format json` from the QA home and keep the `id` and `title` of each case whose `capability` is one the member confirmed (`cases plan` lists missing and stale work, not covering cases). Without gin-qa, without a confirmed capability, or on a non-zero exit, the result is `no covering cases found` and why.
