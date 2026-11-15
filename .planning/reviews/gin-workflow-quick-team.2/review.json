@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "review_state": "review-requested",
+  "review_state": "changes-requested",
   "repositories": [
     {
       "repository_id": "gin-workflow",
@@ -24,9 +24,52 @@
     "nested_repository_paths": []
   },
   "active_lease": null,
-  "ledger_revision": 3,
-  "next_finding_number": 1,
-  "findings": {},
+  "ledger_revision": 10,
+  "next_finding_number": 4,
+  "findings": {
+    "F-1": {
+      "finding_id": "F-1",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F-2": {
+      "finding_id": "F-2",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    },
+    "F-3": {
+      "finding_id": "F-3",
+      "severity": "IMPORTANT",
+      "status": "open",
+      "clarification_count": 0,
+      "deferral_reason": null,
+      "follow_up_bead_id": null,
+      "follow_up_bead_title": null,
+      "decision": null,
+      "waived_reason": null,
+      "location": "",
+      "expected_behavior": "",
+      "evidence": ""
+    }
+  },
   "events": [
     {
       "event_id": "EV-000001",
@@ -107,6 +150,110 @@
       },
       "previous_event_hash": "54a09d4ded13cef45aabe1af7a632986067a1475fe03279ed1d17fb790073069",
       "event_hash": "12b732b7e9c4bef5327d9530823ac949cc314a8c616ebf8d2cf80e4a0b16cbf1"
+    },
+    {
+      "event_id": "EV-000004",
+      "action": "lease-acquired",
+      "timestamp": "2026-11-15T07:38:21.184989Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1"
+      },
+      "payload": {
+        "lease_id": "89be370129ab4c1589bd22294bfda5a6",
+        "actor_role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1",
+        "acquired_at": "2026-11-15T07:38:21.184129Z",
+        "expires_at": "2026-11-15T07:48:21.184129Z"
+      },
+      "previous_event_hash": "12b732b7e9c4bef5327d9530823ac949cc314a8c616ebf8d2cf80e4a0b16cbf1",
+      "event_hash": "cc75a5947b1c2bb2c394dfaa1184c35217be083177ddb207c2689ececed7acc2"
+    },
+    {
+      "event_id": "EV-000005",
+      "action": "review-started",
+      "timestamp": "2026-11-15T07:38:21.210409Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1"
+      },
+      "payload": {},
+      "previous_event_hash": "cc75a5947b1c2bb2c394dfaa1184c35217be083177ddb207c2689ececed7acc2",
+      "event_hash": "2830be814f22405e5292d295853969e729ea28a8312eb25538e1c1c93d66c583"
+    },
+    {
+      "event_id": "EV-000006",
+      "action": "finding-created",
+      "timestamp": "2026-11-15T07:38:24.944461Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1"
+      },
+      "payload": {
+        "finding_id": "F-1",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "2830be814f22405e5292d295853969e729ea28a8312eb25538e1c1c93d66c583",
+      "event_hash": "78676d10a9b763acd2d6d951461f8a0712b14e96e7944dac708b7b3ba40922f8"
+    },
+    {
+      "event_id": "EV-000007",
+      "action": "finding-created",
+      "timestamp": "2026-11-15T07:38:25.100235Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1"
+      },
+      "payload": {
+        "finding_id": "F-2",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "78676d10a9b763acd2d6d951461f8a0712b14e96e7944dac708b7b3ba40922f8",
+      "event_hash": "14ec1881988e8524e12353a7dfd07c71bdd6f94f70feb067beb7530f5a4a2ac3"
+    },
+    {
+      "event_id": "EV-000008",
+      "action": "finding-created",
+      "timestamp": "2026-11-15T07:38:25.252504Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1"
+      },
+      "payload": {
+        "finding_id": "F-3",
+        "severity": "IMPORTANT"
+      },
+      "previous_event_hash": "14ec1881988e8524e12353a7dfd07c71bdd6f94f70feb067beb7530f5a4a2ac3",
+      "event_hash": "4425053686a3df80a04ac9dbe7e561dad9b734bf5945b5e1bb02be3d7793e8a6"
+    },
+    {
+      "event_id": "EV-000009",
+      "action": "changes-requested",
+      "timestamp": "2026-11-15T07:38:25.402976Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1"
+      },
+      "payload": {
+        "to": "changes-requested"
+      },
+      "previous_event_hash": "4425053686a3df80a04ac9dbe7e561dad9b734bf5945b5e1bb02be3d7793e8a6",
+      "event_hash": "b3223df79d19495157414726ab64bb24c31263a9d7ce1963899dc89b086de1f3"
+    },
+    {
+      "event_id": "EV-000010",
+      "action": "lease-released",
+      "timestamp": "2026-11-15T07:38:25.689153Z",
+      "actor": {
+        "role": "reviewer",
+        "actor_id": "reviewer:claude:session-d52d8cb1"
+      },
+      "payload": {
+        "lease_id": "89be370129ab4c1589bd22294bfda5a6",
+        "released_at": "2026-11-15T07:38:25.688333Z"
+      },
+      "previous_event_hash": "b3223df79d19495157414726ab64bb24c31263a9d7ce1963899dc89b086de1f3",
+      "event_hash": "fa5859c735d24a49a732ba58c6e1321a0259f574d47dd368c38e4a6e740fdba7"
     }
   ]
 }
