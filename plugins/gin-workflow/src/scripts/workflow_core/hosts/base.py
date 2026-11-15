@@ -17,6 +17,7 @@ class HostFiles:
     template: str | None
     ci: str | None
     ci_template: str | None          # path under templates/, e.g. "team/github-ci.yml"
+    codeowners_syntax: str = "glob"   # "glob" (GitHub, GitLab) or "regex" (Gitea: anchored regexp2 patterns)
 
 
 class HostAdapter(Protocol):

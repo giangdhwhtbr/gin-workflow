@@ -77,7 +77,7 @@ class Gitea:
     identity_key: str = "login"
     files: HostFiles = field(default_factory=lambda: HostFiles(
         ".gitea/CODEOWNERS", ".gitea/PULL_REQUEST_TEMPLATE.md", ".gitea/workflows/gin-workflow.yml",
-        "team/gitea-ci.yml"))
+        "team/gitea-ci.yml", "regex"))
     ci_unsupported: str = ""
 
     def auth_check_argv(self, root: Path) -> list[str]:

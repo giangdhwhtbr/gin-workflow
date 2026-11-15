@@ -51,9 +51,41 @@ def reroot(glob: str, child: str) -> str | None:
     return "/" + "/".join(remaining)
 
 
+_REGEX_META = frozenset(".+(){}|$")
+
+
+def regex_pattern(glob: str) -> str:
+    """A CODEOWNERS glob as gin writes it, as a Gitea pattern: Gitea anchors each pattern as a regexp2 expression,
+    and its tokenizer drops `\\`, splits on whitespace, and starts a comment at `#`. A literal `^` has no
+    backslash-free form (`[^]` is not a class), so it is refused too."""
+    if any(char.isspace() or char in "#\\^" for char in glob):
+        raise TeamError(f"CODEOWNERS glob {glob!r} cannot be written for Gitea (whitespace, '#', '\\' or '^')")
+    text, out, i = glob.lstrip("/"), [], 0
+    while i < len(text):
+        end = text.find("]", i + 1) if text[i] == "[" else -1
+        if text.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif text[i] in "*?":
+            out.append("[^/]*" if text[i] == "*" else "[^/]")
+            i += 1
+        elif end != -1:
+            body = text[i + 1:end]
+            out.append("[" + ("^" + body[1:] if body.startswith("!") else body) + "]")
+            i = end + 1
+        else:
+            out.append(f"[{text[i]}]" if text[i] in _REGEX_META or text[i] == "[" else text[i])
+            i += 1
+    if text.endswith("/"):
+        out.append(".*")
+    return "".join(out)
+
+
 def codeowners(team: TeamConfig, config: Mapping[str, Any], child: str | None = None) -> str | None:
-    """Area globs owned by the area lead; plan and spec folders owned by the approvers of those gates."""
+    """Area globs owned by the area lead; plan and spec folders owned by the approvers of those gates.
+    Gitea patterns go through `regex_pattern`."""
     lines = [f"# {MARKER}; edit team: in .agent-workflow/config.yaml and rerun", ""]
+    pattern = regex_pattern if adapter(team.host).files.codeowners_syntax == "regex" else str
     leads = {area.lead for area in team.areas.values()}
     if child is not None:
         area_lines = []
@@ -62,13 +94,13 @@ def codeowners(team: TeamConfig, config: Mapping[str, Any], child: str | None = 
             for glob in area.paths:
                 rerooted = reroot(glob, child)
                 if rerooted is not None:
-                    area_lines.append(f"{rerooted} {' '.join(owners)}")
+                    area_lines.append(f"{pattern(rerooted)} {' '.join(owners)}")
         if not area_lines:
             return None
         return "\n".join(lines + area_lines) + "\n"
     for area in team.areas.values():
         owners = _logins(team, {area.lead})
-        lines += [f"/{glob} {' '.join(owners)}" for glob in area.paths]
+        lines += [f"{pattern('/' + glob)} {' '.join(owners)}" for glob in area.paths]
     artifacts = config.get("artifacts") if isinstance(config.get("artifacts"), Mapping) else {}
     cfg = sdd_config(config)
     spec_dirs = [cfg["specs"], cfg["changes"]] if cfg["layout"] == "sdd" else [".planning/specs"]
@@ -78,7 +110,8 @@ def codeowners(team: TeamConfig, config: Mapping[str, Any], child: str | None = 
                              + [(directory, spec_roles) for directory in spec_dirs]):
         owners = _logins(team, roles)
         if owners:
-            lines.append(f"/{str(directory).strip('/')}/ {' '.join(owners)}")
+            folder = "/" + str(directory).strip("/") + "/"
+            lines.append(f"{pattern(folder)} {' '.join(owners)}")
     return "\n".join(lines) + "\n"
 
 
