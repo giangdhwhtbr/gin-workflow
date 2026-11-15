@@ -93,7 +93,7 @@ Open: the parent for setup, plan, orchestrate, and ship.
 
 | Stage | Command |
 |---|---|
-| Plan | `/gin:plan` writes tracks that each carry `Repo: <path>`; `gin record plan-approved` refuses a track with no `Repo:`, an unknown or frozen repository, the beads entry, or files outside its repository. A track may also carry `Reads: <paths>`, the repositories it reads and never edits; `gin team check-plan` and `gin record plan-approved` refuse a path that is not in `workspace.repos`, the beads entry, or the track's own `Repo:`. A `frozen` repository is accepted, and whether it is cloned is not checked there |
+| Plan | `/gin:plan` writes tracks that each carry `Repo: <path>`; `gin record plan-approved` refuses a track with no `Repo:`, an unknown or frozen repository, the beads entry, or files outside its repository. A track may also carry `Reads: <paths>`, the repositories it reads and never edits. `gin team check-plan` and `gin record plan-approved` refuse a path that is not in `workspace.repos`, the beads entry, or the track's own `Repo:`. A `frozen` repository is accepted, and whether it is cloned is not checked there |
 | Orchestrate | `/gin:orchestrate` creates one worktree per track inside the named child; a missing clone stops with the exact `gin workspace clone <path>` command. It puts `Reads: <paths>` in the track bead and, outside team mode, stops the same way when a `Reads:` repository is not cloned. In [team mode](team.md) it creates no child branch or worktree and pushes the parent's `feat/<topic>`; each member's `gin team claim` creates their worktree |
 | Ship | `/gin:ship` from the parent integrates one repository at a time, the parent last (in team mode, each track and the parent's `feat/<topic>` go through pull requests, then an area lead runs `gin team complete <epic>`); `team check --gate ship` and `record shipped` accept a child's pull request, and `team check --gate ship` compares it with the HEAD of the child checkout or track worktree you run it from, else the child's main checkout; `gin team deps` finds a child's track pull request in the repository its `Repo:` names; the parent's integration carries the archive into the living spec, and by team convention the BA reviews that diff |
 
@@ -114,9 +114,9 @@ Read the spec and plan from the parent path the bead links. A track edits nothin
 
 ### Reading another repository
 
-A track that needs to read a repository it does not edit names it in `Reads:` in the plan. When you run `/gin:execute`, the stage takes each named repository's row from `gin workspace status --json`. If a repository is not cloned on this machine, execute stops with `gin workspace clone <path>`. Otherwise the developer receives that row's `checkout`, `branch`, and `commit` as read-only context.
+A track that needs to read a repository it does not edit names it in `Reads:` in the plan. When you run `/gin:execute`, the skill has the agent take each named repository's row from `gin workspace status --json`. If a repository is not cloned on this machine, the agent stops with `gin workspace clone <path>`. Otherwise the developer receives that row's `checkout`, `branch`, and `commit` as read-only context.
 
-The checkout is read as it is. gin never switches or pulls it, so pull it yourself when the track needs a newer state. Read-only is an instruction to the developer: gin does not block a write to it. A harness that limits reads to its working directory asks for access to the path.
+The checkout is read as it is. No gin command switches or pulls it, and the developer is told not to; pull it yourself when the track needs a newer state. Read-only is an instruction to the developer: gin does not block a write to it. A harness that limits reads to its working directory asks for access to the path.
 
 ## Running a track's dependencies
 
@@ -130,7 +130,7 @@ gin has no command and no configuration for services, a database, compose, or en
 
 Open: the `qa` child, the QA home. Config, specs, and Beads stay in the parent; gin-qa reads them through `gin specs reqs`. If the child is not cloned, run `gin workspace clone <path>`.
 
-To test a track, check out its branch in each child under test. Start the combination with the team's tool, or use the preview environment, as in [running a track's dependencies](#running-a-tracks-dependencies). In a workspace, `run.json` records `checkouts`, the state of the machine that ran the tests; the fields are in the [CLI reference](../reference/cli.md#gin-qa). By convention, a tester who tests a preview environment names each repository's pull request URL in the approval comment.
+To test a track, check out its branch in each child under test. Start the combination with the team's tool, or use the preview environment, as in [running a track's dependencies](#running-a-tracks-dependencies). In a workspace, `run.json` of `gin-qa e2e run` and `gin-qa tests run` records `checkouts`: the checkout state of the machine that ran the tests, not what a preview environment deployed. The fields are in the [CLI reference](../reference/cli.md#gin-qa-cases-export-and-gin-qa-e2e-run). By convention, a tester who tests a preview environment names each repository's pull request URL in the approval comment.
 
 | Stage | Command |
 |---|---|
