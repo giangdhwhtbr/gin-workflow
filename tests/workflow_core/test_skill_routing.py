@@ -566,3 +566,19 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         self.assertTrue(line_with(contract, "review ledger", "`project.review_ledger`"))
         self.assertTrue(line_with(contract, "`project.run_at: host`", "pre-push"))
         self.assertIn("`project.review_ledger: true`", read("skills/team/references/workspace.md"))
+
+    def test_quick_in_team_mode_pushes_opens_a_pr_and_records_a_comment(self):
+        text = (SRC / "skills/quick/SKILL.md").read_text(encoding="utf-8")
+        for needle in ("project.team.enabled", "--epic <id> | --milestone <id>", "[gin quick] <branch> <pr-url>",
+                       "Summary:", "Files:", "Author:", "Cases:", "Covering cases section of the `qa-track` skill", "body or description option", "Needs ship approval: run gin team check --gate ship <pr-url> before merging.",
+                       "team/references/hosts.md", "gin team sync", "In solo mode", "existing feature branch"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        qa = (SRC / "skills/qa-track/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("## Covering cases", qa)
+        self.assertIn("gin-qa cases export --format json", qa)
+        self.assertIn("`capability`", qa)
+        self.assertNotIn("gin-qa cases plan <capability>", qa)
+        self.assertIn("pushed only in team mode", (SRC / "references/stage-contract.md").read_text(encoding="utf-8"))
+        self.assertIn("[gin quick]", (SRC / "skills/progress/SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("[gin quick]", (SRC / "skills/milestone-close/SKILL.md").read_text(encoding="utf-8"))

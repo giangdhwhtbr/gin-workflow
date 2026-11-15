@@ -20,7 +20,7 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | Skill | Mục đích |
 |---|---|
 | `workflow` | Điều hướng trạng thái hiện tại tới đúng một stage của lifecycle, hoặc chẩn đoán một workflow đang bị giữ |
-| `quick` | Thay đổi nhỏ, rủi ro thấp không cần plan hay bead: xác nhận, triển khai, kiểm chứng theo rigor, báo cáo |
+| `quick` | Thay đổi nhỏ, rủi ro thấp không cần plan hay bead: xác nhận, triển khai, kiểm chứng theo rigor, báo cáo. Trong team mode, khi bắt đầu từ nhánh base, skill push `quick/<slug>`, mở pull request kèm các case bao phủ và dòng nhắc ship approval, rồi ghi comment `[gin quick]` lên một epic hoặc milestone đang active |
 | `progress` | Báo cáo trạng thái task, blocker, waiver đang mở và công việc sẵn sàng kế tiếp mà không thay đổi gì; với milestone, nó liệt kê các epic bằng `task list --parent <milestone-id>` |
 | `report` | Báo cáo mức sử dụng AI theo bead, epic hoặc milestone (`--milestone <id>`: token, chi phí, tín hiệu chất lượng) mà không thay đổi gì |
 | `setup` | Cấu hình repository lần đầu và bảo trì setup khi được yêu cầu |

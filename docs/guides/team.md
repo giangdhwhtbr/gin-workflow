@@ -104,6 +104,10 @@ To hand a track over (a member runs out of quota or is away), the current assign
 
 A member's ship covers only their own tracks. Once every track pull request has merged, and, when `feat/<topic>` exists on the parent's `origin`, its pull request too, an area lead runs `gin team complete <epic>`. It closes any open `prep` children, then closes the epic with the merged pull request URLs as the reason. Otherwise it lists what is missing and exits 1 ([command reference](../reference/cli.md#gin-team)).
 
+## Quick in team mode
+
+In team mode, `/gin:quick` started on the base branch pushes `quick/<slug>` and opens a pull request. Its description, passed with the host CLI's body option, lists the covering QA cases of each confirmed capability and the ship approval line. The skill records a `[gin quick]` comment on the `--epic`, the `--milestone`, or the active milestone, and runs `gin team sync` when shared Beads is set. `gin team pending` lists the open quick pull requests. The person who merges runs `gin team check --gate ship <pr-url>`.
+
 ## Prep tasks
 
 Prep tasks (pre-discuss capture, mockup, spike, and question work; see [lifecycle](../concepts/lifecycle.md#prep-tasks)) are created by the lead's `/gin:allocate` and need `team.beads_sync`. Without it they would exist only in the lead's database and no member would see them. The skill runs `gin team sync` before and after writing, and the assignee runs it after closing a task.

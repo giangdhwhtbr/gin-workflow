@@ -13,7 +13,7 @@ from .team_host import HostUnavailable
 
 _TRACK_LINE = re.compile(r"^Plan:\s*`?([^`,\n]+?)`?,\s*Track\s+(\d+)\b", re.MULTILINE)
 _EPIC_LINE = re.compile(r"^(?:Epic|Workflow):\s*(\S+)", re.MULTILINE)
-_GATES = {"spec": "requirement_confirmed", "plan": "plan_approved", "ship": "ship", "track": None}
+_GATES = {"spec": "requirement_confirmed", "plan": "plan_approved", "ship": "ship", "quick": "ship", "track": None}
 
 
 def git(root: Path, *argv: str) -> str:
@@ -40,13 +40,14 @@ def topic_of(plan_path: str) -> str:
 
 
 def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]:
-    """(branch, kind, epic) in text order: remote `spec/*` and `plan/*` heads (epic read later), `feat/<topic>` per
+    """(branch, kind, epic) in text order: remote `spec/*`, `plan/*`, and `quick/*` heads (epic read later or none), `feat/<topic>` per
     open epic with track beads of any status when the ship gate has a policy, and `feat/<topic>-t<N>` per open track
     bead."""
     heads = [line.split("\trefs/heads/", 1)[1] for line in git(root, "ls-remote", "--heads", "origin").splitlines()
              if "\trefs/heads/" in line]
     found: list[tuple[str, str, str | None]] = [(head, "spec", None) for head in heads if head.startswith("spec/")]
     found += [(head, "plan", None) for head in heads if head.startswith("plan/")]
+    found += [(head, "quick", None) for head in heads if head.startswith("quick/")]
     beads = _beads(root, ["list", "--all", "--limit", "0"])  # closed tracks still name the ship branch
     live = {bead["id"] for bead in beads if bead.get("status") in ("open", "in_progress")}
     tracks: dict[str, str] = {}
@@ -83,7 +84,8 @@ def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
             milestone: str | None = None) -> list[dict[str, Any]]:
     """One row per open pull request of a candidate branch: gate rows carry as `missing` the reasons the gate's
     policy gives before merge, with the branch's spec or plan text as the artifact, and the note `approvals: host` under
-    a `host` policy; track rows only their approvers.
+    a `host` policy; quick rows are ship rows without an epic (no gate when ship has no policy); track rows only their
+    approvers.
     A host failure before any host call has succeeded raises; after that, a failed lookup gives its row `error`."""
     keep = {workflow_id} if workflow_id else None
     if milestone:
@@ -91,9 +93,10 @@ def pending(root: Path, team: TeamConfig, *, workflow_id: str | None = None,
     rows: list[dict[str, Any]] = []
     reached = False  # a host call succeeded, so a later host failure belongs to its row
     for branch, kind, epic in candidates(root, team):
-        if keep is not None and epic is not None and epic not in keep:
+        if keep is not None and (kind == "quick" or (epic is not None and epic not in keep)):
             continue
-        row: dict[str, Any] = {"gate": _GATES[kind], "branch": branch, "url": "", "author": "", "epic": epic,
+        gate = None if kind == "quick" and not team_core.has_policy("ship", team) else _GATES[kind]
+        row: dict[str, Any] = {"gate": gate, "branch": branch, "url": "", "author": "", "epic": epic,
                                "approvals": [], "missing": [], "notes": []}
         try:
             found = team_host.pr_for_branch(team.host, branch, root)
