@@ -437,7 +437,9 @@ class LeanLifecycleSkillTests(unittest.TestCase):
     def test_ship_merges_track_branches_outside_a_workspace(self):
         ship = read("skills/ship/SKILL.md")
         rule = line_with(ship, "Outside team mode and a workspace, run ship from the `feat/<topic>` checkout")
-        self.assertIn("merge each track branch that has its own worktree into `feat/<topic>`, in plan order", rule)
+        self.assertIn("checkout and, after these checks, merge each track branch that has its own worktree into "
+                      "`feat/<topic>`, in plan order", rule)
+        self.assertNotIn("first merge each track branch", ship)
         self.assertIn("a conflict stops ship", rule)
         self.assertLess(ship.index(rule), ship.index("4. Present"))
         self.assertTrue(line_with(read("skills/orchestrate/SKILL.md"),

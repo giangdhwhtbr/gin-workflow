@@ -19,7 +19,7 @@ Check → detect workspace → present options → execute the choice → clean 
    - Run the acceptance-case check in the `qa-track` skill (Ship check): missing or stale cases stop ship; without it, say the QA check was skipped.
    With `project.team.enabled`, merging follows the host rules, Beads are synced, and a `team.approvals.ship` policy limits the options; in a workspace, open the parent's `feat/<topic>` pull request, and once every pull request has merged, close the epic with `gin team complete <epic>` (the `team` skill).
    Then reconcile knowledge per `learn` and commit the records on the feature branch, before the options.
-   Outside team mode and a workspace, run ship from the `feat/<topic>` checkout and first merge each track branch that has its own worktree into `feat/<topic>`, in plan order; a conflict stops ship.
+   Outside team mode and a workspace, run ship from the `feat/<topic>` checkout and, after these checks, merge each track branch that has its own worktree into `feat/<topic>`, in plan order; a conflict stops ship.
 2. Detect the workspace before changing directory and save the results:
    ```bash
    GIT_DIR=$(cd "$(git rev-parse --git-dir)" && pwd -P); GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
