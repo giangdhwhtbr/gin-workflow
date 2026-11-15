@@ -56,10 +56,10 @@ Added on 2026-11-15 after the first review, at the user's request. Team level on
 
 - `completion`: closed epics over all epics of the milestone at the start of the run, as `<closed>/<total>`.
 - `estimate_accuracy`: the sum of `estimate_days` over the sum of actual working days, over closed epics that have both; two decimals; 1.00 means on estimate, below 1 means the work took longer. `n/a` without such an epic.
-- `capacity_used`: the sum of `estimate_days` of the closed epics over the milestone's capacity, `lanes` (from `gin milestone show --json`) times its working days from `start` to `end`; two decimals; `n/a` without `lanes` or estimates.
-- `cost_per_epic`: `totals.cost` of `gin usage report --milestone <id> --format json` over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
-- `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads`; `n/a` when the report failed.
-- Comparison: the skill reads the `Metrics:` line of the `[gin close]` comment of the most recently closed milestone (`gin milestone list --all --json`, status `closed`, the latest `end` before this milestone's `start`) and shows the change of each metric. Without one, it says `no earlier metrics`.
+- `capacity_used`: the sum of `estimate_days` of the closed epics over the milestone's capacity, `lanes` (from `gin milestone show --json`) times its working days, Monday to Friday, from `start` to `end` with both ends included and no `away` days subtracted; two decimals; `n/a` without `lanes` or estimates.
+- `cost_per_epic`: `totals.cost` of `gin usage report --milestone <id> --format json` over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `totals.cost` covers every epic of the milestone, open ones included; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
+- `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads` entries whose `parent` is not the `bead` of another entry (an epic's `quality` already includes its children, as `totals` in `usage.py` does); `n/a` when the report failed.
+- Comparison: the skill reads the `Metrics:` line of the `[gin close]` comment of the most recently closed milestone (`gin milestone list --all --json`, status `closed`, the latest `end` before this milestone's `start`) and shows the change of each metric. Without such a milestone, comment, or line, it says `no earlier metrics`.
 
 ### Next milestone
 
