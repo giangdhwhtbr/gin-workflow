@@ -1,12 +1,16 @@
 # Code Review Ledger
 
-**Bead Status:** `review-requested`
+**Bead Status:** `review-approved`
 
 ## Active Lease
 *No active lease.*
 
 ## Review Approval
-*Not approved or approval has been invalidated.*
+- **Status:** Approved
+- **Approval Event ID:** `EV-000022`
+- **Source Scope Hash:** `cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7`
+- **Approved Repositories:**
+  - `gin-workflow` (SHA: `7089bbe`, Tree Hash: `1fcc4ab`)
 
 ## Tracked Repositories
 ### Repository: `gin-workflow`
@@ -29,21 +33,21 @@
 ## Findings Summary
 | Finding ID | Severity | Status | Clarification Count | Linked Bead |
 | :--- | :--- | :--- | :---: | :--- |
-| `F-1` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
-| `F-2` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
-| `F-3` | `IMPORTANT` | `fixed-awaiting-verification` | 0 | - |
+| `F-1` | `IMPORTANT` | `verified` | 0 | - |
+| `F-2` | `IMPORTANT` | `verified` | 0 | - |
+| `F-3` | `IMPORTANT` | `verified` | 0 | - |
 
 ## Findings Detail
 ### `F-1` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-2` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 ### `F-3` (IMPORTANT)
-- **Status:** `fixed-awaiting-verification`
+- **Status:** `verified`
 - **Clarification Count:** 0
 
 
@@ -66,3 +70,10 @@
 | `EV-000014` | `2026-11-15T07:44:38.756831Z` | `finding-fixed` | `worker:claude:sonnet` (worker) |
 | `EV-000015` | `2026-11-15T07:44:39.131534Z` | `source-checkpoint-created` | `worker:claude:sonnet` (worker) |
 | `EV-000016` | `2026-11-15T07:44:39.283202Z` | `review-requested` | `worker:claude:sonnet` (worker) |
+| `EV-000017` | `2026-11-15T07:44:54.321087Z` | `lease-acquired` | `reviewer:claude:session-d52d8cb1` (reviewer) |
+| `EV-000018` | `2026-11-15T07:44:54.346247Z` | `review-started` | `reviewer:claude:session-d52d8cb1` (reviewer) |
+| `EV-000019` | `2026-11-15T07:44:58.227625Z` | `finding-verified` | `reviewer:claude:session-d52d8cb1` (reviewer) |
+| `EV-000020` | `2026-11-15T07:44:58.382697Z` | `finding-verified` | `reviewer:claude:session-d52d8cb1` (reviewer) |
+| `EV-000021` | `2026-11-15T07:44:58.535893Z` | `finding-verified` | `reviewer:claude:session-d52d8cb1` (reviewer) |
+| `EV-000022` | `2026-11-15T07:44:58.776244Z` | `review-approved` | `reviewer:claude:session-d52d8cb1` (reviewer) |
+| `EV-000023` | `2026-11-15T07:44:59.066160Z` | `lease-released` | `reviewer:claude:session-d52d8cb1` (reviewer) |
