@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "review_state": "review-requested",
+  "repositories": [
+    {
+      "repository_id": "gin-workflow",
+      "role": "primary",
+      "repository_path": ".",
+      "review_ref": "refs/gin/review/gin-workflow-milestone-close.2",
+      "checkpoint_ref": "refs/gin/review/gin-workflow-milestone-close.2",
+      "review_base_sha": "b9433b07c2cd85ccf7beeb7e02c8811f90faa280",
+      "reviewed_source_sha": "f90e58eec12b986a3209a000552778dc82f4096c",
+      "checkpoint_sha": "f90e58eec12b986a3209a000552778dc82f4096c",
+      "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+      "source_tree_hash": "e863bd81649353122555ba16d4e451d538492c6cdb2e531f6de5b0966190c34b",
+      "reviewed_source_tree_hash": "e863bd81649353122555ba16d4e451d538492c6cdb2e531f6de5b0966190c34b",
+      "source_identity_status": "complete"
+    }
+  ],
+  "source_scope": {
+    "included_paths": [],
+    "excluded_artifact_paths": [],
+    "allowed_generated_paths": [],
+    "nested_repository_paths": []
+  },
+  "active_lease": null,
+  "ledger_revision": 3,
+  "next_finding_number": 1,
+  "findings": {},
+  "events": [
+    {
+      "event_id": "EV-000001",
+      "action": "ledger-created",
+      "timestamp": "2026-11-15T04:06:39.016234Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-milestone-close.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-milestone-close.2",
+            "review_base_sha": "b9433b07c2cd85ccf7beeb7e02c8811f90faa280",
+            "reviewed_source_sha": "767baeba4fe29da7eb609a72a269369c6b36a377",
+            "checkpoint_sha": "767baeba4fe29da7eb609a72a269369c6b36a377",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "e863bd81649353122555ba16d4e451d538492c6cdb2e531f6de5b0966190c34b",
+            "reviewed_source_tree_hash": "e863bd81649353122555ba16d4e451d538492c6cdb2e531f6de5b0966190c34b",
+            "source_identity_status": "complete"
+          }
+        ],
+        "source_scope": {
+          "included_paths": [],
+          "excluded_artifact_paths": [],
+          "allowed_generated_paths": [],
+          "nested_repository_paths": []
+        },
+        "owner": "worker:claude:sonnet",
+        "max_cycles": 3
+      },
+      "previous_event_hash": null,
+      "event_hash": "f4fb61ec05f226ff7e760451232ddb3d24ae901c93d7cd7ec6b8274a3105e9e4"
+    },
+    {
+      "event_id": "EV-000002",
+      "action": "source-checkpoint-created",
+      "timestamp": "2026-11-15T04:06:39.616820Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "repositories": [
+          {
+            "repository_id": "gin-workflow",
+            "role": "primary",
+            "repository_path": ".",
+            "review_ref": "refs/gin/review/gin-workflow-milestone-close.2",
+            "checkpoint_ref": "refs/gin/review/gin-workflow-milestone-close.2",
+            "review_base_sha": "b9433b07c2cd85ccf7beeb7e02c8811f90faa280",
+            "reviewed_source_sha": "f90e58eec12b986a3209a000552778dc82f4096c",
+            "checkpoint_sha": "f90e58eec12b986a3209a000552778dc82f4096c",
+            "source_scope_hash": "cf81789728b4d008aec9c15c2eeaed4cd381332309c20dfb122bffb24852c6c7",
+            "source_tree_hash": "e863bd81649353122555ba16d4e451d538492c6cdb2e531f6de5b0966190c34b",
+            "reviewed_source_tree_hash": "e863bd81649353122555ba16d4e451d538492c6cdb2e531f6de5b0966190c34b",
+            "source_identity_status": "complete"
+          }
+        ]
+      },
+      "previous_event_hash": "f4fb61ec05f226ff7e760451232ddb3d24ae901c93d7cd7ec6b8274a3105e9e4",
+      "event_hash": "62ee867bed6d22eaece2f5144af1dd03b6c1a04e594c185cc76ef90673073857"
+    },
+    {
+      "event_id": "EV-000003",
+      "action": "review-requested",
+      "timestamp": "2026-11-15T04:06:39.884232Z",
+      "actor": {
+        "role": "worker",
+        "actor_id": "worker:claude:sonnet"
+      },
+      "payload": {
+        "to": "review-requested"
+      },
+      "previous_event_hash": "62ee867bed6d22eaece2f5144af1dd03b6c1a04e594c185cc76ef90673073857",
+      "event_hash": "0cb2d53cc7f38d1372b0e6a3b3c00c760f004104ae78b91bd78a663369e3f7f1"
+    }
+  ]
+}
