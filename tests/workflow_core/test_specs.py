@@ -551,6 +551,18 @@ class TestSpecsCli(unittest.TestCase):
             write(root, ".agent-workflow/templates/user-story.md", "### Story {{n}}\n")
             self.assertEqual("### Story {{n}}\n", run_specs(root, "template", "user-story.md").stdout)
 
+    def test_template_comments_close_only_at_their_end(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = make_repo(Path(directory), layout="legacy")
+            for name, hidden in (("activity.md", "Cite the file"), ("use-case.md", None)):
+                with self.subTest(name=name):
+                    text = run_specs(root, "template", name).stdout
+                    head = text.split("```mermaid")[0]
+                    self.assertEqual(head.count("<!--"), head.count("-->"))
+                    if hidden:
+                        self.assertIn(hidden, text)
+                        self.assertNotIn(hidden, specs._COMMENT.sub("", text))
+
     def test_doc_templates_pass_docs_check(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
