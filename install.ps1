@@ -165,6 +165,17 @@ function New-HooksFile {
                 })
             }
         }
+        if ($Harness -eq 'claude') {
+            # PowerShell syntax, so the hook sets its shell: the default is Git Bash when it is installed.
+            $hooks.hooks['SessionStart'] = @([ordered]@{
+                hooks = @([ordered]@{
+                    type = 'command'
+                    shell = 'powershell'
+                    command = 'if (Get-Command gin -ErrorAction SilentlyContinue) { gin version --hook }; exit 0'
+                    timeout = 10
+                })
+            })
+        }
         if ($Harness -eq 'codex') {
             $hooks = [ordered]@{
                 description = 'Gin workflow safety hooks for Codex.'

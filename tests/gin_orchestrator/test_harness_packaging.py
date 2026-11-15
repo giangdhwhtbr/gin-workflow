@@ -173,6 +173,15 @@ class HarnessPackagingTests(unittest.TestCase):
                 root = self.dist / harness
                 self.assertTrue(all((root / relative).is_file() for relative in relatives))
 
+    def test_only_the_claude_hooks_file_has_a_session_start_hook_for_the_version_pin(self):
+        claude = json.loads((self.dist / "claude-code/hooks/hooks.json").read_text(encoding="utf-8"))
+        self.assertEqual({"PreToolUse", "SessionStart"}, set(claude["hooks"]))
+        command = claude["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        self.assertIn("gin version --hook", command)
+        for relative in ("codex/hooks/hooks.json", "antigravity/hooks/hooks.json", "copilot/gin/hooks/hooks.json"):
+            with self.subTest(file=relative):
+                self.assertNotIn("SessionStart", (self.dist / relative).read_text(encoding="utf-8"))
+
     def test_copilot_layout_is_a_claude_manifest_bundle_with_copilot_hooks(self):
         # Copilot CLI reads .claude-plugin/plugin.json, skills/<name>/SKILL.md,
         # hooks/hooks.json in Copilot's format, and agents with translated tool names.

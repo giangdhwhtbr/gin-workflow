@@ -337,6 +337,17 @@ template_hooks_for_claude() {
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v gin >/dev/null 2>&1; then gin version --hook; fi; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

@@ -277,6 +277,7 @@ assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"descriptio
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"PreToolUse\""
 assert_codex_hooks_schema "plugins/gin-workflow/dist/codex/hooks/hooks.json"
+assert_not_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "SessionStart"
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" '"command": "python3 \"${PLUGIN_ROOT}/scripts/safety_check.py\""'
 assert_contains 'plugins/gin-workflow/dist/codex/skills/orchestrate/SKILL.md' 'Read [references/stage-contract.md](../../references/stage-contract.md) now'
 assert_contains "plugins/gin-workflow/dist/codex/skills/tech-doc/SKILL.md" "single combined document"
@@ -327,6 +328,7 @@ assert_exists "plugins/gin-workflow/dist/copilot/gin/skills/report/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/copilot/gin/references/stage-contract.md"
 assert_exists "plugins/gin-workflow/dist/copilot/gin/scripts/gin"
 assert_exists "plugins/gin-workflow/dist/copilot/gin/hooks/hooks.json"
+assert_not_contains "plugins/gin-workflow/dist/copilot/gin/hooks/hooks.json" "SessionStart"
 assert_contains "plugins/gin-workflow/dist/copilot/gin/hooks/hooks.json" '/scripts/safety_check.py\"; if [ -f \"$s\" ]; then exec python3 \"$s\"'
 assert_exists "plugins/gin-workflow/dist/copilot/gin/agents/developer.md"
 assert_contains "plugins/gin-workflow/dist/copilot/gin/agents/developer.md" '"view", "grep", "glob", "bash", "edit"'
@@ -351,6 +353,8 @@ assert_not_exists "$MOCK_HOME/.claude/skills/gin/agents/solution-architect.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin/agents/developer.md"
 assert_exists "$MOCK_HOME/.claude/skills/gin/scripts/safety_check.py"
 assert_contains "$MOCK_HOME/.claude/skills/gin/hooks/hooks.json" '"command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/safety_check.py\""'
+assert_contains "$MOCK_HOME/.claude/skills/gin/hooks/hooks.json" '"SessionStart"'
+assert_contains "$MOCK_HOME/.claude/skills/gin/hooks/hooks.json" 'gin version --hook'
 # No installed file names the old bash hook.
 if grep -rlF "safety-check" "$MOCK_HOME/.claude/skills/gin"; then
   echo "Expected no installed file to reference the old safety-check script" >&2
