@@ -443,7 +443,8 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         worktrees = read("skills/worktrees/SKILL.md")
         workspace = worktrees[worktrees.index("## 3. Workspace"):]
         for needle in ("`Reads:", "`gin workspace status --json`", "`gin workspace clone <path>`",
-                       "`checkout`", "`commit`", "read-only", "Never switch or pull"):
+                       "`checkout`", "`branch`", "`commit`", "`present`", "read-only", "Never switch or pull",
+                       "In a workspace, a track with `Reads:`"):
             self.assertIn(needle, workspace)
         self.assertTrue(line_with(read("skills/execute/SKILL.md"), "bounded context", "`Reads:` checkouts"))
         self.assertIn("`Reads:` checkouts", read("skills/execute/references/delegation-policy.md"))
