@@ -9,7 +9,7 @@ import sys
 from typing import Any, Sequence
 
 
-CLI_VERSION = "3.1.0"
+CLI_VERSION = "3.1.1"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team", "usage",
                 "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "commit", "worktree", "workspace", "milestone",
                 "version")

@@ -12,7 +12,7 @@ from . import cases as tc
 from . import bugs, e2e, report, tests
 from .reqs import Effective, QaError, locate, specs_reqs
 
-VERSION = "3.1.0"
+VERSION = "3.1.1"
 
 
 def _parser() -> argparse.ArgumentParser:

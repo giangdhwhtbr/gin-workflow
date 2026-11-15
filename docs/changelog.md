@@ -2,6 +2,18 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-orchestrator, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.1.1] - 2026-11-15
+
+### Upgrade notes
+
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is.
+
+### Fixed
+
+- `gin specs explain NAME --legacy APP` accepts a capability that has no living spec yet when `--narrative` is given. The page holds the narrative and any diagrams and dated asset folders.
+- With `--legacy`, `gin specs explain` takes a name as a change only when it is the whole name of a change folder. A capability whose name starts like an open change is no longer refused.
+- `gin setup doctor` and `gin setup preset` no longer report the `assets`, `diagrams`, and `use-cases` folders of a capability as non-SDD files. Hidden files such as `.DS_Store` are ignored too.
+
 ## [3.1.0] - 2026-11-15
 
 gin, gin-qa, gin-orchestrator, and gin-ba now share one version. This release adds hosts for team mode (Gitea and AWS CodeCommit) and milestone retros and closing. It runs the full suite once before the push, makes the review ledger optional, and adds QA and BA work inside a workspace and a version pin for projects.

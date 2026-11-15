@@ -32,6 +32,8 @@ def locations(root: Path) -> list[tuple[Path, re.Pattern]]:
         found.append((root / "install.sh", re.compile(rf'^{name}="([^"]+)"', re.MULTILINE)))
     for name in ("LauncherVersion", "QaLauncherVersion", "OrchLauncherVersion"):
         found.append((root / "install.ps1", re.compile(rf"^\${name} = '([^']+)'", re.MULTILINE)))
+    # The one documentation page that quotes the version as CLI output.
+    found.append((root / "docs/reference/orchestrator-contract.md", re.compile(r'"orchestrator_version": "([^"]+)"')))
     return found
 
 
