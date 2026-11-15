@@ -123,6 +123,8 @@ Each host needs a logged-in CLI and branch protection on the integration branch.
 
 Set `team.host: gitea`. `team init` writes `.gitea/CODEOWNERS` and `.gitea/PULL_REQUEST_TEMPLATE.md`. Protect the integration branch with required approvals and turn on "Dismiss stale approvals". The `ship` gate counts only approvals made on the head commit either way.
 
+Gitea reads each CODEOWNERS line as a regular expression, so `team init` translates the area globs (`web/**` becomes `web/.*`, `.planning/plans/` becomes `[.]planning/plans/.*`). A glob with a space, `#`, `\`, or `^` is refused. Gitea only requests reviews from code owners; it has no setting that requires their approval. After upgrading gin, run `gin team init` again (with `--force` when you removed the generated marker line) and commit `.gitea/CODEOWNERS`; until then `gin team codeowners --check` reports drift.
+
 `gt` is Gitea's CLI and needs Gitea 28 or later. Log in once per instance, and include any subpath in the URL:
 
 ```bash

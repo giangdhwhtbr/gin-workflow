@@ -14,7 +14,7 @@ Applies only when `gin state --format json` reports `project.layout: sdd`. Paths
 4. `specs lint --change <epic> --against <base>` must exit 0; a taken ID: `specs renumber`. An untracked cited file (ADR, mockup, asset folder): commit it with the change folder, lint again.
 5. `project.spec_review`:
    - `chat`: the user confirms → `gin record requirement-confirmed --workflow-id <epic> --evidence <change folder> --actor <id>`.
-   - `pr`: commit only the change folder and the files it cites on branch `spec/<epic>-<slug>` and push; get approval (stage-contract Approvals), then open the PR (team mode: `team.host` command from the `team` skill's references/hosts.md; else `gh pr create --fill`); return `awaiting_spec_review` without recording. On a later run, `specs status --change <epic>`: `merged` → record `requirement-confirmed` with evidence `<pr url> <merge commit>`; `open` → report and stop; `closed` or `none` → ask the user. Implementation branches from the updated base.
+   - `pr`: commit only the change folder and the files it cites on branch `spec/<epic>-<slug>` and push; get approval (stage-contract Approvals), then open the PR (team mode: `team.host` command from the `team` skill's references/hosts.md; else `gh pr create --fill`); return `awaiting_spec_review` without recording. Later, `specs status --change <epic>`: `merged` → record `requirement-confirmed` with evidence `<pr url>` (no team mode: `<pr url> <merge commit>`); `open` → report and stop; `closed` or `none` → ask the user. Implementation branches from the updated base.
 
 ## plan
 Write `<change>/04-plan.md`. Each track's Metadata adds `Requirements: REQ-…`; every `ADDED`/`MODIFIED` REQ in the delta belongs to at least one track. Record `plan-approved --workflow-id <epic>`.
