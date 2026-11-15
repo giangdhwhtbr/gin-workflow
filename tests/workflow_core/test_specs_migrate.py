@@ -150,6 +150,23 @@ class TestSddReport(unittest.TestCase):
             self.assertTrue(any(a.startswith("sdd: run /gin:migrate-specs") for a in payload["actions"]))
             self.assertNotIn("sdd", payload["checks"])
 
+    def test_doctor_flags_only_foreign_files_in_an_sdd_specs_folder(self):
+        def sdd_actions(root: Path) -> list[str]:
+            payload = json.loads(run_cli(root, "setup", "doctor", "--format", "json").stdout)
+            return [action for action in payload["actions"] if action.startswith("sdd:")]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            init = run_cli(root, "setup", "init", "--approve", "--non-interactive", "--set", 'artifacts.layout="sdd"')
+            self.assertEqual(0, init.returncode, init.stderr)
+            for path in ("auth/spec.md", "auth/diagrams/login-activity.md", "auth/use-cases/sign-in.md",
+                         "auth/assets/2026-11-11/description.md", "auth/assets/2026-11-11/legacy/login.png"):
+                write(root, f"docs/specs/{path}", "x\n")
+            self.assertEqual([], sdd_actions(root))
+            write(root, "docs/specs/login.spec.ts", "test()\n")
+            self.assertEqual(["sdd: docs/specs holds non-SDD files; set artifacts.specs to another folder, "
+                              "e.g. docs/requirements"], sdd_actions(root))
+
 
 if __name__ == "__main__":
     unittest.main()
