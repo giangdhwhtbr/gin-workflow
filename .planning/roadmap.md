@@ -175,16 +175,16 @@ Depends on: gin-workflow-ws-ship-gate
 Evidence: synthesis "Branch and pull request model for workspace children" (BE-LEAD-4, BE-LEAD-14, BE-LEAD-15, FE-LEAD-14, BE-LEAD-10, FE-LEAD-16, PM-13); `team_beads.py` `takeover`, `review_ledger/cli.py:40-53`, `orchestrate/SKILL.md:24`.
 Risks: largest remaining workspace epic; the pull request base decision shapes orchestrate, worktrees, team, ship, and the git-flow guide.
 
-### Several pull requests in `record shipped` and `team deps` for workspace children
+### Lean lifecycle: the host owns CI and approvals, tests run once, the ledger is optional
 Epic: gin-workflow-ws-ship-records
-Estimate: 1
-Complexity: medium: team policy, Beads, host adapters
-Goal: `gin record shipped --evidence` takes one pull request URL per repository and checks each, and `gin team deps` searches the pull requests of the child named by a placeholder track's `Repo:`.
-Scope: several URLs in `record shipped` and how `gates.shipped` holds them; `team deps` and `deps_for` for a child's pull requests and HEAD.
-Out of scope: the branch and pull request model (`gin-workflow-ws-branch-model`).
+Estimate: 4
+Complexity: high: cross-module: team policy, hooks and evidence, config, stage skills, docs
+Goal: gin prefers the tools a project already has: a merged pull request counts as approved when the host enforces approvals, the full suite runs once per epic or on the host, the skills run no review ledger when it is off and follow `project.review` and `project.worktree`, `gin record shipped` takes one pull request per repository, and `gin team deps` finds a child's pull requests.
+Scope: `team.approvals.<gate>: host`; several URLs in `record shipped` and the `pull_requests` list of the shipped proof; `team deps` and `deps --bead` for a child; `verify.run_at` (`track`, `push`, `host`) in the hooks and the execute, review, ship, worktrees, and quick skills; ledger-free review; `project.review` and `project.worktree` in the skills; docs that match the code.
+Out of scope: configuring branch protection through a host API; reading CI status from the host; the branch and pull request model (`gin-workflow-ws-branch-model`); read-only siblings (`gin-workflow-ws-track-env`); quick in team mode (`gin-workflow-quick-team`).
 Depends on: gin-workflow-ws-branch-model
-Evidence: spec `2026-11-10-ws-ship-gate-design.md` handed over BE-LEAD-13 and BE-LEAD-16; `team.py` `verify_gate` and `authorize_record`, `team_beads.py` `deps`.
-Risks: a schema decision for `gates.shipped`, which holds one proof today.
+Evidence: spec `2026-11-15-lean-lifecycle-design.md` (gate inventory of 36 items; 14 full-suite runs measured on `gin-workflow-ws-branch-model`); spec `2026-11-10-ws-ship-gate-design.md` handed over BE-LEAD-13 and BE-LEAD-16; `team.py`, `team_beads.py` `deps`, `hooks.py`, `verification.py`, `project.py` `RIGOR_PRESETS`.
+Risks: the default changes for `easy` and `standard` projects (the suite at push); five stage chains are within 300 characters of their budget.
 
 ### Track environment with read-only siblings and running services
 Epic: gin-workflow-ws-track-env
