@@ -296,6 +296,49 @@ class TestLegacy(unittest.TestCase):
             self.assertFalse((root / OUT).exists())
             self.assertFalse((plain / OUT).exists())
 
+    def test_legacy_page_for_a_capability_without_a_living_spec(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.workspace_repo(tmp)
+            write(root, f"{OUT}/legacy/shop-portal/payments/payments.md", "Refunds go through `refund.jsp:12`.\n")
+            result = run_specs(root, "explain", "payments", "--legacy", "shop-portal",
+                               "--narrative", f"{OUT}/legacy/shop-portal/payments/payments.md")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertEqual(f"{OUT}/legacy/shop-portal/payments/payments.html", result.stdout.strip())
+            html = (root / OUT / "legacy/shop-portal/payments/payments.html").read_text(encoding="utf-8")
+            for needle in ("legacy capability (shop-portal)", "payments", "refund.jsp:12", 'id="overview"'):
+                self.assertIn(needle, html)
+            for absent in ('id="requirements"', 'id="stories"', 'id="diagrams"', 'id="mockups"'):
+                self.assertNotIn(absent, html)
+            self.assertFalse((root / "docs/specs/payments").exists())
+
+    def test_legacy_page_without_a_living_spec_shows_its_dated_folders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.workspace_repo(tmp)
+            write(root, "docs/specs/payments/assets/2026-05-11/description.md", "# Refund screen\n\nKind: legacy\n")
+            write(root, "n.md", "Refunds.\n")
+            result = run_specs(root, "explain", "payments", "--legacy", "shop-portal", "--narrative", "n.md")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            html = (root / OUT / "legacy/shop-portal/payments/payments.html").read_text(encoding="utf-8")
+            self.assertIn('id="mockups"', html)
+            self.assertIn("Refund screen", html)
+
+    def test_without_a_living_spec_legacy_needs_a_narrative_and_plain_explain_still_refuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.workspace_repo(tmp)
+            bare = run_specs(root, "explain", "payments", "--legacy", "shop-portal")
+            self.assertEqual(2, bare.returncode, bare.stdout + bare.stderr)
+            self.assertIn("payments has no living spec", bare.stderr)
+            self.assertIn("--narrative", bare.stderr)
+            plain = run_specs(root, "explain", "payments")
+            self.assertEqual(2, plain.returncode)
+            self.assertIn("unknown capability or change: payments", plain.stderr)
+            other = run_specs(root, "explain", "payments", "--legacy", "other", "--narrative", "n.md")
+            self.assertEqual(2, other.returncode)
+            self.assertIn("no frozen app other", other.stderr)
+            bad = run_specs(root, "explain", "Pay ments", "--legacy", "shop-portal")
+            self.assertEqual(2, bad.returncode)
+            self.assertFalse((root / OUT).exists())
+
     def test_legacy_kind_is_escaped(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_repo(Path(tmp) / "repo", extra=SHOP_WORKSPACE.replace("shop-portal", "a&b"))

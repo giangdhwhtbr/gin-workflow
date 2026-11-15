@@ -39,7 +39,9 @@ def _titled(heading: str, html: str) -> str:
     return f"<h3>{escape(heading)}</h3>\n{html}" if html else ""
 
 
-def _resolve(root: Path, cfg: Mapping[str, Any], name: str) -> tuple[str, Path]:
+def _resolve(root: Path, cfg: Mapping[str, Any], name: str, *, spec_optional: bool = False) -> tuple[str, Path]:
+    """(kind, the capability's spec.md or the change folder). With `spec_optional`, a name that is neither a living
+    spec nor a change is a capability whose spec.md does not exist yet."""
     if not _NAME.match(name):
         raise specs.SpecsError(f"not a capability or change name: {name!r}")
     living = specs.living_files(root, cfg)
@@ -50,6 +52,8 @@ def _resolve(root: Path, cfg: Mapping[str, Any], name: str) -> tuple[str, Path]:
     except specs.SpecsError as error:
         if "ambiguous" in str(error):
             raise
+        if spec_optional:
+            return "capability", specs.specs_dir(root, cfg) / name / "spec.md"
         raise specs.SpecsError(f"unknown capability or change: {name} (no {cfg['specs']}/{name}/spec.md "
                                f"and no change under {cfg['changes']})") from error
 
@@ -181,7 +185,7 @@ def _folder(cap: str, folder: Path, root: Path, embed: Embed) -> str:
 
 def _capability(root: Path, cfg: Mapping[str, Any], cap: str, spec: Path,
                 embed: Embed) -> tuple[str, dict[str, str]]:
-    text = spec.read_text(encoding="utf-8")
+    text = spec.read_text(encoding="utf-8") if spec.is_file() else ""  # a legacy page may come before the spec
     folder, origin = spec.parent, specs.shown(root, spec)
     blocks = specs.parse_blocks(text)[0]
     ids = {block.id for block in blocks}
@@ -233,10 +237,13 @@ def _require_frozen_app(root: Path, kind: str, legacy: str) -> None:
 
 def explain(root: Path, cfg: Mapping[str, Any], name: str, narrative: str | None = None, out: str | None = None,
             today: date | None = None, legacy: str | None = None) -> dict[str, Any]:
-    kind, target = _resolve(root, cfg, name)
+    kind, target = _resolve(root, cfg, name, spec_optional=legacy is not None)
     folder_name = target.parent.name if kind == "capability" else target.name
     if legacy is not None:
         _require_frozen_app(root, kind, legacy)
+        if not target.is_file() and narrative is None:
+            raise specs.SpecsError(f"{name} has no living spec ({specs.shown(root, target)}); "
+                                   "--legacy needs --narrative for it")
         folder = Path("legacy") / legacy / folder_name
     else:
         folder = Path(folder_name)
