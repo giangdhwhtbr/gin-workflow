@@ -352,7 +352,11 @@ class LeanLifecycleSkillTests(unittest.TestCase):
                        "human_decision_required", "record-human-decision --question", "never hand-write"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, ledger)
-        self.assertTrue(line_with(ledger, "gin evidence run", "`project.run_at: track`"))
+        self.assertNotIn("gin evidence run", ledger)
+        self.assertIn("Run steps 1 and 2 before the `review` skill's Requesting step 1, and step 3 "
+                      "(`transition-requested`) after it.", ledger)
+        requesting = ledger[ledger.index("## Requesting"):ledger.index("## Reviewing")]
+        self.assertIn("3. `transition-requested --to review-requested", requesting)
 
     def test_review_tests_follow_run_at(self):
         review = read("skills/review/SKILL.md")
@@ -405,10 +409,49 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         self.assertLess(pr.index("gin evidence run"), pr.index("git push -u origin"))
         self.assertIn("`project.run_at: push`", pr)
 
-    def test_tracks_on_the_epic_branch_push_at_ship(self):
+    def test_tracks_push_only_in_team_mode(self):
         execute = read("skills/execute/SKILL.md")
-        self.assertTrue(line_with(execute, "`feat/<topic>`", "pushed at ship"))
-        self.assertTrue(line_with(execute, "own branch", "`project.run_at`"))
+        self.assertTrue(line_with(execute, "In team mode a track pushes its branch (its PR)"))
+        self.assertTrue(line_with(execute, "merged at ship and not pushed, so the suite runs once"))
+        self.assertTrue(line_with(execute, "Commit any remaining changes (stage-contract Git)."))
+        self.assertTrue(line_with(execute, "`feat/<topic>`", "a standalone bead: `feat/<bead-id>` from the base"))
+        self.assertTrue(line_with(read("references/stage-contract.md"), "`execute` pushes", "team mode"))
+
+    def test_review_commits_before_requesting(self):
+        review = read("skills/review/SKILL.md")
+        step = line_with(review, "1. Commit the track's changes")
+        self.assertIn("`checkpoint` in `ledger.md`", step)
+        self.assertLess(step.index("Commit"), step.index("gin evidence run"))
+        self.assertTrue(line_with(review, "its sections say where their commands go"))
+        self.assertTrue(line_with(review, "absolute path of this skill's `ledger.md`"))
+        self.assertIn("the `ledger.md` path", read("agents/code-reviewer.md"))
+        self.assertIn("Without the ledger, answer each in your report", read("skills/review-response/SKILL.md"))
+
+    def test_ship_merge_tests_the_feature_branch_before_the_base(self):
+        ship = read("skills/ship/SKILL.md")
+        self.assertTrue(line_with(ship, "review-ledger.py cleanup", "`project.review_ledger`"))
+        merge = ship[ship.index("**Merge:**"):ship.index("**PR:**")]
+        self.assertIn("in `MAIN_ROOT` when `IS_WORKTREE=no`", merge)
+        self.assertLess(merge.index("gin evidence run"), merge.index("git checkout <base>"))
+        workspace = merge[merge.index("Workspace:"):]
+        self.assertLess(workspace.index("merge its track branches"), workspace.index("gin evidence run"))
+        self.assertLess(workspace.index("gin evidence run"), workspace.index("merge `feat/<topic>` into `<default_branch>`"))
+
+    def test_team_and_roadmap_handle_host_approvals(self):
+        team = read("skills/team/SKILL.md")
+        self.assertNotIn("lists roles", team)
+        self.assertNotIn("(or roles)", team)
+        self.assertTrue(line_with(team, "With `host`, ask no approver", "branch protection enforces approvals"))
+        self.assertTrue(line_with(team, "(roles, `{all, any}`, `area_lead`, or `host`)"))
+        review = team[team.index("## review"):team.index("## ship")]
+        for needle in ("`project.review: self_check`", "Without the ledger", "review on the track's PR",
+                       "`review-response`", "naming the reviewer", "`project.review_ledger: true`"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, review)
+        roadmap = read("skills/roadmap/SKILL.md")
+        self.assertFalse(line_with(roadmap, "`team.approvals.roadmap`", "lists roles"))
+        self.assertTrue(line_with(roadmap, "`team.approvals.roadmap`", "`host`"))
+        self.assertNotIn("lists roles", read("skills/roadmap/references/milestone-plan.md"))
 
     def test_developer_tests_follow_run_at(self):
         developer = read("agents/developer.md")

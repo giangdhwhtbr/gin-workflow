@@ -62,6 +62,6 @@ If no issues are found, say that clearly and list residual risks or test gaps.
 
 ## Output and Ledger Interaction
 
-Start the report with a verdict: `approved` or `changes requested`. Follow the `review` skill (reviewer section). With `project.review_ledger: true`, also record the review in the ledger per its `ledger.md`: `start-review` to take the lease, `add-finding` per issue (severity `CRITICAL|IMPORTANT|MINOR|SUGGESTION`), `approve` only when every finding is terminal (otherwise request changes), then `render`. Otherwise the findings travel only in the report.
+Start the report with a verdict: `approved` or `changes requested`. Follow the `review` skill (reviewer section). With `project.review_ledger: true`, also read the `ledger.md` path you were given and record the review in the ledger per that file: `start-review` to take the lease, `add-finding` per issue (severity `CRITICAL|IMPORTANT|MINOR|SUGGESTION`), `approve` only when every finding is terminal (otherwise request changes), then `render`. Otherwise the findings travel only in the report.
 
 Do not close Beads issues. The orchestrator or worker closes Beads only after verification and handoff are complete.

@@ -3,11 +3,11 @@
 Follow this with `project.review_ledger: true` from `gin state --format json`, next to the `review` skill. Ledgers live in `.planning/reviews/<bead-id>/` (legacy fallback `.planning/<bead-id>/`); in a workspace, a child track's ledger lives in the parent's `.planning/reviews/`, which `review-ledger.py` finds from the track worktree (team mode: the `team` skill). All commands are `python3 review-ledger.py <cmd> --bead-id <bead-id> ...`; never hand-write or copy `review.json`. Write each ledger command with literal flags, never in shell variables (zsh does not split them); check its exit code and report only what its output shows.
 
 ## Requesting (implementer)
+Run steps 1 and 2 before the `review` skill's Requesting step 1, and step 3 (`transition-requested`) after it.
 1. `init --repo-id <id> [--repo-path <worktree>] [--include <scope>] --max-cycles <project.max_cycles>` once (idempotent).
 2. `checkpoint --repo-id <id> --commit-msg "<msg>" --actor-id <id>` snapshots the reviewed tree.
-3. With `project.run_at: track`, `gin evidence run` in the worktree (fix any failure first).
-4. `transition-requested --to review-requested --actor-role worker --actor-id <id>`; without it the reviewer cannot approve.
-5. After `changes-requested`: fix (the `review-response` skill), `transition-requested --to implementation-in-progress`, `checkpoint`, and request review again.
+3. `transition-requested --to review-requested --actor-role worker --actor-id <id>`; without it the reviewer cannot approve.
+4. After `changes-requested`: fix (the `review-response` skill), `transition-requested --to implementation-in-progress`, `checkpoint`, and request review again.
 
 ## Reviewing (reviewer)
 1. `start-review --actor-id <reviewer>` acquires the lease; the ledger refuses the init actor as reviewer (`--force-takeover --reason "<why>"` only when authorized; `resync-lease --lease-id <id>` after a stale revision). `validate` replays the ledger.

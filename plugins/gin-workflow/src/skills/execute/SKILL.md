@@ -14,7 +14,7 @@ description: Implement and validate exactly one ready work unit at its manifest 
 2. Resume first: `gin task list --parent <epic> --status in_progress --exclude-label prep`; if empty, use `task ready --exclude-label prep`. Claim with `task update <id> --claim`. A bead labelled `prep` is pre-discuss work, not a track: refuse it.
    With `project.team.enabled`, add `--assignee <git user.email>` to that list; `team ready --exclude-label prep` and `team claim <id>` (`team` skill) replace `task ready` and `--claim`.
 3. Resolve file scope and validation intent from the plan track, or from the task description and acceptance criteria for a standalone unit. Review critically and raise concerns before starting.
-4. Worktree (`worktrees` skill): one per track for `project.worktree: always`, or `parallel` with a parallel execution strategy, and always after `team claim` or in a workspace (the track's `Repo:`). Otherwise commit on `feat/<topic>` in the current checkout.
+4. Worktree (`worktrees` skill): one per track for `project.worktree: always`, or `parallel` with a parallel execution strategy, and always after `team claim` or in a workspace (the track's `Repo:`). Otherwise commit on `feat/<topic>` (a standalone bead: `feat/<bead-id>` from the base) in the current checkout.
 
 ## 2. Implement
 - Follow the plan steps exactly, test first. Keep changes minimal and in scope.
@@ -40,7 +40,8 @@ Read [delegation policy](references/delegation-policy.md) and [result contract](
 ## 4. Complete
 1. Request review (the `review` skill) as its implementer and wait for its outcome.
 2. Once tests and review pass, run `gin usage collect --bead <id> --best-effort`, then close the track bead with `gin task close <id> --reason "<evidence>"` naming the reviewer (or `self_check`), cycle count, and finding count; this unblocks dependents and needs no PR or merge.
-3. Commit (stage-contract Git). A track on its own branch (own worktree or team mode) pushes it; the pre-push hook follows `project.run_at`. A track on `feat/<topic>` is not pushed; `feat/<topic>` is pushed at ship. With `project.review_ledger: true`, run `python3 review-ledger.py push-refs --bead-id <id>`. Never report "waiting for PR merge" without a real PR link. A pushed track stops at handoff with two options:
+3. Commit any remaining changes (stage-contract Git). With `project.review_ledger: true`, run `python3 review-ledger.py push-refs --bead-id <id>`. Never report "waiting for PR merge" without a real PR link. In team mode a track pushes its branch (its PR) and stops at handoff with two options:
    1. Ask for the command to create a PR from the pushed feature branch.
    2. Keep the pushed feature branch and continue with the next track, using the artifact just produced.
+   Otherwise its branch is merged at ship and not pushed, so the suite runs once.
 4. Return `implementation_complete`. Do not invoke `ship`.
