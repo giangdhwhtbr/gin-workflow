@@ -319,6 +319,48 @@ class TestExport(unittest.TestCase):
         write(self.root, ".agent-workflow/templates/srs.html", document.replace("docs/brand/logo.png", "docs/brand/gone.png"))
         self.assertEqual(["srs.html: docs/brand/gone.png"], export(self.root, self.cfg, "auth", None)["missing"])
 
+    def test_document_matter_sections_in_order_with_toc(self):
+        write(self.root, "docs/changes/archive/2026-11-01-ep-1-x/01-proposal.md", "# Lock accounts\n\nEpic: ep-1\n")
+        write(self.root, "docs/codebase/11-GLOSSARY.md",
+              "# G\n\n## Terms\n\n| Term | Lang | English | Meaning | Status |\n|---|---|---|---|---|\n"
+              "| Đơn hàng | vi | Order | A purchase | confirmed |\n")
+        self.assertEqual(0, run_specs(self.root, "export", "--all").returncode)
+        html = self.read("srs.html")
+        order = [html.index(f'id="{anchor}"') for anchor in ("revisions", "signoff", "glossary", "actors", "auth", "traceability")]
+        self.assertEqual(sorted(order), order)
+        self.assertLess(html.index('id="signoff"'), html.index('<nav class="toc">'))
+        for anchor in ("revisions", "signoff", "glossary", "actors", "traceability"):
+            with self.subTest(anchor=anchor):
+                self.assertIn(f'<a href="#{anchor}">', html)
+        self.assertIn("<td>Lock accounts</td>", html)
+        self.assertIn("<td>Đơn hàng (vi)</td>", html)
+        for row in ("Prepared by", "Reviewed by", "Approved by"):
+            self.assertIn(f"<th>{row}</th>", html)
+
+    def test_use_case_ids_and_links(self):
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        html = self.read("srs-auth.html")
+        self.assertIn('<p class="use-case-id">auth/sign-in</p>', html)
+        self.assertLess(html.index("<h3>Sign in</h3>"), html.index('<p class="use-case-id">auth/sign-in</p>'))
+        self.assertIn('<a href="#auth-sign-in">auth/sign-in</a>', html[html.index('id="actors"'):])
+        self.assertIn('<a href="#auth-sign-in">auth/sign-in</a>', html[html.index('id="traceability"'):])
+        self.assertIn("<td>missing</td>", html)
+
+    def test_empty_sources_print_none_lines(self):
+        self.assertEqual(0, run_specs(self.root, "export", "billing").returncode)
+        html = self.read("srs-billing.html")
+        for line in ("No revisions yet.", "No glossary.", "No actors."):
+            with self.subTest(line=line):
+                self.assertIn(line, html)
+
+    def test_template_without_matter_placeholders_exports_as_before(self):
+        document = specs.template_text(self.root, "srs.html")
+        for name in ("revisions", "glossary", "actors", "traceability"):
+            document = document.replace("{{" + name + "}}", "")
+        write(self.root, ".agent-workflow/templates/srs.html", document)
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        self.assertNotIn("No revisions yet.", self.read("srs-auth.html"))
+
 
 class TestTemplates(unittest.TestCase):
     def test_srs_templates_print_their_placeholders(self):
@@ -326,7 +368,8 @@ class TestTemplates(unittest.TestCase):
             root = make_repo(Path(directory), layout="legacy")
             document = run_specs(root, "template", "srs.html").stdout
             chapter = run_specs(root, "template", "srs-capability.html").stdout
-        for needle in ("{{title}}", "{{date}}", "{{toc}}", "{{chapters}}", "@media print"):
+        for needle in ("{{title}}", "{{date}}", "{{toc}}", "{{chapters}}", "{{revisions}}", "{{glossary}}",
+                       "{{actors}}", "{{traceability}}", "@media print"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, document)
         self.assertRegex(document, r'mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js"\s+integrity="sha384-[A-Za-z0-9+/=]{64}"')

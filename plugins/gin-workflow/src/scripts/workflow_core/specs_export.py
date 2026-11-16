@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 from typing import Any, Callable, Mapping
 
-from . import specs
+from . import specs, specs_matter
 
 MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
                ".svg": "image/svg+xml", ".webp": "image/webp"}
@@ -229,7 +229,7 @@ def use_case_diagram(capability: str, folder: Path) -> str:
 
     def actor(name: str) -> str:
         label = " ".join(name.split())
-        return actors.setdefault(label.casefold(), (f"a{len(actors) + 1}", label))[0]
+        return actors.setdefault(specs.actor_key(name), (f"a{len(actors) + 1}", label))[0]
 
     nodes: list[str] = []
     edges: list[str] = []
@@ -258,7 +258,8 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     purpose = markdown_html(_section(text, "Purpose"), folder, _shown(spec, root), embed)
     use_cases = "\n".join(
         f'<section class="use-case" id="{escape(cap)}-{escape(path.stem)}">'
-        f'{markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed)}</section>'
+        f'{_with_id(markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed), cap, path.stem)}'
+        "</section>"
         for path in sorted((folder / "use-cases").glob("*.md")))
     diagram = use_case_diagram(title, folder)
     if diagram:
@@ -279,6 +280,56 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     links = "".join(f'<li><a href="#{escape(b.id)}">{escape(b.id)}: {escape(b.title)}</a></li>' for b in blocks)
     toc = f'<li><a href="#{escape(cap)}">{escape(title)}</a>' + (f"<ul>{links}</ul>" if links else "") + "</li>"
     return chapter, toc
+
+
+def _with_id(html: str, cap: str, slug: str) -> str:
+    """The use case ID `<capability>/<slug>` printed under the first heading, or first when there is none."""
+    id_html = f'<p class="use-case-id">{escape(cap)}/{escape(slug)}</p>'
+    if "</h" not in html:
+        return id_html + html
+    return re.sub(r"(</h[1-6]>)", lambda found: found.group(1) + id_html, html, count=1)
+
+
+def _table(headers: list[str], rows: list[list[str]], empty: str) -> str:
+    """Cells are HTML already escaped by the caller."""
+    if not rows:
+        return f'<p class="none">{escape(empty)}</p>'
+    head = "".join(f"<th>{escape(name)}</th>" for name in headers)
+    body = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in rows)
+    return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+
+
+def _use_case_link(ref: str, caps: list[str]) -> str:
+    owner, slug = ref.split("/", 1)
+    return f'<a href="#{escape(owner)}-{escape(slug)}">{escape(ref)}</a>' if owner in caps else escape(ref)
+
+
+def _joined(items: list[str]) -> str:
+    return ", ".join(escape(item) for item in items)
+
+
+def _matter(root: Path, cfg: Mapping[str, Any], cap: str | None, caps: list[str]) -> dict[str, str]:
+    """The HTML of the document-level sections for `export`."""
+    revisions = [[escape(r["date"]), escape(r["epic"]), escape(r["title"]), _joined(r["capabilities"]),
+                  _joined(r["added"]), _joined(r["modified"]), _joined(r["removed"])]
+                 for r in specs_matter.revisions(root, cfg, cap)]
+    glossary = [[escape(g["english"]), escape(f"{g['term']} ({g['lang']})" if g["lang"] else g["term"]),
+                 escape(g["meaning"])] for g in specs_matter.glossary(root, cfg)]
+    actors = [[escape(a["actor"]), escape(a["description"]),
+               ", ".join(_use_case_link(u["ref"], caps) + (" (secondary)" if u["secondary"] else "")
+                         for u in a["use_cases"])] for a in specs_matter.actors(root, cfg, cap)]
+    trace = [[f'<a href="#{escape(t["id"])}">{escape(t["id"])}</a>: {escape(t["title"])}', escape(t["capability"]),
+              ", ".join(_use_case_link(ref, caps) for ref in t["use_cases"]),
+              "<br>".join(f"<code>{escape(path)}</code>" for path in t["tests"]), _joined(t["qa_cases"]),
+              escape(t["status"])] for t in specs_matter.traceability(root, cfg, cap)]
+    return {
+        "revisions": _table(["Date", "Epic", "Title", "Capabilities", "Added", "Modified", "Removed"],
+                            revisions, "No revisions yet."),
+        "glossary": _table(["English", "Term", "Meaning"], glossary, "No glossary."),
+        "actors": _table(["Actor", "Description", "Use cases"], actors, "No actors."),
+        "traceability": _table(["Requirement", "Capability", "Use cases", "Tests", "QA cases", "Status"],
+                               trace, "No requirements."),
+    }
 
 
 def fill(template: str, values: Mapping[str, str]) -> str:
@@ -320,8 +371,15 @@ def export(root: Path, cfg: Mapping[str, Any], cap: str | None, out: str | None,
         chapters.append(chapter)
         toc.append(entry)
     title = _title(living[cap].read_text(encoding="utf-8"), cap) if cap else root.name
+    front = [(anchor, label) for anchor, label in (("revisions", "Revision history"), ("signoff", "Sign-off"),
+                                                   ("glossary", "Glossary"), ("actors", "Actors"))
+             if f'id="{anchor}"' in document]
+    back = [("traceability", "Traceability matrix")] if 'id="traceability"' in document else []
+    entries = ([f'<li><a href="#{anchor}">{label}</a></li>' for anchor, label in front] + toc
+               + [f'<li><a href="#{anchor}">{label}</a></li>' for anchor, label in back])
     html = fill(document, {"title": escape(title), "date": (today or date.today()).isoformat(),
-                           "toc": f'<ul>{"".join(toc)}</ul>', "chapters": "\n".join(chapters)})
+                           "toc": f'<ul>{"".join(entries)}</ul>', "chapters": "\n".join(chapters),
+                           **_matter(root, cfg, cap, caps)})
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(html, encoding="utf-8")
