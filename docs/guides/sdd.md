@@ -148,7 +148,7 @@ Around the chapters the file carries document sections, in this order: Revision 
 
 Test files are the git-tracked files `specs trace` reads. QA cases are the files named `TC-<CAP>-<NNN>...` under `qa.cases`, or under `<qa.dir>/cases` (`qa/cases` when `qa.dir` is unset), inside the repository; a `qa.cases` that points outside it is ignored. A file that cannot be read as UTF-8 text is skipped. Each use case in a chapter prints its ID, `<capability>/<slug>`, under its heading, and the Actors and Traceability tables link to it.
 
-An export of one capability keeps only the revisions that touch it, its actors, and its requirements; the Glossary is the same. The Sign-off table is plain HTML in `srs.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
+An export of one capability keeps only the revisions that touch it, its actors, and its requirements; the Glossary always lists every confirmed term. The Sign-off table is plain HTML in `srs.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 
 The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; without network access it shows their source instead. The export does not lint, so run `specs lint` first. A local image it cannot find, one outside the repository, or a file that is not an image shows as its alt text, and the command exits 1 naming it. The cover, logo, customer, and section order come from the templates `srs.html` and `srs-capability.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 

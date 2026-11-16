@@ -148,7 +148,7 @@ Quanh các chương, file có thêm các phần tài liệu, theo thứ tự: Re
 
 File test là các file được git theo dõi mà `specs trace` đọc. QA case là các file tên `TC-<CAP>-<NNN>...` dưới `qa.cases`, hoặc dưới `<qa.dir>/cases` (`qa/cases` khi chưa đặt `qa.dir`), nằm trong repository; `qa.cases` trỏ ra ngoài repository thì bị bỏ qua. File không đọc được dưới dạng văn bản UTF-8 bị bỏ qua. Mỗi use case trong chương in ID của nó, `<capability>/<slug>`, ngay dưới tiêu đề, và các bảng Actors và Traceability link tới nó.
 
-Khi xuất một capability, chỉ giữ các revision chạm tới nó, các actor và requirement của nó; Glossary vẫn như cũ. Bảng Sign-off là HTML thuần trong `srs.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
+Khi xuất một capability, chỉ giữ các revision chạm tới nó, các actor và requirement của nó; Glossary luôn liệt kê mọi term đã confirmed. Bảng Sign-off là HTML thuần trong `srs.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 
 File tải Mermaid từ jsDelivr ở một phiên bản cố định để vẽ sơ đồ; khi không có mạng, nó hiển thị mã nguồn của sơ đồ. Lệnh xuất không lint, nên hãy chạy `specs lint` trước. Một ảnh local không tìm thấy, nằm ngoài repository, hoặc không phải ảnh hiển thị bằng alt text, và lệnh thoát với mã 1 kèm tên ảnh đó. Trang bìa, logo, khách hàng, và thứ tự các phần lấy từ template `srs.html` và `srs-capability.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 
