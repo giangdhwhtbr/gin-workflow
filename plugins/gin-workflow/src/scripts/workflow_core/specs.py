@@ -462,13 +462,25 @@ def actor_key(name: str) -> str:
     return " ".join(name.split()).casefold()
 
 
+_CELL_SPLIT = re.compile(r"(?<!\\)\|")
+
+
+def read_text_or_none(path: Path) -> str | None:
+    """The UTF-8 text of `path`, or None when it cannot be read (the caller skips it, as `trace` does)."""
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
 def _cells(line: str) -> list[str]:
-    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+    return [cell.strip().replace("\\|", "|") for cell in _CELL_SPLIT.split(line.strip().strip("|"))]
 
 
 def table_rows(text: str) -> tuple[list[str], list[tuple[int, dict[str, str]]]] | None:
-    """The first Markdown table of `text`: its header cells and each row as (line number, {header: cell})."""
-    lines = text.split("\n")
+    """The first Markdown table of `text` outside `<!-- -->` comments: its header cells and each row as
+    (line number, {header: cell}); `\\|` in a cell is a pipe, a short row is padded with ''."""
+    lines = _COMMENT.sub(lambda found: "\n" * found.group(0).count("\n"), text).split("\n")
     for index, line in enumerate(lines[:-1]):
         if line.lstrip().startswith("|") and _TABLE_RULE.match(lines[index + 1]):
             header = _cells(line)
@@ -488,12 +500,17 @@ def lint_actors(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     path = base / ACTORS_FILE
     if not path.is_file():
         return []
-    table = table_rows(path.read_text(encoding="utf-8"))
+    content = read_text_or_none(path)
+    if content is None:
+        return [f"{shown(root, path)}: cannot be read as UTF-8 text"]
+    table = table_rows(content)
     if table is None or not {"Actor", "Description"} <= set(table[0]):
         return [f"{shown(root, path)}: needs a table with Actor and Description columns"]
     named = set()
     for case in base.glob(f"*/{USE_CASES_DIR}/*.md"):
-        text = case.read_text(encoding="utf-8")
+        text = read_text_or_none(case)
+        if text is None:
+            continue
         named |= {actor_key(name) for name in [line_value(text, "Actor"), *line_values(text, "Secondary actors")] if name}
     return [f"{shown(root, path)}:{number}: actor '{row['Actor']}' is in no use case"
             for number, row in table[1] if row["Actor"] and actor_key(row["Actor"]) not in named]

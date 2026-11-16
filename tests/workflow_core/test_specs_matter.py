@@ -109,3 +109,65 @@ class TestSpecsMatter(unittest.TestCase):
         cfg = specs.sdd_config(specs.load_config(root))
         self.assertEqual(["TC-AUTH-002"], specs_matter.traceability(root, cfg, "auth")[1]["qa_cases"])
         self.assertEqual([], specs_matter.traceability(root, cfg, "billing"))
+
+
+class TestSpecsMatterEdges(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = make_repo(Path(self.tmp.name) / "r")
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        self.cfg = specs.sdd_config(specs.load_config(self.root))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def bad(self, relative):
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"\xff\xfe")
+
+    def test_unreadable_files_are_skipped(self):
+        self.bad("docs/codebase/11-GLOSSARY.md")
+        self.assertEqual([], specs_matter.glossary(self.root, self.cfg))
+        self.bad("docs/specs/actors.md")
+        self.bad("docs/specs/auth/use-cases/broken.md")
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
+        self.assertEqual(["Registered user"], [row["actor"] for row in specs_matter.actors(self.root, self.cfg)])
+        self.assertEqual(["auth/sign-in"], specs_matter.traceability(self.root, self.cfg)[0]["use_cases"])
+        self.bad("docs/changes/archive/2026-11-01-ep-1-x/01-proposal.md")
+        write(self.root, "docs/changes/archive/2026-11-01-ep-1-x/02-spec-delta.md", delta(added=ADDED_BLOCK))
+        row = specs_matter.revisions(self.root, self.cfg)[0]
+        self.assertEqual(("ep-1-x", ["REQ-AUTH-003"]), (row["title"], row["added"]))
+        self.assertEqual(["docs/specs/actors.md: cannot be read as UTF-8 text"], specs.lint_actors(self.root, self.cfg))
+
+    def test_table_rows_escaped_pipe_padding_and_comments(self):
+        table = specs.table_rows("| A | B |\n|---|---|\n| x \\| y | z |\n| only |\n")
+        self.assertEqual([(3, {"A": "x | y", "B": "z"}), (4, {"A": "only", "B": ""})], table[1])
+        text = "<!--\n| Actor | Description |\n|---|---|\n| Example | e |\n-->\n| Actor | Description |\n|---|---|\n| Real | r |\n"
+        self.assertEqual([(8, {"Actor": "Real", "Description": "r"})], specs.table_rows(text)[1])
+
+    def test_traceability_sorts_ids_by_number(self):
+        spec = AUTH_SPEC + "\n### REQ-AUTH-1000: Big\n\nThe system SHALL be big.\n\n#### Scenario: s\n- GIVEN a\n- WHEN b\n- THEN c\n"
+        spec = spec.replace("REQ-AUTH-002", "REQ-AUTH-999")
+        write(self.root, "docs/specs/auth/spec.md", spec)
+        ids = [row["id"] for row in specs_matter.traceability(self.root, self.cfg)]
+        self.assertEqual(["REQ-AUTH-001", "REQ-AUTH-999", "REQ-AUTH-1000"], ids)
+
+    def test_qa_cases_dir_stays_inside_the_repository(self):
+        root = make_repo(Path(self.tmp.name) / "q1", extra="qa:\n  dir: checks\n")
+        write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write(root, "checks/cases/TC-AUTH-001-a.md", "REQ-AUTH-001\n")
+        cfg = specs.sdd_config(specs.load_config(root))
+        self.assertEqual(["TC-AUTH-001"], specs_matter.traceability(root, cfg)[0]["qa_cases"])
+        outside = make_repo(Path(self.tmp.name) / "q2", extra="qa:\n  cases: ../outside\n")
+        write(outside, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write(outside, "../outside/TC-AUTH-001-a.md", "REQ-AUTH-001\n")
+        cfg = specs.sdd_config(specs.load_config(outside))
+        self.assertEqual([], specs_matter.traceability(outside, cfg)[0]["qa_cases"])
+
+    def test_actor_named_primary_and_secondary_counts_once(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace(
+            "Requirements:", "Secondary actors: registered user\nRequirements:"))
+        self.assertEqual([{"actor": "Registered user", "description": "",
+                           "use_cases": [{"ref": "auth/sign-in", "secondary": False}]}],
+                         specs_matter.actors(self.root, self.cfg))

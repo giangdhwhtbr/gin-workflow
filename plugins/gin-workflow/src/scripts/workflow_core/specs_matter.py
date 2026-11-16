@@ -24,10 +24,10 @@ def revisions(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> lis
         if not dated:
             continue
         proposal = specs.change_file(folder, "proposal")
-        text = specs._COMMENT.sub("", proposal.read_text(encoding="utf-8")) if proposal.is_file() else ""
+        text = specs._COMMENT.sub("", specs.read_text_or_none(proposal) or "")
         epic, title = specs._EPIC_LINE.search(text), _TITLE.search(text)
         delta = specs.change_file(folder, "spec-delta")
-        blocks = specs.parse_blocks(delta.read_text(encoding="utf-8"))[0] if delta.is_file() else []
+        blocks = specs.parse_blocks(specs.read_text_or_none(delta) or "")[0]
         caps = sorted({block.cap for block in blocks})
         if cap and cap not in caps:
             continue
@@ -41,7 +41,7 @@ def revisions(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> lis
 def glossary(root: Path, cfg: Mapping[str, Any]) -> list[dict[str, str]]:
     """The `confirmed` rows of `## Terms` in `<codebase>/11-GLOSSARY.md`, sorted by English."""
     path = Path(root) / cfg["codebase"] / "11-GLOSSARY.md"
-    section = _TERMS.search(path.read_text(encoding="utf-8")) if path.is_file() else None
+    section = _TERMS.search(specs.read_text_or_none(path) or "")
     table = specs.table_rows(section.group(1)) if section else None
     rows = [{"english": row.get("English", ""), "term": row.get("Term", ""), "lang": row.get("Lang", ""),
              "meaning": row.get("Meaning", "")}
@@ -57,46 +57,58 @@ def actors(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> list[d
         owner = path.parent.parent.name
         if cap and owner != cap:
             continue
-        text = path.read_text(encoding="utf-8")
+        text = specs.read_text_or_none(path)
+        if text is None:
+            continue
         primary = specs.line_value(text, "Actor")
         names = ([(primary, False)] if primary else []) + [(n, True) for n in specs.line_values(text, "Secondary actors")]
+        counted: set[str] = set()
         for name, secondary in names:
-            row = found.setdefault(specs.actor_key(name),
-                                   {"actor": " ".join(name.split()), "description": "", "use_cases": []})
+            key = specs.actor_key(name)
+            if key in counted:
+                continue
+            counted.add(key)
+            row = found.setdefault(key, {"actor": " ".join(name.split()), "description": "", "use_cases": []})
             row["use_cases"].append({"ref": f"{owner}/{path.stem}", "secondary": secondary})
     listed = base / specs.ACTORS_FILE
-    table = specs.table_rows(listed.read_text(encoding="utf-8")) if listed.is_file() else None
+    table = specs.table_rows(specs.read_text_or_none(listed) or "")
     for _, row in (table[1] if table else []):
         if row.get("Actor") and specs.actor_key(row["Actor"]) in found:
             found[specs.actor_key(row["Actor"])]["description"] = row.get("Description", "")
     return sorted(found.values(), key=lambda row: row["actor"].casefold())
 
 
-def qa_cases_dir(root: Path) -> Path:
-    """`qa.cases` when set, else `<qa.dir or qa>/cases`, under the project root."""
+def qa_cases_dir(root: Path) -> Path | None:
+    """`qa.cases` when set, else `<qa.dir or qa>/cases`, under the project root; None when it leaves the repository.
+    It loads the config again because `sdd_config` drops `qa`."""
     qa = specs.load_config(root).get("qa") or {}
-    return Path(root) / (qa["cases"] if "cases" in qa else f"{qa.get('dir', 'qa')}/cases")
+    folder = (Path(root) / (qa["cases"] if "cases" in qa else f"{qa.get('dir', 'qa')}/cases")).resolve()
+    return folder if folder.is_relative_to(Path(root).resolve()) else None
+
+
+def _id_order(req_id: str) -> tuple[str, int]:
+    prefix, number = specs._FULL_ID.match(req_id).groups()
+    return prefix, int(number)
 
 
 def traceability(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> list[dict[str, Any]]:
     """One row per living requirement: its use cases, the test files and QA cases citing it, and coverage."""
     blocks = sorted((block for _, block in specs.living_blocks(root, cfg).values() if cap is None or block.cap == cap),
-                    key=lambda block: (block.cap, block.id))
+                    key=lambda block: (block.cap, _id_order(block.id)))
     ids = {block.id for block in blocks}
     use_cases: dict[str, list[str]] = {req: [] for req in ids}
     for path in sorted(specs.specs_dir(root, cfg).glob(f"*/{specs.USE_CASES_DIR}/*.md")):
-        for req in set(specs.line_values(path.read_text(encoding="utf-8"), "Requirements")) & ids:
+        for req in set(specs.line_values(specs.read_text_or_none(path) or "", "Requirements")) & ids:
             use_cases[req].append(f"{path.parent.parent.name}/{path.stem}")
     tests = req_sources(root, cfg, ids)[0]
     qa: dict[str, list[str]] = {req: [] for req in ids}
     folder = qa_cases_dir(root)
-    for path in sorted(folder.rglob("*.md")) if folder.is_dir() else []:
+    for path in sorted(folder.rglob("*.md")) if folder and folder.is_dir() else []:
         case = _CASE_ID.match(path.name)
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+        text = specs.read_text_or_none(path) if case else None
+        if text is None:
             continue
-        for req in ({match.group(0) for match in specs.REQ_ID.finditer(text)} & ids) if case else ():
+        for req in {match.group(0) for match in specs.REQ_ID.finditer(text)} & ids:
             qa[req].append(case.group(1))
     return [{"id": block.id, "title": block.title, "capability": block.cap, "use_cases": use_cases[block.id],
              "tests": tests[block.id], "qa_cases": sorted(set(qa[block.id])),
