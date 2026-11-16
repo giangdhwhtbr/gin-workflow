@@ -130,7 +130,8 @@ class TestSddReport(unittest.TestCase):
             self.assertNotIn("conflict", sdd_report(root, {}, defaults, proposed=True))
             self.assertEqual(("assets", "diagrams", "use-cases"),
                              (specs.ASSETS_DIR, specs.DIAGRAMS_DIR, specs.USE_CASES_DIR))
-            foreign = ["auth/notes.txt", "auth/tests/login.spec.ts", "diagrams/overview.md", "login.spec.ts"]
+            write(root, "docs/specs/actors.md", "x\n")
+            foreign = ["auth/actors.md", "auth/notes.txt", "auth/tests/login.spec.ts", "diagrams/overview.md", "login.spec.ts"]
             for path in foreign:
                 write(root, f"docs/specs/{path}", "x\n")
             self.assertEqual(foreign, sdd_report(root, {}, defaults, proposed=True)["conflict"]["files"])

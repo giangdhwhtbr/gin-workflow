@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 from .atomic import atomic_write_many
 from .checkout import main_checkout
-from .specs import CAPABILITY_FOLDERS, CHANGE_FILES, specs_dir, template_text
+from .specs import ACTORS_FILE, CAPABILITY_FOLDERS, CHANGE_FILES, specs_dir, template_text
 from .specs_archive import move
 
 _DESIGN = re.compile(r"^(\d{4}-\d{2}-\d{2})-(.+)-design\.md$")
@@ -115,7 +115,7 @@ def _foreign(directory: Path) -> list[str]:
 
     def owned(path: Path) -> bool:
         parts = path.relative_to(directory).parts
-        return (path.name == "README.md" or parts[1:] == ("spec.md",) or any(part.startswith(".") for part in parts)
+        return (path.name == "README.md" or parts[1:] == ("spec.md",) or parts == (ACTORS_FILE,) or any(part.startswith(".") for part in parts)
                 or (len(parts) > 2 and parts[1] in CAPABILITY_FOLDERS))
 
     return sorted(path.relative_to(directory).as_posix() for path in directory.rglob("*")

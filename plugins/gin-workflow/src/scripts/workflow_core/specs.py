@@ -38,6 +38,7 @@ _CAP = re.compile(r"^[a-z][a-z0-9-]*$")
 # The folders of a capability next to its spec.md; the linters below and the SDD check of setup doctor share them.
 ASSETS_DIR, DIAGRAMS_DIR, USE_CASES_DIR = "assets", "diagrams", "use-cases"
 CAPABILITY_FOLDERS = (ASSETS_DIR, DIAGRAMS_DIR, USE_CASES_DIR)
+ACTORS_FILE = "actors.md"
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _EPIC_LINE = re.compile(r"^Epic: (\S+)$", re.MULTILINE)
 
@@ -453,6 +454,51 @@ def line_values(text: str, key: str) -> list[str]:
     return [value.strip() for value in line_value(text, key).split(",") if value.strip()]
 
 
+_TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
+
+
+def actor_key(name: str) -> str:
+    """An actor name without regard to case or repeated spaces: the key use case diagrams and catalogues share."""
+    return " ".join(name.split()).casefold()
+
+
+def _cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def table_rows(text: str) -> tuple[list[str], list[tuple[int, dict[str, str]]]] | None:
+    """The first Markdown table of `text`: its header cells and each row as (line number, {header: cell})."""
+    lines = text.split("\n")
+    for index, line in enumerate(lines[:-1]):
+        if line.lstrip().startswith("|") and _TABLE_RULE.match(lines[index + 1]):
+            header = _cells(line)
+            rows = []
+            for number in range(index + 2, len(lines)):
+                if not lines[number].lstrip().startswith("|"):
+                    break
+                cells = _cells(lines[number])
+                rows.append((number + 1, dict(zip(header, cells + [""] * (len(header) - len(cells))))))
+            return header, rows
+    return None
+
+
+def lint_actors(root: Path, cfg: Mapping[str, Any]) -> list[str]:
+    """`<specs>/actors.md`, when present, is a table with Actor and Description columns naming only actors of use cases."""
+    base = specs_dir(root, cfg)
+    path = base / ACTORS_FILE
+    if not path.is_file():
+        return []
+    table = table_rows(path.read_text(encoding="utf-8"))
+    if table is None or not {"Actor", "Description"} <= set(table[0]):
+        return [f"{shown(root, path)}: needs a table with Actor and Description columns"]
+    named = set()
+    for case in base.glob(f"*/{USE_CASES_DIR}/*.md"):
+        text = case.read_text(encoding="utf-8")
+        named |= {actor_key(name) for name in [line_value(text, "Actor"), *line_values(text, "Secondary actors")] if name}
+    return [f"{shown(root, path)}:{number}: actor '{row['Actor']}' is in no use case"
+            for number, row in table[1] if row["Actor"] and actor_key(row["Actor"]) not in named]
+
+
 def lint_references(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """`Includes:`/`Extends:` of a use case and `Use case:` of an activity diagram name a use case of the same capability."""
     base = specs_dir(root, cfg)
@@ -546,7 +592,7 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
                 errors.append(f"{where}: {block.id} duplicates {seen[block.id]}")
             seen.setdefault(block.id, name)
             errors += [f"{where}: {message}" for message in lint_block(block)]
-    return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg)
+    return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg) + lint_actors(root, cfg)
 
 
 _FLOW_SECTION = re.compile(r"^## (?:Alternative|Exception) flows[ \t]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
@@ -658,7 +704,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         if p_kind == "parity":
             errors += epic_kind.parity_errors(root, p_text, shown_prop)
 
-    return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg)
+    return errors + questions + _untracked_citations(root, change) + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg) + lint_actors(root, cfg)
 
 
 _CITED = re.compile(r"`([^`\s]+)`")

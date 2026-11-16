@@ -156,6 +156,18 @@ class TestRepositoryCommands(unittest.TestCase):
         write(self.root, "docs/specs/auth/diagrams/account-state.md", specs.template_text(self.root, "state.md"))
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
 
+    def test_lint_actors_file(self):
+        self.assertEqual([], specs.lint_actors(self.root, self.cfg))
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
+        write(self.root, "docs/specs/actors.md",
+              "# Actors\n\n| Actor | Description |\n|---|---|\n| registered USER | Has an account |\n| Auditor | Reads logs |\n")
+        self.assertEqual(["docs/specs/actors.md:6: actor 'Auditor' is in no use case"],
+                         specs.lint_actors(self.root, self.cfg))
+        self.assertEqual(1, run_specs(self.root, "lint").returncode)
+        write(self.root, "docs/specs/actors.md", "# Actors\n\nCustomer: buys.\n")
+        self.assertEqual(["docs/specs/actors.md: needs a table with Actor and Description columns"],
+                         specs.lint_actors(self.root, self.cfg))
+
     def test_lint_accepts_a_valid_use_case_and_no_folder(self):
         self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)

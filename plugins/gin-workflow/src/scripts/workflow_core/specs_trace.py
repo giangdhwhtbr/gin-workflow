@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from .specs import REQ_ID, SpecsError, change_file, delta_blocks, test_files
 from .workspace import load
@@ -35,11 +35,9 @@ def _tests_md_rows(path: Path) -> list[tuple[str, set[str], str]]:
     return rows
 
 
-def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
-    blocks, errors = delta_blocks(root, change)
-    if errors:
-        raise SpecsError("; ".join(errors))
-    wanted = [block.id for block in blocks if block.section in ("ADDED", "MODIFIED")]
+def req_sources(root: Path, cfg: Mapping[str, Any], req_ids: Iterable[str]) -> tuple[dict[str, list[str]], list[str]]:
+    """Test files citing each REQ-ID (sorted repository paths), and the workspace children that could not be listed."""
+    wanted = set(req_ids)
     sources: dict[str, list[str]] = {req: [] for req in wanted}
     candidates = list(test_files(root, cfg, _tracked(root)))
     skipped: list[str] = []
@@ -57,8 +55,17 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
             text = (Path(root) / relative).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        for req in {match.group(0) for match in REQ_ID.finditer(text)} & set(wanted):
+        for req in {match.group(0) for match in REQ_ID.finditer(text)} & wanted:
             sources[req].append(relative)
+    return {req: sorted(paths) for req, paths in sources.items()}, skipped
+
+
+def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
+    blocks, errors = delta_blocks(root, change)
+    if errors:
+        raise SpecsError("; ".join(errors))
+    wanted = [block.id for block in blocks if block.section in ("ADDED", "MODIFIED")]
+    sources, skipped = req_sources(root, cfg, wanted)
     tests_md = change_file(change, "tests")
     for case, ids, evidence in _tests_md_rows(tests_md):
         if evidence and evidence != "-":
