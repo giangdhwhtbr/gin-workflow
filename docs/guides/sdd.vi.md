@@ -138,6 +138,18 @@ Tên file bỏ `.md` là slug và cũng là ID của use case. Dòng `Requiremen
 
 Mỗi chương gồm `## Purpose` của capability, các use case, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Phần use case mở đầu bằng một use case diagram được sinh từ các use case: actor nằm ngoài hộp của capability (tên khớp không phân biệt hoa thường), một edge từ `Actor:` tới use case và từ use case tới từng mục của `Secondary actors:`, cùng các edge nét đứt `«include»` và `«extend»`. Use case không có `Actor:` thì không có edge actor. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
 
+Quanh các chương, file có thêm các phần tài liệu, theo thứ tự: Revision history, Sign-off, Contents, Glossary, Actors, các chương, và Traceability matrix.
+
+- Revision history có một dòng cho mỗi change folder đã archive tên `<date>-<name>`, mới nhất trước, gồm ngày, dòng `Epic:` của `01-proposal.md`, tiêu đề, các capability mà `02-spec-delta.md` chạm tới, và các REQ-ID đã thêm, sửa, xóa. Khi chưa có change nào, nó hiện `No revisions yet.`
+- Sign-off là một bảng trống gồm Prepared by, Reviewed by, và Approved by, với các cột Name, Role, Signature, và Date để điền tay.
+- Glossary liệt kê các dòng của `## Terms` trong `<codebase>/11-GLOSSARY.md` có `Status` là `confirmed`, sắp theo English. Khi không có, nó hiện `No glossary.`
+- Actors liệt kê mỗi actor được nêu ở `Actor:` hoặc `Secondary actors:` trong các use case, mỗi tên một lần (khớp không phân biệt hoa thường), cùng các use case nó xuất hiện và phần mô tả từ `<specs>/actors.md` (tùy chọn). Khi không có actor, nó hiện `No actors.`
+- Traceability matrix có một dòng cho mỗi requirement trong living spec: các use case của nó (những use case có dòng `Requirements:` nêu nó), các file test trích dẫn nó, các QA case trích dẫn nó, và trạng thái `covered` (có file test hoặc QA case trích dẫn) hoặc `missing`. Khi không có requirement, nó hiện `No requirements.`
+
+File test là các file được git theo dõi mà `specs trace` đọc. QA case là các file tên `TC-<CAP>-<NNN>...` dưới `qa.cases`, hoặc dưới `<qa.dir>/cases` (`qa/cases` khi chưa đặt `qa.dir`), nằm trong repository; `qa.cases` trỏ ra ngoài repository thì bị bỏ qua. File không đọc được dưới dạng văn bản UTF-8 bị bỏ qua. Mỗi use case trong chương in ID của nó, `<capability>/<slug>`, ngay dưới tiêu đề, và các bảng Actors và Traceability link tới nó.
+
+Khi xuất một capability, chỉ giữ các revision chạm tới nó, các actor và requirement của nó; Glossary vẫn như cũ. Bảng Sign-off là HTML thuần trong `srs.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
+
 File tải Mermaid từ jsDelivr ở một phiên bản cố định để vẽ sơ đồ; khi không có mạng, nó hiển thị mã nguồn của sơ đồ. Lệnh xuất không lint, nên hãy chạy `specs lint` trước. Một ảnh local không tìm thấy, nằm ngoài repository, hoặc không phải ảnh hiển thị bằng alt text, và lệnh thoát với mã 1 kèm tên ảnh đó. Trang bìa, logo, khách hàng, và thứ tự các phần lấy từ template `srs.html` và `srs-capability.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 
 ## Giải thích một capability { #explaining-a-capability }

@@ -110,6 +110,10 @@ Acceptance is a team convention. Ship checks it with a warning only and continue
 
 The `capture` and `mockup` skills offer to save the dated folder before `/gin:discuss` commits it. On a yes, they run `gin commit` on that folder, which commits only the files in it. On `master` or `main`, or the workspace default branch, `gin commit` first creates a new branch. It never pushes. You or a developer push the branch and open the pull request. The options and exit codes are in the [`gin commit` reference](../reference/cli.md#gin-commit).
 
+## Actors and glossary
+
+Name each actor on the `Actor:` and `Secondary actors:` lines of a use case. To describe the actors in the SRS, add `<specs>/actors.md` with a table that has `Actor` and `Description` columns; names match a use case's actors without regard to case. `specs lint` reports two findings on it: `needs a table with Actor and Description columns`, and `actor '<name>' is in no use case` for a row no use case names. Cite a use case as `<capability>/<slug>`, the ID the SRS prints under its heading. Only glossary terms with `Status` `confirmed` reach the SRS. The SRS sections are in [exporting an SRS](sdd.md#exporting-an-srs).
+
 ## Conventions
 
 These are team practices, not behaviour the tool enforces.

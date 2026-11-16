@@ -110,6 +110,10 @@ Nghiệm thu là quy ước của nhóm. Ship chỉ kiểm tra nó bằng một 
 
 Các skill `/gin-ba:capture` và `/gin-ba:mockup` đề nghị lưu thư mục có tên ngày trước khi `/gin:discuss` commit nó. Khi bạn đồng ý, skill chạy `gin commit` trên thư mục đó, và lệnh chỉ commit các file nằm trong thư mục đó. Trên `master` hoặc `main`, hoặc nhánh mặc định của workspace, `gin commit` tạo trước một nhánh mới. Lệnh không bao giờ push. Bạn hoặc một developer sẽ push nhánh và mở pull request. Tùy chọn và mã thoát nằm trong [tham chiếu `gin commit`](../reference/cli.md#gin-commit).
 
+## Actor và glossary { #actors-and-glossary }
+
+Nêu từng actor ở các dòng `Actor:` và `Secondary actors:` của use case. Để mô tả các actor trong SRS, thêm `<specs>/actors.md` với một bảng có các cột `Actor` và `Description`; tên khớp với actor của use case không phân biệt hoa thường. `specs lint` báo hai lỗi trên file này: `needs a table with Actor and Description columns`, và `actor '<name>' is in no use case` cho dòng mà không use case nào nêu. Trích dẫn một use case dưới dạng `<capability>/<slug>`, ID mà SRS in dưới tiêu đề của nó. Chỉ các term glossary có `Status` là `confirmed` mới vào SRS. Các phần của SRS nằm ở [xuất SRS](sdd.md#exporting-an-srs).
+
 ## Quy ước { #conventions }
 
 Đây là thực hành của nhóm, không phải hành vi công cụ ép buộc.

@@ -138,6 +138,18 @@ The file name without `.md` is the use case's slug and its ID. Its `Requirements
 
 Each chapter holds the capability's `## Purpose`, its use cases, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. The use cases part opens with a use case diagram generated from the use cases: actors outside the capability's box (names match without regard to case), an edge from `Actor:` to the use case and from the use case to each `Secondary actors:` entry, and dotted `«include»` and `«extend»` edges. A use case without `Actor:` has no actor edge. Open it in a browser and print it to PDF; each chapter starts on a new page.
 
+Around the chapters the file carries document sections, in this order: Revision history, Sign-off, Contents, Glossary, Actors, the chapters, and the Traceability matrix.
+
+- Revision history has one row per archived change folder named `<date>-<name>`, newest first, with the date, the `Epic:` line of its `01-proposal.md`, its title, the capabilities its `02-spec-delta.md` touches, and the REQ-IDs added, modified, and removed. Without changes it shows `No revisions yet.`
+- Sign-off is a blank table of Prepared by, Reviewed by, and Approved by, with Name, Role, Signature, and Date columns to fill in by hand.
+- Glossary lists the rows of `## Terms` in `<codebase>/11-GLOSSARY.md` whose `Status` is `confirmed`, sorted by English. Without them it shows `No glossary.`
+- Actors lists each actor named by `Actor:` or `Secondary actors:` in the use cases, once per name (matched without regard to case), with the use cases it appears in and the description from the optional `<specs>/actors.md`. Without actors it shows `No actors.`
+- The Traceability matrix has one row per living requirement: its use cases (those whose `Requirements:` line names it), the test files that cite it, the QA cases that cite it, and a status of `covered` (a test file or a QA case cites it) or `missing`. Without requirements it shows `No requirements.`
+
+Test files are the git-tracked files `specs trace` reads. QA cases are the files named `TC-<CAP>-<NNN>...` under `qa.cases`, or under `<qa.dir>/cases` (`qa/cases` when `qa.dir` is unset), inside the repository; a `qa.cases` that points outside it is ignored. A file that cannot be read as UTF-8 text is skipped. Each use case in a chapter prints its ID, `<capability>/<slug>`, under its heading, and the Actors and Traceability tables link to it.
+
+An export of one capability keeps only the revisions that touch it, its actors, and its requirements; the Glossary is the same. The Sign-off table is plain HTML in `srs.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
+
 The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; without network access it shows their source instead. The export does not lint, so run `specs lint` first. A local image it cannot find, one outside the repository, or a file that is not an image shows as its alt text, and the command exits 1 naming it. The cover, logo, customer, and section order come from the templates `srs.html` and `srs-capability.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 
 ## Explaining a capability
