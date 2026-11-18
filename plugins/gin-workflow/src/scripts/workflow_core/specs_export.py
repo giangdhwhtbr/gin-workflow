@@ -257,9 +257,7 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     title = _title(text, cap)
     purpose = markdown_html(_section(text, "Purpose"), folder, _shown(spec, root), embed)
     use_cases = "\n".join(
-        f'<section class="use-case" id="{escape(cap)}-{escape(path.stem)}">'
-        f'{_with_id(markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed), cap, path.stem)}'
-        "</section>"
+        f'<section class="use-case" id="{escape(cap)}-{escape(path.stem)}">{_use_case(cap, path, root, embed)}</section>'
         for path in sorted((folder / "use-cases").glob("*.md")))
     diagram = use_case_diagram(title, folder)
     if diagram:
@@ -282,9 +280,35 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     return chapter, toc
 
 
-def _with_id(html: str, cap: str, slug: str) -> str:
-    """The use case ID `<capability>/<slug>` printed under the first heading, or first when there is none."""
-    id_html = f'<p class="use-case-id">{escape(cap)}/{escape(slug)}</p>'
+_FIELD = re.compile(r"^([A-Z][A-Za-z ]*):[ \t]*(\S.*)$")
+_FIRST_SECTION = re.compile(r"^## ", re.MULTILINE)
+
+
+def _use_case_fields(text: str) -> tuple[str, str]:
+    """The `Field: value` lines before a use case's first `## ` section as a two-column table, and the text without them."""
+    text = _COMMENT.sub("", text)
+    found = _FIRST_SECTION.search(text)
+    head, rest = (text[:found.start()], text[found.start():]) if found else (text, "")
+    kept, rows = [], []
+    for line in head.split("\n"):
+        field = _FIELD.match(line)
+        if field:
+            value = _inline(field.group(2), lambda alt, target: escape(alt or target))
+            rows.append(f"<tr><th>{escape(field.group(1))}</th><td>{value}</td></tr>")
+        else:
+            kept.append(line)
+    table = f'<table class="use-case-fields">{"".join(rows)}</table>' if rows else ""
+    return table, "\n".join(kept) + rest
+
+
+def _use_case(cap: str, path: Path, root: Path, embed: Embed) -> str:
+    fields, text = _use_case_fields(path.read_text(encoding="utf-8"))
+    return _with_id(markdown_html(text, path.parent, _shown(path, root), embed), cap, path.stem, fields)
+
+
+def _with_id(html: str, cap: str, slug: str, fields: str = "") -> str:
+    """The use case ID `<capability>/<slug>`, then its fields table, under the first heading, or first without one."""
+    id_html = f'<p class="use-case-id">{escape(cap)}/{escape(slug)}</p>{fields}'
     if "</h" not in html:
         return id_html + html
     return re.sub(r"(</h[1-6]>)", lambda found: found.group(1) + id_html, html, count=1)

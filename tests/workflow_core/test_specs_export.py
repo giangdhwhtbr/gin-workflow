@@ -337,6 +337,33 @@ class TestExport(unittest.TestCase):
         for row in ("Prepared by", "Reviewed by", "Approved by"):
             self.assertIn(f"<th>{row}</th>", html)
 
+    def use_case_section(self, html: str, anchor: str) -> str:
+        section = html[html.index(f'id="{anchor}"'):]
+        return section[:section.index("</section>")]
+
+    def test_use_case_header_fields_render_one_per_row(self):
+        text = USE_CASE.replace("Requirements:", "Trigger: The user opens `/login`\nRequirements:")
+        text = text.replace("Reach the dashboard.", "Reach the dashboard.\nNote: kept as text.")
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", "<!-- Actor: hidden -->\n" + text)
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        section = self.use_case_section(self.read("srs-auth.html"), "auth-sign-in")
+        self.assertIn('<table class="use-case-fields">'
+                      "<tr><th>Actor</th><td>Registered user</td></tr>"
+                      "<tr><th>Trigger</th><td>The user opens <code>/login</code></td></tr>"
+                      "<tr><th>Requirements</th><td>REQ-AUTH-001, REQ-AUTH-002</td></tr></table>", section)
+        self.assertLess(section.index('class="use-case-id"'), section.index('class="use-case-fields"'))
+        self.assertNotIn("Actor: Registered user", section)
+        self.assertNotIn("hidden", section)
+        self.assertIn("Note: kept as text.", section)
+        self.assertNotIn("<th>Note</th>", section)
+
+    def test_use_case_without_header_fields_has_no_fields_table(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", "# Sign in\n\n## Goal\nReach the dashboard.\n")
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        section = self.use_case_section(self.read("srs-auth.html"), "auth-sign-in")
+        self.assertNotIn("use-case-fields", section)
+        self.assertIn('<p class="use-case-id">auth/sign-in</p>', section)
+
     def test_use_case_ids_and_links(self):
         self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
         html = self.read("srs-auth.html")
