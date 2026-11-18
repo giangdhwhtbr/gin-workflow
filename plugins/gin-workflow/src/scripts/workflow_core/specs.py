@@ -383,6 +383,7 @@ def delta_blocks(root: Path, change: Path) -> tuple[list[Block], list[str]]:
 
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_DATED_CHANGE = re.compile(r"^\d{4}-\d{2}-\d{2}-")
 
 
 def lint_iterations(root: Path, cfg: Mapping[str, Any]) -> list[str]:
@@ -664,45 +665,92 @@ def _lint_kind(root: Path, change: Path) -> tuple[str, list[str]]:
     return change_kind(change), []
 
 
-def _technical_epics(root: Path) -> set[str] | None:
-    """Ids of the epics labelled `kind:technical`, in one tracker query; None when the tracker cannot answer."""
+def _epic_kinds(root: Path) -> dict[str, str] | None:
+    """The `kind:` label of each issue that has exactly one, in one tracker query; None when the tracker cannot answer."""
     from . import tasks
 
-    rows, cause = tasks.query_result(root, ["list", "--label", "kind:technical", "--all", "--limit", "0"])
-    return None if cause else {row["id"] for row in rows or [] if isinstance(row, Mapping) and "id" in row}
+    rows, cause = tasks.query_result(root, ["list", "--all", "--limit", "0"])
+    if cause or not isinstance(rows, list):
+        return None
+    kinds: dict[str, str] = {}
+    for row in rows:
+        found = epic_kind.label_kinds(list(row.get("labels") or ())) if isinstance(row, Mapping) else []
+        if len(found) == 1 and "id" in row:
+            kinds[row["id"]] = found[0]
+    return kinds
+
+
+def _cited_diagrams(root: Path, change: Path, specs_root: Path) -> set[str]:
+    """Activity diagrams under the specs folder that a change folder cites in backticks, as repository paths."""
+    top = Path(root).resolve()
+    found: set[str] = set()
+    for doc in sorted(change.rglob("*.md")):
+        for token in _CITED.findall(read_text_or_none(doc) or ""):
+            path = Path(root) / posixpath.normpath(_LINE_SUFFIX.sub("", token.split("#", 1)[0]))
+            if not (path.name.endswith("-activity.md") and path.parent.name == DIAGRAMS_DIR
+                    and os.path.isfile(path)):
+                continue
+            resolved = path.resolve()
+            if resolved.is_relative_to(specs_root):
+                found.add(resolved.relative_to(top).as_posix())
+    return found
+
+
+def _added_with(root: Path, rel: str, names: set[str]) -> bool:
+    """Whether the commit that added `rel` also touched a change folder with one of these names."""
+    added = _git(root, "log", "--diff-filter=A", "--format=%H", "-1", "--", rel)
+    commit = added.stdout.strip()
+    if added.returncode != 0 or not commit:
+        return False
+    touched = _git(root, "show", "--name-only", "--format=", commit).stdout.splitlines()
+    return any(part in names for path in touched for part in Path(path).parts)
 
 
 def technical_diagram_warnings(root: Path, cfg: Mapping[str, Any]) -> list[str]:
-    """Activity diagrams cited only by technical change folders (open or archived).
+    """Activity diagrams added with an archived technical change and cited by no other change.
 
-    Before 3.1.2 a technical change was made to write activity diagrams; none is required now, so these can go.
-    A change is technical when its epic is labelled `kind:technical` or its `Kind:` line says so (proposals written
-    before 3.1.2 say capability for technical epics, so the label decides when the tracker answers)."""
+    Before 3.1.2 a technical change was made to write activity diagrams; none is required now. A diagram is reported
+    only when the commit that added it also touched that change folder, no non-technical change cites it, and its
+    `Use case:` names no use case of the capability. The epic's `kind:` label decides a change's kind; without one, or
+    when the tracker cannot answer, its `Kind:` line does (proposals before 3.1.2 say capability for every epic)."""
     base, specs_root = changes_dir(root, cfg), specs_dir(root, cfg).resolve()
     archive = base / "archive"
-    folders = [p for p in sorted(base.iterdir()) if p.is_dir() and p.name != "archive"] if base.is_dir() else []
-    folders += [p for p in sorted(archive.iterdir()) if p.is_dir()] if archive.is_dir() else []
-    labelled: set[str] | None = None
-    technical: dict[str, str] = {}
+    if not archive.is_dir():
+        return []
+    open_folders = [p for p in sorted(base.iterdir()) if p.is_dir() and p.name != "archive"]
+    archived = [p for p in sorted(archive.iterdir()) if p.is_dir()]
+    cited = {change: _cited_diagrams(root, change, specs_root) for change in open_folders + archived}
+    if not any(cited[change] for change in archived):
+        return []
+    kinds = _epic_kinds(root)
+
+    def technical(change: Path) -> bool:
+        epic = _EPIC_LINE.search(read_text_or_none(change_file(change, "proposal")) or "")
+        label = (kinds or {}).get(epic.group(1)) if epic else None
+        return (label or change_kind(change)) == "technical"
+
+    candidates: dict[str, list[str]] = {}
     other: set[str] = set()
-    for change in folders:
-        cited = {posixpath.normpath(_LINE_SUFFIX.sub("", found)) for doc in sorted(change.rglob("*.md"))
-                 for found in _CITED.findall(read_text_or_none(doc) or "")}
-        diagrams = {rel for rel in cited if rel.endswith("-activity.md") and f"/{DIAGRAMS_DIR}/" in f"/{rel}"
-                    and (Path(root) / rel).is_file() and (Path(root) / rel).resolve().is_relative_to(specs_root)}
+    for change, diagrams in cited.items():
         if not diagrams:
             continue
-        if labelled is None:
-            labelled = _technical_epics(root) or set()
-        proposal = read_text_or_none(change_file(change, "proposal")) or ""
-        epic = _EPIC_LINE.search(proposal)
-        if (epic and epic.group(1) in labelled) or change_kind(change) == "technical":
-            for rel in diagrams:
-                technical.setdefault(rel, change.name)
-        else:
+        if not technical(change):
             other |= diagrams
-    return [f"{rel} was written for technical change {name}; no feature change cites it, so it can be deleted "
-            "(and its link in spec.md ## Diagrams)" for rel, name in sorted(technical.items()) if rel not in other]
+        elif change in archived:
+            for rel in diagrams:
+                candidates.setdefault(rel, []).append(change.name)
+    warnings = []
+    for rel, changes in sorted(candidates.items()):
+        diagram = Path(root) / rel
+        use_cases = diagram.parent.parent / USE_CASES_DIR
+        drawn_for = line_values(read_text_or_none(diagram) or "", "Use case")
+        if rel in other or any((use_cases / f"{slug}.md").is_file() for slug in drawn_for):
+            continue
+        names = {name for change in changes for name in (change, _DATED_CHANGE.sub("", change))}
+        if _added_with(root, rel, names):
+            warnings.append(f"{rel} was added with technical change {', '.join(changes)} and no feature change cites "
+                            "it; delete it and its link in spec.md ## Diagrams unless a feature needs it")
+    return warnings
 
 
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
