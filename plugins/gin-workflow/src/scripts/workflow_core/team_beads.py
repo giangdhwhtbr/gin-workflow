@@ -28,13 +28,20 @@ class SyncConflict(Exception):
     """Dolt reported a merge conflict or a rejected push: exit 1, nothing forced."""
 
 
+# bd dolt pull/push talk to the Beads remote; on Windows one can take several minutes.
+DOLT_TIMEOUT = 1000
+
+
 def _bd(root: Path, argv: list[str], *, actor: str = "", timeout: int = 120) -> subprocess.CompletedProcess:
     executable = tool("bd", root)
     if executable is None:
         raise TeamError("bd is not installed")
     env = {**os.environ, "BD_ACTOR": actor} if actor else None
-    return subprocess.run([executable, *argv], cwd=root, text=True, capture_output=True, check=False,
-                          env=env, timeout=timeout)
+    try:
+        return subprocess.run([executable, *argv], cwd=root, text=True, capture_output=True, check=False,
+                              env=env, timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        raise TeamError(f"bd {' '.join(argv)} timed out after {timeout}s") from error
 
 
 def _bd_json(root: Path, argv: list[str], *, timeout: int = 120) -> Any:
@@ -182,7 +189,7 @@ def ready(root: Path, team: TeamConfig, member: Member, exclude: Sequence[str] =
 
 def sync(root: Path) -> dict[str, Any]:
     for step in ("pull", "push"):
-        completed = _bd(root, ["dolt", step])
+        completed = _bd(root, ["dolt", step], timeout=DOLT_TIMEOUT)
         if completed.returncode != 0:
             message = (completed.stderr or completed.stdout).strip()
             if step == "pull" and "no branches found" in message:
@@ -323,14 +330,14 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
 def push(root: Path, team: TeamConfig) -> None:
     """Push local Beads without ever resetting them: a rejected push leaves the local write in place."""
     if team.beads_remote:
-        pushed = _bd(root, ["dolt", "push"])
+        pushed = _bd(root, ["dolt", "push"], timeout=DOLT_TIMEOUT)
         if pushed.returncode != 0:
             raise SyncConflict(f"bd dolt push: {(pushed.stderr or pushed.stdout).strip()}")
 
 
 def _push(root: Path, team: TeamConfig, bead: str) -> None:
     """Push the local write; a rejected push syncs once and retries. Local Beads are never reset."""
-    if not team.beads_remote or _bd(root, ["dolt", "push"]).returncode == 0:
+    if not team.beads_remote or _bd(root, ["dolt", "push"], timeout=DOLT_TIMEOUT).returncode == 0:
         return
     try:
         sync(root)

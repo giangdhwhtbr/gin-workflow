@@ -456,6 +456,28 @@ class TestTeamHandoff(unittest.TestCase):
         self.assertTrue((self.root / ".planning/worktrees" / self.bead / "api.txt").is_file())
 
 
+class TestDoltTimeout(unittest.TestCase):
+    """bd dolt pull and push get a long timeout, and a timeout is a clear error, not a traceback."""
+
+    def test_sync_and_push_give_dolt_the_long_timeout(self):
+        done = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch.object(team_beads, "tool", return_value="bd"), \
+                mock.patch.object(team_beads.subprocess, "run", return_value=done) as run:
+            team_beads.sync(Path("."))
+            team_beads.push(Path("."), TeamConfig(beads_remote="x"))
+        self.assertEqual([["bd", "dolt", "pull"], ["bd", "dolt", "push"], ["bd", "dolt", "push"]],
+                         [call.args[0] for call in run.call_args_list])
+        self.assertEqual({team_beads.DOLT_TIMEOUT}, {call.kwargs["timeout"] for call in run.call_args_list})
+        self.assertGreaterEqual(team_beads.DOLT_TIMEOUT, 1000)
+
+    def test_a_timeout_is_a_team_error_naming_the_command(self):
+        expired = subprocess.TimeoutExpired(["bd", "dolt", "pull"], team_beads.DOLT_TIMEOUT)
+        with mock.patch.object(team_beads, "tool", return_value="bd"), \
+                mock.patch.object(team_beads.subprocess, "run", side_effect=expired):
+            with self.assertRaisesRegex(team_beads.TeamError, r"bd dolt pull timed out after 1000s"):
+                team_beads.sync(Path("."))
+
+
 class TestPushWithoutReset(unittest.TestCase):
     """A rejected push retries through sync once; local Beads are never reset."""
 
