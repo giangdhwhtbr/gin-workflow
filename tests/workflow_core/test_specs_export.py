@@ -357,6 +357,18 @@ class TestExport(unittest.TestCase):
         self.assertIn("Note: kept as text.", section)
         self.assertNotIn("<th>Note</th>", section)
 
+    def test_use_case_fields_are_the_known_keys_before_the_first_section(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md",
+              "# Sign in\n\nActor: Customer\nIncludes:\nExtends:\nThis lets users sign in with\nGoogle: verified accounts.\n\n"
+              "### Rules\nRequirements: none here\n")
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        section = self.use_case_section(self.read("srs-auth.html"), "auth-sign-in")
+        self.assertIn('<table class="use-case-fields"><tr><th>Actor</th><td>Customer</td></tr></table>', section)
+        self.assertNotIn("Includes:", section)
+        self.assertNotIn("Extends:", section)
+        self.assertIn("Google: verified accounts.", section)
+        self.assertIn("Requirements: none here", section)
+
     def test_use_case_without_header_fields_has_no_fields_table(self):
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", "# Sign in\n\n## Goal\nReach the dashboard.\n")
         self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)

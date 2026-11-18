@@ -280,18 +280,21 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     return chapter, toc
 
 
-_FIELD = re.compile(r"^([A-Z][A-Za-z ]*):[ \t]*(\S.*)$")
-_FIRST_SECTION = re.compile(r"^## ", re.MULTILINE)
+_FIELD = re.compile(r"^(Actor|Secondary actors|Trigger|Requirements|Includes|Extends):[ \t]*(.*)$")
+_FIRST_SECTION = re.compile(r"^#{2,6} ", re.MULTILINE)
 
 
 def _use_case_fields(text: str) -> tuple[str, str]:
-    """The `Field: value` lines before a use case's first `## ` section as a two-column table, and the text without them."""
+    """The header lines of a use case template before its first section heading, as a two-column table, and the
+    text without them. A line with no value is dropped; an image in a value shows its alt text."""
     text = _COMMENT.sub("", text)
     found = _FIRST_SECTION.search(text)
     head, rest = (text[:found.start()], text[found.start():]) if found else (text, "")
     kept, rows = [], []
     for line in head.split("\n"):
         field = _FIELD.match(line)
+        if field and not field.group(2).strip():
+            continue
         if field:
             value = _inline(field.group(2), lambda alt, target: escape(alt or target))
             rows.append(f"<tr><th>{escape(field.group(1))}</th><td>{value}</td></tr>")
