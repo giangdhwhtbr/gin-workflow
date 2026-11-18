@@ -187,9 +187,15 @@ def ready(root: Path, team: TeamConfig, member: Member, exclude: Sequence[str] =
     return ready_group + expired_group
 
 
+def _dolt(root: Path, step: str) -> subprocess.CompletedProcess:
+    """`bd dolt <step>` with the long timeout, announced on stderr so a slow remote does not look like a hang."""
+    print(f"bd dolt {step} (up to {DOLT_TIMEOUT}s)...", file=sys.stderr, flush=True)
+    return _bd(root, ["dolt", step], timeout=DOLT_TIMEOUT)
+
+
 def sync(root: Path) -> dict[str, Any]:
     for step in ("pull", "push"):
-        completed = _bd(root, ["dolt", step], timeout=DOLT_TIMEOUT)
+        completed = _dolt(root, step)
         if completed.returncode != 0:
             message = (completed.stderr or completed.stdout).strip()
             if step == "pull" and "no branches found" in message:
@@ -330,15 +336,20 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
 def push(root: Path, team: TeamConfig) -> None:
     """Push local Beads without ever resetting them: a rejected push leaves the local write in place."""
     if team.beads_remote:
-        pushed = _bd(root, ["dolt", "push"], timeout=DOLT_TIMEOUT)
+        pushed = _dolt(root, "push")
         if pushed.returncode != 0:
             raise SyncConflict(f"bd dolt push: {(pushed.stderr or pushed.stdout).strip()}")
 
 
 def _push(root: Path, team: TeamConfig, bead: str) -> None:
     """Push the local write; a rejected push syncs once and retries. Local Beads are never reset."""
-    if not team.beads_remote or _bd(root, ["dolt", "push"], timeout=DOLT_TIMEOUT).returncode == 0:
+    if not team.beads_remote:
         return
+    try:
+        if _dolt(root, "push").returncode == 0:
+            return
+    except TeamError as error:
+        raise SyncConflict(f"push of {bead} failed; local Beads kept, run gin team sync ({error})") from error
     try:
         sync(root)
     except (SyncConflict, TeamError) as error:

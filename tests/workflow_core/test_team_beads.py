@@ -470,6 +470,22 @@ class TestDoltTimeout(unittest.TestCase):
         self.assertEqual({team_beads.DOLT_TIMEOUT}, {call.kwargs["timeout"] for call in run.call_args_list})
         self.assertGreaterEqual(team_beads.DOLT_TIMEOUT, 1000)
 
+    def test_each_dolt_step_is_announced_on_stderr(self):
+        done = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch.object(team_beads, "tool", return_value="bd"), \
+                mock.patch.object(team_beads.subprocess, "run", return_value=done), \
+                mock.patch("sys.stderr", new_callable=__import__("io").StringIO) as err:
+            team_beads.sync(Path("."))
+        self.assertEqual(["bd dolt pull (up to 1000s)...", "bd dolt push (up to 1000s)..."], err.getvalue().splitlines())
+
+    def test_a_timed_out_push_keeps_the_local_write(self):
+        expired = subprocess.TimeoutExpired(["bd", "dolt", "push"], team_beads.DOLT_TIMEOUT)
+        with mock.patch.object(team_beads, "tool", return_value="bd"), \
+                mock.patch.object(team_beads.subprocess, "run", side_effect=expired):
+            with self.assertRaisesRegex(team_beads.SyncConflict,
+                                        r"push of t-1 failed; local Beads kept, run gin team sync \(bd dolt push timed out"):
+                team_beads._push(Path("."), TeamConfig(beads_remote="x"), "t-1")
+
     def test_a_timeout_is_a_team_error_naming_the_command(self):
         expired = subprocess.TimeoutExpired(["bd", "dolt", "pull"], team_beads.DOLT_TIMEOUT)
         with mock.patch.object(team_beads, "tool", return_value="bd"), \
