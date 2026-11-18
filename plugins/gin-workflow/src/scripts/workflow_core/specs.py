@@ -691,16 +691,18 @@ def _cited_diagrams(root: Path, change: Path, specs_root: Path) -> set[str]:
                     and os.path.isfile(path)):
                 continue
             resolved = path.resolve()
-            if resolved.is_relative_to(specs_root):
+            if resolved.is_relative_to(specs_root) and resolved.is_relative_to(top):
                 found.add(resolved.relative_to(top).as_posix())
     return found
 
 
 def _added_with(root: Path, rel: str, names: set[str]) -> bool:
-    """Whether the commit that added `rel` also touched a change folder with one of these names."""
-    added = _git(root, "log", "--diff-filter=A", "--format=%H", "-1", "--", rel)
-    commit = added.stdout.strip()
-    if added.returncode != 0 or not commit:
+    """Whether the commit that added `rel` also touched a change folder with one of these names.
+
+    A root commit, like the boundary of a shallow clone, seems to add every file, so it proves nothing: False."""
+    added = _git(root, "log", "--diff-filter=A", "--format=%H %P", "-1", "--", rel)
+    commit, *parents = added.stdout.split() or [""]
+    if added.returncode != 0 or not commit or not parents:
         return False
     touched = _git(root, "show", "--name-only", "--format=", commit).stdout.splitlines()
     return any(part in names for path in touched for part in Path(path).parts)
@@ -722,6 +724,8 @@ def technical_diagram_warnings(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     cited = {change: _cited_diagrams(root, change, specs_root) for change in open_folders + archived}
     if not any(cited[change] for change in archived):
         return []
+    if _git(root, "rev-parse", "--is-shallow-repository").stdout.strip() != "false":
+        return []  # a shallow clone hides who added a diagram; a git error leaves it unknown too
     kinds = _epic_kinds(root)
 
     def technical(change: Path) -> bool:

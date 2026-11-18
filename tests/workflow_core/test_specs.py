@@ -191,6 +191,10 @@ class TestRepositoryCommands(unittest.TestCase):
             self.assertEqual([], specs.technical_diagram_warnings(self.root, self.cfg))
             kinds.assert_not_called()
         git(self.root, "checkout", "-q", "--", "docs/changes/archive/2026-10-01-ep-7-cache/03-design.md")
+        shallow = Path(self.tmp.name) / "shallow"
+        subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{self.root}", str(shallow)], check=True)
+        with mock.patch.object(specs, "_epic_kinds", return_value=None):
+            self.assertEqual([], specs.technical_diagram_warnings(shallow, specs.sdd_config(specs.load_config(shallow))))
         result = run_specs(self.root, "lint")
         self.assertEqual(0, result.returncode, result.stdout)
         self.assertIn(f"warning: {warning}", result.stderr)
