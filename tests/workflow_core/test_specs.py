@@ -156,6 +156,32 @@ class TestRepositoryCommands(unittest.TestCase):
         write(self.root, "docs/specs/auth/diagrams/account-state.md", specs.template_text(self.root, "state.md"))
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
 
+    def test_lint_warns_about_diagrams_only_technical_changes_cite(self):
+        for name in ("cache", "shared"):
+            write(self.root, f"docs/specs/auth/diagrams/{name}-activity.md", ACTIVITY)
+        tech = "docs/changes/archive/2026-10-01-ep-7-cache"
+        write(self.root, f"{tech}/01-proposal.md", "# Cache\n\nEpic: ep-7\nKind: technical\n")
+        write(self.root, f"{tech}/03-design.md", "## Data Flow\n\n`docs/specs/auth/diagrams/cache-activity.md`, "
+              "`docs/specs/auth/diagrams/shared-activity.md`, `docs/specs/auth/diagrams/gone-activity.md`\n")
+        write(self.root, "docs/changes/ep-8-feature/01-proposal.md", "# Feature\n\nEpic: ep-8\n")
+        write(self.root, "docs/changes/ep-8-feature/03-design.md", "Flow: `docs/specs/auth/diagrams/shared-activity.md`\n")
+        write(self.root, "docs/changes/ep-9-old/01-proposal.md", "# Old\n\nEpic: ep-9\nKind: capability\n")
+        write(self.root, "docs/changes/ep-9-old/03-design.md", "`docs/specs/auth/diagrams/login-activity.md`\n")
+
+        def warning(path: str, change: str) -> str:
+            return (f"{path} was written for technical change {change}; no feature change cites it, "
+                    "so it can be deleted (and its link in spec.md ## Diagrams)")
+
+        cache = warning("docs/specs/auth/diagrams/cache-activity.md", "2026-10-01-ep-7-cache")
+        login = warning("docs/specs/auth/diagrams/login-activity.md", "ep-9-old")
+        with mock.patch.object(specs, "_technical_epics", return_value=None):
+            self.assertEqual([cache], specs.technical_diagram_warnings(self.root, self.cfg))
+        with mock.patch.object(specs, "_technical_epics", return_value={"ep-9"}):
+            self.assertEqual([cache, login], specs.technical_diagram_warnings(self.root, self.cfg))
+        result = run_specs(self.root, "lint")
+        self.assertEqual(0, result.returncode, result.stdout)
+        self.assertIn(f"warning: {cache}", result.stderr)
+
     def test_lint_actors_file(self):
         self.assertEqual([], specs.lint_actors(self.root, self.cfg))
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)

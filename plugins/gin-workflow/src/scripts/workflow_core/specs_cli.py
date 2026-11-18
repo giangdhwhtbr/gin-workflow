@@ -159,6 +159,8 @@ def _run(args: argparse.Namespace) -> int:
         else:
             errors = specs.lint_living(root, cfg)
         found, warnings = lint_assets(root, cfg, args.against)
+        if not args.change:
+            warnings += specs.technical_diagram_warnings(root, cfg)
         for warning in warnings:
             print(f"warning: {warning}", file=sys.stderr)
         return _findings(errors + found, args.format, "ok")

@@ -664,6 +664,47 @@ def _lint_kind(root: Path, change: Path) -> tuple[str, list[str]]:
     return change_kind(change), []
 
 
+def _technical_epics(root: Path) -> set[str] | None:
+    """Ids of the epics labelled `kind:technical`, in one tracker query; None when the tracker cannot answer."""
+    from . import tasks
+
+    rows, cause = tasks.query_result(root, ["list", "--label", "kind:technical", "--all", "--limit", "0"])
+    return None if cause else {row["id"] for row in rows or [] if isinstance(row, Mapping) and "id" in row}
+
+
+def technical_diagram_warnings(root: Path, cfg: Mapping[str, Any]) -> list[str]:
+    """Activity diagrams cited only by technical change folders (open or archived).
+
+    Before 3.1.2 a technical change was made to write activity diagrams; none is required now, so these can go.
+    A change is technical when its epic is labelled `kind:technical` or its `Kind:` line says so (proposals written
+    before 3.1.2 say capability for technical epics, so the label decides when the tracker answers)."""
+    base, specs_root = changes_dir(root, cfg), specs_dir(root, cfg).resolve()
+    archive = base / "archive"
+    folders = [p for p in sorted(base.iterdir()) if p.is_dir() and p.name != "archive"] if base.is_dir() else []
+    folders += [p for p in sorted(archive.iterdir()) if p.is_dir()] if archive.is_dir() else []
+    labelled: set[str] | None = None
+    technical: dict[str, str] = {}
+    other: set[str] = set()
+    for change in folders:
+        cited = {posixpath.normpath(_LINE_SUFFIX.sub("", found)) for doc in sorted(change.rglob("*.md"))
+                 for found in _CITED.findall(read_text_or_none(doc) or "")}
+        diagrams = {rel for rel in cited if rel.endswith("-activity.md") and f"/{DIAGRAMS_DIR}/" in f"/{rel}"
+                    and (Path(root) / rel).is_file() and (Path(root) / rel).resolve().is_relative_to(specs_root)}
+        if not diagrams:
+            continue
+        if labelled is None:
+            labelled = _technical_epics(root) or set()
+        proposal = read_text_or_none(change_file(change, "proposal")) or ""
+        epic = _EPIC_LINE.search(proposal)
+        if (epic and epic.group(1) in labelled) or change_kind(change) == "technical":
+            for rel in diagrams:
+                technical.setdefault(rel, change.name)
+        else:
+            other |= diagrams
+    return [f"{rel} was written for technical change {name}; no feature change cites it, so it can be deleted "
+            "(and its link in spec.md ## Diagrams)" for rel, name in sorted(technical.items()) if rel not in other]
+
+
 def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: str | None = None) -> list[str]:
     blocks, errors = delta_blocks(root, change)
     path = shown(root, change_file(change, "spec-delta"))
