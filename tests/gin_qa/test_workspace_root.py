@@ -100,7 +100,7 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
         return root
 
-    def test_next_id_from_the_child_uses_child_history(self):
+    def test_next_id_from_the_child_uses_child_cases(self):
         parent, child = self.workspace()
         before = sorted(path.name for path in parent.iterdir())
         result = qa(None, self.bin, "next-id", "auth", cwd=child)

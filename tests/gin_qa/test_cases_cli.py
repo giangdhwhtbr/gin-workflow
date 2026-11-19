@@ -20,7 +20,7 @@ from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, case_file, cases_file, co
                          make_change, make_repo, write, write_activity)
 # One test per subcommand keeps the subprocess; the rest run gin-qa in this process.
 from qa_fixtures import qa as qa_subprocess, qa_in_process as qa  # noqa: E402
-from gin_qa.cases import as_dict, hash8 as case_hash8, parse_case_file, parse_file, stamp8  # noqa: E402
+from gin_qa.cases import as_dict, hash8 as case_hash8, next_id, parse_case_file, parse_file, stamp8  # noqa: E402
 from workflow_core import cli as gin_cli  # noqa: E402
 
 
@@ -226,16 +226,6 @@ class TestStructure(QaCase):
 
 
 class TestIdsAndExport(QaCase):
-    def test_next_id_never_reuses_a_number(self):
-        first = qa_subprocess(self.root, self.bin, "next-id", "auth")
-        self.assertEqual("TC-AUTH-001\n", first.stdout, first.stderr)
-        self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")), case("TC-AUTH-002", self.ref("REQ-AUTH-002")))
-        self.assertEqual("TC-AUTH-003\n", qa(self.root, self.bin, "next-id", "auth").stdout)
-        commit_all(self.root)
-        self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-002")))
-        self.assertEqual("TC-AUTH-003\n", qa(self.root, self.bin, "next-id", "auth").stdout)
-        self.assertEqual("TC-USER-AUTH-001\n", qa(self.root, self.bin, "next-id", "user-auth").stdout)
-
     def test_export_keeps_free_fields(self):
         self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001"), title="Login", extra="Owner: qa-team\n"))
         rows = self.run_json("export")["cases"]
@@ -329,13 +319,36 @@ class TestCaseFiles(QaCase):
             "qa/cases/auth.md: capability also has folder qa/cases/auth/; run gin-qa cases split auth",
         ], self.findings())
 
-    def test_next_id_counts_file_names_and_their_history(self):
-        self.put("auth/TC-AUTH-004-2024-old.e2e.md", case_file("TC-AUTH-004", self.ref("REQ-AUTH-001")))
-        self.assertEqual("TC-AUTH-005\n", qa(self.root, self.bin, "next-id", "auth").stdout)
+    def test_next_id_fills_the_lowest_gap_and_forgets_history(self):
+        self.assertEqual("TC-AUTH-001\n", qa_subprocess(self.root, self.bin, "next-id", "auth").stdout)
+        for number in ("001", "002", "004"):
+            self.put(f"auth/TC-AUTH-{number}-x.e2e.md", case_file(f"TC-AUTH-{number}", self.ref("REQ-AUTH-001")))
+        self.assertEqual("TC-AUTH-003\n", qa(self.root, self.bin, "next-id", "auth").stdout)
         commit_all(self.root)
-        (self.root / "qa/cases/auth/TC-AUTH-004-2024-old.e2e.md").unlink()
-        self.assertEqual("TC-AUTH-005\n", qa(self.root, self.bin, "next-id", "auth").stdout)
+        (self.root / "qa/cases/auth/TC-AUTH-001-x.e2e.md").unlink()
+        self.assertEqual("TC-AUTH-001\n", qa(self.root, self.bin, "next-id", "auth").stdout)
         self.assertEqual("TC-USER-AUTH-001\n", qa(self.root, self.bin, "next-id", "user-auth").stdout)
+
+    def test_next_id_skips_numbers_an_e2e_spec_or_a_test_marker_still_names(self):
+        for number in ("001", "002", "004"):
+            self.put(f"auth/TC-AUTH-{number}-x.e2e.md", case_file(f"TC-AUTH-{number}", self.ref("REQ-AUTH-001")))
+        spec = write(self.root, "qa/e2e/auth/tc-auth-003.spec.ts", "// TC: TC-AUTH-003@00000000\n")
+        self.assertEqual("TC-AUTH-005\n", qa(self.root, self.bin, "next-id", "auth").stdout)
+        spec.unlink()
+        write(self.root, "qa/guidelines.md", "## Automated types\n\n### api\n- Tests: `backend/tests/**/test_*.py`\n"
+                                             "- Run: `fake {files} --junitxml={junit}`\n")
+        marker = write(self.root, "backend/tests/test_auth.py", "# TC: TC-AUTH-003@00000000\ndef test_x():\n    pass\n")
+        self.assertEqual("TC-AUTH-005\n", qa(self.root, self.bin, "next-id", "auth").stdout)
+        marker.unlink()
+        self.assertEqual("TC-AUTH-003\n", qa(self.root, self.bin, "next-id", "auth").stdout)
+
+    def test_next_id_needs_no_git_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "qa/cases/auth"
+            folder.mkdir(parents=True)
+            (folder / "TC-AUTH-002-x.manual.md").write_text("# TC-AUTH-002: x\n")
+            self.assertEqual("TC-AUTH-001", next_id(Path(tmp), "qa/cases", "auth"))
+            self.assertEqual("TC-AUTH-003", next_id(Path(tmp), "qa/cases", "auth", {"TC-AUTH-001"}))
 
     def test_test_globs_probe_covers_case_files(self):
         config = self.root / ".agent-workflow/config.yaml"

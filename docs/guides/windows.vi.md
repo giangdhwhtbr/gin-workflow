@@ -77,6 +77,8 @@ pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Project .
 ### PATH { #path }
 Trình cài đặt thêm `%USERPROFILE%\.local\bin` vào `PATH` của người dùng một lần. Mở một terminal mới để nhận thay đổi. Truyền `-NoModifyPath` để giữ nguyên `PATH`; khi đó trình cài đặt in ra thư mục cần thêm. `-Uninstall` gỡ mục đó.
 
+Trình cài đặt cũng gỡ alias `gin` có sẵn của PowerShell (alias này chạy `Get-ComputerInfo`) để `gin` gọi tới launcher. Nó thêm một khối có đánh dấu vào `profile.ps1` trong `Documents\PowerShell` và `Documents\WindowsPowerShell`. `-NoModifyPath` cũng giữ nguyên các profile, còn `-Uninstall` gỡ khối đó. Khi profile không chạy, hãy gõ `gin.cmd` ([chi tiết](../reference/troubleshooting.md#gin-runs-get-computerinfo-in-powershell)).
+
 ## Theo dõi task { #task-tracking }
 
 gin-workflow hỗ trợ hai backend theo dõi task:

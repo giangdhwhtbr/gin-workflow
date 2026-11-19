@@ -76,7 +76,7 @@ Saved as `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 - Fields are `- **Key:** value` lines. Sections are `**Preconditions:**`, `**Test data:**`, `**Steps:**`, and `**Expected:**`, in that order.
 - `Test data` lists the records and values the case needs, as a value or a rule. Credentials appear only as environment variable names.
 - `gin-qa cases plan` lists the work: requirements with no case (`missing`), cases whose requirement changed since they were pinned (`stale`), and cases whose requirement is gone (`obsolete`).
-- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>` writes the case file with the next ID and the pin. Repeat `--req` for several requirements; the legacy layout takes `--source <spec path>#<heading>` instead. The new case has empty steps and expected results, so `cases check` reports it until you write them. `pin <TC-ID>` records the requirement's current hash after a case is updated.
+- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>` writes the case file with the lowest free ID and the pin. Repeat `--req` for several requirements; the legacy layout takes `--source <spec path>#<heading>` instead. The new case has empty steps and expected results, so `cases check` reports it until you write them. `pin <TC-ID>` records the requirement's current hash after a case is updated.
 - `gin-qa cases check` must exit 0. Obsolete cases are deleted only with your approval, and the skill never commits.
 - `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]` writes the `Result`, `Run`, and `Bug` lines. Never edit them by hand.
 - A flat `qa/cases/<capability>.md` file from earlier versions still works. `gin-qa cases split <capability>` writes one file per case and removes the flat file.
@@ -279,4 +279,4 @@ QA signs off the milestone integration point once:
 
 ## Commands
 
-`gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR] [--zip]`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).
+`gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,renumber,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR] [--zip]`; exit 0 ok, 1 findings, 2 usage or environment error. See [CLI](../reference/cli.md#gin-qa) and the [`qa` configuration keys](../reference/config.md#qa).

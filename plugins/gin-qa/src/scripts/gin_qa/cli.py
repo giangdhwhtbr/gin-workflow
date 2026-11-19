@@ -9,7 +9,7 @@ import sys
 from typing import Any, Sequence
 
 from . import cases as tc
-from . import bugs, e2e, report, tests
+from . import bugs, e2e, numbering, report, tests
 from .reqs import Effective, QaError, current_hashes, locate, specs_reqs
 
 VERSION = "3.1.2"
@@ -49,6 +49,9 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--req", action="append", default=[])
     item.add_argument("--source")
     sub.add_parser("split", parents=[common]).add_argument("capability")
+    item = sub.add_parser("renumber", parents=[common])
+    item.add_argument("capability")
+    item.add_argument("--dry-run", action="store_true")
     sub.add_parser("check", parents=[common]).add_argument("--change")
     sub.add_parser("export", parents=[common])
     item = sub.add_parser("due", parents=[common])
@@ -216,8 +219,16 @@ def _reference(eff: Effective, reqs: list[str], source: str | None) -> tuple[str
 def _run(args: argparse.Namespace) -> int:
     root, eff = locate(args.repository)
     if args.command == "next-id":
-        found = tc.next_id(root, eff.cases_dir, args.capability)
+        found = tc.next_id(root, eff.cases_dir, args.capability, numbering.held(root, eff, args.capability))
         _emit({"id": found}, args.format, found)
+        return 0
+    if args.command == "renumber":
+        row, errors = numbering.renumber(root, eff, tc.capability_arg(args.capability), args.dry_run)
+        if errors:
+            return _findings(errors, args.format, "ok")
+        lines = [*(f"{old} -> {new}" for old, new in row["mapping"].items()), *row["files"],
+                 "not rewritten: " + ", ".join(row["untouched"])]
+        _emit(row, args.format, "\n".join(lines) if row["mapping"] else "nothing to renumber")
         return 0
     if args.command == "check":
         return _findings(_check(root, eff, args.change), args.format, "ok")
@@ -238,7 +249,8 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     if args.command == "new":
         case_id, path = tc.new_case(root, eff.cases_dir, eff.guidelines, args.capability, args.kind, args.title,
-                                    *_reference(eff, args.req, args.source))
+                                    *_reference(eff, args.req, args.source),
+                                    held=numbering.held(root, eff, args.capability))
         shown = path.relative_to(root).as_posix()
         _emit({"tc": case_id, "file": shown}, args.format, shown)
         return 0
@@ -345,7 +357,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "tests": (_tests_parser, _run_tests),
               "report": (_report_parser, _run_report)}
     if not argv or argv[0] not in groups:
-        print("usage: gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export} ...\n"
+        print("usage: gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,renumber,check,export} ...\n"
               "       gin-qa e2e {init,plan,pin,run,check,export} ...\n"
               "       gin-qa tests {plan,pin,check,run} ...\n"
               "       gin-qa report [capability] [--out DIR] [--zip]", file=sys.stderr)

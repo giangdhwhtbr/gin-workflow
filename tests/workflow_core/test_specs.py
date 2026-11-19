@@ -206,6 +206,50 @@ class TestRepositoryCommands(unittest.TestCase):
         write(self.root, "docs/specs/auth/diagrams/account-state.md", specs.template_text(self.root, "state.md"))
         self.assertEqual([], specs.lint_living(self.root, self.cfg))
 
+    def test_lint_warns_about_diagrams_added_with_technical_changes(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
+        commit_all(self.root, "base")
+        tech = "docs/changes/ep-7-cache"
+        write(self.root, f"{tech}/01-proposal.md", "# Cache\n\nEpic: ep-7\nKind: technical\n")
+        for name in ("cache", "kept"):
+            write(self.root, f"docs/specs/auth/diagrams/{name}-activity.md", ACTIVITY)
+        write(self.root, "docs/specs/auth/diagrams/flow-activity.md",
+              ACTIVITY.replace("# Login\n", "# Flow\n\nUse case: sign-in\n"))
+        write(self.root, f"{tech}/03-design.md", "## Data Flow\n\n`docs/specs/auth/diagrams/cache-activity.md#start`, "
+              "`./docs/specs/auth/diagrams/kept-activity.md:3`, `docs/specs/auth/diagrams/flow-activity.md`, "
+              "`docs/specs/auth/diagrams/login-activity.md`\n")
+        commit_all(self.root, "technical change")
+        (self.root / "docs/changes/archive").mkdir()
+        git(self.root, "mv", tech, "docs/changes/archive/2026-10-01-ep-7-cache")
+        commit_all(self.root, "archive")
+        write(self.root, "docs/changes/ep-8-feature/01-proposal.md", "# Feature\n\nEpic: ep-8\n")
+        write(self.root, "docs/changes/ep-8-feature/03-design.md",
+              f"Flow: `{self.root.resolve()}/docs/specs/auth/diagrams/kept-activity.md`\n")
+        write(self.root, "docs/changes/ep-9-open/01-proposal.md", "# Open\n\nEpic: ep-9\nKind: technical\n")
+        write(self.root, "docs/specs/auth/diagrams/open-activity.md", ACTIVITY)
+        write(self.root, "docs/changes/ep-9-open/03-design.md", "`docs/specs/auth/diagrams/open-activity.md`\n")
+        commit_all(self.root, "more")
+        warning = ("docs/specs/auth/diagrams/cache-activity.md was added with technical change 2026-10-01-ep-7-cache "
+                   "and no feature change cites it; delete it and its link in spec.md ## Diagrams unless a feature "
+                   "needs it")
+        with mock.patch.object(specs, "_epic_kinds", return_value=None):
+            self.assertEqual([warning], specs.technical_diagram_warnings(self.root, self.cfg))
+        with mock.patch.object(specs, "_epic_kinds", return_value={"ep-7": "capability"}):
+            self.assertEqual([], specs.technical_diagram_warnings(self.root, self.cfg))
+        with mock.patch.object(specs, "_epic_kinds", return_value={}) as kinds:
+            write(self.root, "docs/changes/archive/2026-10-01-ep-7-cache/03-design.md", "No diagrams.\n")
+            self.assertEqual([], specs.technical_diagram_warnings(self.root, self.cfg))
+            kinds.assert_not_called()
+        git(self.root, "checkout", "-q", "--", "docs/changes/archive/2026-10-01-ep-7-cache/03-design.md")
+        shallow = Path(self.tmp.name) / "shallow"
+        subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{self.root}", str(shallow)], check=True)
+        with mock.patch.object(specs, "_epic_kinds", return_value=None):
+            self.assertEqual([], specs.technical_diagram_warnings(shallow, specs.sdd_config(specs.load_config(shallow))))
+        result = run_specs(self.root, "lint")
+        self.assertEqual(0, result.returncode, result.stdout)
+        self.assertIn(f"warning: {warning}", result.stderr)
+        self.assertNotIn("cache-activity", run_specs(self.root, "lint", "--change", "ep-8").stderr)
+
     def test_lint_actors_file(self):
         self.assertEqual([], specs.lint_actors(self.root, self.cfg))
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
