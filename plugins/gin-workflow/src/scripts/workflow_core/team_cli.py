@@ -250,16 +250,18 @@ def _run(args: argparse.Namespace) -> int:
     try:
         if args.command == "ready":
             rows = team_beads.ready(root, team, member, exclude=args.exclude_label or ())
-            lines: list[str] = []
-            headed: set[str] = set()
-            for row in rows:
-                line = f"{row['id']} {row['title']}" + (
+            def _line(row: dict[str, Any]) -> str:
+                return f"{row['id']} {row['title']}" + (
                     f" (expired claim: {row['expired_claim']})" if row.get("expired_claim") else "")
-                if row.get("branch") and row["branch"] not in headed:
-                    headed.add(row["branch"])
-                    holder = next(item["assignee"] for item in rows if item.get("branch") == row["branch"])
-                    lines.append(f"{row['branch']} ({holder or 'unclaimed'})")
-                lines.append(f"  {line}" if row.get("branch") else line)
+
+            lanes: dict[str, list[dict[str, Any]]] = {}
+            for row in rows:
+                if row.get("branch"):
+                    lanes.setdefault(row["branch"], []).append(row)
+            lines = [_line(row) for row in rows if not row.get("branch")]
+            for branch, members in lanes.items():
+                lines.append(f"{branch} ({members[0]['assignee'] or 'unclaimed'})")
+                lines += [f"  {_line(row)}" for row in members]
             _emit({"ready": rows}, args.format, "\n".join(lines))
             return 0
         if args.command == "claim":

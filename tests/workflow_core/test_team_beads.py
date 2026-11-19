@@ -1324,6 +1324,16 @@ class TestTeamLaneHandoff(LaneBeads, unittest.TestCase):
         at = lines.index("feat/shop-be (binh@corp.com)")
         self.assertTrue(lines[at + 1].startswith(f"  {self.t3} "), lines)
 
+    def test_ready_text_keeps_each_lane_under_its_own_header_when_priorities_interleave(self):
+        ops1, ops2 = self.track(4, "ops"), self.track(5, "ops")
+        bd(self.root, "update", ops1, "--priority", "1")
+        bd(self.root, "update", self.t3, "--priority", "2")
+        bd(self.root, "update", ops2, "--priority", "3")
+        lines = self.cli("ready").stdout.splitlines()
+        be, ops = lines.index("feat/shop-be (binh@corp.com)"), lines.index("feat/shop-ops (unclaimed)")
+        self.assertEqual([f"  {self.t3} Track 3"], lines[be + 1:be + 2])
+        self.assertEqual([f"  {ops1} Track 4", f"  {ops2} Track 5"], lines[ops + 1:ops + 3])
+
     def test_an_open_track_with_an_expired_lease_is_listed_as_expired(self):
         bd(self.root, "update", self.t3, "--assignee", "em@corp.com")
         claim_meta(self.root, self.t3, "em@corp.com", "2000-01-01T00:00:00Z")
