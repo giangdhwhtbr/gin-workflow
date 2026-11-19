@@ -217,41 +217,114 @@ def _quoted(text: str) -> str:
     return '"' + text.replace('"', "#quot;") + '"'
 
 
-def use_case_diagram(capability: str, folder: Path) -> str:
+def _title_of(text: str, fallback: str) -> str:
+    heading = re.search(r"^# (\S.*)$", specs._COMMENT.sub("", text), re.MULTILINE)
+    return heading.group(1).strip() if heading else fallback
+
+
+def use_case_diagram(capability: str, folder: Path, parents: Mapping[str, str] | None = None) -> str:
     """Mermaid flowchart of a capability's use cases: actors outside the system box, include and extend edges.
 
+    A reference to another capability's use case draws that use case in a dashed box; `Specializes` and the actor
+    parents (`actor_key` -> parent label) draw `is a` edges.
     Actor names match without regard to case or repeated spaces; the first spelling met labels the node."""
     texts = {path.stem: path.read_text(encoding="utf-8") for path in sorted((folder / "use-cases").glob("*.md"))}
     if not texts:
         return ""
     ids = {slug: f"uc{number}" for number, slug in enumerate(texts, 1)}
     actors: dict[str, tuple[str, str]] = {}
+    externals: dict[str, dict[str, tuple[str, str]]] = {}
+    outside = [0]
 
     def actor(name: str) -> str:
         label = " ".join(name.split())
         return actors.setdefault(specs.actor_key(name), (f"a{len(actors) + 1}", label))[0]
 
+    def target(value: str) -> str | None:
+        ref = specs.use_case_ref(folder.name, value)
+        if ref is None:
+            return None
+        cap, slug = ref
+        if cap == folder.name:
+            return ids.get(slug)
+        if slug in externals.get(cap, {}):
+            return externals[cap][slug][0]
+        other = specs.read_text_or_none(folder.parent / cap / "use-cases" / f"{slug}.md")
+        if other is None:
+            return None
+        outside[0] += 1
+        externals.setdefault(cap, {})[slug] = (f"x{outside[0]}", _title_of(other, slug))
+        return externals[cap][slug][0]
+
     nodes: list[str] = []
     edges: list[str] = []
     for slug, text in texts.items():
-        heading = re.search(r"^# (\S.*)$", specs._COMMENT.sub("", text), re.MULTILINE)
-        nodes.append(f"    {ids[slug]}([{_quoted(heading.group(1).strip() if heading else slug)}])")
+        nodes.append(f"    {ids[slug]}([{_quoted(_title_of(text, slug))}])")
         primary = specs.line_value(text, "Actor")
         if primary:
             edges.append(f"  {actor(primary)} --> {ids[slug]}")
         edges += [f"  {ids[slug]} --> {actor(name)}" for name in specs.line_values(text, "Secondary actors")]
-        for key, label in (("Includes", "«include»"), ("Extends", "«extend»")):
-            edges += [f"  {ids[slug]} -. {label} .-> {ids[other]}"
-                      for other in specs.line_values(text, key) if other in ids and other != slug]
+        for key, arrow in (("Includes", "-. «include» .->"), ("Extends", "-. «extend» .->"),
+                           ("Specializes", "== is a ==>")):
+            edges += [f"  {ids[slug]} {arrow} {found}" for found in map(target, specs.line_values(text, key))
+                      if found and found != ids[slug]]
+    for key in list(actors):
+        child, seen = key, set()
+        while child in (parents or {}) and child not in seen:
+            seen.add(child)
+            edges.append(f"  {actors[child][0]} == is a ==> {actor(parents[child])}")
+            child = specs.actor_key(parents[child])
+    boxes = []
+    for number, cap in enumerate(sorted(externals), 1):
+        title = _title_of(specs.read_text_or_none(folder.parent / cap / "spec.md") or "", cap)
+        boxes += [f"  subgraph ext{number}[{_quoted(title)}]",
+                  *(f"    {node}([{_quoted(label)}])" for node, label in externals[cap].values()),
+                  "  end", f"  style ext{number} stroke-dasharray: 5 5"]
     lines = ["flowchart LR", "  classDef actor fill:none,stroke-width:3px",
              *(f"  {node}[{_quoted(label)}]" for node, label in actors.values()),
-             f"  subgraph system[{_quoted(capability)}]", *nodes, "  end", *edges]
+             f"  subgraph system[{_quoted(capability)}]", *nodes, "  end", *boxes, *edges]
     if actors:
         lines.append(f"  class {','.join(node for node, _ in actors.values())} actor")
     return "\n".join(lines)
 
 
-def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> tuple[str, str]:
+def context_diagram(title: str, capabilities: list[tuple[str, str]], actors: list[dict[str, Any]],
+                    parents: Mapping[str, str]) -> str:
+    """Mermaid flowchart of the system: capabilities inside, actors outside, primary solid, secondary dashed."""
+    wanted = {cap for cap, _ in capabilities}
+    rows = [row for row in actors if any(u["ref"].split("/", 1)[0] in wanted for u in row["use_cases"])]
+    if not rows:
+        return ""
+    caps = {cap: f"c{number}" for number, (cap, _) in enumerate(capabilities, 1)}
+    nodes: dict[str, tuple[str, str]] = {}
+
+    def actor(name: str) -> str:
+        label = " ".join(name.split())
+        return nodes.setdefault(specs.actor_key(name), (f"a{len(nodes) + 1}", label))[0]
+
+    edges: list[str] = []
+    for row in rows:
+        node = actor(row["actor"])
+        primary = {u["ref"].split("/", 1)[0] for u in row["use_cases"] if not u["secondary"]}
+        secondary = {u["ref"].split("/", 1)[0] for u in row["use_cases"] if u["secondary"]} - primary
+        edges += [f"  {node} --> {caps[cap]}" for cap in sorted(primary & wanted)]
+        edges += [f"  {node} -.-> {caps[cap]}" for cap in sorted(secondary & wanted)]
+    for key in list(nodes):
+        child, seen = key, set()
+        while child in parents and child not in seen:
+            seen.add(child)
+            edge = f"  {nodes[child][0]} == is a ==> {actor(parents[child])}"
+            if edge not in edges:
+                edges.append(edge)
+            child = specs.actor_key(parents[child])
+    return "\n".join(["flowchart LR", "  classDef actor fill:none,stroke-width:3px",
+                      *(f"  {node}[{_quoted(label)}]" for node, label in nodes.values()),
+                      f"  subgraph system[{_quoted(title)}]",
+                      *(f"    {caps[cap]}([{_quoted(name)}])" for cap, name in capabilities), "  end", *edges,
+                      f"  class {','.join(node for node, _ in nodes.values())} actor"])
+
+
+def _chapter(cap: str, spec: Path, root: Path, cfg: Mapping[str, Any], embed: Embed, template: str) -> tuple[str, str]:
     text = spec.read_text(encoding="utf-8")
     folder = spec.parent
     title = _title(text, cap)
@@ -259,7 +332,7 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     use_cases = "\n".join(
         f'<section class="use-case" id="{escape(cap)}-{escape(path.stem)}">{_use_case(cap, path, root, embed)}</section>'
         for path in sorted((folder / "use-cases").glob("*.md")))
-    diagram = use_case_diagram(title, folder)
+    diagram = use_case_diagram(title, folder, specs.actor_parents(root, cfg))
     if diagram:
         use_cases = (f'<section class="use-case-diagram" id="{escape(cap)}-use-case-diagram">'
                      f'<pre class="mermaid">{escape(diagram)}</pre></section>\n' + use_cases)
@@ -366,16 +439,23 @@ def _joined(items: list[str]) -> str:
     return ", ".join(escape(item) for item in items)
 
 
-def _matter(root: Path, cfg: Mapping[str, Any], cap: str | None, caps: list[str]) -> dict[str, str]:
+def _matter(root: Path, cfg: Mapping[str, Any], cap: str | None, caps: list[str], living: Mapping[str, Path],
+            title: str) -> dict[str, str]:
     """The HTML of the document-level sections for `export`."""
     revisions = [[escape(r["date"]), escape(r["epic"]), escape(r["title"]), _joined(r["capabilities"]),
                   _joined(r["added"]), _joined(r["modified"]), _joined(r["removed"])]
                  for r in specs_matter.revisions(root, cfg, cap)]
     glossary = [[escape(g["english"]), escape(f"{g['term']} ({g['lang']})" if g["lang"] else g["term"]),
                  escape(g["meaning"])] for g in specs_matter.glossary(root, cfg)]
-    actors = [[escape(a["actor"]), escape(a["description"]),
+    actor_rows = specs_matter.actors(root, cfg, cap)
+    actors = [[escape(a["actor"]), escape(a["is_a"]), escape(a["description"]),
                ", ".join(_use_case_link(u["ref"], caps) + (" (secondary)" if u["secondary"] else "")
-                         for u in a["use_cases"])] for a in specs_matter.actors(root, cfg, cap)]
+                         for u in a["use_cases"])] for a in actor_rows]
+    context = context_diagram(
+        title, [(name, _title(living[name].read_text(encoding="utf-8"), name)) for name in caps], actor_rows,
+        specs.actor_parents(root, cfg))
+    context_html = (f'<section class="context-diagram" id="context-diagram">'
+                    f'<pre class="mermaid">{escape(context)}</pre></section>\n' if context else "")
     trace = [[f'<a href="#{escape(t["id"])}">{escape(t["id"])}</a>: {escape(t["title"])}', escape(t["capability"]),
               escape(t["type"]), ", ".join(_use_case_link(ref, caps) for ref in t["use_cases"]),
               "<br>".join(f"<code>{escape(path)}</code>" for path in t["tests"]), _joined(t["qa_cases"]),
@@ -389,7 +469,7 @@ def _matter(root: Path, cfg: Mapping[str, Any], cap: str | None, caps: list[str]
         "revisions": _table(["Date", "Epic", "Title", "Capabilities", "Added", "Modified", "Removed"],
                             revisions, "No revisions yet."),
         "glossary": _table(["English", "Term", "Meaning"], glossary, "No glossary."),
-        "actors": _table(["Actor", "Description", "Use cases"], actors, "No actors."),
+        "actors": context_html + _table(["Actor", "Is a", "Description", "Use cases"], actors, "No actors."),
         "nfr": _table(["Category", "Requirement", "Capability", "Measure"], nfr, "No non-functional requirements."),
         "business_rules": _table(["Rule", "Capability", "Statement", "Use cases"], rules, "No business rules."),
         "traceability": _table(["Requirement", "Capability", "Type", "Use cases", "Tests", "QA cases", "Status"],
@@ -432,7 +512,7 @@ def export(root: Path, cfg: Mapping[str, Any], cap: str | None, out: str | None,
     document = _template(root, "srs.html", embed)
     chapters, toc = [], []
     for name in caps:
-        chapter, entry = _chapter(name, living[name], root, embed, chapter_template)
+        chapter, entry = _chapter(name, living[name], root, cfg, embed, chapter_template)
         chapters.append(chapter)
         toc.append(entry)
     title = _title(living[cap].read_text(encoding="utf-8"), cap) if cap else root.name
@@ -446,7 +526,7 @@ def export(root: Path, cfg: Mapping[str, Any], cap: str | None, out: str | None,
                + [f'<li><a href="#{anchor}">{label}</a></li>' for anchor, label in back])
     html = fill(document, {"title": escape(title), "date": (today or date.today()).isoformat(),
                            "toc": f'<ul>{"".join(entries)}</ul>', "chapters": "\n".join(chapters),
-                           **_matter(root, cfg, cap, caps)})
+                           **_matter(root, cfg, cap, caps, living, title)})
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(html, encoding="utf-8")

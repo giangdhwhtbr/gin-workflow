@@ -68,13 +68,16 @@ def actors(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> list[d
             if key in counted:
                 continue
             counted.add(key)
-            row = found.setdefault(key, {"actor": " ".join(name.split()), "description": "", "use_cases": []})
+            row = found.setdefault(key, {"actor": " ".join(name.split()), "description": "", "is_a": "", "use_cases": []})
             row["use_cases"].append({"ref": f"{owner}/{path.stem}", "secondary": secondary})
     listed = base / specs.ACTORS_FILE
     table = specs.table_rows(specs.read_text_or_none(listed) or "")
     for _, row in (table[1] if table else []):
         if row.get("Actor") and specs.actor_key(row["Actor"]) in found:
             found[specs.actor_key(row["Actor"])]["description"] = row.get("Description", "")
+    for key, parent in specs.actor_parents(root, cfg).items():
+        if key in found:
+            found[key]["is_a"] = parent
     return sorted(found.values(), key=lambda row: row["actor"].casefold())
 
 

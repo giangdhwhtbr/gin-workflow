@@ -290,6 +290,90 @@ class TestExport(unittest.TestCase):
         ]), source)
         self.assertEqual("", use_case_diagram("Billing", self.root / "docs/specs/billing"))
 
+    def test_diagram_draws_other_capability_use_cases_in_a_dashed_box(self):
+        write(self.root, "docs/specs/orders/spec.md", "# Orders\n\n## Purpose\n\nOrders.\n\n## Requirements\n")
+        write(self.root, "docs/specs/orders/use-cases/pay.md", "# Pay\n\nActor: Buyer\nIncludes: auth/sign-in, auth/ghost, nope/x\n")
+        source = use_case_diagram("Orders", self.root / "docs/specs/orders")
+        self.assertEqual("\n".join([
+            "flowchart LR",
+            "  classDef actor fill:none,stroke-width:3px",
+            '  a1["Buyer"]',
+            '  subgraph system["Orders"]',
+            '    uc1(["Pay"])',
+            "  end",
+            '  subgraph ext1["Auth"]',
+            '    x1(["Sign in"])',
+            "  end",
+            "  style ext1 stroke-dasharray: 5 5",
+            "  a1 --> uc1",
+            "  uc1 -. «include» .-> x1",
+            "  class a1 actor",
+        ]), source)
+
+    def test_diagram_draws_specializes_as_is_a(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in-sso.md",
+              "# Sign in with SSO\n\nActor: Registered user\nSpecializes: sign-in\n")
+        source = use_case_diagram("Auth", self.root / "docs/specs/auth")
+        self.assertIn("  uc1 == is a ==> uc2", source)
+
+    def test_diagram_draws_actor_generalization(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace("Registered user", "Admin"))
+        source = use_case_diagram("Auth", self.root / "docs/specs/auth",
+                                  {specs.actor_key("Admin"): "User", specs.actor_key("User"): "Person"})
+        lines = source.split("\n")
+        self.assertIn('  a1["Admin"]', lines)
+        self.assertIn('  a2["User"]', lines)
+        self.assertIn('  a3["Person"]', lines)
+        self.assertIn("  a1 == is a ==> a2", lines)
+        self.assertIn("  a2 == is a ==> a3", lines)
+        self.assertEqual("  class a1,a2,a3 actor", lines[-1])
+
+    def test_diagram_survives_an_actor_cycle(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace("Registered user", "Admin"))
+        source = use_case_diagram("Auth", self.root / "docs/specs/auth",
+                                  {specs.actor_key("Admin"): "User", specs.actor_key("User"): "Admin"})
+        self.assertEqual(1, source.count("a1 == is a ==> a2"))
+
+    def context_repo(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace("Registered user", "Customer").replace(
+            "Requirements:", "Secondary actors: Mail service\nRequirements:"))
+        write(self.root, "docs/specs/billing/spec.md", "# Billing\n\n## Purpose\n\nInvoices.\n\n## Requirements\n")
+        write(self.root, "docs/specs/billing/use-cases/pay.md", USE_CASE.replace("Registered user", "Accountant"))
+        write(self.root, "docs/specs/actors.md",
+              "| Actor | Description | Is a |\n|---|---|---|\n| Accountant | Books | Customer |\n")
+
+    def context_source(self, html: str) -> str:
+        found = re.search(r'<section class="context-diagram" id="context-diagram"><pre class="mermaid">(.*?)</pre>',
+                          html, re.DOTALL)
+        self.assertIsNotNone(found)
+        return found.group(1).replace("&quot;", '"').replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+    def test_actors_section_opens_with_the_context_diagram(self):
+        self.context_repo()
+        self.assertEqual(0, run_specs(self.root, "export", "--all").returncode)
+        html = self.read("srs.html")
+        actors = html[html.index('id="actors"'):]
+        self.assertLess(actors.index('id="context-diagram"'), actors.index("<table>"))
+        source = self.context_source(html)
+        for line in ('  subgraph system["', '    c1(["Auth"])', '    c2(["Billing"])', "  a2 --> c1", "  a3 -.-> c1",
+                     "  a1 --> c2", "  a1 == is a ==> a2"):
+            self.assertIn(line, source)
+        self.assertIn('  a1["Accountant"]', source)
+        self.assertIn('  a2["Customer"]', source)
+        self.assertIn('  a3["Mail service"]', source)
+        self.assertIn("<th>Actor</th><th>Is a</th><th>Description</th>", actors)
+
+    def test_context_diagram_of_one_capability_leaves_the_others_out(self):
+        self.context_repo()
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        source = self.context_source(self.read("srs-auth.html"))
+        self.assertNotIn("Billing", source)
+        self.assertNotIn("Accountant", source)
+
+    def test_no_context_diagram_without_use_cases(self):
+        self.assertEqual(0, run_specs(self.root, "export", "billing").returncode)
+        self.assertNotIn("context-diagram", self.read("srs-billing.html"))
+
     def test_chapter_starts_use_cases_with_the_diagram(self):
         self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
         html = self.read("srs-auth.html")

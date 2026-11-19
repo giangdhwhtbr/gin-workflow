@@ -99,13 +99,21 @@ class TestSpecsMatter(unittest.TestCase):
         write(self.root, "docs/specs/billing/use-cases/pay.md", USE_CASE.replace("Registered user", "Accountant"))
         write(self.root, "docs/specs/actors.md", "| Actor | Description |\n|---|---|\n| CUSTOMER | Buys things |\n")
         self.assertEqual([
-            {"actor": "Accountant", "description": "", "use_cases": [{"ref": "billing/pay", "secondary": False}]},
-            {"actor": "Customer", "description": "Buys things",
+            {"actor": "Accountant", "description": "", "is_a": "", "use_cases": [{"ref": "billing/pay", "secondary": False}]},
+            {"actor": "Customer", "description": "Buys things", "is_a": "",
              "use_cases": [{"ref": "auth/sign-in", "secondary": False}, {"ref": "auth/sign-out", "secondary": False}]},
-            {"actor": "Mail service", "description": "", "use_cases": [{"ref": "auth/sign-in", "secondary": True}]},
+            {"actor": "Mail service", "description": "", "is_a": "", "use_cases": [{"ref": "auth/sign-in", "secondary": True}]},
         ], specs_matter.actors(self.root, self.cfg))
         self.assertEqual(["Customer", "Mail service"],
                          [row["actor"] for row in specs_matter.actors(self.root, self.cfg, "auth")])
+
+    def test_actor_rows_carry_the_parent_from_the_is_a_column(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace("Registered user", "Admin"))
+        write(self.root, "docs/specs/auth/use-cases/sign-out.md", USE_CASE.replace("Registered user", "User"))
+        write(self.root, "docs/specs/actors.md",
+              "| Actor | Description | Is a |\n|---|---|---|\n| Admin | Runs it | User |\n| User | Anyone | |\n")
+        self.assertEqual({"Admin": "User", "User": ""},
+                         {row["actor"]: row["is_a"] for row in specs_matter.actors(self.root, self.cfg)})
 
     def test_traceability_rows_link_use_cases_tests_and_qa_cases(self):
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
@@ -186,6 +194,6 @@ class TestSpecsMatterEdges(unittest.TestCase):
     def test_actor_named_primary_and_secondary_counts_once(self):
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace(
             "Requirements:", "Secondary actors: registered user\nRequirements:"))
-        self.assertEqual([{"actor": "Registered user", "description": "",
+        self.assertEqual([{"actor": "Registered user", "description": "", "is_a": "",
                            "use_cases": [{"ref": "auth/sign-in", "secondary": False}]}],
                          specs_matter.actors(self.root, self.cfg))
