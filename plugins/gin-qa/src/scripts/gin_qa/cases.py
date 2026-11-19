@@ -6,11 +6,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
+import itertools
 import os
 from pathlib import Path, PurePosixPath
 import re
-import subprocess
 import time
+from typing import Iterable
 
 TC_ID = re.compile(r"\bTC-([A-Z][A-Z0-9-]*?)-(\d{3,})\b")  # lazy: TC-AUTH-005-2024-tax is TC-AUTH-005
 _FIELD = re.compile(r"^(?:- )?(\*\*)?([A-Za-z][A-Za-z0-9 _-]*):(?(1)\*\*|(?!\*\*))\s*(\S.*)$")
@@ -252,19 +253,15 @@ def capability_arg(value: str | None) -> str | None:
     return value
 
 
-def next_id(root: Path, cases_dir: str, cap: str) -> str:
-    """One past the highest number in the flat file, the case file names, or their git history: never reused."""
+def next_id(root: Path, cases_dir: str, cap: str, held: Iterable[str] = ()) -> str:
+    """The lowest number used by no case of `cap` (flat file or case file names) and by no TC-ID in `held`."""
     path, folder = root / cases_dir / f"{cap}.md", root / cases_dir / cap
     text = path.read_text(encoding="utf-8") if path.is_file() else ""
-    text += "\n".join(item.name for item in folder.glob("*.md")) if folder.is_dir() else ""
-    for args in (["-p", "--", str(path)], ["--name-only", "--", str(folder)]):
-        history = subprocess.run(["git", "log", "--format=", *args], cwd=root, capture_output=True, text=True,
-                                 check=False)
-        if history.returncode == 0:
-            text += "\n" + history.stdout
+    text += "\n" + "\n".join(item.name for item in folder.glob("*.md")) if folder.is_dir() else ""
+    text += "\n" + "\n".join(held)
     upper = cap.upper()
-    numbers = [int(match.group(2)) for match in TC_ID.finditer(text) if match.group(1) == upper]
-    return f"TC-{upper}-{max(numbers, default=0) + 1:03d}"
+    taken = {int(match.group(2)) for match in TC_ID.finditer(text) if match.group(1) == upper}
+    return f"TC-{upper}-{next(number for number in itertools.count(1) if number not in taken):03d}"
 
 
 def glob_regex(pattern: str) -> re.Pattern[str]:
@@ -432,8 +429,10 @@ def _slug(title: str) -> str:
 
 
 def new_case(root: Path, cases_dir: str, guidelines: str, cap: str, kind: str, title: str, key: str,
-             value: str) -> tuple[str, Path]:
-    """Writes `<cases>/<cap>/<TC-ID>-<slug>.<kind>.md` with the next ID; `key`/`value` is its REQ or Source field."""
+             value: str, held: Iterable[str] = ()) -> tuple[str, Path]:
+    """Writes `<cases>/<cap>/<TC-ID>-<slug>.<kind>.md` with the next ID; `key`/`value` is its REQ or Source field.
+
+    `held`: TC-IDs that other files still name."""
     one_line(title)
     cap = capability_arg(cap)
     if not TYPE.fullmatch(cap):
@@ -447,7 +446,7 @@ def new_case(root: Path, cases_dir: str, guidelines: str, cap: str, kind: str, t
         if (base / f"{cap}.md").is_file():
             raise ValueError(f"{cases_dir}/{cap}.md: a flat cases file; run `gin-qa cases split {cap}` first")
         (base / cap).mkdir(exist_ok=True)
-        case_id = next_id(root, cases_dir, cap)
+        case_id = next_id(root, cases_dir, cap, held)
         path = base / cap / f"{case_id}{_slug(title)}.{kind}.md"
         write_atomic(path, f"# {case_id}: {title}\n\n- **{key}:** {value}\n- **Priority:** medium\n\n"
                            "**Preconditions:**\n\n**Test data:**\n\n**Steps:**\n\n**Expected:**\n")

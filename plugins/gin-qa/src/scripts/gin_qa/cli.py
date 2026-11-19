@@ -9,7 +9,7 @@ import sys
 from typing import Any, Sequence
 
 from . import cases as tc
-from . import bugs, e2e, report, tests
+from . import bugs, e2e, numbering, report, tests
 from .reqs import Effective, QaError, locate, specs_reqs
 
 VERSION = "3.1.2"
@@ -211,7 +211,7 @@ def _reference(eff: Effective, reqs: list[str], source: str | None) -> tuple[str
 def _run(args: argparse.Namespace) -> int:
     root, eff = locate(args.repository)
     if args.command == "next-id":
-        found = tc.next_id(root, eff.cases_dir, args.capability)
+        found = tc.next_id(root, eff.cases_dir, args.capability, numbering.held(root, eff, args.capability))
         _emit({"id": found}, args.format, found)
         return 0
     if args.command == "check":
@@ -233,7 +233,8 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     if args.command == "new":
         case_id, path = tc.new_case(root, eff.cases_dir, eff.guidelines, args.capability, args.kind, args.title,
-                                    *_reference(eff, args.req, args.source))
+                                    *_reference(eff, args.req, args.source),
+                                    held=numbering.held(root, eff, args.capability))
         shown = path.relative_to(root).as_posix()
         _emit({"tc": case_id, "file": shown}, args.format, shown)
         return 0
