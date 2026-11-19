@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 from datetime import date
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -11,13 +12,18 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import AUTH_SPEC, LAUNCHER, STATE, TYPED_SPEC, USE_CASE, make_repo, write, write_activity  # noqa: E402
 from workflow_core import specs  # noqa: E402
-from workflow_core.specs_export import Embed, export, fill, markdown_html, use_case_diagram  # noqa: E402
+from workflow_core.specs_export import (  # noqa: E402
+    MERMAID_SHA384, Embed, export, fill, markdown_html, mermaid_script, use_case_diagram)
 
+VENDORED = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/templates/vendor/mermaid.min.js"
+VENDORED_TEXT = VENDORED.read_text(encoding="utf-8")
+VENDORED_HEAD = VENDORED_TEXT[:200]
 PNG = b"\x89PNG\r\n\x1a\nfake-image"
 PNG_URI = "data:image/png;base64," + base64.b64encode(PNG).decode("ascii")
 DESCRIPTION = """# auth: 2026-05-11
@@ -170,6 +176,27 @@ class TestExport(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertNotIn('class="use-case"', self.read("srs-auth.html"))
 
+    def test_export_without_diagrams_embeds_no_library(self):
+        self.assertEqual(0, run_specs(self.root, "export", "billing").returncode)
+        html = self.read("srs-billing.html")
+        self.assertNotIn("cdn.jsdelivr.net", html)
+        self.assertNotIn(VENDORED_HEAD, html)
+        self.assertNotIn("{{mermaid}}", html)
+
+    def test_override_without_placeholder_keeps_its_script(self):
+        cdn = '<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>'
+        document = specs.template_text(self.root, "srs.html")
+        write(self.root, ".agent-workflow/templates/srs.html", document.replace("{{mermaid}}", cdn))
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        html = self.read("srs-auth.html")
+        self.assertIn(cdn, html)
+        self.assertNotIn(VENDORED_HEAD, html)
+
+    def test_literal_placeholder_in_a_spec_stays_text(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC.replace("Sign-in.", "Sign-in. Literal {{mermaid}} stays."))
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        self.assertIn("Literal {{mermaid}} stays.", self.read("srs-auth.html"))
+
     def test_missing_image_in_a_use_case_is_reported(self):
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE + "\n![flow](missing.png)\n")
         result = run_specs(self.root, "export", "auth", "--format", "json")
@@ -188,15 +215,16 @@ class TestExport(unittest.TestCase):
                        "<h3>REQ-AUTH-001: Sign in with password</h3>", "<h4>Scenario: valid password</h4>",
                        "<li>GIVEN a registered user</li>", '<a href="#REQ-AUTH-002">REQ-AUTH-002: Reject wrong password</a>',
                        "<h3>auth: 2026-05-11</h3>", '<figcaption>legacy/old.png</figcaption>',
-                       "<code>notes.txt</code>", "<h3>Files</h3>", "<figcaption>flat.png</figcaption>",
-                       "mermaid@11.4.1/dist/mermaid.min.js", 'integrity="sha384-'):
+                       "<code>notes.txt</code>", "<h3>Files</h3>", "<figcaption>flat.png</figcaption>"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, html)
+        self.assertNotIn("cdn.jsdelivr.net", html)
+        self.assertEqual(1, html.count(VENDORED_HEAD))
         self.assertEqual(1, html.count("<figcaption>mockup/login.png</figcaption>") + html.count('alt="Login screen"'))
         self.assertLess(html.index("auth: 2026-05-11"), html.index("auth: 2026-06-02"))
         self.assertLess(html.index("auth: 2026-06-02"), html.index("<h3>Files</h3>"))
-        self.assertIsNone(re.search(r'\bsrc="(?!data:|https://)', html))
-        self.assertNotIn("<!--", html)
+        self.assertIsNone(re.search(r'\bsrc="(?!data:|https://)', html.replace(VENDORED_TEXT, "")))
+        self.assertNotIn("<!--", html.replace(VENDORED_TEXT, ""))
         self.assertNotIn("Billing", html)
 
     def test_all_capabilities_sorted_with_toc_and_out(self):
@@ -541,6 +569,27 @@ class TestExport(unittest.TestCase):
         self.assertIn("No business rules.", billing)
 
 
+class MermaidEmbedTests(unittest.TestCase):
+    def test_vendored_file_is_pinned(self):
+        digest = base64.b64encode(hashlib.sha384(VENDORED.read_bytes()).digest()).decode("ascii")
+        self.assertEqual(MERMAID_SHA384, digest)
+        self.assertNotIn("</script", VENDORED.read_text(encoding="utf-8").lower())
+
+    def test_mermaid_script_only_with_a_diagram(self):
+        self.assertEqual("", mermaid_script("<p>x</p>"))
+        script = mermaid_script('<pre class="mermaid">flowchart TD</pre>')
+        self.assertTrue(script.startswith("<script>"))
+        self.assertTrue(script.endswith("</script>"))
+        self.assertEqual(VENDORED.read_text(encoding="utf-8"), script[len("<script>"):-len("</script>")])
+
+    def test_missing_vendored_file_raises(self):
+        with tempfile.TemporaryDirectory() as empty, \
+                mock.patch.object(specs, "plugin_templates_dir", return_value=Path(empty)):
+            with self.assertRaises(specs.SpecsError) as caught:
+                mermaid_script('<pre class="mermaid">x</pre>')
+        self.assertIn(str(Path("vendor") / "mermaid.min.js"), str(caught.exception))
+
+
 class TestTemplates(unittest.TestCase):
     def test_srs_templates_print_their_placeholders(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -551,7 +600,8 @@ class TestTemplates(unittest.TestCase):
                        "{{actors}}", "{{nfr}}", "{{business_rules}}", "{{traceability}}", "@media print"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, document)
-        self.assertRegex(document, r'mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js"\s+integrity="sha384-[A-Za-z0-9+/=]{64}"')
+        self.assertIn("{{mermaid}}", document)
+        self.assertNotIn("cdn.jsdelivr.net", document)
         order = [chapter.index("{{" + key + "}}") for key in ("cap", "capability", "purpose", "use_cases", "diagrams",
                                                                  "requirements", "assets")]
         self.assertEqual(sorted(order), order)

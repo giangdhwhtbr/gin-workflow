@@ -13,6 +13,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from specs_fixtures import ADDED_BLOCK, AUTH_SPEC, LAUNCHER, delta, make_change, make_repo, write, write_activity  # noqa: E402
 
+VENDORED = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/templates/vendor/mermaid.min.js"
+VENDORED_TEXT = VENDORED.read_text(encoding="utf-8")
+VENDORED_HEAD = VENDORED_TEXT[:200]
 PNG = b"\x89PNG\r\n\x1a\nfake-image"
 OUT = ".agent-workflow/runtime/explain"
 MOCKUP = """<!doctype html>
@@ -72,16 +75,27 @@ class TestCapability(unittest.TestCase):
             html = page(root, "auth")
             for needle in ('href="#overview"', 'href="#requirements"', 'href="#diagrams"', 'id="req-search"',
                            '<article class="card" id="REQ-AUTH-001">', "Sign-in.",
-                           '<pre class="mermaid">flowchart TD', "mermaid@11.4.1",
-                           'integrity="sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"'):
+                           '<pre class="mermaid">flowchart TD'):
                 with self.subTest(needle=needle):
                     self.assertIn(needle, html)
             self.assertNotIn('href="#stories"', html)
             self.assertNotIn('href="#mockups"', html)
-            self.assertNotIn("{{", html)
+            self.assertNotIn("cdn.jsdelivr.net", html)
+            self.assertEqual(1, html.count(VENDORED_HEAD))
+            self.assertNotIn("{{", html.replace(VENDORED_TEXT, ""))
             self.assertLess(html.index("<h3>Requirements</h3>"), html.index('id="REQ-AUTH-002"'))
             self.assertLess(html.index('id="REQ-AUTH-002"'), html.index("<h3>Admin</h3>"))
             self.assertLess(html.index("<h3>Admin</h3>"), html.index('id="REQ-AUTH-004"'))
+
+    def test_page_without_diagrams_embeds_no_library(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_repo(Path(tmp) / "repo")
+            write(root, "docs/specs/auth/spec.md", AUTH_SPEC)
+            self.assertEqual(0, run_specs(root, "explain", "auth").returncode)
+            html = page(root, "auth")
+            self.assertNotIn("cdn.jsdelivr.net", html)
+            self.assertNotIn(VENDORED_HEAD, html)
+            self.assertNotIn("{{mermaid}}", html)
 
     def test_stories_from_active_and_archived_changes_that_name_its_requirements(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -139,7 +153,7 @@ class TestCapability(unittest.TestCase):
             self.assertEqual(1, result.returncode, result.stdout + result.stderr)
             self.assertIn("missing image: docs/specs/auth/assets/2026-05-11/mockup/index.html: mockup not embedded",
                           result.stdout)
-            self.assertNotIn("<iframe", page(root, "auth"))
+            self.assertNotIn("<iframe", page(root, "auth").replace(VENDORED_TEXT, ""))
 
 
 class TestChange(unittest.TestCase):
