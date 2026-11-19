@@ -423,7 +423,7 @@ def due(cases: list[Case], capability: str, current: Mapping[str, str] | None, l
             reason = "all"
         elif in_change and effective in ("not run", OUTDATED, "failed", "blocked"):
             reason = "todo"
-        elif case.fields.get("Priority", "") in REGRESSION_LEVELS[level]:
+        elif case.fields.get("Priority", "").strip().lower() in REGRESSION_LEVELS[level]:
             reason = "regression"
         else:
             continue

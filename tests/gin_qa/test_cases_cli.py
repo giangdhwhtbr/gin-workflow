@@ -737,6 +737,39 @@ class TestCasesDue(QaCase):
         self.guidelines("- Regression: `high+medium`")
         self.assertNotIn(finding, self.findings())
 
+    def test_priority_is_compared_ignoring_case_and_space(self):
+        self.blocks["TC-AUTH-001"] = self.manual("TC-AUTH-001", "REQ-AUTH-001", "High")
+        self.start("High")
+        self.guidelines("- Regression: `high`")
+        row = self.run_json("due", "auth")["cases"][0]
+        self.assertEqual(("TC-AUTH-001", "regression", "High"), (row["id"], row["reason"], row["priority"]))
+
+    def test_unknown_change_exits_2_with_the_gin_message(self):
+        self.start()
+        result = qa(self.root, self.bin, "due", "auth", "--change", "nope")
+        self.assertEqual(2, result.returncode, result.stdout)
+        self.assertNotEqual("", result.stderr.strip())
+
+    def test_case_pinned_to_two_requirements_is_todo_when_one_is_in_the_change(self):
+        self.blocks["TC-AUTH-003"] = self.manual("TC-AUTH-003", "REQ-AUTH-001").replace(
+            self.ref("REQ-AUTH-001"), self.ref("REQ-AUTH-001", "REQ-AUTH-003"))
+        self.start()
+        self.assertEqual([("TC-AUTH-003", "todo", "not run")], self.due("--change", "ep-1"))
+
+    def test_legacy_layout_lists_not_run_and_edited_cases_only(self):
+        bin_dir = gin_workflow_bin(self.base / "legacy-bin")
+        root = make_repo(self.base / "legacy", layout="legacy")
+        manual = [case(f"TC-AUTH-00{n}", "Source: .planning/specs/a.md#Login").replace("Type: e2e", "Type: manual")
+                  for n in (1, 2, 3)]
+        path = write(root, "qa/cases/auth.md", cases_file("auth", *manual))
+        for tc in ("TC-AUTH-001", "TC-AUTH-002"):
+            self.assertEqual(0, qa(root, bin_dir, "result", tc, "passed").returncode)
+        head, tail = path.read_text().split("### TC-AUTH-002")
+        path.write_text(head + "### TC-AUTH-002" + tail.replace("Open /login", "Open /signin", 1), encoding="utf-8")
+        rows = json.loads(qa(root, bin_dir, "due", "auth", "--format", "json").stdout)["cases"]
+        self.assertEqual([("TC-AUTH-002", "outdated"), ("TC-AUTH-003", "not run")],
+                         [(row["id"], row["effective_result"]) for row in rows])
+
     def test_template_and_skill_carry_the_regression_line_and_due(self):
         plugin = Path(__file__).resolve().parents[2] / "plugins/gin-qa/src"
         self.assertIn("- Regression: `none`", (plugin / "templates/guidelines.md").read_text(encoding="utf-8"))
