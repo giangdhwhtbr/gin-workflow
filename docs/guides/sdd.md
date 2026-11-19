@@ -55,6 +55,33 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
 - `gin specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
+## Requirement types { #requirement-types }
+
+A requirement is functional unless it says otherwise. Right under its heading, a block may add a `Type:` line with one of three values: `functional` (the default), `non-functional`, or `business-rule`.
+
+- A non-functional requirement adds `Category:`, one of `performance`, `security`, `reliability`, `usability`, `compatibility`, `maintainability`, `portability`, or `constraint`. It also needs either a `#### Scenario:` or a `Measure:` line with a measurable target. Use `Measure:` when one number says it all, and a scenario when the check has steps.
+- A business rule keeps a scenario like a functional requirement. Use cases cite it on their `Requirements:` line.
+- `Category:` and `Measure:` belong only to a non-functional requirement.
+
+```markdown
+### REQ-REPORTS-007: Report export time
+Type: non-functional
+Category: performance
+Measure: the export of 10,000 rows finishes in under 5 seconds at the 95th percentile
+The system SHALL export a report of 10,000 rows within the measured time.
+```
+
+`gin specs lint` reports these findings, the last one for a non-functional requirement with neither a scenario nor a `Measure:`:
+
+- `<REQ>: Type must be one of functional, non-functional, business-rule`
+- `<REQ>: Category must be one of performance, security, reliability, usability, compatibility, maintainability, portability, constraint`
+- `<REQ>: Category and Measure are only for Type: non-functional`
+- `<REQ>: needs at least one '#### Scenario:' or a 'Measure:' line`
+
+A non-functional requirement needs no activity diagram, so it does not count toward the rules in [diagrams](#diagrams). A capability whose `ADDED` blocks are all non-functional needs none.
+
+To reclassify an existing requirement, write a `MODIFIED` block with the new `Type:` (and `Category:` or `Measure:`) lines and the `<!-- base: <hash> -->` of the living block; see [changing a requirement after plan approval](#changing-a-requirement-after-plan-approval). [Exporting an SRS](#exporting-an-srs) shows how the types group in the document.
+
 ## Images and mockups
 
 A feature's requirements, its UI included, live in the feature's capability (`reports`, not `ui`). A `ui` capability holds only what spans pages: design system, layout, navigation, shared components. A project that wants another rule writes it in `docs/specs/README.md`, and discuss follows the README.
@@ -138,15 +165,19 @@ The file name without `.md` is the use case's slug and its ID. Its `Requirements
 
 Each chapter holds the capability's `## Purpose`, its use cases, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. The use cases part opens with a use case diagram generated from the use cases: actors outside the capability's box (names match without regard to case), an edge from `Actor:` to the use case and from the use case to each `Secondary actors:` entry, and dotted `«include»` and `«extend»` edges. A use case without `Actor:` has no actor edge. Open it in a browser and print it to PDF; each chapter starts on a new page.
 
-Around the chapters the file carries document sections, in this order: Revision history, Sign-off, Contents, Glossary, Actors, the chapters, and the Traceability matrix.
+Around the chapters the file carries document sections, in this order: Revision history, Sign-off, Contents, Glossary, Actors, Non-functional requirements, Business rules, the chapters, and the Traceability matrix.
 
 - Revision history has one row per archived change folder named `<date>-<name>`, newest first, with the date, the `Epic:` line of its `01-proposal.md`, its title, the capabilities its `02-spec-delta.md` touches, and the REQ-IDs added, modified, and removed. Without changes it shows `No revisions yet.`
 - Sign-off is a blank table of Prepared by, Reviewed by, and Approved by, with Name, Role, Signature, and Date columns to fill in by hand.
 - Glossary lists the rows of `## Terms` in `<codebase>/11-GLOSSARY.md` whose `Status` is `confirmed`, sorted by English. Without them it shows `No glossary.`
 - Actors lists each actor named by `Actor:` or `Secondary actors:` in the use cases, once per name (matched without regard to case), with the use cases it appears in and the description from the optional `<specs>/actors.md`. Without actors it shows `No actors.`
-- The Traceability matrix has one row per living requirement: its use cases (those whose `Requirements:` line names it), the test files that cite it, the QA cases that cite it, and a status of `covered` (a test file or a QA case cites it) or `missing`. Without requirements it shows `No requirements.`
+- Non-functional requirements lists each non-functional requirement by category, then capability and number, with its capability and `Measure:`. Without any it shows `No non-functional requirements.`
+- Business rules lists each business rule with its capability, its statement, and the use cases that cite it on `Requirements:`. Without any it shows `No business rules.`
+- The Traceability matrix has one row per living requirement: its type, its use cases (those whose `Requirements:` line names it), the test files that cite it, the QA cases that cite it, and a status of `covered` (a test file or a QA case cites it) or `missing`. Without requirements it shows `No requirements.`
 
 Test files are the git-tracked files `specs trace` reads. QA cases are the files named `TC-<CAP>-<NNN>...` under `qa.cases`, or under `<qa.dir>/cases` (`qa/cases` when `qa.dir` is unset), inside the repository; a `qa.cases` that points outside it is ignored. A file that cannot be read as UTF-8 text is skipped. Each use case in a chapter prints its ID, `<capability>/<slug>`, under its heading, and the Actors and Traceability tables link to it.
+
+In a chapter, requirements keep their file order while all of them are functional. When a capability has a non-functional requirement or a business rule, the chapter groups them under Functional requirements, Non-functional requirements (a sub-heading per category, with `other` for an unknown one), and Business rules. A requirement's `Type:`, `Category:`, and `Measure:` lines print as a table under its heading.
 
 An export of one capability keeps only the revisions that touch it, its actors, and its requirements; the Glossary always lists every confirmed term. The Sign-off table is plain HTML in `srs.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 

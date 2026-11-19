@@ -110,6 +110,31 @@ Nghiệm thu là quy ước của nhóm. Ship chỉ kiểm tra nó bằng một 
 
 Các skill `/gin-ba:capture` và `/gin-ba:mockup` đề nghị lưu thư mục có tên ngày trước khi `/gin:discuss` commit nó. Khi bạn đồng ý, skill chạy `gin commit` trên thư mục đó, và lệnh chỉ commit các file nằm trong thư mục đó. Trên `master` hoặc `main`, hoặc nhánh mặc định của workspace, `gin commit` tạo trước một nhánh mới. Lệnh không bao giờ push. Bạn hoặc một developer sẽ push nhánh và mở pull request. Tùy chọn và mã thoát nằm trong [tham chiếu `gin commit`](../reference/cli.md#gin-commit).
 
+## Requirement non-functional và business rule { #non-functional-requirements-and-business-rules }
+
+Viết requirement là non-functional khi nó giới hạn hệ thống chạy tốt đến đâu chứ không phải làm gì: tốc độ, bảo mật, độ sẵn sàng. Viết là business rule khi nó nêu một chính sách nghiệp vụ mà hệ thống phải tuân theo, bất kể màn hình nào. Còn lại là functional. Các dòng `Type:`, `Category:`, `Measure:` và thông báo lint nằm ở [loại requirement](sdd.md#requirement-types).
+
+```markdown
+### REQ-REPORTS-007: Report export time
+Type: non-functional
+Category: performance
+Measure: the export of 10,000 rows finishes in under 5 seconds at the 95th percentile
+The system SHALL export a report of 10,000 rows within the measured time.
+```
+
+```markdown
+### REQ-BILLING-012: Refund window
+Type: business-rule
+The system SHALL refuse a refund requested more than 30 days after the purchase.
+
+#### Scenario: late refund
+- GIVEN a purchase made 31 days ago
+- WHEN the customer asks for a refund
+- THEN the refund is refused
+```
+
+Use case áp dụng một business rule thì trích dẫn nó trên dòng `Requirements:`, để SRS liệt kê use case cạnh rule đó.
+
 ## Actor và glossary { #actors-and-glossary }
 
 Nêu từng actor ở các dòng `Actor:` và `Secondary actors:` của use case. Để mô tả các actor trong SRS, thêm `<specs>/actors.md` với một bảng có các cột `Actor` và `Description`; tên khớp với actor của use case không phân biệt hoa thường. `specs lint` báo hai lỗi trên file này: `needs a table with Actor and Description columns`, và `actor '<name>' is in no use case` cho dòng mà không use case nào nêu. Trích dẫn một use case dưới dạng `<capability>/<slug>`, ID mà SRS in dưới tiêu đề của nó. Chỉ các term glossary có `Status` là `confirmed` mới vào SRS. Các phần của SRS nằm ở [xuất SRS](sdd.md#exporting-an-srs).
