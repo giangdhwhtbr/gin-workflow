@@ -352,7 +352,7 @@ def _chapter(cap: str, spec: Path, root: Path, cfg: Mapping[str, Any], embed: Em
 
 
 _REQUIREMENT_FIELD = re.compile(r"^(Type|Category|Measure):[ \t]*(.*)$")
-_FIELD = re.compile(r"^(Actor|Secondary actors|Trigger|Requirements|Includes|Extends):[ \t]*(.*)$")
+_FIELD = re.compile(r"^(Actor|Secondary actors|Trigger|Requirements|Includes|Extends|Specializes):[ \t]*(.*)$")
 _FIRST_SECTION = re.compile(r"^#{2,6} ", re.MULTILINE)
 
 

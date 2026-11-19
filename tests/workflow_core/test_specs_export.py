@@ -441,6 +441,16 @@ class TestExport(unittest.TestCase):
         self.assertIn("Note: kept as text.", section)
         self.assertNotIn("<th>Note</th>", section)
 
+    def test_specializes_is_a_use_case_field_row(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in-sso.md",
+              "# Sign in with SSO\n\nActor: Customer\nSpecializes: sign-in\nRequirements: REQ-AUTH-001\n")
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        section = self.use_case_section(self.read("srs-auth.html"), "auth-sign-in-sso")
+        self.assertIn('<table class="use-case-fields"><tr><th>Actor</th><td>Customer</td></tr>'
+                      "<tr><th>Specializes</th><td>sign-in</td></tr>"
+                      "<tr><th>Requirements</th><td>REQ-AUTH-001</td></tr></table>", section)
+        self.assertNotIn("<p>Specializes", section)
+
     def test_use_case_fields_are_the_known_keys_before_the_first_section(self):
         write(self.root, "docs/specs/auth/use-cases/sign-in.md",
               "# Sign in\n\nActor: Customer\nIncludes:\nExtends:\nThis lets users sign in with\nGoogle: verified accounts.\n\n"
