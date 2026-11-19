@@ -257,6 +257,21 @@ def valid_lane(name: str) -> bool:
     return bool(_LANE.fullmatch(name)) and not _IMPLICIT_LANE.fullmatch(name)
 
 
+_LANE_PLAN = re.compile(r"^(.*)\.lane-([a-z0-9][a-z0-9-]*)\.md$")
+
+
+def plan_lane(path: str | Path) -> tuple[str, str] | None:
+    """(lead plan path, lane) of a lane plan path `<lead plan stem>.lane-<lane>.md`; None for any other path."""
+    found = _LANE_PLAN.match(str(path))
+    return (f"{found[1]}.md", found[2]) if found and valid_lane(found[2]) else None
+
+
+def lead_plan(path: str | Path) -> str:
+    """The lead plan path of a lane plan path; any other plan path as given."""
+    found = plan_lane(path)
+    return found[0] if found else str(path)
+
+
 def _listed_paths(text: str) -> list[str]:
     """The leading comma-separated backticked paths of a Files entry, after an optional verb; line ranges dropped."""
     rest = _VERB.sub("", text.strip(), count=1)

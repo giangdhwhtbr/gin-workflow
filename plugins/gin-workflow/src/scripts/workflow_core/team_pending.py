@@ -8,11 +8,12 @@ import subprocess
 from typing import Any, Sequence
 
 from . import tasks, team as team_core, team_host
-from .team import TeamConfig, TeamError
+from .team import TeamConfig, TeamError, lead_plan
 from .team_host import HostUnavailable
 
 _TRACK_LINE = re.compile(r"^Plan:\s*`?([^`,\n]+?)`?,\s*Track\s+(\d+)\b", re.MULTILINE)
 _LANE_LINE = re.compile(r"^Lane:\s*`?([a-z0-9][a-z0-9-]*)`?\s*$", re.MULTILINE)
+_LANE_BEAD = re.compile(r"^Plan:\s*`?([^`,\n]+?)`?,\s*Lane\s+`?([a-z0-9][a-z0-9-]*)`?\s*$", re.MULTILINE)
 _EPIC_LINE = re.compile(r"^(?:Epic|Workflow):\s*(\S+)", re.MULTILINE)
 _GATES = {"spec": "requirement_confirmed", "plan": "plan_approved", "ship": "ship", "quick": "ship", "track": None}
 
@@ -36,8 +37,9 @@ def _beads(root: Path, argv: Sequence[str]) -> list[dict[str, Any]]:
 
 
 def topic_of(plan_path: str) -> str:
-    """The plan file stem without a leading `YYYY-MM-DD-`."""
-    return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", Path(plan_path).stem)
+    """The plan file stem without a leading `YYYY-MM-DD-`; a lane plan `<stem>.lane-<lane>.md` has the topic of
+    its lead plan."""
+    return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", Path(lead_plan(plan_path)).stem)
 
 
 def track_lane(description: str) -> tuple[str, int, str, bool] | None:
@@ -51,10 +53,20 @@ def track_lane(description: str) -> tuple[str, int, str, bool] | None:
     return track[1], int(track[2]), lane[1] if lane else f"t{track[2]}", lane is not None
 
 
+def lane_bead(description: str) -> tuple[str, str] | None:
+    """(plan path, lane) of a lane bead description (`Plan: <path>, Lane <name>`): the bead that stands for
+    planning a lane the plan declares without tracks; None for any other bead."""
+    found = _LANE_BEAD.search(description)
+    return (found[1], found[2]) if found else None
+
+
 def lane_branch(description: str) -> str | None:
-    """`feat/<topic>-<lane>` of a track bead description; None for a bead that is no track."""
+    """`feat/<topic>-<lane>` of a track bead or a lane bead description; None for any other bead."""
     found = track_lane(description)
-    return None if found is None else f"feat/{topic_of(found[0])}-{found[2]}"
+    if found is not None:
+        return f"feat/{topic_of(found[0])}-{found[2]}"
+    planned = lane_bead(description)
+    return None if planned is None else f"feat/{topic_of(planned[0])}-{planned[1]}"
 
 
 def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]:

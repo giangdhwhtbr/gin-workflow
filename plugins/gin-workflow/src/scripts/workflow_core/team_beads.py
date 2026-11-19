@@ -14,8 +14,8 @@ from typing import Any, Mapping, Sequence
 from . import tasks, workspace, worktrees
 from .executables import tool
 from .prep import is_prep
-from .team import Area, Member, TeamConfig, TeamError, plan_tracks
-from .team_pending import _TRACK_LINE, lane_branch, topic_of, track_lane
+from .team import Area, Member, TeamConfig, TeamError, lead_plan, plan_tracks
+from .team_pending import lane_bead, lane_branch, topic_of, track_lane
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
@@ -216,33 +216,45 @@ def sync(root: Path) -> dict[str, Any]:
 
 
 def track_of(issue: Mapping[str, Any]) -> tuple[str, int, str | None] | None:
-    """(topic, track number, `Repo:` path or None) from the description; None without `Plan: <path>, Track <N>`."""
-    body = str(issue.get("description") or "")
-    track = _TRACK_LINE.search(body)
-    if track is None:
+    """(topic, track number, `Repo:` path or None) of a track bead (`Plan: <path>, Track <N>`) or of a lane bead
+    (`Plan: <path>, Lane <name>`, track number 0); None for any other bead."""
+    found = _lane(issue)
+    if found is None:
         return None
-    repo = _REPO_LINE.search(body)
-    return topic_of(track[1]), int(track[2]), repo[1] if repo else None
+    repo = _REPO_LINE.search(str(issue.get("description") or ""))
+    return topic_of(found[0]), found[1], repo[1] if repo else None
 
 
 def _lane(issue: Mapping[str, Any]) -> tuple[str, int, str, bool] | None:
-    return track_lane(str(issue.get("description") or ""))
+    """(plan path, track number, lane, named) of a track bead, or (plan path, 0, lane, True) of a lane bead."""
+    body = str(issue.get("description") or "")
+    found = track_lane(body)
+    if found is not None:
+        return found
+    planned = lane_bead(body)
+    return None if planned is None else (planned[0], 0, planned[1], True)
+
+
+def _is_lane_bead(issue: Mapping[str, Any]) -> bool:
+    return lane_bead(str(issue.get("description") or "")) is not None
 
 
 def lane_of(issue: Mapping[str, Any]) -> str | None:
-    """The lane of a track bead: its `Lane:` line, else the implicit `t<N>`; None for a bead that is no track."""
+    """The lane of a track bead or a lane bead: its `Lane:` line, else the implicit `t<N>`; None for any other bead."""
     found = _lane(issue)
     return found[2] if found else None
 
 
 def lane_beads(root: Path, issue: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """The track beads of `issue`'s lane, any status: the children of its epic with the same plan path and
-    lane. Just `issue` for a bead that is no track or has no parent."""
+    """The beads of `issue`'s lane, any status: the children of its epic with the same lead plan (the plan, or
+    any of its lane plans `<stem>.lane-<lane>.md`) and the same lane, the lane bead included. Just `issue` for a
+    bead that is no track or has no parent."""
     own, epic = _lane(issue), issue.get("parent")
     if own is None or not epic:
         return [dict(issue)]
+    key = (lead_plan(own[0]), own[2])
     rows = [row for row in _bd_json(root, ["list", "--parent", str(epic), "--all", "--limit", "0"])
-            if (found := _lane(row)) is not None and (found[0], found[2]) == (own[0], own[2])]
+            if (found := _lane(row)) is not None and (lead_plan(found[0]), found[2]) == key]
     return rows if any(row["id"] == issue["id"] for row in rows) else [dict(issue), *rows]
 
 
@@ -430,7 +442,7 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
         if completed.returncode != 0:
             raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
-    delivered = any(row.get("status") == "closed" for row in lane)
+    delivered = any(row.get("status") == "closed" and not _is_lane_bead(row) for row in lane)
     try:
         made = track_worktree(root, team, issue, bead, delivered=delivered)
     except SyncConflict as error:
