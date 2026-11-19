@@ -328,6 +328,14 @@ class TestExport(unittest.TestCase):
         self.assertIn("  a2 == is a ==> a3", lines)
         self.assertEqual("  class a1,a2,a3 actor", lines[-1])
 
+    def test_diagram_draws_a_shared_ancestor_edge_once(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace("Registered user", "Admin").replace(
+            "Requirements:", "Secondary actors: User\nRequirements:"))
+        source = use_case_diagram("Auth", self.root / "docs/specs/auth",
+                                  {specs.actor_key("Admin"): "User", specs.actor_key("User"): "Person"})
+        self.assertEqual(1, source.count("a2 == is a ==> a3"))
+        self.assertEqual(1, source.count("a1 == is a ==> a2"))
+
     def test_diagram_survives_an_actor_cycle(self):
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace("Registered user", "Admin"))
         source = use_case_diagram("Auth", self.root / "docs/specs/auth",

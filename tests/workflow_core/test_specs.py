@@ -633,8 +633,13 @@ class TestRepositoryCommands(unittest.TestCase):
     def test_use_case_ref(self):
         self.assertEqual(("auth", "x"), specs.use_case_ref("auth", "x"))
         self.assertEqual(("other", "x"), specs.use_case_ref("auth", "other/x"))
-        for bad in ("a/b/c", "/x", "x/", ""):
+        for bad in ("a/b/c", "/x", "x/", "", "../x", "./x"):
             self.assertIsNone(specs.use_case_ref("auth", bad))
+
+    def test_lint_refuses_a_reference_that_leaves_the_specs_folder(self):
+        pay = "docs/specs/orders/use-cases/pay.md"
+        write(self.root, pay, USE_CASE + "Includes: ../x\n")
+        self.assertEqual([f"{pay}: Includes names unknown use case '../x'"], specs.lint_references(self.root, self.cfg))
 
     def test_actors_generalize_with_an_is_a_column(self):
         write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)

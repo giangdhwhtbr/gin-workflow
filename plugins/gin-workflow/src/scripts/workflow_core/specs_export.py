@@ -272,7 +272,9 @@ def use_case_diagram(capability: str, folder: Path, parents: Mapping[str, str] |
         child, seen = key, set()
         while child in (parents or {}) and child not in seen:
             seen.add(child)
-            edges.append(f"  {actors[child][0]} == is a ==> {actor(parents[child])}")
+            edge = f"  {actors[child][0]} == is a ==> {actor(parents[child])}"
+            if edge not in edges:
+                edges.append(edge)
             child = specs.actor_key(parents[child])
     boxes = []
     for number, cap in enumerate(sorted(externals), 1):

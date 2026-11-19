@@ -508,7 +508,7 @@ def use_case_ref(cap: str, value: str) -> tuple[str, str] | None:
     parts = value.split("/")
     if len(parts) == 1 and parts[0]:
         return cap, parts[0]
-    if len(parts) == 2 and all(parts):
+    if len(parts) == 2 and all(parts) and parts[0] not in (".", ".."):
         return parts[0], parts[1]
     return None
 
