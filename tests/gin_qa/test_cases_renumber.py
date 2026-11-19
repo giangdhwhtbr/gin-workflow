@@ -23,6 +23,13 @@ GUIDELINES = ("## Automated types\n\n### api\n- Tests: `backend/tests/**/test_*.
 CASES = (("001", "e2e", "One"), ("002", "api", "Two"), ("005", "e2e", "Five"), ("009", "api", "Nine"))
 
 
+def write_bytes(root: Path, rel: str, data: bytes) -> Path:
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return path
+
+
 class RenumberCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -131,6 +138,82 @@ class TestRenumber(RenumberCase):
         self.assertIn("def test_tc_auth_001_x():", test)
         self.assertIn("def test_tc_auth_003_x():", test)
 
+    def test_every_written_form_moves_and_a_longer_number_stays(self):
+        path = self.root / "backend/tests/test_auth.py"
+        path.write_text(path.read_text() + "# TC_AUTH_009 tc-auth-009 TC-AUTH-0090 xTC-AUTH-009\n")
+        commit_all(self.root)
+        self.assertEqual(0, self.renumber().returncode)
+        self.assertIn("# TC_AUTH_004 tc-auth-004 TC-AUTH-0090 xTC-AUTH-009\n", path.read_text())
+
+    def test_a_run_with_a_trailing_slash_moves_its_evidence(self):
+        case = self.root / "qa/cases/auth/TC-AUTH-005-five.e2e.md"
+        case.write_text(case.read_text().replace(f"Run:** {RUN}", f"Run:** {RUN}/"))
+        self.assertIn(f"{RUN}/\n", case.read_text())
+        commit_all(self.root)
+        self.assertEqual(0, self.renumber().returncode)
+        self.assertTrue((self.root / RUN / "tc-auth-003/result.json").is_file())
+        self.assertEqual("TC-AUTH-003",
+                         json.loads((self.root / RUN / "tc-auth-003/result.json").read_text())["tc"])
+
+    def test_a_run_outside_the_evidence_folder_is_left_alone(self):
+        write(self.root, "qa/outside/run.json", json.dumps({"specs": ["qa/e2e/auth/tc-auth-005.spec.ts"]}))
+        write(self.root, "qa/outside/tc-auth-005/result.json", json.dumps({"tc": "TC-AUTH-005"}))
+        case = self.root / "qa/cases/auth/TC-AUTH-005-five.e2e.md"
+        case.write_text(case.read_text().replace(f"Run:** {RUN}", "Run:** qa/evidence/../outside"))
+        self.assertIn("qa/evidence/../outside", case.read_text())
+        commit_all(self.root)
+        outside = {name: (self.root / name).read_bytes()
+                   for name in ("qa/outside/run.json", "qa/outside/tc-auth-005/result.json")}
+        self.assertEqual(0, self.renumber().returncode)
+        self.assertEqual(outside, {name: (self.root / name).read_bytes() for name in outside})
+
+    def test_a_run_record_changes_only_for_the_cases_whose_evidence_moves_with_it(self):
+        run_b = "qa/evidence/2026-11-05T08-00-00"
+        spec = "qa/e2e/auth/tc-auth-%s.spec.ts"
+        write(self.root, f"{RUN}/run.json", json.dumps({"started": "2026-11-04T08:00:00+00:00",
+                                                        "specs": [spec % "005", spec % "009"],
+                                                        "playwright_exit": 1}))
+        write(self.root, f"{RUN}/tc-auth-009/result.json", json.dumps({"tc": "TC-AUTH-009"}))
+        write(self.root, f"{run_b}/run.json", json.dumps({"started": "2026-11-05T08:00:00+00:00",
+                                                          "specs": [spec % "009"], "playwright_exit": 0}))
+        write(self.root, f"{run_b}/tc-auth-009/result.json", json.dumps({"tc": "TC-AUTH-009"}))
+        self.assertEqual(0, qa(self.root, self.bin, "result", "TC-AUTH-009", "passed", "--run", run_b).returncode)
+        commit_all(self.root)
+        self.assertEqual(0, self.renumber().returncode)
+        self.assertEqual([spec % "003", spec % "009"],
+                         json.loads((self.root / RUN / "run.json").read_text())["specs"])
+        self.assertEqual("TC-AUTH-009",
+                         json.loads((self.root / RUN / "tc-auth-009/result.json").read_text())["tc"])
+        self.assertEqual([spec % "004"], json.loads((self.root / run_b / "run.json").read_text())["specs"])
+        self.assertEqual("TC-AUTH-004",
+                         json.loads((self.root / run_b / "tc-auth-004/result.json").read_text())["tc"])
+
+    def test_a_binary_test_file_without_an_old_id_is_skipped(self):
+        write_bytes(self.root, "backend/tests/test_blob.py", b"\xff\xfe not text")
+        commit_all(self.root)
+        self.assertEqual(0, self.renumber().returncode)
+
+    def test_a_failing_git_status_is_not_a_clean_tree(self):
+        (self.root / ".git/index").write_bytes(b"garbage")
+        before = self.tree()
+        result = self.renumber()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("git status failed", result.stderr)
+        self.assertEqual(before, self.tree())
+
+    def test_a_failing_write_names_what_remains(self):
+        original = Path.rename
+
+        def fail(self_path, target):
+            raise OSError("disk full")
+        Path.rename = fail
+        try:
+            result = self.renumber()
+        finally:
+            Path.rename = original
+        self.assertEqual(2, result.returncode)
+        self.assertIn("renumber stopped after writing some files: disk full", result.stderr)
+
     def test_contiguous_numbers_print_nothing_to_renumber(self):
         self.renumber()
         commit_all(self.root)
@@ -152,22 +235,34 @@ class TestRenumber(RenumberCase):
                               "backend/tests/test_more.py:1: orphan marker TC-AUTH-007"),
             "uncommitted": (lambda: (self.root / "backend/tests/test_auth.py").open("a").write("# note\n"),
                             "backend/tests/test_auth.py: not committed"),
+            "untracked": (lambda: write(self.root, "backend/tests/test_new.py",
+                                        f"# TC: TC-AUTH-009@{self.tc_hash('TC-AUTH-009')}\n"),
+                          "backend/tests/test_new.py: not committed"),
             "target": (lambda: write(self.root, f"{RUN}/tc-auth-003/result.json", "{}"),
                        f"{RUN}/tc-auth-003: already exists"),
+            "unparseable case": (lambda: write(self.root, "qa/cases/auth/TC-AUTH-003-bad.e2e.md",
+                                               "# TC-AUTH-003: Bad\n\n# TC-AUTH-003: Again\n"),
+                                 "qa/cases/auth/TC-AUTH-003-bad.e2e.md"),
+            "name and heading differ": (lambda: write(self.root, "qa/cases/auth/TC-AUTH-003-x.e2e.md",
+                                                      "# TC-AUTH-006: X\n"),
+                                        "qa/cases/auth/TC-AUTH-003-x.e2e.md"),
+            "not UTF-8": (lambda: write_bytes(self.root, "backend/tests/test_blob.py", b"\xff# TC-AUTH-009\n"),
+                          "backend/tests/test_blob.py: not UTF-8"),
         }
         for name, (make, message) in cases.items():
             with self.subTest(name):
                 make()
-                if name != "uncommitted":
+                if name not in ("uncommitted", "untracked"):
                     commit_all(self.root)
                 before = self.tree()
                 result = self.renumber()
                 self.assertEqual(1, result.returncode, result.stderr)
                 self.assertIn(message, result.stdout)
                 self.assertEqual(before, self.tree())
-                subprocess.run(["git", "reset", "-q", "--hard", "HEAD~1" if name != "uncommitted" else "HEAD"],
+                subprocess.run(["git", "reset", "-q", "--hard",
+                                "HEAD" if name in ("uncommitted", "untracked") else "HEAD~1"],
                                cwd=self.root, check=True)
-                subprocess.run(["git", "clean", "-qfdx", "--", "qa/evidence/"], cwd=self.root, check=True)
+                subprocess.run(["git", "clean", "-qfdx", "--", "qa/evidence/", "backend/"], cwd=self.root, check=True)
 
 
 if __name__ == "__main__":

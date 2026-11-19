@@ -16,7 +16,7 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 - `gin-qa cases renumber <capability>` closes the gaps to 001..N and rewrites the case files, e2e specs, test markers and names, and the e2e evidence of each renamed case; bug bead titles and exported reports keep the old ID.
 - `<slug>` is optional and only helps readers; renaming the title does not require a new name.
 - `<type>` is the test type, such as `e2e` or `manual`; the guidelines list the types in use.
-- Each file holds one case. Create it with `gin-qa cases new`, which picks the next ID.
+- Each file holds one case. Create it with `gin-qa cases new`, which picks the lowest free ID.
 
 ## Case format
 
@@ -42,11 +42,12 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 
 ## Commands
 
-- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>`: writes a case file with the next ID and the pin (`--source <path>` with the legacy layout).
+- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>`: writes a case file with the lowest free ID and the pin (`--source <path>` with the legacy layout).
 - `gin-qa cases to-manual <TC-ID> --reason <why>`: moves an e2e case to manual and deletes its spec.
 - `gin-qa cases check`: finds problems in the case files.
 - `gin-qa cases result <TC-ID> <status>`: records a result.
 - `gin-qa cases split <capability>`: turns a flat `<capability>.md` file into case files.
+- `gin-qa cases renumber <capability> [--dry-run]`: closes the gaps to 001..N and rewrites the case files, e2e specs, test markers, and e2e evidence of the renamed cases.
 - `gin-qa cases export --format json`: lists every case with its fields and result.
 - `gin-qa e2e run [TC-ID|capability]`: runs the specs and records their results.
 - `gin-qa tests run --type <type> [TC-ID|capability]`: runs the tests of a type the guidelines declare under `Automated types` and records their results.

@@ -10,7 +10,7 @@ from typing import Any
 
 from . import cases as tc
 from . import e2e, tests
-from .reqs import Effective
+from .reqs import Effective, QaError
 
 
 def cap_of(tc_id: str) -> str | None:
@@ -55,9 +55,13 @@ def _uncommitted(root: Path, paths: list[str]) -> list[str]:
     """The paths git reports modified, staged, or untracked; none outside a git repository."""
     if not paths:
         return []
-    done = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "--", *paths], cwd=root,
-                          capture_output=True, text=True, check=False)
-    return [line[3:] for line in done.stdout.splitlines() if line.strip()] if done.returncode == 0 else []
+    done = subprocess.run(["git", "-c", "core.quotePath=false", "status", "--porcelain", "--untracked-files=all",
+                           "--", *paths], cwd=root, capture_output=True, text=True, check=False)
+    if done.returncode == 0:
+        return [line[3:] for line in done.stdout.splitlines() if line.strip()]
+    if "not a git repository" in done.stderr:
+        return []
+    raise QaError(f"git status failed: {done.stderr.strip()}")
 
 
 def _move(moves: list[tuple[Path, Path]]) -> None:
@@ -83,9 +87,11 @@ def renumber(root: Path, eff: Effective, cap: str, dry_run: bool) -> tuple[dict[
     if not (base / cap).is_dir():
         return done, []
     with tc._lock(base):
-        mine = [case for case in tc.load(root, eff.cases_dir)[0] if case.cap == cap]
+        loaded, errors = tc.load(root, eff.cases_dir)
+        mine = [case for case in loaded if case.cap == cap]
         counts = Counter(case.id for case in mine)
-        findings = [f"{case.path}:{case.line}: duplicate {case.id}" for case in mine if counts[case.id] > 1]
+        findings = [error for error in errors if error.startswith(f"{eff.cases_dir}/{cap}/")]
+        findings += [f"{case.path}:{case.line}: duplicate {case.id}" for case in mine if counts[case.id] > 1]
         specs = _specs(root, eff, cap)
         findings += [f"{path}: orphan e2e spec ({header or named} has no case); delete it or restore the case"
                      for path, header, named in specs if named not in counts or (header and header not in counts)]
@@ -107,6 +113,8 @@ def renumber(root: Path, eff: Effective, cap: str, dry_run: bool) -> tuple[dict[
         tracked = [*(root / case.path for case in mine), *(root / path for path, _, _ in specs),
                    *(root / path for path in files)]
         evidence: list[Path] = []
+        runs: dict[Path, dict[str, str]] = {}
+        evidence_base = (root / e2e.evidence_root(eff)).resolve()
         for case in mine:
             if case.id not in mapping:
                 continue
@@ -114,16 +122,26 @@ def renumber(root: Path, eff: Effective, cap: str, dry_run: bool) -> tuple[dict[
             moves.append((path, path.with_name(mapping[case.id] + path.name[len(case.id):])))
             run = case.fields.get("Run", "").strip()
             old_dir = root / run / case.id.lower()
-            if run.startswith(e2e.evidence_root(eff) + "/") and (root / run / "run.json").is_file() \
+            if run and evidence_base in (root / run).resolve().parents and (root / run / "run.json").is_file() \
                     and old_dir.is_dir():
-                evidence += [root / run / "run.json", *old_dir.rglob("result.json")]
+                runs.setdefault(root / run / "run.json", {})[case.id] = mapping[case.id]
+                evidence += old_dir.rglob("result.json")
                 moves.append((old_dir, old_dir.with_name(mapping[case.id].lower())))
         for path, _, named in specs:
             if named in mapping:
                 moves.append((root / path, (root / path).with_name(mapping[named].lower() + ".spec.ts")))
-        for path in dict.fromkeys([*tracked, *evidence]):
-            text = path.read_text(encoding="utf-8")
-            new = pattern.sub(lambda match: forms[match.group(0)], text)
+        wanted = {path: mapping for path in [*tracked, *evidence]}
+        wanted.update(runs)  # a run record only changes for the cases whose evidence folder moves in that run
+        for path, part in wanted.items():
+            found, spelled = (pattern, forms) if part is mapping else _pattern(part)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                if any(form.encode("ascii") in path.read_bytes() for form in spelled):
+                    findings.append(f"{path.relative_to(root).as_posix()}: not UTF-8; rewrite its TC-IDs by hand "
+                                    "or exclude it from the Tests: globs")
+                continue
+            new = found.sub(lambda match: spelled[match.group(0)], text)
             if new != text:
                 edits[path] = new
         sources = {source for source, _ in moves}
@@ -143,7 +161,12 @@ def renumber(root: Path, eff: Effective, cap: str, dry_run: bool) -> tuple[dict[
 
         shown = sorted({after(path) for path in [*edits, *sources]})
         if not dry_run:
-            for path, text in edits.items():
-                tc.write_atomic(path, text)
-            _move(moves)
+            try:
+                for path, text in edits.items():
+                    tc.write_atomic(path, text)
+                _move(moves)
+            except OSError as error:
+                raise QaError(f"renumber stopped after writing some files: {error}; restore tracked files with "
+                              "`git restore` and `git clean` on the listed paths, and rename any `.renumber-*` "
+                              "files or evidence folders back") from error
         return {**done, "mapping": mapping, "files": shown}, []

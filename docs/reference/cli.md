@@ -510,7 +510,7 @@ Output: text `TC-AUTH-001 failed gw-12`; JSON `{"tc", "bug", "epic", "created", 
 
 ### `gin-qa cases new`
 
-`gin-qa cases new <capability> --type TYPE --title TITLE (--req REQ-ID... | --source PATH#HEADING)` writes `<TC-ID>-<slug>.<type>.md` under `cases/<capability>/` of the [QA home](../guides/qa.md#the-qa-home) (default `qa/cases/<capability>/`) with the next ID. The case holds the `REQ` field with the requirement's current `hash8` (SDD layout, `--req` repeated for several requirements, a repeated one pinned once) or the `Source` field (legacy layout, `--source`), `Priority: medium`, and the four sections empty. `gin-qa cases check` reports the case until its steps and expected results are written.
+`gin-qa cases new <capability> --type TYPE --title TITLE (--req REQ-ID... | --source PATH#HEADING)` writes `<TC-ID>-<slug>.<type>.md` under `cases/<capability>/` of the [QA home](../guides/qa.md#the-qa-home) (default `qa/cases/<capability>/`) with the lowest free ID. The case holds the `REQ` field with the requirement's current `hash8` (SDD layout, `--req` repeated for several requirements, a repeated one pinned once) or the `Source` field (legacy layout, `--source`), `Priority: medium`, and the four sections empty. `gin-qa cases check` reports the case until its steps and expected results are written.
 
 Exit 2, writing nothing, when `--req` is used with the legacy layout or `--source` with the SDD layout, a REQ-ID does not exist, the title or source is empty or not one line, the capability is not `[a-z][a-z0-9-]*`, the type is not listed under `## Types` in the guidelines, or `cases/<capability>.md` of the QA home is a flat file (run `cases split` first).
 
