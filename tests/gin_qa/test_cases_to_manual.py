@@ -29,7 +29,7 @@ class ToManualCase(unittest.TestCase):
         self.root = make_repo(self.base / "repo")
         write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
         write(self.root, OLD, case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000", title="Login",
-                                        extra="Result: failed\nRun: qa/evidence/x\nBug: gw-7"))
+                                        extra="Result: failed\nRun: qa/evidence/x\nBug: gw-7\nChecked: 0123abcd"))
         write(self.root, SPEC, "// TC: TC-AUTH-001@00000000\n")
         self.assertEqual(0, self.cases("pin", "TC-AUTH-001").returncode)
 
@@ -59,6 +59,7 @@ class TestToManual(ToManualCase):
         self.assertIn("- **Result:** not run\n", text)
         self.assertIn("- **Bug:** gw-7\n", text)
         self.assertNotIn("**Run:**", text)
+        self.assertNotIn("Checked", text)
         self.assertFalse((self.root / OLD).exists())
         self.assertFalse((self.root / SPEC).exists())
 

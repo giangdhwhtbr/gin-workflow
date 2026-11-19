@@ -10,7 +10,7 @@ from typing import Any, Sequence
 
 from . import cases as tc
 from . import bugs, e2e, report, tests
-from .reqs import Effective, QaError, locate, specs_reqs
+from .reqs import Effective, QaError, current_hashes, locate, specs_reqs
 
 VERSION = "3.1.2"
 
@@ -245,7 +245,7 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     cases, _ = tc.load(root, eff.cases_dir)
     if args.command == "export":
-        rows = [tc.as_dict(case) for case in cases]
+        rows = [tc.as_dict(case, current_hashes(eff)) for case in cases]
         _emit({"cases": rows}, args.format, "\n".join(f"{row['id']} {row['title']}" for row in rows))
         return 0
     work = (_work(root, eff, cases, args.capability, args.change) if eff.layout == "sdd"

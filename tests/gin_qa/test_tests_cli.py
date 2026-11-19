@@ -273,6 +273,7 @@ class TestRun(TestsCase):
                           {"tc": "TC-AUTH-004", "result": "blocked"}], payload["recorded"])
         fields = self.case_fields("TC-AUTH-002")
         self.assertEqual(("failed", folder), (fields["result"], fields["run"]))
+        self.assertRegex(fields["checked"], "^[0-9a-f]{8}$")
         record = json.loads((self.root / folder / "run.json").read_text())
         self.assertEqual(("api", 3, ["TC-AUTH-001", "TC-AUTH-002", "TC-AUTH-004"]),
                          (record["type"], record["exit"], record["cases"]))

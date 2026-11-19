@@ -307,7 +307,7 @@ class TestRunAndEvidence(E2eCase):
     def test_run_records_the_result_and_run_folder(self):
         payload = json.loads(self.run_e2e().stdout)
         self.assertEqual([{"tc": "TC-AUTH-001", "result": "passed"}], payload["recorded"])
-        self.assertIn(f"Priority: high\nResult: passed\nRun: {payload['run']}\n", self.case_lines())
+        self.assertIn(f"Priority: high\nResult: passed\nRun: {payload['run']}\nChecked: ", self.case_lines())
         self.assertEqual(0, self.e2e("check", "--run", payload["run"]).returncode)
 
     def test_worst_result_over_projects_and_missing_results(self):

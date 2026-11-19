@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import time
+from typing import Mapping
 
 TC_ID = re.compile(r"\bTC-([A-Z][A-Z0-9-]*?)-(\d{3,})\b")  # lazy: TC-AUTH-005-2024-tax is TC-AUTH-005
 _FIELD = re.compile(r"^(?:- )?(\*\*)?([A-Za-z][A-Za-z0-9 _-]*):(?(1)\*\*|(?!\*\*))\s*(\S.*)$")
@@ -23,7 +24,9 @@ TYPES_SECTION = "## Types"
 _TYPE_ENTRY = re.compile(r"^- `([a-z][a-z0-9-]*)`(?::.*)?$")
 SECTIONS = ("Preconditions", "Test data", "Steps", "Expected")
 RESULTS = ("passed", "failed", "blocked", "not run")
-RESULT_FIELDS = ("Result", "Run", "Bug")
+RESULT_FIELDS = ("Result", "Run", "Bug", "Checked")
+OUTDATED = "outdated"
+_CHECKED = re.compile(r"^[0-9a-f]{8}$")
 MOVED_FIELD = "Moved from e2e"
 _MOVED = re.compile(r"^(\d{4}-\d{2}-\d{2}): (\S.*)$")
 LEGACY_FIELD = "Legacy"
@@ -107,9 +110,12 @@ def _parse_block(path: PurePosixPath, lines: list[str], start: int, end: int, er
     if result is not None and result not in RESULTS:
         errors.append(f"{path}:{case.field_lines['Result']}: {case.id}: Result is one of {', '.join(RESULTS)}; "
                       f"got {result!r}")
-    for key in ("Run", "Bug"):
+    for key in ("Run", "Bug", "Checked"):
         if key in case.fields and result is None:
             errors.append(f"{path}:{case.field_lines[key]}: {case.id}: {key}: needs a Result: line")
+    checked = case.fields.get("Checked")
+    if checked is not None and not _CHECKED.match(checked):
+        errors.append(f"{path}:{case.field_lines['Checked']}: {case.id}: Checked must be 8 hex characters")
     moved = case.fields.get(MOVED_FIELD)
     if moved is not None and not _MOVED.match(moved):
         errors.append(f"{path}:{case.field_lines[MOVED_FIELD]}: {case.id}: {MOVED_FIELD}: is "
@@ -369,9 +375,27 @@ def find(root: Path, cases_dir: str, case_id: str) -> Case:
     return located
 
 
+def stamp8(case: Case) -> str:
+    """The case as a result was recorded against: its hash8 and its pins (or its Source)."""
+    refs = [f"{req}@{pinned}" for req, pinned in case.reqs] or [case.fields.get("Source", "")]
+    return hashlib.sha256("\n".join([hash8(case), *refs]).encode("utf-8")).hexdigest()[:8]
+
+
+def effective_result(case: Case, current: Mapping[str, str] | None) -> str:
+    """The result as it stands now: outdated when the case or a pinned requirement changed since it was recorded.
+
+    `current` maps REQ-ID to its current hash8; None (legacy layout) skips the requirement check."""
+    result = case.fields.get("Result", "not run")
+    if result not in ("passed", "failed", "blocked"):
+        return result
+    stale = current is not None and any(current.get(req) != pinned for req, pinned in case.reqs)
+    checked = case.fields.get("Checked")
+    return OUTDATED if stale or (checked is not None and checked != stamp8(case)) else result
+
+
 def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: str | None = None,
                   bug: str | None = None) -> dict[str, str]:
-    """The only writer of Result/Run/Bug: Run is replaced (dropped when None); Bug changes only when given."""
+    """The only writer of Result/Run/Bug/Checked: Run is replaced (dropped when None); Bug changes only when given."""
     if status not in RESULTS:
         raise ValueError(f"status is one of {', '.join(RESULTS)}; got {status!r}")
     for value in (run, bug):
@@ -388,7 +412,7 @@ def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: st
         if case is None or problems:
             raise ValueError("; ".join(problems) or f"{case_id}: no longer in {located.path}")
         kept_bug = case.fields.get("Bug") if bug is None else (None if bug == "none" else bug)
-        values = [("Result", status), ("Run", run), ("Bug", kept_bug)]
+        values = [("Result", status), ("Run", run), ("Bug", kept_bug), ("Checked", stamp8(case))]
         write_atomic(path, _with_result(path.read_text(encoding="utf-8"), case, values))
     return {"tc": case_id, "result": status, "run": run or "", "bug": kept_bug or "", "file": str(located.path)}
 
@@ -499,7 +523,7 @@ def moved_from_e2e(case: Case) -> dict[str, str] | None:
     return {"date": found.group(1), "reason": found.group(2)} if found else None
 
 
-def as_dict(case: Case) -> dict[str, object]:
+def as_dict(case: Case, current: Mapping[str, str] | None = None) -> dict[str, object]:
     return {"id": case.id, "title": case.title, "capability": case.cap, "file": str(case.path), "line": case.line,
             "hash8": hash8(case),
             "reqs": [{"id": req, "hash8": pinned} for req, pinned in case.reqs],
@@ -508,6 +532,7 @@ def as_dict(case: Case) -> dict[str, object]:
             "fields": {key: value for key, value in case.fields.items() if key not in KNOWN_FIELDS},
             "preconditions": case.preconditions, "steps": case.steps, "expected": case.expected,
             "result": case.fields.get("Result", "not run"), "run": case.fields.get("Run", ""),
-            "bug": case.fields.get("Bug", ""),
+            "bug": case.fields.get("Bug", ""), "checked": case.fields.get("Checked", ""),
+            "effective_result": effective_result(case, current),
             "moved_from_e2e": moved_from_e2e(case), "test_data": case.test_data,
             "legacy": legacy_refs(case)}

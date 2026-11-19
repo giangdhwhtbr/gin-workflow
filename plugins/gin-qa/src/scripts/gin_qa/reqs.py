@@ -58,6 +58,11 @@ def specs_reqs(repository: Path | None, change: str | None = None) -> dict[str, 
     return payload
 
 
+def current_hashes(eff: Effective) -> dict[str, str] | None:
+    """REQ-ID to its current hash8 in the SDD layout; None in the legacy layout."""
+    return {req: row["hash"][:8] for req, row in eff.reqs.items()} if eff.layout == "sdd" else None
+
+
 def workspace_checkouts(eff: Effective) -> list[dict[str, Any]] | None:
     """The checkout of each cloned workspace repository from `gin workspace status`, or None outside a workspace.
 

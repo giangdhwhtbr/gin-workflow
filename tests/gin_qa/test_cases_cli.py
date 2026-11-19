@@ -20,7 +20,7 @@ from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, case, case_file, cases_file, co
                          make_change, make_repo, write, write_activity)
 # One test per subcommand keeps the subprocess; the rest run gin-qa in this process.
 from qa_fixtures import qa as qa_subprocess, qa_in_process as qa  # noqa: E402
-from gin_qa.cases import as_dict, hash8 as case_hash8, parse_case_file, parse_file  # noqa: E402
+from gin_qa.cases import as_dict, hash8 as case_hash8, parse_case_file, parse_file, stamp8  # noqa: E402
 from workflow_core import cli as gin_cli  # noqa: E402
 
 
@@ -246,7 +246,7 @@ class TestIdsAndExport(QaCase):
             "type": "e2e", "priority": "high", "fields": {"Owner": "qa-team"},
             "preconditions": ["a user exists"], "steps": ["Open /login", 'Click "Sign in"'],
             "expected": ["The dashboard is shown"], "result": "not run", "run": "", "bug": "", "moved_from_e2e": None,
-            "test_data": [], "legacy": []}], rows)
+            "test_data": [], "legacy": [], "checked": "", "effective_result": "not run"}], rows)
 
     def test_legacy_field_is_exported_and_checked_clean(self):
         extra = "Legacy: docs/specs/catalog/assets/2026-10-01/description.md#Product list, qa/legacy/catalog/list.json\n"
@@ -359,14 +359,15 @@ class TestResult(QaCase):
     def test_add_replace_and_remove_lines_in_the_case_form(self):
         self.assertEqual(0, self.result("failed", "--run", "qa/evidence/r1", "--bug", "gw-7").returncode)
         text = self.path.read_text()
-        self.assertIn("- **Priority:** high\n- **Result:** failed\n- **Run:** qa/evidence/r1\n- **Bug:** gw-7\n\n"
-                      "**Preconditions:**", text)
+        self.assertRegex(text, r"- \*\*Priority:\*\* high\n- \*\*Result:\*\* failed\n- \*\*Run:\*\* qa/evidence/r1\n"
+                               r"- \*\*Bug:\*\* gw-7\n- \*\*Checked:\*\* [0-9a-f]{8}\n\n\*\*Preconditions:")
         out = qa_subprocess(self.root, self.bin, "result", "TC-AUTH-001", "passed", "--format", "json")
         self.assertEqual({"tc": "TC-AUTH-001", "result": "passed", "run": "", "bug": "gw-7",
                           "file": "qa/cases/auth/TC-AUTH-001.e2e.md"}, json.loads(out.stdout))
-        self.assertIn("- **Priority:** high\n- **Result:** passed\n- **Bug:** gw-7\n\n", self.path.read_text())
+        self.assertRegex(self.path.read_text(), r"- \*\*Priority:\*\* high\n- \*\*Result:\*\* passed\n- \*\*Bug:\*\* gw-7\n"
+                                                r"- \*\*Checked:\*\* [0-9a-f]{8}\n\n")
         self.assertEqual(0, self.result("not run", "--bug", "none").returncode)
-        self.assertIn("- **Priority:** high\n- **Result:** not run\n\n", self.path.read_text())
+        self.assertRegex(self.path.read_text(), r"- \*\*Priority:\*\* high\n- \*\*Result:\*\* not run\n- \*\*Checked:\*\* [0-9a-f]{8}\n\n")
         self.assertEqual([], self.findings())
 
     def test_plain_flat_case_gets_plain_lines(self):
@@ -374,7 +375,7 @@ class TestResult(QaCase):
         self.path.parent.rmdir()
         flat = self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001", "REQ-AUTH-002")))
         self.assertEqual(0, self.result("blocked", "--run", "manual 2026-11-04").returncode)
-        self.assertIn("Priority: high\nResult: blocked\nRun: manual 2026-11-04\n", flat.read_text())
+        self.assertRegex(flat.read_text(), r"Priority: high\nResult: blocked\nRun: manual 2026-11-04\nChecked: [0-9a-f]{8}\n")
 
     def test_bad_input_exits_2_and_writes_nothing(self):
         before = self.path.read_text()
@@ -398,7 +399,8 @@ class TestResult(QaCase):
         self.path.write_text(self.path.read_text().replace("\n\n- **REQ", "\n\x0c\n- **REQ", 1))
         for status in ("failed", "passed"):
             self.assertEqual(0, self.result(status, "--run", "r").returncode)
-        self.assertIn("- **Priority:** high\n- **Result:** passed\n- **Run:** r\n\n", self.path.read_text())
+        self.assertRegex(self.path.read_text(), r"- \*\*Priority:\*\* high\n- \*\*Result:\*\* passed\n- \*\*Run:\*\* r\n"
+                                                r"- \*\*Checked:\*\* [0-9a-f]{8}\n\n")
         self.assertEqual([], self.findings())
 
     def test_a_duplicate_id_exits_2_and_writes_nothing(self):
@@ -511,6 +513,68 @@ class TestReadableFormat(unittest.TestCase):
         self.assertEqual(case_hash8(self.parse(body)), case_hash8(recorded))
         row = as_dict(recorded)
         self.assertEqual(({}, "failed", "qa/evidence/x", "gw-9"), (row["fields"], row["result"], row["run"], row["bug"]))
+
+
+class TestEffectiveResult(QaCase):
+    """R1, R2, US-2: a result carries a Checked stamp and reads outdated once its case or requirement moved on."""
+
+    def setUp(self):
+        super().setUp()
+        self.path = self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")),
+                                     case("TC-AUTH-002", self.ref("REQ-AUTH-002")))
+
+    def row(self, tc: str = "TC-AUTH-001") -> dict:
+        return next(row for row in self.run_json("export")["cases"] if row["id"] == tc)
+
+    def record(self, tc: str = "TC-AUTH-001") -> None:
+        result = qa(self.root, self.bin, "result", tc, "passed")
+        self.assertEqual(0, result.returncode, result.stderr)
+
+    def edit_requirement(self) -> None:
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC.replace("reject a wrong", "reject any wrong"))
+
+    def test_result_writes_the_stamp_and_export_shows_it(self):
+        before = self.row()["hash8"]
+        self.record()
+        found, _ = parse_file(self.path, "qa/cases/auth.md")
+        row = self.row()
+        self.assertRegex(row["checked"], "^[0-9a-f]{8}$")
+        self.assertEqual(stamp8(found[0]), row["checked"])
+        self.assertEqual(("passed", "passed", before), (row["result"], row["effective_result"], row["hash8"]))
+        self.assertEqual("not run", self.row("TC-AUTH-002")["effective_result"])
+
+    def test_editing_the_case_after_the_result_makes_it_outdated(self):
+        self.record()
+        self.path.write_text(self.path.read_text().replace("Open /login", "Open /signin", 1), encoding="utf-8")
+        row = self.row()
+        self.assertEqual(("passed", "outdated"), (row["result"], row["effective_result"]))
+
+    def test_changed_requirement_makes_results_outdated_until_recorded_again(self):
+        self.record("TC-AUTH-002")
+        self.edit_requirement()
+        self.assertEqual("outdated", self.row("TC-AUTH-002")["effective_result"])
+        self.assertEqual(0, qa(self.root, self.bin, "pin", "TC-AUTH-002").returncode)
+        self.assertEqual("outdated", self.row("TC-AUTH-002")["effective_result"])
+        self.record("TC-AUTH-002")
+        self.assertEqual("passed", self.row("TC-AUTH-002")["effective_result"])
+
+    def test_result_without_a_stamp_is_outdated_when_its_requirement_changed(self):
+        self.write_cases(case("TC-AUTH-002", self.ref("REQ-AUTH-002"), extra="Result: passed\n"))
+        self.assertEqual("passed", self.row("TC-AUTH-002")["effective_result"])
+        self.edit_requirement()
+        self.assertEqual("outdated", self.row("TC-AUTH-002")["effective_result"])
+
+    def test_pin_to_a_missing_requirement_is_outdated(self):
+        self.write_cases(case("TC-AUTH-003", "REQ: REQ-AUTH-009@00000000", extra="Result: passed\n"))
+        self.assertEqual("outdated", self.row("TC-AUTH-003")["effective_result"])
+
+    def test_check_reports_a_malformed_stamp_and_a_stamp_without_a_result(self):
+        self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001"), extra="Result: passed\nChecked: zz\n"),
+                         case("TC-AUTH-002", self.ref("REQ-AUTH-002"), extra="Checked: 0123abcd\n"))
+        found = self.findings()
+        self.assertEqual(2, len(found), found)
+        self.assertRegex(found[0], r"^qa/cases/auth\.md:\d+: TC-AUTH-001: Checked must be 8 hex characters$")
+        self.assertRegex(found[1], r"^qa/cases/auth\.md:\d+: TC-AUTH-002: Checked: needs a Result: line$")
 
 
 class TestCaseHash(unittest.TestCase):
