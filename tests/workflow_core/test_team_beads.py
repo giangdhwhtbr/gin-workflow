@@ -1106,6 +1106,9 @@ class TestTeamLaneClaim(unittest.TestCase):
         self.assertEqual((False, first["worktree"], [t2, _t3]), (data["created"], data["worktree"], data["beads"]))
         self.assertIn(work, git(Path(data["worktree"]), "log", "--format=%H"))
         self.assertEqual("in_progress", show(self.root, t2)["status"])
+        renewed = team_beads.claim_of(show(self.root, t2))["expires_at"]
+        self.assertEqual(renewed, data["expires_at"])
+        self.assertEqual(renewed, team_beads.claim_of(show(self.root, _t3))["expires_at"])
 
     def test_a_foreign_lease_on_a_track_of_the_lane_refuses_without_change(self):
         t1, _t2, t3 = self.track(1), self.track(2), self.track(3)
@@ -1114,9 +1117,10 @@ class TestTeamLaneClaim(unittest.TestCase):
         refused = self.claim(t1)
         self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
         self.assertIn(f"lane be is claimed by em@corp.com until 2999-01-01T00:00:00Z ({t3})", refused.stdout)
-        row = show(self.root, t1)
-        self.assertFalse(row.get("assignee"))
-        self.assertNotIn("claim", row.get("metadata") or {})
+        for bead in (t1, _t2):
+            row = show(self.root, bead)
+            self.assertFalse(row.get("assignee"))
+            self.assertNotIn("claim", row.get("metadata") or {})
 
     def test_an_expired_lease_on_a_track_of_the_lane_is_taken_over(self):
         t1, _t2, t3 = self.track(1), self.track(2), self.track(3)
@@ -1133,8 +1137,10 @@ class TestTeamLaneClaim(unittest.TestCase):
         refused = self.claim(t1)
         self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
         self.assertIn("may not own tracks in frontend", refused.stdout)
-        self.assertFalse(show(self.root, t1).get("assignee"))
-        self.assertFalse(show(self.root, t2).get("assignee"))
+        for bead in (t1, t2):
+            row = show(self.root, bead)
+            self.assertFalse(row.get("assignee"))
+            self.assertNotIn("claim", row.get("metadata") or {})
 
     def test_a_track_without_a_lane_line_is_its_own_lane(self):
         first, second = self.track(1, None), self.track(2, None)
@@ -1153,9 +1159,10 @@ class TestTeamLaneClaim(unittest.TestCase):
         self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
         self.assertIn(f"{first} is already claimed by em@corp.com until", refused.stdout)
 
-    def delivered_lane(self, after_merge: bool) -> tuple[str, Path, list[dict]]:
+    def delivered_lane(self, after_merge: bool, merge: bool = False) -> tuple[str, Path, list[dict]]:
         """Claim t1, commit and push the lane branch, close t1, move origin/main; the fake host says the lane's
-        pull request merged at the pushed head. Returns (t2, worktree, gh rules)."""
+        pull request merged at the pushed head, with a real merge commit on origin/main when `merge`. Returns
+        (t2, worktree, gh rules)."""
         t1, t2 = self.track(1), self.track(2)
         worktree = Path(json.loads(self.claim(t1).stdout)["worktree"])
         head = self.commit(worktree, "one.txt")
@@ -1164,9 +1171,12 @@ class TestTeamLaneClaim(unittest.TestCase):
             self.commit(worktree, "late.txt")
         bd(self.root, "close", t1)
         git(self.root, "commit", "-q", "--allow-empty", "-m", "merged upstream")
+        if merge:
+            git(self.root, "merge", "-q", "--no-ff", "-m", "Merge feat/shop-be", "feat/shop-be")
         git(self.root, "push", "-q", "origin", "main")
+        oid = git(self.root, "rev-parse", "HEAD").strip() if merge else "m" * 40
         rules = [{"argv": ["pr", "list", "--head", "feat/shop-be"],
-                  "stdout": [{"url": self.URL, "state": "MERGED", "mergeCommit": {"oid": "m" * 40}}]},
+                  "stdout": [{"url": self.URL, "state": "MERGED", "mergeCommit": {"oid": oid}}]},
                  {"argv": ["pr", "view", self.URL], "stdout": gh_pr(self.URL, state="MERGED", head=head)}]
         return t2, worktree, rules
 
@@ -1177,6 +1187,31 @@ class TestTeamLaneClaim(unittest.TestCase):
         self.assertEqual(git(self.root, "rev-parse", "main").strip(), git(worktree, "rev-parse", "HEAD").strip())
         self.assertEqual("feat/shop-be", git(worktree, "rev-parse", "--abbrev-ref", "HEAD").strip())
         self.assertIn("restarted from origin/main", json.loads(claimed.stdout)["note"])
+
+    def test_a_merged_pull_request_already_in_the_restarted_branch_gives_no_warning(self):
+        t2, worktree, rules = self.delivered_lane(after_merge=False, merge=True)
+        t3 = self.track(3)
+        restarted = self.claim(t2, rules)
+        self.assertEqual(0, restarted.returncode, restarted.stdout + restarted.stderr)
+        self.assertIn("restarted from origin/main", json.loads(restarted.stdout)["note"])
+        work = self.commit(worktree, "two.txt")
+        bd(self.root, "close", t2)
+        claimed = self.claim(t3, rules)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        self.assertNotIn("note", json.loads(claimed.stdout))
+        self.assertEqual(work, git(worktree, "rev-parse", "HEAD").strip())
+
+    def test_uncommitted_changes_on_the_merged_head_refuse_the_restart_and_keep_the_claim(self):
+        t2, worktree, rules = self.delivered_lane(after_merge=False)
+        head = git(worktree, "rev-parse", "HEAD").strip()
+        (worktree / "draft.txt").write_text("draft", encoding="utf-8")
+        refused = self.claim(t2, rules)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("has uncommitted changes", refused.stdout)
+        self.assertIn(f"the claim is kept; run gin team claim {t2} again", refused.stdout)
+        self.assertEqual(("binh@corp.com", "in_progress"),
+                         (show(self.root, t2).get("assignee"), show(self.root, t2)["status"]))
+        self.assertEqual(head, git(worktree, "rev-parse", "HEAD").strip())
 
     def test_commits_after_the_merged_head_keep_the_branch(self):
         t2, worktree, rules = self.delivered_lane(after_merge=True)

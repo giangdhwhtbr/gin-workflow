@@ -237,9 +237,12 @@ def lane_beads(root: Path, issue: Mapping[str, Any]) -> list[dict[str, Any]]:
     return rows if any(row["id"] == issue["id"] for row in rows) else [dict(issue), *rows]
 
 
-def _lane_targets(root: Path, issue: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """`issue`, then the other open tracks of its lane in track order: what a lane command writes to."""
-    others = [row for row in lane_beads(root, issue) if row["id"] != issue["id"] and row.get("status") != "closed"]
+def _lane_targets(root: Path, issue: Mapping[str, Any],
+                  beads: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """`issue`, then the other open tracks of its lane in track order: what a lane command writes to. `beads` is
+    the lane when the caller has read it already."""
+    lane = lane_beads(root, issue) if beads is None else beads
+    others = [row for row in lane if row["id"] != issue["id"] and row.get("status") != "closed"]
     return [dict(issue), *sorted(others, key=lambda row: (_lane(row) or ("", 0))[1])]
 
 
@@ -325,6 +328,12 @@ def _restart_delivered(team: TeamConfig, repo_dir: Path, entry: workspace.Repo |
         worktrees._git(target, "checkout", "-B", branch, f"origin/{default}")
         return (f"{branch} restarted from origin/{default} after {found.url} merged; if the host kept the "
                 f"merged branch, delete it on origin before the next push")
+    if found.merge_commit:
+        try:
+            worktrees._git(target, "merge-base", "--is-ancestor", found.merge_commit, "HEAD")
+            return None  # the merged pull request is already in the branch: restarted earlier, or merged in
+        except RuntimeError:  # not an ancestor, or not in this clone
+            pass
     try:
         worktrees._git(target, "merge-base", "--is-ancestor", merged_head, "HEAD")
     except RuntimeError:  # restarted earlier, or the merged head is not in this clone
@@ -375,7 +384,8 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
         sync(root)
     issue = _show(root, bead)
     own = _lane(issue)
-    targets = _lane_targets(root, issue)
+    lane = lane_beads(root, issue)
+    targets = _lane_targets(root, issue, lane)
     now = utc_now()
     for target in targets:
         labels = target.get("labels") or []
@@ -411,7 +421,7 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
         if completed.returncode != 0:
             raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
-    delivered = any(row.get("status") == "closed" for row in lane_beads(root, issue))
+    delivered = any(row.get("status") == "closed" for row in lane)
     try:
         made = track_worktree(root, team, issue, bead, delivered=delivered)
     except SyncConflict as error:
