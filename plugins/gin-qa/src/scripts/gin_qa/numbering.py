@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import os
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
@@ -56,7 +57,8 @@ def _uncommitted(root: Path, paths: list[str]) -> list[str]:
     if not paths:
         return []
     done = subprocess.run(["git", "-c", "core.quotePath=false", "status", "--porcelain", "--untracked-files=all",
-                           "--", *paths], cwd=root, capture_output=True, text=True, check=False)
+                           "--", *paths], cwd=root, capture_output=True, text=True, check=False,
+                          env={**os.environ, "LC_ALL": "C"})  # the stderr check below reads git's English text
     if done.returncode == 0:
         return [line[3:] for line in done.stdout.splitlines() if line.strip()]
     if "not a git repository" in done.stderr:
@@ -91,7 +93,6 @@ def renumber(root: Path, eff: Effective, cap: str, dry_run: bool) -> tuple[dict[
         mine = [case for case in loaded if case.cap == cap]
         counts = Counter(case.id for case in mine)
         findings = [error for error in errors if error.startswith(f"{eff.cases_dir}/{cap}/")]
-        findings += [f"{case.path}:{case.line}: duplicate {case.id}" for case in mine if counts[case.id] > 1]
         specs = _specs(root, eff, cap)
         findings += [f"{path}: orphan e2e spec ({header or named} has no case); delete it or restore the case"
                      for path, header, named in specs if named not in counts or (header and header not in counts)]
@@ -166,7 +167,7 @@ def renumber(root: Path, eff: Effective, cap: str, dry_run: bool) -> tuple[dict[
                     tc.write_atomic(path, text)
                 _move(moves)
             except OSError as error:
-                raise QaError(f"renumber stopped after writing some files: {error}; restore tracked files with "
-                              "`git restore` and `git clean` on the listed paths, and rename any `.renumber-*` "
-                              "files or evidence folders back") from error
+                raise QaError(f"renumber stopped after writing some files: {error}; `git status` lists "
+                              "the files written; restore them with `git restore` and `git clean`, and rename any "
+                              "`.renumber-*` files or evidence folders back") from error
         return {**done, "mapping": mapping, "files": shown}, []

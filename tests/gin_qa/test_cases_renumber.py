@@ -258,6 +258,8 @@ class TestRenumber(RenumberCase):
                 result = self.renumber()
                 self.assertEqual(1, result.returncode, result.stderr)
                 self.assertIn(message, result.stdout)
+                if name == "duplicate":
+                    self.assertEqual(1, result.stdout.count(message), result.stdout)
                 self.assertEqual(before, self.tree())
                 subprocess.run(["git", "reset", "-q", "--hard",
                                 "HEAD" if name in ("uncommitted", "untracked") else "HEAD~1"],

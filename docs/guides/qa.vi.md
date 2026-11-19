@@ -76,7 +76,7 @@ Lưu thành `qa/cases/auth/TC-AUTH-004-fifth-failed-login.e2e.md`:
 - Các trường là dòng `- **Key:** value`. Các mục là `**Preconditions:**`, `**Test data:**`, `**Steps:**`, và `**Expected:**`, theo đúng thứ tự đó.
 - `Test data` liệt kê các bản ghi và giá trị mà case cần, dưới dạng một giá trị hoặc một quy tắc. Credential chỉ xuất hiện dưới dạng tên biến môi trường.
 - `gin-qa cases plan` liệt kê công việc: requirement chưa có case (`missing`), case có requirement đã đổi kể từ lúc được pin (`stale`), và case có requirement đã biến mất (`obsolete`).
-- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>` ghi file case với ID kế tiếp và pin. Lặp `--req` cho nhiều requirement; layout legacy dùng `--source <spec path>#<heading>`. Case mới có các bước và kết quả mong đợi trống, nên `cases check` báo nó cho đến khi bạn viết chúng. `pin <TC-ID>` ghi lại hash hiện tại của requirement sau khi một case được cập nhật.
+- `gin-qa cases new <capability> --type <type> --title <title> --req <REQ-ID>` ghi file case với ID trống thấp nhất và pin. Lặp `--req` cho nhiều requirement; layout legacy dùng `--source <spec path>#<heading>`. Case mới có các bước và kết quả mong đợi trống, nên `cases check` báo nó cho đến khi bạn viết chúng. `pin <TC-ID>` ghi lại hash hiện tại của requirement sau khi một case được cập nhật.
 - `gin-qa cases check` phải thoát với mã 0. Case obsolete chỉ bị xóa khi bạn đồng ý, và skill không bao giờ commit.
 - `gin-qa cases result <TC-ID> <status> [--run <ref>] [--bug <id>|none]` ghi các dòng `Result`, `Run`, và `Bug`. Không bao giờ sửa chúng bằng tay.
 - Một file phẳng `qa/cases/<capability>.md` từ các phiên bản trước vẫn dùng được. `gin-qa cases split <capability>` ghi mỗi case một file và xóa file phẳng.

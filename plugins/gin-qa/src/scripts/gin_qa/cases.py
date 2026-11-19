@@ -430,7 +430,7 @@ def _slug(title: str) -> str:
 
 def new_case(root: Path, cases_dir: str, guidelines: str, cap: str, kind: str, title: str, key: str,
              value: str, held: Iterable[str] = ()) -> tuple[str, Path]:
-    """Writes `<cases>/<cap>/<TC-ID>-<slug>.<kind>.md` with the next ID; `key`/`value` is its REQ or Source field.
+    """Writes `<cases>/<cap>/<TC-ID>-<slug>.<kind>.md` with the lowest free ID; `key`/`value` is its REQ or Source field.
 
     `held`: TC-IDs that other files still name."""
     one_line(title)
