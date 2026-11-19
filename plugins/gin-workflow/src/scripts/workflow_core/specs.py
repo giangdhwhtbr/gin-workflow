@@ -144,7 +144,7 @@ def lint_design_spec(path: Path, root: Path | None = None) -> list[str]:
 
 
 _TQ_SECTION = "## Open Technical Questions"
-_TQ = re.compile(r"^- (TQ-\d+): \S")
+_TQ = re.compile(r"^- (TQ-\d+)(?: \(lane ([a-z0-9][a-z0-9-]*)\))?: \S")
 _DECISION = re.compile(r"^\s+Decision:(.*)$")
 _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _LEGACY_SPECS = ".planning/specs"
@@ -155,10 +155,11 @@ class Question:
     id: str
     line: int
     decision: str
+    lane: str = ""
 
 
 def technical_questions(path: Path, label: str | None = None) -> tuple[list[Question], list[str]]:
-    """Questions under `## Open Technical Questions` (an empty decision is open) and the section's format errors."""
+    """Questions under `## Open Technical Questions` (an empty decision is open; `- TQ-<n> (lane <name>):` records the lane) and the section's format errors."""
     name = label or str(path)
     text = _COMMENT.sub(lambda found: "\n" * found.group().count("\n"), path.read_text(encoding="utf-8"))
     questions: list[Question] = []
@@ -179,7 +180,7 @@ def technical_questions(path: Path, label: str | None = None) -> tuple[list[Ques
         if question:
             if any(item.id == question.group(1) for item in questions):
                 errors.append(f"{name}:{number}: {question.group(1)} appears twice")
-            questions.append(Question(question.group(1), number, ""))
+            questions.append(Question(question.group(1), number, "", question.group(2) or ""))
         elif decision and questions and questions[-1].line == number - 1:
             answer = decision.group(1).strip()
             if not answer:

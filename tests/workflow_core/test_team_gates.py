@@ -119,6 +119,32 @@ class GateCase(unittest.TestCase):
 
 
 class TestRecordGitHub(GateCase):
+    def test_plan_approved_needs_the_lead_of_each_declared_lane_area(self):
+        write(self.root, PLAN_PATH, LANES)
+        self.gh(gh_pr(files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c")]))
+        result = self.record("plan-approved")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from fe_lead for area frontend", result.stderr)
+        self.gh(gh_pr(files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c"), ("chi-fe", "APPROVED", "c")]))
+        self.assertEqual(0, self.record("plan-approved").returncode)
+
+    def test_plan_approved_with_an_open_lane_question_needs_the_plan_file(self):
+        write(self.root, PLAN_PATH, LANES)
+        questions = "# Login\n\nEpic: w\n\n## Open Technical Questions\n\n- TQ-4 (lane api): Which cache?\n"
+        write(self.root, SPEC_PATH, questions)
+        self.gh(gh_pr(files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c"), ("chi-fe", "APPROVED", "c")]))
+        result = self.record("plan-approved")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("questions marked for a lane need the plan file as --plan or --evidence", result.stderr)
+        self.assertEqual([], calls(self.bin))
+        write(self.root, SPEC_PATH, questions + "- TQ-5: Which queue?\n")
+        result = self.record("plan-approved", PR, "--plan", PLAN_PATH)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("plan-approved refused: open technical questions", result.stderr)
+        write(self.root, SPEC_PATH, questions)
+        result = self.record("plan-approved", PR, "--plan", PLAN_PATH)
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_requirement_confirmed_by_ba_is_recorded_with_proof(self):
         self.gh(gh_pr(author="binh-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c1")]))
         result = run_cli_subprocess(self.root, "record", "requirement-confirmed", "--evidence", PR, "--workflow-id", "w",

@@ -636,7 +636,8 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     """Reasons the PR does not satisfy the gate's policy for the epic `kind` (empty = pass); skipped sole-holder
     roles are appended to `notes` when given. `before_merge` drops the merged requirement for an open PR;
     `artifact_text` is the artifact's content, read instead of `root/artifact` (a plan only on the PR branch).
-    A `HOST` policy checks no approver, author, or head commit."""
+    A `HOST` policy checks no approver, author, or head commit. Under `area_lead` the areas are those of the
+    plan's tracks and of its declared lanes."""
     policy = policy_for(team, "ship" if gate == "shipped" else gate, kind)
     reasons: list[str] = []
     host = adapter(team.host)
@@ -663,11 +664,13 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
             reasons.append(f"PR does not change {artifact}")
         approvers = _approver_roles(pr, team)
     tracks: list[Track] = []
+    lanes: list[Lane] = []
     if gate == "plan_approved":
         plan = Path(root) / artifact
         if artifact_text is not None or plan.is_file():
             reasons += check_plan(team, plan, artifact_text)
             tracks = plan_tracks(plan, artifact_text)
+            lanes = plan_lanes(plan, artifact_text)
         else:
             reasons.append(f"{artifact} is not in this checkout; pull the merged plan")
     if policy == HOST:
@@ -675,7 +678,8 @@ def check_approval(gate: str, pr: Any, team: TeamConfig, *, root: Path, artifact
     held = set().union(*approvers.values()) if approvers else set()
     author = team.by_identity(pr.author, adapter(team.host).identity_key)
     if policy == "area_lead":
-        for name in sorted({track.area for track in tracks if track.area}):
+        areas = {track.area for track in tracks if track.area} | {name for lane in lanes for name in lane.areas}
+        for name in sorted(areas):
             area = team.areas.get(name)
             if area is not None and area.lead not in held:
                 others = sorted(held & {other.lead for other in team.areas.values() if other.lead != area.lead})
