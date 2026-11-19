@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path, PurePosixPath
+import re
+import subprocess
+from typing import Any
 
 from . import cases as tc
 from . import e2e, tests
@@ -30,3 +34,116 @@ def held(root: Path, eff: Effective, cap: str) -> set[str]:
     ids = {item for _, header, named in _specs(root, eff, cap) for item in (header, named) if item}
     ids |= {marker.tc for marker in tests.markers(root, test_files(root, eff))}
     return {item for item in ids if cap_of(item) == cap}
+
+
+UNTOUCHED = ["bug bead titles", "gin-qa tests run folders", "exported reports"]
+
+
+def _pattern(mapping: dict[str, str]) -> tuple[re.Pattern[str], dict[str, str]]:
+    """One regex over the four written forms of every old ID (TC-AUTH-005, tc-auth-005, tc_auth_005,
+    TC_AUTH_005), and the same form of its new ID."""
+    forms: dict[str, str] = {}
+    for old, new in mapping.items():
+        for shape in (str.upper, str.lower):
+            for sep in ("-", "_"):
+                forms[shape(old).replace("-", sep)] = shape(new).replace("-", sep)
+    alternatives = "|".join(sorted(map(re.escape, forms), key=len, reverse=True))
+    return re.compile(rf"(?<![A-Za-z0-9])(?:{alternatives})(?!\d)"), forms
+
+
+def _uncommitted(root: Path, paths: list[str]) -> list[str]:
+    """The paths git reports modified, staged, or untracked; none outside a git repository."""
+    if not paths:
+        return []
+    done = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "--", *paths], cwd=root,
+                          capture_output=True, text=True, check=False)
+    return [line[3:] for line in done.stdout.splitlines() if line.strip()] if done.returncode == 0 else []
+
+
+def _move(moves: list[tuple[Path, Path]]) -> None:
+    """Renames through temporary names first, so `003 -> 002` never lands on `002` before it moved on."""
+    staged = []
+    for index, (source, target) in enumerate(moves):
+        temporary = source.with_name(f".renumber-{index}-{source.name}")
+        source.rename(temporary)
+        staged.append((temporary, target))
+    for temporary, target in staged:
+        temporary.rename(target)
+
+
+def renumber(root: Path, eff: Effective, cap: str, dry_run: bool) -> tuple[dict[str, Any], list[str]]:
+    """`<cap>`'s cases to 001..N in their order, with their case files, e2e specs, test markers and names,
+    and the e2e evidence their `Run:` names; nothing is written when there is a finding."""
+    if not tc.TYPE.fullmatch(cap):
+        raise ValueError(f"{cap!r}: a capability matches [a-z][a-z0-9-]*")
+    base = root / eff.cases_dir
+    if (base / f"{cap}.md").is_file():
+        return {}, [f"{eff.cases_dir}/{cap}.md: a flat cases file; run `gin-qa cases split {cap}` first"]
+    done = {"mapping": {}, "files": [], "untouched": UNTOUCHED, "dry_run": dry_run}
+    if not (base / cap).is_dir():
+        return done, []
+    with tc._lock(base):
+        mine = [case for case in tc.load(root, eff.cases_dir)[0] if case.cap == cap]
+        counts = Counter(case.id for case in mine)
+        findings = [f"{case.path}:{case.line}: duplicate {case.id}" for case in mine if counts[case.id] > 1]
+        specs = _specs(root, eff, cap)
+        findings += [f"{path}: orphan e2e spec ({header or named} has no case); delete it or restore the case"
+                     for path, header, named in specs if named not in counts or (header and header not in counts)]
+        files = test_files(root, eff)
+        findings += [f"{marker.path}:{marker.line}: orphan marker {marker.tc} (no case); delete it or restore "
+                     "the case" for marker in tests.markers(root, files)
+                     if cap_of(marker.tc) == cap and marker.tc not in counts]
+        if findings:
+            return {}, findings
+        upper = cap.upper()
+        ordered = sorted(counts, key=lambda item: int(tc.TC_ID.fullmatch(item).group(2)))
+        mapping = {old: f"TC-{upper}-{index:03d}" for index, old in enumerate(ordered, 1)
+                   if old != f"TC-{upper}-{index:03d}"}
+        if not mapping:
+            return done, []
+        pattern, forms = _pattern(mapping)
+        edits: dict[Path, str] = {}
+        moves: list[tuple[Path, Path]] = []
+        tracked = [*(root / case.path for case in mine), *(root / path for path, _, _ in specs),
+                   *(root / path for path in files)]
+        evidence: list[Path] = []
+        for case in mine:
+            if case.id not in mapping:
+                continue
+            path = root / case.path
+            moves.append((path, path.with_name(mapping[case.id] + path.name[len(case.id):])))
+            run = case.fields.get("Run", "").strip()
+            old_dir = root / run / case.id.lower()
+            if run.startswith(e2e.evidence_root(eff) + "/") and (root / run / "run.json").is_file() \
+                    and old_dir.is_dir():
+                evidence += [root / run / "run.json", *old_dir.rglob("result.json")]
+                moves.append((old_dir, old_dir.with_name(mapping[case.id].lower())))
+        for path, _, named in specs:
+            if named in mapping:
+                moves.append((root / path, (root / path).with_name(mapping[named].lower() + ".spec.ts")))
+        for path in dict.fromkeys([*tracked, *evidence]):
+            text = path.read_text(encoding="utf-8")
+            new = pattern.sub(lambda match: forms[match.group(0)], text)
+            if new != text:
+                edits[path] = new
+        sources = {source for source, _ in moves}
+        findings += [f"{target.relative_to(root).as_posix()}: already exists; delete it if it belongs to a "
+                     "deleted case" for _, target in moves if target.exists() and target not in sources]
+        changed = sorted({path.relative_to(root).as_posix() for path in [*edits, *sources] if path in tracked})
+        findings += [f"{path}: not committed; commit or discard it first" for path in _uncommitted(root, changed)]
+        if findings:
+            return {}, findings
+
+        def after(path: Path) -> str:
+            """Where `path` is once the moves ran; a file inside a moved evidence folder moves with it."""
+            for source, target in moves:
+                if path == source or source in path.parents:
+                    return (target / path.relative_to(source)).relative_to(root).as_posix()
+            return path.relative_to(root).as_posix()
+
+        shown = sorted({after(path) for path in [*edits, *sources]})
+        if not dry_run:
+            for path, text in edits.items():
+                tc.write_atomic(path, text)
+            _move(moves)
+        return {**done, "mapping": mapping, "files": shown}, []

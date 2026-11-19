@@ -225,4 +225,4 @@ QA nghiệm thu điểm tích hợp của milestone một lần khi:
 
 ## Lệnh { #commands }
 
-`gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, và `gin-qa report [capability] [--out DIR] [--zip]`; exit 0 ok, 1 có phát hiện, 2 lỗi cách dùng hoặc môi trường. Xem [CLI](../reference/cli.md#gin-qa) và các [khóa cấu hình `qa`](../reference/config.md#qa).
+`gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,renumber,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, và `gin-qa report [capability] [--out DIR] [--zip]`; exit 0 ok, 1 có phát hiện, 2 lỗi cách dùng hoặc môi trường. Xem [CLI](../reference/cli.md#gin-qa) và các [khóa cấu hình `qa`](../reference/config.md#qa).

@@ -13,6 +13,7 @@ A case file is named `TC-<CAP>-NNN[-<slug>].<type>.md` and sits in `cases/<capab
 
 - `TC-<CAP>-NNN` is the case ID; `<CAP>` is the capability in upper case.
 - A new case takes the lowest number free in its capability; a number an e2e spec or a test marker still names stays taken.
+- `gin-qa cases renumber <capability>` closes the gaps to 001..N and rewrites the case files, e2e specs, test markers and names, and the e2e evidence of each renamed case; bug bead titles and exported reports keep the old ID.
 - `<slug>` is optional and only helps readers; renaming the title does not require a new name.
 - `<type>` is the test type, such as `e2e` or `manual`; the guidelines list the types in use.
 - Each file holds one case. Create it with `gin-qa cases new`, which picks the next ID.
