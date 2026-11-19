@@ -90,6 +90,16 @@ class TestReport(ReportCase):
         self.assertEqual("png-bytes", (index.parent / run_result["steps"][0]["screenshot"]).read_text())
         self.assertEqual(("none", [], "not run"), (billing["evidence"], billing["results"], billing["result"]))
 
+    def test_an_edited_case_reads_outdated_and_keeps_its_recorded_result(self):
+        """R3, US-2: the row carries the effective result next to the recorded one; the page labels both."""
+        path = self.root / "qa/cases/auth/TC-AUTH-001-login.e2e.md"
+        path.write_text(path.read_text(encoding="utf-8") + "\nAn extra step added after the run.\n", encoding="utf-8")
+        auth = self.page(self.root / self.report_json()["report"])["cases"][0]
+        self.assertEqual(("failed", "outdated"), (auth["result"], auth["effective_result"]))
+        page = TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("outdated", page)
+        self.assertIn("Last recorded", page)
+
     def test_a_screenshot_linking_outside_the_run_folder_is_not_copied(self):
         outside = write(self.root, "secret.png", "secret")
         shot = self.root / RUN / "tc-auth-001/01.png"

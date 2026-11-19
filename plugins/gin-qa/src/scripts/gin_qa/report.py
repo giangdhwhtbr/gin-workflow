@@ -11,7 +11,7 @@ from typing import Any
 
 from . import cases as tc
 from . import e2e
-from .reqs import Effective, QaError
+from .reqs import Effective, QaError, current_hashes
 
 TEMPLATE = "report.html"
 PLACEHOLDER = "/*GIN_QA_DATA*/"
@@ -99,9 +99,10 @@ def build(root: Path, eff: Effective, capability: str | None, out: str | None,
     evidence = f"{e2e.evidence_root(eff)}/"
     runs: dict[str, tuple[str, Results] | None] = {}
     copies: dict[str, str] = {}
+    current = current_hashes(eff)
     rows = []
     for case in cases:
-        row = {**tc.as_dict(case), "evidence": "none", "results": []}
+        row = {**tc.as_dict(case, current), "evidence": "none", "results": []}
         run = row["run"]
         if run.startswith(evidence) and not _tests_run(root, run):  # anything else is shown as text
             if run not in runs:

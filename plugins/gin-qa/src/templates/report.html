@@ -8,12 +8,12 @@
 :root {
   color-scheme: light dark;
   --bg: #ffffff; --fg: #1d2433; --muted: #5b6475; --line: #d9dee7; --panel: #f5f7fa; --accent: #2f6fde;
-  --passed: #1f8a4c; --failed: #c62f2f; --blocked: #b7791f; --notrun: #6b7486;
+  --passed: #1f8a4c; --failed: #c62f2f; --blocked: #b7791f; --notrun: #6b7486; --outdated: #7a4fc0;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171c; --fg: #e6e9ef; --muted: #9aa3b2; --line: #2c323c; --panel: #1c2027; --accent: #6c9cf0;
-    --passed: #2f9e5f; --failed: #d64545; --blocked: #b8862e; --notrun: #6b7486;
+    --passed: #2f9e5f; --failed: #d64545; --blocked: #b8862e; --notrun: #6b7486; --outdated: #9a78d6;
   }
 }
 * { box-sizing: border-box; }
@@ -47,6 +47,7 @@ tbody tr:hover { background: var(--panel); }
 .badge.failed { background: var(--failed); }
 .badge.blocked { background: var(--blocked); }
 .badge.notrun { background: var(--notrun); }
+.badge.outdated { background: var(--outdated); }
 dialog { width: min(960px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line);
   border-radius: 8px; background: var(--bg); color: var(--fg); }
 dialog::backdrop { background: rgb(0 0 0 / .45); }
@@ -104,11 +105,11 @@ h4 { margin: 0 0 4px; }
   // Case text is rendered with textContent and setAttribute only; never parse it as HTML.
   const data = JSON.parse(document.getElementById('gin-qa-data').textContent);
   const cases = data.cases;
-  const DIMS = [['capability', 'Capability'], ['type', 'Type'], ['priority', 'Priority'], ['result', 'Result']];
-  const filters = { capability: '', type: '', priority: '', result: '' };
+  const DIMS = [['capability', 'Capability'], ['type', 'Type'], ['priority', 'Priority'], ['effective_result', 'Result']];
+  const filters = { capability: '', type: '', priority: '', effective_result: '' };
   const $ = (id) => document.getElementById(id);
   const value = (item, dim) => item[dim] || '(none)';
-  const tone = (result) => ({ passed: 'passed', failed: 'failed', blocked: 'blocked' })[result] || 'notrun';
+  const tone = (result) => ({ passed: 'passed', failed: 'failed', blocked: 'blocked', outdated: 'outdated' })[result] || 'notrun';
 
   function el(tag, props, ...children) {
     const node = document.createElement(tag);
@@ -143,7 +144,7 @@ h4 { margin: 0 0 4px; }
       return el('section', { class: 'chart' }, el('h2', { text: label }), ...rows.map(([name, count]) => {
         const fill = el('span', { class: 'fill' });
         fill.style.width = `${(count / max) * 100}%`;
-        if (dim === 'result') fill.style.background = `var(--${tone(name)})`;
+        if (dim === 'effective_result') fill.style.background = `var(--${tone(name)})`;
         return el('button', {
           type: 'button', class: 'bar', 'data-dim': dim, 'data-name': name, 'aria-pressed': String(filters[dim] === name),
           title: `${label}: ${name} (${count})`, onclick: () => toggle(dim, name),
@@ -178,7 +179,7 @@ h4 { margin: 0 0 4px; }
       onkeydown: (event) => { if (event.key === 'Enter') { event.preventDefault(); openCase(item); } }, // preventDefault: the Enter keypress must not click the dialog's focused Close button
     }, el('td', { text: item.id }), el('td', {}, item.title, item.moved_from_e2e ? el('span', { class: 'muted', text: ' (moved from e2e)' }) : null),
     el('td', { text: item.capability }),
-    el('td', { text: item.type }), el('td', { text: item.priority }), el('td', {}, badge(item.result)),
+    el('td', { text: item.type }), el('td', { text: item.priority }), el('td', {}, badge(item.effective_result)),
     el('td', { text: item.bug }))));
   }
 
@@ -189,7 +190,7 @@ h4 { margin: 0 0 4px; }
       tabindex: '0', onclick: () => openCase(item),
       onkeydown: (event) => { if (event.key === 'Enter') { event.preventDefault(); openCase(item); } }, // preventDefault: the Enter keypress must not click the dialog's focused Close button
     }, el('td', { text: item.id }), el('td', { text: item.title }), el('td', { text: item.moved_from_e2e.date }),
-      el('td', { text: item.moved_from_e2e.reason }), el('td', {}, badge(item.result)))));
+      el('td', { text: item.moved_from_e2e.reason }), el('td', {}, badge(item.effective_result)))));
   }
 
   function update() {
@@ -226,7 +227,7 @@ h4 { margin: 0 0 4px; }
     const facts = [['Capability', item.capability], ['Type', item.type], ['Priority', item.priority],
       ['REQ', item.reqs.map((req) => `${req.id}@${req.hash8}`).join(', ')], ['Source', item.source],
       ...Object.entries(item.fields),
-      ['Moved from e2e', item.moved_from_e2e && `${item.moved_from_e2e.date}: ${item.moved_from_e2e.reason}`], ['Result', item.result], ['Run', item.run], ['Bug', item.bug],
+      ['Moved from e2e', item.moved_from_e2e && `${item.moved_from_e2e.date}: ${item.moved_from_e2e.reason}`], ['Result', item.effective_result], ['Last recorded', item.result !== item.effective_result && item.result], ['Run', item.run], ['Bug', item.bug],
       ['File', `${item.file}:${item.line}`]];
     const details = el('dl', {});
     for (const [key, val] of facts) if (val) details.append(el('dt', { text: key }), el('dd', { text: val }));
