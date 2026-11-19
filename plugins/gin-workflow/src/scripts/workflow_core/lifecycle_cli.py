@@ -438,7 +438,7 @@ def _learn_comment_warning(repo_path: Path, knowledge: Path, epic: str | None) -
             pending.append(item)
     if not pending:
         return None
-    shown = knowledge.relative_to(repo_path) if knowledge.is_relative_to(repo_path) else knowledge
+    shown = knowledge.relative_to(repo_path).as_posix() if knowledge.is_relative_to(repo_path) else knowledge
     return f"{len(pending)} learn comments not yet in {shown}; reconcile knowledge (learn) before ship"
 
 
@@ -470,7 +470,7 @@ def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEv
         return None
     if done.returncode or done.stdout.strip():
         return None
-    shown = knowledge.relative_to(repo_path) if knowledge.is_relative_to(repo_path) else knowledge
+    shown = knowledge.relative_to(repo_path).as_posix() if knowledge.is_relative_to(repo_path) else knowledge
     return f"no commit changed {shown} since orchestration-ready ({since}); reconcile knowledge (learn) before ship"
 
 
