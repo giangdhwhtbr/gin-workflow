@@ -11,6 +11,7 @@ Epic `gin-workflow-bel0` (2026-11-06). BAs send the living specs to customers; `
 - The file goes to customers, so the export is a trust boundary: an image (Markdown, template, or asset) is embedded only when it resolves to a file inside the repository with an extension in `MEDIA_TYPES`, else it counts as missing (an asset symlink pointing out is listed by name); a link keeps its `href` only for `http(s)://`, `mailto:`, `#`, or a scheme-less relative target.
 
 **Consequences**
+- The vendored Mermaid text holds `src="`, `<iframe`, `<!--`, and `{{`. It is filled last and once, after `_template` has stripped comments and embedded `src`, so nothing rescans it; tests that assert a whole page has none of these strip the vendored text first. A page with a diagram is about 2.5 MB larger.
 - Review cycle 1 caught an infinite loop on a `|` line without a table rule row, file leaks through `../` and absolute image paths, and `javascript:` hrefs; all fixed with tests in `tests/workflow_core/test_specs_export.py`. Any new Markdown construct must keep the parser consuming at least one line per branch.
 - Known limits left open: table cells split on every `|` (also inside code spans); a link target with `)` ends early; `--out` may overwrite any file inside the repository.
 
