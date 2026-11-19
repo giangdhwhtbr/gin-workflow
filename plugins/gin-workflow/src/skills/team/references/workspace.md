@@ -4,13 +4,13 @@ Read this when `gin state --format json` reports `workspace` and `project.team.e
 
 ## Branches
 
-- A track branch `feat/<topic>-t<N>` starts from `origin/<default_branch>` of the track's repository (the child its `Repo:` names, else the parent). Its PR targets that branch and is approved by the `team.approvals.ship` roles.
+- A lane branch `feat/<topic>-<lane>` starts from `origin/<default_branch>` of the lane's repository (the child its tracks' `Repo:` names, else the parent). Its PR targets that branch and is approved by the `team.approvals.ship` roles.
 - Orchestrate creates no child `feat/<topic>`. It creates the parent's `feat/<topic>` from the parent's default branch and pushes it. That branch holds the epic's knowledge records and, with `project.review_ledger: true`, its review ledgers.
-- Spec and plan reach the default branch through their own PRs first; tracks start after both merge.
+- Spec and plan reach the default branch through their own PRs first; lanes start after both merge.
 
 ## Worktrees
 
-- `gin team claim <bead>` creates the member's track worktree at `.planning/worktrees/<bead>` of the checkout where it runs. Run it from a parent checkout, or a worktree of it, on `feat/<topic>`.
+- `gin team claim <bead>` creates the member's lane worktree at `.planning/worktrees/<epic>-<lane>` of the checkout where it runs. Run it from a parent checkout, or a worktree of it, on `feat/<topic>`.
 - A repository not cloned stops the claim with `gin workspace clone <path>`. After a git failure the lease stays: run the claim again.
 
 ## Ledgers
