@@ -302,13 +302,35 @@ try {
         Assert-Contains $pathDryRun 'would add'
         $noPathOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $true }
         Assert-Contains $noPathOutput 'Add '
+        if ($env:GITHUB_ACTIONS) {
+            # A clean runner profile: a developer's own install may already hold the block.
+            Assert-Contains $pathDryRun 'would remove the gin alias in'
+            Assert-Contains $noPathOutput 'leaves profiles unchanged'
+        }
     }
     if ($IsWindows -and $env:GITHUB_ACTIONS) {
         $binDir = [IO.Path]::GetFullPath((Join-Path $TestHome '.local/bin')).TrimEnd('\', '/')
+        # The Windows PowerShell profile holds user content in UTF-8 with a BOM; the pwsh one does not exist.
+        $documents = [Environment]::GetFolderPath('MyDocuments')
+        $profilePath = Join-Path $documents 'PowerShell/profile.ps1'
+        $legacyProfilePath = Join-Path $documents 'WindowsPowerShell/profile.ps1'
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $legacyProfilePath) | Out-Null
+        [IO.File]::WriteAllText($legacyProfilePath, "Set-Variable greeting 'Xin ch$([char]0x00E0)o'`r`n", [Text.UTF8Encoding]::new($true))
+        $legacyProfileBytes = [IO.File]::ReadAllBytes($legacyProfilePath)
         Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $false } | Out-Null
         Assert-True (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir) 'user PATH entry missing after install'
+        $aliasBlock = '# >>> gin: remove the Get-ComputerInfo alias (install.ps1) >>>'
+        Assert-Contains ([IO.File]::ReadAllText($profilePath)) $aliasBlock
+        Assert-Contains ([IO.File]::ReadAllText($legacyProfilePath)) $aliasBlock
+        $aliasCheck = & pwsh -NoLogo -Command '(Get-Command gin).CommandType'
+        Assert-True ("$aliasCheck".Trim() -eq 'Application') "gin still resolves to: $aliasCheck"
+        Invoke-Installer @{ Platform = 'codex'; Project = $project; NoModifyPath = $false } | Out-Null
+        Assert-True (([regex]::Matches([IO.File]::ReadAllText($profilePath), [regex]::Escape($aliasBlock))).Count -eq 1) 'reinstall duplicated the profile block'
         Invoke-Installer @{ Uninstall = $true; NoModifyPath = $false } | Out-Null
         Assert-True (-not (([Environment]::GetEnvironmentVariable('Path', 'User') -split ';') -contains $binDir)) 'user PATH entry still present after -Uninstall'
+        Assert-True (-not (Test-Path -LiteralPath $profilePath)) 'the profile the installer created is still present after -Uninstall'
+        Assert-True ([Convert]::ToBase64String([IO.File]::ReadAllBytes($legacyProfilePath)) -eq [Convert]::ToBase64String($legacyProfileBytes)) 'the user profile changed after install and -Uninstall'
+        Remove-Item -LiteralPath $legacyProfilePath -Force
     }
 
     $mockLog = Join-Path $TestRoot 'harness-commands.log'

@@ -15,10 +15,10 @@ Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copie
 
 ## `gin` runs `Get-ComputerInfo` in PowerShell
 
-Cause: PowerShell has a built-in `gin` alias for `Get-ComputerInfo`, and an alias wins over the `~/.local/bin/gin.cmd` launcher that `install.ps1` writes. The Claude Code session-start hook that `install.ps1` generates already calls `gin.cmd`.
+Cause: PowerShell has a built-in `gin` alias for `Get-ComputerInfo`, and an alias wins over the `~/.local/bin/gin.cmd` launcher. `install.ps1` removes the alias with a marked block in `profile.ps1` under `Documents\PowerShell` and `Documents\WindowsPowerShell`. The alias stays when the profile has no block (an install with `-NoModifyPath`) or does not run (`-NoProfile`, or an execution policy that blocks scripts).
 
 1. Type `gin.cmd` instead of `gin`, for example `gin.cmd --version`.
-2. Or remove the alias in your profile (`notepad $PROFILE`) so that `gin` reaches the launcher. The alias comes from the `Microsoft.PowerShell.Management` module, so import it first; otherwise its later automatic load brings the alias back:
+2. Or rerun `install.ps1` without `-NoModifyPath`, or add the block's lines to your profile (`notepad $PROFILE`) yourself. The alias comes from the `Microsoft.PowerShell.Management` module, so import it first; otherwise its later automatic load brings the alias back:
 
    ```powershell
    Import-Module Microsoft.PowerShell.Management

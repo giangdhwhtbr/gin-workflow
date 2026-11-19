@@ -77,6 +77,8 @@ pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Project .
 ### PATH
 The installer adds `%USERPROFILE%\.local\bin` to your user `PATH` once. Open a new terminal to pick it up. Pass `-NoModifyPath` to leave `PATH` unchanged; the installer then prints the folder to add. `-Uninstall` removes the entry.
 
+The installer also removes PowerShell's built-in `gin` alias, which runs `Get-ComputerInfo`, so that `gin` reaches the launcher. It appends a marked block to `profile.ps1` in `Documents\PowerShell` and `Documents\WindowsPowerShell`. `-NoModifyPath` leaves the profiles unchanged too, and `-Uninstall` removes the block. Where the profile does not run, type `gin.cmd` instead ([details](../reference/troubleshooting.md#gin-runs-get-computerinfo-in-powershell)).
+
 ## Task tracking
 
 gin-workflow supports two task tracking backends:
@@ -98,16 +100,16 @@ Inside your AI harness (Claude Code, Antigravity, and others), use the slash com
 - `/gin:review`: run independent review cycles.
 - `/gin:ship`: close out tasks and merge.
 
-From a PowerShell terminal, call the CLI as `gin.cmd`: PowerShell's built-in `gin` alias runs `Get-ComputerInfo` instead ([details](../reference/troubleshooting.md#gin-runs-get-computerinfo-in-powershell)).
+From a PowerShell terminal, call the CLI directly:
 ```powershell
 # Check current workflow state
-gin.cmd state
+gin state
 
 # Record a gate
-gin.cmd record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
+gin record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
 
 # Query tasks
-gin.cmd task list
+gin task list
 ```
 
 ## Verifying the installation

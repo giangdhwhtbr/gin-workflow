@@ -77,6 +77,8 @@ pwsh -ExecutionPolicy Bypass -File .\install.ps1 -Project .
 ### PATH { #path }
 Trình cài đặt thêm `%USERPROFILE%\.local\bin` vào `PATH` của người dùng một lần. Mở một terminal mới để nhận thay đổi. Truyền `-NoModifyPath` để giữ nguyên `PATH`; khi đó trình cài đặt in ra thư mục cần thêm. `-Uninstall` gỡ mục đó.
 
+Trình cài đặt cũng gỡ alias `gin` có sẵn của PowerShell (alias này chạy `Get-ComputerInfo`) để `gin` gọi tới launcher. Nó thêm một khối có đánh dấu vào `profile.ps1` trong `Documents\PowerShell` và `Documents\WindowsPowerShell`. `-NoModifyPath` cũng giữ nguyên các profile, còn `-Uninstall` gỡ khối đó. Khi profile không chạy, hãy gõ `gin.cmd` ([chi tiết](../reference/troubleshooting.md#gin-runs-get-computerinfo-in-powershell)).
+
 ## Theo dõi task { #task-tracking }
 
 gin-workflow hỗ trợ hai backend theo dõi task:
@@ -98,16 +100,16 @@ Bên trong AI harness của bạn (Claude Code, Antigravity, và các harness kh
 - `/gin:review`: chạy các chu kỳ review độc lập.
 - `/gin:ship`: đóng task và merge.
 
-Từ một terminal PowerShell, gọi CLI bằng `gin.cmd`: alias `gin` có sẵn của PowerShell sẽ chạy `Get-ComputerInfo` ([chi tiết](../reference/troubleshooting.md#gin-runs-get-computerinfo-in-powershell)).
+Từ một terminal PowerShell, gọi trực tiếp CLI:
 ```powershell
 # Check current workflow state
-gin.cmd state
+gin state
 
 # Record a gate
-gin.cmd record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
+gin record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
 
 # Query tasks
-gin.cmd task list
+gin task list
 ```
 
 ## Xác minh việc cài đặt { #verifying-the-installation }
