@@ -18,7 +18,7 @@ Read this in team mode. A lane is the tracks of one plan that one member does in
 
 - `gin team claim <bead>` claims every open track of the bead's lane and creates or reuses the lane's worktree. It refuses when another member holds an unexpired lease on any of them. Claim again at the start of each track: it renews the lease and marks that track in progress.
 - Run the lane's tracks in dependency order in that worktree. The reviewed diff of a track runs from the lane branch's head when the track started to the track's last commit. After the track closes, `git push -u origin feat/<topic>-<lane>` and go on to the next one.
-- `gin goal --workflow-id <id>` covers the tracks assigned to you; `--lane <name>` picks one lane. It leaves out tracks that need a human or wait for another lane to merge.
+- `gin goal --workflow-id <id>` covers the tracks assigned to you; `--lane <name>` picks one lane and also covers its unassigned tracks. It leaves out tracks that need a human or wait for another lane to merge.
 - When the lane's PR has merged and tracks remain, the next `gin team claim` starts the branch again from the default branch. If the host kept the merged branch, delete it on origin before the next push. If the claim reports commits made after the merged PR, merge `origin/<default>` into the branch. Never force-push.
 
 ## Ship
@@ -26,4 +26,4 @@ Read this in team mode. A lane is the tracks of one plan that one member does in
 - Deliver the closed tracks of the lane that no merged PR lists yet; each needs its review approved or waived. Open tracks stay for a later PR of the same lane.
 - Fill the generated PR template: `Plan:` with the plan path, `Tracks:` with every delivered track number (`gin team deps` and `gin team complete` read both), `Beads:`, and one line per track under `## Tracks`.
 - A fix the PR reviewer asks for is committed on the lane branch and pushed. With `project.review_ledger: true`, first reopen the last approved track and have it reviewed again.
-- After the merge, when the lane has no open track, run `gin worktree cleanup <epic>-<lane>` from the main checkout.
+- After the merge, when the lane has no open track, run `gin worktree cleanup <epic>-<lane>` from the main checkout (in a workspace, `gin worktree cleanup --repository <repo> <epic>-<lane>` from the parent).
