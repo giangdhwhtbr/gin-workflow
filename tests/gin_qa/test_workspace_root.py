@@ -21,8 +21,9 @@ from qa_fixtures import (AUTH_SPEC, TOOLS_PATH, case, case_file, cases_file, com
 from specs_fixtures import LAUNCHER  # noqa: E402
 from gin_qa.cases import hash8, parse_case_file, parse_file  # noqa: E402
 
-# A `gin` from before `root` was reported: its `specs reqs` payload has no `root`.
-OLD_GIN = '#!/bin/sh\necho \'{"layout": "sdd", "requirements": [], "qa": {}}\'\n'
+# A `gin` from before `root` was reported: its `specs reqs` payload has no `root`. On nt the body is gin.cmd.
+OLD_PAYLOAD = '{"layout": "sdd", "requirements": [], "qa": {}}'
+OLD_GIN = f"@echo {OLD_PAYLOAD}\r\n" if os.name == "nt" else f"#!/bin/sh\necho '{OLD_PAYLOAD}'\n"
 
 
 class TestQaWorkspaceRoot(unittest.TestCase):

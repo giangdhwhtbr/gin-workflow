@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 from workflow_core import setup_service  # noqa: E402
 from workflow_core.cli import CLI_VERSION  # noqa: E402
 from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path  # noqa: E402
+from tests.workflow_core.team_fixtures import fake_cli  # noqa: E402
 
 
 class SetupCliTests(unittest.TestCase):
@@ -1038,9 +1039,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertFalse(any(action.startswith("version: no .ginrc") for action in payload["actions"]))
 
             (repository / ".ginrc").unlink()
-            qa = Path(bin_dir) / "gin-qa"
-            qa.write_text("#!/bin/sh\necho 'gin-qa 9.9.9'\n", encoding="utf-8")
-            qa.chmod(0o755)
+            fake_cli(Path(bin_dir), "gin-qa", [{"argv": ["--version"], "stdout": "gin-qa 9.9.9\n"}])
             env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
             result = self.run_cli(repository, "doctor", env=env)
             self.assertEqual(0, result.returncode, result.stderr)

@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 from workflow_core import version_pin  # noqa: E402
 from workflow_core.cli import CLI_VERSION  # noqa: E402
 from tests.workflow_core.orchestrator_fakes import fake_orchestrator  # noqa: E402
+from tests.workflow_core.team_fixtures import fake_cli  # noqa: E402
 from tests.workflow_core.test_workspace import git, init_repo  # noqa: E402
 
 MAJOR, MINOR, PATCH = (int(part) for part in CLI_VERSION.split("."))
@@ -222,9 +223,7 @@ class VersionCommandTests(unittest.TestCase):
         self.assertEqual(str(self.root / ".ginrc"), json.loads(result.stdout)["path"])
 
     def test_companions_found_on_path(self):
-        qa = self.bin / "gin-qa"
-        qa.write_text("#!/bin/sh\necho 'gin-qa 9.9.9'\n", encoding="utf-8")
-        qa.chmod(0o755)
+        fake_cli(self.bin, "gin-qa", [{"argv": ["--version"], "stdout": "gin-qa 9.9.9\n"}])
         fake_orchestrator(self.bin)
         env = {**self.env, "PATH": f"{self.bin}{os.pathsep}{Path(sys.executable).parent}"}  # the fake runs python3
         text = run(self.root, "version", env=env).stdout.splitlines()
@@ -232,7 +231,7 @@ class VersionCommandTests(unittest.TestCase):
         payload = json.loads(run(self.root, "version", "--format", "json", env=env).stdout)
         self.assertEqual({"gin-qa": "9.9.9", "gin-orchestrator": "0.1.0"}, payload["companions"])
 
-        qa.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        fake_cli(self.bin, "gin-qa", [{"argv": ["--version"], "exit": 1}])
         payload = json.loads(run(self.root, "version", "--format", "json", env=env).stdout)
         self.assertEqual({"gin-orchestrator": "0.1.0"}, payload["companions"])
 
@@ -268,7 +267,7 @@ class VersionCommandTests(unittest.TestCase):
         outside.mkdir(parents=True)
         pin(home, HIGHER)
         pin(self.base, HIGHER)
-        env = {**self.env, "HOME": str(home)}
+        env = {**self.env, "HOME": str(home), "USERPROFILE": str(home)}  # Path.home() reads USERPROFILE on Windows
         found = json.loads(run(inside, "version", "--format", "json", env=env).stdout)
         self.assertEqual(("none", None), (found["status"], found["path"]))
         found = json.loads(run(outside, "version", "--format", "json", env=env).stdout)
@@ -276,10 +275,10 @@ class VersionCommandTests(unittest.TestCase):
 
     def test_orchestrator_is_found_through_executables_local_yaml(self):
         hidden = self.base / "hidden"
-        fake_orchestrator(hidden)
+        stub = fake_orchestrator(hidden)  # gin-orchestrator.cmd on Windows
         (self.root / ".agent-workflow").mkdir()
         (self.root / ".agent-workflow/executables.local.yaml").write_text(
-            f'schema_version: "2.10"\nexecutables:\n  gin-orchestrator: {hidden / "gin-orchestrator"}\n',
+            f'schema_version: "2.10"\nexecutables:\n  gin-orchestrator: {stub}\n',
             encoding="utf-8")
         env = {**self.env, "PATH": f"{self.bin}{os.pathsep}{Path(sys.executable).parent}"}  # the fake runs python3
         payload = json.loads(run(self.root, "version", "--format", "json", env=env).stdout)
