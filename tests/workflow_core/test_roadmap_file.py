@@ -25,6 +25,16 @@ class ReadRoadmapTests(unittest.TestCase):
             self.write(root, "- AI capacity: 2 people building with AI agents, 1 Claude Max account\n- Deadline: 2026-12-31\n")
             self.assertEqual(Roadmap(date(2026, 12, 31), 2, None), read_roadmap(root, "legacy"))
 
+    def test_days_per_point_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write(root, "- AI capacity: 2\n- Days per point: 1.5 (assumed)\n")
+            self.assertEqual(1.5, read_roadmap(root, "legacy").days_per_point)
+            self.write(root, "- Days per point: none\n")
+            self.assertIsNone(read_roadmap(root, "legacy").days_per_point)
+            self.write(root, "- Days per point: 0\n")
+            self.assertIsNone(read_roadmap(root, "legacy").days_per_point)
+
     def test_missing_file_and_missing_lines(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

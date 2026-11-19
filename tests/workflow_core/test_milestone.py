@@ -1,4 +1,5 @@
 from datetime import date
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -13,13 +14,15 @@ D = date.fromisoformat
 
 
 def bead(id, *, type="epic", status="open", parent=None, minutes=None, blocks=(), labels=(), meta=None, title="",
-         started_at=None, deps=()):
+         started_at=None, deps=(), closed_at=None):
     item = {"id": id, "title": title or id, "description": "", "status": status, "issue_type": type,
             "parent": parent, "labels": list(labels), "estimated_minutes": minutes, "metadata": meta or {},
             "dependencies": [{"issue_id": id, "depends_on_id": d, "type": "blocks"} for d in blocks]}
     item["dependencies"] += [{"issue_id": id, "depends_on_id": target, "type": kind} for kind, target in deps]
     if started_at:
         item["started_at"] = started_at
+    if closed_at:
+        item["closed_at"] = closed_at
     return item
 
 
@@ -244,7 +247,12 @@ class PayloadTests(unittest.TestCase):
             "schema": 1, "id": "m1", "title": "m1", "description": "", "status": "planned",
             "start": "2026-11-02", "end": "2026-12-18", "kickoff": None, "schedule_start": "2026-11-02",
             "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "integration": None, "deadline": None, "finish": "2026-11-06", "overflow_days": 0,
+            "days_per_point": {"value": 1.0, "measured_epics": 0, "assumed": True},
+            "velocity": {"committed_points": None, "completed_points": 0, "added_points": 0, "say_do": None,
+                         "days_per_point": None, "planned_days_per_point": None, "accuracy": None},
             "epics": [{"id": "A", "title": "Alpha", "status": "open", "estimate_days": 5, "remaining_days": 5, "assumed_days": None,
+                       "points": None, "points_reason": None, "estimate_source": "days", "actual_days": None,
+                       "actual_days_per_point": None,
                        "spec_confirmed": None,
                        "planned_start": "2026-11-02", "planned_end": "2026-11-06", "depends_on": [],
                        "external_depends_on": [], "warnings": []}]}, payload)
@@ -687,6 +695,122 @@ class ExitWarningTests(unittest.TestCase):
         self.assertNotIn({"code": "after_integration"}, self.codes(beads))
         self.assertEqual(["integration"], milestone.metadata_problems(beads["m1"]))
         self.assertIsNone(milestone.show_payload(beads["m1"], beads, None, TODAY)["integration"])
+
+
+
+def done(id, points, started, closed, parent=None):
+    return bead(id, status="closed", parent=parent, labels=["roadmap"], meta={"points": points},
+                started_at=f"{started}T09:00:00Z", closed_at=f"{closed}T17:00:00Z")
+
+
+class PointsTests(unittest.TestCase):
+    def test_points_of_accepts_the_scale_only(self):
+        for value, expected in ((5, 5), ("8", 8), (4, None), ("x", None), (True, None), (None, None), (34, None)):
+            with self.subTest(value=value):
+                self.assertEqual(expected, milestone.points_of(bead("E", meta={"points": value})))
+        self.assertTrue(milestone.points_problem(bead("E", meta={"points": "4"})))
+        self.assertFalse(milestone.points_problem(bead("E")))
+
+    def test_actual_days_counts_working_days_both_ends(self):
+        # Mon 2026-11-02 .. Fri 2026-11-13 = 10 working days
+        self.assertEqual(10, milestone.actual_days(done("A", 5, "2026-11-02", "2026-11-13"), TODAY))
+        self.assertEqual(1, milestone.actual_days(done("A", 5, "2026-11-07", "2026-11-07"), TODAY))
+        self.assertIsNone(milestone.actual_days(bead("A"), TODAY))
+        running = bead("A", status="in_progress", started_at="2026-10-26T09:00:00Z")
+        self.assertEqual(4, milestone.actual_days(running, TODAY))  # Mon 10-26 .. Thu 10-29
+
+    def test_us2_pace_measured_from_closed_epics(self):
+        beads = world(done("A", 5, "2026-11-02", "2026-11-13"), done("B", 5, "2026-11-16", "2026-11-20"),
+                      bead("C", labels=["roadmap"], meta={"points": 8}))
+        pace = milestone.measure_pace(beads, None, TODAY)
+        self.assertEqual(milestone.Pace(1.5, 2, False), pace)
+        self.assertEqual(12, milestone.epic_days(beads["C"], pace))
+
+    def test_pace_uses_the_ten_latest_closed_epics(self):
+        old = [done(f"O{n}", 1, "2026-01-05", "2026-01-16") for n in range(5)]  # 10 days per point
+        new = [done(f"N{n}", 1, "2026-10-05", "2026-10-05") for n in range(10)]  # 1 day per point
+        self.assertEqual(milestone.Pace(1.0, 10, False), milestone.measure_pace(world(*old, *new), None, TODAY))
+
+    def test_us2_pace_assumed_from_the_roadmap_then_one(self):
+        beads = world(bead("C", labels=["roadmap"], meta={"points": 8}))
+        self.assertEqual(milestone.Pace(2.0, 0, True), milestone.measure_pace(beads, 2.0, TODAY))
+        self.assertEqual(milestone.DEFAULT_PACE, milestone.measure_pace(beads, None, TODAY))
+        self.assertEqual({"value": 2.0, "measured_epics": 0, "assumed": True},
+                         milestone.Pace(2.0, 0, True).as_json())
+
+    def test_epic_days_rounds_up_and_falls_back_to_minutes(self):
+        self.assertEqual(4, milestone.epic_days(bead("E", meta={"points": 3}), milestone.Pace(1.33, 3, False)))
+        self.assertEqual(1, milestone.epic_days(bead("E", meta={"points": 1}), milestone.Pace(0.2, 3, False)))
+        self.assertEqual(2, milestone.epic_days(bead("E", minutes=days(2)), milestone.Pace(5.0, 3, False)))
+        self.assertIsNone(milestone.epic_days(bead("E")))
+
+    def test_us2_schedule_uses_derived_days_and_reports_the_source(self):
+        pace = milestone.Pace(1.5, 2, False)
+        beads = world(milestone_bead(), bead("P", parent="m1", meta={"points": 8, "points_reason": "12 screens"}),
+                      bead("D", parent="m1", minutes=days(2)), bead("U", parent="m1"))
+        found = rows(milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, pace=pace))
+        self.assertEqual((12, "points", 8, "12 screens"), (found["P"]["estimate_days"], found["P"]["estimate_source"],
+                                                         found["P"]["points"], found["P"]["points_reason"]))
+        self.assertEqual(("days", None), (found["D"]["estimate_source"], found["D"]["points"]))
+        self.assertEqual("assumed", found["U"]["estimate_source"])
+        self.assertEqual(12, found["P"]["remaining_days"])
+
+    def test_derived_days_drive_oversized_and_the_forecast(self):
+        pace = milestone.Pace(3.0, 1, False)
+        beads = world(milestone_bead(end="2026-11-13"), bead("P", parent="m1", labels=["roadmap"], meta={"points": 5}))
+        row = rows(milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1, pace=pace))["P"]
+        self.assertIn({"code": "oversized", "days": 5}, row["warnings"])
+        result = milestone.forecast(beads, TODAY, milestone.Roadmap(), 1, pace=pace)
+        self.assertEqual(0, result["unestimated"])
+        self.assertEqual("2026-11-20", result["finish"])  # 15 working days from Mon 11-02
+
+    def test_actual_days_per_point_on_rows(self):
+        beads = world(milestone_bead(), done("A", 5, "2026-11-02", "2026-11-13", parent="m1"),
+                      bead("B", parent="m1", minutes=days(1)))
+        found = rows(milestone.schedule(beads["m1"], beads, D("2026-11-02"), TODAY, 1))
+        self.assertEqual((10, 2.0), (found["A"]["actual_days"], found["A"]["actual_days_per_point"]))
+        self.assertEqual((None, None), (found["B"]["actual_days"], found["B"]["actual_days_per_point"]))
+
+
+class VelocityTests(unittest.TestCase):
+    def moved(self, at):
+        return json.dumps([{"from": None, "to": "m1", "at": at, "actor": "a"}])
+
+    def test_us4_committed_completed_added_and_say_do(self):
+        m1 = milestone_bead(kickoff="2026-11-02", committed_points="20", planned_days_per_point="1.5")
+        beads = world(m1, done("A", 8, "2026-11-02", "2026-11-11", parent="m1"),
+                      done("B", 5, "2026-11-02", "2026-11-06", parent="m1"),
+                      bead("C", status="closed", parent="m1", meta={"points": 2, "milestone_moves": self.moved("2026-11-01T10:00:00Z")}),
+                      bead("D", parent="m1", meta={"points": 3, "milestone_moves": self.moved("2026-11-05T10:00:00Z")}),
+                      bead("E", parent="m1", meta={"points": 5}))
+        v = milestone.velocity(beads["m1"], beads, TODAY)
+        self.assertEqual({"committed_points": 20, "completed_points": 15, "added_points": 3, "say_do": 0.75,
+                          "days_per_point": 1.0, "planned_days_per_point": 1.5, "accuracy": 1.5}, v)
+
+    def test_us4_nulls_before_kick_start(self):
+        beads = world(milestone_bead(), bead("E", parent="m1", meta={"points": 5}))
+        self.assertEqual({"committed_points": None, "completed_points": 0, "added_points": 0, "say_do": None,
+                          "days_per_point": None, "planned_days_per_point": None, "accuracy": None},
+                         milestone.velocity(beads["m1"], beads, TODAY))
+
+    def test_zero_commitment_gives_no_say_do(self):
+        beads = world(milestone_bead(kickoff="2026-11-02", committed_points=0))
+        self.assertIsNone(milestone.velocity(beads["m1"], beads, TODAY)["say_do"])
+
+    def test_us4_show_and_list_carry_velocity_and_pace(self):
+        pace = milestone.Pace(1.5, 2, False)
+        beads = world(milestone_bead(), milestone_bead("m0", start="2026-10-01", end="2026-10-30", status="closed"),
+                      bead("E", parent="m1", meta={"points": 5}))
+        shown = milestone.show_payload(beads["m1"], beads, None, TODAY, pace=pace)
+        self.assertEqual(pace.as_json(), shown["days_per_point"])
+        self.assertEqual(0, shown["velocity"]["completed_points"])
+        listed = milestone.list_payload(beads, TODAY, True, pace=pace)
+        self.assertEqual(pace.as_json(), listed["days_per_point"])
+        self.assertEqual({"m0", "m1"}, {entry["id"] for entry in listed["milestones"] if "velocity" in entry})
+
+    def test_malformed_snapshot_is_a_metadata_problem(self):
+        m1 = milestone_bead(committed_points="many", planned_days_per_point="1.5")
+        self.assertEqual(["committed_points"], milestone.metadata_problems(m1))
 
 
 if __name__ == "__main__":
