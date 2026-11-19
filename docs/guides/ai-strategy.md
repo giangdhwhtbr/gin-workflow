@@ -81,7 +81,7 @@ The current assignee or the area lead runs one command from the main checkout. I
 gin team handoff <bead> <email>
 ```
 
-The new owner takes it in one command from the main checkout of their clone; it fetches the branch, creates `.planning/worktrees/<bead>`, fetches the review ref, and claims:
+The new owner takes it in one command from the main checkout of their clone; it fetches the branch, creates the lane worktree `.planning/worktrees/<epic>-<lane>`, fetches the review ref, and claims the lane:
 
 ```bash
 gin team takeover <bead>
@@ -100,12 +100,11 @@ gin record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<b
 ### Work a track
 
 1. Find and claim a bead.
-   - In team mode, run `gin team deps`, `gin team ready`, and `gin team claim <bead>`. The claim writes a lease.
+   - In team mode, run `gin team deps`, `gin team ready`, and `gin team claim <bead>`. The claim writes a lease on every open track of the bead's lane and creates the lane worktree.
    - In solo mode, run `gin task ready` and `gin task update <bead> --claim`.
-2. Create the worktree for a new branch and enter it. Then check that the blocking tracks have merged.
+2. Enter the worktree: in team mode `gin team claim` created it, otherwise create it for a new branch with `gin worktree create <bead> <branch>`. Then check that the blocking tracks have merged.
    ```bash
-   gin worktree create <bead> feat/<topic>-t<N>
-   cd .planning/worktrees/<bead>
+   cd .planning/worktrees/<epic>-<lane>
    gin team deps --bead <bead>
    ```
 3. Read the track's `Files:` and `Interfaces:` in the plan, then list the rules that apply to those paths.
@@ -134,17 +133,17 @@ gin record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<b
    ```bash
    gin task close <bead> --waive-review "AI quota exhausted; peer reviewed in PR #<num>" --actor <your-email> --reason "Tests and PR review passed"
    ```
-7. Push `feat/<topic>-t<N>`. The `pre-push` hook runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. With shared Beads, run `gin team sync`.
-8. Open the pull request and fill the `Plan:` and `Tracks:` fields of the template, so teammates' `gin team deps` can resolve the track.
+7. Push `feat/<topic>-<lane>` after each track, then claim the next track of the lane. The `pre-push` hook runs `test` under `easy` rigor, `test` and `build` under `standard`, and `test`, `build`, and `e2e` under `strict`. With shared Beads, run `gin team sync`.
+8. Once the lane's tracks are closed, open one pull request for the lane and fill the `Plan:` and `Tracks:` fields of the template with every track it delivers, so teammates' `gin team deps` can resolve them.
 
 ### Check the ship gate
 
-Once every track pull request has merged, check the gate and close the epic.
+Once every lane pull request has merged, check the gate and close the epic.
 
 ```bash
 gin team check <pr-url> --gate ship
 gin task close <epic> --reason "All tracks merged"
-gin worktree cleanup <bead>
+gin worktree cleanup <epic>-<lane>
 ```
 
 See [team mode](team.md) for claims and gates, and the [CLI reference](../reference/cli.md) for every option.

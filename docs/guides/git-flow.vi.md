@@ -21,7 +21,8 @@ Không cần biết git để tuân theo thoả thuận. Mục Quy trình theo t
 - Conflict: hai branch cùng sửa những dòng giống nhau, nên host không merge được nếu không có người chọn.
 - Gate: một điểm kiểm tra mà gin ghi nhận sau khi đúng người đã approve pull request tương ứng.
 - Approving role: vai trò được liệt kê cho một gate trong `team.approvals` của `.agent-workflow/config.yaml`.
-- Track: một phần của plan, được giao bằng một pull request.
+- Track: một phần của plan.
+- Lane: các track của một plan mà một thành viên làm trong một repository, được giao bằng một pull request.
 - Bead: một bản ghi công việc trong công cụ theo dõi task của dự án.
 - CI: các kiểm tra tự động chạy trên mỗi pull request.
 - Host: dịch vụ lưu repository và các pull request của nó: GitHub, GitLab, Gitea hoặc AWS CodeCommit.
@@ -54,7 +55,7 @@ Mỗi phần việc PHẢI có branch riêng, và tên branch PHẢI cho thấy 
 | Roadmap | `roadmap/<topic>` | base branch |
 | Spec | `spec/<topic>`, hoặc `spec/<epic>-<slug>` với [layout SDD](sdd.md) | base branch |
 | Plan | `plan/<topic>` | base branch |
-| Track của plan | `feat/<topic>-t<N>`, trong đó `<N>` là số thứ tự track | base branch của repository chứa track |
+| Lane của plan | `feat/<topic>-<lane>`, trong đó `<lane>` là tên ở dòng `Lane:` của plan | base branch của repository chứa lane |
 | Tích hợp ở repository cha trong [workspace](workspace.md) | `feat/<topic>` | base branch của repository cha |
 | Việc khác | `chore/<topic>` | base branch |
 
@@ -79,7 +80,7 @@ Mọi artifact có gate PHẢI vào base branch qua pull request. Các vai trò 
 | Roadmap | `roadmap/<topic>` | các vai trò được liệt kê cho `roadmap` | `roadmap` |
 | Spec | `spec/<topic>` | các vai trò được liệt kê cho `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | các vai trò được liệt kê cho `plan_approved` | `plan_approved` |
-| Track | `feat/<topic>-t<N>` | các vai trò được liệt kê cho `ship` | `ship` |
+| Lane | `feat/<topic>-<lane>` | các vai trò được liệt kê cho `ship` | `ship` |
 | Tích hợp ở repository cha trong workspace | `feat/<topic>` | các vai trò được liệt kê cho `ship` | `ship` |
 | Archive vào living spec | phần tích hợp của epic: merge feature branch, hoặc pull request của repository cha trong workspace | các vai trò được liệt kê cho `ship`; theo quy ước của nhóm, BA review phần diff của living spec | `ship` |
 
@@ -108,7 +109,7 @@ Người duyệt một spec kiểm tra rằng:
 
 Team cũng có thể yêu cầu một review `qe` không chặn gate trên các pull request spec. CODEOWNERS trên các thư mục spec là cơ chế của host cho việc này; đây chỉ là gợi ý, gin không áp đặt.
 
-BA không review pull request của track. BA nghiệm thu mỗi epic một lần, dựa trên báo cáo QA ([trong lúc build](ba.md#during-the-build)).
+BA không review pull request của lane. BA nghiệm thu mỗi epic một lần, dựa trên báo cáo QA ([trong lúc build](ba.md#during-the-build)).
 
 Tester review pull request của developer và kiểm tra rằng:
 
