@@ -201,7 +201,7 @@ Bounded tracks run at sonnet and medium or haiku and low. Check the plan with gi
 
 ```text
 /gin:orchestrate
-Create one track bead per track, including the QA tracks. Members claim them with gin team claim.
+Create one track bead per track, including the QA tracks. Members claim a lane with gin team claim.
 ```
 
 `execute`:
