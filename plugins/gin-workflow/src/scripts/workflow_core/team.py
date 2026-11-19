@@ -502,6 +502,55 @@ def _track_in_lane(track: Track, lane: Lane) -> list[str]:
     return errors
 
 
+_SPEC_LINE = re.compile(r"^Spec:\s*`?([^`\s]+)`?\s*$", re.MULTILINE)
+
+
+def _git_top(directory: Path) -> Path | None:
+    done = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=directory, text=True, capture_output=True,
+                          check=False)
+    top = done.stdout.strip()
+    return Path(top) if done.returncode == 0 and top else None
+
+
+def check_lane_plan(team: TeamConfig, path: Path, root: Path) -> list[str]:
+    """Findings of a lane plan `<lead plan stem>.lane-<lane>.md`. The lead plan beside it must declare the lane
+    and have no track of it; then the checks of `check_plan`, each track against the lane's declaration, and
+    each question of the design doc that its `Spec:` line names, marked `(lane <lane>)`, without a `Decision:`.
+    `Spec:` is relative to the top of the git repository that holds the lane plan, else to `root`."""
+    from .specs import technical_questions
+
+    found = plan_lane(path)
+    if found is None:
+        raise TeamError(f"{path} is not a lane plan (<lead plan stem>.lane-<lane>.md)")
+    lead, name = found
+    if not Path(lead).is_file():
+        return [f"{path}: lead plan {lead} not found"]
+    lane = next((item for item in plan_lanes(Path(lead)) if item.name == name), None)
+    if lane is None:
+        return [f"{path}: lane {name} is not declared in {lead}"]
+    if any(track.lane == name for track in plan_tracks(Path(lead))):
+        return [f"{path}: lane {name} has tracks in {lead}; the lead plans it there"]
+    text = Path(path).read_text(encoding="utf-8")
+    errors = check_plan(team, path, text)
+    for track in plan_tracks(path, text):
+        if track.lane and track.lane != name:
+            errors.append(f"Track {track.number}: lane {track.lane} is not lane {name}")
+        elif track.lane:
+            errors += _track_in_lane(track, lane)
+    spec = _SPEC_LINE.search(text)
+    if spec is None:
+        return errors + [f"{path}: missing Spec: <design doc path> line"]
+    design = Path(spec[1])
+    if not design.is_absolute():
+        design = (_git_top(Path(path).resolve().parent) or Path(root)) / design
+    if not design.is_file():
+        return errors + [f"{path}: Spec: {spec[1]} is not a file"]
+    questions, _ = technical_questions(design, spec[1])
+    return errors + [f"{spec[1]}:{item.line}: {item.id} (lane {name}) has no Decision:"
+                     for item in questions if item.lane == name and not item.decision]
+
+
+
 def check_plan_repos(space: Workspace, path: Path) -> list[str]:
     """Workspace rules for a plan: every track names one workable `Repo:` and lists files inside it."""
     errors: list[str] = []
