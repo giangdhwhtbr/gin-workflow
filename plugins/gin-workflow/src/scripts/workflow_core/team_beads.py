@@ -260,8 +260,8 @@ def lane_beads(root: Path, issue: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 def _lane_targets(root: Path, issue: Mapping[str, Any],
                   beads: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-    """`issue`, then the other open tracks of its lane in track order: what a lane command writes to. `beads` is
-    the lane when the caller has read it already."""
+    """`issue`, then the other open beads of its lane (tracks and the lane bead, the lane bead first) in track
+    order: what a lane command writes to. `beads` is the lane when the caller has read it already."""
     lane = lane_beads(root, issue) if beads is None else beads
     others = [row for row in lane if row["id"] != issue["id"] and row.get("status") != "closed"]
     return [dict(issue), *sorted(others, key=lambda row: (_lane(row) or ("", 0))[1])]
@@ -369,7 +369,8 @@ def track_worktree(root: Path, team: TeamConfig, issue: Mapping[str, Any], bead:
     """The lane's worktree (`.planning/worktrees/<epic>-<lane>`, or `<bead>` for the implicit lane) on
     `feat/<topic>-<lane>` in the track's repository: kept when it exists (restarted from `origin/<default>` when
     `delivered` and its pull request merged), else checked out from the local or `origin` branch, else created
-    from `origin/<default>`; None for a bead without a `Plan: <path>, Track <N>` line."""
+    from `origin/<default>`; None for a bead that is neither a track (`Plan: <path>, Track <N>`) nor a lane bead
+    (`Plan: <path>, Lane <name>`)."""
     track, lane = track_of(issue), lane_of(issue)
     if track is None or lane is None:
         return None
@@ -399,8 +400,9 @@ def track_worktree(root: Path, team: TeamConfig, issue: Mapping[str, Any], bead:
 
 
 def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, Any]:
-    """Claim or renew the lane of a bead: one lease on every open track of it, the named bead `in_progress`; an
-    expired lease held by someone else is taken over with a note."""
+    """Claim or renew the lane of a track bead or a lane bead: one lease on every open bead of the lane (its tracks
+    in the lead plan and its lane plan, and its lane bead), the named bead `in_progress`; an expired lease held by
+    someone else is taken over with a note."""
     if team.beads_remote:
         sync(root)
     issue = _show(root, bead)

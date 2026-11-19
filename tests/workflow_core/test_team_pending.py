@@ -54,6 +54,16 @@ class TestTopicOf(unittest.TestCase):
         self.assertIsNone(team_pending.lane_bead("Plan: p.md, Track 1\nLane: be\n"))
         self.assertIsNone(team_pending.track_lane(lane))
 
+    def test_a_lane_plan_track_without_a_lane_line_takes_the_lane_of_its_path(self):
+        track = "Plan: .planning/plans/2026-11-19-shop.lane-be.md, Track 2\n"
+        self.assertEqual((".planning/plans/2026-11-19-shop.lane-be.md", 2, "be", True), team_pending.track_lane(track))
+        self.assertEqual("feat/shop-be", team_pending.lane_branch(track))
+        self.assertEqual(("p.md", 2, "t2", False), team_pending.track_lane("Plan: p.md, Track 2\n"))
+
+    def test_an_implicit_lane_name_makes_no_lane_bead(self):
+        self.assertIsNone(team_pending.lane_bead("Plan: .planning/plans/2026-11-19-shop.md, Lane t2\n"))
+        self.assertIsNone(team_pending.lane_branch("Plan: .planning/plans/2026-11-19-shop.md, Lane t2\n"))
+
 
 class PendingCase(unittest.TestCase):
     def setUp(self):

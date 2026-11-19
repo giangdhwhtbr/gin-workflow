@@ -8,7 +8,7 @@ import subprocess
 from typing import Any, Sequence
 
 from . import tasks, team as team_core, team_host
-from .team import TeamConfig, TeamError, lead_plan
+from .team import TeamConfig, TeamError, lead_plan, plan_lane, valid_lane
 from .team_host import HostUnavailable
 
 _TRACK_LINE = re.compile(r"^Plan:\s*`?([^`,\n]+?)`?,\s*Track\s+(\d+)\b", re.MULTILINE)
@@ -44,20 +44,23 @@ def topic_of(plan_path: str) -> str:
 
 def track_lane(description: str) -> tuple[str, int, str, bool] | None:
     """(plan path, track number, lane, named) of a track bead description. The lane is its `Lane:` line, else
-    the implicit `t<N>` with `named` False (a bead orchestrated before lanes). None without a
-    `Plan: <path>, Track <N>` line."""
+    the lane a lane plan path `<stem>.lane-<lane>.md` names, else the implicit `t<N>` with `named` False (a bead
+    orchestrated before lanes). None without a `Plan: <path>, Track <N>` line."""
     track = _TRACK_LINE.search(description)
     if track is None:
         return None
     lane = _LANE_LINE.search(description)
-    return track[1], int(track[2]), lane[1] if lane else f"t{track[2]}", lane is not None
+    if lane is not None:
+        return track[1], int(track[2]), lane[1], True
+    planned = plan_lane(track[1])
+    return track[1], int(track[2]), planned[1] if planned else f"t{track[2]}", planned is not None
 
 
 def lane_bead(description: str) -> tuple[str, str] | None:
     """(plan path, lane) of a lane bead description (`Plan: <path>, Lane <name>`): the bead that stands for
-    planning a lane the plan declares without tracks; None for any other bead."""
+    planning a lane the plan declares without tracks; None for any other bead or a lane name that is no valid lane."""
     found = _LANE_BEAD.search(description)
-    return (found[1], found[2]) if found else None
+    return (found[1], found[2]) if found and valid_lane(found[2]) else None
 
 
 def lane_branch(description: str) -> str | None:
