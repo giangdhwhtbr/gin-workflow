@@ -312,7 +312,7 @@ def _kickstart(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, 
     pace = _pace(root, _config(root), beads)
     committed = sum(core.points_of(epic) or 0 for epic in core.epics_of(args.id, beads) if epic.get("status") != "closed")
     meta = milestone.get("metadata") if isinstance(milestone.get("metadata"), Mapping) else {}
-    if meta.get("committed_points") not in (None, ""):
+    if meta.get("committed_points") not in (None, "") and str(meta["committed_points"]) != str(committed):
         print(f"warning: {args.id}: commitment changed from {meta['committed_points']} to {committed} points",
               file=sys.stderr)
     _bd(root, ["update", args.id, "--set-metadata", f"kickoff={day.isoformat()}",
@@ -387,8 +387,10 @@ def _trace_points(root: Path, bead: Mapping[str, Any], epic: str, to: int, stage
 
 
 def _points(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
-    if not args.n.isdigit() or int(args.n) not in core.POINT_SCALE:
+    if not (args.n.isascii() and args.n.isdigit()) or int(args.n) not in core.POINT_SCALE:
         raise MilestoneError("points must be one of " + ", ".join(map(str, core.POINT_SCALE)))
+    if not args.reason.strip():
+        raise MilestoneError("--reason must not be empty")
     bead = beads.get(args.epic)
     if bead is None:
         raise MilestoneError(f"{args.epic} not found")

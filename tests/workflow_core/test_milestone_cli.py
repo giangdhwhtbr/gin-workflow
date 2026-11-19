@@ -412,9 +412,10 @@ class MilestoneCliTests(unittest.TestCase):
 
     def test_us1_points_refusals_write_nothing(self):
         self.seed_roadmap()
-        for bad in ("4", "0", "34", "x"):
+        for bad in ("4", "0", "34", "x", "\u00b2"):
             with self.subTest(bad=bad):
                 self.assertIn("1, 2, 3, 5, 8, 13, 21", self.refused("points", "t-a", bad, "--reason", "x"))
+        self.assertIn("--reason must not be empty", self.refused("points", "t-a", "5", "--reason", " "))
         self.refused("points", "t-m1", "5", "--reason", "x")
         self.refused("points", "t-missing", "5", "--reason", "x")
         self.refused("points", "t-ac", "5", "--reason", "x")
@@ -436,6 +437,9 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertIn("commitment changed from 5 to 8 points", err)
         self.assertEqual("8", str(self.metadata("t-m1")["committed_points"]))
+        code, _, err = self.run_cli("kickstart", "t-m1", "--date", "2026-11-04")
+        self.assertEqual(0, code)
+        self.assertNotIn("commitment changed", err)
 
     def test_us2_estimate_refused_once_points_exist(self):
         self.seed_roadmap()
