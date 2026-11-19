@@ -21,7 +21,8 @@ You do not need to know git to follow it. The Host procedures section gives the 
 - Conflict: two branches changed the same lines, so the host cannot merge them without a person's choice.
 - Gate: a checkpoint that gin records once the right people have approved the matching pull request.
 - Approving role: a role listed for a gate in `team.approvals` of `.agent-workflow/config.yaml`.
-- Track: one slice of a plan, delivered by one pull request.
+- Track: one slice of a plan.
+- Lane: the tracks of one plan that one member does in one repository, delivered by one pull request, or by several when some of its tracks wait.
 - Bead: a task record in the project's task tracker.
 - CI: automatic checks that run on every pull request.
 - Host: the service that stores the repository and its pull requests: GitHub, GitLab, Gitea, or AWS CodeCommit.
@@ -54,7 +55,7 @@ Every piece of work SHALL have its own branch, and the branch name SHALL show th
 | Roadmap | `roadmap/<topic>` | the base branch |
 | Spec | `spec/<topic>`, or `spec/<epic>-<slug>` with the [SDD layout](sdd.md) | the base branch |
 | Plan | `plan/<topic>` | the base branch |
-| Track of a plan | `feat/<topic>-t<N>`, where `<N>` is the track number | the base branch of the track's repository |
+| Lane of a plan | `feat/<topic>-<lane>`, where `<lane>` is the `Lane:` name in the plan | the base branch of the lane's repository |
 | Parent integration in a [workspace](workspace.md) | `feat/<topic>` | the base branch of the parent |
 | Other work | `chore/<topic>` | the base branch |
 
@@ -79,7 +80,7 @@ Every artifact that has a gate SHALL reach the base branch through a pull reques
 | Roadmap | `roadmap/<topic>` | roles listed for `roadmap` | `roadmap` |
 | Spec | `spec/<topic>` | roles listed for `requirement_confirmed` | `requirement_confirmed` |
 | Plan | `plan/<topic>` | roles listed for `plan_approved` | `plan_approved` |
-| Track | `feat/<topic>-t<N>` | roles listed for `ship` | `ship` |
+| Lane | `feat/<topic>-<lane>` | roles listed for `ship` | `ship` |
 | Parent integration in a workspace | `feat/<topic>` | roles listed for `ship` | `ship` |
 | Archive into the living spec | the integration of the epic: the feature branch merge, or the parent's pull request in a workspace | roles listed for `ship`; by convention, the BA reviews the living-spec diff | `ship` |
 
@@ -108,7 +109,7 @@ The approver of a spec checks that:
 
 The team may also request a non-gating `qe` review on spec pull requests. CODEOWNERS on the spec folders is the host's mechanism for this; it is advice, and gin does not enforce it.
 
-The BA does not review track pull requests. The BA accepts each epic once, against the QA report ([during the build](ba.md#during-the-build)).
+The BA does not review lane pull requests. The BA accepts each epic once, against the QA report ([during the build](ba.md#during-the-build)).
 
 The tester reviews a developer's pull request and checks that:
 

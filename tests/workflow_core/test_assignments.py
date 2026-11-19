@@ -70,8 +70,9 @@ class AssignmentTests(unittest.TestCase):
 
         # Handoff contracts and PR merge claim prohibition live in the execute skill
         self.assertIn("waiting for PR merge", execute)
-        self.assertIn("Ask for the command to create a PR from the pushed feature branch", execute)
-        self.assertIn("Keep the pushed feature branch", execute)
+        self.assertIn("In team mode a track pushes its lane branch and returns", execute)
+        self.assertIn("ship opens the lane's PR", execute)
+        self.assertNotIn("Ask for the command to create a PR from the pushed feature branch", execute)
 
         # Routed tracks dispatch to their provider; orchestrate hands off a /goal
         self.assertIn("provider other than the main harness", execute)

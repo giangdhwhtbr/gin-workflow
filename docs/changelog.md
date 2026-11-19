@@ -2,6 +2,26 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-orchestrator, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## Unreleased
+
+In team mode a member now works a lane, the tracks of one plan that share a `Lane:` line, on one branch and in one pull request, instead of a pull request per track.
+
+### Upgrade notes
+
+- A track bead without a `Lane:` line keeps its own branch `feat/<topic>-t<N>` and its worktree `.planning/worktrees/<bead>`, so open work needs no step.
+- Add `- **Lane**: <name>` to every track of a team plan. `gin team check-plan` fails a track without it.
+
+### Added
+
+- `gin team check-plan` reports a missing or invalid lane, and a lane whose tracks have different owners or repositories.
+- `gin goal --lane NAME` covers one lane, including its unassigned tracks. In team mode the goal covers your tracks, leaves out tracks that wait for another lane to merge, and requires the lane's branch to be pushed.
+- `gin team ready` rows carry `lane` and `branch`, and the text groups rows under their branch.
+
+### Changed
+
+- `gin team claim`, `reassign`, `handoff`, and `takeover` act on every open track of the lane. A claim restarts the lane branch from the default branch after its pull request merged.
+- `gin team pending` lists one branch per lane with an open track. `gin team deps` and `gin team complete` read the `Tracks:` line of merged pull requests.
+
 ## [3.1.2] - 2026-11-15
 
 Use cases and activity diagrams in the SDD layout now follow the SRS a business analyst writes, and technical epics are no longer asked for diagrams.

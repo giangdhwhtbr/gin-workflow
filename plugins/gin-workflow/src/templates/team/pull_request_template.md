@@ -8,6 +8,10 @@ Tracks: <!-- comma-separated track numbers this PR delivers, e.g. 1,2 -->
 Spec: <!-- change folder or spec path, and the REQ-IDs it touches -->
 Beads: <!-- bead ids -->
 
+## Tracks
+
+<!-- One line per delivered track: <N>. <title> (<bead>): commits <first>..<last>; reviewer <id>, <cycles> review cycle(s), <findings> finding(s); tests: <command> -->
+
 ## Tests
 
 <!-- Commands run and their result. -->

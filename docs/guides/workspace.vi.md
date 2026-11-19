@@ -62,7 +62,7 @@ Mọi kỹ sư thực hiện phần này.
 
 1. Clone repository cha.
 2. Chạy `gin workspace clone <path>` cho các repository bạn làm việc. Kỹ sư backend clone một hoặc hai service; legacy `frozen` chỉ khi họ cần đọc nó.
-3. Mở IDE trên thư mục mà công việc cần. Với một track, đó là worktree `<parent>/.planning/worktrees/<track-id>`. Với setup, roadmap, discuss, plan, orchestrate và ship, đó là repository cha. Với `/gin:quick` trong một repository con, với QA, và với repository mà track khác đọc, đó là checkout chính của repository con đó.
+3. Mở IDE trên thư mục mà công việc cần. Với một track, đó là worktree `<parent>/.planning/worktrees/<track-id>`. Ở team mode, `<track-id>` là `<epic>-<lane>`, worktree của lane. Với setup, roadmap, discuss, plan, orchestrate và ship, đó là repository cha. Với `/gin:quick` trong một repository con, với QA, và với repository mà track khác đọc, đó là checkout chính của repository con đó.
 
 Bước clone cài các verify hook của mục có check và, ở chế độ team, commit-msg hook. Ngoài repository cha, mỗi vai trò clone thêm:
 
@@ -96,19 +96,19 @@ Mở: repository cha cho setup, plan, orchestrate và ship.
 | Stage | Lệnh |
 |---|---|
 | Plan | `/gin:plan` ghi các track, mỗi track mang `Repo: <path>`; `gin record plan-approved` từ chối track không có `Repo:`, repository không xác định hoặc `frozen`, mục beads, hoặc file nằm ngoài repository của nó. Một track còn có thể mang `Reads: <paths>`, các repository nó chỉ đọc và không bao giờ sửa. `gin team check-plan` và `gin record plan-approved` từ chối path không nằm trong `workspace.repos`, mục beads, hoặc `Repo:` của chính track. Repository `frozen` được chấp nhận, và việc nó đã clone hay chưa không được kiểm tra ở đó |
-| Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>`. Nó ghi `Reads: <paths>` vào bead của track và, ngoài team mode, dừng theo cách tương tự khi một repository trong `Reads:` chưa được clone. Ở [team mode](team.md) nó không tạo branch hay worktree của repository con và push `feat/<topic>` của repository cha; `gin team claim` của mỗi thành viên tạo worktree của họ |
-| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng (ở team mode, mỗi track và `feat/<topic>` của repository cha đi qua pull request, rồi area lead chạy `gin team complete <epic>`); `team check --gate ship` và `record shipped` nhận pull request của repository con, và `team check --gate ship` so nó với HEAD của checkout repository con hoặc worktree của track nơi chạy lệnh, nếu không thì checkout chính của repository con; `gin team deps` tìm pull request của track của repository con trong repository mà `Repo:` chỉ tới; phần tích hợp của repository cha đưa archive vào living spec, và theo quy ước của nhóm, BA review phần diff đó |
+| Orchestrate | `/gin:orchestrate` tạo một worktree cho mỗi track bên trong repository con được nêu; thiếu bản clone thì dừng kèm đúng lệnh `gin workspace clone <path>`. Nó ghi `Reads: <paths>` vào bead của track và, ngoài team mode, dừng theo cách tương tự khi một repository trong `Reads:` chưa được clone. Ở [team mode](team.md) nó không tạo branch hay worktree của repository con và push `feat/<topic>` của repository cha; `gin team claim` của mỗi thành viên tạo worktree của lane của họ |
+| Ship | `/gin:ship` từ repository cha tích hợp từng repository một, repository cha sau cùng (ở team mode, mỗi lane và `feat/<topic>` của repository cha đi qua pull request, rồi area lead chạy `gin team complete <epic>`); `team check --gate ship` và `record shipped` nhận pull request của repository con, và `team check --gate ship` so nó với HEAD của checkout repository con hoặc worktree của track nơi chạy lệnh, nếu không thì checkout chính của repository con; `gin team deps` tìm pull request của track của repository con trong repository mà `Repo:` chỉ tới; phần tích hợp của repository cha đưa archive vào living spec, và theo quy ước của nhóm, BA review phần diff đó |
 
 Với một bead độc lập ở team mode có chính sách `ship`, lặp `gin record shipped --evidence <pull request URL>`, mỗi repository một URL: gin kiểm tra từng pull request và ghi chúng cùng nhau. Không có chính sách `ship`, bằng chứng là văn bản tự do, ví dụ một merge commit cho mỗi repository, và gin không kiểm tra. Một epic là shipped khi bead cha của nó được đóng sau các lần merge do con người xác nhận.
 
 ## Kỹ sư backend và frontend { #backend-and-frontend-engineers }
 
-Mở: `<parent>/.planning/worktrees/<track-id>`. Đó là worktree của một service hoặc một app, không có gì khác.
+Mở: `<parent>/.planning/worktrees/<track-id>`. Ở team mode, `<track-id>` là `<epic>-<lane>`, worktree của lane. Đó là worktree của một service hoặc một app, không có gì khác.
 
 | Stage | Lệnh |
 |---|---|
-| Tìm track | `gin task` hoặc `/gin:progress` từ bất kỳ đâu trong workspace liệt kê các track sẵn sàng; worktree của một track là `<parent>/.planning/worktrees/<track-id>` |
-| Triển khai | `/gin:execute` trong worktree; commit và push vào repository đó. Ở team mode, chạy `gin team claim <bead>` từ checkout của repository cha (hoặc một worktree của nó) trên `feat/<topic>`; lệnh tạo worktree |
+| Tìm track | `gin task` hoặc `/gin:progress` từ bất kỳ đâu trong workspace liệt kê các track sẵn sàng; worktree của một track là `<parent>/.planning/worktrees/<track-id>` (`<epic>-<lane>` ở team mode) |
+| Triển khai | `/gin:execute` trong worktree; commit và push vào repository đó. Ở team mode, chạy `gin team claim <bead>` từ checkout của repository cha (hoặc một worktree của nó) trên `feat/<topic>`; lệnh tạo worktree của lane `.planning/worktrees/<epic>-<lane>` |
 | Review | `/gin:review` trong worktree. Khi review ledger bật, ledger được ghi vào `.planning/reviews/<bead>/` của repository cha; ở team mode, chạy `git pull --rebase` trước và commit rồi push thư mục đó sau mỗi phiên ledger (quy ước của skill `team`) |
 | Thay đổi nhỏ | `/gin:quick` bên trong repository con; nó commit trên một branch của repository con và chạy check của repository con đó |
 

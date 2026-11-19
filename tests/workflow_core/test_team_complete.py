@@ -44,6 +44,16 @@ def show(root: Path, bead: str) -> dict:
 HAS_BD = shutil.which("bd") is not None
 
 
+LOGIN_PLAN = ".planning/plans/2026-11-14-login.md"
+ORDER_PLAN = ".planning/plans/2026-11-14-order.md"
+
+
+def merged_rule(url: str, tracks: str, plan: str = LOGIN_PLAN) -> dict:
+    """The merged-search answer for one merged pull request whose body lists `tracks` of `plan`."""
+    return {"argv": ["pr", "list", "--state", "merged"], "stdout": [
+        {"url": url, "mergeCommit": {"oid": "m" * 40}, "body": f"Plan: {plan}\nTracks: {tracks}\n"}]}
+
+
 @unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestTeamComplete(unittest.TestCase):
     @classmethod
@@ -87,14 +97,11 @@ class TestTeamComplete(unittest.TestCase):
         ])
 
     def test_both_tracks_closed_and_both_pull_requests_merged(self):
-        self.gh(
-            {"argv": ["pr", "list", "--head", "feat/login-t1"],
-             "stdout": [{"url": "https://github.com/org/app/pull/1", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-            {"argv": ["pr", "list", "--head", "feat/login-t2"],
-             "stdout": [{"url": "https://github.com/org/app/pull/2", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-        )
+        self.gh({"argv": ["pr", "list", "--state", "merged"], "stdout": [
+            {"url": "https://github.com/org/app/pull/1", "mergeCommit": {"oid": "m" * 40},
+             "body": f"Plan: {LOGIN_PLAN}\nTracks: 1\n"},
+            {"url": "https://github.com/org/app/pull/2", "mergeCommit": {"oid": "m" * 40},
+             "body": f"Plan: {LOGIN_PLAN}\nTracks: 2\n"}]})
         result = run_cli_subprocess(self.root, "team", "complete", self.epic, env=self.env)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn(f"completed {self.epic}", result.stdout)
@@ -107,31 +114,33 @@ class TestTeamComplete(unittest.TestCase):
         self.assertIn("https://github.com/org/app/pull/1", reason)
         self.assertIn("https://github.com/org/app/pull/2", reason)
 
-    def test_one_pull_request_open_leaves_epic_open_and_exits_1(self):
-        self.gh(
-            {"argv": ["pr", "list", "--head", "feat/login-t1"],
-             "stdout": [{"url": "https://github.com/org/app/pull/1", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-            {"argv": ["pr", "list", "--head", "feat/login-t2"],
-             "stdout": [{"url": "https://github.com/org/app/pull/2", "state": "OPEN",
-                         "mergeCommit": None}]},
-        )
+    def test_one_lane_pull_request_listing_both_tracks_completes_with_one_url(self):
+        self.gh(merged_rule("https://github.com/org/app/pull/1", "1, 2"))
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn(f"completed {self.epic}", result.stdout)
+        self.assertEqual(1, result.stdout.count("merged https://github.com/org/app/pull/1"))
+        self.assertEqual("closed", show(self.root, self.epic)["status"])
+        self.assertEqual("shipped: https://github.com/org/app/pull/1", show(self.root, self.epic).get("close_reason"))
+
+    def test_track_no_merged_pull_request_lists_leaves_epic_open_and_exits_1(self):
+        self.gh(merged_rule("https://github.com/org/app/pull/1", "1"))
         result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
         self.assertEqual(1, result.returncode, result.stdout + result.stderr)
         self.assertIn(f"incomplete {self.epic}", result.stdout)
-        self.assertIn("missing feat/login-t2: open", result.stdout)
+        self.assertIn(f"missing {self.t2} ({LOGIN_PLAN}#2): no merged pull request lists it", result.stdout)
         self.assertEqual("open", show(self.root, self.epic)["status"])
+
+    def test_pull_request_naming_another_plan_delivers_no_track(self):
+        self.gh(merged_rule("https://github.com/org/app/pull/1", "1, 2", plan=".planning/plans/2026-11-14-cart.md"))
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn(f"missing {self.t1} ({LOGIN_PLAN}#1): no merged pull request lists it", result.stdout)
+        self.assertIn(f"missing {self.t2} ({LOGIN_PLAN}#2): no merged pull request lists it", result.stdout)
 
     def test_one_track_bead_open_leaves_epic_open_and_exits_1(self):
         bd(self.root, "reopen", self.t2)
-        self.gh(
-            {"argv": ["pr", "list", "--head", "feat/login-t1"],
-             "stdout": [{"url": "https://github.com/org/app/pull/1", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-            {"argv": ["pr", "list", "--head", "feat/login-t2"],
-             "stdout": [{"url": "https://github.com/org/app/pull/2", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-        )
+        self.merged_gh()
         result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
         self.assertEqual(1, result.returncode, result.stdout + result.stderr)
         self.assertIn(f"incomplete {self.epic}", result.stdout)
@@ -166,14 +175,8 @@ class TestTeamComplete(unittest.TestCase):
         self.assertIn(f"{self.t1} is not an epic", result.stderr)
 
     def merged_gh(self) -> None:
-        self.gh(
-            {"argv": ["pr", "list", "--head", "feat/login-t1"],
-             "stdout": [{"url": "https://github.com/org/app/pull/1", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-            {"argv": ["pr", "list", "--head", "feat/login-t2"],
-             "stdout": [{"url": "https://github.com/org/app/pull/2", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
-        )
+        self.gh({"argv": ["pr", "list", "--state", "merged"], "stdout": [
+            merged_rule(f"https://github.com/org/app/pull/{n}", str(n))["stdout"][0] for n in (1, 2)]})
 
     def test_open_prep_child_is_closed_with_a_reason_before_the_epic(self):
         prep = create(self.root, "Capture notes", "prep", parent=self.epic)
@@ -282,9 +285,7 @@ class TestTeamCompleteWorkspace(unittest.TestCase):
 
         # Track 1 PR is merged in child repo, but parent feat/order PR is OPEN
         self.gh(
-            {"argv": ["pr", "list", "--head", "feat/order-t1"],
-             "stdout": [{"url": "https://github.com/org/child/pull/1", "state": "MERGED",
-                         "mergeCommit": {"oid": "m" * 40}}]},
+            merged_rule("https://github.com/org/child/pull/1", "1", plan=ORDER_PLAN),
             {"argv": ["pr", "list", "--head", "feat/order"],
              "stdout": [{"url": "https://github.com/org/parent/pull/10", "state": "OPEN",
                          "mergeCommit": None}]},
@@ -310,8 +311,7 @@ class TestTeamCompleteWorkspace(unittest.TestCase):
         git(self.root, "push", "-q", "origin", f"feat/{topic}")
 
     def track_pr(self, topic: str, url: str) -> dict:
-        return {"argv": ["pr", "list", "--head", f"feat/{topic}-t1"],
-                "stdout": [{"url": url, "state": "MERGED", "mergeCommit": {"oid": "m" * 40}}]}
+        return merged_rule(url, "1", plan=f".planning/plans/2026-11-14-{topic}.md")
 
     def test_merged_parent_pull_request_is_listed_in_the_close_reason(self):
         self.push_parent_branch("order")

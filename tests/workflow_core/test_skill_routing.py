@@ -371,6 +371,12 @@ class SkillRoutingTests(unittest.TestCase):
             return (SRC / rel).read_text(encoding="utf-8")
 
         self.assertIn("references/workspace.md", read("skills/team/SKILL.md"))
+        self.assertIn("references/lanes.md", read("skills/team/SKILL.md"))
+        lanes = read("skills/team/references/lanes.md")
+        for needle in ("feat/<topic>-<lane>", "## Contracts", "external: <plan path>#<N>",
+                       "gin team claim <bead>", "Tracks:"):
+            with self.subTest(lanes=needle):
+                self.assertIn(needle, lanes)
         ref = read("skills/team/references/workspace.md")
         for needle in ("gin team claim <bead>", "gin team complete <epic>",
                        "git pull --rebase", "origin/<default_branch>"):
@@ -495,7 +501,7 @@ class LeanLifecycleSkillTests(unittest.TestCase):
 
     def test_tracks_push_only_in_team_mode(self):
         execute = read("skills/execute/SKILL.md")
-        self.assertTrue(line_with(execute, "In team mode a track pushes its branch (its PR)"))
+        self.assertTrue(line_with(execute, "In team mode a track pushes its lane branch and returns"))
         self.assertTrue(line_with(execute, "merged at ship and not pushed, so the suite runs once"))
         self.assertTrue(line_with(execute, "Commit any remaining changes (stage-contract Git)."))
         self.assertTrue(line_with(execute, "`feat/<topic>`", "a standalone bead: `feat/<bead-id>` from the base"))
@@ -535,11 +541,11 @@ class LeanLifecycleSkillTests(unittest.TestCase):
                                   "Commit in this worktree only (push only in team mode, stage-contract Git)"))
         self.assertNotIn("Commit and push in this worktree only", read("skills/worktrees/SKILL.md"))
 
-    def test_team_review_opens_the_pr_before_review(self):
+    def test_team_review_needs_no_pull_request(self):
         team = read("skills/team/SKILL.md")
         review = team[team.index("## review"):team.index("## ship")]
-        self.assertIn("Without the ledger, push the track branch and open its PR (stage-contract Approvals) "
-                      "before requesting review; that member posts", review)
+        self.assertIn("by the agent `gin reviewer` picks: no PR and no other member", review)
+        self.assertNotIn("open its PR", review)
 
     def test_team_and_roadmap_handle_host_approvals(self):
         team = read("skills/team/SKILL.md")
@@ -548,8 +554,8 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         self.assertTrue(line_with(team, "With `host`, ask no approver", "branch protection enforces approvals"))
         self.assertTrue(line_with(team, "(roles, `{all, any}`, `area_lead`, or `host`)"))
         review = team[team.index("## review"):team.index("## ship")]
-        for needle in ("`project.review: self_check`", "Without the ledger", "review on the track's PR",
-                       "`review-response`", "naming the reviewer", "`project.review_ledger: true`"):
+        for needle in ("`gin reviewer`", "`review-response`", "`project.review_ledger: true`",
+                       "reviews the lane's PR at ship"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, review)
         roadmap = read("skills/roadmap/SKILL.md")
@@ -569,7 +575,7 @@ class LeanLifecycleSkillTests(unittest.TestCase):
         self.assertTrue(line_with(progress, "close reason"))
         team = read("skills/team/SKILL.md")
         self.assertTrue(line_with(team, "`start-review`", "`project.review_ledger: true`"))
-        self.assertTrue(line_with(team, "track owner", "another member"))
+        self.assertTrue(line_with(team, "`start-review`", "`gin reviewer`", "refuses the owner"))
         self.assertTrue(line_with(read("skills/orchestrate/SKILL.md"), "review ledgers", "`project.review_ledger: true`"))
 
     def test_quick_scopes_tests_by_run_at(self):

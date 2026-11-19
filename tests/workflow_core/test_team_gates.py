@@ -622,6 +622,34 @@ class TestPlanChecks(unittest.TestCase):
                          [(t.number, t.title, t.area, t.owner, t.files) for t in tracks])
         self.assertEqual([], check_plan(self.team, path))
 
+    def test_lane_is_parsed_and_checked(self):
+        path = write(self.root, PLAN_PATH, PLAN)
+        self.assertEqual(["api", "web"], [t.lane for t in plan_tracks(path)])
+        self.assertEqual([], check_plan(self.team, path))
+        bold = write(self.root, PLAN_PATH, PLAN.replace("- Lane: api", "- **Lane**: `api`"))
+        self.assertEqual("api", plan_tracks(bold)[0].lane)
+
+    def test_missing_and_invalid_lane(self):
+        path = write(self.root, PLAN_PATH, PLAN.replace("- Lane: api\n", ""))
+        self.assertIn("Track 1: missing Lane:", check_plan(self.team, path))
+        for name in ("API", "t3", "-x"):
+            path = write(self.root, PLAN_PATH, PLAN.replace("- Lane: api", f"- Lane: {name}"))
+            self.assertIn(f"Track 1: invalid lane {name}", check_plan(self.team, path))
+
+    def test_lane_needs_one_owner_and_one_repository(self):
+        one = PLAN.replace("- Lane: web", "- Lane: api")
+        self.assertIn("lane api: tracks 1 and 2 have different owners",
+                      check_plan(self.team, write(self.root, PLAN_PATH, one)))
+        same = one.replace("- Owner: chi@corp.com", "- Owner: em@corp.com").replace(
+            "- Lane: api\n\n**Files:**\n- Create", "- Lane: api\n- Repo: services/a\n\n**Files:**\n- Create")
+        self.assertIn("lane api: tracks 1 and 2 are in different repositories",
+                      check_plan(self.team, write(self.root, PLAN_PATH, same)))
+        config = yaml.safe_load((self.root / ".agent-workflow/config.yaml").read_text())
+        config["team"]["beads_sync"] = {"remote": "file:///tmp/x"}
+        unowned = one.replace("- Owner: chi@corp.com\n", "")
+        self.assertIn("lane api: tracks 1 and 2 have different owners",
+                      check_plan(load_team(config), write(self.root, PLAN_PATH, unowned)))
+
     def test_local_mode_requires_owner(self):
         path = write(self.root, PLAN_PATH, PLAN.replace("- Owner: chi@corp.com\n", ""))
         self.assertIn("Track 2: missing Owner: (required when Beads are not shared)", check_plan(self.team, path))
@@ -644,15 +672,15 @@ class TestPlanChecks(unittest.TestCase):
         self.assertEqual([], check_plan(self.team, path))
 
     def test_area_and_owner_after_a_files_block_are_metadata(self):
-        plan = PLAN.replace("**Metadata:**\n- Area: frontend\n- Owner: chi@corp.com\n\n**Files:**\n- Modify: `web/login.tsx:10-20`\n",
-                            "**Files:**\n- Modify: `web/login.tsx:10-20`\n- **Area**: frontend\n- **Owner**: chi@corp.com\n")
+        plan = PLAN.replace("**Metadata:**\n- Area: frontend\n- Owner: chi@corp.com\n- Lane: web\n\n**Files:**\n- Modify: `web/login.tsx:10-20`\n",
+                            "**Files:**\n- Modify: `web/login.tsx:10-20`\n- **Area**: frontend\n- **Owner**: chi@corp.com\n- **Lane**: web\n")
         path = write(self.root, PLAN_PATH, plan)
         self.assertEqual((2, "frontend", "chi@corp.com", ("web/login.tsx",)),
                          (lambda t: (t.number, t.area, t.owner, t.files))(plan_tracks(path)[1]))
         self.assertEqual([], check_plan(self.team, path))
 
     def test_plan_schema_files_block_ignores_notes(self):
-        plan = ("# Plan: Login\n\n## Tasks\n\n### Track 1: API\n- **Area**: backend\n- **Owner**: em@corp.com\n"
+        plan = ("# Plan: Login\n\n## Tasks\n\n### Track 1: API\n- **Area**: backend\n- **Owner**: em@corp.com\n- **Lane**: api\n"
                 "- **Files**:\n  - Create `services/auth/login.py`\n"
                 "  - Modify `services/auth/session.py:10-20` (the `refresh` helper next to `web/shared.ts`)\n"
                 "  - Test `tests/services/test_login.py`, `tests/services/test_session.py`\n"

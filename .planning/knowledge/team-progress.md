@@ -5,7 +5,7 @@ Epic `gin-workflow-team-progress` (2026-11-14). A team lead could not see from `
 
 **Decision/Solution**
 - `gin team pending [--workflow-id <epic> | --milestone <id>] [--format json]` (`workflow_core/team_pending.py`) lists open gate pull requests and what they still need. It works only in team mode.
-  - Candidates come from one `bd list --all --limit 0`: `spec/<topic>` and `plan/<topic>` branches for epics, track branches for open tracks, and `feat/<topic>` for an epic whose tracks are all closed (`/ship` needs `implementation_complete`, so the ship pull request is never open while a track is).
+  - Candidates come from one `bd list --all --limit 0`: `spec/<topic>` and `plan/<topic>` branches for epics, track branches for open tracks (since `gin-workflow-ifbt`, one `feat/<topic>-<lane>` per lane with an open track; see [team-lanes](team-lanes.md)), and `feat/<topic>` for an epic whose tracks are all closed (`/ship` needs `implementation_complete`, so the ship pull request is never open while a track is).
   - Hosts look a pull request up only by exact branch name (`pr_for_branch`, newest of any state). `PrInfo` has no creation date, and gin stores a gate's pull request only after the gate is proven, so pending rows come from the host, not from Beads.
   - The spec or plan text of an unmerged pull request is read with `git fetch origin refs/heads/<branch>` and `git show FETCH_HEAD:<file>`; a remote-tracking ref does not exist without that fetch.
   - `missing` reuses `team.verify_gate`, which gained keyword-only `before_merge` and `artifact_text`; their defaults keep `gin team check` unchanged.

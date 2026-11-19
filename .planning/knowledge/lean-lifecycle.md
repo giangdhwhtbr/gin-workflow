@@ -9,7 +9,7 @@ Epic `gin-workflow-ws-ship-records` (2026-11-15), renamed from "several pull req
 - `gin team deps` reads the blocking track's `Repo:` from the plan file and searches that repository's checkout; it records `repo` (`.` for the parent in a workspace). `deps --bead` checks HEAD for the same repository or a placeholder without `repo`, else `origin/<default_branch>` of the other repository.
 - `verify.run_at` (`track`, `push`, `host`; `project.run_at` in `gin state`): defaults `push` for `easy` and `standard`, `track` for `strict`. `push`: tracks run only the tests of what they changed, and ship runs `gin evidence run` once on the feature branch before `git checkout <base>`; the pre-push hook reuses that record. `host`: the pre-push hook and `gin evidence run` run nothing, and `gin hooks status` is ok without commands.
 - Skills follow four settings from `gin state`: `run_at`, `review_ledger`, `review`, `worktree`. With the ledger off there is no `review-ledger.py` command; the reviewer reports a verdict and findings, and the close reason names the reviewer, cycles, and findings. The ledger procedure lives in `skills/review/ledger.md`, named in backticks so it loads on demand. `project.worktree: parallel` gives tracks worktrees only for a parallel strategy; otherwise tracks commit on `feat/<topic>`.
-- Only team mode pushes a track branch. Outside team mode and a workspace, ship merges track branches into `feat/<topic>` after its checks, then runs the suite. In team mode without the ledger, another member reviews on the track's pull request, opened before the review request.
+- Only team mode pushes a track branch. Outside team mode and a workspace, ship merges track branches into `feat/<topic>` after its checks, then runs the suite. In team mode without the ledger, another member reviewed on the track's pull request, opened before the review request; since `gin-workflow-ifbt` an agent reviews each track and a person reviews the lane's pull request ([team-lanes](team-lanes.md)).
 - This epic ran that way: 5 tracks on one branch, no ledger, 10 reviewer runs, and the full suite once at ship.
 
 **Consequences**
@@ -20,7 +20,7 @@ Epic `gin-workflow-ws-ship-records` (2026-11-15), renamed from "several pull req
 - When a policy value is added in code, grep every skill for the old condition wording ("lists roles"); `host` needed "has a policy" in the team and roadmap skills.
 - `workflow_core/budget.py` counts a file in a stage chain when the skill links it or mentions `references/<name>.md`; a subagent without the Skill tool needs the absolute path of an on-demand file in its brief.
 - Budgets are nearly spent: execute 11,977 and ship 11,978 of 12,000; the team skill about 5,984 of 6,000; the roadmap skill 11,985 of 12,000.
-- Open: when ship runs from the `feat/<topic>` checkout (`IS_WORKTREE=no`), merged track worktrees and `-t<N>` branches are not cleaned up; `gin team complete` still checks only that pull requests merged; branch protection is configured by hand.
+- Open: when ship runs from the `feat/<topic>` checkout (`IS_WORKTREE=no`), merged track worktrees and `-t<N>` branches are not cleaned up; `gin team complete` checks only that merged pull requests list each track in `Tracks:`; branch protection is configured by hand.
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/{team,team_beads,team_pending,team_cli,lifecycle_cli,project,hooks,schemas,setup_service}.py`

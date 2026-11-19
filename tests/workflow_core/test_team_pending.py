@@ -200,6 +200,15 @@ class TestTrackRows(PendingCase):
                            "epic": "e-1", "approvals": ["binh-dev"], "missing": [], "notes": []}], self.pending())
 
 
+    def test_two_tracks_of_one_lane_give_one_row_on_the_lane_branch(self):
+        lane = f"Plan: {PLAN_PATH}, Track %d\nLane: web\n"
+        self.bd({**TRACK, "id": "e-1.2", "description": lane % 2}, {**TRACK, "id": "e-1.3", "description": lane % 3})
+        self.gh(("feat/login-web", gh_pr(PR_TRACK, state="OPEN", author="em-dev", files=["web/login.tsx"])))
+        rows = self.pending()
+        self.assertEqual(1, len(rows))
+        self.assertEqual(("feat/login-web", None), (rows[0]["branch"], rows[0]["gate"]))
+
+
 class TestFiltersAndErrors(PendingCase):
     def test_workflow_id_and_milestone_keep_the_rows_of_those_epics(self):
         self.bd(milestone_epics=("e-1",))

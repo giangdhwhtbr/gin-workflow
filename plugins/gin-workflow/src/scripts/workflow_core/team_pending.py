@@ -12,6 +12,7 @@ from .team import TeamConfig, TeamError
 from .team_host import HostUnavailable
 
 _TRACK_LINE = re.compile(r"^Plan:\s*`?([^`,\n]+?)`?,\s*Track\s+(\d+)\b", re.MULTILINE)
+_LANE_LINE = re.compile(r"^Lane:\s*`?([a-z0-9][a-z0-9-]*)`?\s*$", re.MULTILINE)
 _EPIC_LINE = re.compile(r"^(?:Epic|Workflow):\s*(\S+)", re.MULTILINE)
 _GATES = {"spec": "requirement_confirmed", "plan": "plan_approved", "ship": "ship", "quick": "ship", "track": None}
 
@@ -39,10 +40,27 @@ def topic_of(plan_path: str) -> str:
     return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", Path(plan_path).stem)
 
 
+def track_lane(description: str) -> tuple[str, int, str, bool] | None:
+    """(plan path, track number, lane, named) of a track bead description. The lane is its `Lane:` line, else
+    the implicit `t<N>` with `named` False (a bead orchestrated before lanes). None without a
+    `Plan: <path>, Track <N>` line."""
+    track = _TRACK_LINE.search(description)
+    if track is None:
+        return None
+    lane = _LANE_LINE.search(description)
+    return track[1], int(track[2]), lane[1] if lane else f"t{track[2]}", lane is not None
+
+
+def lane_branch(description: str) -> str | None:
+    """`feat/<topic>-<lane>` of a track bead description; None for a bead that is no track."""
+    found = track_lane(description)
+    return None if found is None else f"feat/{topic_of(found[0])}-{found[2]}"
+
+
 def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]:
     """(branch, kind, epic) in text order: remote `spec/*`, `plan/*`, and `quick/*` heads (epic read later or none), `feat/<topic>` per
-    open epic with track beads of any status when the ship gate has a policy, and `feat/<topic>-t<N>` per open track
-    bead."""
+    open epic with track beads of any status when the ship gate has a policy, and `feat/<topic>-<lane>` per lane with
+    an open track bead."""
     heads = [line.split("\trefs/heads/", 1)[1] for line in git(root, "ls-remote", "--heads", "origin").splitlines()
              if "\trefs/heads/" in line]
     found: list[tuple[str, str, str | None]] = [(head, "spec", None) for head in heads if head.startswith("spec/")]
@@ -53,13 +71,14 @@ def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]
     tracks: dict[str, str] = {}
     topics: dict[str, str] = {}
     for bead in beads:
-        match = _TRACK_LINE.search(bead.get("description") or "")
+        description = bead.get("description") or ""
+        found_lane = track_lane(description)
         epic = bead.get("parent")
-        if not (epic and match):
+        if not (epic and found_lane):
             continue
-        topic = topic_of(match[1])
+        topic = topic_of(found_lane[0])
         if bead["id"] in live:
-            tracks[f"feat/{topic}-t{match[2]}"] = epic
+            tracks[lane_branch(description)] = epic
         if epic in live:
             topics.setdefault(epic, topic)
     if team_core.has_policy("ship", team):

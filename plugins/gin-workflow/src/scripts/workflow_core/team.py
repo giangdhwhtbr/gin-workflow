@@ -225,15 +225,23 @@ class Track:
     files: tuple[str, ...]
     repo: str = ""
     reads: tuple[str, ...] = ()
+    lane: str = ""
 
 
 _TRACK = re.compile(r"^### Track (\d+):\s*(.*)$")
-_META = re.compile(r"^-\s*(?:\*\*)?(Area|Owner|Repo)(?:\*\*)?:\s*`?([^`\s]+)`?\s*$")
+_META = re.compile(r"^-\s*(?:\*\*)?(Area|Owner|Repo|Lane)(?:\*\*)?:\s*`?([^`\s]+)`?\s*$")
 _READS = re.compile(r"^-\s*(?:\*\*)?Reads(?:\*\*)?:\s*(.*)$")
 _FILES_LABEL = re.compile(r"^(-\s*)?(?:\*\*)?Files(?:\*\*)?:(?:\*\*)?\s*(.*)$")
 _VERB = re.compile(r"^(?:Create|Modify|Test|Delete)\b:?\s*")
 _PATH = re.compile(r"`([^`\s]+)`")
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+_LANE = re.compile(r"[a-z0-9][a-z0-9-]*")
+_IMPLICIT_LANE = re.compile(r"t\d+")
+
+
+def valid_lane(name: str) -> bool:
+    """A lane name: lowercase letters, digits and `-`, never `t<digits>` (the lane of a bead without `Lane:`)."""
+    return bool(_LANE.fullmatch(name)) and not _IMPLICIT_LANE.fullmatch(name)
 
 
 def _listed_paths(text: str) -> list[str]:
@@ -261,7 +269,7 @@ def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
         if current is not None:
             tracks.append(Track(current["number"], current["title"], current["area"], current["owner"],
                                 tuple(dict.fromkeys(current["files"])), current["repo"],
-                                tuple(dict.fromkeys(current["reads"]))))
+                                tuple(dict.fromkeys(current["reads"])), current["lane"]))
 
     for line in (Path(path).read_text(encoding="utf-8") if text is None else text).splitlines():
         opener = _FENCE.match(line)
@@ -276,7 +284,7 @@ def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
             close()
             current = None if not heading else {"number": int(heading.group(1)), "title": heading.group(2).strip(),
                                                  "area": "", "owner": "", "files": [], "repo": "",
-                                                 "reads": []}
+                                                 "reads": [], "lane": ""}
             files_indent = None
             continue
         if current is None:
@@ -330,6 +338,21 @@ def check_plan(team: TeamConfig, path: Path, text: str | None = None) -> list[st
                 errors.append(f"{label}: owner {track.owner} is not in team.members")
             elif track.area in team.areas and not team.eligible(member, team.areas[track.area]):
                 errors.append(f"{label}: owner {track.owner} holds no role allowed in area {track.area}")
+    lanes: dict[str, list[Track]] = {}
+    for track in tracks:
+        if not track.lane:
+            errors.append(f"Track {track.number}: missing Lane:")
+        elif not valid_lane(track.lane):
+            errors.append(f"Track {track.number}: invalid lane {track.lane}")
+        else:
+            lanes.setdefault(track.lane, []).append(track)
+    for name, members in lanes.items():
+        first = members[0]
+        for other in members[1:]:
+            if other.owner.lower() != first.owner.lower():
+                errors.append(f"lane {name}: tracks {first.number} and {other.number} have different owners")
+            if (other.repo or ".") != (first.repo or "."):
+                errors.append(f"lane {name}: tracks {first.number} and {other.number} are in different repositories")
     listed: dict[str, list[int]] = {}
     for track in tracks:
         for item in track.files:

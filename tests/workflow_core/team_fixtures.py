@@ -46,6 +46,7 @@ PLAN = """# Plan: Login
 **Metadata:**
 - Area: backend
 - Owner: em@corp.com
+- Lane: api
 
 **Files:**
 - Create: `services/auth/login.py`
@@ -55,6 +56,7 @@ PLAN = """# Plan: Login
 **Metadata:**
 - Area: frontend
 - Owner: chi@corp.com
+- Lane: web
 
 **Files:**
 - Modify: `web/login.tsx:10-20`

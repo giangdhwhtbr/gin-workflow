@@ -40,8 +40,5 @@ Read [delegation policy](references/delegation-policy.md) and [result contract](
 ## 4. Complete
 1. Request review (the `review` skill) as its implementer and wait for its outcome.
 2. Once tests and review pass, run `gin usage collect --bead <id> --best-effort`, then close the track bead with `gin task close <id> --reason "<evidence>"` naming the reviewer (or `self_check`), cycle count, and finding count; this unblocks dependents and needs no PR or merge.
-3. Commit any remaining changes (stage-contract Git). With `project.review_ledger: true`, run `python3 review-ledger.py push-refs --bead-id <id>`. Never report "waiting for PR merge" without a real PR link. In team mode a track pushes its branch (its PR) and stops at handoff with two options:
-   1. Ask for the command to create a PR from the pushed feature branch.
-   2. Keep the pushed feature branch and continue with the next track, using the artifact just produced.
-   Otherwise its branch is merged at ship and not pushed, so the suite runs once.
+3. Commit any remaining changes (stage-contract Git). With `project.review_ledger: true`, run `python3 review-ledger.py push-refs --bead-id <id>`. Never report "waiting for PR merge" without a real PR link. In team mode a track pushes its lane branch and returns; ship opens the lane's PR (the `team` skill). Otherwise its branch is merged at ship and not pushed, so the suite runs once.
 4. Return `implementation_complete`. Do not invoke `ship`.

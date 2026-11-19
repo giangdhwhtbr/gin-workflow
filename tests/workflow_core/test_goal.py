@@ -4,16 +4,22 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+import shutil
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from workflow_core.cli import main as cli_main
-from workflow_core.goal import goal_text
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from team_fixtures import git, make_team_repo  # noqa: E402
+from workflow_core.cli import main as cli_main  # noqa: E402
+from workflow_core.goal import goal_text  # noqa: E402
 
 
-def track(bead, status="open", labels=(), blocked_by=()):
-    return {"id": bead, "title": f"title {bead}", "status": status, "labels": list(labels),
+def track(bead, status="open", labels=(), blocked_by=(), assignee="", description="", title=None):
+    return {"id": bead, "title": title or f"title {bead}", "status": status, "labels": list(labels),
+            "assignee": assignee, "description": description,
             "dependencies": [{"depends_on_id": "epic", "type": "parent-child"}]
             + [{"depends_on_id": dep, "type": "blocks"} for dep in blocked_by]}
 
@@ -61,6 +67,62 @@ class TestGoalText(unittest.TestCase):
 
     def test_no_goal_when_every_track_is_closed(self):
         self.assertFalse(goal_text("epic", [track("e.1", "closed")], "wf", True).startswith("/goal"))
+
+
+def lane_desc(lane, number=1):
+    return f"Plan: p.md, Track {number}\nLane: {lane}"
+
+
+class TestGoalTeam(unittest.TestCase):
+    ME = "a@corp.com"
+
+    def test_member_goal_covers_only_their_tracks(self):
+        tracks = [track("e.1", assignee=self.ME), track("e.2", assignee=self.ME), track("e.3", assignee="b@corp.com")]
+        text = goal_text("epic", tracks, "wf", False, member=self.ME)
+        self.assertIn("tracks e.1, e.2 of epic epic", text)
+        self.assertNotIn("e.3", text)
+        self.assertIn("`git status -sb`", text)
+        self.assertIn("not ahead of `origin", text)
+        self.assertNotIn("implementation_complete", text)
+
+    def test_lane_covers_own_and_unassigned_tracks_of_that_lane(self):
+        tracks = [track("e.1", assignee=self.ME, description=lane_desc("be")),
+                  track("e.2", description=lane_desc("be", 2)),
+                  track("e.3", assignee=self.ME, description=lane_desc("fe", 3)),
+                  track("e.4", description=lane_desc("be", 4), assignee="b@corp.com")]
+        text = goal_text("epic", tracks, "wf", False, member=self.ME, lane="be")
+        self.assertIn("tracks e.1, e.2 of epic epic", text)
+        self.assertNotIn("e.3", text)
+        self.assertNotIn("e.4", text)
+
+    def test_tracks_behind_a_waiting_lane_are_not_started(self):
+        tracks = [track("e.1", assignee=self.ME), track("e.2", assignee=self.ME, blocked_by=["x.1"]),
+                  track("e.3", assignee=self.ME, blocked_by=["e.2"])]
+        text = goal_text("epic", tracks, "wf", False, member=self.ME, waiting=frozenset({"x.1"}))
+        self.assertIn("tracks e.1 of epic epic", text)
+        self.assertTrue(text.endswith(" Do not start e.2, e.3: they wait for another lane to merge."))
+
+    def test_human_and_waiting_sentences_come_in_that_order(self):
+        tracks = [track("e.1", assignee=self.ME), track("e.2", assignee=self.ME, labels=["human-gate"]),
+                  track("e.3", assignee=self.ME, blocked_by=["x.1"])]
+        text = goal_text("epic", tracks, "wf", False, member=self.ME, waiting=frozenset({"x.1"}))
+        self.assertLess(text.index("e.2: they need a human"), text.index("e.3: they wait for another lane"))
+
+    def test_nothing_assigned(self):
+        self.assertEqual("No goal: a@corp.com has no open track in epic epic.",
+                         goal_text("epic", [track("e.1", assignee="b@corp.com")], "wf", False, member=self.ME))
+        self.assertEqual("No goal: a@corp.com has no open track in lane be of epic epic.",
+                         goal_text("epic", [track("e.1", assignee=self.ME)], "wf", False, member=self.ME, lane="be"))
+
+    def test_everything_waits(self):
+        text = goal_text("epic", [track("e.1", assignee=self.ME, blocked_by=["x.1"])], "wf", False,
+                         member=self.ME, waiting=frozenset({"x.1"}))
+        self.assertEqual("No goal: every open track of epic epic assigned to a@corp.com waits on a human "
+                         "or on another lane to merge: e.1.", text)
+
+    def test_external_bead_is_never_named(self):
+        tracks = [track("e.1", assignee=self.ME), track("x.1", assignee=self.ME, title="external: p.md#2")]
+        self.assertNotIn("x.1", goal_text("epic", tracks, "wf", False, member=self.ME))
 
 
 class TestGoalCommand(unittest.TestCase):
@@ -129,6 +191,43 @@ class TestGoalCommand(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertIn("/goal tracks epic of epic epic", out)
         self.assertNotIn("e.prep", out)
+
+    def run_team_goal(self, email, *extra):
+        self.record("epic")
+        team = make_team_repo(Path(self.tmp.name) / "team", email=email)
+        shutil.copy(team / ".agent-workflow/config.yaml", self.repo / ".agent-workflow/config.yaml")
+        git(self.repo, "init", "-q", "-b", "main")
+        git(self.repo, "config", "user.email", email)
+        beads = lambda root, argv: [track("e.1", assignee="binh@corp.com", description=lane_desc("be")),
+                                    track("e.2", assignee="chi@corp.com", description=lane_desc("fe", 2))]
+        with patch("workflow_core.goal.query", beads), patch("sys.stdout", new=io.StringIO()) as out, \
+                patch("sys.stderr", new=io.StringIO()) as err:
+            code = cli_main(["goal", "--workflow-id", "wf", "--repository", str(self.repo), *extra])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_team_mode_passes_the_member(self):
+        code, out, _ = self.run_team_goal("binh@corp.com")
+        self.assertEqual(0, code)
+        self.assertIn("tracks e.1 of epic epic", out)
+        self.assertNotIn("e.2", out)
+
+    def test_team_mode_lane_option(self):
+        code, out, _ = self.run_team_goal("binh@corp.com", "--lane", "fe")
+        self.assertEqual(0, code)
+        self.assertIn("has no open track in lane fe of epic epic", out)
+
+    def test_team_mode_rejects_a_stranger(self):
+        code, out, err = self.run_team_goal("who@else.com")
+        self.assertEqual(1, code)
+        self.assertIn("error: git user.email is not in team.members", err)
+
+    def test_lane_needs_team_mode(self):
+        self.record("epic")
+        with patch("sys.stderr", new=io.StringIO()) as err:
+            with patch("workflow_core.goal.query", lambda root, argv: [track("e.1")]):
+                code = cli_main(["goal", "--workflow-id", "wf", "--repository", str(self.repo), "--lane", "be"])
+        self.assertEqual(1, code)
+        self.assertIn("error: --lane needs team mode", err.getvalue())
 
     def test_goal_uses_tracks_of(self):
         from unittest.mock import patch

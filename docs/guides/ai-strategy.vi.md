@@ -63,8 +63,8 @@ Khi hết quota, workflow vẫn tiếp tục từ dòng lệnh: bead, claim, wor
 ```mermaid
 flowchart LR
   A["Quota out"] --> B{"Who?"}
-  B -->|"one member"| C["team reassign"]
-  C --> D["git worktree add<br/>team claim"]
+  B -->|"one member"| C["team handoff"]
+  C --> D["team takeover"]
   B -->|"everyone, plan approved"| E["task create<br/>record orchestration-ready"]
   E --> F["claim, worktree,<br/>implement"]
   D --> F
@@ -75,19 +75,16 @@ flowchart LR
 
 ### Bàn giao một track cho thành viên khác { #hand-a-track-to-another-member }
 
-Assignee hiện tại hoặc area lead chuyển track. Push branch trước.
+Assignee hiện tại hoặc area lead chạy một lệnh từ main checkout. Lệnh từ chối worktree còn thay đổi chưa commit, push branch và review ref, rồi giao lại bead. Với `--release`, bead quay về pool cho mọi thành viên:
 
 ```bash
-git push origin feat/<topic>-t<N>
-gin team reassign <bead> <email>
+gin team handoff <bead> <email>
 ```
 
-Owner mới checkout branch đã push. `gin worktree create` chỉ tạo branch mới, nên ở đây hãy dùng `git worktree add`:
+Owner mới nhận track bằng một lệnh từ main checkout của clone của họ; lệnh fetch branch, tạo worktree của lane `.planning/worktrees/<epic>-<lane>`, fetch review ref, và claim lane:
 
 ```bash
-git fetch origin
-git worktree add .planning/worktrees/<bead> feat/<topic>-t<N>
-gin team claim <bead>
+gin team takeover <bead>
 ```
 
 ### Tạo track bead bằng tay { #create-track-beads-by-hand }
@@ -103,12 +100,11 @@ gin record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<b
 ### Làm một track { #work-a-track }
 
 1. Tìm và claim một bead.
-   - Trong chế độ team, chạy `gin team deps`, `gin team ready`, và `gin team claim <bead>`. Claim ghi một lease.
+   - Trong chế độ team, chạy `gin team deps`, `gin team ready`, và `gin team claim <bead>`. Claim ghi một lease lên mọi track đang mở của lane chứa bead và tạo worktree của lane.
    - Trong chế độ solo, chạy `gin task ready` và `gin task update <bead> --claim`.
-2. Tạo worktree cho một branch mới và vào đó. Sau đó kiểm tra các track chặn đã merge.
+2. Vào worktree: trong chế độ team, `gin team claim` đã tạo nó; nếu không, tạo worktree cho một branch mới bằng `gin worktree create <bead> <branch>`. Sau đó kiểm tra các track chặn đã merge.
    ```bash
-   gin worktree create <bead> feat/<topic>-t<N>
-   cd .planning/worktrees/<bead>
+   cd .planning/worktrees/<epic>-<lane>
    gin team deps --bead <bead>
    ```
 3. Đọc `Files:` và `Interfaces:` của track trong plan, rồi liệt kê các rule áp dụng cho các path đó.
@@ -137,17 +133,17 @@ gin record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<b
    ```bash
    gin task close <bead> --waive-review "AI quota exhausted; peer reviewed in PR #<num>" --actor <your-email> --reason "Tests and PR review passed"
    ```
-7. Push `feat/<topic>-t<N>`. Hook `pre-push` chạy `test` ở rigor `easy`, `test` và `build` ở `standard`, và `test`, `build`, và `e2e` ở `strict`. Với Beads dùng chung, chạy `gin team sync`.
-8. Mở pull request và điền các trường `Plan:` và `Tracks:` của template, để `gin team deps` của đồng đội có thể resolve track.
+7. Push `feat/<topic>-<lane>` sau mỗi track, rồi claim track kế tiếp của lane. Hook `pre-push` chạy `test` ở rigor `easy`, `test` và `build` ở `standard`, và `test`, `build`, và `e2e` ở `strict`. Với Beads dùng chung, chạy `gin team sync`.
+8. Khi các track của lane đã đóng, mở một pull request cho lane và điền các trường `Plan:` và `Tracks:` của template với mọi track mà pull request giao, để `gin team deps` của đồng đội có thể resolve chúng.
 
 ### Kiểm tra gate ship { #check-the-ship-gate }
 
-Khi mọi pull request của track đã merge, kiểm tra gate và đóng epic.
+Khi mọi pull request của lane đã merge, kiểm tra gate và đóng epic.
 
 ```bash
 gin team check <pr-url> --gate ship
 gin task close <epic> --reason "All tracks merged"
-gin worktree cleanup <bead>
+gin worktree cleanup <epic>-<lane>
 ```
 
 Xem [chế độ team](team.md) cho claim và gate, và [tài liệu tham chiếu CLI](../reference/cli.md) cho mọi tùy chọn.
