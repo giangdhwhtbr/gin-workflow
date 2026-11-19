@@ -91,6 +91,34 @@ def _id_order(req_id: str) -> tuple[str, int]:
     return prefix, int(number)
 
 
+def _living(root: Path, cfg: Mapping[str, Any], cap: str | None, kind: str) -> list[specs.Block]:
+    return sorted((block for _, block in specs.living_blocks(root, cfg).values()
+                   if specs.type_of(block) == kind and (cap is None or block.cap == cap)),
+                  key=lambda block: (block.cap, _id_order(block.id)))
+
+
+def nonfunctional(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> list[dict[str, str]]:
+    """Non-functional living requirements by category order, then capability and number."""
+    rank = {name: index for index, name in enumerate(specs.NFR_CATEGORIES)}
+    blocks = sorted(_living(root, cfg, cap, "non-functional"),
+                    key=lambda block: rank.get(block.category, len(rank)))
+    return [{"id": b.id, "title": b.title, "capability": b.cap, "category": b.category, "measure": b.measure}
+            for b in blocks]
+
+
+def business_rules(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> list[dict[str, Any]]:
+    """Business-rule living requirements with their statement and the use cases citing them."""
+    blocks = _living(root, cfg, cap, "business-rule")
+    ids = {block.id for block in blocks}
+    citing: dict[str, list[str]] = {req: [] for req in ids}
+    for path in sorted(specs.specs_dir(root, cfg).glob(f"*/{specs.USE_CASES_DIR}/*.md")):
+        text = specs.read_text_or_none(path)
+        for req in set(specs.line_values(text or "", "Requirements")) & ids:
+            citing[req].append(f"{path.parent.parent.name}/{path.stem}")
+    return [{"id": b.id, "title": b.title, "capability": b.cap, "statement": specs.statement(b),
+             "use_cases": citing[b.id]} for b in blocks]
+
+
 def traceability(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> list[dict[str, Any]]:
     """One row per living requirement: its use cases, the test files and QA cases citing it, and coverage."""
     blocks = sorted((block for _, block in specs.living_blocks(root, cfg).values() if cap is None or block.cap == cap),
@@ -110,6 +138,7 @@ def traceability(root: Path, cfg: Mapping[str, Any], cap: str | None = None) -> 
             continue
         for req in {match.group(0) for match in specs.REQ_ID.finditer(text)} & ids:
             qa[req].append(case.group(1))
-    return [{"id": block.id, "title": block.title, "capability": block.cap, "use_cases": use_cases[block.id],
+    return [{"id": block.id, "title": block.title, "capability": block.cap,
+             "type": specs.type_of(block), "use_cases": use_cases[block.id],
              "tests": tests[block.id], "qa_cases": sorted(set(qa[block.id])),
              "status": "covered" if tests[block.id] or qa[block.id] else "missing"} for block in blocks]

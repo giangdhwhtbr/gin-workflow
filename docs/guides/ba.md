@@ -110,6 +110,31 @@ Acceptance is a team convention. Ship checks it with a warning only and continue
 
 The `capture` and `mockup` skills offer to save the dated folder before `/gin:discuss` commits it. On a yes, they run `gin commit` on that folder, which commits only the files in it. On `master` or `main`, or the workspace default branch, `gin commit` first creates a new branch. It never pushes. You or a developer push the branch and open the pull request. The options and exit codes are in the [`gin commit` reference](../reference/cli.md#gin-commit).
 
+## Non-functional requirements and business rules { #non-functional-requirements-and-business-rules }
+
+Write a requirement as non-functional when it limits how well the system works, not what it does: speed, security, availability. Write it as a business rule when it states a policy of the business that the system must follow, whatever the screen. Anything else stays functional. The `Type:`, `Category:`, and `Measure:` lines and their lint messages are in [requirement types](sdd.md#requirement-types).
+
+```markdown
+### REQ-REPORTS-007: Report export time
+Type: non-functional
+Category: performance
+Measure: the export of 10,000 rows finishes in under 5 seconds at the 95th percentile
+The system SHALL export a report of 10,000 rows within the measured time.
+```
+
+```markdown
+### REQ-BILLING-012: Refund window
+Type: business-rule
+The system SHALL refuse a refund requested more than 30 days after the purchase.
+
+#### Scenario: late refund
+- GIVEN a purchase made 31 days ago
+- WHEN the customer asks for a refund
+- THEN the refund is refused
+```
+
+A use case that applies a business rule cites it on its `Requirements:` line, so the SRS lists the use case beside the rule.
+
 ## Actors and glossary
 
 Name each actor on the `Actor:` and `Secondary actors:` lines of a use case. To describe the actors in the SRS, add `<specs>/actors.md` with a table that has `Actor` and `Description` columns; names match a use case's actors without regard to case. `specs lint` reports two findings on it: `needs a table with Actor and Description columns`, and `actor '<name>' is in no use case` for a row no use case names. Cite a use case as `<capability>/<slug>`, the ID the SRS prints under its heading. Only glossary terms with `Status` `confirmed` reach the SRS. The SRS sections are in [exporting an SRS](sdd.md#exporting-an-srs).

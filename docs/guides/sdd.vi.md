@@ -55,6 +55,33 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
 - `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
+## Loại requirement { #requirement-types }
+
+Một requirement là functional nếu không ghi khác. Ngay dưới heading, block có thể thêm dòng `Type:` với một trong ba giá trị: `functional` (mặc định), `non-functional`, hoặc `business-rule`.
+
+- Requirement non-functional thêm `Category:`, một trong `performance`, `security`, `reliability`, `usability`, `compatibility`, `maintainability`, `portability`, hoặc `constraint`. Nó cũng cần một `#### Scenario:` hoặc một dòng `Measure:` với mục tiêu đo được. Dùng `Measure:` khi một con số là đủ, dùng scenario khi phép kiểm có các bước.
+- Business rule giữ scenario như requirement functional. Use case trích dẫn nó trên dòng `Requirements:`.
+- `Category:` và `Measure:` chỉ dành cho requirement non-functional.
+
+```markdown
+### REQ-REPORTS-007: Report export time
+Type: non-functional
+Category: performance
+Measure: the export of 10,000 rows finishes in under 5 seconds at the 95th percentile
+The system SHALL export a report of 10,000 rows within the measured time.
+```
+
+`gin specs lint` báo các lỗi sau, lỗi cuối cho requirement non-functional không có cả scenario lẫn `Measure:`:
+
+- `<REQ>: Type must be one of functional, non-functional, business-rule`
+- `<REQ>: Category must be one of performance, security, reliability, usability, compatibility, maintainability, portability, constraint`
+- `<REQ>: Category and Measure are only for Type: non-functional`
+- `<REQ>: needs at least one '#### Scenario:' or a 'Measure:' line`
+
+Requirement non-functional không cần activity diagram, nên nó không tính vào các quy tắc trong [sơ đồ](#diagrams). Capability mà mọi block `ADDED` đều là non-functional thì không cần diagram.
+
+Để đổi loại của một requirement có sẵn, viết block `MODIFIED` với các dòng `Type:` mới (và `Category:` hoặc `Measure:`) cùng `<!-- base: <hash> -->` của block living; xem [thay đổi requirement sau khi plan được duyệt](#changing-a-requirement-after-plan-approval). [Xuất SRS](#exporting-an-srs) cho thấy các loại được nhóm thế nào trong tài liệu.
+
 ## Hình ảnh và mockup { #images-and-mockups }
 
 Requirements của một feature, kể cả UI của nó, nằm trong capability của feature đó (`reports`, không phải `ui`). Capability `ui` chỉ giữ những gì dùng chung cho nhiều trang: design system, layout, navigation, component dùng chung. Project muốn quy tắc khác thì ghi vào `docs/specs/README.md`, và discuss theo README.
@@ -138,15 +165,19 @@ Tên file bỏ `.md` là slug và cũng là ID của use case. Dòng `Requiremen
 
 Mỗi chương gồm `## Purpose` của capability, các use case, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Phần use case mở đầu bằng một use case diagram được sinh từ các use case: actor nằm ngoài hộp của capability (tên khớp không phân biệt hoa thường), một edge từ `Actor:` tới use case và từ use case tới từng mục của `Secondary actors:`, cùng các edge nét đứt `«include»` và `«extend»`. Use case không có `Actor:` thì không có edge actor. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
 
-Quanh các chương, file có thêm các phần tài liệu, theo thứ tự: Revision history, Sign-off, Contents, Glossary, Actors, các chương, và Traceability matrix.
+Quanh các chương, file có thêm các phần tài liệu, theo thứ tự: Revision history, Sign-off, Contents, Glossary, Actors, Non-functional requirements, Business rules, các chương, và Traceability matrix.
 
 - Revision history có một dòng cho mỗi change folder đã archive tên `<date>-<name>`, mới nhất trước, gồm ngày, dòng `Epic:` của `01-proposal.md`, tiêu đề, các capability mà `02-spec-delta.md` chạm tới, và các REQ-ID đã thêm, sửa, xóa. Khi chưa có change nào, nó hiện `No revisions yet.`
 - Sign-off là một bảng trống gồm Prepared by, Reviewed by, và Approved by, với các cột Name, Role, Signature, và Date để điền tay.
 - Glossary liệt kê các dòng của `## Terms` trong `<codebase>/11-GLOSSARY.md` có `Status` là `confirmed`, sắp theo English. Khi không có, nó hiện `No glossary.`
 - Actors liệt kê mỗi actor được nêu ở `Actor:` hoặc `Secondary actors:` trong các use case, mỗi tên một lần (khớp không phân biệt hoa thường), cùng các use case nó xuất hiện và phần mô tả từ `<specs>/actors.md` (tùy chọn). Khi không có actor, nó hiện `No actors.`
-- Traceability matrix có một dòng cho mỗi requirement trong living spec: các use case của nó (những use case có dòng `Requirements:` nêu nó), các file test trích dẫn nó, các QA case trích dẫn nó, và trạng thái `covered` (có file test hoặc QA case trích dẫn) hoặc `missing`. Khi không có requirement, nó hiện `No requirements.`
+- Non-functional requirements liệt kê từng requirement non-functional theo category, rồi capability và số thứ tự, kèm capability và `Measure:` của nó. Khi không có, nó hiện `No non-functional requirements.`
+- Business rules liệt kê từng business rule cùng capability, statement, và các use case trích dẫn nó trên `Requirements:`. Khi không có, nó hiện `No business rules.`
+- Traceability matrix có một dòng cho mỗi requirement trong living spec: loại của nó, các use case của nó (những use case có dòng `Requirements:` nêu nó), các file test trích dẫn nó, các QA case trích dẫn nó, và trạng thái `covered` (có file test hoặc QA case trích dẫn) hoặc `missing`. Khi không có requirement, nó hiện `No requirements.`
 
 File test là các file được git theo dõi mà `specs trace` đọc. QA case là các file tên `TC-<CAP>-<NNN>...` dưới `qa.cases`, hoặc dưới `<qa.dir>/cases` (`qa/cases` khi chưa đặt `qa.dir`), nằm trong repository; `qa.cases` trỏ ra ngoài repository thì bị bỏ qua. File không đọc được dưới dạng văn bản UTF-8 bị bỏ qua. Mỗi use case trong chương in ID của nó, `<capability>/<slug>`, ngay dưới tiêu đề, và các bảng Actors và Traceability link tới nó.
+
+Trong một chương, requirement giữ thứ tự trong file khi tất cả đều là functional. Khi capability có requirement non-functional hoặc business rule, chương nhóm chúng dưới Functional requirements, Non-functional requirements (một heading con cho mỗi category, `other` cho category không biết), và Business rules. Các dòng `Type:`, `Category:`, `Measure:` của requirement in thành một bảng dưới heading của nó.
 
 Khi xuất một capability, chỉ giữ các revision chạm tới nó, các actor và requirement của nó; Glossary luôn liệt kê mọi term đã confirmed. Bảng Sign-off là HTML thuần trong `srs.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 

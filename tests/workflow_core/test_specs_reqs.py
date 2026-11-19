@@ -48,12 +48,21 @@ class TestSpecsReqs(unittest.TestCase):
         first = payload["requirements"][0]
         self.assertEqual(
             {"id": "REQ-AUTH-001", "title": "Sign in with password", "capability": "auth", "section": "LIVING",
-             "change": None, "epic": None, "source": "docs/specs/auth/spec.md:9",
+             "change": None, "epic": None, "type": "functional", "category": "", "source": "docs/specs/auth/spec.md:9",
              "scenarios": [{"title": "valid password", "given": ["a registered user"],
                             "when": ["they submit the right password"], "then": ["they are signed in"]}]},
             {key: value for key, value in first.items() if key != "hash"})
         self.assertRegex(first["hash"], "^[0-9a-f]{64}$")
         self.assertEqual(["REQ-AUTH-001", "REQ-AUTH-002"], [row["id"] for row in payload["requirements"]])
+
+    def test_rows_carry_type_and_category(self):
+        nfr = ("### REQ-AUTH-004: Sign-in response time\nType: non-functional\nCategory: performance\n"
+               "Measure: p95 below 300 ms\nThe system SHALL answer within 300 ms.\n")
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC.rstrip("\n") + "\n\n" + nfr)
+        rows = {row["id"]: row for row in self.payload()["requirements"]}
+        self.assertEqual(("non-functional", "performance"),
+                         (rows["REQ-AUTH-004"]["type"], rows["REQ-AUTH-004"]["category"]))
+        self.assertEqual(("functional", ""), (rows["REQ-AUTH-001"]["type"], rows["REQ-AUTH-001"]["category"]))
 
     def test_change_rows_carry_the_epic_of_their_proposal(self):
         make_change(self.root, spec_delta=delta(added=ADDED_BLOCK))

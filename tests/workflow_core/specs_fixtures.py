@@ -37,6 +37,29 @@ The system SHALL reject a wrong password.
 - THEN they see "Invalid credentials"
 """
 
+TYPED_SPEC = AUTH_SPEC + """
+### REQ-AUTH-004: Sign-in response time
+Type: non-functional
+Category: performance
+Measure: p95 below 300 ms
+The system SHALL answer a sign-in request within 300 ms.
+
+### REQ-AUTH-005: Lockout threshold
+Type: business-rule
+The system MUST lock an account after 5 failed sign-ins.
+
+#### Scenario: fifth failure
+- GIVEN a user with 4 failed sign-ins
+- WHEN the next sign-in fails
+- THEN the account is locked
+
+### REQ-AUTH-006: Password storage
+Type: non-functional
+Category: security
+Measure: bcrypt cost 12
+The system MUST store passwords only as salted hashes.
+"""
+
 ADDED_BLOCK = """### REQ-AUTH-003: Lock account after failed logins
 The system SHALL lock an account for 15 minutes after 5 failed logins.
 

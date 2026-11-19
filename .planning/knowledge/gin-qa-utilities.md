@@ -7,7 +7,7 @@ Epic `gin-workflow-uj96` (2026-11-07/08). Testers did file and shell chores by h
 - `gin-qa cases to-manual <TC-ID> --reason <why>` renames `.e2e.md` to `.manual.md` and writes `Moved from e2e: <date>: <reason>`. It sets `Result: not run`, removes `Run:`, keeps `Bug:`, and deletes the spec last. QA decides when; gin-qa does not count pipeline failures. Moving back is by hand.
 - `Moved from e2e` is in `KNOWN_FIELDS`, so `hash8` does not change. `as_dict` exposes `moved_from_e2e`, and the report has a "Moved from e2e to manual" section and a `moved` count.
 - `gin-qa cases bug` on an open bug appends one notes line (`Re-run <date>; Run: ...; Actual: ...; Evidence: ...`) with `gin task update --append-notes`, before the case changes; json gains `appended`.
-- `gin-qa cases new` writes a case file with the next ID and the pin (`--req` with SDD, `--source` with legacy). `gin-qa report --zip` writes `<folder>.zip`. `gin-qa e2e init --install` installs Playwright and chromium with the lockfile's manager. `e2e init` merges step snapshots into an older `evidence.ts` only on an exact anchor match.
+- `gin-qa cases new` writes a case file with the lowest free ID and the pin (`--req` with SDD, `--source` with legacy). `gin-qa report --zip` writes `<folder>.zip`. `gin-qa e2e init --install` installs Playwright and chromium with the lockfile's manager. `e2e init` merges step snapshots into an older `evidence.ts` only on an exact anchor match.
 
 **Consequences**
 - A case writer must re-parse the case under `_lock` and run every file-state check there, as `record_result` does; a parse before the lock used stale line numbers (review F1 of `.1`).

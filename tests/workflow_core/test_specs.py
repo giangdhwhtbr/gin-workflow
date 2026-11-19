@@ -23,12 +23,62 @@ MODIFIED_003 = ("### REQ-AUTH-003: Lock account after failed logins\n<!-- base: 
                 "- WHEN the next login fails\n- THEN the account is locked\n")
 
 
+NFR = ("### REQ-AUTH-004: Sign-in response time\nType: non-functional\nCategory: performance\n"
+       "Measure: p95 below 300 ms at 200 requests per second\n"
+       "The system SHALL answer a sign-in request within 300 ms at the 95th percentile.\n")
+RULE = ("### REQ-AUTH-005: Lockout threshold\nType: business-rule\n"
+        "The system MUST lock an account after 5 failed sign-ins within 15 minutes.\n\n"
+        "#### Scenario: fifth failure\n- GIVEN a user with 4 failed sign-ins\n- WHEN the next sign-in fails\n"
+        "- THEN the account is locked\n")
+
+
+def block(text: str) -> specs.Block:
+    return specs.parse_blocks(text)[0][0]
+
+
 def run_specs(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run([sys.executable, str(LAUNCHER), "specs", *args, "--repository", str(root)],
                           text=True, capture_output=True, check=False)
 
 
 class TestBlocks(unittest.TestCase):
+    def test_block_type_category_measure(self):
+        nfr = block(NFR)
+        self.assertEqual(("non-functional", "performance", "p95 below 300 ms at 200 requests per second"),
+                         (nfr.type, nfr.category, nfr.measure))
+        plain = block(ADDED_BLOCK)
+        self.assertEqual(("functional", "", ""), (plain.type, plain.category, plain.measure))
+        self.assertEqual("functional", specs.type_of(block(RULE.replace("business-rule", "policy"))))
+        self.assertEqual("The system MUST lock an account after 5 failed sign-ins within 15 minutes.",
+                         specs.statement(block(RULE)))
+        scenario_type = block(ADDED_BLOCK + "Type: business-rule\n")  # inside the scenario section: ignored
+        self.assertEqual("functional", scenario_type.type)
+
+    def test_lint_requirement_types(self):
+        self.assertEqual([], specs.lint_block(block(NFR)))
+        self.assertEqual([], specs.lint_block(block(RULE)))
+        categories = ", ".join(specs.NFR_CATEGORIES)
+        self.assertEqual([f"REQ-AUTH-004: Category must be one of {categories}"],
+                         specs.lint_block(block(NFR.replace("Category: performance\n", ""))))
+        self.assertEqual([f"REQ-AUTH-004: Category must be one of {categories}"],
+                         specs.lint_block(block(NFR.replace("performance", "speed"))))
+        self.assertEqual(["REQ-AUTH-004: needs at least one '#### Scenario:' or a 'Measure:' line"],
+                         specs.lint_block(block(NFR.replace("Measure: p95 below 300 ms at 200 requests per second\n", ""))))
+        self.assertEqual(["REQ-AUTH-005: Type must be one of functional, non-functional, business-rule"],
+                         specs.lint_block(block(RULE.replace("business-rule", "policy"))))
+        self.assertIn("REQ-AUTH-005: needs at least one '#### Scenario:'",
+                      specs.lint_block(block(RULE.split("\n\n#### ")[0] + "\n")))
+        self.assertEqual(["REQ-AUTH-003: Category and Measure are only for Type: non-functional"],
+                         specs.lint_block(block(ADDED_BLOCK.replace("The system SHALL", "Measure: 5 tries\nThe system SHALL"))))
+        with_scenario = NFR + "\n#### Scenario: slow\n- GIVEN load\n- THEN fast\n"
+        self.assertEqual(["REQ-AUTH-004: scenario 1 lacks WHEN"], specs.lint_block(block(with_scenario)))
+
+    def test_blocks_without_type_keep_findings_and_hash(self):
+        for text in (ADDED_BLOCK, AUTH_SPEC.split("## Requirements\n\n", 1)[1]):
+            with self.subTest(text=text[:30]):
+                self.assertEqual([], specs.lint_block(block(text)))
+        self.assertEqual("8f31b417", specs.block_hash(block(ADDED_BLOCK).text)[:8])
+
     def test_parse_blocks_sections_and_ranges(self):
         blocks, errors = specs.parse_blocks(AUTH_SPEC)
         self.assertEqual([], errors)
@@ -303,6 +353,18 @@ class TestRepositoryCommands(unittest.TestCase):
         self.assertNotIn(missing, specs.lint_change(self.root, self.cfg, change))
         write_activity(self.root, name="lockout")
         self.assertNotIn(missing, specs.lint_change(self.root, self.cfg, change, against="main"))
+
+    def test_non_functional_added_blocks_need_no_activity_diagram(self):
+        commit_all(self.root)
+        git(self.root, "checkout", "-q", "-b", "feature")
+        nfr = NFR.replace("REQ-AUTH-004", "REQ-AUTH-003")
+        change = make_change(self.root, spec_delta=delta(added=nfr))
+        self.assertFalse([e for e in specs.lint_change(self.root, self.cfg, change, against="main") if "activity diagram" in e])
+        (self.root / "docs/specs/auth/diagrams/login-activity.md").unlink()
+        self.assertFalse([e for e in specs.lint_change(self.root, self.cfg, change) if "activity diagram" in e])
+        rule = RULE.replace("REQ-AUTH-005", "REQ-AUTH-003")
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(added=rule))
+        self.assertTrue([e for e in specs.lint_change(self.root, self.cfg, change, against="main") if "activity diagram" in e])
 
     def test_lint_against_base_needs_no_diagram_for_a_modified_only_delta(self):
         commit_all(self.root)
@@ -604,6 +666,11 @@ class TestSpecsCli(unittest.TestCase):
                     self.assertIn(needle, iteration)
             self.assertIn("Previous: none\nConfirmed: no\n", iteration)
             self.assertIn('"Source:"', run_specs(root, "template", "spec-delta.md").stdout)
+            template = run_specs(root, "template", "spec-delta.md").stdout
+            for needle in ("Type:", "Category:", "Measure:", "non-functional", "business-rule"):
+                with self.subTest(needle=needle):
+                    self.assertIn(needle, template)
+            self.assertNotIn("--", template.split("<!--", 1)[1].split("-->", 1)[0])
             write(root, ".agent-workflow/templates/user-story.md", "### Story {{n}}\n")
             self.assertEqual("### Story {{n}}\n", run_specs(root, "template", "user-story.md").stdout)
 

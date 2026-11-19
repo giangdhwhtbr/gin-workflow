@@ -45,6 +45,13 @@ class NewCase(unittest.TestCase):
         second = self.new("--req", "REQ-AUTH-001", title="Second")
         self.assertEqual("qa/cases/auth/TC-AUTH-002-second.manual.md", second.stdout.strip())
 
+    def test_new_takes_the_lowest_free_number(self):
+        for title in ("One", "Two", "Three"):
+            self.assertEqual(0, self.new("--req", "REQ-AUTH-001", title=title).returncode)
+        (self.root / "qa/cases/auth/TC-AUTH-002-two.manual.md").unlink()
+        self.assertEqual("qa/cases/auth/TC-AUTH-002-four.manual.md",
+                         self.new("--req", "REQ-AUTH-001", title="Four").stdout.strip())
+
     def test_refusals_write_nothing(self):
         write(self.root, "qa/guidelines.md", "# Guidelines\n\n## Types\n\n- `manual`: by hand\n")
         for args in (("--req", "REQ-AUTH-999"), ("--source", "x.md"), ()):

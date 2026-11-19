@@ -31,6 +31,7 @@ def scenarios(block: Block) -> list[dict[str, Any]]:
 def _row(root: Path, path: Path, block: Block, change: str | None, epic: str | None = None) -> dict[str, Any]:
     return {"id": block.id, "title": block.title, "capability": block.cap,
             "section": "LIVING" if change is None else block.section, "change": change, "epic": epic,
+            "type": block.type, "category": block.category,
             "hash": block_hash(block.text), "source": f"{shown(root, path)}:{block.start + 1}",
             "scenarios": scenarios(block)}
 

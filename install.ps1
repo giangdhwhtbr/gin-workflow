@@ -167,11 +167,12 @@ function New-HooksFile {
         }
         if ($Harness -eq 'claude') {
             # PowerShell syntax, so the hook sets its shell: the default is Git Bash when it is installed.
+            # gin.cmd, not gin: PowerShell resolves gin to its built-in Get-ComputerInfo alias.
             $hooks.hooks['SessionStart'] = @([ordered]@{
                 hooks = @([ordered]@{
                     type = 'command'
                     shell = 'powershell'
-                    command = 'if (Get-Command gin -ErrorAction SilentlyContinue) { gin version --hook }; exit 0'
+                    command = 'if (Get-Command gin.cmd -ErrorAction SilentlyContinue) { gin.cmd version --hook }; exit 0'
                     timeout = 10
                 })
             })
@@ -616,11 +617,74 @@ function Unregister-UserPath {
     Write-Output "Removed $launcherBin from the user PATH."
 }
 
+# PowerShell's built-in gin alias (Get-ComputerInfo) shadows gin.cmd; a marked block in the
+# user's profiles removes it. The alias comes from Microsoft.PowerShell.Management, which is
+# imported first so its later automatic load does not bring the alias back.
+$ProfileBlockStart = '# >>> gin: remove the Get-ComputerInfo alias (install.ps1) >>>'
+$ProfileBlockEnd = '# <<< gin <<<'
+
+function Get-PowerShellProfilePaths {
+    $documents = [Environment]::GetFolderPath('MyDocuments')
+    if ([string]::IsNullOrEmpty($documents)) { return @() }
+    return @(
+        (Join-Path $documents 'PowerShell/profile.ps1'),
+        (Join-Path $documents 'WindowsPowerShell/profile.ps1')
+    )
+}
+
+# A profile keeps its encoding: a byte order mark is detected and written back, and a file
+# without one round-trips byte for byte as Latin-1 (the block is ASCII).
+function Read-ProfileText {
+    param([Parameter(Mandatory)][string]$Path)
+    $reader = [IO.StreamReader]::new($Path, [Text.Encoding]::GetEncoding(28591), $true)
+    try { return @{ Text = $reader.ReadToEnd(); Encoding = $reader.CurrentEncoding } }
+    finally { $reader.Close() }
+}
+
+function Register-ProfileAlias {
+    if (-not $IsWindows) { return }
+    foreach ($profilePath in Get-PowerShellProfilePaths) {
+        $profileFile = if (Test-Path -LiteralPath $profilePath -PathType Leaf) { Read-ProfileText -Path $profilePath } else { $null }
+        $existing = if ($profileFile) { $profileFile.Text } else { '' }
+        if ($existing.Contains($ProfileBlockStart, [StringComparison]::Ordinal)) { continue }
+        if ($NoModifyPath) {
+            Write-Output "To type gin instead of gin.cmd, remove PowerShell's gin alias in $profilePath (install.ps1 -NoModifyPath leaves profiles unchanged)."
+            continue
+        }
+        if ($DryRun) {
+            Write-Output "(dry-run) would remove the gin alias in $profilePath"
+            continue
+        }
+        # simplified: uninstall leaves this separator behind when the profile had no final newline.
+        $separator = if ($existing.Length -gt 0 -and -not $existing.EndsWith("`n")) { "`r`n" } else { '' }
+        $lines = @($ProfileBlockStart, 'Import-Module Microsoft.PowerShell.Management', 'Remove-Item Alias:gin -Force -ErrorAction SilentlyContinue', $ProfileBlockEnd)
+        $content = $existing + $separator + ($lines -join "`r`n") + "`r`n"
+        if ($profileFile) { [IO.File]::WriteAllText($profilePath, $content, $profileFile.Encoding) }
+        else { Write-Utf8File -Path $profilePath -Content $content }
+        Write-Output "Removed the gin alias in $profilePath; open a new terminal to type gin."
+    }
+}
+
+function Unregister-ProfileAlias {
+    if (-not $IsWindows -or $NoModifyPath) { return }
+    $pattern = '(?ms)^' + [Regex]::Escape($ProfileBlockStart) + '.*?^' + [Regex]::Escape($ProfileBlockEnd) + '\r?\n?'
+    foreach ($profilePath in Get-PowerShellProfilePaths) {
+        if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) { continue }
+        $profileFile = Read-ProfileText -Path $profilePath
+        $kept = [Regex]::Replace($profileFile.Text, $pattern, '')
+        if ($kept -eq $profileFile.Text) { continue }
+        # A profile that held only the block was created by the installer.
+        if ([string]::IsNullOrWhiteSpace($kept)) { Remove-Item -LiteralPath $profilePath -Force }
+        else { [IO.File]::WriteAllText($profilePath, $kept, $profileFile.Encoding) }
+        Write-Output "Restored the gin alias in $profilePath."
+    }
+}
+
 # Add-ons call gin; warn when it is neither installed by this installer nor on PATH.
 function Write-GinMissingWarning {
     param([string]$Name)
     $workflowShim = Join-Path $UserHome '.local/bin/gin.cmd'
-    if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin -ErrorAction SilentlyContinue)) {
+    if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin.cmd -ErrorAction SilentlyContinue)) {
         Write-Warning "gin is not installed; $Name needs it (./install.ps1 -Plugin gin-workflow)."
     }
 }
@@ -658,6 +722,7 @@ function Install-Launcher {
         Write-Output "(dry-run) would install $launcherName launcher shim at $launcherShim"
         if ($Name -eq 'gin-workflow') {
             Register-UserPath
+            Register-ProfileAlias
             Remove-ManagedLauncher -Name 'gin-workflow'
         }
         return
@@ -707,6 +772,7 @@ function Install-Launcher {
     Write-Output "Installed $launcherName launcher version $Version to $launcherShim"
     if ($Name -eq 'gin-workflow') {
         Register-UserPath
+        Register-ProfileAlias
         Remove-ManagedLauncher -Name 'gin-workflow'
     }
 }
@@ -1016,6 +1082,7 @@ if ($Uninstall) {
         Remove-ManagedLauncher -Name 'gin-workflow'
     }
     Unregister-UserPath
+    if ($Plugins -contains 'gin-workflow') { Unregister-ProfileAlias }
     Write-Output 'Removed generated dist output, the gin launcher, the global OpenCode skill install, and the Copilot plugin registration, under the gin and the old gin-workflow name. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
     return
 }

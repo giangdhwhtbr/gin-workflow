@@ -67,7 +67,7 @@ pwsh -NoProfile -File .\install.ps1 -Platform codex -Project C:\path\to\reposito
 pwsh -NoProfile -File .\install.ps1 -Platform all -DryRun
 ```
 
-Parameters mirror the shell script: `-Platform`, `-Plugin`, `-Link` (may need Developer Mode or elevation), `-Project`, `-Uninstall`, `-DryRun`. The launcher goes under `$HOME\.local\lib\gin` with a shim at `$HOME\.local\bin\gin.cmd`; the installer adds that folder to the user `PATH` unless `-NoModifyPath` is passed; `install.sh` does the same in `~/.zshrc` or `~/.bashrc` unless `--no-modify-path` is passed.
+Parameters mirror the shell script: `-Platform`, `-Plugin`, `-Link` (may need Developer Mode or elevation), `-Project`, `-Uninstall`, `-DryRun`. The launcher goes under `$HOME\.local\lib\gin` with a shim at `$HOME\.local\bin\gin.cmd`; the installer adds that folder to the user `PATH` and removes PowerShell's `gin` alias in the user profiles unless `-NoModifyPath` is passed (see [Windows](guides/windows.md#path)); `install.sh` does the same in `~/.zshrc` or `~/.bashrc` unless `--no-modify-path` is passed.
 
 ### Refreshing installs after a change
 
