@@ -127,12 +127,19 @@ class MilestoneCliTests(unittest.TestCase):
             "start": "2026-11-02", "end": "2026-11-04", "kickoff": None, "schedule_start": "2026-11-02",
             "preview": False, "today": "2026-10-29", "lanes": 1, "away": {}, "integration": None, "deadline": None,
             "finish": "2026-11-06", "overflow_days": 2,
+            "days_per_point": {"value": 1.0, "measured_epics": 0, "assumed": True},
+            "velocity": {"committed_points": None, "completed_points": 0, "added_points": 0, "say_do": None,
+                         "days_per_point": None, "planned_days_per_point": None, "accuracy": None},
             "epics": [
                 {"id": "t-a", "title": "A", "status": "open", "estimate_days": 3, "remaining_days": 3,
-                 "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-02",
+                 "assumed_days": None, "points": None, "points_reason": None, "estimate_source": "days",
+                 "actual_days": None, "actual_days_per_point": None,
+                 "spec_confirmed": False, "planned_start": "2026-11-02",
                  "planned_end": "2026-11-04", "depends_on": [], "external_depends_on": [], "warnings": [{"code": "spec_due"}]},
                 {"id": "t-b", "title": "B", "status": "open", "estimate_days": 2, "remaining_days": 2,
-                 "assumed_days": None, "spec_confirmed": False, "planned_start": "2026-11-05",
+                 "assumed_days": None, "points": None, "points_reason": None, "estimate_source": "days",
+                 "actual_days": None, "actual_days_per_point": None,
+                 "spec_confirmed": False, "planned_start": "2026-11-05",
                  "planned_end": "2026-11-06", "depends_on": ["t-a"], "external_depends_on": [],
                  "warnings": [{"code": "overflow", "days": 2}, {"code": "spec_due"}]}]}, json.loads(out))
 
@@ -212,9 +219,12 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual(0, code, err)
         self.assertEqual({
             "schema": 1, "today": "2026-10-29", "unassigned_epics": 0, "forecast": None,
+            "days_per_point": {"value": 1.0, "measured_epics": 0, "assumed": True},
             "milestones": [{"id": "t-m1", "title": "M1", "status": "planned", "start": "2026-11-02",
                             "end": "2026-11-04", "kickoff": None, "lanes": 1, "finish": "2026-11-06",
-                            "epics": {"total": 2, "closed": 0}, "warnings": 3, "error": None}]}, json.loads(out))
+                            "epics": {"total": 2, "closed": 0}, "warnings": 3, "error": None,
+                            "velocity": {"committed_points": None, "completed_points": 0, "added_points": 0, "say_do": None,
+                         "days_per_point": None, "planned_days_per_point": None, "accuracy": None}}]}, json.loads(out))
 
     def test_req_009_preview_does_not_write(self):
         self.seed()
@@ -377,6 +387,72 @@ class MilestoneCliTests(unittest.TestCase):
         self.refused("update", "t-mc", "--title", "Y")
         self.refused("update", "t-a", "--title", "X")
 
+    def metadata(self, bead_id):
+        return self.show(bead_id).get("metadata") or {}
+
+    def seed_roadmap(self):
+        self.seed_writes()
+        self.bd("update", "t-a", "--add-label", "roadmap")
+
+    def test_us1_points_write_reason_and_history(self):
+        self.seed_roadmap()
+        code, out, err = self.run_cli("points", "t-a", "5", "--reason", "12 screens, high: payments")
+        self.assertEqual(0, code, err)
+        self.assertIn("points of t-a set to 5", out)
+        meta = self.metadata("t-a")
+        self.assertEqual("5", str(meta["points"]))
+        self.assertEqual("12 screens, high: payments", meta["points_reason"])
+        history = meta["points_history"]
+        history = json.loads(history) if isinstance(history, str) else history
+        self.assertEqual([None, 5, "roadmap"], [history[0]["from"], history[0]["to"], history[0]["stage"]])
+        self.assertEqual(0, self.run_cli("points", "t-a", "8", "--reason", "x", "--stage", "discuss")[0])
+        history = self.metadata("t-a")["points_history"]
+        history = json.loads(history) if isinstance(history, str) else history
+        self.assertEqual([5, 8, "discuss"], [history[1]["from"], history[1]["to"], history[1]["stage"]])
+
+    def test_us1_points_refusals_write_nothing(self):
+        self.seed_roadmap()
+        for bad in ("4", "0", "34", "x"):
+            with self.subTest(bad=bad):
+                self.assertIn("1, 2, 3, 5, 8, 13, 21", self.refused("points", "t-a", bad, "--reason", "x"))
+        self.refused("points", "t-m1", "5", "--reason", "x")
+        self.refused("points", "t-missing", "5", "--reason", "x")
+        self.refused("points", "t-ac", "5", "--reason", "x")
+        self.bd("close", "t-a")
+        self.refused("points", "t-a", "5", "--reason", "x")
+        self.assertNotIn("points", self.metadata("t-a"))
+
+    def test_us3_points_locked_after_kick_start(self):
+        self.seed_roadmap()
+        self.assertEqual(0, self.run_cli("points", "t-a", "5", "--reason", "x")[0])
+        self.assertEqual(0, self.run_cli("kickstart", "t-m1", "--date", "2026-11-02")[0])
+        meta = self.metadata("t-m1")
+        self.assertEqual("5", str(meta["committed_points"]))
+        self.assertEqual("1.0", str(float(meta["planned_days_per_point"])))
+        self.assertIn("/milestone-close", self.refused("points", "t-a", "8", "--reason", "x"))
+        code, _, err = self.run_cli("points", "t-a", "8", "--reason", "slipped", "--stage", "close")
+        self.assertEqual(0, code, err)
+        code, _, err = self.run_cli("kickstart", "t-m1", "--date", "2026-11-03")
+        self.assertEqual(0, code)
+        self.assertIn("commitment changed from 5 to 8 points", err)
+        self.assertEqual("8", str(self.metadata("t-m1")["committed_points"]))
+
+    def test_us2_estimate_refused_once_points_exist(self):
+        self.seed_roadmap()
+        self.assertEqual(0, self.run_cli("points", "t-a", "3", "--reason", "x")[0])
+        self.assertIn("gin milestone points", self.refused("estimate", "t-a", "5"))
+
+    def test_show_and_list_report_points_and_pace(self):
+        self.seed_roadmap()
+        self.assertEqual(0, self.run_cli("points", "t-a", "3", "--reason", "x")[0])
+        shown = json.loads(self.run_cli("show", "t-m1", "--json")[1])
+        row = next(row for row in shown["epics"] if row["id"] == "t-a")
+        self.assertEqual((3, 3, "points"), (row["points"], row["estimate_days"], row["estimate_source"]))
+        self.assertEqual({"value": 1.0, "measured_epics": 0, "assumed": True}, shown["days_per_point"])
+        self.assertIn("velocity", shown)
+        self.assertIn("3pt/3d", self.run_cli("show", "t-m1")[1])
+        self.assertIn("days per point: 1.0 (assumed)", self.run_cli("list")[1])
+
     def test_req_003_kickstart(self):
         self.seed_writes()
         self.assertEqual(0, self.run_cli("kickstart", "t-m1", "--date", "2026-11-16")[0])
@@ -386,8 +462,9 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual(0, self.run_cli("kickstart", "t-m1", "--date", "2026-10-26")[0])
         self.assertEqual("active", status())
         self.assertEqual(0, self.run_cli("kickstart", "t-m1")[0])
-        self.assertEqual({"start": "2026-11-02", "end": "2026-11-30", "kickoff": "2026-10-29"},
-                         self.show("t-m1")["metadata"])
+        meta = self.show("t-m1")["metadata"]
+        self.assertEqual(("2026-11-02", "2026-11-30", "2026-10-29"), (meta["start"], meta["end"], meta["kickoff"]))
+        self.assertEqual("0", str(meta["committed_points"]))
         self.bd("close", "t-ac")
         self.bd("close", "t-mc")
         self.refused("kickstart", "t-mc")
@@ -525,6 +602,10 @@ class ShowTextTests(unittest.TestCase):
     def test_closed_unestimated_epic_prints_a_dash(self):
         out = self.text(self.milestone(), self.item("u", status="closed"))
         self.assertIn("u 2026-11-02..2026-11-02 -d unestimated", out)
+
+    def test_points_print_with_days(self):
+        out = self.text(self.milestone(), self.item("p", metadata={"points": 5}))
+        self.assertIn("p 2026-11-02..2026-11-06 5pt/5d", out)
 
     def test_integration_line_only_when_set(self):
         items = (self.milestone(), self.item("a", estimated_minutes=960))

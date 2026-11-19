@@ -56,6 +56,11 @@ def _parser() -> argparse.ArgumentParser:
     item = sub.add_parser("estimate", parents=[common])
     item.add_argument("epic")
     item.add_argument("days")
+    item = sub.add_parser("points", parents=[common])
+    item.add_argument("epic")
+    item.add_argument("n")
+    item.add_argument("--reason", required=True)
+    item.add_argument("--stage", choices=("roadmap", "discuss", "close"), default="roadmap")
     item = sub.add_parser("close", parents=[common])
     item.add_argument("id")
     item.add_argument("--reason", required=True)
@@ -127,6 +132,10 @@ def _roadmap(root: Path, config: dict[str, Any]) -> core.Roadmap:
     return read_roadmap(root, sdd_config(config)["layout"])
 
 
+def _pace(root: Path, config: dict[str, Any], beads: Mapping[str, Mapping[str, Any]]) -> core.Pace:
+    return core.measure_pace(beads, _roadmap(root, config).days_per_point, _today())
+
+
 def _confirmed(root: Path, beads: Mapping[str, Mapping[str, Any]]) -> frozenset[str] | None:
     """Epic ids with a confirmed spec: `gates.requirement_confirmed` in the bead metadata, or a local
     `requirement.confirmed` event. None, with a stderr warning, when the log is unreadable and no bead has the gate."""
@@ -159,11 +168,15 @@ def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
 
 
 def _warn_malformed_metadata(milestones: Sequence[Mapping[str, Any]]) -> None:
-    """One stderr warning per open milestone key (`away`, `integration`) that is unreadable; it is ignored."""
-    for milestone in milestones:
-        if milestone.get("issue_type") == "milestone" and milestone.get("status") != "closed":
-            for key in core.metadata_problems(milestone):
-                print(f"warning: {milestone['id']}: malformed {key} metadata ignored", file=sys.stderr)
+    """One stderr warning per open milestone key (`away`, `integration`) and per open roadmap epic's `points`
+    that is unreadable; it is ignored."""
+    for bead in milestones:
+        if bead.get("issue_type") == "milestone" and bead.get("status") != "closed":
+            for key in core.metadata_problems(bead):
+                print(f"warning: {bead['id']}: malformed {key} metadata ignored", file=sys.stderr)
+        if (bead.get("issue_type") == "epic" and bead.get("status") != "closed"
+                and "roadmap" in (bead.get("labels") or []) and core.points_problem(bead)):
+            print(f"warning: {bead['id']}: malformed points metadata ignored", file=sys.stderr)
 
 
 def _forecast_text(forecast: dict[str, Any]) -> str:
@@ -193,6 +206,10 @@ def _list_text(payload: dict[str, Any]) -> str:
                   f"epics {entry['epics']['closed']}/{entry['epics']['total']}  warnings {entry['warnings']}")
         lines.append(f"{entry['id']}  {entry['status']:<9} {entry['start']}..{entry['end']}  {detail}")
     lines.append(f"unassigned roadmap epics: {payload['unassigned_epics']}")
+    pace = payload.get("days_per_point")
+    if pace:
+        source = "assumed" if pace["assumed"] else f"measured over {pace['measured_epics']} epics"
+        lines.append(f"days per point: {pace['value']} ({source})")
     if payload["forecast"]:
         lines.append(_forecast_text(payload["forecast"]))
     return "\n".join(lines)
@@ -208,7 +225,9 @@ def _show_text(payload: dict[str, Any]) -> str:
         lines.append(f"integration: {payload['integration']}")
     for row in payload["epics"]:
         codes = ",".join(warning["code"] for warning in row["warnings"])
-        if row["estimate_days"] is not None:
+        if row.get("points") is not None:
+            days = f"{row['points']}pt/{row['estimate_days']}d"
+        elif row["estimate_days"] is not None:
             days = f"{row['estimate_days']}d"
         else:
             days = f"{row['assumed_days']}d?" if row["assumed_days"] is not None else "-d"
@@ -288,10 +307,18 @@ def _update(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any
 
 
 def _kickstart(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
-    _open(beads, args.id)
+    milestone = _open(beads, args.id)
     day = _date(args.date) if args.date else _today()
-    _bd(root, ["update", args.id, "--set-metadata", f"kickoff={day.isoformat()}"], actor)
-    return f"kickoff of {args.id} set to {day.isoformat()}", "kickoff"
+    pace = _pace(root, _config(root), beads)
+    committed = sum(core.points_of(epic) or 0 for epic in core.epics_of(args.id, beads) if epic.get("status") != "closed")
+    meta = milestone.get("metadata") if isinstance(milestone.get("metadata"), Mapping) else {}
+    if meta.get("committed_points") not in (None, ""):
+        print(f"warning: {args.id}: commitment changed from {meta['committed_points']} to {committed} points",
+              file=sys.stderr)
+    _bd(root, ["update", args.id, "--set-metadata", f"kickoff={day.isoformat()}",
+               "--set-metadata", f"committed_points={committed}",
+               "--set-metadata", f"planned_days_per_point={pace.value}"], actor)
+    return f"kickoff of {args.id} set to {day.isoformat()}, {committed} points committed", "kickoff"
 
 
 def _trace_move(root: Path, bead: Mapping[str, Any], epic: str, to: str, actor: str) -> None:
@@ -340,8 +367,44 @@ def _estimate(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, A
         raise MilestoneError(f"{args.epic} not found")
     if bead.get("issue_type") != "epic":
         raise MilestoneError(f"{args.epic} is not an epic")
+    if core.points_of(bead) is not None:
+        raise MilestoneError(f"{args.epic} has story points; change them with gin milestone points")
     _bd(root, ["update", args.epic, "--estimate", str(int(args.days) * core.WORKDAY_MINUTES)], actor)
     return f"estimate of {args.epic} set to {args.days} working days", "estimate"
+
+
+def _trace_points(root: Path, bead: Mapping[str, Any], epic: str, to: int, stage: str, actor: str) -> None:
+    """Append {from, to, at, actor, stage} to the epic's `points_history`; a failure warns, never rolls back."""
+    try:
+        metadata = bead.get("metadata")
+        stored = metadata.get("points_history") if isinstance(metadata, Mapping) else None
+        history = json.loads(stored) if isinstance(stored, str) else list(stored or [])
+        history.append({"from": core.points_of(bead), "to": to, "stage": stage,
+                        "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "actor": actor or "unknown"})
+        _bd(root, ["update", epic, "--set-metadata", f"points_history={json.dumps(history)}"], actor)
+    except (MilestoneError, ValueError, TypeError, AttributeError) as error:
+        print(f"warning: points of {epic} set but points_history not recorded: {error}", file=sys.stderr)
+
+
+def _points(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
+    if not args.n.isdigit() or int(args.n) not in core.POINT_SCALE:
+        raise MilestoneError("points must be one of " + ", ".join(map(str, core.POINT_SCALE)))
+    bead = beads.get(args.epic)
+    if bead is None:
+        raise MilestoneError(f"{args.epic} not found")
+    if bead.get("issue_type") != "epic" or "roadmap" not in (bead.get("labels") or []):
+        raise MilestoneError(f"{args.epic} is not a roadmap epic")
+    if bead.get("status") == "closed":
+        raise MilestoneError(f"{args.epic} is closed")
+    parent = beads.get(bead.get("parent") or "") or {}
+    meta = parent.get("metadata") if isinstance(parent.get("metadata"), Mapping) else {}
+    if parent.get("issue_type") == "milestone" and meta.get("kickoff") and args.stage != "close":
+        raise MilestoneError(f"points of {args.epic} are locked since the kick-start of {parent['id']}; "
+                             "change them through /milestone-close")
+    _bd(root, ["update", args.epic, "--set-metadata", f"points={int(args.n)}",
+               "--set-metadata", f"points_reason={args.reason}"], actor)
+    _trace_points(root, bead, args.epic, int(args.n), args.stage, actor)
+    return f"points of {args.epic} set to {int(args.n)}", "points"
 
 
 def _close(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
@@ -354,7 +417,7 @@ def _close(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]
 
 
 WRITES = {"create": _create, "update": _update, "kickstart": _kickstart, "move": _move,
-          "estimate": _estimate, "close": _close}
+          "estimate": _estimate, "points": _points, "close": _close}
 
 
 def _guard(root: Path, config: dict[str, Any]) -> tuple[Any, str]:
@@ -400,17 +463,19 @@ def _run(args: argparse.Namespace) -> int:
         beads = _beads(root)
         _warn_malformed_metadata(list(beads.values()))
         payload = core.list_payload(beads, _today(), args.all, roadmap, _default_lanes(config, roadmap),
-                                  _confirmed(root, beads), builders=() if roadmap.lanes else _builders(config))
+                                  _confirmed(root, beads), builders=() if roadmap.lanes else _builders(config),
+                                  pace=_pace(root, config, beads))
         print(json.dumps(payload, indent=2) if args.json else _list_text(payload))
         return 0
     if args.command == "show":
         beads = _beads(root)
         start = _date(args.start) if args.start else None
         roadmap = _roadmap(root, config)
-        _warn_malformed_metadata([_milestone(beads, args.id)])
+        _milestone(beads, args.id)
+        _warn_malformed_metadata(list(beads.values()))
         payload = core.show_payload(_milestone(beads, args.id), beads, start, _today(),
                                   _default_lanes(config, roadmap), _confirmed(root, beads), roadmap.deadline,
-                                  () if roadmap.lanes else _builders(config))
+                                  () if roadmap.lanes else _builders(config), pace=_pace(root, config, beads))
         print(json.dumps(payload, indent=2) if args.json else _show_text(payload))
         return 0
     return _write(root, config, args)
