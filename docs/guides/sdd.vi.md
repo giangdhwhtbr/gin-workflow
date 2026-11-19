@@ -182,7 +182,7 @@ Trong một chương, requirement giữ thứ tự trong file khi tất cả đ�
 
 Khi xuất một capability, chỉ giữ các revision chạm tới nó, các actor và requirement của nó; Glossary luôn liệt kê mọi term đã confirmed. Bảng Sign-off là HTML thuần trong `srs.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 
-File có sơ đồ nhúng sẵn thư viện Mermaid 11.4.1 đóng gói sẵn trong plugin, nên vẽ và in sơ đồ được khi không có mạng; file không có sơ đồ không nhúng gì và không phình ra. Thiếu file thư viện đóng gói sẵn thì lệnh xuất dừng với lỗi nêu đường dẫn của nó. Lệnh xuất không lint, nên hãy chạy `specs lint` trước. Một ảnh local không tìm thấy, nằm ngoài repository, hoặc không phải ảnh hiển thị bằng alt text, và lệnh thoát với mã 1 kèm tên ảnh đó. Trang bìa, logo, khách hàng, và thứ tự các phần lấy từ template `srs.html` và `srs-capability.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
+File có sơ đồ nhúng thư viện Mermaid 11.4.1 đóng gói sẵn trong plugin, nên vẽ và in sơ đồ được khi không có mạng; file không có sơ đồ không nhúng gì và không phình ra. Thiếu file thư viện đóng gói sẵn thì lệnh xuất dừng với lỗi nêu đường dẫn của nó. Lệnh xuất không lint, nên hãy chạy `specs lint` trước. Một ảnh local không tìm thấy, nằm ngoài repository, hoặc không phải ảnh hiển thị bằng alt text, và lệnh thoát với mã 1 kèm tên ảnh đó. Trang bìa, logo, khách hàng, và thứ tự các phần lấy từ template `srs.html` và `srs-capability.html`; xem [Template xuất SRS](customizing-templates.md#srs-export-templates).
 
 ## Giải thích một capability { #explaining-a-capability }
 
