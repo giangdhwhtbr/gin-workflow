@@ -663,6 +663,86 @@ class TestTypes(QaCase):
         self.assertFalse([f for f in self.findings() if "## Types" in f])
 
 
+class TestCasesDue(QaCase):
+    """R4, R5, R6, US-1: `cases due` lists the manual cases a run needs, plus a regression set by priority."""
+
+    def setUp(self):
+        super().setUp()
+        make_change(self.root)
+        self.blocks = {"TC-AUTH-001": self.manual("TC-AUTH-001", "REQ-AUTH-001"),
+                       "TC-AUTH-002": self.manual("TC-AUTH-002", "REQ-AUTH-002"),
+                       "TC-AUTH-003": self.manual("TC-AUTH-003", "REQ-AUTH-003"),
+                       "TC-AUTH-004": case("TC-AUTH-004", self.ref("REQ-AUTH-001"))}
+
+    def manual(self, tc: str, req: str, priority: str = "high") -> str:
+        return (case(tc, self.ref(req)).replace("Type: e2e", "Type: manual")
+                .replace("Priority: high", f"Priority: {priority}"))
+
+    def start(self, priority: str = "high") -> Path:
+        self.blocks["TC-AUTH-001"] = self.manual("TC-AUTH-001", "REQ-AUTH-001", priority)
+        path = self.write_cases(*self.blocks.values())
+        for tc in ("TC-AUTH-001", "TC-AUTH-002"):
+            self.assertEqual(0, qa(self.root, self.bin, "result", tc, "passed").returncode)
+        head, tail = path.read_text().split("### TC-AUTH-002")
+        path.write_text(head + "### TC-AUTH-002" + tail.replace("Open /login", "Open /signin", 1), encoding="utf-8")
+        return path
+
+    def guidelines(self, line: str) -> None:
+        write(self.root, "qa/guidelines.md", f"# Guidelines\n\n## Manual runs\n\n{line}\n")
+
+    def due(self, *args: str) -> list[tuple[str, str, str]]:
+        rows = self.run_json("due", "auth", *args)["cases"]
+        return [(row["id"], row["reason"], row["effective_result"]) for row in rows]
+
+    def test_lists_outdated_and_not_run_but_not_current_or_e2e(self):
+        self.start()
+        self.assertEqual([("TC-AUTH-002", "todo", "outdated"), ("TC-AUTH-003", "todo", "not run")], self.due())
+
+    def test_regression_level_adds_current_cases_by_priority(self):
+        self.start()
+        self.guidelines("- Regression: `high`")
+        self.assertEqual(("TC-AUTH-001", "regression", "passed"), self.due()[0])
+        self.guidelines("- Regression: `none`")
+        self.assertEqual(["TC-AUTH-002", "TC-AUTH-003"], [row[0] for row in self.due()])
+        self.start("medium")
+        self.guidelines("- Regression: `high`")
+        self.assertEqual(["TC-AUTH-002", "TC-AUTH-003"], [row[0] for row in self.due()])
+        self.guidelines("- Regression: `high+medium`")
+        self.assertEqual(("TC-AUTH-001", "regression", "passed"), self.due()[0])
+
+    def test_all_lists_every_manual_case_sorted(self):
+        self.start()
+        self.assertEqual([("TC-AUTH-001", "all", "passed"), ("TC-AUTH-002", "all", "outdated"),
+                          ("TC-AUTH-003", "all", "not run")], self.due("--all"))
+
+    def test_change_limits_todo_to_the_change_requirements(self):
+        self.blocks["TC-AUTH-002"] = self.manual("TC-AUTH-002", "REQ-AUTH-002", "medium")
+        self.start()
+        self.assertEqual([("TC-AUTH-003", "todo", "not run")], self.due("--change", "ep-1"))
+        self.guidelines("- Regression: `high`")
+        self.assertEqual([("TC-AUTH-001", "regression", "passed"), ("TC-AUTH-003", "todo", "not run")],
+                         self.due("--change", "ep-1"))
+
+    def test_text_output_and_nothing_due(self):
+        self.start()
+        result = qa(self.root, self.bin, "due", "auth")
+        self.assertEqual("TC-AUTH-002 todo outdated Case\nTC-AUTH-003 todo not run Case\n", result.stdout)
+        self.assertEqual("nothing due\n", qa(self.root, self.bin, "due", "billing").stdout)
+
+    def test_check_reports_a_bad_regression_level(self):
+        self.start()
+        finding = "qa/guidelines.md:5: Regression must be none, high, or high+medium"
+        self.guidelines("- Regression: `weekly`")
+        self.assertIn(finding, self.findings())
+        self.guidelines("- Regression: `high+medium`")
+        self.assertNotIn(finding, self.findings())
+
+    def test_template_and_skill_carry_the_regression_line_and_due(self):
+        plugin = Path(__file__).resolve().parents[2] / "plugins/gin-qa/src"
+        self.assertIn("- Regression: `none`", (plugin / "templates/guidelines.md").read_text(encoding="utf-8"))
+        self.assertIn("gin-qa cases due", (plugin / "skills/run/SKILL.md").read_text(encoding="utf-8"))
+
+
 class TestLegacyAndEnvironment(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

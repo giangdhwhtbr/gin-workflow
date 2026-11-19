@@ -51,6 +51,10 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("split", parents=[common]).add_argument("capability")
     sub.add_parser("check", parents=[common]).add_argument("--change")
     sub.add_parser("export", parents=[common])
+    item = sub.add_parser("due", parents=[common])
+    item.add_argument("capability")
+    item.add_argument("--change")
+    item.add_argument("--all", dest="everything", action="store_true")
     return parser
 
 
@@ -133,6 +137,7 @@ def _check(root: Path, eff: Effective, change: str | None) -> list[str]:
     cases, errors = tc.load(root, eff.cases_dir)
     types, problems = tc.declared_types(root, eff.guidelines)
     errors += problems
+    errors += tc.regression_level(root, eff.guidelines)[1]
     if types is not None:
         errors += [f"{case.path}:{case.line}: {case.id}: type '{case.type}' is not listed under "
                    f"'{tc.TYPES_SECTION}' in {eff.guidelines}" for case in cases if case.type and case.type not in types]
@@ -244,6 +249,14 @@ def _run(args: argparse.Namespace) -> int:
         _emit({"written": written}, args.format, "\n".join(written))
         return 0
     cases, _ = tc.load(root, eff.cases_dir)
+    if args.command == "due":
+        level, _ = tc.regression_level(root, eff.guidelines)
+        change = _scope(root, eff, None, args.change)[0] if args.change else None
+        rows = tc.due(cases, args.capability, current_hashes(eff), level, change, args.everything)
+        text = "\n".join(f"{row['id']} {row['reason']} {row['effective_result']} {row['title']}" for row in rows)
+        _emit({"capability": args.capability, "change": args.change, "cases": rows}, args.format,
+              text or "nothing due")
+        return 0
     if args.command == "export":
         rows = [tc.as_dict(case, current_hashes(eff)) for case in cases]
         _emit({"cases": rows}, args.format, "\n".join(f"{row['id']} {row['title']}" for row in rows))

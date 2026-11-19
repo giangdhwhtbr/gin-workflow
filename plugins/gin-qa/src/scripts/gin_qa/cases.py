@@ -21,6 +21,9 @@ _STEP = re.compile(r"^(\d+)\. (\S.*)$")
 _CASE_FILE = re.compile(r"^(TC-[A-Z][A-Z0-9-]*?-\d{3,})(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?\.([a-z][a-z0-9-]*)\.md$")
 TYPE = re.compile(r"^[a-z][a-z0-9-]*$")
 TYPES_SECTION = "## Types"
+MANUAL_RUNS_SECTION = "## Manual runs"
+REGRESSION_LEVELS = {"none": (), "high": ("high",), "high+medium": ("high", "medium")}
+_REGRESSION = re.compile(r"^- Regression:\s*`?([^`\s]+)`?")
 _TYPE_ENTRY = re.compile(r"^- `([a-z][a-z0-9-]*)`(?::.*)?$")
 SECTIONS = ("Preconditions", "Test data", "Steps", "Expected")
 RESULTS = ("passed", "failed", "blocked", "not run")
@@ -391,6 +394,42 @@ def effective_result(case: Case, current: Mapping[str, str] | None) -> str:
     stale = current is not None and any(current.get(req) != pinned for req, pinned in case.reqs)
     checked = case.fields.get("Checked")
     return OUTDATED if stale or (checked is not None and checked != stamp8(case)) else result
+
+
+def regression_level(root: Path, guidelines: str) -> tuple[str, list[str]]:
+    """The `- Regression:` level under `## Manual runs` (none when absent), and a finding for a bad value."""
+    path = root / guidelines
+    lines = [line.rstrip() for line in _lines(path)] if path.is_file() else []
+    start = next((index for index, line in enumerate(lines) if line == MANUAL_RUNS_SECTION), None)
+    for index in range(start + 1, len(lines)) if start is not None else ():
+        if lines[index].startswith("## "):
+            break
+        found = _REGRESSION.match(lines[index])
+        if found:
+            if found.group(1) in REGRESSION_LEVELS:
+                return found.group(1), []
+            return "none", [f"{guidelines}:{index + 1}: Regression must be none, high, or high+medium"]
+    return "none", []
+
+
+def due(cases: list[Case], capability: str, current: Mapping[str, str] | None, level: str,
+        change_reqs: set[str] | None, everything: bool) -> list[dict[str, str]]:
+    """The manual cases of `capability` to run, each with why: todo, regression, or all."""
+    rows = []
+    for case in sorted((c for c in cases if c.cap == capability and c.type == "manual"), key=lambda c: c.id):
+        effective = effective_result(case, current)
+        in_change = change_reqs is None or any(req in change_reqs for req, _ in case.reqs)
+        if everything:
+            reason = "all"
+        elif in_change and effective in ("not run", OUTDATED, "failed", "blocked"):
+            reason = "todo"
+        elif case.fields.get("Priority", "") in REGRESSION_LEVELS[level]:
+            reason = "regression"
+        else:
+            continue
+        rows.append({"id": case.id, "title": case.title, "reason": reason, "effective_result": effective,
+                     "priority": case.fields.get("Priority", "")})
+    return rows
 
 
 def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: str | None = None,

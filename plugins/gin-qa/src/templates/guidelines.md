@@ -38,6 +38,7 @@ How `/gin-qa:run` names and schedules manual runs.
 
 - Run reference: `manual <YYYY-MM-DD>` (the date is the run's UTC date).
 - When: not set yet (for example, before each release).
+- Regression: `none` (cases run with every manual run besides those due: `none`, `high`, or `high+medium`, by their Priority).
 
 ## Bugs
 
