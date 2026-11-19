@@ -85,22 +85,29 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, view)
         plan = (roadmap / "references/milestone-plan.md").read_text(encoding="utf-8")
-        for needle in ("gin milestone create", "gin milestone move", "gin milestone estimate", "Beads wins",
+        for needle in ("gin milestone create", "gin milestone move", "gin milestone points", "Beads wins",
                        "## Unassigned", "Deadline:"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, plan)
         write = plan[plan.index("## Write"):plan.index("## Re-run")]
         self.assertLess(write.index("gin milestone create"), write.index("gin milestone move"))
-        self.assertLess(write.index("gin milestone move"), write.index("gin milestone estimate"))
+        self.assertLess(write.index("gin milestone move"), write.index("gin milestone points"))
         self.assertIn("existed before this run", write)
         self.assertIn("`Depends on:` dependencies", write)
         milestone = text[text.index("## With --milestone <id>"):text.index("## Steps")]
         step2 = next(line for line in milestone.splitlines() if line.startswith("2. "))
         self.assertIn("Estimates block of [milestone plan](references/milestone-plan.md)", step2)
         estimates = plan[plan.index("## Estimates"):plan.index("## Plan")]
-        for needle in ("`requirement.confirmed`", "`(assumed)`", "never ask the PM for estimates"):
+        for needle in ("[story points](story-points.md)", "`(assumed)`", "- Days per point:"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, estimates)
+        points = (roadmap / "references/story-points.md").read_text(encoding="utf-8")
+        for needle in ("1, 2, 3, 5, 8, 13, 21", "`Legacy:`", "`Complexity:`", "`Risks:`", "propose a split",
+                       "PM: ", "gin milestone points", "--stage discuss", "/milestone-close"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, points)
+        present = text[text.index("4. **Present the roadmap**"):text.index("5. **Write**")]
+        self.assertIn("[story points](references/story-points.md)", present)
         allocation = plan[plan.index("## Allocation"):plan.index("## Write")]
         self.assertIn("adoption rule of `--milestone` step 3", allocation)
         self.assertIn("never a closed one", allocation)
@@ -230,6 +237,12 @@ class SkillRoutingTests(unittest.TestCase):
         for banned in ("sonnet", "opus", "haiku"):
             self.assertNotIn(banned, text.lower())
 
+    def test_discuss_rescores_a_roadmap_epic(self):
+        text = (SRC / "skills/discuss/SKILL.md").read_text(encoding="utf-8")
+        for needle in ("../roadmap/references/story-points.md", "Re-score", "--stage discuss"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+
     def test_milestone_close_moves_spillover_and_records_the_result(self):
         text = (SRC / "skills/milestone-close/SKILL.md").read_text(encoding="utf-8")
         for needle in ("[gin close] <milestone-id>", "Delivered:", "Spillover:", "Outcome:", "Demo:", "Retros:",
@@ -240,11 +253,13 @@ class SkillRoutingTests(unittest.TestCase):
                        "## Metrics", "Metrics: completion <closed>/<total>; estimate_accuracy", "capacity_used",
                        "cost_per_epic", "rework", "never per member", "no earlier metrics", "- Metrics:",
                        "whose `parent` is not the `bead` of another entry", "both ends included",
-                       "one `Action:` line per confirmed action", "lists only the epics it moved itself"):
+                       "one `Action:` line per confirmed action", "lists only the epics it moved itself",
+                       "--stage close", "say_do", "days_per_point", "velocity <completed>/<committed>"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
         metrics = text[text.index("Metrics: completion"):].split("\n", 1)[0]
-        keys = [metrics.index(key) for key in ("completion", "estimate_accuracy", "capacity_used", "cost_per_epic", "rework")]
+        keys = [metrics.index(key) for key in ("completion", "estimate_accuracy", "capacity_used", "cost_per_epic", "rework",
+                                                        "velocity", "say_do", "days_per_point", "; accuracy")]
         self.assertEqual(sorted(keys), keys)
         write = text[text.index("## Write"):]
         order = [write.index(step) for step in ("gin milestone create", "gin milestone move", "gin milestone estimate",

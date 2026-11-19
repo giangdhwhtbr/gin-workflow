@@ -19,7 +19,7 @@ With an id, use it. Otherwise use the only milestone whose `status` is `active` 
 Show, without writing:
 - Delivered: the closed epics of the milestone.
 - Open epics with `remaining_days`, and per epic the `count` of its `open_bugs` warning (0 without one).
-- Per epic, `estimate_days` against the working days, Monday to Friday, from `started_at` to `closed_at` of `gin task show <epic> --json` (to today when open; `not started` without `started_at`).
+- Per epic, its `points` (when set), `estimate_days` against the working days, Monday to Friday, from `started_at` to `closed_at` of `gin task show <epic> --json` (to today when open; `not started` without `started_at`).
 - Cost and rework (reopens, bugs found later, review cycles) from `gin usage report --milestone <id> --format json`; on a non-zero exit, report it and continue without them.
 - The milestone's `Outcome:` and `Demo:` from the roadmap file (`.planning/roadmap.md`, or `docs/roadmap.md` with `project.layout: sdd`); propose `reached`, `partial`, or `missed` for each with a one-line note, or `not planned` when the file or the line is missing.
 - Retros: the newest `[gin retro]` comment per member from `gin task comments <id> --json`; with none, say `no retros`. Retros are optional.
@@ -28,9 +28,10 @@ Show, without writing:
 ## Metrics
 Team level only, never per member. Compute from the data of the summary:
 - `completion`: closed epics over all epics of the milestone at the start of this run, as `<closed>/<total>`.
-- `estimate_accuracy`: the sum of `estimate_days` over the sum of actual working days, over the closed epics that have both; two decimals; 1.00 is on estimate, below 1 took longer; `n/a` without such an epic.
+- `estimate_accuracy`: the sum of `estimate_days` over the sum of actual working days, over the closed epics without points that have both; two decimals; 1.00 is on estimate, below 1 took longer; `n/a` without such an epic.
 - `capacity_used`: the sum of `estimate_days` of the closed epics over `lanes` times the working days, Monday to Friday, from `start` to `end`, both ends included, no `away` days subtracted (`gin milestone show <id> --json`); two decimals; `n/a` without `lanes` or estimates.
 - `cost_per_epic`: `totals.cost` of the usage report over the closed epics, in USD with two decimals, followed by ` partial` when the report's `partial` is true; `totals.cost` covers every epic of the milestone, open ones included; `n/a` when the report failed, `totals.cost` is null, or no epic closed.
+- `velocity`, `say_do`, `days_per_point`, `accuracy`: from the `velocity` block of `gin milestone show <id> --json`; `velocity` as `<completed_points>/<committed_points>`; each `n/a` when null.
 - `rework`: the sum of `quality.reopens` and `quality.bugs` over the report's `beads` entries whose `parent` is not the `bead` of another entry, because an epic's `quality` already includes its children; `n/a` when the report failed.
 
 Compare with the most recently closed milestone: in `gin milestone list --all --json`, the closed milestone with the latest `end` before this milestone's `start`; read the `Metrics:` line of its newest `[gin close]` comment and show the change of each metric. Without such a milestone, comment, or `Metrics:` line, say `no earlier metrics`.
@@ -41,14 +42,14 @@ The next milestone is the open milestone in `gin milestone list --json` with the
 ## Spillover
 Every open epic moves to the next milestone. For each one:
 1. Reason. Quote the retro line (`Slowed us:` or `Went well:`) that names the epic id or title, marked `retro`. Without one, ask the person running the close for the reason, one epic per message, marked `asked`.
-2. Decision. Propose one: keep as is; re-estimate with new remaining days; split, done later with `/roadmap` or `/discuss <epic>`; or remove a named blocker.
+2. Decision. Propose one: keep as is; re-estimate (new points for an epic with points, else new remaining days); split, done later with `/roadmap` or `/discuss <epic>`; or remove a named blocker.
 
 When the moved epics take the next milestone over its capacity (the bound of the Load block of the roadmap skill's way of working), still move them; report the overflow in working days and propose what to do.
 
 ## Actions
 From the summary, the retros, and the spillover, propose actions, each with a kind:
 - `way_of_working`: the exact new text of a line in `## Way of working` of the roadmap file.
-- `estimate`: an epic and its new days.
+- `estimate`: an epic and its new points, or its new days when it has no points.
 - `lesson`: a topic and a summary for a knowledge record.
 - `remember`: a short fact every session needs; propose it, and keep it only when the PM chooses it.
 
@@ -59,7 +60,7 @@ Present one table: delivered epics; each spillover epic with its target mileston
 In this order, after confirmation. A failing step stops the run; report what was written. A re-run continues: moved epics are no longer in the milestone, and a closed milestone is refused, so after a stop past step 5 finish the rest by hand from the report. A resumed run lists only the epics it moved itself in `Spillover:`; its report says that moves of the earlier run are not in the comment.
 1. When proposed, `gin milestone create "<title>" --start <date> --end <date>`; it prints the new id.
 2. `gin milestone move <epic>... --to <next-id>` for the spillover epics.
-3. `gin milestone estimate <epic> <days>` for each `estimate` action.
+3. `gin milestone points <epic> <n> --stage close --reason "<text>"` for each `estimate` action on an epic with points, else `gin milestone estimate <epic> <days>`.
 4. `gin task comment <milestone-id> "<text>"` with this text:
    ```
    [gin close] <milestone-id>
@@ -68,7 +69,7 @@ In this order, after confirmation. A failing step stops the run; report what was
    Outcome: reached|partial|missed|not planned; <note>
    Demo: reached|partial|missed|not planned; <note>
    Retros: <count>
-   Metrics: completion <closed>/<total>; estimate_accuracy <n.nn|n/a>; capacity_used <n.nn|n/a>; cost_per_epic <n.nn[ partial]|n/a>; rework <n|n/a>
+   Metrics: completion <closed>/<total>; estimate_accuracy <n.nn|n/a>; capacity_used <n.nn|n/a>; cost_per_epic <n.nn[ partial]|n/a>; rework <n|n/a>; velocity <completed>/<committed>|n/a; say_do <n.nn|n/a>; days_per_point <n.nn|n/a>; accuracy <n.nn|n/a>
    Action: way_of_working|estimate|lesson|remember; <text>
    ```
    `Delivered:` is `none` when no epic closed. One `Spillover:` line per moved epic and one `Action:` line per confirmed action, so a `remember` fact the PM did not choose gets none; none when there are none. Replace line breaks inside a value with `; `. Never translate the labels: gin-console and later runs parse them.
@@ -78,7 +79,7 @@ In this order, after confirmation. A failing step stops the run; report what was
    Result: closed <YYYY-MM-DD>; delivered <n> of <m> epics; <k> moved to <next milestone title>
    - Outcome: <reached|partial|missed|not planned>; <note>
    - Demo: <reached|partial|missed|not planned>; <note>
-   - Metrics: <closed> of <total> epics done (<percent>%); estimates <accuracy as percent> accurate; <capacity_used as percent> of capacity used; <cost> USD per epic; <rework> reworks
+   - Metrics: <closed> of <total> epics done (<percent>%); estimates <accuracy as percent> accurate; <capacity_used as percent> of capacity used; <cost> USD per epic; <rework> reworks; <completed> of <committed> points (say/do <percent>%); <days_per_point> days per point
    - Spillover: <epic title>: <reason>; <decision>
    - Actions: <one line per action>
    ```

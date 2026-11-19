@@ -83,7 +83,7 @@ class TestBudgetLimits(unittest.TestCase):
         self.assertLessEqual(len(skill.read_text(encoding="utf-8")), 12_000)
         reference = SRC / "skills/roadmap/references/way-of-working.md"
         self.assertLessEqual(len(reference.read_text(encoding="utf-8")), 6_000)
-        for name in ("manager-view.md", "milestone-plan.md"):
+        for name in ("manager-view.md", "milestone-plan.md", "story-points.md"):
             with self.subTest(reference=name):
                 text = (SRC / "skills/roadmap/references" / name).read_text(encoding="utf-8")
                 self.assertLessEqual(len(text), 4_000)
