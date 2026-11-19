@@ -157,7 +157,7 @@ try {
     Assert-True ($claudeHook -ceq 'python "${CLAUDE_PROJECT_DIR}/.claude/scripts/safety_check.py"') "Unexpected Claude hook command: $claudeHook"
     $claudeHooksText = [IO.File]::ReadAllText((Join-Path $project '.claude/hooks/hooks.json'))
     Assert-Contains $claudeHooksText '"SessionStart"'
-    Assert-Contains $claudeHooksText 'gin version --hook'
+    Assert-Contains $claudeHooksText 'gin.cmd version --hook'
     Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/workflow_core/cli.py")
     Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/.gin-workflow-src.json")
     Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/rules/core.md")

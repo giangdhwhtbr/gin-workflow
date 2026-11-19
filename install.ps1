@@ -167,11 +167,12 @@ function New-HooksFile {
         }
         if ($Harness -eq 'claude') {
             # PowerShell syntax, so the hook sets its shell: the default is Git Bash when it is installed.
+            # gin.cmd, not gin: PowerShell resolves gin to its built-in Get-ComputerInfo alias.
             $hooks.hooks['SessionStart'] = @([ordered]@{
                 hooks = @([ordered]@{
                     type = 'command'
                     shell = 'powershell'
-                    command = 'if (Get-Command gin -ErrorAction SilentlyContinue) { gin version --hook }; exit 0'
+                    command = 'if (Get-Command gin.cmd -ErrorAction SilentlyContinue) { gin.cmd version --hook }; exit 0'
                     timeout = 10
                 })
             })
@@ -620,7 +621,7 @@ function Unregister-UserPath {
 function Write-GinMissingWarning {
     param([string]$Name)
     $workflowShim = Join-Path $UserHome '.local/bin/gin.cmd'
-    if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin -ErrorAction SilentlyContinue)) {
+    if (-not (Test-Path -LiteralPath $workflowShim) -and -not (Get-Command gin.cmd -ErrorAction SilentlyContinue)) {
         Write-Warning "gin is not installed; $Name needs it (./install.ps1 -Plugin gin-workflow)."
     }
 }

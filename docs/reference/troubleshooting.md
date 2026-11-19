@@ -13,6 +13,20 @@ Cause: a marketplace install (`claude plugin install`, `codex plugin add`) copie
 2. If you installed with `--no-modify-path`, add `~/.local/bin` to `PATH`.
 3. Run `gin --version`; it prints `gin X.Y.Z`, the release version.
 
+## `gin` runs `Get-ComputerInfo` in PowerShell
+
+Cause: PowerShell has a built-in `gin` alias for `Get-ComputerInfo`, and an alias wins over the `~/.local/bin/gin.cmd` launcher that `install.ps1` writes. The Claude Code session-start hook that `install.ps1` generates already calls `gin.cmd`.
+
+1. Type `gin.cmd` instead of `gin`, for example `gin.cmd --version`.
+2. Or remove the alias in your profile (`notepad $PROFILE`) so that `gin` reaches the launcher. The alias comes from the `Microsoft.PowerShell.Management` module, so import it first; otherwise its later automatic load brings the alias back:
+
+   ```powershell
+   Import-Module Microsoft.PowerShell.Management
+   Remove-Item Alias:gin -Force -ErrorAction SilentlyContinue
+   ```
+
+3. Open a new terminal and run `Get-Command gin`; it shows `gin.cmd` with the type `Application`.
+
 ## OpenCode does not show the gin skills
 
 Cause: the skill bundle is missing from `~/.config/opencode/skills/gin`, where OpenCode discovers global skills. The installer writes it when `--platform` is `opencode` or `all`, and does not need the `opencode` CLI on `PATH`. The bundle layout is in [Contributing](../contributing.md#build-and-install-locally).

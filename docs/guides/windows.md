@@ -98,16 +98,16 @@ Inside your AI harness (Claude Code, Antigravity, and others), use the slash com
 - `/gin:review`: run independent review cycles.
 - `/gin:ship`: close out tasks and merge.
 
-From a PowerShell terminal, call the CLI directly:
+From a PowerShell terminal, call the CLI as `gin.cmd`: PowerShell's built-in `gin` alias runs `Get-ComputerInfo` instead ([details](../reference/troubleshooting.md#gin-runs-get-computerinfo-in-powershell)).
 ```powershell
 # Check current workflow state
-gin state
+gin.cmd state
 
 # Record a gate
-gin record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
+gin.cmd record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
 
 # Query tasks
-gin task list
+gin.cmd task list
 ```
 
 ## Verifying the installation

@@ -98,16 +98,16 @@ Bên trong AI harness của bạn (Claude Code, Antigravity, và các harness kh
 - `/gin:review`: chạy các chu kỳ review độc lập.
 - `/gin:ship`: đóng task và merge.
 
-Từ một terminal PowerShell, gọi trực tiếp CLI:
+Từ một terminal PowerShell, gọi CLI bằng `gin.cmd`: alias `gin` có sẵn của PowerShell sẽ chạy `Get-ComputerInfo` ([chi tiết](../reference/troubleshooting.md#gin-runs-get-computerinfo-in-powershell)).
 ```powershell
 # Check current workflow state
-gin state
+gin.cmd state
 
 # Record a gate
-gin record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
+gin.cmd record requirement-confirmed --evidence "docs/specs/my-feature.md" --actor user
 
 # Query tasks
-gin task list
+gin.cmd task list
 ```
 
 ## Xác minh việc cài đặt { #verifying-the-installation }
