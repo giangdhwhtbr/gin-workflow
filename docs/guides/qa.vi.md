@@ -90,7 +90,17 @@ Mục `## Types` của guidelines liệt kê các loại case đang dùng, và [
 
 ## Chạy thủ công: `/gin-qa:run` { #manual-runs-gin-qarun }
 
-`/gin-qa:run <capability>` hiển thị từng case thủ công (`Type: manual`) của capability theo thứ tự ID và hỏi tester `passed`, `failed`, `blocked`, hoặc `skip`. Nó hỏi một tham chiếu lần chạy một lần, mặc định là `manual <YYYY-MM-DD>`, và ghi nó vào mọi case mà nó ghi nhận. `skip` không ghi gì. Khi guidelines đặt `Run reference:` dưới `## Manual runs`, định dạng đó trở thành mặc định.
+`/gin-qa:run <capability> [--change <epic>] [--all]` đi qua các case thủ công (`Type: manual`) của capability đang đến hạn chạy, nên một lần chạy lại chỉ bao gồm những gì cần xem lại, không phải cả bộ. [`gin-qa cases due`](../reference/cli.md#gin-qa-cases-due) chọn các case đó, và mỗi case cho biết vì sao nó đến hạn:
+
+- `todo`: case chưa có kết quả, hoặc kết quả là `failed`, `blocked`, hay `outdated`.
+- `regression`: case còn cập nhật, nhưng `Priority:` của nó nằm trong tập regression của guidelines.
+- `all`: `--all` đi qua mọi case thủ công của capability, bất kể kết quả.
+
+`--change <epic>` giới hạn `todo` ở các case của requirement mà change đã thêm hoặc sửa; requirement bị xóa không tính. Tập regression vẫn áp dụng. Khi không có gì đến hạn, skill nói vậy và đề nghị `--all`.
+
+Tập regression lấy từ dòng `- Regression:` dưới `## Manual runs` trong guidelines: `none` (mặc định khi thiếu dòng), `high`, hoặc `high+medium`. Mức này được so với `Priority:` của từng case, không phân biệt hoa thường và bỏ khoảng trắng hai đầu. [`gin-qa cases check`](../reference/cli.md#gin-qa-cases-check) báo mọi giá trị khác.
+
+Sau đó skill hiển thị từng case đến hạn theo thứ tự ID và hỏi tester `passed`, `failed`, `blocked`, hoặc `skip`. Nó hỏi một tham chiếu lần chạy một lần, mặc định là `manual <YYYY-MM-DD>`, và ghi nó vào mọi case mà nó ghi nhận. `skip` không ghi gì. Khi guidelines đặt `Run reference:` dưới `## Manual runs`, định dạng đó trở thành mặc định.
 
 Một lần thất bại sẽ hỏi chuyện gì đã xảy ra, các tham chiếu evidence, và một tham chiếu tracker bên ngoài tùy chọn, rồi chạy `gin-qa cases bug`:
 
@@ -101,6 +111,14 @@ Một lần thất bại sẽ hỏi chuyện gì đã xảy ra, các tham chiế
 - Các nhóm theo dõi bug trong Jira hoặc Linear tạo ticket ở đó và truyền key của nó bằng `--external-ref`; cờ này chỉ ghi key vào bead.
 - Khi `## Bugs` trong guidelines ghi `External reference: required`, một lần thất bại không được tạo nếu thiếu tham chiếu, và tham chiếu phải khớp với pattern mà dòng đó nêu.
 - Mức ưu tiên theo case: `high` → 1, `medium` → 2, `low` → 3, không có → 2.
+
+Một kết quả đã ghi mang dấu `Checked:` của case tại thời điểm được test: nội dung của nó và các requirement nó pin. Kết quả hiện là `outdated` thay cho giá trị đã ghi khi dấu không còn khớp, tức là khi:
+
+- case đã được sửa;
+- một requirement được pin đã đổi, hoặc case được pin lại bằng `gin-qa cases pin`;
+- một requirement được pin đã bị xóa.
+
+Kết quả ghi trước khi có dấu này chỉ hiện `outdated` khi một requirement được pin đã đổi hoặc bị xóa. Layout legacy không có requirement được pin, nên chỉ so sánh dấu. Hãy chạy lại case để ghi kết quả mới. `gin-qa cases export` và báo cáo hiển thị kết quả hiệu lực này; file case giữ kết quả đã ghi, và chi tiết case trong báo cáo hiển thị nó là `Last recorded` khi hai giá trị khác nhau. Báo cáo đếm `outdated` như một kết quả riêng trong biểu đồ và bộ lọc kết quả.
 
 Skill không bao giờ sửa file case và không bao giờ commit.
 

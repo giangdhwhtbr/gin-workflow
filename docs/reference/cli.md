@@ -467,17 +467,17 @@ In single-harness mode (`provider_mode: single`), `gin` resolves for the main ha
 
 ## `gin-qa`
 
-The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR] [--zip]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL] [--install]` also writes `playwright.config.ts` when the Playwright folder has none. That folder is `e2e` in the [QA home](../guides/qa.md#the-qa-home), or the repository root for an existing root setup; an invalid URL exits 2 and writes nothing. It adds the evidence folder to `.gitignore`. On an existing `evidence.ts` without `ariaSnapshot`, it merges the step snapshots when the file matches the template, and otherwise prints a line to merge by hand and leaves the file.
+The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,check,export,due}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR] [--zip]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL] [--install]` also writes `playwright.config.ts` when the Playwright folder has none. That folder is `e2e` in the [QA home](../guides/qa.md#the-qa-home), or the repository root for an existing root setup; an invalid URL exits 2 and writes nothing. It adds the evidence folder to `.gitignore`. On an existing `evidence.ts` without `ariaSnapshot`, it merges the step snapshots when the file matches the template, and otherwise prints a line to merge by hand and leaves the file.
 
 `--install` first reads `package.json` in the Playwright folder; a missing or invalid file, or a `scripts` that is not an object, exits 2 before anything changes. It then runs the install commands for the package manager of the lockfile in the Playwright folder (`pnpm-lock.yaml`, `yarn.lock`, else `npm` and `npx`): add `@playwright/test`, unless it is already installed, and `playwright install chromium`. It adds `"e2e": "playwright test"` to `scripts` when missing. A manager not found or a failed command exits 2 and names the commands to run by hand. Without the flag, `init` only prints those steps. `gin-qa e2e plan` and `gin-qa tests plan` exit 2 when the capability is a TC-ID, and name its capability.
 
 ### `gin-qa cases check`
 
-Reports problems in the case files: structure, IDs, the `REQ:` or `Source:` fields, case files that match `artifacts.test_globs`, and, in the SDD layout, missing, stale, and obsolete cases. When the guidelines file has a `## Types` section, it also reports each entry that is not `` - `<type>` `` optionally followed by `:` and a description, a section that lists no types, and each case whose type is not listed (`<file>:<line>: <TC-ID>: type '<type>' is not listed under '## Types' in <guidelines>`). Guidelines without the section accept any type. Exit 0 prints `ok`; exit 1 lists the findings.
+Reports problems in the case files: structure, IDs, the `REQ:` or `Source:` fields, case files that match `artifacts.test_globs`, and, in the SDD layout, missing, stale, and obsolete cases. A `Checked:` line that is not 8 hex characters, or has no `Result:` line, is a finding (`Checked must be 8 hex characters`, `Checked: needs a Result: line`). A `- Regression:` line under `## Manual runs` of the guidelines with a value other than `none`, `high`, or `high+medium` is a finding (`<guidelines>:<line>: Regression must be none, high, or high+medium`). When the guidelines file has a `## Types` section, it also reports each entry that is not `` - `<type>` `` optionally followed by `:` and a description, a section that lists no types, and each case whose type is not listed (`<file>:<line>: <TC-ID>: type '<type>' is not listed under '## Types' in <guidelines>`). Guidelines without the section accept any type. Exit 0 prints `ok`; exit 1 lists the findings.
 
 ### `gin-qa cases result`
 
-`gin-qa cases result <TC-ID> <status> [--run REF] [--bug ID|none]` is the only command that writes the `Result`, `Run`, and `Bug` lines. `status` is `passed`, `failed`, `blocked`, or `not run`. `--run` sets the `Run` line; without it the line is removed. `--bug` sets the `Bug` line, `--bug none` removes it, and without it the line stays.
+`gin-qa cases result <TC-ID> <status> [--run REF] [--bug ID|none]` is the only command that writes the `Result`, `Run`, `Bug`, and `Checked` lines. `Checked` is a stamp of the case as recorded: its content and its pinned requirements (or its `Source`). Each call rewrites it. `status` is `passed`, `failed`, `blocked`, or `not run`. `--run` sets the `Run` line; without it the line is removed. `--bug` sets the `Bug` line, `--bug none` removes it, and without it the line stays.
 
 Exit 2, writing nothing, when the ID does not exist, the status is not one of the four, `--run` or `--bug` is empty or holds a non-printable character, or the case files have a finding that names the case.
 
@@ -534,7 +534,17 @@ Output: text lists the files written; JSON `{"written": [...]}`.
 
 ### `gin-qa cases export` and `gin-qa e2e run`
 
-Each case in `gin-qa cases export --format json` adds `result` (`not run` without a `Result:` line), `run` and `bug` (empty strings when absent), `moved_from_e2e` (`{"date", "reason"}`, or `null`), `test_data` (a list), and `legacy` (the references of the `Legacy:` line, a list).
+Each case in `gin-qa cases export --format json` adds `result` (`not run` without a `Result:` line), `run` and `bug` (empty strings when absent), `moved_from_e2e` (`{"date", "reason"}`, or `null`), `test_data` (a list), `legacy` (the references of the `Legacy:` line, a list), `checked` (the `Checked:` stamp, an empty string when absent), and `effective_result`. `effective_result` equals `result` unless a recorded `passed`, `failed`, or `blocked` is `outdated`: the stamp no longer matches the case, or, in the SDD layout, a pinned requirement changed or no longer exists. A result without a stamp is outdated only by the requirement check; the legacy layout skips that check. `gin-qa report` shows `effective_result`, and `Last recorded` (`result`) when they differ.
+
+### `gin-qa cases due`
+
+`gin-qa cases due <capability> [--change CHANGE] [--all] [--format text|json]` lists the manual cases of the capability to run, in ID order, each with a reason:
+
+- `todo`: the effective result is `not run`, `outdated`, `failed`, or `blocked`. With `--change`, only for cases that pin a requirement the change added or modified (removed ones do not count).
+- `regression`: not `todo`, and the case's `Priority:` is in the level of the `- Regression:` line under `## Manual runs` of the guidelines: `none` (default, also when the line or file is missing) lists nothing, `high` lists `high`, `high+medium` lists both. The comparison ignores case and surrounding spaces.
+- `all`: with `--all`, every manual case, whatever its result.
+
+Text output prints one `<TC-ID> <reason> <effective result> <title>` line per case, or `nothing due`. JSON output is `{"capability", "change", "cases"}`, where `change` is `null` without the flag and each case is `{"id", "title", "reason", "effective_result", "priority"}`. Exit 0, also when nothing is due or the capability has no manual cases; exit 2 for a usage or environment error, such as an unknown `--change`. See [manual runs](../guides/qa.md#manual-runs-gin-qarun).
 
 `gin-qa e2e run` records each case's result in its case file, the worst over its Playwright projects: `failed`, then `blocked`, then `passed`. A case with no result folder, or an invalid `result.json`, is `blocked`. Its JSON output lists them under `recorded` as `[{"tc", "result"}]`. A recording error is listed under `findings` and does not stop the other cases.
 

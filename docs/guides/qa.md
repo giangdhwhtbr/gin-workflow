@@ -90,7 +90,17 @@ The `## Types` section of the guidelines lists the case types in use, and [`gin-
 
 ## Manual runs: `/gin-qa:run`
 
-`/gin-qa:run <capability>` shows each manual case (`Type: manual`) of the capability in ID order and asks the tester for `passed`, `failed`, `blocked`, or `skip`. It asks for a run reference once, `manual <YYYY-MM-DD>` by default, and writes it on every case it records. `skip` writes nothing. When the guidelines set `Run reference:` under `## Manual runs`, that format is the default instead.
+`/gin-qa:run <capability> [--change <epic>] [--all]` walks the manual cases (`Type: manual`) of the capability that are due, so a re-run covers what needs a new look and not the whole set. [`gin-qa cases due`](../reference/cli.md#gin-qa-cases-due) picks them, and each case shows why it is due:
+
+- `todo`: the case has no result, or its result is `failed`, `blocked`, or `outdated`.
+- `regression`: the case is otherwise up to date, but its `Priority:` is in the regression set of the guidelines.
+- `all`: `--all` walks every manual case of the capability, whatever its result.
+
+`--change <epic>` limits `todo` to the cases of the requirements that change added or modified; removed requirements do not count. The regression set still applies. When nothing is due, the skill says so and offers `--all`.
+
+The regression set comes from the `- Regression:` line under `## Manual runs` in the guidelines: `none` (the default when the line is missing), `high`, or `high+medium`. The level is compared with each case's `Priority:`, ignoring case and surrounding spaces. [`gin-qa cases check`](../reference/cli.md#gin-qa-cases-check) reports any other value.
+
+The skill then shows each due case in ID order and asks the tester for `passed`, `failed`, `blocked`, or `skip`. It asks for a run reference once, `manual <YYYY-MM-DD>` by default, and writes it on every case it records. `skip` writes nothing. When the guidelines set `Run reference:` under `## Manual runs`, that format is the default instead.
 
 A failure asks for what happened, evidence references, and an optional external tracker reference, then runs `gin-qa cases bug`:
 
@@ -102,6 +112,14 @@ A failure asks for what happened, evidence references, and an optional external 
 - Teams that track bugs in Jira or Linear file the ticket there and pass its key with `--external-ref`; the flag only records the key on the bead.
 - When `## Bugs` in the guidelines says `External reference: required`, a failure is not filed without a reference, and the reference must match the pattern the line names.
 - Priority follows the case: `high` → 1, `medium` → 2, `low` → 3, none → 2.
+
+A recorded result carries a `Checked:` stamp of the case as it was tested: its content and its pinned requirements. A result reads `outdated` instead of its recorded value when the stamp no longer matches, which happens when:
+
+- the case was edited;
+- a pinned requirement changed, or the case was re-pinned with `gin-qa cases pin`;
+- a pinned requirement was removed.
+
+A result recorded before the stamp existed reads `outdated` only when a pinned requirement changed or was removed. The legacy layout has no pinned requirements, so only the stamp is compared. Run the case again to record a fresh result. `gin-qa cases export` and the report show this effective result; the case file keeps the recorded one, and the report's case detail shows it as `Last recorded` when the two differ. The report counts `outdated` as its own result in the result chart and filter.
 
 The skill never edits case files and never commits.
 
