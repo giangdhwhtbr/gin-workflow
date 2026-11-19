@@ -86,7 +86,7 @@ With `chat`, the gate is recorded when you confirm in the conversation. When `te
 
 ### Export and explain
 
-Two commands share the spec with people who do not read the repository. `gin specs export <capability>` writes an SRS as one HTML file, and `/gin:explain <capability>` writes an interactive page. See [exporting an SRS](sdd.md#exporting-an-srs) and [explaining a capability](sdd.md#explaining-a-capability).
+Two commands share the spec with people who do not read the repository. `gin specs export <capability>` writes an SRS as one HTML file, and `/gin:explain <capability>` writes an interactive page. See [exporting an SRS](sdd.md#exporting-an-srs) and [explaining a capability](sdd.md#explaining-a-capability). Either file can be sent and printed offline, diagrams included.
 
 `/gin:explain <capability> --legacy` writes one page per frozen legacy app that has code for the capability. The page explains what that app's code does, so you can compare it with the spec page. `artifacts.explain` can name a folder in an internal repository of the workspace; committing that folder is a team convention that gin does not enforce.
 

@@ -182,7 +182,7 @@ In a chapter, requirements keep their file order while all of them are functiona
 
 An export of one capability keeps only the revisions that touch it, its actors, and its requirements; the Glossary always lists every confirmed term. The Sign-off table is plain HTML in `srs.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 
-The file loads Mermaid from jsDelivr at a pinned version to draw the diagrams; without network access it shows their source instead. The export does not lint, so run `specs lint` first. A local image it cannot find, one outside the repository, or a file that is not an image shows as its alt text, and the command exits 1 naming it. The cover, logo, customer, and section order come from the templates `srs.html` and `srs-capability.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
+A file that holds a diagram embeds the vendored Mermaid 11.4.1 library, so it draws and prints its diagrams offline; a file without a diagram embeds nothing and does not grow. A missing vendored file stops the export with an error that names its path. The export does not lint, so run `specs lint` first. A local image it cannot find, one outside the repository, or a file that is not an image shows as its alt text, and the command exits 1 naming it. The cover, logo, customer, and section order come from the templates `srs.html` and `srs-capability.html`; see [SRS export templates](customizing-templates.md#srs-export-templates).
 
 ## Explaining a capability
 
@@ -200,7 +200,7 @@ A `Source:` path under `assets/<date>/` on a requirement opens that file on the 
 
 `gin specs explain <change>` does the same for an active change, named as `--change` takes it. The overview shows the proposal's `## Why` and `## What Changes`, and the requirements are grouped under ADDED, MODIFIED, and REMOVED. The diagrams start with `03-design.md`, and only the dated folders its `Source:` lines cite are shown. An archived change is not found; explain its capability instead.
 
-Like the SRS, the page is one file with its images embedded, and it loads Mermaid from jsDelivr at a pinned version. An image or mockup it cannot embed is listed, and the command exits 1. The layout comes from the template `explain.html`; see [Explain page template](customizing-templates.md#explain-page-template).
+Like the SRS, the page is one file with its images embedded, and it embeds the vendored Mermaid library only when it holds a diagram. An image or mockup it cannot embed is listed, and the command exits 1. The layout comes from the template `explain.html`; see [Explain page template](customizing-templates.md#explain-page-template).
 
 ## How the stages change
 

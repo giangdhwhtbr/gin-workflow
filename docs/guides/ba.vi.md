@@ -86,7 +86,7 @@ Với `chat`, gate được ghi khi BA xác nhận trong cuộc trò chuyện. K
 
 ### Xuất và giải thích { #export-and-explain }
 
-Hai lệnh chia sẻ spec với những người không đọc repository. `gin specs export <capability>` ghi SRS thành một file HTML, và `/gin:explain <capability>` ghi một trang tương tác. Xem [xuất SRS](sdd.md#exporting-an-srs) và [giải thích một capability](sdd.md#explaining-a-capability).
+Hai lệnh chia sẻ spec với những người không đọc repository. `gin specs export <capability>` ghi SRS thành một file HTML, và `/gin:explain <capability>` ghi một trang tương tác. Xem [xuất SRS](sdd.md#exporting-an-srs) và [giải thích một capability](sdd.md#explaining-a-capability). Cả hai file đều gửi và in được khi không có mạng, kể cả sơ đồ.
 
 `/gin:explain <capability> --legacy` ghi một trang cho mỗi ứng dụng frozen có mã triển khai capability đó. Trang giải thích mã của ứng dụng làm gì, để bạn so sánh với trang spec. `artifacts.explain` có thể trỏ đến một thư mục trong repository nội bộ của workspace; việc commit thư mục đó là một quy ước của nhóm mà gin không bắt buộc.
 
