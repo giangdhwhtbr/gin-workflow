@@ -35,6 +35,9 @@ _HEADING_LINE = re.compile(r"^### (REQ-[A-Z][A-Z0-9-]*-\d{3,}):", re.MULTILINE)
 _BASE = re.compile(r"^<!-- base: ([0-9a-f]{64}) -->$")
 _STATEMENT = re.compile(r"\b(SHALL|MUST)\b")
 _CAP = re.compile(r"^[a-z][a-z0-9-]*$")
+REQ_TYPES = ("functional", "non-functional", "business-rule")
+NFR_CATEGORIES = ("performance", "security", "reliability", "usability", "compatibility", "maintainability",
+                  "portability", "constraint")
 # The folders of a capability next to its spec.md; the linters below and the SDD check of setup doctor share them.
 ASSETS_DIR, DIAGRAMS_DIR, USE_CASES_DIR = "assets", "diagrams", "use-cases"
 CAPABILITY_FOLDERS = (ASSETS_DIR, DIAGRAMS_DIR, USE_CASES_DIR)
@@ -67,6 +70,22 @@ class Block:
             if found:
                 return found.group(1)
         return None
+
+    def _field(self, key: str) -> str:
+        """A `<key>:` line of the block body before its first `####` section."""
+        return line_value(self.text.split("\n#### ", 1)[0], key)
+
+    @property
+    def type(self) -> str:
+        return self._field("Type") or "functional"
+
+    @property
+    def category(self) -> str:
+        return self._field("Category")
+
+    @property
+    def measure(self) -> str:
+        return self._field("Measure")
 
 
 _STORY_HEADING = re.compile(r"^### (US-\d+):")
@@ -279,6 +298,17 @@ def block_hash(text: str) -> str:
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
 
+def type_of(block: Block) -> str:
+    """The block's type, or functional when its `Type:` is not a known one (lint reports that)."""
+    return block.type if block.type in REQ_TYPES else "functional"
+
+
+def statement(block: Block) -> str:
+    """The first SHALL or MUST line of the block body, outside scenarios and bullets."""
+    head = block.text.split("\n#### ", 1)[0].splitlines()[1:]
+    return next((line.strip() for line in head if not line.startswith(("#", "- ")) and _STATEMENT.search(line)), "")
+
+
 def lint_block(block: Block) -> list[str]:
     """Statement and scenario rules for an ADDED, MODIFIED, or living block."""
     errors: list[str] = []
@@ -286,6 +316,14 @@ def lint_block(block: Block) -> list[str]:
     prose = [line for line in body if line.strip() and not line.startswith("#") and not line.startswith("- ")]
     if not any(_STATEMENT.search(line) for line in prose):
         errors.append(f"{block.id}: needs a SHALL or MUST statement")
+    head = _COMMENT.sub("", block.text.split("\n#### ", 1)[0])
+    if block.type not in REQ_TYPES:
+        errors.append(f"{block.id}: Type must be one of {', '.join(REQ_TYPES)}")
+    non_functional = block.type == "non-functional"
+    if non_functional and block.category not in NFR_CATEGORIES:
+        errors.append(f"{block.id}: Category must be one of {', '.join(NFR_CATEGORIES)}")
+    if not non_functional and re.search(r"^(Category|Measure):", head, re.MULTILINE):
+        errors.append(f"{block.id}: Category and Measure are only for Type: non-functional")
     scenarios: list[list[str]] = []
     for line in body:
         if line.startswith("#### Scenario:"):
@@ -294,7 +332,9 @@ def lint_block(block: Block) -> list[str]:
             errors.append(f"{block.id}: only '#### Scenario:' sub-headings are allowed")
         elif scenarios and line.startswith("- "):
             scenarios[-1].append(line[2:].split(" ", 1)[0])
-    if not scenarios:
+    if not scenarios and non_functional and not block.measure:
+        errors.append(f"{block.id}: needs at least one '#### Scenario:' or a 'Measure:' line")
+    elif not scenarios and not non_functional:
         errors.append(f"{block.id}: needs at least one '#### Scenario:'")
     for number, steps in enumerate(scenarios, start=1):
         missing = [step for step in ("GIVEN", "WHEN", "THEN") if step not in steps]
@@ -625,6 +665,7 @@ def _feature_diagram_findings(root: Path, cfg: Mapping[str, Any], blocks: list[B
     """Activity diagrams a change owes: one per capability it adds to, one per changed use case with branch flows,
     labelled decisions in changed diagrams. Without `against`, the per-capability rule of old."""
     base = specs_dir(root, cfg)
+    blocks = [block for block in blocks if block.type != "non-functional"]
     if not against:
         caps = sorted({block.cap for block in blocks if block.section in ("ADDED", "MODIFIED")})
         return [f"{cap}: no activity diagram in {shown(root, base / cap / DIAGRAMS_DIR)}/ "
