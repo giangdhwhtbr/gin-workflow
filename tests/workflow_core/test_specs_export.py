@@ -14,7 +14,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from specs_fixtures import AUTH_SPEC, LAUNCHER, STATE, USE_CASE, make_repo, write, write_activity  # noqa: E402
+from specs_fixtures import AUTH_SPEC, LAUNCHER, STATE, TYPED_SPEC, USE_CASE, make_repo, write, write_activity  # noqa: E402
 from workflow_core import specs  # noqa: E402
 from workflow_core.specs_export import Embed, export, fill, markdown_html, use_case_diagram  # noqa: E402
 
@@ -394,11 +394,49 @@ class TestExport(unittest.TestCase):
 
     def test_template_without_matter_placeholders_exports_as_before(self):
         document = specs.template_text(self.root, "srs.html")
-        for name in ("revisions", "glossary", "actors", "traceability"):
+        for name in ("revisions", "glossary", "actors", "nfr", "business_rules", "traceability"):
             document = document.replace("{{" + name + "}}", "")
         write(self.root, ".agent-workflow/templates/srs.html", document)
         self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
         self.assertNotIn("No revisions yet.", self.read("srs-auth.html"))
+        self.assertNotIn("No business rules.", self.read("srs-auth.html"))
+
+    def test_chapter_groups_requirements_by_type(self):
+        write(self.root, "docs/specs/auth/spec.md", TYPED_SPEC)
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        html = self.read("srs-auth.html")
+        chapter = html[html.index('<section class="chapter" id="auth">'):html.index('id="traceability"')]
+        order = [chapter.index(text) for text in ("<h3>Functional requirements</h3>", 'id="REQ-AUTH-001"',
+                                                   "<h3>Non-functional requirements</h3>", "<h4>performance</h4>",
+                                                   'id="REQ-AUTH-004"', "<h4>security</h4>", 'id="REQ-AUTH-006"',
+                                                   "<h3>Business rules</h3>", 'id="REQ-AUTH-005"')]
+        self.assertEqual(sorted(order), order)
+        self.assertIn('<table class="requirement-fields"><tr><th>Type</th><td>non-functional</td></tr>'
+                      "<tr><th>Category</th><td>performance</td></tr><tr><th>Measure</th><td>p95 below 300 ms</td></tr></table>",
+                      chapter)
+
+    def test_functional_only_chapter_has_no_group_headings(self):
+        self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)
+        self.assertNotIn("Functional requirements", self.read("srs-auth.html"))
+
+    def test_nfr_and_rules_catalogues_and_type_column(self):
+        write(self.root, "docs/specs/auth/spec.md", TYPED_SPEC)
+        self.assertEqual(0, run_specs(self.root, "export", "--all").returncode)
+        html = self.read("srs.html")
+        order = [html.index(f'id="{anchor}"') for anchor in ("actors", "nfr", "business-rules", "auth")]
+        self.assertEqual(sorted(order), order)
+        nfr = html[html.index('id="nfr"'):html.index('id="business-rules"')]
+        self.assertIn('<td>performance</td><td><a href="#REQ-AUTH-004">REQ-AUTH-004</a>: Sign-in response time</td>'
+                      "<td>auth</td><td>p95 below 300 ms</td>", nfr)
+        rules = html[html.index('id="business-rules"'):html.index('<section class="chapter"')]
+        self.assertIn("The system MUST lock an account after 5 failed sign-ins.", rules)
+        self.assertIn('<a href="#nfr">Non-functional requirements</a>', html)
+        self.assertIn('<a href="#business-rules">Business rules</a>', html)
+        self.assertIn("<th>Type</th>", html[html.index('id="traceability"'):])
+        self.assertEqual(0, run_specs(self.root, "export", "billing").returncode)
+        billing = self.read("srs-billing.html")
+        self.assertIn("No non-functional requirements.", billing)
+        self.assertIn("No business rules.", billing)
 
 
 class TestTemplates(unittest.TestCase):
@@ -408,7 +446,7 @@ class TestTemplates(unittest.TestCase):
             document = run_specs(root, "template", "srs.html").stdout
             chapter = run_specs(root, "template", "srs-capability.html").stdout
         for needle in ("{{title}}", "{{date}}", "{{toc}}", "{{chapters}}", "{{revisions}}", "{{glossary}}",
-                       "{{actors}}", "{{traceability}}", "@media print"):
+                       "{{actors}}", "{{nfr}}", "{{business_rules}}", "{{traceability}}", "@media print"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, document)
         self.assertRegex(document, r'mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js"\s+integrity="sha384-[A-Za-z0-9+/=]{64}"')

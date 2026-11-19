@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{title}}</title>
 <!-- The document of `gin specs export`. Override it in .agent-workflow/templates/srs.html.
-     Placeholders, each in double braces: title, date, revisions, toc, glossary, actors, chapters, traceability
+     Placeholders, each in double braces: title, date, revisions, toc, glossary, actors, nfr, business_rules, chapters, traceability
      (each chapter comes from srs-capability.html). The sign-off table is plain HTML below; edit, move, or delete it in your override.
      Put your logo, the customer, and the product brief on the cover, for example:
        <img class="logo" src="docs/brand/logo.png" alt="Acme">
@@ -77,6 +77,14 @@
 <section class="actors" id="actors">
   <h2>Actors</h2>
   {{actors}}
+</section>
+<section class="nfr" id="nfr">
+  <h2>Non-functional requirements</h2>
+  {{nfr}}
+</section>
+<section class="business-rules" id="business-rules">
+  <h2>Business rules</h2>
+  {{business_rules}}
 </section>
 {{chapters}}
 <section class="traceability" id="traceability">

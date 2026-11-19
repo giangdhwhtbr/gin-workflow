@@ -268,9 +268,7 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
         f'{markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed)}</section>'
         for path in sorted((folder / "diagrams").glob("*.md")))
     blocks = specs.parse_blocks(text)[0]
-    requirements = "\n".join(
-        f'<section class="requirement" id="{escape(block.id)}">'
-        f'{markdown_html(block.text, folder, _shown(spec, root), embed)}</section>' for block in blocks)
+    requirements = _requirements(blocks, folder, _shown(spec, root), embed)
     chapter = fill(template, {"cap": escape(cap), "capability": escape(title), "purpose": purpose,
                               "use_cases": use_cases,
                               "diagrams": diagrams, "requirements": requirements,
@@ -280,19 +278,21 @@ def _chapter(cap: str, spec: Path, root: Path, embed: Embed, template: str) -> t
     return chapter, toc
 
 
+_REQUIREMENT_FIELD = re.compile(r"^(Type|Category|Measure):[ \t]*(.*)$")
 _FIELD = re.compile(r"^(Actor|Secondary actors|Trigger|Requirements|Includes|Extends):[ \t]*(.*)$")
 _FIRST_SECTION = re.compile(r"^#{2,6} ", re.MULTILINE)
 
 
-def _use_case_fields(text: str) -> tuple[str, str]:
-    """The header lines of a use case template before its first section heading, as a two-column table, and the
-    text without them. A line with no value is dropped; an image in a value shows its alt text."""
+def _header_fields(text: str, pattern: re.Pattern[str], css: str) -> tuple[str, str]:
+    """The header lines matching `pattern` before the first section heading, as a two-column table of class `css`,
+    and the text without them. A line with no value is dropped; an image in a value shows its alt text.
+    The first line is a title, so a `### REQ-` heading there does not end the head."""
     text = _COMMENT.sub("", text)
-    found = _FIRST_SECTION.search(text)
+    found = _FIRST_SECTION.search(text, text.find("\n") + 1 if "\n" in text else 0)
     head, rest = (text[:found.start()], text[found.start():]) if found else (text, "")
     kept, rows = [], []
     for line in head.split("\n"):
-        field = _FIELD.match(line)
+        field = pattern.match(line)
         if field and not field.group(2).strip():
             continue
         if field:
@@ -300,12 +300,43 @@ def _use_case_fields(text: str) -> tuple[str, str]:
             rows.append(f"<tr><th>{escape(field.group(1))}</th><td>{value}</td></tr>")
         else:
             kept.append(line)
-    table = f'<table class="use-case-fields">{"".join(rows)}</table>' if rows else ""
+    table = f'<table class="{css}">{"".join(rows)}</table>' if rows else ""
     return table, "\n".join(kept) + rest
 
 
+def _requirement(block: specs.Block, folder: Path, origin: str, embed: Embed) -> str:
+    fields, text = _header_fields(block.text, _REQUIREMENT_FIELD, "requirement-fields")
+    html = markdown_html(text, folder, origin, embed)
+    if fields:
+        html = re.sub(r"(</h[1-6]>)", lambda found: found.group(1) + fields, html, count=1)
+    return f'<section class="requirement" id="{escape(block.id)}">{html}</section>'
+
+
+def _requirements(blocks: list[specs.Block], folder: Path, origin: str, embed: Embed) -> str:
+    """Requirements in file order; with any non-functional or business rule, grouped under type headings."""
+    def render(group: list[specs.Block]) -> str:
+        return "\n".join(_requirement(block, folder, origin, embed) for block in group)
+
+    kinds = {kind: [b for b in blocks if specs.type_of(b) == kind] for kind in specs.REQ_TYPES}
+    if len(kinds["functional"]) == len(blocks):
+        return render(blocks)
+    out = []
+    if kinds["functional"]:
+        out.append("<h3>Functional requirements</h3>\n" + render(kinds["functional"]))
+    if kinds["non-functional"]:
+        out.append("<h3>Non-functional requirements</h3>")
+        for category in (*specs.NFR_CATEGORIES, None):
+            members = [b for b in kinds["non-functional"]
+                       if (b.category == category if category else b.category not in specs.NFR_CATEGORIES)]
+            if members:
+                out.append(f"<h4>{escape(category or 'other')}</h4>\n" + render(members))
+    if kinds["business-rule"]:
+        out.append("<h3>Business rules</h3>\n" + render(kinds["business-rule"]))
+    return "\n".join(out)
+
+
 def _use_case(cap: str, path: Path, root: Path, embed: Embed) -> str:
-    fields, text = _use_case_fields(path.read_text(encoding="utf-8"))
+    fields, text = _header_fields(path.read_text(encoding="utf-8"), _FIELD, "use-case-fields")
     return _with_id(markdown_html(text, path.parent, _shown(path, root), embed), cap, path.stem, fields)
 
 
@@ -346,15 +377,22 @@ def _matter(root: Path, cfg: Mapping[str, Any], cap: str | None, caps: list[str]
                ", ".join(_use_case_link(u["ref"], caps) + (" (secondary)" if u["secondary"] else "")
                          for u in a["use_cases"])] for a in specs_matter.actors(root, cfg, cap)]
     trace = [[f'<a href="#{escape(t["id"])}">{escape(t["id"])}</a>: {escape(t["title"])}', escape(t["capability"]),
-              ", ".join(_use_case_link(ref, caps) for ref in t["use_cases"]),
+              escape(t["type"]), ", ".join(_use_case_link(ref, caps) for ref in t["use_cases"]),
               "<br>".join(f"<code>{escape(path)}</code>" for path in t["tests"]), _joined(t["qa_cases"]),
               escape(t["status"])] for t in specs_matter.traceability(root, cfg, cap)]
+    nfr = [[escape(n["category"]), f'<a href="#{escape(n["id"])}">{escape(n["id"])}</a>: {escape(n["title"])}',
+            escape(n["capability"]), escape(n["measure"])] for n in specs_matter.nonfunctional(root, cfg, cap)]
+    rules = [[f'<a href="#{escape(r["id"])}">{escape(r["id"])}</a>: {escape(r["title"])}', escape(r["capability"]),
+              escape(r["statement"]), ", ".join(_use_case_link(ref, caps) for ref in r["use_cases"])]
+             for r in specs_matter.business_rules(root, cfg, cap)]
     return {
         "revisions": _table(["Date", "Epic", "Title", "Capabilities", "Added", "Modified", "Removed"],
                             revisions, "No revisions yet."),
         "glossary": _table(["English", "Term", "Meaning"], glossary, "No glossary."),
         "actors": _table(["Actor", "Description", "Use cases"], actors, "No actors."),
-        "traceability": _table(["Requirement", "Capability", "Use cases", "Tests", "QA cases", "Status"],
+        "nfr": _table(["Category", "Requirement", "Capability", "Measure"], nfr, "No non-functional requirements."),
+        "business_rules": _table(["Rule", "Capability", "Statement", "Use cases"], rules, "No business rules."),
+        "traceability": _table(["Requirement", "Capability", "Type", "Use cases", "Tests", "QA cases", "Status"],
                                trace, "No requirements."),
     }
 
@@ -399,7 +437,9 @@ def export(root: Path, cfg: Mapping[str, Any], cap: str | None, out: str | None,
         toc.append(entry)
     title = _title(living[cap].read_text(encoding="utf-8"), cap) if cap else root.name
     front = [(anchor, label) for anchor, label in (("revisions", "Revision history"), ("signoff", "Sign-off"),
-                                                   ("glossary", "Glossary"), ("actors", "Actors"))
+                                                   ("glossary", "Glossary"), ("actors", "Actors"),
+                                                   ("nfr", "Non-functional requirements"),
+                                                   ("business-rules", "Business rules"))
              if f'id="{anchor}"' in document]
     back = [("traceability", "Traceability matrix")] if 'id="traceability"' in document else []
     entries = ([f'<li><a href="#{anchor}">{label}</a></li>' for anchor, label in front] + toc

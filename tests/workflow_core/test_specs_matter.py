@@ -9,7 +9,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from specs_fixtures import ADDED_BLOCK, AUTH_SPEC, USE_CASE, commit_all, delta, make_repo, write  # noqa: E402
+from specs_fixtures import ADDED_BLOCK, AUTH_SPEC, TYPED_SPEC, USE_CASE, commit_all, delta, make_repo, write  # noqa: E402
 from workflow_core import specs, specs_matter  # noqa: E402
 
 GLOSSARY = """# GLOSSARY
@@ -38,6 +38,24 @@ class TestSpecsMatter(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_nonfunctional_and_business_rules_catalogues(self):
+        write(self.root, "docs/specs/auth/spec.md", TYPED_SPEC)
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE.replace("REQ-AUTH-002", "REQ-AUTH-005"))
+        self.assertEqual([
+            {"id": "REQ-AUTH-004", "title": "Sign-in response time", "capability": "auth", "category": "performance",
+             "measure": "p95 below 300 ms"},
+            {"id": "REQ-AUTH-006", "title": "Password storage", "capability": "auth", "category": "security",
+             "measure": "bcrypt cost 12"},
+        ], specs_matter.nonfunctional(self.root, self.cfg))
+        self.assertEqual([
+            {"id": "REQ-AUTH-005", "title": "Lockout threshold", "capability": "auth",
+             "statement": "The system MUST lock an account after 5 failed sign-ins.", "use_cases": ["auth/sign-in"]},
+        ], specs_matter.business_rules(self.root, self.cfg))
+        self.assertEqual([], specs_matter.nonfunctional(self.root, self.cfg, "billing"))
+        types = {row["id"]: row["type"] for row in specs_matter.traceability(self.root, self.cfg)}
+        self.assertEqual({"REQ-AUTH-001": "functional", "REQ-AUTH-002": "functional", "REQ-AUTH-004": "non-functional",
+                          "REQ-AUTH-005": "business-rule", "REQ-AUTH-006": "non-functional"}, types)
 
     def test_revisions_newest_first_with_capabilities_and_reqs(self):
         archive = "docs/changes/archive"
@@ -95,10 +113,10 @@ class TestSpecsMatter(unittest.TestCase):
         write(self.root, "qa/cases/auth/TC-AUTH-001-login.md", "# Login\n\nREQ: REQ-AUTH-001\n")
         commit_all(self.root)
         self.assertEqual([
-            {"id": "REQ-AUTH-001", "title": "Sign in with password", "capability": "auth",
+            {"id": "REQ-AUTH-001", "title": "Sign in with password", "capability": "auth", "type": "functional",
              "use_cases": ["auth/sign-in"], "tests": ["tests/test_login.py"], "qa_cases": ["TC-AUTH-001"],
              "status": "covered"},
-            {"id": "REQ-AUTH-002", "title": "Reject wrong password", "capability": "auth",
+            {"id": "REQ-AUTH-002", "title": "Reject wrong password", "capability": "auth", "type": "functional",
              "use_cases": ["auth/sign-in"], "tests": [], "qa_cases": [], "status": "missing"},
         ], specs_matter.traceability(self.root, self.cfg))
 
