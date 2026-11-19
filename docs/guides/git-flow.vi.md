@@ -22,7 +22,7 @@ Không cần biết git để tuân theo thoả thuận. Mục Quy trình theo t
 - Gate: một điểm kiểm tra mà gin ghi nhận sau khi đúng người đã approve pull request tương ứng.
 - Approving role: vai trò được liệt kê cho một gate trong `team.approvals` của `.agent-workflow/config.yaml`.
 - Track: một phần của plan.
-- Lane: các track của một plan mà một thành viên làm trong một repository, được giao bằng một pull request.
+- Lane: các track của một plan mà một thành viên làm trong một repository, được giao bằng một pull request, hoặc nhiều pull request khi một số track của nó phải chờ.
 - Bead: một bản ghi công việc trong công cụ theo dõi task của dự án.
 - CI: các kiểm tra tự động chạy trên mỗi pull request.
 - Host: dịch vụ lưu repository và các pull request của nó: GitHub, GitLab, Gitea hoặc AWS CodeCommit.

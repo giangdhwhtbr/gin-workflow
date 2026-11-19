@@ -22,7 +22,7 @@ You do not need to know git to follow it. The Host procedures section gives the 
 - Gate: a checkpoint that gin records once the right people have approved the matching pull request.
 - Approving role: a role listed for a gate in `team.approvals` of `.agent-workflow/config.yaml`.
 - Track: one slice of a plan.
-- Lane: the tracks of one plan that one member does in one repository, delivered by one pull request.
+- Lane: the tracks of one plan that one member does in one repository, delivered by one pull request, or by several when some of its tracks wait.
 - Bead: a task record in the project's task tracker.
 - CI: automatic checks that run on every pull request.
 - Host: the service that stores the repository and its pull requests: GitHub, GitLab, Gitea, or AWS CodeCommit.

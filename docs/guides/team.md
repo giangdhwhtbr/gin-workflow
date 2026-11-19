@@ -102,13 +102,13 @@ Milestone writes follow `team.permissions.milestone`, and with shared Beads they
 
 To hand a track over (a member runs out of quota or is away), the current assignee or the area lead runs `gin team handoff <bead> <email>` from the main checkout. It acts on the whole lane and refuses when the lane worktree has uncommitted or untracked files. Otherwise it pushes the lane branch and the review ref, records the branch on the bead, and reassigns it with a fresh lease. `gin team handoff <bead> --release` instead returns the bead to the pool: it loses its assignee and lease, reopens, and gets the label `released`. Any member then sees it in `gin team ready` and may claim it whatever their areas. The new owner runs `gin team takeover <bead>` in the main checkout of their clone (for a child track, from the parent checkout). It fetches the branch, checks it out at the lane worktree, fetches the review ref, and claims the lane. The plan's `Owner:` field is not changed.
 
-A member runs their lane with `gin goal --workflow-id <epic>`, which covers the tracks assigned to them; `--lane <name>` picks one lane and also covers its unassigned tracks. Agents review each track; the lead or another approving role reviews the lane's pull request and the contracts in the plan ([command](../reference/cli.md#gin-goal)).
+A member runs their lane with `gin goal --workflow-id <epic>`, which covers the tracks assigned to them; `--lane <name>` picks one lane and also covers its unassigned tracks. Agents review each track; the lead or another approving role reviews the lane's pull request. Contracts are approved with the plan ([command](../reference/cli.md#gin-goal)).
 
 `gin team check --gate <gate> <url>` re-checks a teammate's gate without recording it.
 
 `gin team pending` lists the open pull requests that wait for approval, and `/gin:progress` shows them next to the milestone forecast, spec status, and QA state. Fields and exit codes are in the [command reference](../reference/cli.md#gin-team).
 
-A member's ship delivers the closed tracks of their lane in one pull request. Once a merged pull request lists every track of the epic, and, when `feat/<topic>` exists on the parent's `origin`, its pull request too, an area lead runs `gin team complete <epic>`. It reads the `Tracks:` line of each merged pull request, closes any open `prep` children, then closes the epic with the merged pull request URLs as the reason. Otherwise it lists what is missing and exits 1 ([command reference](../reference/cli.md#gin-team)).
+A member's ship delivers the closed tracks of their lane in one pull request. Once merged pull requests list every track of the epic, and, when `feat/<topic>` exists on the parent's `origin`, its pull request too, an area lead runs `gin team complete <epic>`. It reads the `Tracks:` line of each merged pull request, closes any open `prep` children, then closes the epic with the merged pull request URLs as the reason. Otherwise it lists what is missing and exits 1 ([command reference](../reference/cli.md#gin-team)).
 
 ## Quick in team mode
 

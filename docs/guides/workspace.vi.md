@@ -62,7 +62,7 @@ Mọi kỹ sư thực hiện phần này.
 
 1. Clone repository cha.
 2. Chạy `gin workspace clone <path>` cho các repository bạn làm việc. Kỹ sư backend clone một hoặc hai service; legacy `frozen` chỉ khi họ cần đọc nó.
-3. Mở IDE trên thư mục mà công việc cần. Với một track, đó là worktree `<parent>/.planning/worktrees/<track-id>`. Với setup, roadmap, discuss, plan, orchestrate và ship, đó là repository cha. Với `/gin:quick` trong một repository con, với QA, và với repository mà track khác đọc, đó là checkout chính của repository con đó.
+3. Mở IDE trên thư mục mà công việc cần. Với một track, đó là worktree `<parent>/.planning/worktrees/<track-id>`. Ở team mode, `<track-id>` là `<epic>-<lane>`, worktree của lane. Với setup, roadmap, discuss, plan, orchestrate và ship, đó là repository cha. Với `/gin:quick` trong một repository con, với QA, và với repository mà track khác đọc, đó là checkout chính của repository con đó.
 
 Bước clone cài các verify hook của mục có check và, ở chế độ team, commit-msg hook. Ngoài repository cha, mỗi vai trò clone thêm:
 
@@ -103,11 +103,11 @@ Với một bead độc lập ở team mode có chính sách `ship`, lặp `gin 
 
 ## Kỹ sư backend và frontend { #backend-and-frontend-engineers }
 
-Mở: `<parent>/.planning/worktrees/<track-id>`. Đó là worktree của một service hoặc một app, không có gì khác.
+Mở: `<parent>/.planning/worktrees/<track-id>`. Ở team mode, `<track-id>` là `<epic>-<lane>`, worktree của lane. Đó là worktree của một service hoặc một app, không có gì khác.
 
 | Stage | Lệnh |
 |---|---|
-| Tìm track | `gin task` hoặc `/gin:progress` từ bất kỳ đâu trong workspace liệt kê các track sẵn sàng; worktree của một track là `<parent>/.planning/worktrees/<track-id>` |
+| Tìm track | `gin task` hoặc `/gin:progress` từ bất kỳ đâu trong workspace liệt kê các track sẵn sàng; worktree của một track là `<parent>/.planning/worktrees/<track-id>` (`<epic>-<lane>` ở team mode) |
 | Triển khai | `/gin:execute` trong worktree; commit và push vào repository đó. Ở team mode, chạy `gin team claim <bead>` từ checkout của repository cha (hoặc một worktree của nó) trên `feat/<topic>`; lệnh tạo worktree của lane `.planning/worktrees/<epic>-<lane>` |
 | Review | `/gin:review` trong worktree. Khi review ledger bật, ledger được ghi vào `.planning/reviews/<bead>/` của repository cha; ở team mode, chạy `git pull --rebase` trước và commit rồi push thư mục đó sau mỗi phiên ledger (quy ước của skill `team`) |
 | Thay đổi nhỏ | `/gin:quick` bên trong repository con; nó commit trên một branch của repository con và chạy check của repository con đó |

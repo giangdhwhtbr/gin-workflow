@@ -102,7 +102,7 @@ Việc ghi milestone theo `team.permissions.milestone`, và với Beads dùng ch
 
 Để bàn giao một track (một thành viên hết quota hoặc vắng mặt), assignee hiện tại hoặc area lead chạy `gin team handoff <bead> <email>` từ main checkout. Lệnh áp dụng cho cả lane và từ chối khi worktree của lane còn file chưa commit hoặc chưa track. Nếu không, lệnh push branch của lane và review ref, ghi branch lên bead, và reassign với lease mới. `gin team handoff <bead> --release` trả bead về pool: bead mất assignee và lease, mở lại, và nhận label `released`. Mọi thành viên khi đó thấy nó trong `gin team ready` và có thể claim dù thuộc area nào. Owner mới chạy `gin team takeover <bead>` trong main checkout của clone của mình (với track của repository con thì chạy từ checkout của repository cha). Lệnh fetch branch, checkout tại worktree của lane, fetch review ref, và claim lane. Trường `Owner:` của plan không bị đổi.
 
-Thành viên chạy lane của mình bằng `gin goal --workflow-id <epic>`, lệnh bao gồm các track được gán cho họ; `--lane <name>` chọn một lane và bao gồm cả các track chưa gán của lane đó. Agent review từng track; lead hoặc role duyệt khác review pull request của lane và các contract trong plan ([lệnh](../reference/cli.md#gin-goal)).
+Thành viên chạy lane của mình bằng `gin goal --workflow-id <epic>`, lệnh bao gồm các track được gán cho họ; `--lane <name>` chọn một lane và bao gồm cả các track chưa gán của lane đó. Agent review từng track; lead hoặc role duyệt khác review pull request của lane. Contract được duyệt cùng plan ([lệnh](../reference/cli.md#gin-goal)).
 
 `gin team check --gate <gate> <url>` kiểm tra lại gate của đồng đội mà không ghi nó.
 

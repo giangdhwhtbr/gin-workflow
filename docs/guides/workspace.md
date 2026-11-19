@@ -62,7 +62,7 @@ Every engineer does this.
 
 1. Clone the parent.
 2. Run `gin workspace clone <path>` for the repositories you work on. A backend engineer clones one or two services; the frozen legacy only when they need to read it.
-3. Open the IDE on the directory the work needs. For a track, that is its worktree `<parent>/.planning/worktrees/<track-id>`. For setup, roadmap, discuss, plan, orchestrate, and ship, it is the parent. For `/gin:quick` in a child, for QA, and for a repository that another track reads, it is that child's main checkout.
+3. Open the IDE on the directory the work needs. For a track, that is its worktree `<parent>/.planning/worktrees/<track-id>`. In team mode `<track-id>` is `<epic>-<lane>`, the lane worktree. For setup, roadmap, discuss, plan, orchestrate, and ship, it is the parent. For `/gin:quick` in a child, for QA, and for a repository that another track reads, it is that child's main checkout.
 
 The clone installs the verify hooks of entries that have checks and, in team mode, the commit-msg hook. Beyond the parent, each role clones:
 
@@ -103,11 +103,11 @@ For a standalone bead in team mode with a `ship` policy, repeat `gin record ship
 
 ## Backend and frontend engineers
 
-Open: `<parent>/.planning/worktrees/<track-id>`. It is a worktree of one service or one app, nothing else.
+Open: `<parent>/.planning/worktrees/<track-id>`. In team mode `<track-id>` is `<epic>-<lane>`, the lane worktree. It is a worktree of one service or one app, nothing else.
 
 | Stage | Command |
 |---|---|
-| Find a track | `gin task` or `/gin:progress` from anywhere in the workspace lists ready tracks; the worktree of a track is `<parent>/.planning/worktrees/<track-id>` |
+| Find a track | `gin task` or `/gin:progress` from anywhere in the workspace lists ready tracks; the worktree of a track is `<parent>/.planning/worktrees/<track-id>` (`<epic>-<lane>` in team mode) |
 | Implement | `/gin:execute` in the worktree; commit and push to that repository. In team mode, run `gin team claim <bead>` from a parent checkout (or a worktree of it) on `feat/<topic>`; it creates the lane worktree `.planning/worktrees/<epic>-<lane>` |
 | Review | `/gin:review` in the worktree. With the review ledger on, it is written to the parent's `.planning/reviews/<bead>/`; in team mode, `git pull --rebase` before and a commit and push of that folder after each ledger session (a convention of the `team` skill) |
 | Small change | `/gin:quick` inside the child; it commits on a branch of the child and runs that child's checks |
