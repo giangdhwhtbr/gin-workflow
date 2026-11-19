@@ -6,7 +6,7 @@ Epics `gin-workflow-legacy-inventory`, `gin-workflow-sprint-retro`, and `gin-wor
 **Decision/Solution**
 - The frontmatter of every `SKILL.md` must parse as strict YAML (`test_every_skill_frontmatter_is_strict_yaml`). A colon followed by a space inside the `description:` value breaks it; write the description without `: `.
 - The sum of all frontmatter descriptions is capped by `test_descriptions_within_budget` in `tests/workflow_core/test_token_budget.py`. It was raised from 4,000 to 4,500 characters for `/milestone-close` (4,104 used after it). Every description is loaded into each session, so a raise is a deliberate choice recorded in the spec.
-- `skills/roadmap/SKILL.md` is capped at 12,000 characters and had 4 left after the legacy inventory epic; new roadmap rules go into `skills/roadmap/references/` files (each capped at 4,000 by the same test file: `manager-view.md`, `milestone-plan.md`).
+- `skills/roadmap/SKILL.md` is capped at 12,000 characters and had 4 left after the legacy inventory epic; new roadmap rules go into `skills/roadmap/references/` files (each capped at 4,000 by the same test file: `manager-view.md`, `milestone-plan.md`, `story-points.md`; it had 204 left after `gin-workflow-y7d6`). A stage skill can name another skill's reference without loading it into its budget chain by writing the path as inline code, not a markdown link (`discuss` does this for `../roadmap/references/story-points.md`).
 - Before planning a new skill, measure: `cd plugins/gin-workflow/src/scripts && python3 -c "from pathlib import Path; from workflow_core.budget import description_chars; print(description_chars(Path('..')))"`.
 
 **Consequences**

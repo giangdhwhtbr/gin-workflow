@@ -27,7 +27,7 @@ Turn a requirement into a confirmed design. The user starts with an idea, not a 
    In team mode, spec review and the `requirement-confirmed` evidence also follow the `team` skill. When the codebase docs folder (`.planning/codebase/`, or `docs/codebase/` with the SDD layout) has `11-GLOSSARY.md`, name business concepts with its `confirmed` English terms; add a missing term there as `proposed` and list it under the spec's assumptions.
 6. **Self-review the spec** and fix inline: placeholders (TBD/TODO), contradictions, scope too large for one plan, requirements readable two ways. Every user story has acceptance criteria and, with REQ-IDs, at least one `REQ:`; every new REQ has a story or a stated technical reason. In the legacy layout, `gin specs lint --spec <path>` must print `ok`; `record requirement-confirmed` refuses the spec otherwise.
 7. **User review** — "Spec written to `<path>`. Please review it and tell me about any changes before we write the implementation plan." Apply changes and repeat step 6 until the user explicitly confirms.
-8. **Record** — `gin record requirement-confirmed --evidence <spec-path> --actor <user-id>`; without a roadmap epic, pass `--workflow-id <topic>` where `<topic>` is the spec's topic slug, and name it in the spec as `Workflow: <topic>` for later stages.
+8. **Record** — `gin record requirement-confirmed --evidence <spec-path> --actor <user-id>`; without a roadmap epic, pass `--workflow-id <topic>` where `<topic>` is the spec's topic slug, and name it in the spec as `Workflow: <topic>` for later stages. For a roadmap epic, re-score its points per `../roadmap/references/story-points.md` (`--stage discuss`).
 
 ## Exit
 

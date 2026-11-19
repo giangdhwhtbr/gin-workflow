@@ -6,11 +6,12 @@ Source: {{source}}
 <!-- Written by /roadmap after the PM confirms it. One "### " block per epic; an epic id never changes once written.
      Depends on: epic ids from this file. Evidence: the tech-doc file and section (for example
      03-ARCHITECTURE.md#Request flow) or the product brief. The dependency graph stays acyclic.
-     The milestone headings and the Milestone: and Estimate: lines are written by /roadmap --milestone
+     The milestone headings and the Milestone:, Points: and Estimate: lines are written by /roadmap --milestone
      or by a plain /roadmap with a milestone plan; older files without them stay valid.
      A plain /roadmap without a milestone plan omits them and lists its epics under Unassigned.
      gin milestone list reads two Constraints lines: Deadline: (YYYY-MM-DD, the project deadline) and the whole
-     number that starts AI capacity: (the default lanes, streams of work that each run one epic at a time).
+     number that starts AI capacity: (the default lanes, streams of work that each run one epic at a time);
+     it also reads Days per point: (working days per story point, used until closed epics give a measured value).
      The way-of-working section is written by /roadmap from the skill's references/way-of-working.md and kept on re-runs;
      Spec ready by: and Integration point: are written by /roadmap --milestone or by a plain /roadmap with a milestone plan.
      Older files without them stay valid.
@@ -28,6 +29,7 @@ Source: {{source}}
 
 - AI capacity:
 - Deadline:
+- Days per point:
 
 ## Way of working
 
@@ -61,6 +63,7 @@ Integration point: {{integration_date}}
 ### {{epic_title}}
 Epic: {{epic_id}}
 Milestone: {{milestone_id}}
+Points: {{points}} ({{points_reason}})
 Estimate: {{estimate_days}}
 Kind:
 Complexity: {{complexity}}
