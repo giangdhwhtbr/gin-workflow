@@ -456,19 +456,15 @@ class TestTeamAllRepos(unittest.TestCase):
         init_repo(root / "services/order-api")
         init_repo(root / "web/shop")
 
-        # make web/shop unwriteable
-        gh_dir = root / "web/shop/.github"
-        gh_dir.mkdir(parents=True, exist_ok=True)
-        gh_dir.chmod(0o444)
-        try:
-            res = run_cli(root, "team", "init", "--all-repos", "--format", "json")
-            self.assertEqual(1, res.returncode)
-            payload = json.loads(res.stdout)
-            repos_by_path = {row["path"]: row for row in payload["repos"]}
-            self.assertIn("error", repos_by_path["web/shop"])
-            self.assertIn("written", repos_by_path["services/order-api"])
-        finally:
-            gh_dir.chmod(0o755)
+        # a file where web/shop needs its .github folder: the write fails on every OS and as root, where a
+        # read-only folder would not stop it
+        (root / "web/shop/.github").write_text("not a folder\n", encoding="utf-8")
+        res = run_cli(root, "team", "init", "--all-repos", "--format", "json")
+        self.assertEqual(1, res.returncode)
+        payload = json.loads(res.stdout)
+        repos_by_path = {row["path"]: row for row in payload["repos"]}
+        self.assertIn("error", repos_by_path["web/shop"])
+        self.assertIn("written", repos_by_path["services/order-api"])
 
     @unittest.skipIf(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
                      "chmod 0o500 read-only directory test not supported on Windows or as root")

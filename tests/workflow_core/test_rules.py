@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,6 +14,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
+# PATH of a gin child: the folder of git (workspace.current runs it) and the system defaults, not the caller's PATH.
+TOOLS_PATH = os.pathsep.join([os.path.dirname(shutil.which("git") or "/usr/bin"), os.defpath])
 
 from workflow_core.rules import (  # noqa: E402
     RulesError, build_rules, load_plugin_packs, load_project_rules, parse_pack, select_packs)
@@ -202,7 +206,7 @@ class TestBudget(unittest.TestCase):
 class TestCli(unittest.TestCase):
     def _run(self, repo: Path, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, str(SCRIPTS / "gin"), "rules", "--repository", str(repo), *args],
-                              cwd=ROOT, env={"PYTHONPATH": str(SCRIPTS), "PATH": "/usr/bin:/bin"},
+                              cwd=ROOT, env={"PYTHONPATH": str(SCRIPTS), "PATH": TOOLS_PATH},
                               capture_output=True, text=True, check=False)
 
     def test_files_uses_packaged_packs_and_core_by_default(self):
@@ -268,7 +272,7 @@ workspace:
 
             def run_rules(cwd: Path, *args: str):
                 return subprocess.run([sys.executable, str(SCRIPTS / "gin"), "rules", *args],
-                                      cwd=cwd, env={"PYTHONPATH": str(SCRIPTS), "PATH": "/usr/bin:/bin"},
+                                      cwd=cwd, env={"PYTHONPATH": str(SCRIPTS), "PATH": TOOLS_PATH},
                                       capture_output=True, text=True, check=False)
 
             # 1. cwd apps/web with --files app/page.tsx selects nextjs and react
@@ -333,7 +337,7 @@ workspace:
 
             def gin(cwd: Path, *args: str):
                 return subprocess.run([sys.executable, str(SCRIPTS / "gin"), *args],
-                                      cwd=cwd, env={"PYTHONPATH": str(SCRIPTS), "PATH": "/usr/bin:/bin"},
+                                      cwd=cwd, env={"PYTHONPATH": str(SCRIPTS), "PATH": TOOLS_PATH},
                                       capture_output=True, text=True, check=False)
 
             # 1. an unknown pack listed by the entry is warned on stderr, not fatal
