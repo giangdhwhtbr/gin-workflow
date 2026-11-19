@@ -18,6 +18,7 @@ Epic `gin-workflow-ht4l` (2026-11-07, shipped 2026-11-08). Handing a track over 
 - The team skill is at 5,843 of 6,000 characters.
 - Not run: a real two-clone handoff with shared Beads (Dolt remote).
 - `gin-workflow-ws-branch-model` (2026-11-15): `claim` now creates the track worktree, and `takeover` of a child bead fetches and checks out in the child; the main-checkout rule stays for beads without a workspace `Repo:`. `handoff` pushes the parent's `feat/` branch when it has unpushed ledger commits and refuses another branch with such commits; `takeover` pulls it first. Lessons: `git worktree add -b` leaves the branch when it fails and `gin worktree cleanup` keeps it, so a retry checks out an existing branch; `git ls-remote --heads origin <name>` matches by suffix, so pass `refs/heads/<name>` and omit `--exit-code` to tell "no branch" from a remote error; comparing `--git-common-dir` alone misses a plain directory inside the parent, so also compare `--show-toplevel` with the path.
+- `gin-workflow-ifbt` (2026-11-19): `handoff`, `takeover`, and `reassign` move every open track of the bead's lane, and the worktree is `.planning/worktrees/<epic>-<lane>` for a named lane ([team-lanes](team-lanes.md)).
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/{team_beads,team_cli,worktrees}.py`
@@ -27,6 +28,7 @@ Epic `gin-workflow-ht4l` (2026-11-07, shipped 2026-11-08). Handing a track over 
 - Commits `8f54dae`, `e52fbad`, `cdc27c1`, `2fa8579`, `5e919b7`, `e7dc531`, `be787e5`, `648aa25`, `fa38281`
 - Beads: `gin-workflow-ht4l`, `gin-workflow-ht4l.1` to `.5`
 - Related: [review-ledger-cycle-limit](review-ledger-cycle-limit.md), [epic-comments](epic-comments.md)
+
 
 **Scope**
 Team mode track handoff and takeover, the `released` label, and `gin worktree checkout`.
