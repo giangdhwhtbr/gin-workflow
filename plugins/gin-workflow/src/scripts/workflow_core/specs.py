@@ -503,6 +503,36 @@ def actor_key(name: str) -> str:
     return " ".join(name.split()).casefold()
 
 
+def use_case_ref(cap: str, value: str) -> tuple[str, str] | None:
+    """The (capability, slug) a use case reference names: `slug` in `cap`, or `other/slug`."""
+    parts = value.split("/")
+    if len(parts) == 1 and parts[0]:
+        return cap, parts[0]
+    if len(parts) == 2 and all(parts):
+        return parts[0], parts[1]
+    return None
+
+
+def generalization_cycles(parents: Mapping[str, list[str]]) -> list[list[str]]:
+    """Each cycle of a child -> parents graph once, as its sorted members."""
+    cycles: list[list[str]] = []
+    seen: set[tuple[str, ...]] = set()
+
+    def visit(node: str, path: list[str]) -> None:
+        if node in path:
+            cycle = sorted(path[path.index(node):])
+            if tuple(cycle) not in seen:
+                seen.add(tuple(cycle))
+                cycles.append(cycle)
+            return
+        for parent in parents.get(node, ()):
+            visit(parent, [*path, node])
+
+    for node in sorted(parents):
+        visit(node, [])
+    return cycles
+
+
 _CELL_SPLIT = re.compile(r"(?<!\\)\|")
 
 
@@ -535,6 +565,13 @@ def table_rows(text: str) -> tuple[list[str], list[tuple[int, dict[str, str]]]] 
     return None
 
 
+def actor_parents(root: Path, cfg: Mapping[str, Any]) -> dict[str, str]:
+    """`actor_key(child)` -> parent label from the `Is a` column of `<specs>/actors.md`."""
+    table = table_rows(read_text_or_none(specs_dir(root, cfg) / ACTORS_FILE) or "")
+    return {actor_key(row["Actor"]): " ".join(row["Is a"].split())
+            for _, row in (table[1] if table else []) if row.get("Actor") and row.get("Is a")}
+
+
 def lint_actors(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """`<specs>/actors.md`, when present, is a table with Actor and Description columns naming only actors of use cases."""
     base = specs_dir(root, cfg)
@@ -553,12 +590,23 @@ def lint_actors(root: Path, cfg: Mapping[str, Any]) -> list[str]:
         if text is None:
             continue
         named |= {actor_key(name) for name in [line_value(text, "Actor"), *line_values(text, "Secondary actors")] if name}
-    return [f"{shown(root, path)}:{number}: actor '{row['Actor']}' is in no use case"
-            for number, row in table[1] if row["Actor"] and actor_key(row["Actor"]) not in named]
+    errors = [f"{shown(root, path)}:{number}: actor '{row['Actor']}' is in no use case"
+              for number, row in table[1] if row["Actor"] and actor_key(row["Actor"]) not in named]
+    if "Is a" in table[0]:
+        rows = [row for _, row in table[1] if row["Actor"]]
+        known = named | {actor_key(row["Actor"]) for row in rows}
+        errors += [f"{shown(root, path)}:{number}: actor '{row['Actor']}' is a '{row['Is a']}', which is no actor"
+                   for number, row in table[1] if row["Actor"] and row["Is a"] and actor_key(row["Is a"]) not in known]
+        labels = {actor_key(row[column]): row[column] for row in rows for column in ("Is a", "Actor") if row[column]}
+        parents = {actor_key(row["Actor"]): [actor_key(row["Is a"])] for row in rows if row["Is a"]}
+        errors += [f"{shown(root, path)}: actor generalization cycle: {', '.join(labels[key] for key in cycle)}"
+                   for cycle in generalization_cycles(parents)]
+    return errors
 
 
 def lint_references(root: Path, cfg: Mapping[str, Any]) -> list[str]:
-    """`Includes:`/`Extends:` of a use case and `Use case:` of an activity diagram name a use case of the same capability."""
+    """`Includes:`/`Extends:`/`Specializes:` of a use case name a use case (`slug`, or `cap/slug` of another capability);
+    `Use case:` of an activity diagram names one of the same capability."""
     base = specs_dir(root, cfg)
     errors: list[str] = []
     for cap in sorted(p for p in base.iterdir() if p.is_dir()) if base.is_dir() else []:
@@ -566,12 +614,13 @@ def lint_references(root: Path, cfg: Mapping[str, Any]) -> list[str]:
         slugs = {path.stem for path in cases}
         for path in cases:
             text = path.read_text(encoding="utf-8")
-            for key in ("Includes", "Extends"):
-                for slug in line_values(text, key):
-                    if slug == path.stem:
+            for key in ("Includes", "Extends", "Specializes"):
+                for value in line_values(text, key):
+                    target = use_case_ref(cap.name, value)
+                    if target == (cap.name, path.stem):
                         errors.append(f"{shown(root, path)}: {key} names the use case itself")
-                    elif slug not in slugs:
-                        errors.append(f"{shown(root, path)}: {key} names unknown use case '{slug}'")
+                    elif target is None or not (base / target[0] / USE_CASES_DIR / f"{target[1]}.md").is_file():
+                        errors.append(f"{shown(root, path)}: {key} names unknown use case '{value}'")
         for path in sorted((cap / DIAGRAMS_DIR).glob("*-activity.md")):
             errors += [f"{shown(root, path)}: Use case names unknown use case '{slug}'"
                        for slug in line_values(path.read_text(encoding="utf-8"), "Use case") if slug not in slugs]
@@ -611,14 +660,23 @@ def lint_use_cases(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """Every `<specs>/<cap>/use-cases/*.md` has a title, an actor, known REQ-IDs, and a numbered main flow."""
     paths = sorted(specs_dir(root, cfg).glob(f"*/{USE_CASES_DIR}/*.md"))
     known = _known_req_ids(root, cfg) if paths else set()
-    included = {(path.parent, slug) for path in paths
-                for slug in line_values(path.read_text(encoding="utf-8"), "Includes")}
+    raw = {path: path.read_text(encoding="utf-8") for path in paths}
+    included = {ref for path, text in raw.items()
+                for ref in (use_case_ref(path.parent.parent.name, value) for value in line_values(text, "Includes")) if ref}
+    parents = {}
+    for path, text in raw.items():
+        cap = path.parent.parent.name
+        parents[f"{cap}/{path.stem}"] = [f"{ref[0]}/{ref[1]}" for ref in
+                                        (use_case_ref(cap, value) for value in line_values(text, "Specializes")) if ref]
     errors: list[str] = []
+    for cycle in generalization_cycles(parents):
+        first = specs_dir(root, cfg) / cycle[0].split("/")[0] / USE_CASES_DIR / f"{cycle[0].split('/')[1]}.md"
+        errors.append(f"{shown(root, first)}: use case generalization cycle: {', '.join(cycle)}")
     for path in paths:
-        text, name = _COMMENT.sub("", path.read_text(encoding="utf-8")), shown(root, path)
+        text, name = _COMMENT.sub("", raw[path]), shown(root, path)
         if not re.search(r"^# \S", text, re.MULTILINE):
             errors.append(f"{name}: missing '# <use case name>' title")
-        if not re.search(r"^Actor:[ \t]*\S", text, re.MULTILINE) and (path.parent, path.stem) not in included:
+        if not re.search(r"^Actor:[ \t]*\S", text, re.MULTILINE) and (path.parent.parent.name, path.stem) not in included:
             errors.append(f"{name}: missing 'Actor: <primary actor>' line")
         line = _USE_CASE_REQS.search(text)
         ids = [found.group(0) for found in REQ_ID.finditer(line.group(1))] if line else []

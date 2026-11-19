@@ -1,9 +1,10 @@
 <!-- One use case of a capability: <specs>/<cap>/use-cases/<slug>.md. The slug (file name without .md) is its ID.
      Requirements: the REQ-IDs it covers, from the living spec or the open change's 02-spec-delta.md.
-     Optional: Secondary actors, Trigger, Includes, Extends, every section but Main flow, and Actor when another
+     Optional: Secondary actors, Trigger, Includes, Extends, Specializes, every section but Main flow, and Actor when another
      use case includes this one; delete an unused line instead of leaving it empty.
      Actor: a role outside the system; a use case started on a schedule has the actor Scheduler, never System.
-     Includes and Extends list slugs of other use cases of the same capability, comma-separated. The main flow
+     Includes, Extends, and Specializes take a slug of the same capability or cap/slug for another one,
+     comma-separated. Specializes: <slug> marks a use case that is a special case of another. The main flow
      step where an included use case runs says "Include <slug>". Extends names the use case this one extends;
      Trigger then gives the extension point and condition: "At step 3 of <slug>, when ...".
      Business rules cite REQ-IDs instead of restating them. Each alternative or exception flow ends with
@@ -17,6 +18,7 @@ Trigger: <event that starts the use case>
 Requirements: REQ-<CAP>-NNN
 Includes: <slug>
 Extends: <slug>
+Specializes: <slug>
 
 ## Goal
 

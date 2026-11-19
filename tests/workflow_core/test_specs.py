@@ -596,6 +596,63 @@ class TestRepositoryCommands(unittest.TestCase):
               USE_CASE.replace("Requirements:", "Includes: verify-otp\nRequirements:"))
         self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
 
+    def test_lint_references_across_capabilities(self):
+        pay = "docs/specs/orders/use-cases/pay.md"
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
+        write(self.root, pay, USE_CASE + "Includes: auth/sign-in\n")
+        self.assertEqual([], specs.lint_references(self.root, self.cfg))
+        write(self.root, pay, USE_CASE + "Includes: auth/verify-otp\n")
+        self.assertEqual([f"{pay}: Includes names unknown use case 'auth/verify-otp'"],
+                         specs.lint_references(self.root, self.cfg))
+        write(self.root, pay, USE_CASE + "Extends: orders/pay\n")
+        self.assertEqual([f"{pay}: Extends names the use case itself"], specs.lint_references(self.root, self.cfg))
+        write(self.root, pay, USE_CASE + "Includes: a/b/c\n")
+        self.assertEqual([f"{pay}: Includes names unknown use case 'a/b/c'"], specs.lint_references(self.root, self.cfg))
+
+    def test_lint_use_case_actor_is_optional_for_a_use_case_included_from_another_capability(self):
+        write(self.root, "docs/specs/auth/use-cases/verify-otp.md",
+              USE_CASE.replace("# Sign in", "# Verify OTP").replace("Actor: Registered user\n", ""))
+        write(self.root, "docs/specs/orders/use-cases/pay.md", USE_CASE.replace("Requirements:", "Includes: auth/verify-otp\nRequirements:"))
+        self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
+
+    def test_lint_specializes_and_generalization_cycles(self):
+        base = "docs/specs/auth/use-cases/"
+        write(self.root, base + "sign-in.md", USE_CASE)
+        write(self.root, base + "sign-in-sso.md", USE_CASE + "Specializes: sign-in\n")
+        self.assertEqual([], specs.lint_references(self.root, self.cfg))
+        self.assertEqual([], specs.lint_use_cases(self.root, self.cfg))
+        write(self.root, base + "sign-in-sso.md", USE_CASE + "Specializes: nope\n")
+        self.assertEqual([f"{base}sign-in-sso.md: Specializes names unknown use case 'nope'"],
+                         specs.lint_references(self.root, self.cfg))
+        write(self.root, base + "a.md", USE_CASE + "Specializes: b\n")
+        write(self.root, base + "b.md", USE_CASE + "Specializes: a\n")
+        self.assertEqual([f"{base}a.md: use case generalization cycle: auth/a, auth/b"],
+                         specs.lint_use_cases(self.root, self.cfg))
+        self.assertEqual([["a", "b"]], specs.generalization_cycles({"a": ["b"], "b": ["a"]}))
+
+    def test_use_case_ref(self):
+        self.assertEqual(("auth", "x"), specs.use_case_ref("auth", "x"))
+        self.assertEqual(("other", "x"), specs.use_case_ref("auth", "other/x"))
+        for bad in ("a/b/c", "/x", "x/", ""):
+            self.assertIsNone(specs.use_case_ref("auth", bad))
+
+    def test_actors_generalize_with_an_is_a_column(self):
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md", USE_CASE)
+        write(self.root, "docs/specs/auth/use-cases/manage.md",
+              USE_CASE.replace("# Sign in", "# Manage").replace("Actor: Registered user", "Actor: Admin\nSecondary actors: User"))
+        header = "# Actors\n\n| Actor | Description | Is a |\n|---|---|---|\n"
+        path = "docs/specs/actors.md"
+        write(self.root, path, header + "| Admin | Manages users | User |\n| User | Signs in |  |\n")
+        self.assertEqual([], specs.lint_actors(self.root, self.cfg))
+        self.assertEqual({"admin": "User"}, specs.actor_parents(self.root, self.cfg))
+        write(self.root, path, header + "| Admin | Manages users | Superuser |\n| User | Signs in |  |\n")
+        self.assertEqual([f"{path}:5: actor 'Admin' is a 'Superuser', which is no actor"],
+                         specs.lint_actors(self.root, self.cfg))
+        write(self.root, path, header + "| Admin | Manages users | User |\n| User | Signs in | Admin |\n")
+        self.assertEqual([f"{path}: actor generalization cycle: Admin, User"], specs.lint_actors(self.root, self.cfg))
+        write(self.root, path, "# Actors\n\n| Actor | Description |\n|---|---|\n| Admin | x |\n")
+        self.assertEqual({}, specs.actor_parents(self.root, self.cfg))
+
     def test_changed_since_in_a_subdirectory_of_the_repository(self):
         with tempfile.TemporaryDirectory() as tmp:
             top = Path(tmp) / "top"
@@ -636,7 +693,7 @@ class TestSpecsCli(unittest.TestCase):
             self.assertLess(living.index("## Diagrams"), living.index("## Requirements"))
             use_case = run_specs(root, "template", "use-case.md").stdout
             for needle in ("Actor:", "Requirements:", "## Goal", "## Preconditions", "## Main flow", "## Alternative flows", "## Postconditions",
-                           "Secondary actors:", "Trigger:", "Includes:", "Extends:", "## Exception flows", "## Business rules",
+                           "Secondary actors:", "Trigger:", "Includes:", "Extends:", "Specializes:", "cap/slug", "## Exception flows", "## Business rules",
                            "Scheduler", "Include <slug>", "Resume at step", "Use case ends"):
                 with self.subTest(needle=needle):
                     self.assertIn(needle, use_case)
