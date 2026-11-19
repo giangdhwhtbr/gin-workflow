@@ -76,7 +76,7 @@ Run `/gin:discuss` to turn the confirmed inputs into requirements. Discuss reads
 
 Each requirement taken from an input gets a `Source:` line that names the file, for example `Source: assets/2026-06-02/mockup/index.html#new-order`; [the SDD guide](sdd.md#images-and-mockups) shows the full block.
 
-Discuss also writes the [diagrams](sdd.md#diagrams), any [use cases](sdd.md#use-cases), and the change folder, and `specs lint --change <epic>` must pass. The SRS draws the use case diagram from the use cases, so write `Actor:`, `Secondary actors:`, `Includes:`, and `Extends:` instead of drawing it. In team mode a member without a technical role gets business questions only; see [what changes in each stage](team.md#what-changes-in-each-stage).
+Discuss also writes the [diagrams](sdd.md#diagrams), any [use cases](sdd.md#use-cases), and the change folder, and `specs lint --change <epic>` must pass. The SRS draws the use case diagram from the use cases, so write `Actor:`, `Secondary actors:`, `Includes:`, `Extends:`, and `Specializes:` instead of drawing it. In team mode a member without a technical role gets business questions only; see [what changes in each stage](team.md#what-changes-in-each-stage).
 
 ### Open the spec pull request
 
@@ -137,7 +137,7 @@ A use case that applies a business rule cites it on its `Requirements:` line, so
 
 ## Actors and glossary
 
-Name each actor on the `Actor:` and `Secondary actors:` lines of a use case. To describe the actors in the SRS, add `<specs>/actors.md` with a table that has `Actor` and `Description` columns; names match a use case's actors without regard to case. `specs lint` reports two findings on it: `needs a table with Actor and Description columns`, and `actor '<name>' is in no use case` for a row no use case names. Cite a use case as `<capability>/<slug>`, the ID the SRS prints under its heading. Only glossary terms with `Status` `confirmed` reach the SRS. The SRS sections are in [exporting an SRS](sdd.md#exporting-an-srs).
+Name each actor on the `Actor:` and `Secondary actors:` lines of a use case. To describe the actors in the SRS, add `<specs>/actors.md` with a table that has `Actor` and `Description` columns; names match a use case's actors without regard to case. `specs lint` reports two findings on it: `needs a table with Actor and Description columns`, and `actor '<name>' is in no use case` for a row no use case names. Cite a use case as `<capability>/<slug>`, the ID the SRS prints under its heading. When two capabilities need the same steps, write them once and have the other use case say `Includes: auth/sign-in`, instead of copying them. When one actor is a kind of another, add an `Is a` column to `actors.md` with a row such as `| Admin | Manages users | User |`. When one use case is a special case of another, give it `Specializes: sign-in`. The [use cases](sdd.md#use-cases) section has the rules and the lint findings. Only glossary terms with `Status` `confirmed` reach the SRS. The SRS sections are in [exporting an SRS](sdd.md#exporting-an-srs).
 
 ## Conventions
 

@@ -76,7 +76,7 @@ Chạy `/gin:discuss` để biến đầu vào đã xác nhận thành requireme
 
 Mỗi requirement lấy từ một đầu vào có một dòng `Source:` nêu tên file, ví dụ `Source: assets/2026-06-02/mockup/index.html#new-order`; [hướng dẫn SDD](sdd.md#images-and-mockups) có khối đầy đủ.
 
-Discuss cũng viết các [sơ đồ](sdd.md#diagrams), các [use case](sdd.md#use-cases) nếu có, và change folder, và `specs lint --change <epic>` phải qua. SRS tự vẽ use case diagram từ các use case, nên hãy viết `Actor:`, `Secondary actors:`, `Includes:` và `Extends:` thay vì tự vẽ. Trong chế độ nhóm, thành viên không có vai trò kỹ thuật chỉ nhận câu hỏi nghiệp vụ; xem [thay đổi ở từng stage](team.md#what-changes-in-each-stage).
+Discuss cũng viết các [sơ đồ](sdd.md#diagrams), các [use case](sdd.md#use-cases) nếu có, và change folder, và `specs lint --change <epic>` phải qua. SRS tự vẽ use case diagram từ các use case, nên hãy viết `Actor:`, `Secondary actors:`, `Includes:`, `Extends:` và `Specializes:` thay vì tự vẽ. Trong chế độ nhóm, thành viên không có vai trò kỹ thuật chỉ nhận câu hỏi nghiệp vụ; xem [thay đổi ở từng stage](team.md#what-changes-in-each-stage).
 
 ### Mở spec pull request { #open-the-spec-pull-request }
 
@@ -137,7 +137,7 @@ Use case áp dụng một business rule thì trích dẫn nó trên dòng `Requi
 
 ## Actor và glossary { #actors-and-glossary }
 
-Nêu từng actor ở các dòng `Actor:` và `Secondary actors:` của use case. Để mô tả các actor trong SRS, thêm `<specs>/actors.md` với một bảng có các cột `Actor` và `Description`; tên khớp với actor của use case không phân biệt hoa thường. `specs lint` báo hai lỗi trên file này: `needs a table with Actor and Description columns`, và `actor '<name>' is in no use case` cho dòng mà không use case nào nêu. Trích dẫn một use case dưới dạng `<capability>/<slug>`, ID mà SRS in dưới tiêu đề của nó. Chỉ các term glossary có `Status` là `confirmed` mới vào SRS. Các phần của SRS nằm ở [xuất SRS](sdd.md#exporting-an-srs).
+Nêu từng actor ở các dòng `Actor:` và `Secondary actors:` của use case. Để mô tả các actor trong SRS, thêm `<specs>/actors.md` với một bảng có các cột `Actor` và `Description`; tên khớp với actor của use case không phân biệt hoa thường. `specs lint` báo hai lỗi trên file này: `needs a table with Actor and Description columns`, và `actor '<name>' is in no use case` cho dòng mà không use case nào nêu. Trích dẫn một use case dưới dạng `<capability>/<slug>`, ID mà SRS in dưới tiêu đề của nó. Khi hai capability cần cùng các bước, hãy viết chúng một lần và để use case kia ghi `Includes: auth/sign-in`, thay vì chép lại. Khi một actor là một loại của actor khác, thêm cột `Is a` vào `actors.md` với dòng như `| Admin | Manages users | User |`. Khi một use case là trường hợp đặc biệt của use case khác, cho nó `Specializes: sign-in`. Mục [use case](sdd.md#use-cases) có các quy tắc và các lỗi lint. Chỉ các term glossary có `Status` là `confirmed` mới vào SRS. Các phần của SRS nằm ở [xuất SRS](sdd.md#exporting-an-srs).
 
 ## Quy ước { #conventions }
 
