@@ -239,7 +239,7 @@ class SkillRoutingTests(unittest.TestCase):
 
     def test_discuss_rescores_a_roadmap_epic(self):
         text = (SRC / "skills/discuss/SKILL.md").read_text(encoding="utf-8")
-        for needle in ("../roadmap/references/story-points.md", "Re-score", "--stage discuss"):
+        for needle in ("../roadmap/references/story-points.md", "re-score", "--stage discuss"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
 

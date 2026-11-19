@@ -79,7 +79,7 @@ In this order, after confirmation. A failing step stops the run; report what was
    Result: closed <YYYY-MM-DD>; delivered <n> of <m> epics; <k> moved to <next milestone title>
    - Outcome: <reached|partial|missed|not planned>; <note>
    - Demo: <reached|partial|missed|not planned>; <note>
-   - Metrics: <closed> of <total> epics done (<percent>%); estimates <accuracy as percent> accurate; <capacity_used as percent> of capacity used; <cost> USD per epic; <rework> reworks; <completed> of <committed> points (say/do <percent>%); <days_per_point> days per point
+   - Metrics: <closed> of <total> epics done (<percent>%); estimates <accuracy as percent> accurate; <capacity_used as percent> of capacity used; <cost> USD per epic; <rework> reworks; <completed> of <committed> points (say/do <percent>%); <days_per_point> days per point; leave out the points part and the days-per-point part when their values are `n/a`
    - Spillover: <epic title>: <reason>; <decision>
    - Actions: <one line per action>
    ```

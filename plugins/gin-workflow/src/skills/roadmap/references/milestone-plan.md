@@ -3,7 +3,7 @@
 Read on a plain `/roadmap` (no `--milestone`). With `--milestone`, read only the Estimates block.
 
 ## Estimates
-Score points per [story points](story-points.md); `Estimate:` is the days `gin milestone show` derives from them. When `days_per_point` in `gin milestone list --json` has `measured_epics` 0, ask the PM once for the working days of one point (default 1; not counted against `project.max_questions`), write `- Days per point: <n> (assumed)` under `## Constraints`, and mark each `Estimate:` line `(assumed)`.
+Score points per [story points](story-points.md); `Estimate:` is the days `gin milestone show` derives from them. When `days_per_point` in `gin milestone list --json` has `measured_epics` 0 and the roadmap has no `- Days per point:` line yet, ask the PM once for the working days of one point (default 1; not counted against `project.max_questions`), write `- Days per point: <n> (assumed)` under `## Constraints`, and mark each `Estimate:` line `(assumed)`.
 
 ## Plan
 In step 2, ask once for the milestone plan: none; the open milestones of `gin milestone list --json`; or a list from the PM with a title, a start, and an end per milestone. The question does not count against `project.max_questions`. With none, only the Estimates block applies.

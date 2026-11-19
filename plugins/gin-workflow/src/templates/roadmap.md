@@ -63,6 +63,7 @@ Integration point: {{integration_date}}
 ### {{epic_title}}
 Epic: {{epic_id}}
 Milestone: {{milestone_id}}
+Points: {{points}} ({{points_reason}})
 Estimate: {{estimate_days}}
 Kind:
 Complexity: {{complexity}}
