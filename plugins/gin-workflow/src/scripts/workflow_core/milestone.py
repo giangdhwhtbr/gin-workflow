@@ -89,7 +89,7 @@ def points_of(bead: Mapping[str, Any]) -> int | None:
     if isinstance(value, bool) or value is None:
         return None
     text = str(value).strip()
-    return int(text) if text.isdigit() and int(text) in POINT_SCALE else None
+    return int(text) if text.isascii() and text.isdigit() and int(text) in POINT_SCALE else None
 
 
 def points_problem(bead: Mapping[str, Any]) -> bool:
@@ -191,7 +191,7 @@ def _integration(milestone: Mapping[str, Any]) -> date | None:
 
 def _count(value: Any) -> int | None:
     text = str(value).strip() if value is not None and not isinstance(value, bool) else ""
-    return int(text) if text.isdigit() else None
+    return int(text) if text.isascii() and text.isdigit() else None
 
 
 def _rate(value: Any) -> float | None:

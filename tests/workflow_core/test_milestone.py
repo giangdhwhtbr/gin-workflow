@@ -705,7 +705,7 @@ def done(id, points, started, closed, parent=None):
 
 class PointsTests(unittest.TestCase):
     def test_points_of_accepts_the_scale_only(self):
-        for value, expected in ((5, 5), ("8", 8), (4, None), ("x", None), (True, None), (None, None), (34, None)):
+        for value, expected in ((5, 5), ("8", 8), (4, None), ("x", None), (True, None), (None, None), (34, None), ("²", None)):
             with self.subTest(value=value):
                 self.assertEqual(expected, milestone.points_of(bead("E", meta={"points": value})))
         self.assertTrue(milestone.points_problem(bead("E", meta={"points": "4"})))
@@ -811,6 +811,9 @@ class VelocityTests(unittest.TestCase):
     def test_malformed_snapshot_is_a_metadata_problem(self):
         m1 = milestone_bead(committed_points="many", planned_days_per_point="1.5")
         self.assertEqual(["committed_points"], milestone.metadata_problems(m1))
+        superscript = milestone_bead(committed_points="²")
+        self.assertEqual(["committed_points"], milestone.metadata_problems(superscript))
+        self.assertIsNone(milestone.velocity(superscript, world(superscript), TODAY)["committed_points"])
 
 
 if __name__ == "__main__":
