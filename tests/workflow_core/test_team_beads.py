@@ -14,7 +14,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import TEAM, fake_cli, git, init_beads, make_team_repo, path_with, write  # noqa: E402
+from team_fixtures import TEAM, fake_cli, gh_pr, git, init_beads, make_team_repo, path_with, write  # noqa: E402
 # One test per subcommand keeps the subprocess; the rest run gin in this process.
 from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as run_cli  # noqa: E402
 from workflow_core import team_beads, worktrees  # noqa: E402
@@ -851,7 +851,9 @@ class TestTeamClaimWorktree(unittest.TestCase):
         bead = create(self.root, "No plan", "area:backend")
         claimed = run_cli(self.root, "team", "claim", bead, "--format", "json")
         self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
-        self.assertEqual({"status", "bead", "assignee", "expires_at", "advisory"}, set(json.loads(claimed.stdout)))
+        data = json.loads(claimed.stdout)
+        self.assertEqual({"status", "bead", "lane", "beads", "assignee", "expires_at", "advisory"}, set(data))
+        self.assertEqual((None, [bead]), (data["lane"], data["beads"]))
         self.assertFalse(self.target.exists())
 
     def test_single_repository_team_creates_the_worktree_in_the_parent(self):
@@ -1037,6 +1039,160 @@ class TestTeamClaimWorktree(unittest.TestCase):
         self.assertEqual(git(self.root, "rev-parse", "HEAD"), git(parent_bare, "rev-parse", "feat/x"))
         self.assertEqual("origin/feat/x", git(self.root, "rev-parse", "--abbrev-ref", "@{u}").strip())
         self.assertEqual("em@corp.com", show(self.root, bead)["assignee"])
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamLaneClaim(unittest.TestCase):
+    """R3, R6, R7, US-1, US-4: claim takes every open track of the lane on one branch and one worktree."""
+
+    PLAN = ".planning/plans/2026-11-19-shop.md"
+    URL = "https://github.com/org/app/pull/9"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.base = Path(self.tmp.name).resolve()
+        self.origin = self.base / "remotes/shop.git"
+        git(self.base, "init", "-q", "--bare", "-b", "main", str(self.origin))
+        self.root = make_team_repo(self.base / "shop")
+        git(self.root, "remote", "set-url", "origin", str(self.origin))
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "base")
+        git(self.root, "push", "-q", "origin", "main")
+        init_beads(self.root)
+        self.epic = json.loads(bd(self.root, "create", "Shop", "-t", "epic", "--json"))["id"]
+        self.bin = self.base / "bin"
+
+    def track(self, number: int, lane: str | None = "be", area: str = "backend") -> str:
+        text = f"Plan: {self.PLAN}, Track {number}" + (f"\nLane: {lane}" if lane else "")
+        return json.loads(bd(self.root, "create", f"Track {number}", "--parent", self.epic, "-l", f"area:{area}",
+                             "--description", text, "--json"))["id"]
+
+    def claim(self, bead: str, rules: list[dict] | None = None):
+        if rules is None:
+            return run_cli(self.root, "team", "claim", bead, "--format", "json")
+        fake_cli(self.bin, "gh", rules)
+        return run_cli(self.root, "team", "claim", bead, "--format", "json", env=path_with(self.bin))
+
+    def commit(self, worktree: Path, name: str) -> str:
+        (worktree / name).write_text(name, encoding="utf-8")
+        git(worktree, "add", name)
+        git(worktree, "commit", "-q", "-m", name)
+        return git(worktree, "rev-parse", "HEAD").strip()
+
+    def test_claim_takes_every_open_track_of_the_lane(self):
+        t1, t2, t3, t4 = self.track(1), self.track(2), self.track(3), self.track(4, "fe", "frontend")
+        claimed = self.claim(t1)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        data = json.loads(claimed.stdout)
+        self.assertEqual(("be", [t1, t2, t3], "feat/shop-be", True),
+                         (data["lane"], data["beads"], data["branch"], data["created"]))
+        self.assertTrue(data["worktree"].endswith(f".planning/worktrees/{self.epic}-be"), data["worktree"])
+        self.assertEqual("in_progress", show(self.root, t1)["status"])
+        expires = team_beads.claim_of(show(self.root, t1))["expires_at"]
+        for other in (t2, t3):
+            row = show(self.root, other)
+            self.assertEqual(("open", "binh@corp.com", expires),
+                             (row["status"], row.get("assignee"), team_beads.claim_of(row)["expires_at"]))
+        self.assertFalse(show(self.root, t4).get("assignee"))
+
+    def test_claiming_the_next_track_keeps_the_lane_worktree(self):
+        t1, t2, _t3 = self.track(1), self.track(2), self.track(3)
+        first = json.loads(self.claim(t1).stdout)
+        work = self.commit(Path(first["worktree"]), "one.txt")
+        bd(self.root, "close", t1)
+        claimed = self.claim(t2, [{"argv": ["pr", "list"], "stdout": []}])
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        data = json.loads(claimed.stdout)
+        self.assertEqual((False, first["worktree"], [t2, _t3]), (data["created"], data["worktree"], data["beads"]))
+        self.assertIn(work, git(Path(data["worktree"]), "log", "--format=%H"))
+        self.assertEqual("in_progress", show(self.root, t2)["status"])
+
+    def test_a_foreign_lease_on_a_track_of_the_lane_refuses_without_change(self):
+        t1, _t2, t3 = self.track(1), self.track(2), self.track(3)
+        bd(self.root, "update", t3, "--claim", actor="em@corp.com")
+        claim_meta(self.root, t3, "em@corp.com", "2999-01-01T00:00:00Z")
+        refused = self.claim(t1)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn(f"lane be is claimed by em@corp.com until 2999-01-01T00:00:00Z ({t3})", refused.stdout)
+        row = show(self.root, t1)
+        self.assertFalse(row.get("assignee"))
+        self.assertNotIn("claim", row.get("metadata") or {})
+
+    def test_an_expired_lease_on_a_track_of_the_lane_is_taken_over(self):
+        t1, _t2, t3 = self.track(1), self.track(2), self.track(3)
+        bd(self.root, "update", t3, "--claim", actor="em@corp.com")
+        claim_meta(self.root, t3, "em@corp.com", "2000-01-01T00:00:00Z")
+        claimed = self.claim(t1)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        row = show(self.root, t3)
+        self.assertEqual("binh@corp.com", row.get("assignee"))
+        self.assertIn("took over expired claim from em@corp.com", row.get("notes") or "")
+
+    def test_an_area_the_member_may_not_own_in_the_lane_refuses_without_change(self):
+        t1, t2 = self.track(1), self.track(2, area="frontend")
+        refused = self.claim(t1)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("may not own tracks in frontend", refused.stdout)
+        self.assertFalse(show(self.root, t1).get("assignee"))
+        self.assertFalse(show(self.root, t2).get("assignee"))
+
+    def test_a_track_without_a_lane_line_is_its_own_lane(self):
+        first, second = self.track(1, None), self.track(2, None)
+        claimed = self.claim(first)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        data = json.loads(claimed.stdout)
+        self.assertEqual(("t1", [first], "feat/shop-t1"), (data["lane"], data["beads"], data["branch"]))
+        self.assertTrue(data["worktree"].endswith(f".planning/worktrees/{first}"), data["worktree"])
+        self.assertFalse(show(self.root, second).get("assignee"))
+
+    def test_a_foreign_lease_on_a_track_without_a_lane_keeps_the_earlier_message(self):
+        first = self.track(1, None)
+        bd(self.root, "update", first, "--claim", actor="em@corp.com")
+        claim_meta(self.root, first, "em@corp.com", "2999-01-01T00:00:00Z")
+        refused = self.claim(first)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn(f"{first} is already claimed by em@corp.com until", refused.stdout)
+
+    def delivered_lane(self, after_merge: bool) -> tuple[str, Path, list[dict]]:
+        """Claim t1, commit and push the lane branch, close t1, move origin/main; the fake host says the lane's
+        pull request merged at the pushed head. Returns (t2, worktree, gh rules)."""
+        t1, t2 = self.track(1), self.track(2)
+        worktree = Path(json.loads(self.claim(t1).stdout)["worktree"])
+        head = self.commit(worktree, "one.txt")
+        git(worktree, "push", "-q", "-u", "origin", "feat/shop-be")
+        if after_merge:
+            self.commit(worktree, "late.txt")
+        bd(self.root, "close", t1)
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "merged upstream")
+        git(self.root, "push", "-q", "origin", "main")
+        rules = [{"argv": ["pr", "list", "--head", "feat/shop-be"],
+                  "stdout": [{"url": self.URL, "state": "MERGED", "mergeCommit": {"oid": "m" * 40}}]},
+                 {"argv": ["pr", "view", self.URL], "stdout": gh_pr(self.URL, state="MERGED", head=head)}]
+        return t2, worktree, rules
+
+    def test_a_merged_lane_branch_restarts_from_the_default_branch(self):
+        t2, worktree, rules = self.delivered_lane(after_merge=False)
+        claimed = self.claim(t2, rules)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        self.assertEqual(git(self.root, "rev-parse", "main").strip(), git(worktree, "rev-parse", "HEAD").strip())
+        self.assertEqual("feat/shop-be", git(worktree, "rev-parse", "--abbrev-ref", "HEAD").strip())
+        self.assertIn("restarted from origin/main", json.loads(claimed.stdout)["note"])
+
+    def test_commits_after_the_merged_head_keep_the_branch(self):
+        t2, worktree, rules = self.delivered_lane(after_merge=True)
+        before = git(worktree, "rev-parse", "HEAD").strip()
+        claimed = self.claim(t2, rules)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        self.assertEqual(before, git(worktree, "rev-parse", "HEAD").strip())
+        self.assertIn("has commits after its merged pull request", json.loads(claimed.stdout)["note"])
+
+    def test_an_unreachable_host_keeps_the_branch_and_says_so(self):
+        t2, worktree, _rules = self.delivered_lane(after_merge=False)
+        before = git(worktree, "rev-parse", "HEAD").strip()
+        claimed = self.claim(t2, [{"argv": ["pr", "list"], "exit": 1, "stderr": "offline"}])
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        self.assertEqual(before, git(worktree, "rev-parse", "HEAD").strip())
+        self.assertTrue(json.loads(claimed.stdout)["note"].startswith("cannot ask the host"))
 
 
 if __name__ == "__main__":

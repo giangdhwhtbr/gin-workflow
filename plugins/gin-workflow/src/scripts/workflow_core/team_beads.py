@@ -15,7 +15,7 @@ from . import tasks, workspace, worktrees
 from .executables import tool
 from .prep import is_prep
 from .team import Area, Member, TeamConfig, TeamError, plan_tracks
-from .team_pending import _TRACK_LINE, topic_of
+from .team_pending import _TRACK_LINE, topic_of, track_lane
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
@@ -216,6 +216,39 @@ def track_of(issue: Mapping[str, Any]) -> tuple[str, int, str | None] | None:
     return topic_of(track[1]), int(track[2]), repo[1] if repo else None
 
 
+def _lane(issue: Mapping[str, Any]) -> tuple[str, int, str, bool] | None:
+    return track_lane(str(issue.get("description") or ""))
+
+
+def lane_of(issue: Mapping[str, Any]) -> str | None:
+    """The lane of a track bead: its `Lane:` line, else the implicit `t<N>`; None for a bead that is no track."""
+    found = _lane(issue)
+    return found[2] if found else None
+
+
+def lane_beads(root: Path, issue: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The track beads of `issue`'s lane, any status: the children of its epic with the same plan path and
+    lane. Just `issue` for a bead that is no track or has no parent."""
+    own, epic = _lane(issue), issue.get("parent")
+    if own is None or not epic:
+        return [dict(issue)]
+    rows = [row for row in _bd_json(root, ["list", "--parent", str(epic), "--all", "--limit", "0"])
+            if (found := _lane(row)) is not None and (found[0], found[2]) == (own[0], own[2])]
+    return rows if any(row["id"] == issue["id"] for row in rows) else [dict(issue), *rows]
+
+
+def _lane_targets(root: Path, issue: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """`issue`, then the other open tracks of its lane in track order: what a lane command writes to."""
+    others = [row for row in lane_beads(root, issue) if row["id"] != issue["id"] and row.get("status") != "closed"]
+    return [dict(issue), *sorted(others, key=lambda row: (_lane(row) or ("", 0))[1])]
+
+
+def _lane_key(issue: Mapping[str, Any], bead: str) -> str:
+    """The worktree id of the bead's lane: `<epic>-<lane>` for a named lane, else the bead id."""
+    found, epic = _lane(issue), issue.get("parent")
+    return f"{epic}-{found[2]}" if found and found[3] and epic else bead
+
+
 def default_branch(repo: Path, entry: workspace.Repo | None) -> str:
     """A child's `default_branch`; else the branch `origin/HEAD` of `repo` names; else `main`."""
     if entry is not None:
@@ -244,12 +277,13 @@ def _track_repo(root: Path, repo: str | None) -> tuple[Path, workspace.Repo | No
     return space.checkout(entry), entry
 
 
-def _track_place(root: Path, track: tuple[str, int, str | None]) -> tuple[Path, workspace.Repo | None, str]:
-    """(repository, workspace entry or None, branch `feat/<topic>-t<N>`); refuses a `Repo:` or a branch name git
+def _track_place(root: Path, track: tuple[str, int, str | None],
+                 lane: str) -> tuple[Path, workspace.Repo | None, str]:
+    """(repository, workspace entry or None, branch `feat/<topic>-<lane>`); refuses a `Repo:` or a branch name git
     would not accept, so claim can check both before the lease."""
-    topic, number, repo = track
+    topic, _number, repo = track
     repo_dir, entry = _track_repo(root, repo)
-    branch = f"feat/{topic}-t{number}"
+    branch = f"feat/{topic}-{lane}"
     try:
         worktrees._git(repo_dir, "check-ref-format", "--branch", branch)
     except RuntimeError as error:
@@ -268,69 +302,123 @@ def _worktree_of(target: Path, repo_dir: Path) -> bool:
     return Path(top).resolve() == target.resolve() and Path(common).resolve() == Path(own).resolve()
 
 
-def track_worktree(root: Path, issue: Mapping[str, Any], bead: str) -> dict[str, Any] | None:
-    """The worktree `.planning/worktrees/<bead>` on `feat/<topic>-t<N>` in the track's repository: kept when it
-    exists, else checked out from the local or `origin` branch, else created from `origin/<default>`; None for a
-    bead without a `Plan: <path>, Track <N>` line."""
-    track = track_of(issue)
-    if track is None:
-        return None
-    repo_dir, entry, branch = _track_place(root, track)
+def _restart_delivered(team: TeamConfig, repo_dir: Path, entry: workspace.Repo | None, target: Path,
+                       branch: str) -> str | None:
+    """Start `branch` again from `origin/<default>` in the worktree `target` when its newest pull request has
+    merged and the branch still sits on that pull request's head. Returns what happened, a warning when the
+    branch has commits made after the merged head, or None when there is nothing to do. A host that cannot be
+    reached leaves the branch as it is."""
+    from . import team_host
+
     try:
-        target = worktrees._target(repo_dir, bead, root)
+        found = team_host.pr_for_branch(team.host, branch, repo_dir)
+        if found is None or found.state != "merged":
+            return None
+        merged_head = team_host.fetch_pr(found.url, team.host, repo_dir).head_sha
+    except team_host.HostUnavailable as error:
+        return f"cannot ask the host whether {branch} has merged: {error}"
+    default = default_branch(repo_dir, entry)
+    worktrees._git(repo_dir, "fetch", "origin", default)
+    if worktrees._git(target, "rev-parse", "HEAD") == merged_head:
+        if worktrees._git(target, "status", "--porcelain"):
+            raise SyncConflict(f"{target} has uncommitted changes; commit or remove them, then claim again")
+        worktrees._git(target, "checkout", "-B", branch, f"origin/{default}")
+        return (f"{branch} restarted from origin/{default} after {found.url} merged; if the host kept the "
+                f"merged branch, delete it on origin before the next push")
+    try:
+        worktrees._git(target, "merge-base", "--is-ancestor", merged_head, "HEAD")
+    except RuntimeError:  # restarted earlier, or the merged head is not in this clone
+        return None
+    if worktrees._git(target, "rev-list", "--count", f"{merged_head}..HEAD", f"^origin/{default}") != "0":
+        return f"{branch} has commits after its merged pull request {found.url}; merge origin/{default} into it"
+    return None
+
+
+def track_worktree(root: Path, team: TeamConfig, issue: Mapping[str, Any], bead: str, *,
+                   delivered: bool = False) -> dict[str, Any] | None:
+    """The lane's worktree (`.planning/worktrees/<epic>-<lane>`, or `<bead>` for the implicit lane) on
+    `feat/<topic>-<lane>` in the track's repository: kept when it exists (restarted from `origin/<default>` when
+    `delivered` and its pull request merged), else checked out from the local or `origin` branch, else created
+    from `origin/<default>`; None for a bead without a `Plan: <path>, Track <N>` line."""
+    track, lane = track_of(issue), lane_of(issue)
+    if track is None or lane is None:
+        return None
+    repo_dir, entry, branch = _track_place(root, track, lane)
+    key = _lane_key(issue, bead)
+    try:
+        target = worktrees._target(repo_dir, key, root)
         if target.exists():
             if not _worktree_of(target, repo_dir):
                 raise SyncConflict(f"{target} is not a worktree of {repo_dir}; remove it")
-            return {"worktree": str(target), "branch": worktrees._git(target, "rev-parse", "--abbrev-ref", "HEAD"),
+            note = _restart_delivered(team, repo_dir, entry, target, branch) if delivered else None
+            made = {"worktree": str(target), "branch": worktrees._git(target, "rev-parse", "--abbrev-ref", "HEAD"),
                     "created": False}
+            return {**made, "note": note} if note else made
         if worktrees._git(repo_dir, "branch", "--list", branch):
-            worktrees.checkout(repo_dir, bead, branch, root)
+            worktrees.checkout(repo_dir, key, branch, root)
         elif worktrees._git(repo_dir, "ls-remote", "--heads", "origin", f"refs/heads/{branch}"):
             worktrees._git(repo_dir, "fetch", "origin", branch)
-            worktrees.checkout(repo_dir, bead, branch, root)
+            worktrees.checkout(repo_dir, key, branch, root)
         else:
             default = default_branch(repo_dir, entry)
             worktrees._git(repo_dir, "fetch", "origin", default)
-            worktrees.create(repo_dir, bead, branch, f"origin/{default}", root)
+            worktrees.create(repo_dir, key, branch, f"origin/{default}", root)
     except (RuntimeError, ValueError) as error:
         raise SyncConflict(str(error)) from error
     return {"worktree": str(target), "branch": branch, "created": True}
 
 
 def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, Any]:
-    """Claim or renew a bead; an expired lease held by someone else is taken over with a note."""
+    """Claim or renew the lane of a bead: one lease on every open track of it, the named bead `in_progress`; an
+    expired lease held by someone else is taken over with a note."""
     if team.beads_remote:
         sync(root)
     issue = _show(root, bead)
-    released = RELEASED in (issue.get("labels") or [])
-    ineligible = [] if released else [area.name for area in _areas_of(team, issue) if not team.eligible(member, area)]
-    if ineligible:
-        raise SyncConflict(f"{member.email} may not own tracks in {', '.join(ineligible)}")
+    own = _lane(issue)
+    targets = _lane_targets(root, issue)
+    now = utc_now()
+    for target in targets:
+        labels = target.get("labels") or []
+        ineligible = [] if RELEASED in labels else [area.name for area in _areas_of(team, target)
+                                                    if not team.eligible(member, area)]
+        if ineligible:
+            raise SyncConflict(f"{member.email} may not own tracks in {', '.join(ineligible)}")
+        holder = (target.get("assignee") or "").lower()
+        if holder and holder != member.email and not claim_expired(target, now):
+            until = claim_of(target)["expires_at"]
+            raise SyncConflict(f"lane {own[2]} is claimed by {holder} until {until} ({target['id']})"
+                               if own and own[3] else f"{bead} is already claimed by {holder} until {until}")
     track = track_of(issue)
     if track is not None:
-        _track_place(root, track)  # an unusable child or branch name refuses before the lease
-    holder = (issue.get("assignee") or "").lower()
+        _track_place(root, track, own[2])  # an unusable child or branch name refuses before the lease
+    named_holder = (issue.get("assignee") or "").lower()
     expires_at = _expires(team)
     lease = json.dumps({"holder": member.email, "expires_at": expires_at})
-    if holder and holder != member.email:
-        if not claim_expired(issue, utc_now()):
-            raise SyncConflict(f"{bead} is already claimed by {holder} until {claim_of(issue)['expires_at']}")
-        argv = ["update", bead, "--assignee", member.email, "--status", "in_progress",
-                "--append-notes", f"took over expired claim from {holder}", "--set-metadata", f"claim={lease}"]
-    else:
-        argv = ["update", bead, "--claim", "--set-metadata", f"claim={lease}"]
-    if released:
-        argv += ["--remove-label", RELEASED]
-    completed = _bd(root, argv, actor=member.email)
-    if completed.returncode != 0:
-        raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
+    for target in targets:
+        holder = (target.get("assignee") or "").lower()
+        if target["id"] == bead and not holder:
+            argv = ["update", bead, "--claim"]
+        else:
+            argv = ["update", target["id"], "--assignee", member.email]
+            if target["id"] == bead:
+                argv += ["--status", "in_progress"]
+            if holder and holder != member.email:
+                argv += ["--append-notes", f"took over expired claim from {holder}"]
+        argv += ["--set-metadata", f"claim={lease}"]
+        if RELEASED in (target.get("labels") or []):
+            argv += ["--remove-label", RELEASED]
+        completed = _bd(root, argv, actor=member.email)
+        if completed.returncode != 0:
+            raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
+    delivered = any(row.get("status") == "closed" for row in lane_beads(root, issue))
     try:
-        made = track_worktree(root, issue, bead)
+        made = track_worktree(root, team, issue, bead, delivered=delivered)
     except SyncConflict as error:
         raise SyncConflict(f"{error}; the claim is kept; run gin team claim {bead} again") from error
-    return {"status": "renewed" if holder == member.email else "claimed", "bead": bead, "assignee": member.email,
-            "expires_at": expires_at, "advisory": not team.beads_remote, **(made or {})}
+    return {"status": "renewed" if named_holder == member.email else "claimed", "bead": bead,
+            "lane": own[2] if own else None, "beads": [target["id"] for target in targets],
+            "assignee": member.email, "expires_at": expires_at, "advisory": not team.beads_remote, **(made or {})}
 
 
 def push(root: Path, team: TeamConfig) -> None:

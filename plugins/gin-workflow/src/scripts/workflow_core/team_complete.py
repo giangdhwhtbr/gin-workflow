@@ -42,7 +42,7 @@ def complete(root: Path, team: TeamConfig, member: Member, epic: str) -> dict[st
         if track is not None:
             topics.add(track[0])
             try:
-                repo_dir, _entry, branch = team_beads._track_place(root, track)
+                repo_dir, _entry, branch = team_beads._track_place(root, track, team_beads.lane_of(child))
             except team_beads.SyncConflict as conflict:
                 missing.append(f"{child['id']}: {conflict}")
                 continue

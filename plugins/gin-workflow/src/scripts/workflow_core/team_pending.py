@@ -12,6 +12,7 @@ from .team import TeamConfig, TeamError
 from .team_host import HostUnavailable
 
 _TRACK_LINE = re.compile(r"^Plan:\s*`?([^`,\n]+?)`?,\s*Track\s+(\d+)\b", re.MULTILINE)
+_LANE_LINE = re.compile(r"^Lane:\s*`?([a-z0-9][a-z0-9-]*)`?\s*$", re.MULTILINE)
 _EPIC_LINE = re.compile(r"^(?:Epic|Workflow):\s*(\S+)", re.MULTILINE)
 _GATES = {"spec": "requirement_confirmed", "plan": "plan_approved", "ship": "ship", "quick": "ship", "track": None}
 
@@ -37,6 +38,23 @@ def _beads(root: Path, argv: Sequence[str]) -> list[dict[str, Any]]:
 def topic_of(plan_path: str) -> str:
     """The plan file stem without a leading `YYYY-MM-DD-`."""
     return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", Path(plan_path).stem)
+
+
+def track_lane(description: str) -> tuple[str, int, str, bool] | None:
+    """(plan path, track number, lane, named) of a track bead description. The lane is its `Lane:` line, else
+    the implicit `t<N>` with `named` False (a bead orchestrated before lanes). None without a
+    `Plan: <path>, Track <N>` line."""
+    track = _TRACK_LINE.search(description)
+    if track is None:
+        return None
+    lane = _LANE_LINE.search(description)
+    return track[1], int(track[2]), lane[1] if lane else f"t{track[2]}", lane is not None
+
+
+def lane_branch(description: str) -> str | None:
+    """`feat/<topic>-<lane>` of a track bead description; None for a bead that is no track."""
+    found = track_lane(description)
+    return None if found is None else f"feat/{topic_of(found[0])}-{found[2]}"
 
 
 def candidates(root: Path, team: TeamConfig) -> list[tuple[str, str, str | None]]:

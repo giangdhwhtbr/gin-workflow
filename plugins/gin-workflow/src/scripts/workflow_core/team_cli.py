@@ -254,7 +254,8 @@ def _run(args: argparse.Namespace) -> int:
             result = team_beads.claim(root, team, member, args.bead)
             _emit(result, args.format, f"{result['status']} {args.bead}"
                   + (f" at {result['worktree']} on {result['branch']}" if "worktree" in result else "")
-                  + (" (advisory: no Beads remote, teammates cannot see this claim)" if result["advisory"] else ""))
+                  + (" (advisory: no Beads remote, teammates cannot see this claim)" if result["advisory"] else "")
+                  + (f"\nnote: {result['note']}" if result.get("note") else ""))
             return 0
         if args.command == "reassign":
             result = team_beads.reassign(root, team, member, args.bead, args.email)
