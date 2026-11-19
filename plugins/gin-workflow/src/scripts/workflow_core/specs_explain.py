@@ -9,7 +9,7 @@ import re
 from typing import Any, Mapping
 
 from . import specs
-from .specs_export import MEDIA_TYPES, Embed, _section, _template, _title, data_uri, fill, markdown_html
+from .specs_export import MEDIA_TYPES, Embed, _section, _template, _title, data_uri, fill, markdown_html, mermaid_script
 
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _STORY = re.compile(r"^### US-\d+:")
@@ -267,8 +267,10 @@ def explain(root: Path, cfg: Mapping[str, Any], name: str, narrative: str | None
     sections = "\n".join(f'<section class="tab" id="{key}"><h2>{label}</h2>\n{bodies[key]}</section>'
                          for key, label in present)
     shown_kind = f"legacy capability ({legacy})" if legacy is not None else kind
-    html = fill(document, {"title": escape(title), "kind": escape(shown_kind), "date": (today or date.today()).isoformat(),
-                           "nav": nav, "sections": sections})
+    values = {"title": escape(title), "kind": escape(shown_kind), "date": (today or date.today()).isoformat(),
+              "nav": nav, "sections": sections}
+    values["mermaid"] = mermaid_script("".join(values.values()))
+    html = fill(document, values)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(html, encoding="utf-8")

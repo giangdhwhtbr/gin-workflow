@@ -18,6 +18,7 @@ _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
 _TEMPLATE_SRC = re.compile(r'\bsrc=(["\'])(.+?)\1')
 _REMOTE = ("http://", "https://")
+MERMAID_SHA384 = "rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"
 _INLINE = re.compile(r"`([^`]+)`|!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]+)\]\(([^)\s]+)\)"
                      r"|\*\*(.+?)\*\*|\*(.+?)\*|(?<!\w)_(.+?)_(?!\w)")
 _HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
@@ -484,6 +485,17 @@ def fill(template: str, values: Mapping[str, str]) -> str:
     return _PLACEHOLDER.sub(lambda found: values.get(found.group(1), found.group(0)), template)
 
 
+def mermaid_script(body: str) -> str:
+    """The vendored Mermaid library as an inline script, only when the page draws a diagram."""
+    if '<pre class="mermaid">' not in body:
+        return ""
+    path = specs.plugin_templates_dir() / "vendor" / "mermaid.min.js"
+    try:
+        return "<script>" + path.read_text(encoding="utf-8") + "</script>"
+    except OSError as error:
+        raise specs.SpecsError(f"vendored Mermaid missing: {path}: {error}") from error
+
+
 def _template(root: Path, name: str, embed: Embed) -> str:
     def local(found: re.Match[str]) -> str:
         target = found.group(2)
@@ -526,9 +538,11 @@ def export(root: Path, cfg: Mapping[str, Any], cap: str | None, out: str | None,
     back = [("traceability", "Traceability matrix")] if 'id="traceability"' in document else []
     entries = ([f'<li><a href="#{anchor}">{label}</a></li>' for anchor, label in front] + toc
                + [f'<li><a href="#{anchor}">{label}</a></li>' for anchor, label in back])
-    html = fill(document, {"title": escape(title), "date": (today or date.today()).isoformat(),
-                           "toc": f'<ul>{"".join(entries)}</ul>', "chapters": "\n".join(chapters),
-                           **_matter(root, cfg, cap, caps, living, title)})
+    values = {"title": escape(title), "date": (today or date.today()).isoformat(),
+              "toc": f'<ul>{"".join(entries)}</ul>', "chapters": "\n".join(chapters),
+              **_matter(root, cfg, cap, caps, living, title)}
+    values["mermaid"] = mermaid_script("".join(values.values()))
+    html = fill(document, values)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(html, encoding="utf-8")
