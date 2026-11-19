@@ -15,7 +15,7 @@ from . import tasks, workspace, worktrees
 from .executables import tool
 from .prep import is_prep
 from .team import Area, Member, TeamConfig, TeamError, plan_tracks
-from .team_pending import _TRACK_LINE, topic_of, track_lane
+from .team_pending import _TRACK_LINE, lane_branch, topic_of, track_lane
 
 _EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
@@ -124,15 +124,28 @@ def ready(root: Path, team: TeamConfig, member: Member, exclude: Sequence[str] =
         )
         return matches, assignee, sorted(areas), released
 
+    now = utc_now()
+    expired_group: list[dict[str, Any]] = []
+
+    def _expired_row(issue: Mapping[str, Any], assignee: str, areas: Sequence[str]) -> dict[str, Any]:
+        return {"id": issue["id"], "title": issue.get("title", ""), "assignee": assignee, "areas": sorted(areas),
+                "expired_claim": assignee, "priority": issue.get("priority"), "lane": lane_of(issue),
+                "branch": lane_branch(str(issue.get("description") or ""))}
+
     for issue in tasks.without_held(_bd_json(root, ["ready", "--exclude-type", "milestone"]), held):
         labels = issue.get("labels") or []
         if any(label in excluded for label in labels):
             continue
         matches, assignee, areas, released = _matches_target(issue)
+        if not matches and assignee and claim_of(issue) and claim_expired(issue, now) and (set(areas) & mine or (not areas and not team.areas)):
+            expired_group.append(_expired_row(issue, assignee, areas))
+            seen.add(issue["id"])
+            continue
         if matches:
             ready_group.append({
                 "id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
                 "areas": areas, "released": released, "priority": issue.get("priority"),
+                "lane": lane_of(issue), "branch": lane_branch(str(issue.get("description") or "")),
             })
             seen.add(issue["id"])
 
@@ -161,13 +174,12 @@ def ready(root: Path, team: TeamConfig, member: Member, exclude: Sequence[str] =
             ready_group.append({
                 "id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
                 "areas": areas, "released": released, "priority": issue.get("priority"),
+                "lane": lane_of(issue), "branch": lane_branch(str(issue.get("description") or "")),
             })
             seen.add(issue["id"])
 
     ready_group.sort(key=_row_priority_key)
 
-    now = utc_now()
-    expired_group: list[dict[str, Any]] = []
     for issue in tasks.without_held(_bd_json(root, ["list", "--status", "in_progress"]), held):
         labels = issue.get("labels") or []
         if any(label in excluded for label in labels):
@@ -176,10 +188,7 @@ def ready(root: Path, team: TeamConfig, member: Member, exclude: Sequence[str] =
         areas = {label[5:] for label in labels if label.startswith("area:")}
         if issue["id"] not in seen and assignee and assignee != member.email and claim_expired(issue, now) \
                 and (areas & mine or (not areas and not team.areas)):
-            expired_group.append({
-                "id": issue["id"], "title": issue.get("title", ""), "assignee": assignee,
-                "areas": sorted(areas), "expired_claim": assignee, "priority": issue.get("priority"),
-            })
+            expired_group.append(_expired_row(issue, assignee, areas))
             seen.add(issue["id"])
 
     expired_group.sort(key=_row_priority_key)
@@ -481,9 +490,22 @@ def reassign(root: Path, team: TeamConfig, member: Member, bead: str, email: str
         sync(root)
     issue = _show(root, bead)
     holder, target = _reassign_target(team, member, bead, issue, email)
-    _write_reassign(root, team, member, bead, holder, target)
+    targets = _lane_targets(root, issue)
+    _check_lane_owner(team, target, targets[1:])
+    for row in targets:
+        if row["id"] == bead or (row.get("assignee") or "").lower() != target.email:
+            _write_reassign(root, team, member, row["id"], (row.get("assignee") or "").lower(), target)
     _push(root, team, bead)
-    return {"status": "reassigned", "bead": bead, "from": holder, "assignee": target.email}
+    return {"status": "reassigned", "bead": bead, "from": holder, "assignee": target.email,
+            "lane": lane_of(issue), "beads": [row["id"] for row in targets]}
+
+
+def _check_lane_owner(team: TeamConfig, target: Member, rows: Sequence[Mapping[str, Any]]) -> None:
+    """Refuse before any write when `target` may not own tracks in an area of the other tracks of the lane."""
+    for row in rows:
+        ineligible = [area.name for area in _areas_of(team, row) if not team.eligible(target, area)]
+        if ineligible:
+            raise SyncConflict(f"{target.email} may not own tracks in {', '.join(ineligible)}")
 
 
 def _write_reassign(root: Path, team: TeamConfig, member: Member, bead: str, holder: str, target: Member) -> None:
@@ -498,8 +520,8 @@ def handoff_of(issue: Mapping[str, Any]) -> dict[str, Any]:
     return metadata_json(issue, "handoff")
 
 
-def _track_worktree(root: Path, bead: str, worktree: str | None) -> Path:
-    path = Path(worktree).resolve() if worktree else worktrees._target(root, bead)
+def _track_worktree(root: Path, key: str, bead: str, worktree: str | None) -> Path:
+    path = Path(worktree).resolve() if worktree else worktrees._target(root, key)
     if not path.is_dir():
         raise SyncConflict(f"no worktree for {bead}; pass --worktree <path>")
     return path
@@ -571,6 +593,19 @@ def _local_ref(worktree: Path, ref: str) -> bool:
     return True
 
 
+def _push_review_ref(path: Path, bead: str, push_review_ref: Any, error_type: type[Exception]) -> None:
+    ref = _ledger_ref(path, bead)
+    if _local_ref(path, ref):
+        try:
+            push_review_ref(str(path), ref)
+        except error_type as error:
+            raise SyncConflict(f"review ref push failed for {ref}: {error}") from error
+    elif _ledger_file(path, bead).is_file():
+        print(f"no local review ref {ref} for {bead}; nothing to push", file=sys.stderr)
+    else:
+        print(f"no review ledger for {bead}", file=sys.stderr)
+
+
 def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: str | None = None,
             release: bool = False, worktree: str | None = None) -> dict[str, Any]:
     """Push the track branch and review ref, record the branch on the bead, then reassign or release it."""
@@ -578,20 +613,22 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
 
     if bool(email) == release:
         raise TeamError("pass exactly one of <email> or --release")
-    path = _track_worktree(root, bead, worktree)
+    if team.beads_remote:
+        sync(root)
+    issue = _show(root, bead)
+    path = _track_worktree(root, _lane_key(issue, bead), bead, worktree)
     try:
         dirty = worktrees._git(path, "status", "--porcelain")
     except RuntimeError as error:
         raise SyncConflict(f"{path} is not a git worktree: {error}") from error
     if dirty:
         raise SyncConflict(f"{bead}: uncommitted changes in {path}:\n{dirty}")
-    if team.beads_remote:
-        sync(root)
-    issue = _show(root, bead)
+    targets = _lane_targets(root, issue)
     holder = (issue.get("assignee") or "").lower()
     target = None
     if email:
         holder, target = _reassign_target(team, member, bead, issue, email)
+        _check_lane_owner(team, target, targets[1:])
     else:
         if issue.get("status") == "closed":
             raise SyncConflict(f"{bead} is closed")
@@ -605,32 +642,26 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
         worktrees._git(path, "push", "-u", "origin", branch)
     except RuntimeError as error:
         raise SyncConflict(f"git push of {branch} failed: {error}") from error
-    ref = _ledger_ref(path, bead)
-    if _local_ref(path, ref):
-        try:
-            push_review_ref(str(path), ref)
-        except GitAdapterError as error:
-            raise SyncConflict(f"review ref push failed for {ref}: {error}") from error
-    elif _ledger_file(path, bead).is_file():
-        print(f"no local review ref {ref} for {bead}; nothing to push", file=sys.stderr)
-    else:
-        print(f"no review ledger for {bead}", file=sys.stderr)
+    for row in targets:
+        _push_review_ref(path, row["id"], push_review_ref, GitAdapterError)
     _push_ledger_branch(path)
     meta = json.dumps({"branch": branch, "from": member.email, "to": target.email if target else None, "at": utc_now()})
-    completed = _bd(root, ["update", bead, "--set-metadata", f"handoff={meta}"], actor=member.email)
-    if completed.returncode != 0:
-        raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
-    if target:
-        _write_reassign(root, team, member, bead, holder, target)
-    else:
-        completed = _bd(root, ["update", bead, "--assignee", "", "--status", "open", "--unset-metadata", "claim",
-                               "--add-label", RELEASED, "--append-notes", f"released to the pool by {member.email}"],
-                        actor=member.email)
+    for row in targets:
+        completed = _bd(root, ["update", row["id"], "--set-metadata", f"handoff={meta}"], actor=member.email)
         if completed.returncode != 0:
             raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
+        if target:
+            _write_reassign(root, team, member, row["id"], (row.get("assignee") or "").lower(), target)
+        else:
+            completed = _bd(root, ["update", row["id"], "--assignee", "", "--status", "open", "--unset-metadata",
+                                   "claim", "--add-label", RELEASED, "--append-notes",
+                                   f"released to the pool by {member.email}"], actor=member.email)
+            if completed.returncode != 0:
+                raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
     _push(root, team, bead)
     print(f"next: gin team takeover {bead}", file=sys.stderr)
-    result: dict[str, Any] = {"status": "handed-off" if target else "released", "bead": bead, "branch": branch}
+    result: dict[str, Any] = {"status": "handed-off" if target else "released", "bead": bead, "branch": branch,
+                              "lane": lane_of(issue), "beads": [row["id"] for row in targets]}
     if target:
         result["assignee"] = target.email
     return result
@@ -659,23 +690,25 @@ def takeover(root: Path, team: TeamConfig, member: Member, bead: str, *, branch:
         raise SyncConflict(f"invalid branch name {branch!r} in the handoff metadata: {error}") from error
     if entry is not None:  # a workspace child's ledger lives on the parent's branch: read its latest state
         _pull_ledger_branch(root)
+    key = _lane_key(issue, bead)
     try:
         worktrees._git(repo_dir, "fetch", "origin", branch)
-        path = worktrees.checkout(repo_dir, bead, branch, root)
+        path = worktrees.checkout(repo_dir, key, branch, root)
     except (RuntimeError, ValueError) as error:
         raise SyncConflict(str(error)) from error
     try:
-        ref = _ledger_ref(path, bead)
-        if ref.startswith("refs/gin/review/"):
-            try:
-                worktrees._git(path, "fetch", "origin", f"+{ref}:{ref}")
-            except RuntimeError:
-                print(f"no review ref {ref} on origin for {bead}", file=sys.stderr)
-        else:
-            print(f"ignoring review ref {ref} from the ledger: not under refs/gin/review/", file=sys.stderr)
+        for row in _lane_targets(root, issue):
+            ref = _ledger_ref(path, row["id"])
+            if ref.startswith("refs/gin/review/"):
+                try:
+                    worktrees._git(path, "fetch", "origin", f"+{ref}:{ref}")
+                except RuntimeError:
+                    print(f"no review ref {ref} on origin for {row['id']}", file=sys.stderr)
+            else:
+                print(f"ignoring review ref {ref} from the ledger: not under refs/gin/review/", file=sys.stderr)
         result = claim(root, team, member, bead)
     except SyncConflict as error:
-        raise SyncConflict(f"{error}; worktree left at {path}; remove it with gin worktree cleanup {bead}") from error
+        raise SyncConflict(f"{error}; worktree left at {path}; remove it with gin worktree cleanup {key}") from error
     print(f"next: gin team deps --bead {bead}", file=sys.stderr)
     return {**result, "branch": branch, "worktree": str(path), "created": True}
 

@@ -1041,9 +1041,8 @@ class TestTeamClaimWorktree(unittest.TestCase):
         self.assertEqual("em@corp.com", show(self.root, bead)["assignee"])
 
 
-@unittest.skipUnless(HAS_BD, "bd is not installed")
-class TestTeamLaneClaim(unittest.TestCase):
-    """R3, R6, R7, US-1, US-4: claim takes every open track of the lane on one branch and one worktree."""
+class LaneBeads:
+    """A bare origin, a team repository, one epic, and the helpers to add tracks of a plan to it."""
 
     PLAN = ".planning/plans/2026-11-19-shop.md"
     URL = "https://github.com/org/app/pull/9"
@@ -1078,6 +1077,11 @@ class TestTeamLaneClaim(unittest.TestCase):
         git(worktree, "add", name)
         git(worktree, "commit", "-q", "-m", name)
         return git(worktree, "rev-parse", "HEAD").strip()
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamLaneClaim(LaneBeads, unittest.TestCase):
+    """R3, R6, R7, US-1, US-4: claim takes every open track of the lane on one branch and one worktree."""
 
     def test_claim_takes_every_open_track_of_the_lane(self):
         t1, t2, t3, t4 = self.track(1), self.track(2), self.track(3), self.track(4, "fe", "frontend")
@@ -1233,6 +1237,98 @@ class TestTeamLaneClaim(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamLaneHandoff(LaneBeads, unittest.TestCase):
+    """R8, R9, US-5: handoff, takeover, reassign, and ready act on every open track of the lane."""
+
+    GH = [{"argv": ["pr", "list"], "stdout": []}]
+
+    def setUp(self):
+        super().setUp()
+        fake_cli(self.bin, "gh", self.GH)
+        self.env = path_with(self.bin)
+        self.t1, self.t2, self.t3 = self.track(1), self.track(2), self.track(3)
+        self.worktree = Path(json.loads(self.claim(self.t1).stdout)["worktree"])
+        self.commit(self.worktree, "one.txt")
+        bd(self.root, "close", self.t1)
+        claimed = self.claim(self.t2, self.GH)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+
+    def cli(self, *args: str):
+        return run_cli(self.root, "team", *args, env=self.env)
+
+    def test_handoff_gives_the_lane_to_the_member_and_pushes_one_branch(self):
+        done = self.cli("handoff", self.t2, "em@corp.com", "--format", "json")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        data = json.loads(done.stdout)
+        self.assertEqual(([self.t2, self.t3], "be", "feat/shop-be"), (data["beads"], data["lane"], data["branch"]))
+        for bead in (self.t2, self.t3):
+            row = show(self.root, bead)
+            self.assertEqual("em@corp.com", row["assignee"])
+            self.assertEqual("feat/shop-be", team_beads.handoff_of(row)["branch"])
+        self.assertEqual("binh@corp.com", show(self.root, self.t1)["assignee"])
+        self.assertTrue(git(self.root, "ls-remote", "--heads", str(self.origin), "feat/shop-be").strip())
+
+    def test_handoff_text_names_the_lane(self):
+        done = self.cli("handoff", self.t2, "em@corp.com")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        self.assertIn(f"(lane be: {self.t2}, {self.t3})", done.stdout)
+
+    def test_release_opens_every_track_of_the_lane(self):
+        done = self.cli("handoff", self.t2, "--release")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        for bead in (self.t2, self.t3):
+            row = show(self.root, bead)
+            self.assertFalse(row.get("assignee"))
+            self.assertEqual("open", row["status"])
+            self.assertIn("released", row["labels"])
+            self.assertNotIn("claim", row.get("metadata") or {})
+
+    def test_takeover_checks_out_the_lane_and_leases_every_track(self):
+        self.assertEqual(0, self.cli("handoff", self.t2, "em@corp.com").returncode)
+        worktrees.cleanup(self.root, f"{self.epic}-be")
+        git(self.root, "branch", "-D", "feat/shop-be")
+        git(self.root, "config", "user.email", "em@corp.com")
+        taken = self.cli("takeover", self.t2, "--format", "json")
+        self.assertEqual(0, taken.returncode, taken.stdout + taken.stderr)
+        data = json.loads(taken.stdout)
+        self.assertEqual(self.root / ".planning/worktrees" / f"{self.epic}-be", Path(data["worktree"]))
+        self.assertEqual("feat/shop-be", git(Path(data["worktree"]), "rev-parse", "--abbrev-ref", "HEAD").strip())
+        for bead in (self.t2, self.t3):
+            self.assertEqual("em@corp.com", team_beads.claim_of(show(self.root, bead))["holder"])
+
+    def test_a_member_who_neither_holds_nor_leads_the_lane_changes_nothing(self):
+        git(self.root, "config", "user.email", "chi@corp.com")
+        refused = self.cli("handoff", self.t2, "em@corp.com", "--worktree", str(self.worktree))
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("may reassign", refused.stdout)
+        for bead in (self.t2, self.t3):
+            self.assertEqual("binh@corp.com", show(self.root, bead)["assignee"])
+            self.assertEqual({}, team_beads.handoff_of(show(self.root, bead)))
+
+    def test_reassign_moves_every_track_of_the_lane(self):
+        done = self.cli("reassign", self.t2, "em@corp.com", "--format", "json")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        self.assertEqual(([self.t2, self.t3], "be"), (json.loads(done.stdout)["beads"], json.loads(done.stdout)["lane"]))
+        for bead in (self.t2, self.t3):
+            self.assertEqual("em@corp.com", show(self.root, bead)["assignee"])
+
+    def test_ready_rows_carry_the_lane_and_group_by_branch(self):
+        plain = create(self.root, "Loose", "area:backend")
+        rows = {row["id"]: row for row in json.loads(self.cli("ready", "--format", "json").stdout)["ready"]}
+        self.assertEqual(("be", "feat/shop-be"), (rows[self.t3]["lane"], rows[self.t3]["branch"]))
+        self.assertEqual((None, None), (rows[plain]["lane"], rows[plain]["branch"]))
+        lines = self.cli("ready").stdout.splitlines()
+        at = lines.index("feat/shop-be (binh@corp.com)")
+        self.assertTrue(lines[at + 1].startswith(f"  {self.t3} "), lines)
+
+    def test_an_open_track_with_an_expired_lease_is_listed_as_expired(self):
+        bd(self.root, "update", self.t3, "--assignee", "em@corp.com")
+        claim_meta(self.root, self.t3, "em@corp.com", "2000-01-01T00:00:00Z")
+        rows = {row["id"]: row for row in json.loads(self.cli("ready", "--format", "json").stdout)["ready"]}
+        self.assertEqual("em@corp.com", rows[self.t3]["expired_claim"])
 
 
 @unittest.skipUnless(HAS_BD, "bd is not installed")

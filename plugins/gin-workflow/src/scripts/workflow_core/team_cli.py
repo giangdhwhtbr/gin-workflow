@@ -62,6 +62,10 @@ def _emit(payload: dict[str, Any], output_format: str, text: str) -> None:
     print(json.dumps(payload, indent=2, sort_keys=True) if output_format == "json" else text)
 
 
+def _lane_note(result: dict[str, Any]) -> str:
+    return f" (lane {result['lane']}: {', '.join(result['beads'])})" if len(result["beads"]) > 1 else ""
+
+
 def _findings(errors: list[str], output_format: str, ok: str) -> int:
     _emit({"status": "findings" if errors else "ok", "findings": errors}, output_format,
           "\n".join(errors) if errors else ok)
@@ -246,9 +250,17 @@ def _run(args: argparse.Namespace) -> int:
     try:
         if args.command == "ready":
             rows = team_beads.ready(root, team, member, exclude=args.exclude_label or ())
-            _emit({"ready": rows}, args.format, "\n".join(
-                f"{row['id']} {row['title']}" + (f" (expired claim: {row['expired_claim']})" if row.get("expired_claim") else "")
-                for row in rows))
+            lines: list[str] = []
+            headed: set[str] = set()
+            for row in rows:
+                line = f"{row['id']} {row['title']}" + (
+                    f" (expired claim: {row['expired_claim']})" if row.get("expired_claim") else "")
+                if row.get("branch") and row["branch"] not in headed:
+                    headed.add(row["branch"])
+                    holder = next(item["assignee"] for item in rows if item.get("branch") == row["branch"])
+                    lines.append(f"{row['branch']} ({holder or 'unclaimed'})")
+                lines.append(f"  {line}" if row.get("branch") else line)
+            _emit({"ready": rows}, args.format, "\n".join(lines))
             return 0
         if args.command == "claim":
             result = team_beads.claim(root, team, member, args.bead)
@@ -259,7 +271,7 @@ def _run(args: argparse.Namespace) -> int:
             return 0
         if args.command == "reassign":
             result = team_beads.reassign(root, team, member, args.bead, args.email)
-            _emit(result, args.format, f"reassigned {args.bead} to {result['assignee']}")
+            _emit(result, args.format, f"reassigned {args.bead} to {result['assignee']}" + _lane_note(result))
             return 0
         if args.command == "handoff":
             if bool(args.email) == args.release:
@@ -267,7 +279,7 @@ def _run(args: argparse.Namespace) -> int:
             result = team_beads.handoff(root, team, member, args.bead, email=args.email, release=args.release,
                                         worktree=args.worktree)
             _emit(result, args.format, f"{result['status']} {args.bead} on {result['branch']}"
-                  + (f" -> {result['assignee']}" if result.get("assignee") else ""))
+                  + (f" -> {result['assignee']}" if result.get("assignee") else "") + _lane_note(result))
             return 0
         if args.command == "takeover":
             result = team_beads.takeover(root, team, member, args.bead, branch=args.branch)
