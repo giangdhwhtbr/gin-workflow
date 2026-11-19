@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -13,13 +14,25 @@ LEDGER = os.path.join(SCRIPTS, "review-ledger.py")
 REVIEWER = "reviewer:other:model"
 
 
+def remove_repository(path):
+    """shutil.rmtree for a git repository: on Windows git marks its object files read-only, and os.unlink refuses a
+    read-only file, so a failed removal clears the flag and tries again."""
+    def clear_read_only(remove, failed, _error):
+        os.chmod(failed, stat.S_IWRITE)
+        remove(failed)
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=clear_read_only)
+    else:
+        shutil.rmtree(path, onerror=clear_read_only)
+
+
 class SequentialTracks(unittest.TestCase):
     """Track A is approved at commit A; track B then changes the branch and is approved at commit B."""
 
     @classmethod
     def setUpClass(cls):
         cls.cache = tempfile.mkdtemp()
-        cls.addClassCleanup(shutil.rmtree, cls.cache, ignore_errors=True)
+        cls.addClassCleanup(remove_repository, cls.cache)
         cls.two_track_commits = None  # (base, commit A, commit B) once the first test built the two tracks
 
     def setUp(self):
@@ -32,7 +45,7 @@ class SequentialTracks(unittest.TestCase):
         self.base = self.git("rev-parse", "HEAD").strip()
 
     def tearDown(self):
-        shutil.rmtree(self.repo, ignore_errors=True)
+        remove_repository(self.repo)
 
     def git(self, *args):
         return subprocess.run(["git", *args], cwd=self.repo, check=True, capture_output=True, text=True).stdout
@@ -72,7 +85,7 @@ class SequentialTracks(unittest.TestCase):
         replace their repository with a copy of it."""
         saved = os.path.join(self.cache, "two-tracks")
         if self.two_track_commits is not None:
-            shutil.rmtree(self.repo)
+            remove_repository(self.repo)
             shutil.copytree(saved, self.repo)
             self.base, commit_a, commit_b = self.two_track_commits
             return commit_a, commit_b
@@ -169,8 +182,8 @@ class SequentialTracks(unittest.TestCase):
     def fresh_clone_after_squash(self, *pushed_refs):
         origin = tempfile.mkdtemp()
         clone = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, origin, ignore_errors=True)
-        self.addCleanup(shutil.rmtree, clone, ignore_errors=True)
+        self.addCleanup(remove_repository, origin)
+        self.addCleanup(remove_repository, clone)
         subprocess.run(["git", "init", "-q", "--bare", origin], check=True)
         self.two_tracks()
         self.git("remote", "add", "origin", origin)
