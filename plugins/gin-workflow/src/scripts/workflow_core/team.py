@@ -228,6 +228,16 @@ class Track:
     lane: str = ""
 
 
+@dataclass(frozen=True)
+class Lane:
+    """A `### Lane <name>` declaration under a plan's `## Lanes`."""
+    name: str
+    owner: str
+    areas: tuple[str, ...]
+    repo: str = ""
+    depends: tuple[str, ...] = ()
+
+
 _TRACK = re.compile(r"^### Track (\d+):\s*(.*)$")
 _META = re.compile(r"^-\s*(?:\*\*)?(Area|Owner|Repo|Lane)(?:\*\*)?:\s*`?([^`\s]+)`?\s*$")
 _READS = re.compile(r"^-\s*(?:\*\*)?Reads(?:\*\*)?:\s*(.*)$")
@@ -237,6 +247,9 @@ _PATH = re.compile(r"`([^`\s]+)`")
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 _LANE = re.compile(r"[a-z0-9][a-z0-9-]*")
 _IMPLICIT_LANE = re.compile(r"t\d+")
+_LANES_HEADING = "## Lanes"
+_LANE_HEADING = re.compile(r"^### Lane\s+`?([^`\s]+)`?\s*$")
+_LANE_META = re.compile(r"^-\s*(?:\*\*)?(Owner|Area|Repo|Depends on lanes)(?:\*\*)?:(?:\*\*)?\s*(.*?)\s*$")
 
 
 def valid_lane(name: str) -> bool:
@@ -314,10 +327,61 @@ def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
     return tracks
 
 
+def plan_lanes(path: Path, text: str | None = None) -> list[Lane]:
+    """`### Lane <name>` declarations under `## Lanes` with their `Owner:`, `Area:` lines, `Repo:`, and
+    `Depends on lanes:`; other lines of a declaration (Scope, Acceptance criteria, Contracts) are not read, and
+    fenced code is skipped. Empty for a plan without `## Lanes`. `text` is the plan's content when it is not
+    read from `path`."""
+    lanes: list[Lane] = []
+    current: dict[str, Any] | None = None
+    inside = False
+    fence = ""
+
+    def close() -> None:
+        if current is not None:
+            lanes.append(Lane(current["name"], current["owner"], tuple(dict.fromkeys(current["areas"])),
+                              current["repo"], tuple(current["depends"])))
+
+    for line in (Path(path).read_text(encoding="utf-8") if text is None else text).splitlines():
+        opener = _FENCE.match(line)
+        if fence:
+            fence = "" if line.strip() == fence else fence
+            continue
+        if opener:
+            fence = opener.group(1)
+            continue
+        if line.startswith("## "):
+            close()
+            current, inside = None, line.strip() == _LANES_HEADING
+            continue
+        if not inside:
+            continue
+        if line.startswith("### "):
+            close()
+            heading = _LANE_HEADING.match(line)
+            current = None if heading is None else {"name": heading.group(1), "owner": "", "areas": [],
+                                                    "repo": "", "depends": []}
+            continue
+        meta = _LANE_META.match(line.strip()) if current is not None else None
+        if meta is None:
+            continue
+        key, value = meta.group(1), meta.group(2)
+        if key == "Depends on lanes":
+            current["depends"] += [item.strip().strip("`") for item in value.split(",") if item.strip().strip("`")]
+        elif key == "Area":
+            current["areas"].append(value.strip("`"))
+        else:
+            current[key.lower()] = value.strip("`")
+    close()
+    return lanes
+
+
 def check_plan(team: TeamConfig, path: Path, text: str | None = None) -> list[str]:
     errors: list[str] = []
-    tracks = plan_tracks(path, text)
-    if not tracks:
+    body = Path(path).read_text(encoding="utf-8") if text is None else text
+    tracks = plan_tracks(path, body)
+    declared_lanes = plan_lanes(path, body)
+    if not tracks and not declared_lanes:
         return [f"{path}: no '### Track N:' sections"]
     for track in tracks:
         label = f"Track {track.number}"
@@ -353,6 +417,7 @@ def check_plan(team: TeamConfig, path: Path, text: str | None = None) -> list[st
                 errors.append(f"lane {name}: tracks {first.number} and {other.number} have different owners")
             if (other.repo or ".") != (first.repo or "."):
                 errors.append(f"lane {name}: tracks {first.number} and {other.number} are in different repositories")
+    errors += _lane_findings(team, declared_lanes, tracks)
     listed: dict[str, list[int]] = {}
     for track in tracks:
         for item in track.files:
@@ -363,6 +428,63 @@ def check_plan(team: TeamConfig, path: Path, text: str | None = None) -> list[st
             errors.append(f"`{item}` is listed by tracks {', '.join(names[:-1])} and {names[-1]}")
     return errors
 
+
+def _lane_findings(team: TeamConfig, declared_lanes: Sequence[Lane], tracks: Sequence[Track]) -> list[str]:
+    """Findings of a plan's `## Lanes`: each declaration, then each track against the lane its `Lane:` names.
+    A track without a valid `Lane:` is reported by `check_plan` already."""
+    if not declared_lanes:
+        return []
+    errors: list[str] = []
+    declared: dict[str, Lane] = {}
+    for lane in declared_lanes:
+        if lane.name in declared:
+            errors.append(f"lane {lane.name}: declared twice")
+            continue
+        declared[lane.name] = lane
+        if not valid_lane(lane.name):
+            errors.append(f"lane {lane.name}: invalid lane name")
+        errors += _declaration_findings(team, lane)
+    for lane in declared.values():
+        errors += [f"lane {lane.name}: Depends on lanes: {name} is not a declared lane"
+                   for name in lane.depends if name not in declared]
+    for track in tracks:
+        if not track.lane or not valid_lane(track.lane):
+            continue
+        lane = declared.get(track.lane)
+        if lane is None:
+            errors.append(f"Track {track.number}: lane {track.lane} is not declared in ## Lanes")
+        else:
+            errors += _track_in_lane(track, lane)
+    return errors
+
+
+def _declaration_findings(team: TeamConfig, lane: Lane) -> list[str]:
+    label = f"lane {lane.name}"
+    errors: list[str] = []
+    if team.areas and not lane.areas:
+        errors.append(f"{label}: missing Area:")
+    errors += [f"{label}: unknown area {name}" for name in lane.areas if team.areas and name not in team.areas]
+    if not lane.owner:
+        return errors + [f"{label}: missing Owner:"]
+    member = team.member(lane.owner)
+    if member is None:
+        return errors + [f"{label}: owner {lane.owner} is not in team.members"]
+    return errors + [f"{label}: owner {lane.owner} holds no role allowed in area {name}" for name in lane.areas
+                     if name in team.areas and not team.eligible(member, team.areas[name])]
+
+
+def _track_in_lane(track: Track, lane: Lane) -> list[str]:
+    """A track of a declared lane has the lane's owner and repository and one of its areas."""
+    label = f"Track {track.number}"
+    errors: list[str] = []
+    if lane.owner and track.owner.lower() != lane.owner.lower():
+        errors.append(f"{label}: Owner: {track.owner or '-'} is not the owner of lane {lane.name} ({lane.owner})")
+    if (track.repo or ".") != (lane.repo or "."):
+        errors.append(f"{label}: Repo: {track.repo or '.'} is not the repository of lane {lane.name} "
+                      f"({lane.repo or '.'})")
+    if track.area and lane.areas and track.area not in lane.areas:
+        errors.append(f"{label}: area {track.area} is not an area of lane {lane.name}")
+    return errors
 
 
 def check_plan_repos(space: Workspace, path: Path) -> list[str]:
