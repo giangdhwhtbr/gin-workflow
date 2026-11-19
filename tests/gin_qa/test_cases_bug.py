@@ -127,6 +127,7 @@ class TestLegacy(BugCase):
         text = self.path.read_text(encoding="utf-8")
         for line in ("- **Result:** failed\n", "- **Run:** manual 2026-11-04\n", "- **Bug:** gw-bug1\n"):
             self.assertIn(line, text)
+        self.assertRegex(text, r"- \*\*Checked:\*\* [0-9a-f]{8}\n")
         self.assertTrue(all(Path(call["cwd"]).resolve() == self.root.resolve() for call in self.calls()))
 
     def test_an_e2e_case_files_a_bug_and_records_it(self):
@@ -151,6 +152,7 @@ class TestLegacy(BugCase):
         text = path.read_text(encoding="utf-8")
         for line in ("- **Result:** failed\n", "- **Bug:** gw-bug1\n"):
             self.assertIn(line, text)
+        self.assertRegex(text, r"- \*\*Checked:\*\* [0-9a-f]{8}\n")
         self.assertRegex(text, r"- \*\*Run:\*\* (e2e|api) 2026-11-12\n")
 
     def test_a_re_run_of_an_e2e_case_appends_to_its_open_bug(self):

@@ -564,6 +564,28 @@ class TestEffectiveResult(QaCase):
         self.edit_requirement()
         self.assertEqual("outdated", self.row("TC-AUTH-002")["effective_result"])
 
+    def test_every_recorded_status_goes_outdated_when_the_case_is_edited(self):
+        for status in ("passed", "failed", "blocked"):
+            with self.subTest(status=status):
+                self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")))
+                self.assertEqual(0, qa(self.root, self.bin, "result", "TC-AUTH-001", status).returncode)
+                self.assertEqual((status, status), (self.row()["result"], self.row()["effective_result"]))
+                self.path.write_text(self.path.read_text().replace("Open /login", "Open /signin", 1), encoding="utf-8")
+                self.assertEqual((status, "outdated"), (self.row()["result"], self.row()["effective_result"]))
+
+    def test_legacy_layout_checks_the_case_only(self):
+        bin_dir = gin_workflow_bin(self.base / "legacy-bin")
+        root = make_repo(self.base / "legacy", layout="legacy")
+        path = write(root, "qa/cases/auth.md", cases_file("auth", case("TC-AUTH-001", "Source: .planning/specs/a.md#Login")))
+        self.assertEqual(0, qa(root, bin_dir, "result", "TC-AUTH-001", "passed").returncode)
+
+        def effective() -> str:
+            return json.loads(qa(root, bin_dir, "export", "--format", "json").stdout)["cases"][0]["effective_result"]
+
+        self.assertEqual("passed", effective())
+        path.write_text(path.read_text().replace("Open /login", "Open /signin", 1), encoding="utf-8")
+        self.assertEqual("outdated", effective())
+
     def test_pin_to_a_missing_requirement_is_outdated(self):
         self.write_cases(case("TC-AUTH-003", "REQ: REQ-AUTH-009@00000000", extra="Result: passed\n"))
         self.assertEqual("outdated", self.row("TC-AUTH-003")["effective_result"])
