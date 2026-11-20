@@ -701,11 +701,15 @@ def _quick_check_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]
     located = workspace.locate(getattr(args, "start", repo_path))
     config = resolve_effective_config(located.root, write=False).config
     settings = project_settings(config.to_dict())
-    verify_commands = dict(located.entry.checks) if located.entry is not None else settings.verify_commands
+    verify_commands = dict(located.entry.checks) if located.entry is not None else dict(settings.verify_commands)
     allowed = _QUICK_COMMANDS[settings.rigor]
     if settings.run_at == "host":
         allowed = tuple(name for name in allowed if name in ("lint", "typecheck"))
-    commands = {k: v for k, v in verify_commands.items() if k in allowed}
+    commands = {k: v for k, v in verify_commands.items() if k in allowed and v}
+    if located.entry is None:
+        for package in settings.packages:
+            checks = (package.get("verify") or {}).get("checks") or {}
+            commands.update({f"{package['path']}:{name}": checks[name] for name in allowed if checks.get(name)})
     base = {"rigor": settings.rigor, "verify_commands": commands, "run_at": settings.run_at,
             "review": settings.review}
     if settings.rigor == "strict":
