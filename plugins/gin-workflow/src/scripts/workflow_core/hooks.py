@@ -161,6 +161,8 @@ def _head_pushes(root: Path, refs: Sequence[str]) -> list[tuple[str, str]]:
 
 def _changed_files(root: Path, *diff_args: str) -> set[str] | None:
     """Repository-relative paths `git diff` names for `diff_args`; None when git cannot tell (a commit it lacks)."""
+    # Keeps git's environment, unlike the check commands: under `git commit -a` or `git commit <path>`,
+    # GIT_INDEX_FILE names the index being committed, which `--cached` must read.
     done = subprocess.run(["git", "diff", "--name-only", "-z", "--no-renames", *diff_args], cwd=root,
                           encoding="utf-8", errors="replace", capture_output=True, check=False)
     return None if done.returncode else {name for name in done.stdout.split("\0") if name}

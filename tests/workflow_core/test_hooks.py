@@ -315,17 +315,18 @@ class TestHooksRun(unittest.TestCase):
         self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
         self.assertTrue((root / "pkg-ran").exists())
 
-    def monorepo(self, name):
-        """Packages `web` and `api`; each check leaves `<check>-<package>` at the root, the root `test` leaves `test-root`."""
+    def monorepo(self, name, paths=("web", "api")):
+        """A package per path as written in the config; each check leaves `<check>-<directory>` at the root,
+        the root `test` leaves `test-root`."""
         root = self.repo(name, test="touch test-root")
-        packages = "".join(f"    - path: {package}\n      shape: library\n      verify:\n        checks:\n"
-                           f"          lint: \"touch ../lint-{package}\"\n          test: \"touch ../test-{package}\"\n"
-                           for package in ("web", "api"))
+        packages = "".join(f"    - path: {path}\n      shape: library\n      verify:\n        checks:\n"
+                           f"          lint: \"touch ../lint-{Path(path).name}\"\n"
+                           f"          test: \"touch ../test-{Path(path).name}\"\n" for path in paths)
         config = root / ".agent-workflow/config.yaml"
         config.write_text(config.read_text().replace("  rigor: standard\n", "  rigor: standard\n  packages:\n" + packages))
-        for package in ("web", "api"):
-            (root / package).mkdir()
-            (root / package / "x.txt").write_text("x")
+        for path in paths:
+            (root / path).mkdir()
+            (root / path / "x.txt").write_text("x")
         git(root, "add", "-A")
         git(root, "commit", "-qm", "packages", "--no-verify")
         return root
@@ -341,7 +342,7 @@ class TestHooksRun(unittest.TestCase):
 
     def ran(self, root, check):
         """Where `check` ran since the last call; the marker files are removed so the next run starts clean."""
-        found =sorted(path.name[len(check) + 1:] for path in root.glob(f"{check}-*"))
+        found = sorted(path.name[len(check) + 1:] for path in root.glob(f"{check}-*"))
         for path in root.glob(f"{check}-*"):
             path.unlink()
         return found
@@ -400,6 +401,37 @@ class TestHooksRun(unittest.TestCase):
             self.assertEqual(0, hooks.run(root, "pre-commit"))
         self.assertEqual(["api"], self.ran(root, "lint"))
         self.assertIn("gin pre-commit: skipped web (no changed files)", err.getvalue())
+
+    def test_package_paths_match_as_directories_however_written(self):
+        root = self.monorepo("a", paths=("web/", "./api", "webapp"))
+        for change, expected in (("webapp/x.txt", ["webapp"]), ("web/x.txt", ["web"]), ("api/x.txt", ["api"])):
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(0, hooks.run(root, "pre-push", [self.commit_change(root, change)]))
+            self.assertEqual(sorted(["root", *expected]), self.ran(root, "test"), change)
+
+    def gin_env(self):
+        """The environment of a git command whose hooks find `gin` on PATH."""
+        bin_dir = self.base / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        wrapper = bin_dir / "gin"
+        wrapper.write_text(f'#!/bin/sh\nexec python3 "{SCRIPTS / "gin"}" "$@"\n')
+        wrapper.chmod(0o755)
+        return {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+
+    def test_real_git_commit_runs_only_the_packages_in_the_index_it_commits(self):
+        root, env = self.monorepo("a"), self.gin_env()
+        hooks.install(root)
+        (root / "web/x.txt").write_text("changed")
+        committed = subprocess.run(["git", "commit", "-qam", "web"], cwd=root, env=env, capture_output=True, text=True)
+        self.assertEqual(0, committed.returncode, committed.stderr)
+        self.assertEqual(["web"], self.ran(root, "lint"))
+        self.assertIn("gin pre-commit: skipped api (no changed files)", committed.stderr)
+        (root / "web/x.txt").write_text("again")
+        (root / "api/x.txt").write_text("changed")
+        committed = subprocess.run(["git", "commit", "-qm", "api", "--", "api/x.txt"], cwd=root, env=env,
+                                   capture_output=True, text=True)
+        self.assertEqual(0, committed.returncode, committed.stderr)
+        self.assertEqual(["api"], self.ran(root, "lint"))
 
     def test_hooks_status_lists_every_package_check(self):
         root = self.monorepo("a")
