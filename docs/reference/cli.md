@@ -114,7 +114,7 @@ Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or foll
 gin quick-check --changed-files N [--modules M]
 ```
 
-Decides whether a change may use the `/quick` path. `--modules` (default 1) counts the source modules the change touches; a changed module's tests and docs count as that module, not as another one. It returns the rigor, the verify commands to run, `run_at`, and the review mode from `project.review` (`self_check` under `easy`, `independent` otherwise). With `verify.run_at: host`, the verify commands are only `lint` and `typecheck`.
+Decides whether a change may use the `/quick` path. `--modules` (default 1) counts the source modules the change touches; a changed module's tests and docs count as that module, not as another one. It returns the rigor, the verify commands to run, `run_at`, and the review mode from `project.review` (`self_check` under `easy`, `independent` otherwise). With `verify.run_at: host`, the verify commands are only `lint` and `typecheck`. Outside a workspace child, each package's checks from `project.packages` appear too, named `<package>:<name>`; run them in the package directory.
 
 | Decision | Exit | When |
 |---|---|---|

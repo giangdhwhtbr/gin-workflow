@@ -280,6 +280,27 @@ class TestLifecycleCLI(unittest.TestCase):
         payload = self._quick("--changed-files", "1", "--modules", "1")[1]
         self.assertEqual(("host", {"lint": "l", "typecheck": "t"}), (payload["run_at"], payload["verify_commands"]))
 
+    _PACKAGES = ("project:\n  rigor: {rigor}\n  packages:\n    - path: web\n      shape: frontend\n"
+                 "      verify:\n        checks: {{lint: wl, test: wt, build: wb, e2e: we}}\n"
+                 "    - path: api\n      shape: backend\n      verify:\n        checks: {{test: at, typecheck: ''}}\n")
+
+    def test_quick_check_lists_package_checks_by_package_path(self):
+        self._write_config("schema_version: '2.10'\n" + self._PACKAGES.format(rigor="easy"))
+        payload = self._quick("--changed-files", "1", "--modules", "1")[1]
+        self.assertEqual({"web:lint": "wl", "web:test": "wt", "api:test": "at"}, payload["verify_commands"])
+
+    def test_quick_check_package_entries_sit_next_to_the_root_ones_and_follow_rigor(self):
+        self._write_config("schema_version: '2.10'\nverify: {checks: {lint: l}}\n"
+                           + self._PACKAGES.format(rigor="standard"))
+        commands = self._quick("--changed-files", "1", "--modules", "1")[1]["verify_commands"]
+        self.assertEqual({"lint": "l", "web:lint": "wl", "web:test": "wt", "web:build": "wb", "api:test": "at"},
+                         commands)
+
+    def test_quick_check_host_keeps_only_lint_and_typecheck_of_packages(self):
+        self._write_config("schema_version: '2.10'\nverify: {run_at: host}\n" + self._PACKAGES.format(rigor="standard"))
+        payload = self._quick("--changed-files", "1", "--modules", "1")[1]
+        self.assertEqual({"web:lint": "wl"}, payload["verify_commands"])
+
     def test_quick_check_review_comes_from_the_project_setting(self):
         self._write_config("schema_version: '2.10'\nproject: {rigor: standard, review: self_check}\n")
         self.assertEqual("self_check", self._quick("--changed-files", "1", "--modules", "1")[1]["review"])

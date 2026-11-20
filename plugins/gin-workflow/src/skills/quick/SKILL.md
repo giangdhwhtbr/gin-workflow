@@ -18,7 +18,7 @@ A fast path for a small, low-risk change. No plan, no beads, no lifecycle gates.
    - `allowed`: continue with the returned `verify_commands`, `run_at`, and `review` mode.
    In a workspace, run `/gin:quick` from the repository you change; `quick-check` returns that repository's checks.
 3. Run `gin rules --files <files to change>` and follow its output. Implement the change. Write a failing test first when behavior changes.
-4. Run every returned `verify_commands` entry fresh and keep its output. Scope tests to the changed files, when the runner supports it, if `run_at` (`project.run_at`) is `push`, or under `easy` rigor with `track`. With `host`, `verify_commands` holds only lint and typecheck.
+4. Run every returned `verify_commands` entry fresh and keep its output. Scope tests to the changed files, when the runner supports it, if `run_at` (`project.run_at`) is `push`, or under `easy` rigor with `track`. With `host`, `verify_commands` holds only lint and typecheck. An entry named `<package>:<name>` runs in the `<package>` directory.
 5. Review:
    - `review: independent`: one review per the `review` skill, with a fresh session or subagent.
    - `review: self_check`: re-read the diff; no debug leftovers, no secrets, and tests cover the change.
