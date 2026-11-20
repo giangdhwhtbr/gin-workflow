@@ -538,6 +538,15 @@ class TestInitInstall(E2eCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(["pnpm add -D @playwright/test", "pnpm exec playwright install chromium"], self.calls("newapp/e2e"))
 
+    def test_a_package_lock_in_the_playwright_folder_wins_over_a_root_pnpm_lockfile(self):
+        self.nested_setup()
+        write(self.root, "pnpm-lock.yaml", "")
+        write(self.root, "newapp/e2e/package-lock.json", "{}")
+        result = self.e2e("init", "--install")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["npm install -D @playwright/test", "npx playwright install chromium"],
+                         self.calls("newapp/e2e"))
+
     def test_no_lockfile_in_a_nested_folder_uses_npm(self):
         self.nested_setup()
         result = self.e2e("init", "--install")

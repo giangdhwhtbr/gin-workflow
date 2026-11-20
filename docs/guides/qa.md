@@ -133,7 +133,7 @@ The skill never edits case files and never commits.
 - `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `evidence/` in the QA home. It records each case's result in its case file and lists them under `recorded` in the JSON output.
 - `gin-qa e2e check --run <folder>` checks a run's evidence; `gin-qa e2e export --run <folder> --format json` exports it.
 
-`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the nearest lockfile (pnpm, yarn, else npm) and adds the `e2e` script to the Playwright project's `package.json`. Without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template. Otherwise it tells you to merge by hand.
+`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the nearest lockfile (pnpm, yarn, or npm; npm when none) and adds the `e2e` script to the Playwright project's `package.json`. Without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template. Otherwise it tells you to merge by hand.
 
 Your project provides `@playwright/test` 1.49 or later. `init` writes a starting Playwright config once; after that the config is yours (`baseURL`, browsers, video, trace, `webServer`), and `init` never overwrites it.
 

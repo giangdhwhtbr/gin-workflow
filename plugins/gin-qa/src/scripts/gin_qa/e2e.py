@@ -23,7 +23,8 @@ FIXTURE = "evidence.ts"
 CONFIG = "playwright.config.ts"
 CONFIG_NAMES = tuple(f"playwright.config.{ext}" for ext in ("ts", "js", "mjs", "cjs", "mts", "cts"))
 DEFAULT_BASE_URL = "http://localhost:3000"
-MANAGERS = (("pnpm-lock.yaml", ("pnpm", "add", "-D"), ("pnpm", "exec")), ("yarn.lock", ("yarn", "add", "-D"), ("yarn",)))
+MANAGERS = (("pnpm-lock.yaml", ("pnpm", "add", "-D"), ("pnpm", "exec")), ("yarn.lock", ("yarn", "add", "-D"), ("yarn",)),
+            ("package-lock.json", ("npm", "install", "-D"), ("npx",)))
 ARIA_BLOCK = ("            try {\n"
               "              const aria = await page.locator('body').ariaSnapshot({ timeout: 5000 });\n"
               "              const file = `${String(n).padStart(2, '0')}.aria.yml`;\n"
