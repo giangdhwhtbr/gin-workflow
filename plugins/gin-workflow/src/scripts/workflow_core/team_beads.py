@@ -355,9 +355,10 @@ def _restart_delivered(team: TeamConfig, repo_dir: Path, entry: workspace.Repo |
 def track_worktree(root: Path, team: TeamConfig, issue: Mapping[str, Any], bead: str, *,
                    delivered: bool = False) -> dict[str, Any] | None:
     """The lane's worktree (`.planning/worktrees/<epic>-<lane>`, or `<bead>` for the implicit lane) on
-    `feat/<topic>-<lane>` in the track's repository: kept when it exists (restarted from `origin/<default>` when
-    `delivered` and its pull request merged), else checked out from the local or `origin` branch, else created
-    from `origin/<default>`; None for a bead without a `Plan: <path>, Track <N>` line."""
+    `feat/<topic>-<lane>` in the track's repository: kept when it exists, else checked out from the local or
+    `origin` branch, else created from `origin/<default>`. When `delivered`, a worktree that exists or was just
+    checked out from a branch is restarted from `origin/<default>` if its pull request merged; the result of that
+    restart is the `note`. None for a bead without a `Plan: <path>, Track <N>` line."""
     track, lane = track_of(issue), lane_of(issue)
     if track is None or lane is None:
         return None
@@ -381,9 +382,12 @@ def track_worktree(root: Path, team: TeamConfig, issue: Mapping[str, Any], bead:
             default = default_branch(repo_dir, entry)
             worktrees._git(repo_dir, "fetch", "origin", default)
             worktrees.create(repo_dir, key, branch, f"origin/{default}", root)
+            return {"worktree": str(target), "branch": branch, "created": True}
+        note = _restart_delivered(team, repo_dir, entry, target, branch) if delivered else None
     except (RuntimeError, ValueError) as error:
         raise SyncConflict(str(error)) from error
-    return {"worktree": str(target), "branch": branch, "created": True}
+    made = {"worktree": str(target), "branch": branch, "created": True}
+    return {**made, "note": note} if note else made
 
 
 def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, Any]:

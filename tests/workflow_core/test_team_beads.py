@@ -1225,6 +1225,41 @@ class TestTeamLaneClaim(LaneBeads, unittest.TestCase):
         self.assertEqual(before, git(worktree, "rev-parse", "HEAD").strip())
         self.assertIn("has commits after its merged pull request", json.loads(claimed.stdout)["note"])
 
+    def remove_lane_worktree(self, worktree: Path, drop_local_branch: bool = False) -> None:
+        git(self.root, "worktree", "remove", "--force", str(worktree))
+        if drop_local_branch:
+            git(self.root, "branch", "-D", "feat/shop-be")
+
+    def test_a_merged_lane_branch_restarts_when_its_worktree_was_removed(self):
+        t2, worktree, rules = self.delivered_lane(after_merge=False)
+        self.remove_lane_worktree(worktree)
+        claimed = self.claim(t2, rules)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        data = json.loads(claimed.stdout)
+        self.assertEqual(git(self.root, "rev-parse", "main").strip(), git(worktree, "rev-parse", "HEAD").strip())
+        self.assertEqual("feat/shop-be", data["branch"])
+        self.assertTrue(data["created"])
+        self.assertIn("restarted from origin/main", data["note"])
+
+    def test_a_merged_lane_branch_restarts_when_only_origin_has_it(self):
+        t2, worktree, rules = self.delivered_lane(after_merge=False)
+        self.remove_lane_worktree(worktree, drop_local_branch=True)
+        claimed = self.claim(t2, rules)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        data = json.loads(claimed.stdout)
+        self.assertEqual(git(self.root, "rev-parse", "main").strip(), git(worktree, "rev-parse", "HEAD").strip())
+        self.assertEqual("feat/shop-be", data["branch"])
+        self.assertIn("restarted from origin/main", data["note"])
+
+    def test_commits_after_the_merged_head_keep_the_branch_when_its_worktree_was_removed(self):
+        t2, worktree, rules = self.delivered_lane(after_merge=True)
+        before = git(worktree, "rev-parse", "HEAD").strip()
+        self.remove_lane_worktree(worktree)
+        claimed = self.claim(t2, rules)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        self.assertEqual(before, git(worktree, "rev-parse", "HEAD").strip())
+        self.assertIn("has commits after its merged pull request", json.loads(claimed.stdout)["note"])
+
     def test_an_unreachable_host_keeps_the_branch_and_says_so(self):
         t2, worktree, _rules = self.delivered_lane(after_merge=False)
         before = git(worktree, "rev-parse", "HEAD").strip()
