@@ -21,6 +21,7 @@ Epic `gin-workflow-ifbt` (2026-11-19). In team mode each track had its own branc
 - Exact key-set tests of `claim` JSON must change with any added field.
 - Ship step 1 still says to require `implementation_complete`; the team skill states that lane ship needs only the delivered tracks closed (the ship skill had 3 characters of budget left: ship 11,997, team 5,884 of 6,000).
 - Open: the restart runs only when the lane worktree exists (`gin-workflow-vfj5`); the per-track `bd update` writes of claim, handoff, and reassign are not atomic, and running the command again completes the lane.
+- `gin-workflow-g9az` (2026-11-20): a team plan may declare lanes in `## Lanes` that their owners plan in `<lead plan stem>.lane-<lane>.md`; see [team-lane-plans](team-lane-plans.md).
 
 **References**
 - `plugins/gin-workflow/src/scripts/workflow_core/{team,team_beads,team_cli,team_pending,team_complete,goal}.py`
@@ -29,7 +30,7 @@ Epic `gin-workflow-ifbt` (2026-11-19). In team mode each track had its own branc
 - `.planning/specs/2026-11-19-team-lanes-design.md`, `.planning/plans/2026-11-19-team-lanes.md`
 - Commits `8b508139` to `23b1cf08`
 - Beads: `gin-workflow-ifbt`, `.1` to `.8`; follow-ups `gin-workflow-vfj5`, `gin-workflow-uz2z`; next epic `gin-workflow-g9az` (plan in two levels)
-- Related: [team-handoff](team-handoff.md), [team-progress](team-progress.md), [workspace](workspace.md), [lean-lifecycle](lean-lifecycle.md)
+- Related: [team-lane-plans](team-lane-plans.md), [team-handoff](team-handoff.md), [team-progress](team-progress.md), [workspace](workspace.md), [lean-lifecycle](lean-lifecycle.md)
 
 **Scope**
 Team mode delivery: plan lanes, claim, handoff, ready, pending, complete, goal, and the team skill.
