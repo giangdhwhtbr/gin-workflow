@@ -14,7 +14,7 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
 ## Steps
 
 1. Require `plan_approved` and read the plan from `.planning/plans/`. When the spec names `Epic: <id>` (a roadmap epic), use it as the parent of the tracks and create no other epic. With `project.layout: sdd`, read `<change>/04-plan.md`, reuse the epic, and label tracks per the `sdd` skill.
-   With `project.team.enabled`, label, assign, link, and sync track beads per the `team` skill.
+   With `project.team.enabled`, label, assign, link, and sync track beads per the `team` skill; lane beads and lane plans follow its `references/lanes.md`.
 2. Reject any implementation or review track without a provider role, model, and effort (effort when catalog has efforts); list every one.
 3. Distinguish Parent Bead (Deliverable) vs Track Beads (Work Units), and create the track beads now; their ids key the routes in step 4:
    - **Parent Bead (Deliverable / Epic)**: the overall deliverable. Merge holds such as "remain open until human-confirmed merge" belong only here.

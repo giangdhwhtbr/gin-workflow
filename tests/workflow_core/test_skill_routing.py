@@ -374,9 +374,17 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("references/lanes.md", read("skills/team/SKILL.md"))
         lanes = read("skills/team/references/lanes.md")
         for needle in ("feat/<topic>-<lane>", "## Contracts", "external: <plan path>#<N>",
-                       "gin team claim <bead>", "Tracks:"):
+                       "gin team claim <bead>", "Tracks:", "## Lanes", "### Lane <name>",
+                       "- TQ-<n> (lane <name>): <question>", "Plan: <plan path>, Lane <name>",
+                       "<lead plan stem>.lane-<lane>.md", "Spec: <design doc path>",
+                       "gin team check-plan <lane plan>", "external: <plan path>#lane-<name>",
+                       "gin routes resolve", "Plan: <lane plan path>, Track <N>"):
             with self.subTest(lanes=needle):
                 self.assertIn(needle, lanes)
+        self.assertIn("leave `(lane <name>)` questions to them", read("skills/team/SKILL.md"))
+        for stage in ("plan", "orchestrate"):
+            with self.subTest(pointer=stage):
+                self.assertIn("`references/lanes.md`", read(f"skills/{stage}/SKILL.md"))
         ref = read("skills/team/references/workspace.md")
         for needle in ("gin team claim <bead>", "gin team complete <epic>",
                        "git pull --rebase", "origin/<default_branch>"):
