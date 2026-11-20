@@ -5,7 +5,7 @@ Two limits surfaced while building the team workflow guide (epic `gin-workflow-k
 
 **Decision/Solution**
 - `bd update <id> --set-metadata key=<json>` accepts a JSON list or object, but `bd list --json` and `bd show --json` return the value as a JSON string, not a parsed value. Every reader must accept both shapes: parse when the value is a `str`, use it as is otherwise. `milestone_cli._trace_move` and `team_beads.metadata_json` do this; new readers copy the pattern.
-- `workflow_core/project_detect.py` fills `project.packages` only from JavaScript workspaces (`package.json` `workspaces`, `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, directories with a `package.json`). Maven, Gradle, Python and mixed repositories list their packages by hand in `.agent-workflow/config.yaml` (`path`, `shape`, `verify.checks`). `project.monorepo` is stored but nothing branches on it; the hooks run a package's checks in its directory whenever the package is listed.
+- `workflow_core/project_detect.py` fills `project.packages` only from JavaScript workspaces (`package.json` `workspaces`, `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, directories with a `package.json`). Maven, Gradle, Python and mixed repositories list their packages by hand in `.agent-workflow/config.yaml` (`path`, `shape`, `verify.checks`). `project.monorepo` is stored but nothing branches on it; the hooks run a listed package's checks in its directory, only when a change touches the package (see [monorepo-package-checks](monorepo-package-checks.md)).
 
 **Consequences**
 - A docs claim such as "setup detects packages from their manifests" is wrong outside JS workspaces; the walkthrough states the hand-written form.
